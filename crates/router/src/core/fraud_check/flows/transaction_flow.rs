@@ -163,6 +163,11 @@ impl
                 .attach_printable(
                     "Failed to extract customer document details from payment_intent",
                 )?,
+            customer_date_of_birth: self
+                .payment_intent
+                .get_customer_date_of_birth()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to extract customer date of birth from payment_intent")?,
             feature_data: None,
             sender_payment_instrument_id: None,
             connector_returned_payment_method_details: None,

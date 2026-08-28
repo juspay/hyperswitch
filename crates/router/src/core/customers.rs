@@ -230,6 +230,10 @@ impl CustomerCreateBridge for customers::CustomerRequest {
                     email: self.email.clone().map(|a| a.expose().switch_strategy()),
                     phone: self.phone.clone(),
                     tax_registration_id: self.tax_registration_id.clone(),
+                    date_of_birth: self
+                        .date_of_birth
+                        .as_ref()
+                        .map(api_models::customers::date_of_birth_to_string),
                 },
             )),
             Identifier::Merchant(provider.get_key_store().merchant_id.clone()),
@@ -275,6 +279,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             connector_customer,
             address_from_db.clone().map(|addr| addr.address_id),
             encryptable_customer.tax_registration_id,
+            encryptable_customer.date_of_birth,
             document_details_encrypted,
             initiator.and_then(|initiator| initiator.to_created_by()),
             initiator.and_then(|initiator| initiator.to_created_by()),
@@ -352,6 +357,10 @@ impl CustomerCreateBridge for customers::CustomerRequest {
                         email: Some(self.email.clone().expose().switch_strategy()),
                         phone: self.phone.clone(),
                         tax_registration_id: self.tax_registration_id.clone(),
+                        date_of_birth: self
+                            .date_of_birth
+                            .as_ref()
+                            .map(api_models::customers::date_of_birth_to_string),
                     },
                 ),
             ),
@@ -406,6 +415,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             version: common_types::consts::API_VERSION,
             status: common_enums::DeleteStatus::Active,
             tax_registration_id: encryptable_customer.tax_registration_id,
+            date_of_birth: encryptable_customer.date_of_birth,
             document_details: None,
             created_by: initiator.and_then(|initiator| initiator.to_created_by()),
             last_modified_by: initiator.and_then(|initiator| initiator.to_created_by()),
@@ -869,6 +879,7 @@ impl CustomerDeleteBridge for id_type::GlobalCustomerId {
                 default_payment_method_id: None,
                 status: Some(common_enums::DeleteStatus::Redacted),
                 tax_registration_id: Some(redacted_encrypted_value.clone()),
+                date_of_birth: Some(redacted_encrypted_value.clone()),
                 document_details: None,
                 last_modified_by: platform
                     .get_initiator()
@@ -1118,6 +1129,7 @@ impl CustomerDeleteBridge for id_type::CustomerId {
             connector_customer: Box::new(None),
             address_id: None,
             tax_registration_id: Some(redacted_encrypted_value.clone()),
+            date_of_birth: Some(redacted_encrypted_value.clone()),
             document_details: Box::new(None),
             last_modified_by: initiator
                 .and_then(|initiator| initiator.to_created_by())
@@ -1401,6 +1413,10 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
                         .map(|a| a.clone().expose().switch_strategy()),
                     phone: self.phone.clone(),
                     tax_registration_id: self.tax_registration_id.clone(),
+                    date_of_birth: self
+                        .date_of_birth
+                        .as_ref()
+                        .map(api_models::customers::date_of_birth_to_string),
                 },
             )),
             Identifier::Merchant(provider.get_key_store().merchant_id.clone()),
@@ -1461,6 +1477,7 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
                     }),
                     phone: Box::new(encryptable_customer.phone),
                     tax_registration_id: encryptable_customer.tax_registration_id,
+                    date_of_birth: encryptable_customer.date_of_birth,
                     document_details: Box::new(document_details),
                     phone_country_code: self.phone_country_code.clone(),
                     metadata: Box::new(self.metadata.clone()),
@@ -1555,6 +1572,10 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
                             .map(|a| a.clone().expose().switch_strategy()),
                         phone: self.phone.clone(),
                         tax_registration_id: self.tax_registration_id.clone(),
+                        date_of_birth: self
+                            .date_of_birth
+                            .as_ref()
+                            .map(api_models::customers::date_of_birth_to_string),
                     },
                 ),
             ),
@@ -1585,6 +1606,7 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
                     })),
                     phone: Box::new(encryptable_customer.phone),
                     tax_registration_id: encryptable_customer.tax_registration_id,
+                    date_of_birth: encryptable_customer.date_of_birth,
                     document_details: None,
                     phone_country_code: self.phone_country_code.clone(),
                     metadata: self.metadata.clone(),

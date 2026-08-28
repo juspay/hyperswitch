@@ -240,6 +240,7 @@ where
         minor_amount_capturable: None,
         authorized_amount: None,
         customer_document_details: None,
+        customer_date_of_birth: None,
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
@@ -591,6 +592,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         minor_amount_capturable: None,
         authorized_amount: None,
         customer_document_details: None,
+        customer_date_of_birth: None,
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
@@ -1007,6 +1009,7 @@ pub async fn construct_external_vault_proxy_payment_router_data_v1<'a>(
         minor_amount_capturable: None,
         authorized_amount: None,
         customer_document_details: None,
+        customer_date_of_birth: None,
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
@@ -1179,6 +1182,7 @@ pub async fn construct_payment_router_data_for_capture<'a>(
         minor_amount_capturable: None,
         authorized_amount: None,
         customer_document_details: None,
+        customer_date_of_birth: None,
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
@@ -1319,6 +1323,7 @@ pub async fn construct_router_data_for_psync<'a>(
         minor_amount_capturable: None,
         authorized_amount: None,
         customer_document_details: None,
+        customer_date_of_birth: None,
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
@@ -1676,6 +1681,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         minor_amount_capturable: None,
         authorized_amount: None,
         customer_document_details: None,
+        customer_date_of_birth: None,
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
@@ -1904,6 +1910,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         minor_amount_capturable: None,
         authorized_amount: None,
         customer_document_details: None,
+        customer_date_of_birth: None,
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
@@ -2140,6 +2147,11 @@ where
         .get_customer_document_details()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to extract customer document details from payment_intent")?;
+    let customer_date_of_birth = payment_data
+        .payment_intent
+        .get_customer_date_of_birth()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to extract customer date of birth from payment_intent")?;
     let merchant_id = processor.get_account().get_id().clone();
     let feature_data = payments::get_feature_data(
         customer_id.clone(),
@@ -2240,6 +2252,7 @@ where
         minor_amount_capturable: None,
         authorized_amount: None,
         customer_document_details,
+        customer_date_of_birth,
         feature_data,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
@@ -2464,6 +2477,11 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
             .get_customer_document_details()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to extract customer document details from payment_intent")?,
+        customer_date_of_birth: payment_data
+            .payment_intent
+            .get_customer_date_of_birth()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to extract customer date of birth from payment_intent")?,
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
@@ -3930,6 +3948,7 @@ where
             phone: customer_details.phone,
             phone_country_code: customer_details.phone_country_code,
             customer_document_details: customer_details.customer_document_details,
+            date_of_birth: customer_details.date_of_birth,
         });
 
     headers.extend(
@@ -4718,7 +4737,8 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
                             phone: parsed_data.phone,
                             email: parsed_data.email,
                             phone_country_code:parsed_data.phone_country_code,
-                            customer_document_details: parsed_data.customer_document_details
+                            customer_document_details: parsed_data.customer_document_details,
+                            date_of_birth: parsed_data.date_of_birth
                     }),
                     Err(e) => {
                         router_env::logger::error!("Failed to parse 'CustomerDetailsResponse' from payment method data. Error: {e:?}");
@@ -7434,6 +7454,7 @@ impl ForeignFrom<CustomerDetails> for router_request_types::CustomerDetails {
             phone_country_code: customer.phone_country_code,
             tax_registration_id: customer.tax_registration_id,
             document_details: customer.document_details,
+            date_of_birth: customer.date_of_birth,
         }
     }
 }
@@ -8275,6 +8296,11 @@ pub async fn construct_payment_router_data_for_update_post_confirm<'a>(
             .get_customer_document_details()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to extract customer document details from payment_intent")?,
+        customer_date_of_birth: payment_data
+            .payment_intent
+            .get_customer_date_of_birth()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to extract customer date of birth from payment_intent")?,
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,

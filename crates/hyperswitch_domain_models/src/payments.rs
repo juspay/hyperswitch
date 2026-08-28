@@ -487,6 +487,25 @@ impl PaymentIntent {
             .map_err(|report| (*report.current_context()).clone())
     }
 
+    /// The customer's date of birth as stashed on the intent (mirrors
+    /// [`Self::get_customer_document_details`]). Connectors that require one read it off
+    /// `RouterData::customer_date_of_birth`, which is populated from here.
+    pub fn get_customer_date_of_birth(
+        &self,
+    ) -> Result<Option<Secret<time::Date>>, common_utils::errors::ParsingError> {
+        self.customer_details
+            .as_ref()
+            .map(|details| {
+                let decrypted_value = details.clone().into_inner().expose();
+
+                ValueExt::parse_value::<CustomerData>(decrypted_value, "CustomerData")
+                    .map(|data| data.date_of_birth)
+            })
+            .transpose()
+            .map(|opt| opt.flatten())
+            .map_err(|report| (*report.current_context()).clone())
+    }
+
     #[cfg(feature = "v1")]
     pub fn get_connector_metadata_from_intent(
         &self,

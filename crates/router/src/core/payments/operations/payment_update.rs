@@ -964,6 +964,16 @@ impl ForeignTryFrom<domain::Customer> for CustomerData {
                 router_env::logger::error!(error = ?report, "Failed to convert customer document details");
                 errors::ApiErrorResponse::InternalServerError
             })?,
+            date_of_birth: value
+                .date_of_birth
+                .map(|encryptable| {
+                    api_models::customers::date_of_birth_from_string(&encryptable.into_inner())
+                })
+                .transpose()
+                .map_err(|report| {
+                    router_env::logger::error!(error = ?report, "Failed to parse stored customer date of birth");
+                    errors::ApiErrorResponse::InternalServerError
+                })?,
         })
     }
 }

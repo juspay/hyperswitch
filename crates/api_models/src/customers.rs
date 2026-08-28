@@ -9,9 +9,34 @@ use common_utils::{
 use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use smithy::SmithyModel;
+use time::Date;
 use utoipa::ToSchema;
 
 use crate::payments;
+
+/// The customer's date of birth crosses two representations: the API works in `time::Date`,
+/// while the encrypted `customers.date_of_birth` column and the `CustomerData` blob on the
+/// payment intent hold an ISO-8601 string. These two functions are the only place that
+/// converts between them.
+///
+/// `Date`'s `Display` is ISO-8601 (`YYYY-MM-DD`) for every year in 0..=9999, so the encoding
+/// round-trips through [`date_of_birth_from_string`].
+pub fn date_of_birth_to_string(date_of_birth: &Secret<Date>) -> Secret<String> {
+    Secret::new(date_of_birth.peek().to_string())
+}
+
+/// Inverse of [`date_of_birth_to_string`]. A failure here means a stored value was written by
+/// something other than that function, so it is surfaced rather than silently dropped.
+pub fn date_of_birth_from_string(
+    date_of_birth: &Secret<String>,
+) -> error_stack::Result<Secret<Date>, ParsingError> {
+    Date::parse(
+        date_of_birth.peek(),
+        &time::format_description::well_known::Iso8601::DATE,
+    )
+    .map(Secret::new)
+    .map_err(|_| error_stack::report!(ParsingError::DateTimeParsingError))
+}
 
 #[cfg(feature = "v2")]
 pub mod migrate;
@@ -67,6 +92,11 @@ pub struct CustomerRequest {
     #[schema(value_type = Option<CustomerDocumentDetails>)]
     #[smithy(value_type = "Option<CustomerDocumentDetails>")]
     pub document_details: Option<CustomerDocumentDetails>,
+    /// The customer's date of birth, as an ISO-8601 calendar date. Required by some
+    /// processors (Ilixium rejects an authorisation without one).
+    #[schema(value_type = Option<Date>, example = "1970-04-03")]
+    #[smithy(value_type = "Option<String>")]
+    pub date_of_birth: Option<Secret<Date>>,
 }
 
 #[derive(Debug, Default, Clone, Deserialize, Serialize, ToSchema, SmithyModel)]
@@ -163,6 +193,10 @@ pub struct CustomerRequest {
     /// Customer’s country-specific identification number and type used for regulatory or tax purposes
     #[schema(value_type = Option<CustomerDocumentDetails>)]
     pub document_details: Option<CustomerDocumentDetails>,
+    /// The customer's date of birth, as an ISO-8601 calendar date. Required by some
+    /// processors (Ilixium rejects an authorisation without one).
+    #[schema(value_type = Option<Date>, example = "1970-04-03")]
+    pub date_of_birth: Option<Secret<Date>>,
 }
 
 #[cfg(feature = "v2")]
@@ -239,6 +273,11 @@ pub struct CustomerResponse {
     #[schema(value_type = Option<CustomerDocumentDetails>)]
     #[smithy(value_type = "Option<CustomerDocumentDetails>")]
     pub document_details: Option<CustomerDocumentDetails>,
+    /// The customer's date of birth, as an ISO-8601 calendar date. Required by some
+    /// processors (Ilixium rejects an authorisation without one).
+    #[schema(value_type = Option<Date>, example = "1970-04-03")]
+    #[smithy(value_type = "Option<String>")]
+    pub date_of_birth: Option<Secret<Date>>,
 }
 
 #[cfg(feature = "v1")]
@@ -304,6 +343,10 @@ pub struct CustomerResponse {
     /// Customer’s country-specific identification number and type used for regulatory or tax purposes
     #[schema(value_type = Option<CustomerDocumentDetails>)]
     pub document_details: Option<CustomerDocumentDetails>,
+    /// The customer's date of birth, as an ISO-8601 calendar date. Required by some
+    /// processors (Ilixium rejects an authorisation without one).
+    #[schema(value_type = Option<Date>, example = "1970-04-03")]
+    pub date_of_birth: Option<Secret<Date>>,
 }
 
 #[cfg(feature = "v2")]
@@ -407,6 +450,11 @@ pub struct CustomerUpdateRequest {
     #[schema(value_type = Option<CustomerDocumentDetails>)]
     #[smithy(value_type = "Option<CustomerDocumentDetails>")]
     pub document_details: Option<CustomerDocumentDetails>,
+    /// The customer's date of birth, as an ISO-8601 calendar date. Required by some
+    /// processors (Ilixium rejects an authorisation without one).
+    #[schema(value_type = Option<Date>, example = "1970-04-03")]
+    #[smithy(value_type = "Option<String>")]
+    pub date_of_birth: Option<Secret<Date>>,
 }
 
 #[cfg(feature = "v1")]
@@ -455,6 +503,10 @@ pub struct CustomerUpdateRequest {
     /// Customer’s country-specific identification number and type used for regulatory or tax purposes
     #[schema(value_type = Option<CustomerDocumentDetails>)]
     pub document_details: Option<CustomerDocumentDetails>,
+    /// The customer's date of birth, as an ISO-8601 calendar date. Required by some
+    /// processors (Ilixium rejects an authorisation without one).
+    #[schema(value_type = Option<Date>, example = "1970-04-03")]
+    pub date_of_birth: Option<Secret<Date>>,
 }
 
 #[cfg(feature = "v2")]

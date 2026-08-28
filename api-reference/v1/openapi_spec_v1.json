@@ -19903,6 +19903,13 @@
               }
             ],
             "nullable": true
+          },
+          "date_of_birth": {
+            "type": "string",
+            "format": "date",
+            "description": "The customer's date of birth, as an ISO-8601 calendar date. Required by some\nprocessors (Ilixium rejects an authorisation without one).",
+            "example": "1970-04-03",
+            "nullable": true
           }
         }
       },
@@ -19952,6 +19959,13 @@
                 "$ref": "#/components/schemas/CustomerDocumentDetails"
               }
             ],
+            "nullable": true
+          },
+          "date_of_birth": {
+            "type": "string",
+            "format": "date",
+            "description": "The customer's date of birth, as an ISO-8601 calendar date. Required by some\nprocessors (Ilixium rejects an authorisation without one).",
+            "example": "1970-04-03",
             "nullable": true
           }
         }
@@ -20514,6 +20528,13 @@
               }
             ],
             "nullable": true
+          },
+          "date_of_birth": {
+            "type": "string",
+            "format": "date",
+            "description": "The customer's date of birth, as an ISO-8601 calendar date. Required by some\nprocessors (Ilixium rejects an authorisation without one).",
+            "example": "1970-04-03",
+            "nullable": true
           }
         }
       },
@@ -20606,6 +20627,13 @@
               }
             ],
             "nullable": true
+          },
+          "date_of_birth": {
+            "type": "string",
+            "format": "date",
+            "description": "The customer's date of birth, as an ISO-8601 calendar date. Required by some\nprocessors (Ilixium rejects an authorisation without one).",
+            "example": "1970-04-03",
+            "nullable": true
           }
         }
       },
@@ -20674,6 +20702,13 @@
                 "$ref": "#/components/schemas/CustomerDocumentDetails"
               }
             ],
+            "nullable": true
+          },
+          "date_of_birth": {
+            "type": "string",
+            "format": "date",
+            "description": "The customer's date of birth, as an ISO-8601 calendar date. Required by some\nprocessors (Ilixium rejects an authorisation without one).",
+            "example": "1970-04-03",
             "nullable": true
           }
         }

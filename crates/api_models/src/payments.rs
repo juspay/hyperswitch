@@ -164,6 +164,12 @@ pub struct CustomerDetails {
     #[schema(value_type = Option<CustomerDocumentDetails>)]
     #[smithy(value_type = "Option<CustomerDocumentDetails>")]
     pub document_details: Option<CustomerDocumentDetails>,
+
+    /// The customer's date of birth, as an ISO-8601 calendar date. Required by some
+    /// processors (Ilixium rejects an authorisation without one).
+    #[schema(value_type = Option<Date>, example = "1970-04-03")]
+    #[smithy(value_type = "Option<String>")]
+    pub date_of_birth: Option<Secret<Date>>,
 }
 
 #[cfg(feature = "v1")]
@@ -210,6 +216,12 @@ pub struct CustomerDetailsResponse {
     #[schema(value_type = Option<CustomerDocumentDetails>)]
     #[smithy(value_type = "Option<CustomerDocumentDetails>")]
     pub customer_document_details: Option<CustomerDocumentDetails>,
+
+    /// The customer's date of birth, as an ISO-8601 calendar date. Required by some
+    /// processors (Ilixium rejects an authorisation without one).
+    #[schema(value_type = Option<Date>, example = "1970-04-03")]
+    #[smithy(value_type = "Option<String>")]
+    pub date_of_birth: Option<Secret<Date>>,
 }
 
 #[cfg(feature = "v2")]
@@ -1886,6 +1898,7 @@ mod payments_request_test {
             phone_country_code: None,
             tax_registration_id: None,
             document_details: None,
+            date_of_birth: None,
         };
 
         let payments_request = PaymentsRequest {
@@ -1912,6 +1925,7 @@ mod payments_request_test {
             phone_country_code: None,
             tax_registration_id: None,
             document_details: None,
+            date_of_birth: None,
         };
 
         let payments_request = PaymentsRequest {

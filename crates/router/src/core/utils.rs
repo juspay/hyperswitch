@@ -311,6 +311,10 @@ pub async fn construct_payout_router_data<'a, F>(
                     phone_country_code: c.phone_country_code,
                     tax_registration_id: c.tax_registration_id.map(Encryptable::into_inner),
                     document_details: None,
+                    date_of_birth: c.date_of_birth.and_then(|encryptable| {
+                        api_models::customers::date_of_birth_from_string(&encryptable.into_inner())
+                            .ok()
+                    }),
                 }),
             connector_transfer_method_id,
             webhook_url: Some(webhook_url),
@@ -356,6 +360,7 @@ pub async fn construct_payout_router_data<'a, F>(
         minor_amount_capturable: None,
         authorized_amount: None,
         customer_document_details: None,
+        customer_date_of_birth: None,
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
@@ -539,6 +544,7 @@ pub async fn construct_refund_router_data<'a, F>(
         minor_amount_capturable: None,
         authorized_amount: None,
         customer_document_details: None,
+        customer_date_of_birth: None,
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
@@ -741,6 +747,10 @@ pub async fn construct_refund_router_data<'a, F>(
             .get_customer_document_details()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to extract customer document details from payment_intent")?,
+        customer_date_of_birth: payment_intent
+            .get_customer_date_of_birth()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to extract customer date of birth from payment_intent")?,
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
@@ -1263,6 +1273,10 @@ pub async fn construct_accept_dispute_router_data<'a>(
             .get_customer_document_details()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to extract customer document details from payment_intent")?,
+        customer_date_of_birth: payment_intent
+            .get_customer_date_of_birth()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to extract customer date of birth from payment_intent")?,
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
@@ -1376,6 +1390,10 @@ pub async fn construct_submit_evidence_router_data<'a>(
             .get_customer_document_details()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to extract customer document details from payment_intent")?,
+        customer_date_of_birth: payment_intent
+            .get_customer_date_of_birth()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to extract customer date of birth from payment_intent")?,
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
@@ -1495,6 +1513,7 @@ pub async fn construct_upload_file_router_data<'a>(
         minor_amount_capturable: None,
         authorized_amount: None,
         customer_document_details: None,
+        customer_date_of_birth: None,
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
@@ -1575,6 +1594,7 @@ pub async fn construct_dispute_list_router_data<'a>(
         minor_amount_capturable: None,
         authorized_amount: None,
         customer_document_details: None,
+        customer_date_of_birth: None,
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
@@ -1690,6 +1710,10 @@ pub async fn construct_dispute_sync_router_data<'a>(
             .get_customer_document_details()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to extract customer document details from payment_intent")?,
+        customer_date_of_birth: payment_intent
+            .get_customer_date_of_birth()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to extract customer date of birth from payment_intent")?,
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
@@ -1828,6 +1852,10 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<F: Clone>(
             .get_customer_document_details()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to extract customer document details from payment_intent")?,
+        customer_date_of_birth: payment_intent
+            .get_customer_date_of_birth()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to extract customer date of birth from payment_intent")?,
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
@@ -1944,6 +1972,10 @@ pub async fn construct_defend_dispute_router_data<'a>(
             .get_customer_document_details()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to extract customer document details from payment_intent")?,
+        customer_date_of_birth: payment_intent
+            .get_customer_date_of_birth()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to extract customer date of birth from payment_intent")?,
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
@@ -2050,6 +2082,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         minor_amount_capturable: None,
         authorized_amount: None,
         customer_document_details: None,
+        customer_date_of_birth: None,
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,

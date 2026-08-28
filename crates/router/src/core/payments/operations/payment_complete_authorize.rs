@@ -411,6 +411,10 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             phone_country_code: request.phone_country_code.clone(),
             tax_registration_id: None,
             document_details: customer_document_details,
+            date_of_birth: request
+                .customer
+                .as_ref()
+                .and_then(|customer_details| customer_details.date_of_birth.clone()),
         });
 
         let get_trackers_response = operations::GetTrackerResponse {

@@ -499,6 +499,7 @@ diesel::table! {
         #[max_length = 255]
         last_modified_by -> Nullable<Varchar>,
         document_details -> Nullable<Bytea>,
+        date_of_birth -> Nullable<Bytea>,
         #[max_length = 64]
         id -> Nullable<Varchar>,
     }

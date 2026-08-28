@@ -7909,6 +7909,7 @@ pub(crate) fn convert_payment_authorize_router_response<F1, F2, T1, T2>(
         minor_amount_capturable: data.minor_amount_capturable,
         authorized_amount: data.authorized_amount,
         customer_document_details: data.customer_document_details.clone(),
+        customer_date_of_birth: data.customer_date_of_birth.clone(),
         feature_data: data.feature_data.clone(),
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,

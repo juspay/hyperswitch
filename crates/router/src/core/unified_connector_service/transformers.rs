@@ -251,6 +251,18 @@ fn to_grpc_customer_document_details<F, Req, Res>(
         .map(payments_grpc::CustomerDocumentDetails::foreign_from)
 }
 
+/// Maps the optional customer date of birth on a `RouterData` to the ISO-8601 string the
+/// Unified Connector Service expects on `Customer.date_of_birth`. Connectors that want another
+/// shape (Ilixium's `ddmmyyyy`) reformat it on their side.
+fn to_grpc_customer_date_of_birth<F, Req, Res>(
+    router_data: &RouterData<F, Req, Res>,
+) -> Option<Secret<String>> {
+    router_data
+        .customer_date_of_birth
+        .as_ref()
+        .map(api_models::customers::date_of_birth_to_string)
+}
+
 impl transformers::ForeignTryFrom<&payments_grpc::AccessToken> for AccessToken {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
@@ -349,6 +361,7 @@ impl
                 phone_number: None,
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: to_grpc_customer_date_of_birth(router_data),
             }),
             state: router_data
                 .access_token
@@ -476,6 +489,7 @@ impl
                 phone_number: None,
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: to_grpc_customer_date_of_birth(router_data),
             }),
             browser_info,
             session_token: router_data.session_token.clone(),
@@ -739,6 +753,7 @@ impl
                 phone_number: None,
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: to_grpc_customer_date_of_birth(router_data),
             }),
             browser_info,
             session_token: router_data.session_token.clone(),
@@ -1127,6 +1142,7 @@ impl
                 phone_number: None,
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: to_grpc_customer_date_of_birth(router_data),
             }),
             address: Some(address),
         };
@@ -1218,6 +1234,7 @@ impl
                 phone_number: None,
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: to_grpc_customer_date_of_birth(router_data),
             }),
             address: Some(address),
             authentication_data,
@@ -1329,6 +1346,7 @@ impl
                 phone_number: None,
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: to_grpc_customer_date_of_birth(router_data),
             }),
             address: Some(address),
             authentication_data,
@@ -1433,6 +1451,7 @@ impl
                 phone_number: None,
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: to_grpc_customer_date_of_birth(router_data),
             }),
             address: Some(address),
             authentication_data: None,
@@ -1528,6 +1547,7 @@ impl
                 phone_number: None,
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: to_grpc_customer_date_of_birth(router_data),
             }),
             address: Some(address),
             authentication_data: None,
@@ -1631,6 +1651,7 @@ impl
                 phone_number: None,
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: to_grpc_customer_date_of_birth(router_data),
             }),
             address: Some(address),
             enrolled_for_3ds: router_data.request.enrolled_for_3ds,
@@ -1728,6 +1749,7 @@ impl
                 phone_number: None,
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: to_grpc_customer_date_of_birth(router_data),
             }),
             address: Some(address),
             enrolled_for_3ds: router_data.request.enrolled_for_3ds,
@@ -1930,6 +1952,7 @@ impl
                 phone_number: None,
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: to_grpc_customer_date_of_birth(router_data),
             }),
             browser_info,
             locale: None,
@@ -2107,6 +2130,7 @@ impl
                 phone_number: None,
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: to_grpc_customer_date_of_birth(router_data),
             }),
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             webhook_url: router_data.request.webhook_url.clone(),
@@ -2289,6 +2313,7 @@ impl
                 phone_number: None,
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: to_grpc_customer_date_of_birth(router_data),
             }),
             browser_info,
             locale: None,
@@ -2445,6 +2470,7 @@ impl
                 phone_number: None,
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: to_grpc_customer_date_of_birth(router_data),
             }),
             address: Some(address),
             auth_type: auth_type.into(),
@@ -2770,6 +2796,7 @@ impl
                 .map(|currency| currency.into()),
             l2_l3_data: None,
             customer_document_details: to_grpc_customer_document_details(router_data),
+            customer_date_of_birth: to_grpc_customer_date_of_birth(router_data),
             customer: Some(payments_grpc::Customer {
                 first_name: None,
                 last_name: None,
@@ -2792,6 +2819,7 @@ impl
                 phone_number: None,
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: to_grpc_customer_date_of_birth(router_data),
             }),
             additional_payment_data,
             partner_merchant_identifier_details: router_data
@@ -2886,6 +2914,7 @@ impl transformers::ForeignTryFrom<&RouterData<Session, PaymentsSessionData, Paym
                 phone_number: None,
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: to_grpc_customer_date_of_birth(router_data),
             }),
             return_url: None,
             metadata: None,
@@ -7878,6 +7907,10 @@ impl ForeignFrom<&router_request_types::CustomerDetails> for payments_grpc::Cust
             last_name: None,
             salutation: None,
             customer_document_details: None,
+            date_of_birth: customer
+                .date_of_birth
+                .as_ref()
+                .map(api_models::customers::date_of_birth_to_string),
         }
     }
 }

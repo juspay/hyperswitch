@@ -4052,6 +4052,45 @@ pub fn get_val(str: String, val: &serde_json::Value) -> Option<String> {
         .map(|s| s.to_string())
 }
 
+#[cfg(all(test, feature = "v1"))]
+mod required_field_prefill_tests {
+    use super::get_val;
+
+    /// `get_val` walks a dotted path through a serialized `PaymentsRequest` and then calls
+    /// `as_str()`, so a required field only prefills if it serializes to a JSON *string*.
+    ///
+    /// `Secret<time::Date>` does — but only because the `router` crate enables time's
+    /// `serde-human-readable` feature. Without it `Date` serializes as a `(year, ordinal)`
+    /// tuple, `as_str()` returns `None`, and `customer.date_of_birth` silently stops
+    /// prefilling with no error anywhere. This test fails loudly if that feature is ever
+    /// dropped.
+    #[test]
+    fn customer_date_of_birth_serializes_as_a_string_get_val_can_read() {
+        let request = api_models::payments::PaymentsRequest {
+            customer: Some(api_models::payments::CustomerDetails {
+                date_of_birth: Some(hyperswitch_masking::Secret::new(time::macros::date!(
+                    1970 - 04 - 03
+                ))),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+
+        let value = serde_json::to_value(request).expect("PaymentsRequest serializes");
+        assert_eq!(
+            value
+                .pointer("/customer/date_of_birth")
+                .and_then(serde_json::Value::as_str),
+            Some("1970-04-03"),
+            "date_of_birth must serialize as an ISO-8601 string, not a tuple"
+        );
+        assert_eq!(
+            get_val("customer.date_of_birth".to_string(), &value),
+            Some("1970-04-03".to_string()),
+        );
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Shared context returned by `build_merchant_enabled_pms_context`
 // ---------------------------------------------------------------------------
