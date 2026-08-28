@@ -1378,6 +1378,8 @@ diesel::table! {
         #[max_length = 64]
         external_surcharge_strategy -> Nullable<Varchar>,
         external_surcharge_applicable -> Nullable<Bool>,
+        is_account_funded_transaction -> Nullable<Bool>,
+        recipient_details -> Nullable<Bytea>,
     }
 }
 

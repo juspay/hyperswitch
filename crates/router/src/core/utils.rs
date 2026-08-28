@@ -311,6 +311,7 @@ pub async fn construct_payout_router_data<'a, F>(
                     phone_country_code: c.phone_country_code,
                     tax_registration_id: c.tax_registration_id.map(Encryptable::into_inner),
                     document_details: None,
+                    date_of_birth: None,
                 }),
             connector_transfer_method_id,
             webhook_url: Some(webhook_url),
@@ -359,6 +360,7 @@ pub async fn construct_payout_router_data<'a, F>(
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
+        customer_date_of_birth: None,
     };
 
     Ok(router_data)
@@ -541,6 +543,7 @@ pub async fn construct_refund_router_data<'a, F>(
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
+        customer_date_of_birth: None,
     };
 
     Ok(router_data)
@@ -742,6 +745,7 @@ pub async fn construct_refund_router_data<'a, F>(
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
+        customer_date_of_birth: None,
     };
 
     Ok(router_data)
@@ -1264,6 +1268,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
+        customer_date_of_birth: None,
     };
     Ok(router_data)
 }
@@ -1377,6 +1382,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
+        customer_date_of_birth: None,
     };
     Ok(router_data)
 }
@@ -1496,6 +1502,7 @@ pub async fn construct_upload_file_router_data<'a>(
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
+        customer_date_of_birth: None,
     };
     Ok(router_data)
 }
@@ -1576,6 +1583,7 @@ pub async fn construct_dispute_list_router_data<'a>(
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
+        customer_date_of_birth: None,
     })
 }
 
@@ -1691,6 +1699,7 @@ pub async fn construct_dispute_sync_router_data<'a>(
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
+        customer_date_of_birth: None,
     };
     Ok(router_data)
 }
@@ -1829,6 +1838,7 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<F: Clone>(
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
+        customer_date_of_birth: None,
     };
     Ok(router_data)
 }
@@ -1945,6 +1955,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
+        customer_date_of_birth: None,
     };
     Ok(router_data)
 }
@@ -2051,6 +2062,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
+        customer_date_of_birth: None,
     };
     Ok(router_data)
 }
