@@ -4,6 +4,18 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.08.26.1-hotfix4
+
+### Features
+
+- **connectors:** [worldpay][checkout] add payment_account_reference support ([#13900](https://github.com/juspay/hyperswitch/pull/13900)) ([`1f2874d`](https://github.com/juspay/hyperswitch/commit/1f2874dbf01f0e14d4d7d5112e1fc0af5556c10a))
+- **core:** Add support for account funded transactions (AFT) ([#13904](https://github.com/juspay/hyperswitch/pull/13904)) ([`204409a`](https://github.com/juspay/hyperswitch/commit/204409a28965dd9340165f80037cb32d048ab85b))
+- **router:** Add support to store and retrieve payment_account_reference ([#13895](https://github.com/juspay/hyperswitch/pull/13895)) ([`881c9fd`](https://github.com/juspay/hyperswitch/commit/881c9fdfb242fd53572ce2f1a48307964e475930))
+
+**Full Changelog:** [`2026.08.26.1-hotfix3...2026.08.26.1-hotfix4`](https://github.com/juspay/hyperswitch/compare/2026.08.26.1-hotfix3...2026.08.26.1-hotfix4)
+
+- - -
+
 ## 2026.08.26.1-hotfix3
 
 ### Features
