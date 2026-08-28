@@ -18,6 +18,23 @@ const SCENARIOS = Object.freeze({
     setupFutureUsage: "off_session",
     storageType: "persistent",
   }),
+  // Payment to Vault: the session is created volatile, so the card lives only
+  // in redis at confirm. Acceptance is still sent (setupFutureUsage is set), so
+  // the payment's update call promotes the card to persistent storage after
+  // authorization. Contrast cit_*_session, which asks for persistent storage up
+  // front and vaults inline at confirm.
+  ptv_on_session: Object.freeze({
+    requiresCustomer: true,
+    setupFutureUsage: "on_session",
+    storageType: "volatile",
+    modularOnly: true,
+  }),
+  ptv_off_session: Object.freeze({
+    requiresCustomer: true,
+    setupFutureUsage: "off_session",
+    storageType: "volatile",
+    modularOnly: true,
+  }),
   cit_metadata_changed: Object.freeze({
     requiresCustomer: true,
     requiresSavedCard: true,
@@ -35,6 +52,9 @@ function buildPlan(config) {
   if (!scenario) throw new Error(`Unsupported scenario: ${scenarioName}`);
   if (scenario.metadataChanged && merchantPath !== "non_modular") {
     throw new Error("cit_metadata_changed supports only the non_modular merchant path");
+  }
+  if (scenario.modularOnly && merchantPath !== "modular") {
+    throw new Error(`${scenarioName} supports only the modular merchant path`);
   }
   return Object.freeze({
     id: `${merchantPath}:${scenarioName}`,
