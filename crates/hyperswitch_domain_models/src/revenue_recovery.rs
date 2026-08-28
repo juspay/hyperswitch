@@ -175,6 +175,8 @@ impl From<&RevenueRecoveryInvoiceData> for api_payments::PaymentsCreateIntentReq
             force_3ds_challenge: None,
             merchant_connector_details: None,
             enable_partial_authorization: data.enable_partial_authorization,
+            is_account_funded_transaction: None,
+            recipient_details: None,
         }
     }
 }

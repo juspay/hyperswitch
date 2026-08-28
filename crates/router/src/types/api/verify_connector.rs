@@ -73,6 +73,8 @@ impl VerifyConnectorData {
             is_stored_credential: None,
             mit_category: None,
             billing_descriptor: None,
+            is_account_funded_transaction: None,
+            recipient_details: None,
             tokenization: None,
             partner_merchant_identifier_details: None,
             feature_metadata: None,
@@ -151,6 +153,7 @@ impl VerifyConnectorData {
             feature_data: None,
             sender_payment_instrument_id: None,
             connector_returned_payment_method_details: None,
+            customer_date_of_birth: None,
         }
     }
 }

@@ -207,7 +207,7 @@ impl RevenueRecoveryPaymentIntentStatus {
                     .change_context(errors::RecoveryError::PaymentsResponseGenerationFailed)
                     .attach_printable("Failed while generating response for payment")?;
 
-                RevenueRecoveryOutgoingWebhook::send_outgoing_webhook_based_on_revenue_recovery_status(
+                Box::pin(RevenueRecoveryOutgoingWebhook::send_outgoing_webhook_based_on_revenue_recovery_status(
                     state,
                     common_enums::EventClass::Payments,
                     event_status,
@@ -219,7 +219,7 @@ impl RevenueRecoveryPaymentIntentStatus {
                         .get_string_repr()
                         .to_string(),
                     payments_response
-                )
+                ))
                 .await?;
 
                 // Record a successful transaction back to Billing Connector
@@ -286,7 +286,7 @@ impl RevenueRecoveryPaymentIntentStatus {
                 ))
                 .await?;
 
-                RevenueRecoveryOutgoingWebhook::send_outgoing_webhook_based_on_revenue_recovery_status(
+                Box::pin(RevenueRecoveryOutgoingWebhook::send_outgoing_webhook_based_on_revenue_recovery_status(
                     state,
                     common_enums::EventClass::Payments,
                     event_status,
@@ -298,7 +298,7 @@ impl RevenueRecoveryPaymentIntentStatus {
                         .get_string_repr()
                         .to_string(),
                     payments_response
-                )
+                ))
                 .await?;
             }
             Self::Failed => {
@@ -646,7 +646,7 @@ impl Action {
                             .change_context(errors::RecoveryError::PaymentsResponseGenerationFailed)
                             .attach_printable("Failed while generating response for payment")?;
 
-                        RevenueRecoveryOutgoingWebhook::send_outgoing_webhook_based_on_revenue_recovery_status(
+                        Box::pin(RevenueRecoveryOutgoingWebhook::send_outgoing_webhook_based_on_revenue_recovery_status(
                         state,
                         common_enums::EventClass::Payments,
                         event_status,
@@ -655,7 +655,7 @@ impl Action {
                         profile,
                         payment_data.payment_attempt.id.get_string_repr().to_string(),
                         payments_response
-                    )
+                    ))
                     .await?;
 
                         Ok(Self::SuccessfulPayment(
@@ -689,7 +689,7 @@ impl Action {
                             .change_context(errors::RecoveryError::PaymentsResponseGenerationFailed)
                             .attach_printable("Failed while generating response for payment")?;
 
-                        RevenueRecoveryOutgoingWebhook::send_outgoing_webhook_based_on_revenue_recovery_status(
+                        Box::pin(RevenueRecoveryOutgoingWebhook::send_outgoing_webhook_based_on_revenue_recovery_status(
                         state,
                         common_enums::EventClass::Payments,
                         event_status,
@@ -698,7 +698,7 @@ impl Action {
                         profile,
                         payment_data.payment_attempt.id.get_string_repr().to_string(),
                         payments_response
-                    )
+                    ))
                     .await?;
 
                         Ok(Self::PartialCharged)
