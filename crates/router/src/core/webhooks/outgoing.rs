@@ -235,7 +235,7 @@ async fn insert_event_and_spawn_webhook_delivery(
             .attach_printable("Failed to generate idempotent event ID")?;
 
     if let types::WebhookRecipientData::Merchant { .. } = event_data.recipient_data {
-        let webhook_url_result = get_webhook_url_from_business_profile(&webhook_recipient.profile);
+        let webhook_url_result = &webhook_recipient.profile.get_webhook_url_from_profile();
         if webhook_url_result.is_err() || webhook_url_result.as_ref().is_ok_and(String::is_empty) {
             logger::debug!(
                 business_profile_id=?webhook_recipient.profile.get_id(),
@@ -825,11 +825,13 @@ async fn trigger_webhook_to_merchant(
         .attach_printable("OutgoingWebhookRequestContent not found")?;
 
     let webhook_url = match (
-        get_webhook_url_from_business_profile(&business_profile),
+        business_profile.get_webhook_url_from_profile(),
         process_tracker.clone(),
     ) {
         (Ok(webhook_url), _) => Ok(webhook_url),
         (Err(error), Some(process_tracker)) => {
+            let error =
+                error.change_context(errors::WebhooksFlowError::MerchantWebhookUrlNotConfigured);
             if !error
                 .current_context()
                 .is_webhook_delivery_retryable_error()
@@ -846,7 +848,9 @@ async fn trigger_webhook_to_merchant(
             }
             Err(error)
         }
-        (Err(error), None) => Err(error),
+        (Err(error), None) => {
+            Err(error.change_context(errors::WebhooksFlowError::MerchantWebhookUrlNotConfigured))
+        }
     }?;
 
     let event_id = event.event_id;
@@ -1042,26 +1046,6 @@ pub(crate) async fn add_outgoing_webhook_retry_task_to_process_tracker(
             Err(error)
         }
     }
-}
-
-fn get_webhook_url_from_business_profile(
-    business_profile: &domain::Profile,
-) -> CustomResult<String, errors::WebhooksFlowError> {
-    let webhook_details = business_profile
-        .webhook_details
-        .as_ref()
-        .get_required_value("webhook_details")
-        .change_context(errors::WebhooksFlowError::MerchantWebhookDetailsNotFound)?;
-
-    let webhook_url = webhook_details
-        .multiple_webhooks_list
-        .as_ref()
-        .and_then(|list| list.get_legacy_url())
-        .get_required_value("webhook_url")
-        .change_context(errors::WebhooksFlowError::MerchantWebhookUrlNotConfigured)?
-        .expose();
-
-    Ok(webhook_url)
 }
 
 pub(crate) fn get_outgoing_webhook_request(
