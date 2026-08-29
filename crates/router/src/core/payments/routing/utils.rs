@@ -1426,6 +1426,11 @@ pub async fn decision_engine_routing_batch(
     algorithm_for: TransactionType,
     routing_flow: RoutingFlow,
 ) -> RoutingResult<Vec<Vec<RoutableConnectorChoice>>> {
+    // Callers build one entry per payment method type, so a card-only profile has none.
+    if backend_inputs.is_empty() {
+        return Ok(Vec::new());
+    }
+
     let expected_len = backend_inputs.len();
     let created_by = business_profile.get_id().get_string_repr().to_string();
     let fallback_output = convert_fallback_to_de_choices(merchant_fallback_config);
