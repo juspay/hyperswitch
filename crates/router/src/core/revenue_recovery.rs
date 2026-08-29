@@ -1,4 +1,6 @@
 pub mod api;
+pub mod retry_stats;
+pub mod schedule;
 pub mod transformers;
 pub mod types;
 use std::marker::PhantomData;
@@ -71,6 +73,7 @@ pub async fn upsert_calculate_pcr_task(
     business_profile: &domain::Profile,
     intent_retry_count: u16,
     payment_attempt_id: Option<id_type::GlobalAttemptId>,
+    prev_attempt_error_code: Option<common_enums::StandardisedCode>,
     runner: storage::ProcessTrackerRunner,
     revenue_recovery_retry: diesel_enum::RevenueRecoveryAlgorithmType,
 ) -> CustomResult<webhooks::WebhookResponseTracker, errors::RevenueRecoveryError> {
@@ -124,9 +127,11 @@ pub async fn upsert_calculate_pcr_task(
                 global_payment_id: payment_id.clone(),
                 merchant_id: platform.get_processor().get_account().get_id().to_owned(),
                 profile_id: business_profile.get_id().to_owned(),
+                prev_attempt_error_code,
                 payment_attempt_id,
                 revenue_recovery_retry,
                 invoice_scheduled_time: None,
+                static_ladder_progress: schedule::StaticLadderProgress::default(),
             };
 
             let tag = ["PCR"];
@@ -198,6 +203,9 @@ pub async fn record_internal_attempt_and_execute_payment(
 ) -> Result<(), sch_errors::ProcessTrackerError> {
     let db = &*state.store;
 
+    // Standardised error code for the attempt whose failure triggered this execute task,
+    let prev_attempt_error_code = tracking_data.prev_attempt_error_code;
+
     let card_info = api_models::payments::AdditionalCardInfo::foreign_from(payment_processor_token);
 
     // record attempt call
@@ -234,6 +242,7 @@ pub async fn record_internal_attempt_and_execute_payment(
                 execute_task_process,
                 revenue_recovery_payment_data,
                 revenue_recovery_metadata,
+                prev_attempt_error_code,
             ))
             .await?;
         }
@@ -327,6 +336,9 @@ pub async fn perform_execute_payment(
                         payment_intent,
                         revenue_recovery_payment_data,
                         &tracking_data.payment_attempt_id,
+                        // No new attempt was made (no token), so the chain's failed attempt
+                        // is unchanged — carry its already-resolved code forward.
+                        tracking_data.prev_attempt_error_code,
                     ))
                     .await?;
                     // Unlock the customer status only if all tokens are hard declined and payment intent is in Failed status
@@ -393,6 +405,7 @@ pub async fn perform_execute_payment(
                         payment_intent.get_id().clone(),
                         revenue_recovery_payment_data.profile.get_id().clone(),
                         attempt_id.clone(),
+                        tracking_data.prev_attempt_error_code,
                         storage::ProcessTrackerRunner::PassiveRecoveryWorkflow,
                         tracking_data.revenue_recovery_retry,
                         state.conf.application_source,
@@ -465,6 +478,7 @@ async fn insert_psync_pcr_task_to_pt(
     payment_id: GlobalPaymentId,
     profile_id: id_type::ProfileId,
     payment_attempt_id: id_type::GlobalAttemptId,
+    prev_attempt_error_code: Option<common_enums::StandardisedCode>,
     runner: storage::ProcessTrackerRunner,
     revenue_recovery_retry: diesel_enum::RevenueRecoveryAlgorithmType,
     application_source: common_enums::ApplicationSource,
@@ -478,8 +492,11 @@ async fn insert_psync_pcr_task_to_pt(
         merchant_id,
         profile_id,
         payment_attempt_id,
+        prev_attempt_error_code,
         revenue_recovery_retry,
         invoice_scheduled_time: Some(schedule_time),
+        // PSYNC has its own row; scheduling state lives on CALCULATE.
+        static_ladder_progress: schedule::StaticLadderProgress::default(),
     };
     let tag = ["REVENUE_RECOVERY"];
     let process_tracker_entry = storage::ProcessTrackerNew::new(
@@ -518,6 +535,9 @@ pub async fn perform_payments_sync(
     revenue_recovery_payment_data: &pcr::RevenueRecoveryPaymentData,
     payment_intent: &PaymentIntent,
 ) -> Result<(), errors::ProcessTrackerError> {
+    // Standardised error code for the failed attempt that motivated this retry chain,
+    let prev_attempt_error_code = tracking_data.prev_attempt_error_code;
+
     let psync_data = api::call_psync_api(
         state,
         &tracking_data.global_payment_id,
@@ -552,6 +572,7 @@ pub async fn perform_payments_sync(
             new_revenue_recovery_payment_data,
             payment_attempt,
             &mut revenue_recovery_metadata,
+            prev_attempt_error_code,
         ),
     )
     .await?;
@@ -635,7 +656,7 @@ pub async fn perform_calculate_workflow(
         .billing_mca
         .get_max_retry_count();
 
-    let payment_processor_token_response = if is_retry_budget_exhausted(
+    if is_retry_budget_exhausted(
         process.retry_count,
         max_retry_count,
     ) {
@@ -648,27 +669,30 @@ pub async fn perform_calculate_workflow(
         revenue_recovery_workflow::PaymentProcessorTokenResponse::RetriesExhausted
     } else {
         // 3. Get best available token
-        match revenue_recovery_workflow::get_token_with_schedule_time_based_on_retry_algorithm_type(
+        let (payment_processor_token_response, next_static_ladder_progress) = match revenue_recovery_workflow::get_token_with_schedule_time_based_on_retry_algorithm_type(
             state,
             &connector_customer_id,
             payment_intent,
             revenue_recovery_payment_data.billing_mca.connector_name,
             retry_algorithm_type,
             process.retry_count,
+            &tracking_data.static_ladder_progress,
         )
         .await
         {
-            Ok(token_opt) => token_opt,
+            Ok(token_and_schedule) => token_and_schedule,
             Err(e) => {
                 logger::error!(
                     error = ?e,
                     connector_customer_id = %connector_customer_id,
                     "Failed to get best PSP token"
                 );
-                revenue_recovery_workflow::PaymentProcessorTokenResponse::None
+                (
+                    revenue_recovery_workflow::PaymentProcessorTokenResponse::None,
+                    None,
+                )
             }
-        }
-    };
+        };
 
     match payment_processor_token_response {
         revenue_recovery_workflow::PaymentProcessorTokenResponse::ScheduledTime {
@@ -696,26 +720,15 @@ pub async fn perform_calculate_workflow(
                 payment_intent,
                 &tracking_data.profile_id,
                 &tracking_data.payment_attempt_id,
+                tracking_data.prev_attempt_error_code,
                 storage::ProcessTrackerRunner::PassiveRecoveryWorkflow,
                 retry_algorithm_type,
                 scheduled_time,
             )
             .await?;
 
-            db.as_scheduler()
-                .finish_process_with_business_status(
-                    process.clone(),
-                    business_status::CALCULATE_WORKFLOW_SCHEDULED,
-                )
-                .await
-                .map_err(|e| {
-                    logger::error!(
-                        process_id = %process.id,
-                        error = ?e,
-                        "Failed to update CALCULATE_WORKFLOW status to complete"
-                    );
-                    sch_errors::ProcessTrackerError::ProcessUpdateFailed
-                })?;
+            finish_calculate_workflow_with_progress(db, process, next_static_ladder_progress)
+                .await?;
 
             logger::info!(
                 process_id = %process.id,
@@ -838,7 +851,7 @@ pub async fn perform_calculate_workflow(
     })
     .flatten()
     .async_map(|(event_kind, response)| async move {
-        let _ = RevenueRecoveryOutgoingWebhook::send_outgoing_webhook_based_on_revenue_recovery_status(
+        let _ = Box::pin(RevenueRecoveryOutgoingWebhook::send_outgoing_webhook_based_on_revenue_recovery_status(
             state,
             common_enums::EventClass::Payments,
             event_kind,
@@ -847,7 +860,7 @@ pub async fn perform_calculate_workflow(
             profile,
             tracking_data.payment_attempt_id.get_string_repr().to_string(),
             response
-        )
+        ))
         .await
         .map_err(|e| {
             logger::error!(
@@ -861,6 +874,59 @@ pub async fn perform_calculate_workflow(
     ).await;
 
     Ok(())
+}
+
+/// Finish the CALCULATE_WORKFLOW row, carrying any updated adaptive scheduling state.
+async fn finish_calculate_workflow_with_progress(
+    db: &dyn StorageInterface,
+    process: &storage::ProcessTracker,
+    next_static_ladder_progress: Option<schedule::StaticLadderProgress>,
+) -> Result<(), sch_errors::ProcessTrackerError> {
+    let pt_update = match next_static_ladder_progress {
+        // The adaptive path has a ladder position to carry, so the consumed rung and the finish
+        // go out in one write rather than leaving a window where one landed without the other.
+        Some(static_ladder_progress) => {
+            let mut tracking_data: pcr::RevenueRecoveryWorkflowTrackingData =
+                serde_json::from_value(process.tracking_data.clone())
+                    .change_context(errors::RecoveryError::ValueNotFound)
+                    .attach_printable(
+                        "Failed to deserialize the tracking data from process tracker",
+                    )?;
+
+            tracking_data.static_ladder_progress = static_ladder_progress;
+
+            let tracking_data = serde_json::to_value(tracking_data)
+                .change_context(errors::RecoveryError::ValueNotFound)
+                .attach_printable("Failed to serialize the tracking data for process tracker")?;
+
+            storage::ProcessTrackerUpdate::Update {
+                name: None,
+                retry_count: None,
+                schedule_time: None,
+                tracking_data: Some(tracking_data),
+                business_status: Some(String::from(business_status::CALCULATE_WORKFLOW_SCHEDULED)),
+                status: Some(ProcessTrackerStatus::Finish),
+                updated_at: Some(common_utils::date_time::now()),
+            }
+        }
+        // Nothing to persist - the same status-only write this row has always taken.
+        None => storage::ProcessTrackerUpdate::StatusUpdate {
+            status: ProcessTrackerStatus::Finish,
+            business_status: Some(String::from(business_status::CALCULATE_WORKFLOW_SCHEDULED)),
+        },
+    };
+
+    db.as_scheduler()
+        .finish_process_with_update(process.clone(), pt_update)
+        .await
+        .map_err(|error| {
+            logger::error!(
+                process_id = %process.id,
+                error = ?error,
+                "Failed to update CALCULATE_WORKFLOW status to complete"
+            );
+            sch_errors::ProcessTrackerError::ProcessUpdateFailed
+        })
 }
 
 /// Update the schedule time for a CALCULATE_WORKFLOW process tracker
@@ -934,6 +1000,7 @@ async fn insert_execute_pcr_task_to_pt(
     payment_intent: &PaymentIntent,
     profile_id: &id_type::ProfileId,
     payment_attempt_id: &id_type::GlobalAttemptId,
+    prev_attempt_error_code: Option<common_enums::StandardisedCode>,
     runner: storage::ProcessTrackerRunner,
     revenue_recovery_retry: diesel_enum::RevenueRecoveryAlgorithmType,
     schedule_time: time::PrimitiveDateTime,
@@ -1043,8 +1110,11 @@ async fn insert_execute_pcr_task_to_pt(
                 merchant_id: merchant_id.clone(),
                 profile_id: profile_id.clone(),
                 payment_attempt_id: payment_attempt_id.clone(),
+                prev_attempt_error_code,
                 revenue_recovery_retry,
                 invoice_scheduled_time: Some(schedule_time),
+                // EXECUTE has its own row; scheduling state lives on CALCULATE.
+                static_ladder_progress: schedule::StaticLadderProgress::default(),
             };
 
             let tag = ["PCR"];
@@ -1320,6 +1390,7 @@ pub async fn resume_revenue_recovery_process_tracker(
                         tracking_data.global_payment_id.clone(),
                         tracking_data.profile_id.clone(),
                         active_attempt_id.clone(),
+                        tracking_data.prev_attempt_error_code,
                         runner,
                         tracking_data.revenue_recovery_retry,
                         state.conf.application_source,

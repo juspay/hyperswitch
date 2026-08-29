@@ -1582,6 +1582,7 @@ pub(super) fn get_customer_details_from_request(
         phone_country_code: customer_phone_code,
         tax_registration_id,
         document_details,
+        date_of_birth: None,
     }
 }
 

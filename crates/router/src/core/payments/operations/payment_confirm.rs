@@ -2778,6 +2778,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         let m_error_code = error_code.clone();
         let m_error_message = error_message.clone();
         let m_fingerprint_id = payment_data.payment_attempt.fingerprint_id.clone();
+        let m_fingerprint_type = payment_data.payment_attempt.fingerprint_type;
         let m_db = state.clone().store;
         let surcharge_amount = payment_data
             .payment_attempt
@@ -2852,6 +2853,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         authentication_id,
                         payment_method_billing_address_id,
                         fingerprint_id: m_fingerprint_id,
+                        fingerprint_type: m_fingerprint_type,
                         payment_method_id: m_payment_method_id,
                         client_source,
                         client_version,
@@ -3003,6 +3005,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                             .payment_intent
                             .is_iframe_redirection_enabled,
                         is_confirm_operation: true, // Indicates that this is a confirm operation
+                        is_account_funded_transaction: payment_data
+                            .payment_intent
+                            .is_account_funded_transaction,
+                        recipient_details: payment_data.payment_intent.recipient_details.clone(),
                         payment_channel: payment_data.payment_intent.payment_channel,
                         feature_metadata: payment_data.payment_intent.feature_metadata.clone(),
                         tax_status: payment_data.payment_intent.tax_status,
