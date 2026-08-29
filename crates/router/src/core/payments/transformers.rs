@@ -431,8 +431,6 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
             .and_then(|noon| noon.order_category.clone())
     });
 
-
-
     let is_off_session = get_off_session(payment_data.mandate_data.as_ref(), None);
 
     // Account funded transaction details are merchant supplied and are always read
