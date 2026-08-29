@@ -875,6 +875,7 @@ pub async fn perform_calculate_workflow(
 
     Ok(())
 }
+}
 
 /// Finish the CALCULATE_WORKFLOW row, carrying any updated adaptive scheduling state.
 async fn finish_calculate_workflow_with_progress(
