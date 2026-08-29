@@ -706,6 +706,7 @@ pub(crate) async fn fetch_raw_secrets(
         jwekey,
         webhooks: conf.webhooks,
         pm_filters: conf.pm_filters,
+        customer_acceptance_support: conf.customer_acceptance_support,
         payout_method_filters: conf.payout_method_filters,
         bank_config: conf.bank_config,
         api_keys,

@@ -944,6 +944,7 @@ impl TryFrom<PaymentsResponseRouterData<ArchipelPaymentsResponse>> for PaymentsA
                 network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: Some(is_incremental_allowed),
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -992,6 +993,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<ArchipelPaymentsResponse>> for Payme
                 network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -1058,6 +1060,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<ArchipelPaymentsResponse>>
                 network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -1182,6 +1185,7 @@ impl<F>
                 network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.transaction_id),
                 incremental_authorization_allowed: Some(false),
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -1241,6 +1245,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<ArchipelPaymentsResponse>>
                 network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
