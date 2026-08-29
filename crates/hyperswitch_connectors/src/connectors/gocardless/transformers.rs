@@ -567,6 +567,7 @@ impl<F>
                 network_txn_link_id: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             status: enums::AttemptStatus::Charged,
             ..item.data
@@ -712,6 +713,7 @@ impl TryFrom<PaymentsResponseRouterData<GocardlessPaymentsResponse>>
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -738,6 +740,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<GocardlessPaymentsResponse>>
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })

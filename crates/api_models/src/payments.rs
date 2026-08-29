@@ -5,6 +5,7 @@ use std::{
     num::{NonZeroI64, NonZeroU8},
 };
 pub mod additional_info;
+pub mod recipient;
 pub mod trait_impls;
 use cards::{CardNumber, NetworkToken};
 #[cfg(feature = "v2")]
@@ -32,6 +33,10 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 
+pub use self::recipient::{
+    MaskedRecipientAccount, MaskedRecipientBankAccount, MaskedRecipientDetails, RecipientAccount,
+    RecipientBankAccount, RecipientDetails,
+};
 use crate::customers::CustomerDocumentDetails;
 #[cfg(feature = "v2")]
 fn parse_comma_separated<'de, D, T>(v: D) -> Result<Option<Vec<T>>, D::Error>
@@ -164,6 +169,11 @@ pub struct CustomerDetails {
     #[schema(value_type = Option<CustomerDocumentDetails>)]
     #[smithy(value_type = "Option<CustomerDocumentDetails>")]
     pub document_details: Option<CustomerDocumentDetails>,
+
+    /// The customer's date of birth
+    #[schema(value_type = Option<Date>, example = "1990-01-31")]
+    #[smithy(value_type = "Option<String>")]
+    pub date_of_birth: Option<Secret<Date>>,
 }
 
 #[cfg(feature = "v1")]
@@ -358,6 +368,15 @@ pub struct PaymentsCreateIntentRequest {
     /// Allow partial authorization for this payment
     #[schema(value_type = Option<bool>, default = false)]
     pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
+
+    /// Indicates whether this payment is an account funded transaction, where funds are pulled
+    /// from a card account to fund another account rather than to pay for goods or services.
+    #[schema(value_type = Option<bool>, example = true)]
+    pub is_account_funded_transaction: Option<bool>,
+
+    /// Details of the party receiving the funds in an account funded transaction.
+    #[schema(value_type = Option<RecipientDetails>)]
+    pub recipient_details: Option<RecipientDetails>,
 }
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
@@ -538,6 +557,14 @@ pub struct PaymentsUpdateIntentRequest {
     /// Allow partial authorization for this payment
     #[schema(value_type = Option<bool>, default = false)]
     pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
+
+    /// Indicates whether this payment is an account funded transaction.
+    #[schema(value_type = Option<bool>, example = true)]
+    pub is_account_funded_transaction: Option<bool>,
+
+    /// Details of the party receiving the funds in an account funded transaction.
+    #[schema(value_type = Option<RecipientDetails>)]
+    pub recipient_details: Option<RecipientDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -571,6 +598,8 @@ impl PaymentsUpdateIntentRequest {
             frm_metadata: None,
             request_external_three_ds_authentication: None,
             enable_partial_authorization: None,
+            is_account_funded_transaction: None,
+            recipient_details: None,
         }
     }
 }
@@ -719,6 +748,14 @@ pub struct PaymentsIntentResponse {
     /// Allow partial authorization for this payment
     #[schema(value_type = Option<bool>, default = false)]
     pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
+
+    /// Indicates whether this payment is an account funded transaction.
+    #[schema(value_type = Option<bool>, example = true)]
+    pub is_account_funded_transaction: Option<bool>,
+
+    /// Partially masked details of the party receiving the funds in an account funded transaction.
+    #[schema(value_type = Option<MaskedRecipientDetails>)]
+    pub recipient_details: Option<MaskedRecipientDetails>,
 }
 
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
@@ -1585,6 +1622,16 @@ pub struct PaymentsRequest {
     #[schema(value_type = Option<BillingDescriptor>)]
     pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
 
+    /// Indicates whether this payment is an account funded transaction.
+    #[schema(value_type = Option<bool>, example = true)]
+    #[remove_in(PaymentsConfirmRequest)]
+    pub is_account_funded_transaction: Option<bool>,
+
+    /// Details of the party receiving the funds in an account funded transaction.
+    #[schema(value_type = Option<RecipientDetails>)]
+    #[remove_in(PaymentsConfirmRequest)]
+    pub recipient_details: Option<RecipientDetails>,
+
     /// The tokenization preference for the payment method. This is used to control whether a PSP token is created or not.
     #[schema(value_type = Option<Tokenization>, example = "tokenize_at_psp")]
     pub tokenization: Option<enums::Tokenization>,
@@ -1886,6 +1933,7 @@ mod payments_request_test {
             phone_country_code: None,
             tax_registration_id: None,
             document_details: None,
+            date_of_birth: None,
         };
 
         let payments_request = PaymentsRequest {
@@ -1912,6 +1960,7 @@ mod payments_request_test {
             phone_country_code: None,
             tax_registration_id: None,
             document_details: None,
+            date_of_birth: None,
         };
 
         let payments_request = PaymentsRequest {
@@ -7725,6 +7774,11 @@ pub struct PaymentsResponse {
     #[smithy(value_type = "Option<String>")]
     pub network_transaction_id: Option<String>,
 
+    /// Payment Account Reference (PAR) returned by the connector for the underlying card, used to link tokenized and non-tokenized transactions for the same card.
+    #[schema(example = "V001428640638148739")]
+    #[smithy(value_type = "Option<String>")]
+    pub payment_account_reference: Option<String>,
+
     /// The Mastercard Transaction Link Identifier (TLID) for this payment. Returned on CITs that set up
     /// stored credentials. External-vault merchants should persist this and echo it back on subsequent
     /// MIT requests. Mandatory for Mastercard recurring/MIT (no static fallback).
@@ -7856,6 +7910,15 @@ pub struct PaymentsResponse {
     /// Billing descriptor information for the payment
     #[schema(value_type = Option<BillingDescriptor>)]
     pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
+
+    /// Indicates whether this payment is an account funded transaction, where funds are pulled
+    /// from a card account to fund another account rather than to pay for goods or services.
+    #[schema(value_type = Option<bool>, example = true)]
+    pub is_account_funded_transaction: Option<bool>,
+
+    /// Partially masked details of the party receiving the funds in an account funded transaction.
+    #[schema(value_type = Option<MaskedRecipientDetails>)]
+    pub recipient_details: Option<MaskedRecipientDetails>,
 
     /// The tokenization preference for the payment method. This is used to control whether a PSP token is created or not.
     #[schema(value_type = Option<Tokenization>,example="skip_psp")]
@@ -8418,6 +8481,15 @@ pub struct PaymentsRequest {
     /// The webhook endpoint URL to receive payment status notifications
     #[schema(value_type = Option<String>, example = "https://merchant.example.com/webhooks/payment")]
     pub webhook_url: Option<common_utils::types::Url>,
+
+    /// Indicates whether this payment is an account funded transaction, where funds are pulled
+    /// from a card account to fund another account rather than to pay for goods or services.
+    #[schema(value_type = Option<bool>, example = true)]
+    pub is_account_funded_transaction: Option<bool>,
+
+    /// Details of the party receiving the funds in an account funded transaction.
+    #[schema(value_type = Option<RecipientDetails>)]
+    pub recipient_details: Option<RecipientDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -8453,6 +8525,8 @@ impl From<&PaymentsRequest> for PaymentsCreateIntentRequest {
             force_3ds_challenge: request.force_3ds_challenge,
             merchant_connector_details: request.merchant_connector_details.clone(),
             enable_partial_authorization: request.enable_partial_authorization,
+            is_account_funded_transaction: request.is_account_funded_transaction,
+            recipient_details: request.recipient_details.clone(),
         }
     }
 }
@@ -10094,6 +10168,91 @@ pub struct ConnectorMetadata {
     pub peachpayments: Option<PeachpaymentsData>,
     #[smithy(value_type = "Option<SantanderData>")]
     pub santander: Option<SantanderConnectorMetadataData>,
+    #[smithy(value_type = "Option<WorldpayxmlData>")]
+    pub worldpayxml: Option<WorldpayxmlData>,
+    #[smithy(value_type = "Option<CheckoutData>")]
+    pub checkout: Option<CheckoutData>,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+#[serde(deny_unknown_fields)]
+pub struct CheckoutData {
+    /// Purpose of Payment. Required for AFT.
+    #[schema(value_type = Option<String>, example = "wallet top-up")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub purpose_of_payment: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+#[serde(deny_unknown_fields)]
+pub struct WorldpayxmlData {
+    /// Funding Transfer Type. Required for AFT.
+    #[schema(value_type = Option<WorldpayxmlFundingTransactionType>, example = "account_to_account")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub funding_transaction_type: Option<WorldpayxmlFundingTransactionType>,
+    /// Purpose of Payment. Required for AFT.
+    #[schema(value_type = Option<WorldpayxmlPaymentPurpose>, example = "savings")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub payment_purpose: Option<WorldpayxmlPaymentPurpose>,
+}
+
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+#[serde(rename_all = "snake_case")]
+pub enum WorldpayxmlFundingTransactionType {
+    CreditCardBillRepayment,
+    GiftCardPurchase,
+    GiftCardPurchaseForAnother,
+    NonReloadablePrepaidCard,
+    ReloadablePrepaidCardOrAccount,
+    GamingChipsPurchase,
+    GamingStoredValueWallet,
+    GamingStagedDigitalWallet,
+    LiquidAndCryptoAssetsPurchase,
+    LiquidAndCryptoStoredValueWalletLoad,
+    StoredValueDigitalWalletLoad,
+    StoredValueDigitalWalletLoadNonSecurities,
+    SecuritiesStoredValueDigitalWalletLoad,
+    SecuritiesStagedDigitalWalletLoad,
+    SingleMerchantWalletLoad,
+    DebitCardLoad,
+    TransferToOwnDebitAccount,
+    FundsTransferMeToMe,
+    AccountToAccount,
+    BackToBackP2pWithoutWallet,
+    BackToBackP2pWithWallet,
+    AgentCashOut,
+    StagedDigitalWalletLoad,
+    StagedDigitalWalletPurchase,
+    BackToBackCardPurchase,
+    PayrollDisbursementFunding,
+    BusinessToConsumerDisbursement,
+    BusinessToBusinessInvoicePayment,
+}
+
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+#[serde(rename_all = "snake_case")]
+pub enum WorldpayxmlPaymentPurpose {
+    FamilySupport,
+    RegularLabourTransfers,
+    TravelAndTourism,
+    Education,
+    HospitalisationAndMedicalTreatment,
+    EmergencyNeed,
+    Savings,
+    Gifts,
+    Other,
+    Salary,
+    CrowdLending,
+    CryptoCurrency,
+    HighRiskSecurities,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
@@ -13755,6 +13914,15 @@ impl PaymentRevenueRecoveryMetadata {
         self.billing_connector_payment_details
             .connector_customer_id
             .to_owned()
+    }
+
+    /// Card network of the recovery card, from the billing-connector payment method
+    /// details
+    pub fn get_card_network(&self) -> Option<common_enums::enums::CardNetwork> {
+        self.billing_connector_payment_method_details
+            .as_ref()
+            .and_then(|details| details.get_billing_connector_card_info())
+            .and_then(|card| card.card_network.clone())
     }
 }
 

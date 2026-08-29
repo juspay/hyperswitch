@@ -1832,6 +1832,7 @@ fn get_payment_response(
                 incremental_authorization_allowed,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             })
         }
     }
@@ -2026,6 +2027,7 @@ impl
                     ),
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
             },
             connector_response,
@@ -2133,6 +2135,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<WellsfargoTransactionResponse>>
                             incremental_authorization_allowed,
                             authentication_data: None,
                             charges: None,
+                            payment_account_reference: None,
                         }),
                         ..item.data
                     })
@@ -2151,6 +2154,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<WellsfargoTransactionResponse>>
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             }),

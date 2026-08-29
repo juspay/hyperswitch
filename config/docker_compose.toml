@@ -1468,6 +1468,7 @@ connector_list = "juspaythreedsserver, ctp_mastercard, ctp_visa"
 monitoring_threshold_in_seconds = 60 # threshold for monitoring the retry system
 retry_algorithm_type = "cascading" # type of retry algorithm
 redis_ttl_in_seconds=3888000 # ttl for redis for storing payment processor token details
+default_retry_hour_utc = 12 # fallback hour-of-day (UTC, 0-23) the mathmodel retries at when a cluster has no hour-of-day history
 
 # Card specific configuration for Revenue Recovery
 [revenue_recovery.card_config.amex]
@@ -1490,6 +1491,11 @@ max_retry_count_for_thirty_day = 20
 initial_timestamp_in_seconds = 3600        # number of seconds added to start time for Decider service of Revenue Recovery
 job_schedule_buffer_time_in_seconds = 3600  # time in seconds to be added in schedule time as a buffer
 reopen_workflow_buffer_time_in_seconds = 60  # time in seconds to be added in scheduling for calculate workflow
+
+# Redis lock configuration guarding the retry-stats read-merge-write
+[revenue_recovery.retry_stats_lock]
+redis_lock_expiry_seconds = 10              # Seconds before redis lock expires
+delay_between_retries_in_milliseconds = 100 # Wait between attempts to acquire a contended lock
 
 [clone_connector_allowlist]
 connector_names = "stripe, adyen, peachpayments, cybersource, braintree, nuvei, worldpay, loonio, gigadat, zift"    # Comma-separated list of cloneable connector names

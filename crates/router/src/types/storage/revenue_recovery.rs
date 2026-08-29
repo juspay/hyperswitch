@@ -26,6 +26,9 @@ pub struct RevenueRecoveryWorkflowTrackingData {
     pub billing_mca_id: id_type::MerchantConnectorAccountId,
     pub revenue_recovery_retry: enums::RevenueRecoveryAlgorithmType,
     pub invoice_scheduled_time: Option<time::PrimitiveDateTime>,
+    /// Standardised error code for the failed attempt that motivated this retry chain,
+    #[serde(default)]
+    pub prev_attempt_error_code: Option<enums::StandardisedCode>,
     /// Adaptive retry scheduling state — how far down the static ladder this invoice has
     /// been. Only meaningful on the CALCULATE row, which is reopened rather than recreated
     /// and so survives for the whole recovery lifecycle of an invoice.
@@ -98,6 +101,54 @@ pub struct RevenueRecoverySettings {
     pub recovery_timestamp: RecoveryTimestamp,
     pub card_config: RetryLimitsConfig,
     pub redis_ttl_in_seconds: i64,
+    #[serde(default)]
+    pub retry_stats_lock: RetryStatsLockSettings,
+    /// Fallback hour-of-day (UTC, 0–23) the MathModel schedules a retry at when a cluster has no
+    /// usable hour-of-day history. Overridable per environment via the config file's
+    /// `[revenue_recovery]` section or the `ROUTER__REVENUE_RECOVERY__DEFAULT_RETRY_HOUR_UTC` env var;
+    /// when omitted it defaults to noon UTC (see [`DefaultRetryHour`]).
+    #[serde(default)]
+    pub default_retry_hour_utc: DefaultRetryHour,
+}
+
+/// Redis distributed-lock settings for revenue-recovery retry-stats recording
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RetryStatsLockSettings {
+    /// TTL on the per-cluster-key lock
+    pub redis_lock_expiry_seconds: u32,
+    /// Delay between successive attempts to acquire a contended lock.
+    pub delay_between_retries_in_milliseconds: u32,
+}
+
+impl Default for RetryStatsLockSettings {
+    fn default() -> Self {
+        Self {
+            redis_lock_expiry_seconds: 10,
+            delay_between_retries_in_milliseconds: 100,
+        }
+    }
+}
+
+impl RetryStatsLockSettings {
+    pub fn lock_retries(&self) -> u32 {
+        self.redis_lock_expiry_seconds
+            .saturating_mul(1000)
+            .checked_div(self.delay_between_retries_in_milliseconds)
+            .unwrap_or(1)
+    }
+}
+
+/// Fallback hour-of-day (UTC, 0–23) for the MathModel. A newtype so its `Default` (noon UTC = 12) is
+/// carried automatically by both `#[derive(Default)]` on the settings and serde's `#[serde(default)]`
+/// — the value lives in exactly one place, with no field-list repetition.
+#[derive(Debug, Clone, Copy, serde::Deserialize)]
+pub struct DefaultRetryHour(pub u8);
+
+impl Default for DefaultRetryHour {
+    fn default() -> Self {
+        Self(12)
+    }
 }
 
 #[derive(Debug, serde::Deserialize, Clone)]
