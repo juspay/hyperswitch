@@ -1446,6 +1446,7 @@ pub fn build_unified_connector_service_payment_method(
             payment_method: Some(PaymentMethod::Token(
                 payments_grpc::TokenPaymentMethodType {
                     token: Some(token.clone()),
+                    token_payment_method_type: None,
                 },
             )),
         });
@@ -2036,6 +2037,7 @@ pub fn build_unified_connector_service_payment_method(
                     Some(PaymentMethodToken::Token(token)) => {
                         let token_payment_method = payments_grpc::TokenPaymentMethodType {
                             token: Some(token.clone()),
+                            token_payment_method_type: None,
                         };
                         Ok(payments_grpc::PaymentMethod {
                             payment_method: Some(PaymentMethod::Token(token_payment_method)),

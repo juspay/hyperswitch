@@ -7,8 +7,9 @@ use api_models::payments::{
     GpayBillingAddressFormat, GpayBillingAddressParameters, GpayMerchantInfo,
     GpaySessionTokenResponse, GpayShippingAddressParameters, GpayTokenParameters,
     GpayTokenizationSpecification, GpayTransactionInfo, NextActionCall, PaypalFlow,
-    PaypalSessionTokenResponse, PaypalTransactionInfo, SdkNextAction, SecretInfoToInitiateSdk,
-    SessionToken, ThirdPartySdkSessionResponse,
+    PaypalSessionTokenResponse, PaypalTransactionInfo, RecipientAccount, RecipientBankAccount,
+    RecipientDetails, SdkNextAction, SecretInfoToInitiateSdk, SessionToken,
+    ThirdPartySdkSessionResponse,
 };
 use common_enums::{AttemptStatus, AuthenticationType, AuthorizationStatus, RefundStatus};
 use common_utils::{
@@ -49,7 +50,9 @@ use router_env::tracing;
 use time::{Duration, OffsetDateTime};
 use unified_connector_service_cards::{CardNumber, NetworkToken};
 use unified_connector_service_client::payments::{
-    self as payments_grpc, client_authentication_token_data, ConnectorState,
+    self as payments_grpc, client_authentication_token_data,
+    recipient_account::AccountType as RecipientAccountType,
+    recipient_bank_account::BankAccountType as RecipientBankAccountType, ConnectorState,
     EventServiceHandleRequest, EventServiceParseRequest,
 };
 
@@ -251,6 +254,139 @@ fn to_grpc_customer_document_details<F, Req, Res>(
         .map(payments_grpc::CustomerDocumentDetails::foreign_from)
 }
 
+/// Formats a `Secret<time::Date>` as an ISO 8601 date string (`yyyy-MM-dd`) wrapped in
+/// `Secret<String>`, suitable for the gRPC `Customer.date_of_birth` field.
+fn format_date_of_birth(dob: &Secret<time::Date>) -> Secret<String> {
+    Secret::new(
+        dob.peek()
+            .format(&time::format_description::well_known::Iso8601::DATE)
+            .expect("formatting a valid time::Date with Iso8601::DATE is infallible"),
+    )
+}
+
+impl ForeignFrom<&api_models::payments::AddressDetails> for payments_grpc::Address {
+    fn foreign_from(details: &api_models::payments::AddressDetails) -> Self {
+        let country_alpha2_code = details
+            .country
+            .as_ref()
+            .and_then(|c| payments_grpc::CountryAlpha2::from_str_name(&c.to_string()))
+            .map(|c| c.into());
+
+        Self {
+            first_name: details.first_name.clone(),
+            last_name: details.last_name.clone(),
+            line1: details.line1.clone(),
+            line2: details.line2.clone(),
+            line3: details.line3.clone(),
+            city: details.city.as_ref().map(|s| s.clone().into()),
+            state: details.state.clone(),
+            zip_code: details.zip.clone(),
+            country_alpha2_code,
+            email: None,
+            phone_number: None,
+            phone_country_code: None,
+        }
+    }
+}
+
+impl transformers::ForeignTryFrom<&RecipientDetails> for payments_grpc::RecipientDetails {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(details: &RecipientDetails) -> Result<Self, Self::Error> {
+        let account = details
+            .account
+            .as_ref()
+            .map(payments_grpc::RecipientAccount::foreign_try_from)
+            .transpose()?;
+
+        Ok(Self {
+            account,
+            phone_number: details.phone_number.clone(),
+            tax_id: details.tax_id.clone(),
+            address: details
+                .address
+                .as_ref()
+                .map(payments_grpc::Address::foreign_from),
+        })
+    }
+}
+
+impl transformers::ForeignTryFrom<&RecipientAccount> for payments_grpc::RecipientAccount {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(account: &RecipientAccount) -> Result<Self, Self::Error> {
+        let account_type = match account {
+            RecipientAccount::BankAccount(bank_account) => {
+                let bank_account_type = match bank_account {
+                    RecipientBankAccount::Iban { iban } => {
+                        RecipientBankAccountType::Iban(payments_grpc::RecipientBankAccountIban {
+                            iban: Some(iban.clone()),
+                        })
+                    }
+                    RecipientBankAccount::RoutingNumber {
+                        account_number,
+                        routing_number,
+                    } => RecipientBankAccountType::RoutingNumber(
+                        payments_grpc::RecipientBankAccountRoutingNumber {
+                            account_number: Some(account_number.clone()),
+                            routing_number: Some(routing_number.clone()),
+                        },
+                    ),
+                    RecipientBankAccount::Bic {
+                        account_number,
+                        bic,
+                    } => RecipientBankAccountType::Bic(payments_grpc::RecipientBankAccountBic {
+                        account_number: Some(account_number.clone()),
+                        bic: Some(bic.clone()),
+                    }),
+                    RecipientBankAccount::AccountNumber { account_number } => {
+                        RecipientBankAccountType::AccountNumber(
+                            payments_grpc::RecipientBareAccountNumber {
+                                account_number: Some(account_number.clone()),
+                            },
+                        )
+                    }
+                    RecipientBankAccount::TruncatedPan { card_isin, last4 } => {
+                        RecipientBankAccountType::TruncatedPan(
+                            payments_grpc::RecipientBankAccountTruncatedPan {
+                                card_isin: Some(card_isin.clone()),
+                                last4: Some(last4.clone()),
+                            },
+                        )
+                    }
+                };
+                RecipientAccountType::BankAccount(payments_grpc::RecipientBankAccount {
+                    bank_account_type: Some(bank_account_type),
+                })
+            }
+            RecipientAccount::Card { card_number } => {
+                let ucs_card_number = CardNumber::from_str(&card_number.get_card_no())
+                    .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)
+                    .attach_printable(
+                        "Failed to convert recipient card number to UCS CardNumber",
+                    )?;
+                RecipientAccountType::CardNumber(ucs_card_number)
+            }
+            RecipientAccount::Wallet { wallet_id } => {
+                RecipientAccountType::WalletId(wallet_id.clone())
+            }
+            RecipientAccount::Email { email } => {
+                RecipientAccountType::Email(Secret::new(email.peek().to_string()))
+            }
+            RecipientAccount::Phone { phone_number } => {
+                RecipientAccountType::PhoneNumber(phone_number.clone())
+            }
+            RecipientAccount::SocialNetwork { social_network_id } => {
+                RecipientAccountType::SocialNetworkId(social_network_id.clone())
+            }
+        };
+
+        Ok(Self {
+            account_type: Some(account_type),
+        })
+    }
+}
+
 impl transformers::ForeignTryFrom<&payments_grpc::AccessToken> for AccessToken {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
@@ -349,6 +485,10 @@ impl
                 phone_number: None,
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: router_data
+                    .customer_date_of_birth
+                    .as_ref()
+                    .map(format_date_of_birth),
             }),
             state: router_data
                 .access_token
@@ -476,6 +616,10 @@ impl
                 phone_number: None,
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: router_data
+                    .customer_date_of_birth
+                    .as_ref()
+                    .map(format_date_of_birth),
             }),
             browser_info,
             session_token: router_data.session_token.clone(),
@@ -574,6 +718,13 @@ impl
             // TODO: Populate currency_conversion_data when Dynamic Currency Conversion (DCC) is implemented
             currency_conversion_data: None,
             split_settlement: None,
+            is_account_funded_transaction: router_data.request.is_account_funded_transaction,
+            recipient_details: router_data
+                .request
+                .recipient_details
+                .as_ref()
+                .map(payments_grpc::RecipientDetails::foreign_try_from)
+                .transpose()?,
         })
     }
 }
@@ -633,6 +784,7 @@ impl
                         payment_method: Some(payments_grpc::payment_method::PaymentMethod::Token(
                             payments_grpc::TokenPaymentMethodType {
                                 token: Some(Secret::new(handle_token.to_string())),
+                                token_payment_method_type: None,
                             },
                         )),
                     })
@@ -740,6 +892,10 @@ impl
                 phone_number: None,
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: router_data
+                    .customer_date_of_birth
+                    .as_ref()
+                    .map(format_date_of_birth),
             }),
             browser_info,
             session_token: router_data.session_token.clone(),
@@ -812,6 +968,13 @@ impl
             // TODO: Populate currency_conversion_data when Dynamic Currency Conversion (DCC) is implemented
             currency_conversion_data: None,
             split_settlement: None,
+            is_account_funded_transaction: router_data.request.is_account_funded_transaction,
+            recipient_details: router_data
+                .request
+                .recipient_details
+                .as_ref()
+                .map(payments_grpc::RecipientDetails::foreign_try_from)
+                .transpose()?,
         })
     }
 }
@@ -1129,6 +1292,10 @@ impl
                 phone_number: None,
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: router_data
+                    .customer_date_of_birth
+                    .as_ref()
+                    .map(format_date_of_birth),
             }),
             address: Some(address),
         };
@@ -1220,6 +1387,10 @@ impl
                 phone_number: None,
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: router_data
+                    .customer_date_of_birth
+                    .as_ref()
+                    .map(format_date_of_birth),
             }),
             address: Some(address),
             authentication_data,
@@ -1331,6 +1502,10 @@ impl
                 phone_number: None,
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: router_data
+                    .customer_date_of_birth
+                    .as_ref()
+                    .map(format_date_of_birth),
             }),
             address: Some(address),
             authentication_data,
@@ -1435,6 +1610,10 @@ impl
                 phone_number: None,
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: router_data
+                    .customer_date_of_birth
+                    .as_ref()
+                    .map(format_date_of_birth),
             }),
             address: Some(address),
             authentication_data: None,
@@ -1530,6 +1709,10 @@ impl
                 phone_number: None,
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: router_data
+                    .customer_date_of_birth
+                    .as_ref()
+                    .map(format_date_of_birth),
             }),
             address: Some(address),
             authentication_data: None,
@@ -1633,6 +1816,10 @@ impl
                 phone_number: None,
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: router_data
+                    .customer_date_of_birth
+                    .as_ref()
+                    .map(format_date_of_birth),
             }),
             address: Some(address),
             enrolled_for_3ds: router_data.request.enrolled_for_3ds,
@@ -1730,6 +1917,10 @@ impl
                 phone_number: None,
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: router_data
+                    .customer_date_of_birth
+                    .as_ref()
+                    .map(format_date_of_birth),
             }),
             address: Some(address),
             enrolled_for_3ds: router_data.request.enrolled_for_3ds,
@@ -1933,6 +2124,10 @@ impl
                 phone_number: None,
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: router_data
+                    .customer_date_of_birth
+                    .as_ref()
+                    .map(format_date_of_birth),
             }),
             browser_info,
             locale: None,
@@ -1987,6 +2182,13 @@ impl
             // TODO: Populate currency_conversion_data when Dynamic Currency Conversion (DCC) is implemented
             currency_conversion_data: None,
             split_settlement: None,
+            is_account_funded_transaction: router_data.request.is_account_funded_transaction,
+            recipient_details: router_data
+                .request
+                .recipient_details
+                .as_ref()
+                .map(payments_grpc::RecipientDetails::foreign_try_from)
+                .transpose()?,
         })
     }
 }
@@ -2111,6 +2313,10 @@ impl
                 phone_number: None,
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: router_data
+                    .customer_date_of_birth
+                    .as_ref()
+                    .map(format_date_of_birth),
             }),
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             webhook_url: router_data.request.webhook_url.clone(),
@@ -2185,6 +2391,13 @@ impl
             // TODO: Populate currency_conversion_data when Dynamic Currency Conversion (DCC) is implemented
             currency_conversion_data: None,
             split_settlement: None,
+            is_account_funded_transaction: router_data.request.is_account_funded_transaction,
+            recipient_details: router_data
+                .request
+                .recipient_details
+                .as_ref()
+                .map(payments_grpc::RecipientDetails::foreign_try_from)
+                .transpose()?,
         })
     }
 }
@@ -2294,6 +2507,10 @@ impl
                 phone_number: None,
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: router_data
+                    .customer_date_of_birth
+                    .as_ref()
+                    .map(format_date_of_birth),
             }),
             browser_info,
             locale: None,
@@ -2361,6 +2578,8 @@ impl
             // TODO: Populate currency_conversion_data when Dynamic Currency Conversion (DCC) is implemented
             currency_conversion_data: None,
             split_settlement: None,
+            is_account_funded_transaction: None,
+            recipient_details: None,
         })
     }
 }
@@ -2451,6 +2670,10 @@ impl
                 phone_number: None,
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: router_data
+                    .customer_date_of_birth
+                    .as_ref()
+                    .map(format_date_of_birth),
             }),
             address: Some(address),
             auth_type: auth_type.into(),
@@ -2535,6 +2758,13 @@ impl
                         }
                     }),
                 }),
+            is_account_funded_transaction: router_data.request.is_account_funded_transaction,
+            recipient_details: router_data
+                .request
+                .recipient_details
+                .as_ref()
+                .map(payments_grpc::RecipientDetails::foreign_try_from)
+                .transpose()?,
         })
     }
 }
@@ -2798,6 +3028,10 @@ impl
                 phone_number: None,
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: router_data
+                    .customer_date_of_birth
+                    .as_ref()
+                    .map(format_date_of_birth),
             }),
             additional_payment_data,
             partner_merchant_identifier_details: router_data
@@ -2831,6 +3065,13 @@ impl
                 .transpose()?
                 .map(|payment_channel| payment_channel.into()),
             split_settlement: None,
+            is_account_funded_transaction: router_data.request.is_account_funded_transaction,
+            recipient_details: router_data
+                .request
+                .recipient_details
+                .as_ref()
+                .map(payments_grpc::RecipientDetails::foreign_try_from)
+                .transpose()?,
         })
     }
 }
@@ -2893,6 +3134,10 @@ impl transformers::ForeignTryFrom<&RouterData<Session, PaymentsSessionData, Paym
                 phone_number: None,
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: router_data
+                    .customer_date_of_birth
+                    .as_ref()
+                    .map(format_date_of_birth),
             }),
             return_url: None,
             metadata: None,
@@ -7886,6 +8131,7 @@ impl ForeignFrom<&router_request_types::CustomerDetails> for payments_grpc::Cust
             last_name: None,
             salutation: None,
             customer_document_details: None,
+            date_of_birth: customer.date_of_birth.as_ref().map(format_date_of_birth),
         }
     }
 }
