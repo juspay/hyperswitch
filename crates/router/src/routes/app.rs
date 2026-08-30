@@ -1907,10 +1907,10 @@ pub struct ExternalService;
 
 impl ExternalService {
     pub fn server(state: AppState) -> Scope {
-        web::scope("/external_service")
+        web::scope("/external-service")
             .app_data(web::Data::new(state))
             .service(
-                web::resource("/validate/token")
+                web::resource("/validate-token")
                     .route(web::post().to(external_service_auth_routes::validate_token)),
             )
     }

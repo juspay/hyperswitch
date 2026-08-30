@@ -15,8 +15,9 @@ pub struct ExternalSignoutTokenRequest {
     pub token: Secret<String>,
 }
 
-#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, strum::Display)]
 #[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum ValidatingService {
     OfferEngine,
 }
