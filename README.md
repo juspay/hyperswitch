@@ -97,6 +97,8 @@ Each module is independent and purpose-built to optimize different aspects of pa
 
 ```bash
 # One-click local setup
+# Note: `latest` is a git tag (updated on every stable release), not a branch,
+# so this checks out a detached HEAD at the most recent stable release.
 
 git clone --depth 1 --branch latest https://github.com/juspay/hyperswitch
 
