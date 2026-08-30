@@ -10,6 +10,21 @@ use crate::{
     DatabaseConnectionWithContext, StorageResult,
 };
 
+/// The generic kind also matches the deprecated fixed-width kinds, so rows written before
+/// `generic_card_bin` existed stay visible.
+fn equivalent_data_kinds(
+    data_kind: common_enums::BlocklistDataKind,
+) -> Vec<common_enums::BlocklistDataKind> {
+    match data_kind {
+        common_enums::BlocklistDataKind::GenericCardBin => vec![
+            common_enums::BlocklistDataKind::GenericCardBin,
+            common_enums::BlocklistDataKind::CardBin,
+            common_enums::BlocklistDataKind::ExtendedCardBin,
+        ],
+        other => vec![other],
+    }
+}
+
 impl BlocklistNew {
     pub async fn insert(
         self,
@@ -146,13 +161,7 @@ impl Blocklist {
         limit: i64,
         offset: i64,
     ) -> StorageResult<Vec<Self>> {
-        let data_kinds = match data_kind {
-            common_enums::BlocklistDataKind::CardBin => vec![
-                common_enums::BlocklistDataKind::CardBin,
-                common_enums::BlocklistDataKind::ExtendedCardBin,
-            ],
-            other => vec![other],
-        };
+        let data_kinds = equivalent_data_kinds(data_kind);
         generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
             conn,
             dsl::processor_merchant_id
@@ -176,13 +185,7 @@ impl Blocklist {
         limit: i64,
         offset: i64,
     ) -> StorageResult<Vec<Self>> {
-        let data_kinds = match data_kind {
-            common_enums::BlocklistDataKind::CardBin => vec![
-                common_enums::BlocklistDataKind::CardBin,
-                common_enums::BlocklistDataKind::ExtendedCardBin,
-            ],
-            other => vec![other],
-        };
+        let data_kinds = equivalent_data_kinds(data_kind);
         generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
             conn,
             dsl::processor_merchant_id
@@ -208,13 +211,7 @@ impl Blocklist {
         processor_merchant_id: &common_utils::id_type::MerchantId,
         data_kind: common_enums::BlocklistDataKind,
     ) -> StorageResult<usize> {
-        let data_kinds = match data_kind {
-            common_enums::BlocklistDataKind::CardBin => vec![
-                common_enums::BlocklistDataKind::CardBin,
-                common_enums::BlocklistDataKind::ExtendedCardBin,
-            ],
-            other => vec![other],
-        };
+        let data_kinds = equivalent_data_kinds(data_kind);
         generics::generic_count::<<Self as HasTable>::Table, _>(
             conn,
             dsl::processor_merchant_id
@@ -233,13 +230,7 @@ impl Blocklist {
         profile_id: &common_utils::id_type::ProfileId,
         data_kind: common_enums::BlocklistDataKind,
     ) -> StorageResult<usize> {
-        let data_kinds = match data_kind {
-            common_enums::BlocklistDataKind::CardBin => vec![
-                common_enums::BlocklistDataKind::CardBin,
-                common_enums::BlocklistDataKind::ExtendedCardBin,
-            ],
-            other => vec![other],
-        };
+        let data_kinds = equivalent_data_kinds(data_kind);
         generics::generic_count::<<Self as HasTable>::Table, _>(
             conn,
             dsl::processor_merchant_id

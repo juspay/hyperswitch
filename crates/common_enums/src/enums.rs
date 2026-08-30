@@ -687,8 +687,11 @@ impl PaymentResourceUpdateStatus {
 #[strum(serialize_all = "snake_case")]
 pub enum BlocklistDataKind {
     PaymentMethod,
+    /// Deprecated, superseded by `GenericCardBin`
     CardBin,
+    /// Deprecated, superseded by `GenericCardBin`
     ExtendedCardBin,
+    GenericCardBin,
 }
 
 #[derive(Debug)]

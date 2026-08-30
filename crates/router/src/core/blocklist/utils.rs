@@ -23,11 +23,6 @@ use crate::{
     types::{domain, storage, transformers::ForeignInto},
 };
 
-const CARD_BIN_MIN_LEN: usize = 6;
-const CARD_BIN_MAX_LEN: usize = 10;
-pub(super) const CARD_BIN_EXPECTED_FORMAT: &str = "a 6 to 10 digit number";
-
-#[allow(deprecated)]
 pub async fn delete_entry_from_blocklist(
     state: &SessionState,
     processor: &domain::Processor,
@@ -46,8 +41,10 @@ pub async fn delete_entry_from_blocklist(
     .await?;
 
     let blocklist_entry = match request {
+        #[allow(deprecated)]
         api_blocklist::DeleteFromBlocklistRequest::CardBin(bin)
-        | api_blocklist::DeleteFromBlocklistRequest::ExtendedCardBin(bin) => {
+        | api_blocklist::DeleteFromBlocklistRequest::ExtendedCardBin(bin)
+        | api_blocklist::DeleteFromBlocklistRequest::GenericCardBin(bin) => {
             delete_card_bin_blocklist_entry(state, &bin, processor_merchant_id, &profile_id).await?
         }
 
@@ -153,21 +150,34 @@ pub async fn list_blocklist_entries_for_merchant(
     })
 }
 
-pub(super) fn validate_card_bin(bin: &str) -> RouterResult<()> {
-    if (CARD_BIN_MIN_LEN..=CARD_BIN_MAX_LEN).contains(&bin.len())
-        && bin.chars().all(|c| c.is_ascii_digit())
-    {
-        Ok(())
-    } else {
-        Err(errors::ApiErrorResponse::InvalidDataFormat {
-            field_name: "data".to_string(),
-            expected_format: CARD_BIN_EXPECTED_FORMAT.to_string(),
-        }
-        .into())
-    }
+pub(super) fn validate_bin(
+    bin: &str,
+    data_kind: common_enums::BlocklistDataKind,
+) -> RouterResult<()> {
+    let expected = match data_kind {
+        common_enums::BlocklistDataKind::CardBin => Some((6..=6, "a 6 digit number")),
+        common_enums::BlocklistDataKind::ExtendedCardBin => Some((8..=8, "an 8 digit number")),
+        common_enums::BlocklistDataKind::GenericCardBin => Some((
+            cards::validate::MIN_CARD_BIN_LENGTH..=cards::validate::MAX_CARD_BIN_LENGTH,
+            "a 6 to 10 digit number",
+        )),
+        // A fingerprint is an opaque hash, it has no digit format to enforce.
+        common_enums::BlocklistDataKind::PaymentMethod => None,
+    };
+
+    expected.map_or(Ok(()), |(lengths, expected_format)| {
+        (lengths.contains(&bin.len()) && cards::validate::validate_card_number_chars(bin).is_ok())
+            .then_some(())
+            .ok_or_else(|| {
+                errors::ApiErrorResponse::InvalidDataFormat {
+                    field_name: "data".to_string(),
+                    expected_format: expected_format.to_string(),
+                }
+                .into()
+            })
+    })
 }
 
-#[allow(deprecated)]
 pub async fn insert_entry_into_blocklist(
     state: &SessionState,
     platform: &domain::Platform,
@@ -186,15 +196,40 @@ pub async fn insert_entry_into_blocklist(
     .await?;
 
     let blocklist_entry = match &to_block {
-        api_blocklist::AddToBlocklistRequest::CardBin(bin)
-        | api_blocklist::AddToBlocklistRequest::ExtendedCardBin(bin) => {
-            validate_card_bin(bin)?;
+        #[allow(deprecated)]
+        api_blocklist::AddToBlocklistRequest::CardBin(bin) => {
+            validate_bin(bin, common_enums::BlocklistDataKind::CardBin)?;
             duplicate_check_insert_bin(
                 bin,
                 state,
                 platform,
                 &profile_id,
                 common_enums::BlocklistDataKind::CardBin,
+            )
+            .await?
+        }
+
+        #[allow(deprecated)]
+        api_blocklist::AddToBlocklistRequest::ExtendedCardBin(bin) => {
+            validate_bin(bin, common_enums::BlocklistDataKind::ExtendedCardBin)?;
+            duplicate_check_insert_bin(
+                bin,
+                state,
+                platform,
+                &profile_id,
+                common_enums::BlocklistDataKind::ExtendedCardBin,
+            )
+            .await?
+        }
+
+        api_blocklist::AddToBlocklistRequest::GenericCardBin(bin) => {
+            validate_bin(bin, common_enums::BlocklistDataKind::GenericCardBin)?;
+            duplicate_check_insert_bin(
+                bin,
+                state,
+                platform,
+                &profile_id,
+                common_enums::BlocklistDataKind::GenericCardBin,
             )
             .await?
         }
@@ -409,11 +444,7 @@ pub async fn should_payment_be_blocked(
             domain::EligibilityPaymentMethodData::Card(card) => Some(&card.card_number),
             _ => None,
         })
-        .map(|card_number| {
-            (CARD_BIN_MIN_LEN..=CARD_BIN_MAX_LEN)
-                .map(|len| card_number.get_bin_prefix(len))
-                .collect::<Vec<_>>()
-        })
+        .map(cards::CardNumber::get_blocklist_bin_prefixes)
         .unwrap_or_default();
 
     // Extended bin of the wallet's decrypted token, to check whether or not this payment should be blocked.

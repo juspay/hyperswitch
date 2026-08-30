@@ -10082,7 +10082,8 @@
         "enum": [
           "payment_method",
           "card_bin",
-          "extended_card_bin"
+          "extended_card_bin",
+          "generic_card_bin"
         ]
       },
       "BlocklistRequest": {
@@ -10101,7 +10102,8 @@
                 ]
               },
               "data": {
-                "type": "string"
+                "type": "string",
+                "deprecated": true
               }
             }
           },
@@ -10139,6 +10141,24 @@
               "data": {
                 "type": "string",
                 "deprecated": true
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "generic_card_bin"
+                ]
+              },
+              "data": {
+                "type": "string"
               }
             }
           }

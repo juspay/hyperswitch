@@ -84,10 +84,11 @@ impl BlocklistRow {
         }
     }
 
-    // `extended_card_bin` is deprecated - it is accepted so existing CSVs keep working, but it is stored as a card bin
     fn parse_kind(kind: &str) -> Option<common_enums::BlocklistDataKind> {
         match kind {
-            "card_bin" | "extended_card_bin" => Some(common_enums::BlocklistDataKind::CardBin),
+            "card_bin" => Some(common_enums::BlocklistDataKind::CardBin),
+            "extended_card_bin" => Some(common_enums::BlocklistDataKind::ExtendedCardBin),
+            "generic_card_bin" => Some(common_enums::BlocklistDataKind::GenericCardBin),
             "fingerprint" => Some(common_enums::BlocklistDataKind::PaymentMethod),
             _ => None,
         }
@@ -106,7 +107,7 @@ impl BlocklistRow {
                 common_enums::BlocklistDataKind::CardBin,
                 data.clone(),
                 format!(
-                    "unknown type `{kind}`; expected card_bin, extended_card_bin, or fingerprint"
+                    "unknown type `{kind}`; expected generic_card_bin, card_bin, extended_card_bin, or fingerprint"
                 ),
             )
         })?;
@@ -120,12 +121,16 @@ impl BlocklistRow {
             ));
         }
 
+        let is_invalid = super::utils::validate_bin(&data, parsed_kind).is_err();
         let format_error = match parsed_kind {
-            common_enums::BlocklistDataKind::CardBin
-            | common_enums::BlocklistDataKind::ExtendedCardBin => {
-                super::utils::validate_card_bin(&data)
-                    .is_err()
-                    .then_some(super::utils::CARD_BIN_EXPECTED_FORMAT)
+            common_enums::BlocklistDataKind::CardBin => {
+                is_invalid.then_some("card_bin must be exactly 6 digits")
+            }
+            common_enums::BlocklistDataKind::ExtendedCardBin => {
+                is_invalid.then_some("extended_card_bin must be exactly 8 digits")
+            }
+            common_enums::BlocklistDataKind::GenericCardBin => {
+                is_invalid.then_some("generic_card_bin must be a 6 to 10 digit number")
             }
             common_enums::BlocklistDataKind::PaymentMethod => None,
         };
@@ -219,8 +224,9 @@ fn rows_to_csv_bytes(rows: &[BlocklistRow]) -> RouterResult<Vec<u8>> {
             })
             .unwrap_or_default();
         let type_str = match row.data_kind {
-            common_enums::BlocklistDataKind::CardBin
-            | common_enums::BlocklistDataKind::ExtendedCardBin => "card_bin",
+            common_enums::BlocklistDataKind::CardBin => "card_bin",
+            common_enums::BlocklistDataKind::ExtendedCardBin => "extended_card_bin",
+            common_enums::BlocklistDataKind::GenericCardBin => "generic_card_bin",
             common_enums::BlocklistDataKind::PaymentMethod => "fingerprint",
         };
         writer

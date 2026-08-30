@@ -9,10 +9,12 @@ const DEFAULT_BATCH_LIST_LIMIT: u8 = 10;
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case", tag = "type", content = "data")]
 pub enum BlocklistRequest {
+    #[deprecated(note = "use GenericCardBin, which accepts 6 to 10 digits")]
     CardBin(String),
     Fingerprint(String),
-    #[deprecated(note = "use CardBin, which accepts 6 to 10 digits")]
+    #[deprecated(note = "use GenericCardBin, which accepts 6 to 10 digits")]
     ExtendedCardBin(String),
+    GenericCardBin(String),
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
