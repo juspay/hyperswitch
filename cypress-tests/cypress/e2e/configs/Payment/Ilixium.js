@@ -62,8 +62,13 @@ export const connectorDetails = {
         },
       },
     },
-    // UNVERIFIED — inferred from No3DSManualCapture by only changing
-    // capture_method; not confirmed against a live run.
+    // BROKEN, not just unverified: a live run against capture_method: "automatic"
+    // returned HTTP 200 with status "succeeded" but a non-null error_message: "4"
+    // (no error_code/full body captured yet). Whatever that means server-side,
+    // it isn't the clean success this entry used to claim. Left as a visible
+    // failure (rather than removed) until the real body is captured and this can
+    // be encoded correctly — do not mark this connector as supporting
+    // auto-capture based on this entry.
     No3DSAutoCapture: getCustomExchange({
       Request: {
         payment_method: "card",
@@ -79,10 +84,14 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+          error_message: null, // known wrong — real value observed was "4"
         },
       },
     }),
-    // UNVERIFIED — standard full-capture shape, not confirmed against a live run.
+    // BROKEN: a live run's plain (full) Capture also returned 400, same as
+    // PartialCapture below, but the exact body wasn't captured — only that it
+    // failed. Not safe to assume it's identical to PartialCapture's message
+    // without seeing it; left as a visible failure rather than guessed.
     Capture: getCustomExchange({
       Request: {
         amount_to_capture: 1000,
@@ -94,6 +103,27 @@ export const connectorDetails = {
           amount: 1000,
           amount_capturable: 0,
           amount_received: 1000,
+        },
+      },
+    }),
+    // Verified: a live run's capture request against a plain "manual"
+    // capture_method payment returned this exact error (hyperswitch-level
+    // validation, not Ilixium-specific — it wants capture_method:
+    // "manual_multiple" to allow calling /capture at all here). error.code is
+    // unconfirmed — not present in the assertion trail we have, since the
+    // message mismatch stopped the check before code was compared.
+    PartialCapture: getCustomExchange({
+      Request: {
+        amount_to_capture: 500,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "This Payment could not be captured because it has a capture_method of manual. The expected state is manual_multiple",
+          },
         },
       },
     }),
