@@ -1,4 +1,6 @@
 #[cfg(feature = "v2")]
+use std::collections::BTreeMap;
+#[cfg(feature = "v2")]
 use std::collections::HashMap;
 
 #[cfg(feature = "v2")]
@@ -21,6 +23,10 @@ use error_stack::{Report, ResultExt};
 #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
 use external_services::{
     date_time, grpc_client::revenue_recovery::recovery_decider_client as external_grpc_client,
+};
+#[cfg(feature = "v2")]
+use hyperswitch_domain_models::revenue_recovery::retry_stats_document::{
+    SlotCounter, StatsDocument,
 };
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::{
@@ -46,7 +52,7 @@ use scheduler::{types::process_data, utils as scheduler_utils};
 #[cfg(feature = "v2")]
 use storage_impl::errors as storage_errors;
 #[cfg(feature = "v2")]
-use time::Date;
+use storage_impl::revenue_recovery_retry_stats::RevenueRecoveryRetryStatsInterface;
 
 #[cfg(feature = "v2")]
 use crate::core::payments::operations;
@@ -1257,4 +1263,757 @@ pub fn add_random_delay_to_schedule_time(
     let random_secs = rng.gen_range(1..=delay_limit);
     logger::info!("Adding random delay of {random_secs} seconds to schedule time");
     schedule_time + time::Duration::seconds(random_secs)
+}
+
+// ---------------------------------------------------------------------------
+// MathModel retry-time prediction — the data-driven half of the Cascading (MathModel) strategy.
+//
+// Given a cluster's day-of-week / day-of-month / hour-of-day success stats (`StatsDocument`), the
+// remaining retry budget, and the grace window, it returns the datetime to retry on — via per-tick
+// probabilistic firing (real randomness, no seed) with a runway guard. The caller `min()`s this
+// with the Superposition static-schedule time (MathModel can only make a retry happen SOONER).
+//
+// Returns `Some(datetime)` whenever the grace window has at least one retriable day, and `None` only
+// when the window is empty (`grace_days <= 1` — no future day to retry on). WITHIN a non-empty window
+// the pick never fails: Laplace smoothing gives every slot a defined estimate and the runway guard
+// guarantees a pick even for sparse/empty stats.
+//
+// INDEXING (must match `retry_stats_document::EventSlots::from_utc`, which is how the stats are
+// recorded):
+//   * dow: `weekday().number_days_from_monday()`  →  MONDAY = 0 .. Sunday = 6
+//   * dom: `day() - 1`                            →  0-indexed (0 = the 1st)
+//   * hod: `hour()`                               →  0 .. 23 (UTC)
+// ---------------------------------------------------------------------------
+
+/// Clip C_ij to [CLIP, 1-CLIP] so near-certain comparisons don't send logit to +/- infinity.
+#[cfg(feature = "v2")]
+const CLIP: f64 = 1e-4;
+/// Max candidate-window length. Beyond ~a month the window only repeats weekday/month-day slots that
+/// are already represented (all 7 weekdays — and all month-days except when the window spans February),
+/// so a longer grace adds little new signal; this caps the work and guards a config typo. NOTE: the cap
+/// is a behavior change (a grace > 31 can never propose days 32+), so it's logged where it triggers.
+#[cfg(feature = "v2")]
+const MAX_GRACE_DAYS: u32 = 31;
+
+/// Laplace-smoothed success rate: p̂ = (k+1)/(n+2). Callers must pass a well-formed counter (k ≤ n);
+/// `slot_scores` DROPS corrupt `k > n` slots before this runs, so p̂ ∈ (0,1) strictly and `se` never
+/// takes the sqrt of a negative. (Do NOT clamp k→n here — that reads as "all succeeded" and would make
+/// a corrupt slot the best in the cluster; dropping degrades it to "no data" instead.)
+// `u64 -> f64` has no lossless or checked conversion in std (no `From`/`TryFrom` for floats), so `as`
+// is the only option — and it is EXACT for counts up to 2^53 (~9e15), far beyond any real retry tally.
+#[cfg(feature = "v2")]
+#[allow(clippy::as_conversions)]
+fn p_hat(c: SlotCounter) -> f64 {
+    (c.k as f64 + 1.0) / (c.n as f64 + 2.0)
+}
+
+/// Beta-posterior standard deviation: SE = sqrt(p̂(1-p̂)/(n+3)).
+#[cfg(feature = "v2")]
+#[allow(clippy::as_conversions)]
+fn se(c: SlotCounter) -> f64 {
+    let p = p_hat(c);
+    (p * (1.0 - p) / (c.n as f64 + 3.0)).sqrt()
+}
+
+/// Standard normal cumulative distribution function: `Φ(x) = P(Z ≤ x)` for a standard normal
+/// `Z ~ N(0, 1)` — the probability a bell-curve draw falls at or below `x`.
+///
+/// This is how [`slot_scores`] turns a rate gap into a confidence. Given two slots' Laplace rates
+/// (`p̂ᵢ`, `p̂ⱼ`) and standard errors (`SEᵢ`, `SEⱼ`), `Φ((p̂ᵢ − p̂ⱼ) / √(SEᵢ² + SEⱼ²))` is the
+/// probability that slot *i*'s TRUE success rate exceeds slot *j*'s — a big, well-separated lead
+/// approaches 1, a shaky lead sits near 0.5. So it measures how *confidently* one slot beats
+/// another, not just whether its point estimate is higher.
+///
+/// Uses the standard identity `Φ(x) = ½·(1 + erf(x/√2))` with `libm::erf` — a full-precision,
+/// Rust-team-maintained error function (`std` has no stable `erf`).
+#[cfg(feature = "v2")]
+fn normal_cdf(x: f64) -> f64 {
+    0.5 * (1.0 + libm::erf(x / std::f64::consts::SQRT_2))
+}
+
+#[cfg(feature = "v2")]
+fn logit(c: f64) -> f64 {
+    let c = c.clamp(CLIP, 1.0 - CLIP);
+    (c / (1.0 - c)).ln()
+}
+
+/// Per-slot confidence score = average over the OTHER present slots of
+/// `logit( P(this slot's true rate > that slot's true rate) )`.
+///
+/// `StatsDocument` stores each family as a fixed-length array, so the slot index IS the array
+/// index — out-of-domain keys are impossible by construction. Two exclusions:
+///  * `n == 0` — never attempted: excluded exactly like an absent slot (NOT treated as a
+///    0.5-prior, which would beat real low-rate slots).
+///  * `k > n`  — corrupt counters: dropped so garbage can't pollute real slots' scores as a peer.
+#[cfg(feature = "v2")]
+fn slot_scores(slots: &[SlotCounter]) -> BTreeMap<u8, f64> {
+    // Corrupt counters (k > n) are untrustworthy — exclude them from SCORING. This does NOT skip the
+    // retry: the corrupt slot's days stay in the candidate window and still get picked, just at the
+    // neutral "no data" weight (exp(0)=1) instead of a fabricated score. So even an all-corrupt cluster
+    // still retries — uniformly, no preference — rather than being steered by garbage. (Do NOT clamp
+    // k→n: that reads as "all succeeded" and lets a corrupt slot dominate the real ones.)
+    // Logged at debug (not warn): a stale bad counter would otherwise fire per slot, per invoice,
+    // forever — alert fatigue, no new info. TODO: emit a corrupt-slot metric as the durable signal.
+    let corrupt: Vec<usize> = slots
+        .iter()
+        .enumerate()
+        .filter(|(_, c)| c.k > c.n)
+        .map(|(i, _)| i)
+        .collect();
+    if !corrupt.is_empty() {
+        logger::debug!(
+            slots = ?corrupt,
+            "retry_stats: corrupt slot counters (k > n) excluded from scoring"
+        );
+    }
+    let scored: Vec<(u8, f64, f64)> = slots
+        .iter()
+        .enumerate()
+        .filter(|(_, c)| c.n > 0 && c.k <= c.n)
+        .filter_map(|(i, c)| u8::try_from(i).ok().map(|i| (i, p_hat(*c), se(*c))))
+        .collect();
+    let mut out = BTreeMap::new();
+    for &(i, pi, sei) in &scored {
+        let mut sum = 0.0;
+        let mut cnt = 0.0;
+        for &(j, pj, sej) in &scored {
+            if i == j {
+                continue;
+            }
+            // denom > 0 always: Laplace smoothing keeps every scored slot's SE strictly positive.
+            let denom = (sei * sei + sej * sej).sqrt();
+            let c = normal_cdf((pi - pj) / denom);
+            sum += logit(c);
+            cnt += 1.0;
+        }
+        out.insert(i, if cnt > 0.0 { sum / cnt } else { 0.0 });
+    }
+    out
+}
+
+/// Which signal won the softmax `max` for a candidate day. Carried through the pick so the log can
+/// name it without re-deriving. `Tie` = both axes equal (e.g. a cold cluster: both uniform).
+#[cfg(feature = "v2")]
+#[derive(Clone, Copy, Debug)]
+enum DayAxis {
+    Dow,
+    Dom,
+    Tie,
+}
+
+#[cfg(feature = "v2")]
+impl DayAxis {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Dow => "dow",
+            Self::Dom => "dom",
+            Self::Tie => "tie",
+        }
+    }
+}
+
+/// Why `pick_index` landed on the index it returned — so the caller can attribute the pick honestly
+/// (a forced or exhausted pick must NOT be logged as if the weights drove it). `Weights` carries the
+/// chosen item's tag (for the day pick, its `DayAxis`), resolved AT pick time so the caller never
+/// re-indexes to find it.
+#[cfg(feature = "v2")]
+#[derive(Clone, Copy, Debug)]
+enum PickDriver<T> {
+    Weights(T),  // the weights drove the choice; carries the chosen item's tag
+    RunwayGuard, // forced fire: budget >= remaining candidates (spends the budget before the window ends)
+}
+
+#[cfg(feature = "v2")]
+impl PickDriver<DayAxis> {
+    /// Log label: the winning axis when the weights drove the pick, else the forced-pick reason.
+    fn label(self) -> &'static str {
+        match self {
+            Self::Weights(axis) => axis.as_str(),
+            Self::RunwayGuard => "runway_guard",
+        }
+    }
+}
+
+/// Per-tick probabilistic pick over an ordered list of non-negative WEIGHTS, with the runway guard.
+/// Fires index k with probability `min(budget · weight_k / remaining_weight, 1)` (remaining_weight
+/// via a suffix-sum); `budget >= remaining` forces a fire. Weights need not be normalized — only
+/// their ratios matter. `tags` runs parallel to `weights`; the chosen index's tag rides back inside
+/// `PickDriver::Weights`, so the caller never re-indexes to recover it. Returns the chosen index and
+/// WHY (see `PickDriver`), or `None` when nothing fires — an empty list, or a run where every tick
+/// missed. With `budget >= 1` the runway guard forces the last index to fire, so `None` means "no
+/// candidate to schedule" (empty list or `budget == 0`); the caller treats it as "don't schedule".
+#[cfg(feature = "v2")]
+fn pick_index<T: Copy + std::fmt::Debug>(
+    weights: &[f64],
+    tags: &[T],
+    budget: u32,
+    context: &'static str,
+) -> Option<(usize, PickDriver<T>)> {
+    let n = weights.len();
+    if n == 0 {
+        return None;
+    }
+    // suffix[k] = weights[k] + … + weights[n-1], accumulated over the reversed slice (no indexing).
+    let suffix: Vec<f64> = {
+        let mut acc = 0.0;
+        let mut sums: Vec<f64> = weights
+            .iter()
+            .rev()
+            .map(|&w| {
+                acc += w;
+                acc
+            })
+            .collect();
+        sums.reverse();
+        sums
+    };
+    let budget_slots = usize::try_from(budget).unwrap_or(usize::MAX);
+    for (k, ((&w, &s), &tag)) in weights
+        .iter()
+        .zip(suffix.iter())
+        .zip(tags.iter())
+        .enumerate()
+    {
+        let remaining = n - k;
+        let guard = budget_slots >= remaining; // runway guard forces the fire
+        let p = if guard {
+            1.0
+        } else {
+            (f64::from(budget) * w / s).min(1.0)
+        };
+        // Draw the (unseeded) random value into a variable so the per-step decision is fully logged.
+        let draw = rand::random::<f64>();
+        let fired = draw < p;
+        logger::debug!(
+            context = context,
+            index = k,
+            tag = ?tag,
+            weight = w,
+            remaining_weight = s,
+            guard = guard,
+            fire_probability = p,
+            rand_draw = draw,
+            fired = fired,
+            "mathmodel: pick step"
+        );
+        if fired {
+            return Some((
+                k,
+                if guard {
+                    PickDriver::RunwayGuard
+                } else {
+                    PickDriver::Weights(tag)
+                },
+            ));
+        }
+    }
+    logger::debug!(
+        context = context,
+        "mathmodel: pick exhausted — no step fired (budget 0); no candidate to schedule"
+    );
+    None
+}
+
+/// Pick the hour the SAME way as days: per-tick over hours 0..23 with budget 1 (exactly one hour).
+/// Missing hours score 0. Falls back to the caller-supplied `default_hour` when there is no USABLE
+/// hour data — guard on the SCORED slots, not the raw counters, so all-corrupt counters still fall
+/// back (an all-zero array yields empty scores too, so this one check covers all no-data shapes).
+#[cfg(feature = "v2")]
+fn pick_hour(hod: &[SlotCounter], default_hour: u8) -> u8 {
+    let scores = slot_scores(hod);
+    if scores.is_empty() {
+        return default_hour;
+    }
+    let hours: Vec<u8> = (0u8..24).collect();
+    let weights: Vec<f64> = hours
+        .iter()
+        .map(|&h| scores.get(&h).copied().unwrap_or(0.0).exp())
+        .collect();
+    // budget 1 over a non-empty list => the runway guard always fires (never None); the fallback to
+    // default_hour is a defensive floor. `hours[idx]` IS the hour (a u8), fetched via `get` — no cast.
+    pick_index(&weights, &hours, 1, "hour")
+        .and_then(|(idx, _)| hours.get(idx).copied())
+        .unwrap_or(default_hour)
+}
+
+/// Softmax `xs` (numerically stabilized by subtracting the max). `xs` is non-empty here.
+#[cfg(feature = "v2")]
+fn softmax(xs: &[f64]) -> Vec<f64> {
+    let m = xs.iter().copied().fold(f64::MIN, f64::max);
+    let exps: Vec<f64> = xs.iter().map(|x| (x - m).exp()).collect();
+    let z: f64 = exps.iter().sum();
+    exps.iter().map(|e| e / z).collect()
+}
+
+/// THE COMBINE SEAM. Fold the day-of-week and day-of-month signals into one weight per candidate day.
+///
+/// v1: softmax each axis over the CANDIDATE DAYS, then take the max — "this day is good if either its
+/// weekday OR its month-day is historically good." Simplest defensible combine; since the result is
+/// `min()`d with the static schedule downstream, the downside is bounded. Known trade-offs accepted
+/// for v1: `max` optimism (a day strong on one axis but weak on the other is picked on its strong
+/// side) and a mild grace-dependent tilt toward day-of-month. To try a better combine later
+/// (max-at-score / sum-of-logits / posterior sampling), change ONLY this function.
+///
+/// Returns per-day `(weight, winning_axis)`; the winner lets the caller log which signal drove a pick.
+#[cfg(feature = "v2")]
+fn combine_day_weight(
+    dates: &[time::Date],
+    dow: &BTreeMap<u8, f64>,
+    dom: &BTreeMap<u8, f64>,
+) -> (Vec<f64>, Vec<DayAxis>) {
+    let dow_sc: Vec<f64> = dates
+        .iter()
+        .map(|d| {
+            dow.get(&d.weekday().number_days_from_monday())
+                .copied()
+                .unwrap_or(0.0)
+        })
+        .collect();
+    let dom_sc: Vec<f64> = dates
+        .iter()
+        .map(|d| dom.get(&d.day().saturating_sub(1)).copied().unwrap_or(0.0))
+        .collect();
+    let p_dow = softmax(&dow_sc);
+    let p_dom = softmax(&dom_sc);
+    p_dow
+        .iter()
+        .zip(p_dom.iter())
+        .map(|(&pw, &pm)| {
+            let winner = if pm > pw {
+                DayAxis::Dom
+            } else if pw > pm {
+                DayAxis::Dow
+            } else {
+                DayAxis::Tie // both axes equal (e.g. a cold cluster: both uniform) — neither "won"
+            };
+            (pw.max(pm), winner)
+        })
+        .unzip()
+}
+
+/// Predict the retry datetime from cluster stats.
+///
+/// * `stats`      the cluster's parsed success stats (dow/dom/hod `{n,k}` counters)
+/// * `budget`     retries remaining (drives the runway guard)
+/// * `grace_days` grace period, in days, COUNTING the failure day (today). Retriable window = the
+///                `grace_days - 1` future days, capped at 31.
+/// * `default_hour` fallback hour-of-day (UTC) used when the cluster has no usable hour history
+///                (from `revenue_recovery.default_retry_hour_utc` config).
+///
+/// The window starts on the **NEXT day** (failure day + 1), never on the failure day itself — the
+/// charge just failed today, so a same-day retry is low value. The min-gap / past-time guard rails
+/// are applied by the CALLER on the returned time (per the MathModel design).
+///
+/// Returns `None` when `budget == 0` (no retries left to schedule) or `grace_days <= 1` (no future
+/// day inside the grace period); otherwise `Some`.
+/// V1 LIMITATION: a grace of 1 (today only) with retries still available is treated as "no retry"; a
+/// later version will handle that edge (e.g. a same-day retry after a delay). Uses real randomness
+/// (no seed). The caller `min()`s the result with the static schedule time.
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+pub fn compute_mathmodel_retry_time(
+    stats: &StatsDocument,
+    budget: u32,
+    grace_days: u32,
+    default_hour: u8,
+) -> Option<time::OffsetDateTime> {
+    // `grace_days` COUNTS the failure day (today), which we never retry on — so the retriable window
+    // is the `grace_days - 1` future days [failure_day + 1 .. failure_day + grace_days - 1]. When that
+    // is empty (grace_days <= 1: no grace, or grace covers only today) there is no in-grace future day.
+    // V1: return None here. A later version will handle "grace 1 but retries remain" (e.g. a same-day
+    // retry after a delay) rather than skipping.
+    let future_days = grace_days.saturating_sub(1);
+    if future_days == 0 {
+        logger::debug!(
+            budget = budget,
+            grace_days = grace_days,
+            "mathmodel: declined — no future day inside the grace window (grace_days <= 1)"
+        );
+        return None;
+    }
+    // No retries remaining: there is nothing to schedule. `pick_index` also returns None on budget 0
+    // (nothing fires), so this is really an early-out — it short-circuits before building the window
+    // and emitting the per-day trace, and states the "no budget -> no retry" contract explicitly.
+    if budget == 0 {
+        logger::debug!(
+            budget = budget,
+            grace_days = grace_days,
+            "mathmodel: declined — no retry budget remaining"
+        );
+        return None;
+    }
+    let now = time::OffsetDateTime::now_utc();
+    let dow_scores = slot_scores(&stats.dow);
+    let dom_scores = slot_scores(&stats.dom);
+
+    // Cap the window at MAX_GRACE_DAYS: beyond ~a month it only repeats already-covered weekday/
+    // month-day slots. Truncation is a behavior change (days beyond the cap are never proposed); log
+    // at debug, not warn — it fires per invoice for a mis-configured profile and warn would spam.
+    if future_days > MAX_GRACE_DAYS {
+        logger::debug!(
+            configured = grace_days,
+            capped = MAX_GRACE_DAYS,
+            "mathmodel: grace window capped"
+        );
+    }
+    // future_days is capped at MAX_GRACE_DAYS (31), so this always fits usize; 0 is an unreachable
+    // safe floor (would just leave the single seeded `start` day).
+    let window_len = usize::try_from(future_days.min(MAX_GRACE_DAYS)).unwrap_or(0);
+    let start = now.date().next_day().unwrap_or(now.date());
+    let mut dates = vec![start];
+    while dates.len() < window_len {
+        match dates.last().and_then(|d| d.next_day()) {
+            Some(next) => dates.push(next),
+            None => break,
+        }
+    }
+
+    logger::debug!(
+        budget = budget,
+        grace_days = grace_days,
+        window_len = window_len,
+        window_start = %start,
+        default_hour = default_hour,
+        "mathmodel: decision start"
+    );
+
+    let (day_weights, winners) = combine_day_weight(&dates, &dow_scores, &dom_scores);
+
+    // Per-candidate-day scores: the day-of-week and day-of-month signals plus the combined weight the
+    // pick is about to run on. Zipped (not indexed) over the parallel vectors.
+    for ((date, &weight), &winner) in dates.iter().zip(&day_weights).zip(&winners) {
+        let dow_score = dow_scores
+            .get(&date.weekday().number_days_from_monday())
+            .copied()
+            .unwrap_or(0.0);
+        let dom_score = dom_scores
+            .get(&date.day().saturating_sub(1))
+            .copied()
+            .unwrap_or(0.0);
+        logger::debug!(
+            date = %date,
+            weekday = date.weekday().number_days_from_monday(),
+            day_of_month = date.day(),
+            dow_score = dow_score,
+            dom_score = dom_score,
+            combined_weight = weight,
+            winning_axis = winner.as_str(),
+            "mathmodel: candidate day score"
+        );
+    }
+
+    // winners ride along so the winning axis returns inside pick_driver — no re-indexing afterwards.
+    // `None` means no candidate fired (no budget / empty window) -> nothing to schedule -> return None.
+    let (day_idx, pick_driver) = pick_index(&day_weights, &winners, budget, "day")?;
+    let hour = pick_hour(&stats.hod, default_hour);
+    let time = time::Time::from_hms(hour, 0, 0).unwrap_or(time::Time::MIDNIGHT);
+
+    // day_idx is always in range (from pick_index over these vecs); `.get` keeps it panic-free.
+    let chosen_date = *dates.get(day_idx)?;
+    let chosen_weight = day_weights.get(day_idx).copied().unwrap_or(0.0);
+    let retry_at = chosen_date.with_time(time).assume_offset(now.offset());
+
+    // Final decision. A forced (runway-guard) pick labels itself (not the softmax winner) for honest
+    // back-test attribution.
+    logger::debug!(
+        chosen_day = %chosen_date,
+        chosen_hour = hour,
+        retry_at = %retry_at,
+        driver = pick_driver.label(),
+        weight = chosen_weight,
+        "mathmodel: decision final"
+    );
+
+    Some(retry_at)
+}
+
+/// Adaptive retry time for a failed invoice: fetch the cluster's success stats by the
+/// (standardised) error code and ask the math model when to retry.
+///
+/// `remaining_grace_days` and `remaining_budget` are resolved by the caller (from the invoice's
+/// grace window and retry allowance) and passed straight through to the model.
+///
+/// Returns `None` on every "no opinion" case — no stats recorded for the cluster yet, a lookup
+/// failure (a corrupt stored key/document surfaces as one), or the model itself declining — so the
+/// caller always has the static ladder to fall back on. The returned instant is UTC
+/// (`OffsetDateTime`); the codebase stays in explicit UTC and only converts to a naive
+/// `PrimitiveDateTime` at the schedule boundary.
+#[cfg(feature = "v2")]
+pub async fn compute_adaptive_retry_time(
+    state: &SessionState,
+    error_code: common_enums::StandardisedCode,
+    remaining_grace_days: u32,
+    remaining_budget: u32,
+) -> Option<time::OffsetDateTime> {
+    // Fetch the stats recorded against this error code. The store builds the cluster key and
+    // parses the stored document internally; `None` when the cluster has no recorded history yet.
+    let record = state
+        .store
+        .get_revenue_recovery_retry_stats_store()
+        .find_revenue_recovery_retry_stats_by_error_code(error_code)
+        .await
+        .map_err(|error| {
+            logger::error!(?error, ?error_code, "adaptive retry: failed to fetch stats");
+        })
+        .ok()??;
+
+    logger::debug!(
+        ?error_code,
+        remaining_grace_days,
+        remaining_budget,
+        "adaptive retry: stats fetched — running mathmodel"
+    );
+
+    // A configured hour outside 0..=23 is a misconfiguration; warn (so it's visible) and fall back to
+    // noon UTC rather than letting it silently degrade to midnight downstream.
+    let configured_hour = state.conf.revenue_recovery.default_retry_hour_utc.0;
+    let default_hour = if configured_hour <= 23 {
+        configured_hour
+    } else {
+        logger::warn!(
+            configured_hour,
+            "adaptive retry: revenue_recovery.default_retry_hour_utc is out of range (0-23); using noon UTC"
+        );
+        12
+    };
+    compute_mathmodel_retry_time(
+        &record.stats,
+        remaining_budget,
+        remaining_grace_days,
+        default_hour,
+    )
+}
+
+#[cfg(all(test, feature = "v2"))]
+mod mathmodel_retry_time_tests {
+    use super::*;
+
+    // The default retry hour the production config supplies (see `default_retry_hour_utc`); passed
+    // explicitly here so the tests don't depend on config plumbing.
+    const DEFAULT_RETRY_HOUR: u8 = 12;
+
+    fn ctr(n: u64, k: u64) -> SlotCounter {
+        SlotCounter { n, k }
+    }
+
+    fn doc_with(
+        dow: &[(usize, u64, u64)],
+        dom: &[(usize, u64, u64)],
+        hod: &[(usize, u64, u64)],
+    ) -> StatsDocument {
+        let mut doc = StatsDocument::default();
+        for &(i, n, k) in dow {
+            if let Some(slot) = doc.dow.get_mut(i) {
+                *slot = ctr(n, k);
+            }
+        }
+        for &(i, n, k) in dom {
+            if let Some(slot) = doc.dom.get_mut(i) {
+                *slot = ctr(n, k);
+            }
+        }
+        for &(i, n, k) in hod {
+            if let Some(slot) = doc.hod.get_mut(i) {
+                *slot = ctr(n, k);
+            }
+        }
+        doc
+    }
+
+    fn sample() -> StatsDocument {
+        doc_with(
+            &[(0, 1843, 512), (4, 1998, 671), (6, 987, 240)],
+            &[(0, 2210, 1104), (14, 733, 156), (30, 1631, 799)],
+            &[(9, 1120, 342), (10, 1345, 460), (22, 512, 108)],
+        )
+    }
+
+    fn approx(a: f64, b: f64, tol: f64) -> bool {
+        (a - b).abs() <= tol
+    }
+
+    #[test]
+    fn scores_match_hand_math() {
+        let doc = sample();
+        let sc = slot_scores(&doc.dow);
+        let score = |slot: u8| sc.get(&slot).copied().expect("slot was scored");
+        assert!(approx(score(4), 9.2103, 0.1), "score_4={}", score(4));
+        assert!(approx(score(0), -2.73, 0.1), "score_0={}", score(0));
+        assert!(approx(score(6), -6.48, 0.1), "score_6={}", score(6));
+    }
+
+    #[test]
+    fn combine_maps_scores_to_the_right_weekday() {
+        // Exercises the indexing contract (dow index = number_days_from_monday), not just the
+        // `time` crate: give Monday (0) a dominant score, no month-day signal, and assert the Monday
+        // date in the window wins the weight. Deterministic — combine_day_weight uses no RNG.
+        let start = time::Date::from_calendar_date(2026, time::Month::August, 17)
+            .expect("valid calendar date"); // a Monday
+        let mut dates = vec![start];
+        while dates.len() < 7 {
+            let next = dates
+                .last()
+                .and_then(|d| d.next_day())
+                .expect("next calendar day exists");
+            dates.push(next);
+        }
+        let dow = BTreeMap::from([(0u8, 5.0)]); // Monday dominant
+        let dom = BTreeMap::<u8, f64>::new(); // no month-day signal
+        let (weights, _) = combine_day_weight(&dates, &dow, &dom);
+        let argmax = weights
+            .iter()
+            .enumerate()
+            .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+            .map(|(i, _)| i)
+            .unwrap_or(0);
+        let winning_date = dates.get(argmax).copied().expect("argmax within window");
+        assert_eq!(
+            winning_date, start,
+            "Monday's dominant score must make the Monday date win"
+        );
+        assert_eq!(winning_date.weekday().number_days_from_monday(), 0);
+    }
+
+    #[test]
+    fn pick_hour_is_valid_and_empty_defaults() {
+        // No seed now, so assert only the invariant: a valid hour; no usable hour data -> default.
+        let doc = sample();
+        for _ in 0..100 {
+            assert!(pick_hour(&doc.hod, DEFAULT_RETRY_HOUR) < 24);
+        }
+        assert_eq!(
+            pick_hour(&[SlotCounter::default(); 24], DEFAULT_RETRY_HOUR),
+            DEFAULT_RETRY_HOUR
+        );
+    }
+
+    #[test]
+    fn result_is_always_in_window() {
+        // Invariant for EVERY random outcome: result date ∈ [tomorrow, today+grace], hour ∈ 0..23,
+        // never panics — for both rich and empty stats. (Window starts on the NEXT day; the bounds
+        // carry a 1-day slack so a midnight tick between captures can't flake it.)
+        let grace: u32 = 14;
+        for stats in [sample(), StatsDocument::default()] {
+            for _ in 0..200 {
+                let before = time::OffsetDateTime::now_utc();
+                let dt = compute_mathmodel_retry_time(&stats, 3, grace, DEFAULT_RETRY_HOUR)
+                    .expect("grace > 1 => Some");
+                let last = (before + time::Duration::days(i64::from(grace) + 1)).date();
+                assert!(
+                    dt.date() > before.date() && dt.date() <= last,
+                    "date {} out of window",
+                    dt.date()
+                );
+                assert!(dt.hour() < 24);
+            }
+        }
+    }
+
+    #[test]
+    fn window_starts_next_day() {
+        // Failure day is excluded: the earliest candidate is tomorrow. grace COUNTS today, so grace 2
+        // = today + 1 future day (tomorrow) — assert the pick is that next day, not the failure day.
+        let before = time::OffsetDateTime::now_utc();
+        let dt = compute_mathmodel_retry_time(&sample(), 3, 2, DEFAULT_RETRY_HOUR)
+            .expect("grace 2 => Some");
+        assert!(
+            dt.date() > before.date(),
+            "expected next day, got {} (today {})",
+            dt.date(),
+            before.date()
+        );
+        assert!(dt.date() <= (before + time::Duration::days(2)).date());
+    }
+
+    #[test]
+    fn grace_zero_and_one_return_none() {
+        // grace COUNTS today; grace 0 = no grace, grace 1 = today only -> no future day -> None (v1).
+        assert!(compute_mathmodel_retry_time(&sample(), 3, 0, DEFAULT_RETRY_HOUR).is_none());
+        assert!(compute_mathmodel_retry_time(&sample(), 3, 1, DEFAULT_RETRY_HOUR).is_none());
+    }
+
+    #[test]
+    fn zero_budget_returns_none() {
+        // No retries left: the model must NOT hand back a date (pick_index with budget 0 would
+        // otherwise fall through to the last grace day). Guard holds for any grace / stats shape.
+        assert!(compute_mathmodel_retry_time(&sample(), 0, 14, DEFAULT_RETRY_HOUR).is_none());
+        assert!(
+            compute_mathmodel_retry_time(&StatsDocument::default(), 0, 30, DEFAULT_RETRY_HOUR)
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn corrupt_counter_is_excluded_not_promoted() {
+        // k > n is untrustworthy: the slot is DROPPED (not clamped to a perfect record), so it can't
+        // dominate.
+        let doc = doc_with(
+            &[
+                (0, 5, 5000),   // corrupt
+                (4, 2000, 800), // real ~40%
+                (6, 1800, 700), // real ~39%
+            ],
+            &[],
+            &[],
+        );
+        let sc = slot_scores(&doc.dow);
+        assert!(
+            !sc.contains_key(&0),
+            "corrupt slot must be excluded from scoring"
+        );
+        assert!(sc.contains_key(&4) && sc.contains_key(&6));
+    }
+
+    #[test]
+    fn never_attempted_slots_are_excluded() {
+        // n == 0 means "never attempted" (the array form of an absent slot): it must not
+        // participate in scoring, otherwise its Laplace 0.5-prior would beat real low-rate slots.
+        let doc = doc_with(&[(0, 1000, 100)], &[], &[]); // only Monday attempted, ~10%
+        let sc = slot_scores(&doc.dow);
+        assert_eq!(sc.len(), 1);
+        assert!(!sc.contains_key(&1), "unattempted slot must be excluded");
+    }
+
+    #[test]
+    fn all_corrupt_cluster_still_retries() {
+        // Every slot corrupt (k > n) on all three axes -> all dropped -> uniform -> still a valid
+        // in-window datetime, never a panic or a skipped retry.
+        let corrupt = doc_with(&[(0, 1, 100), (3, 2, 50)], &[(5, 1, 80)], &[(9, 1, 30)]);
+        let before = time::OffsetDateTime::now_utc();
+        for _ in 0..50 {
+            let dt = compute_mathmodel_retry_time(&corrupt, 3, 14, DEFAULT_RETRY_HOUR)
+                .expect("grace > 1 => Some");
+            assert!(dt.date() > before.date() && dt.hour() < 24);
+        }
+    }
+
+    #[test]
+    fn corrupt_hod_falls_back_to_default() {
+        // All-corrupt hour counters -> no usable scores -> deterministic noon, not a
+        // uniform-random hour.
+        let doc = doc_with(&[], &[], &[(9, 1, 30)]);
+        assert_eq!(pick_hour(&doc.hod, DEFAULT_RETRY_HOUR), DEFAULT_RETRY_HOUR);
+    }
+
+    #[test]
+    fn grace_is_capped_at_max() {
+        let before = time::OffsetDateTime::now_utc();
+        let dt = compute_mathmodel_retry_time(&sample(), 3, 365, DEFAULT_RETRY_HOUR)
+            .expect("grace > 1 => Some");
+        let last = (before + time::Duration::days(i64::from(MAX_GRACE_DAYS) + 1)).date();
+        assert!(
+            dt.date() <= last,
+            "date {} exceeds capped window",
+            dt.date()
+        );
+    }
+
+    #[test]
+    fn runway_guard_is_attributed() {
+        // budget >= number of slots => the guard forces index 0 and reports itself (not "weights").
+        let (idx, driver) = pick_index(&[1.0, 1.0, 1.0], &[DayAxis::Tie; 3], 5, "test")
+            .expect("guard forces a fire");
+        assert_eq!(idx, 0);
+        assert!(matches!(driver, PickDriver::RunwayGuard));
+    }
 }
