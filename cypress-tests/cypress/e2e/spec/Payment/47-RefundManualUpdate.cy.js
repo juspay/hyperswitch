@@ -1,4 +1,5 @@
 import * as fixtures from "../../../fixtures/imports";
+import { isMockServer } from "../../../support/mitmProxy";
 import State from "../../../utils/State";
 import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 
@@ -541,6 +542,12 @@ describe("Refund Manual Update Tests", () => {
   });
 
   context("Manual Update - Connector Refund ID", () => {
+    beforeEach(function () {
+      if (isMockServer()) {
+        this.skip();
+      }
+    });
+
     it("Create Payment Intent -> Confirm Payment -> Create Refund -> Manual Update Connector Refund ID -> Retrieve Refund to Verify", () => {
       let shouldContinue = true;
 
@@ -635,6 +642,12 @@ describe("Refund Manual Update Tests", () => {
   });
 
   context("Manual Update - Connector Refund ID with Status", () => {
+    beforeEach(function () {
+      if (isMockServer()) {
+        this.skip();
+      }
+    });
+
     it("Create Payment Intent -> Confirm Payment -> Create Refund -> Manual Update Connector Refund ID and Status -> Retrieve Refund to Verify", () => {
       let shouldContinue = true;
 
