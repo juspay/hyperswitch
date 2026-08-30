@@ -10,16 +10,21 @@ import { getCustomExchange } from "./Modifiers";
 // three_ds confirm, capture, void) plus a live cypress run for No3DSManualCapture:
 // No3DSManualCapture, "3DSManualCapture", Capture, PartialCapture, Void.
 //
-// A prior version of this file encoded Capture/PartialCapture as expected to fail
-// with a "capture_method of manual, expected manual_multiple" error, based on a
-// cypress run that actually hit that error. Issue #13708 shows a real, successful
-// full capture on the exact same capture_method: "manual" shape, so that failure
-// was very likely the UCS card_Capture rollout config not being active for that
-// test's merchant at the time (see run-ilixium-ucs.sh's CYPRESS_METHOD_FLOW and
-// the "Enable ucs config for capture" step in the issue) — not a real Ilixium or
-// hyperswitch limitation. If Capture/PartialCapture fail again with that error,
-// check the UCS rollout config for card_Capture is actually registered for the
-// current test merchant before assuming connector behavior changed.
+// Two prior versions of this file misdiagnosed a "capture_method of manual,
+// expected manual_multiple" error hit in live cypress runs: first as genuine
+// connector behavior (wrong — issue #13708 shows a real successful capture on
+// the same shape), then as a UCS rollout-config gap (also wrong — Ilixium is
+// UCS-only at the deployment-config level, so unified_connector_service.rs's
+// decide_execution_path forces every flow through UCS unconditionally,
+// independent of any rollout config). The real cause, traced via
+// crates/router/src/core/payments/helpers.rs's validate_status_with_capture_method:
+// it rejects a plain "manual" capture while the intent is in
+// IntentStatus::Processing, and Ilixium's authorize apparently settles from
+// Processing to RequiresCapture asynchronously. Cypress's fast confirm->retrieve->
+// capture sequence can land the capture call inside that window; #13708's manual
+// Postman flow never hit it because of the natural delay between clicking through
+// steps by hand. Capture/PartialCapture below carry a DELAY config for this reason
+// (see their own comments) rather than a data/response fix.
 //
 // No3DSAutoCapture is still unverified/broken: a live confirm with capture_method:
 // "automatic" returned HTTP 200 status "succeeded" but a non-null
@@ -121,10 +126,23 @@ export const connectorDetails = {
       },
     }),
     // Verified (issue #13708): full capture on a capture_method: "manual" payment
-    // succeeds normally once the UCS card_Capture rollout config is active — see
-    // the file header note above if this starts failing with a
-    // manual/manual_multiple error again.
+    // succeeds. The manual/manual_multiple error seen in earlier cypress runs
+    // traced back to crates/router/src/core/payments/helpers.rs's
+    // validate_status_with_capture_method: it rejects a plain "manual" capture
+    // while the intent sits in IntentStatus::Processing, and Ilixium's authorize
+    // apparently settles from Processing to RequiresCapture asynchronously — a
+    // race the manual Postman flow in #13708 never hit simply because of the
+    // natural delay between clicking through steps by hand. DELAY here gives
+    // that settling time to complete before capturing, same pattern already used
+    // by Nuvei's Capture/PartialCapture/Void entries in this file's sibling
+    // configs for the same kind of async post-authorize settling.
     Capture: getCustomExchange({
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+      },
       Request: {
         amount_to_capture: 1000,
       },
@@ -140,9 +158,15 @@ export const connectorDetails = {
     }),
     // UNVERIFIED: no partial-amount example exists in issue #13708 (only a
     // full-amount capture). Modeled on Capture above on the assumption partial
-    // capture behaves the same way once UCS card_Capture is active; not
-    // independently confirmed.
+    // capture behaves the same way; not independently confirmed. Same DELAY as
+    // Capture above, for the same Processing-state race.
     PartialCapture: getCustomExchange({
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+      },
       Request: {
         amount_to_capture: 500,
       },
