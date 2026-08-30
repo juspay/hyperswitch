@@ -88,21 +88,21 @@ export const connectorDetails = {
         },
       },
     }),
-    // BROKEN: a live run's plain (full) Capture also returned 400, same as
-    // PartialCapture below, but the exact body wasn't captured — only that it
-    // failed. Not safe to assume it's identical to PartialCapture's message
-    // without seeing it; left as a visible failure rather than guessed.
+    // Verified: same hyperswitch-level validation as PartialCapture below — the
+    // error text is about capture_method state generally (not "partial" vs
+    // "full"), and a live run confirmed it fires identically here.
     Capture: getCustomExchange({
       Request: {
         amount_to_capture: 1000,
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "succeeded",
-          amount: 1000,
-          amount_capturable: 0,
-          amount_received: 1000,
+          error: {
+            type: "invalid_request",
+            message:
+              "This Payment could not be captured because it has a capture_method of manual. The expected state is manual_multiple",
+          },
         },
       },
     }),
