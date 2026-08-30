@@ -2689,6 +2689,25 @@ export const connectorDetails = {
         body: {},
       },
     }),
+    ManualRefundUpdateConnectorRefundId: getCustomExchange({
+      Request: {
+        connector_refund_id: "updated_refund_id",
+      },
+      Response: {
+        status: 200,
+        body: {},
+      },
+    }),
+    ManualRefundUpdateConnectorRefundIdWithStatus: getCustomExchange({
+      Request: {
+        connector_refund_id: "combined_refund_id",
+        status: "succeeded",
+      },
+      Response: {
+        status: 200,
+        body: {},
+      },
+    }),
     SyncRefundManualUpdateFailed: getCustomExchange({
       Response: {
         status: 200,
@@ -2732,6 +2751,23 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
+        },
+      },
+    }),
+    SyncRefundManualUpdateConnectorRefundId: getCustomExchange({
+      Response: {
+        status: 200,
+        body: {
+          connector_refund_id: "updated_refund_id",
+        },
+      },
+    }),
+    SyncRefundManualUpdateConnectorRefundIdWithStatus: getCustomExchange({
+      Response: {
+        status: 200,
+        body: {
+          connector_refund_id: "combined_refund_id",
+          status: "succeeded",
         },
       },
     }),

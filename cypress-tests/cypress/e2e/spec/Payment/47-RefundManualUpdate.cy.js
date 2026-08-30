@@ -539,4 +539,195 @@ describe("Refund Manual Update Tests", () => {
       });
     });
   });
+
+  context("Manual Update - Connector Refund ID", () => {
+    it("Create Payment Intent -> Confirm Payment -> Create Refund -> Manual Update Connector Refund ID -> Retrieve Refund to Verify", () => {
+      let shouldContinue = true;
+
+      cy.step("Create Payment Intent", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["PaymentIntent"];
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "no_three_ds",
+          "automatic",
+          globalState
+        );
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Payment Methods Call", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Payment Methods Call");
+          return;
+        }
+        cy.paymentMethodsCallTest(globalState);
+      });
+
+      cy.step("Confirm Payment Intent", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Confirm Payment Intent");
+          return;
+        }
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["No3DSAutoCapture"];
+        cy.confirmCallTest(
+          fixtures.confirmBody,
+          confirmData,
+          true,
+          globalState
+        );
+        if (!utils.should_continue_further(confirmData)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Create Refund", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Create Refund");
+          return;
+        }
+        const refundData = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["Refund"];
+        cy.refundCallTest(fixtures.refundBody, refundData, globalState);
+        if (!utils.should_continue_further(refundData)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Manual Update Connector Refund ID", () => {
+        if (!shouldContinue) {
+          cy.task(
+            "cli_log",
+            "Skipping step: Manual Update Connector Refund ID"
+          );
+          return;
+        }
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["ManualRefundUpdateConnectorRefundId"];
+        cy.manualRefundStatusUpdateTest(globalState, data);
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Retrieve Refund to Verify Connector Refund ID", () => {
+        if (!shouldContinue) {
+          cy.task(
+            "cli_log",
+            "Skipping step: Retrieve Refund to Verify Connector Refund ID"
+          );
+          return;
+        }
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["SyncRefundManualUpdateConnectorRefundId"];
+        cy.syncRefundCallTest(data, globalState);
+      });
+    });
+  });
+
+  context("Manual Update - Connector Refund ID with Status", () => {
+    it("Create Payment Intent -> Confirm Payment -> Create Refund -> Manual Update Connector Refund ID and Status -> Retrieve Refund to Verify", () => {
+      let shouldContinue = true;
+
+      cy.step("Create Payment Intent", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["PaymentIntent"];
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "no_three_ds",
+          "automatic",
+          globalState
+        );
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Payment Methods Call", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Payment Methods Call");
+          return;
+        }
+        cy.paymentMethodsCallTest(globalState);
+      });
+
+      cy.step("Confirm Payment Intent", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Confirm Payment Intent");
+          return;
+        }
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["No3DSAutoCapture"];
+        cy.confirmCallTest(
+          fixtures.confirmBody,
+          confirmData,
+          true,
+          globalState
+        );
+        if (!utils.should_continue_further(confirmData)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Create Refund", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Create Refund");
+          return;
+        }
+        const refundData = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["Refund"];
+        cy.refundCallTest(fixtures.refundBody, refundData, globalState);
+        if (!utils.should_continue_further(refundData)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Manual Update Connector Refund ID and Status", () => {
+        if (!shouldContinue) {
+          cy.task(
+            "cli_log",
+            "Skipping step: Manual Update Connector Refund ID and Status"
+          );
+          return;
+        }
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["ManualRefundUpdateConnectorRefundIdWithStatus"];
+        cy.manualRefundStatusUpdateTest(globalState, data);
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step(
+        "Retrieve Refund to Verify Connector Refund ID and Status",
+        () => {
+          if (!shouldContinue) {
+            cy.task(
+              "cli_log",
+              "Skipping step: Retrieve Refund to Verify Connector Refund ID and Status"
+            );
+            return;
+          }
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["SyncRefundManualUpdateConnectorRefundIdWithStatus"];
+          cy.syncRefundCallTest(data, globalState);
+        }
+      );
+    });
+  });
 });
