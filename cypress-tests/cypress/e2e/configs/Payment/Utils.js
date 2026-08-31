@@ -3,6 +3,7 @@ import { execConfig, validateConfig } from "../../../utils/featureFlags.js";
 import { updateDefaultStatusCode } from "./Modifiers.js";
 
 import { connectorDetails as signifydConnectorDetails } from "../FRM/Signifyd.js";
+import { connectorDetails as absaSanlamConnectorDetails } from "./AbsaSanlam.js";
 import { connectorDetails as aciConnectorDetails } from "./Aci.js";
 import { connectorDetails as adyenConnectorDetails } from "./Adyen.js";
 import { connectorDetails as affirmConnectorDetails } from "./Affirm.js";
@@ -95,6 +96,7 @@ import { connectorDetails as worldpayxmlConnectorDetails } from "./Worldpayxml.j
 import { connectorDetails as xenditConnectorDetails } from "./Xendit.js";
 import { connectorDetails as ziftConnectorDetails } from "./Zift.js";
 const connectorDetails = {
+  gotyme_sanlam: absaSanlamConnectorDetails,
   aci: aciConnectorDetails,
   adyen: adyenConnectorDetails,
   affirm: affirmConnectorDetails,
@@ -198,6 +200,7 @@ const connectorDetails = {
 const ALIASED_CONNECTORS = {
   stripeconnect: "stripe",
   payloadconnect: "payload",
+  gotyme_sanlam: "absa_sanlam",
 };
 
 /**
@@ -667,6 +670,7 @@ export const CONNECTOR_LISTS = {
       "stax",
       "stripe",
       "wellsfargo",
+      "gotyme_sanlam",
     ], // payload verified as working
     BANK_REDIRECT_BANCONTACT: ["adyen", "stripe"],
     BANK_REDIRECT_MANDATE: ["adyen", "stripe"],

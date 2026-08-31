@@ -1472,7 +1472,7 @@ export const connectorDetails = {
   },
   bank_debit_pm: {
     PaymentIntent: (paymentMethodType) => {
-      const currencyMap = { Sepa: "EUR", Ach: "USD", Becs: "AUD", Bacs: "GBP" };
+      const currencyMap = { Sepa: "EUR", Ach: "USD", Becs: "AUD", Bacs: "GBP", EftDebitOrder: "ZAR" };
       return getCustomExchange({
         Request: {
           currency: currencyMap[paymentMethodType] || "USD",
@@ -1563,6 +1563,29 @@ export const connectorDetails = {
         billing: {
           address: {
             country: "GB",
+          },
+          email: "test@example.com",
+        },
+      },
+    }),
+    EftDebitOrder: getCustomExchange({
+      Request: {
+        payment_method: "bank_debit",
+        payment_method_type: "eft_debit_order",
+        payment_method_data: {
+          bank_debit: {
+            eft_debit_order: {
+              account_number: "000123456789",
+              bank_name: "absa",
+              bank_account_holder_name: "John Doe",
+              bank_type: "checking",
+              branch_code: "110000000",
+            },
+          },
+        },
+        billing: {
+          address: {
+            country: "ZA",
           },
           email: "test@example.com",
         },
