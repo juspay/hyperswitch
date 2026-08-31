@@ -5916,11 +5916,6 @@ Cypress.Commands.add(
       return;
     }
 
-    // Live mode: a genuinely missing next_action URL means the connector's
-    // 3DS confirm was frictionless (no challenge) — matches
-    // handleCardRedirectRedirection/handleBankRedirectRedirection's existing
-    // behavior below, which also skip rather than asserting against a fake
-    // redirect when there's nothing to redirect to.
     if (!nextActionUrl) {
       cy.task(
         "cli_log",

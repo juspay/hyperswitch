@@ -35,10 +35,6 @@ const forwardedEnv = [
 // Get timeout multiplier from shared utility
 const timeoutMultiplier = getTimeoutMultiplier();
 
-// Optional comma-separated list of spec globs to exclude, e.g. for a
-// connector whose run script wants to skip specs that don't apply to it.
-// Kept generic (not connector-specific) since it's just plumbing for
-// Cypress's own excludeSpecPattern option.
 const excludeSpecPattern = process.env.CYPRESS_EXCLUDE_SPEC_PATTERN
   ? process.env.CYPRESS_EXCLUDE_SPEC_PATTERN.split(",")
   : [];
