@@ -27,7 +27,8 @@ use hyperswitch_domain_models::router_flow_types::{
     BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, InvoiceRecordBack,
 };
 use hyperswitch_domain_models::{
-    payments as domain_payments, router_request_types::PaymentsCaptureData,
+    payments as domain_payments,
+    router_request_types::{CurrentFlowInfo, PaymentsCaptureData},
 };
 
 use crate::{
@@ -92,6 +93,10 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
 #[allow(clippy::too_many_arguments)]
 #[async_trait]
 pub trait Feature<F, T> {
+    fn current_flow_info(&self) -> Option<CurrentFlowInfo> {
+        None
+    }
+
     async fn decide_flows<'a>(
         self,
         state: &SessionState,

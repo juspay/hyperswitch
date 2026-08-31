@@ -110,6 +110,7 @@ pub struct Settings<S: SecretState> {
     pub jwekey: SecretStateContainer<Jwekey, S>,
     pub webhooks: WebhooksSettings,
     pub pm_filters: ConnectorFilters,
+    pub customer_acceptance_support: CustomerAcceptanceSupportConfig,
     pub bank_config: BankRedirectConfig,
     pub api_keys: SecretStateContainer<ApiKeys, S>,
     pub file_storage: FileStorageConfig,
@@ -194,7 +195,7 @@ pub struct Settings<S: SecretState> {
     #[serde(default)]
     pub enhancement: Option<HashMap<String, String>>,
     pub superposition: SecretStateContainer<SuperpositionClientConfig, S>,
-    pub offer_engine: Option<OfferEngineConfig>,
+    pub offer_engine: Option<SecretStateContainer<OfferEngineConfig, S>>,
     pub proxy_status_mapping: ProxyStatusMapping,
     pub trace_header: TraceHeaderConfig,
     pub internal_services: InternalServicesConfig,
@@ -401,6 +402,14 @@ pub struct JuspayAccountUpdaterConfig {
     pub euler_encryption_public_key: Secret<String>,
     pub au_decryption_pvt_key: Secret<String>,
     pub card_sync_key_id: String,
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub supported_card_networks: HashSet<enums::CardNetwork>,
+    #[serde(default = "default_account_updater_refresh_timeout_in_secs")]
+    pub refresh_timeout_in_secs: u64,
+}
+
+fn default_account_updater_refresh_timeout_in_secs() -> u64 {
+    5
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -955,6 +964,32 @@ pub struct PaymentMethodFilters(pub HashMap<PaymentMethodFilterKey, CurrencyCoun
 pub enum PaymentMethodFilterKey {
     PaymentMethodType(enums::PaymentMethodType),
     CardNetwork(enums::CardNetwork),
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(transparent)]
+pub struct CustomerAcceptanceSupportConfig(
+    pub HashMap<enums::PaymentMethod, PaymentMethodTypeCustomerAcceptanceSupport>,
+);
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(transparent)]
+pub struct PaymentMethodTypeCustomerAcceptanceSupport(
+    pub HashMap<enums::PaymentMethodType, common_enums::CustomerAcceptanceSupport>,
+);
+
+impl CustomerAcceptanceSupportConfig {
+    pub fn get_customer_acceptance_support(
+        &self,
+        payment_method: enums::PaymentMethod,
+        payment_method_type: enums::PaymentMethodType,
+    ) -> common_enums::CustomerAcceptanceSupport {
+        self.0
+            .get(&payment_method)
+            .and_then(|pm_types| pm_types.0.get(&payment_method_type))
+            .copied()
+            .unwrap_or_default()
+    }
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -1530,7 +1565,7 @@ impl Settings<SecuredSecret> {
 
         self.offer_engine
             .as_ref()
-            .map(|offer_engine| offer_engine.validate())
+            .map(|offer_engine| offer_engine.get_inner().validate())
             .transpose()?;
 
         self.account_updater

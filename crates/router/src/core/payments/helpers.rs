@@ -1782,6 +1782,11 @@ pub fn get_customer_details_from_request_or_pm_table(
         .as_ref()
         .and_then(|customer_details| customer_details.tax_registration_id.clone());
 
+    let date_of_birth = request
+        .customer
+        .as_ref()
+        .and_then(|customer_details| customer_details.date_of_birth.clone());
+
     let document_details = match mandate_type {
         Some(api::MandateTransactionType::NewMandateTransaction) | None => {
             // Extracting customer details from request in case of CIT/One-Off
@@ -1824,6 +1829,7 @@ pub fn get_customer_details_from_request_or_pm_table(
         phone_country_code: customer_phone_code,
         tax_registration_id,
         document_details,
+        date_of_birth,
     })
 }
 
@@ -1886,6 +1892,7 @@ pub async fn populate_raw_customer_details<F: Clone>(
             phone_country_code: request_customer_details.phone_country_code.clone(),
             tax_registration_id: request_customer_details.tax_registration_id.clone(),
             customer_document_details: request_customer_details.document_details.clone(),
+            date_of_birth: None,
         })
     } else {
         None
@@ -1931,6 +1938,7 @@ pub async fn populate_raw_customer_details<F: Clone>(
                 .document_details
                 .clone()
                 .or(parsed_customer_data.customer_document_details.clone()),
+            date_of_birth: None,
         })
         .or(temp_customer_data);
 
@@ -2258,6 +2266,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                                 .change_context(storage_impl::StorageError::SerializationFailed)
                         })
                         .transpose()?,
+                    date_of_birth: None,
                 };
 
                 // Merge with existing payment intent customer details if present
@@ -2501,15 +2510,12 @@ pub fn decide_payment_method_retrieval_action(
     }
 }
 
-pub async fn is_ucs_enabled(state: &SessionState, config_key: &str) -> bool {
+pub async fn is_config_flag_enabled(state: &SessionState, config_key: &str) -> bool {
     let db = state.store.as_ref();
     db.find_config_by_key_unwrap_or(config_key, Some("false".to_string()))
         .await
         .inspect_err(|error| {
-            logger::error!(
-                ?error,
-                "Failed to fetch `{config_key}` UCS enabled config from DB"
-            );
+            logger::error!(?error, "Failed to fetch `{config_key}` config from DB");
         })
         .ok()
         .and_then(|config| {
@@ -2517,19 +2523,31 @@ pub async fn is_ucs_enabled(state: &SessionState, config_key: &str) -> bool {
                 .config
                 .parse::<bool>()
                 .inspect_err(|error| {
-                    logger::error!(?error, "Failed to parse `{config_key}` UCS enabled config");
+                    logger::error!(?error, "Failed to parse `{config_key}` config");
                 })
                 .ok()
         })
         .unwrap_or(false)
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct RolloutConfig {
     pub rollout_percent: f64,
     pub http_url: Option<String>,
     pub https_url: Option<String>,
     pub execution_mode: ExecutionMode,
+    #[serde(default = "default_kill_switch_enabled")]
+    pub kill_switch_enabled: bool,
+    #[serde(default = "default_kill_switch_threshold")]
+    pub kill_switch_threshold: u64,
+}
+
+fn default_kill_switch_enabled() -> bool {
+    false
+}
+
+fn default_kill_switch_threshold() -> u64 {
+    1
 }
 
 #[serde_as]
@@ -2549,6 +2567,8 @@ impl Default for RolloutConfig {
             http_url: None,
             https_url: None,
             execution_mode: ExecutionMode::NotApplicable,
+            kill_switch_enabled: false,
+            kill_switch_threshold: 1,
         }
     }
 }
@@ -2561,9 +2581,8 @@ pub struct RolloutExecutionResult {
     pub should_execute: bool,
     pub proxy_override: Option<ProxyOverride>,
     pub execution_mode: ExecutionMode,
-    /// The exact config key that produced this result, if any. Used by the
-    /// primary→shadow kill switch to know which row to flip.
-    pub matched_config_key: Option<String>,
+    pub kill_switch_enabled: bool,
+    pub kill_switch_threshold: u64,
 }
 
 impl Default for RolloutExecutionResult {
@@ -2572,7 +2591,8 @@ impl Default for RolloutExecutionResult {
             should_execute: false,
             proxy_override: None,
             execution_mode: ExecutionMode::NotApplicable,
-            matched_config_key: None,
+            kill_switch_enabled: false,
+            kill_switch_threshold: 1,
         }
     }
 }
@@ -2660,7 +2680,8 @@ impl From<RolloutConfig> for RolloutExecutionResult {
                             should_execute: true,
                             proxy_override,
                             execution_mode: config.execution_mode,
-                            matched_config_key: None,
+                            kill_switch_enabled: config.kill_switch_enabled,
+                            kill_switch_threshold: config.kill_switch_threshold,
                         }
                     }
                     false => {
@@ -2770,11 +2791,7 @@ pub async fn should_execute_based_on_rollout_with_precedence(
             Some(config) => {
                 logger::info!(config_key = %key, "Rollout config found, using this key");
                 return Ok(serde_json::from_str::<RolloutConfig>(&config.config)
-                    .map(|rollout| {
-                        let mut result = RolloutExecutionResult::from(rollout);
-                        result.matched_config_key = Some(key.clone());
-                        result
-                    })
+                    .map(RolloutExecutionResult::from)
                     .map_err(|err| {
                         logger::error!(
                             error = ?err,
@@ -3285,8 +3302,13 @@ pub async fn fetch_card_details_from_external_vault(
             Err(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Wallet not supported")
         }
+        hyperswitch_domain_models::vault::PaymentMethodVaultingData::BankRedirect(_) => {
+            Err(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Bank Redirect not supported")
+        }
     }
 }
+
 #[cfg(feature = "v1")]
 pub async fn fetch_network_token_details_from_locker(
     state: &SessionState,
@@ -3431,6 +3453,13 @@ pub async fn retrieve_payment_method_from_db_with_token_data(
         | storage::PaymentTokenData::Permanent(_)
         | storage::PaymentTokenData::AuthBankDebit(_) => Ok(None),
         storage::PaymentTokenData::BankDebit(data) => state
+            .store
+            .find_payment_method(merchant_key_store, &data.payment_method_id, storage_scheme)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
+            .attach_printable("error retrieving payment method from DB")
+            .map(Some),
+        storage::PaymentTokenData::BankRedirect(data) => state
             .store
             .find_payment_method(merchant_key_store, &data.payment_method_id, storage_scheme)
             .await
@@ -3682,7 +3711,6 @@ pub async fn make_pm_data<'a, F: Clone, R, D>(
     use crate::core::payments::OperationSessionGetters;
 
     let request = payment_data.payment_method_data.clone();
-
     let mut card_token_data = payment_data
         .payment_method_data
         .clone()
@@ -4148,36 +4176,6 @@ pub(super) async fn filter_by_constraints(
         .filter_payment_intent_by_constraints(merchant_id, constraints, key_store, storage_scheme)
         .await?;
     Ok(result)
-}
-
-#[cfg(feature = "olap")]
-pub(super) fn validate_payment_list_request(
-    req: &api::PaymentListConstraints,
-) -> CustomResult<(), errors::ApiErrorResponse> {
-    use common_utils::consts::PAYMENTS_LIST_MAX_LIMIT_V1;
-
-    utils::when(
-        req.limit > PAYMENTS_LIST_MAX_LIMIT_V1 || req.limit < 1,
-        || {
-            Err(errors::ApiErrorResponse::InvalidRequestData {
-                message: format!("limit should be in between 1 and {PAYMENTS_LIST_MAX_LIMIT_V1}"),
-            })
-        },
-    )?;
-    Ok(())
-}
-#[cfg(feature = "olap")]
-pub(super) fn validate_payment_list_request_for_joins(
-    limit: u32,
-) -> CustomResult<(), errors::ApiErrorResponse> {
-    use common_utils::consts::PAYMENTS_LIST_MAX_LIMIT_V2;
-
-    utils::when(!(1..=PAYMENTS_LIST_MAX_LIMIT_V2).contains(&limit), || {
-        Err(errors::ApiErrorResponse::InvalidRequestData {
-            message: format!("limit should be in between 1 and {PAYMENTS_LIST_MAX_LIMIT_V2}"),
-        })
-    })?;
-    Ok(())
 }
 
 #[cfg(feature = "v1")]
@@ -4972,6 +4970,8 @@ mod tests {
             enable_partial_authorization: None,
             enable_overcapture: None,
             billing_descriptor: None,
+            is_account_funded_transaction: None,
+            recipient_details: None,
             partner_merchant_identifier_details: None,
             state_metadata: None,
             installment_options: None,
@@ -5065,6 +5065,8 @@ mod tests {
             enable_partial_authorization: None,
             enable_overcapture: None,
             billing_descriptor: None,
+            is_account_funded_transaction: None,
+            recipient_details: None,
             tokenization: None,
             partner_merchant_identifier_details: None,
             state_metadata: None,
@@ -5158,6 +5160,8 @@ mod tests {
             enable_partial_authorization: None,
             enable_overcapture: None,
             billing_descriptor: None,
+            is_account_funded_transaction: None,
+            recipient_details: None,
             partner_merchant_identifier_details: None,
             state_metadata: None,
             installment_options: None,
@@ -5423,6 +5427,8 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         customer_document_details: router_data.customer_document_details,
         feature_data: router_data.feature_data,
         sender_payment_instrument_id: router_data.sender_payment_instrument_id,
+        connector_returned_payment_method_details: None,
+        customer_date_of_birth: router_data.customer_date_of_birth,
     }
 }
 
@@ -5432,6 +5438,8 @@ pub fn get_attempt_type(
     payment_intent: &PaymentIntent,
     payment_attempt: &PaymentAttempt,
     is_manual_retry_enabled: Option<bool>,
+    intent_fulfillment_time: Option<i64>,
+    is_token_based_retry: bool,
     action: &str,
 ) -> RouterResult<AttemptType> {
     match payment_intent.status {
@@ -5442,6 +5450,8 @@ pub fn get_attempt_type(
                     !validate_manual_retry_cutoff(
                         payment_intent.created_at,
                         payment_intent.session_expiry,
+                        intent_fulfillment_time,
+                        is_token_based_retry,
                     ),
                     || {
                         Err(report!(errors::ApiErrorResponse::PreconditionFailed {
@@ -5562,19 +5572,22 @@ pub fn get_attempt_type(
 fn validate_manual_retry_cutoff(
     created_at: time::PrimitiveDateTime,
     session_expiry: Option<time::PrimitiveDateTime>,
+    intent_fulfillment_time: Option<i64>,
+    is_token_based_retry: bool,
 ) -> bool {
     let utc_current_time = time::OffsetDateTime::now_utc();
     let primitive_utc_current_time =
         time::PrimitiveDateTime::new(utc_current_time.date(), utc_current_time.time());
     let time_difference_from_creation = primitive_utc_current_time - created_at;
 
-    // cutoff time is 50% of session duration
-    let cutoff_limit = match session_expiry {
-        Some(session_expiry) => {
-            let duration = session_expiry - created_at;
-            duration.whole_seconds() / 2
-        }
-        None => consts::DEFAULT_SESSION_EXPIRY / 2,
+    // Token based retries (S2S) use the fulfillment window;
+    // Raw data based retries (client) retain the half-session cutoff.
+    let cutoff_limit = if is_token_based_retry {
+        intent_fulfillment_time.unwrap_or(common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME)
+    } else {
+        session_expiry
+            .map(|session_expiry| (session_expiry - created_at).whole_seconds() / 2)
+            .unwrap_or(consts::DEFAULT_SESSION_EXPIRY / 2)
     };
 
     time_difference_from_creation.whole_seconds() <= cutoff_limit
@@ -5588,17 +5601,37 @@ pub enum AttemptType {
 
 impl AttemptType {
     #[cfg(feature = "v1")]
-    // The function creates a new payment_attempt from the previous payment attempt but doesn't populate fields like payment_method, error_code etc.
-    // Logic to override the fields with data provided in the request should be done after this if required.
-    // In case if fields are not overridden by the request then they contain the same data that was in the previous attempt provided it is populated in this function.
+    // A retry request carrying a payment token can reuse and override the previous attempt's fields.
+    // Other retries keep the existing reset and inheritance behavior.
     #[inline(always)]
     fn make_new_manual_retry_payment_attempt(
-        payment_method_data: Option<&api_models::payments::PaymentMethodData>,
+        request: &api_models::payments::PaymentsRequest,
         old_payment_attempt: PaymentAttempt,
         new_attempt_count: i16,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> PaymentAttempt {
         let created_at @ modified_at @ last_synced = common_utils::date_time::now();
+        let is_token_based_retry = request.payment_token.is_some();
+        let (payment_method, browser_info, payment_method_type, setup_future_usage_applied) =
+            if is_token_based_retry {
+                (
+                    request
+                        .payment_method
+                        .or(old_payment_attempt.payment_method),
+                    request
+                        .browser_info
+                        .clone()
+                        .or(old_payment_attempt.browser_info),
+                    request
+                        .payment_method_type
+                        .or(old_payment_attempt.payment_method_type),
+                    request
+                        .setup_future_usage
+                        .or(old_payment_attempt.setup_future_usage_applied),
+                )
+            } else {
+                (None, None, None, None)
+            };
 
         PaymentAttempt {
             attempt_id: old_payment_attempt
@@ -5608,7 +5641,15 @@ impl AttemptType {
             merchant_id: old_payment_attempt.merchant_id,
 
             // A new payment attempt is getting created so, used the same function which is used to populate status in PaymentCreate Flow.
-            status: payment_attempt_status_fsm(payment_method_data, Some(true)),
+            status: payment_attempt_status_fsm(
+                request
+                    .payment_method_data
+                    .as_ref()
+                    .and_then(|payment_method_data| {
+                        payment_method_data.payment_method_data.as_ref()
+                    }),
+                Some(true),
+            ),
 
             currency: old_payment_attempt.currency,
             save_to_locker: old_payment_attempt.save_to_locker,
@@ -5618,7 +5659,7 @@ impl AttemptType {
             error_message: None,
             offer_amount: old_payment_attempt.offer_amount,
             payment_method_id: None,
-            payment_method: None,
+            payment_method,
             capture_method: old_payment_attempt.capture_method,
             capture_on: old_payment_attempt.capture_on,
             confirm: old_payment_attempt.confirm,
@@ -5633,14 +5674,14 @@ impl AttemptType {
             // Since mandate_id is a contract between merchant and customer to debit customers amount adding it to newly created attempt
             mandate_id: old_payment_attempt.mandate_id,
 
-            // The payment could be done from a different browser or same browser, it would probably be overridden by request data.
-            browser_info: None,
+            // Token-based retries can override reusable fields from the previous attempt.
+            browser_info,
 
             error_code: None,
             payment_token: None,
             connector_metadata: None,
             payment_experience: None,
-            payment_method_type: None,
+            payment_method_type,
             payment_method_data: None,
 
             // In case it is passed in create and not in confirm,
@@ -5670,6 +5711,7 @@ impl AttemptType {
             // New payment method billing address can be passed for a retry
             payment_method_billing_address_id: None,
             fingerprint_id: None,
+            fingerprint_type: None,
             client_source: old_payment_attempt.client_source,
             client_version: old_payment_attempt.client_version,
             customer_acceptance: old_payment_attempt.customer_acceptance,
@@ -5683,7 +5725,7 @@ impl AttemptType {
             card_discovery: None,
             processor_merchant_id: old_payment_attempt.processor_merchant_id,
             created_by: old_payment_attempt.created_by,
-            setup_future_usage_applied: None,
+            setup_future_usage_applied,
             routing_approach: old_payment_attempt.routing_approach,
             connector_request_reference_id: None,
             network_transaction_id: None,
@@ -5704,7 +5746,9 @@ impl AttemptType {
             retry_type: Some(enums::RetryType::ManualRetry),
             installment_data: None,
             external_surcharge_details: None,
+            applied_offer_details: None,
             sender_payment_instrument_id: None,
+            payment_account_reference: None,
         }
     }
 
@@ -5739,12 +5783,7 @@ impl AttemptType {
                 let db = &*state.store;
                 let new_attempt_count = fetched_payment_intent.attempt_count + 1;
                 let new_payment_attempt_to_insert = Self::make_new_manual_retry_payment_attempt(
-                    request
-                        .payment_method_data
-                        .as_ref()
-                        .and_then(|request_payment_method_data| {
-                            request_payment_method_data.payment_method_data.as_ref()
-                        }),
+                    request,
                     fetched_payment_attempt,
                     new_attempt_count,
                     storage_scheme,
@@ -8604,7 +8643,9 @@ pub async fn get_payment_method_details_from_payment_token(
         storage::PaymentTokenData::WalletToken(_) => Ok(None),
 
         // TODO: External authentication not implemented for BankDebit
-        storage::PaymentTokenData::BankDebit(_) => Ok(None),
+        storage::PaymentTokenData::BankDebit(_) | storage::PaymentTokenData::BankRedirect(_) => {
+            Ok(None)
+        }
     }
 }
 

@@ -89,6 +89,7 @@ pub enum Connector {
     Chargebee,
     Checkbook,
     Checkout,
+    Citigate,
     Coinbase,
     Coingate,
     Custombilling,
@@ -119,6 +120,7 @@ pub enum Connector {
     Globalpay,
     Globepay,
     Gocardless,
+    GotymeSanlam,
     Gpayments,
     Hipay,
     Helcim,
@@ -128,9 +130,11 @@ pub enum Connector {
     Interpayments,
     Inespay,
     Iatapay,
+    Ilixium,
     Imerchantsolutions,
     Itaubank,
     Jpmorgan,
+    Juspay,
     Juspaythreedsserver,
     Klarna,
     Loonio,
@@ -200,6 +204,7 @@ pub enum Connector {
     Wise,
     Worldline,
     Worldpay,
+    Worldpayraft,
     Worldpayvantiv,
     Worldpayxml,
     Worldpaymodular,
@@ -225,6 +230,7 @@ impl Connector {
                 | (Self::Loonio, _)
                 | (Self::Truelayer, _)
                 | (Self::Trustly, _)
+                | (Self::GotymeSanlam, _)
                 | (Self::Worldpay, Some(PayoutType::Wallet))
                 | (Self::Worldpayxml, Some(PayoutType::Wallet))
                 | (Self::Itaubank, Some(PayoutType::Bank))
@@ -373,6 +379,7 @@ impl Connector {
             | Self::Globalpay
             | Self::Globepay
             | Self::Gocardless
+            | Self::GotymeSanlam
             | Self::Gpayments
             | Self::Hipay
             | Self::Helcim
@@ -382,6 +389,7 @@ impl Connector {
 			| Self::Inespay
             | Self::Itaubank
             | Self::Jpmorgan
+            | Self::Juspay
             | Self::Juspaythreedsserver
             | Self::Klarna
             | Self::Loonio
@@ -457,10 +465,13 @@ impl Connector {
             | Self::Datatrans
             | Self::Paytm
             | Self::Payconex
+            | Self::Citigate
+            | Self::Worldpayraft
             | Self::Payjustnow
             | Self::Payjustnowinstore
             | Self::Phonepe
             | Self::Imerchantsolutions
+            | Self::Ilixium
             | Self::Givepayments => false,
             Self::Stripe | Self::Checkout | Self::Zift | Self::Nmi | Self::Braintree|
             Self::Cybersource | Self::Archipel | Self::Nuvei | Self::Adyen => true,

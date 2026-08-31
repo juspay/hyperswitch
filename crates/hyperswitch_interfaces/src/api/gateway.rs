@@ -9,8 +9,11 @@
 
 use async_trait::async_trait;
 use common_enums::{CallConnectorAction, ExecutionMode, ExecutionPath};
-use common_utils::{errors::CustomResult, request::Request};
-use error_stack::ResultExt;
+use common_utils::{
+    errors::{CustomResult, ErrorSwitch},
+    request::Request,
+};
+use error_stack::{Report, ResultExt};
 use hyperswitch_domain_models::router_data::RouterData;
 use router_env::{logger, tracing::Instrument};
 
@@ -19,6 +22,7 @@ use crate::{
     connector_integration_interface::{BoxedConnectorIntegrationInterface, RouterDataConversion},
     errors::ConnectorError,
     helpers,
+    unified_connector_service::transformers::UnifiedConnectorServiceError,
 };
 
 /// Minimal trait that gateway context must implement
@@ -410,6 +414,9 @@ where
             let return_raw_connector_response_clone = return_raw_connector_response;
             let context_clone = context;
             let connector_name = router_data.connector.clone();
+            let merchant_id = router_data.merchant_id.clone();
+            let payment_method = router_data.payment_method;
+            let payment_method_type = router_data.payment_method_type;
             tokio::spawn(
                 async move {
                     let gateway: Box<
@@ -429,7 +436,12 @@ where
                         .attach_printable("Gateway execution failed");
 
                     if let Err(e) = &ucs_shadow_result {
-                        logger::error!(error=?e, "UCS shadow execution failed");
+                        logger::warn!(
+                            error=?e,
+                            execution_mode="shadow",
+                            primary_impact=false,
+                            "UCS shadow execution failed; primary execution result is unaffected"
+                        );
                     }
 
                     let ucs_for_compare = match ucs_shadow_result {
@@ -442,6 +454,9 @@ where
                         connector_name,
                         direct_for_compare,
                         ucs_for_compare,
+                        Some(&merchant_id),
+                        Some(payment_method),
+                        payment_method_type,
                     )
                     .await;
                 }
@@ -544,6 +559,9 @@ where
             let return_raw_connector_response_clone = return_raw_connector_response;
             let context_clone = context;
             let connector_name = router_data.connector.clone();
+            let merchant_id = router_data.merchant_id.clone();
+            let payment_method = router_data.payment_method;
+            let payment_method_type = router_data.payment_method_type;
             tokio::spawn(
                 async move {
                     let gateway: Box<
@@ -563,7 +581,12 @@ where
                         .attach_printable("Gateway execution failed");
 
                     if let Err(e) = &ucs_shadow_result {
-                        logger::error!(error=?e, "UCS shadow execution failed");
+                        logger::warn!(
+                            error=?e,
+                            execution_mode="shadow",
+                            primary_impact=false,
+                            "UCS shadow execution failed; primary execution result is unaffected"
+                        );
                     }
 
                     let ucs_for_compare = match ucs_shadow_result {
@@ -576,6 +599,9 @@ where
                         connector_name,
                         direct_for_compare,
                         ucs_for_compare,
+                        Some(&merchant_id),
+                        Some(payment_method),
+                        payment_method_type,
                     )
                     .await;
                 }
@@ -584,4 +610,15 @@ where
             direct_result
         }
     }
+}
+
+/// Converts a `Report<UnifiedConnectorServiceError>` into a `Report<ConnectorError>`
+/// using the `ErrorSwitch` trait for consistent, exhaustive mapping.
+///
+/// Shared by all payment gateway files (authorize, psync, capture, void) to avoid duplication.
+pub fn convert_ucs_error_to_connector_error(
+    report: Report<UnifiedConnectorServiceError>,
+) -> Report<ConnectorError> {
+    let connector_error = report.current_context().switch();
+    report.change_context(connector_error)
 }

@@ -63,7 +63,6 @@ where
         let lineage_ids = context.lineage_ids;
         let header_payload = context.header_payload;
         let unified_connector_service_execution_mode = context.execution_mode;
-        let ucs_matched_rollout_key = context.ucs_matched_rollout_key;
         let client = state
             .grpc_client
             .unified_connector_service_client
@@ -111,15 +110,18 @@ where
             granular_payout_enroll_disburse_account_request,
             grpc_headers,
             unified_connector_service_execution_mode,
-            ucs_matched_rollout_key,
             |mut router_data, granular_payout_enroll_disburse_account_request, grpc_headers| async move {
-                let response = Box::pin(client.payout_enroll_disburse_account(
+                let response = match Box::pin(client.payout_enroll_disburse_account(
                     granular_payout_enroll_disburse_account_request,
                     connector_auth_metadata,
                     grpc_headers,
-                ))
-                .await
-                .attach_printable("Failed to enroll_disburse_account payout")?;
+                )).await
+                {
+                    Ok(resp) => resp,
+                    Err(report) => {
+                        return Err(report.attach_printable("Failed to enroll disburse account payout"));
+                    }
+                };
 
                 let payout_enroll_disburse_account_response = response.into_inner();
 
@@ -141,7 +143,7 @@ where
         ))
         .await
         .map(|(router_data, _)| router_data)
-        .change_context(ConnectorError::ResponseHandlingFailed)?;
+        .map_err(payout_gateway::convert_ucs_error_to_connector_error)?;
 
         Ok(updated_router_data)
     }

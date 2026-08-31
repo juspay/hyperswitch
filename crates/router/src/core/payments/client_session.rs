@@ -1,5 +1,7 @@
 //! Core client session ID management for SDK authorization.
 
+use std::collections::HashMap;
+
 use common_utils::{
     errors::CustomResult,
     id_type::{self, GenerateId, MerchantId, PaymentId},
@@ -20,6 +22,21 @@ pub struct ClientSessionData {
     pub created_at: PrimitiveDateTime,
     /// Session expiry time
     pub expires_at: PrimitiveDateTime,
+    /// Offer Engine eligibility quotes, keyed by `offer_quote_id`. Populated by
+    /// `/eligibility` and consumed by `/confirm` to validate `/apply`.
+    #[serde(default)]
+    pub offer_quotes: HashMap<String, OfferQuote>,
+}
+
+/// A single Offer Engine eligibility quote stored in the client session.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OfferQuote {
+    /// Offer Engine offer id.
+    pub offer_id: String,
+    /// Charge-reducing offer amount, in minor units.
+    pub offer_amount: common_utils::types::MinorUnit,
+    /// Currency of the offer amount.
+    pub currency: common_enums::Currency,
 }
 
 /// Report of session invalidation results
@@ -95,6 +112,7 @@ impl ClientSessionManager {
             client_session_id: client_session_id.clone(),
             created_at: now,
             expires_at: session_expiry,
+            offer_quotes: HashMap::new(),
         };
 
         // Store session data as JSON with TTL
@@ -164,6 +182,63 @@ impl ClientSessionManager {
                 }
             }
         }
+    }
+
+    /// Store Offer Engine eligibility quotes into the existing client session
+    #[instrument(skip_all)]
+    pub async fn store_offer_quotes<S>(
+        state: &S,
+        processor_merchant_id: &MerchantId,
+        payment_id: &PaymentId,
+        offer_quotes: HashMap<String, OfferQuote>,
+    ) -> CustomResult<(), errors::ApiErrorResponse>
+    where
+        S: SessionStateInfo + Sync,
+    {
+        let Some(session_data) =
+            Self::get_session(state, processor_merchant_id, payment_id).await?
+        else {
+            logger::warn!(
+                payment_id = %payment_id.get_string_repr(),
+                "No client session found; skipping Offer Engine quote storage"
+            );
+            return Ok(());
+        };
+
+        let session_data = ClientSessionData {
+            offer_quotes,
+            ..session_data
+        };
+
+        let redis_conn = state
+            .store()
+            .get_redis_conn()
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        let key = Self::get_session_key(processor_merchant_id, payment_id);
+
+        // Update the session JSON without resetting its TTL.
+        redis_conn
+            .serialize_and_set_key_without_modifying_ttl(&key.into(), &session_data)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+        Ok(())
+    }
+
+    /// Look up a stored Offer Engine quote by `offer_quote_id`.
+    #[instrument(skip_all)]
+    pub async fn get_offer_quote<S>(
+        state: &S,
+        processor_merchant_id: &MerchantId,
+        payment_id: &PaymentId,
+        offer_quote_id: &str,
+    ) -> CustomResult<Option<OfferQuote>, errors::ApiErrorResponse>
+    where
+        S: SessionStateInfo + Sync,
+    {
+        Ok(Self::get_session(state, processor_merchant_id, payment_id)
+            .await?
+            .and_then(|session| session.offer_quotes.get(offer_quote_id).cloned()))
     }
 
     /// Validate session ID against stored value

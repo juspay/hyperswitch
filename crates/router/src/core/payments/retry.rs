@@ -642,6 +642,10 @@ where
                     .get_payment_attempt()
                     .sender_payment_instrument_id
                     .clone(),
+                payment_account_reference: payment_data
+                    .get_payment_attempt()
+                    .payment_account_reference
+                    .clone(),
             };
 
             #[cfg(feature = "v1")]
@@ -846,6 +850,7 @@ pub fn make_new_auto_retry_payment_attempt(
         mandate_data: Default::default(),
         payment_method_billing_address_id: Default::default(),
         fingerprint_id: Default::default(),
+        fingerprint_type: Default::default(),
         customer_acceptance: Default::default(),
         connector_mandate_detail: Default::default(),
         request_extended_authorization: Default::default(),
@@ -876,7 +881,10 @@ pub fn make_new_auto_retry_payment_attempt(
         retry_type: Some(storage_enums::RetryType::AutoRetry),
         installment_data: Default::default(),
         external_surcharge_details: Default::default(),
+        // Carry the offer forward so the auto-retry keeps the same offer-reduced amount.
+        applied_offer_details: old_payment_attempt.applied_offer_details,
         sender_payment_instrument_id: Default::default(),
+        payment_account_reference: Default::default(),
     }
 }
 

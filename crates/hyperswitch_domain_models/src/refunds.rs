@@ -8,8 +8,8 @@ pub struct RefundListConstraints {
     pub payment_id: Option<common_utils::id_type::PaymentId>,
     pub refund_id: Option<String>,
     pub profile_id: Option<Vec<common_utils::id_type::ProfileId>>,
-    pub limit: Option<i64>,
-    pub offset: Option<i64>,
+    pub limit: common_utils::types::list::PageSize,
+    pub offset: common_utils::types::list::PageOffset,
     pub time_range: Option<common_utils::types::TimeRange>,
     pub amount_filter: Option<api_models::payments::AmountFilter>,
     pub connector: Option<Vec<String>>,
@@ -23,8 +23,8 @@ pub struct RefundListConstraints {
     pub payment_id: Option<common_utils::id_type::GlobalPaymentId>,
     pub refund_id: Option<common_utils::id_type::GlobalRefundId>,
     pub profile_id: common_utils::id_type::ProfileId,
-    pub limit: Option<i64>,
-    pub offset: Option<i64>,
+    pub limit: common_utils::types::list::PageSize,
+    pub offset: common_utils::types::list::PageOffset,
     pub time_range: Option<common_utils::types::TimeRange>,
     pub amount_filter: Option<api_models::payments::AmountFilter>,
     pub connector: Option<Vec<String>>,
@@ -89,7 +89,10 @@ impl
             payment_id,
             refund_id,
             profile_id: profile_id_list,
-            limit,
+            // API keeps `Option<PageSize>` for wire compat; the domain holds a resolved
+            // value. `PageSize::default()` is the semantically-correct "no preference"
+            // — same behavior as the previous `Option<i64>` validator's `None → 10`.
+            limit: limit.unwrap_or_default(),
             offset,
             time_range,
             amount_filter,

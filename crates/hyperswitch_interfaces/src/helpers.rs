@@ -2,7 +2,7 @@ use common_utils::{
     consts::{X_CONNECTOR_NAME, X_PAYMENT_METHOD, X_PAYMENT_METHOD_TYPE, X_SUB_FLOW_NAME},
     errors as common_utils_errors,
     ext_traits::Encode,
-    request,
+    id_type, request,
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::router_data;
@@ -52,6 +52,9 @@ pub async fn serialize_comparison_results_and_send<S, F, RouterDReq, RouterDResp
         router_data::RouterData<F, RouterDReq, RouterDResp>,
         String,
     >,
+    merchant_id: Option<&id_type::MerchantId>,
+    payment_method: Option<common_enums::enums::PaymentMethod>,
+    payment_method_type: Option<common_enums::enums::PaymentMethodType>,
 ) where
     S: api_client::ApiClientWrapper + GetComparisonServiceConfig,
     F: Send + Clone + Sync + 'static,
@@ -60,21 +63,6 @@ pub async fn serialize_comparison_results_and_send<S, F, RouterDReq, RouterDResp
 {
     let Some(comparison_service_config) = state.get_comparison_service_config() else {
         return;
-    };
-
-    // Capture before the router data is consumed by `to_value`. Either side works
-    // as the source of truth since both ran the same payment — pick whichever is
-    // available so the headers still go out even if one side errored upstream.
-    let (payment_method, payment_method_type) = {
-        let from_result =
-            |res: &Result<router_data::RouterData<F, RouterDReq, RouterDResp>, String>| {
-                res.as_ref()
-                    .ok()
-                    .map(|rd| (rd.payment_method.to_string(), rd.payment_method_type))
-            };
-        from_result(&hyperswitch_result)
-            .or_else(|| from_result(&unified_connector_service_result))
-            .unwrap_or_else(|| (String::new(), None))
     };
 
     let to_value = |res: Result<router_data::RouterData<F, RouterDReq, RouterDResp>, String>,
@@ -109,12 +97,9 @@ pub async fn serialize_comparison_results_and_send<S, F, RouterDReq, RouterDResp
         connector_name,
         sub_flow_name,
         request_id,
-        if payment_method.is_empty() {
-            None
-        } else {
-            Some(payment_method)
-        },
-        payment_method_type.map(|pmt| pmt.to_string()),
+        merchant_id,
+        payment_method,
+        payment_method_type,
     )
     .await
     .inspect_err(|e| logger::warn!("Failed to send comparison data: {:?}", e));
@@ -128,6 +113,7 @@ pub async fn serialize_webhook_outcome_and_send_to_comparison_service<P, S>(
     comparison_service_config: types::ComparisonServiceConfig,
     connector_name: String,
     request_id: Option<String>,
+    merchant_id: Option<&id_type::MerchantId>,
 ) where
     P: serde::Serialize + std::fmt::Debug,
     S: serde::Serialize + std::fmt::Debug,
@@ -153,8 +139,9 @@ pub async fn serialize_webhook_outcome_and_send_to_comparison_service<P, S>(
         connector_name,
         Some("webhook".to_string()),
         request_id,
-        None, // payment_method not derivable from a generic webhook payload
-        None, // payment_method_type same
+        merchant_id,
+        None,
+        None,
     )
     .await
     {
@@ -171,8 +158,9 @@ pub async fn send_comparison_data(
     connector_name: String,
     sub_flow_name: Option<String>,
     request_id: Option<String>,
-    payment_method: Option<String>,
-    payment_method_type: Option<String>,
+    merchant_id: Option<&id_type::MerchantId>,
+    payment_method: Option<common_enums::enums::PaymentMethod>,
+    payment_method_type: Option<common_enums::enums::PaymentMethodType>,
 ) -> common_utils_errors::CustomResult<(), errors::HttpClientError> {
     let mut request = request::RequestBuilder::new()
         .method(request::Method::Post)
@@ -194,21 +182,31 @@ pub async fn send_comparison_data(
         );
     }
 
-    if let Some(pm) = payment_method.filter(|pm| !pm.is_empty()) {
-        request.add_header(X_PAYMENT_METHOD, hyperswitch_masking::Maskable::Normal(pm));
-    }
-
-    if let Some(pmt) = payment_method_type.filter(|pmt| !pmt.is_empty()) {
-        request.add_header(
-            X_PAYMENT_METHOD_TYPE,
-            hyperswitch_masking::Maskable::Normal(pmt),
-        );
-    }
-
     if let Some(req_id) = request_id {
         request.add_header(
             consts::X_REQUEST_ID,
             hyperswitch_masking::Maskable::Normal(req_id),
+        );
+    }
+
+    if let Some(merchant_id) = merchant_id {
+        request.add_header(
+            common_utils::consts::X_MERCHANT_ID,
+            hyperswitch_masking::Maskable::Normal(merchant_id.get_string_repr().to_string()),
+        );
+    }
+
+    if let Some(pm) = payment_method {
+        request.add_header(
+            X_PAYMENT_METHOD,
+            hyperswitch_masking::Maskable::Normal(pm.to_string()),
+        );
+    }
+
+    if let Some(pmt) = payment_method_type {
+        request.add_header(
+            X_PAYMENT_METHOD_TYPE,
+            hyperswitch_masking::Maskable::Normal(pmt.to_string()),
         );
     }
 

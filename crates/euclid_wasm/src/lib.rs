@@ -39,6 +39,7 @@ use common_enums::PayoutStatus;
 use common_enums::{
     CardType, CountryAlpha2, DisputeStatus, EventClass, EventType, IntentStatus, InvoiceStatus,
     MandateStatus, MerchantCategoryCode, MerchantCategoryCodeWithName, RefundStatus,
+    SubscriptionStatus,
 };
 use strum::IntoEnumIterator;
 
@@ -552,6 +553,18 @@ pub fn get_card_subtype_values() -> JsResult {
 pub fn get_card_type_values() -> JsResult {
     let types: Vec<CardType> = CardType::iter().collect();
     Ok(serde_wasm_bindgen::to_value(&types)?)
+}
+
+#[wasm_bindgen(js_name = getFundingSourceValues)]
+pub fn get_funding_source_values() -> JsResult {
+    let funding_sources: Vec<FundingSource> = FundingSource::iter().collect();
+    Ok(serde_wasm_bindgen::to_value(&funding_sources)?)
+}
+
+#[wasm_bindgen(js_name = getCardSegmentTypeValues)]
+pub fn get_card_segment_type_values() -> JsResult {
+    let segment_types: Vec<CardSegmentType> = CardSegmentType::iter().collect();
+    Ok(serde_wasm_bindgen::to_value(&segment_types)?)
 }
 
 #[wasm_bindgen(js_name = getValidWebhookStatus)]

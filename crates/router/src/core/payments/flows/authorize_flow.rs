@@ -208,6 +208,13 @@ impl
 
 #[async_trait]
 impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAuthorizeRouterData {
+    fn current_flow_info(&self) -> Option<api_interface::CurrentFlowInfo> {
+        Some(api_interface::CurrentFlowInfo::Authorize {
+            auth_type: self.auth_type,
+            request_data: Box::new(self.request.clone()),
+        })
+    }
+
     async fn decide_flows<'a>(
         mut self,
         state: &SessionState,
@@ -1445,6 +1452,7 @@ fn transform_response_for_pre_authenticate_flow(
                 network_txn_id,
                 network_txn_link_id: _,
                 connector_response_reference_id,
+                payment_account_reference,
                 incremental_authorization_allowed,
                 authentication_data,
                 charges,
@@ -1470,6 +1478,7 @@ fn transform_response_for_pre_authenticate_flow(
                     network_txn_id,
                     network_txn_link_id: None,
                     connector_response_reference_id,
+                    payment_account_reference,
                     incremental_authorization_allowed,
                     authentication_data,
                     charges,
@@ -1501,6 +1510,7 @@ fn transform_response_for_pre_authenticate_flow(
                 network_txn_id,
                 network_txn_link_id,
                 connector_response_reference_id,
+                payment_account_reference,
                 incremental_authorization_allowed,
                 charges,
                 authentication_data,
@@ -1564,6 +1574,7 @@ fn transform_response_for_pre_authenticate_flow(
                     network_txn_id,
                     network_txn_link_id,
                     connector_response_reference_id,
+                    payment_account_reference,
                     incremental_authorization_allowed,
                     charges,
                     authentication_data,
@@ -1647,7 +1658,6 @@ pub async fn call_unified_connector_service_pre_authenticate(
         payment_pre_authenticate_request,
         headers_builder,
         unified_connector_service_execution_mode,
-        None,
         |mut router_data, payment_pre_authenticate_request, grpc_headers| async move {
             let response = client
                 .payment_pre_authenticate(
@@ -1794,7 +1804,6 @@ pub async fn call_unified_connector_service_pre_authenticate_proxy(
             payment_pre_authenticate_request,
             headers_builder,
             unified_connector_service_execution_mode,
-            None,
             |mut router_data, payment_pre_authenticate_request, grpc_headers| async move {
                 let response = Box::pin(client.payment_pre_authenticate(
                     payment_pre_authenticate_request,
