@@ -115,6 +115,9 @@ pub struct SessionRoutingPmTypeInput<'a> {
     backend_input: dsl_inputs::BackendInput,
     allowed_connectors: FxHashMap<SessionRoutingConnectorKey, api::GetToken>,
     profile_id: &'a common_utils::id_type::ProfileId,
+    /// Resolves whether this profile is cut over to the Decision Engine.
+    dimensions: &'a dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    payment_id: String,
 }
 
 #[cfg(feature = "v2")]
@@ -448,7 +451,7 @@ pub fn make_dsl_input(
                 | domain::PaymentMethodData::OpenBanking(_)
                 | domain::PaymentMethodData::MobilePayment(_) => None,
             }),
-        card_discovery: None,
+        card_discovery: payments_dsl_input.payment_attempt.card_discovery,
     };
 
     let issuer_data_input = dsl_inputs::IssuerDataInput {
@@ -902,6 +905,53 @@ pub async fn perform_static_routing_locally(
     Ok((static_connectors, static_approach, is_volume_split))
 }
 
+/// Spawns one batch shadow evaluation for a whole session/pre-routing request.
+///
+/// These flows evaluate per payment method type; the batch keeps that off the request
+/// path and down to a single engine round trip. The result is only load-bearing for a
+/// cut-over profile -- for everyone else it exists purely for the diff, so the request
+/// never waits on it.
+#[cfg(feature = "v1")]
+fn spawn_session_shadow_batch_evaluation(
+    state: &SessionState,
+    business_profile: &domain::Profile,
+    payment_id: String,
+    entries: Vec<utils::ShadowBatchEntry>,
+    fallback_config: Vec<routing_types::RoutableConnectorChoice>,
+    transaction_type: api_enums::TransactionType,
+    routing_flow: utils::RoutingFlow,
+) {
+    use router_env::tracing::Instrument;
+
+    let shadow_state = state.clone();
+    let shadow_profile = business_profile.clone();
+    let shadow_span = router_env::tracing::info_span!(
+        "shadow_decision_engine_routing",
+        de_shadow = true,
+        routing_flow = routing_flow.as_str(),
+        entry_count = entries.len(),
+        profile_id = %business_profile.get_id().get_string_repr(),
+        merchant_id = %business_profile.merchant_id.get_string_repr(),
+        payment_id = %payment_id,
+    );
+
+    tokio::spawn(
+        async move {
+            utils::shadow_decision_engine_routing_batch(
+                shadow_state,
+                shadow_profile,
+                payment_id,
+                entries,
+                fallback_config,
+                transaction_type,
+                routing_flow,
+            )
+            .await;
+        }
+        .instrument(shadow_span),
+    );
+}
+
 pub struct SessionRoutingInput<'a> {
     pub state: &'a SessionState,
     pub business_profile: &'a domain::Profile,
@@ -913,6 +963,9 @@ pub struct SessionRoutingInput<'a> {
         &'a std::collections::HashSet<common_utils::id_type::MerchantConnectorAccountId>,
     pub default_config: &'a Vec<routing_types::RoutableConnectorChoice>,
     pub backend_input: &'a mut backend::BackendInput,
+    /// Resolves whether this profile is cut over to the Decision Engine.
+    pub dimensions: &'a dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    pub payment_id: String,
 }
 
 #[cfg(feature = "v1")]
@@ -953,19 +1006,64 @@ impl RoutingStage for SessionRoutingStage {
                 Vec<routing_types::SessionRoutingChoice>,
             > = FxHashMap::default();
 
-            for (pm_type, allowed_connectors) in pm_type_map {
-                let euclid_pmt: euclid_enums::PaymentMethodType = pm_type;
-                let euclid_pm: euclid_enums::PaymentMethod = euclid_pmt.into();
+            // Both are independent of payment method type, so they are resolved once rather
+            // than per iteration.
+            let de_routing_effective =
+                utils::is_decision_engine_routing_effective(input.state, input.dimensions).await;
+            let shadow_evaluation_enabled = input.state.conf.open_router.static_routing_enabled
+                && input.state.conf.open_router.shadow_routing_enabled;
 
-                input.backend_input.payment_method.payment_method = Some(euclid_pm);
-                input.backend_input.payment_method.payment_method_type = Some(euclid_pmt);
+            // Built up front so the Decision Engine calls can be issued together rather
+            // than one wallet type at a time. A rule may branch on payment method type, so
+            // the calls cannot be collapsed into one -- but they need not be serialised.
+            let pm_entries = pm_type_map
+                .into_iter()
+                .map(|(pm_type, allowed_connectors)| {
+                    let euclid_pmt: euclid_enums::PaymentMethodType = pm_type;
+                    let euclid_pm: euclid_enums::PaymentMethod = euclid_pmt.into();
+                    let mut backend_input = input.backend_input.clone();
+                    backend_input.payment_method.payment_method = Some(euclid_pm);
+                    backend_input.payment_method.payment_method_type = Some(euclid_pmt);
+                    (pm_type, allowed_connectors, backend_input)
+                })
+                .collect::<Vec<_>>();
 
+            // One batch call for a cut-over profile: the engine fetches the rule once and
+            // evaluates every wallet type's parameters in a single round trip. Against an
+            // engine without the batch endpoint this degrades to concurrent single calls.
+            // Not cut over, the result is shadow-only and is spawned after the loop.
+            let de_results: Vec<Vec<routing_types::RoutableConnectorChoice>> =
+                if de_routing_effective {
+                    utils::decision_engine_routing_batch_with_fallback(
+                        input.state,
+                        pm_entries
+                            .iter()
+                            .map(|(_, _, backend_input)| backend_input.clone())
+                            .collect(),
+                        input.business_profile,
+                        input.payment_id.clone(),
+                        input.default_config.clone(),
+                        *input.transaction_type,
+                        utils::RoutingFlow::SessionToken,
+                    )
+                    .await
+                } else {
+                    vec![Vec::new(); pm_entries.len()]
+                };
+
+            let mut shadow_entries: Vec<utils::ShadowBatchEntry> = Vec::new();
+
+            for ((pm_type, allowed_connectors, backend_input), de_connectors) in
+                pm_entries.into_iter().zip(de_results)
+            {
                 let algorithm_id = match &*self.ctx.routing_algorithm {
                     MerchantAccountRoutingAlgorithm::V1(algorithm_ref) => {
                         &algorithm_ref.algorithm_id
                     }
                 };
 
+                // Evaluated even under cutover, so an empty DE result falls back to the
+                // merchant's own rule rather than the flat fallback list.
                 let cached_algorithm = algorithm_id
                     .clone()
                     .async_and_then(|algorithm_id| async move {
@@ -981,7 +1079,7 @@ impl RoutingStage for SessionRoutingStage {
                     .await;
 
                 let static_input = StaticRoutingInput {
-                    backend_input: input.backend_input,
+                    backend_input: &backend_input,
                 };
 
                 let static_stage = cached_algorithm.map(|cached_algorithm| StaticRoutingStage {
@@ -1016,11 +1114,53 @@ impl RoutingStage for SessionRoutingStage {
                         common_enums::RoutingApproach::DefaultFallback,
                     );
 
+                let is_volume_split = matches!(
+                    static_approach,
+                    common_enums::RoutingApproach::VolumeBasedRouting
+                );
+
+                // The DE result is only load-bearing for a cut-over profile. Everyone else
+                // gets it shadow-evaluated off the request path, so the diff stays visible
+                // without adding a round trip to session token generation.
+                let chosen_connectors = if de_routing_effective {
+                    // Diff logging only. The kill switch is deliberately not fed from here:
+                    // it gates routing for the whole profile, and tripping it on a
+                    // session-flow discrepancy would disable DE routing for payments too.
+                    utils::compare_and_log_result(
+                        de_connectors.clone(),
+                        chosen_connectors.clone(),
+                        utils::RoutingFlow::SessionToken.as_str().to_string(),
+                        is_volume_split,
+                    );
+
+                    // Only the connector list is swapped; `RoutingApproach` is left as the
+                    // Hyperswitch side derived it, matching `perform_static_routing_v1` --
+                    // it is persisted on the attempt and read by analytics, so relabelling
+                    // it here would shift those numbers for cut-over merchants.
+                    utils::select_routing_result(
+                        input.state,
+                        input.dimensions,
+                        input.business_profile,
+                        chosen_connectors,
+                        de_connectors,
+                    )
+                    .await
+                } else {
+                    if shadow_evaluation_enabled {
+                        shadow_entries.push(utils::ShadowBatchEntry {
+                            backend_input: backend_input.clone(),
+                            hs_connectors: chosen_connectors.clone(),
+                            is_volume: is_volume_split,
+                        });
+                    }
+                    chosen_connectors
+                };
+
                 let primary = perform_cgraph_filtering(
                     input.state,
                     input.key_store,
                     chosen_connectors,
-                    input.backend_input.clone(),
+                    backend_input.clone(),
                     None,
                     profile_id,
                     input.transaction_type,
@@ -1033,7 +1173,7 @@ impl RoutingStage for SessionRoutingStage {
                         input.state,
                         input.key_store,
                         input.default_config.clone(),
-                        input.backend_input.clone(),
+                        backend_input.clone(),
                         None,
                         profile_id,
                         input.transaction_type,
@@ -1082,6 +1222,21 @@ impl RoutingStage for SessionRoutingStage {
                     }
                 }
             }
+
+            // One spawned batch evaluation for the whole request, replacing a spawned
+            // call per wallet type. Off the request path; diff logging only.
+            if !shadow_entries.is_empty() {
+                spawn_session_shadow_batch_evaluation(
+                    input.state,
+                    input.business_profile,
+                    input.payment_id.clone(),
+                    shadow_entries,
+                    input.default_config.clone(),
+                    *input.transaction_type,
+                    utils::RoutingFlow::SessionToken,
+                );
+            }
+
             Ok(RoutingConnectorOutcomeForSessionRouting {
                 session_output: result,
                 routing_approach: final_routing_approach,
@@ -1546,27 +1701,14 @@ impl RoutingStage for HybridRoutingStage {
                     utils::HybridRoutingOutcome::empty()
                 });
 
-                // Keep legacy diff/selection logs for dashboard compatibility.
-                // Routing behavior remains hybrid-first; this is logging-only parity.
-                let comparison = utils::compare_and_log_result(
+                // Diff logging only — no kill-switch counting: this stage runs solely for
+                // cut-over profiles, whose DE-only writes make the HS baseline stale by design.
+                utils::compare_and_log_result(
                     hybrid_outcome.connectors.clone(),
                     input.static_connectors.to_vec(),
                     "evaluate_routing".to_string(),
                     input.static_is_volume_split,
                 );
-
-                // Dynamic DE selections legitimately reorder connectors; count static
-                // outcomes, plus empty ones so an unresponsive DE feeds the kill switch.
-                if hybrid_outcome.routing_approach.is_de_static_result()
-                    || comparison.is_de_result_empty
-                {
-                    utils::record_de_diff_and_maybe_trip_kill_switch(
-                        input.state,
-                        input.business_profile.get_id(),
-                        comparison,
-                    )
-                    .await;
-                }
 
                 RoutingConnectorOutcomeWithApproach {
                     connectors: hybrid_outcome.connectors,
@@ -1611,10 +1753,11 @@ pub async fn perform_hybrid_routing_if_enabled(
         static_is_volume_split,
     };
 
-    let is_decision_engine_cutover_enabled = matches!(
-        utils::get_routing_result_source(state, dimensions).await,
-        api_models::routing::RoutingResultSource::DecisionEngine
-    );
+    // Flag-aware like every other consumer: with static_routing_enabled off the profile is
+    // Hyperswitch-routed, so this stage must not run (the kill-switch counting below is
+    // skipped on the premise that it only ever runs for cut-over profiles).
+    let is_decision_engine_cutover_enabled =
+        utils::is_decision_engine_routing_effective(state, dimensions).await;
     let has_active_routing_algorithm = business_profile
         .routing_algorithm
         .clone()
@@ -1625,19 +1768,10 @@ pub async fn perform_hybrid_routing_if_enabled(
         .and_then(|algorithm_ref| algorithm_ref.algorithm_id)
         .is_some();
 
-    if !has_active_routing_algorithm {
-        logger::debug!(
-            business_profile_id=?business_profile.get_id(),
-            "decision_engine_euclid: no active routing algorithm, skipping DE evaluation"
-        );
-        logger::info!(
-            business_profile_id=?business_profile.get_id(),
-            routing_source = "hyperswitch_static",
-            "decision_engine_euclid: selected routing source after hybrid stage"
-        );
-
-        (static_connectors.to_vec(), static_approach)
-    } else if is_decision_engine_cutover_enabled {
+    // A cut-over profile's rules live on the Decision Engine, so a missing Hyperswitch
+    // algorithm is the normal state and must not skip evaluation; for every other profile
+    // there is nothing to evaluate against, so the DE call is skipped.
+    if is_decision_engine_cutover_enabled {
         let hybrid_stage_outcome = stage
             .route(input)
             .await
@@ -1666,6 +1800,18 @@ pub async fn perform_hybrid_routing_if_enabled(
             static_connectors,
             static_approach,
         )
+    } else if !has_active_routing_algorithm {
+        logger::debug!(
+            business_profile_id=?business_profile.get_id(),
+            "decision_engine_euclid: no active routing algorithm, skipping DE evaluation"
+        );
+        logger::info!(
+            business_profile_id=?business_profile.get_id(),
+            routing_source = "hyperswitch_static",
+            "decision_engine_euclid: selected routing source after hybrid stage"
+        );
+
+        (static_connectors.to_vec(), static_approach)
     } else {
         logger::debug!(
             business_profile_id=?business_profile.get_id(),
@@ -1711,6 +1857,8 @@ pub async fn perform_hybrid_routing_if_enabled(
                         shadow_fallback,
                         shadow_static_connectors,
                         static_is_volume_split,
+                        api_enums::TransactionType::Payment,
+                        utils::RoutingFlow::Payment,
                     )
                     .await;
                 }
@@ -1785,31 +1933,52 @@ pub async fn perform_static_routing_v1(
 
     let fallback_config = get_merchant_fallback_config().await?;
 
-    let algorithm_id = if let Some(id) = algorithm_id {
-        id
-    } else {
-        logger::debug!("euclid_routing: active algorithm isn't present, default falling back");
-        return Ok((fallback_config, None));
-    };
+    // A cut-over profile may have rules only on the DE, so a missing HS algorithm must not skip DE evaluation.
+    let de_routing_effective = utils::is_decision_engine_routing_effective(state, dimensions).await;
 
-    let cached_algorithm = match ensure_algorithm_cached_v1(
-        state,
-        merchant_id,
-        algorithm_id,
-        business_profile.get_id(),
-        &api_enums::TransactionType::from(transaction_data),
-    )
-    .await
-    {
-        Ok(algo) => algo,
-        Err(err) => {
-            logger::error!(
-                error=?err,
-                "euclid_routing: ensure_algorithm_cached failed, falling back to merchant default connectors"
+    let algorithm_id = match algorithm_id {
+        // Evaluated even under cutover. The DE result is still preferred, but when it comes
+        // back empty -- the engine is unreachable, or the profile's rules have not been
+        // migrated yet -- the merchant's own rule is a far better answer than the flat
+        // fallback list. The ref is never cleared, so cutover stays a reversible config flip.
+        Some(id) => Some(id),
+        None if de_routing_effective => {
+            logger::debug!(
+                "decision_engine_euclid: no active HS algorithm, profile is cut over; evaluating on DE"
             );
-
+            None
+        }
+        None => {
+            logger::debug!("euclid_routing: active algorithm isn't present, default falling back");
             return Ok((fallback_config, None));
         }
+    };
+
+    let cached_algorithm = match algorithm_id {
+        Some(algorithm_id) => match ensure_algorithm_cached_v1(
+            state,
+            merchant_id,
+            algorithm_id,
+            business_profile.get_id(),
+            &api_enums::TransactionType::from(transaction_data),
+        )
+        .await
+        {
+            Ok(algo) => Some(algo),
+            Err(err) => {
+                logger::error!(
+                    error=?err,
+                    "euclid_routing: ensure_algorithm_cached failed, falling back to merchant default connectors"
+                );
+
+                if de_routing_effective {
+                    None
+                } else {
+                    return Ok((fallback_config, None));
+                }
+            }
+        },
+        None => None,
     };
 
     let payment_id = match transaction_data {
@@ -1835,49 +2004,58 @@ pub async fn perform_static_routing_v1(
         routing::TransactionData::Payout(payout_data) => make_dsl_input_for_payouts(payout_data),
     };
 
-    let (routable_connectors, routing_approach, is_volume_split, de_evaluated_connector) =
-        match backend_input {
-            Err(err) => {
-                logger::error!(error=?err, "euclid_routing: failed to build routing input, falling back to merchant default connectors");
-                (fallback_config.clone(), None, false, Vec::default())
-            }
-            Ok(backend_input) => {
-                // Decision engine evaluation is diagnostic only; errors degrade to an empty result.
-                let de_evaluated_connector = if !state.conf.open_router.static_routing_enabled {
-                    logger::debug!("decision_engine_euclid: decision_engine routing not enabled");
-                    Vec::default()
-                } else {
-                    utils::decision_engine_routing(
+    let (
+        routable_connectors,
+        routing_approach,
+        is_volume_split,
+        de_evaluated_connector,
+        hs_eval_succeeded,
+    ) = match backend_input {
+        Err(err) => {
+            logger::error!(error=?err, "euclid_routing: failed to build routing input, falling back to merchant default connectors");
+            (fallback_config.clone(), None, false, Vec::default(), false)
+        }
+        Ok(backend_input) => {
+            // Decision engine evaluation is diagnostic only; errors degrade to an empty result.
+            let de_evaluated_connector = if !state.conf.open_router.static_routing_enabled {
+                logger::debug!("decision_engine_euclid: decision_engine routing not enabled");
+                Vec::default()
+            } else {
+                utils::decision_engine_routing(
                         state,
                         backend_input.clone(),
                         business_profile,
                         payment_id,
                         fallback_config.clone(),
+                        api_enums::TransactionType::from(transaction_data),
+                        utils::RoutingFlow::Payment,
                     )
                     .await
                     .map_err(|e| logger::error!(decision_engine_euclid_evaluate_error=?e, "decision_engine_euclid: error in evaluation of rule"))
                     .unwrap_or_default()
-                };
+            };
 
-                let evaluated = (|| -> RoutingResult<(
+            let evaluated = (|| -> RoutingResult<(
                     Vec<routing_types::RoutableConnectorChoice>,
                     Option<common_enums::RoutingApproach>,
                     bool,
                 )> {
-                    Ok(match cached_algorithm.as_ref() {
-                        CachedAlgorithm::Single(conn) => (
+                    Ok(match cached_algorithm.as_deref() {
+                        // No HS algorithm (cut-over profile): HS side is the fallback list.
+                        None => (fallback_config.clone(), None, false),
+                        Some(CachedAlgorithm::Single(conn)) => (
                             vec![(**conn).clone()],
                             Some(common_enums::RoutingApproach::StraightThroughRouting),
                             false,
                         ),
-                        CachedAlgorithm::Priority(plist) => (plist.clone(), None, false),
-                        CachedAlgorithm::VolumeSplit(splits) => (
+                        Some(CachedAlgorithm::Priority(plist)) => (plist.clone(), None, false),
+                        Some(CachedAlgorithm::VolumeSplit(splits)) => (
                             perform_volume_split(splits.to_vec())
                                 .change_context(errors::RoutingError::ConnectorSelectionFailed)?,
                             Some(common_enums::RoutingApproach::VolumeBasedRouting),
                             true,
                         ),
-                        CachedAlgorithm::Advanced(interpreter) => {
+                        Some(CachedAlgorithm::Advanced(interpreter)) => {
                             let dsl_output = execute_dsl_v1(backend_input, interpreter)?;
                             let is_volume_split = matches!(
                                 dsl_output,
@@ -1892,31 +2070,41 @@ pub async fn perform_static_routing_v1(
                     })
                 })();
 
-                let (routable_connectors, routing_approach, is_volume_split) = evaluated
+            let hs_eval_succeeded = evaluated.is_ok();
+            let (routable_connectors, routing_approach, is_volume_split) = evaluated
                     .unwrap_or_else(|err| {
                         logger::error!(error=?err, "euclid_routing: algorithm evaluation failed, falling back to merchant default connectors");
                         (fallback_config.clone(), None, false)
                     });
 
-                (
-                    routable_connectors,
-                    routing_approach,
-                    is_volume_split,
-                    de_evaluated_connector,
-                )
-            }
-        };
+            (
+                routable_connectors,
+                routing_approach,
+                is_volume_split,
+                de_evaluated_connector,
+                hs_eval_succeeded,
+            )
+        }
+    };
 
-    // Diff-logged (is_equal / is_equal_length / is_volume) and fed to the kill switch.
+    // Always diff-log (dashboards consume this for cut-over profiles too), but feed the
+    // kill switch only from a successfully evaluated HS algorithm on a non-cut-over
+    // profile — under DE-only writes the HS baseline is stale by design.
     let comparison = utils::compare_and_log_result(
         de_evaluated_connector.clone(),
         routable_connectors.clone(),
-        "evaluate_routing".to_string(),
+        utils::RoutingFlow::Payment.as_str().to_string(),
         is_volume_split,
     );
 
-    utils::record_de_diff_and_maybe_trip_kill_switch(state, business_profile.get_id(), comparison)
+    if cached_algorithm.is_some() && hs_eval_succeeded && !de_routing_effective {
+        utils::record_de_diff_and_maybe_trip_kill_switch(
+            state,
+            business_profile.get_id(),
+            comparison,
+        )
         .await;
+    }
 
     Ok((
         utils::select_routing_result(
@@ -2809,6 +2997,7 @@ pub async fn perform_session_flow_routing<'a>(
 pub async fn perform_session_flow_routing(
     session_input: SessionFlowRoutingInput<'_>,
     business_profile: &domain::Profile,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     transaction_type: &api_enums::TransactionType,
 ) -> RoutingResult<(
     FxHashMap<api_enums::PaymentMethodType, Vec<routing_types::SessionRoutingChoice>>,
@@ -2882,7 +3071,7 @@ pub async fn perform_session_flow_routing(
         .attach_printable("Unable to parse routing_parameters from metadata of payment_intent")
         .unwrap_or(None);
 
-    let mut backend_input = dsl_inputs::BackendInput {
+    let backend_input = dsl_inputs::BackendInput {
         metadata,
         payment: payment_input,
         payment_method: payment_method_input,
@@ -2915,31 +3104,102 @@ pub async fn perform_session_flow_routing(
         get_active_mca_ids_for_session(session_input.state, session_input.key_store, &profile_id)
             .await;
 
-    for (pm_type, allowed_connectors) in pm_type_map {
-        let euclid_pmt: euclid_enums::PaymentMethodType = pm_type;
-        let euclid_pm: euclid_enums::PaymentMethod = euclid_pmt.into();
+    // Independent of payment method type, so resolved once rather than per iteration.
+    let de_routing_effective =
+        utils::is_decision_engine_routing_effective(session_input.state, dimensions).await;
 
-        backend_input.payment_method.payment_method = Some(euclid_pm);
-        backend_input.payment_method.payment_method_type = Some(euclid_pmt);
+    let payment_id = session_input
+        .payment_intent
+        .payment_id
+        .get_string_repr()
+        .to_string();
 
+    // Built up front so the Decision Engine calls can be issued together rather than one
+    // wallet type at a time. A rule may branch on payment method type, so they cannot be
+    // collapsed into one call -- but they need not be serialised.
+    let pm_entries = pm_type_map
+        .into_iter()
+        .map(|(pm_type, allowed_connectors)| {
+            let euclid_pmt: euclid_enums::PaymentMethodType = pm_type;
+            let euclid_pm: euclid_enums::PaymentMethod = euclid_pmt.into();
+            let mut backend_input = backend_input.clone();
+            backend_input.payment_method.payment_method = Some(euclid_pm);
+            backend_input.payment_method.payment_method_type = Some(euclid_pmt);
+            (pm_type, allowed_connectors, backend_input)
+        })
+        .collect::<Vec<_>>();
+
+    // Not cut over, the evaluation is shadow-only and off the request path.
+    let collect_shadow_entries = !de_routing_effective
+        && session_input.state.conf.open_router.static_routing_enabled
+        && session_input.state.conf.open_router.shadow_routing_enabled;
+
+    // Same list for every wallet type, so it is fetched once rather than per iteration.
+    let de_fallback_config = if de_routing_effective || collect_shadow_entries {
+        routing::helpers::get_merchant_default_config(
+            &*session_input.state.clone().store,
+            profile_id.get_string_repr(),
+            transaction_type,
+        )
+        .await
+        .change_context(errors::RoutingError::FallbackConfigFetchFailed)?
+    } else {
+        Vec::new()
+    };
+
+    // One batch call for a cut-over profile: the engine fetches the rule once and
+    // evaluates every wallet type's parameters in a single round trip. Against an engine
+    // without the batch endpoint this degrades to concurrent single calls.
+    let de_results: Vec<Vec<routing_types::RoutableConnectorChoice>> = if de_routing_effective {
+        utils::decision_engine_routing_batch_with_fallback(
+            session_input.state,
+            pm_entries
+                .iter()
+                .map(|(_, _, backend_input)| backend_input.clone())
+                .collect(),
+            business_profile,
+            payment_id.clone(),
+            de_fallback_config.clone(),
+            *transaction_type,
+            utils::RoutingFlow::PaymentMethodList,
+        )
+        .await
+    } else {
+        vec![Vec::new(); pm_entries.len()]
+    };
+
+    let mut shadow_entries: Vec<utils::ShadowBatchEntry> = Vec::new();
+
+    for ((pm_type, allowed_connectors, backend_input), de_connectors) in
+        pm_entries.into_iter().zip(de_results)
+    {
         let session_pm_input = SessionRoutingPmTypeInput {
             state: session_input.state,
             key_store: session_input.key_store,
             // attempt_id: session_input.payment_attempt.get_id(),
             routing_algorithm: &routing_algorithm,
-            backend_input: backend_input.clone(),
+            backend_input,
             allowed_connectors,
             profile_id: &profile_id,
+            dimensions,
+            payment_id: payment_id.clone(),
         };
 
-        let (routable_connector_choice_option, routing_approach) =
+        let (routable_connector_choice_option, routing_approach, shadow_entry) =
             perform_session_routing_for_pm_type(
                 &session_pm_input,
                 transaction_type,
                 business_profile,
                 &active_mca_ids,
+                de_routing_effective,
+                de_connectors,
+                collect_shadow_entries,
             )
             .await?;
+
+        if let Some(entry) = shadow_entry {
+            shadow_entries.push(entry);
+        }
 
         final_routing_approach = routing_approach;
 
@@ -2972,18 +3232,37 @@ pub async fn perform_session_flow_routing(
         }
     }
 
+    // One spawned batch evaluation for the whole request, replacing a spawned call per
+    // wallet type. Off the request path; diff logging only.
+    if !shadow_entries.is_empty() {
+        spawn_session_shadow_batch_evaluation(
+            session_input.state,
+            business_profile,
+            payment_id,
+            shadow_entries,
+            de_fallback_config,
+            *transaction_type,
+            utils::RoutingFlow::PaymentMethodList,
+        );
+    }
+
     Ok((result, final_routing_approach))
 }
 
 #[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
 async fn perform_session_routing_for_pm_type(
     session_pm_input: &SessionRoutingPmTypeInput<'_>,
     transaction_type: &api_enums::TransactionType,
-    _business_profile: &domain::Profile,
+    business_profile: &domain::Profile,
     active_mca_ids: &std::collections::HashSet<common_utils::id_type::MerchantConnectorAccountId>,
+    de_routing_effective: bool,
+    de_connectors: Vec<api_models::routing::RoutableConnectorChoice>,
+    collect_shadow_entry: bool,
 ) -> RoutingResult<(
     Option<Vec<api_models::routing::RoutableConnectorChoice>>,
     Option<common_enums::RoutingApproach>,
+    Option<utils::ShadowBatchEntry>,
 )> {
     let merchant_id = &session_pm_input.key_store.merchant_id;
 
@@ -2991,6 +3270,22 @@ async fn perform_session_routing_for_pm_type(
         MerchantAccountRoutingAlgorithm::V1(algorithm_ref) => &algorithm_ref.algorithm_id,
     };
 
+    // The Decision Engine call moved to the caller (one batch per request), so the
+    // fallback list is only needed here as the no-algorithm result.
+    let fallback_config = if algorithm_id.is_none() {
+        routing::helpers::get_merchant_default_config(
+            &*session_pm_input.state.clone().store,
+            session_pm_input.profile_id.get_string_repr(),
+            transaction_type,
+        )
+        .await
+        .change_context(errors::RoutingError::FallbackConfigFetchFailed)?
+    } else {
+        Vec::new()
+    };
+
+    // Evaluated even under cutover, so an empty DE result falls back to the merchant's own
+    // rule rather than the flat fallback list.
     let (chosen_connectors, routing_approach) = if let Some(ref algorithm_id) = algorithm_id {
         let cached_algorithm = ensure_algorithm_cached_v1(
             &session_pm_input.state.clone(),
@@ -3021,17 +3316,48 @@ async fn perform_session_routing_for_pm_type(
             ),
         }
     } else {
-        (
-            routing::helpers::get_merchant_default_config(
-                &*session_pm_input.state.clone().store,
-                session_pm_input.profile_id.get_string_repr(),
-                transaction_type,
-            )
-            .await
-            .change_context(errors::RoutingError::FallbackConfigFetchFailed)?,
-            None,
-        )
+        (fallback_config.clone(), None)
     };
+
+    let is_volume_split = matches!(
+        routing_approach,
+        Some(common_enums::RoutingApproach::VolumeBasedRouting)
+    );
+
+    // Load-bearing only for a cut-over profile; everyone else gets it shadow-evaluated off
+    // the request path, so the diff stays visible without adding a round trip per wallet
+    // type to the payment method list.
+    let chosen_connectors = if de_routing_effective {
+        // Diff logging only; see the note in `SessionRoutingStage` on why the kill switch
+        // is not fed from these flows.
+        utils::compare_and_log_result(
+            de_connectors.clone(),
+            chosen_connectors.clone(),
+            utils::RoutingFlow::PaymentMethodList.as_str().to_string(),
+            is_volume_split,
+        );
+
+        // Connector list only; see the note in `SessionRoutingStage` on why
+        // `routing_approach` is left untouched.
+        utils::select_routing_result(
+            session_pm_input.state,
+            session_pm_input.dimensions,
+            business_profile,
+            chosen_connectors,
+            de_connectors,
+        )
+        .await
+    } else {
+        chosen_connectors
+    };
+
+    // Handed back to the caller, which shadow-evaluates the whole request in one
+    // spawned batch instead of one task per wallet type.
+    let shadow_entry = collect_shadow_entry.then(|| utils::ShadowBatchEntry {
+        backend_input: session_pm_input.backend_input.clone(),
+        hs_connectors: chosen_connectors.clone(),
+        is_volume: is_volume_split,
+    });
 
     let mut final_selection = perform_cgraph_filtering(
         &session_pm_input.state.clone(),
@@ -3068,9 +3394,9 @@ async fn perform_session_routing_for_pm_type(
     }
 
     if final_selection.is_empty() {
-        Ok((None, routing_approach))
+        Ok((None, routing_approach, shadow_entry))
     } else {
-        Ok((Some(final_selection), routing_approach))
+        Ok((Some(final_selection), routing_approach, shadow_entry))
     }
 }
 

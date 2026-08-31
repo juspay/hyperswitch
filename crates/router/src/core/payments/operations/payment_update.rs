@@ -964,6 +964,7 @@ impl ForeignTryFrom<domain::Customer> for CustomerData {
                 router_env::logger::error!(error = ?report, "Failed to convert customer document details");
                 errors::ApiErrorResponse::InternalServerError
             })?,
+            date_of_birth: None,
         })
     }
 }
@@ -1068,6 +1069,8 @@ impl PaymentUpdate {
                 .customer
                 .as_ref()
                 .and_then(|customer| customer.document_details.clone()),
+            is_account_funded_transaction: request.is_account_funded_transaction,
+            recipient_details: request.recipient_details.clone(),
         }
     }
 
@@ -1256,6 +1259,23 @@ impl PaymentUpdate {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to encrypt shipping details")?;
 
+        // Re-encrypt the recipient details only when the update request carries them; otherwise
+        // retain whatever is already stored on the intent.
+        let recipient_details = match request.recipient_details.as_ref() {
+            Some(recipient_details) => Some(
+                core_utils::create_encrypted_data(
+                    &key_manager_state,
+                    key_store,
+                    recipient_details.clone(),
+                    common_utils::type_name!(diesel_models::payment_intent::PaymentIntent),
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Unable to encrypt recipient details")?,
+            ),
+            None => payment_data.payment_intent.recipient_details.clone(),
+        };
+
         let order_details = payment_data.payment_intent.order_details.clone();
         let connector_metadata = payment_data.payment_intent.connector_metadata.clone();
         let frm_metadata = payment_data.payment_intent.frm_metadata.clone();
@@ -1324,6 +1344,10 @@ impl PaymentUpdate {
                 statement_descriptor_name,
                 statement_descriptor_suffix,
                 billing_descriptor: payment_data.payment_intent.billing_descriptor.clone(),
+                is_account_funded_transaction: request
+                    .is_account_funded_transaction
+                    .or(payment_data.payment_intent.is_account_funded_transaction),
+                recipient_details,
                 order_details,
                 metadata,
                 connector_metadata,

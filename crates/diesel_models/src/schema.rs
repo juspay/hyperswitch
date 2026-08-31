@@ -1259,6 +1259,8 @@ diesel::table! {
         applied_offer_details -> Nullable<Jsonb>,
         #[max_length = 10]
         fingerprint_type -> Nullable<Varchar>,
+        #[max_length = 255]
+        payment_account_reference -> Nullable<Varchar>,
     }
 }
 
@@ -1376,6 +1378,8 @@ diesel::table! {
         #[max_length = 64]
         external_surcharge_strategy -> Nullable<Varchar>,
         external_surcharge_applicable -> Nullable<Bool>,
+        is_account_funded_transaction -> Nullable<Bool>,
+        recipient_details -> Nullable<Bytea>,
     }
 }
 

@@ -2641,4 +2641,14 @@ export const connectorDetails = {
       },
     }),
   },
+  Dispute: {
+    AcceptDispute: {
+      Response: {
+        status: 200,
+        body: {
+          dispute_status: "dispute_accepted",
+        },
+      },
+    },
+  },
 };
