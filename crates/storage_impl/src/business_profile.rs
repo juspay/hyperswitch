@@ -213,12 +213,12 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
 
         #[cfg(feature = "accounts_cache")]
         {
-            cache::get_or_populate_in_memory(
+            Box::pin(cache::get_or_populate_in_memory(
                 self,
                 &profile_cache_key(profile_id),
                 fetch_func,
                 &ACCOUNTS_CACHE,
-            )
+            ))
             .await?
             .convert(
                 state,
@@ -261,12 +261,12 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
 
         #[cfg(feature = "accounts_cache")]
         {
-            cache::get_or_populate_in_memory(
+            Box::pin(cache::get_or_populate_in_memory(
                 self,
                 &profile_cache_key(profile_id),
                 fetch_func,
                 &ACCOUNTS_CACHE,
-            )
+            ))
             .await?
             .convert(
                 state,
@@ -675,6 +675,7 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                     metadata,
                     routing_algorithm,
                     intent_fulfillment_time,
+                    order_fulfillment_time: intent_fulfillment_time,
                     frm_routing_algorithm,
                     payout_routing_algorithm,
                     is_recon_enabled: None,
@@ -743,6 +744,7 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 metadata: None,
                 routing_algorithm,
                 intent_fulfillment_time: None,
+                order_fulfillment_time: None,
                 frm_routing_algorithm: None,
                 payout_routing_algorithm,
                 is_recon_enabled: None,
@@ -806,6 +808,7 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 metadata: None,
                 routing_algorithm: None,
                 intent_fulfillment_time: None,
+                order_fulfillment_time: None,
                 frm_routing_algorithm: None,
                 payout_routing_algorithm: None,
                 is_recon_enabled: None,
@@ -869,6 +872,7 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 metadata: None,
                 routing_algorithm: None,
                 intent_fulfillment_time: None,
+                order_fulfillment_time: None,
                 frm_routing_algorithm: None,
                 payout_routing_algorithm: None,
                 is_recon_enabled: None,
@@ -932,6 +936,7 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 metadata: None,
                 routing_algorithm: None,
                 intent_fulfillment_time: None,
+                order_fulfillment_time: None,
                 frm_routing_algorithm: None,
                 payout_routing_algorithm: None,
                 is_recon_enabled: None,
@@ -996,6 +1001,7 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 metadata: None,
                 routing_algorithm: None,
                 intent_fulfillment_time: None,
+                order_fulfillment_time: None,
                 frm_routing_algorithm: None,
                 payout_routing_algorithm: None,
                 is_recon_enabled: None,
@@ -1060,6 +1066,7 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 metadata: None,
                 routing_algorithm: None,
                 intent_fulfillment_time: None,
+                order_fulfillment_time: None,
                 frm_routing_algorithm: None,
                 payout_routing_algorithm: None,
                 is_recon_enabled: None,
@@ -1123,6 +1130,7 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 metadata: None,
                 routing_algorithm: None,
                 intent_fulfillment_time: None,
+                order_fulfillment_time: None,
                 frm_routing_algorithm: None,
                 payout_routing_algorithm: None,
                 is_recon_enabled: None,
@@ -1187,6 +1195,7 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 metadata: None,
                 routing_algorithm: None,
                 intent_fulfillment_time: None,
+                order_fulfillment_time: None,
                 frm_routing_algorithm: None,
                 payout_routing_algorithm: None,
                 is_recon_enabled: None,
@@ -1266,6 +1275,7 @@ impl Conversion for domain::Profile {
             metadata: self.metadata,
             routing_algorithm: self.routing_algorithm,
             intent_fulfillment_time: self.intent_fulfillment_time,
+            order_fulfillment_time: self.intent_fulfillment_time,
             frm_routing_algorithm: self.frm_routing_algorithm,
             payout_routing_algorithm: self.payout_routing_algorithm,
             is_recon_enabled: self.is_recon_enabled,
@@ -1500,6 +1510,7 @@ impl Conversion for domain::Profile {
             metadata: self.metadata,
             routing_algorithm: self.routing_algorithm,
             intent_fulfillment_time: self.intent_fulfillment_time,
+            order_fulfillment_time: self.intent_fulfillment_time,
             frm_routing_algorithm: self.frm_routing_algorithm,
             payout_routing_algorithm: self.payout_routing_algorithm,
             is_recon_enabled: self.is_recon_enabled,
@@ -2373,6 +2384,7 @@ impl Conversion for domain::Profile {
                     merchant_category_code: item.merchant_category_code,
                     merchant_country_code: item.merchant_country_code,
                     split_txns_enabled: item.split_txns_enabled.unwrap_or_default(),
+                    is_manual_retry_enabled: item.is_manual_retry_enabled,
                     billing_processor_id: item.billing_processor_id,
                     surcharge_connector_details: item.surcharge_connector_details,
                 }

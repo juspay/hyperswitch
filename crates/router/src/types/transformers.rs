@@ -403,6 +403,8 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::PixKey
             | api_enums::PaymentMethodType::PixEmv
             | api_enums::PaymentMethodType::PixQr
+            | api_enums::PaymentMethodType::Payshap
+            | api_enums::PaymentMethodType::PayshapProxy
             | api_enums::PaymentMethodType::Pix => Self::BankTransfer,
             api_enums::PaymentMethodType::Givex
             | api_enums::PaymentMethodType::PaySafeCard
@@ -1492,6 +1494,8 @@ impl ForeignFrom<&api_models::payouts::Bank> for api_enums::PaymentMethodType {
             api_models::payouts::Bank::Pix(_) => Self::Pix,
             api_models::payouts::Bank::Trustly(_) => Self::Trustly,
             api_models::payouts::Bank::OpenBanking(_) => Self::OpenBanking,
+            api_models::payouts::Bank::Payshap(_) => Self::Payshap,
+            api_models::payouts::Bank::PayshapProxy(_) => Self::PayshapProxy,
         }
     }
 }
@@ -1508,6 +1512,8 @@ impl ForeignFrom<&api_models::payouts::BankTransfer> for api_enums::PaymentMetho
             api_models::payouts::BankTransfer::PixEmv(_) => Self::PixEmv,
             api_models::payouts::BankTransfer::Trustly(_) => Self::Trustly,
             api_models::payouts::BankTransfer::OpenBanking(_) => Self::OpenBanking,
+            api_models::payouts::BankTransfer::Payshap(_) => Self::Payshap,
+            api_models::payouts::BankTransfer::PayshapProxy(_) => Self::PayshapProxy,
         }
     }
 }
@@ -1884,6 +1890,7 @@ impl
                 }),
             customer: Some(CustomerDetails {
                 name: None,
+                date_of_birth: None,
                 email: None,
                 phone: None,
                 id: None,
@@ -2712,6 +2719,7 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
             is_setup_mandate_flow: item.is_setup_mandate_flow,
             color_icon_card_cvc_error: item.color_icon_card_cvc_error,
             show_merchant_name: item.show_merchant_name,
+            payment_methods_separator_text: item.payment_methods_separator_text,
         }
     }
 }
@@ -2750,6 +2758,7 @@ impl ForeignFrom<diesel_models::business_profile::PaymentLinkConfigRequest>
             is_setup_mandate_flow: item.is_setup_mandate_flow,
             color_icon_card_cvc_error: item.color_icon_card_cvc_error,
             show_merchant_name: item.show_merchant_name,
+            payment_methods_separator_text: item.payment_methods_separator_text,
         }
     }
 }
