@@ -219,18 +219,9 @@ where
             helpers::resolve_provider_profile(state, platform, profile).await?;
         let customer_id = customer.as_ref().map(|c| c.get_id());
 
-        // `setup_future_usage` on the intent carries the merchant's storage intent for the
-        // session: set (on_session/off_session) → persistent, absent → volatile. Persistent
-        // intent without a customer_id is rejected at payment create/confirm
-        // (`validate_customer_id_mandatory_cases`), so a persistent session always has a
-        // customer to attach to.
-        let storage_type = match (
-            payment_data.get_payment_intent().setup_future_usage,
-            customer_id,
-        ) {
-            (Some(_), Some(_)) => common_enums::StorageType::Persistent,
-            _ => common_enums::StorageType::Volatile,
-        };
+        // Payments uses the PM session only as a provisional card holder. Durable storage is
+        // decided after authorization and promoted through the PM update call.
+        let storage_type = common_enums::StorageType::Volatile;
 
         // Use the resolved external vault profile (the platform merchant's profile in platform
         // flows) so the PM service operates under the merchant that actually holds the external
