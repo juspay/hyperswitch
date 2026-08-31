@@ -2060,7 +2060,7 @@ pub async fn payment_method_session_update_saved_payment_method(
 }
 
 #[cfg(feature = "v2")]
-#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodSessionUpdateSavedPaymentMethod))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodSessionDeleteSavedPaymentMethod))]
 pub async fn payment_method_session_delete_saved_payment_method(
     state: web::Data<AppState>,
     req: HttpRequest,
