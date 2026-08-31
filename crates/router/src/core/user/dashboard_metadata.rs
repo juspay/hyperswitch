@@ -268,7 +268,7 @@ fn into_response(
                         view_id: v.view_id,
                         view_name: v.view_name,
                         data: api::SavedViewFilters::V1(api::SavedViewFiltersV1::PaymentViews(
-                            Box::new(v.filters),
+                            v.filters,
                         )),
                         created_at: v.created_at.to_string(),
                         updated_at: v.updated_at.to_string(),
@@ -719,15 +719,20 @@ async fn insert_metadata(
             metadata
         }
         #[cfg(feature = "v1")]
-        types::MetaData::PaymentViews(operation)
-        | types::MetaData::RefundViews(operation)
-        | types::MetaData::DisputeViews(operation) => {
+        types::MetaData::PaymentViews(operation) => {
             utils::handle_saved_view_operations(state, user, metadata_key, *operation).await
         }
         #[cfg(feature = "v1")]
+        types::MetaData::RefundViews(operation) => {
+            utils::handle_view_operations(state, user, metadata_key, *operation).await
+        }
+        #[cfg(feature = "v1")]
+        types::MetaData::DisputeViews(operation) => {
+            utils::handle_view_operations(state, user, metadata_key, *operation).await
+        }
+        #[cfg(feature = "v1")]
         types::MetaData::PaymentAdvancedViews(operation) => {
-            utils::handle_payment_advanced_view_operations(state, user, metadata_key, *operation)
-                .await
+            utils::handle_view_operations(state, user, metadata_key, *operation).await
         }
     }
 }

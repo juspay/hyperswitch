@@ -1,9 +1,6 @@
 use common_enums::{CountryAlpha2, MerchantProductType};
 use common_types::primitive_wrappers::SafeString;
-use common_utils::{
-    id_type, pii,
-    types::list::{PageOffset, PageSize},
-};
+use common_utils::{id_type, pii};
 use hyperswitch_masking::Secret;
 use strum::EnumString;
 
@@ -40,9 +37,9 @@ pub enum SetMetaDataRequest {
     #[cfg(feature = "v1")]
     PaymentAdvancedViews(Box<PaymentAdvancedViewOperation>),
     #[cfg(feature = "v1")]
-    RefundViews(Box<SavedViewOperation>),
+    RefundViews(Box<RefundViewOperation>),
     #[cfg(feature = "v1")]
-    DisputeViews(Box<SavedViewOperation>),
+    DisputeViews(Box<DisputeViewOperation>),
 }
 
 #[cfg(feature = "v1")]
@@ -52,6 +49,31 @@ pub enum SavedViewOperation {
     Create(CreateSavedViewRequest),
     Update(UpdateSavedViewRequest),
     Delete(DeleteSavedViewRequest),
+}
+
+/// POST /user/views
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct CreateSavedViewRequest {
+    pub view_name: String,
+    #[serde(flatten)]
+    pub data: SavedViewFilters,
+}
+
+/// PUT /user/views
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct UpdateSavedViewRequest {
+    pub view_id: String,
+    pub view_name: Option<String>,
+    #[serde(flatten)]
+    pub data: SavedViewFilters,
+}
+
+/// DELETE /user/views
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct DeleteSavedViewRequest {
+    pub view_id: String,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -216,9 +238,9 @@ pub enum GetMetaDataResponse {
     #[cfg(feature = "v1")]
     PaymentAdvancedViews(Option<Vec<PaymentAdvancedViewResponse>>),
     #[cfg(feature = "v1")]
-    RefundViews(Option<Vec<SavedViewResponse>>),
+    RefundViews(Option<Vec<RefundViewResponse>>),
     #[cfg(feature = "v1")]
-    DisputeViews(Option<Vec<SavedViewResponse>>),
+    DisputeViews(Option<Vec<DisputeViewResponse>>),
 }
 
 // === Saved Views API Types ===
@@ -228,9 +250,7 @@ pub enum GetMetaDataResponse {
 #[serde(tag = "entity", content = "filters")]
 #[serde(rename_all = "snake_case")]
 pub enum SavedViewFiltersV1 {
-    PaymentViews(Box<PaymentListFilterConstraintsV1>),
-    RefundViews(RefundViewFilterConstraintsV1),
-    DisputeViews(DisputeViewFilterConstraintsV1),
+    PaymentViews(PaymentListFilterConstraintsV1),
 }
 
 #[cfg(feature = "v1")]
@@ -241,9 +261,9 @@ pub struct PaymentListFilterConstraintsV1 {
     pub profile_id: Option<id_type::ProfileId>,
     pub customer_id: Option<id_type::CustomerId>,
     #[serde(default)]
-    pub limit: PageSize,
+    pub limit: common_utils::types::list::PageSize,
     #[serde(default)]
-    pub offset: Option<PageOffset>,
+    pub offset: Option<common_utils::types::list::PageOffset>,
     pub amount_filter: Option<payments::AmountFilter>,
     #[serde(flatten)]
     pub time_range: Option<common_utils::types::TimeRange>,
@@ -272,45 +292,6 @@ pub struct PaymentListFilterConstraintsV1 {
 }
 
 #[cfg(feature = "v1")]
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
-pub struct RefundViewFilterConstraintsV1 {
-    pub payment_id: Option<id_type::PaymentId>,
-    pub refund_id: Option<String>,
-    pub profile_id: Option<id_type::ProfileId>,
-    #[serde(default)]
-    pub limit: Option<PageSize>,
-    #[serde(default)]
-    pub offset: Option<PageOffset>,
-    #[serde(flatten)]
-    pub time_range: Option<common_utils::types::TimeRange>,
-    pub amount_filter: Option<payments::AmountFilter>,
-    pub connector: Option<Vec<String>>,
-    pub merchant_connector_id: Option<Vec<id_type::MerchantConnectorAccountId>>,
-    pub currency: Option<Vec<enums::Currency>>,
-    pub refund_status: Option<Vec<enums::RefundStatus>>,
-}
-
-#[cfg(feature = "v1")]
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
-pub struct DisputeViewFilterConstraintsV1 {
-    pub dispute_id: Option<String>,
-    pub payment_id: Option<id_type::PaymentId>,
-    pub profile_id: Option<id_type::ProfileId>,
-    #[serde(default)]
-    pub limit: Option<PageSize>,
-    #[serde(default)]
-    pub offset: Option<PageOffset>,
-    pub dispute_status: Option<Vec<enums::DisputeStatus>>,
-    pub dispute_stage: Option<Vec<enums::DisputeStage>>,
-    pub reason: Option<String>,
-    pub connector: Option<Vec<String>>,
-    pub currency: Option<Vec<enums::Currency>>,
-    pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
-    #[serde(flatten)]
-    pub time_range: Option<common_utils::types::TimeRange>,
-}
-
-#[cfg(feature = "v1")]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 #[serde(tag = "version", rename_all = "snake_case")]
 pub enum SavedViewFilters {
@@ -326,36 +307,54 @@ pub struct SavedViewResponse {
     pub created_at: String,
     pub updated_at: String,
 }
-/// POST /user/views
+/// One saved-view create request, generic over the entity's versioned filter payload.
 #[cfg(feature = "v1")]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct CreateSavedViewRequest {
+pub struct CreateViewRequest<F> {
     pub view_name: String,
     #[serde(flatten)]
-    pub data: SavedViewFilters,
+    pub data: F,
 }
 
-/// PUT /user/views
+/// One saved-view update request, generic over the entity's versioned filter payload.
 #[cfg(feature = "v1")]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct UpdateSavedViewRequest {
+pub struct UpdateViewRequest<F> {
     pub view_id: String,
     pub view_name: Option<String>,
     #[serde(flatten)]
-    pub data: SavedViewFilters,
+    pub data: F,
 }
 
-/// DELETE /user/views
+/// Deleting a view needs only its id, so this carries no filter payload.
+#[cfg(feature = "v1")]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct DeleteSavedViewRequest {
+pub struct DeleteViewRequest {
     pub view_id: String,
 }
 
+/// The CRUD operation requested for one saved-view entity.
 #[cfg(feature = "v1")]
-#[derive(Debug, Clone, Copy, serde::Deserialize, serde::Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum PaymentAdvancedViewVersion {
-    V1,
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[serde(tag = "type", content = "data")]
+pub enum ViewOperation<F> {
+    Create(CreateViewRequest<F>),
+    Update(UpdateViewRequest<F>),
+    Delete(DeleteViewRequest),
+}
+
+/// One saved-view response, generic over the entity's versioned filter payload.
+/// The filters are flattened, so the wire shape is `{view_id, view_name, version,
+/// entity, filters, created_at, updated_at}` for every entity that uses it.
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct ViewResponse<F> {
+    pub view_id: String,
+    pub view_name: String,
+    #[serde(flatten)]
+    pub data: F,
+    pub created_at: String,
+    pub updated_at: String,
 }
 
 #[cfg(feature = "v1")]
@@ -381,9 +380,9 @@ pub struct PaymentAdvancedViewFilterConstraints {
     pub profile_id: Option<id_type::ProfileId>,
     pub customer_id: Option<id_type::CustomerId>,
     #[serde(default)]
-    pub limit: PageSize,
+    pub limit: common_utils::types::list::PageSize,
     #[serde(default)]
-    pub offset: Option<PageOffset>,
+    pub offset: Option<common_utils::types::list::PageOffset>,
     pub amount_filter: Option<payments::AmountFilter>,
     #[serde(flatten)]
     pub time_range: Option<common_utils::types::TimeRange>,
@@ -412,44 +411,88 @@ pub struct PaymentAdvancedViewFilterConstraints {
 }
 
 #[cfg(feature = "v1")]
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
-#[serde(tag = "type", content = "data")]
-pub enum PaymentAdvancedViewOperation {
-    Create(CreatePaymentAdvancedViewRequest),
-    Update(UpdatePaymentAdvancedViewRequest),
-    Delete(DeletePaymentAdvancedViewRequest),
+pub type PaymentAdvancedViewOperation = ViewOperation<PaymentAdvancedViewFilters>;
+
+#[cfg(feature = "v1")]
+pub type PaymentAdvancedViewResponse = ViewResponse<PaymentAdvancedViewFilters>;
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[serde(tag = "version", rename_all = "snake_case")]
+pub enum RefundViewFilters {
+    V1(RefundViewFiltersV1),
 }
 
 #[cfg(feature = "v1")]
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct PaymentAdvancedViewResponse {
-    pub view_id: String,
-    pub view_name: String,
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[serde(tag = "entity", content = "filters")]
+#[serde(rename_all = "snake_case")]
+pub enum RefundViewFiltersV1 {
+    RefundViews(RefundViewFilterConstraints),
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct RefundViewFilterConstraints {
+    pub payment_id: Option<id_type::PaymentId>,
+    pub refund_id: Option<String>,
+    pub profile_id: Option<id_type::ProfileId>,
+    #[serde(default)]
+    pub limit: Option<common_utils::types::list::PageSize>,
+    #[serde(default)]
+    pub offset: Option<common_utils::types::list::PageOffset>,
     #[serde(flatten)]
-    pub data: PaymentAdvancedViewFilters,
-    pub created_at: String,
-    pub updated_at: String,
+    pub time_range: Option<common_utils::types::TimeRange>,
+    pub amount_filter: Option<payments::AmountFilter>,
+    pub connector: Option<Vec<String>>,
+    pub merchant_connector_id: Option<Vec<id_type::MerchantConnectorAccountId>>,
+    pub currency: Option<Vec<enums::Currency>>,
+    pub refund_status: Option<Vec<enums::RefundStatus>>,
 }
 
 #[cfg(feature = "v1")]
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct CreatePaymentAdvancedViewRequest {
-    pub view_name: String,
+pub type RefundViewOperation = ViewOperation<RefundViewFilters>;
+
+#[cfg(feature = "v1")]
+pub type RefundViewResponse = ViewResponse<RefundViewFilters>;
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[serde(tag = "version", rename_all = "snake_case")]
+pub enum DisputeViewFilters {
+    V1(DisputeViewFiltersV1),
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[serde(tag = "entity", content = "filters")]
+#[serde(rename_all = "snake_case")]
+pub enum DisputeViewFiltersV1 {
+    DisputeViews(DisputeViewFilterConstraints),
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct DisputeViewFilterConstraints {
+    pub dispute_id: Option<String>,
+    pub payment_id: Option<id_type::PaymentId>,
+    pub profile_id: Option<id_type::ProfileId>,
+    #[serde(default)]
+    pub limit: Option<common_utils::types::list::PageSize>,
+    #[serde(default)]
+    pub offset: Option<common_utils::types::list::PageOffset>,
+    pub dispute_status: Option<Vec<enums::DisputeStatus>>,
+    pub dispute_stage: Option<Vec<enums::DisputeStage>>,
+    pub reason: Option<String>,
+    pub connector: Option<Vec<String>>,
+    pub currency: Option<Vec<enums::Currency>>,
+    pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     #[serde(flatten)]
-    pub data: PaymentAdvancedViewFilters,
+    pub time_range: Option<common_utils::types::TimeRange>,
 }
 
 #[cfg(feature = "v1")]
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct UpdatePaymentAdvancedViewRequest {
-    pub view_id: String,
-    pub view_name: Option<String>,
-    #[serde(flatten)]
-    pub data: PaymentAdvancedViewFilters,
-}
+pub type DisputeViewOperation = ViewOperation<DisputeViewFilters>;
 
 #[cfg(feature = "v1")]
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct DeletePaymentAdvancedViewRequest {
-    pub view_id: String,
-}
+pub type DisputeViewResponse = ViewResponse<DisputeViewFilters>;

@@ -9,10 +9,9 @@ use api_models::user::dashboard_metadata::{
 use api_models::{
     payments,
     user::dashboard_metadata::{
-        CreatePaymentAdvancedViewRequest, CreateSavedViewRequest, PaymentAdvancedViewFilters,
-        PaymentAdvancedViewFiltersV1, PaymentAdvancedViewOperation, PaymentListFilterConstraintsV1,
-        SavedViewFilters, SavedViewFiltersV1, SavedViewOperation, UpdatePaymentAdvancedViewRequest,
-        UpdateSavedViewRequest,
+        CreateSavedViewRequest, CreateViewRequest, DeleteViewRequest,
+        PaymentListFilterConstraintsV1, SavedViewFilters, SavedViewFiltersV1, SavedViewOperation,
+        UpdateSavedViewRequest, UpdateViewRequest, ViewOperation,
     },
 };
 use common_enums::EntityType;
@@ -604,52 +603,13 @@ impl ForeignFrom<PaymentListFilterConstraintsV1> for payments::PaymentListFilter
     }
 }
 
-/// A saved-view entity: the stored filter type for one metadata key, and how it is
-/// recovered from the versioned API payload. Implementing this is all a new entity
-/// needs - the CRUD path below is generic over it.
 #[cfg(feature = "v1")]
-trait SavedViewEntity: serde::Serialize + serde::de::DeserializeOwned + Sized {
-    /// Pull this entity's filters out of the request, or `None` when the payload
-    /// carries a different entity than the metadata key being written.
-    fn from_api_filters(filters: SavedViewFiltersV1) -> Option<Self>;
-}
-
-#[cfg(feature = "v1")]
-impl SavedViewEntity for PaymentListFilterConstraintsV1 {
-    fn from_api_filters(filters: SavedViewFiltersV1) -> Option<Self> {
-        match filters {
-            SavedViewFiltersV1::PaymentViews(filters) => Some(*filters),
-            SavedViewFiltersV1::RefundViews(_) | SavedViewFiltersV1::DisputeViews(_) => None,
-        }
+fn get_payment_views_filters_v1(data: SavedViewFilters) -> PaymentListFilterConstraintsV1 {
+    match data {
+        SavedViewFilters::V1(f) => match f {
+            SavedViewFiltersV1::PaymentViews(p) => p,
+        },
     }
-}
-
-#[cfg(feature = "v1")]
-impl SavedViewEntity for types::RefundViewFilters {
-    fn from_api_filters(filters: SavedViewFiltersV1) -> Option<Self> {
-        match filters {
-            SavedViewFiltersV1::RefundViews(filters) => Some(Self::V1(filters)),
-            SavedViewFiltersV1::PaymentViews(_) | SavedViewFiltersV1::DisputeViews(_) => None,
-        }
-    }
-}
-
-#[cfg(feature = "v1")]
-impl SavedViewEntity for types::DisputeViewFilters {
-    fn from_api_filters(filters: SavedViewFiltersV1) -> Option<Self> {
-        match filters {
-            SavedViewFiltersV1::DisputeViews(filters) => Some(Self::V1(filters)),
-            SavedViewFiltersV1::PaymentViews(_) | SavedViewFiltersV1::RefundViews(_) => None,
-        }
-    }
-}
-
-#[cfg(feature = "v1")]
-fn get_saved_view_filters<T: SavedViewEntity>(data: SavedViewFilters) -> UserResult<T> {
-    let SavedViewFilters::V1(filters) = data;
-    T::from_api_filters(filters)
-        .ok_or(report!(UserErrors::SavedViewEntityMismatch))
-        .attach_printable("Saved view filters entity does not match the metadata key")
 }
 
 #[cfg(feature = "v1")]
@@ -659,86 +619,39 @@ pub async fn handle_saved_view_operations(
     metadata_key: DBEnum,
     operation: SavedViewOperation,
 ) -> UserResult<DashboardMetadata> {
-    match metadata_key {
-        DBEnum::PaymentViews => {
-            handle_saved_view_operation::<PaymentListFilterConstraintsV1>(
-                state,
-                user,
-                metadata_key,
-                operation,
-            )
-            .await
-        }
-        DBEnum::RefundViews => {
-            handle_saved_view_operation::<types::RefundViewFilters>(
-                state,
-                user,
-                metadata_key,
-                operation,
-            )
-            .await
-        }
-        DBEnum::DisputeViews => {
-            handle_saved_view_operation::<types::DisputeViewFilters>(
-                state,
-                user,
-                metadata_key,
-                operation,
-            )
-            .await
-        }
-        _ => Err(report!(UserErrors::InternalServerError))
-            .attach_printable("Metadata key does not support saved view operations"),
-    }
-}
-
-#[cfg(feature = "v1")]
-async fn handle_saved_view_operation<T>(
-    state: &SessionState,
-    user: UserFromToken,
-    metadata_key: DBEnum,
-    operation: SavedViewOperation,
-) -> UserResult<DashboardMetadata>
-where
-    T: SavedViewEntity,
-{
     let profile_id = get_profile_id_from_role(state, &user).await?;
     match operation {
         SavedViewOperation::Create(request) => {
-            create_saved_view::<T>(state, user, metadata_key, profile_id, request).await
+            create_saved_view(state, user, metadata_key, profile_id, request).await
         }
         SavedViewOperation::Update(request) => {
-            update_saved_view::<T>(state, user, metadata_key, profile_id, request).await
+            update_saved_view(state, user, metadata_key, profile_id, request).await
         }
         SavedViewOperation::Delete(request) => {
-            delete_saved_view::<T>(state, user, metadata_key, profile_id, request).await
+            delete_saved_view(state, user, metadata_key, profile_id, request).await
         }
     }
 }
 
 #[cfg(feature = "v1")]
-async fn create_saved_view<T>(
+async fn create_saved_view(
     state: &SessionState,
     user: UserFromToken,
     metadata_key: DBEnum,
     profile_id: Option<String>,
     request: CreateSavedViewRequest,
-) -> UserResult<DashboardMetadata>
-where
-    T: SavedViewEntity,
-{
+) -> UserResult<DashboardMetadata> {
     if request.view_name.trim().is_empty() {
         return Err(report!(UserErrors::InvalidSavedViewName))
             .attach_printable("Saved view name cannot be empty");
     }
 
-    let filters = get_saved_view_filters(request.data)?;
     let now = common_utils::date_time::now();
     let view_id = common_utils::generate_id(common_utils::consts::ID_LENGTH, "view");
-    let new_view_domain = types::SavedView {
+    let new_view_domain = types::SavedViewV1 {
         view_id,
         view_name: request.view_name.clone(),
-        filters,
+        filters: get_payment_views_filters_v1(request.data),
         created_at: now.to_string(),
         updated_at: now.to_string(),
     };
@@ -748,8 +661,8 @@ where
         user,
         metadata_key,
         profile_id,
-        |existing: Option<types::SavedViewsValue<T>>| {
-            let mut views_data = existing.unwrap_or(types::SavedViewsValue { views: vec![] });
+        |existing: Option<types::PaymentViewsValue>| {
+            let mut views_data = existing.unwrap_or(types::PaymentViewsValue { views: vec![] });
 
             if views_data.views.len() >= MAX_SAVED_VIEWS {
                 return Err(report!(UserErrors::MaxSavedViewsReached))
@@ -773,23 +686,19 @@ where
 }
 
 #[cfg(feature = "v1")]
-async fn update_saved_view<T>(
+async fn update_saved_view(
     state: &SessionState,
     user: UserFromToken,
     metadata_key: DBEnum,
     profile_id: Option<String>,
     request: UpdateSavedViewRequest,
-) -> UserResult<DashboardMetadata>
-where
-    T: SavedViewEntity,
-{
-    let filters = get_saved_view_filters(request.data)?;
+) -> UserResult<DashboardMetadata> {
     modify_dashboard_metadata(
         state,
         user,
         metadata_key,
         profile_id,
-        |existing: Option<types::SavedViewsValue<T>>| {
+        |existing: Option<types::PaymentViewsValue>| {
             let mut views_data = existing.ok_or(report!(UserErrors::SavedViewNotFound))?;
 
             if !views_data
@@ -826,7 +735,7 @@ where
             if let Some(new_name) = request.view_name {
                 view.view_name = new_name;
             }
-            view.filters = filters;
+            view.filters = get_payment_views_filters_v1(request.data);
             view.updated_at = common_utils::date_time::now().to_string();
 
             Ok(views_data)
@@ -836,22 +745,19 @@ where
 }
 
 #[cfg(feature = "v1")]
-async fn delete_saved_view<T>(
+async fn delete_saved_view(
     state: &SessionState,
     user: UserFromToken,
     metadata_key: DBEnum,
     profile_id: Option<String>,
     request: DeleteSavedViewRequest,
-) -> UserResult<DashboardMetadata>
-where
-    T: SavedViewEntity,
-{
+) -> UserResult<DashboardMetadata> {
     modify_dashboard_metadata(
         state,
         user,
         metadata_key,
         profile_id,
-        |existing: Option<types::SavedViewsValue<T>>| {
+        |existing: Option<types::PaymentViewsValue>| {
             let mut views_data = existing.ok_or(report!(UserErrors::SavedViewNotFound))?;
 
             let position = views_data
@@ -871,67 +777,35 @@ where
     .await
 }
 
+/// Dispatch a saved-view CRUD operation for any versioned entity.
 #[cfg(feature = "v1")]
-fn get_payment_advanced_view_filters(
-    data: PaymentAdvancedViewFilters,
-) -> types::PaymentAdvancedViewFilters {
-    match data {
-        PaymentAdvancedViewFilters::V1(PaymentAdvancedViewFiltersV1::PaymentViews(filters)) => {
-            types::PaymentAdvancedViewFilters::V1(filters)
-        }
-    }
-}
-
-#[cfg(feature = "v1")]
-pub async fn handle_payment_advanced_view_operations(
+pub async fn handle_view_operations<F: types::IntoStoredFilters>(
     state: &SessionState,
     user: UserFromToken,
     metadata_key: DBEnum,
-    operation: PaymentAdvancedViewOperation,
+    operation: ViewOperation<F>,
 ) -> UserResult<DashboardMetadata> {
     let profile_id = get_profile_id_from_role(state, &user).await?;
     match operation {
-        PaymentAdvancedViewOperation::Create(request) => {
-            create_payment_advanced_view(state, user, metadata_key, profile_id, request).await
+        ViewOperation::Create(request) => {
+            create_view(state, user, metadata_key, profile_id, request).await
         }
-        PaymentAdvancedViewOperation::Update(request) => {
-            update_payment_advanced_view(state, user, metadata_key, profile_id, request).await
+        ViewOperation::Update(request) => {
+            update_view(state, user, metadata_key, profile_id, request).await
         }
-        PaymentAdvancedViewOperation::Delete(request) => {
-            modify_dashboard_metadata(
-                state,
-                user,
-                metadata_key,
-                profile_id,
-                |existing: Option<types::PaymentAdvancedViewsValue>| {
-                    let mut views_data = existing.ok_or(report!(UserErrors::SavedViewNotFound))?;
-
-                    let position = views_data
-                        .views
-                        .iter()
-                        .position(|v| v.view_id == request.view_id)
-                        .ok_or_else(|| {
-                            report!(UserErrors::SavedViewNotFound)
-                                .attach_printable("Saved view with this ID not found")
-                        })?;
-
-                    views_data.views.remove(position);
-
-                    Ok(views_data)
-                },
-            )
-            .await
+        ViewOperation::Delete(request) => {
+            delete_view::<F>(state, user, metadata_key, profile_id, request).await
         }
     }
 }
 
 #[cfg(feature = "v1")]
-async fn create_payment_advanced_view(
+async fn create_view<F: types::IntoStoredFilters>(
     state: &SessionState,
     user: UserFromToken,
     metadata_key: DBEnum,
     profile_id: Option<String>,
-    request: CreatePaymentAdvancedViewRequest,
+    request: CreateViewRequest<F>,
 ) -> UserResult<DashboardMetadata> {
     if request.view_name.trim().is_empty() {
         return Err(report!(UserErrors::InvalidSavedViewName))
@@ -940,11 +814,10 @@ async fn create_payment_advanced_view(
 
     let now = common_utils::date_time::now();
     let view_id = common_utils::generate_id(common_utils::consts::ID_LENGTH, "view");
-    let filters = get_payment_advanced_view_filters(request.data);
-    let new_view_domain = types::PaymentAdvancedView {
+    let new_view_domain = types::VersionedView {
         view_id,
         view_name: request.view_name.clone(),
-        filters,
+        filters: request.data.into_stored(),
         created_at: now.to_string(),
         updated_at: now.to_string(),
     };
@@ -954,9 +827,8 @@ async fn create_payment_advanced_view(
         user,
         metadata_key,
         profile_id,
-        |existing: Option<types::PaymentAdvancedViewsValue>| {
-            let mut views_data =
-                existing.unwrap_or(types::PaymentAdvancedViewsValue { views: vec![] });
+        |existing: Option<types::VersionedViewsValue<F::Stored>>| {
+            let mut views_data = existing.unwrap_or(types::VersionedViewsValue { views: vec![] });
 
             if views_data.views.len() >= MAX_SAVED_VIEWS {
                 return Err(report!(UserErrors::MaxSavedViewsReached))
@@ -980,19 +852,20 @@ async fn create_payment_advanced_view(
 }
 
 #[cfg(feature = "v1")]
-async fn update_payment_advanced_view(
+async fn update_view<F: types::IntoStoredFilters>(
     state: &SessionState,
     user: UserFromToken,
     metadata_key: DBEnum,
     profile_id: Option<String>,
-    request: UpdatePaymentAdvancedViewRequest,
+    request: UpdateViewRequest<F>,
 ) -> UserResult<DashboardMetadata> {
+    let filters = request.data.into_stored();
     modify_dashboard_metadata(
         state,
         user,
         metadata_key,
         profile_id,
-        |existing: Option<types::PaymentAdvancedViewsValue>| {
+        |existing: Option<types::VersionedViewsValue<F::Stored>>| {
             let mut views_data = existing.ok_or(report!(UserErrors::SavedViewNotFound))?;
 
             if !views_data
@@ -1026,12 +899,44 @@ async fn update_payment_advanced_view(
                 .find(|v| v.view_id == request.view_id)
                 .ok_or(report!(UserErrors::SavedViewNotFound))?;
 
-            let filters = get_payment_advanced_view_filters(request.data);
             if let Some(new_name) = request.view_name {
                 view.view_name = new_name;
             }
             view.filters = filters;
             view.updated_at = common_utils::date_time::now().to_string();
+
+            Ok(views_data)
+        },
+    )
+    .await
+}
+
+#[cfg(feature = "v1")]
+async fn delete_view<F: types::IntoStoredFilters>(
+    state: &SessionState,
+    user: UserFromToken,
+    metadata_key: DBEnum,
+    profile_id: Option<String>,
+    request: DeleteViewRequest,
+) -> UserResult<DashboardMetadata> {
+    modify_dashboard_metadata(
+        state,
+        user,
+        metadata_key,
+        profile_id,
+        |existing: Option<types::VersionedViewsValue<F::Stored>>| {
+            let mut views_data = existing.ok_or(report!(UserErrors::SavedViewNotFound))?;
+
+            let position = views_data
+                .views
+                .iter()
+                .position(|v| v.view_id == request.view_id)
+                .ok_or_else(|| {
+                    report!(UserErrors::SavedViewNotFound)
+                        .attach_printable("Saved view with this ID not found")
+                })?;
+
+            views_data.views.remove(position);
 
             Ok(views_data)
         },
