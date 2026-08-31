@@ -136,6 +136,7 @@ describe("Block Implicit Customer Creation", () => {
                 "cli_log",
                 `Poll attempt ${attempt + 1}: got ${response.status}, waiting ${intervalMs / 1000}s...`
               );
+              // eslint-disable-next-line cypress/no-unnecessary-waiting
               cy.wait(intervalMs).then(() => poll(attempt + 1));
             }
           });
@@ -237,6 +238,7 @@ describe("Block Implicit Customer Creation", () => {
                   "cli_log",
                   `Poll attempt ${attempt + 1}: got ${response.status}, waiting ${intervalMs / 1000}s...`
                 );
+                // eslint-disable-next-line cypress/no-unnecessary-waiting
                 cy.wait(intervalMs).then(() => poll(attempt + 1));
               }
             });
