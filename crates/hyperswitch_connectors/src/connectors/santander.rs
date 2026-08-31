@@ -2145,16 +2145,13 @@ static SANTANDER_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
 impl ConnectorSpecifications for Santander {
     fn is_payment_recurrence_operation_needed(
         &self,
-        payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
+        setup_future_usage: Option<common_enums::FutureUsage>,
+        current_flow: Option<CurrentFlowInfo>,
     ) -> Option<bool> {
-        #[cfg(feature = "v1")]
-        {
-            Some(payment_intent.setup_future_usage == Some(common_enums::FutureUsage::OffSession))
-        }
-        #[cfg(feature = "v2")]
-        {
-            Some(payment_intent.setup_future_usage == common_enums::FutureUsage::OffSession)
-        }
+        Some(
+            setup_future_usage == Some(common_enums::FutureUsage::OffSession)
+                && matches!(current_flow, Some(CurrentFlowInfo::Authorize { .. }) | None),
+        )
     }
 
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {

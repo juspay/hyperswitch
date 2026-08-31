@@ -576,11 +576,16 @@ fn spawn_shadow_ucs_run(
                 logger::warn!(?error, "UCS shadow webhook run failed");
             }
             let shadow_snapshot = WebhookShadowSnapshot::from_result(&shadow_result);
+            let merchant_id = inner_ctx
+                .merchant_connector_account
+                .as_ref()
+                .map(|mca| mca.merchant_id.clone());
             report_shadow_diff(
                 &inner_ctx.state,
                 &inner_ctx.connector_name,
                 &primary_snapshot,
                 &shadow_snapshot,
+                merchant_id,
             )
             .await;
         }
@@ -687,6 +692,7 @@ async fn report_shadow_diff(
     connector_name: &str,
     primary: &WebhookShadowSnapshot,
     shadow: &WebhookShadowSnapshot,
+    merchant_id: Option<common_utils::id_type::MerchantId>,
 ) {
     logger::info!(
         primary_event_type = ?primary.event_type,
@@ -708,6 +714,7 @@ async fn report_shadow_diff(
             config,
             connector_name.to_string(),
             state.get_request_id_str(),
+            merchant_id.as_ref(),
         )
         .await;
     }

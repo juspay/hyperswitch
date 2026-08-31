@@ -365,6 +365,15 @@ pub const UCS_ROLLOUT_CONFIG_NOT_CONFIGURED: &str = "not_configured";
 // UCS feature enabled config
 pub const UCS_ENABLED: &str = "ucs_enabled";
 
+// Prefix of the redis key holding a kill switch trip. Absent until a scope trips.
+pub const UCS_KILL_SWITCH_REDIS_PREFIX: &str = "ucs_kill_switch";
+
+// Lifetime of a trip, in seconds. A trip is meant to be cleared by an operator, but
+// `redis_interface` has no setter that writes a key without an expiry, so it is spelled as a
+// bound rather than left open. A week outlives a long weekend; a still-broken scope trips again
+// on its next request.
+pub const UCS_KILL_SWITCH_TTL_IN_SECONDS: i64 = 7 * 24 * 60 * 60;
+
 /// Header value indicating that signature-key-based authentication is used.
 pub const UCS_AUTH_SIGNATURE_KEY: &str = "signature-key";
 
@@ -421,6 +430,15 @@ pub mod superposition {
         "pt_mapping_outgoing_connector_webhooks";
     /// PCR (Revenue Recovery) payments retry process tracker mapping key
     pub const PT_MAPPING_PCR_RETRIES: &str = "process_tracker.pt_mapping_pcr_retries";
+    /// Revenue Recovery retry-stats key. Enables recording of retry outcome stats
+    pub const REVREC_RETRY_STATS_ENABLED: &str = "revenue_recovery.retry_stats.enabled";
+    /// Whether the adaptive revenue recovery retry algorithm — static ladder combined with
+    /// the smart algorithm — replaces the decider-based smart retry implementation
+    pub const ADAPTIVE_RETRY_ENABLED: &str = "revenue_recovery.adaptive_retry_enabled";
+    /// Days from the first attempt during which an invoice may still be retried
+    pub const RECOVERY_GRACE_PERIOD_DAYS: &str = "revenue_recovery.grace_period_days";
+    /// Total retries an invoice is allowed across its whole recovery lifecycle
+    pub const RECOVERY_MAX_RETRY_COUNT: &str = "revenue_recovery.max_retry_count";
     /// Payment sync (psync) retry process tracker mapping key
     pub const PT_MAPPING_PAYMENT_SYNC: &str = "process_tracker.pt_mapping_payment_sync";
     /// Refund sync retry process tracker mapping key

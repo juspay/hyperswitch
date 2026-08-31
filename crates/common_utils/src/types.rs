@@ -9,6 +9,9 @@ pub mod user;
 /// types that are wrappers around primitive types
 pub mod primitive_wrappers;
 
+/// List-query pagination and sorting types
+pub mod list;
+
 use std::{
     borrow::Cow,
     fmt::Display,
