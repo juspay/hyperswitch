@@ -1263,6 +1263,9 @@ pub struct RevenueRecoveryMetadata {
     /// Maximum number of `billing connector` retries before revenue recovery can start executing retries.
     #[schema(value_type = u16, example = "10")]
     pub billing_connector_retry_threshold: u16,
+    /// Number of cascading (static) retries an invoice may use under the hybrid static + adaptive
+    /// scheme.
+    #[serde(default)]
     #[schema(value_type = u16, example = "5")]
     pub max_hybrid_cascading_retry_count: u16,
     /// Billing account reference id is payment gateway id at billing connector end.
