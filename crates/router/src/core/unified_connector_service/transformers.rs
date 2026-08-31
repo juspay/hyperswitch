@@ -254,14 +254,14 @@ fn to_grpc_customer_document_details<F, Req, Res>(
         .map(payments_grpc::CustomerDocumentDetails::foreign_from)
 }
 
-/// Formats a `Secret<time::Date>` as an ISO 8601 date string (`yyyy-MM-dd`) wrapped in
-/// `Secret<String>`, suitable for the gRPC `Customer.date_of_birth` field.
-fn format_date_of_birth(dob: &Secret<time::Date>) -> Secret<String> {
-    Secret::new(
-        dob.peek()
-            .format(&time::format_description::well_known::Iso8601::DATE)
-            .expect("formatting a valid time::Date with Iso8601::DATE is infallible"),
-    )
+fn format_date_of_birth(
+    dob: &Secret<time::Date>,
+) -> error_stack::Result<Secret<String>, UnifiedConnectorServiceError> {
+    dob.peek()
+        .format(&time::format_description::well_known::Iso8601::DATE)
+        .map(Secret::new)
+        .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)
+        .attach_printable("failed to format customer date of birth")
 }
 
 impl ForeignFrom<&api_models::payments::AddressDetails> for payments_grpc::Address {
@@ -488,7 +488,8 @@ impl
                 date_of_birth: router_data
                     .customer_date_of_birth
                     .as_ref()
-                    .map(format_date_of_birth),
+                    .map(format_date_of_birth)
+                    .transpose()?,
             }),
             state: router_data
                 .access_token
@@ -620,7 +621,8 @@ impl
                 date_of_birth: router_data
                     .customer_date_of_birth
                     .as_ref()
-                    .map(format_date_of_birth),
+                    .map(format_date_of_birth)
+                    .transpose()?,
             }),
             browser_info,
             session_token: router_data.session_token.clone(),
@@ -896,7 +898,8 @@ impl
                 date_of_birth: router_data
                     .customer_date_of_birth
                     .as_ref()
-                    .map(format_date_of_birth),
+                    .map(format_date_of_birth)
+                    .transpose()?,
             }),
             browser_info,
             session_token: router_data.session_token.clone(),
@@ -1295,7 +1298,8 @@ impl
                 date_of_birth: router_data
                     .customer_date_of_birth
                     .as_ref()
-                    .map(format_date_of_birth),
+                    .map(format_date_of_birth)
+                    .transpose()?,
             }),
             address: Some(address),
         };
@@ -1390,7 +1394,8 @@ impl
                 date_of_birth: router_data
                     .customer_date_of_birth
                     .as_ref()
-                    .map(format_date_of_birth),
+                    .map(format_date_of_birth)
+                    .transpose()?,
             }),
             address: Some(address),
             authentication_data,
@@ -1505,7 +1510,8 @@ impl
                 date_of_birth: router_data
                     .customer_date_of_birth
                     .as_ref()
-                    .map(format_date_of_birth),
+                    .map(format_date_of_birth)
+                    .transpose()?,
             }),
             address: Some(address),
             authentication_data,
@@ -1613,7 +1619,8 @@ impl
                 date_of_birth: router_data
                     .customer_date_of_birth
                     .as_ref()
-                    .map(format_date_of_birth),
+                    .map(format_date_of_birth)
+                    .transpose()?,
             }),
             address: Some(address),
             authentication_data: None,
@@ -1712,7 +1719,8 @@ impl
                 date_of_birth: router_data
                     .customer_date_of_birth
                     .as_ref()
-                    .map(format_date_of_birth),
+                    .map(format_date_of_birth)
+                    .transpose()?,
             }),
             address: Some(address),
             authentication_data: None,
@@ -1819,7 +1827,8 @@ impl
                 date_of_birth: router_data
                     .customer_date_of_birth
                     .as_ref()
-                    .map(format_date_of_birth),
+                    .map(format_date_of_birth)
+                    .transpose()?,
             }),
             address: Some(address),
             enrolled_for_3ds: router_data.request.enrolled_for_3ds,
@@ -1920,7 +1929,8 @@ impl
                 date_of_birth: router_data
                     .customer_date_of_birth
                     .as_ref()
-                    .map(format_date_of_birth),
+                    .map(format_date_of_birth)
+                    .transpose()?,
             }),
             address: Some(address),
             enrolled_for_3ds: router_data.request.enrolled_for_3ds,
@@ -2128,7 +2138,8 @@ impl
                 date_of_birth: router_data
                     .customer_date_of_birth
                     .as_ref()
-                    .map(format_date_of_birth),
+                    .map(format_date_of_birth)
+                    .transpose()?,
             }),
             browser_info,
             locale: None,
@@ -2317,7 +2328,8 @@ impl
                 date_of_birth: router_data
                     .customer_date_of_birth
                     .as_ref()
-                    .map(format_date_of_birth),
+                    .map(format_date_of_birth)
+                    .transpose()?,
             }),
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             webhook_url: router_data.request.webhook_url.clone(),
@@ -2511,7 +2523,8 @@ impl
                 date_of_birth: router_data
                     .customer_date_of_birth
                     .as_ref()
-                    .map(format_date_of_birth),
+                    .map(format_date_of_birth)
+                    .transpose()?,
             }),
             browser_info,
             locale: None,
@@ -2673,7 +2686,8 @@ impl
                 date_of_birth: router_data
                     .customer_date_of_birth
                     .as_ref()
-                    .map(format_date_of_birth),
+                    .map(format_date_of_birth)
+                    .transpose()?,
             }),
             address: Some(address),
             auth_type: auth_type.into(),
@@ -3032,7 +3046,8 @@ impl
                 date_of_birth: router_data
                     .customer_date_of_birth
                     .as_ref()
-                    .map(format_date_of_birth),
+                    .map(format_date_of_birth)
+                    .transpose()?,
             }),
             additional_payment_data,
             partner_merchant_identifier_details: router_data
@@ -3137,7 +3152,8 @@ impl transformers::ForeignTryFrom<&RouterData<Session, PaymentsSessionData, Paym
                 date_of_birth: router_data
                     .customer_date_of_birth
                     .as_ref()
-                    .map(format_date_of_birth),
+                    .map(format_date_of_birth)
+                    .transpose()?,
             }),
             return_url: None,
             metadata: None,
@@ -8115,9 +8131,15 @@ impl ForeignFrom<common_enums::PayoutSendPriority> for payments_grpc::payout_enu
 }
 
 #[cfg(feature = "payouts")]
-impl ForeignFrom<&router_request_types::CustomerDetails> for payments_grpc::Customer {
-    fn foreign_from(customer: &router_request_types::CustomerDetails) -> Self {
-        Self {
+impl transformers::ForeignTryFrom<&router_request_types::CustomerDetails>
+    for payments_grpc::Customer
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        customer: &router_request_types::CustomerDetails,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
             id: customer
                 .customer_id
                 .clone()
@@ -8131,8 +8153,12 @@ impl ForeignFrom<&router_request_types::CustomerDetails> for payments_grpc::Cust
             last_name: None,
             salutation: None,
             customer_document_details: None,
-            date_of_birth: customer.date_of_birth.as_ref().map(format_date_of_birth),
-        }
+            date_of_birth: customer
+                .date_of_birth
+                .as_ref()
+                .map(format_date_of_birth)
+                .transpose()?,
+        })
     }
 }
 
@@ -8231,7 +8257,8 @@ impl
             .request
             .customer_details
             .as_ref()
-            .map(payments_grpc::Customer::foreign_from);
+            .map(payments_grpc::Customer::foreign_try_from)
+            .transpose()?;
 
         let priority = router_data
             .request
@@ -8362,7 +8389,8 @@ impl
             .request
             .customer_details
             .as_ref()
-            .map(payments_grpc::Customer::foreign_from)
+            .map(payments_grpc::Customer::foreign_try_from)
+            .transpose()?
             .ok_or(
                 error_stack::Report::new(UnifiedConnectorServiceError::MissingRequiredField {
                     field_name: "customer",
@@ -8437,7 +8465,8 @@ impl
             .request
             .customer_details
             .as_ref()
-            .map(payments_grpc::Customer::foreign_from)
+            .map(payments_grpc::Customer::foreign_try_from)
+            .transpose()?
             .ok_or(
                 error_stack::Report::new(UnifiedConnectorServiceError::MissingRequiredField {
                     field_name: "customer",
@@ -8526,7 +8555,8 @@ impl
             .request
             .customer_details
             .as_ref()
-            .map(payments_grpc::Customer::foreign_from)
+            .map(payments_grpc::Customer::foreign_try_from)
+            .transpose()?
             .ok_or(
                 error_stack::Report::new(UnifiedConnectorServiceError::MissingRequiredField {
                     field_name: "customer",
@@ -8578,7 +8608,8 @@ impl
             .request
             .customer_details
             .as_ref()
-            .map(payments_grpc::Customer::foreign_from)
+            .map(payments_grpc::Customer::foreign_try_from)
+            .transpose()?
             .ok_or(
                 error_stack::Report::new(UnifiedConnectorServiceError::MissingRequiredField {
                     field_name: "customer",
@@ -8655,7 +8686,8 @@ impl
             .request
             .customer_details
             .as_ref()
-            .map(payments_grpc::Customer::foreign_from)
+            .map(payments_grpc::Customer::foreign_try_from)
+            .transpose()?
             .ok_or(
                 error_stack::Report::new(UnifiedConnectorServiceError::MissingRequiredField {
                     field_name: "customer",
