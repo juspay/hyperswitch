@@ -5,7 +5,7 @@ use diesel_models::DejaPgConnection;
 use error_stack::ResultExt;
 
 use crate::{
-    database::store::DatabaseConnectionWithContext,
+    database::{pool_metrics, store::DatabaseConnectionWithContext},
     errors::{RedisErrorExt, StorageError},
     metrics, DatabaseStore, RequestContext,
 };
@@ -147,12 +147,30 @@ pub async fn pg_connection_read<'a, T: DatabaseStore + RequestContext>(
     ))]
     let pool = store.get_master_pool();
 
+    let db_pool_label = {
+        #[cfg(all(feature = "olap", not(feature = "oltp")))]
+        {
+            pool_metrics::DbPool::Replica
+        }
+        #[cfg(any(
+            all(not(feature = "olap"), feature = "oltp"),
+            all(feature = "olap", feature = "oltp"),
+            all(not(feature = "olap"), not(feature = "oltp"))
+        ))]
+        {
+            pool_metrics::DbPool::Master
+        }
+    };
+    let tenant_id = pool.tenant_id.get_string_repr();
+
     #[cfg_attr(not(feature = "deja"), allow(unused_mut))]
-    let mut connection = pool
-        .pg_pool
-        .get()
-        .await
-        .change_context(StorageError::DatabaseConnectionError)?;
+    let mut connection = metrics::record_db_connection_acquire_duration(
+        pool.pg_pool.get(),
+        db_pool_label,
+        tenant_id,
+    )
+    .await
+    .change_context(StorageError::DatabaseConnectionError)?;
 
     #[cfg(feature = "deja")]
     deja_route_replay_schema(&mut connection, store).await;
@@ -175,13 +193,16 @@ pub async fn pg_connection_read_replica<'a, T: DatabaseStore + RequestContext>(
     store: &'a T,
 ) -> error_stack::Result<DatabaseConnectionWithContext<'a>, StorageError> {
     let pool = store.get_replica_pool();
+    let tenant_id = pool.tenant_id.get_string_repr();
 
     #[cfg_attr(not(feature = "deja"), allow(unused_mut))]
-    let mut connection = pool
-        .pg_pool
-        .get()
-        .await
-        .change_context(StorageError::DatabaseConnectionError)?;
+    let mut connection = metrics::record_db_connection_acquire_duration(
+        pool.pg_pool.get(),
+        pool_metrics::DbPool::Replica,
+        tenant_id,
+    )
+    .await
+    .change_context(StorageError::DatabaseConnectionError)?;
 
     #[cfg(feature = "deja")]
     deja_route_replay_schema(&mut connection, store).await;
@@ -198,13 +219,16 @@ pub async fn pg_connection_write<'a, T: DatabaseStore + RequestContext>(
 ) -> error_stack::Result<DatabaseConnectionWithContext<'a>, StorageError> {
     // Since all writes should happen to master DB only choose master DB.
     let pool = store.get_master_pool();
+    let tenant_id = pool.tenant_id.get_string_repr();
 
     #[cfg_attr(not(feature = "deja"), allow(unused_mut))]
-    let mut connection = pool
-        .pg_pool
-        .get()
-        .await
-        .change_context(StorageError::DatabaseConnectionError)?;
+    let mut connection = metrics::record_db_connection_acquire_duration(
+        pool.pg_pool.get(),
+        pool_metrics::DbPool::Master,
+        tenant_id,
+    )
+    .await
+    .change_context(StorageError::DatabaseConnectionError)?;
 
     #[cfg(feature = "deja")]
     deja_route_replay_schema(&mut connection, store).await;
@@ -234,12 +258,30 @@ pub async fn pg_accounts_connection_read<'a, T: DatabaseStore + RequestContext>(
     ))]
     let pool = store.get_accounts_master_pool();
 
+    let db_pool_label = {
+        #[cfg(all(feature = "olap", not(feature = "oltp")))]
+        {
+            pool_metrics::DbPool::AccountsReplica
+        }
+        #[cfg(any(
+            all(not(feature = "olap"), feature = "oltp"),
+            all(feature = "olap", feature = "oltp"),
+            all(not(feature = "olap"), not(feature = "oltp"))
+        ))]
+        {
+            pool_metrics::DbPool::AccountsMaster
+        }
+    };
+    let tenant_id = pool.tenant_id.get_string_repr();
+
     #[cfg_attr(not(feature = "deja"), allow(unused_mut))]
-    let mut connection = pool
-        .pg_pool
-        .get()
-        .await
-        .change_context(StorageError::DatabaseConnectionError)?;
+    let mut connection = metrics::record_db_connection_acquire_duration(
+        pool.pg_pool.get(),
+        db_pool_label,
+        tenant_id,
+    )
+    .await
+    .change_context(StorageError::DatabaseConnectionError)?;
 
     #[cfg(feature = "deja")]
     deja_route_replay_schema(&mut connection, store).await;
@@ -257,12 +299,16 @@ pub async fn pg_accounts_connection_write<'a, T: DatabaseStore + RequestContext>
     // Since all writes should happen to master DB only choose master DB.
     let pool = store.get_accounts_master_pool();
 
+    let tenant_id = pool.tenant_id.get_string_repr();
+
     #[cfg_attr(not(feature = "deja"), allow(unused_mut))]
-    let mut connection = pool
-        .pg_pool
-        .get()
-        .await
-        .change_context(StorageError::DatabaseConnectionError)?;
+    let mut connection = metrics::record_db_connection_acquire_duration(
+        pool.pg_pool.get(),
+        pool_metrics::DbPool::AccountsMaster,
+        tenant_id,
+    )
+    .await
+    .change_context(StorageError::DatabaseConnectionError)?;
 
     #[cfg(feature = "deja")]
     deja_route_replay_schema(&mut connection, store).await;
