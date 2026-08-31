@@ -1914,13 +1914,27 @@ mod chargebee_dispute_record_back_tests {
         // amount_unused — which is zero once the payment has been applied to an invoice.
         let encoded = serde_json::to_value(request(Some("dp_abc123".to_string()))).unwrap();
 
-        assert_eq!(encoded["transaction[payment_method]"], "chargeback");
-        assert_eq!(encoded["transaction[amount]"], 1500);
+        let as_str = |key: &str| {
+            encoded
+                .get(key)
+                .and_then(serde_json::Value::as_str)
+                .map(ToOwned::to_owned)
+        };
+        let as_i64 = |key: &str| encoded.get(key).and_then(serde_json::Value::as_i64);
+
+        assert_eq!(
+            as_str("transaction[payment_method]").as_deref(),
+            Some("chargeback")
+        );
+        assert_eq!(as_i64("transaction[amount]"), Some(1500));
         // 2026-08-25 12:00:00 UTC as unix seconds.
-        assert_eq!(encoded["transaction[date]"], 1_787_659_200_i64);
-        assert_eq!(encoded["transaction[reference_number]"], "txn_456");
+        assert_eq!(as_i64("transaction[date]"), Some(1_787_659_200));
+        assert_eq!(
+            as_str("transaction[reference_number]").as_deref(),
+            Some("txn_456")
+        );
         // `comment` is the one genuinely top-level field on this endpoint.
-        assert_eq!(encoded["comment"], "dp_abc123");
+        assert_eq!(as_str("comment").as_deref(), Some("dp_abc123"));
 
         // Guard against a partial rename leaving a flat duplicate behind.
         assert!(encoded.get("amount").is_none());

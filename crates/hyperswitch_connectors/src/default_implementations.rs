@@ -12103,10 +12103,7 @@ impl<const T: u8> api::revenue_recovery::RevenueRecoveryRecordBack
 }
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 #[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::revenue_recovery::RevenueRecoveryDisputeRecordBack
-    for connectors::DummyConnector<T>
-{
-}
+impl<const T: u8> RevenueRecoveryDisputeRecordBack for connectors::DummyConnector<T> {}
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
