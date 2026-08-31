@@ -139,6 +139,7 @@ pub async fn consumer_operations<T: SchedulerSessionState + 'static>(
     settings: &SchedulerSettings,
     workflow_selector: impl workflows::ProcessTrackerWorkflows<T> + 'static + Copy + std::fmt::Debug,
 ) -> CustomResult<(), errors::ProcessTrackerError> {
+    let start_time = std::time::Instant::now();
     let stream_name = match state.get_application_source() {
         enums::ApplicationSource::Main => settings.stream.clone(),
         enums::ApplicationSource::Cug => settings.cug_stream.clone(),
@@ -177,6 +178,21 @@ pub async fn consumer_operations<T: SchedulerSessionState + 'static>(
         )))
     }
     future::join_all(handler).await;
+
+    let duration = start_time.elapsed().as_secs_f64();
+    metrics::CONSUMER_OPERATION_DURATION.record(
+        duration,
+        router_env::metric_attributes!(
+            (
+                "application_source",
+                state.get_application_source().to_string()
+            ),
+            (
+                "tenant_id",
+                state.get_tenant_id().get_string_repr().to_owned()
+            )
+        ),
+    );
 
     Ok(())
 }
@@ -255,12 +271,21 @@ where
         }
     }
 
+    let workflow_start = std::time::Instant::now();
     let res = workflow_selector
         .trigger_workflow(&state, process.clone())
         .await
         .inspect_err(|error| {
             logger::error!(?error, "Failed to trigger workflow");
         });
+    let workflow_duration = workflow_start.elapsed().as_secs_f64();
+
+    let runner = process.runner.unwrap_or_else(|| "unknown".to_string());
+    metrics::WORKFLOW_EXECUTION_DURATION.record(
+        workflow_duration,
+        router_env::metric_attributes!(("runner", runner)),
+    );
+
     metrics::TASK_PROCESSED.add(1, &[]);
     res
 }

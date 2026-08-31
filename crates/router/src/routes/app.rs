@@ -160,6 +160,9 @@ impl scheduler::SchedulerSessionState for SessionState {
     fn get_application_source(&self) -> common_enums::ApplicationSource {
         self.conf.application_source
     }
+    fn get_tenant_id(&self) -> &id_type::TenantId {
+        &self.tenant.tenant_id
+    }
     fn get_request_id(&self) -> Option<RequestId> {
         self.request_id.clone()
     }
@@ -359,6 +362,9 @@ pub struct AppState {
 impl scheduler::SchedulerAppState for AppState {
     fn get_tenants(&self) -> Vec<id_type::TenantId> {
         self.conf.multitenancy.get_tenant_ids()
+    }
+    fn get_application_source(&self) -> common_enums::ApplicationSource {
+        self.conf.application_source
     }
 }
 pub trait AppStateInfo {
