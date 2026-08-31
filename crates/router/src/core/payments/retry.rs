@@ -843,10 +843,6 @@ pub fn make_new_auto_retry_payment_attempt(
         merchant_connector_id: Default::default(),
         unified_code: Default::default(),
         unified_message: Default::default(),
-        // Carry the external-3DS authentication forward so a retried attempt (e.g. failover to
-        // the next acquirer after a post-authentication decline) still presents the same
-        // CAVV/ECI/dsTransID, and the attempt row honestly reflects that it went through
-        // external 3DS on GET /payments?expand_attempts=true.
         external_three_ds_authentication_attempted: old_payment_attempt
             .external_three_ds_authentication_attempted,
         external_threeds_authentication_type: old_payment_attempt
