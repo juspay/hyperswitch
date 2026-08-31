@@ -39,7 +39,7 @@ use common_enums::PayoutStatus;
 use common_enums::{
     CardSegmentType, CardType, CountryAlpha2, DisputeStatus, EventClass, EventType, FundingSource,
     IntentStatus, InvoiceStatus, MandateStatus, MerchantCategoryCode, MerchantCategoryCodeWithName,
-    RefundStatus, SubscriptionStatus,
+    RefundStatus,
 };
 use strum::IntoEnumIterator;
 
