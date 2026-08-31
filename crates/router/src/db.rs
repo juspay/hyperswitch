@@ -66,6 +66,8 @@ use hyperswitch_domain_models::{
 use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
 use redis_interface::errors::RedisError;
 use router_env::logger;
+#[cfg(feature = "v2")]
+use storage_impl::revenue_recovery_retry_stats;
 use storage_impl::{
     errors::StorageError, redis::kv_store::RedisConnInterface, tokenization, MockDb,
 };
@@ -156,6 +158,12 @@ pub trait StorageInterface:
     + 'static
 {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface>;
+    #[cfg(feature = "v2")]
+    fn get_revenue_recovery_retry_stats_store(
+        &self,
+    ) -> Box<
+        dyn revenue_recovery_retry_stats::RevenueRecoveryRetryStatsInterface<Error = StorageError>,
+    >;
     fn get_payment_methods_store(&self) -> Box<dyn PaymentMethodsStorageInterface>;
     fn get_subscription_store(&self)
         -> Box<dyn subscriptions::state::SubscriptionStorageInterface>;
@@ -246,6 +254,14 @@ impl StorageInterface for Store {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface> {
         Box::new(self.clone())
     }
+    #[cfg(feature = "v2")]
+    fn get_revenue_recovery_retry_stats_store(
+        &self,
+    ) -> Box<
+        dyn revenue_recovery_retry_stats::RevenueRecoveryRetryStatsInterface<Error = StorageError>,
+    > {
+        Box::new(self.clone())
+    }
     fn get_payment_methods_store(&self) -> Box<dyn PaymentMethodsStorageInterface> {
         Box::new(self.clone())
     }
@@ -279,6 +295,14 @@ impl AccountsStorageInterface for Store {}
 #[async_trait::async_trait]
 impl StorageInterface for MockDb {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface> {
+        Box::new(self.clone())
+    }
+    #[cfg(feature = "v2")]
+    fn get_revenue_recovery_retry_stats_store(
+        &self,
+    ) -> Box<
+        dyn revenue_recovery_retry_stats::RevenueRecoveryRetryStatsInterface<Error = StorageError>,
+    > {
         Box::new(self.clone())
     }
     fn get_payment_methods_store(&self) -> Box<dyn PaymentMethodsStorageInterface> {

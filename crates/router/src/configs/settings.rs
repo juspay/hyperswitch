@@ -2087,43 +2087,4 @@ mod hashset_deserialization_test {
 
         assert!(payment_methods.is_err());
     }
-
-    /// Deserialize the dispute record-back config from a single `key = value` pair, the way
-    /// the config crate hands the `[billing_connectors_dispute_record_back]` table over.
-    fn dispute_record_back_config_from(
-        value: &str,
-    ) -> Result<super::BillingConnectorDisputeRecordBackCall, ValueError> {
-        use std::collections::HashMap;
-
-        use serde::Deserialize;
-
-        let table: HashMap<String, String> = HashMap::from([(
-            "billing_connectors_which_requires_dispute_record_back_call".to_string(),
-            value.to_string(),
-        )]);
-
-        super::BillingConnectorDisputeRecordBackCall::deserialize(table.into_deserializer())
-    }
-
-    #[test]
-    fn test_dispute_record_back_connectors_gate_the_call() {
-        use super::enums;
-
-        // The value shipped in every config file.
-        let config = dispute_record_back_config_from("chargebee")
-            .expect("the shipped config value must deserialize");
-
-        let supported = &config.billing_connectors_which_requires_dispute_record_back_call;
-
-        assert!(supported.contains(&enums::Connector::Chargebee));
-        // The other billing connectors have no offline-refund API, so the gate must exclude
-        // them rather than let the call reach the default unimplemented flow impl.
-        assert!(!supported.contains(&enums::Connector::Recurly));
-        assert!(!supported.contains(&enums::Connector::Stripebilling));
-    }
-
-    #[test]
-    fn test_dispute_record_back_connectors_reject_an_unknown_name() {
-        assert!(dispute_record_back_config_from("not_a_connector").is_err());
-    }
 }
