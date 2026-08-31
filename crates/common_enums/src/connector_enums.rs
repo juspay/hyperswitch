@@ -370,7 +370,6 @@ impl Connector {
             | Self::Finix
             | Self::Fiserv
             | Self::Fiservemea
-            | Self::Fiservcommercehub
             | Self::Fiuu
             | Self::Flexiti
             | Self::Forte
@@ -474,7 +473,7 @@ impl Connector {
             | Self::Ilixium
             | Self::Givepayments => false,
             Self::Stripe | Self::Checkout | Self::Zift | Self::Nmi | Self::Braintree|
-            Self::Cybersource | Self::Archipel | Self::Nuvei | Self::Adyen => true,
+            Self::Cybersource | Self::Archipel | Self::Nuvei | Self::Adyen | Self::Fiservcommercehub => true,
         }
     }
 
