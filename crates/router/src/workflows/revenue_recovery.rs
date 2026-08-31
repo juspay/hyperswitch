@@ -679,7 +679,7 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
             // keeps the calculate job alive.
             let Some(time) = schedule_time else {
                 logger::info!(retry_count, "Retry ladder exhausted for this invoice");
-                return Ok(PaymentProcessorTokenResponse::RetriesExhausted);
+                return Ok((PaymentProcessorTokenResponse::RetriesExhausted, None));
             };
 
             payment_processor_token_response = get_token_availability_for_schedule_time(

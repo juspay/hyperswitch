@@ -984,28 +984,11 @@ impl RevenueRecoveryAttempt {
         ),
         errors::RevenueRecoveryError,
     > {
-        let payment_attempt_with_recovery_intent = match is_recovery_transaction_event {
-            true => {
-                let mut invoice_transaction_details =
-                    Self::get_recovery_invoice_transaction_details(
-                        connector_enum,
-                        request_details,
-                        billing_connector_payment_details,
-                        invoice_details,
-                    )?;
-
+        let payment_attempt_with_recovery_intent = match resolved_transaction_details {
+            Some((mut invoice_transaction_details, payment_merchant_connector_account)) => {
                 // Boxed to keep this future off the enclosing state machine, the recovery webhook
                 // chain is deep enough that inlining it can overflow the worker thread's stack.
                 Box::pin(invoice_transaction_details.enrich_card_info_using_card_bin(state)).await;
-
-                // Find the payment merchant connector ID at the top level to avoid multiple DB calls.
-                let payment_merchant_connector_account = invoice_transaction_details
-                    .find_payment_merchant_connector_account(
-                        state,
-                        platform.get_processor().get_key_store(),
-                        billing_connector_account,
-                    )
-                    .await?;
 
                 let (payment_attempt, updated_payment_intent) = invoice_transaction_details
                     .get_payment_attempt(
