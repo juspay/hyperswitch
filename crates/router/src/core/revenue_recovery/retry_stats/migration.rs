@@ -1,5 +1,5 @@
 use api_models::revenue_recovery_data_backfill::{
-    CsvParsingError, RetryStatsMigrationForm, RetryStatsMigrationResponse,
+    CsvParsingError, RetryStatsMigrationCsvResult, RetryStatsMigrationResponse,
 };
 use futures::StreamExt;
 use hyperswitch_domain_models::{
@@ -12,7 +12,7 @@ use router_env::logger;
 
 use super::record;
 use crate::{
-    core::errors::{self, RouterResult},
+    core::errors::RouterResult,
     routes::{app::SessionStateInfo, SessionState},
 };
 
@@ -20,13 +20,8 @@ use crate::{
 /// `revenue_recovery_retry_stats`.
 pub async fn migrate_retry_stats_from_csv(
     state: SessionState,
-    form: RetryStatsMigrationForm,
+    csv_result: RetryStatsMigrationCsvResult,
 ) -> RouterResult<ApplicationResponse<RetryStatsMigrationResponse>> {
-    let csv_result = form.validate_and_get_records().map_err(|error| {
-        error_stack::Report::new(errors::ApiErrorResponse::InvalidRequestData {
-            message: error.to_string(),
-        })
-    })?;
     // Phase 1: validate & parse every row into a typed (cluster key, stats document)
     // pair BEFORE anything touches the database, so a single bad row can never leave a
     // partially migrated batch behind.

@@ -80,16 +80,27 @@ pub async fn revenue_recovery_retry_stats_migration(
 ) -> HttpResponse {
     let flow = Flow::RecoveryRetryStatsMigration;
 
-    Box::pin(api::server_wrap(
-        flow,
-        state,
-        &req,
-        form,
-        |state, _: (), form, _| retry_stats_migration::migrate_retry_stats_from_csv(state, form),
-        &auth::V2AdminApiAuth,
-        api_locking::LockAction::NotApplicable,
-    ))
-    .await
+    match form.validate_and_get_records() {
+        Ok(csv_result) => {
+            Box::pin(api::server_wrap(
+                flow,
+                state,
+                &req,
+                csv_result,
+                |state, _: (), csv_result, _| {
+                    retry_stats_migration::migrate_retry_stats_from_csv(state, csv_result)
+                },
+                &auth::V2AdminApiAuth,
+                api_locking::LockAction::NotApplicable,
+            ))
+            .await
+        }
+        Err(e) => HttpResponse::BadRequest().json(serde_json::json!({
+            "error": format!(
+                "failed to parse the retry stats migration CSV file: {e}"
+            )
+        })),
+    }
 }
 
 #[instrument(skip_all, fields(flow = ?Flow::RecoveryDataBackfill))]
