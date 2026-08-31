@@ -656,194 +656,199 @@ pub async fn perform_calculate_workflow(
         .billing_mca
         .get_max_retry_count();
 
-    if is_retry_budget_exhausted(process.retry_count, max_retry_count) {
-        logger::info!(
-            process_id = %process.id,
-            retry_count = process.retry_count,
-            ?max_retry_count,
-            "Invoice reached the retry ceiling configured on the billing MCA"
-        );
-        revenue_recovery_workflow::PaymentProcessorTokenResponse::RetriesExhausted
-    } else {
-        // 3. Get best available token
-        let (payment_processor_token_response, next_static_ladder_progress) = match revenue_recovery_workflow::get_token_with_schedule_time_based_on_retry_algorithm_type(
-            state,
-            &connector_customer_id,
-            payment_intent,
-            revenue_recovery_payment_data.billing_mca.connector_name,
-            retry_algorithm_type,
-            process.retry_count,
-            &tracking_data.static_ladder_progress,
-        )
-        .await
-        {
-            Ok(token_and_schedule) => token_and_schedule,
-            Err(e) => {
-                logger::error!(
-                    error = ?e,
-                    connector_customer_id = %connector_customer_id,
-                    "Failed to get best PSP token"
-                );
-                (
-                    revenue_recovery_workflow::PaymentProcessorTokenResponse::None,
-                    None,
-                )
+    let (payment_processor_token_response, next_static_ladder_progress) =
+        if is_retry_budget_exhausted(process.retry_count, max_retry_count) {
+            logger::info!(
+                process_id = %process.id,
+                retry_count = process.retry_count,
+                ?max_retry_count,
+                "Invoice reached the retry ceiling configured on the billing MCA"
+            );
+            (
+                revenue_recovery_workflow::PaymentProcessorTokenResponse::RetriesExhausted,
+                None,
+            )
+        } else {
+            // 3. Get best available token
+            match revenue_recovery_workflow::get_token_with_schedule_time_based_on_retry_algorithm_type(
+                state,
+                &connector_customer_id,
+                payment_intent,
+                revenue_recovery_payment_data.billing_mca.connector_name,
+                retry_algorithm_type,
+                process.retry_count,
+                &tracking_data.static_ladder_progress,
+            )
+            .await
+            {
+                Ok(token_and_schedule) => token_and_schedule,
+                Err(e) => {
+                    logger::error!(
+                        error = ?e,
+                        connector_customer_id = %connector_customer_id,
+                        "Failed to get best PSP token"
+                    );
+                    (
+                        revenue_recovery_workflow::PaymentProcessorTokenResponse::None,
+                        None,
+                    )
+                }
             }
         };
 
-        match payment_processor_token_response {
-            revenue_recovery_workflow::PaymentProcessorTokenResponse::ScheduledTime {
-                scheduled_time,
-            } => {
-                logger::info!(
-                    process_id = %process.id,
-                    connector_customer_id = %connector_customer_id,
-                    "Found best available token, creating EXECUTE_WORKFLOW task"
-                );
+    match payment_processor_token_response {
+        revenue_recovery_workflow::PaymentProcessorTokenResponse::ScheduledTime {
+            scheduled_time,
+        } => {
+            logger::info!(
+                process_id = %process.id,
+                connector_customer_id = %connector_customer_id,
+                "Found best available token, creating EXECUTE_WORKFLOW task"
+            );
 
-                // reset active attmept id and payment connector transmission before going to execute workflow
-                let  _ = Box::pin(reset_connector_transmission_and_active_attempt_id_before_pushing_to_execute_workflow(
+            // reset active attmept id and payment connector transmission before going to execute workflow
+            let  _ = Box::pin(reset_connector_transmission_and_active_attempt_id_before_pushing_to_execute_workflow(
+            state,
+            payment_intent,
+            revenue_recovery_payment_data,
+            active_payment_attempt_id
+        )).await?;
+
+            // 3. If token found: create EXECUTE_WORKFLOW task and finish CALCULATE_WORKFLOW
+            insert_execute_pcr_task_to_pt(
+                &tracking_data.billing_mca_id,
                 state,
+                &tracking_data.merchant_id,
                 payment_intent,
-                revenue_recovery_payment_data,
-                active_payment_attempt_id
-            )).await?;
+                &tracking_data.profile_id,
+                &tracking_data.payment_attempt_id,
+                tracking_data.prev_attempt_error_code,
+                storage::ProcessTrackerRunner::PassiveRecoveryWorkflow,
+                retry_algorithm_type,
+                scheduled_time,
+            )
+            .await?;
 
-                // 3. If token found: create EXECUTE_WORKFLOW task and finish CALCULATE_WORKFLOW
-                insert_execute_pcr_task_to_pt(
-                    &tracking_data.billing_mca_id,
-                    state,
-                    &tracking_data.merchant_id,
-                    payment_intent,
-                    &tracking_data.profile_id,
-                    &tracking_data.payment_attempt_id,
-                    tracking_data.prev_attempt_error_code,
-                    storage::ProcessTrackerRunner::PassiveRecoveryWorkflow,
-                    retry_algorithm_type,
-                    scheduled_time,
-                )
+            finish_calculate_workflow_with_progress(db, process, next_static_ladder_progress)
                 .await?;
 
-                finish_calculate_workflow_with_progress(db, process, next_static_ladder_progress)
-                    .await?;
-
-                logger::info!(
-                    process_id = %process.id,
-                    connector_customer_id = %connector_customer_id,
-                    "CALCULATE_WORKFLOW completed successfully"
-                );
-            }
-
-            revenue_recovery_workflow::PaymentProcessorTokenResponse::NextAvailableTime {
-                next_available_time,
-            } => {
-                // Update scheduled time to next_available_time + Buffer
-                // here next_available_time is the wait time
-                logger::info!(
-                    process_id = %process.id,
-                    connector_customer_id = %connector_customer_id,
-                    "No token but time available, rescheduling for scheduled time "
-                );
-
-                update_calculate_job_schedule_time(
-                    db,
-                    process,
-                    time::Duration::seconds(
-                        state
-                            .conf
-                            .revenue_recovery
-                            .recovery_timestamp
-                            .job_schedule_buffer_time_in_seconds,
-                    ),
-                    Some(next_available_time),
-                    &connector_customer_id,
-                    retry_algorithm_type,
-                )
-                .await?;
-            }
-            revenue_recovery_workflow::PaymentProcessorTokenResponse::None => {
-                logger::info!(
-                    process_id = %process.id,
-                    connector_customer_id = %connector_customer_id,
-                    "Hard decline flag is false, rescheduling after job_schedule_buffer_time_in_seconds"
-                );
-
-                update_calculate_job_schedule_time(
-                    db,
-                    process,
-                    time::Duration::seconds(
-                        state
-                            .conf
-                            .revenue_recovery
-                            .recovery_timestamp
-                            .job_schedule_buffer_time_in_seconds,
-                    ),
-                    Some(common_utils::date_time::now()),
-                    &connector_customer_id,
-                    retry_algorithm_type,
-                )
-                .await?;
-            }
-            revenue_recovery_workflow::PaymentProcessorTokenResponse::RetriesExhausted => {
-                // Rescheduling here would keep the job alive forever without ever retrying a payment.
-                logger::info!(
-                    process_id = %process.id,
-                    connector_customer_id = %connector_customer_id,
-                    retry_count = process.retry_count,
-                    "Retry ladder exhausted, finishing CALCULATE_WORKFLOW"
-                );
-
-                db.as_scheduler()
-                    .finish_process_with_business_status(
-                        process.clone(),
-                        business_status::RETRIES_EXCEEDED,
-                    )
-                    .await
-                    .map_err(|e| {
-                        logger::error!(
-                            process_id = %process.id,
-                            error = ?e,
-                            "Failed to finish CALCULATE_WORKFLOW after exhausting retries"
-                        );
-                        sch_errors::ProcessTrackerError::ProcessUpdateFailed
-                    })?;
-
-                event_type = Some(common_enums::EventType::PaymentFailed);
-            }
-            revenue_recovery_workflow::PaymentProcessorTokenResponse::HardDecline => {
-                // Finish calculate workflow with CALCULATE_WORKFLOW_FINISH
-                logger::info!(
-                    process_id = %process.id,
-                    connector_customer_id = %connector_customer_id,
-                    "Token/Tokens is/are Hard decline, finishing CALCULATE_WORKFLOW"
-                );
-
-                db.as_scheduler()
-                    .finish_process_with_business_status(
-                        process.clone(),
-                        business_status::CALCULATE_WORKFLOW_FINISH,
-                    )
-                    .await
-                    .map_err(|e| {
-                        logger::error!(
-                            process_id = %process.id,
-                            error = ?e,
-                            "Failed to finish CALCULATE_WORKFLOW"
-                        );
-                        sch_errors::ProcessTrackerError::ProcessUpdateFailed
-                    })?;
-
-                event_type = Some(common_enums::EventType::PaymentFailed);
-
-                logger::info!(
-                    process_id = %process.id,
-                    connector_customer_id = %connector_customer_id,
-                    "CALCULATE_WORKFLOW finished successfully"
-                );
-            }
+            logger::info!(
+                process_id = %process.id,
+                connector_customer_id = %connector_customer_id,
+                "CALCULATE_WORKFLOW completed successfully"
+            );
         }
 
-        let _outgoing_webhook = event_type.and_then(|event_kind| {
+        revenue_recovery_workflow::PaymentProcessorTokenResponse::NextAvailableTime {
+            next_available_time,
+        } => {
+            // Update scheduled time to next_available_time + Buffer
+            // here next_available_time is the wait time
+            logger::info!(
+                process_id = %process.id,
+                connector_customer_id = %connector_customer_id,
+                "No token but time available, rescheduling for scheduled time "
+            );
+
+            update_calculate_job_schedule_time(
+                db,
+                process,
+                time::Duration::seconds(
+                    state
+                        .conf
+                        .revenue_recovery
+                        .recovery_timestamp
+                        .job_schedule_buffer_time_in_seconds,
+                ),
+                Some(next_available_time),
+                &connector_customer_id,
+                retry_algorithm_type,
+            )
+            .await?;
+        }
+        revenue_recovery_workflow::PaymentProcessorTokenResponse::None => {
+            logger::info!(
+                process_id = %process.id,
+                connector_customer_id = %connector_customer_id,
+                "Hard decline flag is false, rescheduling after job_schedule_buffer_time_in_seconds"
+            );
+
+            update_calculate_job_schedule_time(
+                db,
+                process,
+                time::Duration::seconds(
+                    state
+                        .conf
+                        .revenue_recovery
+                        .recovery_timestamp
+                        .job_schedule_buffer_time_in_seconds,
+                ),
+                Some(common_utils::date_time::now()),
+                &connector_customer_id,
+                retry_algorithm_type,
+            )
+            .await?;
+        }
+        revenue_recovery_workflow::PaymentProcessorTokenResponse::RetriesExhausted => {
+            // Rescheduling here would keep the job alive forever without ever retrying a payment.
+            logger::info!(
+                process_id = %process.id,
+                connector_customer_id = %connector_customer_id,
+                retry_count = process.retry_count,
+                "Retry ladder exhausted, finishing CALCULATE_WORKFLOW"
+            );
+
+            db.as_scheduler()
+                .finish_process_with_business_status(
+                    process.clone(),
+                    business_status::RETRIES_EXCEEDED,
+                )
+                .await
+                .map_err(|e| {
+                    logger::error!(
+                        process_id = %process.id,
+                        error = ?e,
+                        "Failed to finish CALCULATE_WORKFLOW after exhausting retries"
+                    );
+                    sch_errors::ProcessTrackerError::ProcessUpdateFailed
+                })?;
+
+            event_type = Some(common_enums::EventType::PaymentFailed);
+        }
+        revenue_recovery_workflow::PaymentProcessorTokenResponse::HardDecline => {
+            // Finish calculate workflow with CALCULATE_WORKFLOW_FINISH
+            logger::info!(
+                process_id = %process.id,
+                connector_customer_id = %connector_customer_id,
+                "Token/Tokens is/are Hard decline, finishing CALCULATE_WORKFLOW"
+            );
+
+            db.as_scheduler()
+                .finish_process_with_business_status(
+                    process.clone(),
+                    business_status::CALCULATE_WORKFLOW_FINISH,
+                )
+                .await
+                .map_err(|e| {
+                    logger::error!(
+                        process_id = %process.id,
+                        error = ?e,
+                        "Failed to finish CALCULATE_WORKFLOW"
+                    );
+                    sch_errors::ProcessTrackerError::ProcessUpdateFailed
+                })?;
+
+            event_type = Some(common_enums::EventType::PaymentFailed);
+
+            logger::info!(
+                process_id = %process.id,
+                connector_customer_id = %connector_customer_id,
+                "CALCULATE_WORKFLOW finished successfully"
+            );
+        }
+    }
+
+    let _outgoing_webhook = event_type.and_then(|event_kind| {
         payments_response.map(|resp| Some((event_kind, resp)))
     })
     .flatten()
@@ -870,8 +875,7 @@ pub async fn perform_calculate_workflow(
     }
     ).await;
 
-        Ok(())
-    }
+    Ok(())
 }
 
 /// Finish the CALCULATE_WORKFLOW row, carrying any updated adaptive scheduling state.
