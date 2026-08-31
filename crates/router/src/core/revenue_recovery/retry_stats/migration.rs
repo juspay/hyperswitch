@@ -39,8 +39,25 @@ pub async fn migrate_retry_stats_from_csv(
         .partition(Result::is_ok);
     let validated_rows: Vec<(usize, RetryStatsClusterKey, StatsDocument)> =
         ok_rows.into_iter().flatten().collect();
-    let validation_errors: Vec<CsvParsingError> =
-        failed_rows.into_iter().filter_map(Result::err).collect();
+
+    // Reject the whole batch if any cluster_key appears more than once.
+    let duplicate_errors = validated_rows.iter().scan(
+        std::collections::HashSet::new(),
+        |seen_keys, (row_number, key, _doc)| {
+            Some(
+                (!seen_keys.insert(key.as_db_string())).then(|| CsvParsingError {
+                    row_number: *row_number,
+                    error: "duplicate cluster_key present".to_string(),
+                }),
+            )
+        },
+    );
+
+    let validation_errors: Vec<CsvParsingError> = failed_rows
+        .into_iter()
+        .filter_map(Result::err)
+        .chain(duplicate_errors.flatten())
+        .collect();
 
     let response = if !validation_errors.is_empty() {
         logger::warn!(
