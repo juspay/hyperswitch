@@ -1891,6 +1891,7 @@ impl EventClass {
                 EventType::RefundSucceeded,
                 EventType::RefundFailed,
                 EventType::SurchargeRefundSucceeded,
+                EventType::ReviewRefund,
             ]),
             Self::Disputes => HashSet::from([
                 EventType::DisputeOpened,
@@ -1949,6 +1950,7 @@ pub enum EventType {
     ActionRequired,
     RefundSucceeded,
     RefundFailed,
+    ReviewRefund,
     DisputeOpened,
     DisputeExpired,
     DisputeAccepted,

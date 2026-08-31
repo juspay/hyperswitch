@@ -5869,7 +5869,7 @@ pub(crate) fn get_adyen_webhook_event(
         }
         WebhookEventCode::RefundFailed => api_models::webhooks::IncomingWebhookEvent::RefundFailure,
         WebhookEventCode::RefundedReversed => {
-            api_models::webhooks::IncomingWebhookEvent::RefundManualReview
+            api_models::webhooks::IncomingWebhookEvent::ReviewRefund
         }
         WebhookEventCode::NotificationOfChargeback => {
             api_models::webhooks::IncomingWebhookEvent::DisputeOpened
