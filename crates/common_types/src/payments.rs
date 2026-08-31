@@ -657,6 +657,8 @@ pub struct GpayEcryptedTokenizationData {
     pub token: String,
     /// The authentication method used by Google Pay (PAN_ONLY or CRYPTOGRAM_3DS)
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[schema(value_type = Option<GooglePayAuthMethod>)]
+    #[smithy(value_type = "Option<GooglePayAuthMethod>")]
     pub auth_method: Option<common_enums::GooglePayAuthMethod>,
 }
 
