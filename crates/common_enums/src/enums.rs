@@ -669,6 +669,8 @@ impl PaymentResourceUpdateStatus {
     }
 }
 
+/// `card_bin` (6 digits) and `extended_card_bin` (8 digits) are deprecated, use
+/// `generic_card_bin`, which accepts 6 to 10 digits.
 #[derive(
     Clone,
     Copy,
