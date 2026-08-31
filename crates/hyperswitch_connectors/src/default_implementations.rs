@@ -47,7 +47,7 @@ use hyperswitch_domain_models::{
             SubscriptionCancel, SubscriptionPause, SubscriptionResume,
         },
         webhooks::VerifyWebhookSource,
-        AccessTokenAuthentication, Authenticate, AuthenticationConfirmation, DisputeRecordBack,
+        AccessTokenAuthentication, Authenticate, AuthenticationConfirmation,
         ExternalVaultCreateFlow, ExternalVaultDeleteFlow, ExternalVaultInsertFlow,
         ExternalVaultProxy, ExternalVaultRetrieveFlow, InvoiceRecordBack, PostAuthenticate,
         PreAuthenticate, ProcessIncomingWebhook, SubscriptionCreate as SubscriptionCreateFlow,
@@ -57,7 +57,7 @@ use hyperswitch_domain_models::{
         merchant_connector_webhook_management::{
             ConnectorWebhookGenerateSecretRequest, ConnectorWebhookRegisterRequest,
         },
-        revenue_recovery::{DisputeRecordBackRequest, InvoiceRecordBackRequest},
+        revenue_recovery::InvoiceRecordBackRequest,
         subscriptions::{
             GetSubscriptionEstimateRequest, GetSubscriptionItemPricesRequest,
             GetSubscriptionItemsRequest, SubscriptionCancelRequest, SubscriptionCreateRequest,
@@ -88,7 +88,7 @@ use hyperswitch_domain_models::{
         merchant_connector_webhook_management::{
             ConnectorWebhookGenerateSecretResponse, ConnectorWebhookRegisterResponse,
         },
-        revenue_recovery::{DisputeRecordBackResponse, InvoiceRecordBackResponse},
+        revenue_recovery::InvoiceRecordBackResponse,
         subscriptions::{
             GetSubscriptionEstimateResponse, GetSubscriptionItemPricesResponse,
             GetSubscriptionItemsResponse, SubscriptionCancelResponse, SubscriptionCreateResponse,
@@ -120,6 +120,12 @@ use hyperswitch_domain_models::{
     router_request_types::PayoutsData,
     router_response_types::PayoutsResponseData,
 };
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+use hyperswitch_domain_models::{
+    router_flow_types::DisputeRecordBack,
+    router_request_types::revenue_recovery::DisputeRecordBackRequest,
+    router_response_types::revenue_recovery::DisputeRecordBackResponse,
+};
 #[cfg(feature = "frm")]
 use hyperswitch_interfaces::api::fraud_check::{
     FraudCheck, FraudCheckCheckout, FraudCheckFulfillment, FraudCheckRecordReturn, FraudCheckSale,
@@ -135,6 +141,7 @@ use hyperswitch_interfaces::api::revenue_recovery as recovery_traits;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_interfaces::api::revenue_recovery::{
     BillingConnectorInvoiceSyncIntegration, BillingConnectorPaymentsSyncIntegration,
+    RevenueRecoveryDisputeRecordBack,
 };
 #[cfg(feature = "dummy_connector")]
 use hyperswitch_interfaces::api::ConnectorVerifyWebhookSource;
@@ -163,7 +170,7 @@ use hyperswitch_interfaces::{
             PaymentsPreProcessing, PaymentsPushNotification, PaymentsSettlementSplitCreate,
             SurchargeCalculation, SurchargeComplete, SurchargeRefund, TaxCalculation,
         },
-        revenue_recovery::{RevenueRecovery, RevenueRecoveryDisputeRecordBack},
+        revenue_recovery::RevenueRecovery,
         subscriptions::{
             GetSubscriptionEstimateFlow, GetSubscriptionItemsFlow, GetSubscriptionPlanPricesFlow,
             SubscriptionCancelFlow, SubscriptionCreate, SubscriptionPauseFlow,
