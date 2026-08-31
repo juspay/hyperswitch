@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{future::Future, pin::Pin, sync::Arc};
 
 use async_bb8_diesel::{AsyncConnection, ConnectionError};
 use bb8::CustomizeConnection;
@@ -260,16 +260,20 @@ pub async fn diesel_make_pg_pool(
 #[derive(Debug)]
 struct TestTransaction;
 
-#[async_trait::async_trait]
 impl CustomizeConnection<RawPgConnection, ConnectionError> for TestTransaction {
     #[allow(clippy::unwrap_used)]
-    async fn on_acquire(&self, conn: &mut RawPgConnection) -> Result<(), ConnectionError> {
-        use diesel::Connection;
+    fn on_acquire<'a>(
+        &'a self,
+        conn: &'a mut RawPgConnection,
+    ) -> Pin<Box<dyn Future<Output = Result<(), ConnectionError>> + Send + 'a>> {
+        Box::pin(async move {
+            use diesel::Connection;
 
-        conn.run(|conn| {
-            conn.begin_test_transaction().unwrap();
-            Ok(())
+            conn.run(|conn| {
+                conn.begin_test_transaction().unwrap();
+                Ok(())
+            })
+            .await
         })
-        .await
     }
 }
