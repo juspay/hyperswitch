@@ -1361,33 +1361,6 @@ pub async fn reopen_calculate_workflow_on_payment_failure(
     let task = revenue_recovery_core::CALCULATE_WORKFLOW;
     let runner = storage::ProcessTrackerRunner::PassiveRecoveryWorkflow;
 
-    let old_tracking_data: pcr::RevenueRecoveryWorkflowTrackingData =
-        serde_json::from_value(process.tracking_data.clone())
-            .change_context(errors::RecoveryError::ValueNotFound)
-            .attach_printable("Failed to deserialize the tracking data from process tracker")?;
-
-    let retry_algorithm_type = profile
-        .revenue_recovery_retry_algorithm_type
-        .filter(|retry_type| *retry_type != common_enums::RevenueRecoveryAlgorithmType::Monitoring) // ignore Monitoring
-        .unwrap_or(old_tracking_data.revenue_recovery_retry);
-
-    let new_tracking_data = pcr::RevenueRecoveryWorkflowTrackingData {
-        payment_attempt_id: latest_attempt_id.clone(),
-        // Standardised error code for `latest_attempt_id`
-        prev_attempt_error_code,
-        revenue_recovery_retry: retry_algorithm_type,
-        merchant_id: old_tracking_data.merchant_id.clone(),
-        profile_id: old_tracking_data.profile_id.clone(),
-        global_payment_id: old_tracking_data.global_payment_id.clone(),
-        billing_mca_id: old_tracking_data.billing_mca_id.clone(),
-        invoice_scheduled_time: old_tracking_data.invoice_scheduled_time,
-        static_ladder_progress: old_tracking_data.static_ladder_progress,
-    };
-
-    let tracking_data = serde_json::to_value(new_tracking_data)
-        .change_context(errors::RecoveryError::ValueNotFound)
-        .attach_printable("Failed to serialize the tracking data for process tracker")?;
-
     // Construct the process tracker ID for CALCULATE_WORKFLOW
     let process_tracker_id = format!("{}_{}_{}", runner, task, id.get_string_repr());
 
@@ -1413,6 +1386,40 @@ pub async fn reopen_calculate_workflow_on_payment_failure(
                 current_retry_count = process.retry_count,
                 "Found existing CALCULATE_WORKFLOW, updating status and retry count"
             );
+
+            // Carried from the CALCULATE row itself, not from the `process` this was called with
+            // — that is the EXECUTE or PSYNC row, whose tracking data holds none of the scheduling
+            // state CALCULATE owns. Reading it from there resets the ladder on every failure.
+            let old_tracking_data: pcr::RevenueRecoveryWorkflowTrackingData =
+                serde_json::from_value(process.tracking_data.clone())
+                    .change_context(errors::RecoveryError::ValueNotFound)
+                    .attach_printable(
+                        "Failed to deserialize the tracking data from process tracker",
+                    )?;
+
+            let retry_algorithm_type = profile
+                .revenue_recovery_retry_algorithm_type
+                .filter(|retry_type| {
+                    *retry_type != common_enums::RevenueRecoveryAlgorithmType::Monitoring
+                }) // ignore Monitoring
+                .unwrap_or(old_tracking_data.revenue_recovery_retry);
+
+            let new_tracking_data = pcr::RevenueRecoveryWorkflowTrackingData {
+                payment_attempt_id: latest_attempt_id.clone(),
+                // Standardised error code for `latest_attempt_id`
+                prev_attempt_error_code,
+                revenue_recovery_retry: retry_algorithm_type,
+                merchant_id: old_tracking_data.merchant_id.clone(),
+                profile_id: old_tracking_data.profile_id.clone(),
+                global_payment_id: old_tracking_data.global_payment_id.clone(),
+                billing_mca_id: old_tracking_data.billing_mca_id.clone(),
+                invoice_scheduled_time: old_tracking_data.invoice_scheduled_time,
+                static_ladder_progress: old_tracking_data.static_ladder_progress,
+            };
+
+            let tracking_data = serde_json::to_value(new_tracking_data)
+                .change_context(errors::RecoveryError::ValueNotFound)
+                .attach_printable("Failed to serialize the tracking data for process tracker")?;
 
             // Update the process tracker to reopen the calculate workflow
             // 1. Change status from "finish" to "pending"
