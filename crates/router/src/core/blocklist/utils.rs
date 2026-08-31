@@ -195,31 +195,57 @@ pub async fn get_blocklist_count(
     )
     .await?;
 
-    let length_counts = state
-        .store
-        .count_blocklist_entries_by_fingerprint_length_processor_merchant_id_profile_id_data_kind(
-            processor_merchant_id,
-            &profile_id,
-            query.data_kind,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("failed to count blocklist entries by fingerprint length")?;
+    let (total_count, counts_by_length) = match query.data_kind {
+        // Fingerprints are fixed-width hashes, so there is no breakdown worth grouping for.
+        common_enums::BlocklistDataKind::PaymentMethod => {
+            let total_count = state
+                .store
+                .get_blocklist_entries_count_by_processor_merchant_id_profile_id_data_kind(
+                    processor_merchant_id,
+                    Some(&profile_id),
+                    query.data_kind,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("failed to count blocklist entries")?;
 
-    let mut counts_by_length = std::collections::BTreeMap::new();
-    let mut total_count = 0_usize;
-    for (length, count) in length_counts {
-        let length = usize::try_from(length)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("fingerprint length returned by the database did not fit in usize")?;
-        let count = usize::try_from(count)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable(
-                "blocklist entry count returned by the database did not fit in usize",
-            )?;
-        total_count += count;
-        counts_by_length.insert(length, count);
-    }
+            (total_count, None)
+        }
+
+        common_enums::BlocklistDataKind::CardBin
+        | common_enums::BlocklistDataKind::ExtendedCardBin
+        | common_enums::BlocklistDataKind::GenericCardBin => {
+            let length_counts = state
+                .store
+                .count_blocklist_entries_by_fingerprint_length_processor_merchant_id_profile_id_data_kind(
+                    processor_merchant_id,
+                    &profile_id,
+                    query.data_kind,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("failed to count blocklist entries by fingerprint length")?;
+
+            let counts_by_length = length_counts
+                .into_iter()
+                .map(|(length, count)| {
+                    let length = usize::try_from(length)
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable(
+                            "fingerprint length returned by the database did not fit in usize",
+                        )?;
+                    let count = usize::try_from(count)
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable(
+                            "blocklist entry count returned by the database did not fit in usize",
+                        )?;
+                    Ok((length, count))
+                })
+                .collect::<RouterResult<std::collections::BTreeMap<_, _>>>()?;
+
+            (counts_by_length.values().sum(), Some(counts_by_length))
+        }
+    };
 
     Ok(api_blocklist::BlocklistCountResponse {
         data_kind: query.data_kind,

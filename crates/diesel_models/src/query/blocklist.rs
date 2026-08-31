@@ -266,10 +266,6 @@ impl Blocklist {
         .await
     }
 
-    /// Counts blocklist entries by fingerprint length via a SQL `GROUP BY`, so `/blocklist/count`
-    /// doesn't have to fetch every row (and its `metadata` blob) just to bucket by length.
-    ///
-    /// Scoped to entries stamped with `profile_id`, plus entries carrying no profile.
     pub async fn count_by_fingerprint_length_processor_merchant_id_profile_id_data_kind(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,

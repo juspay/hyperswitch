@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use common_enums::enums;
 use common_utils::events::ApiEventMetric;
 use hyperswitch_masking::StrongSecret;
@@ -99,10 +101,12 @@ pub struct BlocklistCountResponse {
     pub data_kind: enums::BlocklistDataKind,
     /// The total number of blocked entries for the given data_kind
     pub total_count: usize,
-    /// Breakdown of `total_count` by fingerprint length. Only meaningful for `card_bin`, where
-    /// fingerprint_id is the raw BIN digit string (6 to 10 digits); for `payment_method`,
-    /// fingerprints are fixed-length hashes, so this will typically show a single bucket.
-    pub counts_by_length: std::collections::BTreeMap<usize, usize>,
+    /// The number of blocked entries for each BIN length, keyed by the BIN length.
+    ///
+    /// For `generic_card_bin`, this also includes entries blocked as `card_bin` or
+    /// `extended_card_bin`. Omitted for `payment_method`, since fingerprints have a fixed length.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub counts_by_length: Option<BTreeMap<usize, usize>>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]

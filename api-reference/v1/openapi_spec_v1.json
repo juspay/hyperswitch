@@ -15536,8 +15536,7 @@
         "type": "object",
         "required": [
           "data_kind",
-          "total_count",
-          "counts_by_length"
+          "total_count"
         ],
         "properties": {
           "data_kind": {
@@ -15550,11 +15549,12 @@
           },
           "counts_by_length": {
             "type": "object",
-            "description": "Breakdown of `total_count` by fingerprint length. Only meaningful for `card_bin`, where\nfingerprint_id is the raw BIN digit string (6 to 10 digits); for `payment_method`,\nfingerprints are fixed-length hashes, so this will typically show a single bucket.",
+            "description": "Breakdown of `total_count` by fingerprint length, where fingerprint_id is the raw BIN digit\nstring. For `generic_card_bin` this folds in entries written as `card_bin` or\n`extended_card_bin`. Omitted for `payment_method`, whose fingerprints are fixed-width\nhashes.",
             "additionalProperties": {
               "type": "integer",
               "minimum": 0
-            }
+            },
+            "nullable": true
           }
         }
       },
