@@ -20,6 +20,7 @@ pub mod auth_events;
 pub mod connector_events;
 pub mod disputes;
 pub mod frm;
+pub mod org_activity_log;
 pub mod outgoing_webhook_event;
 pub mod payment_intents;
 pub mod payments;
