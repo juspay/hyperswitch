@@ -11918,6 +11918,7 @@ where
         &state.conf.connectors,
         payment_data,
         routing_data,
+        business_profile,
     )
     .inspect_err(|err| {
         logger::error!(
