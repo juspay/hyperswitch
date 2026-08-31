@@ -3,15 +3,22 @@ import State from "../../../utils/State";
 import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 
 let globalState;
+let originalCustomerId;
 
 describe("Card - Mandates using Payment Method Id flow test", () => {
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
+      originalCustomerId = globalState.get("customerId");
     });
   });
 
   afterEach("flush global state", () => {
+    // This spec's tests create their own customers for local mandate
+    // testing, overwriting globalState.customerId. Restore the original
+    // customer before flushing so later specs don't inherit one scoped to
+    // this spec's own tests.
+    globalState.set("customerId", originalCustomerId);
     cy.task("setGlobalState", globalState.data);
   });
 
