@@ -461,7 +461,7 @@ pub async fn start_server(
                 })?;
 
             server_builder
-                .bind_rustls_0_22(
+                .bind_rustls_0_23(
                     (tls_conf.host.unwrap_or(server.host).as_str(), tls_conf.port),
                     config,
                 )?

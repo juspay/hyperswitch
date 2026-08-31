@@ -317,6 +317,7 @@ convert_connector_response_to_domain_response!(
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -469,6 +470,7 @@ pub struct ChargebeeInvoicePayments {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ChargebeeTransactionData {
+    id: Option<String>,
     id_at_gateway: Option<String>,
     status: ChargebeeTranasactionStatus,
     error_code: Option<String>,
@@ -841,6 +843,7 @@ impl TryFrom<ChargebeeWebhookBody> for revenue_recovery::RevenueRecoveryAttemptD
             .content
             .transaction
             .id_at_gateway
+            .or(item.content.transaction.id)
             .map(common_utils::types::ConnectorTransactionId::TxnId);
         let error_code = item.content.transaction.error_code.clone();
         let error_message = item.content.transaction.error_text.clone();

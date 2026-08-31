@@ -476,6 +476,7 @@ pub trait ConnectorActions: Connector {
                     phone_country_code: Some("+31".to_string()),
                     tax_registration_id: Some("1232343243".to_string().into()),
                     document_details: None,
+                    date_of_birth: None,
                 }),
                 vendor_details: None,
                 priority: None,
@@ -575,6 +576,7 @@ pub trait ConnectorActions: Connector {
             feature_data: None,
             sender_payment_instrument_id: None,
             connector_returned_payment_method_details: None,
+            customer_date_of_birth: None,
         }
     }
 
@@ -1014,6 +1016,7 @@ impl Default for PaymentAuthorizeType {
             metadata: None,
             authentication_data: None,
             ucs_authentication_data: None,
+            force_3ds_challenge: None,
             customer_acceptance: None,
             split_payments: None,
             guest_customer: None,
@@ -1032,11 +1035,14 @@ impl Default for PaymentAuthorizeType {
             is_stored_credential: None,
             mit_category: None,
             billing_descriptor: None,
+            is_account_funded_transaction: None,
+            recipient_details: None,
             tokenization: None,
             partner_merchant_identifier_details: None,
             feature_metadata: None,
             installment_details: None,
             connector_intent_metadata: None,
+            business_country: None,
         };
         Self(data)
     }
@@ -1220,6 +1226,7 @@ pub fn get_connector_metadata(
             incremental_authorization_allowed: _,
             authentication_data: None,
             charges: _,
+            payment_account_reference: _,
         }) => connector_metadata,
         _ => None,
     }
