@@ -1961,11 +1961,6 @@ mod tests {
                 webhook_username: None,
                 webhook_password: None,
                 payment_created_enabled: None,
-                payment_succeeded_enabled: Some(true),
-                payment_failed_enabled: None,
-                payment_statuses_enabled: None,
-                refund_statuses_enabled: None,
-                payout_statuses_enabled: None,
                 multiple_webhooks_list: Some(WebhookUrls(vec![MultipleWebhookDetail {
                     webhook_endpoint_id:
                         common_utils::generate_webhook_endpoint_id_of_default_length(),
@@ -2036,11 +2031,6 @@ mod tests {
                 webhook_username: None,
                 webhook_password: None,
                 payment_created_enabled: None,
-                payment_succeeded_enabled: Some(true),
-                payment_failed_enabled: None,
-                payment_statuses_enabled: None,
-                refund_statuses_enabled: None,
-                payout_statuses_enabled: None,
                 multiple_webhooks_list: Some(WebhookUrls(vec![MultipleWebhookDetail {
                     webhook_endpoint_id:
                         common_utils::generate_webhook_endpoint_id_of_default_length(),

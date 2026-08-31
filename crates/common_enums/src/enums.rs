@@ -1882,6 +1882,7 @@ impl EventClass {
                 EventType::PaymentCancelled,
                 EventType::PaymentCancelledPostCapture,
                 EventType::PaymentAuthorized,
+                EventType::PaymentPartiallyAuthorized,
                 EventType::PaymentCaptured,
                 EventType::PaymentExpired,
                 EventType::ActionRequired,
