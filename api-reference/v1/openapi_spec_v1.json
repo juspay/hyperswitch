@@ -15549,7 +15549,7 @@
           },
           "counts_by_length": {
             "type": "object",
-            "description": "Breakdown of `total_count` by fingerprint length, where fingerprint_id is the raw BIN digit\nstring. For `generic_card_bin` this folds in entries written as `card_bin` or\n`extended_card_bin`. Omitted for `payment_method`, whose fingerprints are fixed-width\nhashes.",
+            "description": "The number of blocked entries for each BIN length, keyed by the BIN length.\n\nFor `generic_card_bin`, this also includes entries blocked as `card_bin` or\n`extended_card_bin`. Omitted for `payment_method`, since fingerprints have a fixed length.",
             "additionalProperties": {
               "type": "integer",
               "minimum": 0
