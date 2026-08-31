@@ -10,6 +10,7 @@ use utoipa::ToSchema;
 use super::enums::{Currency, DisputeStage, DisputeStatus};
 use crate::{admin::MerchantConnectorInfo, files::FileMetadataResponse};
 
+#[cfg(feature = "v1")]
 #[derive(Clone, Debug, Serialize, ToSchema)]
 pub struct DisputeResponse {
     /// The identifier for dispute
@@ -58,6 +59,56 @@ pub struct DisputeResponse {
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     /// Shows if the disputed amount(dispute_lost statuses only) + refunded amount is greater than captured amount
     pub is_already_refunded: bool,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Clone, Debug, Serialize, ToSchema)]
+pub struct DisputeResponse {
+    /// The identifier for dispute
+    pub dispute_id: String,
+    /// The identifier for payment_intent
+    #[schema(value_type = String)]
+    pub payment_id: common_utils::id_type::GlobalPaymentId,
+    /// The identifier for payment_attempt
+    #[schema(value_type = String)]
+    pub attempt_id: common_utils::id_type::GlobalAttemptId,
+    /// The dispute amount
+    pub amount: StringMinorUnit,
+    /// The three-letter ISO currency code
+    #[schema(value_type = Currency)]
+    pub currency: Currency,
+    /// Stage of the dispute
+    pub dispute_stage: DisputeStage,
+    /// Status of the dispute
+    pub dispute_status: DisputeStatus,
+    /// connector to which dispute is associated with
+    pub connector: String,
+    /// Status of the dispute sent by connector
+    pub connector_status: String,
+    /// Dispute id sent by connector
+    pub connector_dispute_id: String,
+    /// Reason of dispute sent by connector
+    pub connector_reason: Option<String>,
+    /// Reason code of dispute sent by connector
+    pub connector_reason_code: Option<String>,
+    /// Evidence deadline of dispute sent by connector
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    pub challenge_required_by: Option<PrimitiveDateTime>,
+    /// Dispute created time sent by connector
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    pub connector_created_at: Option<PrimitiveDateTime>,
+    /// Dispute updated time sent by connector
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    pub connector_updated_at: Option<PrimitiveDateTime>,
+    /// Time at which dispute is received
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub created_at: PrimitiveDateTime,
+    /// The `profile_id` associated with the dispute
+    #[schema(value_type = Option<String>)]
+    pub profile_id: Option<common_utils::id_type::ProfileId>,
+    /// The `merchant_connector_id` of the connector / processor through which the dispute was processed
+    #[schema(value_type = Option<String>)]
+    pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }
 
 #[derive(Clone, Debug, Serialize, ToSchema, Eq, PartialEq, SmithyModel)]

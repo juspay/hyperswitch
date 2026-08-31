@@ -727,6 +727,7 @@ async fn get_or_update_dispute_object(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
 async fn disputes_incoming_webhook_flow(
     state: SessionState,
@@ -823,6 +824,33 @@ async fn disputes_incoming_webhook_flow(
             }
         }
     }
+
+    // Notify the merchant. v1 does this too; without it a v2 merchant has no way to learn
+    // a dispute exists, since v2 exposes no dispute REST endpoints either.
+    let disputes_response = Box::new(dispute_object.clone().foreign_into());
+    let outgoing_event_type: enums::EventType = dispute_object.dispute_status.into();
+
+    let webhook_recipient = utils::resolve_webhook_recipient_from_created_by(
+        &state,
+        &platform,
+        &business_profile,
+        payment_attempt.created_by.as_ref(),
+    )
+    .await?;
+
+    Box::pin(create_event_and_trigger_outgoing_webhook(
+        state.clone(),
+        platform.clone(),
+        outgoing_event_type,
+        enums::EventClass::Disputes,
+        dispute_object.dispute_id.clone(),
+        enums::EventObjectType::DisputeDetails,
+        api::OutgoingWebhookContent::DisputeDetails(disputes_response),
+        dispute_object.created_at,
+        webhook_recipient,
+    ))
+    .await?;
+    metrics::INCOMING_DISPUTE_WEBHOOK_MERCHANT_NOTIFIED_METRIC.add(1, &[]);
 
     Ok(WebhookResponseTracker::Dispute {
         dispute_id: dispute_object.dispute_id,
@@ -979,13 +1007,11 @@ fn construct_dispute_record_back_router_data(
     use common_utils::ext_traits::ValueExt;
 
     let auth_type: crate::types::ConnectorAuthType =
-        crate::core::payments::helpers::MerchantConnectorAccountType::DbVal(Box::new(
-            billing_mca.clone(),
-        ))
-        .get_connector_account_details()
-        .parse_value("ConnectorAuthType")
-        .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
-        .attach_printable("failed to parse the billing connector auth type")?;
+        payments::helpers::MerchantConnectorAccountType::DbVal(Box::new(billing_mca.clone()))
+            .get_connector_account_details()
+            .parse_value("ConnectorAuthType")
+            .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+            .attach_printable("failed to parse the billing connector auth type")?;
 
     let connector_name = billing_mca.get_connector_name_as_string();
     let connector = common_enums::connector_enums::Connector::from_str(connector_name.as_str())

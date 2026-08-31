@@ -724,6 +724,38 @@ impl ForeignTryFrom<api_models::webhooks::IncomingWebhookEvent> for storage_enum
     }
 }
 
+#[cfg(feature = "v2")]
+impl ForeignFrom<storage::Dispute> for api_models::disputes::DisputeResponse {
+    fn foreign_from(dispute: storage::Dispute) -> Self {
+        Self {
+            dispute_id: dispute.dispute_id,
+            payment_id: dispute.payment_id,
+            attempt_id: dispute.attempt_id,
+            amount: dispute.amount,
+            currency: dispute.dispute_currency.unwrap_or(
+                dispute
+                    .currency
+                    .to_uppercase()
+                    .parse_enum("Currency")
+                    .unwrap_or_default(),
+            ),
+            dispute_stage: dispute.dispute_stage,
+            dispute_status: dispute.dispute_status,
+            connector: dispute.connector,
+            connector_status: dispute.connector_status,
+            connector_dispute_id: dispute.connector_dispute_id,
+            connector_reason: dispute.connector_reason,
+            connector_reason_code: dispute.connector_reason_code,
+            challenge_required_by: dispute.challenge_required_by,
+            connector_created_at: dispute.connector_created_at,
+            connector_updated_at: dispute.connector_updated_at,
+            created_at: dispute.created_at,
+            profile_id: dispute.profile_id,
+            merchant_connector_id: dispute.merchant_connector_id,
+        }
+    }
+}
+
 #[cfg(feature = "v1")]
 impl ForeignFrom<storage::Dispute> for api_models::disputes::DisputeResponse {
     fn foreign_from(dispute: storage::Dispute) -> Self {
