@@ -9799,6 +9799,8 @@ pub struct PaymentDataUpdateRequestFields {
     pub metadata: Option<serde_json::Value>,
     pub merchant_order_reference_id: Option<String>,
     pub customer_document_details: Option<api_models::customers::CustomerDocumentDetails>,
+    pub is_account_funded_transaction: Option<bool>,
+    pub recipient_details: Option<api_models::payments::RecipientDetails>,
 }
 
 #[derive(Clone)]
@@ -11366,6 +11368,7 @@ where
                             fallback_config,
                             backend_input,
                             transaction_type,
+                            dimensions,
                         )
                         .await?;
                         ConnectorCallType::SessionMultiple(routing_output)
@@ -12842,6 +12845,7 @@ pub async fn perform_session_token_routing<F, D>(
     fallback_config: Vec<api_models::routing::RoutableConnectorChoice>,
     mut backend_input: dsl_inputs::BackendInput,
     transaction_type: enums::TransactionType,
+    dimensions: &DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
 ) -> RouterResult<api::SessionConnectorDatas>
 where
     F: Clone,
@@ -12870,6 +12874,12 @@ where
         active_mca_ids: &active_mca_ids,
         default_config: &fallback_config,
         backend_input: &mut backend_input,
+        dimensions,
+        payment_id: payment_data
+            .get_payment_intent()
+            .payment_id
+            .get_string_repr()
+            .to_string(),
     };
 
     let routing_algorithm: routing::MerchantAccountRoutingAlgorithm = business_profile
@@ -14880,6 +14890,7 @@ pub async fn payments_submit_eligibility(
     let offer_card_type = offer_card.and_then(|card| card.card_type.clone());
     let offer_bank_code = offer_card.and_then(|card| card.bank_code.clone());
     let offer_card_country = offer_card.and_then(|card| card.card_issuing_country.clone());
+    let offer_card_number = offer_card.map(|card| card.card_number.clone());
     let offer_payment_method_type = eligibility_req
         .payment_method_type
         .to_string()
@@ -14922,6 +14933,7 @@ pub async fn payments_submit_eligibility(
         offer_card_type,
         offer_bank_code,
         offer_card_country,
+        offer_card_number,
     )
     .await?;
 
@@ -14961,6 +14973,7 @@ async fn resolve_offer_eligibility_details(
     card_type: Option<String>,
     bank_code: Option<String>,
     card_country: Option<String>,
+    card_number: Option<::cards::CardNumber>,
 ) -> RouterResult<(
     Option<api_models::payments::EligibilityAmountDetails>,
     Option<api_models::payments::EligibilityOfferDetails>,
@@ -14990,6 +15003,25 @@ async fn resolve_offer_eligibility_details(
     match offer_context {
         None => Ok((None, None)),
         Some((offer_config, currency)) => {
+            let card_alias = match card_number.as_ref() {
+                Some(card_number) => match offer_engine::velocity::generate_card_alias(
+                    state,
+                    processor.get_account(),
+                    card_number,
+                )
+                .await
+                {
+                    Ok(alias) => Some(alias),
+                    Err(error) => {
+                        logger::warn!(
+                            ?error,
+                            "offer velocity: card_alias unavailable; treating offers as unavailable"
+                        );
+                        return Ok((None, None));
+                    }
+                },
+                None => None,
+            };
             let ctx = offer_engine::eligibility::OfferEligibilityContext {
                 payment_id: payment_id.clone(),
                 order_amount,
@@ -15002,6 +15034,7 @@ async fn resolve_offer_eligibility_details(
                 card_type,
                 bank_code,
                 card_country,
+                card_alias,
             };
 
             // A `/list` failure while Offer Engine is enabled fails eligibility.
