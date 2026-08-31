@@ -5,6 +5,7 @@ import { connectorDetails as adyenPlatformConnectorDetails } from "./AdyenPlatfo
 import { connectorDetails as CommonConnectorDetails } from "./Commons.js";
 import { connectorDetails as wiseConnectorDetails } from "./Wise.js";
 import { connectorDetails as nomupayConnectorDetails } from "./Nomupay.js";
+import { connectorDetails as santanderConnectorDetails } from "./Santander.js";
 import { connectorDetails as truelayerConnectorDetails } from "./Truelayer.js";
 
 const connectorDetails = {
@@ -12,6 +13,7 @@ const connectorDetails = {
   adyenplatform: adyenPlatformConnectorDetails,
   commons: CommonConnectorDetails,
   nomupay: nomupayConnectorDetails,
+  santander: santanderConnectorDetails,
   truelayer: truelayerConnectorDetails,
   wise: wiseConnectorDetails,
 };
@@ -99,6 +101,7 @@ export const CONNECTOR_LISTS = {
     PAYOUT_LINK: ["wise"],
     BANK_TRANSFER_OPEN_BANKING: ["truelayer"],
     BANK_TRANSFER_OPEN_BANKING_INVALID_REFERENCE_FULFILL: [],
+    BANK_TRANSFER_PIX: ["santander"],
     BANK_TRANSFER_SEPA: ["adyen", "adyenplatform", "nomupay", "wise"],
     SAVED_CARD: ["adyen", "adyenplatform", "nomupay", "wise"],
     SAVED_BANK_TRANSFER_SEPA: ["adyen", "adyenplatform", "nomupay", "wise"],

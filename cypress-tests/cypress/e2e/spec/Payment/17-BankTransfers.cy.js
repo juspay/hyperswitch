@@ -403,4 +403,82 @@ describe("Bank Transfers", () => {
       }
     });
   });
+
+  context(
+    "Bank transfer - Pix Automatico QR Setup Mandate flow",
+    () => {
+      it("Create and Confirm Payment for Pix Automatico QR Setup Mandate -> Retrieve Payment", () => {
+        let shouldContinue = true;
+
+        cy.step("Create and Confirm Payment for Pix Automatico QR Setup Mandate", () => {
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "bank_transfer_pm"
+          ]["PixAutomaticoQrSetupMandate"];
+          cy.createConfirmPaymentTest(
+            fixtures.createConfirmPaymentBody,
+            data,
+            "no_three_ds",
+            "automatic",
+            globalState
+          );
+          if (!utils.should_continue_further(data)) {
+            shouldContinue = false;
+          }
+        });
+
+        cy.step("Retrieve Payment after Confirmation", () => {
+          if (!shouldContinue) {
+            cy.task(
+              "cli_log",
+              "Skipping step: Retrieve Payment after Confirmation"
+            );
+            return;
+          }
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "bank_transfer_pm"
+          ]["PixAutomaticoQrSetupMandate"];
+          cy.retrievePaymentCallTest({ globalState, data });
+        });
+      });
+    }
+  );
+
+  context(
+    "Bank transfer - Pix Automatico QR Automatic Capture flow",
+    () => {
+      it("Create and Confirm Payment for Pix Automatico QR Automatic Capture -> Retrieve Payment", () => {
+        let shouldContinue = true;
+
+        cy.step("Create and Confirm Payment for Pix Automatico QR Automatic Capture", () => {
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "bank_transfer_pm"
+          ]["PixAutomaticoQrAutomaticCapture"];
+          cy.createConfirmPaymentTest(
+            fixtures.createConfirmPaymentBody,
+            data,
+            "no_three_ds",
+            "automatic",
+            globalState
+          );
+          if (!utils.should_continue_further(data)) {
+            shouldContinue = false;
+          }
+        });
+
+        cy.step("Retrieve Payment after Confirmation", () => {
+          if (!shouldContinue) {
+            cy.task(
+              "cli_log",
+              "Skipping step: Retrieve Payment after Confirmation"
+            );
+            return;
+          }
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "bank_transfer_pm"
+          ]["PixAutomaticoQrAutomaticCapture"];
+          cy.retrievePaymentCallTest({ globalState, data });
+        });
+      });
+    }
+  );
 });
