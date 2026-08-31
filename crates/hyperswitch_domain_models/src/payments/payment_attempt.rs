@@ -826,6 +826,8 @@ pub struct PaymentAttempt {
     pub external_surcharge_details: Option<common_types::payments::ExternalSurchargeDetails>,
     /// Normalized applied-offer details from Offer Engine
     pub applied_offer_details: Option<common_types::payments::AppliedOfferDetails>,
+    /// Payment Account Reference (PAR) returned by the connector for the underlying card
+    pub payment_account_reference: Option<String>,
 }
 
 impl PaymentAttempt {
@@ -995,6 +997,7 @@ impl PaymentAttempt {
             authorized_amount: None,
             external_surcharge_details: None,
             applied_offer_details: None,
+            payment_account_reference: None,
         })
     }
 
@@ -1091,6 +1094,7 @@ impl PaymentAttempt {
             authorized_amount: None,
             external_surcharge_details: None,
             applied_offer_details: None,
+            payment_account_reference: None,
         })
     }
 
@@ -1194,6 +1198,7 @@ impl PaymentAttempt {
             authorized_amount: None,
             external_surcharge_details: None,
             applied_offer_details: None,
+            payment_account_reference: None,
         })
     }
 
@@ -1325,6 +1330,7 @@ impl PaymentAttempt {
             authorized_amount: None,
             external_surcharge_details: None,
             applied_offer_details: None,
+            payment_account_reference: None,
         })
     }
 
@@ -1448,6 +1454,8 @@ pub struct PaymentAttempt {
     pub external_surcharge_details: Option<common_types::payments::ExternalSurchargeDetails>,
     /// Normalized applied-offer details from Offer Engine
     pub applied_offer_details: Option<common_types::payments::AppliedOfferDetails>,
+    /// Payment Account Reference (PAR) returned by the connector for the underlying card
+    pub payment_account_reference: Option<String>,
     /// Sender payment instrument ID
     pub sender_payment_instrument_id: Option<String>,
 }
@@ -2138,6 +2146,7 @@ pub enum PaymentAttemptUpdate {
         recommended_action: Option<Option<storage_enums::RecommendedAction>>,
         card_network: Option<storage_enums::CardNetwork>,
         sender_payment_instrument_id: Option<String>,
+        payment_account_reference: Option<String>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -2510,6 +2519,7 @@ impl PaymentAttemptUpdate {
                 recommended_action,
                 card_network,
                 sender_payment_instrument_id,
+                payment_account_reference,
             } => {
                 let connector_details = ConnectorErrorDetails::new(
                     error_code.clone(),
@@ -2576,6 +2586,7 @@ impl PaymentAttemptUpdate {
                         .map(Encryption::from),
                     error_details,
                     sender_payment_instrument_id,
+                    payment_account_reference,
                 }
             }
             Self::UnresolvedResponseUpdate {
@@ -3089,6 +3100,7 @@ impl behaviour::Conversion for PaymentAttempt {
             retry_type: self.retry_type,
             external_surcharge_details: self.external_surcharge_details,
             applied_offer_details: self.applied_offer_details,
+            payment_account_reference: self.payment_account_reference,
             sender_payment_instrument_id: self.sender_payment_instrument_id,
         })
     }
@@ -3233,6 +3245,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 installment_data: storage_model.installment_data,
                 external_surcharge_details: storage_model.external_surcharge_details,
                 applied_offer_details: storage_model.applied_offer_details,
+                payment_account_reference: storage_model.payment_account_reference,
                 sender_payment_instrument_id: storage_model.sender_payment_instrument_id,
             })
         }
@@ -3339,6 +3352,7 @@ impl behaviour::Conversion for PaymentAttempt {
             installment_data: self.installment_data,
             external_surcharge_details: self.external_surcharge_details,
             applied_offer_details: self.applied_offer_details,
+            payment_account_reference: self.payment_account_reference,
             sender_payment_instrument_id: self.sender_payment_instrument_id,
         })
     }
