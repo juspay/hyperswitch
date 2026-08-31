@@ -756,9 +756,6 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                 let now = common_utils::date_time::now();
                 let queried_rung = static_ladder_progress.next_rung();
 
-                // `None` once the queried position runs past the ladder's last entry. Not fatal on
-                // its own — the adaptive algorithm can still carry the invoice — so the decision
-                // below is what determines whether anything is schedulable.
                 let static_time = get_schedule_time_to_retry_mit_payments(
                     state.store.as_ref(),
                     state.superposition_service.as_ref(),
