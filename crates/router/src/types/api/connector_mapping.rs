@@ -301,6 +301,9 @@ impl ConnectorData {
                 enums::Connector::Gocardless => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Gocardless::new())))
                 }
+                enums::Connector::GotymeSanlam => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::GotymeSanlam::new())))
+                }
                 enums::Connector::Hipay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Hipay::new())))
                 }

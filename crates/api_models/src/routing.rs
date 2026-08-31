@@ -2149,6 +2149,12 @@ pub struct RoutingEvaluateRequest {
     /// ]
     /// ```
     pub fallback_output: Vec<DeRoutableConnectorChoice>,
+
+    /// Transaction type whose active rule should be evaluated; absent keeps the
+    /// DE's legacy type-blind lookup.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schema(value_type = Option<TransactionType>)]
+    pub algorithm_for: Option<TransactionType>,
 }
 impl common_utils::events::ApiEventMetric for RoutingEvaluateRequest {}
 
