@@ -138,13 +138,23 @@ pub async fn upsert_calculate_pcr_task(
             let task = "CALCULATE_WORKFLOW";
             let runner = storage::ProcessTrackerRunner::PassiveRecoveryWorkflow;
 
+            // The ladder is indexed by attempts already made on the invoice, so seeding it with
+            // anything else replays the slots the billing connector already consumed.
+            let attempts_already_made = i32::from(intent_retry_count);
+
+            router_env::logger::info!(
+                payment_id = %payment_id.get_string_repr(),
+                attempts_already_made,
+                "Seeding CALCULATE_WORKFLOW retry count from attempts already made"
+            );
+
             let process_tracker_entry = storage::ProcessTrackerNew::new(
                 process_tracker_id,
                 task,
                 runner,
                 tag,
                 calculate_workflow_tracking_data,
-                Some(1),
+                Some(attempts_already_made),
                 schedule_time,
                 common_types::consts::API_VERSION,
                 state.conf.application_source,
@@ -752,6 +762,32 @@ pub async fn perform_calculate_workflow(
                 retry_algorithm_type,
             )
             .await?;
+        }
+        revenue_recovery_workflow::PaymentProcessorTokenResponse::RetriesExhausted => {
+            // Rescheduling here would keep the job alive forever without ever retrying a payment.
+            logger::info!(
+                process_id = %process.id,
+                connector_customer_id = %connector_customer_id,
+                retry_count = process.retry_count,
+                "Retry ladder exhausted, finishing CALCULATE_WORKFLOW"
+            );
+
+            db.as_scheduler()
+                .finish_process_with_business_status(
+                    process.clone(),
+                    business_status::RETRIES_EXCEEDED,
+                )
+                .await
+                .map_err(|e| {
+                    logger::error!(
+                        process_id = %process.id,
+                        error = ?e,
+                        "Failed to finish CALCULATE_WORKFLOW after exhausting retries"
+                    );
+                    sch_errors::ProcessTrackerError::ProcessUpdateFailed
+                })?;
+
+            event_type = Some(common_enums::EventType::PaymentFailed);
         }
         revenue_recovery_workflow::PaymentProcessorTokenResponse::HardDecline => {
             // Finish calculate workflow with CALCULATE_WORKFLOW_FINISH
