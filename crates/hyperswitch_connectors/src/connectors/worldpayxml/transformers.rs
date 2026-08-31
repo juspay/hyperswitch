@@ -36,7 +36,7 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::{consts, errors};
-use hyperswitch_masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use josekit;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -71,6 +71,7 @@ impl<T> From<(StringMinorUnit, T)> for WorldpayxmlRouterData<T> {
 
 pub mod worldpayxml_constants {
     pub const WORLDPAYXML_VERSION: &str = "1.4";
+    pub const WORLDPAYXML_FUNDING_CATEGORY: &str = "PULL_FROM_CARD";
     pub const XML_VERSION: &str = "1.0";
     pub const XML_ENCODING: &str = "UTF-8";
     pub const WORLDPAYXML_DOC_TYPE: &str = r#"paymentService PUBLIC "-//Worldpay//DTD Worldpay PaymentService v1//EN" "http://dtd.worldpay.com/paymentService_v1.dtd""#;
@@ -385,6 +386,8 @@ struct Order {
     create_token: Option<CreateToken>,
     #[serde(skip_serializing_if = "Option::is_none", rename = "additional3DSData")]
     additional_threeds_data: Option<AdditionalThreeDSData>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    funding_transfer: Option<FundingTransfer>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -445,6 +448,103 @@ pub struct WPGBrowserData {
 #[serde(rename_all = "camelCase")]
 struct WorldpayxmlPayinAddress {
     address: WorldpayxmlAddressData,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct FundingTransfer {
+    #[serde(rename = "@type")]
+    transfer_type: String,
+    #[serde(rename = "@category")]
+    category: String,
+    payment_purpose: String,
+    funding_party: Vec<FundingParty>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+enum FundingPartyType {
+    Sender,
+    Recipient,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct FundingParty {
+    #[serde(rename = "@type")]
+    party_type: FundingPartyType,
+    account_reference: AccountReference,
+    full_name: FullName,
+    funding_address: FundingAddress,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    funding_data: Option<FundingData>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tax_id: Option<Secret<String>>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct AccountReference {
+    #[serde(rename = "@accountType")]
+    account_type: String,
+    #[serde(rename = "$text")]
+    value: Secret<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct FullName {
+    first: Secret<String>,
+    last: Secret<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct FundingAddress {
+    address1: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    address2: Option<Secret<String>>,
+    postal_code: Secret<String>,
+    city: String,
+    state: Secret<String>,
+    country_code: common_enums::CountryAlpha2,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct FundingData {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    birth_date: Option<BirthDate>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    telephone_number: Option<Secret<String>>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct BirthDate {
+    date: WorldpayxmlDate,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct WorldpayxmlDate {
+    #[serde(rename = "@dayOfMonth")]
+    day_of_month: Secret<String>,
+    #[serde(rename = "@month")]
+    month: Secret<String>,
+    #[serde(rename = "@year")]
+    year: Secret<String>,
+}
+
+impl From<Secret<time::Date>> for BirthDate {
+    fn from(date_of_birth: Secret<time::Date>) -> Self {
+        let date = date_of_birth.expose();
+        Self {
+            date: WorldpayxmlDate {
+                day_of_month: Secret::new(date.day().to_string()),
+                month: Secret::new(u8::from(date.month()).to_string()),
+                year: Secret::new(date.year().to_string()),
+            },
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -748,6 +848,8 @@ pub struct WorldpayxmlConnectorMetadataObject {
     pub issuer_id: Option<String>,
     pub organizational_unit_id: Option<String>,
     pub jwt_mac_key: Option<String>,
+    pub funding_transaction_type: Option<String>,
+    pub payment_purpose: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -1311,6 +1413,274 @@ fn get_shopper_details_cauth(
     }
 }
 
+fn get_worldpayxml_account_reference(
+    account: &api_models::payments::RecipientAccount,
+) -> Result<AccountReference, error_stack::Report<errors::ConnectorError>> {
+    use api_models::payments::{RecipientAccount, RecipientBankAccount};
+
+    let (account_type, value) = match account {
+        RecipientAccount::BankAccount(bank_account) => match bank_account {
+            RecipientBankAccount::Iban { iban } => ("02", iban.clone()),
+            RecipientBankAccount::RoutingNumber {
+                account_number,
+                routing_number,
+            } => (
+                "01",
+                Secret::new(format!(
+                    "{}+{}",
+                    account_number.peek(),
+                    routing_number.peek()
+                )),
+            ),
+            RecipientBankAccount::Bic {
+                account_number,
+                bic,
+            } => (
+                "06",
+                Secret::new(format!("{}+{}", account_number.peek(), bic.peek())),
+            ),
+            RecipientBankAccount::AccountNumber { account_number } => {
+                ("03", account_number.clone())
+            }
+            RecipientBankAccount::TruncatedPan { .. } => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: "a truncated PAN as a recipient account identifier".to_string(),
+                    connector: "worldpayxml",
+                })?
+            }
+        },
+        RecipientAccount::Card { card_number } => ("03", Secret::new(card_number.get_card_no())),
+        RecipientAccount::Email { email } => ("04", Secret::new(email.clone().expose().expose())),
+        RecipientAccount::Phone { phone_number } => ("05", phone_number.clone()),
+        RecipientAccount::Wallet { wallet_id } => ("07", wallet_id.clone()),
+        RecipientAccount::SocialNetwork { social_network_id } => ("08", social_network_id.clone()),
+    };
+
+    Ok(AccountReference {
+        account_type: account_type.to_string(),
+        value,
+    })
+}
+
+fn build_worldpayxml_recipient_party(
+    recipient_details: Option<&api_models::payments::RecipientDetails>,
+    business_country: Option<common_enums::CountryAlpha2>,
+) -> Result<FundingParty, error_stack::Report<errors::ConnectorError>> {
+    let recipient_details =
+        recipient_details.ok_or_else(connector_utils::missing_field_err("recipient_details"))?;
+
+    let address =
+        recipient_details
+            .address
+            .as_ref()
+            .ok_or_else(connector_utils::missing_field_err(
+                "recipient_details.address",
+            ))?;
+
+    let account_reference = recipient_details
+        .account
+        .as_ref()
+        .ok_or_else(connector_utils::missing_field_err(
+            "recipient_details.account",
+        ))
+        .and_then(get_worldpayxml_account_reference)?;
+
+    Ok(FundingParty {
+        party_type: FundingPartyType::Recipient,
+        account_reference,
+        full_name: FullName {
+            first: address
+                .first_name
+                .clone()
+                .ok_or_else(connector_utils::missing_field_err(
+                    "recipient_details.address.first_name",
+                ))?,
+            last: address
+                .last_name
+                .clone()
+                .ok_or_else(connector_utils::missing_field_err(
+                    "recipient_details.address.last_name",
+                ))?,
+        },
+        funding_address: FundingAddress {
+            address1: address
+                .line1
+                .clone()
+                .ok_or_else(connector_utils::missing_field_err(
+                    "recipient_details.address.line1",
+                ))?,
+            address2: address.line2.clone(),
+            postal_code: address
+                .zip
+                .clone()
+                .ok_or_else(connector_utils::missing_field_err(
+                    "recipient_details.address.zip",
+                ))?,
+            city: address
+                .city
+                .clone()
+                .ok_or_else(connector_utils::missing_field_err(
+                    "recipient_details.address.city",
+                ))?,
+            state: address
+                .state
+                .clone()
+                .ok_or_else(connector_utils::missing_field_err(
+                    "recipient_details.address.state",
+                ))?,
+            country_code: address
+                .country
+                .ok_or_else(connector_utils::missing_field_err(
+                    "recipient_details.address.country",
+                ))?,
+        },
+        funding_data: recipient_details
+            .phone_number
+            .clone()
+            .map(|telephone_number| FundingData {
+                birth_date: None,
+                telephone_number: Some(telephone_number),
+            }),
+        // Worldpay require the recipient's CPF or CNPJ from merchants in Brazil, and treat the
+        // tax ID as optional elsewhere.
+        tax_id: match business_country {
+            Some(common_enums::CountryAlpha2::BR) => {
+                Some(recipient_details.tax_id.clone().ok_or_else(
+                    connector_utils::missing_field_err("recipient_details.tax_id"),
+                )?)
+            }
+            _ => recipient_details.tax_id.clone(),
+        },
+    })
+}
+
+fn build_worldpayxml_sender_party<F, Req, Res>(
+    router_data: &RouterData<F, Req, Res>,
+    card_number: Secret<String>,
+) -> Result<FundingParty, error_stack::Report<errors::ConnectorError>> {
+    Ok(FundingParty {
+        party_type: FundingPartyType::Sender,
+        account_reference: AccountReference {
+            account_type: "03".to_string(),
+            value: card_number,
+        },
+        full_name: FullName {
+            first: router_data.get_billing_first_name()?,
+            last: router_data.get_billing_last_name()?,
+        },
+        funding_address: FundingAddress {
+            address1: router_data.get_billing_line1()?,
+            address2: router_data.get_optional_billing_line2(),
+            postal_code: router_data.get_billing_zip()?,
+            city: router_data.get_billing_city()?,
+            state: router_data.get_billing_state()?,
+            country_code: router_data.get_billing_country()?,
+        },
+        funding_data: Some(FundingData {
+            birth_date: Some(BirthDate::from(router_data.get_customer_date_of_birth()?)),
+            telephone_number: router_data.get_optional_billing_phone_number(),
+        }),
+        tax_id: None,
+    })
+}
+
+fn get_worldpayxml_funding_transaction_type_code(
+    funding_transaction_type: api_models::payments::WorldpayxmlFundingTransactionType,
+) -> &'static str {
+    use api_models::payments::WorldpayxmlFundingTransactionType as TransactionType;
+
+    match funding_transaction_type {
+        TransactionType::CreditCardBillRepayment => "CR",
+        TransactionType::GiftCardPurchase => "GP",
+        TransactionType::GiftCardPurchaseForAnother => "GO",
+        TransactionType::NonReloadablePrepaidCard => "PC",
+        TransactionType::ReloadablePrepaidCardOrAccount => "TP",
+        TransactionType::GamingChipsPurchase => "GC",
+        TransactionType::GamingStoredValueWallet => "GS",
+        TransactionType::GamingStagedDigitalWallet => "GW",
+        TransactionType::LiquidAndCryptoAssetsPurchase => "LC",
+        TransactionType::LiquidAndCryptoStoredValueWalletLoad => "LS",
+        TransactionType::StoredValueDigitalWalletLoad => "SW",
+        TransactionType::StoredValueDigitalWalletLoadNonSecurities => "WV",
+        TransactionType::SecuritiesStoredValueDigitalWalletLoad => "WO",
+        TransactionType::SecuritiesStagedDigitalWalletLoad => "WH",
+        TransactionType::SingleMerchantWalletLoad => "WS",
+        TransactionType::DebitCardLoad => "FC",
+        TransactionType::TransferToOwnDebitAccount => "TA",
+        TransactionType::FundsTransferMeToMe => "FM",
+        TransactionType::AccountToAccount => "AA",
+        TransactionType::BackToBackP2pWithoutWallet => "PB",
+        TransactionType::BackToBackP2pWithWallet => "PN",
+        TransactionType::AgentCashOut => "AC",
+        TransactionType::StagedDigitalWalletLoad => "WA",
+        TransactionType::StagedDigitalWalletPurchase => "WP",
+        TransactionType::BackToBackCardPurchase => "BB",
+        TransactionType::PayrollDisbursementFunding => "PD",
+        TransactionType::BusinessToConsumerDisbursement => "BD",
+        TransactionType::BusinessToBusinessInvoicePayment => "BT",
+    }
+}
+
+fn get_worldpayxml_payment_purpose_code(
+    payment_purpose: api_models::payments::WorldpayxmlPaymentPurpose,
+) -> &'static str {
+    use api_models::payments::WorldpayxmlPaymentPurpose as Purpose;
+
+    match payment_purpose {
+        Purpose::FamilySupport => "00",
+        Purpose::RegularLabourTransfers => "01",
+        Purpose::TravelAndTourism => "02",
+        Purpose::Education => "03",
+        Purpose::HospitalisationAndMedicalTreatment => "04",
+        Purpose::EmergencyNeed => "05",
+        Purpose::Savings => "06",
+        Purpose::Gifts => "07",
+        Purpose::Other => "08",
+        Purpose::Salary => "09",
+        Purpose::CrowdLending => "10",
+        Purpose::CryptoCurrency => "11",
+        Purpose::HighRiskSecurities => "16",
+    }
+}
+
+fn build_worldpayxml_funding_transfer<F, Req, Res>(
+    router_data: &RouterData<F, Req, Res>,
+    card_number: Secret<String>,
+    recipient_details: Option<&api_models::payments::RecipientDetails>,
+    business_country: Option<common_enums::CountryAlpha2>,
+    connector_intent_metadata: Option<&api_models::payments::ConnectorMetadata>,
+) -> Result<FundingTransfer, error_stack::Report<errors::ConnectorError>> {
+    let worldpayxml_data = connector_intent_metadata
+        .and_then(|metadata| metadata.worldpayxml.clone())
+        .ok_or_else(connector_utils::missing_field_err(
+            "connector_metadata.worldpayxml",
+        ))?;
+
+    let transfer_type = worldpayxml_data
+        .funding_transaction_type
+        .map(get_worldpayxml_funding_transaction_type_code)
+        .ok_or_else(connector_utils::missing_field_err(
+            "connector_metadata.worldpayxml.funding_transaction_type",
+        ))?;
+
+    let payment_purpose = worldpayxml_data
+        .payment_purpose
+        .map(get_worldpayxml_payment_purpose_code)
+        .ok_or_else(connector_utils::missing_field_err(
+            "connector_metadata.worldpayxml.payment_purpose",
+        ))?;
+
+    Ok(FundingTransfer {
+        transfer_type: transfer_type.to_string(),
+        category: worldpayxml_constants::WORLDPAYXML_FUNDING_CATEGORY.to_string(),
+        payment_purpose: payment_purpose.to_string(),
+        funding_party: vec![
+            build_worldpayxml_sender_party(router_data, card_number)?,
+            build_worldpayxml_recipient_party(recipient_details, business_country)?,
+        ],
+    })
+}
+
 impl TryFrom<&WorldpayxmlRouterData<&PaymentsAuthorizeRouterData>> for PaymentService {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -1456,6 +1826,33 @@ impl TryFrom<&WorldpayxmlRouterData<&PaymentsAuthorizeRouterData>> for PaymentSe
             None
         };
 
+        let funding_transfer = item
+            .router_data
+            .request
+            .is_account_funded_transaction
+            .unwrap_or(false)
+            .then(|| {
+                let card_number = match &item.router_data.request.payment_method_data {
+                    PaymentMethodData::Card(card) => {
+                        Ok(Secret::new(card.card_number.get_card_no()))
+                    }
+                    _ => Err(errors::ConnectorError::NotSupported {
+                        message: "account funded transactions for non-card payment methods"
+                            .to_string(),
+                        connector: "worldpayxml",
+                    }),
+                }?;
+
+                build_worldpayxml_funding_transfer(
+                    item.router_data,
+                    card_number,
+                    item.router_data.request.recipient_details.as_ref(),
+                    item.router_data.request.business_country,
+                    item.router_data.request.connector_intent_metadata.as_ref(),
+                )
+            })
+            .transpose()?;
+
         let submit = Some(Submit {
             order: Order {
                 order_code,
@@ -1470,6 +1867,7 @@ impl TryFrom<&WorldpayxmlRouterData<&PaymentsAuthorizeRouterData>> for PaymentSe
                 info_threed_secure: None,
                 session: None,
                 create_token,
+                funding_transfer,
             },
         });
 
@@ -2327,6 +2725,7 @@ impl TryFrom<WorldpayxmlRouterData<&PaymentsCompleteAuthorizeRouterData>> for Pa
                     info_threed_secure,
                     session,
                     create_token: None,
+                    funding_transfer: None,
                 },
             })
         } else {
@@ -2436,6 +2835,33 @@ impl TryFrom<WorldpayxmlRouterData<&PaymentsCompleteAuthorizeRouterData>> for Pa
                 None
             };
 
+            let funding_transfer = item
+                .router_data
+                .request
+                .is_account_funded_transaction
+                .unwrap_or(false)
+                .then(|| {
+                    let card_number = match &item.router_data.request.payment_method_data {
+                        Some(PaymentMethodData::Card(card)) => {
+                            Ok(Secret::new(card.card_number.get_card_no()))
+                        }
+                        _ => Err(errors::ConnectorError::NotSupported {
+                            message: "account funded transactions for non-card payment methods"
+                                .to_string(),
+                            connector: "worldpayxml",
+                        }),
+                    }?;
+
+                    build_worldpayxml_funding_transfer(
+                        item.router_data,
+                        card_number,
+                        item.router_data.request.recipient_details.as_ref(),
+                        item.router_data.request.business_country,
+                        item.router_data.request.connector_intent_metadata.as_ref(),
+                    )
+                })
+                .transpose()?;
+
             Some(Submit {
                 order: Order {
                     order_code,
@@ -2450,6 +2876,7 @@ impl TryFrom<WorldpayxmlRouterData<&PaymentsCompleteAuthorizeRouterData>> for Pa
                     info_threed_secure: None,
                     session: None,
                     create_token,
+                    funding_transfer,
                 },
             })
         };
@@ -3211,6 +3638,7 @@ impl TryFrom<&WorldpayxmlRouterData<&PayoutsRouterData<PoFulfill>>> for PaymentS
                 billing_address: None,
                 shipping_address: None,
                 create_token: None,
+                funding_transfer: None,
             },
         });
 
