@@ -4,6 +4,25 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.08.31.0
+
+### Features
+
+- **connector:** [WorldpayWPG][Checkout] Add support for AFT ([#13889](https://github.com/juspay/hyperswitch/pull/13889)) ([`bde2cbf`](https://github.com/juspay/hyperswitch/commit/bde2cbf34c128bc252e797880eccebc296c20896))
+- **connectors:** [worldpay][checkout] add payment_account_reference support ([#13884](https://github.com/juspay/hyperswitch/pull/13884)) ([`32c3030`](https://github.com/juspay/hyperswitch/commit/32c30307aad3053d177998d0560d0f668ae7c834))
+- **core:** Add support for account funded transactions (AFT) ([#13870](https://github.com/juspay/hyperswitch/pull/13870)) ([`2f48378`](https://github.com/juspay/hyperswitch/commit/2f483780662be9c24bd1fe8dc8da37802756edee))
+- **paypal:** Support billing agreement mandates ([#13574](https://github.com/juspay/hyperswitch/pull/13574)) ([`b72fac7`](https://github.com/juspay/hyperswitch/commit/b72fac7e8d18d76f9ea3b1b71a05bb8739cafc9d))
+- **prism:** Add payment_account_reference field in prism payment response ([#13883](https://github.com/juspay/hyperswitch/pull/13883)) ([`806ec7d`](https://github.com/juspay/hyperswitch/commit/806ec7dcc036d895b93313d5e8eaa2374e25bcdf))
+- **revenue_recovery:** Mathmodel retry-time predictor ([#13804](https://github.com/juspay/hyperswitch/pull/13804)) ([`741673e`](https://github.com/juspay/hyperswitch/commit/741673e24676ce437c1270975cedf1395bd1adb2))
+
+### Bug Fixes
+
+- **revenue_recovery:** Scope recovery MCA lookups to the authenticated profile ([#13809](https://github.com/juspay/hyperswitch/pull/13809)) ([`52b1c2a`](https://github.com/juspay/hyperswitch/commit/52b1c2ad95300071c101237819c2860100d2b0cc))
+
+**Full Changelog:** [`2026.08.28.0...2026.08.31.0`](https://github.com/juspay/hyperswitch/compare/2026.08.28.0...2026.08.31.0)
+
+- - -
+
 ## 2026.08.28.0
 
 ### Features
