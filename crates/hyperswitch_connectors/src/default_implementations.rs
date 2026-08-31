@@ -8953,6 +8953,7 @@ default_imp_for_revenue_recovery_dispute_record_back!(
     connectors::Globalpay,
     connectors::Globepay,
     connectors::Gocardless,
+    connectors::GotymeSanlam,
     connectors::Gpayments,
     connectors::Hipay,
     connectors::Hyperpg,
