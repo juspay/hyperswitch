@@ -2280,11 +2280,22 @@ pub async fn list_payment_methods_for_payments(
         move |state, auth: auth::AuthenticationData, payload, _| {
             let payment_id = payment_id.clone();
             async move {
+                // This route is authenticated by the merchant API key. The request struct is
+                // shared with the client route, so reject a client secret outright rather than
+                // accepting one from the query string and ignoring it.
+                if payload.client_secret.is_some() {
+                    Err(errors::ApiErrorResponse::InvalidRequestData {
+                        message: "client_secret is not supported on this endpoint; \
+                                  it is authenticated using the merchant API key"
+                            .to_string(),
+                    })?
+                }
+
                 Box::pin(payment_methods_routes::client::list_payment_methods_client(
                     state,
                     auth.platform,
                     payment_id,
-                    payload.client_secret,
+                    None,
                 ))
                 .await
             }
