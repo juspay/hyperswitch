@@ -37,9 +37,9 @@ use api_models::payment_methods::CountryCodeWithName;
 #[cfg(feature = "payouts")]
 use common_enums::PayoutStatus;
 use common_enums::{
-    CardType, CountryAlpha2, DisputeStatus, EventClass, EventType, IntentStatus, InvoiceStatus,
-    MandateStatus, MerchantCategoryCode, MerchantCategoryCodeWithName, RefundStatus,
-    SubscriptionStatus,
+    CardSegmentType, CardType, CountryAlpha2, DisputeStatus, EventClass, EventType, FundingSource,
+    IntentStatus, InvoiceStatus, MandateStatus, MerchantCategoryCode, MerchantCategoryCodeWithName,
+    RefundStatus, SubscriptionStatus,
 };
 use strum::IntoEnumIterator;
 
