@@ -445,6 +445,7 @@ impl TryFrom<SetupMandateRequestData> for PaymentsPreProcessingData {
             customer_acceptance: data.customer_acceptance,
             setup_future_usage: data.setup_future_usage,
             is_stored_credential: data.is_stored_credential,
+            force_3ds_challenge: None,
         })
     }
 }
@@ -773,6 +774,7 @@ pub struct PaymentsPreProcessingData {
     // New amount for amount frame work
     pub minor_amount: MinorUnit,
     pub is_stored_credential: Option<bool>,
+    pub force_3ds_challenge: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -849,6 +851,7 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsPreProcessingData {
             customer_acceptance: data.customer_acceptance,
             setup_future_usage: data.setup_future_usage,
             is_stored_credential: data.is_stored_credential,
+            force_3ds_challenge: None,
         })
     }
 }
@@ -939,6 +942,7 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsAuthenticateData {
             sdk_information: None,
             device_channel: None,
             webhook_url: data.webhook_url,
+            force_3ds_challenge: None,
         })
     }
 }
@@ -959,6 +963,7 @@ pub struct PaymentsAuthenticateData {
     pub sdk_information: Option<api_models::payments::SdkInformation>,
     pub device_channel: Option<api_models::payments::DeviceChannel>,
     pub webhook_url: Option<String>,
+    pub force_3ds_challenge: Option<bool>,
 }
 
 impl TryFrom<CompleteAuthorizeData> for PaymentsAuthenticateData {
@@ -980,6 +985,7 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsAuthenticateData {
             sdk_information: None,
             device_channel: None,
             webhook_url: None,
+            force_3ds_challenge: data.force_3ds_challenge,
         })
     }
 }
@@ -1051,6 +1057,7 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsPreProcessingData {
             customer_acceptance: data.customer_acceptance,
             setup_future_usage: data.setup_future_usage,
             is_stored_credential: data.is_stored_credential,
+            force_3ds_challenge: data.force_3ds_challenge,
         })
     }
 }
@@ -1126,6 +1133,7 @@ pub struct CompleteAuthorizeData {
     pub tokenization: Option<common_enums::Tokenization>,
     pub router_return_url: Option<String>,
     pub merchant_order_reference_id: Option<String>,
+    pub force_3ds_challenge: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize)]

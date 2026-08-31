@@ -3930,11 +3930,24 @@ pub async fn store_payment_method_data_in_vault(
     merchant_key_store: &domain::MerchantKeyStore,
     business_profile: Option<&domain::Profile>,
 ) -> RouterResult<Option<String>> {
+    let should_store_google_pay_pan_only_for_three_ds = payment_attempt
+        .connector
+        .as_deref()
+        .and_then(|connector| api_enums::Connector::from_str(connector).ok())
+        .is_some_and(|connector| {
+            connector.should_store_google_pay_pan_only_for_three_ds(
+                payment_method,
+                payment_attempt.authentication_type,
+                is_google_pay_pan_only(payment_method_data),
+            )
+        });
+
     if should_store_payment_method_data_in_vault(
         &state.conf.temp_locker_enable_config,
         payment_attempt.connector.clone(),
         payment_method,
     ) || payment_intent.request_external_three_ds_authentication == Some(true)
+        || should_store_google_pay_pan_only_for_three_ds
     {
         let parent_payment_method_token = store_in_vault_and_generate_ppmt(
             state,
@@ -3951,6 +3964,37 @@ pub async fn store_payment_method_data_in_vault(
     }
 
     Ok(None)
+}
+
+pub fn get_force_3ds_challenge_from_authentication_type(
+    force_3ds_challenge: Option<bool>,
+    authentication_type: Option<common_enums::AuthenticationType>,
+) -> Option<bool> {
+    if authentication_type.is_some_and(|auth_type| auth_type.is_three_ds()) {
+        Some(true)
+    } else {
+        force_3ds_challenge
+    }
+}
+
+fn is_google_pay_pan_only(payment_method_data: &domain::PaymentMethodData) -> bool {
+    let domain::PaymentMethodData::Wallet(domain::WalletData::GooglePay(gpay_data)) =
+        payment_method_data
+    else {
+        return false;
+    };
+
+    gpay_data
+        .tokenization_data
+        .get_encrypted_auth_method()
+        .map(|auth_method| auth_method == common_enums::GooglePayAuthMethod::PanOnly)
+        .unwrap_or_else(|| {
+            gpay_data
+                .info
+                .assurance_details
+                .as_ref()
+                .is_some_and(|assurance_details| !assurance_details.card_holder_authenticated)
+        })
 }
 pub fn should_store_payment_method_data_in_vault(
     temp_locker_enable_config: &TempLockerEnableConfig,
