@@ -1213,11 +1213,6 @@ pub async fn check_hard_decline(
     state: &SessionState,
     payment_attempt: &payment_attempt::PaymentAttempt,
 ) -> Result<bool, error_stack::Report<storage_impl::errors::RecoveryError>> {
-    let error_message = payment_attempt
-        .error
-        .as_ref()
-        .map(|details| details.message.clone());
-
     let error_code = payment_attempt
         .error
         .as_ref()
@@ -1228,6 +1223,21 @@ pub async fn check_hard_decline(
         .clone()
         .ok_or(storage_impl::errors::RecoveryError::ValueNotFound)
         .attach_printable("unable to derive payment connector from payment attempt")?;
+
+    // Stripe returns the same generic `message` for every card decline and carries the issuer's
+    // decline code only in `reason` (`message - <message>, decline_code - <decline_code>`), so the
+    // gsm lookup uses `reason` for stripe to tell a lost card apart from a retryable decline.
+    let matches_gsm_on_error_reason = connector_name
+        .parse::<common_enums::connector_enums::Connector>()
+        .map(|connector| connector == common_enums::connector_enums::Connector::Stripe)
+        .unwrap_or(false);
+
+    let error_message = payment_attempt.error.as_ref().map(|details| {
+        matches_gsm_on_error_reason
+            .then(|| details.reason.clone())
+            .flatten()
+            .unwrap_or_else(|| details.message.clone())
+    });
 
     let gsm_record = payments::helpers::get_gsm_record(
         state,
