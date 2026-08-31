@@ -3,6 +3,7 @@ import State from "../../../utils/State";
 import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 
 let globalState;
+let zeroAuthShouldSkip = false;
 
 describe("Card - SingleUse Mandates flow test", () => {
   before("seed global state", function () {
@@ -21,12 +22,23 @@ describe("Card - SingleUse Mandates flow test", () => {
         ) {
           skip = true;
         }
+
+        zeroAuthShouldSkip = utils.shouldIncludeConnector(
+          globalState.get("connectorId"),
+          utils.CONNECTOR_LISTS.INCLUDE.ZERO_AUTH_MANDATE
+        );
       })
       .then(() => {
         if (skip) {
           this.skip();
         }
       });
+  });
+
+  beforeEach(function () {
+    if (zeroAuthShouldSkip) {
+      this.skip();
+    }
   });
 
   after("flush global state", () => {
