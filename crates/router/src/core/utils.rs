@@ -62,7 +62,7 @@ use crate::{
         payments::PaymentData,
     },
     db::StorageInterface,
-    routes::SessionState,
+    routes::{metrics::MerchantMode, SessionState},
     types::{
         self, api, domain,
         storage::{self, enums},
@@ -97,6 +97,15 @@ pub async fn get_feature_config(
     platform: &domain::Platform,
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 ) -> FeatureConfig {
+    if let Some(context) = state.payment_metrics_context {
+        return FeatureConfig {
+            is_payment_method_modular_allowed: matches!(
+                context.merchant_mode,
+                MerchantMode::Modular
+            ),
+        };
+    }
+
     let dimensions = dimensions
         .with_organization_id(
             platform
@@ -283,6 +292,9 @@ pub async fn construct_payout_router_data<'a, F>(
             amount: payouts.amount.get_amount_as_i64(),
             minor_amount: payouts.amount,
             connector_payout_id: payout_attempt.connector_payout_id.clone(),
+            connector_eligibility_reference_id: payout_attempt
+                .connector_eligibility_reference_id
+                .clone(),
             destination_currency: payouts.destination_currency,
             source_currency: payouts.source_currency,
             entity_type: payouts.entity_type.to_owned(),
@@ -299,6 +311,7 @@ pub async fn construct_payout_router_data<'a, F>(
                     phone_country_code: c.phone_country_code,
                     tax_registration_id: c.tax_registration_id.map(Encryptable::into_inner),
                     document_details: None,
+                    date_of_birth: None,
                 }),
             connector_transfer_method_id,
             webhook_url: Some(webhook_url),
@@ -315,7 +328,10 @@ pub async fn construct_payout_router_data<'a, F>(
         payment_method_token: None,
         recurring_mandate_payment_data: None,
         preprocessing_id: None,
-        connector_request_reference_id: payout_attempt.payout_attempt_id.clone(),
+        connector_request_reference_id: get_payout_connector_request_reference_id(
+            connector_data,
+            payout_attempt,
+        ),
         payout_method_data: payout_data.payout_method_data.to_owned(),
         quote_id: None,
         test_mode,
@@ -344,6 +360,7 @@ pub async fn construct_payout_router_data<'a, F>(
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
+        customer_date_of_birth: None,
     };
 
     Ok(router_data)
@@ -476,6 +493,9 @@ pub async fn construct_refund_router_data<'a, F>(
             refund_connector_metadata: refund.metadata.clone(),
             capture_method: Some(capture_method),
             additional_payment_method_data: None,
+            payment_connector_request_reference_id: payment_attempt
+                .connector_request_reference_id
+                .clone(),
         },
 
         response: Ok(types::RefundsResponseData {
@@ -524,6 +544,7 @@ pub async fn construct_refund_router_data<'a, F>(
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
+        customer_date_of_birth: None,
     };
 
     Ok(router_data)
@@ -676,6 +697,9 @@ pub async fn construct_refund_router_data<'a, F>(
             merchant_config_currency,
             capture_method,
             additional_payment_method_data,
+            payment_connector_request_reference_id: payment_attempt
+                .connector_request_reference_id
+                .clone(),
         },
 
         response: Ok(types::RefundsResponseData {
@@ -723,6 +747,7 @@ pub async fn construct_refund_router_data<'a, F>(
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
+        customer_date_of_birth: None,
     };
 
     Ok(router_data)
@@ -1245,6 +1270,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
+        customer_date_of_birth: None,
     };
     Ok(router_data)
 }
@@ -1358,6 +1384,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
+        customer_date_of_birth: None,
     };
     Ok(router_data)
 }
@@ -1477,6 +1504,7 @@ pub async fn construct_upload_file_router_data<'a>(
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
+        customer_date_of_birth: None,
     };
     Ok(router_data)
 }
@@ -1557,6 +1585,7 @@ pub async fn construct_dispute_list_router_data<'a>(
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
+        customer_date_of_birth: None,
     })
 }
 
@@ -1672,6 +1701,7 @@ pub async fn construct_dispute_sync_router_data<'a>(
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
+        customer_date_of_birth: None,
     };
     Ok(router_data)
 }
@@ -1810,6 +1840,7 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<F: Clone>(
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
+        customer_date_of_birth: None,
     };
     Ok(router_data)
 }
@@ -1926,6 +1957,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
+        customer_date_of_birth: None,
     };
     Ok(router_data)
 }
@@ -2032,6 +2064,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
+        customer_date_of_birth: None,
     };
     Ok(router_data)
 }
@@ -2081,6 +2114,21 @@ pub fn get_connector_request_reference_id(
             is_config_enabled_to_send_payment_id_as_connector_request_id,
         );
     Ok(connector_request_reference_id)
+}
+
+#[cfg(feature = "payouts")]
+pub fn get_payout_connector_request_reference_id(
+    connector_data: &api::ConnectorData,
+    payout_attempt: &hyperswitch_domain_models::payouts::payout_attempt::PayoutAttempt,
+) -> String {
+    // If there's already a connector_request_reference_id stored in the payout_attempt,
+    // reuse it to maintain consistency across multiple connector calls
+    match &payout_attempt.connector_request_reference_id {
+        Some(id) => id.clone(),
+        None => connector_data
+            .connector
+            .generate_payout_connector_request_reference_id(payout_attempt),
+    }
 }
 
 // TODO: Based on the connector configuration, the connector_request_reference_id should be generated

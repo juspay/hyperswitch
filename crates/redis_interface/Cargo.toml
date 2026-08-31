@@ -9,8 +9,8 @@ license.workspace = true
 
 [features]
 default = ["redis-rs"]
-fred = ["dep:fred"]
-redis-rs = ["dep:redis"]
+fred = ["dep:fred", "deja?/fred"]
+redis-rs = ["dep:redis", "deja?/redis-rs"]
 multitenancy_fallback = []
 deja = ["common_utils/deja", "dep:deja", "dep:serde_json"]
 metrics = ["dep:router_env"]
@@ -35,7 +35,7 @@ fred = { version = "8.0.6", optional = true, features = [
 
 # First party crates
 common_utils = { version = "0.1.0", path = "../common_utils", features = ["async_ext"] }
-deja = { git = "https://github.com/juspay/deja", rev = "2c3a795ef4d8d2a5eebc47bbe7134984b75be6b3", optional = true, default-features = false, features = ["error-stack"] }
+deja = { git = "https://github.com/juspay/deja", rev = "337181ebfd74b7e571a63a9cce515ff3c9309db7", optional = true, default-features = false, features = ["error-stack"] }
 router_env = { version = "0.1.0", path = "../router_env", optional = true }
 
 [dev-dependencies]

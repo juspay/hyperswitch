@@ -222,6 +222,16 @@ impl ForeignTryFrom<payments_grpc::PaymentMethod> for domain_pm::PaymentMethodDa
                         .additional_details
                         .and_then(|details| serde_json::from_str(details.peek()).ok())
                         .map(Secret::new),
+                    bank_name: open_banking
+                        .bank_name
+                        .map(parse_grpc_enum::<payments_grpc::BankNames>)
+                        .transpose()?
+                        .map(
+                            <common_enums::BankNames as interface_helpers::ForeignTryFrom<
+                                payments_grpc::BankNames,
+                            >>::foreign_try_from,
+                        )
+                        .transpose()?,
                 },
             )),
             PaymentMethod::Ideal(ideal) => {
@@ -1449,11 +1459,26 @@ pub fn build_unified_connector_service_payment_method(
     connector_meta_data: Option<&common_utils::pii::SecretSerdeValue>,
 ) -> CustomResult<payments_grpc::PaymentMethod, UnifiedConnectorServiceError> {
     // A connector tokenization token settles for any payment method, including wallets.
+    // The token message carries the payment method it was minted from.
     if let Some(PaymentMethodToken::Token(token)) = payment_method_token {
+        let token_payment_method_type = match &payment_method_data {
+            hyperswitch_domain_models::payment_method_data::PaymentMethodData::Wallet(
+                hyperswitch_domain_models::payment_method_data::WalletData::ApplePay(_),
+            ) => {
+                Some(payments_grpc::token_payment_method_type::TokenPaymentMethod::ApplePay.into())
+            }
+            hyperswitch_domain_models::payment_method_data::PaymentMethodData::Wallet(
+                hyperswitch_domain_models::payment_method_data::WalletData::GooglePay(_),
+            ) => {
+                Some(payments_grpc::token_payment_method_type::TokenPaymentMethod::GooglePay.into())
+            }
+            _ => None,
+        };
         return Ok(payments_grpc::PaymentMethod {
             payment_method: Some(PaymentMethod::Token(
                 payments_grpc::TokenPaymentMethodType {
                     token: Some(token.clone()),
+                    token_payment_method_type,
                 },
             )),
         });
@@ -1626,8 +1651,10 @@ pub fn build_unified_connector_service_payment_method(
                 iban,
                 account_holder_name,
                 additional_details,
+                bank_name: _,
             } => {
                 let open_banking = payments_grpc::OpenBanking {
+                    bank_name: None,
                     account_number: account_number.map(|v| v.expose().into()),
                     sort_code: sort_code.map(|v| v.expose().into()),
                     iban: iban.map(|v| v.expose().into()),
@@ -2042,6 +2069,10 @@ pub fn build_unified_connector_service_payment_method(
                     Some(PaymentMethodToken::Token(token)) => {
                         let token_payment_method = payments_grpc::TokenPaymentMethodType {
                             token: Some(token.clone()),
+                            token_payment_method_type: Some(
+                                payments_grpc::token_payment_method_type::TokenPaymentMethod::ApplePay
+                                    .into(),
+                            ),
                         };
                         Ok(payments_grpc::PaymentMethod {
                             payment_method: Some(PaymentMethod::Token(token_payment_method)),
@@ -3416,7 +3447,7 @@ impl
             transformers::convert_connector_service_status_code(response.status_code)?;
 
         let router_data_response = Result::<PayoutsResponseData, ErrorResponse>::foreign_try_from(
-            (response.clone(), prev_status),
+            (response, prev_status),
         )?;
 
         Ok(Self {
