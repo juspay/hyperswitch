@@ -433,6 +433,7 @@ impl
         let order_details = build_ucs_order_details(router_data.request.order_details.as_deref());
         let l2_l3_data = build_ucs_l2_l3_data(router_data.l2_l3_data.as_deref());
         Ok(Self {
+            split_settlement: None,
             split_payments: router_data
                 .request
                 .split_payments
@@ -573,7 +574,6 @@ impl
                 }),
             // TODO: Populate currency_conversion_data when Dynamic Currency Conversion (DCC) is implemented
             currency_conversion_data: None,
-            split_settlement: None,
         })
     }
 }
@@ -633,6 +633,7 @@ impl
                         payment_method: Some(payments_grpc::payment_method::PaymentMethod::Token(
                             payments_grpc::TokenPaymentMethodType {
                                 token: Some(Secret::new(handle_token.to_string())),
+                                token_payment_method_type: None,
                             },
                         )),
                     })
@@ -709,6 +710,7 @@ impl
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
+            split_settlement: None,
             split_payments: None,
             domain_data: None,
             mit_category: None,
@@ -811,7 +813,6 @@ impl
             partner_merchant_identifier_details: None,
             // TODO: Populate currency_conversion_data when Dynamic Currency Conversion (DCC) is implemented
             currency_conversion_data: None,
-            split_settlement: None,
         })
     }
 }
@@ -1782,6 +1783,7 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
+            split_settlement: None,
             connector_transaction_id,
             merchant_capture_id: Some(router_data.connector_request_reference_id.clone()),
             amount_to_capture: Some(payments_grpc::Money {
@@ -1830,7 +1832,6 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
                     currency: currency.into(),
                 }
             }),
-            split_settlement: None,
         })
     }
 }
@@ -1903,6 +1904,7 @@ impl
             .transpose()?;
 
         Ok(Self {
+            split_settlement: None,
             split_payments: None,
             domain_data: None,
             mit_category: None,
@@ -1986,7 +1988,6 @@ impl
             partner_merchant_identifier_details: None,
             // TODO: Populate currency_conversion_data when Dynamic Currency Conversion (DCC) is implemented
             currency_conversion_data: None,
-            split_settlement: None,
         })
     }
 }
@@ -2062,6 +2063,7 @@ impl
         let order_details = build_ucs_order_details(router_data.request.order_details.as_deref());
         let l2_l3_data = build_ucs_l2_l3_data(router_data.l2_l3_data.as_deref());
         Ok(Self {
+            split_settlement: None,
             split_payments: router_data
                 .request
                 .split_payments
@@ -2184,7 +2186,6 @@ impl
             partner_merchant_identifier_details: None,
             // TODO: Populate currency_conversion_data when Dynamic Currency Conversion (DCC) is implemented
             currency_conversion_data: None,
-            split_settlement: None,
         })
     }
 }
@@ -2250,6 +2251,7 @@ impl
             .transpose()?;
 
         Ok(Self {
+            split_settlement: None,
             split_payments: router_data
                 .request
                 .split_payments
@@ -2360,7 +2362,6 @@ impl
             partner_merchant_identifier_details: None,
             // TODO: Populate currency_conversion_data when Dynamic Currency Conversion (DCC) is implemented
             currency_conversion_data: None,
-            split_settlement: None,
         })
     }
 }
@@ -2699,6 +2700,7 @@ impl
             .attach_printable("Failed to convert authentication type")?;
 
         Ok(Self {
+            split_settlement: None,
             split_payments: router_data
                 .request
                 .split_payments
@@ -2830,7 +2832,6 @@ impl
                 .map(payments_grpc::PaymentChannel::foreign_try_from)
                 .transpose()?
                 .map(|payment_channel| payment_channel.into()),
-            split_settlement: None,
         })
     }
 }
@@ -7360,6 +7361,7 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
             .map(|payment_method_type| payment_method_type.into());
 
         Ok(Self {
+            split_settlement_refund: None,
             split_refunds: router_data
                 .request
                 .split_refunds
@@ -7420,7 +7422,6 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
                 .payment_connector_request_reference_id
                 .clone(),
             payment_method: None,
-            split_settlement_refund: None,
         })
     }
 }
@@ -8213,6 +8214,7 @@ impl
             merchant_payout_id: router_data.payout_id.clone(),
             address: Some(address),
             amount: Some(money),
+            payout_connector_metadata: None,
             destination_currency: destination_currency.into(),
             customer: Some(customer),
             access_token: router_data.access_token.clone().map(|at| at.token),
@@ -8238,7 +8240,6 @@ impl
                 .map(payments_grpc::SourceBankData::foreign_try_from)
                 .transpose()?,
             description: router_data.description.clone(),
-            payout_connector_metadata: None,
         })
     }
 }
