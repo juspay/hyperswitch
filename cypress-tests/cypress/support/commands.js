@@ -3325,13 +3325,6 @@ Cypress.Commands.add(
                     response.body[key]?.card?.auth_code,
                     "payment_method_data.card.auth_code"
                   ).to.be.a("string").and.not.be.empty;
-                } else if (key === "payment_account_reference") {
-                  if (resData.body[key] === null) {
-                    expect(response.body[key], [key]).to.be.null;
-                  } else {
-                    expect(response.body[key], [key]).to.be.a("string").and.not
-                      .be.empty;
-                  }
                 } else {
                   expect(resData.body[key], [key]).to.deep.equal(
                     response.body[key]

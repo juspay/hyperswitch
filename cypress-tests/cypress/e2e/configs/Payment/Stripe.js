@@ -343,8 +343,6 @@ export const connectorDetails = {
           status: "requires_customer_action",
           setup_future_usage: "on_session",
           payment_method_data: payment_method_data_3ds,
-          // PAR is verified post-redirection in 05-ThreeDSAutoCapture.cy.js
-          // (it is only available after the 3DS challenge completes)
         },
       },
     },

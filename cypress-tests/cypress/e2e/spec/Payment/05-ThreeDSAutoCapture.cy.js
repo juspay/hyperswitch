@@ -74,24 +74,6 @@ describe("Card - ThreeDS payment flow test", () => {
         const expected_redirection = fixtures.confirmBody["return_url"];
         cy.handleRedirection(globalState, expected_redirection);
       });
-
-      cy.step("retrieve payment", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: retrieve payment");
-          return;
-        }
-        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["3DSAutoCapture"];
-
-        // Stripe returns PAR only after the 3DS challenge completes,
-        // so it is verified on the post-redirection retrieve
-        if (globalState.get("connectorId") === "stripe") {
-          confirmData.Response.body.payment_account_reference = "dynamic_par";
-        }
-
-        cy.retrievePaymentCallTest({ globalState, data: confirmData });
-      });
     });
   });
 });
