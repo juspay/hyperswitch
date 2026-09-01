@@ -1923,7 +1923,9 @@ impl PaymentAttempt {
     pub fn check_and_get_payment_method_data_based_on_encryption_strategy(&self) -> Option<Value> {
         if self
             .payment_method
-            .map(|payment_method| payment_method.is_additional_payment_method_data_sensitive())
+            .map(|payment_method| {
+                payment_method.is_additional_payment_method_data_sensitive(self.payment_method_type)
+            })
             .unwrap_or(false)
         {
             self.encrypted_payment_method_data
