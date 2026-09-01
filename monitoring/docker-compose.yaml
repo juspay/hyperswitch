@@ -81,6 +81,14 @@ services:
     volumes:
       - ../config:/etc/grafana
 
+  vector:
+    image: timberio/vector:latest-debian
+    volumes:
+      - ../logs:/var/log/router
+    networks:
+      - loki
+    restart: unless-stopped
+
   # router-sc:
   #   image: rust:latest
   #   ports:
