@@ -65,11 +65,7 @@ use hyperswitch_interfaces::{
 use hyperswitch_masking::{Mask, PeekInterface};
 use transformers as elavon_pg;
 
-use crate::{
-    constants::headers,
-    types::ResponseRouterData,
-    utils::{self, PaymentsAuthorizeRequestData},
-};
+use crate::{constants::headers, types::ResponseRouterData, utils};
 
 #[derive(Clone)]
 pub struct ElavonPg {
@@ -713,17 +709,19 @@ impl ConnectorSpecifications for ElavonPg {
         Some(&ELAVON_PG_SUPPORTED_WEBHOOK_FLOWS)
     }
 
-    fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
-        match current_flow {
-            api::CurrentFlowInfo::Authorize {
-                auth_type,
-                request_data,
-            } => auth_type.is_three_ds() && request_data.is_card(),
-            api::CurrentFlowInfo::CompleteAuthorize { .. }
-            | api::CurrentFlowInfo::SetupMandate { .. }
-            | api::CurrentFlowInfo::Psync { .. }
-            | api::CurrentFlowInfo::UpdatePostConfirm { .. }
-            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
-        }
+    /// Elavon PG never runs a pre-authentication leg.
+    ///
+    /// The EPG direct API supports **external / pass-through 3DS only**: the ECI, CAVV,
+    /// DS transaction id and protocol version are produced by a separate 3DS provider and
+    /// travel in the `threeDSecure` object on the single `POST /transactions` sale. EPG
+    /// itself performs 3DS only inside its Hosted Payment Pages, where the shopper enters
+    /// the PAN on Elavon's own page - a path that is unreachable from here.
+    ///
+    /// Returning `true` for card 3DS would make `authorize_flow` call the UCS
+    /// `pre_authenticate` RPC, which this connector does not implement, failing the payment
+    /// with `Unimplemented - pre_authenticate flow for elavon_pg`. There is likewise no
+    /// `CompleteAuthorize` leg, because EPG never returns a redirect or a challenge.
+    fn is_pre_authentication_flow_required(&self, _current_flow: api::CurrentFlowInfo) -> bool {
+        false
     }
 }
