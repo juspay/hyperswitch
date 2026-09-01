@@ -34,7 +34,15 @@ describe("Payment Methods Tests", () => {
   });
 
   context("Set default payment method", () => {
-    it("List PM for customer -> Create Payment Method -> create-payment-call-test -> confirm-payment-call-test -> List PM for customer -> Set default payment method", () => {
+    it("List PM for customer -> Create Payment Method -> create-payment-call-test -> confirm-payment-call-test -> List PM for customer -> Set default payment method", function () {
+      if (
+        utils.CONNECTOR_LISTS.EXCLUDE.SAVE_CARD.includes(
+          globalState.get("connectorId")
+        )
+      ) {
+        this.skip();
+      }
+
       let shouldContinue = true;
 
       cy.step("List PM for customer", () => {
@@ -134,7 +142,15 @@ describe("Payment Methods Tests", () => {
     });
 
     context("Create No 3DS off session save card payment", () => {
-      it("create+confirm-payment-call-test -> List PM for customer", () => {
+      it("create+confirm-payment-call-test -> List PM for customer", function () {
+        if (
+          utils.CONNECTOR_LISTS.EXCLUDE.SAVE_CARD.includes(
+            globalState.get("connectorId")
+          )
+        ) {
+          this.skip();
+        }
+
         cy.step("create+confirm-payment-call-test", () => {
           const data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
@@ -164,7 +180,15 @@ describe("Payment Methods Tests", () => {
     });
 
     context("Create 3DS off session save card payment", () => {
-      it("create+confirm-payment-call-test -> Handle redirection -> List PM for customer", () => {
+      it("create+confirm-payment-call-test -> Handle redirection -> List PM for customer", function () {
+        if (
+          utils.CONNECTOR_LISTS.EXCLUDE.SAVE_CARD.includes(
+            globalState.get("connectorId")
+          )
+        ) {
+          this.skip();
+        }
+
         cy.step("create+confirm-payment-call-test", () => {
           const data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"

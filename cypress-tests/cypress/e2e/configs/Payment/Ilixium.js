@@ -8,6 +8,14 @@ const verifiedCardDetails = {
   card_cvc: "111",
 };
 
+const threeDsCardDetails = {
+  card_number: "9001100511111112",
+  card_exp_month: "06",
+  card_exp_year: "28",
+  card_holder_name: "John Doe",
+  card_cvc: "111",
+};
+
 const ilixiumMetadata = {
   ilixium_date_of_birth: "01011990",
 };
@@ -53,18 +61,12 @@ export const connectorDetails = {
       },
     },
     "3DSManualCapture": getCustomExchange({
-      Configs: {
-        DELAY: {
-          STATUS: true,
-          TIMEOUT: 5000,
-        },
-      },
       Request: {
         payment_method: "card",
         payment_method_type: "credit",
         amount: 1000,
         payment_method_data: {
-          card: verifiedCardDetails,
+          card: threeDsCardDetails,
         },
         currency: "USD",
         customer_acceptance: null,
@@ -74,7 +76,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_capture",
+          status: "requires_customer_action",
         },
       },
     }),
@@ -84,7 +86,7 @@ export const connectorDetails = {
         payment_method_type: "credit",
         amount: 1000,
         payment_method_data: {
-          card: verifiedCardDetails,
+          card: threeDsCardDetails,
         },
         currency: "USD",
         customer_acceptance: null,
@@ -175,6 +177,16 @@ export const connectorDetails = {
         },
       },
     },
+    No3DSFailPayment: getCustomExchange({
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_message: "VA8",
+          error_code: "VA8",
+        },
+      },
+    }),
     manualPaymentRefund: getCustomExchange({
       Request: {
         amount: 500,
@@ -195,6 +207,72 @@ export const connectorDetails = {
         body: {
           status: "succeeded",
         },
+      },
+    }),
+    PaymentMethodIdMandateNo3DSAutoCapture: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: verifiedCardDetails,
+        },
+        currency: "USD",
+        mandate_data: null,
+        metadata: ilixiumMetadata,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_message: "4",
+          error_code: "4",
+        },
+      },
+    }),
+    PaymentMethodIdMandateNo3DSManualCapture: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: verifiedCardDetails,
+        },
+        currency: "USD",
+        mandate_data: null,
+        metadata: ilixiumMetadata,
+      },
+    }),
+    PaymentMethodIdMandate3DSAutoCapture: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: threeDsCardDetails,
+        },
+        currency: "USD",
+        mandate_data: null,
+        metadata: ilixiumMetadata,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_message: "4",
+          error_code: "4",
+        },
+      },
+    }),
+    PaymentMethodIdMandate3DSManualCapture: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: threeDsCardDetails,
+        },
+        currency: "USD",
+        mandate_data: null,
+        metadata: ilixiumMetadata,
       },
     }),
   },
