@@ -689,6 +689,8 @@ pub enum Flow {
     HypersenseVerifyToken,
     /// Signout Hypersense Token
     HypersenseSignoutToken,
+    /// Validate a dashboard token on behalf of an external service
+    ExternalServiceValidateToken,
     /// Payment Method Session Create
     PaymentMethodSessionCreate,
     /// Payment Method Session Retrieve
