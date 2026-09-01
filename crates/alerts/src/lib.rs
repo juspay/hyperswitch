@@ -1,20 +1,22 @@
 //! The alerting plane for Hyperswitch.
 //!
 //! `alerts` delivers alerts. Deciding what is alert-worthy happens elsewhere; alerts arrive here
-//! already decided. Its first concern is the [`notifier`], and further alerting concerns are
+//! already decided. Its first concern is [`core::notifier`], and further alerting concerns are
 //! expected to live alongside it.
+//!
+//! Laid out on the router's lines: [`core`] decides, [`routes`] exposes, and the whole route tree
+//! is visible in [`routes::app`].
 //!
 //! The crate ships two ways, on the `drainer` model: as its own binary, and as a library exposing
 //! an actix [`Scope`](actix_web::Scope) the router can mount in-process. Only the standalone path
 //! is wired up today — see [`start_server`] — but routes are defined as `Scope` factories
-//! ([`routes::Alerts::server`], [`health_check::Health::server`]) precisely so both paths will
-//! share one definition rather than drifting.
+//! ([`routes::Alerts::server`], [`routes::Health::server`]) precisely so both paths will share one
+//! definition rather than drifting.
 
 pub mod auth;
+pub mod core;
 pub mod errors;
-pub mod health_check;
 pub mod logger;
-pub mod notifier;
 pub mod routes;
 pub mod services;
 pub mod settings;
@@ -45,12 +47,17 @@ pub async fn start_server(state: AppState) -> errors::AlertsResult<Server> {
 
     let web_server = actix_web::HttpServer::new(move || {
         actix_web::App::new()
-            .service(health_check::Health::server())
+            .service(routes::Health::server())
             .service(routes::Alerts::server(state.clone()))
-            .wrap(router_env::RequestIdentifier::new(REQUEST_ID_HEADER))
+            // Order matters and is the reverse of what it reads like: actix runs the *last*
+            // registered wrap first, so `RequestIdentifier` must be registered last to run first.
+            // `CustomRootSpanBuilder` reads the request id out of request extensions, so if the
+            // tracing logger ran first it would find nothing and every root span would carry an
+            // empty `request_id`. This matches the router's ordering at `router/src/lib.rs:574`.
             .wrap(router_env::tracing_actix_web::TracingLogger::<
                 router_env::CustomRootSpanBuilder,
             >::new())
+            .wrap(router_env::RequestIdentifier::new(REQUEST_ID_HEADER))
     })
     .bind((server.host.as_str(), server.port))
     .change_context(errors::ConfigurationError::ConfigParsingError(format!(

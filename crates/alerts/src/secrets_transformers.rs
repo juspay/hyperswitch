@@ -35,8 +35,9 @@ impl SecretsHandler for AuthSettings {
 ///
 /// # Panics
 ///
-/// Panics if any secret fails to resolve. This is deliberate: a service that cannot read its own
-/// API key must not start, and there is no partially-configured state worth serving traffic from.
+/// Panics if any secret fails to resolve, or if a resolved secret is unusable. This is
+/// deliberate: a service that cannot read its own API key must not start, and there is no
+/// partially-configured state worth serving traffic from.
 pub async fn fetch_raw_secrets(
     conf: Settings<SecuredSecret>,
     secret_management_client: &dyn SecretManagementInterface,
@@ -45,6 +46,16 @@ pub async fn fetch_raw_secrets(
     let auth = AuthSettings::convert_to_raw_secret(conf.auth, secret_management_client)
         .await
         .expect("Failed to decrypt auth internal api key");
+
+    // Re-validate *after* decryption. The check in `main` ran against the `SecuredSecret` value,
+    // which under a KMS backend is a handle, not the key — and a perfectly well-formed handle can
+    // resolve to an empty string. Without this, the service would start with an empty configured
+    // key, and an empty `X-Internal-Api-Key` header would compare equal to it: every request
+    // authenticated. The boot-time check must therefore happen on both sides of the transition.
+    #[allow(clippy::expect_used)]
+    auth.get_inner()
+        .validate()
+        .expect("Decrypted auth internal api key is unusable");
 
     Settings {
         server: conf.server,

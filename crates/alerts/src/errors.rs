@@ -62,13 +62,13 @@ pub type AlertsResult<T> = error_stack::Result<T, ConfigurationError>;
 /// below, so a handler never has to think about HTTP.
 #[derive(Debug, Error)]
 pub enum AlertsError {
-    /// The internal API key was missing, malformed, or did not match.
-    #[error("Authentication failed")]
-    Unauthorized,
-
     /// Something failed that the client can do nothing about.
     #[error("Internal server error")]
     InternalServerError,
+
+    /// The internal API key was missing, malformed, or did not match.
+    #[error("Authentication failed")]
+    Unauthorized,
 }
 
 /// The result type for request handling.
@@ -77,17 +77,17 @@ pub type AlertsApiResult<T> = error_stack::Result<T, AlertsError>;
 impl ErrorSwitch<ApiErrorResponse> for AlertsError {
     fn switch(&self) -> ApiErrorResponse {
         match self {
+            Self::InternalServerError => ApiErrorResponse::InternalServerError(ApiError::new(
+                "HE",
+                0,
+                "Something went wrong",
+            )),
             // Deliberately vague. A caller that failed to authenticate learns only that it
             // failed — never whether the header was absent, malformed, or simply wrong.
             Self::Unauthorized => ApiErrorResponse::Unauthorized(ApiError::new(
                 "IR",
                 1,
                 "API key not provided or invalid",
-            )),
-            Self::InternalServerError => ApiErrorResponse::InternalServerError(ApiError::new(
-                "HE",
-                0,
-                "Something went wrong",
             )),
         }
     }

@@ -61,25 +61,25 @@ impl ApiError {
 /// Every error this service can return to a client, keyed by HTTP semantics.
 #[derive(Debug, Serialize)]
 pub enum ApiErrorResponse {
-    /// 401 — authentication failed.
-    Unauthorized(ApiError),
     /// 500 — the service failed.
     InternalServerError(ApiError),
+    /// 401 — authentication failed.
+    Unauthorized(ApiError),
 }
 
 impl ApiErrorResponse {
     /// The payload of whichever variant this is.
     fn get_internal_error(&self) -> &ApiError {
         match self {
-            Self::Unauthorized(error) | Self::InternalServerError(error) => error,
+            Self::InternalServerError(error) | Self::Unauthorized(error) => error,
         }
     }
 
     /// The error category reported to the client.
     fn error_type(&self) -> &'static str {
         match self {
-            Self::Unauthorized(_) => ErrorType::InvalidRequestError.as_str(),
             Self::InternalServerError(_) => ErrorType::AlertsError.as_str(),
+            Self::Unauthorized(_) => ErrorType::InvalidRequestError.as_str(),
         }
     }
 }
