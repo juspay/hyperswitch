@@ -1179,14 +1179,16 @@ impl
         &ApplePayWalletData,
         PaymentsAuthorizeData,
         Option<PaymentMethodToken>,
+        Option<Session>,
     )> for PaymentDetails
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (apple_pay_wallet_data, item, payment_method_token): (
+        (apple_pay_wallet_data, item, payment_method_token, session): (
             &ApplePayWalletData,
             PaymentsAuthorizeData,
             Option<PaymentMethodToken>,
+            Option<Session>,
         ),
     ) -> Result<Self, Self::Error> {
         let stored_credentials = if item.is_cit_mandate_payment() {
@@ -1255,7 +1257,7 @@ impl
         Ok(Self {
             action,
             payment_method,
-            session: None,
+            session,
             stored_credentials,
         })
     }
@@ -1763,7 +1765,18 @@ impl TryFrom<&WorldpayxmlRouterData<&PaymentsAuthorizeRouterData>> for PaymentSe
                     .as_ref()
                     .and_then(|info| info.user_agent.clone());
 
-                (None, None, accept_header, user_agent_header)
+                // Worldpay scores risk on `shopperIPAddress` for every transaction, not only
+                // 3DS ones, so the session is built outside the 3DS branch as well. The IP is
+                // optional here: these flows are accepted today without it, and requiring it
+                // would turn payments that currently succeed into `MissingRequiredField`.
+                let session = item.router_data.request.get_ip_address_as_optional().map(
+                    |shopper_ip_address| Session {
+                        id: item.router_data.connector_request_reference_id.clone(),
+                        shopper_ip_address,
+                    },
+                );
+
+                (None, session, accept_header, user_agent_header)
             };
 
         let exponent = item
@@ -1804,6 +1817,7 @@ impl TryFrom<&WorldpayxmlRouterData<&PaymentsAuthorizeRouterData>> for PaymentSe
                     &apple_pay_data,
                     item.router_data.request.clone(),
                     item.router_data.payment_method_token.clone(),
+                    session,
                 ))?,
                 _ => Err(errors::ConnectorError::NotImplemented(
                     connector_utils::get_unimplemented_payment_method_error_message("Worldpayxml"),
@@ -4206,5 +4220,63 @@ fn get_mandate_type(mit_category: Option<common_enums::MitCategory>) -> MandateT
         Some(common_enums::MitCategory::Recurring) => MandateType::Recurring,
         Some(common_enums::MitCategory::Unscheduled) | None => MandateType::Unscheduled,
         _ => MandateType::Unscheduled,
+    }
+}
+
+#[cfg(test)]
+mod shopper_ip_address_tests {
+    use hyperswitch_masking::Secret;
+
+    use super::{Action, ApplePayData, ApplePayHeader, PaymentDetails, PaymentMethod, Session};
+
+    fn apple_pay_payment_details(session: Option<Session>) -> PaymentDetails {
+        PaymentDetails {
+            action: Some(Action::Sale),
+            payment_method: PaymentMethod::PayWithAppleSSL(ApplePayData {
+                header: ApplePayHeader {
+                    ephemeral_public_key: Secret::new("ephemeral_public_key".to_string()),
+                    public_key_hash: Secret::new("public_key_hash".to_string()),
+                    transaction_id: Secret::new("transaction_id".to_string()),
+                },
+                signature: Secret::new("signature".to_string()),
+                version: Secret::new("EC_v1".to_string()),
+                data: Secret::new("data".to_string()),
+            }),
+            stored_credentials: None,
+            session,
+        }
+    }
+
+    fn serialize(payment_details: &PaymentDetails) -> String {
+        quick_xml::se::to_string_with_root("paymentDetails", payment_details).unwrap_or_default()
+    }
+
+    #[test]
+    fn apple_pay_payment_details_carry_the_shopper_ip_address() {
+        let serialized = serialize(&apple_pay_payment_details(Some(Session {
+            id: "order_reference".to_string(),
+            shopper_ip_address: Secret::new("192.0.2.10".to_string()),
+        })));
+
+        assert!(
+            serialized.contains(r#"<session id="order_reference" shopperIPAddress="192.0.2.10"/>"#),
+            "expected the shopper IP in the serialized payment details, got: {serialized}"
+        );
+    }
+
+    #[test]
+    fn payment_details_without_a_session_omit_the_element_silently() {
+        let serialized = serialize(&apple_pay_payment_details(None));
+
+        // `session` is `skip_serializing_if = "Option::is_none"`, so a missing IP drops the
+        // element instead of surfacing an error -- the reason the gap went unnoticed.
+        assert!(
+            serialized.contains("APPLEPAY-SSL"),
+            "payment details failed to serialize at all: {serialized}"
+        );
+        assert!(
+            !serialized.contains("session"),
+            "expected no session element, got: {serialized}"
+        );
     }
 }
