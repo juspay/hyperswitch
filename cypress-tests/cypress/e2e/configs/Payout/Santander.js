@@ -5,6 +5,62 @@ const billing = {
 };
 
 export const connectorDetails = {
+  card_pm: {
+    Create: {
+      Request: {
+        payout_type: "card",
+        payout_method_data: {
+          card: {
+            card_number: "4111111111111111",
+            expiry_month: "3",
+            expiry_year: "2030",
+            card_holder_name: "John Smith",
+          },
+        },
+        currency: "EUR",
+      },
+      Response: {
+        status: 200,
+        body: { status: "requires_confirmation", payout_type: "card" },
+      },
+    },
+    Confirm: {
+      Request: {
+        payout_type: "card",
+        payout_method_data: {
+          card: {
+            card_number: "4111111111111111",
+            expiry_month: "3",
+            expiry_year: "2030",
+            card_holder_name: "John Smith",
+          },
+        },
+        currency: "EUR",
+      },
+      Response: {
+        status: 200,
+        body: { status: "requires_fulfillment", payout_type: "card" },
+      },
+    },
+    Fulfill: {
+      Request: {
+        payout_type: "card",
+        payout_method_data: {
+          card: {
+            card_number: "4111111111111111",
+            expiry_month: "3",
+            expiry_year: "2030",
+            card_holder_name: "John Smith",
+          },
+        },
+        currency: "EUR",
+      },
+      Response: {
+        status: 200,
+        body: { status: "requires_fulfillment", payout_type: "card" },
+      },
+    },
+  },
   bank_transfer_pm: {
     pix_key: {
       Create: {
