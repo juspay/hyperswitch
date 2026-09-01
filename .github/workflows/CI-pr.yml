@@ -234,7 +234,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Spell check
-        uses: crate-ci/typos@v1.48.0
+        uses: crate-ci/typos@master
 
   typos-required:
     name: Spell check specific critical directories
