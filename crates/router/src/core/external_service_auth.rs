@@ -1,16 +1,25 @@
 use api_models::external_service_auth as external_service_auth_api;
+use common_enums::Resource;
 use common_utils::fp_utils;
 use error_stack::ResultExt;
 use hyperswitch_masking::ExposeInterface;
+use strum::IntoEnumIterator;
 
 use crate::{
-    core::errors::{self, RouterResponse},
+    core::{
+        configs::dimension_state::Dimensions,
+        errors::{self, RouterResponse, RouterResult},
+        offer_engine,
+    },
     services::{
         api as service_api,
-        authentication::{self, ExternalServiceType, ExternalToken},
+        authentication::{self, blacklist::BlackList, ExternalServiceType, ExternalToken},
+        authorization::{self, permissions::Permission, roles},
     },
     SessionState,
 };
+
+const OFFER_ENGINE_CONTEXT: &str = "MERCHANT";
 
 pub async fn generate_external_token(
     state: SessionState,
@@ -91,4 +100,73 @@ pub async fn verify_external_token(
             email,
         },
     ))
+}
+
+/// Validates a dashboard token for an external service and returns the identity and
+/// permissions behind it.
+pub async fn validate_token(
+    state: SessionState,
+    req: external_service_auth_api::ValidateTokenRequest,
+) -> RouterResponse<external_service_auth_api::ExternalVerifyTokenResponse> {
+    let token = req.token.expose();
+
+    let payload = authentication::decode_jwt::<authentication::AuthToken>(&token, &state).await?;
+
+    fp_utils::when(payload.check_in_blacklist(&state).await?, || {
+        Err(errors::ApiErrorResponse::InvalidJwtToken)
+    })?;
+
+    authorization::check_tenant(payload.tenant_id.clone(), &state.tenant.tenant_id)?;
+
+    let role_info = authorization::get_role_info(&state, &payload).await?;
+
+    match req.service {
+        external_service_auth_api::ValidatingService::OfferEngine => {
+            let merchant_id = resolve_offer_engine_merchant_id(&state, &payload).await?;
+
+            Ok(service_api::ApplicationResponse::Json(
+                external_service_auth_api::ExternalVerifyTokenResponse::OfferEngine {
+                    merchant_id,
+                    context: OFFER_ENGINE_CONTEXT.to_string(),
+                    token: token.into(),
+                    permissions: offer_engine_permissions(&role_info),
+                },
+            ))
+        }
+    }
+}
+
+/// Resolves the Offer Engine merchant id from the same config the payment flow uses. An
+/// unresolved config means Offer Engine is not enabled for this merchant.
+async fn resolve_offer_engine_merchant_id(
+    state: &SessionState,
+    payload: &authentication::AuthToken,
+) -> RouterResult<String> {
+    let dimensions = Dimensions::new()
+        .with_processor_merchant_id(payload.merchant_id.clone().into())
+        .with_organization_id(payload.org_id.clone())
+        .with_profile_id(payload.profile_id.clone());
+
+    offer_engine::resolve_offer_engine_config(state, &dimensions)
+        .await
+        .inspect_err(|error| {
+            router_env::logger::warn!(?error, "failed to resolve Offer Engine config");
+        })
+        .ok()
+        .flatten()
+        .map(|config| config.merchant_id)
+        .ok_or_else(|| {
+            error_stack::report!(errors::ApiErrorResponse::AccessForbidden {
+                resource: "offer_engine".to_string(),
+            })
+        })
+}
+
+/// Offer permissions held by the role. Empty means no offer access.
+fn offer_engine_permissions(role_info: &roles::RoleInfo) -> Vec<String> {
+    Permission::iter()
+        .filter(|permission| permission.resource() == Resource::Offers)
+        .filter(|permission| role_info.check_permission_exists(*permission))
+        .map(|permission| permission.to_string())
+        .collect()
 }

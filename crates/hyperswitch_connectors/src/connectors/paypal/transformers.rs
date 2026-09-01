@@ -498,6 +498,26 @@ pub struct CustomerRequestData {
     merchant_customer_id: Option<common_utils::id_type::CustomerId>,
 }
 
+/// PayPal keeps legacy Billing Agreements in a different namespace from Vault v3 tokens, and
+/// accepts them on their own field rather than as a `vault_id`. Billing connectors such as
+/// Chargebee hand us the agreement id for stored PayPal payment methods, so a mandate payment
+/// has to be able to charge either kind of credential.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct BillingAgreementStruct {
+    billing_agreement_id: Secret<String>,
+}
+
+impl BillingAgreementStruct {
+    /// PayPal billing agreement ids are consistently `B-` prefixed, which is the only signal
+    /// available here - the mandate id reaches the connector as an opaque string with no
+    /// accompanying metadata describing which namespace it belongs to.
+    const ID_PREFIX: &'static str = "B-";
+
+    fn is_billing_agreement_id(mandate_id: &str) -> bool {
+        mandate_id.starts_with(Self::ID_PREFIX)
+    }
+}
+
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
 pub enum CardRequest {
@@ -561,6 +581,7 @@ pub enum ShippingPreference {
 pub enum PaypalRedirectionRequest {
     PaypalRedirectionStruct(PaypalRedirectionStruct),
     PaypalVaultStruct(VaultStruct),
+    BillingAgreementStruct(BillingAgreementStruct),
 }
 
 #[derive(Debug, Serialize)]
@@ -736,6 +757,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PaypalSetupMandatesResponse, T, Payment
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -744,6 +766,13 @@ impl<F, T> TryFrom<ResponseRouterData<F, PaypalSetupMandatesResponse, T, Payment
 impl TryFrom<&SetupMandateRouterData> for PaypalZeroMandateRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &SetupMandateRouterData) -> Result<Self, Self::Error> {
+        if item.request.amount > 0 {
+            return Err(errors::ConnectorError::FlowNotSupported {
+                flow: "Setup Mandate with non zero amount".to_string(),
+                connector: "Paypal".to_string(),
+            }
+            .into());
+        }
         let payment_source = match item.request.payment_method_data.clone() {
             PaymentMethodData::Card(ccard) => ZeroMandateSourceItem::Card(CardMandateRequest {
                 billing_address: get_address_info(item.get_optional_billing()),
@@ -1298,16 +1327,26 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                         }),
                     ))),
                     enums::PaymentMethodType::Paypal => Ok(Some(PaymentSourceItem::Paypal(
-                        PaypalRedirectionRequest::PaypalVaultStruct(VaultStruct {
-                            vault_id: connector_mandate_id.into(),
-                            attributes: item.router_data.get_optional_customer_id().as_ref().map(
-                                |customer_id| VaultRequestAttributes {
-                                    customer: Some(CustomerRequestData {
-                                        merchant_customer_id: Some(customer_id.clone()),
-                                    }),
+                        if BillingAgreementStruct::is_billing_agreement_id(&connector_mandate_id) {
+                            PaypalRedirectionRequest::BillingAgreementStruct(
+                                BillingAgreementStruct {
+                                    billing_agreement_id: connector_mandate_id.into(),
                                 },
-                            ),
-                        }),
+                            )
+                        } else {
+                            PaypalRedirectionRequest::PaypalVaultStruct(VaultStruct {
+                                vault_id: connector_mandate_id.into(),
+                                attributes: item
+                                    .router_data
+                                    .get_optional_customer_id()
+                                    .as_ref()
+                                    .map(|customer_id| VaultRequestAttributes {
+                                        customer: Some(CustomerRequestData {
+                                            merchant_customer_id: Some(customer_id.clone()),
+                                        }),
+                                    }),
+                            })
+                        },
                     ))),
                     enums::PaymentMethodType::Ach
                     | enums::PaymentMethodType::Affirm
@@ -1384,6 +1423,8 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                     | enums::PaymentMethodType::PixQr
                     | enums::PaymentMethodType::PixAutomaticoPush
                     | enums::PaymentMethodType::PixAutomaticoQr
+                    | enums::PaymentMethodType::Payshap
+                    | enums::PaymentMethodType::PayshapProxy
                     | enums::PaymentMethodType::PaySafeCard
                     | enums::PaymentMethodType::Przelewy24
                     | enums::PaymentMethodType::PromptPay
@@ -1958,6 +1999,7 @@ impl TryFrom<PaymentsExtendAuthorizationResponseRouterData<PaypalExtendedAuthRes
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             })
         };
 
@@ -2184,6 +2226,7 @@ fn auth_success_response() -> PaymentsResponseData {
         incremental_authorization_allowed: None,
         authentication_data: None,
         charges: None,
+        payment_account_reference: None,
     }
 }
 
@@ -2824,6 +2867,7 @@ where
                     .get_request_incremental_authorization(),
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             sender_payment_instrument_id: item
                 .response
@@ -2947,6 +2991,7 @@ impl<F, T>
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             sender_payment_instrument_id: item
                 .response
@@ -3010,6 +3055,7 @@ impl
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -3067,6 +3113,7 @@ impl
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -3093,6 +3140,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<PaypalThreeDsSyncResponse>> for Paym
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -3136,6 +3184,7 @@ impl TryFrom<PaymentsResponseRouterData<PaypalThreeDsResponse>> for PaymentsAuth
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -3201,6 +3250,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PaypalPaymentsSyncResponse, T, Payments
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             sender_payment_instrument_id: item
                 .response
@@ -3655,6 +3705,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<PaypalCaptureResponse>>
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             amount_captured: Some(amount_captured),
             ..item.data
@@ -3712,6 +3763,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PaypalPaymentsCancelResponse, T, Paymen
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
