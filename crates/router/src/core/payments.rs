@@ -2805,6 +2805,19 @@ where
     D: OperationSessionGetters<F> + Send + Sync,
     Op: Operation<F, R, Data = D> + Send + Sync,
 {
+    // Log the inputs of the modular-vs-legacy decision so a wrong branch is diagnosable:
+    // the feature flag, the payment method's version and the modular/legacy modification
+    // timestamps are everything `should_use_modular_pm_path` looks at.
+    let pm_decision_inputs = payment_data
+        .get_payment_method_info()
+        .map(|pm| (pm.version, pm.compatibility_updated_at, pm.last_modified));
+    logger::info!(
+        payment_id = ?payment_data.get_payment_attempt().payment_id,
+        is_payment_method_modular_allowed = feature_config.is_payment_method_modular_allowed,
+        payment_method_decision_inputs = ?pm_decision_inputs,
+        "resolving modular vs legacy payment method update path"
+    );
+
     if payment_data.get_payment_method_info().is_some_and(|pm| {
         feature_config.should_use_modular_pm_path(
             Some(pm.version),
@@ -2812,9 +2825,9 @@ where
             Some(pm.last_modified),
         )
     }) {
-        logger::debug!(
+        logger::info!(
             payment_id = ?payment_data.get_payment_attempt().payment_id,
-            "Modular merchant detected; calling update_modular_pm_and_mandate"
+            "Modular payment method path selected; calling update_modular_pm_and_mandate"
         );
 
         let domain_payment_method_data =
@@ -2833,9 +2846,11 @@ where
             )
             .await?;
     } else {
-        logger::debug!(
+        // Reached when the flag is off, the timestamps favour legacy, or there is no
+        // payment_method_info at all — the decision-inputs log above disambiguates.
+        logger::info!(
             payment_id = ?payment_data.get_payment_attempt().payment_id,
-            "Non-modular merchant; calling save_pm_and_mandate"
+            "Legacy payment method path selected; calling save_pm_and_mandate"
         );
         operation
             .to_post_update_tracker()?
@@ -9784,6 +9799,8 @@ pub struct PaymentDataUpdateRequestFields {
     pub metadata: Option<serde_json::Value>,
     pub merchant_order_reference_id: Option<String>,
     pub customer_document_details: Option<api_models::customers::CustomerDocumentDetails>,
+    pub is_account_funded_transaction: Option<bool>,
+    pub recipient_details: Option<api_models::payments::RecipientDetails>,
 }
 
 #[derive(Clone)]
@@ -11351,6 +11368,7 @@ where
                             fallback_config,
                             backend_input,
                             transaction_type,
+                            dimensions,
                         )
                         .await?;
                         ConnectorCallType::SessionMultiple(routing_output)
@@ -12827,6 +12845,7 @@ pub async fn perform_session_token_routing<F, D>(
     fallback_config: Vec<api_models::routing::RoutableConnectorChoice>,
     mut backend_input: dsl_inputs::BackendInput,
     transaction_type: enums::TransactionType,
+    dimensions: &DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
 ) -> RouterResult<api::SessionConnectorDatas>
 where
     F: Clone,
@@ -12855,6 +12874,12 @@ where
         active_mca_ids: &active_mca_ids,
         default_config: &fallback_config,
         backend_input: &mut backend_input,
+        dimensions,
+        payment_id: payment_data
+            .get_payment_intent()
+            .payment_id
+            .get_string_repr()
+            .to_string(),
     };
 
     let routing_algorithm: routing::MerchantAccountRoutingAlgorithm = business_profile

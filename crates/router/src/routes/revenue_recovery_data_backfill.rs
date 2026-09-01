@@ -1,13 +1,16 @@
 use actix_multipart::form::MultipartForm;
 use actix_web::{web, HttpRequest, HttpResponse};
 use api_models::revenue_recovery_data_backfill::{
-    BackfillQuery, GetRedisDataQuery, RevenueRecoveryDataBackfillForm, UnlockStatusRequest,
-    UnlockStatusResponse, UpdateTokenStatusRequest,
+    BackfillQuery, GetRedisDataQuery, RetryStatsMigrationForm, RevenueRecoveryDataBackfillForm,
+    UnlockStatusRequest, UnlockStatusResponse, UpdateTokenStatusRequest,
 };
 use router_env::{instrument, tracing, Flow};
 
 use crate::{
-    core::{api_locking, revenue_recovery_data_backfill},
+    core::{
+        api_locking, revenue_recovery::retry_stats::migration as retry_stats_migration,
+        revenue_recovery_data_backfill,
+    },
     routes::AppState,
     services::{api, authentication as auth},
     types::{domain, storage},
@@ -67,6 +70,37 @@ pub async fn revenue_recovery_data_backfill(
         api_locking::LockAction::NotApplicable,
     ))
     .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::RecoveryRetryStatsMigration))]
+pub async fn revenue_recovery_retry_stats_migration(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    MultipartForm(form): MultipartForm<RetryStatsMigrationForm>,
+) -> HttpResponse {
+    let flow = Flow::RecoveryRetryStatsMigration;
+
+    match form.validate_and_get_records() {
+        Ok(csv_result) => {
+            Box::pin(api::server_wrap(
+                flow,
+                state,
+                &req,
+                csv_result,
+                |state, _: (), csv_result, _| {
+                    retry_stats_migration::migrate_retry_stats_from_csv(state, csv_result)
+                },
+                &auth::V2AdminApiAuth,
+                api_locking::LockAction::NotApplicable,
+            ))
+            .await
+        }
+        Err(e) => HttpResponse::BadRequest().json(serde_json::json!({
+            "error": format!(
+                "failed to parse the retry stats migration CSV file: {e}"
+            )
+        })),
+    }
 }
 
 #[instrument(skip_all, fields(flow = ?Flow::RecoveryDataBackfill))]

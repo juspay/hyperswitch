@@ -520,6 +520,7 @@ impl TryFrom<PaymentsResponseRouterData<XenditPaymentResponse>> for PaymentsAuth
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges,
+                payment_account_reference: None,
             })
         };
         Ok(Self {
@@ -587,6 +588,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<XenditCaptureResponse>>
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             })
         };
         Ok(Self {
@@ -666,6 +668,7 @@ impl TryFrom<PaymentsSettlementSplitCreateResponseRouterData<XenditSplitResponse
                     common_types::payments::XenditChargeResponseData::MultipleSplits(charges),
                 ),
             ),
+            payment_account_reference: None,
         };
 
         Ok(Self {
@@ -744,6 +747,7 @@ impl TryFrom<PaymentsPreprocessingResponseRouterData<XenditSplitResponse>>
                     common_types::payments::XenditChargeResponseData::MultipleSplits(charges),
                 ),
             ),
+            payment_account_reference: None,
         };
 
         Ok(Self {
@@ -798,6 +802,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<XenditResponse>> for PaymentsSyncRou
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     })
                 };
                 Ok(Self {

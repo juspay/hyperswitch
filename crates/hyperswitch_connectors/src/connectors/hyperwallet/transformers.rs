@@ -126,6 +126,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, HyperwalletPaymentsResponse, T, Payment
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
