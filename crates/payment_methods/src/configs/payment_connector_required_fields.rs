@@ -1913,6 +1913,24 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
                 .concat(),
             ),
         ),
+        (
+            Connector::D24,
+            fields(
+                vec![],
+                vec![],
+                [
+                    // Directa24's "webpaycard" product needs the card details plus the
+                    // payer's name and email on every one-time card request.
+                    card_with_name(),
+                    vec![
+                        RequiredField::Email,
+                        // Only Brazil is in scope for this integration (BRL / BR).
+                        RequiredField::BillingAddressCountries(vec!["BR"]),
+                    ],
+                ]
+                .concat(),
+            ),
+        ),
     ])
 }
 
