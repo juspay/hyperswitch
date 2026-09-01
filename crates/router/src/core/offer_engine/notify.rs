@@ -213,20 +213,19 @@ pub async fn execute_notification(
                 ))
                 .with_organization_id(payment_attempt.organization_id.clone())
                 .with_profile_id(payment_attempt.profile_id.clone());
-            let config = match fetch_offer_engine_credential_source_for_notify(state, &dimensions)
-                .await
-            {
-                OfferEngineCredentialSource::None => None,
-                OfferEngineCredentialSource::Application => {
-                    Some(OfferEngineCredentialSource::resolve_application_offer_config(state))
-                }
-                OfferEngineCredentialSource::Merchant => Some(
-                    OfferEngineCredentialSource::resolve_merchant_offer_config(
-                        state,
-                        &merchant_account,
-                    ),
-                ),
-            };
+            let config =
+                match fetch_offer_engine_credential_source_for_notify(state, &dimensions).await {
+                    OfferEngineCredentialSource::None => None,
+                    OfferEngineCredentialSource::Application => {
+                        Some(OfferEngineCredentialSource::resolve_application_offer_config(state))
+                    }
+                    OfferEngineCredentialSource::Merchant => {
+                        Some(OfferEngineCredentialSource::resolve_merchant_offer_config(
+                            state,
+                            &merchant_account,
+                        ))
+                    }
+                };
             match config {
                 Some(Ok(config)) => {
                     let applied = applied.inner();

@@ -127,8 +127,10 @@ impl OfferEngineCredentialSource {
         _state: &SessionState,
         _merchant_account: &domain::MerchantAccount,
     ) -> CustomResult<ResolvedOfferEngineConfig, OfferEngineError> {
-        Err(error_stack::report!(OfferEngineError::MissingMerchantConfig(
-            "merchant-level Offer Engine credentials are only supported in v1".to_string()
-        )))
+        Err(error_stack::report!(
+            OfferEngineError::MissingMerchantConfig(
+                "merchant-level Offer Engine credentials are only supported in v1".to_string()
+            )
+        ))
     }
 }

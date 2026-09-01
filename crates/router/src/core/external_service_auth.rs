@@ -147,7 +147,8 @@ async fn resolve_offer_engine_merchant_id(
         .with_organization_id(payload.org_id.clone())
         .with_profile_id(payload.profile_id.clone());
 
-    let config = match offer_engine::resolve_offer_engine_credential_source(state, &dimensions).await
+    let config = match offer_engine::resolve_offer_engine_credential_source(state, &dimensions)
+        .await
     {
         offer_engine::OfferEngineCredentialSource::None => None,
         offer_engine::OfferEngineCredentialSource::Application => {
