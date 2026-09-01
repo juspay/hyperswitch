@@ -428,7 +428,9 @@ impl TryFrom<SetupMandateRequestData> for PaymentsPreProcessingData {
     type Error = error_stack::Report<ApiErrorResponse>;
 
     fn try_from(data: SetupMandateRequestData) -> Result<Self, Self::Error> {
-        let device_channel = Some(resolve_device_channel(data.browser_info.as_ref()));
+        let device_channel = Some(BrowserInformation::resolve_device_channel(
+            data.browser_info.as_ref(),
+        ));
         Ok(Self {
             payment_method_data: Some(data.payment_method_data),
             amount: data.amount,
@@ -757,15 +759,6 @@ impl TryFrom<ExternalVaultProxyPaymentsData> for CreateOrderRequestData {
     }
 }
 
-pub fn resolve_device_channel(
-    browser_info: Option<&BrowserInformation>,
-) -> api_models::payments::DeviceChannel {
-    match browser_info {
-        Some(_) => api_models::payments::DeviceChannel::Browser,
-        None => api_models::payments::DeviceChannel::App,
-    }
-}
-
 #[derive(Debug, Clone, Serialize)]
 pub struct PaymentsPreProcessingData {
     pub payment_method_data: Option<PaymentMethodData>,
@@ -846,7 +839,9 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsPreProcessingData {
     type Error = error_stack::Report<ApiErrorResponse>;
 
     fn try_from(data: PaymentsAuthorizeData) -> Result<Self, Self::Error> {
-        let device_channel = Some(resolve_device_channel(data.browser_info.as_ref()));
+        let device_channel = Some(BrowserInformation::resolve_device_channel(
+            data.browser_info.as_ref(),
+        ));
         Ok(Self {
             payment_method_data: Some(data.payment_method_data),
             amount: data.amount,
@@ -947,7 +942,9 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsAuthenticateData {
     type Error = error_stack::Report<ApiErrorResponse>;
 
     fn try_from(data: PaymentsAuthorizeData) -> Result<Self, Self::Error> {
-        let device_channel = Some(resolve_device_channel(data.browser_info.as_ref()));
+        let device_channel = Some(BrowserInformation::resolve_device_channel(
+            data.browser_info.as_ref(),
+        ));
         Ok(Self {
             payment_method_data: Some(data.payment_method_data),
             payment_method_type: data.payment_method_type,
@@ -993,7 +990,9 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsAuthenticateData {
     type Error = error_stack::Report<ApiErrorResponse>;
 
     fn try_from(data: CompleteAuthorizeData) -> Result<Self, Self::Error> {
-        let device_channel = Some(resolve_device_channel(data.browser_info.as_ref()));
+        let device_channel = Some(BrowserInformation::resolve_device_channel(
+            data.browser_info.as_ref(),
+        ));
         Ok(Self {
             payment_method_data: data.payment_method_data,
             payment_method_type: data.payment_method_type,
@@ -1056,7 +1055,9 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsPreProcessingData {
     type Error = error_stack::Report<ApiErrorResponse>;
 
     fn try_from(data: CompleteAuthorizeData) -> Result<Self, Self::Error> {
-        let device_channel = Some(resolve_device_channel(data.browser_info.as_ref()));
+        let device_channel = Some(BrowserInformation::resolve_device_channel(
+            data.browser_info.as_ref(),
+        ));
         Ok(Self {
             payment_method_data: data.payment_method_data,
             amount: data.amount,
@@ -1284,6 +1285,17 @@ pub struct BrowserInformation {
     pub device_model: Option<String>,
     pub accept_language: Option<String>,
     pub referer: Option<String>,
+}
+
+impl BrowserInformation {
+    pub fn resolve_device_channel(
+        browser_info: Option<&Self>,
+    ) -> api_models::payments::DeviceChannel {
+        match browser_info {
+            Some(_) => api_models::payments::DeviceChannel::Browser,
+            None => api_models::payments::DeviceChannel::App,
+        }
+    }
 }
 
 #[cfg(feature = "v2")]
