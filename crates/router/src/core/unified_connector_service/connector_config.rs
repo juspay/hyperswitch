@@ -479,6 +479,17 @@ pub enum ConnectorSpecificConfig {
         ssl_user_id: Secret<String>,
         ssl_pin: Secret<String>,
     },
+    /// Elavon Payment Gateway (EPG) - Elavon's JSON REST gateway, HTTP Basic auth.
+    /// NOT the `Elavon` variant above, which is Elavon Converge (an XML API).
+    /// Field names must match `ConnectorSpecificConfig::ElavonPg` in the
+    /// connector-service repo (`crates/types-traits/domain_types/src/router_data.rs`).
+    /// `api_key` = merchant alias, the HTTP Basic username
+    /// `key1`    = secret API key (`sk_...`), the HTTP Basic password
+    ElavonPg {
+        api_key: Secret<String>,
+        key1: Secret<String>,
+        base_url: Option<String>,
+    },
     /// Redsys connector configuration
     Redsys {
         merchant_id: Secret<String>,
@@ -1282,6 +1293,14 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     ssl_pin: api_secret.clone(),
                 }),
                 _ => Err(err("Elavon requires SignatureKey auth type")),
+            },
+            Connector::ElavonPg => match auth {
+                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::ElavonPg {
+                    api_key: api_key.clone(),
+                    key1: key1.clone(),
+                    base_url: None,
+                }),
+                _ => Err(err("ElavonPg requires BodyKey auth type")),
             },
             Connector::Fiserv => match auth {
                 ConnectorAuthType::SignatureKey {
