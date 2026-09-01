@@ -102,9 +102,7 @@ describe("Card - ThreeDS payment flow test", () => {
           expect(
             response.body.payment_account_reference,
             "payment_account_reference"
-          )
-            .to.be.a("string")
-            .and.to.not.be.empty;
+          ).to.be.a("string").and.to.not.be.empty;
         });
       });
     });
