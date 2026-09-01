@@ -690,23 +690,43 @@ async fn get_adaptive_retry_allowances(
             errors::ProcessTrackerError::EApiErrorResponse
         })?;
 
-    let remaining_grace_days: u32 = grace_window_start
+    let grace_window_end = grace_window_start
         .checked_add(time::Duration::days(grace_period_days))
-        .map(|grace_window_end| (grace_window_end - now).whole_days().max(0))
-        .and_then(|days| days.try_into().ok())
         .ok_or_else(|| {
             logger::error!(
                 payment_id = %payment_intent.id.get_string_repr(),
                 grace_period_days,
                 %grace_window_start,
-                "adaptive retry: the configured grace period puts the window outside the \
-                 representable date range"
+                "adaptive retry: failed to calculate the grace window end time"
             );
             errors::ProcessTrackerError::EApiErrorResponse
         })?;
 
-    let remaining_budget =
-        u32::from(max_retry_count).saturating_sub(retry_count.try_into().unwrap_or_default());
+    let days_left_in_grace_window = (grace_window_end - now).whole_days().max(0);
+
+    let remaining_grace_days: u32 = days_left_in_grace_window.try_into().map_err(|error| {
+        logger::error!(
+            ?error,
+            payment_id = %payment_intent.id.get_string_repr(),
+            days_left_in_grace_window,
+            "adaptive retry: the days left in the grace window do not fit the model's day count"
+        );
+        errors::ProcessTrackerError::EApiErrorResponse
+    })?;
+
+    let retries_already_made: u32 = retry_count.try_into().map_err(|error| {
+        logger::error!(
+            ?error,
+            payment_id = %payment_intent.id.get_string_repr(),
+            retry_count,
+            "adaptive retry: failed to read how many retries have already been made"
+        );
+        errors::ProcessTrackerError::EApiErrorResponse
+    })?;
+
+    // Saturating so an invoice already past its ceiling reads as no budget left rather than
+    // wrapping to an enormous one.
+    let remaining_budget = u32::from(max_retry_count).saturating_sub(retries_already_made);
 
     Ok((remaining_grace_days, remaining_budget))
 }
