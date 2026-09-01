@@ -6342,13 +6342,16 @@ pub async fn get_additional_payment_data(
         },
         domain::PaymentMethodData::Wallet(wallet) => match wallet {
             domain::WalletData::ApplePay(apple_pay_wallet_data) => {
-                let (card_exp_month, card_exp_year) = match payment_method_token {
+                // Apple Pay always decrypts to a device PAN rather than the funding PAN,
+                // so its BIN is reported as `token_isin`.
+                let (card_exp_month, card_exp_year, token_isin) = match payment_method_token {
                     Some(PaymentMethodToken::ApplePayDecrypt(token)) => (
                         Some(token.application_expiration_month.clone()),
                         Some(token.application_expiration_year.clone()),
+                        Some(token.application_primary_account_number.get_card_isin()),
                     ),
 
-                    _ => (None, None),
+                    _ => (None, None, None),
                 };
 
                 Ok(Some(api_models::payments::AdditionalPaymentData::Wallet {
@@ -6358,6 +6361,7 @@ pub async fn get_additional_payment_data(
                         pm_type: apple_pay_wallet_data.payment_method.pm_type.clone(),
                         card_exp_month,
                         card_exp_year,
+                        token_isin,
                         // These are filled after calling the processor / connector
                         auth_code: None,
                     })),
@@ -6366,13 +6370,33 @@ pub async fn get_additional_payment_data(
                 }))
             }
             domain::WalletData::GooglePay(google_pay_pm_data) => {
-                let (card_exp_month, card_exp_year) = match payment_method_token {
-                    Some(PaymentMethodToken::GooglePayDecrypt(token)) => (
-                        Some(token.card_exp_month.clone()),
-                        Some(token.card_exp_year.clone()),
-                    ),
-                    _ => (None, None),
-                };
+                // `PAN_ONLY` decrypts to the funding PAN and `CRYPTOGRAM_3DS` to a device
+                // PAN, so the BIN is reported under a different field for each. When the
+                // auth method is absent the origin of the PAN is unknown, so neither field
+                // is set rather than risk reporting a device PAN as a funding PAN.
+                let (card_exp_month, card_exp_year, card_isin, token_isin, auth_method) =
+                    match payment_method_token {
+                        Some(PaymentMethodToken::GooglePayDecrypt(token)) => {
+                            let isin = token.application_primary_account_number.get_card_isin();
+                            let (card_isin, token_isin) = match token.auth_method {
+                                Some(common_enums::GooglePayAuthMethod::PanOnly) => {
+                                    (Some(isin), None)
+                                }
+                                Some(common_enums::GooglePayAuthMethod::Cryptogram) => {
+                                    (None, Some(isin))
+                                }
+                                None => (None, None),
+                            };
+                            (
+                                Some(token.card_exp_month.clone()),
+                                Some(token.card_exp_year.clone()),
+                                card_isin,
+                                token_isin,
+                                token.auth_method,
+                            )
+                        }
+                        _ => (None, None, None, None, None),
+                    };
 
                 Ok(Some(api_models::payments::AdditionalPaymentData::Wallet {
                     apple_pay: None,
@@ -6383,6 +6407,9 @@ pub async fn get_additional_payment_data(
                             card_type: Some(google_pay_pm_data.pm_type.clone()),
                             card_exp_month,
                             card_exp_year,
+                            card_isin,
+                            token_isin,
+                            auth_method,
                             // These are filled after calling the processor / connector
                             auth_code: None,
                             email: None,
@@ -6412,6 +6439,9 @@ pub async fn get_additional_payment_data(
                             card_type: None,
                             card_exp_month: None,
                             card_exp_year: None,
+                            card_isin: None,
+                            token_isin: None,
+                            auth_method: None,
                             // These are filled after calling the processor / connector
                             auth_code: None,
                             email: None,

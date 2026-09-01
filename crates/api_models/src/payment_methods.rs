@@ -1852,6 +1852,11 @@ impl From<PaymentMethodDataWalletInfo> for payments::additional_info::WalletAddi
             card_type: item.card_type,
             card_exp_month: item.card_exp_month,
             card_exp_year: item.card_exp_year,
+            // Derived from the decrypted wallet token at payment time, so these are not
+            // available on a stored payment method.
+            card_isin: None,
+            token_isin: None,
+            auth_method: None,
             auth_code: item.auth_code,
             email: item.email,
         }
@@ -1890,6 +1895,7 @@ impl TryFrom<PaymentMethodDataWalletInfo> for Box<payments::ApplepayPaymentMetho
             pm_type: item.card_type.get_required_value("card_type")?,
             card_exp_month: item.card_exp_month,
             card_exp_year: item.card_exp_year,
+            token_isin: None,
             auth_code: item.auth_code,
         }))
     }

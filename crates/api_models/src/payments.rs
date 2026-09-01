@@ -5877,6 +5877,11 @@ pub struct ApplepayPaymentMethod {
     /// The card's expiry year
     #[schema(value_type = Option<String>, example = "003925")]
     pub card_exp_year: Option<Secret<String>>,
+    /// The BIN of the device token. Apple Pay always decrypts to a device PAN rather than
+    /// the funding PAN, so the BIN is reported here and never as `card_isin`.
+    #[schema(value_type = Option<String>, example = "513331")]
+    #[smithy(value_type = "Option<String>")]
+    pub token_isin: Option<String>,
     /// Unique authorisation code generated for the payment
     pub auth_code: Option<String>,
 }
@@ -9552,6 +9557,9 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
                             card_type: Some(apple_pay_pm.pm_type.clone()),
                             card_exp_month: apple_pay_pm.card_exp_month,
                             card_exp_year: apple_pay_pm.card_exp_year,
+                            card_isin: None,
+                            token_isin: apple_pay_pm.token_isin,
+                            auth_method: None,
                             auth_code: apple_pay_pm.auth_code,
                             email: None,
                         },
