@@ -7507,6 +7507,9 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "browser_info",
             })?;
+        let device_channel = Some(router_request_types::resolve_device_channel(
+            browser_info.as_ref(),
+        ));
         let amount = payment_data.payment_attempt.get_total_amount();
         Ok(Self {
             payment_method_data,
@@ -7522,6 +7525,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
             webhook_url,
             complete_authorize_url,
             browser_info,
+            device_channel,
             surcharge_details: payment_data.surcharge_details,
             connector_transaction_id: payment_data
                 .payment_attempt

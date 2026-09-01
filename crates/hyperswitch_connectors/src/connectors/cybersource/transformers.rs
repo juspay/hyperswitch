@@ -3692,6 +3692,22 @@ impl TryFrom<PaymentsResponseRouterData<CybersourceAuthSetupResponse>>
     }
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub enum CybersourceDeviceChannel {
+    Browser,
+    #[serde(rename = "SDK")]
+    Sdk,
+}
+
+impl From<&api_models::payments::DeviceChannel> for CybersourceDeviceChannel {
+    fn from(channel: &api_models::payments::DeviceChannel) -> Self {
+        match channel {
+            api_models::payments::DeviceChannel::Browser => Self::Browser,
+            api_models::payments::DeviceChannel::App => Self::Sdk,
+        }
+    }
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CybersourceConsumerAuthInformationRequest {
@@ -3700,7 +3716,7 @@ pub struct CybersourceConsumerAuthInformationRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     challenge_code: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    device_channel: Option<String>,
+    device_channel: Option<CybersourceDeviceChannel>,
 }
 
 fn get_payer_auth_challenge_code(force_3ds_challenge: Option<bool>) -> Option<String> {
@@ -3907,17 +3923,21 @@ impl TryFrom<&CybersourceRouterData<&PaymentsPreProcessingRouterData>>
                     payment_solution.map(|solution| CybersourcePayerAuthProcessingInformation {
                         payment_solution: Some(solution),
                     });
-                let (device_information, challenge_code) = if is_wallet_payer_auth {
+                let (device_information, challenge_code, device_channel) = if is_wallet_payer_auth {
                     (
                         get_cybersource_device_information(
                             item.router_data.request.browser_info.as_ref(),
                         )?,
                         get_payer_auth_challenge_code(item.router_data.request.force_3ds_challenge),
+                        item.router_data
+                            .request
+                            .device_channel
+                            .as_ref()
+                            .map(CybersourceDeviceChannel::from),
                     )
                 } else {
-                    (None, None)
+                    (None, None, None)
                 };
-                let device_channel = device_information.as_ref().map(|_| "Browser".to_string());
                 Ok(Self::AuthEnrollment(Box::new(
                     CybersourceAuthEnrollmentRequest {
                         payment_information,
@@ -4088,7 +4108,12 @@ impl TryFrom<&CybersourceRouterData<&PaymentsAuthenticateRouterData>>
         };
         let device_information =
             get_cybersource_device_information(item.router_data.request.browser_info.as_ref())?;
-        let device_channel = device_information.as_ref().map(|_| "Browser".to_string());
+        let device_channel = item
+            .router_data
+            .request
+            .device_channel
+            .as_ref()
+            .map(CybersourceDeviceChannel::from);
         Ok(Self {
             payment_information,
             client_reference_information,
