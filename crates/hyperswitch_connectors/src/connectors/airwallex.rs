@@ -93,10 +93,16 @@ where
         _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
     {
-        let mut headers = vec![(
-            headers::CONTENT_TYPE.to_string(),
-            self.get_content_type().to_string().into(),
-        )];
+        let mut headers = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                self.get_content_type().to_string().into(),
+            ),
+            (
+                headers::X_API_VERSION.to_string(),
+                airwallex::AIRWALLEX_API_VERSION.to_string().into(),
+            ),
+        ];
         let access_token = req
             .access_token
             .clone()
