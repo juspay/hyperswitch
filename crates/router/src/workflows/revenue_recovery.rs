@@ -807,6 +807,22 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
     ))
 }
 
+#[cfg(feature = "v2")]
+pub(crate) fn get_invoice_payment_processor_token(
+    payment_intent: &PaymentIntent,
+) -> Option<String> {
+    payment_intent
+        .feature_metadata
+        .as_ref()
+        .and_then(|metadata| metadata.payment_revenue_recovery_metadata.as_ref())
+        .map(|recovery_metadata| {
+            recovery_metadata
+                .billing_connector_payment_details
+                .payment_processor_token
+                .clone()
+        })
+}
+
 /// Check the invoice's payment processor token against a schedule time already decided.
 /// Shared by the cascading and adaptive paths so both gate on the same conditions
 #[cfg(feature = "v2")]
@@ -816,16 +832,7 @@ async fn get_token_availability_for_schedule_time(
     payment_intent: &PaymentIntent,
     scheduled_time: time::PrimitiveDateTime,
 ) -> CustomResult<PaymentProcessorTokenResponse, errors::ProcessTrackerError> {
-    let payment_processor_token = payment_intent
-        .feature_metadata
-        .as_ref()
-        .and_then(|metadata| metadata.payment_revenue_recovery_metadata.as_ref())
-        .map(|recovery_metadata| {
-            recovery_metadata
-                .billing_connector_payment_details
-                .payment_processor_token
-                .clone()
-        });
+    let payment_processor_token = get_invoice_payment_processor_token(payment_intent);
 
     let payment_processor_tokens_details =
         RedisTokenManager::get_payment_processor_metadata_for_connector_customer(
