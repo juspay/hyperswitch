@@ -419,6 +419,7 @@ pub async fn perform_execute_payment(
                         storage::ProcessTrackerRunner::PassiveRecoveryWorkflow,
                         tracking_data.revenue_recovery_retry,
                         state.conf.application_source,
+                        tracking_data.static_ladder_progress.clone(),
                     )
                     .await?;
 
@@ -492,6 +493,7 @@ async fn insert_psync_pcr_task_to_pt(
     runner: storage::ProcessTrackerRunner,
     revenue_recovery_retry: diesel_enum::RevenueRecoveryAlgorithmType,
     application_source: common_enums::ApplicationSource,
+    static_ladder_progress: Option<schedule::StaticLadderProgress>,
 ) -> RouterResult<storage::ProcessTracker> {
     let task = PSYNC_WORKFLOW;
     let process_tracker_id = payment_attempt_id.get_psync_revenue_recovery_id(task, runner);
@@ -505,8 +507,7 @@ async fn insert_psync_pcr_task_to_pt(
         prev_attempt_error_code,
         revenue_recovery_retry,
         invoice_scheduled_time: Some(schedule_time),
-        // PSYNC has its own row; scheduling state lives on CALCULATE.
-        static_ladder_progress: None,
+        static_ladder_progress,
     };
     let tag = ["REVENUE_RECOVERY"];
     let process_tracker_entry = storage::ProcessTrackerNew::new(
@@ -750,6 +751,7 @@ pub async fn perform_calculate_workflow(
                 storage::ProcessTrackerRunner::PassiveRecoveryWorkflow,
                 retry_algorithm_type,
                 scheduled_time,
+                next_static_ladder_progress.clone(),
             )
             .await?;
 
@@ -1030,6 +1032,7 @@ async fn insert_execute_pcr_task_to_pt(
     runner: storage::ProcessTrackerRunner,
     revenue_recovery_retry: diesel_enum::RevenueRecoveryAlgorithmType,
     schedule_time: time::PrimitiveDateTime,
+    static_ladder_progress: Option<schedule::StaticLadderProgress>,
 ) -> Result<storage::ProcessTracker, sch_errors::ProcessTrackerError> {
     let task = "EXECUTE_WORKFLOW";
 
@@ -1139,8 +1142,7 @@ async fn insert_execute_pcr_task_to_pt(
                 prev_attempt_error_code,
                 revenue_recovery_retry,
                 invoice_scheduled_time: Some(schedule_time),
-                // EXECUTE has its own row; scheduling state lives on CALCULATE.
-                static_ladder_progress: None,
+                static_ladder_progress,
             };
 
             let tag = ["PCR"];
@@ -1420,6 +1422,7 @@ pub async fn resume_revenue_recovery_process_tracker(
                         runner,
                         tracking_data.revenue_recovery_retry,
                         state.conf.application_source,
+                        tracking_data.static_ladder_progress.clone(),
                     )
                     .await?
                 }
