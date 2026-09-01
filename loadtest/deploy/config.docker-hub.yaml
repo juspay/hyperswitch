@@ -156,12 +156,12 @@ application_services:
   router:
     enabled: true
     source:
-      mode: cloud
+      mode: local
       path: ../..
       git_url: https://github.com/juspay/hyperswitch.git
     build:
       force: false
-      command: null
+      command: docker build --build-arg EXTRA_FEATURES=--features=redis-rs --build-arg VERSION_FEATURE_SET=v1 --build-arg CARGO_BUILD_PROFILE=release --build-arg BINARY=router -t juspaydotin/hyperswitch-router:nightly-standalone -f Dockerfile .
       dockerfile: ../Dockerfile
       context: ../..
     image: juspaydotin/hyperswitch-router:nightly-standalone
@@ -215,12 +215,12 @@ application_services:
   modular-pm:
     enabled: true
     source:
-      mode: cloud
+      mode: local
       path: ../..
       git_url: https://github.com/juspay/hyperswitch.git
     build:
       force: false
-      command: null
+      command: docker build --build-arg EXTRA_FEATURES=--features=redis-rs --build-arg VERSION_FEATURE_SET=v2 --build-arg CARGO_BUILD_PROFILE=release --build-arg BINARY=router -t juspaydotin/hyperswitch-modular-pm:latest -f Dockerfile .
       dockerfile: null
       context: ../..
     # TODO: verify this image exists in your registry (modular-pm image naming can vary across releases)
@@ -299,6 +299,8 @@ observability:
   grafana_dashboard_slug: local-payment-confirm-and-pm-modular-latency
   prometheus_url: http://127.0.0.1:19090
   loki_url: http://127.0.0.1:3100
+  jaeger_url: http://127.0.0.1:16686
+  jaeger_otlp_endpoint: http://127.0.0.1:24317
 
 migrations:
   # Migrations run after state services and applications are available.

@@ -76,6 +76,18 @@ services:
       - ./tempo.yaml:/etc/tempo/config.yaml:ro
       - tempo-data:/var/tempo
 
+  jaeger:
+    image: docker.io/jaegertracing/jaeger:2.9.0
+    container_name: hs-loadtest-jaeger
+    labels:
+      io.hyperswitch.loadtest.managed: "true"
+      io.hyperswitch.loadtest.component: observability
+      io.hyperswitch.loadtest.service: jaeger
+    cpuset: "${HOST_CPUSET:-}"
+    ports:
+      - "${JAEGER_UI_PORT:-16686}:16686"
+      - "${JAEGER_OTLP_PORT:-24317}:4317"
+
   prometheus:
     image: docker.io/prom/prometheus:latest
     container_name: hs-loadtest-prometheus

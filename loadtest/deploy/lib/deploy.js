@@ -661,11 +661,15 @@ function compose(state, args) {
   const composeFile = resolveMaybe(state.configDir, obs.compose_file || "../docker-compose.yaml");
   const prometheusUrl = new URL(obs.prometheus_url || "http://127.0.0.1:9090");
   const lokiUrl = new URL(obs.loki_url || "http://127.0.0.1:3100");
+  const jaegerUrl = new URL(obs.jaeger_url || "http://127.0.0.1:16686");
+  const jaegerOtlpEndpoint = new URL(obs.jaeger_otlp_endpoint || "http://127.0.0.1:24317");
   run(parts[0], [...parts.slice(1), "-f", composeFile, "-p", obs.project_name || "hyperswitch-loadtest", ...args], {
     env: {
       PROMETHEUS_URL: prometheusUrl.origin,
       PROMETHEUS_PORT: prometheusUrl.port || "9090",
       LOKI_URL: lokiUrl.origin,
+      JAEGER_UI_PORT: jaegerUrl.port || "16686",
+      JAEGER_OTLP_PORT: jaegerOtlpEndpoint.port || "24317",
       HOST_UID: String(process.getuid?.() ?? 1000),
       HOST_GID: String(process.getgid?.() ?? 1000),
       HOST_CPUSET: state.cpuAllocation?.host_logical_cpus || "",
@@ -806,6 +810,7 @@ function waitForHttpServices(state) {
   if (obs.loki_url) waitUntil("loki", () => urlIsReady(`${obs.loki_url.replace(/\/$/, "")}/ready`));
   if (obs.prometheus_url) waitUntil("prometheus", () => urlIsReady(`${obs.prometheus_url.replace(/\/$/, "")}/-/ready`));
   if (obs.grafana_url) waitUntil("grafana", () => urlIsReady(`${obs.grafana_url.replace(/\/$/, "")}/api/health`));
+  if (obs.jaeger_url) waitUntil("jaeger", () => urlIsReady(`${obs.jaeger_url.replace(/\/$/, "")}/`));
 }
 
 function initState(state) {
@@ -923,6 +928,7 @@ function smoke(state) {
     if (obs.loki_url) checkUrl("loki", `${obs.loki_url.replace(/\/$/, "")}/ready`);
     if (obs.prometheus_url) checkUrl("prometheus", `${obs.prometheus_url.replace(/\/$/, "")}/-/ready`);
     if (obs.grafana_url) checkUrl("grafana", `${obs.grafana_url.replace(/\/$/, "")}/api/health`);
+    if (obs.jaeger_url) checkUrl("jaeger", `${obs.jaeger_url.replace(/\/$/, "")}/`);
   }
 }
 
@@ -975,6 +981,7 @@ function restartObservability(state) {
     loki: obs.loki_url ? `${obs.loki_url.replace(/\/$/, "")}/ready` : null,
     prometheus: obs.prometheus_url ? `${obs.prometheus_url.replace(/\/$/, "")}/-/ready` : null,
     grafana: obs.grafana_url ? `${obs.grafana_url.replace(/\/$/, "")}/api/health` : null,
+    jaeger: obs.jaeger_url ? `${obs.jaeger_url.replace(/\/$/, "")}/` : null,
   };
   if (healthUrls[service]) waitUntil(service, () => urlIsReady(healthUrls[service]));
 }
