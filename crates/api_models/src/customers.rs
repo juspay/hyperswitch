@@ -9,9 +9,20 @@ use common_utils::{
 use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use smithy::SmithyModel;
+use time::Date;
 use utoipa::ToSchema;
 
 use crate::payments;
+
+/// The customer's date of birth crosses two representations: Hyperswitch works in `time::Date`,
+/// while the Unified Connector Service carries it as an ISO-8601 string on
+/// `Customer.date_of_birth`. This is the only place that encodes between them.
+///
+/// `Date`'s `Display` is ISO-8601 (`YYYY-MM-DD`) for every year in 0..=9999, which is exactly
+/// what UCS parses with `Iso8601::DATE`.
+pub fn date_of_birth_to_string(date_of_birth: &Secret<Date>) -> Secret<String> {
+    Secret::new(date_of_birth.peek().to_string())
+}
 
 #[cfg(feature = "v2")]
 pub mod migrate;

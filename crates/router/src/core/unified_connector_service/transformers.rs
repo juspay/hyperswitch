@@ -251,6 +251,18 @@ fn to_grpc_customer_document_details<F, Req, Res>(
         .map(payments_grpc::CustomerDocumentDetails::foreign_from)
 }
 
+/// Maps the optional customer date of birth on a `RouterData` to the ISO-8601 string the
+/// Unified Connector Service expects on `Customer.date_of_birth`. Connectors that want another
+/// shape (Ilixium's `ddmmyyyy`) reformat it on their side.
+fn to_grpc_customer_date_of_birth<F, Req, Res>(
+    router_data: &RouterData<F, Req, Res>,
+) -> Option<Secret<String>> {
+    router_data
+        .customer_date_of_birth
+        .as_ref()
+        .map(api_models::customers::date_of_birth_to_string)
+}
+
 impl transformers::ForeignTryFrom<&payments_grpc::AccessToken> for AccessToken {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
@@ -349,6 +361,7 @@ impl
                 phone_number: None,
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: to_grpc_customer_date_of_birth(router_data),
             }),
             state: router_data
                 .access_token
@@ -433,6 +446,11 @@ impl
         let order_details = build_ucs_order_details(router_data.request.order_details.as_deref());
         let l2_l3_data = build_ucs_l2_l3_data(router_data.l2_l3_data.as_deref());
         Ok(Self {
+            // Account-funding-transaction fields are new on the UCS contract. Hyperswitch's own AFT
+            // support (#13870) currently runs on the direct-connector path only, so nothing is
+            // routed through here yet; wiring it is separate work.
+            is_account_funding_transaction: None,
+            recipient_details: None,
             split_settlement: None,
             split_payments: router_data
                 .request
@@ -477,6 +495,7 @@ impl
                 phone_number: None,
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: to_grpc_customer_date_of_birth(router_data),
             }),
             browser_info,
             session_token: router_data.session_token.clone(),
@@ -710,6 +729,11 @@ impl
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
+            // Account-funding-transaction fields are new on the UCS contract. Hyperswitch's own AFT
+            // support (#13870) currently runs on the direct-connector path only, so nothing is
+            // routed through here yet; wiring it is separate work.
+            is_account_funding_transaction: None,
+            recipient_details: None,
             split_settlement: None,
             split_payments: None,
             domain_data: None,
@@ -742,6 +766,7 @@ impl
                 phone_number: None,
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: to_grpc_customer_date_of_birth(router_data),
             }),
             browser_info,
             session_token: router_data.session_token.clone(),
@@ -1130,6 +1155,7 @@ impl
                 phone_number: None,
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: to_grpc_customer_date_of_birth(router_data),
             }),
             address: Some(address),
         };
@@ -1221,6 +1247,7 @@ impl
                 phone_number: None,
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: to_grpc_customer_date_of_birth(router_data),
             }),
             address: Some(address),
             authentication_data,
@@ -1332,6 +1359,7 @@ impl
                 phone_number: None,
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: to_grpc_customer_date_of_birth(router_data),
             }),
             address: Some(address),
             authentication_data,
@@ -1436,6 +1464,7 @@ impl
                 phone_number: None,
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: to_grpc_customer_date_of_birth(router_data),
             }),
             address: Some(address),
             authentication_data: None,
@@ -1531,6 +1560,7 @@ impl
                 phone_number: None,
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: to_grpc_customer_date_of_birth(router_data),
             }),
             address: Some(address),
             authentication_data: None,
@@ -1634,6 +1664,7 @@ impl
                 phone_number: None,
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: to_grpc_customer_date_of_birth(router_data),
             }),
             address: Some(address),
             enrolled_for_3ds: router_data.request.enrolled_for_3ds,
@@ -1731,6 +1762,7 @@ impl
                 phone_number: None,
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: to_grpc_customer_date_of_birth(router_data),
             }),
             address: Some(address),
             enrolled_for_3ds: router_data.request.enrolled_for_3ds,
@@ -1904,6 +1936,11 @@ impl
             .transpose()?;
 
         Ok(Self {
+            // Account-funding-transaction fields are new on the UCS contract. Hyperswitch's own AFT
+            // support (#13870) currently runs on the direct-connector path only, so nothing is
+            // routed through here yet; wiring it is separate work.
+            is_account_funding_transaction: None,
+            recipient_details: None,
             split_settlement: None,
             split_payments: None,
             domain_data: None,
@@ -1935,6 +1972,7 @@ impl
                 phone_number: None,
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: to_grpc_customer_date_of_birth(router_data),
             }),
             browser_info,
             locale: None,
@@ -2063,6 +2101,11 @@ impl
         let order_details = build_ucs_order_details(router_data.request.order_details.as_deref());
         let l2_l3_data = build_ucs_l2_l3_data(router_data.l2_l3_data.as_deref());
         Ok(Self {
+            // Account-funding-transaction fields are new on the UCS contract. Hyperswitch's own AFT
+            // support (#13870) currently runs on the direct-connector path only, so nothing is
+            // routed through here yet; wiring it is separate work.
+            is_account_funding_transaction: None,
+            recipient_details: None,
             split_settlement: None,
             split_payments: router_data
                 .request
@@ -2113,6 +2156,7 @@ impl
                 phone_number: None,
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: to_grpc_customer_date_of_birth(router_data),
             }),
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             webhook_url: router_data.request.webhook_url.clone(),
@@ -2251,6 +2295,11 @@ impl
             .transpose()?;
 
         Ok(Self {
+            // Account-funding-transaction fields are new on the UCS contract. Hyperswitch's own AFT
+            // support (#13870) currently runs on the direct-connector path only, so nothing is
+            // routed through here yet; wiring it is separate work.
+            is_account_funding_transaction: None,
+            recipient_details: None,
             split_settlement: None,
             split_payments: router_data
                 .request
@@ -2296,6 +2345,7 @@ impl
                 phone_number: None,
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: to_grpc_customer_date_of_birth(router_data),
             }),
             browser_info,
             locale: None,
@@ -2422,6 +2472,11 @@ impl
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
+            // Account-funding-transaction fields are new on the UCS contract. Hyperswitch's own AFT
+            // support (#13870) currently runs on the direct-connector path only, so nothing is
+            // routed through here yet; wiring it is separate work.
+            is_account_funding_transaction: None,
+            recipient_details: None,
             mit_category: None,
             merchant_recurring_payment_id: router_data.connector_request_reference_id.clone(),
             amount: Some(payments_grpc::Money {
@@ -2452,6 +2507,7 @@ impl
                 phone_number: None,
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: to_grpc_customer_date_of_birth(router_data),
             }),
             address: Some(address),
             auth_type: auth_type.into(),
@@ -2700,6 +2756,11 @@ impl
             .attach_printable("Failed to convert authentication type")?;
 
         Ok(Self {
+            // Account-funding-transaction fields are new on the UCS contract. Hyperswitch's own AFT
+            // support (#13870) currently runs on the direct-connector path only, so nothing is
+            // routed through here yet; wiring it is separate work.
+            is_account_funding_transaction: None,
+            recipient_details: None,
             split_settlement: None,
             split_payments: router_data
                 .request
@@ -2800,6 +2861,7 @@ impl
                 phone_number: None,
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: to_grpc_customer_date_of_birth(router_data),
             }),
             additional_payment_data,
             partner_merchant_identifier_details: router_data
@@ -2894,6 +2956,7 @@ impl transformers::ForeignTryFrom<&RouterData<Session, PaymentsSessionData, Paym
                 phone_number: None,
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: to_grpc_customer_date_of_birth(router_data),
             }),
             return_url: None,
             metadata: None,
@@ -7887,6 +7950,10 @@ impl ForeignFrom<&router_request_types::CustomerDetails> for payments_grpc::Cust
             last_name: None,
             salutation: None,
             customer_document_details: None,
+            date_of_birth: customer
+                .date_of_birth
+                .as_ref()
+                .map(api_models::customers::date_of_birth_to_string),
         }
     }
 }
@@ -8022,6 +8089,7 @@ impl
         let access_token = router_data.access_token.as_ref().map(|t| t.token.clone());
 
         Ok(Self {
+            merchant_request_id: None,
             merchant_payout_id: router_data.payout_id.clone(),
             address,
             connector_feature_data,
@@ -8074,6 +8142,7 @@ impl
             .map(|secret| Secret::new(secret.expose().to_string()));
 
         Ok(Self {
+            merchant_request_id: None,
             merchant_payout_id: router_data.payout_id.clone(),
             address: Some(address),
             connector_feature_data,
@@ -8143,6 +8212,7 @@ impl
             .map(|metadata| Secret::new(metadata.expose().to_string()));
 
         Ok(Self {
+            merchant_request_id: None,
             merchant_payout_id: router_data.payout_id.clone(),
             connector_feature_data,
             payout_method_data,
@@ -8211,6 +8281,7 @@ impl
             .transpose()?;
 
         Ok(Self {
+            merchant_request_id: None,
             merchant_payout_id: router_data.payout_id.clone(),
             address: Some(address),
             amount: Some(money),
@@ -8292,6 +8363,7 @@ impl
             .transpose()?;
 
         Ok(Self {
+            merchant_request_id: None,
             merchant_quote_id: router_data.quote_id.clone(),
             address,
             amount: Some(money),
@@ -8350,6 +8422,7 @@ impl
         };
 
         Ok(Self {
+            merchant_request_id: None,
             merchant_payout_id: router_data.payout_id.clone(),
             address,
             customer: Some(customer),
@@ -8415,6 +8488,7 @@ impl
             )?;
 
         Ok(Self {
+            merchant_request_id: None,
             merchant_payout_id: router_data.payout_id.clone(),
             address,
             payout_method_data,
@@ -8445,6 +8519,7 @@ impl
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
+            merchant_request_id: None,
             merchant_payout_id: router_data.payout_id.clone(),
             connector_payout_id: router_data.request.connector_payout_id.clone(),
             access_token: router_data.access_token.clone().map(|at| at.token),
