@@ -82,7 +82,7 @@ use crate::{
     types::ResponseRouterData,
     utils::{
         self, convert_amount, PaymentsAuthorizeRequestData, PaymentsPreAuthenticateRequestData,
-        RefundsRequestData, RouterData as OtherRouterData,
+        RefundsRequestData,
     },
 };
 
