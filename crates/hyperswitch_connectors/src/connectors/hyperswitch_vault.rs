@@ -1,6 +1,7 @@
 pub mod transformers;
 
 use common_utils::{
+    consts as common_consts,
     errors::CustomResult,
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
@@ -192,6 +193,13 @@ where
             (
                 headers::X_PROFILE_ID.to_string(),
                 auth.profile_id.expose().into_masked(),
+            ),
+            // HyperswitchVault is a self-loop back into the (multi-tenant) Hyperswitch
+            // service, so the tenant must be forwarded explicitly — unlike external
+            // connectors, this call never traverses the edge that injects x-tenant-id.
+            (
+                common_consts::TENANT_HEADER.to_string(),
+                req.tenant_id.get_string_repr().to_string().into(),
             ),
         ];
         Ok(header)

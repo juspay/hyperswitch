@@ -121,6 +121,12 @@ pub mod models {
         pub vault_connector_type: Option<VaultConnectorType>,
         /// Optional proxy URL for routing the request through a proxy server
         pub proxy_url: Option<Secret<String>>,
+        /// Optional tenant id (x-tenant-id) to forward on self-loop vault calls
+        /// (e.g. the HyperswitchVault `/proxy` endpoint, which is a multi-tenant
+        /// Hyperswitch service). Populated by the caller (UCS) from the incoming
+        /// request's tenant; `None` for external/proxy targets like VGS.
+        #[serde(default)]
+        pub tenant_id: Option<Secret<String>>,
         /// Optional backup proxy URL to use if vault metadata doesn't provide one
         #[serde(default)]
         pub backup_proxy_url: Option<Secret<String>>,
@@ -362,6 +368,7 @@ pub mod models {
                 vault_auth_data: None,
                 vault_connector_type: None,
                 proxy_url: None,
+                tenant_id: None,
                 backup_proxy_url: None,
                 client_cert: None,
                 client_key: None,
