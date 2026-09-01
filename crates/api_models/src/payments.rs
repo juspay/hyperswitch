@@ -13031,6 +13031,33 @@ pub struct EligibilityCard {
     pub nick_name: Option<Secret<String>>,
 }
 
+/// BIN-only input for the eligibility check. Enables BIN-level blocklist and profile-config
+/// blocking without the client having to share the full card number; fingerprint-level
+/// (exact-card) blocking requires the full card number via the `card` variant instead.
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, Eq, PartialEq)]
+pub struct EligibilityCardBin {
+    /// The card BIN: the first 6 to 8 digits of the card number
+    #[schema(value_type = String, example = "42424242")]
+    #[serde(deserialize_with = "deserialize_eligibility_card_bin")]
+    pub card_bin: String,
+}
+
+fn deserialize_eligibility_card_bin<'de, D>(deserializer: D) -> Result<String, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let card_bin = String::deserialize(deserializer)?;
+    if (6..=8).contains(&card_bin.len())
+        && card_bin.chars().all(|character| character.is_ascii_digit())
+    {
+        Ok(card_bin)
+    } else {
+        Err(de::Error::custom(
+            "card_bin must be the first 6 to 8 digits of the card number",
+        ))
+    }
+}
+
 /// Payment method data for eligibility check
 #[derive(
     Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, Eq, PartialEq, SmithyModel,
@@ -13041,6 +13068,9 @@ pub enum EligibilityPaymentMethodData {
     #[schema(title = "EligibilityCard")]
     #[smithy(value_type = "EligibilityCard")]
     Card(EligibilityCard),
+    #[schema(title = "EligibilityCardBin")]
+    #[smithy(value_type = "EligibilityCardBin")]
+    CardBin(EligibilityCardBin),
     #[schema(title = "CardRedirect")]
     #[smithy(value_type = "CardRedirectData")]
     CardRedirect(CardRedirectData),

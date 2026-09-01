@@ -20,6 +20,7 @@ use router_env::{instrument, logger, tracing, Flow};
 
 use crate::{
     core::{
+        blocklist::utils as blocklist_utils,
         configs::dimension_state,
         errors::{self, StorageErrorExt},
         payment_methods::{
@@ -476,6 +477,58 @@ fn filter_customer_pms_by_enabled(
         .collect()
 }
 
+/// Filter out saved cards whose BIN (`card_isin`) has an active blocklist entry for this
+/// merchant. Runs only when the merchant has enabled the blocklist guard (the same config
+/// key that gates confirm-time and eligibility-time blocklist checks). BIN lookups are
+/// deduplicated across the list and run concurrently. Non-card payment methods and cards
+/// without a stored `card_isin` are passed through unchanged — fingerprint-level (exact
+/// card) blocklist entries cannot be evaluated at list time since the stored record does
+/// not carry a blocklist-comparable fingerprint.
+async fn filter_customer_pms_by_blocklist(
+    state: &routes::SessionState,
+    platform: &domain::Platform,
+    customer_pms: Vec<CustomerPaymentMethodForClient>,
+) -> Vec<CustomerPaymentMethodForClient> {
+    let processor = platform.get_processor();
+    if !blocklist_utils::is_blocklist_guard_enabled(state, processor.get_account().get_id()).await {
+        return customer_pms;
+    }
+
+    let bins: std::collections::HashSet<String> = customer_pms
+        .iter()
+        .filter_map(|customer_pm| match customer_pm.payment_method_data.as_ref() {
+            Some(CustomerPaymentMethodDataForClient::Card(card)) => card.card_isin.clone(),
+            _ => None,
+        })
+        .collect();
+
+    if bins.is_empty() {
+        return customer_pms;
+    }
+
+    let blocked_bins = blocklist_utils::get_blocked_bins(state, processor, bins).await;
+    if blocked_bins.is_empty() {
+        return customer_pms;
+    }
+
+    let initial_count = customer_pms.len();
+    let filtered: Vec<CustomerPaymentMethodForClient> = customer_pms
+        .into_iter()
+        .filter(|customer_pm| match customer_pm.payment_method_data.as_ref() {
+            Some(CustomerPaymentMethodDataForClient::Card(card)) => !card
+                .card_isin
+                .as_ref()
+                .is_some_and(|card_isin| blocked_bins.contains(card_isin)),
+            _ => true,
+        })
+        .collect();
+    logger::info!(
+        filtered_out = initial_count - filtered.len(),
+        "Filtered blocklisted saved cards from the payment method list"
+    );
+    filtered
+}
+
 async fn fetch_customer_payment_methods(
     state: &routes::SessionState,
     platform: &domain::Platform,
@@ -591,7 +644,13 @@ pub async fn list_payment_methods_client(
     let customer_payment_methods_filtered =
         filter_customer_pms_by_enabled(customer_payment_methods, &payment_methods_enabled);
 
-    // 5. Build intent_data
+    // 5. Drop saved cards whose BIN is blocklisted for this merchant (no-op unless the
+    //    merchant has the blocklist guard enabled).
+    let customer_payment_methods_filtered =
+        filter_customer_pms_by_blocklist(&state, &platform, customer_payment_methods_filtered)
+            .await;
+
+    // 6. Build intent_data
     let net_amount = payment_intent_context
         .payment_attempt
         .net_amount

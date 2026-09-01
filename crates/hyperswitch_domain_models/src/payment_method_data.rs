@@ -374,10 +374,31 @@ pub struct EligibilityCard {
     pub co_badged_card_data: Option<payment_methods::CoBadgedCardData>,
 }
 
+/// BIN-only card data for eligibility/blocklist checks. Only BIN-level blocking (blocklist
+/// bin entries and profile-config rules) can run against this — fingerprint-level blocking
+/// needs the full card number.
+#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
+pub struct EligibilityCardBin {
+    pub card_bin: String,
+}
+
+impl EligibilityCardBin {
+    /// The 6-digit ISIN prefix of the BIN
+    pub fn get_card_isin(&self) -> String {
+        self.card_bin.chars().take(6).collect()
+    }
+
+    /// The 8-digit extended BIN, when the full 8 digits were provided
+    pub fn get_extended_card_bin(&self) -> Option<String> {
+        (self.card_bin.len() >= 8).then(|| self.card_bin.chars().take(8).collect())
+    }
+}
+
 /// Payment method data for eligibility/blocklist checks — mirrors PaymentMethodData but uses EligibilityCard
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub enum EligibilityPaymentMethodData {
     Card(EligibilityCard),
+    CardBin(EligibilityCardBin),
     CardRedirect(CardRedirectData),
     Wallet(WalletData),
     PayLater(PayLaterData),
@@ -399,12 +420,13 @@ pub enum EligibilityPaymentMethodData {
 
 impl EligibilityPaymentMethodData {
     pub fn is_eligible_for_profile_config_blocklist(&self) -> bool {
-        matches!(self, Self::Card(_) | Self::Wallet(_))
+        matches!(self, Self::Card(_) | Self::CardBin(_) | Self::Wallet(_))
     }
 
     pub fn get_card_iin(&self) -> Option<String> {
         match self {
             Self::Card(card) => Some(card.card_number.get_card_isin()),
+            Self::CardBin(card_bin) => Some(card_bin.get_card_isin()),
             _ => None,
         }
     }
@@ -2328,6 +2350,11 @@ impl From<api_models::payments::EligibilityPaymentMethodData> for EligibilityPay
         match value {
             api_models::payments::EligibilityPaymentMethodData::Card(eligibility_card) => {
                 Self::Card(EligibilityCard::from((eligibility_card, None)))
+            }
+            api_models::payments::EligibilityPaymentMethodData::CardBin(card_bin) => {
+                Self::CardBin(EligibilityCardBin {
+                    card_bin: card_bin.card_bin,
+                })
             }
             api_models::payments::EligibilityPaymentMethodData::CardRedirect(card_redirect) => {
                 Self::CardRedirect(From::from(card_redirect))
