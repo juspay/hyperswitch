@@ -1766,7 +1766,7 @@ pub async fn create_payment_method(
     Ok(services::ApplicationResponse::Json(response))
 }
 #[cfg(feature = "v2")]
-#[instrument(skip_all)]
+#[instrument(name = "hs.payment_method.create", skip_all)]
 pub async fn create_payment_method_core(
     state: &SessionState,
     _request_state: &routes::app::ReqState,
@@ -1786,7 +1786,7 @@ pub async fn create_payment_method_core(
 }
 
 #[cfg(feature = "v2")]
-#[instrument(skip_all)]
+#[instrument(name = "hs.payment_method.create_persistent", skip_all)]
 pub async fn create_persistent_payment_method_core(
     state: &SessionState,
     _request_state: &routes::app::ReqState,
@@ -1897,7 +1897,7 @@ pub async fn create_persistent_payment_method_core(
 }
 
 #[cfg(feature = "v2")]
-#[instrument(skip_all)]
+#[instrument(name = "hs.payment_method.create_volatile", skip_all)]
 pub async fn create_volatile_payment_method_core(
     state: &SessionState,
     _request_state: &routes::app::ReqState,
@@ -2758,7 +2758,7 @@ pub struct PaymentMethodResolver(PaymentMethodResolution);
 
 #[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments)]
-#[instrument(skip_all)]
+#[instrument(name = "hs.payment_method.resolve", skip_all)]
 async fn create_or_fetch_payment_method_core(
     state: &SessionState,
     req: api::PaymentMethodCreate,
@@ -3060,7 +3060,7 @@ impl PaymentMethodResolver {
 
 #[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments)]
-#[instrument(skip_all)]
+#[instrument(name = "hs.payment_method.persist_and_vault", skip_all)]
 async fn execute_payment_method_create(
     state: &SessionState,
     req: &api::PaymentMethodCreate,
@@ -7524,6 +7524,7 @@ async fn create_zero_auth_payment(
 }
 
 #[cfg(feature = "v2")]
+#[instrument(name = "hs.modular_pm.session_confirm", skip_all)]
 pub async fn payment_methods_session_confirm(
     state: SessionState,
     req_state: routes::app::ReqState,

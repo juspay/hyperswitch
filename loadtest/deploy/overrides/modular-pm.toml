@@ -8,15 +8,20 @@ level = "INFO"
 log_format = "json"
 
 [log.telemetry]
-traces_enabled = false
+traces_enabled = true
 metrics_enabled = true
 ignore_errors = false
+sampling_rate = 1.0
+route_to_trace = ["*/confirm"]
 otel_exporter_otlp_endpoint = "http://127.0.0.1:4317"
 
 [dummy_connector]
 enabled = true
 payment_duration = 1
 payment_tolerance = 1
+
+[connectors]
+ilixium.base_url = "http://127.0.0.1"
 
 [superposition]
 endpoint = "{{SUPERPOSITION_BASE_URL}}"

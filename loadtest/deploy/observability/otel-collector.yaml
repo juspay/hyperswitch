@@ -9,6 +9,10 @@ exporters:
     endpoint: 0.0.0.0:8889
     resource_to_telemetry_conversion:
       enabled: true
+  otlp_grpc/tempo:
+    endpoint: 127.0.0.1:14317
+    tls:
+      insecure: true
 
 service:
   telemetry:
@@ -25,3 +29,6 @@ service:
     metrics:
       receivers: [otlp]
       exporters: [prometheus]
+    traces:
+      receivers: [otlp]
+      exporters: [otlp_grpc/tempo]

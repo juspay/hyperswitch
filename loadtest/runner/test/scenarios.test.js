@@ -269,6 +269,13 @@ test("k6 request headers merge independent target headers with authentication", 
   });
 });
 
+test("measured PM and Router confirms share a sampled W3C trace context", () => {
+  const source = fs.readFileSync(require.resolve("../k6/workload.js"), "utf8");
+  assert.match(source, /const iterationTraceHeaders = traceHeaders\(\)/);
+  assert.equal((source.match(/\.\.\.iterationTraceHeaders/g) || []).length, 2);
+  assert.match(source, /traceparent: `00-\$\{traceId\}-\$\{parentSpanId\}-01`/);
+});
+
 test("existing merchant mode avoids administrative requests", async () => {
   const merchant = {
     merchant_id: "merchant_123",

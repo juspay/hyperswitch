@@ -425,6 +425,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
 impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConfirmData<F>>
     for PaymentIntentConfirm
 {
+    #[instrument(name = "hs.router.payment_confirm.customer", skip_all)]
     async fn get_customer_details<'a>(
         &'a self,
         state: &SessionState,
@@ -515,6 +516,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
     }
 
     #[cfg(feature = "v2")]
+    #[instrument(name = "hs.router.payment_confirm.routing", skip_all)]
     async fn perform_routing<'a>(
         &'a self,
         platform: &domain::Platform,
@@ -545,6 +547,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
     }
 
     #[cfg(feature = "v2")]
+    #[instrument(name = "hs.router.payment_confirm.payment_method", skip_all)]
     async fn create_or_fetch_payment_method<'a>(
         &'a self,
         state: &SessionState,
@@ -674,6 +677,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
     }
 
     #[cfg(feature = "v2")]
+    #[instrument(name = "hs.router.payment_confirm.connector", skip_all)]
     async fn get_connector_from_request<'a>(
         &'a self,
         state: &SessionState,

@@ -2187,7 +2187,7 @@ fn vault_operation_latency_metric(
     }
 }
 
-#[instrument(skip_all)]
+#[instrument(name = "hs.vault.request", skip_all)]
 pub async fn call_to_vault<V: pm_types::VaultingInterface>(
     state: &routes::SessionState,
     payload: Vec<u8>,
@@ -2270,6 +2270,7 @@ pub async fn create_entity_in_locker(
 }
 
 #[cfg(feature = "v2")]
+#[instrument(name = "hs.vault.fingerprint", skip_all)]
 pub async fn get_fingerprint_id_for_payment_method(
     state: &routes::SessionState,
     payment_method_data: &domain::PaymentMethodVaultingData,
@@ -2281,6 +2282,7 @@ pub async fn get_fingerprint_id_for_payment_method(
 }
 
 #[cfg(feature = "v2")]
+#[instrument(name = "hs.vault.auxiliary_fingerprint", skip_all)]
 pub async fn get_auxiliary_fingerprint_id_for_payment_method(
     state: &routes::SessionState,
     payment_method_data: &domain::PaymentMethodVaultingData,
@@ -2639,7 +2641,7 @@ pub async fn store_cvc_in_redis(
 }
 
 #[cfg(feature = "v2")]
-#[instrument(skip_all)]
+#[instrument(name = "hs.vault.store_cvc", skip_all)]
 /// Stores a client-supplied CVC under its generated short-lived token and returns its expiry.
 pub async fn insert_cvc_using_payment_token(
     state: &routes::SessionState,
@@ -2658,7 +2660,7 @@ pub async fn insert_cvc_using_payment_token(
     Ok(card_token_cvc_storage)
 }
 
-#[instrument(skip_all)]
+#[instrument(name = "hs.vault.retrieve_cvc", skip_all)]
 pub async fn retrieve_cvc_from_payment_token(
     state: &routes::SessionState,
     payment_method_id: &String,

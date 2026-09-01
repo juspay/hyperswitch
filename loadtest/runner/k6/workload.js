@@ -1,4 +1,5 @@
 import exec from "k6/execution";
+import crypto from "k6/crypto";
 import http from "k6/http";
 import { Trend } from "k6/metrics";
 import { SharedArray } from "k6/data";
@@ -82,6 +83,16 @@ function customerAcceptance() {
   };
 }
 
+function hex(bytes) {
+  return Array.from(new Uint8Array(bytes), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function traceHeaders() {
+  const traceId = hex(crypto.randomBytes(16));
+  const parentSpanId = hex(crypto.randomBytes(8));
+  return { traceparent: `00-${traceId}-${parentSpanId}-01` };
+}
+
 function emitResult(fixture, status, error, pmResponse, paymentResponse, pmMs, paymentMs) {
   const totalMs = pmMs + paymentMs;
   const internalMs = paymentResponse ? hyperswitchInternalLatencyMs(paymentResponse) : null;
@@ -115,6 +126,7 @@ export function confirmPayment() {
   const fixture = input.fixtures[offset + phaseIndex];
   if (!fixture) return;
   const params = { timeout: `${input.request_timeout_ms}ms`, redirects: 0 };
+  const iterationTraceHeaders = traceHeaders();
   let token = null;
   let pmResponse = null;
   let pmMs = 0;
@@ -132,7 +144,11 @@ export function confirmPayment() {
     pmResponse = http.post(
       `${input.services["modular-pm"].replace(/\/$/, "")}/payment-method-sessions/${fixture.pm_session_id}/confirm`,
       JSON.stringify(pmSessionConfirmBody),
-      { ...params, headers: modularHeaders(input, fixture.pm_session_client_secret), tags: { operation: "pm_session_confirm" } },
+      {
+        ...params,
+        headers: { ...modularHeaders(input, fixture.pm_session_client_secret), ...iterationTraceHeaders },
+        tags: { operation: "pm_session_confirm" },
+      },
     );
     pmMs = pmResponse.timings.duration;
     const pmBody = json(pmResponse);
@@ -153,7 +169,11 @@ export function confirmPayment() {
   const paymentResponse = http.post(
     `${input.services.router.replace(/\/$/, "")}/payments/${fixture.payment_id}/confirm`,
     JSON.stringify(body),
-    { ...params, headers: apiKeyHeaders(input), tags: { operation: "payment_confirm" } },
+    {
+      ...params,
+      headers: { ...apiKeyHeaders(input), ...iterationTraceHeaders },
+      tags: { operation: "payment_confirm" },
+    },
   );
   const paymentMs = paymentResponse.timings.duration;
   const paymentBody = json(paymentResponse);

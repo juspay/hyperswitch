@@ -8,9 +8,11 @@ level = "INFO"
 log_format = "json"
 
 [log.telemetry]
-traces_enabled = false
+traces_enabled = true
 metrics_enabled = true
 ignore_errors = false
+sampling_rate = 1.0
+route_to_trace = ["*/confirm"]
 otel_exporter_otlp_endpoint = "http://127.0.0.1:4317"
 
 [dummy_connector]

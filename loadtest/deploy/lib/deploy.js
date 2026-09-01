@@ -470,6 +470,23 @@ function setTomlSectionString(contents, section, key, value) {
   return `${contents.slice(0, insertAt)}\n${key} = "${value}"${contents.slice(insertAt)}`;
 }
 
+function setTomlSectionArray(contents, section, key, value) {
+  const header = `[${section}]`;
+  const sectionStart = contents.indexOf(header);
+  if (sectionStart < 0) throw new Error(`Missing ${section} section in router config`);
+  const nextSection = contents.indexOf("\n[", sectionStart + header.length);
+  const sectionEnd = nextSection < 0 ? contents.length : nextSection;
+  const sectionContents = contents.slice(sectionStart, sectionEnd);
+  const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const pattern = new RegExp(`(^|\\n)(${escapedKey}\\s*=\\s*)\\[[^\\n]*\\]`);
+  if (pattern.test(sectionContents)) {
+    const updatedSection = sectionContents.replace(pattern, `$1$2${value}`);
+    return `${contents.slice(0, sectionStart)}${updatedSection}${contents.slice(sectionEnd)}`;
+  }
+  const insertAt = sectionStart + header.length;
+  return `${contents.slice(0, insertAt)}\n${key} = ${value}${contents.slice(insertAt)}`;
+}
+
 function prepareRouterVaultKeys(state) {
   const tokens = generatedSecretTokens(state);
   const applyOverride = (file, overrideName, fallback) => {
@@ -504,6 +521,13 @@ function prepareRouterVaultKeys(state) {
     if (!match) throw new Error(`Missing ${section}.${key} in ${overrideName} override`);
     return match[1];
     };
+    const arrayValueFor = (section, key) => {
+    const escapedSection = section.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const match = override.match(new RegExp(`\\[${escapedSection}\\][\\s\\S]*?\\n${escapedKey}\\s*=\\s*(\\[[^\\n]*\\])`));
+    if (!match) throw new Error(`Missing ${section}.${key} in ${overrideName} override`);
+    return match[1];
+    };
     let contents = fs.readFileSync(file, "utf8");
     contents = replaceMultilineTomlValue(contents, "vault_encryption_key", valueFor("vault_encryption_key"));
     contents = replaceMultilineTomlValue(contents, "rust_locker_encryption_key", valueFor("rust_locker_encryption_key"));
@@ -512,6 +536,8 @@ function prepareRouterVaultKeys(state) {
     contents = replaceTomlSectionString(contents, "log.console", "log_format", stringValueFor("log.console", "log_format"));
     contents = replaceTomlSectionBoolean(contents, "log.telemetry", "traces_enabled", booleanValueFor("log.telemetry", "traces_enabled"));
     contents = replaceTomlSectionBoolean(contents, "log.telemetry", "metrics_enabled", booleanValueFor("log.telemetry", "metrics_enabled"));
+    contents = setTomlSectionNumber(contents, "log.telemetry", "sampling_rate", numberValueFor("log.telemetry", "sampling_rate"));
+    contents = setTomlSectionArray(contents, "log.telemetry", "route_to_trace", arrayValueFor("log.telemetry", "route_to_trace"));
     contents = setTomlSectionString(
       contents,
       "log.telemetry",
@@ -579,6 +605,12 @@ function prepareRouterVaultKeys(state) {
     }
     if (overrideName === "modular-pm") {
       contents = setTomlSectionNumber(contents, "server", "port", numberValueFor("server", "port"));
+      contents = setTomlSectionString(
+        contents,
+        "connectors",
+        "ilixium.base_url",
+        stringValueFor("connectors", "ilixium.base_url"),
+      );
       contents = setTomlSectionString(
         contents,
         "superposition",

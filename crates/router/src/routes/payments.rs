@@ -2637,6 +2637,7 @@ async fn set_payment_confirm_metrics_context(
 
 #[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
+#[instrument(name = "hs.router.payment_confirm.pipeline", skip_all)]
 async fn authorize_verify_select<Op>(
     operation: Op,
     state: app::SessionState,

@@ -62,6 +62,20 @@ services:
     volumes:
       - ./otel-collector.yaml:/etc/otelcol/config.yaml:ro
 
+  tempo:
+    image: docker.io/grafana/tempo:latest
+    container_name: hs-loadtest-tempo
+    labels:
+      io.hyperswitch.loadtest.managed: "true"
+      io.hyperswitch.loadtest.component: observability
+      io.hyperswitch.loadtest.service: tempo
+    network_mode: host
+    cpuset: "${HOST_CPUSET:-}"
+    command: ["-config.file=/etc/tempo/config.yaml"]
+    volumes:
+      - ./tempo.yaml:/etc/tempo/config.yaml:ro
+      - tempo-data:/var/tempo
+
   prometheus:
     image: docker.io/prom/prometheus:latest
     container_name: hs-loadtest-prometheus
@@ -97,6 +111,7 @@ services:
       GF_AUTH_BASIC_ENABLED: "false"
       PROMETHEUS_URL: ${PROMETHEUS_URL:-http://127.0.0.1:9090}
       LOKI_URL: ${LOKI_URL:-http://127.0.0.1:3100}
+      TEMPO_URL: ${TEMPO_URL:-http://127.0.0.1:3200}
     volumes:
       - grafana-data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
@@ -107,3 +122,4 @@ volumes:
   prometheus-data:
   promtail-data:
   grafana-data:
+  tempo-data:
