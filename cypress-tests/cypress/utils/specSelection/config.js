@@ -43,6 +43,7 @@ export const CONNECTOR_PAYMENT_METHODS = Object.freeze({
   checkbook: ["bank_transfer"],
   coingate: ["crypto"],
   cryptopay: ["crypto"],
+  datatrans: ["card"],
   facilitapay: ["bank_transfer"],
   fiservcommercehub: ["card"],
   gigadat: ["bank_redirect"],
