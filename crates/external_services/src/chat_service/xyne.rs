@@ -9,6 +9,7 @@
 use hyperswitch_interfaces::types::Proxy;
 use hyperswitch_masking::Secret;
 use serde::Deserialize;
+use url::Url;
 
 use super::{
     slack_compatible::{Endpoint, DEFAULT_MAX_MESSAGE_CHARS, DEFAULT_TIMEOUT_SECONDS},
@@ -21,8 +22,12 @@ const METHOD_PREFIX: &str = "/slack/";
 /// Where Xyne is served in production.
 const DEFAULT_BASE_URL: &str = "https://spaces.xyne.juspay.net/api/apps";
 
-fn default_base_url() -> String {
-    DEFAULT_BASE_URL.to_owned()
+/// # Panics
+///
+/// Never: [`DEFAULT_BASE_URL`] is a literal parsed at every call, and a test asserts it parses.
+fn default_base_url() -> Url {
+    #[allow(clippy::expect_used)]
+    Url::parse(DEFAULT_BASE_URL).expect("the default base URL is a valid URL")
 }
 
 fn default_timeout_seconds() -> u64 {
@@ -41,7 +46,7 @@ fn default_max_message_chars() -> usize {
 pub struct XyneConfig {
     /// Root of the Xyne app API. Defaults to production.
     #[serde(default = "default_base_url")]
-    pub base_url: String,
+    pub base_url: Url,
 
     /// The app JWT, presented as `Authorization: Bearer <jwt>`.
     pub app_jwt: Secret<String>,
@@ -111,7 +116,7 @@ mod tests {
     fn client_for(server: &MockServer) -> XyneClient {
         XyneClient::new(
             XyneConfig {
-                base_url: format!("{}/api/apps", server.uri()),
+                base_url: Url::parse(&format!("{}/api/apps", server.uri())).unwrap(),
                 app_jwt: Secret::new(TOKEN.to_owned()),
                 channel: CHANNEL.to_owned(),
                 timeout_seconds: DEFAULT_TIMEOUT_SECONDS,
@@ -340,7 +345,7 @@ mod tests {
 
         let client = XyneClient::new(
             XyneConfig {
-                base_url: format!("{}/api/apps", server.uri()),
+                base_url: Url::parse(&format!("{}/api/apps", server.uri())).unwrap(),
                 app_jwt: Secret::new(TOKEN.to_owned()),
                 channel: CHANNEL.to_owned(),
                 timeout_seconds: DEFAULT_TIMEOUT_SECONDS,
@@ -367,7 +372,7 @@ mod tests {
         let config: XyneConfig =
             serde_json::from_value(json!({"app_jwt": "jwt", "channel": "C1"})).unwrap();
 
-        assert_eq!(config.base_url, DEFAULT_BASE_URL);
+        assert_eq!(config.base_url.as_str(), DEFAULT_BASE_URL);
         assert_eq!(config.timeout_seconds, DEFAULT_TIMEOUT_SECONDS);
         assert_eq!(config.max_message_chars, DEFAULT_MAX_MESSAGE_CHARS);
     }

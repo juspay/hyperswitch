@@ -12,6 +12,7 @@
 use hyperswitch_interfaces::types::Proxy;
 use hyperswitch_masking::Secret;
 use serde::Deserialize;
+use url::Url;
 
 use super::{
     slack_compatible::{Endpoint, DEFAULT_MAX_MESSAGE_CHARS, DEFAULT_TIMEOUT_SECONDS},
@@ -24,8 +25,12 @@ const METHOD_PREFIX: &str = "/";
 /// Slack's public API root.
 const DEFAULT_BASE_URL: &str = "https://slack.com/api";
 
-fn default_base_url() -> String {
-    DEFAULT_BASE_URL.to_owned()
+/// # Panics
+///
+/// Never: [`DEFAULT_BASE_URL`] is a literal parsed at every call, and a test asserts it parses.
+fn default_base_url() -> Url {
+    #[allow(clippy::expect_used)]
+    Url::parse(DEFAULT_BASE_URL).expect("the default base URL is a valid URL")
 }
 
 fn default_timeout_seconds() -> u64 {
@@ -41,7 +46,7 @@ fn default_max_message_chars() -> usize {
 pub struct SlackConfig {
     /// Root of the Slack API. Defaults to the public one.
     #[serde(default = "default_base_url")]
-    pub base_url: String,
+    pub base_url: Url,
 
     /// The bot token (`xoxb-…`), presented as `Authorization: Bearer <token>`.
     pub bot_token: Secret<String>,
@@ -115,7 +120,7 @@ mod tests {
 
         let client = SlackClient::new(
             SlackConfig {
-                base_url: server.uri(),
+                base_url: Url::parse(&server.uri()).unwrap(),
                 bot_token: Secret::new("xoxb-test".to_owned()),
                 channel: "C1".to_owned(),
                 timeout_seconds: DEFAULT_TIMEOUT_SECONDS,
@@ -139,6 +144,6 @@ mod tests {
         let config: SlackConfig =
             serde_json::from_value(json!({"bot_token": "xoxb-x", "channel": "C1"})).unwrap();
 
-        assert_eq!(config.base_url, DEFAULT_BASE_URL);
+        assert_eq!(config.base_url.as_str(), DEFAULT_BASE_URL);
     }
 }

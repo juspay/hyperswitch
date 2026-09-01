@@ -10,9 +10,6 @@
 //! no configuration store; deciding what to say, and looking up where to say it, belong to the
 //! callers.
 
-/// Markdown formatting for chat backends that speak Slack's `mrkdwn`.
-pub mod mrkdwn;
-
 /// The Slack chat API.
 pub mod slack;
 
@@ -73,6 +70,20 @@ impl MessageId {
 }
 
 /// A message to post.
+///
+/// The fields are private and reached through a builder and accessors on purpose: this is the type
+/// most likely to grow, and private fields mean it can grow without breaking callers.
+///
+/// Two directions it is expected to grow, and how:
+///
+/// - **A backend that is not Slack-compatible.** `text` is markup, and the markup is not portable
+///   — Slack reads `*bold*` where Discord reads `**bold**`. Today every backend is
+///   Slack-compatible so a rendered string is honest. The first backend that is not forces a
+///   choice between rendering at the call site and carrying structured content here; keeping
+///   `text` private means that choice stays open.
+/// - **Files.** They do not belong on this type. Uploading is a different endpoint with a
+///   different result — a file id, not a message id — and on current Slack it is three calls
+///   rather than one. It earns a sibling method on [`ChatClient`], not a field here.
 #[derive(Debug, Clone)]
 pub struct ChatMessage {
     text: String,
@@ -82,8 +93,9 @@ pub struct ChatMessage {
 impl ChatMessage {
     /// A new top-level message.
     ///
-    /// `text` is delivered as-is; use [`mrkdwn`] to format it for backends that expect Slack's
-    /// markup, and [`mrkdwn::escape`] on any value interpolated into it.
+    /// `text` is delivered as-is, in whatever markup the target backend reads. Escape anything
+    /// interpolated into it: on Slack-compatible backends an unescaped `<` in a merchant id or an
+    /// error reason opens markup and mangles the message.
     pub fn new(text: impl Into<String>) -> Self {
         Self {
             text: text.into(),
