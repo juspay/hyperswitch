@@ -580,6 +580,14 @@ pub async fn perform_payments_sync(
     Ok(())
 }
 
+/// `attempts_already_made` counts the initial charge, which is not a retry, so the retry about to
+/// be scheduled is retry number `attempts_already_made`. No ceiling configured means no gate.
+fn is_retry_budget_exhausted(attempts_already_made: i32, max_retry_count: Option<u16>) -> bool {
+    max_retry_count
+        .map(|max_retry_count| attempts_already_made > i32::from(max_retry_count))
+        .unwrap_or(false)
+}
+
 pub async fn perform_calculate_workflow(
     state: &SessionState,
     process: &storage::ProcessTracker,
@@ -643,30 +651,48 @@ pub async fn perform_calculate_workflow(
     )
     .await?;
 
-    // 2. Get best available token
+    // 2. Bound the invoice by the merchant's ceiling, independently of the retry ladder.
+    let max_retry_count = revenue_recovery_payment_data
+        .billing_mca
+        .get_max_retry_count();
+
     let (payment_processor_token_response, next_static_ladder_progress) =
-        match revenue_recovery_workflow::get_token_with_schedule_time_based_on_retry_algorithm_type(
-            state,
-            &connector_customer_id,
-            payment_intent,
-            revenue_recovery_payment_data.billing_mca.connector_name,
-            retry_algorithm_type,
-            process.retry_count,
-            &tracking_data.static_ladder_progress,
-        )
-        .await
-        {
-            Ok(token_and_schedule) => token_and_schedule,
-            Err(e) => {
-                logger::error!(
-                    error = ?e,
-                    connector_customer_id = %connector_customer_id,
-                    "Failed to get best PSP token"
-                );
-                (
-                    revenue_recovery_workflow::PaymentProcessorTokenResponse::None,
-                    None,
-                )
+        if is_retry_budget_exhausted(process.retry_count, max_retry_count) {
+            logger::info!(
+                process_id = %process.id,
+                retry_count = process.retry_count,
+                ?max_retry_count,
+                "Invoice reached the retry ceiling configured on the billing MCA"
+            );
+            (
+                revenue_recovery_workflow::PaymentProcessorTokenResponse::RetriesExhausted,
+                None,
+            )
+        } else {
+            // 3. Get best available token
+            match revenue_recovery_workflow::get_token_with_schedule_time_based_on_retry_algorithm_type(
+                state,
+                &connector_customer_id,
+                payment_intent,
+                revenue_recovery_payment_data.billing_mca.connector_name,
+                retry_algorithm_type,
+                process.retry_count,
+                &tracking_data.static_ladder_progress,
+            )
+            .await
+            {
+                Ok(token_and_schedule) => token_and_schedule,
+                Err(e) => {
+                    logger::error!(
+                        error = ?e,
+                        connector_customer_id = %connector_customer_id,
+                        "Failed to get best PSP token"
+                    );
+                    (
+                        revenue_recovery_workflow::PaymentProcessorTokenResponse::None,
+                        None,
+                    )
+                }
             }
         };
 
@@ -682,11 +708,11 @@ pub async fn perform_calculate_workflow(
 
             // reset active attmept id and payment connector transmission before going to execute workflow
             let  _ = Box::pin(reset_connector_transmission_and_active_attempt_id_before_pushing_to_execute_workflow(
-                state,
-                payment_intent,
-                revenue_recovery_payment_data,
-                active_payment_attempt_id
-            )).await?;
+            state,
+            payment_intent,
+            revenue_recovery_payment_data,
+            active_payment_attempt_id
+        )).await?;
 
             // 3. If token found: create EXECUTE_WORKFLOW task and finish CALCULATE_WORKFLOW
             insert_execute_pcr_task_to_pt(
