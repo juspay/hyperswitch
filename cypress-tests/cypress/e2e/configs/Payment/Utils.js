@@ -3,7 +3,6 @@ import { execConfig, validateConfig } from "../../../utils/featureFlags.js";
 import { updateDefaultStatusCode } from "./Modifiers.js";
 
 import { connectorDetails as signifydConnectorDetails } from "../FRM/Signifyd.js";
-import { connectorDetails as absaSanlamConnectorDetails } from "./AbsaSanlam.js";
 import { connectorDetails as aciConnectorDetails } from "./Aci.js";
 import { connectorDetails as adyenConnectorDetails } from "./Adyen.js";
 import { connectorDetails as affirmConnectorDetails } from "./Affirm.js";
@@ -43,6 +42,7 @@ import { connectorDetails as getnetConnectorDetails } from "./Getnet.js";
 import { connectorDetails as gigadatConnectorDetails } from "./Gigadat.js";
 import { connectorDetails as globalpayConnectorDetails } from "./Globalpay.js";
 import { connectorDetails as globepayConnectorDetails } from "./Globepay.js";
+import { connectorDetails as gotymeSanlamConnectorDetails } from "./GotymeSanlam.js";
 import { connectorDetails as helcimConnectorDetails } from "./Helcim.js";
 import { connectorDetails as hipayConnectorDetails } from "./Hipay.js";
 import { connectorDetails as iatapayConnectorDetails } from "./Iatapay.js";
@@ -96,7 +96,6 @@ import { connectorDetails as worldpayxmlConnectorDetails } from "./Worldpayxml.j
 import { connectorDetails as xenditConnectorDetails } from "./Xendit.js";
 import { connectorDetails as ziftConnectorDetails } from "./Zift.js";
 const connectorDetails = {
-  gotyme_sanlam: absaSanlamConnectorDetails,
   aci: aciConnectorDetails,
   adyen: adyenConnectorDetails,
   affirm: affirmConnectorDetails,
@@ -136,6 +135,7 @@ const connectorDetails = {
   gigadat: gigadatConnectorDetails,
   globalpay: globalpayConnectorDetails,
   globepay: globepayConnectorDetails,
+  gotyme_sanlam: gotymeSanlamConnectorDetails,
   helcim: helcimConnectorDetails,
   hipay: hipayConnectorDetails,
   iatapay: iatapayConnectorDetails,
