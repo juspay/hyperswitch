@@ -73,7 +73,8 @@ impl api::RefundExecute for GlobalpaymentsHeartland {}
 impl api::RefundSync for GlobalpaymentsHeartland {}
 impl api::PaymentToken for GlobalpaymentsHeartland {}
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for GlobalpaymentsHeartland
+impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response>
+    for GlobalpaymentsHeartland
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
 {
@@ -126,7 +127,9 @@ impl ConnectorCommon for GlobalpaymentsHeartland {
 
 impl ConnectorValidation for GlobalpaymentsHeartland {}
 
-impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for GlobalpaymentsHeartland {
+impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData>
+    for GlobalpaymentsHeartland
+{
     fn build_request(
         &self,
         _req: &PaymentsSessionRouterData,
@@ -156,7 +159,9 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
     }
 }
 
-impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for GlobalpaymentsHeartland {
+impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken>
+    for GlobalpaymentsHeartland
+{
     fn build_request(
         &self,
         _req: &RefreshTokenRouterData,
@@ -186,7 +191,9 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
     }
 }
 
-impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for GlobalpaymentsHeartland {
+impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData>
+    for GlobalpaymentsHeartland
+{
     fn build_request(
         &self,
         _req: &PaymentsAuthorizeRouterData,
@@ -200,7 +207,9 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     }
 }
 
-impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for GlobalpaymentsHeartland {
+impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData>
+    for GlobalpaymentsHeartland
+{
     fn build_request(
         &self,
         _req: &PaymentsSyncRouterData,
@@ -214,7 +223,9 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Glo
     }
 }
 
-impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for GlobalpaymentsHeartland {
+impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData>
+    for GlobalpaymentsHeartland
+{
     fn build_request(
         &self,
         _req: &PaymentsCaptureRouterData,
@@ -228,7 +239,9 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     }
 }
 
-impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for GlobalpaymentsHeartland {
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData>
+    for GlobalpaymentsHeartland
+{
     fn build_request(
         &self,
         _req: &PaymentsCancelRouterData,
