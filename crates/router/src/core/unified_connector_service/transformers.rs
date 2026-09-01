@@ -8315,7 +8315,7 @@ impl
                 .map(payments_grpc::SourceBankData::foreign_try_from)
                 .transpose()?,
             description: router_data.description.clone(),
-            merchant_request_id: None,
+            merchant_request_id: Some(router_data.connector_request_reference_id.clone()),
         })
     }
 }
@@ -8352,7 +8352,7 @@ impl
             connector_feature_data,
             connector_payout_id: router_data.request.connector_payout_id.clone(),
             access_token: router_data.access_token.clone().map(|at| at.token),
-            merchant_request_id: None,
+            merchant_request_id: Some(router_data.connector_request_reference_id.clone()),
         })
     }
 }
@@ -8428,7 +8428,7 @@ impl
             address: Some(address),
             customer: Some(customer),
             source_bank_data,
-            merchant_request_id: None,
+            merchant_request_id: Some(router_data.connector_request_reference_id.clone()),
         })
     }
 }
@@ -8517,7 +8517,7 @@ impl
                 .map(payments_grpc::SourceBankData::foreign_try_from)
                 .transpose()?,
             description: router_data.description.clone(),
-            merchant_request_id: None,
+            merchant_request_id: Some(router_data.connector_request_reference_id.clone()),
         })
     }
 }
@@ -8578,7 +8578,7 @@ impl
             customer: Some(customer),
             access_token: router_data.access_token.clone().map(|at| at.token),
             browser_info,
-            merchant_request_id: None,
+            merchant_request_id: Some(router_data.connector_request_reference_id.clone()),
         })
     }
 }
@@ -8642,7 +8642,7 @@ impl
                     router_data.request.entity_type,
                 ),
             ),
-            merchant_request_id: None,
+            merchant_request_id: Some(router_data.connector_request_reference_id.clone()),
         })
     }
 }
@@ -8704,7 +8704,7 @@ impl
             amount: Some(money),
             customer: Some(customer),
             access_token: router_data.access_token.clone().map(|at| at.token),
-            merchant_request_id: None,
+            merchant_request_id: Some(router_data.connector_request_reference_id.clone()),
         })
     }
 }
@@ -8739,7 +8739,7 @@ impl
                 .as_ref()
                 .map(payments_grpc::SourceBankData::foreign_try_from)
                 .transpose()?,
-            merchant_request_id: None,
+            merchant_request_id: Some(router_data.connector_request_reference_id.clone()),
         })
     }
 }
