@@ -116,12 +116,13 @@ pub struct CalidaMetadata {
     shop_name: Secret<String>,
 }
 
-/// Cardinal 3DS JWT credentials from the Worldpayxml merchant connector account metadata.
 #[derive(Debug, serde::Deserialize)]
 pub struct WorldpayxmlMetadata {
     issuer_id: Option<Secret<String>>,
     organizational_unit_id: Option<Secret<String>>,
     jwt_mac_key: Option<Secret<String>>,
+    funding_transaction_type: Option<String>,
+    payment_purpose: Option<String>,
 }
 
 /// Paysafe payment method details for account_id configuration.
@@ -566,6 +567,10 @@ pub enum ConnectorSpecificConfig {
         issuer_id: Option<Secret<String>>,
         organizational_unit_id: Option<Secret<String>>,
         jwt_mac_key: Option<Secret<String>>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        funding_transaction_type: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        payment_purpose: Option<String>,
     },
     /// Datatrans connector configuration
     Datatrans {
@@ -1582,6 +1587,12 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                             .as_ref()
                             .and_then(|m| m.organizational_unit_id.clone()),
                         jwt_mac_key: worldpayxml_meta.as_ref().and_then(|m| m.jwt_mac_key.clone()),
+                        funding_transaction_type: worldpayxml_meta
+                            .as_ref()
+                            .and_then(|m| m.funding_transaction_type.clone()),
+                        payment_purpose: worldpayxml_meta
+                            .as_ref()
+                            .and_then(|m| m.payment_purpose.clone()),
                     })
                 }
                 _ => Err(err("Worldpayxml requires SignatureKey auth type")),
