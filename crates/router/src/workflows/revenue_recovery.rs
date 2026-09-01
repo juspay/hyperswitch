@@ -254,6 +254,23 @@ pub(crate) async fn get_schedule_time_to_retry_mit_payments(
     scheduler_utils::get_time_from_delta(time_delta)
 }
 
+/// Static ladder time for the adaptive retry algorithm.
+#[cfg(feature = "v2")]
+pub(crate) async fn get_schedule_time_to_retry_adaptive_payments(
+    db: &dyn StorageInterface,
+    superposition_client: &external_services::superposition::SuperpositionClient,
+    dimensions: &crate::core::configs::dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
+    retry_count: i32,
+) -> Option<time::PrimitiveDateTime> {
+    let mapping = dimensions
+        .get_pt_mapping_adaptive_retries(db, superposition_client, None)
+        .await;
+
+    let time_delta = scheduler_utils::get_pcr_payments_retry_schedule_time(mapping, retry_count);
+
+    scheduler_utils::get_time_from_delta(time_delta)
+}
+
 #[derive(Debug, Clone)]
 pub struct RetryDecision {
     pub retry_time: time::PrimitiveDateTime,
@@ -756,7 +773,7 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                 let now = common_utils::date_time::now();
                 let queried_rung = static_ladder_progress.next_rung();
 
-                let static_time = get_schedule_time_to_retry_mit_payments(
+                let static_time = get_schedule_time_to_retry_adaptive_payments(
                     state.store.as_ref(),
                     state.superposition_service.as_ref(),
                     &dimensions,
