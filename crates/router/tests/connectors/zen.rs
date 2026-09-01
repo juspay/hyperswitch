@@ -18,7 +18,7 @@ impl utils::Connector for ZenTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Zen;
         utils::construct_connector_data_old(
-            Box::new(&Zen),
+            Box::new(Zen::new()),
             types::Connector::Zen,
             types::api::GetToken::Connector,
             None,
