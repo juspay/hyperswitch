@@ -4314,6 +4314,36 @@ impl AdditionalPaymentData {
             _ => None,
         }
     }
+
+    /// Wallet providers report the network as a free-form string in their own spelling, so it is
+    /// normalised through `CardNetwork`'s `FromStr`. Apple Pay names the field `network`, the others
+    /// `card_network`.
+    pub fn get_card_network(&self) -> Option<common_enums::CardNetwork> {
+        use std::str::FromStr;
+
+        match self {
+            Self::Card(additional_card_info) => additional_card_info.card_network.clone(),
+            Self::Wallet {
+                apple_pay,
+                google_pay,
+                samsung_pay,
+            } => apple_pay
+                .as_ref()
+                .map(|apple_pay| apple_pay.network.as_str())
+                .or_else(|| {
+                    google_pay
+                        .as_ref()
+                        .and_then(|google_pay| google_pay.card_network.as_deref())
+                })
+                .or_else(|| {
+                    samsung_pay
+                        .as_ref()
+                        .and_then(|samsung_pay| samsung_pay.card_network.as_deref())
+                })
+                .and_then(|network| common_enums::CardNetwork::from_str(network).ok()),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
