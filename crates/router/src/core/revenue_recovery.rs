@@ -1,4 +1,5 @@
 pub mod api;
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 pub mod record_back;
 pub mod retry_stats;
 pub mod schedule;

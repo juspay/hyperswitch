@@ -4,11 +4,12 @@ use api_models::{enums::Connector, refunds::RefundErrorDetails};
 use common_utils::{id_type, types as common_utils_types};
 use diesel_models::refund as diesel_refund;
 use error_stack::{report, ResultExt};
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+use hyperswitch_domain_models::router_request_types::revenue_recovery::RecordBackPaymentMethod;
 use hyperswitch_domain_models::{
     refunds::RefundListConstraints,
     router_data::{ErrorResponse, RouterData},
     router_data_v2::RefundFlowData,
-    router_request_types::revenue_recovery::RecordBackPaymentMethod,
 };
 use hyperswitch_interfaces::{
     api::{Connector as ConnectorTrait, ConnectorIntegration},
@@ -17,12 +18,13 @@ use hyperswitch_interfaces::{
 };
 use router_env::{instrument, tracing};
 
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+use crate::core::revenue_recovery;
 use crate::{
     consts,
     core::{
         errors::{self, ConnectorErrorExt, StorageErrorExt},
         payments::{self, access_token, gateway::context as gateway_context, helpers},
-        revenue_recovery,
         utils::{self as core_utils, refunds_validator},
     },
     db, logger,
@@ -236,6 +238,7 @@ pub async fn trigger_refund_to_gateway(
         .ok()
         .and_then(|data| data.raw_connector_response.clone());
 
+    #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
     // A refund on a revenue recovery payment has to reach the billing connector too,
     // otherwise its invoice stays marked paid while the money has gone back. Skips
     // silently for ordinary payments, which is the common case.
@@ -394,6 +397,7 @@ pub async fn internal_trigger_refund_to_gateway(
         .ok()
         .and_then(|data| data.raw_connector_response.clone());
 
+    #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
     // A refund on a revenue recovery payment has to reach the billing connector too,
     // otherwise its invoice stays marked paid while the money has gone back. Skips
     // silently for ordinary payments, which is the common case.
