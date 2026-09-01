@@ -30,6 +30,13 @@ pub trait BlocklistInterface {
         fingerprint_id: &str,
     ) -> CustomResult<storage::Blocklist, errors::StorageError>;
 
+    async fn find_blocklist_entries_by_processor_merchant_id_profile_id_fingerprint_ids(
+        &self,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
+        profile_id: &common_utils::id_type::ProfileId,
+        fingerprint_ids: Vec<String>,
+    ) -> CustomResult<Option<storage::Blocklist>, errors::StorageError>;
+
     async fn delete_blocklist_entry_by_processor_merchant_id_fingerprint_id(
         &self,
         processor_merchant_id: &common_utils::id_type::MerchantId,
@@ -178,6 +185,24 @@ impl BlocklistInterface for Store {
                 }
             }
         }
+    }
+
+    #[instrument(skip_all)]
+    async fn find_blocklist_entries_by_processor_merchant_id_profile_id_fingerprint_ids(
+        &self,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
+        profile_id: &common_utils::id_type::ProfileId,
+        fingerprint_ids: Vec<String>,
+    ) -> CustomResult<Option<storage::Blocklist>, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+        storage::Blocklist::find_by_processor_merchant_id_profile_id_fingerprint_ids(
+            &conn,
+            processor_merchant_id,
+            profile_id,
+            fingerprint_ids,
+        )
+        .await
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -415,6 +440,15 @@ impl BlocklistInterface for MockDb {
         Err(errors::StorageError::MockDbError)?
     }
 
+    async fn find_blocklist_entries_by_processor_merchant_id_profile_id_fingerprint_ids(
+        &self,
+        _processor_merchant_id: &common_utils::id_type::MerchantId,
+        _profile_id: &common_utils::id_type::ProfileId,
+        _fingerprint_ids: Vec<String>,
+    ) -> CustomResult<Option<storage::Blocklist>, errors::StorageError> {
+        Err(errors::StorageError::MockDbError)?
+    }
+
     async fn list_blocklist_entries_by_processor_merchant_id(
         &self,
         _processor_merchant_id: &common_utils::id_type::MerchantId,
@@ -543,6 +577,22 @@ impl BlocklistInterface for KafkaStore {
                 processor_merchant_id,
                 profile_id,
                 fingerprint_id,
+            )
+            .await
+    }
+
+    #[instrument(skip_all)]
+    async fn find_blocklist_entries_by_processor_merchant_id_profile_id_fingerprint_ids(
+        &self,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
+        profile_id: &common_utils::id_type::ProfileId,
+        fingerprint_ids: Vec<String>,
+    ) -> CustomResult<Option<storage::Blocklist>, errors::StorageError> {
+        self.diesel_store
+            .find_blocklist_entries_by_processor_merchant_id_profile_id_fingerprint_ids(
+                processor_merchant_id,
+                profile_id,
+                fingerprint_ids,
             )
             .await
     }
