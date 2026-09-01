@@ -227,7 +227,15 @@ describe("Payment Methods Tests", () => {
     });
 
     context("Create 3DS off session save card payment with token", () => {
-      it("create-payment-call-test -> confirm-save-card-payment-call-test -> Handle redirection -> List PM for customer", () => {
+      it("create-payment-call-test -> confirm-save-card-payment-call-test -> Handle redirection -> List PM for customer", function () {
+        if (
+          utils.CONNECTOR_LISTS.EXCLUDE.SAVE_CARD.includes(
+            globalState.get("connectorId")
+          )
+        ) {
+          this.skip();
+        }
+
         const saveCardBody = Cypress._.cloneDeep(fixtures.saveCardConfirmBody);
 
         cy.step("create-payment-call-test", () => {
@@ -302,7 +310,15 @@ describe("Payment Methods Tests", () => {
         cy.task("setGlobalState", globalState.data);
       });
 
-      it("create-payment-call-test -> confirm-save-card-payment-call-test -> List PM for customer", () => {
+      it("create-payment-call-test -> confirm-save-card-payment-call-test -> List PM for customer", function () {
+        if (
+          utils.CONNECTOR_LISTS.EXCLUDE.SAVE_CARD.includes(
+            globalState.get("connectorId")
+          )
+        ) {
+          this.skip();
+        }
+
         const saveCardBody = Cypress._.cloneDeep(fixtures.saveCardConfirmBody);
 
         cy.step("create-payment-call-test", () => {

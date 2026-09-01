@@ -534,6 +534,7 @@ export const CONNECTOR_LISTS = {
       "forte",
       "globalpay",
       "gigadat",
+      "ilixium",
       "jpmorgan",
       "loonio",
       "mifinity",

@@ -209,6 +209,14 @@ export const connectorDetails = {
         },
       },
     }),
+    SyncRefund: getCustomExchange({
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
     PaymentMethodIdMandateNo3DSAutoCapture: getCustomExchange({
       Request: {
         payment_method: "card",
