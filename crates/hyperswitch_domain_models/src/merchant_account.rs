@@ -327,13 +327,7 @@ impl MerchantAccount {
 }
 
 #[async_trait::async_trait]
-pub trait MerchantAccountInterface
-// where
-//     MerchantAccount: Conversion<
-//         DstType = diesel_models::merchant_account::MerchantAccount,
-//         NewDstType = diesel_models::merchant_account::MerchantAccountNew,
-//     >,
-{
+pub trait MerchantAccountInterface {
     type Error;
     async fn insert_merchant(
         &self,
