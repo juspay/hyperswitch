@@ -222,8 +222,16 @@ where
             .as_ref()
             .map(|pm_info| pm_info.get_id().clone());
 
+        let should_promote_volatile_card = matches!(
+            payment_data.payment_attempt.payment_method,
+            Some(enums::PaymentMethod::Card)
+        ) && payment_data
+            .payment_attempt
+            .setup_future_usage_applied
+            .is_some();
+
         match (is_volatile, payment_method_id) {
-            (Some(false), Some(pm_id)) => {
+            (Some(is_volatile), Some(pm_id)) if !is_volatile || should_promote_volatile_card => {
                 let should_update = resp.status.should_update_payment_method();
 
                 let payment_method_type = payment_data
@@ -340,13 +348,13 @@ where
                         });
                     let acknowledgement_status =
                         Some(common_enums::AcknowledgementStatus::Authenticated);
-
                     let payload = UpdatePaymentMethodV1Payload {
                         payment_method_data,
                         connector_token_details,
                         network_transaction_id: network_transaction_id
                             .map(hyperswitch_masking::Secret::new),
                         acknowledgement_status,
+                        storage_type: is_volatile.then_some(common_enums::StorageType::Persistent),
                     };
 
                     // #3 - Execute the modular payment-method update call if there is something to be updated
@@ -368,9 +376,14 @@ where
                                 logger::info!("Successfully called modular payment method update");
                             }
                             Err(err) => {
+                                let error = err
+                                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                                    .attach_printable(
+                                        "Failed to call modular payment method update after payment authorization",
+                                    );
                                 logger::error!(
-                                    "Failed to call modular payment method update: {}",
-                                    err
+                                    ?error,
+                                    "Failed to call modular payment method update after payment authorization"
                                 );
                             }
                         };
@@ -4305,6 +4318,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::SetupMandateRe
                             .status
                             .should_update_payment_method()
                             .then_some(common_enums::AcknowledgementStatus::Authenticated),
+                        storage_type: None,
                     };
 
                 let payment_method_update_request =
