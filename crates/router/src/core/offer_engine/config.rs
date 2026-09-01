@@ -3,11 +3,10 @@ use error_stack::ResultExt;
 use hyperswitch_masking::PeekInterface;
 
 use super::types::{OfferEngineCredentialSource, OfferEngineError, ResolvedOfferEngineConfig};
-#[cfg(feature = "v1")]
-use crate::types::domain;
 use crate::{
     core::configs::{self, dimension_config, dimension_state},
     routes::SessionState,
+    types::domain,
 };
 
 pub async fn resolve_offer_engine_credential_source<D>(
@@ -17,12 +16,9 @@ pub async fn resolve_offer_engine_credential_source<D>(
 where
     D: dimension_state::DimensionsBase,
 {
-    let store = state.store.as_ref();
-    let superposition = state.superposition_service.as_ref();
-
     let enabled = configs::fetch_db_config_for_dimensions::<dimension_config::OfferEngineEnabled>(
-        store,
-        superposition,
+        state.store.as_ref(),
+        state.superposition_service.as_ref(),
         dimensions,
         None,
     )
@@ -32,12 +28,37 @@ where
         configs::fetch_db_config_for_string_enum::<
             dimension_config::OfferEngineCredentialSource,
             OfferEngineCredentialSource,
-        >(store, superposition, dimensions, None)
+        >(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            dimensions,
+            None,
+        )
         .await
         .unwrap_or(OfferEngineCredentialSource::None)
     } else {
         OfferEngineCredentialSource::None
     }
+}
+
+pub async fn fetch_offer_engine_credential_source_for_notify<D>(
+    state: &SessionState,
+    dimensions: &D,
+) -> OfferEngineCredentialSource
+where
+    D: dimension_state::DimensionsBase,
+{
+    configs::fetch_db_config_for_string_enum::<
+        dimension_config::OfferEngineCredentialSource,
+        OfferEngineCredentialSource,
+    >(
+        state.store.as_ref(),
+        state.superposition_service.as_ref(),
+        dimensions,
+        None,
+    )
+    .await
+    .unwrap_or(OfferEngineCredentialSource::None)
 }
 
 impl OfferEngineCredentialSource {
@@ -99,5 +120,15 @@ impl OfferEngineCredentialSource {
             api_key: merchant_config.api_key,
             merchant_id: merchant_config.merchant_id,
         })
+    }
+
+    #[cfg(feature = "v2")]
+    pub fn resolve_merchant_offer_config(
+        _state: &SessionState,
+        _merchant_account: &domain::MerchantAccount,
+    ) -> CustomResult<ResolvedOfferEngineConfig, OfferEngineError> {
+        Err(error_stack::report!(OfferEngineError::MissingMerchantConfig(
+            "merchant-level Offer Engine credentials are only supported in v1".to_string()
+        )))
     }
 }

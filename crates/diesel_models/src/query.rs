@@ -6,6 +6,8 @@ mod capture;
 pub mod card_issuer;
 pub mod cards_info;
 pub mod configs;
+#[cfg(feature = "v2")]
+pub mod revenue_recovery_retry_stats;
 
 pub mod authentication;
 pub mod authorization;

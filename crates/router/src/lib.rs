@@ -274,6 +274,7 @@ pub fn mk_app(
             .service(routes::RelayWebhooks::server(state.clone()))
             .service(routes::Webhooks::server(state.clone()))
             .service(routes::Hypersense::server(state.clone()))
+            .service(routes::ExternalService::server(state.clone()))
             .service(routes::Relay::server(state.clone()))
             .service(routes::ThreeDsDecisionRule::server(state.clone()));
 
@@ -461,7 +462,7 @@ pub async fn start_server(
                 })?;
 
             server_builder
-                .bind_rustls_0_22(
+                .bind_rustls_0_23(
                     (tls_conf.host.unwrap_or(server.host).as_str(), tls_conf.port),
                     config,
                 )?

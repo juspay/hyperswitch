@@ -627,6 +627,7 @@ impl<F>
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 })
             }
             DatatransResponse::ThreeDSResponse(response) => {
@@ -651,6 +652,7 @@ impl<F>
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 })
             }
         };
@@ -705,6 +707,7 @@ impl<F>
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 })
             }
             DatatransResponse::ThreeDSResponse(response) => {
@@ -729,6 +732,7 @@ impl<F>
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 })
             }
         };
@@ -895,6 +899,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<DatatransSyncResponse>>
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     })
                 };
                 Ok(Self {

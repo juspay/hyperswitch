@@ -938,6 +938,7 @@ fn handle_cards_response(
         incremental_authorization_allowed: None,
         authentication_data: None,
         charges: None,
+        payment_account_reference: None,
     };
     Ok((status, error, payment_response_data, None))
 }
@@ -969,6 +970,7 @@ fn handle_bank_redirects_response(
         incremental_authorization_allowed: None,
         authentication_data: None,
         charges: None,
+        payment_account_reference: None,
     };
     Ok((status, error, payment_response_data, None))
 }
@@ -1019,6 +1021,7 @@ fn handle_bank_redirects_error_response(
         incremental_authorization_allowed: None,
         authentication_data: None,
         charges: None,
+        payment_account_reference: None,
     };
     Ok((status, error, payment_response_data, None))
 }
@@ -1092,6 +1095,7 @@ fn handle_bank_redirects_sync_response(
         incremental_authorization_allowed: None,
         authentication_data: None,
         charges: None,
+        payment_account_reference: None,
     };
     Ok((status, error, payment_response_data, None))
 }
@@ -1151,6 +1155,7 @@ pub fn handle_webhook_response(
         incremental_authorization_allowed: None,
         authentication_data: None,
         charges: None,
+        payment_account_reference: None,
     };
     let connector_response = payment_information.get_connector_response();
 
