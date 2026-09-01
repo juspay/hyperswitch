@@ -433,6 +433,7 @@ impl
         let order_details = build_ucs_order_details(router_data.request.order_details.as_deref());
         let l2_l3_data = build_ucs_l2_l3_data(router_data.l2_l3_data.as_deref());
         Ok(Self {
+            split_settlement: None,
             split_payments: router_data
                 .request
                 .split_payments
@@ -632,6 +633,7 @@ impl
                         payment_method: Some(payments_grpc::payment_method::PaymentMethod::Token(
                             payments_grpc::TokenPaymentMethodType {
                                 token: Some(Secret::new(handle_token.to_string())),
+                                token_payment_method_type: None,
                             },
                         )),
                     })
@@ -708,6 +710,7 @@ impl
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
+            split_settlement: None,
             split_payments: None,
             domain_data: None,
             mit_category: None,
@@ -1780,6 +1783,7 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
+            split_settlement: None,
             connector_transaction_id,
             merchant_capture_id: Some(router_data.connector_request_reference_id.clone()),
             amount_to_capture: Some(payments_grpc::Money {
@@ -1900,6 +1904,7 @@ impl
             .transpose()?;
 
         Ok(Self {
+            split_settlement: None,
             split_payments: None,
             domain_data: None,
             mit_category: None,
@@ -2058,6 +2063,7 @@ impl
         let order_details = build_ucs_order_details(router_data.request.order_details.as_deref());
         let l2_l3_data = build_ucs_l2_l3_data(router_data.l2_l3_data.as_deref());
         Ok(Self {
+            split_settlement: None,
             split_payments: router_data
                 .request
                 .split_payments
@@ -2245,6 +2251,7 @@ impl
             .transpose()?;
 
         Ok(Self {
+            split_settlement: None,
             split_payments: router_data
                 .request
                 .split_payments
@@ -2693,6 +2700,7 @@ impl
             .attach_printable("Failed to convert authentication type")?;
 
         Ok(Self {
+            split_settlement: None,
             split_payments: router_data
                 .request
                 .split_payments
@@ -3256,7 +3264,7 @@ impl
                     network_txn_id: response.network_transaction_id.clone(),
                     network_txn_link_id: response.network_txn_link_id.clone(),
                     connector_response_reference_id: response.connector_reference_id.clone(),
-                    payment_account_reference: None,
+                    payment_account_reference: response.payment_account_reference,
                     incremental_authorization_allowed: response.incremental_authorization_allowed,
                     authentication_data: None,
                     charges: response.splits.map(common_types::payments::ConnectorChargeResponseData::foreign_try_from).transpose()?,
@@ -3364,7 +3372,7 @@ impl transformers::ForeignTryFrom<(payments_grpc::PaymentServiceCaptureResponse,
                     network_txn_id: None,
                     network_txn_link_id: None,
                     connector_response_reference_id: response.connector_reference_id.clone(),
-                    payment_account_reference: None,
+                    payment_account_reference: response.payment_account_reference,
                     incremental_authorization_allowed: response.incremental_authorization_allowed,
                     authentication_data: None,
                     charges: response.splits.map(common_types::payments::ConnectorChargeResponseData::foreign_try_from).transpose()?,
@@ -3563,7 +3571,7 @@ impl
                     network_txn_id: response.network_transaction_id,
                     network_txn_link_id: None,
                     connector_response_reference_id,
-                    payment_account_reference: None,
+                    payment_account_reference: response.payment_account_reference,
                     incremental_authorization_allowed: response.incremental_authorization_allowed,
                     authentication_data: None,
                     charges: response.splits.map(common_types::payments::ConnectorChargeResponseData::foreign_try_from).transpose()?,
@@ -3686,7 +3694,7 @@ impl
                     network_txn_id: response.network_transaction_id.clone(),
                     network_txn_link_id: response.network_txn_link_id.clone(),
                     connector_response_reference_id: response.merchant_charge_id.clone(),
-                    payment_account_reference: None,
+                    payment_account_reference: response.payment_account_reference,
                     incremental_authorization_allowed: response.incremental_authorization_allowed,
                     authentication_data: None,
                     charges: response.splits.map(common_types::payments::ConnectorChargeResponseData::foreign_try_from).transpose()?,
@@ -7353,6 +7361,7 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
             .map(|payment_method_type| payment_method_type.into());
 
         Ok(Self {
+            split_settlement_refund: None,
             split_refunds: router_data
                 .request
                 .split_refunds
@@ -7796,7 +7805,7 @@ impl transformers::ForeignTryFrom<(payments_grpc::PaymentServiceVoidResponse, At
                     network_txn_id: None,
                     network_txn_link_id: None,
                     connector_response_reference_id: response.connector_reference_id.clone(),
-                    payment_account_reference: None,
+                    payment_account_reference: response.payment_account_reference,
                     incremental_authorization_allowed: response.incremental_authorization_allowed,
                     authentication_data: None,
                     charges: response.splits.map(common_types::payments::ConnectorChargeResponseData::foreign_try_from).transpose()?,
@@ -8205,6 +8214,7 @@ impl
             merchant_payout_id: router_data.payout_id.clone(),
             address: Some(address),
             amount: Some(money),
+            payout_connector_metadata: None,
             destination_currency: destination_currency.into(),
             customer: Some(customer),
             access_token: router_data.access_token.clone().map(|at| at.token),
@@ -8230,7 +8240,6 @@ impl
                 .map(payments_grpc::SourceBankData::foreign_try_from)
                 .transpose()?,
             description: router_data.description.clone(),
-            payout_connector_metadata: None,
         })
     }
 }
