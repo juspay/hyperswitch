@@ -33,9 +33,6 @@ use crate::state::AppState;
 /// The configuration, after secrets have been resolved.
 pub type Settings = settings::Settings<RawSecret>;
 
-/// The header carrying the request id, threaded through every log line for a request.
-const REQUEST_ID_HEADER: &str = "x-request-id";
-
 /// Build the standalone HTTP server.
 ///
 /// The request-id middleware and root-span logger are mounted here, in the standalone path only.
@@ -57,7 +54,12 @@ pub async fn start_server(state: AppState) -> errors::AlertsResult<Server> {
             .wrap(router_env::tracing_actix_web::TracingLogger::<
                 router_env::CustomRootSpanBuilder,
             >::new())
-            .wrap(router_env::RequestIdentifier::new(REQUEST_ID_HEADER))
+            // `common_utils::consts::X_REQUEST_ID` rather than our own literal: the router
+            // defaults its trace header to this same constant, so a request id set by an upstream
+            // hop is the one we log rather than a second id for the same request.
+            .wrap(router_env::RequestIdentifier::new(
+                common_utils::consts::X_REQUEST_ID,
+            ))
     })
     .bind((server.host.as_str(), server.port))
     .change_context(errors::ConfigurationError::ConfigParsingError(format!(
