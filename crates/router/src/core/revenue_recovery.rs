@@ -695,9 +695,9 @@ pub async fn perform_calculate_workflow(
                 revenue_recovery_payment_data.billing_mca.connector_name,
                 retry_algorithm_type,
                 process.retry_count,
-                &tracking_data.static_ladder_progress,
+                &tracking_data,
                 &static_ladder_progress,
-            revenue_recovery_payment_data.billing_mca.get_max_retry_count(),
+                revenue_recovery_payment_data.billing_mca.get_max_retry_count(),
         )
             .await
             {
