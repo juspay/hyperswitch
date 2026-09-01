@@ -3,7 +3,10 @@ pub mod payout_attempt;
 pub mod payouts;
 
 use common_enums as storage_enums;
-use common_utils::{consts, id_type};
+use common_utils::{
+    id_type,
+    types::list::{PageOffset, PageSize},
+};
 use time::PrimitiveDateTime;
 
 pub enum PayoutFetchConstraints {
@@ -12,7 +15,7 @@ pub enum PayoutFetchConstraints {
 }
 
 pub struct PayoutListParams {
-    pub offset: u32,
+    pub offset: PageOffset,
     pub starting_at: Option<PrimitiveDateTime>,
     pub ending_at: Option<PrimitiveDateTime>,
     pub connector: Option<Vec<api_models::enums::PayoutConnectors>>,
@@ -24,14 +27,14 @@ pub struct PayoutListParams {
     pub starting_after_id: Option<id_type::PayoutId>,
     pub ending_before_id: Option<id_type::PayoutId>,
     pub entity_type: Option<common_enums::PayoutEntityType>,
-    pub limit: Option<u32>,
+    pub limit: PageSize,
     pub merchant_order_reference_id: Option<String>,
 }
 
 impl From<api_models::payouts::PayoutListConstraints> for PayoutFetchConstraints {
     fn from(value: api_models::payouts::PayoutListConstraints) -> Self {
         Self::List(Box::new(PayoutListParams {
-            offset: 0,
+            offset: PageOffset::default(),
             starting_at: value
                 .time_range
                 .map_or(value.created, |t| Some(t.start_time)),
@@ -46,10 +49,7 @@ impl From<api_models::payouts::PayoutListConstraints> for PayoutFetchConstraints
             ending_before_id: value.ending_before,
             entity_type: None,
             merchant_order_reference_id: None,
-            limit: Some(std::cmp::min(
-                value.limit,
-                consts::PAYOUTS_LIST_MAX_LIMIT_GET,
-            )),
+            limit: value.limit,
         }))
     }
 }
@@ -57,7 +57,7 @@ impl From<api_models::payouts::PayoutListConstraints> for PayoutFetchConstraints
 impl From<common_utils::types::TimeRange> for PayoutFetchConstraints {
     fn from(value: common_utils::types::TimeRange) -> Self {
         Self::List(Box::new(PayoutListParams {
-            offset: 0,
+            offset: PageOffset::default(),
             starting_at: Some(value.start_time),
             ending_at: value.end_time,
             connector: None,
@@ -70,7 +70,7 @@ impl From<common_utils::types::TimeRange> for PayoutFetchConstraints {
             ending_before_id: None,
             entity_type: None,
             merchant_order_reference_id: None,
-            limit: None,
+            limit: PageSize::default(),
         }))
     }
 }
@@ -81,7 +81,7 @@ impl From<api_models::payouts::PayoutListFilterConstraints> for PayoutFetchConst
             Self::Single { payout_id }
         } else {
             Self::List(Box::new(PayoutListParams {
-                offset: value.offset.unwrap_or_default(),
+                offset: value.offset,
                 starting_at: value.time_range.map(|t| t.start_time),
                 ending_at: value.time_range.and_then(|t| t.end_time),
                 connector: value.connector,
@@ -94,10 +94,7 @@ impl From<api_models::payouts::PayoutListFilterConstraints> for PayoutFetchConst
                 ending_before_id: None,
                 entity_type: value.entity_type,
                 merchant_order_reference_id: value.merchant_order_reference_id,
-                limit: Some(std::cmp::min(
-                    value.limit,
-                    consts::PAYOUTS_LIST_MAX_LIMIT_POST,
-                )),
+                limit: value.limit,
             }))
         }
     }

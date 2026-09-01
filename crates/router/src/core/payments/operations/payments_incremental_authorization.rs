@@ -48,9 +48,11 @@ impl<F: Send + Clone + Sync>
         request: &PaymentsIncrementalAuthorizationRequest,
         platform: &domain::Platform,
         _auth_flow: services::AuthFlow,
+        _flow_kind: operations::PaymentFlowKind,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
         _payment_method_fetch_data: operations::PaymentMethodFetchData,
         _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+        _payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
     ) -> RouterResult<
         operations::GetTrackerResponse<
             'a,
@@ -186,6 +188,8 @@ impl<F: Send + Clone + Sync>
             external_authentication_data: None,
             client_session_id: None,
             vault_session_details: None,
+            external_vault_pmd: None,
+            update_request_fields: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -253,6 +257,8 @@ impl<F: Clone + Sync>
             connector_authorization_id: None,
             previously_authorized_amount: payment_data.payment_attempt.get_total_amount(),
             processor_merchant_id: Some(payment_data.payment_intent.processor_merchant_id.clone()),
+            created_at: common_utils::date_time::now(),
+            modified_at: common_utils::date_time::now(),
         };
         let authorization = state
             .store

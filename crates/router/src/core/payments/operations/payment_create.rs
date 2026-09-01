@@ -79,9 +79,11 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         request: &api::PaymentsRequest,
         platform: &domain::Platform,
         _auth_flow: services::AuthFlow,
+        flow_kind: operations::PaymentFlowKind,
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
         payment_method_fetch_data: operations::PaymentMethodFetchData,
         dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+        _payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
         let operations::PaymentMethodFetchData {
@@ -358,6 +360,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             profile_id.clone(),
             &customer_acceptance,
             payment_method_recurring_details.clone(),
+            payment_method_with_raw_data
+                .as_ref()
+                .and_then(|payment_method| payment_method.raw_payment_method_data.clone()),
             customer_details.customer_id.as_ref(),
             dimensions,
         )
@@ -448,7 +453,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                                                 connector_id.get_connector_mandate_id(),
                                                 connector_id.get_payment_method_id(),
                                                 None,
-                                                None,
+                                                connector_id.get_mandate_metadata(),
                                                 connector_id
                                                     .get_connector_mandate_request_reference_id(),
                                                 None,
@@ -517,6 +522,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let operation = payments::if_not_create_change_operation::<_, F>(
             payment_intent.status,
             request.confirm,
+            flow_kind,
             self,
         );
 
@@ -680,6 +686,22 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             None
         };
 
+        // For a single-call create+confirm routed through the external vault proxy core, the
+        // operation has been swapped to `PaymentExternalVaultProxyConfirm` above. That confirm
+        // op normally builds `external_vault_pmd` in its own `get_trackers`, which is skipped
+        // here — so build it now from the same request + vault tokens, mirroring the two-step
+        // confirm flow. The downstream connector call requires this to be populated.
+        let external_vault_pmd = (flow_kind == operations::PaymentFlowKind::ExternalVaultProxy
+            && request.confirm.unwrap_or(false))
+        .then(|| {
+            super::payment_confirm_external_vault_proxy::build_external_vault_payment_method_data(
+                request,
+                payment_method_with_raw_data.as_ref(),
+            )
+        })
+        .transpose()?
+        .flatten();
+
         let payment_data = PaymentData {
             flow: PhantomData,
             payment_intent,
@@ -730,6 +752,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             external_authentication_data: request.three_ds_data.clone(),
             client_session_id,
             vault_session_details: None,
+            external_vault_pmd,
+            update_request_fields: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -780,7 +804,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 )
                 .await?
                 .inspect(|cust| {
-                    payment_data.payment_intent.customer_id = Some(cust.customer_id.clone());
+                    payment_data.payment_intent.customer_id = Some(cust.get_id().clone());
                 });
                 let op: PaymentCreateOperation<'a, F> = Box::new(self);
                 Ok((op, customer))
@@ -1347,6 +1371,7 @@ impl PaymentCreate {
             &profile_id,
             payment_method_ref,
             None, // CVC token data is not passed in create api
+            true, // fetch raw card detail from the internal vault
         )
         .await?;
         logger::info!("Payment method fetched from PM Modular Service.");
@@ -1425,6 +1450,7 @@ impl PaymentCreate {
         profile_id: common_utils::id_type::ProfileId,
         customer_acceptance: &Option<common_payments_types::CustomerAcceptance>,
         payment_method_recurring_details: Option<domain::PaymentMethodData>,
+        modular_raw_payment_method_data: Option<domain::PaymentMethodData>,
         customer_id: Option<&common_utils::id_type::CustomerId>,
         dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<(
@@ -1452,6 +1478,7 @@ impl PaymentCreate {
             })
             .map(domain::PaymentMethodData::from)
             .or(payment_method_recurring_details)
+            .or(modular_raw_payment_method_data)
             .zip(Some(profile_id.clone())) // since data is consumed by async move, profile_id needs to be send separately
             .async_map(|(payment_method_data, _)| async move {
                 helpers::get_additional_payment_data(
@@ -1650,6 +1677,7 @@ impl PaymentCreate {
                     .as_ref()
                     .and_then(|inner| inner.mandate_type.clone().map(Into::into)),
                 external_three_ds_authentication_attempted: None,
+                external_threeds_authentication_type: None,
                 mandate_data,
                 payment_method_billing_address_id,
                 net_amount: hyperswitch_domain_models::payments::payment_attempt::NetAmount::from_payments_request(
@@ -1679,6 +1707,7 @@ impl PaymentCreate {
                 unified_code: None,
                 unified_message: None,
                 fingerprint_id: None,
+                fingerprint_type: None,
                 authentication_connector: None,
                 authentication_id: None,
                 client_source: None,
@@ -1721,7 +1750,9 @@ impl PaymentCreate {
                 retry_type: None,
                 installment_data: None,
                 external_surcharge_details: None,
+                applied_offer_details: None,
                 sender_payment_instrument_id: None,
+                payment_account_reference: None,
             },
             additional_pm_data,
 
@@ -1849,6 +1880,14 @@ impl PaymentCreate {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to encode shipping details to serde_json::Value")?;
 
+        let recipient_details_encoded = request
+            .recipient_details
+            .clone()
+            .map(|recipient| Encode::encode_to_value(&recipient).map(Secret::new))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encode recipient details to serde_json::Value")?;
+
         let encrypted_data = domain::types::crypto_operation(
             &key_manager_state,
             type_name!(storage::PaymentIntent),
@@ -1858,6 +1897,7 @@ impl PaymentCreate {
                         shipping_details: shipping_details_encoded,
                         billing_details: billing_details_encoded,
                         customer_details: customer_details_encoded,
+                        recipient_details: recipient_details_encoded,
                     },
                 ),
             ),
@@ -1917,7 +1957,7 @@ impl PaymentCreate {
             connector_id: None,
             allowed_payment_method_types,
             connector_metadata,
-            feature_metadata,
+            feature_metadata: feature_metadata.map(Secret::new),
             attempt_count: 1,
             profile_id: Some(profile_id),
             merchant_decision: None,
@@ -1973,6 +2013,8 @@ impl PaymentCreate {
             enable_overcapture: request.enable_overcapture,
             mit_category: request.mit_category,
             billing_descriptor: request.billing_descriptor.clone(),
+            is_account_funded_transaction: request.is_account_funded_transaction,
+            recipient_details: encrypted_data.recipient_details,
             tokenization: request.tokenization,
             partner_merchant_identifier_details: request
                 .partner_merchant_identifier_details
@@ -1980,6 +2022,8 @@ impl PaymentCreate {
             state_metadata: None,
             installment_options: request.installment_options.clone(),
             profile_acquirer_id: request.profile_acquirer_id.clone(),
+            external_surcharge_strategy: request.external_surcharge_strategy,
+            external_surcharge_applicable: None,
         })
     }
 }

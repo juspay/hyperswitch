@@ -296,11 +296,15 @@ pub async fn generate_sample_data(
             enable_overcapture: None,
             mit_category: None,
             billing_descriptor: None,
+            is_account_funded_transaction: None,
+            recipient_details: None,
             tokenization: None,
             partner_merchant_identifier_details: None,
             state_metadata: None,
             installment_options: None,
             profile_acquirer_id: None,
+            external_surcharge_strategy: None,
+            external_surcharge_applicable: None,
         };
         let (connector_transaction_id, processor_transaction_data) =
             ConnectorTransactionId::form_id_and_data(attempt_id.clone());
@@ -376,6 +380,7 @@ pub async fn generate_sample_data(
             mandate_data: None,
             payment_method_billing_address_id: None,
             fingerprint_id: None,
+            fingerprint_type: None,
             charge_id: None,
             client_source: None,
             client_version: None,
@@ -483,7 +488,7 @@ pub async fn generate_sample_data(
                         .connector
                         .clone()
                         .unwrap_or(DummyConnector4.to_string()),
-                    evidence: None,
+                    evidence: hyperswitch_masking::Secret::new(serde_json::json!({})),
                     profile_id: payment_intent.profile_id.clone(),
                     merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
                     dispute_amount: MinorUnit::new(amount * 100),
@@ -491,6 +496,8 @@ pub async fn generate_sample_data(
                     dispute_currency: Some(payment_intent.currency.unwrap_or_default()),
                     processor_merchant_id: None,
                     created_by: None,
+                    created_at: common_utils::date_time::now(),
+                    modified_at: common_utils::date_time::now(),
                 })
             } else {
                 None

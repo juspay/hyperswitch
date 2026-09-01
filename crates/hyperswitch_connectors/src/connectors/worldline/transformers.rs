@@ -341,7 +341,7 @@ fn make_card_request(
     let secret_value = format!(
         "{}{}",
         ccard.card_exp_month.peek(),
-        &expiry_year
+        expiry_year
             .get(expiry_year.len() - 2..)
             .ok_or(errors::ConnectorError::RequestEncodingFailed)?
     );
@@ -593,6 +593,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, Payment, T, PaymentsResponseData>>
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -646,6 +647,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PaymentResponse, T, PaymentsResponseDat
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })

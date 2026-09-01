@@ -13,7 +13,7 @@ pub struct MicroServicesConfig {
     pub payment_methods_base_url: ModularPaymentMethodServiceUrl,
     pub payment_methods_prefix: ModularPaymentMethodServicePrefix,
     pub use_legacy_locker: bool,
-    pub authentication_service: AuthenticationServiceConfig,
+    pub authentication_service: Option<AuthenticationServiceConfig>,
 }
 
 /// Configuration for the authentication microservice.

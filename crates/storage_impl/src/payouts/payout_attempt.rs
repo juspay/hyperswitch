@@ -56,10 +56,10 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
             }
             MerchantStorageScheme::RedisKv => {
                 let merchant_id = new_payout_attempt.merchant_id.clone();
-                let payout_attempt_id = new_payout_attempt.payout_id.clone();
-                let key = PartitionKey::MerchantIdPayoutAttemptId {
+                let payout_id = new_payout_attempt.payout_id.clone();
+                let key = PartitionKey::MerchantIdPayoutId {
                     merchant_id: &merchant_id,
-                    payout_attempt_id: payout_attempt_id.get_string_repr(),
+                    payout_id: &payout_id,
                 };
                 let key_str = key.to_string();
                 let created_attempt = PayoutAttempt {
@@ -97,14 +97,20 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
                     additional_source_bank_data: new_payout_attempt
                         .additional_source_bank_data
                         .clone(),
+                    connector_eligibility_reference_id: new_payout_attempt
+                        .connector_eligibility_reference_id
+                        .clone(),
+                    connector_request_reference_id: new_payout_attempt
+                        .connector_request_reference_id
+                        .clone(),
                 };
 
                 let field = format!("poa_{}", created_attempt.payout_attempt_id);
                 let reverse_lookup = ReverseLookupNew {
                     lookup_id: format!(
                         "poa_{}_{}",
-                        &created_attempt.merchant_id.get_string_repr(),
-                        &created_attempt.payout_attempt_id,
+                        created_attempt.merchant_id.get_string_repr(),
+                        created_attempt.payout_attempt_id,
                     ),
                     pk_id: key_str.clone(),
                     sk_id: field.clone(),
@@ -155,9 +161,9 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
         payouts: &Payouts,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PayoutAttempt, errors::StorageError> {
-        let key = PartitionKey::MerchantIdPayoutAttemptId {
+        let key = PartitionKey::MerchantIdPayoutId {
             merchant_id: &this.merchant_id,
-            payout_attempt_id: this.payout_id.get_string_repr(),
+            payout_id: &this.payout_id,
         };
         let field = format!("poa_{}", this.payout_attempt_id);
         let storage_scheme = Box::pin(decide_storage_scheme::<_, DieselPayoutAttempt>(
@@ -304,6 +310,64 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
                         self.router_store
                             .find_payout_attempt_by_merchant_id_payout_attempt_id(
                                 merchant_id,
+                                payout_attempt_id,
+                                storage_scheme,
+                            )
+                            .await
+                    },
+                ))
+                .await
+            }
+        }
+    }
+
+    #[instrument(skip_all)]
+    async fn find_payout_attempt_by_merchant_id_payout_id_payout_attempt_id(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+        payout_id: &common_utils::id_type::PayoutId,
+        payout_attempt_id: &str,
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<PayoutAttempt, errors::StorageError> {
+        let storage_scheme = Box::pin(decide_storage_scheme::<_, DieselPayoutAttempt>(
+            self,
+            storage_scheme,
+            Op::Find,
+        ))
+        .await;
+        match storage_scheme {
+            MerchantStorageScheme::PostgresOnly => {
+                self.router_store
+                    .find_payout_attempt_by_merchant_id_payout_id_payout_attempt_id(
+                        merchant_id,
+                        payout_id,
+                        payout_attempt_id,
+                        storage_scheme,
+                    )
+                    .await
+            }
+            MerchantStorageScheme::RedisKv => {
+                let key = PartitionKey::MerchantIdPayoutId {
+                    merchant_id,
+                    payout_id,
+                };
+                // TODO: Move all key generation logic to a common function
+                let field = format!("poa_{}", payout_attempt_id);
+                Box::pin(utils::try_redis_get_else_try_database_get(
+                    async {
+                        Box::pin(kv_wrapper(
+                            self,
+                            KvOperation::<DieselPayoutAttempt>::HGet(&field),
+                            key,
+                        ))
+                        .await?
+                        .try_into_hget()
+                    },
+                    || async {
+                        self.router_store
+                            .find_payout_attempt_by_merchant_id_payout_id_payout_attempt_id(
+                                merchant_id,
+                                payout_id,
                                 payout_attempt_id,
                                 storage_scheme,
                             )
@@ -479,6 +543,29 @@ impl<T: DatabaseStore> PayoutAttemptInterface for crate::RouterStore<T> {
     }
 
     #[instrument(skip_all)]
+    async fn find_payout_attempt_by_merchant_id_payout_id_payout_attempt_id(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+        payout_id: &common_utils::id_type::PayoutId,
+        payout_attempt_id: &str,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<PayoutAttempt, errors::StorageError> {
+        let conn = pg_connection_read(self).await?;
+        DieselPayoutAttempt::find_by_merchant_id_payout_id_payout_attempt_id(
+            &conn,
+            merchant_id,
+            payout_id,
+            payout_attempt_id,
+        )
+        .await
+        .map(PayoutAttempt::from_storage_model)
+        .map_err(|er| {
+            let new_err = diesel_error_to_data_error(*er.current_context());
+            er.change_context(new_err)
+        })
+    }
+
+    #[instrument(skip_all)]
     async fn find_payout_attempt_by_merchant_id_connector_payout_id(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -617,6 +704,8 @@ impl DataModelExt for PayoutAttempt {
             created_by: self.created_by.map(|created_by| created_by.to_string()),
             source_bank_data_token: self.source_bank_data_token,
             additional_source_bank_data: self.additional_source_bank_data,
+            connector_eligibility_reference_id: self.connector_eligibility_reference_id,
+            connector_request_reference_id: self.connector_request_reference_id,
         }
     }
 
@@ -652,6 +741,8 @@ impl DataModelExt for PayoutAttempt {
                 .and_then(|created_by| created_by.parse::<common_utils::types::CreatedBy>().ok()),
             source_bank_data_token: storage_model.source_bank_data_token,
             additional_source_bank_data: storage_model.additional_source_bank_data,
+            connector_eligibility_reference_id: storage_model.connector_eligibility_reference_id,
+            connector_request_reference_id: storage_model.connector_request_reference_id,
         }
     }
 }
@@ -688,6 +779,8 @@ impl DataModelExt for PayoutAttemptNew {
             created_by: self.created_by.map(|created_by| created_by.to_string()),
             source_bank_data_token: self.source_bank_data_token,
             additional_source_bank_data: self.additional_source_bank_data,
+            connector_eligibility_reference_id: self.connector_eligibility_reference_id,
+            connector_request_reference_id: self.connector_request_reference_id,
         }
     }
 
@@ -723,6 +816,8 @@ impl DataModelExt for PayoutAttemptNew {
                 .and_then(|created_by| created_by.parse::<common_utils::types::CreatedBy>().ok()),
             source_bank_data_token: storage_model.source_bank_data_token,
             additional_source_bank_data: storage_model.additional_source_bank_data,
+            connector_eligibility_reference_id: storage_model.connector_eligibility_reference_id,
+            connector_request_reference_id: storage_model.connector_request_reference_id,
         }
     }
 }
@@ -739,6 +834,7 @@ impl DataModelExt for PayoutAttemptUpdate {
                 unified_code,
                 unified_message,
                 payout_connector_metadata,
+                connector_eligibility_reference_id,
             } => DieselPayoutAttemptUpdate::StatusUpdate {
                 connector_payout_id,
                 status,
@@ -748,6 +844,7 @@ impl DataModelExt for PayoutAttemptUpdate {
                 unified_code,
                 unified_message,
                 payout_connector_metadata,
+                connector_eligibility_reference_id,
             },
             Self::PayoutTokenUpdate { payout_token } => {
                 DieselPayoutAttemptUpdate::PayoutTokenUpdate { payout_token }
@@ -767,10 +864,12 @@ impl DataModelExt for PayoutAttemptUpdate {
                 connector,
                 routing_info,
                 merchant_connector_id,
+                connector_request_reference_id,
             } => DieselPayoutAttemptUpdate::UpdateRouting {
                 connector,
                 routing_info,
                 merchant_connector_id,
+                connector_request_reference_id,
             },
             Self::AdditionalPayoutDataUpdate {
                 additional_payout_method_data,

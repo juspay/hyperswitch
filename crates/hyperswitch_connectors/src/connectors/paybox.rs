@@ -11,7 +11,6 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -51,7 +50,7 @@ use transformers as paybox;
 use crate::{
     constants::headers,
     types::ResponseRouterData,
-    utils::{convert_amount, is_mandate_supported, PaymentMethodDataType, RouterData as _},
+    utils::{convert_amount, RouterData as _},
 };
 
 #[derive(Clone)]
@@ -168,16 +167,7 @@ impl ConnectorCommon for Paybox {
     }
 }
 
-impl ConnectorValidation for Paybox {
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<enums::PaymentMethodType>,
-        pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let mandate_supported_pmd = std::collections::HashSet::from([PaymentMethodDataType::Card]);
-        is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
-    }
-}
+impl ConnectorValidation for Paybox {}
 
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Paybox {}
 

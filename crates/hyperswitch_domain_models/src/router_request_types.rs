@@ -21,6 +21,7 @@ use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
+use self::merchant_connector_webhook_management::ConnectorWebhookRegisterRequest;
 use super::payment_method_data::PaymentMethodData;
 use crate::{
     address,
@@ -64,6 +65,15 @@ pub enum CurrentFlowInfo {
         /// The payment setup mandate request data
         request_data: Box<PaymentsSyncData>,
     },
+    /// UpdatePostConfirm flow information
+    UpdatePostConfirm {
+        /// The payment update post confirm request data
+        request_data: Box<PaymentsUpdatePostConfirmData>,
+    },
+    ConnectorWebhookRegister {
+        /// The payment setup mandate request data
+        request_data: Box<ConnectorWebhookRegisterRequest>,
+    },
 }
 
 impl CurrentFlowInfo {
@@ -73,6 +83,8 @@ impl CurrentFlowInfo {
             Self::CompleteAuthorize { .. } => None,
             Self::SetupMandate { .. } => None,
             Self::Psync { request_data } => request_data.feature_metadata.clone(),
+            Self::UpdatePostConfirm { request_data } => request_data.feature_metadata.clone(),
+            Self::ConnectorWebhookRegister { .. } => None,
         }
     }
 }
@@ -118,6 +130,8 @@ pub struct PaymentsAuthorizeData {
     pub metadata: Option<serde_json::Value>,
     pub authentication_data: Option<AuthenticationData>,
     pub ucs_authentication_data: Option<UcsAuthenticationData>,
+    /// Indicates whether a 3DS challenge must be forced for the transaction
+    pub force_3ds_challenge: Option<bool>,
     pub request_extended_authorization:
         Option<common_types::primitive_wrappers::RequestExtendedAuthorizationBool>,
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
@@ -150,11 +164,16 @@ pub struct PaymentsAuthorizeData {
     pub tokenization: Option<common_enums::Tokenization>,
     pub partner_merchant_identifier_details:
         Option<common_types::payments::PartnerMerchantIdentifierDetails>,
-    pub rrn: Option<String>,
     pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
     pub installment_details: Option<common_types::payments::InstallmentData>,
     // Contains the connector specific metadata coming from payments request
     pub connector_intent_metadata: Option<ConnectorMetadata>,
+    /// Indicates whether this payment is an account funded transaction.
+    pub is_account_funded_transaction: Option<bool>,
+    pub recipient_details: Option<api_models::payments::RecipientDetails>,
+    /// The merchant's business country for this payment. Connectors use it for requirements that
+    /// apply only to merchants in particular countries.
+    pub business_country: Option<common_enums::CountryAlpha2>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -279,10 +298,21 @@ pub struct PaymentsPostSessionTokensData {
 pub struct PaymentsUpdateMetadataData {
     pub metadata: Option<pii::SecretSerdeValue>,
     pub connector_transaction_id: String,
-    pub payment_method_type: Option<storage_enums::PaymentMethodType>,
-    pub connector_meta: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct PaymentsUpdatePostConfirmData {
     pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
-    pub payment_method_data: Option<PaymentMethodData>,
+    pub amount: Option<MinorUnit>,
+    pub currency: storage_enums::Currency,
+    pub connector_attempt_metadata: Option<serde_json::Value>,
+    pub connector_transaction_id: String,
+    pub description: Option<String>,
+    pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
+    pub billing_address: Option<AddressDetails>,
+    pub metadata: Option<serde_json::Value>,
+    pub merchant_order_reference_id: Option<String>,
+    pub customer_document_details: Option<api_models::customers::CustomerDocumentDetails>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -317,6 +347,7 @@ pub struct PaymentsCaptureData {
     // New amount for amount frame work
     pub minor_payment_amount: MinorUnit,
     pub minor_amount_to_capture: MinorUnit,
+    pub order_tax_amount: Option<MinorUnit>,
     pub integrity_object: Option<CaptureIntegrityObject>,
     pub webhook_url: Option<String>,
     pub merchant_order_reference_id: Option<String>,
@@ -913,6 +944,9 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsAuthenticateData {
             // This is hard coded to None to avoid back and forth authentication_data conversion between UcsAuthenticationData and AuthenticationData.
             // This is handled within authentication_step function in authorize_flow.rs
             authentication_data: None,
+            sdk_information: None,
+            device_channel: None,
+            webhook_url: data.webhook_url,
         })
     }
 }
@@ -930,6 +964,9 @@ pub struct PaymentsAuthenticateData {
     pub minor_amount: Option<MinorUnit>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
     pub authentication_data: Option<UcsAuthenticationData>,
+    pub sdk_information: Option<api_models::payments::SdkInformation>,
+    pub device_channel: Option<api_models::payments::DeviceChannel>,
+    pub webhook_url: Option<String>,
 }
 
 impl TryFrom<CompleteAuthorizeData> for PaymentsAuthenticateData {
@@ -948,6 +985,9 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsAuthenticateData {
             redirect_response: data.redirect_response,
             capture_method: data.capture_method,
             authentication_data: data.authentication_data,
+            sdk_information: None,
+            device_channel: None,
+            webhook_url: None,
         })
     }
 }
@@ -1094,6 +1134,10 @@ pub struct CompleteAuthorizeData {
     pub tokenization: Option<common_enums::Tokenization>,
     pub router_return_url: Option<String>,
     pub merchant_order_reference_id: Option<String>,
+    pub is_account_funded_transaction: Option<bool>,
+    pub recipient_details: Option<api_models::payments::RecipientDetails>,
+    pub business_country: Option<common_enums::CountryAlpha2>,
+    pub connector_intent_metadata: Option<ConnectorMetadata>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1159,6 +1203,22 @@ pub struct PaymentsCancelPostCaptureData {
     pub connector_meta: Option<serde_json::Value>,
     // minor amount data for amount framework
     pub minor_amount: Option<MinorUnit>,
+}
+
+#[derive(Debug, Default, Clone, Serialize)]
+pub struct PaymentsCancelPostCaptureSyncData {
+    pub currency: Option<storage_enums::Currency>,
+    pub connector_payment_transaction_id: String,
+    pub connector_post_capture_void_transaction_id: String,
+    pub connector_meta: Option<pii::SecretSerdeValue>,
+    // minor amount data for amount framework
+    pub minor_amount: Option<MinorUnit>,
+}
+
+#[derive(Debug, Default, Clone, Serialize)]
+pub struct PaymentsPreAuthorizeCancelData {
+    pub connector_transaction_id: String,
+    pub connector_meta: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Default, Clone, Serialize)]
@@ -1338,6 +1398,55 @@ impl
     }
 }
 
+/// Surcharge calculated during /eligibility and cached for /confirm to consume.
+/// The payment_method / payment_method_type carried here are the ones the surcharge
+/// was calculated against; /confirm must match them before applying.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ExternalSurchargeDetails {
+    pub surcharge_amount: MinorUnit,
+    pub tax_amount: Option<MinorUnit>,
+    pub payment_method: common_enums::PaymentMethod,
+    pub payment_method_type: Option<common_enums::PaymentMethodType>,
+    pub external_surcharge_id: String,
+}
+
+impl ExternalSurchargeDetails {
+    pub fn matches_payment_method(
+        &self,
+        payment_method: Option<common_enums::PaymentMethod>,
+        payment_method_type: Option<common_enums::PaymentMethodType>,
+    ) -> bool {
+        payment_method == Some(self.payment_method)
+            && (self.payment_method_type.is_none()
+                || self.payment_method_type == payment_method_type)
+    }
+}
+
+#[cfg(feature = "v1")]
+impl
+    From<(
+        &ExternalSurchargeDetails,
+        &payments::payment_attempt::PaymentAttempt,
+    )> for SurchargeDetails
+{
+    fn from(
+        (external_surcharge_details, payment_attempt): (
+            &ExternalSurchargeDetails,
+            &payments::payment_attempt::PaymentAttempt,
+        ),
+    ) -> Self {
+        let surcharge_amount = external_surcharge_details.surcharge_amount;
+        let tax_on_surcharge_amount = external_surcharge_details.tax_amount.unwrap_or_default();
+        Self {
+            original_amount: payment_attempt.net_amount.get_order_amount(),
+            surcharge: common_utils::types::Surcharge::Fixed(surcharge_amount),
+            tax_on_surcharge: None,
+            surcharge_amount,
+            tax_on_surcharge_amount,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UcsAuthenticationData {
     pub eci: Option<String>,
@@ -1349,6 +1458,10 @@ pub struct UcsAuthenticationData {
     pub trans_status: Option<common_enums::TransactionStatus>,
     pub transaction_id: Option<String>,
     pub ucaf_collection_indicator: Option<String>,
+    pub challenge_code: Option<String>,
+    pub challenge_cancel: Option<String>,
+    pub challenge_code_reason: Option<String>,
+    pub message_extension: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1401,6 +1514,13 @@ pub struct RefundsData {
     pub merchant_config_currency: Option<storage_enums::Currency>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
     pub additional_payment_method_data: Option<AdditionalPaymentData>,
+    /// The `connector_request_reference_id` that was sent to the connector for the *original
+    /// payment* this refund targets.
+    ///
+    /// `RouterData::connector_request_reference_id` identifies the refund itself, and
+    /// `connector_transaction_id` holds the connector-generated identifier, so neither can be used
+    /// by connectors that bind a refund to the merchant-side reference of the original payment.
+    pub payment_connector_request_reference_id: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
@@ -1667,6 +1787,8 @@ pub struct PayoutsData {
     pub payout_connector_metadata: Option<pii::SecretSerdeValue>,
     pub additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
     pub source_bank_data: Option<api_models::payouts::BankTransfer>,
+    pub billing_descriptor: Option<common_types::payouts::PayoutsBillingDescriptor>,
+    pub connector_eligibility_reference_id: Option<String>,
 }
 
 #[derive(Debug, Default, Clone, Serialize)]
@@ -1678,6 +1800,7 @@ pub struct CustomerDetails {
     pub phone_country_code: Option<String>,
     pub tax_registration_id: Option<Secret<String, hyperswitch_masking::WithType>>,
     pub document_details: Option<api_models::customers::CustomerDocumentDetails>,
+    pub date_of_birth: Option<Secret<time::Date>>,
 }
 
 impl CustomerDetails {
@@ -1688,6 +1811,7 @@ impl CustomerDetails {
             || self.phone_country_code.is_some()
             || self.tax_registration_id.is_some()
             || self.document_details.is_some()
+            || self.date_of_birth.is_some()
         {
             Some(payments::payment_intent::CustomerData {
                 name: self.name.clone(),
@@ -1696,6 +1820,7 @@ impl CustomerDetails {
                 phone_country_code: self.phone_country_code.clone(),
                 tax_registration_id: self.tax_registration_id.clone(),
                 customer_document_details: self.document_details.clone(),
+                date_of_birth: self.date_of_birth.clone(),
             })
         } else {
             None
@@ -1763,17 +1888,8 @@ pub struct PaymentsSurchargeCalculationData {
     pub previous_connector_surcharge_id: Option<String>,
     /// Country in ISO alpha-2 format (optional, defaults to USA)
     pub country: Option<common_enums::CountryAlpha2>,
-    /// wave strategy for surcharge application (optional, defaults to Apply)
-    pub surcharge_strategy: Option<SurchargeStrategy>,
-}
-
-#[derive(Debug, Default, Clone)]
-pub enum SurchargeStrategy {
-    /// Apply the calculated surcharge to the payment
-    #[default]
-    Apply,
-    /// Do not apply the surcharge, just return the calculated amount
-    Waive,
+    /// Strategy for surcharge application (optional, defaults to Apply)
+    pub external_surcharge_strategy: Option<common_enums::SurchargeStrategy>,
 }
 
 #[derive(Debug, Clone)]
@@ -1870,6 +1986,12 @@ pub struct SetupMandateRequestData {
     pub authentication_data: Option<AuthenticationData>,
     pub connector_intent_metadata: Option<ConnectorMetadata>,
     pub merchant_order_reference_id: Option<String>,
+    pub mit_category: Option<common_enums::MitCategory>,
+    pub is_account_funded_transaction: Option<bool>,
+    pub recipient_details: Option<api_models::payments::RecipientDetails>,
+    /// The merchant's business country for this payment. Connectors use it for requirements that
+    /// apply only to merchants in particular countries.
+    pub business_country: Option<common_enums::CountryAlpha2>,
 }
 
 #[derive(Debug, Clone)]
@@ -1878,6 +2000,9 @@ pub struct VaultRequestData {
     pub connector_vault_id: Option<String>,
     pub connector_customer_id: Option<String>,
     pub should_generate_multiple_tokens: Option<bool>,
+    /// Storage type (persistent/volatile) for the vault session. `None` lets the connector apply
+    /// its default. Used by the external vault (e.g. Hyperswitch Vault) session create flow.
+    pub storage_type: Option<common_enums::StorageType>,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -1917,7 +2042,7 @@ impl PushNotificationRequestData {
                 }
                 Some(mandates::MandateReferenceId::NetworkMandateId(_))
                 | Some(mandates::MandateReferenceId::NetworkTokenWithNTI(_))
-                | Some(mandates::MandateReferenceId::CardWithLimitedData)
+                | Some(mandates::MandateReferenceId::CardWithLimitedData(_))
                 | None => None,
             })
     }
@@ -1945,7 +2070,7 @@ impl GenerateQrRequestData {
                 }
                 Some(mandates::MandateReferenceId::NetworkMandateId(_))
                 | Some(mandates::MandateReferenceId::NetworkTokenWithNTI(_))
-                | Some(mandates::MandateReferenceId::CardWithLimitedData)
+                | Some(mandates::MandateReferenceId::CardWithLimitedData(_))
                 | None => None,
             })
     }

@@ -149,7 +149,7 @@ describe("Business Profile Payment Method Blocking", () => {
         const updateBusinessProfileBody = {
           payment_method_blocking: {
             card: {
-              card_subtypes: ["smallcorporate"],
+              card_subtypes: ["CORPORATE"],
             },
           },
         };

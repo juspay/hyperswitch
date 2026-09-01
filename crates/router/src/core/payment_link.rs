@@ -13,6 +13,7 @@ use error_stack::{report, ResultExt};
 use futures::future;
 use hyperswitch_domain_models::api::{GenericLinks, GenericLinksData};
 use hyperswitch_masking::{PeekInterface, Secret};
+use payment_link::consts::DEFAULT_MERCHANT_LOGO;
 use router_env::logger;
 use time::PrimitiveDateTime;
 
@@ -24,8 +25,8 @@ use crate::{
     consts::{
         self, DEFAULT_ALLOWED_DOMAINS, DEFAULT_BACKGROUND_COLOR, DEFAULT_DISPLAY_SDK_ONLY,
         DEFAULT_ENABLE_BUTTON_ONLY_ON_FORM_READY, DEFAULT_ENABLE_SAVED_PAYMENT_METHOD,
-        DEFAULT_HIDE_CARD_NICKNAME_FIELD, DEFAULT_MERCHANT_LOGO, DEFAULT_PRODUCT_IMG,
-        DEFAULT_SDK_LAYOUT, DEFAULT_SHOW_CARD_FORM,
+        DEFAULT_HIDE_CARD_NICKNAME_FIELD, DEFAULT_PRODUCT_IMG, DEFAULT_SDK_LAYOUT,
+        DEFAULT_SHOW_CARD_FORM, DEFAULT_SHOW_MERCHANT_NAME,
     },
     errors::RouterResponse,
     get_payment_link_config_value, get_payment_link_config_value_based_on_priority,
@@ -38,6 +39,17 @@ use crate::{
         transformers::{ForeignFrom, ForeignInto},
     },
 };
+
+fn get_redirection_log_endpoint(base_url: &str) -> RouterResult<url::Url> {
+    format!(
+        "{}/{}",
+        base_url.trim_end_matches('/'),
+        payment_link::consts::REDIRECTION_LOG_ENDPOINT
+    )
+    .parse::<url::Url>()
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to parse redirection log endpoint")
+}
 
 pub async fn retrieve_payment_link(
     state: SessionState,
@@ -142,6 +154,8 @@ pub async fn form_payment_link_data(
                 show_card_terms: None,
                 is_setup_mandate_flow: None,
                 color_icon_card_cvc_error: None,
+                show_merchant_name: Some(DEFAULT_SHOW_MERCHANT_NAME),
+                payment_methods_separator_text: None,
             }
         };
 
@@ -323,6 +337,8 @@ pub async fn form_payment_link_data(
         color_icon_card_cvc_error: payment_link_config.color_icon_card_cvc_error.clone(),
         capture_method: payment_attempt.capture_method,
         setup_future_usage_applied: payment_attempt.setup_future_usage_applied,
+        show_merchant_name: payment_link_config.show_merchant_name,
+        payment_methods_separator_text: payment_link_config.payment_methods_separator_text.clone(),
     };
 
     Ok((
@@ -356,6 +372,7 @@ pub async fn initiate_secure_payment_link_flow(
             let payment_link_error_data = services::PaymentLinkStatusData {
                 js_script,
                 css_script,
+                redirection_log_endpoint: Some(get_redirection_log_endpoint(&state.base_url)?),
             };
             logger::info!(
                 "payment link data, for building payment link status page {:?}",
@@ -386,6 +403,7 @@ pub async fn initiate_secure_payment_link_flow(
                 payment_form_label_type: payment_link_config.payment_form_label_type,
                 show_card_terms: payment_link_config.show_card_terms,
                 color_icon_card_cvc_error: payment_link_config.color_icon_card_cvc_error,
+                payment_methods_separator_text: payment_link_config.payment_methods_separator_text,
             };
             let payment_details_str = serde_json::to_string(&secure_payment_link_details)
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -398,6 +416,7 @@ pub async fn initiate_secure_payment_link_flow(
                 sdk_url: state.conf.payment_link.sdk_url.clone(),
                 css_script,
                 html_meta_tags,
+                redirection_log_endpoint: Some(get_redirection_log_endpoint(&state.base_url)?),
             };
             let allowed_domains = payment_link_config
                 .allowed_domains
@@ -454,6 +473,7 @@ pub async fn initiate_payment_link_flow(
             let payment_link_error_data = services::PaymentLinkStatusData {
                 js_script,
                 css_script,
+                redirection_log_endpoint: Some(get_redirection_log_endpoint(&state.base_url)?),
             };
             logger::info!(
                 "payment link data, for building payment link status page {:?}",
@@ -470,6 +490,7 @@ pub async fn initiate_payment_link_flow(
                 sdk_url: state.conf.payment_link.sdk_url.clone(),
                 css_script,
                 html_meta_tags,
+                redirection_log_endpoint: Some(get_redirection_log_endpoint(&state.base_url)?),
             };
             logger::info!(
                 "payment link data, for building open payment link {:?}",
@@ -490,8 +511,11 @@ pub fn get_js_script(payment_details: &PaymentLinkData) -> RouterResult<String> 
 pub fn get_payment_link_css_script(
     payment_link_config: &PaymentLinkConfig,
 ) -> RouterResult<String> {
-    payment_link::get_css_script(payment_link_config)
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+    payment_link::get_css_script(payment_link_config).map_err(|err| {
+        error_stack::report!(errors::ApiErrorResponse::InvalidRequestData {
+            message: err.to_string(),
+        })
+    })
 }
 
 pub fn get_meta_tags_html(payment_details: &api_models::payments::PaymentLinkDetails) -> String {
@@ -694,6 +718,8 @@ pub fn get_payment_link_config_based_on_priority(
         show_card_terms,
         is_setup_mandate_flow,
         color_icon_card_cvc_error,
+        show_merchant_name,
+        payment_methods_separator_text,
     ) = get_payment_link_config_value!(
         payment_create_link_config,
         business_theme_configs,
@@ -714,6 +740,8 @@ pub fn get_payment_link_config_based_on_priority(
         (show_card_terms),
         (is_setup_mandate_flow),
         (color_icon_card_cvc_error),
+        (show_merchant_name),
+        (payment_methods_separator_text),
     );
 
     let payment_link_config =
@@ -748,7 +776,17 @@ pub fn get_payment_link_config_based_on_priority(
             show_card_terms,
             is_setup_mandate_flow,
             color_icon_card_cvc_error,
+            show_merchant_name,
+            payment_methods_separator_text,
         };
+
+    common_utils::validation::ValidateXSSOrSQLi::validate_xss_or_sqli(&payment_link_config)
+        .map_err(|err| {
+            error_stack::report!(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "payment_link_config",
+            })
+            .attach_printable(err)
+        })?;
 
     Ok((payment_link_config, domain_name))
 }
@@ -863,6 +901,8 @@ pub async fn get_payment_link_status(
             show_card_terms: None,
             is_setup_mandate_flow: None,
             color_icon_card_cvc_error: None,
+            show_merchant_name: Some(DEFAULT_SHOW_MERCHANT_NAME),
+            payment_methods_separator_text: None,
         }
     };
 
@@ -954,6 +994,7 @@ pub async fn get_payment_link_status(
     let payment_link_status_data = services::PaymentLinkStatusData {
         js_script,
         css_script,
+        redirection_log_endpoint: Some(get_redirection_log_endpoint(&state.base_url)?),
     };
     Ok(services::ApplicationResponse::PaymentLinkForm(Box::new(
         services::api::PaymentLinkAction::PaymentLinkStatus(payment_link_status_data),

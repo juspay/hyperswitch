@@ -55,6 +55,11 @@ impl<T> StorageErrorExt<T, errors::ApiErrorResponse>
                 errors::StorageError::CustomerRedacted => {
                     errors::ApiErrorResponse::CustomerRedacted
                 }
+                errors::StorageError::InvalidDataFormat(err) => {
+                    errors::ApiErrorResponse::InvalidRequestData {
+                        message: format!("InvalidRequestData: {}", err),
+                    }
+                }
                 _ => errors::ApiErrorResponse::InternalServerError,
             };
             err.change_context(new_err)
@@ -517,6 +522,9 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                     errors::ApiErrorResponse::InvalidConnectorConfiguration {
                         config: config.to_string(),
                     }
+                }
+                errors::ConnectorError::InvalidDataFormat { field_name } => {
+                    errors::ApiErrorResponse::InvalidDataValue { field_name }
                 }
                 _ => errors::ApiErrorResponse::InternalServerError,
             };

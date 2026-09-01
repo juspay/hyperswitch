@@ -153,8 +153,8 @@ impl fred::types::FromRedis for DelReply {
 impl fred::types::FromRedis for SaddReply {
     fn from_value(value: fred::types::RedisValue) -> Result<Self, fred::error::RedisError> {
         match value {
-            fred::types::RedisValue::Integer(1) => Ok(Self::KeySet),
             fred::types::RedisValue::Integer(0) => Ok(Self::KeyNotSet),
+            fred::types::RedisValue::Integer(n) => Ok(Self::KeySet(n)),
             _ => Err(fred::error::RedisError::new(
                 fred::error::RedisErrorKind::Unknown,
                 "Unexpected SADD reply",

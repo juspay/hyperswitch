@@ -42,11 +42,12 @@ impl Default for super::settings::Database {
             host: "localhost".into(),
             port: 5432,
             dbname: String::new(),
-            pool_size: 5,
+            max_pool_size: 5,
             connection_timeout: 10,
             queue_strategy: Default::default(),
-            min_idle: None,
-            max_lifetime: None,
+            min_idle_pool_size: 2,
+            max_lifetime: 1800,
+            idle_timeout: 300,
         }
     }
 }
@@ -61,6 +62,7 @@ impl Default for super::settings::Locker {
             //Time to live for storage entries in locker
             ttl_for_storage_in_secs: 60 * 60 * 24 * 365 * 7,
             decryption_scheme: Default::default(),
+            create_entity_on_merchant_create: false,
         }
     }
 }

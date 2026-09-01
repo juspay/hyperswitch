@@ -279,6 +279,7 @@ fn lower_comparison_inner<O: EuclidDirFilter>(
         dir::DirKeyKind::BusinessLabel => lower_str!(BusinessLabel, value),
         dir::DirKeyKind::MetaData => lower_metadata!(MetaData, value),
         dir::DirKeyKind::PaymentAmount => lower_number!(PaymentAmount, value, comparison),
+        dir::DirKeyKind::SurchargeAmount => lower_number!(SurchargeAmount, value, comparison),
         dir::DirKeyKind::Connector => Err(AnalysisErrorType::InvalidKey(
             dir::DirKeyKind::Connector.to_string(),
         )),

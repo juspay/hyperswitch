@@ -5,10 +5,25 @@ import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 let globalState;
 
 describe("Crypto Payment", () => {
+  let shouldContinue = true;
+
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
+      if (
+        !utils.CONNECTOR_LISTS.INCLUDE.CRYPTO_PAYMENT.includes(
+          globalState.get("connectorId")
+        )
+      ) {
+        shouldContinue = false;
+      }
     });
+  });
+
+  beforeEach(function () {
+    if (!shouldContinue) {
+      this.skip();
+    }
   });
 
   after("flush global state", () => {
@@ -89,6 +104,9 @@ describe("Crypto Payment", () => {
     });
   });
 
+  // Manual capture is not supported by all crypto connectors (e.g. Coingate returns IR_19).
+  // The error response in the connector config causes should_continue_further() to return false,
+  // which skips the redirect-handling and retrieve-payment steps for unsupported connectors.
   context("Crypto Currency manual capture flow", () => {
     it("Create Payment Intent -> Payment Methods Call Test -> Confirm Crypto Currency Payment -> Handle redirection -> Retrieve Payment Call Test", () => {
       let shouldContinue = true;

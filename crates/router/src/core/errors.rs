@@ -2,6 +2,8 @@ pub mod chat;
 pub mod customers_error_response;
 pub mod error_handlers;
 #[cfg(feature = "olap")]
+pub mod launch_sage;
+#[cfg(feature = "olap")]
 pub mod oidc;
 pub mod transformers;
 #[cfg(feature = "olap")]
@@ -149,6 +151,8 @@ pub enum WebhooksFlowError {
     CallToMerchantFailed,
     #[error("Webhook not received by merchant")]
     NotReceivedByMerchant,
+    #[error("Webhook not received by recipient")]
+    NotReceivedByRecipient,
     #[error("Dispute webhook status validation failed")]
     DisputeWebhookValidationFailed,
     #[error("Outgoing webhook body encoding failed")]
@@ -161,6 +165,10 @@ pub enum WebhooksFlowError {
     OutgoingWebhookResponseEncodingFailed,
     #[error("ID generation failed")]
     IdGenerationFailed,
+    #[error("Webhook API call failed")]
+    WebhookCallFailed,
+    #[error("Webhook request construction failed")]
+    WebhookRequestConstructionFailed,
 }
 
 impl WebhooksFlowError {
@@ -169,7 +177,8 @@ impl WebhooksFlowError {
             Self::MerchantConfigNotFound
             | Self::MerchantWebhookDetailsNotFound
             | Self::MerchantWebhookUrlNotConfigured
-            | Self::OutgoingWebhookResponseEncodingFailed => false,
+            | Self::OutgoingWebhookResponseEncodingFailed
+            | Self::WebhookRequestConstructionFailed => false,
 
             Self::WebhookEventUpdationFailed
             | Self::OutgoingWebhookSigningFailed
@@ -179,7 +188,9 @@ impl WebhooksFlowError {
             | Self::OutgoingWebhookEncodingFailed
             | Self::OutgoingWebhookProcessTrackerTaskUpdateFailed
             | Self::OutgoingWebhookRetrySchedulingFailed
-            | Self::IdGenerationFailed => true,
+            | Self::IdGenerationFailed
+            | Self::WebhookCallFailed
+            | Self::NotReceivedByRecipient => true,
         }
     }
 }
@@ -290,6 +301,8 @@ pub enum RoutingError {
     KgraphCacheFailure,
     #[error("failed to refresh the kgraph cache")]
     KgraphCacheRefreshFailed,
+    #[error("failed to fetch merchant connector accounts")]
+    MerchantConnectorAccountsFetchFailed,
     #[error("there was an error during the kgraph analysis phase")]
     KgraphAnalysisError,
     #[error("'profile_id' was not provided")]
@@ -445,8 +458,10 @@ pub enum RevenueRecoveryError {
     PaymentIntentCreateFailed,
     #[error("Source verification failed for billing connector")]
     WebhookAuthenticationFailed,
-    #[error("Payment merchant connector account not found using account reference id")]
-    PaymentMerchantConnectorAccountNotFound,
+    #[error("Payment merchant connector account {id} not found using account reference id")]
+    PaymentMerchantConnectorAccountNotFound { id: String },
+    #[error("Payment attempt cannot be recorded while the invoice is in {status} state")]
+    PaymentAttemptRecordNotAllowed { status: String },
     #[error("Failed to fetch primitive date_time")]
     ScheduleTimeFetchFailed,
     #[error("Failed to create process tracker")]
@@ -471,4 +486,50 @@ pub enum RevenueRecoveryError {
     RevenueRecoveryAttemptDataCreateFailed,
     #[error("Failed to insert the revenue recovery payment method data in redis")]
     RevenueRecoveryRedisInsertFailed,
+}
+
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+impl common_utils::errors::ErrorSwitch<ApiErrorResponse> for RevenueRecoveryError {
+    fn switch(&self) -> ApiErrorResponse {
+        match self {
+            Self::WebhookAuthenticationFailed => ApiErrorResponse::WebhookAuthenticationFailed,
+            Self::InvoiceWebhookProcessingFailed
+            | Self::TransactionWebhookProcessingFailed
+            | Self::RevenueRecoveryAttemptDataCreateFailed
+            | Self::CustomerIdNotFound => ApiErrorResponse::WebhookUnprocessableEntity,
+
+            Self::PaymentMerchantConnectorAccountNotFound { id } => {
+                ApiErrorResponse::MerchantConnectorAccountNotFound { id: id.clone() }
+            }
+            Self::PaymentAttemptRecordNotAllowed { status } => {
+                ApiErrorResponse::PreconditionFailed {
+                    message: format!(
+                        "payment attempt cannot be recorded because the invoice is already in \
+                         {status} state"
+                    ),
+                }
+            }
+
+            Self::BillingThresholdRetryCountFetchFailed => {
+                ApiErrorResponse::InvalidConnectorConfiguration {
+                    config: "revenue_recovery.billing_connector_retry_threshold".to_string(),
+                }
+            }
+
+            Self::PaymentAttemptIdNotFound | Self::RetryAlgorithmTypeNotFound => {
+                ApiErrorResponse::WebhookResourceNotFound
+            }
+            Self::PaymentIntentFetchFailed
+            | Self::PaymentAttemptFetchFailed
+            | Self::PaymentIntentCreateFailed
+            | Self::ScheduleTimeFetchFailed
+            | Self::ProcessTrackerCreationError
+            | Self::ProcessTrackerResponseError
+            | Self::BillingConnectorPaymentsSyncFailed
+            | Self::BillingConnectorInvoiceSyncFailed
+            | Self::RetryCountFetchFailed
+            | Self::RetryAlgorithmUpdationFailed
+            | Self::RevenueRecoveryRedisInsertFailed => ApiErrorResponse::WebhookProcessingFailure,
+        }
+    }
 }

@@ -20,6 +20,9 @@ use crate::schema::gateway_status_map;
     Selectable,
     serde::Serialize,
 )]
+// Deja replay reconstructs recorded rows, so it also needs Deserialize; base
+// keeps its unconditional Serialize so feature-off is byte-identical.
+#[cfg_attr(feature = "deja", derive(serde::Deserialize))]
 #[diesel(table_name = gateway_status_map, primary_key(connector, flow, sub_flow, code, message), check_for_backend(diesel::pg::Pg))]
 pub struct GatewayStatusMap {
     pub connector: String,
@@ -67,6 +70,8 @@ pub struct GatewayStatusMappingNew {
     pub standardised_code: Option<common_enums::StandardisedCode>,
     pub description: Option<String>,
     pub user_guidance_message: Option<String>,
+    pub created_at: PrimitiveDateTime,
+    pub last_modified: PrimitiveDateTime,
 }
 
 #[derive(

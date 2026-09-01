@@ -166,7 +166,7 @@ where
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
         .attach_printable("Failed while fetching/creating customer")?;
 
-    vault_session::populate_vault_session_details(
+    Box::pin(vault_session::populate_vault_session_details(
         state,
         req_state.clone(),
         &customer,
@@ -175,7 +175,9 @@ where
         &profile,
         &mut payment_data,
         header_payload.clone(),
-    )
+        // V2 gates internally on `profile.is_vault_sdk_enabled()`; this flag is ignored here.
+        false,
+    ))
     .await?;
 
     let connector = operation

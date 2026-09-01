@@ -105,7 +105,7 @@ describe("Refund Manual Update Tests", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["ManualRefundUpdate"];
-        cy.manualRefundStatusUpdateTest(data, globalState);
+        cy.manualRefundStatusUpdateTest(globalState, data);
         if (!utils.should_continue_further(data)) {
           shouldContinue = false;
         }
@@ -201,7 +201,7 @@ describe("Refund Manual Update Tests", () => {
           const data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
           ]["ManualRefundUpdateErrorCode"];
-          cy.manualRefundStatusUpdateTest(data, globalState);
+          cy.manualRefundStatusUpdateTest(globalState, data);
           if (!utils.should_continue_further(data)) {
             shouldContinue = false;
           }
@@ -296,7 +296,7 @@ describe("Refund Manual Update Tests", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["ManualRefundUpdatePartialRefund"];
-        cy.manualRefundStatusUpdateTest(data, globalState);
+        cy.manualRefundStatusUpdateTest(globalState, data);
         if (!utils.should_continue_further(data)) {
           shouldContinue = false;
         }
@@ -390,7 +390,7 @@ describe("Refund Manual Update Tests", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["ManualRefundUpdateIdempotency"];
-        cy.manualRefundStatusUpdateTest(data, globalState);
+        cy.manualRefundStatusUpdateTest(globalState, data);
         if (!utils.should_continue_further(data)) {
           shouldContinue = false;
         }
@@ -407,7 +407,7 @@ describe("Refund Manual Update Tests", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["ManualRefundUpdateIdempotency"];
-        cy.manualRefundStatusUpdateTest(data, globalState);
+        cy.manualRefundStatusUpdateTest(globalState, data);
         if (!utils.should_continue_further(data)) {
           shouldContinue = false;
         }
@@ -501,7 +501,7 @@ describe("Refund Manual Update Tests", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["ManualRefundUpdateErrorCode"];
-        cy.manualRefundStatusUpdateTest(data, globalState);
+        cy.manualRefundStatusUpdateTest(globalState, data);
         if (!utils.should_continue_further(data)) {
           shouldContinue = false;
         }
@@ -518,7 +518,7 @@ describe("Refund Manual Update Tests", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["ManualRefundUpdateUnset"];
-        cy.manualRefundStatusUpdateTest(data, globalState);
+        cy.manualRefundStatusUpdateTest(globalState, data);
         if (!utils.should_continue_further(data)) {
           shouldContinue = false;
         }

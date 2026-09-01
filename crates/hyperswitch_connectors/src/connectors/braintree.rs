@@ -18,7 +18,7 @@ use common_utils::{
 };
 use error_stack::{report, Report, ResultExt};
 use hyperswitch_domain_models::{
-    api::ApplicationResponse,
+    api::WebhookResponse,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -72,8 +72,7 @@ use crate::{
     constants::headers,
     types::ResponseRouterData,
     utils::{
-        self, convert_amount, is_mandate_supported, PaymentMethodDataType,
-        PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
+        self, convert_amount, PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
     },
 };
 
@@ -217,20 +216,7 @@ impl ConnectorCommon for Braintree {
     }
 }
 
-impl ConnectorValidation for Braintree {
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<enums::PaymentMethodType>,
-        pm_data: hyperswitch_domain_models::payment_method_data::PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let mandate_supported_pmd = std::collections::HashSet::from([
-            PaymentMethodDataType::Card,
-            PaymentMethodDataType::ApplePayThirdPartySdk,
-            PaymentMethodDataType::ApplePay,
-        ]);
-        is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
-    }
-}
+impl ConnectorValidation for Braintree {}
 
 impl api::Payment for Braintree {}
 
@@ -1133,8 +1119,8 @@ impl IncomingWebhook for Braintree {
         _request: &IncomingWebhookRequestDetails<'_>,
         _error_kind: Option<IncomingWebhookFlowError>,
         _connector_authentication_type: Option<crypto::Encryptable<Secret<serde_json::Value>>>,
-    ) -> CustomResult<ApplicationResponse<serde_json::Value>, errors::ConnectorError> {
-        Ok(ApplicationResponse::TextPlain("[accepted]".to_string()))
+    ) -> CustomResult<WebhookResponse<serde_json::Value>, errors::ConnectorError> {
+        Ok(WebhookResponse::TextPlain("[accepted]".to_string()))
     }
 
     fn get_dispute_details(

@@ -11,6 +11,12 @@ const bluecodeBilling = {
 export const connectorDetails = {
   wallet_pm: {
     Bluecode: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+      },
       Request: {
         payment_method: "wallet",
         payment_method_type: "bluecode",

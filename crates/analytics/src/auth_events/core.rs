@@ -24,6 +24,15 @@ use crate::{
     AnalyticsProvider,
 };
 
+fn numeric_country_code_to_alpha2(country_code: String) -> String {
+    country_code
+        .parse::<u32>()
+        .ok()
+        .and_then(|code| common_enums::Country::from_numeric(code).ok())
+        .map(|country| country.to_alpha2().to_string())
+        .unwrap_or(country_code)
+}
+
 #[instrument(skip_all)]
 pub async fn get_metrics(
     pool: &AnalyticsProvider,
@@ -182,20 +191,17 @@ pub async fn get_filters(
             AuthEventDimensions::Platform => fil.platform,
             AuthEventDimensions::Mcc => fil.mcc,
            AuthEventDimensions::Currency => fil.currency.map(|i| i.as_ref().to_string()),
-            AuthEventDimensions::MerchantCountry => fil.merchant_country,
+            AuthEventDimensions::MerchantCountry => fil.merchant_country.map(numeric_country_code_to_alpha2),
             AuthEventDimensions::BillingCountry => fil.billing_country,
-            AuthEventDimensions::ShippingCountry => fil.shipping_country,
-            AuthEventDimensions::IssuerCountry => fil.issuer_country,
+        AuthEventDimensions::ShippingCountry => fil.shipping_country,
+            AuthEventDimensions::IssuerCountry => fil
+                .issuer_country
+                .map(numeric_country_code_to_alpha2),
             AuthEventDimensions::EarliestSupportedVersion => fil.earliest_supported_version,
             AuthEventDimensions::LatestSupportedVersion => fil.latest_supported_version,
-            AuthEventDimensions::WhitelistDecision => fil.whitelist_decision.map(|i| i.to_string()),
-            AuthEventDimensions::DeviceManufacturer => fil.device_manufacturer,
             AuthEventDimensions::DeviceType => fil.device_type,
-            AuthEventDimensions::DeviceBrand => fil.device_brand,
             AuthEventDimensions::DeviceOs => fil.device_os,
             AuthEventDimensions::DeviceDisplay => fil.device_display,
-            AuthEventDimensions::BrowserName => fil.browser_name,
-            AuthEventDimensions::BrowserVersion => fil.browser_version,
             AuthEventDimensions::IssuerId => fil.issuer_id,
             AuthEventDimensions::SchemeName => fil.scheme_name,
             AuthEventDimensions::ExemptionRequested => fil.exemption_requested.map(|i| i.to_string()),

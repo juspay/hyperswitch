@@ -103,6 +103,11 @@ impl Default for SuperpositionClientConfig {
 
 /// Errors that can occur when using Superposition
 #[derive(Debug, thiserror::Error)]
+// Deja records the WHOLE `CustomResult<T, SuperpositionError>` at the read
+// boundary ("recording threw ⇒ replay throws"), so the error must round-trip.
+// Every variant is `Variant(String)` → trivially (de)serializable. Feature-gated
+// so the release build (deja off) keeps the error type dependency-lean.
+#[cfg_attr(feature = "deja", derive(serde::Serialize, serde::Deserialize))]
 pub enum SuperpositionError {
     /// Error initializing the Superposition client
     #[error("Failed to initialize Superposition client: {0}")]
@@ -110,6 +115,12 @@ pub enum SuperpositionError {
     /// Error from the Superposition client
     #[error("Superposition client error: {0}")]
     ClientError(String),
+    /// Bad request rejected by Superposition
+    #[error("Superposition bad request: {0}")]
+    BadRequest(String),
+    /// Resource not found in Superposition (404)
+    #[error("Superposition resource not found: {0}")]
+    NotFound(String),
     /// Invalid configuration provided
     #[error("Invalid configuration: {0}")]
     InvalidConfiguration(String),

@@ -1,0 +1,165 @@
+---
+title: "Cost Ingestion: Uploads"
+description: "Curl examples for manually uploading settlement reports and invoices, and inspecting ingestion history."
+---
+
+# Cost Ingestion: Uploads
+
+Use manual upload when webhooks aren't wired yet, for backfilling historical data, or for testing. Manual uploads share the same `cost_ingestion` pipeline and history as webhook- and poll-based ingestion (see [Connector Setup](/decision-engine-api-reference/api-reference/guides/cost-ingestion/cost-ingestion-setup)).
+
+## Upload A Settlement Report
+
+Settlement reports can run to several GB, so the request body is streamed straight to disk and processed in the background — the request returns immediately with a job id to poll.
+
+```bash
+curl --location "$BASE_URL/merchant-account/merchant_demo/connectors/adyen/report?account=YOUR_ADYEN_MERCHANT_ACCOUNT_CODE" \
+  --header "$AUTH_HEADER" \
+  --header "Content-Type: text/csv" \
+  --data-binary @settlement-report.csv
+```
+
+Returns `202 Accepted` immediately:
+
+```json
+{
+  "id": "ing_8f21a6c0",
+  "status": "processing"
+}
+```
+
+Upload is capped at 8 GiB per file.
+
+## Check Ingestion History
+
+Poll to see history and in-flight progress, newest first:
+
+```bash
+curl "$BASE_URL/merchant-account/merchant_demo/cost-ingestions" \
+  --header "$AUTH_HEADER"
+```
+
+```json
+[
+  {
+    "id": "ing_8f21a6c0",
+    "connector": "adyen",
+    "account": "YOUR_ADYEN_MERCHANT_ACCOUNT_CODE",
+    "source": "manual",
+    "status": "completed",
+    "staged_rows": 48213,
+    "report_date": "2026-07-01",
+    "period_start": "2026-06-01",
+    "period_end": "2026-06-30",
+    "currency_count": 3,
+    "currencies": ["USD", "EUR", "GBP"],
+    "country_count": 12,
+    "countries": ["US", "GB", "DE"],
+    "total_gross": 1284302.55,
+    "total_clusters": 214,
+    "good_clusters": 178,
+    "last_error": null,
+    "created_at": "2026-07-01T03:12:44Z"
+  }
+]
+```
+
+`source` is `"manual"`, `"webhook"`, or `"poll"` depending on how the report arrived. `status` is `"processing"`, `"completed"`, or `"failed"` (see `last_error`).
+
+## Delete An Ingestion
+
+Removes the transactions that ingestion contributed, re-fits the affected connector/account so the served cost model reflects the deletion, and deletes the history row.
+
+```bash
+curl --request DELETE \
+  "$BASE_URL/merchant-account/merchant_demo/cost-ingestions/ing_8f21a6c0" \
+  --header "$AUTH_HEADER"
+```
+
+Returns `204 No Content`. Returns `409 Conflict` if the ingestion is still `processing`.
+
+## Detect Price Changes
+
+Surfaces fee-regime changes detected by diffing each cluster's two most recent fits — useful for noticing when a connector silently repriced.
+
+```bash
+curl "$BASE_URL/merchant-account/merchant_demo/cost-price-changes" \
+  --header "$AUTH_HEADER"
+```
+
+## Upload An Invoice
+
+Invoices are small (a few hundred lines) and processed synchronously — the computed cost add-on is returned directly in the response. Use this to recover invoice-only fees (e.g. periodic/flat fees) that a settlement report alone doesn't capture.
+
+```bash
+curl --location "$BASE_URL/merchant-account/merchant_demo/connectors/adyen/invoice?account=YOUR_ADYEN_MERCHANT_ACCOUNT_CODE&invoice_ref=INV-2026-06" \
+  --header "$AUTH_HEADER" \
+  --header "Content-Type: application/pdf" \
+  --data-binary @adyen-invoice-june.pdf
+```
+
+```json
+{
+  "merchant_id": "merchant_demo",
+  "connector": "adyen",
+  "account": "YOUR_ADYEN_MERCHANT_ACCOUNT_CODE",
+  "pct_addon_bps": 2.4,
+  "fixed_addon": 0.01,
+  "total_addon_per_txn": 0.034,
+  "subtotal_ex_tax": 4820.55,
+  "card_volume": 1284302.55,
+  "txn_count": 48213,
+  "currency": "EUR",
+  "lines": 6,
+  "breakdown": [
+    {
+      "description": "Monthly platform fee",
+      "kind": "flat_per_txn",
+      "added": true,
+      "amount": 500.0,
+      "per_txn": 0.0104
+    },
+    {
+      "description": "Interchange (already in settlement data)",
+      "kind": "already_modeled",
+      "added": false,
+      "amount": 3200.0,
+      "per_txn": 0.0
+    }
+  ]
+}
+```
+
+Invoice uploads are capped at 32 MiB. `breakdown[].added` is `true` for fee lines this add-on newly captures, `false` for lines already reflected in the settlement-report model (e.g. interchange) or ignored (volume-only lines).
+
+## List Invoice Add-Ons
+
+```bash
+curl "$BASE_URL/merchant-account/merchant_demo/invoice-addons" \
+  --header "$AUTH_HEADER"
+```
+
+## Delete An Invoice Add-On
+
+Reverts the merchant's served cost model to the learned-only (settlement-report-based) cost.
+
+```bash
+curl --request DELETE \
+  "$BASE_URL/merchant-account/merchant_demo/connectors/adyen/invoice-addon" \
+  --header "$AUTH_HEADER"
+```
+
+Returns `204 No Content`.
+
+## Invoice Reconciliation
+
+Ties each stored invoice add-on back to coverage before/after, so you can see how much of the invoice's cost is now explained by the model.
+
+```bash
+curl "$BASE_URL/merchant-account/merchant_demo/invoice-reconciliation" \
+  --header "$AUTH_HEADER"
+```
+
+## Related
+
+- [Cost Ingestion: Connector Setup](/decision-engine-api-reference/api-reference/guides/cost-ingestion/cost-ingestion-setup)
+- [Cost Ingestion: Fees & Coverage](/decision-engine-api-reference/api-reference/guides/cost-ingestion/cost-ingestion-fees)
