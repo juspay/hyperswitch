@@ -296,6 +296,7 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Citigate => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Citigate::new())))
                 }
+                enums::Connector::D24 => Ok(ConnectorEnum::Old(Box::new(connector::D24::new()))),
                 enums::Connector::Worldpayraft => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Worldpayraft::new())))
                 }

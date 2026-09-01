@@ -9145,6 +9145,13 @@ payment_method_type = "UnionPay"
 [citigate.connector_auth.BodyKey]
 api_key = "Merchant Name"
 key1 = "Merchant Password"
+[d24]
+[[d24.card_redirect]]
+  payment_method_type = "card_redirect"
+[d24.connector_auth.SignatureKey]
+api_key = "API Key"
+key1 = "Read-only API Key"
+api_secret = "API Signature"
 [ilixium]
 [ilixium.connector_auth.SignatureKey]
 api_key = "Digest Calculation Password"

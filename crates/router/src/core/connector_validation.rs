@@ -678,6 +678,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 citigate::transformers::CitigateAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::D24 => {
+                d24::transformers::D24AuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Worldpayraft => {
                 worldpayraft::transformers::WorldpayraftAuthType::try_from(self.auth_type)?;
                 Ok(())
