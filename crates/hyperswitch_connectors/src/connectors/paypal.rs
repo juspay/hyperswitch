@@ -1637,6 +1637,7 @@ impl ConnectorIntegration<PreAuthenticate, PaymentsPreAuthenticateData, Payments
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..data.clone()
         })

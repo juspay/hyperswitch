@@ -923,6 +923,7 @@ impl ConnectorSpecifications for Moneris {
             api::CurrentFlowInfo::Authorize {
                 auth_type,
                 request_data,
+                ..
             } => auth_type.is_three_ds() && request_data.is_card(),
             api::CurrentFlowInfo::CompleteAuthorize { .. }
             | api::CurrentFlowInfo::SetupMandate { .. }
