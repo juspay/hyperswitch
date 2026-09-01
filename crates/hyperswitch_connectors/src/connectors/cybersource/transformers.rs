@@ -254,7 +254,6 @@ impl TryFrom<&SetupMandateRouterData> for CybersourceZeroMandateRequest {
                                 ucaf_collection_indicator,
                                 cavv,
                                 ucaf_authentication_data,
-                                xid: None,
                                 directory_server_transaction_id: authn_data
                                     .ds_trans_id
                                     .clone()
@@ -273,8 +272,7 @@ impl TryFrom<&SetupMandateRouterData> for CybersourceZeroMandateRequest {
                                 network_score,
                                 acs_transaction_id: authn_data.acs_trans_id.clone(),
                                 cavv_algorithm,
-                                return_url: None,
-                                reference_id: None,
+                                ..Default::default()
                             }
                         });
 
@@ -540,7 +538,7 @@ pub enum CybersourceParesStatus {
     AuthenticationNotCompleted,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Default, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CybersourceConsumerAuthInformation {
     ucaf_collection_indicator: Option<String>,
@@ -1352,14 +1350,7 @@ fn get_commerce_indicator_for_wallet_payment(
             PaymentSolution::GooglePay => {
                 let is_google_pay_pan_only = match payment_method_data {
                     PaymentMethodData::Wallet(WalletData::GooglePay(gpay_data)) => {
-                        match gpay_data.tokenization_data.get_encrypted_auth_method() {
-                            Some(auth_method) => {
-                                auth_method == common_enums::GooglePayAuthMethod::PanOnly
-                            }
-                            None => gpay_data.info.assurance_details.as_ref().is_some_and(
-                                |assurance_details| !assurance_details.card_holder_authenticated,
-                            ),
-                        }
+                        gpay_data.is_pan_only()
                     }
                     _ => false,
                 };
@@ -1812,7 +1803,6 @@ impl
                     ucaf_collection_indicator,
                     cavv,
                     ucaf_authentication_data,
-                    xid: None,
                     directory_server_transaction_id: authn_data
                         .ds_trans_id
                         .clone()
@@ -1829,8 +1819,7 @@ impl
                     network_score,
                     acs_transaction_id: authn_data.acs_trans_id.clone(),
                     cavv_algorithm,
-                    return_url: None,
-                    reference_id: None,
+                    ..Default::default()
                 }
             });
 
@@ -1936,7 +1925,6 @@ impl
                     ucaf_collection_indicator,
                     cavv,
                     ucaf_authentication_data,
-                    xid: None,
                     directory_server_transaction_id: authn_data
                         .ds_trans_id
                         .clone()
@@ -1953,8 +1941,7 @@ impl
                     network_score,
                     acs_transaction_id: authn_data.acs_trans_id.clone(),
                     cavv_algorithm,
-                    return_url: None,
-                    reference_id: None,
+                    ..Default::default()
                 }
             });
 
@@ -2064,7 +2051,6 @@ impl
                     ucaf_collection_indicator,
                     cavv,
                     ucaf_authentication_data,
-                    xid: None,
                     directory_server_transaction_id: authn_data
                         .ds_trans_id
                         .clone()
@@ -2081,8 +2067,7 @@ impl
                     network_score,
                     acs_transaction_id: authn_data.acs_trans_id.clone(),
                     cavv_algorithm,
-                    return_url: None,
-                    reference_id: None,
+                    ..Default::default()
                 }
             });
 
@@ -2260,18 +2245,7 @@ impl
                 .directory_server_transaction_id,
             specification_version: three_ds_info.three_ds_data.specification_version.clone(),
             pa_specification_version: three_ds_info.three_ds_data.specification_version.clone(),
-            veres_enrolled: None,
-            eci_raw: None,
-            authentication_date: None,
-            effective_authentication_type: None,
-            challenge_code: None,
-            signed_pares_status_reason: None,
-            challenge_cancel_code: None,
-            network_score: None,
-            acs_transaction_id: None,
-            cavv_algorithm: None,
-            return_url: None,
-            reference_id: None,
+            ..Default::default()
         });
 
         let merchant_defined_information = convert_metadata_to_merchant_defined_info(
@@ -2359,26 +2333,8 @@ impl
             order_information,
             client_reference_information,
             consumer_authentication_information: Some(CybersourceConsumerAuthInformation {
-                pares_status: None,
                 ucaf_collection_indicator,
-                cavv: None,
-                ucaf_authentication_data: None,
-                xid: None,
-                directory_server_transaction_id: None,
-                specification_version: None,
-                pa_specification_version: None,
-                veres_enrolled: None,
-                eci_raw: None,
-                authentication_date: None,
-                effective_authentication_type: None,
-                challenge_code: None,
-                signed_pares_status_reason: None,
-                challenge_cancel_code: None,
-                network_score: None,
-                acs_transaction_id: None,
-                cavv_algorithm: None,
-                return_url: None,
-                reference_id: None,
+                ..Default::default()
             }),
             merchant_defined_information,
         })
@@ -2516,26 +2472,8 @@ impl
             order_information,
             client_reference_information,
             consumer_authentication_information: Some(CybersourceConsumerAuthInformation {
-                pares_status: None,
                 ucaf_collection_indicator,
-                cavv: None,
-                ucaf_authentication_data: None,
-                xid: None,
-                directory_server_transaction_id: None,
-                specification_version: None,
-                pa_specification_version: None,
-                veres_enrolled: None,
-                eci_raw: None,
-                authentication_date: None,
-                effective_authentication_type: None,
-                challenge_code: None,
-                signed_pares_status_reason: None,
-                challenge_cancel_code: None,
-                network_score: None,
-                acs_transaction_id: None,
-                cavv_algorithm: None,
-                return_url: None,
-                reference_id: None,
+                ..Default::default()
             }),
             merchant_defined_information,
         })
@@ -2739,26 +2677,8 @@ impl TryFrom<&CybersourceRouterData<&PaymentsAuthorizeRouterData>> for Cybersour
                                         merchant_defined_information,
                                         consumer_authentication_information: Some(
                                             CybersourceConsumerAuthInformation {
-                                                pares_status: None,
                                                 ucaf_collection_indicator,
-                                                cavv: None,
-                                                ucaf_authentication_data: None,
-                                                xid: None,
-                                                directory_server_transaction_id: None,
-                                                specification_version: None,
-                                                pa_specification_version: None,
-                                                veres_enrolled: None,
-                                                eci_raw: None,
-                                                authentication_date: None,
-                                                effective_authentication_type: None,
-                                                challenge_code: None,
-                                                signed_pares_status_reason: None,
-                                                challenge_cancel_code: None,
-                                                network_score: None,
-                                                acs_transaction_id: None,
-                                                cavv_algorithm: None,
-                                                return_url: None,
-                                                reference_id: None,
+                                                ..Default::default()
                                             },
                                         ),
                                     })
@@ -4400,7 +4320,6 @@ impl
         let client_reference_information = ClientReferenceInformation::from(item);
 
         let consumer_authentication_information = Some(CybersourceConsumerAuthInformation {
-            pares_status: None,
             ucaf_collection_indicator: three_ds_info
                 .three_ds_data
                 .ucaf_collection_indicator
@@ -4414,18 +4333,7 @@ impl
                 .clone(),
             specification_version: three_ds_info.three_ds_data.specification_version.clone(),
             pa_specification_version: three_ds_info.three_ds_data.specification_version.clone(),
-            veres_enrolled: None,
-            eci_raw: None,
-            authentication_date: None,
-            effective_authentication_type: None,
-            challenge_code: None,
-            signed_pares_status_reason: None,
-            challenge_cancel_code: None,
-            network_score: None,
-            acs_transaction_id: None,
-            cavv_algorithm: None,
-            return_url: None,
-            reference_id: None,
+            ..Default::default()
         });
 
         let merchant_defined_information = convert_metadata_to_merchant_defined_info(

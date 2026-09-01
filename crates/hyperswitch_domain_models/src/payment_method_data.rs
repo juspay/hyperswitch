@@ -1096,6 +1096,20 @@ pub struct GooglePayWalletData {
     pub tokenization_data: common_types::payments::GpayTokenizationData,
 }
 
+impl GooglePayWalletData {
+    pub fn is_pan_only(&self) -> bool {
+        self.tokenization_data
+            .get_encrypted_auth_method()
+            .map(|auth_method| auth_method == common_enums::GooglePayAuthMethod::PanOnly)
+            .unwrap_or_else(|| {
+                self.info
+                    .assurance_details
+                    .as_ref()
+                    .is_some_and(|assurance_details| !assurance_details.card_holder_authenticated)
+            })
+    }
+}
+
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct ApplePayRedirectData {}
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]

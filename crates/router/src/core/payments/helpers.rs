@@ -3982,17 +3982,7 @@ fn is_google_pay_pan_only(payment_method_data: &domain::PaymentMethodData) -> bo
         return false;
     };
 
-    gpay_data
-        .tokenization_data
-        .get_encrypted_auth_method()
-        .map(|auth_method| auth_method == common_enums::GooglePayAuthMethod::PanOnly)
-        .unwrap_or_else(|| {
-            gpay_data
-                .info
-                .assurance_details
-                .as_ref()
-                .is_some_and(|assurance_details| !assurance_details.card_holder_authenticated)
-        })
+    gpay_data.is_pan_only()
 }
 pub fn should_store_payment_method_data_in_vault(
     temp_locker_enable_config: &TempLockerEnableConfig,

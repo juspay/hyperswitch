@@ -1276,12 +1276,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        if req.is_three_ds()
-            && (req.request.is_card() || Self::is_google_pay_pan_only(&req.request))
-            && (req.request.connector_mandate_id().is_none()
-                && req.request.get_optional_network_transaction_id().is_none())
-            && req.request.authentication_data.is_none()
-        {
+        if self.is_3ds_setup_required(&req.request, req.auth_type) {
             Ok(format!(
                 "{}risk/v1/authentication-setups",
                 ConnectorCommon::base_url(self, connectors)
@@ -1305,12 +1300,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             req.request.currency,
         )?;
         let connector_router_data = cybersource::CybersourceRouterData::from((amount, req));
-        if req.is_three_ds()
-            && (req.request.is_card() || Self::is_google_pay_pan_only(&req.request))
-            && (req.request.connector_mandate_id().is_none()
-                && req.request.get_optional_network_transaction_id().is_none())
-            && req.request.authentication_data.is_none()
-        {
+        if self.is_3ds_setup_required(&req.request, req.auth_type) {
             let connector_req =
                 cybersource::CybersourceAuthSetupRequest::try_from(&connector_router_data)?;
             Ok(RequestContent::Json(Box::new(connector_req)))
@@ -1343,12 +1333,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        if data.is_three_ds()
-            && (data.request.is_card() || Self::is_google_pay_pan_only(&data.request))
-            && (data.request.connector_mandate_id().is_none()
-                && data.request.get_optional_network_transaction_id().is_none())
-            && data.request.authentication_data.is_none()
-        {
+        if self.is_3ds_setup_required(&data.request, data.auth_type) {
             let response: cybersource::CybersourceAuthSetupResponse = res
                 .response
                 .parse_struct("Cybersource AuthSetupResponse")
@@ -2613,7 +2598,6 @@ impl Cybersource {
         request: &PaymentsAuthorizeData,
         auth_type: common_enums::AuthenticationType,
     ) -> bool {
-        router_env::logger::info!(router_data_request=?request, auth_type=?auth_type, "Checking if 3DS setup is required for Cybersource");
         auth_type.is_three_ds()
             && (request.is_card() || Self::is_google_pay_pan_only(request))
             && (request.connector_mandate_id().is_none()
@@ -2627,13 +2611,6 @@ impl Cybersource {
         else {
             return false;
         };
-        match gpay_data.tokenization_data.get_encrypted_auth_method() {
-            Some(auth_method) => auth_method == common_enums::GooglePayAuthMethod::PanOnly,
-            None => gpay_data
-                .info
-                .assurance_details
-                .as_ref()
-                .is_some_and(|assurance_details| !assurance_details.card_holder_authenticated),
-        }
+        gpay_data.is_pan_only()
     }
 }
