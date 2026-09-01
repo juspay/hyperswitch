@@ -1773,6 +1773,13 @@ impl
                 connector_mandate_request_reference_id: Some(item.response.id.clone()),
             });
 
+        let additional_information = convert_to_additional_payment_method_connector_response(
+            item.response.source.as_ref(),
+            item.response.auth_code.clone(),
+            item.data.request.payment_method_type,
+        )
+        .map(ConnectorResponseData::with_additional_payment_method_data);
+
         let payments_response_data = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
             redirection_data: Box::new(redirection_data),
@@ -1801,6 +1808,7 @@ impl
                 Some(err) => Err(err),
                 None => Ok(payments_response_data),
             },
+            connector_response: additional_information,
             ..item.data
         })
     }
