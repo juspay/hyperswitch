@@ -40,7 +40,6 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::WebhooksManage
             | Self::ApiKeysManage
             | Self::CloneConnectorManage
-
             | Self::ThemeManage
             | Self::ConfigurationsManage
             | Self::ReconSourcesManage
@@ -191,7 +190,6 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::ApiKeysView
             | Self::ApiKeysManage
             | Self::CloneConnectorManage
-
             | Self::ThemeView
             | Self::ThemeManage
             | Self::ConfigurationsView
