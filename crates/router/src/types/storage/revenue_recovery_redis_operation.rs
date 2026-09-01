@@ -935,8 +935,7 @@ impl RedisTokenManager {
         Ok(all_hard_declined)
     }
 
-    /// The token this invoice last used, looked up by id — the customer's other tokens are
-    /// left alone, so concurrent invoices never contend over which card to charge.
+    // Get the token this invoice last used, by id
     async fn get_invoice_token(
         state: &SessionState,
         connector_customer_id: &str,
@@ -956,12 +955,8 @@ impl RedisTokenManager {
     }
 
     // Get token based on retry type
-    //
-    // `adaptive_retry_enabled` only matters for smart: the decider picks one of the customer's
-    // tokens and names it by writing `scheduled_at`, whereas the adaptive path decides against
-    // the invoice's own token. Reading the marker there would let a concurrent invoice for the
-    // same customer decide which token this one charges, so adaptive resolves by token id the
-    // way cascading does.
+    // Adaptive smart decides against the invoice's own token, so it resolves by id rather than
+    // the `scheduled_at` marker, which only the decider writes and is shared across invoices.
     pub async fn get_token_based_on_retry_type(
         state: &SessionState,
         connector_customer_id: &str,

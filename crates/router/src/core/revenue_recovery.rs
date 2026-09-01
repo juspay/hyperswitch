@@ -298,9 +298,7 @@ pub async fn perform_execute_payment(
             let last_token_used =
                 revenue_recovery_workflow::get_invoice_payment_processor_token(payment_intent);
 
-            // Resolved here rather than carried on the tracking data so execute reads the same
-            // switch calculate did; a flip between the two rounds costs one empty attempt and
-            // is corrected when calculate reopens.
+            // Same dimensions calculate resolves the flag on
             let adaptive_retry_enabled = crate::core::configs::dimension_state::Dimensions::new()
                 .with_processor_merchant_id(payment_intent.merchant_id.clone().into())
                 .with_connector(revenue_recovery_payment_data.billing_mca.connector_name)

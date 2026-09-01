@@ -807,7 +807,6 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
     ))
 }
 
-/// The invoice's own payment processor token, as recorded on the intent by the last attempt.
 #[cfg(feature = "v2")]
 pub(crate) fn get_invoice_payment_processor_token(
     payment_intent: &PaymentIntent,
