@@ -31,6 +31,154 @@ export const connectorDetails = {
         },
       };
     },
+    Pix: getCustomExchange({
+      Request: {
+        payment_method: "bank_transfer",
+        payment_method_type: "pix",
+        payment_method_data: {
+          bank_transfer: {
+            pix: {},
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "BR",
+            first_name: "john",
+            last_name: "doe",
+          },
+        },
+        currency: "BRL",
+      },
+      Response: {
+        status: 500,
+        body: {
+          error: {
+            type: "api",
+            code: "HE_00",
+          },
+        },
+      },
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+    }),
+    Ach: getCustomExchange({
+      Request: {
+        payment_method: "bank_transfer",
+        payment_method_type: "ach",
+        payment_method_data: {
+          bank_transfer: {
+            ach_bank_transfer: {},
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "BR",
+            first_name: "john",
+            last_name: "doe",
+          },
+        },
+        currency: "BRL",
+      },
+      Response: {
+        status: 500,
+        body: {
+          error: {
+            type: "api",
+            code: "HE_00",
+          },
+        },
+      },
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+    }),
+    InstantBankTransferFinland: getCustomExchange({
+      Request: {
+        payment_method: "bank_transfer",
+        payment_method_type: "instant_bank_transfer_finland",
+        payment_method_data: {
+          bank_transfer: {
+            instant_bank_transfer_finland: {},
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "FI",
+            first_name: "john",
+            last_name: "doe",
+          },
+        },
+        currency: "EUR",
+      },
+      Response: {
+        status: 500,
+        body: {
+          error: {
+            type: "api",
+            code: "HE_00",
+          },
+        },
+      },
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+    }),
+    InstantBankTransferPoland: getCustomExchange({
+      Request: {
+        payment_method: "bank_transfer",
+        payment_method_type: "instant_bank_transfer_poland",
+        payment_method_data: {
+          bank_transfer: {
+            instant_bank_transfer_poland: {},
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "PL",
+            first_name: "john",
+            last_name: "doe",
+          },
+        },
+        currency: "PLN",
+      },
+      Response: {
+        status: 500,
+        body: {
+          error: {
+            type: "api",
+            code: "HE_00",
+          },
+        },
+      },
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+    }),
     PixAutomaticoQrSetupMandate: getCustomExchange({
       Request: {
         amount: 0,
@@ -73,10 +221,16 @@ export const connectorDetails = {
         },
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "requires_customer_action",
+          error: {
+            type: "invalid_request",
+            code: "IR_04",
+          },
         },
+      },
+      Configs: {
+        TRIGGER_SKIP: true,
       },
     }),
     PixAutomaticoQrAutomaticCapture: getCustomExchange({
@@ -117,10 +271,16 @@ export const connectorDetails = {
         },
       },
       Response: {
-        status: 200,
+        status: 500,
         body: {
-          status: "requires_customer_action",
+          error: {
+            type: "api",
+            code: "HE_00",
+          },
         },
+      },
+      Configs: {
+        TRIGGER_SKIP: true,
       },
     }),
   },

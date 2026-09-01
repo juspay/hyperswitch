@@ -44,11 +44,16 @@ export const connectorDetails = {
           description: "Santander PIX payout",
         },
         Response: {
-          status: 200,
+          status: 500,
           body: {
-            status: "requires_fulfillment",
-            payout_type: "bank",
+            error: {
+              type: "api",
+              code: "HE_00",
+            },
           },
+        },
+        Configs: {
+          TRIGGER_SKIP: true,
         },
       },
       Fulfill: {
@@ -66,11 +71,16 @@ export const connectorDetails = {
           description: "Santander PIX payout",
         },
         Response: {
-          status: 200,
+          status: 500,
           body: {
-            status: "success",
-            payout_type: "bank",
+            error: {
+              type: "api",
+              code: "HE_00",
+            },
           },
+        },
+        Configs: {
+          TRIGGER_SKIP: true,
         },
       },
     },
