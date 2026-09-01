@@ -4956,17 +4956,24 @@ pub async fn build_merchant_enabled_pms_context(
 
     let offers_enabled =
         match offer_engine::resolve_offer_engine_credential_source(state, &dimensions).await {
-            offer_engine::OfferEngineCredentialSource::None => false,
-            offer_engine::OfferEngineCredentialSource::Application => {
+            Ok(offer_engine::OfferEngineCredentialSource::None) => false,
+            Ok(offer_engine::OfferEngineCredentialSource::Application) => {
                 offer_engine::OfferEngineCredentialSource::resolve_application_offer_config(state)
                     .is_ok()
             }
-            offer_engine::OfferEngineCredentialSource::Merchant => {
+            Ok(offer_engine::OfferEngineCredentialSource::Merchant) => {
                 offer_engine::OfferEngineCredentialSource::resolve_merchant_offer_config(
                     state,
                     platform.get_processor().get_account(),
                 )
                 .is_ok()
+            }
+            Err(error) => {
+                logger::warn!(
+                ?error,
+                "offer engine: failed to resolve credential source; treating offers as unavailable"
+            );
+                false
             }
         };
 

@@ -12,7 +12,7 @@ use crate::{
 pub async fn resolve_offer_engine_credential_source<D>(
     state: &SessionState,
     dimensions: &D,
-) -> OfferEngineCredentialSource
+) -> CustomResult<OfferEngineCredentialSource, OfferEngineError>
 where
     D: dimension_state::DimensionsBase,
 {
@@ -35,16 +35,20 @@ where
             None,
         )
         .await
-        .unwrap_or(OfferEngineCredentialSource::None)
+        .ok_or_else(|| {
+            error_stack::report!(OfferEngineError::CredentialSourceResolution(
+                "failed to resolve Offer Engine credential source".to_string()
+            ))
+        })
     } else {
-        OfferEngineCredentialSource::None
+        Ok(OfferEngineCredentialSource::None)
     }
 }
 
 pub async fn fetch_offer_engine_credential_source_for_notify<D>(
     state: &SessionState,
     dimensions: &D,
-) -> OfferEngineCredentialSource
+) -> CustomResult<OfferEngineCredentialSource, OfferEngineError>
 where
     D: dimension_state::DimensionsBase,
 {
@@ -58,7 +62,11 @@ where
         None,
     )
     .await
-    .unwrap_or(OfferEngineCredentialSource::None)
+    .ok_or_else(|| {
+        error_stack::report!(OfferEngineError::CredentialSourceResolution(
+            "failed to resolve Offer Engine credential source".to_string()
+        ))
+    })
 }
 
 impl OfferEngineCredentialSource {
