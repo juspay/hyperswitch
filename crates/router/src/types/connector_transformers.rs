@@ -76,7 +76,7 @@ impl ForeignTryFrom<api_enums::Connector> for euclid::enums::RoutableConnectors 
             api_enums::Connector::Ilixium => Self::Ilixium,
             api_enums::Connector::Givepayments => Self::Givepayments,
             api_enums::Connector::Globalpay => Self::Globalpay,
-            api_enums::Connector::GlobalpaymentsHeartland => Self::GlobalpaymentsHeartland,
+            api_enums::Connector::Globalpaymentsheartland => Self::Globalpaymentsheartland,
             api_enums::Connector::Globepay => Self::Globepay,
             api_enums::Connector::Gocardless => Self::Gocardless,
             api_enums::Connector::GotymeSanlam => Self::GotymeSanlam,

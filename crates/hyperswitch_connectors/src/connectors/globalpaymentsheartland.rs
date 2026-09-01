@@ -52,29 +52,29 @@ use crate::constants::headers;
 /// account creation, routing, feature matrix). All direct flow implementations
 /// intentionally return `FlowNotSupported`.
 #[derive(Clone)]
-pub struct GlobalpaymentsHeartland {}
+pub struct Globalpaymentsheartland {}
 
-impl GlobalpaymentsHeartland {
+impl Globalpaymentsheartland {
     pub fn new() -> &'static Self {
         &Self {}
     }
 }
 
-impl api::Payment for GlobalpaymentsHeartland {}
-impl api::PaymentSession for GlobalpaymentsHeartland {}
-impl api::ConnectorAccessToken for GlobalpaymentsHeartland {}
-impl api::MandateSetup for GlobalpaymentsHeartland {}
-impl api::PaymentAuthorize for GlobalpaymentsHeartland {}
-impl api::PaymentSync for GlobalpaymentsHeartland {}
-impl api::PaymentCapture for GlobalpaymentsHeartland {}
-impl api::PaymentVoid for GlobalpaymentsHeartland {}
-impl api::Refund for GlobalpaymentsHeartland {}
-impl api::RefundExecute for GlobalpaymentsHeartland {}
-impl api::RefundSync for GlobalpaymentsHeartland {}
-impl api::PaymentToken for GlobalpaymentsHeartland {}
+impl api::Payment for Globalpaymentsheartland {}
+impl api::PaymentSession for Globalpaymentsheartland {}
+impl api::ConnectorAccessToken for Globalpaymentsheartland {}
+impl api::MandateSetup for Globalpaymentsheartland {}
+impl api::PaymentAuthorize for Globalpaymentsheartland {}
+impl api::PaymentSync for Globalpaymentsheartland {}
+impl api::PaymentCapture for Globalpaymentsheartland {}
+impl api::PaymentVoid for Globalpaymentsheartland {}
+impl api::Refund for Globalpaymentsheartland {}
+impl api::RefundExecute for Globalpaymentsheartland {}
+impl api::RefundSync for Globalpaymentsheartland {}
+impl api::PaymentToken for Globalpaymentsheartland {}
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response>
-    for GlobalpaymentsHeartland
+    for Globalpaymentsheartland
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
 {
@@ -94,7 +94,7 @@ where
     }
 }
 
-impl ConnectorCommon for GlobalpaymentsHeartland {
+impl ConnectorCommon for Globalpaymentsheartland {
     fn id(&self) -> &'static str {
         "globalpaymentsheartland"
     }
@@ -125,10 +125,10 @@ impl ConnectorCommon for GlobalpaymentsHeartland {
     }
 }
 
-impl ConnectorValidation for GlobalpaymentsHeartland {}
+impl ConnectorValidation for Globalpaymentsheartland {}
 
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData>
-    for GlobalpaymentsHeartland
+    for Globalpaymentsheartland
 {
     fn build_request(
         &self,
@@ -137,14 +137,14 @@ impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData>
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "Session".to_string(),
-            connector: "GlobalpaymentsHeartland".to_string(),
+            connector: "Globalpaymentsheartland".to_string(),
         }
         .into())
     }
 }
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
-    for GlobalpaymentsHeartland
+    for Globalpaymentsheartland
 {
     fn build_request(
         &self,
@@ -153,14 +153,14 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "PaymentMethodToken".to_string(),
-            connector: "GlobalpaymentsHeartland".to_string(),
+            connector: "Globalpaymentsheartland".to_string(),
         }
         .into())
     }
 }
 
 impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken>
-    for GlobalpaymentsHeartland
+    for Globalpaymentsheartland
 {
     fn build_request(
         &self,
@@ -169,14 +169,14 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken>
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "AccessTokenAuth".to_string(),
-            connector: "GlobalpaymentsHeartland".to_string(),
+            connector: "Globalpaymentsheartland".to_string(),
         }
         .into())
     }
 }
 
 impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData>
-    for GlobalpaymentsHeartland
+    for Globalpaymentsheartland
 {
     fn build_request(
         &self,
@@ -185,14 +185,14 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "SetupMandate".to_string(),
-            connector: "GlobalpaymentsHeartland".to_string(),
+            connector: "Globalpaymentsheartland".to_string(),
         }
         .into())
     }
 }
 
 impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData>
-    for GlobalpaymentsHeartland
+    for Globalpaymentsheartland
 {
     fn build_request(
         &self,
@@ -201,14 +201,14 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "Authorize".to_string(),
-            connector: "GlobalpaymentsHeartland".to_string(),
+            connector: "Globalpaymentsheartland".to_string(),
         }
         .into())
     }
 }
 
 impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData>
-    for GlobalpaymentsHeartland
+    for Globalpaymentsheartland
 {
     fn build_request(
         &self,
@@ -217,14 +217,14 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData>
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "PSync".to_string(),
-            connector: "GlobalpaymentsHeartland".to_string(),
+            connector: "Globalpaymentsheartland".to_string(),
         }
         .into())
     }
 }
 
 impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData>
-    for GlobalpaymentsHeartland
+    for Globalpaymentsheartland
 {
     fn build_request(
         &self,
@@ -233,14 +233,14 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData>
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "Capture".to_string(),
-            connector: "GlobalpaymentsHeartland".to_string(),
+            connector: "Globalpaymentsheartland".to_string(),
         }
         .into())
     }
 }
 
 impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData>
-    for GlobalpaymentsHeartland
+    for Globalpaymentsheartland
 {
     fn build_request(
         &self,
@@ -249,13 +249,13 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData>
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "Void".to_string(),
-            connector: "GlobalpaymentsHeartland".to_string(),
+            connector: "Globalpaymentsheartland".to_string(),
         }
         .into())
     }
 }
 
-impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for GlobalpaymentsHeartland {
+impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Globalpaymentsheartland {
     fn build_request(
         &self,
         _req: &RefundExecuteRouterData,
@@ -263,13 +263,13 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Globalp
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "Execute".to_string(),
-            connector: "GlobalpaymentsHeartland".to_string(),
+            connector: "Globalpaymentsheartland".to_string(),
         }
         .into())
     }
 }
 
-impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for GlobalpaymentsHeartland {
+impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Globalpaymentsheartland {
     fn build_request(
         &self,
         _req: &RefundSyncRouterData,
@@ -277,14 +277,14 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Globalpay
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "RSync".to_string(),
-            connector: "GlobalpaymentsHeartland".to_string(),
+            connector: "Globalpaymentsheartland".to_string(),
         }
         .into())
     }
 }
 
 #[async_trait::async_trait]
-impl webhooks::IncomingWebhook for GlobalpaymentsHeartland {
+impl webhooks::IncomingWebhook for Globalpaymentsheartland {
     fn get_webhook_object_reference_id(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
@@ -366,7 +366,7 @@ static GLOBALPAYMENTSHEARTLAND_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
 
 static GLOBALPAYMENTSHEARTLAND_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
 
-impl ConnectorSpecifications for GlobalpaymentsHeartland {
+impl ConnectorSpecifications for Globalpaymentsheartland {
     // No `is_pre_authentication_flow_required` / `is_authentication_flow_required`
     // overrides: Portico does not host a 3-D Secure challenge and returns no ACS URL.
     // 3DS here is pure pass-through — the CAVV, ECI and directory-server transaction id

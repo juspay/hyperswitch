@@ -24,7 +24,7 @@ pub use hyperswitch_connectors::connectors::{
     fiservcommercehub::Fiservcommercehub, fiservemea, fiservemea::Fiservemea, fiuu, fiuu::Fiuu,
     flexiti, flexiti::Flexiti, forte, forte::Forte, getnet, getnet::Getnet, gigadat,
     gigadat::Gigadat, givepayments, givepayments::Givepayments, globalpay, globalpay::Globalpay,
-    globalpaymentsheartland, globalpaymentsheartland::GlobalpaymentsHeartland, globepay,
+    globalpaymentsheartland, globalpaymentsheartland::Globalpaymentsheartland, globepay,
     globepay::Globepay, gocardless, gocardless::Gocardless, gotyme_sanlam,
     gotyme_sanlam::GotymeSanlam, gpayments, gpayments::Gpayments, helcim, helcim::Helcim, hipay,
     hipay::Hipay, hyperpg, hyperpg::Hyperpg, hyperswitch_vault,
