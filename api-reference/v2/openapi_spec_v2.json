@@ -10079,10 +10079,12 @@
       },
       "BlocklistDataKind": {
         "type": "string",
+        "description": "`card_bin` (6 digits) and `extended_card_bin` (8 digits) are deprecated, use\n`generic_card_bin`, which accepts 6 to 10 digits.",
         "enum": [
           "payment_method",
           "card_bin",
-          "extended_card_bin"
+          "extended_card_bin",
+          "generic_card_bin"
         ]
       },
       "BlocklistRequest": {
@@ -10101,7 +10103,9 @@
                 ]
               },
               "data": {
-                "type": "string"
+                "type": "string",
+                "description": "Deprecated, use `generic_card_bin`. A card number prefix of exactly 6 digits.",
+                "deprecated": true
               }
             }
           },
@@ -10137,7 +10141,28 @@
                 ]
               },
               "data": {
-                "type": "string"
+                "type": "string",
+                "description": "Deprecated, use `generic_card_bin`. A card number prefix of exactly 8 digits.",
+                "deprecated": true
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "generic_card_bin"
+                ]
+              },
+              "data": {
+                "type": "string",
+                "description": "A card number prefix of 6 to 10 digits."
               }
             }
           }
