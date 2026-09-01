@@ -3321,6 +3321,7 @@ payment_method_type = { position = 3, schema = { enum = [
     "Paypal",
     "PermataBankTransfer",
     "Pix",
+    "PixQr",
     "PixAutomaticoPush",
     "PixAutomaticoQr",
     "Przelewy24",
@@ -3650,6 +3651,24 @@ _context_ = { connector = "itaubank", payment_method = "BankTransfer", payment_m
 
 [[overrides]]
 _context_ = { connector = "santander", payment_method = "BankTransfer", payment_method_type = "Pix" }
+"dynamic_fields.billing.address.city._is_required" = true
+"dynamic_fields.billing.address.country._dropdown_options" = ["BR"]
+"dynamic_fields.billing.address.country._is_required" = true
+"dynamic_fields.billing.address.first_name._is_required" = true
+"dynamic_fields.billing.address.last_name._is_required" = true
+"dynamic_fields.billing.address.line1._is_required" = true
+"dynamic_fields.billing.address.line2._is_required" = true
+"dynamic_fields.billing.address.state._is_required" = true
+"dynamic_fields.billing.address.zip._is_required" = true
+"dynamic_fields.customer.document_details.document_number._is_required" = true
+"dynamic_fields.customer.document_details.document_type._dropdown_options" = [
+    "cpf",
+    "cnpj",
+]
+"dynamic_fields.customer.document_details.document_type._is_required" = true
+
+[[overrides]]
+_context_ = { connector = "santander", payment_method = "BankTransfer", payment_method_type = "PixQr" }
 "dynamic_fields.billing.address.city._is_required" = true
 "dynamic_fields.billing.address.country._dropdown_options" = ["BR"]
 "dynamic_fields.billing.address.country._is_required" = true
