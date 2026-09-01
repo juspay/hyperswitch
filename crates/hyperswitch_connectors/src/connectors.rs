@@ -55,6 +55,7 @@ pub mod getnet;
 pub mod gigadat;
 pub mod givepayments;
 pub mod globalpay;
+pub mod globalpaymentsheartland;
 pub mod globepay;
 pub mod gocardless;
 pub mod gotyme_sanlam;
@@ -170,7 +171,7 @@ pub use self::{
     ebanx::Ebanx, elavon::Elavon, envoy::Envoy, facilitapay::Facilitapay, finix::Finix,
     fiserv::Fiserv, fiservcommercehub::Fiservcommercehub, fiservemea::Fiservemea, fiuu::Fiuu,
     flexiti::Flexiti, forte::Forte, getnet::Getnet, gigadat::Gigadat, givepayments::Givepayments,
-    globalpay::Globalpay, globepay::Globepay, gocardless::Gocardless, gotyme_sanlam::GotymeSanlam,
+    globalpay::Globalpay, globalpaymentsheartland::GlobalpaymentsHeartland, globepay::Globepay, gocardless::Gocardless, gotyme_sanlam::GotymeSanlam,
     gpayments::Gpayments, helcim::Helcim, hipay::Hipay, hyperpg::Hyperpg,
     hyperswitch_vault::HyperswitchVault, hyperwallet::Hyperwallet, iatapay::Iatapay,
     ilixium::Ilixium, imerchantsolutions::Imerchantsolutions, inespay::Inespay,

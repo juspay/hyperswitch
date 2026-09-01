@@ -336,6 +336,7 @@ pub struct ConnectorConfig {
     #[cfg(feature = "payouts")]
     pub gigadat_payout: Option<ConnectorTomlConfig>,
     pub globalpay: Option<ConnectorTomlConfig>,
+    pub globalpaymentsheartland: Option<ConnectorTomlConfig>,
     pub globepay: Option<ConnectorTomlConfig>,
     pub gocardless: Option<ConnectorTomlConfig>,
     pub gotyme_sanlam: Option<ConnectorTomlConfig>,
@@ -620,6 +621,7 @@ impl ConnectorConfig {
             Connector::Getnet => Ok(connector_data.getnet),
             Connector::Gigadat => Ok(connector_data.gigadat),
             Connector::Globalpay => Ok(connector_data.globalpay),
+            Connector::GlobalpaymentsHeartland => Ok(connector_data.globalpaymentsheartland),
             Connector::Globepay => Ok(connector_data.globepay),
             Connector::Gocardless => Ok(connector_data.gocardless),
             Connector::GotymeSanlam => Ok(connector_data.gotyme_sanlam),
