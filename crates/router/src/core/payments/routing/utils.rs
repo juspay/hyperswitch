@@ -14,7 +14,7 @@ use api_models::{
 };
 use async_trait::async_trait;
 use common_enums::TransactionType;
-use common_utils::{ext_traits::BytesExt, id_type};
+use common_utils::{ext_traits::BytesExt, id_type, types::MinorUnit};
 use diesel_models::{enums, routing_algorithm};
 use error_stack::ResultExt;
 use euclid::{
@@ -464,6 +464,7 @@ pub fn build_static_routing_request_for_hybrid(
         Some(payment_id),
         input,
         convert_fallback_to_de_choices(fallback_output),
+        TransactionType::Payment,
     )
 }
 
@@ -629,6 +630,7 @@ pub async fn perform_decision_euclid_routing(
     payment_id: String,
     events_wrapper: RoutingEventsWrapper<RoutingEvaluateRequest>,
     fallback_output: Vec<RoutableConnectorChoice>,
+    algorithm_for: TransactionType,
 ) -> RoutingResult<RoutingEvaluateResponse> {
     logger::debug!("decision_engine_euclid: evaluate api call for euclid routing evaluation");
 
@@ -640,6 +642,7 @@ pub async fn perform_decision_euclid_routing(
         Some(payment_id),
         input,
         fallback_output,
+        algorithm_for,
     )?;
     events_wrapper.set_request_body(routing_request.clone());
 
@@ -705,12 +708,51 @@ pub fn transform_de_output_for_router(
     Ok(ordered)
 }
 
+/// Which call site produced a Decision Engine evaluation.
+///
+/// Carried into the routing event and the Hyperswitch/DE diff log so the three flows
+/// can be told apart -- previously all three logged under the same name, which made a
+/// session-flow discrepancy indistinguishable from a payment one.
+#[derive(Debug, Clone, Copy)]
+pub enum RoutingFlow {
+    Payment,
+    SessionToken,
+    PaymentMethodList,
+}
+
+impl RoutingFlow {
+    /// Label used in the HS/DE diff log. `Payment` keeps its historical value so
+    /// existing queries over that log keep working.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Payment => "evaluate_routing",
+            Self::SessionToken => "session_token_routing",
+            Self::PaymentMethodList => "payment_method_list_pre_routing",
+        }
+    }
+
+    /// Name recorded on the routing event. `Payment` is unchanged for the same reason.
+    fn event_name(self) -> String {
+        match self {
+            Self::Payment => "DecisionEngine: Euclid Static Routing".to_string(),
+            Self::SessionToken => {
+                "DecisionEngine: Euclid Static Routing (session tokens)".to_string()
+            }
+            Self::PaymentMethodList => {
+                "DecisionEngine: Euclid Static Routing (payment method list)".to_string()
+            }
+        }
+    }
+}
+
 pub async fn decision_engine_routing(
     state: &SessionState,
     backend_input: BackendInput,
     business_profile: &domain::Profile,
     payment_id: String,
     merchant_fallback_config: Vec<RoutableConnectorChoice>,
+    algorithm_for: TransactionType,
+    routing_flow: RoutingFlow,
 ) -> RoutingResult<Vec<RoutableConnectorChoice>> {
     let routing_events_wrapper = RoutingEventsWrapper::new(
         state.tenant.tenant_id.clone(),
@@ -718,7 +760,7 @@ pub async fn decision_engine_routing(
         payment_id.clone(),
         business_profile.get_id().to_owned(),
         business_profile.merchant_id.to_owned(),
-        "DecisionEngine: Euclid Static Routing".to_string(),
+        routing_flow.event_name(),
         None,
         true,
         false,
@@ -731,6 +773,7 @@ pub async fn decision_engine_routing(
         payment_id,
         routing_events_wrapper,
         merchant_fallback_config,
+        algorithm_for,
     )
     .await;
 
@@ -969,28 +1012,111 @@ pub async fn link_de_euclid_routing_algorithm(
     Ok(())
 }
 
-pub async fn list_de_euclid_routing_algorithms(
+pub async fn deactivate_de_euclid_routing_algorithm(
     state: &SessionState,
-    routing_list_request: ListRountingAlgorithmsRequest,
-) -> RoutingResult<Vec<api_routing::RoutingDictionaryRecord>> {
-    logger::debug!("decision_engine_euclid: list api call for euclid routing algorithms");
-    let created_by = routing_list_request.created_by;
+    routing_request: DeactivateRoutingConfigRequest,
+) -> RoutingResult<()> {
+    logger::debug!("decision_engine_euclid: deactivate api call for euclid routing algorithm");
+
+    EuclidApiClient::send_decision_engine_request::<_, String>(
+        state,
+        services::Method::Post,
+        "routing/deactivate",
+        Some(routing_request.clone()),
+        Some(EUCLID_API_TIMEOUT),
+        None,
+    )
+    .await?;
+
+    logger::debug!(decision_engine_euclid_deactivated=?routing_request, "decision_engine_euclid: deactivate_de_euclid_routing_algorithm completed");
+    Ok(())
+}
+
+/// Fetches DE rules for a profile as raw JSON records (no HS-representability filter).
+pub async fn fetch_de_euclid_routing_records_raw(
+    state: &SessionState,
+    created_by: String,
+    active_only: bool,
+) -> RoutingResult<Vec<serde_json::Value>> {
+    let path = if active_only {
+        format!("routing/list/active/{created_by}")
+    } else {
+        format!("routing/list/{created_by}")
+    };
     let events_response = EuclidApiClient::send_decision_engine_request(
         state,
         services::Method::Post,
-        format!("routing/list/{created_by}").as_str(),
+        path.as_str(),
         None::<()>,
         Some(EUCLID_API_TIMEOUT),
         None,
     )
     .await?;
 
-    let euclid_response: Vec<RoutingAlgorithmRecord> =
-        events_response
-            .response
-            .ok_or(errors::RoutingError::OpenRouterError(
-                "Response from decision engine API is empty".to_string(),
-            ))?;
+    events_response
+        .response
+        .ok_or(errors::RoutingError::OpenRouterError(
+            "Response from decision engine API is empty".to_string(),
+        ))
+        .map_err(error_stack::Report::from)
+}
+
+/// Rule ids from raw DE records, including rules HS cannot represent. Existence and
+/// already-active checks must use this rather than the lenient parse, or an
+/// unrepresentable rule reads as absent.
+pub fn de_euclid_routing_record_ids(raw_records: &[serde_json::Value]) -> Vec<String> {
+    raw_records
+        .iter()
+        .filter_map(|record| {
+            record
+                .get("id")
+                .and_then(|id| id.as_str())
+                .map(|id| id.to_string())
+        })
+        .collect()
+}
+
+/// Transaction type of a raw DE record, for callers that must not drop unrepresentable rules.
+pub fn de_euclid_routing_record_algorithm_for(raw: &serde_json::Value) -> Option<TransactionType> {
+    raw.get("algorithm_for")
+        .and_then(|value| value.as_str())
+        .and_then(|value| serde_json::from_value(serde_json::Value::String(value.to_string())).ok())
+}
+
+/// Parses a raw DE record; None (with a log) for rules HS cannot represent (e.g. `ab_test`).
+pub fn parse_de_euclid_routing_record(raw: serde_json::Value) -> Option<RoutingAlgorithmRecord> {
+    serde_json::from_value::<RoutingAlgorithmRecord>(raw)
+        .map_err(|error| {
+            logger::warn!(
+                ?error,
+                "decision_engine_euclid: skipping DE routing record not representable in Hyperswitch"
+            );
+        })
+        .ok()
+}
+
+/// Fetches DE rules for a profile, skipping records HS cannot represent.
+pub async fn fetch_de_euclid_routing_records(
+    state: &SessionState,
+    created_by: String,
+    active_only: bool,
+) -> RoutingResult<Vec<RoutingAlgorithmRecord>> {
+    Ok(
+        fetch_de_euclid_routing_records_raw(state, created_by, active_only)
+            .await?
+            .into_iter()
+            .filter_map(parse_de_euclid_routing_record)
+            .collect(),
+    )
+}
+
+pub async fn list_de_euclid_routing_algorithms(
+    state: &SessionState,
+    routing_list_request: ListRountingAlgorithmsRequest,
+) -> RoutingResult<Vec<api_routing::RoutingDictionaryRecord>> {
+    logger::debug!("decision_engine_euclid: list api call for euclid routing algorithms");
+    let euclid_response =
+        fetch_de_euclid_routing_records(state, routing_list_request.created_by, false).await?;
 
     Ok(euclid_response
         .into_iter()
@@ -1004,19 +1130,7 @@ pub async fn list_de_euclid_active_routing_algorithm(
     created_by: String,
 ) -> RoutingResult<Vec<api_routing::RoutingDictionaryRecord>> {
     logger::debug!("decision_engine_euclid: list api call for euclid active routing algorithm");
-    let response: Vec<RoutingAlgorithmRecord> = EuclidApiClient::send_decision_engine_request(
-        state,
-        services::Method::Post,
-        format!("routing/list/active/{created_by}").as_str(),
-        None::<()>,
-        Some(EUCLID_API_TIMEOUT),
-        None,
-    )
-    .await?
-    .response
-    .ok_or(errors::RoutingError::OpenRouterError(
-        "Response from decision engine API is empty".to_string(),
-    ))?;
+    let response = fetch_de_euclid_routing_records(state, created_by, true).await?;
 
     Ok(response
         .into_iter()
@@ -1241,6 +1355,7 @@ async fn is_de_diff_threshold_exceeded(
 }
 
 /// Shadow-evaluates the DE rule off the payment path and logs the DE-vs-HS diff (observation-only, never feeds the kill switch).
+#[allow(clippy::too_many_arguments)]
 pub async fn shadow_decision_engine_routing(
     state: SessionState,
     business_profile: domain::Profile,
@@ -1249,9 +1364,11 @@ pub async fn shadow_decision_engine_routing(
     fallback_config: Vec<RoutableConnectorChoice>,
     hs_connectors: Vec<RoutableConnectorChoice>,
     is_volume: bool,
+    algorithm_for: TransactionType,
+    routing_flow: RoutingFlow,
 ) {
     let de_result =
-        decision_engine_routing(&state, backend_input, &business_profile, payment_id, fallback_config)
+        decision_engine_routing(&state, backend_input, &business_profile, payment_id, fallback_config, algorithm_for, routing_flow)
             .await
             .map_err(|err| {
                 logger::error!(shadow_decision_engine_error=?err, "decision_engine_euclid: error in shadow evaluation of rule")
@@ -1261,9 +1378,265 @@ pub async fn shadow_decision_engine_routing(
     compare_and_log_result(
         de_result,
         hs_connectors,
-        "evaluate_routing".to_string(),
+        routing_flow.as_str().to_string(),
         is_volume,
     );
+}
+
+/// One evaluation in a batch request: the parameters that differ per call.
+/// Everything shared (`created_by`, fallback, transaction type) lives on the
+/// enclosing request, matching the Decision Engine's `/routing/evaluate/batch`.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct RoutingEvaluateBatchEntry {
+    pub payment_id: Option<String>,
+    pub parameters: HashMap<String, Option<ValueType>>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct RoutingEvaluateBatchRequest {
+    pub created_by: String,
+    pub fallback_output: Vec<DeRoutableConnectorChoice>,
+    pub algorithm_for: TransactionType,
+    pub requests: Vec<RoutingEvaluateBatchEntry>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct RoutingEvaluateBatchResponse {
+    pub results: Vec<RoutingEvaluateResponse>,
+}
+
+/// Evaluates one rule against several parameter sets in a single Decision Engine
+/// round trip. The engine fetches and parses the active algorithm once, so a session
+/// request with N wallet types costs one call and one rule lookup instead of N each.
+///
+/// Results come back positionally: `results[i]` answers `backend_inputs[i]`. An entry
+/// the engine could not evaluate is an empty list, mirroring how callers of the
+/// single-call path treat a failed evaluation.
+pub async fn decision_engine_routing_batch(
+    state: &SessionState,
+    backend_inputs: Vec<BackendInput>,
+    business_profile: &domain::Profile,
+    payment_id: String,
+    merchant_fallback_config: Vec<RoutableConnectorChoice>,
+    algorithm_for: TransactionType,
+    routing_flow: RoutingFlow,
+) -> RoutingResult<Vec<Vec<RoutableConnectorChoice>>> {
+    let expected_len = backend_inputs.len();
+    let created_by = business_profile.get_id().get_string_repr().to_string();
+    let fallback_output = convert_fallback_to_de_choices(merchant_fallback_config);
+
+    let requests = backend_inputs
+        .into_iter()
+        .map(|backend_input| {
+            convert_backend_input_to_routing_eval(
+                created_by.clone(),
+                Some(payment_id.clone()),
+                backend_input,
+                fallback_output.clone(),
+                algorithm_for,
+            )
+            .map(|request| RoutingEvaluateBatchEntry {
+                payment_id: request.payment_id,
+                parameters: request.parameters,
+            })
+        })
+        .collect::<RoutingResult<Vec<_>>>()?;
+
+    let batch_request = RoutingEvaluateBatchRequest {
+        created_by,
+        fallback_output,
+        algorithm_for,
+        requests,
+    };
+
+    let mut events_wrapper: RoutingEventsWrapper<RoutingEvaluateBatchRequest> =
+        RoutingEventsWrapper::new(
+            state.tenant.tenant_id.clone(),
+            state.request_id.clone(),
+            payment_id,
+            business_profile.get_id().to_owned(),
+            business_profile.merchant_id.to_owned(),
+            routing_flow.event_name(),
+            None,
+            true,
+            false,
+        );
+    events_wrapper.set_request_body(batch_request.clone());
+
+    let event_response = EuclidApiClient::send_decision_engine_request::<
+        RoutingEvaluateBatchRequest,
+        RoutingEvaluateBatchResponse,
+    >(
+        state,
+        services::Method::Post,
+        "routing/evaluate/batch",
+        Some(batch_request),
+        Some(EUCLID_API_TIMEOUT),
+        Some(events_wrapper),
+    )
+    .await?;
+
+    let batch_response = event_response
+        .response
+        .ok_or(errors::RoutingError::OpenRouterError(
+            "Response from decision engine batch API is empty".to_string(),
+        ))?;
+
+    if batch_response.results.len() != expected_len {
+        return Err(errors::RoutingError::OpenRouterError(format!(
+            "decision engine batch returned {} results for {} requests",
+            batch_response.results.len(),
+            expected_len
+        ))
+        .into());
+    }
+
+    let transformed = batch_response
+        .results
+        .into_iter()
+        .map(|entry| {
+            // A per-entry failure is an empty list rather than a batch failure: one
+            // wallet type falling back must not take the others down with it.
+            if entry.status == "error" {
+                return Vec::new();
+            }
+            extract_de_output_connectors(entry.output)
+                .and_then(|output| transform_de_output_for_router(output, entry.evaluated_output))
+                .map_err(|error| {
+                    logger::error!(
+                        ?error,
+                        "decision_engine_euclid: failed to transform a batch entry"
+                    );
+                })
+                .unwrap_or_default()
+        })
+        .collect::<Vec<_>>();
+
+    if let Some(mut routing_event) = event_response.event {
+        routing_event.set_routing_approach(RoutingApproach::StaticRouting.to_string());
+        routing_event
+            .set_routable_connectors(transformed.iter().flatten().cloned().collect::<Vec<_>>());
+        state.event_handler.log_event(&routing_event);
+    }
+
+    Ok(transformed)
+}
+
+/// The batch call, degrading to concurrent single evaluations when the engine does
+/// not expose the batch endpoint yet. Lets Hyperswitch deploy ahead of the engine:
+/// against an old engine every batch call fails once and the singles carry the
+/// request, and once the engine ships the endpoint the fallback stops firing.
+pub async fn decision_engine_routing_batch_with_fallback(
+    state: &SessionState,
+    backend_inputs: Vec<BackendInput>,
+    business_profile: &domain::Profile,
+    payment_id: String,
+    merchant_fallback_config: Vec<RoutableConnectorChoice>,
+    algorithm_for: TransactionType,
+    routing_flow: RoutingFlow,
+) -> Vec<Vec<RoutableConnectorChoice>> {
+    match decision_engine_routing_batch(
+        state,
+        backend_inputs.clone(),
+        business_profile,
+        payment_id.clone(),
+        merchant_fallback_config.clone(),
+        algorithm_for,
+        routing_flow,
+    )
+    .await
+    {
+        Ok(results) => results,
+        Err(error) => {
+            logger::warn!(
+                ?error,
+                "decision_engine_euclid: batch evaluate failed, falling back to single evaluations"
+            );
+            futures::future::join_all(backend_inputs.into_iter().map(|backend_input| {
+                decision_engine_routing(
+                    state,
+                    backend_input,
+                    business_profile,
+                    payment_id.clone(),
+                    merchant_fallback_config.clone(),
+                    algorithm_for,
+                    routing_flow,
+                )
+            }))
+            .await
+            .into_iter()
+            .map(|result| {
+                result
+                    .inspect_err(|error| {
+                        logger::error!(
+                            ?error,
+                            "decision_engine_euclid: single evaluation failed in batch fallback"
+                        );
+                    })
+                    .unwrap_or_default()
+            })
+            .collect()
+        }
+    }
+}
+
+/// One shadow comparison: the per-type input and the Hyperswitch result to diff against.
+pub struct ShadowBatchEntry {
+    pub backend_input: BackendInput,
+    pub hs_connectors: Vec<RoutableConnectorChoice>,
+    pub is_volume: bool,
+}
+
+/// Shadow-evaluates a whole session/PML request in one batch call and logs one diff
+/// per payment method type. Observation only; never feeds the kill switch.
+#[allow(clippy::too_many_arguments)]
+pub async fn shadow_decision_engine_routing_batch(
+    state: SessionState,
+    business_profile: domain::Profile,
+    payment_id: String,
+    entries: Vec<ShadowBatchEntry>,
+    fallback_config: Vec<RoutableConnectorChoice>,
+    algorithm_for: TransactionType,
+    routing_flow: RoutingFlow,
+) {
+    let backend_inputs = entries
+        .iter()
+        .map(|entry| entry.backend_input.clone())
+        .collect::<Vec<_>>();
+
+    // No single-call fallback here, deliberately: the events layer surfaces every
+    // engine failure without a status code, so "endpoint absent" cannot be told apart
+    // from "this merchant has no active rule" -- and for the latter, N single calls
+    // fail identically to the batch. A failed shadow batch just logs empty diffs.
+    // The load-bearing cut-over path keeps the fallback, which is what protects the
+    // window where the engine predates the batch endpoint.
+    let entry_count = entries.len();
+    let de_results = decision_engine_routing_batch(
+        &state,
+        backend_inputs,
+        &business_profile,
+        payment_id,
+        fallback_config,
+        algorithm_for,
+        routing_flow,
+    )
+    .await
+    .map_err(|error| {
+        logger::warn!(
+            ?error,
+            "decision_engine_euclid: shadow batch evaluate failed"
+        );
+    })
+    .unwrap_or_else(|_| vec![Vec::new(); entry_count]);
+
+    for (entry, de_result) in entries.into_iter().zip(de_results) {
+        compare_and_log_result(
+            de_result,
+            entry.hs_connectors,
+            routing_flow.as_str().to_string(),
+            entry.is_volume,
+        );
+    }
 }
 
 pub trait RoutingEq<T> {
@@ -1317,6 +1690,12 @@ pub struct ActivateRoutingConfigRequest {
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct DeactivateRoutingConfigRequest {
+    pub created_by: String,
+    pub routing_algorithm_id: String,
+}
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct ListRountingAlgorithmsRequest {
     pub created_by: String,
 }
@@ -1327,6 +1706,7 @@ pub fn convert_backend_input_to_routing_eval(
     payment_id: Option<String>,
     input: BackendInput,
     fallback_output: Vec<DeRoutableConnectorChoice>,
+    algorithm_for: TransactionType,
 ) -> RoutingResult<RoutingEvaluateRequest> {
     let mut params: HashMap<String, Option<ValueType>> = HashMap::new();
 
@@ -1392,6 +1772,23 @@ pub fn convert_backend_input_to_routing_eval(
             Some(ValueType::EnumVariant(sfu.to_string())),
         );
     }
+    if let Some(surcharge_amount) = input.payment.surcharge_amount {
+        params.insert(
+            "surcharge_amount".to_string(),
+            Some(ValueType::Number(
+                surcharge_amount
+                    .get_amount_as_i64()
+                    .try_into()
+                    .unwrap_or_default(),
+            )),
+        );
+    }
+    if let Some(transaction_initiator) = input.payment.transaction_initiator {
+        params.insert(
+            "transaction_initiator".to_string(),
+            Some(ValueType::EnumVariant(transaction_initiator.to_string())),
+        );
+    }
 
     // PaymentMethod
     if let Some(pm) = input.payment_method.payment_method {
@@ -1423,6 +1820,12 @@ pub fn convert_backend_input_to_routing_eval(
             Some(ValueType::EnumVariant(network.to_string())),
         );
     }
+    if let Some(card_discovery) = input.payment_method.card_discovery {
+        params.insert(
+            "card_discovery".to_string(),
+            Some(ValueType::EnumVariant(card_discovery.to_string())),
+        );
+    }
 
     // Mandate
     if let Some(pt) = input.mandate.payment_type {
@@ -1444,6 +1847,18 @@ pub fn convert_backend_input_to_routing_eval(
         );
     }
 
+    // Issuer
+    if let Some(country) = input
+        .issuer_data
+        .as_ref()
+        .and_then(|data| data.country.as_ref())
+    {
+        params.insert(
+            "issuer_country".to_string(),
+            Some(ValueType::EnumVariant(country.to_string())),
+        );
+    }
+
     // Metadata
     if let Some(meta) = input.metadata {
         for (k, v) in meta.into_iter() {
@@ -1462,6 +1877,7 @@ pub fn convert_backend_input_to_routing_eval(
         payment_id,
         parameters: params,
         fallback_output,
+        algorithm_for: Some(algorithm_for),
     })
 }
 
@@ -1476,7 +1892,7 @@ fn insert_dirvalue_param(params: &mut HashMap<String, Option<ValueType>>, dv: di
         }
         dir::DirValue::CardType(v) => {
             params.insert(
-                "card".to_string(),
+                "card_type".to_string(),
                 Some(ValueType::EnumVariant(v.to_string())),
             );
         }
@@ -2043,6 +2459,173 @@ fn stringify_choice(c: RoutableConnectorChoice) -> ConnectorInfo {
     )
 }
 
+// Reverse of the transformers above: rebuilds a euclid AST from a Decision Engine
+// program, so a rule authored on the DE can be served through the same typed
+// response shape as a Hyperswitch-authored one.
+impl TryFrom<Program> for ast::Program<ConnectorSelection> {
+    type Error = error_stack::Report<errors::RoutingError>;
+
+    fn try_from(p: Program) -> Result<Self, Self::Error> {
+        if !p.globals.is_empty() {
+            // Globals are only reachable through `ValueType::GlobalRef`, which
+            // `convert_value_back` rejects, so an unreferenced map is safe to drop.
+            logger::debug!("euclid: dropping unreferenced globals while converting DE program");
+        }
+
+        Ok(Self {
+            default_selection: convert_output_back(p.default_selection)?,
+            rules: p
+                .rules
+                .into_iter()
+                .map(convert_rule_back)
+                .collect::<RoutingResult<Vec<_>>>()?,
+            metadata: p.metadata.unwrap_or_default(),
+        })
+    }
+}
+
+fn convert_rule_back(rule: Rule) -> RoutingResult<ast::Rule<ConnectorSelection>> {
+    Ok(ast::Rule {
+        name: rule.name,
+        // `routing_type` carries no information the output does not already hold.
+        connector_selection: convert_output_back(rule.output)?,
+        statements: rule
+            .statements
+            .into_iter()
+            .map(convert_if_stmt_back)
+            .collect::<RoutingResult<Vec<_>>>()?,
+    })
+}
+
+fn convert_if_stmt_back(stmt: IfStatement) -> RoutingResult<ast::IfStatement> {
+    Ok(ast::IfStatement {
+        condition: stmt
+            .condition
+            .into_iter()
+            .map(convert_comparison_back)
+            .collect::<RoutingResult<Vec<_>>>()?,
+        nested: stmt
+            .nested
+            .map(|v| {
+                v.into_iter()
+                    .map(convert_if_stmt_back)
+                    .collect::<RoutingResult<Vec<_>>>()
+            })
+            .transpose()?,
+    })
+}
+
+fn convert_comparison_back(c: Comparison) -> RoutingResult<ast::Comparison> {
+    Ok(ast::Comparison {
+        lhs: c.lhs,
+        comparison: convert_comparison_type_back(c.comparison),
+        value: convert_value_back(c.value)?,
+        metadata: c.metadata,
+    })
+}
+
+fn convert_comparison_type_back(ct: ComparisonType) -> ast::ComparisonType {
+    match ct {
+        ComparisonType::Equal => ast::ComparisonType::Equal,
+        ComparisonType::NotEqual => ast::ComparisonType::NotEqual,
+        ComparisonType::LessThan => ast::ComparisonType::LessThan,
+        ComparisonType::LessThanEqual => ast::ComparisonType::LessThanEqual,
+        ComparisonType::GreaterThan => ast::ComparisonType::GreaterThan,
+        ComparisonType::GreaterThanEqual => ast::ComparisonType::GreaterThanEqual,
+    }
+}
+
+/// DE amounts are `u64`; euclid's `MinorUnit` is `i64`. Anything above `i64::MAX`
+/// would wrap to a negative amount, so it is rejected rather than silently mangled.
+fn de_number_to_minor_unit(n: u64) -> RoutingResult<MinorUnit> {
+    i64::try_from(n)
+        .map(MinorUnit::new)
+        .map_err(|error| {
+            logger::error!(
+                error = ?error,
+                value = %n,
+                "euclid: DE number does not fit in MinorUnit"
+            );
+            errors::RoutingError::GenericConversionError {
+                from: "u64".to_string(),
+                to: "MinorUnit".to_string(),
+            }
+        })
+        .map_err(error_stack::Report::from)
+        .attach_printable("DE number out of range for MinorUnit")
+}
+
+fn convert_value_back(v: ValueType) -> RoutingResult<ast::ValueType> {
+    match v {
+        ValueType::Number(n) => Ok(ast::ValueType::Number(de_number_to_minor_unit(n)?)),
+        ValueType::EnumVariant(e) => Ok(ast::ValueType::EnumVariant(e)),
+        ValueType::MetadataVariant(m) => Ok(ast::ValueType::MetadataVariant(ast::MetadataValue {
+            key: m.key,
+            value: m.value,
+        })),
+        ValueType::StrValue(s) => Ok(ast::ValueType::StrValue(s)),
+        ValueType::NumberArray(arr) => Ok(ast::ValueType::NumberArray(
+            arr.into_iter()
+                .map(de_number_to_minor_unit)
+                .collect::<RoutingResult<Vec<_>>>()?,
+        )),
+        ValueType::EnumVariantArray(arr) => Ok(ast::ValueType::EnumVariantArray(arr)),
+        ValueType::NumberComparisonArray(arr) => Ok(ast::ValueType::NumberComparisonArray(
+            arr.into_iter()
+                .map(|nc| {
+                    Ok(ast::NumberComparison {
+                        comparison_type: convert_comparison_type_back(nc.comparison_type),
+                        number: de_number_to_minor_unit(nc.number)?,
+                    })
+                })
+                .collect::<RoutingResult<Vec<_>>>()?,
+        )),
+        // Euclid's AST has no global-reference form.
+        ValueType::GlobalRef(name) => Err(error_stack::Report::from(
+            errors::RoutingError::GenericConversionError {
+                from: "ValueType::GlobalRef".to_string(),
+                to: "euclid ValueType".to_string(),
+            },
+        ))
+        .attach_printable_lazy(|| format!("unsupported global reference {name} in DE program")),
+    }
+}
+
+fn convert_output_back(output: Output) -> RoutingResult<ConnectorSelection> {
+    match output {
+        // Euclid has no single-connector output; a one-element priority list is equivalent.
+        Output::Single(info) => Ok(ConnectorSelection::Priority(vec![parse_choice(info)?])),
+        Output::Priority(infos) => Ok(ConnectorSelection::Priority(
+            infos
+                .into_iter()
+                .map(parse_choice)
+                .collect::<RoutingResult<Vec<_>>>()?,
+        )),
+        Output::VolumeSplit(splits) => Ok(ConnectorSelection::VolumeSplit(
+            splits
+                .into_iter()
+                .map(|vs| {
+                    Ok(ConnectorVolumeSplit {
+                        connector: parse_choice(vs.output)?,
+                        split: vs.split,
+                    })
+                })
+                .collect::<RoutingResult<Vec<_>>>()?,
+        )),
+        Output::VolumeSplitPriority(_) => Err(error_stack::Report::from(
+            errors::RoutingError::GenericConversionError {
+                from: "Output::VolumeSplitPriority".to_string(),
+                to: "ConnectorSelection".to_string(),
+            },
+        ))
+        .attach_printable("euclid has no volume-split-priority connector selection"),
+    }
+}
+
+fn parse_choice(info: ConnectorInfo) -> RoutingResult<RoutableConnectorChoice> {
+    DeRoutableConnectorChoice::try_from(info).map(RoutableConnectorChoice::from)
+}
+
 pub async fn get_routing_result_source(
     state: &SessionState,
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
@@ -2079,6 +2662,19 @@ pub async fn get_routing_result_source(
         source
     }
 }
+
+/// Effective cutover: routing_result_source is DecisionEngine AND the global
+/// static_routing_enabled flag is on — the flag always wins, for APIs and payment paths alike.
+pub async fn is_decision_engine_routing_effective(
+    state: &SessionState,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+) -> bool {
+    state.conf.open_router.static_routing_enabled
+        && matches!(
+            get_routing_result_source(state, dimensions).await,
+            api_routing::RoutingResultSource::DecisionEngine
+        )
+}
 pub async fn select_routing_result<T>(
     state: &SessionState,
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
@@ -2089,7 +2685,13 @@ pub async fn select_routing_result<T>(
 where
     T: Clone + IntoIterator,
 {
-    let routing_result_source = get_routing_result_source(state, dimensions).await;
+    // Same predicate as every other consumer: with the global flag off the profile is
+    // Hyperswitch-routed, so reads must not serve DE records the payment path ignores.
+    let routing_result_source = if is_decision_engine_routing_effective(state, dimensions).await {
+        api_routing::RoutingResultSource::DecisionEngine
+    } else {
+        api_routing::RoutingResultSource::HyperswitchRouting
+    };
 
     match routing_result_source {
         api_routing::RoutingResultSource::DecisionEngine => {
@@ -2100,9 +2702,13 @@ where
 
             let is_de_result_empty = de_result.clone().into_iter().next().is_none();
             if is_de_result_empty {
-                logger::debug!(
+                // Warn, not debug: this is a cut-over profile being routed by Hyperswitch
+                // because the engine returned nothing -- unreachable, or the profile's rules
+                // are not migrated yet. Under DE-only writes the Hyperswitch rule is frozen
+                // at the moment of cutover, so this needs to be visible rather than silent.
+                logger::warn!(
                     business_profile_id=?business_profile.get_id(),
-                    "decision_engine_euclid: DE result empty, falling back to Hyperswitch result"
+                    "decision_engine_euclid: DE result empty for a cut-over profile, serving the Hyperswitch result"
                 );
                 hyperswitch_result
             } else {
@@ -2973,5 +3579,212 @@ mod transform_de_output_tests {
             connector_order,
             vec![RoutableConnectors::Stripe, RoutableConnectors::Adyen]
         );
+    }
+}
+
+#[cfg(test)]
+mod de_program_round_trip_tests {
+    use super::*;
+
+    fn mca_id(id: &str) -> id_type::MerchantConnectorAccountId {
+        id_type::MerchantConnectorAccountId::wrap(id.to_string()).unwrap()
+    }
+
+    fn choice(connector: RoutableConnectors, id: &str) -> RoutableConnectorChoice {
+        RoutableConnectorChoice {
+            choice_kind: api_routing::RoutableChoiceKind::FullStruct,
+            connector,
+            merchant_connector_id: Some(mca_id(id)),
+        }
+    }
+
+    fn comparison(lhs: &str, value: ast::ValueType) -> ast::Comparison {
+        ast::Comparison {
+            lhs: lhs.to_string(),
+            comparison: ast::ComparisonType::Equal,
+            value,
+            metadata: HashMap::new(),
+        }
+    }
+
+    /// A program exercising nesting and every value type euclid and the DE share.
+    fn sample_program() -> ast::Program<ConnectorSelection> {
+        ast::Program {
+            default_selection: ConnectorSelection::Priority(vec![choice(
+                RoutableConnectors::Stripe,
+                "mca_default0000000000000",
+            )]),
+            rules: vec![ast::Rule {
+                name: "cards_to_adyen".to_string(),
+                connector_selection: ConnectorSelection::Priority(vec![
+                    choice(RoutableConnectors::Adyen, "mca_adyen00000000000000000"),
+                    choice(RoutableConnectors::Stripe, "mca_stripe0000000000000000"),
+                ]),
+                statements: vec![ast::IfStatement {
+                    condition: vec![
+                        comparison(
+                            "payment_method",
+                            ast::ValueType::EnumVariant("card".to_string()),
+                        ),
+                        comparison("amount", ast::ValueType::Number(MinorUnit::new(1000))),
+                        comparison(
+                            "currency",
+                            ast::ValueType::EnumVariantArray(vec![
+                                "USD".to_string(),
+                                "EUR".to_string(),
+                            ]),
+                        ),
+                        comparison(
+                            "udf",
+                            ast::ValueType::MetadataVariant(ast::MetadataValue {
+                                key: "tier".to_string(),
+                                value: "gold".to_string(),
+                            }),
+                        ),
+                        comparison("label", ast::ValueType::StrValue("vip".to_string())),
+                        comparison(
+                            "amounts",
+                            ast::ValueType::NumberArray(vec![MinorUnit::new(1), MinorUnit::new(2)]),
+                        ),
+                        comparison(
+                            "band",
+                            ast::ValueType::NumberComparisonArray(vec![ast::NumberComparison {
+                                comparison_type: ast::ComparisonType::GreaterThan,
+                                number: MinorUnit::new(500),
+                            }]),
+                        ),
+                    ],
+                    nested: Some(vec![ast::IfStatement {
+                        condition: vec![comparison(
+                            "card_network",
+                            ast::ValueType::EnumVariant("visa".to_string()),
+                        )],
+                        nested: None,
+                    }]),
+                }],
+            }],
+            metadata: HashMap::new(),
+        }
+    }
+
+    fn round_trip(program: ast::Program<ConnectorSelection>) -> ast::Program<ConnectorSelection> {
+        let de: Program = program.try_into().expect("euclid -> DE failed");
+        de.try_into().expect("DE -> euclid failed")
+    }
+
+    /// The property that lets the DE-authored rule be served as a normal typed
+    /// response: converting out and back must not change the program.
+    #[test]
+    fn round_trip_is_lossless() {
+        let original = sample_program();
+        let expected = serde_json::to_value(&original).unwrap();
+        let actual = serde_json::to_value(round_trip(original)).unwrap();
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn round_trip_is_lossless_for_volume_split() {
+        let original = ast::Program {
+            default_selection: ConnectorSelection::VolumeSplit(vec![
+                ConnectorVolumeSplit {
+                    connector: choice(RoutableConnectors::Stripe, "mca_stripe0000000000000000"),
+                    split: 70,
+                },
+                ConnectorVolumeSplit {
+                    connector: choice(RoutableConnectors::Adyen, "mca_adyen00000000000000000"),
+                    split: 30,
+                },
+            ]),
+            rules: vec![],
+            metadata: HashMap::new(),
+        };
+        let expected = serde_json::to_value(&original).unwrap();
+        let actual = serde_json::to_value(round_trip(original)).unwrap();
+        assert_eq!(expected, actual);
+    }
+
+    /// The DE can express a bare single connector; euclid cannot, so it widens to
+    /// a one-element priority list, which routes identically.
+    #[test]
+    fn single_output_widens_to_priority_of_one() {
+        let de = Program {
+            globals: HashMap::new(),
+            default_selection: Output::Single(ConnectorInfo::new(
+                "stripe".to_string(),
+                Some("mca_stripe0000000000000000".to_string()),
+            )),
+            rules: vec![],
+            metadata: None,
+        };
+        let converted = ast::Program::try_from(de).expect("single output should convert");
+        match converted.default_selection {
+            ConnectorSelection::Priority(choices) => {
+                assert_eq!(choices.len(), 1);
+                assert_eq!(
+                    choices.first().map(|c| c.connector.to_string()),
+                    Some("stripe".to_string())
+                );
+            }
+            other => panic!("expected priority, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn missing_metadata_becomes_empty_not_an_error() {
+        let de = Program {
+            globals: HashMap::new(),
+            default_selection: Output::Priority(vec![ConnectorInfo::new(
+                "stripe".to_string(),
+                None,
+            )]),
+            rules: vec![],
+            metadata: None,
+        };
+        assert!(ast::Program::try_from(de).unwrap().metadata.is_empty());
+    }
+
+    // Everything below is a DE construct euclid cannot represent. Each must fail
+    // loudly rather than round-trip into a rule that routes differently.
+
+    #[test]
+    fn rejects_volume_split_priority_output() {
+        let de = Program {
+            globals: HashMap::new(),
+            default_selection: Output::VolumeSplitPriority(vec![]),
+            rules: vec![],
+            metadata: None,
+        };
+        assert!(ast::Program::try_from(de).is_err());
+    }
+
+    #[test]
+    fn rejects_global_ref_value() {
+        assert!(convert_value_back(ValueType::GlobalRef("g".to_string())).is_err());
+    }
+
+    #[test]
+    fn rejects_number_that_would_wrap_negative() {
+        // u64::MAX as i64 would be -1, silently inverting the comparison.
+        assert!(convert_value_back(ValueType::Number(u64::MAX)).is_err());
+        let max_i64 = u64::try_from(i64::MAX).unwrap_or(u64::MAX);
+        assert!(de_number_to_minor_unit(max_i64 + 1).is_err());
+        assert_eq!(
+            de_number_to_minor_unit(max_i64).unwrap(),
+            MinorUnit::new(i64::MAX)
+        );
+    }
+
+    #[test]
+    fn rejects_unknown_connector_name() {
+        let de = Program {
+            globals: HashMap::new(),
+            default_selection: Output::Priority(vec![ConnectorInfo::new(
+                "not_a_real_connector".to_string(),
+                None,
+            )]),
+            rules: vec![],
+            metadata: None,
+        };
+        assert!(ast::Program::try_from(de).is_err());
     }
 }
