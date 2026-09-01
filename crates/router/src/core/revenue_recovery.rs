@@ -677,8 +677,14 @@ pub async fn perform_calculate_workflow(
                 .attach_printable(
                     "Failed to get max hybrid cascading retry count from billing merchant connector account",
                 )?;
+            let intent_retry_count = payment_intent
+                .get_revenue_recovery_retry_count()
+                .ok_or(errors::RecoveryError::ValueNotFound)
+                .attach_printable(
+                    "Failed to get the retry count from the payment intent's revenue recovery metadata",
+                )?;
             schedule::StaticLadderProgress::seed_for_existing_invoice(
-                payment_intent.get_revenue_recovery_retry_count(),
+                intent_retry_count,
                 max_hybrid_cascading_retry_count,
             )
         }

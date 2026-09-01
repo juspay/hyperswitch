@@ -1260,12 +1260,11 @@ impl PaymentIntent {
 
     /// Retries already made against this invoice, by the billing connector and by recovery
     /// together. Zero for an intent that has not entered recovery.
-    pub fn get_revenue_recovery_retry_count(&self) -> u16 {
+    pub fn get_revenue_recovery_retry_count(&self) -> Option<u16> {
         self.feature_metadata
             .as_ref()
             .and_then(|feature_metadata| feature_metadata.payment_revenue_recovery_metadata.as_ref())
             .map(|revenue_recovery_metadata| revenue_recovery_metadata.total_retry_count)
-            .unwrap_or_default()
     }
 
     pub fn get_feature_metadata(&self) -> Option<FeatureMetadata> {
