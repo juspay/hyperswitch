@@ -69,8 +69,9 @@ use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_ve
 #[cfg(feature = "oltp")]
 use super::webhooks::*;
 use super::{
-    admin, api_keys, cache::*, card_issuer, chat, connector_onboarding, disputes, files, gsm,
-    health::*, offer_engine, oidc, profiles, relay, user, user_role,
+    admin, api_keys, cache::*, card_issuer, chat, connector_onboarding, disputes,
+    external_service_auth as external_service_auth_routes, files, gsm, health::*, offer_engine,
+    oidc, profiles, relay, user, user_role,
 };
 #[cfg(feature = "v1")]
 use super::{
@@ -1903,6 +1904,19 @@ impl Tokenization {
     }
 }
 
+pub struct ExternalService;
+
+impl ExternalService {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/external-service")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("/validate-token")
+                    .route(web::post().to(external_service_auth_routes::validate_token)),
+            )
+    }
+}
+
 pub struct Hypersense;
 
 impl Hypersense {
@@ -3467,6 +3481,11 @@ impl RecoveryDataBackfill {
             .service(web::resource("/update-token").route(
                 web::put().to(
                     super::revenue_recovery_data_backfill::update_revenue_recovery_additional_redis_data,
+                ),
+            ))
+            .service(web::resource("/retry-stats").route(
+                web::post().to(
+                    super::revenue_recovery_data_backfill::revenue_recovery_retry_stats_migration,
                 ),
             ))
     }
