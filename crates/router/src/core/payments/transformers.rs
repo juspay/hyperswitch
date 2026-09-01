@@ -431,6 +431,8 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
             .and_then(|noon| noon.order_category.clone())
     });
 
+    let is_off_session = get_off_session(payment_data.mandate_data.as_ref(), None);
+
     // Account funded transaction details are merchant supplied and are always read
     // from the payment intent, never from the confirm request.
     let recipient_details = payment_data
@@ -446,7 +448,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
             .get_required_value("payment_method_data")?,
         setup_future_usage: Some(payment_data.payment_intent.setup_future_usage),
         mandate_id: payment_data.mandate_data.clone(),
-        off_session: None,
+        off_session: is_off_session,
         setup_mandate_details: None,
         confirm: true,
         capture_method: Some(payment_data.payment_intent.capture_method),
@@ -514,6 +516,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         connector_intent_metadata: None,
         is_account_funded_transaction: payment_data.payment_intent.is_account_funded_transaction,
         recipient_details,
+        business_country: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -569,7 +572,14 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         payment_method_status: None,
         payment_method_token: None,
         connector_customer: connector_customer_id,
-        recurring_mandate_payment_data: None,
+        recurring_mandate_payment_data: is_off_session.unwrap_or(false).then(|| {
+            hyperswitch_domain_models::router_data::RecurringMandatePaymentData {
+                payment_method_type: payment_data.payment_attempt.payment_method_subtype,
+                original_payment_authorized_amount: None,
+                original_payment_authorized_currency: None,
+                mandate_metadata: None,
+            }
+        }),
         // TODO: This has to be generated as the reference id based on the connector configuration
         // Some connectros might not accept accept the global id. This has to be done when generating the reference id
         connector_request_reference_id,
@@ -1845,6 +1855,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         mit_category: None,
         is_account_funded_transaction: payment_data.payment_intent.is_account_funded_transaction,
         recipient_details,
+        business_country: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -5281,6 +5292,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                 .payment_intent
                 .is_account_funded_transaction,
             recipient_details,
+            business_country: None,
         })
     }
 }
@@ -5563,6 +5575,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                 .payment_intent
                 .is_account_funded_transaction,
             recipient_details,
+            business_country: payment_data.payment_intent.business_country,
         })
     }
 }
@@ -7219,6 +7232,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
                 .payment_intent
                 .is_account_funded_transaction,
             recipient_details,
+            business_country: payment_data.payment_intent.business_country,
         })
     }
 }
@@ -7342,6 +7356,19 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             connector_name,
             payment_data.clone().get_creds_identifier(),
         ));
+
+        let recipient_details = payment_data
+            .payment_intent
+            .get_recipient_details()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse recipient details")?;
+
+        let connector_intent_metadata = payment_data
+            .payment_intent
+            .get_connector_metadata_from_intent()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse connector metadata")?;
+
         Ok(Self {
             setup_future_usage: payment_data
                 .payment_attempt
@@ -7387,6 +7414,12 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             tokenization: payment_data.payment_intent.tokenization,
             router_return_url,
             merchant_order_reference_id: payment_data.payment_intent.merchant_order_reference_id,
+            is_account_funded_transaction: payment_data
+                .payment_intent
+                .is_account_funded_transaction,
+            recipient_details,
+            business_country: payment_data.payment_intent.business_country,
+            connector_intent_metadata,
         })
     }
 }

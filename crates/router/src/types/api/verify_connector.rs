@@ -75,6 +75,7 @@ impl VerifyConnectorData {
             billing_descriptor: None,
             is_account_funded_transaction: None,
             recipient_details: None,
+            business_country: None,
             tokenization: None,
             partner_merchant_identifier_details: None,
             feature_metadata: None,
