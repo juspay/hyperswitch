@@ -10,6 +10,61 @@ const successfulNo3DSCardDetails = {
   card_cvc: "0009",
 };
 
+const blockedPaymentErrorBodyForIssuingCountry = {
+  status: 200,
+  expectBlockedPayment: true,
+  body: {
+    error: {
+      type: "blocked",
+      message:
+        "Cards issued in your region aren't supported for this transaction, please try a different card",
+      code: "HE_03",
+      reason: "Blocked",
+    },
+  },
+};
+export const blockedPaymentErrorBodyForDebitCard = {
+  status: 200,
+  expectBlockedPayment: true,
+  body: {
+    error: {
+      type: "blocked",
+      message:
+        "Debit cards are not accepted for this transaction, please try a different card",
+      code: "HE_03",
+      reason: "Blocked",
+    },
+  },
+};
+
+export const blockedPaymentErrorBodyForCardSubtype = {
+  status: 200,
+  expectBlockedPayment: true,
+  body: {
+    error: {
+      type: "blocked",
+      message:
+        "This card is not accepted for this transaction, please try a different card",
+      code: "HE_03",
+      reason: "Blocked",
+    },
+  },
+};
+
+export const blockedPaymentErrorBodyForBinUnavailable = {
+  status: 200,
+  expectBlockedPayment: true,
+  body: {
+    error: {
+      type: "blocked",
+      message:
+        "We couldn't verify this card's information, please try a different card",
+      code: "HE_03",
+      reason: "Blocked",
+    },
+  },
+};
+
 // Payment method card details
 const PaymentMethodCardDetails = {
   card_number: "4111111145551142",
@@ -29,11 +84,11 @@ const successfulThreeDSTestCardDetails = {
 
 // Test card details for failed transactions
 const failedNo3DSCardDetails = {
-  card_number: "5500000000000004",
+  card_number: "340000000000009",
   card_exp_month: "12",
   card_exp_year: "2030",
   card_holder_name: "Test User",
-  card_cvc: "001",
+  card_cvc: "100",
 };
 
 // Payment method data structure for non-3DS card payments
@@ -42,7 +97,7 @@ const payment_method_data_no3ds = {
     last4: "0009",
     card_type: "CREDIT",
     card_network: "AmericanExpress",
-    card_issuer: "AmericanExpress",
+    card_issuer: "AMERICAN EXPRESS COMPANY",
     card_issuing_country: "INDIA",
     card_isin: "340000",
     card_extended_bin: null,
@@ -290,14 +345,11 @@ export const connectorDetails = {
         billing: billingAddress,
       },
       Response: {
-        status: 400,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "Selected payment method through billwerk is not implemented",
-            code: "card_declined",
-          },
+          status: "failed",
+          error_code: "hard_declined",
+          error_message: "credit_card_expired",
         },
       },
     },
@@ -889,7 +941,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "requires_capture",
           setup_future_usage: "on_session",
         },
       },
@@ -945,6 +997,96 @@ export const connectorDetails = {
         },
       },
     },
+    PaymentWithoutBilling: {
+      Request: {
+        currency: "DKK",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        authentication_type: "no_three_ds",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    PaymentWithBilling: {
+      Request: {
+        currency: "DKK",
+        setup_future_usage: "on_session",
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "CA",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "CA",
+            zip: "94122",
+            country: "DK",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "9111222333",
+            country_code: "+91",
+          },
+        },
+        email: "hyperswitch.example@gmail.com",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    PaymentWithFullName: {
+      Request: {
+        currency: "DKK",
+        setup_future_usage: "on_session",
+        billing: {
+          address: {
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "9111222333",
+            country_code: "+91",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    PaymentWithBillingEmail: {
+      Request: {
+        currency: "DKK",
+        setup_future_usage: "on_session",
+        email: "hyperswitch_sdk_demo_id1@gmail.com",
+        billing: {
+          address: {
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "9111222333",
+            country_code: "+91",
+          },
+          email: "hyperswitch.example@gmail.com",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
     PaymentMethod: {
       Request: {
         payment_method: "card",
@@ -969,5 +1111,75 @@ export const connectorDetails = {
       pmListDynamicFieldWithNames: requiredFields,
       pmListDynamicFieldWithEmail: requiredFields,
     },
+  },
+  payment_method_blocking_pm: {
+    BlockIssuingCountry: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "4000000000000002",
+            card_exp_month: "03",
+            card_exp_year: "30",
+            card_holder_name: "joseph Doeeee",
+            card_cvc: "737",
+            card_network: "Visa",
+          },
+        },
+        billing: billingAddress,
+        currency: "MYR",
+      },
+      Response: blockedPaymentErrorBodyForIssuingCountry,
+    }),
+    BlockCardType: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "4111111111111111",
+            card_exp_month: "03",
+            card_exp_year: "30",
+            card_holder_name: "joseph Doeeee",
+            card_cvc: "737",
+            card_network: "Visa",
+          },
+        },
+        billing: billingAddress,
+        currency: "MYR",
+      },
+      Response: blockedPaymentErrorBodyForDebitCard,
+    }),
+    BlockCardSubtype: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "378282246310005",
+            card_exp_month: "03",
+            card_exp_year: "30",
+            card_holder_name: "joseph Doeeee",
+            card_cvc: "737",
+            card_network: "Visa",
+          },
+        },
+      },
+      Response: blockedPaymentErrorBodyForCardSubtype,
+    }),
+    BlockIfBinInfoUnavailable: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "6304000000000000",
+            card_exp_month: "03",
+            card_exp_year: "30",
+            card_holder_name: "joseph Doeeee",
+            card_cvc: "737",
+            card_network: "Visa",
+          },
+        },
+      },
+      Response: blockedPaymentErrorBodyForBinUnavailable,
+    }),
   },
 };

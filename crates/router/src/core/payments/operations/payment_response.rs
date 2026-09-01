@@ -1,3 +1,5 @@
+#[cfg(any(feature = "v1", all(test, feature = "deja")))]
+use std::future::Future;
 use std::{collections::HashMap, ops::Deref};
 
 #[cfg(feature = "v1")]
@@ -37,6 +39,8 @@ use tracing_futures::Instrument;
 use super::payment_update::PaymentUpdate;
 use super::{Operation, OperationSessionSetters, PostUpdateTracker};
 #[cfg(feature = "v1")]
+use crate::core::offer_engine;
+#[cfg(feature = "v1")]
 use crate::core::payment_methods::transformers::call_modular_payment_method_update;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use crate::core::routing::helpers as routing_helpers;
@@ -70,6 +74,20 @@ use crate::{
     },
     utils,
 };
+
+#[cfg(any(feature = "v1", all(test, feature = "deja")))]
+fn spawn_save_payment_method<F>(future: F)
+where
+    F: Future<Output = ()> + Send + 'static,
+{
+    // Under `deja`, the detached tail must keep the request's correlation and
+    // sampling decision past ingress teardown; `deja::spawn_fork` carries both.
+    #[cfg(feature = "deja")]
+    deja::spawn_fork(future);
+
+    #[cfg(not(feature = "deja"))]
+    let _task_handle = tokio::spawn(future.in_current_span());
+}
 
 #[cfg(feature = "v1")]
 async fn prepare_pm_update_from_psync(
@@ -347,25 +365,47 @@ where
                         .await
                         {
                             Ok(_) => {
-                                logger::info!("Successfully called modular payment method update");
+                                logger::info!(
+                                    payment_method_id=%pm_id,
+                                    "Successfully called modular payment method update"
+                                );
                             }
                             Err(err) => {
+                                // Non-fatal by design: the attempt still gets the pm_id below,
+                                // so this log is the only trace the modular update failed and
+                                // the payment method may be stale (missing connector token /
+                                // NTI / acknowledgement).
                                 logger::error!(
-                                    "Failed to call modular payment method update: {}",
-                                    err
+                                    error=%err,
+                                    payment_method_id=%pm_id,
+                                    merchant_id=%payment_data.payment_attempt.processor_merchant_id.get_string_repr(),
+                                    profile_id=%payment_data.payment_attempt.profile_id.get_string_repr(),
+                                    "Failed to call modular payment method update; continuing with possibly stale payment method"
                                 );
                             }
                         };
                         payment_data.payment_attempt.payment_method_id = Some(pm_id.clone());
                     } else {
-                        logger::info!("No updates found for modular payment method update call");
+                        logger::info!(
+                            payment_method_id=%pm_id,
+                            "No updates found for modular payment method update call"
+                        );
                     }
                 }
             }
-            (_, _) => {
-                logger::info!("Payment method is not eligible for modular update");
+            (is_volatile, payment_method_id) => {
+                logger::info!(
+                    ?is_volatile,
+                    ?payment_method_id,
+                    "Payment method is not eligible for modular update (volatile, or no payment method attached)"
+                );
             }
         }
+    } else {
+        logger::debug!(
+            payment_method=?payment_data.payment_attempt.payment_method,
+            "Payment method type is not eligible for modular update; skipping"
+        );
     }
     Ok(())
 }
@@ -814,78 +854,76 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             let cloned_platform = platform.clone();
             let async_dimension = dimensions.clone();
             logger::info!("Call to save_payment_method in locker");
-            let _task_handle = tokio::spawn(
-                async move {
-                    logger::info!("Starting async call to save_payment_method in locker");
+            let save_payment_method_future = async move {
+                logger::info!("Starting async call to save_payment_method in locker");
 
-                    let result = Box::pin(tokenization::save_payment_method(
-                        &state,
-                        connector_name,
-                        save_payment_data,
-                        customer_id,
-                        &cloned_platform,
-                        payment_method_type,
-                        billing_name,
-                        payment_method_billing_address.as_ref(),
-                        &business_profile,
-                        connector_mandate_reference_id,
-                        merchant_connector_id.clone(),
-                        vault_operation.clone(),
-                        payment_method_info.clone(),
-                        payment_method_token.clone(),
-                        customer_details.clone(),
-                        &async_dimension,
-                    ))
-                    .await;
+                let result = Box::pin(tokenization::save_payment_method(
+                    &state,
+                    connector_name,
+                    save_payment_data,
+                    customer_id,
+                    &cloned_platform,
+                    payment_method_type,
+                    billing_name,
+                    payment_method_billing_address.as_ref(),
+                    &business_profile,
+                    connector_mandate_reference_id,
+                    merchant_connector_id.clone(),
+                    vault_operation.clone(),
+                    payment_method_info.clone(),
+                    payment_method_token.clone(),
+                    customer_details.clone(),
+                    &async_dimension,
+                ))
+                .await;
 
-                    if let Err(err) = result {
-                        logger::error!("Asynchronously saving card in locker failed : {:?}", err);
-                    } else if let Ok(tokenization::SavePaymentMethodDataResponse {
-                        payment_method_id,
-                        ..
-                    }) = result
-                    {
-                        let payment_attempt_update =
-                            storage::PaymentAttemptUpdate::PaymentMethodDetailsUpdate {
-                                payment_method_id,
-                                updated_by: cloned_platform
-                                    .get_processor()
-                                    .get_account()
-                                    .storage_scheme
-                                    .clone()
-                                    .to_string(),
-                            };
-
-                        #[cfg(feature = "v1")]
-                        let respond = state
-                            .store
-                            .update_payment_attempt_with_attempt_id(
-                                payment_attempt,
-                                payment_attempt_update,
-                                cloned_platform.get_processor().get_account().storage_scheme,
-                                cloned_platform.get_processor().get_key_store(),
-                            )
-                            .await;
-
-                        #[cfg(feature = "v2")]
-                        let respond = state
-                            .store
-                            .update_payment_attempt_with_attempt_id(
-                                &(&state).into(),
-                                &key_store.clone(),
-                                payment_attempt,
-                                payment_attempt_update,
-                                cloned_platform.get_processor().get_account().storage_scheme,
-                            )
-                            .await;
-
-                        if let Err(err) = respond {
-                            logger::error!("Error updating payment attempt: {:?}", err);
+                if let Err(err) = result {
+                    logger::error!("Asynchronously saving card in locker failed : {:?}", err);
+                } else if let Ok(tokenization::SavePaymentMethodDataResponse {
+                    payment_method_id,
+                    ..
+                }) = result
+                {
+                    let payment_attempt_update =
+                        storage::PaymentAttemptUpdate::PaymentMethodDetailsUpdate {
+                            payment_method_id,
+                            updated_by: cloned_platform
+                                .get_processor()
+                                .get_account()
+                                .storage_scheme
+                                .clone()
+                                .to_string(),
                         };
-                    }
+
+                    #[cfg(feature = "v1")]
+                    let respond = state
+                        .store
+                        .update_payment_attempt_with_attempt_id(
+                            payment_attempt,
+                            payment_attempt_update,
+                            cloned_platform.get_processor().get_account().storage_scheme,
+                            cloned_platform.get_processor().get_key_store(),
+                        )
+                        .await;
+
+                    #[cfg(feature = "v2")]
+                    let respond = state
+                        .store
+                        .update_payment_attempt_with_attempt_id(
+                            &(&state).into(),
+                            &key_store.clone(),
+                            payment_attempt,
+                            payment_attempt_update,
+                            cloned_platform.get_processor().get_account().storage_scheme,
+                        )
+                        .await;
+
+                    if let Err(err) = respond {
+                        logger::error!("Error updating payment attempt: {:?}", err);
+                    };
                 }
-                .in_current_span(),
-            );
+            };
+            spawn_save_payment_method(save_payment_method_future);
             Ok(())
         }
     }
@@ -916,14 +954,20 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                 .get_payment_method_info()
                 .map(|pm| pm.last_modified),
         ) {
-            let _ = update_pm_connector_mandate_details(
+            if let Err(err) = update_pm_connector_mandate_details(
                 state,
                 provider,
                 initiator,
                 payment_data,
                 router_data,
             )
-            .await;
+            .await
+            {
+                logger::error!(
+                    error=?err,
+                    "Failed to update legacy payment method connector mandate details"
+                );
+            }
         }
         Ok(())
     }
@@ -1239,14 +1283,20 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
                 .get_payment_method_info()
                 .map(|pm| pm.last_modified),
         ) {
-            let _ = update_pm_connector_mandate_details(
+            if let Err(err) = update_pm_connector_mandate_details(
                 state,
                 provider,
                 initiator,
                 payment_data,
                 router_data,
             )
-            .await;
+            .await
+            {
+                logger::error!(
+                    error=?err,
+                    "Failed to update legacy payment method connector mandate details"
+                );
+            }
         }
         Ok(())
     }
@@ -2092,14 +2142,20 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
                 .get_payment_method_info()
                 .map(|pm| pm.last_modified),
         ) {
-            let _ = update_pm_connector_mandate_details(
+            if let Err(err) = update_pm_connector_mandate_details(
                 state,
                 provider,
                 initiator,
                 payment_data,
                 router_data,
             )
-            .await;
+            .await
+            {
+                logger::error!(
+                    error=?err,
+                    "Failed to update legacy payment method connector mandate details"
+                );
+            }
         }
         Ok(())
     }
@@ -2243,14 +2299,20 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
                 .get_payment_method_info()
                 .map(|pm| pm.last_modified),
         ) {
-            let _ = update_pm_connector_mandate_details(
+            if let Err(err) = update_pm_connector_mandate_details(
                 state,
                 provider,
                 initiator,
                 payment_data,
                 router_data,
             )
-            .await;
+            .await
+            {
+                logger::error!(
+                    error=?err,
+                    "Failed to update legacy payment method connector mandate details"
+                );
+            }
         }
         Ok(())
     }
@@ -2665,6 +2727,12 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 .ok()
                                 .and_then(|resp| resp.get_network_transaction_link_id());
 
+                            let payment_account_reference = router_data
+                                .response
+                                .as_ref()
+                                .ok()
+                                .and_then(|resp| resp.get_payment_account_reference());
+
                             let encoded_data = payment_data.payment_attempt.encoded_data.clone();
 
                             let authentication_data = (*redirection_data)
@@ -2857,6 +2925,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                         sender_payment_instrument_id: router_data
                                             .sender_payment_instrument_id
                                             .clone(),
+                                        payment_account_reference,
                                     }),
                                 ),
                             };
@@ -3211,6 +3280,9 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
         )
         .await;
     }
+
+    offer_engine::schedule_payment_notification_for_attempt(state, &payment_data.payment_attempt)
+        .await;
 
     match router_data.integrity_check {
         Ok(()) => Ok(payment_data),
@@ -4664,6 +4736,7 @@ impl<F: Clone + Send + Sync>
                                         phone_country_code: None,
                                         tax_registration_id: None,
                                         customer_document_details: Some(customer_document_details),
+                                        date_of_birth: None,
                                     });
                                 }
 
