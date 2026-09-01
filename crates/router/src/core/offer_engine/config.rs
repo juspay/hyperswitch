@@ -12,7 +12,7 @@ use crate::{
 pub async fn resolve_offer_engine_credential_source<D>(
     state: &SessionState,
     dimensions: &D,
-) -> CustomResult<OfferEngineCredentialSource, OfferEngineError>
+) -> OfferEngineCredentialSource
 where
     D: dimension_state::DimensionsBase,
 {
@@ -35,20 +35,21 @@ where
             None,
         )
         .await
-        .ok_or_else(|| {
-            error_stack::report!(OfferEngineError::CredentialSourceResolution(
-                "failed to resolve Offer Engine credential source".to_string()
-            ))
+        .unwrap_or_else(|| {
+            router_env::logger::warn!(
+                "Offer Engine credential source config could not be parsed; defaulting to none"
+            );
+            OfferEngineCredentialSource::None
         })
     } else {
-        Ok(OfferEngineCredentialSource::None)
+        OfferEngineCredentialSource::None
     }
 }
 
 pub async fn fetch_offer_engine_credential_source_for_notify<D>(
     state: &SessionState,
     dimensions: &D,
-) -> CustomResult<OfferEngineCredentialSource, OfferEngineError>
+) -> OfferEngineCredentialSource
 where
     D: dimension_state::DimensionsBase,
 {
@@ -62,10 +63,11 @@ where
         None,
     )
     .await
-    .ok_or_else(|| {
-        error_stack::report!(OfferEngineError::CredentialSourceResolution(
-            "failed to resolve Offer Engine credential source".to_string()
-        ))
+    .unwrap_or_else(|| {
+        router_env::logger::warn!(
+            "Offer Engine credential source config could not be parsed; defaulting to none"
+        );
+        OfferEngineCredentialSource::None
     })
 }
 

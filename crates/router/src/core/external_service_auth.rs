@@ -149,17 +149,17 @@ async fn resolve_offer_engine_merchant_id(
 
     let config =
         match offer_engine::resolve_offer_engine_credential_source(state, &dimensions).await {
-            Ok(offer_engine::OfferEngineCredentialSource::None) => {
+            offer_engine::OfferEngineCredentialSource::None => {
                 return Err(error_stack::report!(
                     errors::ApiErrorResponse::AccessForbidden {
                         resource: "offer_engine".to_string(),
                     }
                 ));
             }
-            Ok(offer_engine::OfferEngineCredentialSource::Application) => {
+            offer_engine::OfferEngineCredentialSource::Application => {
                 offer_engine::OfferEngineCredentialSource::resolve_application_offer_config(state)
             }
-            Ok(offer_engine::OfferEngineCredentialSource::Merchant) => {
+            offer_engine::OfferEngineCredentialSource::Merchant => {
                 let db = &*state.store;
                 let key_store = db
                     .get_merchant_key_store_by_merchant_id(
@@ -177,7 +177,6 @@ async fn resolve_offer_engine_merchant_id(
                     &merchant_account,
                 )
             }
-            Err(error) => Err(error),
         }
         .change_context(errors::ApiErrorResponse::AccessForbidden {
             resource: "offer_engine".to_string(),

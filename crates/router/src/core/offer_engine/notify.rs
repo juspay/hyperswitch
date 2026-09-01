@@ -215,17 +215,16 @@ pub async fn execute_notification(
                 .with_profile_id(payment_attempt.profile_id.clone());
             let config =
                 match fetch_offer_engine_credential_source_for_notify(state, &dimensions).await {
-                    Ok(OfferEngineCredentialSource::None) => None,
-                    Ok(OfferEngineCredentialSource::Application) => {
+                    OfferEngineCredentialSource::None => None,
+                    OfferEngineCredentialSource::Application => {
                         Some(OfferEngineCredentialSource::resolve_application_offer_config(state))
                     }
-                    Ok(OfferEngineCredentialSource::Merchant) => {
+                    OfferEngineCredentialSource::Merchant => {
                         Some(OfferEngineCredentialSource::resolve_merchant_offer_config(
                             state,
                             &merchant_account,
                         ))
                     }
-                    Err(error) => Some(Err(error)),
                 };
             match config {
                 Some(Ok(config)) => {

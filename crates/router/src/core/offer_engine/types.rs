@@ -35,8 +35,6 @@ pub enum OfferEngineError {
     MissingApplicationConfig(String),
     #[error("Offer Engine merchant config is missing or invalid: {0}")]
     MissingMerchantConfig(String),
-    #[error("Offer Engine credential source could not be resolved: {0}")]
-    CredentialSourceResolution(String),
     #[error("Offer Engine request failed")]
     RequestFailed,
     #[error("Failed to parse Offer Engine response")]

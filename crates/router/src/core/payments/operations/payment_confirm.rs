@@ -3244,21 +3244,20 @@ async fn apply_selected_offer<F: Clone + Send + Sync>(
     )
     .await
     {
-        Ok(offer_engine::OfferEngineCredentialSource::None) => {
+        offer_engine::OfferEngineCredentialSource::None => {
             return Err(report!(errors::ApiErrorResponse::PreconditionFailed {
                 message: "Offer Engine is not available for this offer selection".to_string(),
             }));
         }
-        Ok(offer_engine::OfferEngineCredentialSource::Application) => {
+        offer_engine::OfferEngineCredentialSource::Application => {
             offer_engine::OfferEngineCredentialSource::resolve_application_offer_config(state)
         }
-        Ok(offer_engine::OfferEngineCredentialSource::Merchant) => {
+        offer_engine::OfferEngineCredentialSource::Merchant => {
             offer_engine::OfferEngineCredentialSource::resolve_merchant_offer_config(
                 state,
                 processor.get_account(),
             )
         }
-        Err(error) => Err(error),
     }
     .change_context(errors::ApiErrorResponse::PreconditionFailed {
         message: "Offer Engine is not available for this offer selection".to_string(),

@@ -28,18 +28,17 @@ pub async fn check_offer_engine_connectivity(
 ) -> RouterResponse<OfferEngineConnectivityResponse> {
     let dimensions: dimension_state::DimensionsGlobal = dimension_state::Dimensions::new();
     let resolved_config = match resolve_offer_engine_credential_source(&state, &dimensions).await {
-        Ok(OfferEngineCredentialSource::None) => None,
-        Ok(OfferEngineCredentialSource::Application) => {
+        OfferEngineCredentialSource::None => None,
+        OfferEngineCredentialSource::Application => {
             Some(OfferEngineCredentialSource::resolve_application_offer_config(&state))
         }
-        Ok(OfferEngineCredentialSource::Merchant) => Some(Err(error_stack::report!(
+        OfferEngineCredentialSource::Merchant => Some(Err(error_stack::report!(
             super::types::OfferEngineError::MissingMerchantConfig(
                 "credential source is 'merchant' but no merchant context is available in a \
                  global connectivity check"
                     .to_string()
             )
         ))),
-        Err(err) => Some(Err(err)),
     };
     let response = match resolved_config {
         Some(Err(err)) => OfferEngineConnectivityResponse {

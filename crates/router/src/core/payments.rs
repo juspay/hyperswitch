@@ -14993,32 +14993,25 @@ async fn resolve_offer_eligibility_details(
             .with_processor_merchant_id(processor.get_processor_merchant_id())
             .with_organization_id(processor.get_account().get_org_id().clone())
             .with_profile_id(profile_id.clone());
-        let resolved_config = match offer_engine::resolve_offer_engine_credential_source(
-            state,
-            &offer_dimensions,
-        )
-        .await
-        {
-            Ok(offer_engine::OfferEngineCredentialSource::None) => None,
-            Ok(offer_engine::OfferEngineCredentialSource::Application) => {
-                offer_engine::OfferEngineCredentialSource::resolve_application_offer_config(state)
+        let resolved_config =
+            match offer_engine::resolve_offer_engine_credential_source(state, &offer_dimensions)
+                .await
+            {
+                offer_engine::OfferEngineCredentialSource::None => None,
+                offer_engine::OfferEngineCredentialSource::Application => {
+                    offer_engine::OfferEngineCredentialSource::resolve_application_offer_config(
+                        state,
+                    )
                     .ok()
-            }
-            Ok(offer_engine::OfferEngineCredentialSource::Merchant) => {
-                offer_engine::OfferEngineCredentialSource::resolve_merchant_offer_config(
-                    state,
-                    processor.get_account(),
-                )
-                .ok()
-            }
-            Err(error) => {
-                logger::warn!(
-                        ?error,
-                        "offer engine: failed to resolve credential source; treating offers as unavailable"
-                    );
-                None
-            }
-        };
+                }
+                offer_engine::OfferEngineCredentialSource::Merchant => {
+                    offer_engine::OfferEngineCredentialSource::resolve_merchant_offer_config(
+                        state,
+                        processor.get_account(),
+                    )
+                    .ok()
+                }
+            };
         resolved_config.zip(currency)
     };
 
