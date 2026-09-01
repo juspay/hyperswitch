@@ -833,7 +833,16 @@ pub mod core {
             );
 
             // Proxy priority: vault metadata -> backup_proxy_url -> none
-            let final_proxy_url = vault_proxy_url.or_else(|| config.backup_proxy_url.clone());
+            // Proxy priority: vault metadata -> proxy_url -> backup_proxy_url -> none
+            //if vault proxy url is not present, we should use our config proxy url,
+            //where outbound proxy has the context of the proxy endpoint
+            let final_proxy_url = vault_proxy_url
+                .or_else(|| config.proxy_url.clone())
+                .or_else(|| config.backup_proxy_url.clone());
+            logger::info!(
+                proxy_attached = final_proxy_url.is_some(),
+                "Resolved outgoing proxy for injector request"
+            );
             let proxy = Proxy::from_optional_url(final_proxy_url);
 
             metrics::INJECTOR_OUTGOING_CALLS_COUNT.add(

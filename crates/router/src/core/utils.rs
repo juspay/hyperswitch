@@ -25,7 +25,9 @@ use error_stack::{report, ResultExt};
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::types::VaultRouterData;
 use hyperswitch_domain_models::{
-    merchant_connector_account::MerchantConnectorAccount,
+    merchant_connector_account::{
+        MerchantConnectorAccount, MerchantConnectorAccountWithoutEncrypted,
+    },
     payment_address::PaymentAddress,
     router_data::ErrorResponse,
     router_data_v2::flow_common_types::VaultConnectorFlowData,
@@ -56,10 +58,11 @@ use crate::{
     core::{
         configs::dimension_state,
         errors::{self, RouterResult, StorageErrorExt},
+        payment_methods,
         payments::PaymentData,
     },
     db::StorageInterface,
-    routes::SessionState,
+    routes::{metrics::MerchantMode, SessionState},
     types::{
         self, api, domain,
         storage::{self, enums},
@@ -94,6 +97,15 @@ pub async fn get_feature_config(
     platform: &domain::Platform,
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 ) -> FeatureConfig {
+    if let Some(context) = state.payment_metrics_context {
+        return FeatureConfig {
+            is_payment_method_modular_allowed: matches!(
+                context.merchant_mode,
+                MerchantMode::Modular
+            ),
+        };
+    }
+
     let dimensions = dimensions
         .with_organization_id(
             platform
@@ -102,14 +114,15 @@ pub async fn get_feature_config(
                 .organization_id
                 .clone(),
         )
-        .without_provider_merchant_id()
         .without_processor_merchant_id();
 
-    let is_payment_method_modular_allowed = crate::core::payment_methods::utils::get_organization_eligibility_config_for_pm_modular_service(
-        state,
-        &dimensions,
-    )
-    .await;
+    let is_payment_method_modular_allowed =
+        payment_methods::utils::get_should_call_pm_modular_service(state, &dimensions, None).await;
+    router_env::logger::debug!(
+        is_payment_method_modular_allowed,
+        organization_id=%platform.get_processor().get_account().organization_id.get_string_repr(),
+        "resolved PM modular service feature flag"
+    );
     FeatureConfig {
         is_payment_method_modular_allowed,
     }
@@ -123,18 +136,29 @@ pub async fn validate_legacy_endpoint_access<E>(
 where
     E: From<errors::ApiErrorResponse> + error_stack::Context,
 {
+    // The dashboard authenticates via JWT and still relies on these legacy
+    // endpoints, so only merchant (API key) traffic is blocked from deprecated
+    // routes.
+    let is_dashboard_access = matches!(
+        platform.get_initiator(),
+        Some(domain::Initiator::Jwt { .. })
+    );
+
     let dimensions = dimension_state::Dimensions::new()
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
 
     let feature_config = get_feature_config(state, platform, &dimensions).await;
-    common_utils::fp_utils::when(feature_config.is_payment_method_modular_allowed, || {
-        Err(error_stack::report!(E::from(
-            errors::ApiErrorResponse::AccessForbidden {
-                resource: "Deprecated route".to_string(),
-            },
-        )))
-    })?;
+    common_utils::fp_utils::when(
+        feature_config.is_payment_method_modular_allowed && !is_dashboard_access,
+        || {
+            Err(error_stack::report!(E::from(
+                errors::ApiErrorResponse::AccessForbidden {
+                    resource: "Deprecated route".to_string(),
+                },
+            )))
+        },
+    )?;
     Ok(())
 }
 
@@ -242,12 +266,12 @@ pub async fn construct_payout_router_data<'a, F>(
     let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: platform.get_processor().get_account().get_id().to_owned(),
-        customer_id: customer_details.to_owned().map(|c| c.customer_id),
+        customer_id: customer_details.as_ref().map(|c| c.get_id().clone()),
         tenant_id: state.tenant.tenant_id.clone(),
         connector_customer: get_payout_connector_customer_id(
             connector_data,
             connector_customer_id.clone(),
-            &customer_details.to_owned().map(|c| c.customer_id),
+            &customer_details.as_ref().map(|c| c.get_id().clone()),
             &payout_data.payment_method,
             &payout_data.payout_attempt,
         )?,
@@ -273,6 +297,9 @@ pub async fn construct_payout_router_data<'a, F>(
             amount: payouts.amount.get_amount_as_i64(),
             minor_amount: payouts.amount,
             connector_payout_id: payout_attempt.connector_payout_id.clone(),
+            connector_eligibility_reference_id: payout_attempt
+                .connector_eligibility_reference_id
+                .clone(),
             destination_currency: payouts.destination_currency,
             source_currency: payouts.source_currency,
             entity_type: payouts.entity_type.to_owned(),
@@ -282,13 +309,14 @@ pub async fn construct_payout_router_data<'a, F>(
             customer_details: customer_details
                 .to_owned()
                 .map(|c| payments::CustomerDetails {
-                    customer_id: Some(c.customer_id),
+                    customer_id: Some(c.get_id().clone()),
                     name: c.name.map(Encryptable::into_inner),
                     email: c.email.map(Email::from),
                     phone: c.phone.map(Encryptable::into_inner),
                     phone_country_code: c.phone_country_code,
                     tax_registration_id: c.tax_registration_id.map(Encryptable::into_inner),
                     document_details: None,
+                    date_of_birth: None,
                 }),
             connector_transfer_method_id,
             webhook_url: Some(webhook_url),
@@ -296,6 +324,7 @@ pub async fn construct_payout_router_data<'a, F>(
             payout_connector_metadata: payout_attempt.payout_connector_metadata.to_owned(),
             additional_payout_method_data: payout_attempt.additional_payout_method_data.to_owned(),
             source_bank_data: payout_data.source_bank_data.clone(),
+            billing_descriptor: payouts.billing_descriptor.clone(),
         },
         response: Ok(types::PayoutsResponseData::default()),
         access_token: None,
@@ -304,7 +333,10 @@ pub async fn construct_payout_router_data<'a, F>(
         payment_method_token: None,
         recurring_mandate_payment_data: None,
         preprocessing_id: None,
-        connector_request_reference_id: payout_attempt.payout_attempt_id.clone(),
+        connector_request_reference_id: get_payout_connector_request_reference_id(
+            connector_data,
+            payout_attempt,
+        ),
         payout_method_data: payout_data.payout_method_data.to_owned(),
         quote_id: None,
         test_mode,
@@ -332,6 +364,8 @@ pub async fn construct_payout_router_data<'a, F>(
         customer_document_details: None,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
+        customer_date_of_birth: None,
     };
 
     Ok(router_data)
@@ -464,6 +498,9 @@ pub async fn construct_refund_router_data<'a, F>(
             refund_connector_metadata: refund.metadata.clone(),
             capture_method: Some(capture_method),
             additional_payment_method_data: None,
+            payment_connector_request_reference_id: payment_attempt
+                .connector_request_reference_id
+                .clone(),
         },
 
         response: Ok(types::RefundsResponseData {
@@ -511,6 +548,8 @@ pub async fn construct_refund_router_data<'a, F>(
         customer_document_details: None,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
+        customer_date_of_birth: None,
     };
 
     Ok(router_data)
@@ -663,6 +702,9 @@ pub async fn construct_refund_router_data<'a, F>(
             merchant_config_currency,
             capture_method,
             additional_payment_method_data,
+            payment_connector_request_reference_id: payment_attempt
+                .connector_request_reference_id
+                .clone(),
         },
 
         response: Ok(types::RefundsResponseData {
@@ -709,6 +751,8 @@ pub async fn construct_refund_router_data<'a, F>(
             .attach_printable("Failed to extract customer document details from payment_intent")?,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
+        customer_date_of_birth: None,
     };
 
     Ok(router_data)
@@ -1077,7 +1121,10 @@ pub fn validate_dispute_status(
             matches!(dispute_status, DisputeStatus::DisputeExpired)
         }
         DisputeStatus::DisputeAccepted => {
-            matches!(dispute_status, DisputeStatus::DisputeAccepted)
+            matches!(
+                dispute_status,
+                DisputeStatus::DisputeAccepted | DisputeStatus::DisputeLost
+            )
         }
         DisputeStatus::DisputeCancelled => {
             matches!(dispute_status, DisputeStatus::DisputeCancelled)
@@ -1227,6 +1274,8 @@ pub async fn construct_accept_dispute_router_data<'a>(
             .attach_printable("Failed to extract customer document details from payment_intent")?,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
+        customer_date_of_birth: None,
     };
     Ok(router_data)
 }
@@ -1339,6 +1388,8 @@ pub async fn construct_submit_evidence_router_data<'a>(
             .attach_printable("Failed to extract customer document details from payment_intent")?,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
+        customer_date_of_birth: None,
     };
     Ok(router_data)
 }
@@ -1457,6 +1508,8 @@ pub async fn construct_upload_file_router_data<'a>(
         customer_document_details: None,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
+        customer_date_of_birth: None,
     };
     Ok(router_data)
 }
@@ -1536,6 +1589,8 @@ pub async fn construct_dispute_list_router_data<'a>(
         customer_document_details: None,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
+        customer_date_of_birth: None,
     })
 }
 
@@ -1650,6 +1705,8 @@ pub async fn construct_dispute_sync_router_data<'a>(
             .attach_printable("Failed to extract customer document details from payment_intent")?,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
+        customer_date_of_birth: None,
     };
     Ok(router_data)
 }
@@ -1787,6 +1844,8 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<F: Clone>(
             .attach_printable("Failed to extract customer document details from payment_intent")?,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
+        customer_date_of_birth: None,
     };
     Ok(router_data)
 }
@@ -1902,6 +1961,8 @@ pub async fn construct_defend_dispute_router_data<'a>(
             .attach_printable("Failed to extract customer document details from payment_intent")?,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
+        customer_date_of_birth: None,
     };
     Ok(router_data)
 }
@@ -2007,6 +2068,8 @@ pub async fn construct_retrieve_file_router_data<'a>(
         customer_document_details: None,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
+        customer_date_of_birth: None,
     };
     Ok(router_data)
 }
@@ -2056,6 +2119,21 @@ pub fn get_connector_request_reference_id(
             is_config_enabled_to_send_payment_id_as_connector_request_id,
         );
     Ok(connector_request_reference_id)
+}
+
+#[cfg(feature = "payouts")]
+pub fn get_payout_connector_request_reference_id(
+    connector_data: &api::ConnectorData,
+    payout_attempt: &hyperswitch_domain_models::payouts::payout_attempt::PayoutAttempt,
+) -> String {
+    // If there's already a connector_request_reference_id stored in the payout_attempt,
+    // reuse it to maintain consistency across multiple connector calls
+    match &payout_attempt.connector_request_reference_id {
+        Some(id) => id.clone(),
+        None => connector_data
+            .connector
+            .generate_payout_connector_request_reference_id(payout_attempt),
+    }
 }
 
 // TODO: Based on the connector configuration, the connector_request_reference_id should be generated
@@ -2568,6 +2646,12 @@ impl GetProfileId for MerchantConnectorAccount {
     }
 }
 
+impl GetProfileId for MerchantConnectorAccountWithoutEncrypted {
+    fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
+        Some(&self.profile_id)
+    }
+}
+
 impl GetProfileId for storage::PaymentIntent {
     #[cfg(feature = "v1")]
     fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
@@ -2697,6 +2781,7 @@ pub(crate) fn validate_profile_id_from_auth_layer<T: GetProfileId + std::fmt::De
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn construct_vault_router_data<F>(
     state: &SessionState,
     merchant_id: &common_utils::id_type::MerchantId,
@@ -2707,6 +2792,7 @@ pub async fn construct_vault_router_data<F>(
     connector_vault_id: Option<String>,
     connector_customer_id: Option<String>,
     should_generate_multiple_tokens: Option<bool>,
+    storage_type: Option<common_enums::StorageType>,
 ) -> RouterResult<VaultRouterDataV2<F>> {
     let connector_auth_type = merchant_connector_account
         .get_connector_account_details()
@@ -2726,6 +2812,7 @@ pub async fn construct_vault_router_data<F>(
             connector_vault_id,
             connector_customer_id,
             should_generate_multiple_tokens,
+            storage_type,
         },
         response: Ok(types::VaultResponseData::default()),
     };

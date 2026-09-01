@@ -273,6 +273,7 @@ impl TryFrom<&PaymePaySaleResponse> for PaymentsResponseData {
             incremental_authorization_allowed: None,
             authentication_data: None,
             charges: None,
+            payment_account_reference: None,
         })
     }
 }
@@ -347,6 +348,7 @@ impl From<&SaleQuery> for PaymentsResponseData {
             incremental_authorization_allowed: None,
             authentication_data: None,
             charges: None,
+            payment_account_reference: None,
         }
     }
 }
@@ -640,6 +642,7 @@ impl<F>
                             incremental_authorization_allowed: None,
                             authentication_data: None,
                             charges: None,
+                            payment_account_reference: None,
                         }),
                         ..item.data
                     }),
@@ -679,7 +682,8 @@ impl<F>
                             delayed_session_token: true,
                             sdk_next_action: api_models::payments::SdkNextAction {
                                 next_action: api_models::payments::NextActionCall::Sync,
-                            },
+                            should_block_confirm: None,
+},
                             connector_reference_id: Some(item.response.payme_sale_id.to_owned()),
                             connector_sdk_public_key: Some(
                                 payme_auth_type.payme_public_key.expose(),
@@ -768,6 +772,7 @@ impl<F>
                             incremental_authorization_allowed: None,
                             authentication_data: None,
                             charges: None,
+                            payment_account_reference: None,
                         }),
                         ..item.data
                     }),
@@ -807,7 +812,8 @@ impl<F>
                             delayed_session_token: true,
                             sdk_next_action: api_models::payments::SdkNextAction {
                                 next_action: api_models::payments::NextActionCall::Sync,
-                            },
+                            should_block_confirm: None,
+},
                             connector_reference_id: Some(item.response.payme_sale_id.to_owned()),
                             connector_sdk_public_key: Some(
                                 payme_auth_type.payme_public_key.expose(),
@@ -1381,6 +1387,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<PaymeVoidResponse>> for PaymentsCa
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             })
         };
         Ok(Self {

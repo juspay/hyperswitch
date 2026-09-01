@@ -92,11 +92,16 @@ impl IntoDirValue for (global_enums::PaymentMethodType, global_enums::PaymentMet
             global_enums::PaymentMethodType::Pix => Ok(dirval!(BankTransferType = Pix)),
             global_enums::PaymentMethodType::PixKey => Ok(dirval!(BankTransferType = PixKey)),
             global_enums::PaymentMethodType::PixEmv => Ok(dirval!(BankTransferType = PixEmv)),
+            global_enums::PaymentMethodType::PixQr => Ok(dirval!(BankTransferType = PixQr)),
             global_enums::PaymentMethodType::PixAutomaticoPush => {
                 Ok(dirval!(BankTransferType = PixAutomaticoPush))
             }
             global_enums::PaymentMethodType::PixAutomaticoQr => {
                 Ok(dirval!(BankTransferType = PixAutomaticoQr))
+            }
+            global_enums::PaymentMethodType::Payshap => Ok(dirval!(BankTransferType = Payshap)),
+            global_enums::PaymentMethodType::PayshapProxy => {
+                Ok(dirval!(BankTransferType = PayshapProxy))
             }
             global_enums::PaymentMethodType::Pse => Ok(dirval!(BankTransferType = Pse)),
             global_enums::PaymentMethodType::Interac => Ok(dirval!(BankRedirectType = Interac)),

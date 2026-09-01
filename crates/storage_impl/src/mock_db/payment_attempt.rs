@@ -214,11 +214,14 @@ impl PaymentAttemptInterface for MockDb {
             unified_message: payment_attempt.unified_message,
             external_three_ds_authentication_attempted: payment_attempt
                 .external_three_ds_authentication_attempted,
+            external_threeds_authentication_type: payment_attempt
+                .external_threeds_authentication_type,
             authentication_connector: payment_attempt.authentication_connector,
             authentication_id: payment_attempt.authentication_id,
             mandate_data: payment_attempt.mandate_data,
             payment_method_billing_address_id: payment_attempt.payment_method_billing_address_id,
             fingerprint_id: payment_attempt.fingerprint_id,
+            fingerprint_type: payment_attempt.fingerprint_type,
             client_source: payment_attempt.client_source,
             client_version: payment_attempt.client_version,
             customer_acceptance: payment_attempt.customer_acceptance,
@@ -252,7 +255,9 @@ impl PaymentAttemptInterface for MockDb {
             retry_type: payment_attempt.retry_type,
             installment_data: payment_attempt.installment_data,
             external_surcharge_details: payment_attempt.external_surcharge_details,
+            applied_offer_details: payment_attempt.applied_offer_details,
             sender_payment_instrument_id: payment_attempt.sender_payment_instrument_id,
+            payment_account_reference: payment_attempt.payment_account_reference,
         };
         payment_attempts.push(payment_attempt.clone());
         Ok(payment_attempt)
@@ -315,19 +320,6 @@ impl PaymentAttemptInterface for MockDb {
         _this: PaymentAttempt,
         _payment_attempt: PaymentAttemptUpdate,
         _storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> CustomResult<PaymentAttempt, StorageError> {
-        // [#172]: Implement function for `MockDb`
-        Err(StorageError::MockDbError)?
-    }
-
-    #[cfg(feature = "v1")]
-    async fn find_payment_attempt_by_connector_transaction_id_payment_id_processor_merchant_id(
-        &self,
-        _connector_transaction_id: &common_utils::types::ConnectorTransactionId,
-        _payment_id: &common_utils::id_type::PaymentId,
-        _processor_merchant_id: &common_utils::id_type::MerchantId,
-        _storage_scheme: storage_enums::MerchantStorageScheme,
-        _merchant_key_store: &MerchantKeyStore,
     ) -> CustomResult<PaymentAttempt, StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(StorageError::MockDbError)?

@@ -203,7 +203,7 @@ pub struct CashtocodePaymentsResponseData {
 #[serde(rename_all = "camelCase")]
 pub struct CashtocodePaymentsSyncResponse {
     pub transaction_id: String,
-    pub amount: FloatMajorUnit,
+    pub amount: Option<FloatMajorUnit>,
 }
 
 fn get_redirect_form_data(
@@ -274,6 +274,7 @@ impl TryFrom<PaymentsResponseRouterData<CashtocodePaymentsResponse>>
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     }),
                 )
             }
@@ -309,6 +310,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, CashtocodePaymentsSyncResponse, T, Paym
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })

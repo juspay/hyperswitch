@@ -13,7 +13,6 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -59,8 +58,8 @@ use crate::{
     constants::headers,
     types::ResponseRouterData,
     utils::{
-        self, PaymentMethodDataType, PaymentMethodTokenizationRequestData,
-        PaymentsAuthorizeRequestData, PaymentsPreProcessingRequestData, PaymentsSyncRequestData,
+        self, PaymentMethodTokenizationRequestData, PaymentsAuthorizeRequestData,
+        PaymentsPreProcessingRequestData, PaymentsSyncRequestData,
         RefundsRequestData as OtherRefundsRequestData, RouterData as _,
     },
 };
@@ -75,6 +74,20 @@ impl Paysafe {
         &Self {
             amount_converter: &MinorUnitForConnector,
         }
+    }
+
+    /// Whether a PreAuthenticate (3DS setup) leg must run before Authorize.
+    pub fn is_3ds_setup_required(
+        &self,
+        request: &PaymentsAuthorizeData,
+        auth_type: common_enums::AuthenticationType,
+    ) -> bool {
+        router_env::logger::info!(router_data_request=?request, auth_type=?auth_type, "Checking if 3DS setup is required for Paysafe");
+        auth_type.is_three_ds()
+            && request.is_card()
+            && (request.connector_mandate_id().is_none()
+                && request.get_optional_network_transaction_id().is_none())
+            && request.authentication_data.is_none()
     }
 }
 
@@ -401,14 +414,6 @@ impl ConnectorValidation for Paysafe {
         _connector_meta_data: Option<common_utils::pii::SecretSerdeValue>,
     ) -> CustomResult<(), errors::ConnectorError> {
         Ok(())
-    }
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<enums::PaymentMethodType>,
-        pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let mandate_supported_pmd = std::collections::HashSet::from([PaymentMethodDataType::Card]);
-        utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 }
 
@@ -1326,6 +1331,65 @@ static PAYSAFE_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
 impl ConnectorSpecifications for Paysafe {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&PAYSAFE_CONNECTOR_INFO)
+    }
+
+    fn get_alternate_flow_if_needed(
+        &self,
+        current_flow: api::CurrentFlowInfo,
+    ) -> Option<api::AlternateFlow> {
+        match current_flow {
+            api::CurrentFlowInfo::Authorize {
+                request_data,
+                auth_type,
+            } => {
+                if self.is_3ds_setup_required(&request_data, auth_type) {
+                    Some(api::AlternateFlow::PreAuthenticate)
+                } else {
+                    None
+                }
+            }
+            api::CurrentFlowInfo::CompleteAuthorize { .. }
+            | api::CurrentFlowInfo::SetupMandate { .. }
+            | api::CurrentFlowInfo::Psync { .. }
+            | api::CurrentFlowInfo::UpdatePostConfirm { .. }
+            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => None,
+        }
+    }
+
+    fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
+        match current_flow {
+            api::CurrentFlowInfo::Authorize {
+                request_data,
+                auth_type,
+            } => self.is_3ds_setup_required(&request_data, auth_type),
+            api::CurrentFlowInfo::CompleteAuthorize { .. }
+            | api::CurrentFlowInfo::SetupMandate { .. }
+            | api::CurrentFlowInfo::Psync { .. }
+            | api::CurrentFlowInfo::UpdatePostConfirm { .. }
+            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
+        }
+    }
+
+    /// Run the Authenticate step on the post-redirect CompleteAuthorize to recover the handle token.
+    fn is_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
+        match current_flow {
+            api::CurrentFlowInfo::CompleteAuthorize {
+                auth_type,
+                request_data,
+                payment_method,
+            } => {
+                // Paysafe's card ACS returns on a param-less GET, so gate on redirect_response.
+                let is_post_redirect = request_data.redirect_response.is_some();
+                auth_type.is_three_ds()
+                    && matches!(payment_method, Some(enums::PaymentMethod::Card))
+                    && is_post_redirect
+            }
+            api::CurrentFlowInfo::Authorize { .. }
+            | api::CurrentFlowInfo::SetupMandate { .. }
+            | api::CurrentFlowInfo::Psync { .. }
+            | api::CurrentFlowInfo::UpdatePostConfirm { .. }
+            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
+        }
     }
 
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {

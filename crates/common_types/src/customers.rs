@@ -52,6 +52,12 @@ pub enum DocumentKind {
     Cpf,
     /// Cadastro Nacional da Pessoa Jurídica - The Brazilian business identifier.
     Cnpj,
+    /// Philippine PhilSys Number (PSN) — a randomly-generated 12-digit national ID,
+    /// required by dLocal for GCash.
+    Psn,
+    /// Generic / other non-Brazilian national document. Carried through to the connector
+    /// without a Brazil-specific checksum; the connector/PSP validates the value per country.
+    Other,
 }
 
 impl DocumentKind {
@@ -63,6 +69,23 @@ impl DocumentKind {
         match self {
             Self::Cpf => self.validate_cpf(doc_number),
             Self::Cnpj => self.validate_cnpj(doc_number),
+            Self::Psn => self.validate_psn(doc_number),
+            Self::Other => Ok(()),
+        }
+    }
+
+    /// The Philippine PhilSys Number (PSN) is a randomly-generated 12-digit national ID
+    /// with no checksum; validate that it is exactly 12 numeric digits.
+    fn validate_psn(
+        self,
+        doc_number: &str,
+    ) -> common_utils::errors::CustomResult<(), ValidationError> {
+        if doc_number.len() == 12 && doc_number.bytes().all(|b| b.is_ascii_digit()) {
+            Ok(())
+        } else {
+            Err(error_stack::Report::new(ValidationError::InvalidValue {
+                message: "Invalid PSN: expected exactly 12 digits".to_string(),
+            }))
         }
     }
 

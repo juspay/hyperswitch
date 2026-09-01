@@ -55,6 +55,7 @@ mod flexiti;
 mod forte;
 mod getnet;
 mod gigadat;
+mod givepayments;
 mod globalpay;
 mod globepay;
 mod gocardless;
@@ -91,6 +92,7 @@ mod nuvei;
 mod opayo;
 mod opennode;
 mod paybox;
+mod payconex;
 #[cfg(feature = "dummy_connector")]
 mod payeezy;
 mod payjustnow;

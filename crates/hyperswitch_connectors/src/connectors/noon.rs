@@ -13,7 +13,6 @@ use common_utils::{
 };
 use error_stack::{Report, ResultExt};
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -41,6 +40,7 @@ use hyperswitch_interfaces::{
         ConnectorValidation,
     },
     configs::Connectors,
+    consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{
@@ -53,11 +53,7 @@ use hyperswitch_masking::{Mask, PeekInterface};
 use router_env::logger;
 use transformers as noon;
 
-use crate::{
-    constants::headers,
-    types::ResponseRouterData,
-    utils::{self as connector_utils, PaymentMethodDataType},
-};
+use crate::{constants::headers, types::ResponseRouterData, utils as connector_utils};
 
 #[derive(Clone)]
 pub struct Noon {
@@ -165,6 +161,22 @@ impl ConnectorCommon for Noon {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        if res.response.is_empty() {
+            return Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: NO_ERROR_CODE.to_string(),
+                message: NO_ERROR_MESSAGE.to_string(),
+                reason: None,
+                attempt_status: None,
+                connector_transaction_id: None,
+                connector_response_reference_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            });
+        }
+
         let response: Result<noon::NoonErrorResponse, Report<common_utils::errors::ParsingError>> =
             res.response.parse_struct("NoonErrorResponse");
 
@@ -217,19 +229,6 @@ impl ConnectorValidation for Noon {
                 connector_utils::construct_not_implemented_error_report(capture_method, self.id()),
             ),
         }
-    }
-
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<enums::PaymentMethodType>,
-        pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let mandate_supported_pmd = std::collections::HashSet::from([
-            PaymentMethodDataType::Card,
-            PaymentMethodDataType::ApplePay,
-            PaymentMethodDataType::GooglePay,
-        ]);
-        connector_utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 
     fn validate_psync_reference_id(
@@ -915,6 +914,10 @@ impl webhooks::IncomingWebhook for Noon {
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
         _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
+        if request.body.is_empty() {
+            return Ok(IncomingWebhookEvent::EndpointVerification);
+        }
+
         let details: noon::NoonWebhookEvent = request
             .body
             .parse_struct("NoonWebhookEvent")

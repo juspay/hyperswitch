@@ -26,6 +26,7 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::WebhooksView
             | Self::ApiKeysView
             | Self::ThemeView
+            | Self::ConfigurationsView
             | Self::ReconSourcesView
             | Self::ReconTransactionsView
             | Self::ReconExceptionsView
@@ -38,8 +39,9 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::AccountManage
             | Self::WebhooksManage
             | Self::ApiKeysManage
-            | Self::InternalManage
+            | Self::CloneConnectorManage
             | Self::ThemeManage
+            | Self::ConfigurationsManage
             | Self::ReconSourcesManage
             | Self::ReconExceptionsManage
             | Self::ReconTransactionsManage
@@ -59,7 +61,8 @@ impl PermissionGroupExt for PermissionGroup {
             Self::ApiKeysView | Self::ApiKeysManage => ParentGroup::ApiKeys,
 
             Self::ThemeView | Self::ThemeManage => ParentGroup::Theme,
-            Self::InternalManage => ParentGroup::Internal,
+            Self::ConfigurationsView | Self::ConfigurationsManage => ParentGroup::Configurations,
+            Self::CloneConnectorManage => ParentGroup::CloneConnector,
             Self::ReconSourcesView | Self::ReconSourcesManage => ParentGroup::ReconSources,
             Self::ReconExceptionsView | Self::ReconExceptionsManage => ParentGroup::ReconExceptions,
             Self::ReconTransactionsView | Self::ReconTransactionsManage => {
@@ -119,9 +122,15 @@ impl PermissionGroupExt for PermissionGroup {
             Self::ApiKeysView => vec![Self::ApiKeysView, Self::AccountView],
             Self::ApiKeysManage => vec![Self::ApiKeysView, Self::ApiKeysManage, Self::AccountView],
 
-            Self::InternalManage => vec![Self::InternalManage],
+            Self::CloneConnectorManage => vec![Self::CloneConnectorManage],
+
             Self::ThemeView => vec![Self::ThemeView, Self::AccountView],
             Self::ThemeManage => vec![Self::ThemeManage, Self::AccountView],
+
+            Self::ConfigurationsView => vec![Self::ConfigurationsView],
+            Self::ConfigurationsManage => {
+                vec![Self::ConfigurationsView, Self::ConfigurationsManage]
+            }
 
             Self::ReconSourcesView => vec![
                 Self::ReconSourcesView,
@@ -180,9 +189,11 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::WebhooksManage
             | Self::ApiKeysView
             | Self::ApiKeysManage
-            | Self::InternalManage
+            | Self::CloneConnectorManage
             | Self::ThemeView
-            | Self::ThemeManage => RoleProductCategory::Orchestration,
+            | Self::ThemeManage
+            | Self::ConfigurationsView
+            | Self::ConfigurationsManage => RoleProductCategory::Orchestration,
 
             // Recon-only groups.
             Self::ReconSourcesView
@@ -217,8 +228,10 @@ impl ParentGroupExt for ParentGroup {
             Self::Account => ACCOUNT.to_vec(),
             Self::Webhook => WEBHOOK.to_vec(),
             Self::ApiKeys => API_KEYS.to_vec(),
-            Self::Internal => INTERNAL.to_vec(),
+            Self::CloneConnector => CLONE_CONNECTOR.to_vec(),
+
             Self::Theme => THEME.to_vec(),
+            Self::Configurations => CONFIGURATIONS.to_vec(),
             Self::ReconSources => RECON_SOURCES.to_vec(),
             Self::ReconExceptions => RECON_EXCEPTIONS.to_vec(),
             Self::ReconTransactions => RECON_TRANSACTIONS.to_vec(),
@@ -262,7 +275,7 @@ impl ParentGroupExt for ParentGroup {
     }
 }
 
-pub static OPERATIONS: [Resource; 8] = [
+pub static OPERATIONS: [Resource; 7] = [
     Resource::Payment,
     Resource::Refund,
     Resource::Mandate,
@@ -270,22 +283,20 @@ pub static OPERATIONS: [Resource; 8] = [
     Resource::Customer,
     Resource::Payout,
     Resource::Report,
-    Resource::Account,
 ];
 
-pub static CONNECTORS: [Resource; 2] = [Resource::Connector, Resource::Account];
+pub static CONNECTORS: [Resource; 1] = [Resource::Connector];
 
-pub static WORKFLOWS: [Resource; 5] = [
+pub static WORKFLOWS: [Resource; 4] = [
     Resource::Routing,
     Resource::ThreeDsDecisionManager,
     Resource::SurchargeDecisionManager,
-    Resource::Account,
     Resource::RevenueRecovery,
 ];
 
-pub static ANALYTICS: [Resource; 3] = [Resource::Analytics, Resource::Report, Resource::Account];
+pub static ANALYTICS: [Resource; 2] = [Resource::Analytics, Resource::Report];
 
-pub static USERS: [Resource; 2] = [Resource::User, Resource::Account];
+pub static USERS: [Resource; 1] = [Resource::User];
 
 pub static ACCOUNT: [Resource; 1] = [Resource::Account];
 
@@ -293,22 +304,17 @@ pub static WEBHOOK: [Resource; 1] = [Resource::WebhookEvent];
 
 pub static API_KEYS: [Resource; 1] = [Resource::ApiKey];
 
-pub static INTERNAL: [Resource; 1] = [Resource::InternalConnector];
+pub static CLONE_CONNECTOR: [Resource; 1] = [Resource::CloneConnector];
 
 pub static THEME: [Resource; 1] = [Resource::Theme];
 
-pub static RECON_SOURCES: [Resource; 3] = [
-    Resource::ReconIngestion,
-    Resource::ReconTransformation,
-    Resource::Account,
-];
+pub static CONFIGURATIONS: [Resource; 1] = [Resource::SuperpositionConfig];
 
-pub static RECON_EXCEPTIONS: [Resource; 2] = [Resource::ReconException, Resource::Account];
+pub static RECON_SOURCES: [Resource; 2] = [Resource::ReconIngestion, Resource::ReconTransformation];
 
-pub static RECON_TRANSACTIONS: [Resource; 3] = [
-    Resource::ReconStagingEntry,
-    Resource::ReconTransaction,
-    Resource::Account,
-];
+pub static RECON_EXCEPTIONS: [Resource; 1] = [Resource::ReconException];
 
-pub static RECON_RULES: [Resource; 2] = [Resource::ReconRule, Resource::Account];
+pub static RECON_TRANSACTIONS: [Resource; 2] =
+    [Resource::ReconStagingEntry, Resource::ReconTransaction];
+
+pub static RECON_RULES: [Resource; 1] = [Resource::ReconRule];

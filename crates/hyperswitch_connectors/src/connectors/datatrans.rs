@@ -189,23 +189,7 @@ impl ConnectorCommon for Datatrans {
     }
 }
 
-impl ConnectorValidation for Datatrans {
-    fn validate_mandate_payment(
-        &self,
-        _pm_type: Option<PaymentMethodType>,
-        pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let connector = self.id();
-        match pm_data {
-            PaymentMethodData::Card(_) => Ok(()),
-            _ => Err(errors::ConnectorError::NotSupported {
-                message: " mandate payment".to_string(),
-                connector,
-            }
-            .into()),
-        }
-    }
-}
+impl ConnectorValidation for Datatrans {}
 
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Datatrans {
     //TODO: implement sessions flow
@@ -574,6 +558,18 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Da
         let transaction_id = req.request.connector_transaction_id.clone();
         let base_url = self.base_url(connectors);
         Ok(format!("{base_url}v1/transactions/{transaction_id}/cancel"))
+    }
+
+    fn get_request_body(
+        &self,
+        _req: &PaymentsCancelRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        // Datatrans cancel takes no fields; send an empty JSON object `{}` so the
+        // application/json body is valid and avoids `INVALID_JSON_PAYLOAD`.
+        Ok(RequestContent::Json(Box::new(
+            datatrans::DatatransCancelRequest {},
+        )))
     }
 
     fn build_request(

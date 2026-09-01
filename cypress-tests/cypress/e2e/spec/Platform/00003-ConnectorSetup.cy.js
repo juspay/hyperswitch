@@ -223,8 +223,10 @@ describe("Connector Setup for Connected Merchants", () => {
     });
   });
 
-  context("Platform Merchant Cannot Create Connector", () => {
-    it("platform-merchant-cannot-create-connector", () => {
+  context("Platform Merchant Cannot Create Payment Connector", () => {
+    // Platform merchants may only configure vault connectors on themselves
+    // (used for external vault). Creating a payment processor connector must be rejected.
+    it("platform-merchant-cannot-create-payment-connector", () => {
       const savedMerchantId = globalState.get("merchantId");
       const savedProfileId = globalState.get("profileId");
 
@@ -245,7 +247,7 @@ describe("Connector Setup for Connected Merchants", () => {
         globalState,
         "profile", // profilePrefix
         "merchantConnector", // mcaPrefix
-        400 // expectedStatus
+        422 // expectedStatus (InvalidRequestData -> Unprocessable Entity)
       );
 
       cy.then(() => {

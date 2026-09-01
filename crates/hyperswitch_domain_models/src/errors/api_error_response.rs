@@ -203,6 +203,8 @@ pub enum ApiErrorResponse {
     MandateActive,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_11", message = "Customer has already been redacted")]
     CustomerRedacted,
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_11", message = "Payment method has already been redacted")]
+    PaymentMethodRedacted,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_12", message = "Reached maximum refund attempts")]
     MaximumRefundCount,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_13", message = "The refund amount exceeds the amount captured")]
@@ -312,6 +314,8 @@ pub enum ApiErrorResponse {
         message = "Access forbidden, invalid Basic authentication credentials"
     )]
     InvalidBasicAuth,
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_52", message = "Payment Session has expired")]
+    PaymentSessionExpired,
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_01", message = "Failed to authenticate the webhook")]
     WebhookAuthenticationFailed,
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_02", message = "Bad request received in webhook")]
@@ -593,6 +597,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::CustomerRedacted => {
                 AER::BadRequest(ApiError::new("IR", 11, "Customer has already been redacted", None))
             }
+            Self::PaymentMethodRedacted => {
+                AER::BadRequest(ApiError::new("IR", 11, "Payment method has already been redacted", None))
+            }
             Self::MaximumRefundCount => AER::BadRequest(ApiError::new("IR", 12, "Reached maximum refund attempts", None)),
             Self::RefundAmountExceedsPaymentAmount => {
                 AER::BadRequest(ApiError::new("IR", 13, "The refund amount exceeds the amount captured", None))
@@ -742,6 +749,11 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
                 AER::BadRequest(ApiError::new("CE", 9, format!("Subscription operation: {operation} failed with connector"), None))
             }
             Self::ExpiredJwtToken => AER::Unauthorized(ApiError::new("IR", 48, "Access forbidden, expired JWT token was used", None)),
+            Self::PaymentSessionExpired => AER::BadRequest(ApiError::new(
+                "IR",
+                52,
+                "The provided payment session has expired", None
+            )),
         }
     }
 }

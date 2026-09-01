@@ -848,6 +848,32 @@ export const connectorDetails = {
         },
       },
     },
+    MITAutoCaptureWithCustomerAcceptance: {
+      // stax does not support MIT payments with mandate_id
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "127.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          mandate_id: null,
+          payment_method: "card",
+          payment_method_data: payment_method_data_no3ds,
+          connector: "stax",
+        },
+      },
+    },
     MITManualCapture: {
       // stax does not support MIT payments with mandate_id
       Configs: {
@@ -892,6 +918,84 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_payment_method",
+        },
+      },
+    },
+  },
+
+  bank_debit_pm: {
+    PaymentIntent: (paymentMethodType) => {
+      if (paymentMethodType !== "Ach") {
+        return {
+          Configs: {
+            TRIGGER_SKIP: true,
+          },
+          Request: {
+            currency: "USD",
+          },
+          Response: {
+            status: 200,
+            body: {
+              status: "requires_payment_method",
+            },
+          },
+        };
+      }
+      return {
+        Request: {
+          currency: "USD",
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+          },
+        },
+      };
+    },
+    Ach: {
+      Request: {
+        payment_method: "bank_debit",
+        payment_method_type: "ach",
+        payment_method_data: {
+          bank_debit: {
+            ach_bank_debit: {
+              billing_details: {
+                name: "Venkata Karthik",
+                email: "customer139@juspay.in",
+              },
+              account_number: "9876543210",
+              routing_number: "021000021",
+              card_holder_name: "Steven Smith",
+              bank_account_holder_name: "Steven Smith",
+              bank_name: "bank_of_america",
+              bank_type: "savings",
+              bank_holder_type: "personal",
+            },
+          },
+        },
+        billing: {
+          address: {
+            first_name: "Venkat",
+            last_name: "Mariserla",
+            line1: "123 Main St",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+          },
+          phone: {
+            number: "4155551234",
+            country_code: "+1",
+          },
+          email: "customer143@juspay.in",
+        },
+        email: "customer143@juspay.in",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
         },
       },
     },

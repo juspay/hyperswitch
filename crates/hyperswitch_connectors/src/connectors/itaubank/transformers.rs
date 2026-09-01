@@ -114,6 +114,7 @@ impl TryFrom<&ItaubankRouterData<&types::PaymentsAuthorizeRouterData>> for Itaub
                     | BankTransferData::PixAutomaticoPush { .. }
                     | BankTransferData::PixAutomaticoQr {}
                     | BankTransferData::PixEmv {}
+                    | BankTransferData::PixQr {}
                     | BankTransferData::LocalBankTransfer { .. } => {
                         Err(errors::ConnectorError::NotImplemented(
                             "Selected payment method through itaubank".to_string(),
@@ -304,6 +305,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, ItaubankPaymentsResponse, T, PaymentsRe
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -385,6 +387,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, ItaubankPaymentsSyncResponse, T, Paymen
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })

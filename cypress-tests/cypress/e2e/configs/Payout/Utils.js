@@ -5,13 +5,15 @@ import { connectorDetails as adyenPlatformConnectorDetails } from "./AdyenPlatfo
 import { connectorDetails as CommonConnectorDetails } from "./Commons.js";
 import { connectorDetails as wiseConnectorDetails } from "./Wise.js";
 import { connectorDetails as nomupayConnectorDetails } from "./Nomupay.js";
+import { connectorDetails as truelayerConnectorDetails } from "./Truelayer.js";
 
 const connectorDetails = {
   adyen: adyenConnectorDetails,
   adyenplatform: adyenPlatformConnectorDetails,
   commons: CommonConnectorDetails,
-  wise: wiseConnectorDetails,
   nomupay: nomupayConnectorDetails,
+  truelayer: truelayerConnectorDetails,
+  wise: wiseConnectorDetails,
 };
 
 export function getConnectorDetails(connectorId) {
@@ -87,6 +89,30 @@ export function getValueByKey(jsonObject, key) {
     return null;
   }
 }
+
+// Connector inclusion/exclusion lists for feature gates
+export const CONNECTOR_LISTS = {
+  INCLUDE: {
+    ENTITY_TYPE: ["wise"],
+    // Payout recurring feature - only verified connectors
+    PAYOUT_RECURRING: ["adyenplatform"],
+    PAYOUT_LINK: ["wise"],
+    BANK_TRANSFER_OPEN_BANKING: ["truelayer"],
+    BANK_TRANSFER_OPEN_BANKING_INVALID_REFERENCE_FULFILL: [],
+    BANK_TRANSFER_SEPA: ["adyen", "adyenplatform", "nomupay", "wise"],
+    SAVED_CARD: ["adyen", "adyenplatform", "nomupay", "wise"],
+    SAVED_BANK_TRANSFER_SEPA: ["adyen", "adyenplatform", "nomupay", "wise"],
+  },
+};
+
+export const ENTITY_TYPE_LIST = [
+  { key: "EntityTypeIndividual", name: "Individual" },
+  { key: "EntityTypeCompany", name: "Company" },
+  { key: "EntityTypeNonProfit", name: "NonProfit" },
+  { key: "EntityTypePublicSector", name: "PublicSector" },
+  { key: "EntityTypeNaturalPerson", name: "NaturalPerson" },
+  { key: "EntityTypePersonal", name: "Personal" },
+];
 
 export const should_continue_further = (data) => {
   const resData = data.Response || {};

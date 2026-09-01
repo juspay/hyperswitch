@@ -3,6 +3,10 @@ const keyPrefixes = {
     publishable_key: "pk_dev_",
     key_id: "dev_",
   },
+  "host.docker.internal": {
+    publishable_key: "pk_dev_",
+    key_id: "dev_",
+  },
   hyperswitch: {
     publishable_key: "pk_snd_",
     key_id: "snd_",
@@ -69,6 +73,16 @@ export function validateEnv(baseUrl, keyIdType) {
   }
 
   return prefix;
+}
+
+export function isLocalhost(baseUrl) {
+  if (!baseUrl) {
+    return false;
+  }
+
+  return ["localhost", "127.0.0.1", "host.docker.internal", "::1"].some(
+    (host) => baseUrl.includes(host)
+  );
 }
 
 /**

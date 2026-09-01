@@ -54,6 +54,7 @@ impl cgraph::NodeViz for dir::DirValue {
             Self::CryptoType(ct) => ct.to_string(),
             Self::RewardType(rt) => rt.to_string(),
             Self::PaymentAmount(amt) => amt.number.to_string(),
+            Self::SurchargeAmount(amt) => amt.number.to_string(),
             Self::PaymentCurrency(curr) => curr.to_string(),
             Self::AuthenticationType(at) => at.to_string(),
             Self::CaptureMethod(cm) => cm.to_string(),

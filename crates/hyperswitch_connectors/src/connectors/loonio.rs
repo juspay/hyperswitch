@@ -10,7 +10,6 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -181,20 +180,6 @@ impl ConnectorCommon for Loonio {
 }
 
 impl ConnectorValidation for Loonio {
-    fn validate_mandate_payment(
-        &self,
-        _pm_type: Option<enums::PaymentMethodType>,
-        pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        match pm_data {
-            PaymentMethodData::Card(_) => Err(errors::ConnectorError::NotImplemented(
-                "validate_mandate_payment does not support cards".to_string(),
-            )
-            .into()),
-            _ => Ok(()),
-        }
-    }
-
     fn validate_psync_reference_id(
         &self,
         _data: &PaymentsSyncData,
@@ -356,12 +341,45 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Loo
             .response
             .parse_struct("loonio LoonioPaymentResponseData")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        let response_integrity_object = match &response {
+            loonio::LoonioPaymentResponseData::Sync(sync_response) => {
+                if let (Some(amount), Some(currency)) =
+                    (sync_response.amount, sync_response.currency_code)
+                {
+                    Some(utils::get_sync_integrity_object(
+                        self.amount_converter,
+                        amount,
+                        currency.to_string(),
+                    )?)
+                } else {
+                    None
+                }
+            }
+            loonio::LoonioPaymentResponseData::Webhook(webhook_body) => webhook_body
+                .currency_code
+                .map(|currency| {
+                    utils::get_sync_integrity_object(
+                        self.amount_converter,
+                        webhook_body.amount,
+                        currency.to_string(),
+                    )
+                })
+                .transpose()?,
+        };
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        })
+        .map(|mut router_data| {
+            if let Some(integrity_object) = response_integrity_object {
+                router_data.request.integrity_object = Some(integrity_object);
+            }
+            router_data
         })
     }
 
@@ -521,12 +539,30 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Loonio 
             res.response
                 .parse_struct("loonio RefundResponse")
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        let response_integrity_object =
+            if let (Some(amount), Some(currency)) = (response.amount, response.currency_code) {
+                Some(utils::get_refund_integrity_object(
+                    self.amount_converter,
+                    amount,
+                    currency.to_string(),
+                )?)
+            } else {
+                None
+            };
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        })
+        .map(|mut router_data| {
+            if let Some(integrity_object) = response_integrity_object {
+                router_data.request.integrity_object = Some(integrity_object);
+            }
+            router_data
         })
     }
 
@@ -589,12 +625,30 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Loonio {
             .response
             .parse_struct("loonio RefundSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        let response_integrity_object =
+            if let (Some(amount), Some(currency)) = (response.amount, response.currency_code) {
+                Some(utils::get_refund_integrity_object(
+                    self.amount_converter,
+                    amount,
+                    currency.to_string(),
+                )?)
+            } else {
+                None
+            };
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        })
+        .map(|mut router_data| {
+            if let Some(integrity_object) = response_integrity_object {
+                router_data.request.integrity_object = Some(integrity_object);
+            }
+            router_data
         })
     }
 

@@ -136,7 +136,7 @@ pub enum PercentageError {
     #[error("Failed apply percentage of {percentage} on {amount}")]
     UnableToApplyPercentage {
         /// percentage value
-        percentage: f32,
+        percentage: f64,
         /// amount value
         amount: MinorUnit,
     },
@@ -177,6 +177,7 @@ where
 
 #[allow(missing_docs)]
 #[derive(Debug, thiserror::Error)]
+#[cfg_attr(feature = "deja", derive(serde::Serialize, serde::Deserialize))]
 pub enum KeyManagerClientError {
     #[error("Failed to construct header from the given value")]
     FailedtoConstructHeader,

@@ -832,6 +832,8 @@ pub async fn save_payout_data_to_locker(
                 existing_pm,
                 pm_update,
                 platform.get_processor().get_account().storage_scheme,
+                // Payout payment method writes are outside PM modular card compat.
+                None,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -990,11 +992,11 @@ pub(super) async fn get_or_create_customer_details(
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Unable to encrypt document_details")?;
 
-                let customer = domain::Customer {
-                    customer_id: customer_id.clone(),
-                    merchant_id: merchant_id.to_owned().clone(),
-                    name: encryptable_customer.name,
-                    email: encryptable_customer.email.map(|email| {
+                let customer = domain::Customer::new(
+                    customer_id.clone(),
+                    merchant_id.to_owned().clone(),
+                    encryptable_customer.name,
+                    encryptable_customer.email.map(|email| {
                         let encryptable: Encryptable<Secret<String, pii::EmailStrategy>> =
                             Encryptable::new(
                                 email.clone().into_inner().switch_strategy(),
@@ -1002,26 +1004,22 @@ pub(super) async fn get_or_create_customer_details(
                             );
                         encryptable
                     }),
-                    phone: encryptable_customer.phone,
-                    description: None,
-                    phone_country_code: customer_details.phone_country_code.to_owned(),
-                    metadata: None,
-                    connector_customer: None,
-                    created_at: common_utils::date_time::now(),
-                    modified_at: common_utils::date_time::now(),
-                    address_id: None,
-                    default_payment_method_id: None,
-                    updated_by: None,
-                    version: common_types::consts::API_VERSION,
-                    tax_registration_id: encryptable_customer.tax_registration_id,
+                    encryptable_customer.phone,
+                    customer_details.phone_country_code.to_owned(),
+                    None,
+                    None,
+                    None,
+                    None,
+                    encryptable_customer.tax_registration_id,
                     document_details,
-                    created_by: platform
+                    platform
                         .get_initiator()
                         .and_then(|initiator| initiator.to_created_by()),
-                    last_modified_by: platform
+                    platform
                         .get_initiator()
                         .and_then(|initiator| initiator.to_created_by()), // Same as created_by on creation
-                };
+                    id_type::GlobalCustomerId::generate(&state.conf.cell_information.id),
+                );
 
                 Ok(Some(
                     db.insert_customer(
@@ -1361,6 +1359,7 @@ pub fn is_payout_err_state(status: api_enums::PayoutStatus) -> bool {
         api_enums::PayoutStatus::Cancelled
             | api_enums::PayoutStatus::Failed
             | api_enums::PayoutStatus::Ineligible
+            | api_enums::PayoutStatus::NotPermitted
     )
 }
 
@@ -1431,7 +1430,7 @@ pub async fn update_payouts_and_payout_attempt(
         payout_data
             .customer_details
             .as_ref()
-            .map(|customer| customer.customer_id.clone())
+            .map(|customer| customer.get_id().clone())
     } else {
         payout_data.payouts.customer_id.clone()
     };
@@ -1465,6 +1464,11 @@ pub async fn update_payouts_and_payout_attempt(
             .to_owned()
             .clone()
             .or(payouts.description.clone()),
+        billing_descriptor: req
+            .billing_descriptor
+            .to_owned()
+            .or(payouts.billing_descriptor.clone())
+            .map(Box::new),
         recurring: req.recurring.to_owned().unwrap_or(payouts.recurring),
         auto_fulfill: req.auto_fulfill.to_owned().unwrap_or(payouts.auto_fulfill),
         return_url: req
@@ -1495,22 +1499,16 @@ pub async fn update_payouts_and_payout_attempt(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Error updating payouts")?;
-    let updated_business_country =
-        payout_attempt
-            .business_country
-            .map_or(req.business_country.to_owned(), |c| {
-                req.business_country
-                    .to_owned()
-                    .and_then(|nc| if nc != c { Some(nc) } else { None })
-            });
-    let updated_business_label =
-        payout_attempt
-            .business_label
-            .map_or(req.business_label.to_owned(), |l| {
-                req.business_label
-                    .to_owned()
-                    .and_then(|nl| if nl != l { Some(nl) } else { None })
-            });
+    let updated_business_country = payout_attempt
+        .business_country
+        .map_or(req.business_country.to_owned(), |c| {
+            req.business_country.to_owned().filter(|&nc| nc != c)
+        });
+    let updated_business_label = payout_attempt
+        .business_label
+        .map_or(req.business_label.to_owned(), |l| {
+            req.business_label.to_owned().filter(|nl| *nl != l)
+        });
     if updated_business_country.is_some()
         || updated_business_label.is_some()
         || customer_id.is_some()
@@ -1584,6 +1582,7 @@ pub(super) fn get_customer_details_from_request(
         phone_country_code: customer_phone_code,
         tax_registration_id,
         document_details,
+        date_of_birth: None,
     }
 }
 
@@ -1818,4 +1817,37 @@ pub fn should_continue_payout<F: Clone + 'static>(
     router_data: &router_types::PayoutsRouterData<F>,
 ) -> bool {
     router_data.response.is_ok()
+}
+
+pub fn merge_connector_metadata(
+    merchant_metadata: Option<pii::SecretSerdeValue>,
+    connector_metadata: Option<pii::SecretSerdeValue>,
+) -> Option<pii::SecretSerdeValue> {
+    let connector_details = connector_metadata
+        .as_ref()
+        .and_then(|metadata| metadata.peek().as_object())
+        .filter(|details| !details.is_empty());
+
+    let merchant_details = match merchant_metadata.as_ref().map(|metadata| metadata.peek()) {
+        Some(serde_json::Value::Object(details)) => Some(details.clone()),
+        Some(_) | None => None,
+    };
+
+    // if both are present, it is merged but in case of conflict, connector metadata takes precedence
+    let merged = match (connector_details, merchant_details) {
+        (Some(connector_details), Some(mut merged)) => {
+            for (key, value) in connector_details {
+                merged.entry(key.clone()).or_insert_with(|| value.clone());
+            }
+            Some(merged)
+        }
+        (connector_details, merchant_details) => merchant_details.or(connector_details.cloned()),
+    };
+
+    // `metadata` also holds a serialized FeatureMetadata, whose unset fields are written out
+    // as nulls. They carry nothing and only clutter the payout response.
+    merged.map(|mut details| {
+        details.retain(|_, value| !value.is_null());
+        Secret::new(serde_json::Value::Object(details))
+    })
 }

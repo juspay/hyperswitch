@@ -114,7 +114,7 @@ where
 
         let to_sign = format!(
             "{} {}\nContent-Type: {}\n{}",
-            connector_method, boku_url, &content_type, timestamp
+            connector_method, boku_url, content_type, timestamp
         );
 
         let key = hmac::Key::new(hmac::HMAC_SHA256, secret_key.as_bytes());

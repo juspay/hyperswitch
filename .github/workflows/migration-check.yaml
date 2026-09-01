@@ -53,7 +53,7 @@ jobs:
           toolchain: stable 2 weeks ago
           components: rustfmt
 
-      - uses: baptiste0928/cargo-install@v3.3.0
+      - uses: baptiste0928/cargo-install@v3.4.0
         with:
           crate: diesel_cli
           features: postgres

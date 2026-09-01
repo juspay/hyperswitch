@@ -44,7 +44,7 @@ clippy_v2 redis_interface_backend="redis-rs" *FLAGS:
         jq -r '
             [ ( .workspace_members | sort ) as $package_ids # Store workspace crate package IDs in `package_ids` array
             | .packages[] | select( IN(.id; $package_ids[]) ) | .features | keys[] ] | unique # Select all unique features from all workspace crates
-            | del( .[] | select( . == ("default", "v1", "fred", "redis-rs") ) ) # Exclude default, v1, and both backend flags
+            | del( .[] | select( . == ("default", "v1", "deja", "fred", "redis-rs") ) ) # Exclude default, v1, deja (v1-only feature), and both backend flags
             | join(",") # Construct a comma-separated string of features for passing to `cargo`
     ')"
     FEATURES="${FEATURES},{{ redis_interface_backend }}"
@@ -62,7 +62,7 @@ check_v2 redis_interface_backend="redis-rs" *FLAGS:
         jq -r '
             [ ( .workspace_members | sort ) as $package_ids # Store workspace crate package IDs in `package_ids` array
             | .packages[] | select( IN(.id; $package_ids[]) ) | .features | keys[] ] | unique # Select all unique features from all workspace crates
-            | del( .[] | select( . == ("default", "v1", "fred", "redis-rs") ) ) # Exclude default, v1, and both backend flags
+            | del( .[] | select( . == ("default", "v1", "deja", "fred", "redis-rs") ) ) # Exclude default, v1, deja (v1-only feature), and both backend flags
             | join(",") # Construct a comma-separated string of features for passing to `cargo`
     ')"
     FEATURES="${FEATURES},{{ redis_interface_backend }}"

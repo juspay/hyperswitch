@@ -1,13 +1,10 @@
 use api_models::customers::CustomerDocumentDetails;
 use common_types::primitive_wrappers;
-#[cfg(feature = "v1")]
-use common_utils::consts::PAYMENTS_LIST_MAX_LIMIT_V2;
 #[cfg(feature = "v2")]
 use common_utils::errors::ParsingError;
 #[cfg(feature = "v2")]
 use common_utils::ext_traits::{Encode, ValueExt};
 use common_utils::{
-    consts::PAYMENTS_LIST_MAX_LIMIT_V1,
     crypto::Encryptable,
     encryption::Encryption,
     errors::{CustomResult, ValidationError},
@@ -162,6 +159,7 @@ pub struct CustomerData {
     pub phone_country_code: Option<String>,
     pub tax_registration_id: Option<Secret<String>>,
     pub customer_document_details: Option<CustomerDocumentDetails>,
+    pub date_of_birth: Option<Secret<time::Date>>,
 }
 
 impl CustomerData {
@@ -177,6 +175,10 @@ impl CustomerData {
             .tax_registration_id
             .clone()
             .or_else(|| other.tax_registration_id.clone());
+        self.date_of_birth = self
+            .date_of_birth
+            .clone()
+            .or_else(|| other.date_of_birth.clone());
     }
 }
 
@@ -222,6 +224,8 @@ pub struct PaymentIntentUpdateFields {
     pub active_attempt_id_type: Option<common_enums::ActiveAttemptIDType>,
     pub active_attempts_group_id: Option<id_type::GlobalAttemptGroupId>,
     pub profile_acquirer_id: Option<id_type::ProfileAcquirerId>,
+    pub external_surcharge_strategy: Option<common_enums::SurchargeStrategy>,
+    pub external_surcharge_applicable: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -240,8 +244,10 @@ pub struct PaymentIntentUpdateFields {
     pub description: Option<String>,
     pub statement_descriptor_name: Option<String>,
     pub statement_descriptor_suffix: Option<String>,
+    pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
     pub order_details: Option<Vec<pii::SecretSerdeValue>>,
     pub metadata: Option<serde_json::Value>,
+    pub connector_metadata: Option<serde_json::Value>,
     pub frm_metadata: Option<pii::SecretSerdeValue>,
     pub payment_confirm_source: Option<common_enums::PaymentSource>,
     pub updated_by: String,
@@ -269,6 +275,10 @@ pub struct PaymentIntentUpdateFields {
     pub shipping_cost: Option<MinorUnit>,
     pub installment_options: Option<Vec<common_types::payments::InstallmentOption>>,
     pub profile_acquirer_id: Option<id_type::ProfileAcquirerId>,
+    pub external_surcharge_strategy: Option<common_enums::SurchargeStrategy>,
+    pub external_surcharge_applicable: Option<bool>,
+    pub is_account_funded_transaction: Option<bool>,
+    pub recipient_details: Option<Encryptable<Secret<serde_json::Value>>>,
 }
 
 #[cfg(feature = "v1")]
@@ -285,7 +295,6 @@ pub enum PaymentIntentUpdate {
     MetadataUpdate {
         metadata: Option<serde_json::Value>,
         updated_by: String,
-        feature_metadata: Option<Secret<serde_json::Value>>,
     },
     Update(Box<PaymentIntentUpdateFields>),
     PaymentCreateUpdate {
@@ -334,6 +343,10 @@ pub enum PaymentIntentUpdate {
         surcharge_applicable: bool,
         updated_by: String,
     },
+    ExternalSurchargeApplicableUpdate {
+        external_surcharge_applicable: bool,
+        updated_by: String,
+    },
     IncrementalAuthorizationAmountUpdate {
         amount: MinorUnit,
     },
@@ -346,6 +359,7 @@ pub enum PaymentIntentUpdate {
     ManualUpdate {
         status: Option<common_enums::IntentStatus>,
         updated_by: String,
+        amount_captured: Option<MinorUnit>,
     },
     SessionResponseUpdate {
         tax_details: diesel_models::TaxDetails,
@@ -449,6 +463,7 @@ pub struct PaymentIntentUpdateInternal {
     pub setup_future_usage: Option<common_enums::FutureUsage>,
     pub off_session: Option<bool>,
     pub metadata: Option<serde_json::Value>,
+    pub connector_metadata: Option<serde_json::Value>,
     pub billing_address_id: Option<String>,
     pub shipping_address_id: Option<String>,
     pub modified_at: Option<PrimitiveDateTime>,
@@ -458,6 +473,7 @@ pub struct PaymentIntentUpdateInternal {
     pub description: Option<String>,
     pub statement_descriptor_name: Option<String>,
     pub statement_descriptor_suffix: Option<String>,
+    pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
     pub order_details: Option<Vec<pii::SecretSerdeValue>>,
     pub attempt_count: Option<i16>,
     // Denotes the action(approve or reject) taken by merchant in case of manual review.
@@ -494,6 +510,10 @@ pub struct PaymentIntentUpdateInternal {
     pub state_metadata: Option<common_types::payments::PaymentIntentStateMetadata>,
     pub installment_options: Option<Vec<common_types::payments::InstallmentOption>>,
     pub profile_acquirer_id: Option<id_type::ProfileAcquirerId>,
+    pub external_surcharge_strategy: Option<common_enums::SurchargeStrategy>,
+    pub external_surcharge_applicable: Option<bool>,
+    pub is_account_funded_transaction: Option<bool>,
+    pub recipient_details: Option<Encryptable<Secret<serde_json::Value>>>,
 }
 
 // This conversion is used in the `update_payment_intent` function
@@ -549,6 +569,8 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 enable_partial_authorization: None,
                 state_metadata: None,
                 profile_acquirer_id: None,
+                external_surcharge_strategy: None,
+                external_surcharge_applicable: None,
             }),
 
             PaymentIntentUpdate::ConfirmIntentPostUpdate {
@@ -599,6 +621,8 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 enable_partial_authorization: None,
                 state_metadata: None,
                 profile_acquirer_id: None,
+                external_surcharge_strategy: None,
+                external_surcharge_applicable: None,
             }),
             PaymentIntentUpdate::SyncUpdate {
                 status,
@@ -647,6 +671,8 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 enable_partial_authorization: None,
                 state_metadata: None,
                 profile_acquirer_id: None,
+                external_surcharge_strategy: None,
+                external_surcharge_applicable: None,
             }),
             PaymentIntentUpdate::CaptureUpdate {
                 status,
@@ -695,6 +721,8 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 enable_partial_authorization: None,
                 state_metadata: None,
                 profile_acquirer_id: None,
+                external_surcharge_strategy: None,
+                external_surcharge_applicable: None,
             }),
             PaymentIntentUpdate::SessionIntentUpdate {
                 prerouting_algorithm,
@@ -746,6 +774,8 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 enable_partial_authorization: None,
                 state_metadata: None,
                 profile_acquirer_id: None,
+                external_surcharge_strategy: None,
+                external_surcharge_applicable: None,
             }),
             PaymentIntentUpdate::UpdateIntent(boxed_intent) => {
                 let PaymentIntentUpdateFields {
@@ -787,6 +817,8 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                     active_attempt_id_type,
                     active_attempts_group_id,
                     profile_acquirer_id,
+                    external_surcharge_strategy,
+                    external_surcharge_applicable,
                 } = *boxed_intent;
                 Ok(Self {
                     status: None,
@@ -837,6 +869,8 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                     enable_partial_authorization,
                     state_metadata: None,
                     profile_acquirer_id,
+                    external_surcharge_strategy,
+                    external_surcharge_applicable,
                 })
             }
             PaymentIntentUpdate::RecordUpdate {
@@ -888,6 +922,8 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 enable_partial_authorization: None,
                 state_metadata: None,
                 profile_acquirer_id: None,
+                external_surcharge_strategy: None,
+                external_surcharge_applicable: None,
             }),
             PaymentIntentUpdate::VoidUpdate { status, updated_by } => Ok(Self {
                 status: Some(status),
@@ -933,6 +969,8 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 enable_partial_authorization: None,
                 state_metadata: None,
                 profile_acquirer_id: None,
+                external_surcharge_strategy: None,
+                external_surcharge_applicable: None,
             }),
             PaymentIntentUpdate::AttemptGroupUpdate {
                 updated_by,
@@ -981,6 +1019,8 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 enable_partial_authorization: None,
                 state_metadata: None,
                 profile_acquirer_id: None,
+                external_surcharge_strategy: None,
+                external_surcharge_applicable: None,
             }),
             PaymentIntentUpdate::SplitPaymentStatusUpdate { status, updated_by } => Ok(Self {
                 status: Some(status),
@@ -1025,6 +1065,8 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 enable_partial_authorization: None,
                 state_metadata: None,
                 profile_acquirer_id: None,
+                external_surcharge_strategy: None,
+                external_surcharge_applicable: None,
             }),
         }
     }
@@ -1037,12 +1079,10 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
             PaymentIntentUpdate::MetadataUpdate {
                 metadata,
                 updated_by,
-                feature_metadata,
             } => Self {
                 metadata,
                 modified_at: Some(common_utils::date_time::now()),
                 updated_by,
-                feature_metadata,
                 ..Default::default()
             },
             PaymentIntentUpdate::Update(value) => Self {
@@ -1061,6 +1101,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 statement_descriptor_suffix: value.statement_descriptor_suffix,
                 order_details: value.order_details,
                 metadata: value.metadata,
+                connector_metadata: value.connector_metadata,
                 payment_confirm_source: value.payment_confirm_source,
                 updated_by: value.updated_by,
                 session_expiry: value.session_expiry,
@@ -1080,6 +1121,8 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_amount_tax: value.shipping_amount_tax,
                 duty_amount: value.duty_amount,
                 installment_options: value.installment_options,
+                external_surcharge_strategy: None,
+                external_surcharge_applicable: None,
                 ..Default::default()
             },
             PaymentIntentUpdate::PaymentCreateUpdate {
@@ -1200,6 +1243,14 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 updated_by,
                 ..Default::default()
             },
+            PaymentIntentUpdate::ExternalSurchargeApplicableUpdate {
+                external_surcharge_applicable,
+                updated_by,
+            } => Self {
+                external_surcharge_applicable: Some(external_surcharge_applicable),
+                updated_by,
+                ..Default::default()
+            },
             PaymentIntentUpdate::IncrementalAuthorizationAmountUpdate { amount } => Self {
                 amount: Some(amount),
                 ..Default::default()
@@ -1216,10 +1267,15 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_address_id,
                 ..Default::default()
             },
-            PaymentIntentUpdate::ManualUpdate { status, updated_by } => Self {
+            PaymentIntentUpdate::ManualUpdate {
+                status,
+                updated_by,
+                amount_captured,
+            } => Self {
                 status,
                 modified_at: Some(common_utils::date_time::now()),
                 updated_by,
+                amount_captured,
                 ..Default::default()
             },
             PaymentIntentUpdate::SessionResponseUpdate {
@@ -1249,6 +1305,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 setup_future_usage: None,
                 off_session: None,
                 metadata: None,
+                connector_metadata: None,
                 billing_address_id: None,
                 shipping_address_id: None,
                 modified_at: None,
@@ -1258,6 +1315,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 description: None,
                 statement_descriptor_name: None,
                 statement_descriptor_suffix: None,
+                billing_descriptor: None,
                 order_details: None,
                 attempt_count: None,
                 merchant_decision: None,
@@ -1289,6 +1347,10 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_cost: None,
                 installment_options: None,
                 profile_acquirer_id: None,
+                external_surcharge_strategy: None,
+                external_surcharge_applicable: None,
+                is_account_funded_transaction: None,
+                recipient_details: None,
             },
             PaymentIntentUpdate::RecurrenceUpdate { status, updated_by } => Self {
                 status: Some(status),
@@ -1303,6 +1365,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 setup_future_usage: None,
                 off_session: None,
                 metadata: None,
+                connector_metadata: None,
                 billing_address_id: None,
                 shipping_address_id: None,
                 modified_at: None,
@@ -1312,6 +1375,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 description: None,
                 statement_descriptor_name: None,
                 statement_descriptor_suffix: None,
+                billing_descriptor: None,
                 order_details: None,
                 attempt_count: None,
                 merchant_decision: None,
@@ -1342,6 +1406,10 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_cost: None,
                 installment_options: None,
                 profile_acquirer_id: None,
+                external_surcharge_strategy: None,
+                external_surcharge_applicable: None,
+                is_account_funded_transaction: None,
+                recipient_details: None,
             },
         }
     }
@@ -1390,11 +1458,9 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
             PaymentIntentUpdate::MetadataUpdate {
                 metadata,
                 updated_by,
-                feature_metadata,
             } => Self::MetadataUpdate {
                 metadata,
                 updated_by,
-                feature_metadata,
             },
             PaymentIntentUpdate::StateMetadataUpdate {
                 state_metadata,
@@ -1418,8 +1484,10 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                     description: value.description,
                     statement_descriptor_name: value.statement_descriptor_name,
                     statement_descriptor_suffix: value.statement_descriptor_suffix,
+                    billing_descriptor: value.billing_descriptor,
                     order_details: value.order_details,
                     metadata: value.metadata,
+                    connector_metadata: value.connector_metadata,
                     payment_confirm_source: value.payment_confirm_source,
                     updated_by: value.updated_by,
                     session_expiry: value.session_expiry,
@@ -1449,6 +1517,10 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                         .installment_options
                         .map(common_types::payments::InstallmentOptions),
                     profile_acquirer_id: value.profile_acquirer_id,
+                    external_surcharge_strategy: None,
+                    external_surcharge_applicable: None,
+                    is_account_funded_transaction: value.is_account_funded_transaction,
+                    recipient_details: value.recipient_details.map(Encryption::from),
                 }))
             }
             PaymentIntentUpdate::PaymentCreateUpdate {
@@ -1535,6 +1607,13 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                 surcharge_applicable: Some(surcharge_applicable),
                 updated_by,
             },
+            PaymentIntentUpdate::ExternalSurchargeApplicableUpdate {
+                external_surcharge_applicable,
+                updated_by,
+            } => Self::ExternalSurchargeApplicableUpdate {
+                external_surcharge_applicable: Some(external_surcharge_applicable),
+                updated_by,
+            },
             PaymentIntentUpdate::IncrementalAuthorizationAmountUpdate { amount } => {
                 Self::IncrementalAuthorizationAmountUpdate { amount }
             }
@@ -1548,9 +1627,15 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
             } => Self::CompleteAuthorizeUpdate {
                 shipping_address_id,
             },
-            PaymentIntentUpdate::ManualUpdate { status, updated_by } => {
-                Self::ManualUpdate { status, updated_by }
-            }
+            PaymentIntentUpdate::ManualUpdate {
+                status,
+                updated_by,
+                amount_captured,
+            } => Self::ManualUpdate {
+                status,
+                updated_by,
+                amount_captured,
+            },
             PaymentIntentUpdate::SessionResponseUpdate {
                 tax_details,
                 shipping_address_id,
@@ -1583,6 +1668,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             setup_future_usage,
             off_session,
             metadata,
+            connector_metadata,
             billing_address_id,
             shipping_address_id,
             modified_at: _,
@@ -1592,6 +1678,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             description,
             statement_descriptor_name,
             statement_descriptor_suffix,
+            billing_descriptor,
             order_details,
             attempt_count,
             merchant_decision,
@@ -1625,6 +1712,10 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             state_metadata,
             installment_options,
             profile_acquirer_id,
+            external_surcharge_strategy,
+            external_surcharge_applicable,
+            is_account_funded_transaction,
+            recipient_details,
         } = value;
         Self {
             amount,
@@ -1636,6 +1727,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             setup_future_usage,
             off_session,
             metadata,
+            connector_metadata,
             billing_address_id,
             shipping_address_id,
             modified_at,
@@ -1645,6 +1737,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             description,
             statement_descriptor_name,
             statement_descriptor_suffix,
+            billing_descriptor,
             order_details,
             attempt_count,
             merchant_decision,
@@ -1680,6 +1773,10 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             installment_options: installment_options
                 .map(common_types::payments::InstallmentOptions),
             profile_acquirer_id,
+            external_surcharge_strategy,
+            external_surcharge_applicable,
+            is_account_funded_transaction,
+            recipient_details: recipient_details.map(Encryption::from),
         }
     }
 }
@@ -1718,7 +1815,7 @@ impl PaymentIntentFetchConstraints {
 
 #[cfg(feature = "v1")]
 pub struct PaymentIntentListParams {
-    pub offset: u32,
+    pub offset: common_utils::types::list::PageOffset,
     pub starting_at: Option<PrimitiveDateTime>,
     pub ending_at: Option<PrimitiveDateTime>,
     pub amount_filter: Option<api_models::payments::AmountFilter>,
@@ -1733,7 +1830,7 @@ pub struct PaymentIntentListParams {
     pub customer_id: Option<id_type::CustomerId>,
     pub starting_after_id: Option<id_type::PaymentId>,
     pub ending_before_id: Option<id_type::PaymentId>,
-    pub limit: Option<u32>,
+    pub limit: common_utils::types::list::PageSize,
     pub order: api_models::payments::Order,
     pub card_network: Option<Vec<common_enums::CardNetwork>>,
     pub card_discovery: Option<Vec<common_enums::CardDiscovery>>,
@@ -1743,7 +1840,7 @@ pub struct PaymentIntentListParams {
 
 #[cfg(feature = "v2")]
 pub struct PaymentIntentListParams {
-    pub offset: u32,
+    pub offset: common_utils::types::list::PageOffset,
     pub starting_at: Option<PrimitiveDateTime>,
     pub ending_at: Option<PrimitiveDateTime>,
     pub amount_filter: Option<api_models::payments::AmountFilter>,
@@ -1758,7 +1855,7 @@ pub struct PaymentIntentListParams {
     pub customer_id: Option<id_type::GlobalCustomerId>,
     pub starting_after_id: Option<id_type::GlobalPaymentId>,
     pub ending_before_id: Option<id_type::GlobalPaymentId>,
-    pub limit: Option<u32>,
+    pub limit: common_utils::types::list::PageSize,
     pub order: api_models::payments::Order,
     pub card_network: Option<Vec<common_enums::CardNetwork>>,
     pub merchant_order_reference_id: Option<String>,
@@ -1780,7 +1877,7 @@ impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchCo
             created_gte,
         } = value;
         Self::List(Box::new(PaymentIntentListParams {
-            offset: 0,
+            offset: common_utils::types::list::PageOffset::default(),
             starting_at: created_gte.or(created_gt).or(created),
             ending_at: created_lte.or(created_lt).or(created),
             amount_filter: None,
@@ -1795,7 +1892,7 @@ impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchCo
             customer_id,
             starting_after_id: starting_after,
             ending_before_id: ending_before,
-            limit: Some(std::cmp::min(limit, PAYMENTS_LIST_MAX_LIMIT_V1)),
+            limit,
             order: Default::default(),
             card_network: None,
             card_discovery: None,
@@ -1836,7 +1933,7 @@ impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchCo
             offset,
         } = value;
         Self::List(Box::new(PaymentIntentListParams {
-            offset: offset.unwrap_or_default(),
+            offset,
             starting_at: created_gte.or(created_gt).or(created),
             ending_at: created_lte.or(created_lt).or(created),
             amount_filter: (start_amount.is_some() || end_amount.is_some()).then_some({
@@ -1856,7 +1953,7 @@ impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchCo
             customer_id,
             starting_after_id: starting_after,
             ending_before_id: ending_before,
-            limit: Some(std::cmp::min(limit, PAYMENTS_LIST_MAX_LIMIT_V1)),
+            limit,
             order: api_models::payments::Order {
                 on: order_on,
                 by: order_by,
@@ -1872,7 +1969,7 @@ impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchCo
 impl From<common_utils::types::TimeRange> for PaymentIntentFetchConstraints {
     fn from(value: common_utils::types::TimeRange) -> Self {
         Self::List(Box::new(PaymentIntentListParams {
-            offset: 0,
+            offset: common_utils::types::list::PageOffset::default(),
             starting_at: Some(value.start_time),
             ending_at: value.end_time,
             amount_filter: None,
@@ -1887,7 +1984,7 @@ impl From<common_utils::types::TimeRange> for PaymentIntentFetchConstraints {
             customer_id: None,
             starting_after_id: None,
             ending_before_id: None,
-            limit: None,
+            limit: common_utils::types::list::PageSize::default(),
             order: Default::default(),
             card_network: None,
             card_discovery: None,
@@ -1901,6 +1998,7 @@ impl From<common_utils::types::TimeRange> for PaymentIntentFetchConstraints {
 impl From<api_models::payments::PaymentListFilterConstraints> for PaymentIntentFetchConstraints {
     fn from(value: api_models::payments::PaymentListFilterConstraints) -> Self {
         let api_models::payments::PaymentListFilterConstraints {
+            query: _query,
             payment_id,
             profile_id,
             customer_id,
@@ -1917,6 +2015,15 @@ impl From<api_models::payments::PaymentListFilterConstraints> for PaymentIntentF
             merchant_connector_id,
             order,
             card_network,
+            card_last_4: _card_last_4,
+            active_attempt_id: _active_attempt_id,
+            card_issuer: _card_issuer,
+            routing_approach: _routing_approach,
+            refunds_status: _refunds_status,
+            dispute_status: _dispute_status,
+            client_source: _client_source,
+            client_version: _client_version,
+            first_attempt: _first_attempt,
             card_discovery,
             merchant_order_reference_id,
             customer_email,
@@ -1925,7 +2032,7 @@ impl From<api_models::payments::PaymentListFilterConstraints> for PaymentIntentF
             Self::Single { payment_intent_id }
         } else {
             Self::List(Box::new(PaymentIntentListParams {
-                offset: offset.unwrap_or_default(),
+                offset,
                 starting_at: time_range.map(|t| t.start_time),
                 ending_at: time_range.and_then(|t| t.end_time),
                 amount_filter,
@@ -1940,7 +2047,7 @@ impl From<api_models::payments::PaymentListFilterConstraints> for PaymentIntentF
                 customer_id,
                 starting_after_id: None,
                 ending_before_id: None,
-                limit: Some(std::cmp::min(limit, PAYMENTS_LIST_MAX_LIMIT_V2)),
+                limit,
                 order,
                 card_network,
                 card_discovery,
@@ -2065,6 +2172,10 @@ impl behaviour::Conversion for PaymentIntent {
             is_payment_id_from_merchant,
             enable_partial_authorization,
             profile_acquirer_id,
+            external_surcharge_strategy,
+            external_surcharge_applicable,
+            is_account_funded_transaction,
+            recipient_details,
         } = self;
         Ok(DieselPaymentIntent {
             skip_external_tax_calculation: Some(amount_details.get_external_tax_action_as_bool()),
@@ -2177,6 +2288,10 @@ impl behaviour::Conversion for PaymentIntent {
             state_metadata: None,
             installment_options: None,
             profile_acquirer_id,
+            external_surcharge_strategy,
+            external_surcharge_applicable,
+            is_account_funded_transaction,
+            recipient_details: recipient_details.map(Encryption::from),
         })
     }
     async fn convert_back(
@@ -2197,6 +2312,7 @@ impl behaviour::Conversion for PaymentIntent {
                         billing_address: storage_model.billing_address,
                         shipping_address: storage_model.shipping_address,
                         customer_details: storage_model.customer_details,
+                        recipient_details: storage_model.recipient_details,
                     },
                 )),
                 key_manager_identifier,
@@ -2331,6 +2447,10 @@ impl behaviour::Conversion for PaymentIntent {
                     .enable_partial_authorization
                     .unwrap_or(false.into()),
                 profile_acquirer_id: storage_model.profile_acquirer_id,
+                external_surcharge_strategy: storage_model.external_surcharge_strategy,
+                external_surcharge_applicable: storage_model.external_surcharge_applicable,
+                is_account_funded_transaction: storage_model.is_account_funded_transaction,
+                recipient_details: data.recipient_details,
             })
         }
         .await
@@ -2443,6 +2563,10 @@ impl behaviour::Conversion for PaymentIntent {
             state_metadata: None,
             installment_options: None,
             profile_acquirer_id: self.profile_acquirer_id,
+            external_surcharge_strategy: self.external_surcharge_strategy,
+            external_surcharge_applicable: self.external_surcharge_applicable,
+            is_account_funded_transaction: self.is_account_funded_transaction,
+            recipient_details: self.recipient_details.map(Encryption::from),
         })
     }
 }
@@ -2535,6 +2659,10 @@ impl behaviour::Conversion for PaymentIntent {
                 .installment_options
                 .map(common_types::payments::InstallmentOptions),
             profile_acquirer_id: self.profile_acquirer_id,
+            external_surcharge_strategy: self.external_surcharge_strategy,
+            external_surcharge_applicable: self.external_surcharge_applicable,
+            is_account_funded_transaction: self.is_account_funded_transaction,
+            recipient_details: self.recipient_details.map(Encryption::from),
         })
     }
 
@@ -2556,6 +2684,7 @@ impl behaviour::Conversion for PaymentIntent {
                         billing_details: storage_model.billing_details,
                         shipping_details: storage_model.shipping_details,
                         customer_details: storage_model.customer_details,
+                        recipient_details: storage_model.recipient_details,
                     },
                 )),
                 key_manager_identifier,
@@ -2652,6 +2781,10 @@ impl behaviour::Conversion for PaymentIntent {
                 state_metadata: storage_model.state_metadata,
                 installment_options: storage_model.installment_options.map(|o| o.0),
                 profile_acquirer_id: storage_model.profile_acquirer_id,
+                external_surcharge_strategy: storage_model.external_surcharge_strategy,
+                external_surcharge_applicable: storage_model.external_surcharge_applicable,
+                is_account_funded_transaction: storage_model.is_account_funded_transaction,
+                recipient_details: data.recipient_details,
             })
         }
         .await
@@ -2742,6 +2875,10 @@ impl behaviour::Conversion for PaymentIntent {
                 .installment_options
                 .map(common_types::payments::InstallmentOptions),
             profile_acquirer_id: self.profile_acquirer_id,
+            external_surcharge_strategy: self.external_surcharge_strategy,
+            external_surcharge_applicable: self.external_surcharge_applicable,
+            is_account_funded_transaction: self.is_account_funded_transaction,
+            recipient_details: self.recipient_details.map(Encryption::from),
         })
     }
 }

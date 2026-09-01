@@ -80,7 +80,7 @@ impl PaymentsApiClient {
         }
 
         let request = request_builder.build();
-        let response = api::call_connector_api(state, request, "Subscription Payments")
+        let response = api::call_connector_api(state, request, "Subscription Payments", None)
             .await
             .change_context(subscription_error.clone())?;
 

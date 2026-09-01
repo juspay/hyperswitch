@@ -11,7 +11,6 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -170,20 +169,6 @@ impl ConnectorCommon for Imerchantsolutions {
 }
 
 impl ConnectorValidation for Imerchantsolutions {
-    fn validate_mandate_payment(
-        &self,
-        _pm_type: Option<enums::PaymentMethodType>,
-        pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        match pm_data {
-            PaymentMethodData::Card(_) => Err(errors::ConnectorError::NotImplemented(
-                "validate_mandate_payment does not support cards".to_string(),
-            )
-            .into()),
-            _ => Ok(()),
-        }
-    }
-
     fn validate_psync_reference_id(
         &self,
         _data: &PaymentsSyncData,
@@ -683,7 +668,7 @@ static IMERCHANTSOLUTIONS_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMe
             enums::PaymentMethod::Card,
             enums::PaymentMethodType::Credit,
             PaymentMethodDetails {
-                mandates: enums::FeatureStatus::NotSupported,
+                mandates: enums::FeatureStatus::Supported,
                 refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
                 specific_features: Some(
@@ -702,9 +687,9 @@ static IMERCHANTSOLUTIONS_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMe
             enums::PaymentMethod::Card,
             enums::PaymentMethodType::Debit,
             PaymentMethodDetails {
-                mandates: enums::FeatureStatus::NotSupported,
+                mandates: enums::FeatureStatus::Supported,
                 refunds: enums::FeatureStatus::Supported,
-                supported_capture_methods,
+                supported_capture_methods: supported_capture_methods.clone(),
                 specific_features: Some(
                     api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
                         api_models::feature_matrix::CardSpecificFeatures {
@@ -717,6 +702,28 @@ static IMERCHANTSOLUTIONS_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMe
             },
         );
 
+        imerchant_supported_payment_methods.add(
+            enums::PaymentMethod::Wallet,
+            enums::PaymentMethodType::GooglePay,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::Supported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            },
+        );
+
+        imerchant_supported_payment_methods.add(
+            enums::PaymentMethod::Wallet,
+            enums::PaymentMethodType::ApplePay,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::Supported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods,
+                specific_features: None,
+            },
+        );
+
         imerchant_supported_payment_methods
     });
 
@@ -724,7 +731,7 @@ static IMERCHANTSOLUTIONS_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "iMerchant Solutions",
     description: "iMerchant Solutions is a modern payment processing platform that empowers businesses to accept payments globally with fast and low-friction onboarding.",
     connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
-    integration_status: enums::ConnectorIntegrationStatus::Alpha,
+    integration_status: enums::ConnectorIntegrationStatus::Beta,
 };
 
 static IMERCHANTSOLUTIONS_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 2] =
