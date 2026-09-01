@@ -6,7 +6,7 @@ import {
 import { getCustomExchange } from "./Modifiers";
 
 const successfulNo3DSCardDetails = {
-  card_number: "378282246310005",
+  card_number: "4242424242424242",
   card_exp_month: "10",
   card_exp_year: "50",
   card_holder_name: "morino",
@@ -172,12 +172,12 @@ const payment_method_data_3ds = {
 
 const payment_method_data_no3ds = {
   card: {
-    last4: "0005",
+    last4: "4242",
     card_type: "CREDIT",
-    card_network: "AmericanExpress",
-    card_issuer: "AMERICAN EXPRESS US CARS",
-    card_issuing_country: "UNITED STATES OF AMERICA",
-    card_isin: "378282",
+    card_network: "Visa",
+    card_issuer: "STRIPE PAYMENTS UK LIMITED",
+    card_issuing_country: "UNITEDKINGDOM",
+    card_isin: "424242",
     card_extended_bin: null,
     card_exp_month: "10",
     card_exp_year: "50",
@@ -302,6 +302,8 @@ export const connectorDetails = {
           amount_received: 6050,
           amount: 6000,
           net_amount: 6050,
+          // Visa returns a dynamic PAR string
+          payment_account_reference: "dynamic_par",
         },
       },
     },
@@ -341,6 +343,8 @@ export const connectorDetails = {
           status: "requires_customer_action",
           setup_future_usage: "on_session",
           payment_method_data: payment_method_data_3ds,
+          // PAR is verified post-redirection in 05-ThreeDSAutoCapture.cy.js
+          // (it is only available after the 3DS challenge completes)
         },
       },
     },
@@ -361,6 +365,8 @@ export const connectorDetails = {
           payment_method: "card",
           attempt_count: 1,
           payment_method_data: payment_method_data_no3ds,
+          // Visa returns a dynamic PAR string
+          payment_account_reference: "dynamic_par",
         },
       },
     },
@@ -381,6 +387,8 @@ export const connectorDetails = {
           payment_method: "card",
           attempt_count: 1,
           payment_method_data: payment_method_data_no3ds,
+          // Visa returns a dynamic PAR string
+          payment_account_reference: "dynamic_par",
         },
       },
     },
@@ -493,6 +501,8 @@ export const connectorDetails = {
           amount: 6000,
           amount_capturable: 0,
           amount_received: 6000,
+          // Visa returns a dynamic PAR string
+          payment_account_reference: "dynamic_par",
         },
       },
     },
@@ -507,6 +517,8 @@ export const connectorDetails = {
           amount: 6000,
           amount_capturable: 0,
           amount_received: 2000,
+          // Visa returns a dynamic PAR string
+          payment_account_reference: "dynamic_par",
         },
       },
     },

@@ -74,6 +74,39 @@ describe("Card - ThreeDS payment flow test", () => {
         const expected_redirection = fixtures.confirmBody["return_url"];
         cy.handleRedirection(globalState, expected_redirection);
       });
+
+      cy.step("verify payment account reference", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: verify payment account reference");
+          return;
+        }
+        const connectorId = globalState.get("connectorId");
+        if (connectorId !== "stripe") {
+          cy.task(
+            "cli_log",
+            `Skipping PAR verification for connector: ${connectorId}`
+          );
+          return;
+        }
+        cy.request({
+          method: "GET",
+          url: `${globalState.get("baseUrl")}/payments/${globalState.get(
+            "paymentID"
+          )}?force_sync=true&expand_attempts=true`,
+          headers: {
+            "Content-Type": "application/json",
+            "api-key": globalState.get("apiKey"),
+          },
+        }).then((response) => {
+          expect(response.status).to.equal(200);
+          expect(
+            response.body.payment_account_reference,
+            "payment_account_reference"
+          )
+            .to.be.a("string")
+            .and.to.not.be.empty;
+        });
+      });
     });
   });
 });
