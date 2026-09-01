@@ -1056,6 +1056,9 @@ billing_connectors_which_require_payment_sync = "stripebilling, recurly"
 [billing_connectors_invoice_sync]
 billing_connectors_which_requires_invoice_sync_call = "recurly"
 
+[billing_connectors_dispute_record_back]
+billing_connectors_which_requires_dispute_record_back_call = "chargebee"
+
 [authentication_providers]
 click_to_pay = {connector_list = "adyen, cybersource, trustpay"}
 

@@ -1262,6 +1262,9 @@ billing_connectors_which_require_payment_sync = "stripebilling, recurly"
 [billing_connectors_invoice_sync]
 billing_connectors_which_requires_invoice_sync_call = "recurly"
 
+[billing_connectors_dispute_record_back]
+billing_connectors_which_requires_dispute_record_back_call = "chargebee"
+
 [zero_mandates.supported_payment_methods]
 bank_debit.ach = { connector_list = "gocardless,adyen,payload" }
 bank_debit.becs = { connector_list = "gocardless,adyen" }
