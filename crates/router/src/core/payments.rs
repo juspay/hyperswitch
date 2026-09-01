@@ -15002,6 +15002,12 @@ async fn resolve_offer_eligibility_details(
                     offer_engine::OfferEngineCredentialSource::resolve_application_offer_config(
                         state,
                     )
+                    .inspect_err(|error| {
+                        logger::warn!(
+                            ?error,
+                            "offer engine: unable to resolve offer config; offers unavailable"
+                        )
+                    })
                     .ok()
                 }
                 offer_engine::OfferEngineCredentialSource::Merchant => {
@@ -15009,6 +15015,12 @@ async fn resolve_offer_eligibility_details(
                         state,
                         processor.get_account(),
                     )
+                    .inspect_err(|error| {
+                        logger::warn!(
+                            ?error,
+                            "offer engine: unable to resolve offer config; offers unavailable"
+                        )
+                    })
                     .ok()
                 }
             };
