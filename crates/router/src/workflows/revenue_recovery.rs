@@ -630,6 +630,9 @@ pub enum PaymentProcessorTokenResponse {
         next_available_time: time::PrimitiveDateTime,
     },
 
+    /// The configured retry ladder has no slot left for this invoice
+    RetriesExhausted,
+
     /// No retry info available / nothing to do yet
     None,
 }
@@ -664,14 +667,20 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
             let dimensions = crate::core::configs::dimension_state::Dimensions::new()
                 .with_processor_merchant_id(payment_intent.merchant_id.clone().into())
                 .with_connector(billing_connector);
-            let time = get_schedule_time_to_retry_mit_payments(
+            let schedule_time = get_schedule_time_to_retry_mit_payments(
                 state.store.as_ref(),
                 state.superposition_service.as_ref(),
                 &dimensions,
                 retry_count,
             )
-            .await
-            .ok_or(errors::ProcessTrackerError::EApiErrorResponse)?;
+            .await;
+
+            // Distinct from `None` below, which means "no token right now, come back later" and
+            // keeps the calculate job alive.
+            let Some(time) = schedule_time else {
+                logger::info!(retry_count, "Retry ladder exhausted for this invoice");
+                return Ok((PaymentProcessorTokenResponse::RetriesExhausted, None));
+            };
 
             payment_processor_token_response = get_token_availability_for_schedule_time(
                 state,
@@ -781,6 +790,10 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
             next_available_time,
         } => {
             logger::info!("Next available retry at {:?}", next_available_time);
+        }
+
+        PaymentProcessorTokenResponse::RetriesExhausted => {
+            logger::debug!("Retry ladder exhausted");
         }
 
         PaymentProcessorTokenResponse::None => {
