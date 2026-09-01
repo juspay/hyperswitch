@@ -20,7 +20,10 @@ use hyperswitch_domain_models::{
     payment_method_data::{
         ApplePayWalletData, Card, GooglePayWalletData, PaymentMethodData, WalletData,
     },
-    router_data::{ConnectorAuthType, ErrorResponse, PaymentMethodToken, RouterData},
+    router_data::{
+        AdditionalPaymentMethodConnectorResponse, ConnectorAuthType, ConnectorResponseData,
+        ErrorResponse, PaymentMethodToken, RouterData,
+    },
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::{
         CompleteAuthorizeData, PaymentsAuthorizeData, PaymentsSyncData, ResponseId,
@@ -2192,6 +2195,10 @@ impl<F>
                             payment_data.last_event,
                             Some(&item.data.status),
                         )?;
+                        let connector_response = get_connector_response_data(
+                            &payment_data,
+                            item.data.request.payment_method_type,
+                        );
                         let response = process_payment_response(
                             status,
                             &payment_data,
@@ -2204,6 +2211,7 @@ impl<F>
                         Ok(Self {
                             status,
                             response,
+                            connector_response,
                             ..item.data
                         })
                     } else {
@@ -2524,6 +2532,10 @@ impl<F>
             if let Some(payment_data) = order_status.payment {
                 let status = get_attempt_status(is_auto_capture, payment_data.last_event, None)?;
 
+                let connector_response = get_connector_response_data(
+                    &payment_data,
+                    item.data.request.payment_method_type,
+                );
                 let response = process_payment_response(
                     status,
                     &payment_data,
@@ -2535,6 +2547,7 @@ impl<F>
                 Ok(Self {
                     status,
                     response,
+                    connector_response,
                     ..item.data
                 })
             } else if let Some(challenge_required) = order_status.challenge_required {
@@ -2917,6 +2930,10 @@ impl<F>
                     payment_data.last_event,
                     Some(&item.data.status),
                 )?;
+                let connector_response = get_connector_response_data(
+                    &payment_data,
+                    item.data.request.payment_method_type,
+                );
                 let response = process_payment_response(
                     status,
                     &payment_data,
@@ -2928,6 +2945,7 @@ impl<F>
                 Ok(Self {
                     status,
                     response,
+                    connector_response,
                     ..item.data
                 })
             } else {
@@ -3011,6 +3029,10 @@ impl<F>
             if let Some(payment_data) = order_status.payment {
                 let status = get_attempt_status(is_auto_capture, payment_data.last_event, None)?;
 
+                let connector_response = get_connector_response_data(
+                    &payment_data,
+                    item.data.request.payment_method_type,
+                );
                 let response = process_payment_response(
                     status,
                     &payment_data,
@@ -3022,6 +3044,7 @@ impl<F>
                 Ok(Self {
                     status,
                     response,
+                    connector_response,
                     ..item.data
                 })
             } else if let Some(challenge_required) = order_status.challenge_required {
@@ -3963,6 +3986,43 @@ fn get_mandate_reference(
         connector_mandate_request_reference_id: scheme_response
             .map(|response| response.transaction_identifier.clone()),
     }
+}
+
+/// Extracts the `AuthorisationId` returned by Worldpay (the scheme authorization code) and maps it
+/// to the auth code exposed in the connector response.
+fn get_connector_response_data(
+    payment_data: &Payment,
+    payment_method_type: Option<enums::PaymentMethodType>,
+) -> Option<ConnectorResponseData> {
+    let auth_code = payment_data
+        .authorisation_id
+        .as_ref()
+        .and_then(|authorisation_id| authorisation_id.id.clone())
+        .map(|id| id.expose())?;
+
+    let additional_payment_method_data = match payment_method_type {
+        Some(enums::PaymentMethodType::GooglePay) => {
+            AdditionalPaymentMethodConnectorResponse::GooglePay {
+                auth_code: Some(auth_code),
+            }
+        }
+        Some(enums::PaymentMethodType::ApplePay) => {
+            AdditionalPaymentMethodConnectorResponse::ApplePay {
+                auth_code: Some(auth_code),
+            }
+        }
+        _ => AdditionalPaymentMethodConnectorResponse::Card {
+            authentication_data: None,
+            payment_checks: None,
+            card_network: None,
+            domestic_network: None,
+            auth_code: Some(auth_code),
+        },
+    };
+
+    Some(ConnectorResponseData::with_additional_payment_method_data(
+        additional_payment_method_data,
+    ))
 }
 
 fn process_payment_response(
