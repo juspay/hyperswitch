@@ -898,6 +898,22 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         let processor_merchant_id = processor.get_account().get_id().clone();
         let payment_id = payment_data.payment_intent.payment_id.clone();
 
+        // An update can change routing-relevant parameters (amount, currency), so the
+        // browse-time pre-routing mirror no longer applies: drop it and the SDK's
+        // refetch evaluates fresh. The fingerprint on the attempt blob independently
+        // protects the confirm path if no refetch happens.
+        if let Ok(redis_conn) = state.store.get_redis_conn() {
+            let _ = redis_conn
+                .delete_key(&payment_id.get_pre_routing_key().as_str().into())
+                .await
+                .map_err(|error| {
+                    router_env::logger::warn!(
+                        ?error,
+                        "failed to invalidate the pre-routing mirror on payment update"
+                    )
+                });
+        }
+
         // Check if client session validation is enabled
         let session_validation_enabled = dimensions
             .get_client_session_validation_enabled(

@@ -325,6 +325,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsSessionRequest, payments::Payment
 
         let pre_routing = storage::PaymentRoutingInfo {
             algorithm: None,
+            pre_routing_fingerprint: None,
             pre_routing_results: Some((|| {
                 let mut pre_routing_results: HashMap<
                     common_enums::PaymentMethodType,

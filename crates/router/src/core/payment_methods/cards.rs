@@ -4427,7 +4427,7 @@ pub async fn build_merchant_enabled_pms_context(
         let routing_enabled_pms = &router_consts::ROUTING_ENABLED_PAYMENT_METHODS;
         let routing_enabled_pm_types = &router_consts::ROUTING_ENABLED_PAYMENT_METHOD_TYPES;
 
-        let mut chosen = api::SessionConnectorDatas::new(Vec::new());
+        let mut requested_pm_types: Vec<api_enums::PaymentMethodType> = Vec::new();
         for intermediate in &response {
             if perform_pre_routing(
                 routing_enabled_pms,
@@ -4435,30 +4435,9 @@ pub async fn build_merchant_enabled_pms_context(
                 &intermediate.payment_method,
                 &intermediate.payment_method_type,
                 &skip_pre_routing,
-            ) {
-                let merchant_connector_id = id_type::MerchantConnectorAccountId::wrap(
-                    intermediate.merchant_connector_id.clone(),
-                )
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(
-                    "invalid merchant_connector_id received in payment methods list",
-                )?;
-
-                let connector_data = helpers::get_connector_data_with_token(
-                    state,
-                    intermediate.connector.to_string(),
-                    Some(merchant_connector_id),
-                    intermediate.payment_method_type,
-                )
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("invalid connector name received")?;
-
-                chosen.push(api::SessionConnectorData {
-                    payment_method_sub_type: intermediate.payment_method_type,
-                    payment_method_type: intermediate.payment_method,
-                    connector: connector_data,
-                    business_sub_label: None,
-                });
+            ) && !requested_pm_types.contains(&intermediate.payment_method_type)
+            {
+                requested_pm_types.push(intermediate.payment_method_type);
             }
         }
 
@@ -4466,12 +4445,13 @@ pub async fn build_merchant_enabled_pms_context(
             state,
             country: billing_address.and_then(|ad| ad.country),
             key_store: platform.get_processor().get_key_store(),
-            merchant_account: platform.get_processor().get_account(),
             payment_attempt,
             payment_intent,
-            chosen,
+            requested_pm_types: requested_pm_types.clone(),
         };
-        let (result, routing_approach) = routing::perform_session_flow_routing(
+        // One shared evaluation per payment: concurrent SDK-init calls (payment
+        // methods list, sdk-config, session tokens) reuse the same decision.
+        let pre_routing_outcome = routing::perform_session_flow_routing(
             sfr,
             business_profile,
             &dimensions,
@@ -4480,6 +4460,7 @@ pub async fn build_merchant_enabled_pms_context(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("error performing session flow routing")?;
+        let result = &pre_routing_outcome.results;
 
         response.retain(|intermediate| {
             if !perform_pre_routing(
@@ -4494,13 +4475,8 @@ pub async fn build_merchant_enabled_pms_context(
 
             if let Some(choice) = result.get(&intermediate.payment_method_type) {
                 if let Some(first_routable_connector) = choice.first() {
-                    intermediate.connector
-                        == first_routable_connector
-                            .connector
-                            .connector_name
-                            .to_string()
+                    intermediate.connector == first_routable_connector.connector.to_string()
                         && first_routable_connector
-                            .connector
                             .merchant_connector_id
                             .as_ref()
                             .map(|merchant_connector_id| {
@@ -4526,6 +4502,7 @@ pub async fn build_merchant_enabled_pms_context(
             .unwrap_or(storage::PaymentRoutingInfo {
                 algorithm: None,
                 pre_routing_results: None,
+                pre_routing_fingerprint: None,
             });
 
         let mut pre_routing_results: HashMap<
@@ -4534,24 +4511,12 @@ pub async fn build_merchant_enabled_pms_context(
         > = HashMap::new();
 
         for (pm_type, routing_choice) in result {
-            let mut routable_choice_list = vec![];
-            for choice in routing_choice {
-                let routable_choice = routing_types::RoutableConnectorChoice {
-                    choice_kind: routing_types::RoutableChoiceKind::FullStruct,
-                    connector: choice
-                        .connector
-                        .connector_name
-                        .to_string()
-                        .parse::<api_enums::RoutableConnectors>()
-                        .change_context(errors::ApiErrorResponse::InternalServerError)?,
-                    merchant_connector_id: choice.connector.merchant_connector_id.clone(),
-                };
-                routable_choice_list.push(routable_choice);
+            if requested_pm_types.contains(pm_type) {
+                pre_routing_results.insert(
+                    *pm_type,
+                    storage::PreRoutingConnectorChoice::Multiple(routing_choice.clone()),
+                );
             }
-            pre_routing_results.insert(
-                pm_type,
-                storage::PreRoutingConnectorChoice::Multiple(routable_choice_list),
-            );
         }
 
         let redis_conn = db
@@ -4639,40 +4604,47 @@ pub async fn build_merchant_enabled_pms_context(
                 })
         };
 
-        routing_info.pre_routing_results = Some(pre_routing_results);
+        // A concurrent flow in the same SDK-init burst may already have written this
+        // exact decision (it is deterministic per payment); write it only once.
+        if pre_routing_outcome.needs_attempt_persist {
+            routing_info.pre_routing_results = Some(pre_routing_results);
+            routing_info.pre_routing_fingerprint = Some(pre_routing_outcome.fingerprint);
 
-        let encoded = routing_info
-            .encode_to_value()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unable to serialize payment routing info to value")?;
+            let encoded = routing_info
+                .encode_to_value()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Unable to serialize payment routing info to value")?;
 
-        let attempt_update = storage::PaymentAttemptUpdate::UpdateTrackers {
-            payment_token: None,
-            connector: None,
-            straight_through_algorithm: Some(encoded),
-            amount_capturable: None,
-            updated_by: platform
-                .get_provider()
-                .get_account()
-                .storage_scheme
-                .to_string(),
-            merchant_connector_id: None,
-            surcharge_amount: None,
-            tax_amount: None,
-            routing_approach,
-            is_stored_credential: None,
-        };
+            let attempt_update = storage::PaymentAttemptUpdate::UpdateTrackers {
+                payment_token: None,
+                connector: None,
+                straight_through_algorithm: Some(encoded),
+                amount_capturable: None,
+                updated_by: platform
+                    .get_provider()
+                    .get_account()
+                    .storage_scheme
+                    .to_string(),
+                merchant_connector_id: None,
+                surcharge_amount: None,
+                tax_amount: None,
+                routing_approach: pre_routing_outcome.routing_approach,
+                is_stored_credential: None,
+            };
 
-        state
-            .store
-            .update_payment_attempt_with_attempt_id(
-                (*payment_attempt).clone(),
-                attempt_update,
-                platform.get_provider().get_account().storage_scheme,
-                platform.get_provider().get_key_store(),
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+            state
+                .store
+                .update_payment_attempt_with_attempt_id(
+                    (*payment_attempt).clone(),
+                    attempt_update,
+                    platform.get_provider().get_account().storage_scheme,
+                    platform.get_provider().get_key_store(),
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+            routing::mark_shared_pre_routing_persisted(state, &payment_intent.payment_id).await;
+        }
     }
 
     logger::info!("Payment methods after session flow routing: {:?}", response);

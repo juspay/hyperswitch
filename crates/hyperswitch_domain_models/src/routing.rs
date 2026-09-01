@@ -26,12 +26,23 @@ pub struct RoutingData {
     pub algorithm_requested: Option<id_type::RoutingId>,
 }
 
+/// The payment context a persisted pre-routing decision was computed under. Confirm
+/// refuses to reuse `pre_routing_results` when the live payment no longer matches —
+/// e.g. the customer changed the amount after the SDK's browse calls evaluated it.
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct PreRoutingFingerprint {
+    pub amount: common_utils::types::MinorUnit,
+    pub currency: Option<common_enums::Currency>,
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
 #[serde(from = "PaymentRoutingInfoSerde", into = "PaymentRoutingInfoSerde")]
 pub struct PaymentRoutingInfo {
     pub algorithm: Option<routing::StraightThroughAlgorithm>,
     pub pre_routing_results:
         Option<HashMap<api_enums::PaymentMethodType, PreRoutingConnectorChoice>>,
+    /// `None` on blobs written before fingerprinting existed: those reuse as before.
+    pub pre_routing_fingerprint: Option<PreRoutingFingerprint>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
@@ -46,6 +57,8 @@ pub struct PaymentRoutingInfoInner {
     pub algorithm: Option<routing::StraightThroughAlgorithm>,
     pub pre_routing_results:
         Option<HashMap<api_enums::PaymentMethodType, PreRoutingConnectorChoice>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pre_routing_fingerprint: Option<PreRoutingFingerprint>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -61,10 +74,12 @@ impl From<PaymentRoutingInfoSerde> for PaymentRoutingInfo {
             PaymentRoutingInfoSerde::OnlyAlgorithm(algo) => Self {
                 algorithm: Some(*algo),
                 pre_routing_results: None,
+                pre_routing_fingerprint: None,
             },
             PaymentRoutingInfoSerde::WithDetails(details) => Self {
                 algorithm: details.algorithm,
                 pre_routing_results: details.pre_routing_results,
+                pre_routing_fingerprint: details.pre_routing_fingerprint,
             },
         }
     }
@@ -75,6 +90,7 @@ impl From<PaymentRoutingInfo> for PaymentRoutingInfoSerde {
         Self::WithDetails(Box::new(PaymentRoutingInfoInner {
             algorithm: value.algorithm,
             pre_routing_results: value.pre_routing_results,
+            pre_routing_fingerprint: value.pre_routing_fingerprint,
         }))
     }
 }

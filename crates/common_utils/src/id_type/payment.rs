@@ -49,6 +49,16 @@ impl PaymentId {
         format!("pm_auth_{}", self.get_string_repr())
     }
 
+    /// Redis key holding the shared pre-routing decision for this payment
+    pub fn get_pre_routing_key(&self) -> String {
+        format!("pre_routing_{}", self.get_string_repr())
+    }
+
+    /// Redis key for the single-flight lock around computing this payment's pre-routing
+    pub fn get_pre_routing_lock_key(&self) -> String {
+        format!("pre_routing_lock_{}", self.get_string_repr())
+    }
+
     /// Get external authentication request poll id
     pub fn get_external_authentication_request_poll_id(&self) -> String {
         format!("external_authentication_{}", self.get_string_repr())
