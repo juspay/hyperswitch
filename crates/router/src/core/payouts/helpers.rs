@@ -1082,10 +1082,13 @@ pub async fn decide_payout_connector(
 
     // 2. Check routing algorithm passed in the request
     if let Some(routing_algorithm) = request_straight_through {
-        let (mut connectors, check_eligibility) =
-            routing::perform_straight_through_routing(&routing_algorithm, None)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed execution of straight through routing")?;
+        let (mut connectors, check_eligibility) = routing::perform_straight_through_routing(
+            &routing_algorithm,
+            None,
+            Some(payout_attempt.payout_id.get_string_repr()),
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed execution of straight through routing")?;
 
         if check_eligibility {
             connectors = routing::perform_eligibility_analysis_with_fallback(
@@ -1131,10 +1134,13 @@ pub async fn decide_payout_connector(
 
     // 3. Check algorithm passed in routing data
     if let Some(ref routing_algorithm) = routing_data.algorithm {
-        let (mut connectors, check_eligibility) =
-            routing::perform_straight_through_routing(routing_algorithm, None)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed execution of straight through routing")?;
+        let (mut connectors, check_eligibility) = routing::perform_straight_through_routing(
+            routing_algorithm,
+            None,
+            Some(payout_attempt.payout_id.get_string_repr()),
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed execution of straight through routing")?;
 
         if check_eligibility {
             connectors = routing::perform_eligibility_analysis_with_fallback(
