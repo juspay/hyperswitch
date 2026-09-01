@@ -2546,6 +2546,23 @@ impl RequestPaymentMethodTypes {
 }
 
 #[cfg(feature = "v1")]
+/// Query parameters for listing the payment methods available on a payment.
+///
+/// The combined listing core derives every filter from the payment intent itself, so the
+/// only query value it takes is the client secret used by the SDK and publishable-key
+/// flows. The filter fields on [`PaymentMethodListRequest`] belong to the deprecated
+/// `/payment_methods` listing API and are deliberately absent here.
+///
+/// Unknown query parameters are ignored rather than rejected, so integrations still
+/// sending the old filters keep working while the deprecated API is wound down.
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct ClientPaymentMethodsListRequest {
+    /// This is a 15 minute expiry token which shall be used from the client to authenticate and perform sessions from the SDK
+    #[schema(max_length = 30, min_length = 30, example = "secret_k2uj3he2893eiu2d")]
+    pub client_secret: Option<String>,
+}
+
+#[cfg(feature = "v1")]
 //List Payment Method
 #[derive(Debug, Clone, serde::Serialize, Default, ToSchema)]
 #[serde(deny_unknown_fields)]

@@ -2212,7 +2212,7 @@ pub async fn list_payment_methods_for_payments_client(
     state: web::Data<AppState>,
     req: HttpRequest,
     path: web::Path<id_type::PaymentId>,
-    query_payload: web::Query<payment_methods::PaymentMethodListRequest>,
+    query_payload: web::Query<payment_methods::ClientPaymentMethodsListRequest>,
 ) -> HttpResponse {
     let flow = Flow::PaymentMethodsList;
     let payment_id = path.into_inner();
@@ -2266,7 +2266,7 @@ pub async fn list_payment_methods_for_payments(
     state: web::Data<AppState>,
     req: HttpRequest,
     path: web::Path<id_type::PaymentId>,
-    query_payload: web::Query<payment_methods::PaymentMethodListRequest>,
+    query_payload: web::Query<payment_methods::ClientPaymentMethodsListRequest>,
 ) -> HttpResponse {
     let flow = Flow::PaymentMethodsList;
     let payment_id = path.into_inner();
