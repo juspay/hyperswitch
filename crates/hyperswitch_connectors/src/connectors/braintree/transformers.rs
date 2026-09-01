@@ -794,6 +794,7 @@ impl TryFrom<PaymentsResponseRouterData<BraintreeAuthResponse>>
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     })
                 };
                 Ok(Self {
@@ -820,6 +821,7 @@ impl TryFrom<PaymentsResponseRouterData<BraintreeAuthResponse>>
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             }),
@@ -853,6 +855,7 @@ impl TryFrom<PaymentsResponseRouterData<BraintreeAuthResponse>>
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     })
                 };
 
@@ -1015,6 +1018,7 @@ impl TryFrom<PaymentsResponseRouterData<BraintreePaymentsResponse>>
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     })
                 };
                 Ok(Self {
@@ -1041,6 +1045,7 @@ impl TryFrom<PaymentsResponseRouterData<BraintreePaymentsResponse>>
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             }),
@@ -1084,6 +1089,7 @@ impl TryFrom<PaymentsResponseRouterData<BraintreePaymentsResponse>>
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     })
                 };
 
@@ -1158,6 +1164,7 @@ impl<F>
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     })
                 };
                 Ok(Self {
@@ -1231,6 +1238,7 @@ impl<F>
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     })
                 };
                 Ok(Self {
@@ -1894,6 +1902,7 @@ impl
                                 delayed_session_token: false,
                                 sdk_next_action: api_models::payments::SdkNextAction {
                                     next_action: api_models::payments::NextActionCall::Confirm,
+                                    should_block_confirm: None,
                                 },
                                 connector_reference_id: None,
                                 connector_sdk_public_key: None,
@@ -1963,6 +1972,7 @@ impl
                                     connector: data.connector.clone(),
                                     sdk_next_action: payment_types::SdkNextAction {
                                         next_action: payment_types::NextActionCall::Confirm,
+                                        should_block_confirm: None,
                                     },
                                 },
                             ),
@@ -1984,6 +1994,7 @@ impl
                                 session_token: paypal_sdk_data.data.client_id,
                                 sdk_next_action: api_models::payments::SdkNextAction {
                                     next_action: api_models::payments::NextActionCall::Confirm,
+                                    should_block_confirm: None,
                                 },
                                 client_token: Some(
                                     res.data.create_client_token.client_token.clone().expose(),
@@ -2126,6 +2137,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<BraintreeCaptureResponse>>
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     })
                 };
                 Ok(Self {
@@ -2333,6 +2345,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, BraintreeCancelResponse, T, PaymentsRes
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     })
                 };
                 Ok(Self {
@@ -2463,6 +2476,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, BraintreePSyncResponse, T, PaymentsResp
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     })
                 };
                 Ok(Self {

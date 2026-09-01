@@ -1,4 +1,4 @@
-use common_utils::types::keymanager::KeyManagerState;
+use common_utils::types::keymanager::{KeyManagerMetricsContext, KeyManagerState};
 pub use hyperswitch_domain_models::type_encryption::{
     crypto_operation, AsyncLift, CryptoOperation, Lift, OptionalEncryptableJsonType,
 };
@@ -31,6 +31,7 @@ impl ForeignFrom<(&app::AppState, configs::Tenant)> for KeyManagerState {
             ca: conf.ca.clone(),
             infra_values: app::AppState::process_env_mappings(app_state.conf.infra_values.clone()),
             use_legacy_key_store_decryption: conf.use_legacy_key_store_decryption,
+            metrics_context: None,
         }
     }
 }
@@ -55,6 +56,10 @@ impl From<&app::SessionState> for KeyManagerState {
             ca: conf.ca.clone(),
             infra_values: app::AppState::process_env_mappings(state.conf.infra_values.clone()),
             use_legacy_key_store_decryption: conf.use_legacy_key_store_decryption,
+            metrics_context: state.payment_metrics_context.map(|context| {
+                let merchant_mode: &'static str = context.merchant_mode.into();
+                KeyManagerMetricsContext { merchant_mode }
+            }),
         }
     }
 }

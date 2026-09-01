@@ -181,6 +181,7 @@ impl TryFrom<&FacilitapayRouterData<&types::PaymentsAuthorizeRouterData>>
                 | BankTransferData::PixAutomaticoPush { .. }
                 | BankTransferData::PixAutomaticoQr {}
                 | BankTransferData::PixEmv {}
+                | BankTransferData::PixQr {}
                 | BankTransferData::LocalBankTransfer { .. } => {
                     Err(errors::ConnectorError::NotImplemented(
                         "Selected payment method through Facilitapay".to_string(),
@@ -473,6 +474,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, FacilitapayPaymentsResponse, T, Payment
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 })
             },
             ..item.data
@@ -582,6 +584,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<FacilitapayVoidResponse>>
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 })
             },
             ..item.data

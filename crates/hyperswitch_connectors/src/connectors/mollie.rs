@@ -10,7 +10,6 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -49,11 +48,7 @@ use hyperswitch_masking::{Mask, PeekInterface};
 use lazy_static::lazy_static;
 use transformers as mollie;
 
-use crate::{
-    constants::headers,
-    types::ResponseRouterData,
-    utils::{convert_amount, is_mandate_supported, PaymentMethodDataType},
-};
+use crate::{constants::headers, types::ResponseRouterData, utils::convert_amount};
 
 #[derive(Clone)]
 pub struct Mollie {
@@ -154,16 +149,7 @@ impl ConnectorCommon for Mollie {
     }
 }
 
-impl ConnectorValidation for Mollie {
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<enums::PaymentMethodType>,
-        pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let mandate_supported_pmd = std::collections::HashSet::from([PaymentMethodDataType::Card]);
-        is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
-    }
-}
+impl ConnectorValidation for Mollie {}
 
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Mollie {}
 
@@ -1100,15 +1086,18 @@ impl ConnectorSpecifications for Mollie {
         &self,
         payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     ) -> api::ConnectorCustomerAction {
+        // Mollie registers a mandate by sending `sequenceType: first` with a `customerId`,
+        // so a connector customer is required for any off-session card setup (including
+        // zero-auth mandates). We intentionally don't gate on `customer_acceptance`: it may
+        // be supplied nested inside `mandate_data` (not surfaced on the attempt) and its
+        // placement doesn't change whether Mollie needs a customer.
         if matches!(
             payment_attempt.setup_future_usage_applied,
             Some(enums::FutureUsage::OffSession)
-        ) && payment_attempt.customer_acceptance.is_some()
-            && matches!(
-                payment_attempt.payment_method,
-                Some(enums::PaymentMethod::Card)
-            )
-        {
+        ) && matches!(
+            payment_attempt.payment_method,
+            Some(enums::PaymentMethod::Card)
+        ) {
             api::ConnectorCustomerAction::CallConnectorCustomer
         } else {
             api::ConnectorCustomerAction::NoAction

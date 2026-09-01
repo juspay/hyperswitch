@@ -1,10 +1,10 @@
 import {
+  blockedPaymentErrorBodyForBinUnavailable,
+  blockedPaymentErrorBodyForCardSubtype,
+  blockedPaymentErrorBodyForDebitCard,
+  blockedPaymentErrorBodyForIssuingCountry,
   cardRequiredField,
   customerAcceptance,
-  blockedPaymentErrorBodyForIssuingCountry,
-  blockedPaymentErrorBodyForDebitCard,
-  blockedPaymentErrorBodyForCardSubtype,
-  blockedPaymentErrorBodyForBinUnavailable,
 } from "./Commons";
 
 const successfulNo3DSCardDetails = {
@@ -85,9 +85,21 @@ const requiredFields = {
   ],
 };
 
+const MITErrorResponse = {
+  status: 200,
+  body: {
+    status: "failed",
+    error_code: "Token not found",
+    error_message: "Token not found",
+  },
+};
+
 export const connectorDetails = {
   real_time_payment_pm: {
     DuitNow: {
+      Configs: {
+        TRIGGER_SKIP: true, //Since fiuu follows a qr flow we are skipping the qr handling
+      },
       Request: {
         payment_method: "real_time_payment",
         payment_method_type: "duit_now",
@@ -435,18 +447,37 @@ export const connectorDetails = {
         currency: "MYR",
         billing: billingAddress,
       },
+      Response: MITErrorResponse,
+    },
+    MITAutoCaptureWithCustomerAcceptance: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        currency: "MYR",
+        billing: billingAddress,
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "127.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
+      },
       Response: {
         status: 200,
         body: {
           status: "failed",
-          error_code:
-            "Your transaction has been denied due to merchant account issue",
-          error_message:
-            "Your transaction has been denied due to merchant account issue",
+          error_code: "Token not found",
+          error_message: "Token not found",
         },
       },
     },
     MITWithoutBillingAddress: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         billing: null,
       },
@@ -460,17 +491,14 @@ export const connectorDetails = {
       },
     },
     MITManualCapture: {
-      Request: {},
-      Response: {
-        status: 200,
-        body: {
-          status: "failed",
-          error_code:
-            "Your transaction has been denied due to merchant account issue",
-          error_message:
-            "Your transaction has been denied due to merchant account issue",
-        },
+      Configs: {
+        TRIGGER_SKIP: true,
       },
+      Request: {
+        currency: "MYR",
+        billing: billingAddress,
+      },
+      Response: MITErrorResponse,
     },
     PaymentIntentOffSession: {
       Request: {
@@ -603,32 +631,14 @@ export const connectorDetails = {
         setup_future_usage: "off_session",
         billing: billingAddress,
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "failed",
-          error_code:
-            "Your transaction has been denied due to merchant account issue",
-          error_message:
-            "Your transaction has been denied due to merchant account issue",
-        },
-      },
+      Response: MITErrorResponse,
     },
     SaveCardConfirmManualCaptureOffSession: {
       Request: {
         setup_future_usage: "off_session",
         billing: billingAddress,
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "failed",
-          error_code:
-            "Your transaction has been denied due to merchant account issue",
-          error_message:
-            "Your transaction has been denied due to merchant account issue",
-        },
-      },
+      Response: MITErrorResponse,
     },
     PaymentMethodIdMandateNo3DSManualCapture: {
       Request: {
@@ -735,16 +745,7 @@ export const connectorDetails = {
         setup_future_usage: "off_session",
         billing: null,
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "failed",
-          error_code:
-            "Your transaction has been denied due to merchant account issue",
-          error_message:
-            "Your transaction has been denied due to merchant account issue",
-        },
-      },
+      Response: MITErrorResponse,
     },
     ZeroAuthPaymentIntent: {
       Configs: {

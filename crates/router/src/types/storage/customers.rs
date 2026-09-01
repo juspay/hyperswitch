@@ -1,3 +1,5 @@
+#[cfg(feature = "v2")]
+pub use diesel_models::customers::CustomerGlobalIdMigrationRow;
 pub use diesel_models::customers::{Customer, CustomerNew, CustomerUpdateInternal};
 
 #[cfg(feature = "v2")]

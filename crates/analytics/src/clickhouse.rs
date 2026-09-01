@@ -153,6 +153,8 @@ impl AnalyticsDataSource for ClickhouseClient {
             | AnalyticsCollection::ApiPayoutEvents
             | AnalyticsCollection::ConnectorEvents
             | AnalyticsCollection::ConnectorPayoutEvents
+            | AnalyticsCollection::PrismConnectorEvents
+            | AnalyticsCollection::PrismConnectorPayoutEvents
             | AnalyticsCollection::RoutingEvents
             | AnalyticsCollection::ApiEventsAnalytics
             | AnalyticsCollection::OutgoingWebhookEvent
@@ -484,6 +486,10 @@ impl ToSql<ClickhouseClient> for AnalyticsCollection {
             Self::PaymentIntentSessionized => Ok("sessionizer_payment_intents".to_string()),
             Self::ConnectorEvents => Ok("connector_events_audit".to_string()),
             Self::ConnectorPayoutEvents => Ok("connector_events_payout_audit".to_string()),
+            Self::PrismConnectorEvents => Ok("prism_connector_events_audit".to_string()),
+            Self::PrismConnectorPayoutEvents => {
+                Ok("prism_connector_events_payout_audit".to_string())
+            }
             Self::OutgoingWebhookEvent => Ok("outgoing_webhook_events_audit".to_string()),
             Self::OutgoingWebhookPayoutEvent => {
                 Ok("outgoing_webhook_events_payout_audit".to_string())

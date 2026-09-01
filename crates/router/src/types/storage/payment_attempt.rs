@@ -176,6 +176,7 @@ mod tests {
             save_to_locker: Default::default(),
             error_message: Default::default(),
             offer_amount: Default::default(),
+            applied_offer_details: Default::default(),
             payment_method_id: Default::default(),
             payment_method: Default::default(),
             capture_method: Default::default(),
@@ -208,11 +209,13 @@ mod tests {
             unified_code: Default::default(),
             unified_message: Default::default(),
             external_three_ds_authentication_attempted: Default::default(),
+            external_threeds_authentication_type: Default::default(),
             authentication_connector: Default::default(),
             authentication_id: Default::default(),
             mandate_data: Default::default(),
             payment_method_billing_address_id: Default::default(),
             fingerprint_id: Default::default(),
+            fingerprint_type: Default::default(),
             client_source: Default::default(),
             client_version: Default::default(),
             customer_acceptance: Default::default(),
@@ -248,6 +251,7 @@ mod tests {
             installment_data: Default::default(),
             external_surcharge_details: Default::default(),
             sender_payment_instrument_id: Default::default(),
+            payment_account_reference: Default::default(),
         };
 
         let store = state
@@ -299,6 +303,7 @@ mod tests {
             save_to_locker: Default::default(),
             error_message: Default::default(),
             offer_amount: Default::default(),
+            applied_offer_details: Default::default(),
             payment_method_id: Default::default(),
             payment_method: Default::default(),
             capture_method: Default::default(),
@@ -331,11 +336,13 @@ mod tests {
             unified_code: Default::default(),
             unified_message: Default::default(),
             external_three_ds_authentication_attempted: Default::default(),
+            external_threeds_authentication_type: Default::default(),
             authentication_connector: Default::default(),
             authentication_id: Default::default(),
             mandate_data: Default::default(),
             payment_method_billing_address_id: Default::default(),
             fingerprint_id: Default::default(),
+            fingerprint_type: Default::default(),
             client_source: Default::default(),
             client_version: Default::default(),
             customer_acceptance: Default::default(),
@@ -371,6 +378,7 @@ mod tests {
             installment_data: Default::default(),
             external_surcharge_details: Default::default(),
             sender_payment_instrument_id: Default::default(),
+            payment_account_reference: Default::default(),
         };
         let store = state
             .stores
@@ -437,6 +445,7 @@ mod tests {
             save_to_locker: Default::default(),
             error_message: Default::default(),
             offer_amount: Default::default(),
+            applied_offer_details: Default::default(),
             payment_method_id: Default::default(),
             payment_method: Default::default(),
             capture_method: Default::default(),
@@ -468,11 +477,13 @@ mod tests {
             unified_code: Default::default(),
             unified_message: Default::default(),
             external_three_ds_authentication_attempted: Default::default(),
+            external_threeds_authentication_type: Default::default(),
             authentication_connector: Default::default(),
             authentication_id: Default::default(),
             mandate_data: Default::default(),
             payment_method_billing_address_id: Default::default(),
             fingerprint_id: Default::default(),
+            fingerprint_type: Default::default(),
             client_source: Default::default(),
             client_version: Default::default(),
             customer_acceptance: Default::default(),
@@ -508,6 +519,7 @@ mod tests {
             installment_data: Default::default(),
             external_surcharge_details: Default::default(),
             sender_payment_instrument_id: Default::default(),
+            payment_account_reference: Default::default(),
         };
         let store = state
             .stores

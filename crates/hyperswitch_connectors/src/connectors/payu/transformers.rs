@@ -261,6 +261,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayuPaymentsResponse, T, PaymentsRespon
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             amount_captured: None,
             ..item.data
@@ -310,6 +311,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayuPaymentsCaptureResponse, T, Payment
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             amount_captured: None,
             ..item.data
@@ -390,6 +392,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayuPaymentsCancelResponse, T, Payments
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             amount_captured: None,
             ..item.data
@@ -521,6 +524,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayuPaymentsSyncResponse, T, PaymentsRe
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             amount_captured: Some(
                 order

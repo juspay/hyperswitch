@@ -1,0 +1,254 @@
+---
+title: "Analytics Endpoints"
+description: "Curl examples for ClickHouse-backed analytics, charts, payment audit, and decision trace."
+---
+
+# Analytics Endpoints
+
+Analytics routes derive the merchant from the authenticated user/API key context and read from the analytics store. Use these endpoints for dashboard charts, payment audit, rule/volume decision inspection, and debit-routing audit.
+
+Every route on this page also requires `x-tenant-id` (`$TENANT_HEADER` — see [Environment setup](/decision-engine-api-reference/api-reference/guides/api-ref#environment-setup)) in addition to `$AUTH_HEADER`. It has no fallback: omitting it fails with `TE_03: x-tenant-id not found in headers` even with a valid API key or JWT. This is the one header group most other Decision Engine routes (`/decide-gateway`, `/routing/*`, `/merchant-account/*`, etc.) don't need.
+
+Common query parameters:
+
+| Parameter | Values |
+| --- | --- |
+| `range` | `15m`, `1h`, `12h`, `1d`, `1w` |
+| `start_ms`, `end_ms` | custom epoch-millisecond window |
+| `page`, `page_size` | paginated list endpoints |
+| `gateway`, `status`, `route`, `flow_type`, `routing_approach`, `exclude_routing_approach` | filters |
+| `payment_id` | exact payment lookup for audit and trace views |
+| `error_code` | failure filtering |
+
+## Overview
+
+High-level dashboard summary for the selected merchant and time window.
+
+```bash
+curl "$BASE_URL/analytics/overview?range=1d" \
+  --header "$AUTH_HEADER" \
+  --header "$TENANT_HEADER"
+```
+
+```json
+{
+  "request_count": 42,
+  "top_gateway": "adyen",
+  "gateway_share": [
+    { "gateway": "adyen", "count": 22, "share": 52.4 }
+  ]
+}
+```
+
+## Gateway Scores
+
+Auth-rate score snapshots and connector success-rate trend.
+
+```bash
+curl "$BASE_URL/analytics/gateway-scores?range=1d&gateway=stripe,adyen" \
+  --header "$AUTH_HEADER" \
+  --header "$TENANT_HEADER"
+```
+
+```json
+{
+  "latest": [
+    { "gateway": "adyen", "score": 0.831 },
+    { "gateway": "stripe", "score": 0.829 }
+  ],
+  "series": [
+    { "timestamp_ms": 1777136400000, "gateway": "adyen", "score": 0.831 }
+  ]
+}
+```
+
+## Decisions
+
+Decision volume by connector and routing approach.
+
+```bash
+curl "$BASE_URL/analytics/decisions?range=1d" \
+  --header "$AUTH_HEADER" \
+  --header "$TENANT_HEADER"
+```
+
+```bash
+curl "$BASE_URL/analytics/decisions?range=1d&exclude_routing_approach=NTW_BASED_ROUTING" \
+  --header "$AUTH_HEADER" \
+  --header "$TENANT_HEADER"
+```
+
+## Routing Stats
+
+Connector share, rule hits, routing filter options, and chart data.
+
+```bash
+curl "$BASE_URL/analytics/routing-stats?range=1d&payment_method_type=CARD" \
+  --header "$AUTH_HEADER" \
+  --header "$TENANT_HEADER"
+```
+
+## Log Summaries
+
+Failure aggregates and recent error samples.
+
+```bash
+curl "$BASE_URL/analytics/log-summaries?range=1d&status=failure" \
+  --header "$AUTH_HEADER" \
+  --header "$TENANT_HEADER"
+```
+
+## Payment Audit
+
+Payment-level trail search. Prefer `payment_id` for exact lookup.
+
+```bash
+curl "$BASE_URL/analytics/payment-audit?range=1d&page=1&page_size=12&payment_id=pay_001" \
+  --header "$AUTH_HEADER" \
+  --header "$TENANT_HEADER"
+```
+
+```bash
+curl "$BASE_URL/analytics/payment-audit?range=1d&gateway=stripe&status=success&page=1&page_size=10" \
+  --header "$AUTH_HEADER" \
+  --header "$TENANT_HEADER"
+```
+
+```json
+{
+  "summary": {
+    "matching_payments": 1,
+    "failures": 0,
+    "active_gateways": ["stripe"]
+  },
+  "payments": [
+    {
+      "payment_id": "pay_001",
+      "latest_status": "success",
+      "gateways": ["stripe"]
+    }
+  ],
+  "timeline": [
+    {
+      "route": "decide_gateway",
+      "event_stage": "gateway_decided",
+      "gateway": "stripe",
+      "status": "success"
+    }
+  ]
+}
+```
+
+## Preview Trace
+
+Rule/volume decisions captured from `/routing/evaluate`. The transport route remains `/analytics/preview-trace` even when the UI labels these as decisions.
+
+```bash
+curl "$BASE_URL/analytics/preview-trace?range=1d&page=1&page_size=12&route=routing_evaluate" \
+  --header "$AUTH_HEADER" \
+  --header "$TENANT_HEADER"
+```
+
+```bash
+curl "$BASE_URL/analytics/preview-trace?range=1d&payment_id=volume_decision_001" \
+  --header "$AUTH_HEADER" \
+  --header "$TENANT_HEADER"
+```
+
+## Debit Routing Audit
+
+```bash
+curl "$BASE_URL/analytics/payment-audit?range=1d&routing_approach=NTW_BASED_ROUTING" \
+  --header "$AUTH_HEADER" \
+  --header "$TENANT_HEADER"
+```
+
+## Cost Savings
+
+Rollup of savings attributed to [multi-objective routing](/decision-engine-api-reference/api-reference/guides/run-transactions/decide-gateway-multi-objective) — how much cheaper the chosen gateway was versus the plain SR head, trended over the window.
+
+```bash
+curl "$BASE_URL/analytics/cost-savings?range=1w&currency=USD" \
+  --header "$AUTH_HEADER" \
+  --header "$TENANT_HEADER"
+```
+
+```json
+{
+  "merchant_id": "merchant_demo",
+  "range": "1w",
+  "currency": "USD",
+  "available_currencies": [
+    { "currency": "USD", "decision_count": 4820 },
+    { "currency": "EUR", "decision_count": 612 }
+  ],
+  "trend": [
+    { "bucket_ms": 1784112000000, "saved_value": 128.42 }
+  ],
+  "totals": {
+    "saved_value": 962.3,
+    "cost_won_count": 341,
+    "total_decisions": 4820
+  }
+}
+```
+
+`currency` is optional — omit it to aggregate across all currencies present in the window.
+
+## Routing Events
+
+Historical feed of routing-relevant state changes — SR leader changes, gateways entering/exiting the multi-objective auth band, and autopilot calibration runs. Powers the dashboard's routing timeline and the simulation UI's "Autopilot Actions" panel.
+
+```bash
+curl "$BASE_URL/analytics/routing-events?range=1d&payment_method_type=CARD" \
+  --header "$AUTH_HEADER" \
+  --header "$TENANT_HEADER"
+```
+
+```json
+{
+  "merchant_id": "merchant_demo",
+  "range": "1d",
+  "generated_at_ms": 1784271600000,
+  "events": [
+    {
+      "id": "evt_a1b2c3",
+      "event_type": "leader_changed",
+      "merchant_id": "merchant_demo",
+      "payment_method_type": "CARD",
+      "payment_method": "CREDIT",
+      "bucket_ms": 1784268000000,
+      "gateway": "adyen",
+      "previous_gateway": "stripe",
+      "score": 0.91,
+      "previous_score": 0.885,
+      "transaction_count": 214
+    }
+  ]
+}
+```
+
+`event_type` is one of `leader_changed`, `gateway_entered_auth_band`, `gateway_exited_auth_band`, or `calibration_applied` (an autopilot re-tune — see [Merchant Features](/decision-engine-api-reference/api-reference/guides/autopilot/merchant-features)). Auth-band events only fire when multi-objective routing is enabled for the merchant. Additional filters: `min_transaction_count`, `min_score_delta`, `tolerance_pp` (auth-band width override), `limit`.
+
+## A/B Test Experiment Results
+
+Statistical significance results and the per-transaction log for a routing A/B test. Full reference, including the verdict enum and guardrail behavior: [A/B Testing: Results](/decision-engine-api-reference/api-reference/guides/ab-testing/ab-testing-results).
+
+```bash
+curl "$BASE_URL/analytics/experiment/routing_a1b2c3d4-1111-2222-3333-444455556666/results" \
+  --header "$AUTH_HEADER" \
+  --header "$TENANT_HEADER"
+```
+
+```bash
+curl "$BASE_URL/analytics/experiment/routing_a1b2c3d4-1111-2222-3333-444455556666/transactions?page=1&page_size=20" \
+  --header "$AUTH_HEADER" \
+  --header "$TENANT_HEADER"
+```
+
+## Notes
+
+- Use `range` for preset windows and `start_ms`/`end_ms` for custom windows.
+- Use `page` and `page_size` on list-heavy views such as payment audit and preview trace.
+- Use `exclude_routing_approach=NTW_BASED_ROUTING` when auth-rate audit should hide debit-routing decisions.
+- Freshly inserted analytics events may take a short moment to appear because writes are asynchronous.

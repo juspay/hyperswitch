@@ -6,7 +6,6 @@ use common_enums::enums;
 use common_utils::{crypto, errors::CustomResult, ext_traits::ByteSliceExt, request::Request};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -125,20 +124,6 @@ impl ConnectorCommon for AbsaSanlam {
 }
 
 impl ConnectorValidation for AbsaSanlam {
-    fn validate_mandate_payment(
-        &self,
-        _pm_type: Option<enums::PaymentMethodType>,
-        pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        match pm_data {
-            PaymentMethodData::Card(_) => Err(errors::ConnectorError::NotImplemented(
-                "validate_mandate_payment does not support cards".to_string(),
-            )
-            .into()),
-            _ => Ok(()),
-        }
-    }
-
     fn validate_psync_reference_id(
         &self,
         _data: &PaymentsSyncData,

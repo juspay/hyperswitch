@@ -327,7 +327,7 @@ fn determine_cit_mit_fields(
         // For other mandate types that might not be supported
         Some(mandates::MandateReferenceId::NetworkMandateId(_))
         | Some(mandates::MandateReferenceId::NetworkTokenWithNTI(_))
-        | Some(mandates::MandateReferenceId::CardWithLimitedData) => {
+        | Some(mandates::MandateReferenceId::CardWithLimitedData(_)) => {
             // These might need different handling or return an error
             Err(errors::ConnectorError::NotImplemented(
                 get_unimplemented_payment_method_error_message("Celero"),
@@ -577,6 +577,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, CeleroPaymentsResponse, T, PaymentsResp
                                     incremental_authorization_allowed: None,
                                     authentication_data: None,
                                     charges: None,
+                                    payment_account_reference: None,
                                 }),
                                 connector_response: connector_response_data,
                                 ..item.data
@@ -700,6 +701,7 @@ impl
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             }),
@@ -778,6 +780,7 @@ impl
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             }),

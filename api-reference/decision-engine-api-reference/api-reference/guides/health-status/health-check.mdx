@@ -1,0 +1,49 @@
+---
+title: "Health Checks"
+description: "Curl examples for /health, /health/ready, and /health/diagnostics."
+---
+
+# Health Checks
+
+Health routes are public and do not require `AUTH_HEADER`. `/health/diagnostics` is the one exception — it needs `x-tenant-id`, see below.
+
+## Liveness
+
+```bash
+curl "$BASE_URL/health"
+```
+
+```json
+{ "message": "Health is good" }
+```
+
+## Readiness
+
+```bash
+curl "$BASE_URL/health/ready"
+```
+
+```json
+{ "message": "Up" }
+```
+
+## Diagnostics
+
+Unlike `/health` and `/health/ready`, this route resolves a tenant and requires `x-tenant-id` — omitting it fails with `TE_03: x-tenant-id not found in headers` even though no `AUTH_HEADER` is needed. `public` is the only tenant the shipped config files define.
+
+```bash
+curl "$BASE_URL/health/diagnostics" \
+  --header "x-tenant-id: public"
+```
+
+```json
+{
+  "key_custodian_locked": false,
+  "database": {
+    "database_connection": "Working",
+    "database_read": "Working",
+    "database_write": "Working",
+    "database_delete": "Working"
+  }
+}
+```

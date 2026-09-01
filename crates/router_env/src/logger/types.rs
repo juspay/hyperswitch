@@ -56,6 +56,8 @@ pub enum Flow {
     HealthCheck,
     /// Deep health Check
     DeepHealthCheck,
+    /// Offer Engine connectivity check (dev/admin only)
+    OfferEngineConnectivityCheck,
     /// OIDC Discovery endpoint
     OidcDiscovery,
     /// OIDC JWKS endpoint
@@ -96,6 +98,8 @@ pub enum Flow {
     MerchantConnectorWebhookRegister,
     /// Merchant Connector Webhook list flow.
     MerchantConnectorWebhookList,
+    /// Merchant Connector Webhook HMAC key generation flow.
+    MerchantConnectorWebhookGenerateSecret,
     /// ConfigKey create flow.
     ConfigKeyCreate,
     /// ConfigKey fetch flow.
@@ -110,12 +114,16 @@ pub enum Flow {
     CustomersCreate,
     /// Customers retrieve flow.
     CustomersRetrieve,
+    /// Customers retrieve by reference id flow.
+    CustomersRetrieveByReferenceId,
     /// Customers update flow.
     CustomersUpdate,
     /// Customers delete flow.
     CustomersDelete,
     /// Customers get mandates flow.
     CustomersGetMandates,
+    /// Customers global id migration flow.
+    CustomersGlobalIdMigration,
     /// Create an Ephemeral Key.
     EphemeralKeyCreate,
     /// Delete an Ephemeral Key.
@@ -130,6 +138,8 @@ pub enum Flow {
     PaymentMethodsCreate,
     /// Payment methods migrate flow.
     PaymentMethodsMigrate,
+    /// Modular Payment methods migrate flow.
+    ModularPaymentMethodsMigrate,
     /// Payment methods batch update flow.
     PaymentMethodsBatchUpdate,
     /// Payment methods batch retrieve flow.
@@ -184,6 +194,8 @@ pub enum Flow {
     PaymentsCancel,
     /// Payments cancel post capture flow.
     PaymentsCancelPostCapture,
+    /// Payments cancel post capture sync flow.
+    PaymentsCancelPostCaptureSync,
     /// Payments approve flow.
     PaymentsApprove,
     /// Payments reject flow.
@@ -265,6 +277,8 @@ pub enum Flow {
     RoutingUnlinkConfig,
     /// Routing retrieve config
     RoutingRetrieveConfig,
+    /// Decision engine merchant SSO redirect
+    DecisionEngineSsoRedirect,
     /// Routing retrieve active config
     RoutingRetrieveActiveConfig,
     /// Routing retrieve default config
@@ -273,6 +287,8 @@ pub enum Flow {
     RoutingRetrieveDictionary,
     /// Rule migration for decision-engine
     DecisionEngineRuleMigration,
+    /// Migration status report for decision-engine
+    DecisionEngineMigrationStatus,
     /// Routing update config
     RoutingUpdateConfig,
     /// Routing update default config
@@ -381,6 +397,8 @@ pub enum Flow {
     PaymentLinkList,
     /// Payment Link Status
     PaymentLinkStatus,
+    /// Payment Link Create flow
+    PaymentLinkCreate,
     /// Create a profile
     ProfileCreate,
     /// Update a profile
@@ -409,6 +427,8 @@ pub enum Flow {
     GetDataFromHyperswitchAiFlow,
     // List all chat interactions
     ListAllChatInteractions,
+    /// Mint a sage session for the dashboard user.
+    LaunchSage,
     /// User Sign Up
     UserSignUp,
     /// User Sign Up
@@ -643,6 +663,12 @@ pub enum Flow {
     VolumeSplitOnRoutingType,
     /// Routing evaluate rule flow
     RoutingEvaluateRule,
+    /// Reset the Decision Engine routing diff kill-switch counter for a profile
+    DecisionEngineDiffCounterReset,
+    /// Report whether the Unified Connector Service kill switch has tripped a scope
+    UnifiedConnectorServiceKillSwitchStatus,
+    /// Clear a Unified Connector Service kill switch cutover
+    UnifiedConnectorServiceKillSwitchReset,
     /// Relay flow
     Relay,
     /// Relay retrieve flow
@@ -729,11 +755,15 @@ pub enum Flow {
     TokenizationDelete,
     /// Payment method data backfill flow
     RecoveryDataBackfill,
+    /// Revenue recovery retry stats admin migration (CSV upload)
+    RecoveryRetryStatsMigration,
     /// Revenue recovery Redis operations flow
     RevenueRecoveryRedis,
     /// Payment Method balance check flow
     PaymentMethodBalanceCheck,
-    /// Payments Submit Eligibility flow
+    /// Payments Submit Eligibility Check flow
+    PaymentsSubmitCheckEligibility,
+    /// Payments Submit Eligibility flow (combined eligibility + external surcharge)
     PaymentsSubmitEligibility,
     /// Apply payment method data flow
     ApplyPaymentMethodData,
@@ -745,6 +775,24 @@ pub enum Flow {
     EmbeddedTokenInfo,
     /// Superposition SDK Config Get flow
     GetSuperpositionSdkConfig,
+    /// Superposition Proxy Get Context List flow
+    SuperpositionListContexts,
+    /// Superposition Proxy Get Default Configs List flow
+    SuperpositionListDefaultConfigs,
+    /// Superposition Proxy Get Dimensions List flow
+    SuperpositionListDimensions,
+    /// Superposition Proxy Get Dimension flow
+    SuperpositionGetDimension,
+    /// Superposition Proxy Get Default Config flow
+    SuperpositionGetDefaultConfig,
+    /// Superposition Proxy Create Context flow
+    SuperpositionCreateContext,
+    /// Superposition Proxy Resolve Detailed Config flow
+    SuperpositionResolveDetailedConfig,
+    /// Superposition Proxy Resolve Config Explanation flow
+    SuperpositionResolveConfigExplanation,
+    /// Superposition Proxy List Audit Logs flow
+    SuperpositionListAuditLogs,
     // Get user details internal
     GetUserDetailsInternal,
     // List users internal

@@ -1,5 +1,6 @@
 use actix_multipart::form::{self, bytes, text};
 use api_models::payment_methods as pm_api;
+use common_utils::id_type;
 use csv::Reader;
 use error_stack::ResultExt;
 #[cfg(feature = "v1")]
@@ -22,9 +23,9 @@ type PmMigrationResult<T> =
 pub async fn migrate_payment_methods(
     state: &state::PaymentMethodsState,
     payment_methods: Vec<pm_api::PaymentMethodRecord>,
-    merchant_id: &common_utils::id_type::MerchantId,
+    merchant_id: &id_type::MerchantId,
     platform: &platform::Platform,
-    mca_ids: Option<Vec<common_utils::id_type::MerchantConnectorAccountId>>,
+    mca_ids: Option<Vec<id_type::MerchantConnectorAccountId>>,
     controller: &dyn pm::PaymentMethodsController,
 ) -> PmMigrationResult<Vec<pm_api::PaymentMethodMigrationResponse>> {
     let mut result = Vec::with_capacity(payment_methods.len());
@@ -69,10 +70,9 @@ pub struct PaymentMethodsMigrateForm {
     #[multipart(limit = "1MB")]
     pub file: bytes::Bytes,
 
-    pub merchant_id: text::Text<common_utils::id_type::MerchantId>,
+    pub merchant_id: text::Text<id_type::MerchantId>,
 
-    pub merchant_connector_id:
-        Option<text::Text<common_utils::id_type::MerchantConnectorAccountId>>,
+    pub merchant_connector_id: Option<text::Text<id_type::MerchantConnectorAccountId>>,
 
     pub merchant_connector_ids: Option<text::Text<String>>,
 }
@@ -82,8 +82,7 @@ pub struct MerchantConnectorValidator;
 impl MerchantConnectorValidator {
     pub fn parse_comma_separated_ids(
         ids_string: &str,
-    ) -> Result<Vec<common_utils::id_type::MerchantConnectorAccountId>, errors::ApiErrorResponse>
-    {
+    ) -> Result<Vec<id_type::MerchantConnectorAccountId>, errors::ApiErrorResponse> {
         // Estimate capacity based on comma count
         let capacity = ids_string.matches(',').count() + 1;
         let mut result = Vec::with_capacity(capacity);
@@ -91,11 +90,10 @@ impl MerchantConnectorValidator {
         for id in ids_string.split(',') {
             let trimmed_id = id.trim();
             if !trimmed_id.is_empty() {
-                let mca_id =
-                    common_utils::id_type::MerchantConnectorAccountId::wrap(trimmed_id.to_string())
-                        .map_err(|_| errors::ApiErrorResponse::InvalidRequestData {
-                            message: format!("Invalid merchant_connector_account_id: {trimmed_id}"),
-                        })?;
+                let mca_id = id_type::MerchantConnectorAccountId::wrap(trimmed_id.to_string())
+                    .map_err(|_| errors::ApiErrorResponse::InvalidRequestData {
+                        message: format!("Invalid merchant_connector_account_id: {trimmed_id}"),
+                    })?;
                 result.push(mca_id);
             }
         }
@@ -142,9 +140,9 @@ impl MerchantConnectorValidator {
 
 type MigrationValidationResult = Result<
     (
-        common_utils::id_type::MerchantId,
+        id_type::MerchantId,
         Vec<pm_api::PaymentMethodRecord>,
-        Option<Vec<common_utils::id_type::MerchantConnectorAccountId>>,
+        Option<Vec<id_type::MerchantConnectorAccountId>>,
     ),
     errors::ApiErrorResponse,
 >;

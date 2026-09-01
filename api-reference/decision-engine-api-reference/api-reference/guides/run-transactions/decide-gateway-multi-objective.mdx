@@ -1,0 +1,182 @@
+---
+title: "Decide Gateway: Multi-Objective Routing"
+description: "Curl example for /decide-gateway with the multi-objective (cost-aware) post-step and the multi_objective_info response block."
+---
+
+# Decide Gateway: Multi-Objective Routing
+
+## What multi-objective routing is
+
+Plain success-rate (SR) routing optimises a single objective: send each payment to the gateway most likely to authorise it. But the *cheapest* path to a successful payment is not always the one with the highest auth rate — a gateway that is one point worse on auth but materially cheaper per transaction can leave the merchant with more money in hand. Multi-objective routing balances **two** objectives at once — authorisation *and* processing cost — so routing maximises the merchant's economic outcome, not just the raw approval odds.
+
+It is implemented as a **cost-aware post-step layered on top of SR scoring**, not a replacement for it. The SR scorer runs first and produces its usual ranking; the post-step then takes those scores, attaches a per-gateway fee estimate to each, and re-ranks the candidates on expected value. Because it only ever runs *after* SR scoring, everything SR gives you (dimension-level buckets, elimination, hedging) is preserved — cost is simply an additional lens applied at the end.
+
+## How the ranking works
+
+After the success-rate scorer picks its head gateway, the engine fetches per-PSP fee estimates and re-ranks every gateway that has cost data on economic value:
+
+```
+Economic value (EV) = auth rate × settlement value
+settlement value = txn amount − cost of payment processing (acquirer, issuer & network fee)
+```
+
+The settlement value is derived from the merchant's `margin` and the per-PSP cost estimate (see the `margin` field on [Create success-rate config](/decision-engine-api-reference/api-reference/guides/scoring-config/success-rate-config-create)).
+
+If a cheaper PSP has a strictly higher expected value than the SR head, it is promoted (`outcome: COST_WON`) and `routing_approach` becomes `SR_SELECTION_MULTI_OBJECTIVE`. Otherwise the SR head is kept (`outcome: AUTH_WON`) and `routing_approach` keeps its normal SR value. Either way, the response carries a `multi_objective_info` block explaining the decision — which gateway SR would have picked, which one cost analysis chose, and by how much — so every cost-driven override is auditable.
+
+## Enablement
+
+| Switch | Scope | Behaviour |
+| --- | --- | --- |
+| `multi_objective_routing_enabled` feature flag | Merchant | Primary rollout switch. Used whenever the request omits `enableMultiObjective`. |
+| `enableMultiObjective` request field | Per request | Optional boolean override. `true` forces the post-step on, `false` forces it off, omitted falls back to the merchant flag. |
+
+Notes:
+
+- The post-step only runs on SR-scored decisions and is skipped while hedging (exploration) is active for the transaction.
+- `margin` (fraction of ticket, e.g. `0.20`) comes from the merchant's success-rate config — see [Create success-rate config](/decision-engine-api-reference/api-reference/guides/scoring-config/success-rate-config-create). It defaults to `1.0` when unset.
+- This post-step re-ranks the SR scores it is handed; it does not tune them. [Autopilot](/decision-engine-api-reference/api-reference/guides/autopilot/merchant-features) is the separate self-tuning job that calibrates SR hedging and bucket size, and can run alongside this post-step (they are independent dials — `enableMultiObjective` and `use_autopilot`).
+- Gateways without fee data cannot be ranked on expected value and never win on cost; if the SR head itself has no fee data, the SR order is kept.
+- Per-gateway fee data comes from [cost ingestion](/decision-engine-api-reference/api-reference/guides/cost-ingestion/cost-ingestion-setup) — settlement reports and invoices fitted into a per-cluster cost model. Check [cost coverage](/decision-engine-api-reference/api-reference/guides/cost-ingestion/cost-ingestion-fees#cost-coverage) to see what share of volume actually has a trustworthy fee estimate before relying on this post-step.
+- To compare cost-aware routing against a plain auth-rate baseline on live traffic before flipping the merchant flag, run it as an [A/B test experiment](/decision-engine-api-reference/api-reference/guides/ab-testing/ab-testing-create) arm (`enable_multi_objective: true` on one arm only).
+
+## Request
+
+```bash
+curl --location "$BASE_URL/decide-gateway" \
+  --header "$AUTH_HEADER" \
+  --header "Content-Type: application/json" \
+  --data '{
+    "merchantId": "merchant_demo",
+    "eligibleGatewayList": ["stripe", "adyen", "checkout"],
+    "rankingAlgorithm": "SR_BASED_ROUTING",
+    "eliminationEnabled": true,
+    "enableMultiObjective": true,
+    "paymentInfo": {
+      "paymentId": "mo_001",
+      "amount": 1000,
+      "currency": "USD",
+      "country": "US",
+      "paymentType": "ORDER_PAYMENT",
+      "metadata": null,
+      "paymentMethodType": "CARD",
+      "paymentMethod": "CREDIT",
+      "authType": "THREE_DS",
+      "cardIsin": "424242"
+    }
+  }'
+```
+
+## Response: cost won
+
+`adyen` is promoted over the SR head `stripe` because its expected value is higher at the configured margin; fallbacks are re-ordered by descending expected value (gateways without fee data follow, ordered by auth rate).
+
+```json
+{
+  "decided_gateway": "adyen",
+  "fallback_gateways": ["stripe", "checkout"],
+  "gateway_priority_map": {
+    "stripe": 0.94,
+    "adyen": 0.91,
+    "checkout": 0.88
+  },
+  "filter_wise_gateways": null,
+  "priority_logic_tag": null,
+  "routing_approach": "SR_SELECTION_MULTI_OBJECTIVE",
+  "gateway_before_evaluation": "stripe",
+  "reset_approach": "NO_RESET",
+  "routing_dimension": "ORDER_PAYMENT,CARD,CREDIT,UNKNOWN",
+  "routing_dimension_level": "CARD_LEVEL",
+  "is_scheduled_outage": false,
+  "is_dynamic_mga_enabled": false,
+  "gateway_mga_id_map": null,
+  "is_rust_based_decider": true,
+  "multi_objective_info": {
+    "outcome": "COST_WON",
+    "reason": "Promoted 'adyen' over 'stripe' on expected value — saves 80.00 bps for 3.00pp auth.",
+    "srHead": { "psp": "stripe", "authRate": 0.94, "costBps": 180.0 },
+    "chosen": { "psp": "adyen", "authRate": 0.91, "costBps": 100.0 },
+    "costSavedBps": 80.0,
+    "qualifiedCount": 3,
+    "margin": 0.2,
+    "evGapTop2": 0.00182
+  }
+}
+```
+
+## Response: auth won
+
+The post-step ran but the SR head was already the highest expected-value gateway, so nothing moves and `routing_approach` keeps its normal SR value. Note `margin: 1` — the default applied when the merchant's success-rate config sets no `margin`.
+
+```json
+{
+  "decided_gateway": "adyen",
+  "fallback_gateways": [
+    "stripe",
+    "checkout"
+  ],
+  "gateway_priority_map": {
+    "adyen": 0.65,
+    "checkout": 0.58,
+    "stripe": 0.65
+  },
+  "filter_wise_gateways": null,
+  "priority_logic_tag": null,
+  "routing_approach": "SR_SELECTION_V3_ROUTING",
+  "gateway_before_evaluation": "adyen",
+  "priority_logic_output": {
+    "isEnforcement": false,
+    "gws": [
+      "stripe",
+      "adyen",
+      "checkout"
+    ],
+    "priorityLogicTag": null,
+    "gatewayReferenceIds": {},
+    "primaryLogic": null,
+    "fallbackLogic": null
+  },
+  "debit_routing_output": null,
+  "reset_approach": "NO_RESET",
+  "routing_dimension": "ORDER_PAYMENT, CARD, DEBIT, DEBIT",
+  "routing_dimension_level": "CARD_LEVEL",
+  "is_scheduled_outage": false,
+  "is_dynamic_mga_enabled": false,
+  "gateway_mga_id_map": null,
+  "is_rust_based_decider": true,
+  "latency": 3,
+  "multi_objective_info": {
+    "outcome": "AUTH_WON",
+    "reason": "SR head retained — it is the highest expected-value PSP (3 ranked on EV).",
+    "srHead": {
+      "psp": "adyen",
+      "authRate": 0.65,
+      "costBps": 156.94736842105263
+    },
+    "chosen": {
+      "psp": "adyen",
+      "authRate": 0.65,
+      "costBps": 156.94736842105263
+    },
+    "costSavedBps": null,
+    "qualifiedCount": 3,
+    "margin": 1,
+    "evGapTop2": 0.013780000000000014
+  }
+}
+```
+
+## multi_objective_info Fields
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `outcome` | `COST_WON` \| `AUTH_WON` | Terminal outcome of the post-step. `COST_WON` means a higher-EV PSP was promoted above the SR head. |
+| `reason` | string | Human-readable explanation of the decision. |
+| `srHead` | object \| null | The PSP the SR scorer would have picked (`psp`, `authRate`, `costBps`). |
+| `chosen` | object \| null | The PSP the post-step actually chose. Equals `srHead` when auth won. |
+| `costSavedBps` | number \| null | Fee saved in bps when `outcome == COST_WON` (`srHead.costBps − chosen.costBps`). |
+| `qualifiedCount` | integer | Number of PSPs that had cost data and were ranked on expected value. |
+| `margin` | number | Merchant margin (fraction of ticket) applied for this transaction. |
+| `evGapTop2` | number \| null | Expected-value gap between the top-two EV-ranked PSPs, as a fraction of ticket. Small values mean the decision was close. `null` when fewer than two PSPs had cost data. |
+
+The block is absent (`null`) when the post-step did not run at all — feature off, hedging active, or a non-SR routing flavour.

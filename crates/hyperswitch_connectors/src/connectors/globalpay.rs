@@ -14,7 +14,6 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -64,10 +63,7 @@ use crate::{
     connectors::globalpay::response::GlobalpayPaymentMethodsResponse,
     constants::headers,
     types::{RefreshTokenRouterData, ResponseRouterData},
-    utils::{
-        convert_amount, get_header_key_value, is_mandate_supported, ForeignTryFrom,
-        PaymentMethodDataType, RefundsRequestData,
-    },
+    utils::{convert_amount, get_header_key_value, ForeignTryFrom, RefundsRequestData},
 };
 
 #[derive(Clone)]
@@ -164,24 +160,7 @@ impl ConnectorCommon for Globalpay {
     }
 }
 
-impl ConnectorValidation for Globalpay {
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<enums::PaymentMethodType>,
-        pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let mandate_supported_pmd = std::collections::HashSet::from([
-            PaymentMethodDataType::Card,
-            PaymentMethodDataType::PaypalRedirect,
-            PaymentMethodDataType::GooglePay,
-            PaymentMethodDataType::Ideal,
-            PaymentMethodDataType::Sofort,
-            PaymentMethodDataType::Eps,
-            PaymentMethodDataType::Giropay,
-        ]);
-        is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
-    }
-}
+impl ConnectorValidation for Globalpay {}
 
 impl PaymentsCompleteAuthorize for Globalpay {}
 

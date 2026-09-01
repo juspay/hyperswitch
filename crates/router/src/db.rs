@@ -55,6 +55,7 @@ use hyperswitch_domain_models::payouts::{
     payout_attempt::PayoutAttemptInterface, payouts::PayoutsInterface,
 };
 use hyperswitch_domain_models::{
+    authentication::AuthenticationInterface,
     card_issuer::CardIssuersInterface,
     cards_info::CardsInfoInterface,
     master_key::MasterKeyInterface,
@@ -65,6 +66,8 @@ use hyperswitch_domain_models::{
 use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
 use redis_interface::errors::RedisError;
 use router_env::logger;
+#[cfg(feature = "v2")]
+use storage_impl::revenue_recovery_retry_stats;
 use storage_impl::{
     errors::StorageError, redis::kv_store::RedisConnInterface, tokenization, MockDb,
 };
@@ -143,7 +146,7 @@ pub trait StorageInterface:
     + health_check::HealthCheckDbInterface
     + user_authentication_method::UserAuthenticationMethodInterface
     + hyperswitch_ai_interaction::HyperswitchAiInteractionInterface
-    + authentication::AuthenticationInterface
+    + AuthenticationInterface<Error = StorageError>
     + generic_link::GenericLinkInterface
     + relay::RelayInterface
     + user::theme::ThemeInterface
@@ -155,6 +158,12 @@ pub trait StorageInterface:
     + 'static
 {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface>;
+    #[cfg(feature = "v2")]
+    fn get_revenue_recovery_retry_stats_store(
+        &self,
+    ) -> Box<
+        dyn revenue_recovery_retry_stats::RevenueRecoveryRetryStatsInterface<Error = StorageError>,
+    >;
     fn get_payment_methods_store(&self) -> Box<dyn PaymentMethodsStorageInterface>;
     fn get_subscription_store(&self)
         -> Box<dyn subscriptions::state::SubscriptionStorageInterface>;
@@ -162,6 +171,7 @@ pub trait StorageInterface:
     fn set_key_manager_state(&mut self, key_manager_state: KeyManagerState);
 }
 
+#[cfg(feature = "deja")]
 #[async_trait::async_trait]
 pub trait GlobalStorageInterface:
     Send
@@ -172,11 +182,47 @@ pub trait GlobalStorageInterface:
     + user_key_store::UserKeyStoreInterface
     + role::RoleInterface
     + RedisConnInterface
+    + RequestIdStore
     + 'static
 {
     fn get_cache_store(&self) -> Box<dyn RedisConnInterface + Send + Sync + 'static>;
 }
 
+#[cfg(not(feature = "deja"))]
+#[async_trait::async_trait]
+pub trait GlobalStorageInterface:
+    Send
+    + Sync
+    + dyn_clone::DynClone
+    + user::UserInterface
+    + user_role::UserRoleInterface
+    + user_key_store::UserKeyStoreInterface
+    + role::RoleInterface
+    + RedisConnInterface
+    + RequestIdStore
+    + 'static
+{
+    fn get_cache_store(&self) -> Box<dyn RedisConnInterface + Send + Sync + 'static>;
+}
+
+#[cfg(feature = "deja")]
+#[async_trait::async_trait]
+pub trait AccountsStorageInterface:
+    Send
+    + Sync
+    + dyn_clone::DynClone
+    + OrganizationInterface
+    + merchant_account::MerchantAccountInterface<Error = StorageError>
+    + business_profile::ProfileInterface<Error = StorageError>
+    + merchant_connector_account::MerchantConnectorAccountInterface<Error = StorageError>
+    + merchant_key_store::MerchantKeyStoreInterface<Error = StorageError>
+    + dashboard_metadata::DashboardMetadataInterface
+    + RequestIdStore
+    + 'static
+{
+}
+
+#[cfg(not(feature = "deja"))]
 #[async_trait::async_trait]
 pub trait AccountsStorageInterface:
     Send
@@ -206,6 +252,14 @@ pub trait CommonStorageInterface:
 #[async_trait::async_trait]
 impl StorageInterface for Store {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface> {
+        Box::new(self.clone())
+    }
+    #[cfg(feature = "v2")]
+    fn get_revenue_recovery_retry_stats_store(
+        &self,
+    ) -> Box<
+        dyn revenue_recovery_retry_stats::RevenueRecoveryRetryStatsInterface<Error = StorageError>,
+    > {
         Box::new(self.clone())
     }
     fn get_payment_methods_store(&self) -> Box<dyn PaymentMethodsStorageInterface> {
@@ -241,6 +295,14 @@ impl AccountsStorageInterface for Store {}
 #[async_trait::async_trait]
 impl StorageInterface for MockDb {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface> {
+        Box::new(self.clone())
+    }
+    #[cfg(feature = "v2")]
+    fn get_revenue_recovery_retry_stats_store(
+        &self,
+    ) -> Box<
+        dyn revenue_recovery_retry_stats::RevenueRecoveryRetryStatsInterface<Error = StorageError>,
+    > {
         Box::new(self.clone())
     }
     fn get_payment_methods_store(&self) -> Box<dyn PaymentMethodsStorageInterface> {
@@ -305,7 +367,17 @@ impl RequestIdStore for MockDb {}
 
 impl RequestIdStore for Store {
     fn add_request_id(&mut self, request_id: String) {
+        // During deja replay, also stamp the inner RouterStore in KV builds because
+        // PostgresOnly-delegated operations route through it.
+        #[cfg(all(feature = "kv_store", feature = "deja"))]
+        {
+            self.router_store.request_id = Some(request_id.clone());
+        }
         self.request_id = Some(request_id.clone());
+        #[cfg(feature = "kv_store")]
+        {
+            self.router_store.request_id = Some(request_id.clone());
+        }
         self.update_key_manager_request_id(request_id);
     }
 

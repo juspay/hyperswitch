@@ -48,7 +48,7 @@ use transformers as moneris;
 use crate::{
     constants::headers,
     types::ResponseRouterData,
-    utils::{self, is_mandate_supported, PaymentMethodDataType, RefundsRequestData},
+    utils::{self, PaymentsAuthorizeRequestData, RefundsRequestData},
 };
 
 #[derive(Clone)]
@@ -190,16 +190,7 @@ impl ConnectorCommon for Moneris {
     }
 }
 
-impl ConnectorValidation for Moneris {
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<enums::PaymentMethodType>,
-        pm_data: hyperswitch_domain_models::payment_method_data::PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let mandate_supported_pmd = std::collections::HashSet::from([PaymentMethodDataType::Card]);
-        is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
-    }
-}
+impl ConnectorValidation for Moneris {}
 
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Moneris {
     //TODO: implement sessions flow
@@ -852,7 +843,7 @@ static MONERIS_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = La
             specific_features: Some(
                 api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
                     api_models::feature_matrix::CardSpecificFeatures {
-                        three_ds: common_enums::FeatureStatus::NotSupported,
+                        three_ds: common_enums::FeatureStatus::Supported,
                         no_three_ds: common_enums::FeatureStatus::Supported,
                         supported_card_networks: supported_card_network.clone(),
                     }
@@ -871,12 +862,34 @@ static MONERIS_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = La
             specific_features: Some(
                 api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
                     api_models::feature_matrix::CardSpecificFeatures {
-                        three_ds: common_enums::FeatureStatus::NotSupported,
+                        three_ds: common_enums::FeatureStatus::Supported,
                         no_three_ds: common_enums::FeatureStatus::Supported,
                         supported_card_networks: supported_card_network.clone(),
                     }
                 }),
             ),
+        },
+    );
+
+    moneris_supported_payment_methods.add(
+        enums::PaymentMethod::Wallet,
+        enums::PaymentMethodType::ApplePay,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::Supported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+
+    moneris_supported_payment_methods.add(
+        enums::PaymentMethod::Wallet,
+        enums::PaymentMethodType::GooglePay,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::Supported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: None,
         },
     );
 
@@ -903,5 +916,36 @@ impl ConnectorSpecifications for Moneris {
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
         Some(&MONERIS_SUPPORTED_WEBHOOK_FLOWS)
+    }
+
+    fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
+        match current_flow {
+            api::CurrentFlowInfo::Authorize {
+                auth_type,
+                request_data,
+            } => auth_type.is_three_ds() && request_data.is_card(),
+            api::CurrentFlowInfo::CompleteAuthorize { .. }
+            | api::CurrentFlowInfo::SetupMandate { .. }
+            | api::CurrentFlowInfo::Psync { .. }
+            | api::CurrentFlowInfo::UpdatePostConfirm { .. }
+            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
+        }
+    }
+
+    fn is_post_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
+        matches!(current_flow, api::CurrentFlowInfo::CompleteAuthorize { .. })
+    }
+
+    fn get_preprocessing_flow_if_needed(
+        &self,
+        current_flow_info: api::CurrentFlowInfo,
+    ) -> Option<api::PreProcessingFlowName> {
+        match current_flow_info {
+            api::CurrentFlowInfo::Authorize { .. } => None,
+            api::CurrentFlowInfo::CompleteAuthorize { .. } => {
+                Some(api::PreProcessingFlowName::PostAuthenticate)
+            }
+            _ => None,
+        }
     }
 }

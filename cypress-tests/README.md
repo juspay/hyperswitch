@@ -23,6 +23,7 @@ This is a comprehensive testing framework built with [Cypress](https://cypress.i
     - [Development Mode (Interactive)](#development-mode-interactive)
     - [CI Mode (Headless)](#ci-mode-headless)
     - [Execute tests against multiple connectors or in parallel](#execute-tests-against-multiple-connectors-or-in-parallel)
+    - [Payment-method based spec selection](#payment-method-based-spec-selection)
 - [Test reports](#test-reports)
 - [Folder structure](#folder-structure)
 - [Adding tests](#adding-tests)
@@ -113,6 +114,22 @@ CYPRESS_CONNECTOR="connector_id" npm run cypress:ci
    export CYPRESS_CONNECTOR_AUTH_FILE_PATH="path/to/creds.json"
    ```
 
+   Individual suites need additional variables on top of the above:
+
+   ```shell
+   # Modular Payment Method Service, which is deployed separately from the
+   # router. Required by `npm run cypress:modular-pm-service`, and by the
+   # modular customer / saved card steps in
+   # `Payment/54-ConnectorAgnosticMandates`.
+   export PM_SERVICE_URL="pm_service_url"
+   ```
+
+> [!IMPORTANT]
+> `PM_SERVICE_URL` is passed **without** the `CYPRESS_` prefix — it is forwarded onto `Cypress.env()` by the `env` block in [`cypress.config.js`](cypress.config.js). Every other variable above relies on Cypress auto-mapping instead, where `CYPRESS_NAME` becomes `Cypress.env("NAME")` with the remainder of the name used verbatim, underscores included. So `CYPRESS_PMSERVICEURL` is **not** read as `PM_SERVICE_URL`. The names the tests consume are listed in [`cypress/utils/State.js`](cypress/utils/State.js).
+
+> [!NOTE]
+> When `PM_SERVICE_URL` is unset, `54-ConnectorAgnosticMandates` logs a message and falls back to the v1 customer, payment method list, and save card confirm calls, so the payments suite still runs.
+
 > [!TIP]
 > It is recommended to install [direnv](https://github.com/direnv/direnv) and use a `.envrc` file to store these environment variables with `cypress-tests` directory. This will make it easier to manage environment variables while working with Cypress tests.
 
@@ -164,6 +181,40 @@ npm run cypress:routing             # Routing tests
    ```
 
    Optionally, `--parallel <jobs (integer)>` can be passed to run cypress tests in parallel. By default, when `parallel` command is passed, it will be run in batches of `5`.
+
+#### Payment-method based spec selection
+
+`npm run cypress:payments` runs every payment spec by default. Connectors listed
+in `CONNECTOR_PAYMENT_METHODS` (`cypress/utils/specSelection/config.js`) instead
+run the mandatory setup specs (`01-AccountCreate`, `02-CustomerCreate`,
+`03-ConnectorCreate`) plus only the specs matching their payment methods:
+
+```js
+loonio: ["bank_redirect"],   // 4 specs instead of 89
+cryptopay: ["crypto"],
+```
+
+The table is opt-in — **listing a connector only affects that connector**, every
+other connector keeps running the full suite. It currently covers the connectors
+that do not support cards, where the saving is largest.
+
+Valid payment methods are in `PAYMENT_METHODS` in the same file.
+
+To see what would run without executing anything:
+
+```shell
+CYPRESS_CONNECTOR=loonio npm run cypress:specs -- payments --print-specs
+```
+
+Implementation lives in `cypress/utils/specSelection/`:
+
+| File        | Responsibility                                      |
+| ----------- | --------------------------------------------------- |
+| `config.js` | Connector → payment methods, spec → payment methods |
+| `index.js`  | `resolveSpecs({ service, connectorId })`            |
+
+When adding a payment spec, tag it in `config.js`. Untagged specs run for every
+connector, so forgetting to tag one costs time but never coverage.
 
 ## Test reports
 
@@ -523,7 +574,7 @@ This will redirect all Silverflow API calls from Hyperswitch to your local mock 
 
 - There are some use cases where a connector supports a feature that requires a different set of API keys (example: Network transaction ID for Stripe expects a different API Key to be passed). This forces the need for having multiple credentials that serves different use cases
 - This basically means that a connector can have multiple credentials
-- At present the maximum number of credentials that can be supported is `2`
+- Additional credentials can be added using the `connector_N` format, for example `connector_3`, `connector_4`, and so on.
 - The `creds.json` file should be structured to support multiple credentials for such connectors. The `creds.json` file should be structured as follows:
 
 ```json

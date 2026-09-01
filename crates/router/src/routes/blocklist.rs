@@ -14,9 +14,15 @@ use crate::{
     post,
     path = "/blocklist",
     request_body = BlocklistRequest,
+    params (
+        ("X-Profile-Id" = Option<String>, Header, description = "The business profile to block this \
+         entry under. Ignored when authenticating with a JWT, which carries its own profile. If \
+         omitted, the merchant's default profile is used; merchants with more than one profile have \
+         no default and will receive an error asking for this header."),
+    ),
     responses(
         (status = 200, description = "Fingerprint Blocked", body = BlocklistResponse),
-        (status = 400, description = "Invalid Data")
+        (status = 400, description = "Invalid Data, or no profile could be resolved")
     ),
     tag = "Blocklist",
     operation_id = "Block a Fingerprint",
@@ -34,7 +40,8 @@ pub async fn add_entry_to_blocklist(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, body, _| {
-            blocklist::add_entry_to_blocklist(state, auth.platform, body)
+            let profile_id = auth.profile.map(|profile| profile.get_id().clone());
+            blocklist::add_entry_to_blocklist(state, auth.platform, profile_id, body)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -57,9 +64,16 @@ pub async fn add_entry_to_blocklist(
     delete,
     path = "/blocklist",
     request_body = BlocklistRequest,
+    params (
+        ("X-Profile-Id" = Option<String>, Header, description = "The business profile to unblock \
+         this entry from. Only entries belonging to that profile, or entries with no profile, are \
+         removed - an entry blocked under a different profile is not affected and the request \
+         returns 404. Resolution follows the same rules as blocking."),
+    ),
     responses(
         (status = 200, description = "Fingerprint Unblocked", body = BlocklistResponse),
-        (status = 400, description = "Invalid Data")
+        (status = 400, description = "Invalid Data, or no profile could be resolved"),
+        (status = 404, description = "No entry for this fingerprint under the resolved profile")
     ),
     tag = "Blocklist",
     operation_id = "Unblock a Fingerprint",
@@ -77,9 +91,11 @@ pub async fn remove_entry_from_blocklist(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, body, _| {
+            let profile_id = auth.profile.map(|profile| profile.get_id().clone());
             blocklist::remove_entry_from_blocklist(
                 state,
                 auth.platform.get_processor().clone(),
+                profile_id,
                 body,
             )
         },
@@ -105,6 +121,10 @@ pub async fn remove_entry_from_blocklist(
     path = "/blocklist",
     params (
         ("data_kind" = BlocklistDataKind, Query, description = "Kind of the fingerprint list requested"),
+        ("X-Profile-Id" = Option<String>, Header, description = "Restricts the listing to entries \
+         belonging to this business profile, plus entries with no profile. When no profile can be \
+         resolved - as with publishable-key authentication - all of the merchant's entries are \
+         returned, as before."),
     ),
     responses(
         (status = 200, description = "Blocked Fingerprints", body = ListBlocklistResponse),
@@ -143,7 +163,15 @@ pub async fn list_blocked_payment_methods(
                 query.client_secret = Some(client_secret);
             }
 
-            blocklist::list_blocklist_entries(state, auth.platform.get_processor().clone(), query)
+            // None whenever no profile is resolved - SDK/publishable-key auth, or an API key sent
+            // without X-Profile-Id - which keeps the listing merchant-wide
+            let profile_id = auth.profile.map(|profile| profile.get_id().clone());
+            blocklist::list_blocklist_entries(
+                state,
+                auth.platform.get_processor().clone(),
+                profile_id,
+                query,
+            )
         },
         auth::auth_type(
             &*auth_type,
@@ -208,7 +236,9 @@ pub async fn toggle_blocklist_guard(
 
 #[derive(Debug, MultipartForm)]
 pub struct BatchBlocklistUploadForm {
-    #[multipart(limit = "5MB")]
+    // Also charged against `consts::MULTIPART_MEMORY_LIMIT`, the global in-memory budget for
+    // multipart fields. That global must stay >= this limit, or this one is unreachable.
+    #[multipart(limit = "5MiB")]
     pub file: MultipartBytes,
 }
 
@@ -218,15 +248,20 @@ pub struct BatchBlocklistUploadForm {
     request_body(
         content = String,
         content_type = "multipart/form-data",
-        description = "A multipart/form-data request with a `file` field containing a UTF-8 CSV (max 5 MB). \
+        description = "A multipart/form-data request with a `file` field containing a UTF-8 CSV (max 5 MiB). \
             The CSV must have a header row: `type,data,metadata`. \
             `type`: one of `card_bin` (6 digits), `extended_card_bin` (8 digits), `fingerprint`. \
             `metadata`: optional, `key=value` pairs separated by `;` (e.g. `reason=fraud;source=manual`). \
             Maximum 100,000 data rows.",
     ),
+    params (
+        ("X-Profile-Id" = Option<String>, Header, description = "The business profile every entry \
+         in this upload is blocked under. Resolution follows the same rules as blocking a single \
+         entry."),
+    ),
     responses(
         (status = 202, description = "Batch blocklist job initiated", body = BatchBlocklistUploadResponse),
-        (status = 400, description = "CSV validation error or file exceeds 5 MB limit"),
+        (status = 400, description = "CSV validation error, file exceeds 5 MiB limit, or no profile could be resolved"),
     ),
     tag = "Blocklist",
     operation_id = "Upload a batch blocklist CSV",
@@ -247,7 +282,10 @@ pub async fn upload_batch_blocklist(
         (),
         |state, auth: auth::AuthenticationData, _payload, _| {
             let csv_bytes = csv_bytes.clone();
-            async move { blocklist::upload_batch_blocklist(state, auth.platform, csv_bytes).await }
+            let profile_id = auth.profile.map(|profile| profile.get_id().clone());
+            async move {
+                blocklist::upload_batch_blocklist(state, auth.platform, profile_id, csv_bytes).await
+            }
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {

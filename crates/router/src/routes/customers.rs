@@ -2,6 +2,9 @@ use actix_web::{web, HttpRequest, HttpResponse, Responder};
 use common_utils::id_type;
 use router_env::{instrument, tracing, Flow};
 
+#[cfg(feature = "v2")]
+pub mod migrate;
+
 use super::app::AppState;
 #[cfg(feature = "v1")]
 use crate::core::utils as core_utils;
@@ -193,6 +196,38 @@ pub async fn customers_retrieve(
             retrieve_customer(state, auth.platform.get_provider().clone(), id)
         },
         auth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all, fields(flow = ?Flow::CustomersRetrieveByReferenceId))]
+pub async fn customers_retrieve_by_merchant_reference_id(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<id_type::CustomerId>,
+) -> HttpResponse {
+    let flow = Flow::CustomersRetrieveByReferenceId;
+    let merchant_reference_id = path.into_inner();
+    let auth = auth::V2ApiKeyAuth {
+        allow_connected_scope_operation: true,
+        allow_platform_self_operation: true,
+    };
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        move |state, auth: auth::AuthenticationData, _, _| {
+            retrieve_customer_by_merchant_reference_id(
+                state,
+                auth.platform.get_provider().clone(),
+                merchant_reference_id.clone(),
+            )
+        },
+        &auth,
         api_locking::LockAction::NotApplicable,
     ))
     .await

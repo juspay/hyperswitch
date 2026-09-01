@@ -201,6 +201,7 @@ fn process_nmi_vault_response(
     vault_response: &NmiVaultResponse,
     http_code: u16,
     connector_request_reference_id: String,
+    prev_status: AttemptStatus,
 ) -> Result<(Result<PaymentsResponseData, ErrorResponse>, AttemptStatus), Error> {
     let auth_type: NmiAuthType = connector_auth_type.try_into()?;
     let amount_data = amount;
@@ -215,6 +216,7 @@ fn process_nmi_vault_response(
         vault_response,
         http_code,
         connector_request_reference_id,
+        prev_status,
     )
 }
 
@@ -225,6 +227,7 @@ fn build_nmi_vault_response(
     vault_response: &NmiVaultResponse,
     http_code: u16,
     connector_request_reference_id: String,
+    prev_status: AttemptStatus,
 ) -> Result<(Result<PaymentsResponseData, ErrorResponse>, AttemptStatus), Error> {
     let (response, status) = match vault_response.response {
         Response::Approved => (
@@ -257,6 +260,7 @@ fn build_nmi_vault_response(
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             AttemptStatus::AuthenticationPending,
         ),
@@ -276,6 +280,28 @@ fn build_nmi_vault_response(
             }),
             AttemptStatus::Failure,
         ),
+        Response::Unknown => {
+            router_env::logger::warn!(
+                "NMI returned unknown response code for vault request; retaining previous status {:?}",
+                prev_status
+            );
+            (
+                Err(ErrorResponse {
+                    code: vault_response.response_code.clone(),
+                    message: vault_response.responsetext.to_owned(),
+                    reason: Some(vault_response.responsetext.clone()),
+                    status_code: http_code,
+                    attempt_status: None,
+                    connector_transaction_id: Some(vault_response.transactionid.clone()),
+                    connector_response_reference_id: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                    connector_metadata: None,
+                }),
+                prev_status,
+            )
+        }
     };
     Ok((response, status))
 }
@@ -294,6 +320,7 @@ impl TryFrom<PaymentsPreprocessingResponseRouterData<NmiVaultResponse>>
             &item.response,
             item.http_code,
             item.data.connector_request_reference_id.clone(),
+            item.data.status,
         )?;
 
         Ok(Self {
@@ -318,6 +345,7 @@ impl TryFrom<PaymentsPreAuthenticateResponseRouterData<NmiVaultResponse>>
             &item.response,
             item.http_code,
             item.data.connector_request_reference_id.clone(),
+            item.data.status,
         )?;
 
         Ok(Self {
@@ -470,6 +498,7 @@ impl
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 if item.data.request.is_auto_capture()? {
                     AttemptStatus::Charged
@@ -481,6 +510,17 @@ impl
                 Err(get_nmi_error_response(item.response, item.http_code)),
                 AttemptStatus::Failure,
             ),
+            Response::Unknown => {
+                let prev_status = item.data.status;
+                router_env::logger::warn!(
+                    "NMI returned unknown response code for complete authorize; retaining previous status {:?}",
+                    prev_status
+                );
+                (
+                    Err(get_nmi_error_response(item.response, item.http_code)),
+                    prev_status,
+                )
+            }
         };
         Ok(Self {
             status,
@@ -736,7 +776,7 @@ impl TryFrom<&NmiRouterData<&PaymentsAuthorizeRouterData>> for NmiPaymentsReques
             }
             Some(mandates::MandateReferenceId::NetworkMandateId(_))
             | Some(mandates::MandateReferenceId::NetworkTokenWithNTI(_))
-            | Some(mandates::MandateReferenceId::CardWithLimitedData) => {
+            | Some(mandates::MandateReferenceId::CardWithLimitedData(_)) => {
                 Err(ConnectorError::NotImplemented(
                     get_unimplemented_payment_method_error_message("nmi"),
                 ))?
@@ -1176,6 +1216,7 @@ impl
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 AttemptStatus::Charged,
             ),
@@ -1183,6 +1224,17 @@ impl
                 Err(get_standard_error_response(item.response, item.http_code)),
                 AttemptStatus::CaptureFailed,
             ),
+            Response::Unknown => {
+                let prev_status = item.data.status;
+                router_env::logger::warn!(
+                    "NMI returned unknown response code for capture; retaining previous status {:?}",
+                    prev_status
+                );
+                (
+                    Err(get_standard_error_response(item.response, item.http_code)),
+                    prev_status,
+                )
+            }
         };
         Ok(Self {
             status,
@@ -1246,6 +1298,8 @@ pub enum Response {
     Declined,
     #[serde(alias = "3")]
     Error,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -1293,6 +1347,7 @@ impl<T> TryFrom<ResponseRouterData<SetupMandate, StandardResponse, T, PaymentsRe
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 AttemptStatus::Charged,
             ),
@@ -1300,6 +1355,17 @@ impl<T> TryFrom<ResponseRouterData<SetupMandate, StandardResponse, T, PaymentsRe
                 Err(get_standard_error_response(item.response, item.http_code)),
                 AttemptStatus::Failure,
             ),
+            Response::Unknown => {
+                let prev_status = item.data.status;
+                router_env::logger::warn!(
+                    "NMI returned unknown response code for setup mandate; retaining previous status {:?}",
+                    prev_status
+                );
+                (
+                    Err(get_standard_error_response(item.response, item.http_code)),
+                    prev_status,
+                )
+            }
         };
         Ok(Self {
             status,
@@ -1361,6 +1427,7 @@ impl TryFrom<PaymentsResponseRouterData<StandardResponse>>
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 if item.data.request.is_auto_capture()? {
                     AttemptStatus::Charged
@@ -1372,6 +1439,17 @@ impl TryFrom<PaymentsResponseRouterData<StandardResponse>>
                 Err(get_standard_error_response(item.response, item.http_code)),
                 AttemptStatus::Failure,
             ),
+            Response::Unknown => {
+                let prev_status = item.data.status;
+                router_env::logger::warn!(
+                    "NMI returned unknown response code for authorize; retaining previous status {:?}",
+                    prev_status
+                );
+                (
+                    Err(get_standard_error_response(item.response, item.http_code)),
+                    prev_status,
+                )
+            }
         };
         Ok(Self {
             status,
@@ -1403,6 +1481,7 @@ impl<T> TryFrom<ResponseRouterData<Void, StandardResponse, T, PaymentsResponseDa
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 AttemptStatus::VoidInitiated,
             ),
@@ -1410,6 +1489,17 @@ impl<T> TryFrom<ResponseRouterData<Void, StandardResponse, T, PaymentsResponseDa
                 Err(get_standard_error_response(item.response, item.http_code)),
                 AttemptStatus::VoidFailed,
             ),
+            Response::Unknown => {
+                let prev_status = item.data.status;
+                router_env::logger::warn!(
+                    "NMI returned unknown response code for void; retaining previous status {:?}",
+                    prev_status
+                );
+                (
+                    Err(get_standard_error_response(item.response, item.http_code)),
+                    prev_status,
+                )
+            }
         };
         Ok(Self {
             status,
@@ -1453,6 +1543,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SyncResponse, T, PaymentsResponseData>>
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             }),
@@ -1536,7 +1627,8 @@ impl TryFrom<RefundsResponseRouterData<Execute, StandardResponse>> for RefundsRo
     fn try_from(
         item: RefundsResponseRouterData<Execute, StandardResponse>,
     ) -> Result<Self, Self::Error> {
-        let refund_status = RefundStatus::from(item.response.response);
+        let refund_status =
+            get_nmi_refund_status(item.response.response, item.data.request.refund_status);
         Ok(Self {
             response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.orderid,
@@ -1552,7 +1644,8 @@ impl TryFrom<RefundsResponseRouterData<Capture, StandardResponse>> for RefundsRo
     fn try_from(
         item: RefundsResponseRouterData<Capture, StandardResponse>,
     ) -> Result<Self, Self::Error> {
-        let refund_status = RefundStatus::from(item.response.response);
+        let refund_status =
+            get_nmi_refund_status(item.response.response, item.data.request.refund_status);
         Ok(Self {
             response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.transactionid,
@@ -1563,11 +1656,16 @@ impl TryFrom<RefundsResponseRouterData<Capture, StandardResponse>> for RefundsRo
     }
 }
 
-impl From<Response> for RefundStatus {
-    fn from(item: Response) -> Self {
-        match item {
-            Response::Approved => Self::Success,
-            Response::Declined | Response::Error => Self::Failure,
+fn get_nmi_refund_status(response: Response, prev_refund_status: RefundStatus) -> RefundStatus {
+    match response {
+        Response::Approved => RefundStatus::Success,
+        Response::Declined | Response::Error => RefundStatus::Failure,
+        Response::Unknown => {
+            router_env::logger::warn!(
+                "NMI returned unknown response code for refund; retaining previous refund status {:?}",
+                prev_refund_status
+            );
+            prev_refund_status
         }
     }
 }
@@ -1681,6 +1779,8 @@ pub enum NmiActionType {
     Refund,
     Sale,
     Void,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1720,6 +1820,8 @@ pub enum NmiWebhookEventType {
     CaptureFailure,
     #[serde(rename = "transaction.capture.unknown")]
     CaptureUnknown,
+    #[serde(other)]
+    Unknown,
 }
 
 pub fn get_nmi_webhook_event(status: NmiWebhookEventType) -> IncomingWebhookEvent {
@@ -1739,6 +1841,12 @@ pub fn get_nmi_webhook_event(status: NmiWebhookEventType) -> IncomingWebhookEven
         | NmiWebhookEventType::AuthUnknown
         | NmiWebhookEventType::VoidUnknown
         | NmiWebhookEventType::CaptureUnknown => IncomingWebhookEvent::EventNotSupported,
+        NmiWebhookEventType::Unknown => {
+            router_env::logger::warn!(
+                "Unknown nmi webhook event type received; acknowledging without processing"
+            );
+            IncomingWebhookEvent::EventNotSupported
+        }
     }
 }
 

@@ -13,7 +13,6 @@ use common_utils::{
 };
 use error_stack::{report, Report, ResultExt};
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -67,7 +66,7 @@ use url::Url;
 use crate::{
     constants::{self, headers},
     types::ResponseRouterData,
-    utils::{self, convert_amount, PaymentMethodDataType, RefundsRequestData},
+    utils::{self, convert_amount, RefundsRequestData},
 };
 #[derive(Clone)]
 pub struct Wellsfargo {
@@ -289,20 +288,7 @@ impl ConnectorCommon for Wellsfargo {
     }
 }
 
-impl ConnectorValidation for Wellsfargo {
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<enums::PaymentMethodType>,
-        pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let mandate_supported_pmd = std::collections::HashSet::from([
-            PaymentMethodDataType::Card,
-            PaymentMethodDataType::ApplePay,
-            PaymentMethodDataType::GooglePay,
-        ]);
-        utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
-    }
-}
+impl ConnectorValidation for Wellsfargo {}
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Wellsfargo
 where

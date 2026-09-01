@@ -10,7 +10,6 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -52,11 +51,7 @@ use transformers::{
     ArchipelPaymentsCancelRequest, ArchipelRefundRequest, ArchipelWalletAuthorizationRequest,
 };
 
-use crate::{
-    constants::headers,
-    types::ResponseRouterData,
-    utils::{is_mandate_supported, PaymentMethodDataType, PaymentsAuthorizeRequestData},
-};
+use crate::{constants::headers, types::ResponseRouterData, utils::PaymentsAuthorizeRequestData};
 
 pub mod transformers;
 
@@ -186,17 +181,7 @@ impl ConnectorCommon for Archipel {
     }
 }
 
-impl ConnectorValidation for Archipel {
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<enums::PaymentMethodType>,
-        pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let mandate_supported_pmd = std::collections::HashSet::from([PaymentMethodDataType::Card]);
-
-        is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
-    }
-}
+impl ConnectorValidation for Archipel {}
 
 impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Archipel {
     fn get_headers(

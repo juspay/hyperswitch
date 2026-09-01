@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use error_stack::{report, ResultExt};
-use hyperswitch_connectors::connectors::{Paytm, Phonepe};
+use hyperswitch_connectors::connectors::{Citigate, Payconex, Paytm, Phonepe, Worldpayraft};
 
 use crate::{
     configs::settings::Connectors,
@@ -286,6 +286,12 @@ impl ConnectorData {
                 enums::Connector::Gigadat => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Gigadat::new())))
                 }
+                enums::Connector::Ilixium => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Ilixium::new())))
+                }
+                enums::Connector::Givepayments => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Givepayments::new())))
+                }
                 enums::Connector::Globalpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Globalpay::new())))
                 }
@@ -294,6 +300,9 @@ impl ConnectorData {
                 }
                 enums::Connector::Gocardless => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Gocardless::new())))
+                }
+                enums::Connector::GotymeSanlam => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::GotymeSanlam::new())))
                 }
                 enums::Connector::Hipay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Hipay::new())))
@@ -515,13 +524,22 @@ impl ConnectorData {
                 | enums::Connector::Gpayments
                 | enums::Connector::Threedsecureio
                 | enums::Connector::Cardinal
+                | enums::Connector::Juspay
                 | enums::Connector::Taxjar => {
                     Err(report!(errors::ConnectorError::InvalidConnectorName)
                         .attach_printable(format!("invalid connector name: {connector_name}")))
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                 }
+                enums::Connector::TsysTransit => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::TsysTransit::new())))
+                }
                 enums::Connector::Phonepe => Ok(ConnectorEnum::Old(Box::new(Phonepe::new()))),
                 enums::Connector::Paytm => Ok(ConnectorEnum::Old(Box::new(Paytm::new()))),
+                enums::Connector::Payconex => Ok(ConnectorEnum::Old(Box::new(Payconex::new()))),
+                enums::Connector::Citigate => Ok(ConnectorEnum::Old(Box::new(Citigate::new()))),
+                enums::Connector::Worldpayraft => {
+                    Ok(ConnectorEnum::Old(Box::new(Worldpayraft::new())))
+                }
             },
             Err(_) => Err(report!(errors::ConnectorError::InvalidConnectorName)
                 .attach_printable(format!("invalid connector name: {connector_name}")))

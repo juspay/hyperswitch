@@ -7,6 +7,7 @@ pub mod payment_method_modular_backward_compat;
 pub mod payment_method_modular_forward_compat;
 pub mod payment_method_status_update;
 pub mod payment_sync;
+pub mod post_capture_void_sync;
 
 pub mod refund_router;
 
@@ -25,3 +26,8 @@ pub mod payout_sync;
 
 #[cfg(feature = "v1")]
 pub mod batch_blocklist_upload;
+
+pub mod network_tokenization;
+
+#[cfg(feature = "v1")]
+pub mod offer_engine_notify;

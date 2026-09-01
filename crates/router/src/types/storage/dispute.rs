@@ -6,18 +6,18 @@ use diesel_models::{errors, query::generics::db_metrics, schema::dispute::dsl};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::disputes;
 
-use crate::{connection::PgPooledConn, logger};
+use crate::{connection::DatabaseConnectionWithContext, logger};
 
 #[async_trait::async_trait]
 pub trait DisputeDbExt: Sized {
     async fn filter_by_constraints(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         dispute_list_constraints: &disputes::DisputeListConstraints,
     ) -> CustomResult<Vec<Self>, errors::DatabaseError>;
 
     async fn get_dispute_status_with_count(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
         time_range: &common_utils::types::TimeRange,
@@ -27,20 +27,19 @@ pub trait DisputeDbExt: Sized {
 #[async_trait::async_trait]
 impl DisputeDbExt for Dispute {
     async fn filter_by_constraints(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         dispute_list_constraints: &disputes::DisputeListConstraints,
     ) -> CustomResult<Vec<Self>, errors::DatabaseError> {
-        let mut filter = <Self as HasTable>::table()
-            .filter(
-                dsl::processor_merchant_id
-                    .eq(processor_merchant_id.to_owned())
-                    .or(dsl::processor_merchant_id
-                        .is_null()
-                        .and(dsl::merchant_id.eq(processor_merchant_id.to_owned()))),
-            )
-            .order(dsl::modified_at.desc())
-            .into_boxed();
+        let mut filter = diesel_models::boxed_list_query!(
+            Dispute,
+            scope = dsl::processor_merchant_id
+                .eq(processor_merchant_id.to_owned())
+                .or(dsl::processor_merchant_id
+                    .is_null()
+                    .and(dsl::merchant_id.eq(processor_merchant_id.to_owned()))),
+            order = dsl::created_at.desc()
+        );
 
         let mut search_by_payment_or_dispute_id = false;
 
@@ -97,18 +96,19 @@ impl DisputeDbExt for Dispute {
         if let Some(merchant_connector_id) = &dispute_list_constraints.merchant_connector_id {
             filter = filter.filter(dsl::merchant_connector_id.eq(merchant_connector_id.clone()))
         }
-        if let Some(limit) = dispute_list_constraints.limit {
-            filter = filter.limit(limit.into());
-        }
-        if let Some(offset) = dispute_list_constraints.offset {
-            filter = filter.offset(offset.into());
-        }
+        let filter = diesel_models::list::apply_pagination(
+            filter,
+            dispute_list_constraints.limit,
+            dispute_list_constraints.offset,
+        );
 
         logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());
 
         db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            filter.get_results_async(conn),
+            conn.request_id(),
+            conn.event_emitter(),
             db_metrics::DatabaseOperation::Filter,
+            filter.get_results_async(conn.raw_connection()),
         )
         .await
         .change_context(errors::DatabaseError::NotFound)
@@ -116,22 +116,23 @@ impl DisputeDbExt for Dispute {
     }
 
     async fn get_dispute_status_with_count(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
         time_range: &common_utils::types::TimeRange,
     ) -> CustomResult<Vec<(common_enums::DisputeStatus, i64)>, errors::DatabaseError> {
-        let mut query = <Self as HasTable>::table()
-            .group_by(dsl::dispute_status)
-            .select((dsl::dispute_status, diesel::dsl::count_star()))
-            .filter(
-                dsl::processor_merchant_id
-                    .eq(processor_merchant_id.to_owned())
-                    .or(dsl::processor_merchant_id
-                        .is_null()
-                        .and(dsl::merchant_id.eq(processor_merchant_id.to_owned()))),
-            )
-            .into_boxed();
+        let mut query = diesel_models::list::into_boxed_list(
+            <Self as HasTable>::table()
+                .group_by(dsl::dispute_status)
+                .select((dsl::dispute_status, diesel::dsl::count_star()))
+                .filter(
+                    dsl::processor_merchant_id
+                        .eq(processor_merchant_id.to_owned())
+                        .or(dsl::processor_merchant_id
+                            .is_null()
+                            .and(dsl::merchant_id.eq(processor_merchant_id.to_owned()))),
+                ),
+        );
 
         if let Some(profile_id) = profile_id_list {
             query = query.filter(dsl::profile_id.eq_any(profile_id));
@@ -147,8 +148,10 @@ impl DisputeDbExt for Dispute {
         logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg,_>(&query).to_string());
 
         db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            query.get_results_async::<(common_enums::DisputeStatus, i64)>(conn),
+            conn.request_id(),
+            conn.event_emitter(),
             db_metrics::DatabaseOperation::Count,
+            query.get_results_async::<(common_enums::DisputeStatus, i64)>(conn.raw_connection()),
         )
         .await
         .change_context(errors::DatabaseError::NotFound)

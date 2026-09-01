@@ -92,6 +92,7 @@ pub async fn payment_intents_create(
                 None,
                 eligible_connectors,
                 hyperswitch_domain_models::payments::HeaderPayload::default(),
+                None,
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -175,6 +176,7 @@ pub async fn payment_intents_retrieve(
                 None,
                 None,
                 hyperswitch_domain_models::payments::HeaderPayload::default(),
+                None,
             )
         },
         &*auth_type,
@@ -264,6 +266,7 @@ pub async fn payment_intents_retrieve_with_gateway_creds(
                 None,
                 None,
                 hyperswitch_domain_models::payments::HeaderPayload::default(),
+                None,
             )
         },
         &*auth_type,
@@ -350,6 +353,7 @@ pub async fn payment_intents_update(
                 None,
                 eligible_connectors,
                 hyperswitch_domain_models::payments::HeaderPayload::default(),
+                None,
             )
         },
         &*auth_type,
@@ -444,6 +448,7 @@ pub async fn payment_intents_confirm(
                 None,
                 eligible_connectors,
                 hyperswitch_domain_models::payments::HeaderPayload::default(),
+                None,
             )
         },
         &*auth_type,
@@ -515,6 +520,7 @@ pub async fn payment_intents_capture(
                 None,
                 None,
                 hyperswitch_domain_models::payments::HeaderPayload::default(),
+                None,
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -599,6 +605,7 @@ pub async fn payment_intents_cancel(
                 None,
                 None,
                 hyperswitch_domain_models::payments::HeaderPayload::default(),
+                None,
             )
         },
         &*auth_type,
