@@ -1,0 +1,65 @@
+services:
+  loki:
+    image: docker.io/grafana/loki:3.6.8
+    network_mode: host
+    command: ["-config.file=/etc/loki/config.yaml"]
+    volumes:
+      - ./loki.yaml:/etc/loki/config.yaml:ro,Z
+      - loki-data:/loki:Z
+
+  promtail:
+    image: docker.io/grafana/promtail:3.6.8
+    network_mode: host
+    userns_mode: keep-id
+    user: ${HOST_UID:-1000}:${HOST_GID:-1000}
+    security_opt: [label=disable]
+    command: ["-config.file=/etc/promtail/config.yaml"]
+    volumes:
+      - ./promtail.yaml:/etc/promtail/config.yaml:ro,Z
+      - ${XDG_RUNTIME_DIR}/podman/podman.sock:/run/podman/podman.sock:ro
+      - ../logs:/var/log/loadtest:ro,Z
+      - promtail-data:/tmp:Z
+
+  podman-exporter:
+    image: quay.io/navidys/prometheus-podman-exporter:latest
+    network_mode: host
+    userns_mode: keep-id
+    user: ${HOST_UID:-1000}:${HOST_GID:-1000}
+    security_opt: [label=disable]
+    environment:
+      CONTAINER_HOST: unix:///run/podman/podman.sock
+      HOME: /tmp
+      XDG_CONFIG_HOME: /tmp/.config
+    volumes:
+      - ${XDG_RUNTIME_DIR}/podman/podman.sock:/run/podman/podman.sock:ro
+
+  prometheus:
+    image: docker.io/prom/prometheus:latest
+    network_mode: host
+    command:
+      - --config.file=/etc/prometheus/prometheus.yaml
+      - --web.listen-address=0.0.0.0:${PROMETHEUS_PORT:-9090}
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=24h
+    volumes:
+      - ./prometheus.yaml:/etc/prometheus/prometheus.yaml:ro,Z
+      - prometheus-data:/prometheus:Z
+
+  grafana:
+    image: docker.io/grafana/grafana:latest
+    network_mode: host
+    environment:
+      GF_SERVER_HTTP_PORT: "3002"
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_AUTH_BASIC_ENABLED: "false"
+      PROMETHEUS_URL: ${PROMETHEUS_URL:-http://127.0.0.1:9090}
+      LOKI_URL: ${LOKI_URL:-http://127.0.0.1:3100}
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro,Z
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro,Z
+
+volumes:
+  loki-data:
+  prometheus-data:
+  promtail-data:

@@ -1,0 +1,13 @@
+deploy/config.yaml
+deploy/config.local.yaml
+deploy/generated/
+deploy/logs/
+runner/config.yaml
+runner/config.cloud.yaml
+runner/config.cloud.cit_on_session.yaml
+runner/config.cloud.cit_off_session.yaml
+runner/config.cloud.non_modular_guest.yaml
+runner/exports/
+runner/state/
+runner/runner/
+!runner/lib/results.js

@@ -1,0 +1,271 @@
+# Copy this file to loadtest/deploy/config.yaml and adjust it for your machine.
+# DB and Redis are shared across app containers. Individual service TOMLs should
+# control schema/database details.
+
+logs:
+  # Host directory used for persisted application/container logs.
+  root: logs
+
+prepare:
+  # Generated keys, merged TOMLs, and migration helper files are written here.
+  output_dir: generated
+  vault:
+    keys:
+      # One shared key pair is injected into vault, router, and modular-pm.
+      generate: true
+      rsa_bits: 2048
+  # Small load-test-specific TOML fragments applied during preparation.
+  overrides:
+    vault: overrides/vault.toml
+    encryption: overrides/encryption.toml
+    router: overrides/router.toml
+    modular-pm: overrides/modular-pm.toml
+  configs:
+    # Enable an entry to copy a repository TOML before applying its override.
+    # Router and modular-pm can intentionally use the same source TOML.
+    router:
+      enabled: false
+      source: ../../config/development.toml
+      output: configs/router.toml
+    modular-pm:
+      enabled: false
+      source: ../../config/development.toml
+      output: configs/modular-pm.toml
+    vault:
+      enabled: false
+      source: ../../../hyperswitch-card-vault/config/development.toml
+      output: configs/vault.toml
+    encryption:
+      enabled: false
+      source: ../../../hyperswitch-encryption-service/config/development.toml
+      output: configs/encryption.toml
+
+state_services:
+  # PostgreSQL is shared; per-service schemas keep service-owned data separate.
+  postgres:
+    enabled: true
+    container: hs-loadtest-postgres
+    image: postgres:16
+    cpuset: "7"
+    network: bridge
+    ports: [55432:55432]
+    health_url: null
+    host: 127.0.0.1
+    port: 55432
+    database: hyperswitch
+    env:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: hyperswitch
+    schemas:
+      router: public
+      modular-pm: public
+      vault: vault
+      encryption: encryption
+      superposition: superposition
+    volumes: [hs-loadtest-postgres-automation-v1:/var/lib/postgresql]
+    log_dir: postgres
+    log_mount: null
+    command: null
+
+  redis:
+    # Redis is shared by all application services in the local stack.
+    enabled: true
+    container: hs-loadtest-redis
+    image: redis:7
+    cpuset: "15"
+    network: bridge
+    ports: [6379:6379]
+    health_url: null
+    host: 127.0.0.1
+    port: 6379
+    prefixes:
+      router: router
+      modular-pm: modular-pm
+      vault: vault
+      encryption: encryption
+      superposition: superposition
+    env:
+    volumes: [hs-loadtest-redis-automation-v1:/data]
+    log_dir: redis
+    log_mount: null
+    command: redis-server --appendonly yes
+
+application_services:
+  # Every repository has both path and git_url. Missing paths are cloned.
+  # source.mode=local builds/uses the configured local image.
+  # source.mode=cloud pulls the configured image while retaining the repo for migrations.
+  superposition:
+    enabled: true
+    source:
+      mode: cloud
+      path: ../../../superposition
+      git_url: https://github.com/juspay/superposition.git
+    build:
+      # force=true rebuilds even when the local image already exists.
+      force: false
+      command: null
+      dockerfile: null
+      context: ../../../superposition
+    image: ghcr.io/juspay/superposition-demo:latest
+    cpuset: "8"
+    network: host
+    # base_url is the canonical endpoint used by generated configs and the runner.
+    base_url: http://127.0.0.1:8082
+    org_id: localorg
+    workspace_id: dev
+    secret: ""
+    propagation_wait_seconds: 35
+    health_url: http://127.0.0.1:8082/health
+    env_file: null
+    env:
+      API_HOSTNAME: http://127.0.0.1:8080
+    volumes: null
+    log_dir: superposition
+    log_mount: null
+    command: null
+
+  router:
+    enabled: true
+    source:
+      mode: local
+      path: ../..
+      git_url: https://github.com/juspay/hyperswitch.git
+    build:
+      force: false
+      command: null
+      dockerfile: ../Dockerfile
+      context: ../..
+    image: localhost/hs-router:release-local
+    cpuset: "3"
+    network: host
+    base_url: http://127.0.0.1:8080
+    health_url: http://127.0.0.1:8080/health
+    env_file: null
+    env:
+    volumes: null
+    log_dir: router
+    log_mount: /app/logs
+    command: null
+
+  modular-pm:
+    enabled: true
+    source:
+      mode: local
+      path: ../..
+      git_url: https://github.com/juspay/hyperswitch.git
+    build:
+      force: false
+      command: null
+      dockerfile: null
+      context: ../..
+    image: localhost/hs-modular-pm:release-local
+    cpuset: "4"
+    network: host
+    base_url: http://127.0.0.1:8081
+    health_url: http://127.0.0.1:8081/v2/health
+    env_file: null
+    env:
+    volumes: null
+    log_dir: modular-pm
+    log_mount: /app/logs
+    command: null
+
+  vault:
+    enabled: true
+    source:
+      mode: local
+      path: ../../../hyperswitch-card-vault
+      git_url: https://github.com/juspay/hyperswitch-card-vault.git
+    build:
+      force: false
+      command: null
+      dockerfile: null
+      context: ../../../hyperswitch-card-vault
+    image: localhost/hs-card-vault:release-local
+    cpuset: "5"
+    network: host
+    base_url: http://127.0.0.1:3001
+    health_url: http://127.0.0.1:3001/health
+    env_file: null
+    env:
+    volumes: null
+    log_dir: vault
+    log_mount: null
+    command: null
+
+  encryption:
+    enabled: true
+    source:
+      mode: local
+      path: ../../../hyperswitch-encryption-service
+      git_url: https://github.com/juspay/hyperswitch-encryption-service.git
+    build:
+      force: false
+      command: null
+      dockerfile: null
+      context: ../../../hyperswitch-encryption-service
+    image: localhost/cripta:release-local
+    cpuset: "6"
+    network: host
+    base_url: http://127.0.0.1:6128
+    health_url: http://127.0.0.1:6128/health
+    env_file: null
+    env:
+    volumes: null
+    log_dir: encryption
+    log_mount: null
+    command: null
+
+observability:
+  # Disable this block when using an external Grafana/Loki/Prometheus stack.
+  enabled: true
+  compose_command: podman compose
+  compose_file: observability/compose.yaml
+  # Compose project namespace; it is not an application or repository name.
+  project_name: hyperswitch-loadtest
+  # These URLs are also surfaced by runner commands.
+  grafana_url: http://127.0.0.1:3002
+  grafana_dashboard_uid: hs-loadtest-router
+  grafana_dashboard_slug: router-and-modular-pm-load-test
+  prometheus_url: http://127.0.0.1:19090
+  loki_url: http://127.0.0.1:3100
+
+migrations:
+  # Migrations run after state services and applications are available.
+  # source references an application_services key and controls the working directory.
+  router:
+    enabled: true
+    source: router
+    command: nix develop -c diesel migration run --migration-dir {{HYPERSWITCH_REPO_PATH}}/migrations --config-file {{GENERATED_ROOT}}/state/diesel-migrations-only.toml
+    env:
+      DATABASE_URL: "{{ROUTER_DATABASE_URL}}"
+
+  modular-pm:
+    enabled: true
+    source: modular-pm
+    command: just migrate_v2_compatible
+    env:
+      DATABASE_URL: "{{MODULAR_PM_DATABASE_URL}}"
+
+  vault:
+    enabled: false
+    source: vault
+    command: just migrate
+    env:
+      DATABASE_URL: "{{VAULT_DATABASE_URL}}"
+      PGOPTIONS: "-c search_path={{POSTGRES_SCHEMA_VAULT}}"
+
+  encryption:
+    enabled: false
+    source: encryption
+    command: just migrate
+    env:
+      DATABASE_URL: "{{ENCRYPTION_DATABASE_URL}}"
+
+  superposition:
+    enabled: false
+    source: superposition
+    command: just migrate
+    env:
+      DATABASE_URL: "{{SUPERPOSITION_DATABASE_URL}}"

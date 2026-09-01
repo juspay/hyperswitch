@@ -1,0 +1,94 @@
+set shell := ["bash", "-eu", "-o", "pipefail", "-c"]
+
+deploy action *services:
+    ./deploy/bin/deploy.sh {{action}} {{services}}
+
+deploy-preflight:
+    just deploy preflight
+
+deploy-repos:
+    just deploy repos
+
+deploy-build *services:
+    just deploy build {{services}}
+
+deploy-prepare:
+    just deploy prepare
+
+deploy-up-state:
+    just deploy up-state
+
+deploy-init-state:
+    just deploy init-state
+
+deploy-up-apps *services:
+    just deploy up-apps {{services}}
+
+deploy-up-observability:
+    just deploy up-observability
+
+deploy-up:
+    just deploy up
+
+deploy-ready:
+    just deploy ready
+
+deploy-down:
+    just deploy down
+
+deploy-reset:
+    just deploy reset-state
+
+deploy-restart *services:
+    just deploy restart {{services}}
+
+deploy-status:
+    just deploy status
+
+deploy-logs service:
+    just deploy logs {{service}}
+
+deploy-observability-logs:
+    just deploy observability-logs
+
+deploy-restart-observability:
+    just deploy up-observability
+
+deploy-log-paths:
+    just deploy log-paths
+
+runner action *args:
+    ./runner/bin/runner.sh {{action}} {{args}}
+
+runner-preflight:
+    just runner preflight
+
+runner-fixtures:
+    just runner fixtures
+
+runner-discard:
+    just runner discard-fixtures
+
+runner-start:
+    just runner start
+
+runner-status:
+    just runner status
+
+runner-test:
+    node --test runner/test/*.test.js
+
+smoke merchant_path="non_modular" scenario="cit_off_session":
+    CONFIG=runner/config.smoke.yaml just runner smoke {{merchant_path}} {{scenario}}
+
+e2e-smoke:
+    just deploy-down
+    just deploy-ready
+    just runner-test
+    just smoke non_modular guest
+    just smoke non_modular cit_on_session
+    just smoke non_modular cit_off_session
+    just smoke non_modular cit_metadata_changed
+    just smoke modular guest
+    just smoke modular cit_on_session
+    just smoke modular cit_off_session

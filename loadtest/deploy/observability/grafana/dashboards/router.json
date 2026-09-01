@@ -1,0 +1,588 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "graphTooltip": 1,
+  "links": [],
+  "panels": [
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1,
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "sum(rate({loadtest_service=\"router\"} |= \"[HTTP REQUEST - END]\" | json | message=\"[HTTP REQUEST - END]\" | flow=\"PaymentsConfirm\" | __error__=\"\" [30s]))",
+          "legendFormat": "router",
+          "queryType": "range",
+          "refId": "A"
+        },
+        {
+          "editorMode": "code",
+          "expr": "sum(rate({loadtest_service=\"modular-pm\"} |= \"[HTTP REQUEST - END]\" | json | message=\"[HTTP REQUEST - END]\" | flow=\"PaymentMethodSessionConfirm\" | __error__=\"\" [30s]))",
+          "legendFormat": "modular-pm",
+          "queryType": "range",
+          "refId": "B"
+        },
+        {
+          "editorMode": "code",
+          "expr": "sum(rate({loadtest_service=\"vault\"} |= \"finished processing request\" [30s]))",
+          "legendFormat": "vault",
+          "queryType": "range",
+          "refId": "C"
+        },
+        {
+          "editorMode": "code",
+          "expr": "sum(rate({loadtest_service=\"encryption\"} |= \"finished processing request\" [30s]))",
+          "legendFormat": "encryption",
+          "queryType": "range",
+          "refId": "D"
+        }
+      ],
+      "title": "Request Rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      },
+      "id": 2,
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "quantile_over_time(0.50, {loadtest_service=\"router\"} |= \"[HTTP REQUEST - END]\" | json | message=\"[HTTP REQUEST - END]\" | flow=\"PaymentsConfirm\" | unwrap extra_elapsed_milliseconds | __error__=\"\" [5s]) by (loadtest_service)",
+          "legendFormat": "router",
+          "queryType": "range",
+          "refId": "A"
+        },
+        {
+          "editorMode": "code",
+          "expr": "quantile_over_time(0.50, {loadtest_service=\"modular-pm\"} |= \"[HTTP REQUEST - END]\" | json | message=\"[HTTP REQUEST - END]\" | flow=\"PaymentMethodSessionConfirm\" | unwrap extra_elapsed_milliseconds | __error__=\"\" [5s]) by (loadtest_service)",
+          "legendFormat": "modular-pm",
+          "queryType": "range",
+          "refId": "B"
+        },
+        {
+          "editorMode": "code",
+          "expr": "quantile_over_time(0.50, {loadtest_service=\"vault\"} |= \"finished processing request\" | regexp `\\\"latency\\\":\\\"(?P<latency_us>[0-9]+)` | unwrap latency_us | __error__=\"\" [5s]) by (loadtest_service) / 1000",
+          "legendFormat": "vault",
+          "queryType": "range",
+          "refId": "C"
+        },
+        {
+          "editorMode": "code",
+          "expr": "quantile_over_time(0.50, {loadtest_service=\"encryption\"} |= \"finished processing request\" | regexp `\\\"latency\\\":\\\"(?P<latency_us>[0-9]+)` | unwrap latency_us | __error__=\"\" [5s]) by (loadtest_service) / 1000",
+          "legendFormat": "encryption",
+          "queryType": "range",
+          "refId": "D"
+        }
+      ],
+      "title": "Latency p50",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      },
+      "id": 3,
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "quantile_over_time(0.75, {loadtest_service=\"router\"} |= \"[HTTP REQUEST - END]\" | json | message=\"[HTTP REQUEST - END]\" | flow=\"PaymentsConfirm\" | unwrap extra_elapsed_milliseconds | __error__=\"\" [5s]) by (loadtest_service)",
+          "legendFormat": "router",
+          "queryType": "range",
+          "refId": "A"
+        },
+        {
+          "editorMode": "code",
+          "expr": "quantile_over_time(0.75, {loadtest_service=\"modular-pm\"} |= \"[HTTP REQUEST - END]\" | json | message=\"[HTTP REQUEST - END]\" | flow=\"PaymentMethodSessionConfirm\" | unwrap extra_elapsed_milliseconds | __error__=\"\" [5s]) by (loadtest_service)",
+          "legendFormat": "modular-pm",
+          "queryType": "range",
+          "refId": "B"
+        },
+        {
+          "editorMode": "code",
+          "expr": "quantile_over_time(0.75, {loadtest_service=\"vault\"} |= \"finished processing request\" | regexp `\\\"latency\\\":\\\"(?P<latency_us>[0-9]+)` | unwrap latency_us | __error__=\"\" [5s]) by (loadtest_service) / 1000",
+          "legendFormat": "vault",
+          "queryType": "range",
+          "refId": "C"
+        },
+        {
+          "editorMode": "code",
+          "expr": "quantile_over_time(0.75, {loadtest_service=\"encryption\"} |= \"finished processing request\" | regexp `\\\"latency\\\":\\\"(?P<latency_us>[0-9]+)` | unwrap latency_us | __error__=\"\" [5s]) by (loadtest_service) / 1000",
+          "legendFormat": "encryption",
+          "queryType": "range",
+          "refId": "D"
+        }
+      ],
+      "title": "Latency p75",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 16
+      },
+      "id": 4,
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "quantile_over_time(0.90, {loadtest_service=\"router\"} |= \"[HTTP REQUEST - END]\" | json | message=\"[HTTP REQUEST - END]\" | flow=\"PaymentsConfirm\" | unwrap extra_elapsed_milliseconds | __error__=\"\" [5s]) by (loadtest_service)",
+          "legendFormat": "router",
+          "queryType": "range",
+          "refId": "A"
+        },
+        {
+          "editorMode": "code",
+          "expr": "quantile_over_time(0.90, {loadtest_service=\"modular-pm\"} |= \"[HTTP REQUEST - END]\" | json | message=\"[HTTP REQUEST - END]\" | flow=\"PaymentMethodSessionConfirm\" | unwrap extra_elapsed_milliseconds | __error__=\"\" [5s]) by (loadtest_service)",
+          "legendFormat": "modular-pm",
+          "queryType": "range",
+          "refId": "B"
+        },
+        {
+          "editorMode": "code",
+          "expr": "quantile_over_time(0.90, {loadtest_service=\"vault\"} |= \"finished processing request\" | regexp `\\\"latency\\\":\\\"(?P<latency_us>[0-9]+)` | unwrap latency_us | __error__=\"\" [5s]) by (loadtest_service) / 1000",
+          "legendFormat": "vault",
+          "queryType": "range",
+          "refId": "C"
+        },
+        {
+          "editorMode": "code",
+          "expr": "quantile_over_time(0.90, {loadtest_service=\"encryption\"} |= \"finished processing request\" | regexp `\\\"latency\\\":\\\"(?P<latency_us>[0-9]+)` | unwrap latency_us | __error__=\"\" [5s]) by (loadtest_service) / 1000",
+          "legendFormat": "encryption",
+          "queryType": "range",
+          "refId": "D"
+        }
+      ],
+      "title": "Latency p90",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 16
+      },
+      "id": 5,
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "quantile_over_time(0.95, {loadtest_service=\"router\"} |= \"[HTTP REQUEST - END]\" | json | message=\"[HTTP REQUEST - END]\" | flow=\"PaymentsConfirm\" | unwrap extra_elapsed_milliseconds | __error__=\"\" [5s]) by (loadtest_service)",
+          "legendFormat": "router",
+          "queryType": "range",
+          "refId": "A"
+        },
+        {
+          "editorMode": "code",
+          "expr": "quantile_over_time(0.95, {loadtest_service=\"modular-pm\"} |= \"[HTTP REQUEST - END]\" | json | message=\"[HTTP REQUEST - END]\" | flow=\"PaymentMethodSessionConfirm\" | unwrap extra_elapsed_milliseconds | __error__=\"\" [5s]) by (loadtest_service)",
+          "legendFormat": "modular-pm",
+          "queryType": "range",
+          "refId": "B"
+        },
+        {
+          "editorMode": "code",
+          "expr": "quantile_over_time(0.95, {loadtest_service=\"vault\"} |= \"finished processing request\" | regexp `\\\"latency\\\":\\\"(?P<latency_us>[0-9]+)` | unwrap latency_us | __error__=\"\" [5s]) by (loadtest_service) / 1000",
+          "legendFormat": "vault",
+          "queryType": "range",
+          "refId": "C"
+        },
+        {
+          "editorMode": "code",
+          "expr": "quantile_over_time(0.95, {loadtest_service=\"encryption\"} |= \"finished processing request\" | regexp `\\\"latency\\\":\\\"(?P<latency_us>[0-9]+)` | unwrap latency_us | __error__=\"\" [5s]) by (loadtest_service) / 1000",
+          "legendFormat": "encryption",
+          "queryType": "range",
+          "refId": "D"
+        }
+      ],
+      "title": "Latency p95",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 0,
+        "y": 24
+      },
+      "id": 6,
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "Name",
+          "sortDesc": false
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "quantile_over_time(0.50, {loadtest_service=\"modular-pm\"} |= \"[HTTP REQUEST - END]\" | json | message=\"[HTTP REQUEST - END]\" | flow!=\"UNKNOWN\" | unwrap extra_elapsed_milliseconds | __error__=\"\" [5s]) by (flow)",
+          "legendFormat": "{{flow}} p50",
+          "queryType": "range",
+          "refId": "A"
+        },
+        {
+          "editorMode": "code",
+          "expr": "quantile_over_time(0.75, {loadtest_service=\"modular-pm\"} |= \"[HTTP REQUEST - END]\" | json | message=\"[HTTP REQUEST - END]\" | flow!=\"UNKNOWN\" | unwrap extra_elapsed_milliseconds | __error__=\"\" [5s]) by (flow)",
+          "legendFormat": "{{flow}} p75",
+          "queryType": "range",
+          "refId": "B"
+        },
+        {
+          "editorMode": "code",
+          "expr": "quantile_over_time(0.90, {loadtest_service=\"modular-pm\"} |= \"[HTTP REQUEST - END]\" | json | message=\"[HTTP REQUEST - END]\" | flow!=\"UNKNOWN\" | unwrap extra_elapsed_milliseconds | __error__=\"\" [5s]) by (flow)",
+          "legendFormat": "{{flow}} p90",
+          "queryType": "range",
+          "refId": "C"
+        },
+        {
+          "editorMode": "code",
+          "expr": "quantile_over_time(0.95, {loadtest_service=\"modular-pm\"} |= \"[HTTP REQUEST - END]\" | json | message=\"[HTTP REQUEST - END]\" | flow!=\"UNKNOWN\" | unwrap extra_elapsed_milliseconds | __error__=\"\" [5s]) by (flow)",
+          "legendFormat": "{{flow}} p95",
+          "queryType": "range",
+          "refId": "D"
+        }
+      ],
+      "title": "Modular PM Latency",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 8,
+        "y": 24
+      },
+      "id": 7,
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "quantile_over_time(0.50, {loadtest_service=\"vault\"} |= \"finished processing request\" | regexp `\\\"latency\\\":\\\"(?P<latency_us>[0-9]+)` | unwrap latency_us | __error__=\"\" [5s]) by (loadtest_service) / 1000",
+          "legendFormat": "p50",
+          "queryType": "range",
+          "refId": "A"
+        },
+        {
+          "editorMode": "code",
+          "expr": "quantile_over_time(0.75, {loadtest_service=\"vault\"} |= \"finished processing request\" | regexp `\\\"latency\\\":\\\"(?P<latency_us>[0-9]+)` | unwrap latency_us | __error__=\"\" [5s]) by (loadtest_service) / 1000",
+          "legendFormat": "p75",
+          "queryType": "range",
+          "refId": "B"
+        },
+        {
+          "editorMode": "code",
+          "expr": "quantile_over_time(0.90, {loadtest_service=\"vault\"} |= \"finished processing request\" | regexp `\\\"latency\\\":\\\"(?P<latency_us>[0-9]+)` | unwrap latency_us | __error__=\"\" [5s]) by (loadtest_service) / 1000",
+          "legendFormat": "p90",
+          "queryType": "range",
+          "refId": "C"
+        },
+        {
+          "editorMode": "code",
+          "expr": "quantile_over_time(0.95, {loadtest_service=\"vault\"} |= \"finished processing request\" | regexp `\\\"latency\\\":\\\"(?P<latency_us>[0-9]+)` | unwrap latency_us | __error__=\"\" [5s]) by (loadtest_service) / 1000",
+          "legendFormat": "p95",
+          "queryType": "range",
+          "refId": "D"
+        }
+      ],
+      "title": "Vault Latency",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 16,
+        "y": 24
+      },
+      "id": 8,
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "quantile_over_time(0.50, {loadtest_service=\"encryption\"} |= \"finished processing request\" | regexp `\\\"latency\\\":\\\"(?P<latency_us>[0-9]+)` | unwrap latency_us | __error__=\"\" [5s]) by (loadtest_service) / 1000",
+          "legendFormat": "p50",
+          "queryType": "range",
+          "refId": "A"
+        },
+        {
+          "editorMode": "code",
+          "expr": "quantile_over_time(0.75, {loadtest_service=\"encryption\"} |= \"finished processing request\" | regexp `\\\"latency\\\":\\\"(?P<latency_us>[0-9]+)` | unwrap latency_us | __error__=\"\" [5s]) by (loadtest_service) / 1000",
+          "legendFormat": "p75",
+          "queryType": "range",
+          "refId": "B"
+        },
+        {
+          "editorMode": "code",
+          "expr": "quantile_over_time(0.90, {loadtest_service=\"encryption\"} |= \"finished processing request\" | regexp `\\\"latency\\\":\\\"(?P<latency_us>[0-9]+)` | unwrap latency_us | __error__=\"\" [5s]) by (loadtest_service) / 1000",
+          "legendFormat": "p90",
+          "queryType": "range",
+          "refId": "C"
+        },
+        {
+          "editorMode": "code",
+          "expr": "quantile_over_time(0.95, {loadtest_service=\"encryption\"} |= \"finished processing request\" | regexp `\\\"latency\\\":\\\"(?P<latency_us>[0-9]+)` | unwrap latency_us | __error__=\"\" [5s]) by (loadtest_service) / 1000",
+          "legendFormat": "p95",
+          "queryType": "range",
+          "refId": "D"
+        }
+      ],
+      "title": "Encryption Latency",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "id": 9,
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "100 * sum by (service) (label_replace(rate(podman_container_cpu_seconds_total[1m]) * on (id) group_left(name) podman_container_info{name=~\"hs-router(-8080)?\"}, \"service\", \"router\", \"name\", \".*\") or label_replace(rate(podman_container_cpu_seconds_total[1m]) * on (id) group_left(name) podman_container_info{name=~\"hs-(modular-pm|router-v2-8081)\"}, \"service\", \"modular-pm\", \"name\", \".*\") or label_replace(rate(podman_container_cpu_seconds_total[1m]) * on (id) group_left(name) podman_container_info{name=~\"hs-(vault|card-vault)\"}, \"service\", \"vault\", \"name\", \".*\") or label_replace(rate(podman_container_cpu_seconds_total[1m]) * on (id) group_left(name) podman_container_info{name=~\"hs-(encryption|encryption-service)\"}, \"service\", \"encryption\", \"name\", \".*\"))",
+          "legendFormat": "{{service}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Service CPU Usage (%)",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 42,
+  "tags": [
+    "hyperswitch",
+    "loadtest"
+  ],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "timezone": "browser",
+  "title": "Router and Modular PM Load Test",
+  "uid": "hs-loadtest-router",
+  "version": 1
+}
