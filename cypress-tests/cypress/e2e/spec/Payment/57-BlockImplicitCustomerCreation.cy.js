@@ -15,6 +15,16 @@ describe("Block Implicit Customer Creation", () => {
         connectorId,
         utils.CONNECTOR_LISTS.INCLUDE.BLOCK_IMPLICIT_CUSTOMER_CREATION
       );
+      if (
+        !globalState.get("superpositionBaseUrl") ||
+        !globalState.get("superpositionSecret")
+      ) {
+        cy.task(
+          "cli_log",
+          "Superposition credentials not set — skipping BlockImplicitCustomerCreation spec"
+        );
+        specShouldSkip = true;
+      }
     });
   });
 
