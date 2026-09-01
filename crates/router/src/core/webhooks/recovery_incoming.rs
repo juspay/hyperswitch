@@ -1451,7 +1451,7 @@ impl RecoveryAction {
             | webhooks::IncomingWebhookEvent::SourceTransactionCreated
             | webhooks::IncomingWebhookEvent::RefundFailure
             | webhooks::IncomingWebhookEvent::RefundSuccess
-            | webhooks::IncomingWebhookEvent::ReviewRefund
+            | webhooks::IncomingWebhookEvent::RefundReview
             | webhooks::IncomingWebhookEvent::DisputeOpened
             | webhooks::IncomingWebhookEvent::DisputeExpired
             | webhooks::IncomingWebhookEvent::DisputeAccepted
