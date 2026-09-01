@@ -8920,18 +8920,16 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PayoutMethodData>
                             .to_string(),
                     ),
                 ))?,
-                api_models::payouts::Bank::Payshap(_) => Err(error_stack::Report::new(
-                    UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                        "Payshap bank transfer not supported for Unified Connector Service"
-                            .to_string(),
-                    ),
-                ))?,
-                api_models::payouts::Bank::PayshapProxy(_) => Err(error_stack::Report::new(
-                    UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                        "PayshapProxy bank transfer not supported for Unified Connector Service"
-                            .to_string(),
-                    ),
-                ))?,
+                api_models::payouts::Bank::Payshap(payshap) => {
+                    payments_grpc::payout_method::PayoutMethodData::Payshap(
+                        payments_grpc::PayshapBankTransferPayout::foreign_try_from(payshap)?,
+                    )
+                }
+                api_models::payouts::Bank::PayshapProxy(payshap_proxy) => {
+                    payments_grpc::payout_method::PayoutMethodData::PayshapProxy(
+                        payments_grpc::PayshapProxyBankTransferPayout::foreign_from(payshap_proxy),
+                    )
+                }
             },
             api_models::payouts::PayoutMethodData::BankTransfer(bank_transfer) => {
                 match bank_transfer {
@@ -8981,18 +8979,16 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PayoutMethodData>
                             ),
                         ))?
                     }
-                    api_models::payouts::BankTransfer::Payshap(_) => Err(error_stack::Report::new(
-                        UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                            "Payshap bank transfer not supported for Unified Connector Service"
-                                .to_string(),
-                        ),
-                    ))?,
-                    api_models::payouts::BankTransfer::PayshapProxy(_) => Err(error_stack::Report::new(
-                        UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                            "PayshapProxy bank transfer not supported for Unified Connector Service"
-                                .to_string(),
-                        ),
-                    ))?,
+                    api_models::payouts::BankTransfer::Payshap(payshap) => {
+                        payments_grpc::payout_method::PayoutMethodData::Payshap(
+                            payments_grpc::PayshapBankTransferPayout::foreign_try_from(payshap)?,
+                        )
+                    }
+                    api_models::payouts::BankTransfer::PayshapProxy(payshap_proxy) => {
+                        payments_grpc::payout_method::PayoutMethodData::PayshapProxy(
+                            payments_grpc::PayshapProxyBankTransferPayout::foreign_from(payshap_proxy),
+                        )
+                    }
                 }
             }
             api_models::payouts::PayoutMethodData::Wallet(wallet) => match wallet {
@@ -9334,12 +9330,16 @@ impl transformers::ForeignTryFrom<&api_models::payouts::BankTransfer>
                         .to_string(),
                 ),
             ))?,
-            api_models::payouts::BankTransfer::Payshap(_)
-            | api_models::payouts::BankTransfer::PayshapProxy(_) => Err(error_stack::Report::new(
-                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                    "PayShap bank transfer not supported for Unified Connector Service".to_string(),
+            api_models::payouts::BankTransfer::Payshap(payshap) => {
+                Some(payments_grpc::source_bank_data::SourceBankData::Payshap(
+                    payments_grpc::PayshapBankTransferPayout::foreign_try_from(payshap)?,
+                ))
+            }
+            api_models::payouts::BankTransfer::PayshapProxy(payshap_proxy) => Some(
+                payments_grpc::source_bank_data::SourceBankData::PayshapProxy(
+                    payments_grpc::PayshapProxyBankTransferPayout::foreign_from(payshap_proxy),
                 ),
-            ))?,
+            ),
         };
         Ok(Self { source_bank_data })
     }
@@ -9363,6 +9363,40 @@ impl ForeignFrom<&api_models::payouts::PixEmvBankTransfer>
     fn foreign_from(item: &api_models::payouts::PixEmvBankTransfer) -> Self {
         Self {
             emv: Some(item.emv.clone()),
+        }
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl transformers::ForeignTryFrom<&api_models::payouts::PayshapBankTransfer>
+    for payments_grpc::PayshapBankTransferPayout
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        item: &api_models::payouts::PayshapBankTransfer,
+    ) -> Result<Self, Self::Error> {
+        let bank_name = item
+            .bank_name
+            .map(payments_grpc::BankNames::foreign_try_from)
+            .transpose()?;
+
+        Ok(Self {
+            bank_account_number: Some(item.bank_account_number.clone()),
+            account_holder_name: item.account_holder_name.clone(),
+            bank_name: bank_name.map(Into::into),
+        })
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl ForeignFrom<&api_models::payouts::PayshapProxyBankTransfer>
+    for payments_grpc::PayshapProxyBankTransferPayout
+{
+    fn foreign_from(item: &api_models::payouts::PayshapProxyBankTransfer) -> Self {
+        Self {
+            cellphone: item.cellphone.clone(),
+            shap_id: item.shap_id.clone(),
         }
     }
 }
