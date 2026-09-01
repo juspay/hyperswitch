@@ -3975,17 +3975,6 @@ pub async fn store_payment_method_data_in_vault(
     Ok(None)
 }
 
-pub fn get_force_3ds_challenge_from_authentication_type(
-    force_3ds_challenge: Option<bool>,
-    authentication_type: Option<common_enums::AuthenticationType>,
-) -> Option<bool> {
-    if authentication_type.is_some_and(|auth_type| auth_type.is_three_ds()) {
-        Some(true)
-    } else {
-        force_3ds_challenge
-    }
-}
-
 fn is_google_pay_pan_only(payment_method_data: &domain::PaymentMethodData) -> bool {
     let domain::PaymentMethodData::Wallet(domain::WalletData::GooglePay(gpay_data)) =
         payment_method_data

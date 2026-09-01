@@ -1379,7 +1379,12 @@ fn get_commerce_indicator_for_wallet_payment(
                     }
                 }
             }
-            _ => "internet",
+            PaymentSolution::ApplePay | PaymentSolution::SamsungPay => card_network
+                .map(|card_network| match card_network.to_lowercase().as_str() {
+                    "mastercard" => "spa",
+                    _ => "internet",
+                })
+                .unwrap_or("internet"),
         })
         .unwrap_or("internet")
         .to_string()
@@ -3977,13 +3982,21 @@ impl TryFrom<&CybersourceRouterData<&PaymentsPreProcessingRouterData>>
                     amount_details,
                     bill_to: Some(bill_to),
                 };
+                let is_wallet_payer_auth = payment_solution.is_some();
                 let processing_information =
                     payment_solution.map(|solution| CybersourcePayerAuthProcessingInformation {
                         payment_solution: Some(solution),
                     });
-                let device_information = get_cybersource_device_information(
-                    item.router_data.request.browser_info.as_ref(),
-                )?;
+                let (device_information, challenge_code) = if is_wallet_payer_auth {
+                    (
+                        get_cybersource_device_information(
+                            item.router_data.request.browser_info.as_ref(),
+                        )?,
+                        get_payer_auth_challenge_code(item.router_data.request.force_3ds_challenge),
+                    )
+                } else {
+                    (None, None)
+                };
                 let device_channel = device_information.as_ref().map(|_| "Browser".to_string());
                 Ok(Self::AuthEnrollment(Box::new(
                     CybersourceAuthEnrollmentRequest {
@@ -3996,9 +4009,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsPreProcessingRouterData>>
                                     .request
                                     .get_complete_authorize_url()?,
                                 reference_id,
-                                challenge_code: get_payer_auth_challenge_code(
-                                    item.router_data.request.force_3ds_challenge,
-                                ),
+                                challenge_code,
                                 device_channel,
                             },
                         order_information,

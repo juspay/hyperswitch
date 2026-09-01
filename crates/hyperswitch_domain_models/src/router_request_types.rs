@@ -950,7 +950,7 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsAuthenticateData {
             sdk_information: None,
             device_channel: None,
             webhook_url: data.webhook_url,
-            force_3ds_challenge: None,
+            force_3ds_challenge: data.force_3ds_challenge,
         })
     }
 }
