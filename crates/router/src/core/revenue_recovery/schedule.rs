@@ -45,6 +45,8 @@ impl StaticLadderProgress {
 pub enum ScheduleSource {
     Static,
     Adaptive,
+    /// The MIT cascading ladder, consulted only once the other two have nothing to offer.
+    Fallback,
 }
 
 /// Outcome of one scheduling decision.
@@ -58,12 +60,14 @@ pub struct ScheduleDecision {
     pub source: ScheduleSource,
 }
 
-/// Choose between the two candidates, or `None` when neither has one to offer.
+/// Choose between the two candidates, falling back to the MIT cascading ladder when neither has
+/// one to offer, and `None` when nothing is left to schedule.
 pub fn decide_next_retry(
     schedule: &StaticLadderProgress,
     queried_rung: i32,
     static_time: Option<PrimitiveDateTime>,
     adaptive_time: Option<PrimitiveDateTime>,
+    fallback_time: Option<PrimitiveDateTime>,
 ) -> Option<ScheduleDecision> {
     // Adaptive spends no ladder position, so the count stays put and the same position is offered
     // again on the next decision.
@@ -91,8 +95,16 @@ pub fn decide_next_retry(
         (Some(static_time), _) => Some(static_ladder(static_time)),
         // Ladder spent, so the adaptive time stands unopposed.
         (None, Some(adaptive_time)) => Some(adaptive(adaptive_time)),
-        // Nothing left to schedule for this invoice.
-        (None, None) => None,
+        // The adaptive ladder is spent and the model declined, so the MIT cascading ladder gets
+        // the last word. It spends no adaptive position, so the count stays put; `None` here
+        // means there is genuinely nothing left to schedule for this invoice.
+        (None, None) => fallback_time.map(|schedule_time| ScheduleDecision {
+            schedule_time,
+            next_progress: StaticLadderProgress {
+                consumed_rungs: schedule.consumed_rungs,
+            },
+            source: ScheduleSource::Fallback,
+        }),
     }
 }
 
@@ -123,7 +135,7 @@ mod tests {
         static_time: Option<PrimitiveDateTime>,
         adaptive_time: Option<PrimitiveDateTime>,
     ) -> ScheduleDecision {
-        decide_next_retry(schedule, queried_rung, static_time, adaptive_time)
+        decide_next_retry(schedule, queried_rung, static_time, adaptive_time, None)
             .expect("a time was available")
     }
 
@@ -363,7 +375,7 @@ mod tests {
     fn both_algorithms_declining_yields_no_decision() {
         // The ladder is spent and the model has no opinion. Only here is there genuinely
         // nothing left to schedule, and the caller ends the invoice.
-        assert_eq!(decide_next_retry(&at_rung(5), 6, None, None), None);
+        assert_eq!(decide_next_retry(&at_rung(5), 6, None, None, None), None);
     }
 
     #[test]
