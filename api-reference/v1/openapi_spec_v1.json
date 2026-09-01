@@ -26823,6 +26823,14 @@
               }
             ],
             "nullable": true
+          },
+          "offer_engine_config": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OfferEngineMerchantConfig"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -28840,6 +28848,24 @@
           },
           "number": {
             "$ref": "#/components/schemas/MinorUnit"
+          }
+        }
+      },
+      "OfferEngineMerchantConfig": {
+        "type": "object",
+        "description": "Merchant-level Offer Engine credentials (Offer Engine issues one account per merchant)",
+        "required": [
+          "api_key",
+          "merchant_id"
+        ],
+        "properties": {
+          "api_key": {
+            "type": "string",
+            "description": "API key issued by Offer Engine for this merchant"
+          },
+          "merchant_id": {
+            "type": "string",
+            "description": "The Offer Engine merchant id sent in Offer Engine request bodies"
           }
         }
       },
