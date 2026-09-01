@@ -138,12 +138,10 @@ pub async fn upsert_calculate_pcr_task(
                 payment_attempt_id,
                 revenue_recovery_retry,
                 invoice_scheduled_time: None,
-                static_ladder_progress: Some(
-                    schedule::StaticLadderProgress::seed_for_new_invoice(
-                        intent_retry_count,
-                        max_hybrid_cascading_retry_count,
-                    ),
-                ),
+                static_ladder_progress: Some(schedule::StaticLadderProgress::seed_for_new_invoice(
+                    intent_retry_count,
+                    max_hybrid_cascading_retry_count,
+                )),
             };
 
             let tag = ["PCR"];

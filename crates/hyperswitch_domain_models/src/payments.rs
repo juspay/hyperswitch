@@ -1263,7 +1263,9 @@ impl PaymentIntent {
     pub fn get_revenue_recovery_retry_count(&self) -> u16 {
         self.feature_metadata
             .as_ref()
-            .and_then(|feature_metadata| feature_metadata.payment_revenue_recovery_metadata.as_ref())
+            .and_then(|feature_metadata| {
+                feature_metadata.payment_revenue_recovery_metadata.as_ref()
+            })
             .map(|revenue_recovery_metadata| revenue_recovery_metadata.total_retry_count)
             .unwrap_or_default()
     }
