@@ -1,0 +1,38 @@
+# Configuration for the standalone `alerts` service.
+#
+# Read by `cargo run -p alerts`. Override the path with `-f <file>`, or move the config directory
+# with the `CONFIG_DIR` environment variable.
+#
+# Every value here can be overridden by an environment variable prefixed `ALERTS__`, with `__`
+# separating levels — `ALERTS__AUTH__INTERNAL_API_KEY` sets `auth.internal_api_key`. In deployed
+# environments the key comes from the environment or from a secrets manager, never from this file.
+
+[server]
+host = "127.0.0.1"
+port = 8085
+workers = 1
+
+[log.console]
+enabled = true
+level = "DEBUG"
+log_format = "default"
+
+[log.file]
+enabled = false
+
+[log.telemetry]
+traces_enabled = false
+metrics_enabled = false
+
+# The key callers must supply in the `X-Internal-Api-Key` header.
+#
+# There is no way to disable authentication. An empty value is not "open" — the service refuses to
+# start. The value below is a local development placeholder and must not reach any deployed
+# environment.
+[auth]
+internal_api_key = "alerts_dev_key"
+
+# How the secrets above are resolved at boot. `no_encryption` takes them literally; the KMS
+# variants are compiled in under the `release` feature and treat them as handles to resolve.
+[secrets_management]
+secrets_manager = "no_encryption"

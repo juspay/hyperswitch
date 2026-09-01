@@ -1,0 +1,50 @@
+[package]
+name = "alerts"
+description = "Alerting plane for Hyperswitch: receives alert data and delivers it to destination channels"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+readme = "README.md"
+license.workspace = true
+
+[features]
+# `alerts` has no v1/v2 API semantics of its own and uses no version-flavoured type. These
+# features exist only to tell shared dependencies which flavour to compile: the repo's secrets
+# management layer lives behind `hyperswitch_interfaces`, which reaches `api_models` and
+# `diesel_models`, and those do not build unless one of the two is selected.
+#
+# Defaulted to `v1` — matching the router — so that `cargo run -p alerts` works and nobody has to
+# think about a choice this crate does not care about. A workspace v2 build
+# (`--no-default-features --features v2`) still selects the other flavour.
+default = ["v1"]
+v1 = ["common_utils/v1", "external_services/v1", "hyperswitch_interfaces/v1"]
+v2 = ["common_utils/v2", "external_services/v2", "hyperswitch_interfaces/v2"]
+release = ["vergen", "external_services/aws_kms", "external_services/gcp_kms"]
+vergen = ["router_env/vergen"]
+
+[dependencies]
+actix-web = "4.11.0"
+async-trait = "0.1.88"
+clap = { version = "4.5.38", default-features = false, features = ["std", "derive", "help", "usage"] }
+config = { version = "0.14.1", features = ["toml"] }
+error-stack = "0.4.1"
+mime = "0.3.17"
+reqwest = { version = "0.11.27" }
+serde = { version = "1.0.219", features = ["derive"] }
+serde_json = "1.0.140"
+serde_path_to_error = "0.1.17"
+thiserror = "1.0.69"
+tokio = { version = "1.48.0", features = ["macros", "rt-multi-thread"] }
+
+# First Party Crates
+common_utils = { version = "0.1.0", path = "../common_utils" }
+external_services = { version = "0.1.0", path = "../external_services" }
+hyperswitch_interfaces = { version = "0.1.0", path = "../hyperswitch_interfaces" }
+hyperswitch_masking = "0.0.1"
+router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"] }
+
+[build-dependencies]
+router_env = { version = "0.1.0", path = "../router_env", default-features = false }
+
+[lints]
+workspace = true
