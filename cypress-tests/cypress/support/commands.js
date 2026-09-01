@@ -124,6 +124,34 @@ function getExpectedMerchantConnectorId(
   return merchantConnectorId;
 }
 
+// Assert set-backed API arrays without depending on serialization order.
+function expectSameMembers(actual, expected, fieldName) {
+  expect(actual, fieldName).to.be.an("array");
+  expect(actual, fieldName).to.have.members(expected);
+}
+
+const WEBHOOK_STATUS_FIELDS = [
+  "payment_statuses_enabled",
+  "refund_statuses_enabled",
+  "payout_statuses_enabled",
+  "dispute_statuses_enabled",
+  "mandate_statuses_enabled",
+  "invoice_statuses_enabled",
+];
+
+// Verify every configured webhook status collection returned by the API.
+function expectWebhookStatusMembers(actualWebhook, expectedWebhook) {
+  WEBHOOK_STATUS_FIELDS.forEach((fieldName) => {
+    if (expectedWebhook[fieldName]) {
+      expectSameMembers(
+        actualWebhook[fieldName],
+        expectedWebhook[fieldName],
+        fieldName
+      );
+    }
+  });
+}
+
 // Helper function for creating individual rollout config
 function createIndividualRolloutConfig(
   methodFlow,
@@ -925,21 +953,7 @@ Cypress.Commands.add(
               const reqWebhook = createBusinessProfile.webhook_details;
               const respWebhook = response.body.webhook_details;
               expect(respWebhook).to.not.be.undefined;
-              if (reqWebhook.payment_statuses_enabled) {
-                expect(respWebhook.payment_statuses_enabled).to.deep.equal(
-                  reqWebhook.payment_statuses_enabled
-                );
-              }
-              if (reqWebhook.refund_statuses_enabled) {
-                expect(respWebhook.refund_statuses_enabled).to.deep.equal(
-                  reqWebhook.refund_statuses_enabled
-                );
-              }
-              if (reqWebhook.payout_statuses_enabled) {
-                expect(respWebhook.payout_statuses_enabled).to.deep.equal(
-                  reqWebhook.payout_statuses_enabled
-                );
-              }
+              expectWebhookStatusMembers(respWebhook, reqWebhook);
               if (reqWebhook.payment_failed_enabled !== undefined) {
                 expect(respWebhook.payment_failed_enabled).to.equal(
                   reqWebhook.payment_failed_enabled
@@ -1218,21 +1232,10 @@ Cypress.Commands.add(
         expect(response.status).to.equal(200);
         const webhookDetails = response.body.webhook_details;
         expect(webhookDetails).to.not.be.undefined;
-        if (webhookConfigBody.webhook_details.payment_statuses_enabled) {
-          expect(webhookDetails.payment_statuses_enabled).to.deep.equal(
-            webhookConfigBody.webhook_details.payment_statuses_enabled
-          );
-        }
-        if (webhookConfigBody.webhook_details.refund_statuses_enabled) {
-          expect(webhookDetails.refund_statuses_enabled).to.deep.equal(
-            webhookConfigBody.webhook_details.refund_statuses_enabled
-          );
-        }
-        if (webhookConfigBody.webhook_details.payout_statuses_enabled) {
-          expect(webhookDetails.payout_statuses_enabled).to.deep.equal(
-            webhookConfigBody.webhook_details.payout_statuses_enabled
-          );
-        }
+        expectWebhookStatusMembers(
+          webhookDetails,
+          webhookConfigBody.webhook_details
+        );
         if (
           webhookConfigBody.webhook_details.payment_failed_enabled !== undefined
         ) {
