@@ -1,4 +1,5 @@
 pub mod api;
+pub mod record_back;
 pub mod retry_stats;
 pub mod schedule;
 pub mod transformers;

@@ -30,13 +30,26 @@ pub struct DisputeRecordBackRequest {
     /// Transaction id at the billing connector, captured at record-back time. Sent as the
     /// refund's reference number so the record points back at the payment it reverses.
     pub billing_connector_transaction_id: String,
-    /// The disputed amount, in minor units.
+    /// Why the money is going back. A lost dispute is a chargeback; a refund the merchant
+    /// issued deliberately is not, and recording it as one would misattribute it in the
+    /// billing connector's reporting.
+    pub payment_method: RecordBackPaymentMethod,
+    /// The amount going back, in minor units.
     pub amount: common_utils::types::MinorUnit,
     /// When the refund occurred.
     pub refund_date: time::PrimitiveDateTime,
     /// Free-text note stored against the billing connector's record.
     pub comment: Option<String>,
     pub connector_params: connector_endpoints::ConnectorParams,
+}
+
+/// Why an amount is being recorded back to the billing connector.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RecordBackPaymentMethod {
+    /// A dispute was lost; the money left the merchant involuntarily.
+    Chargeback,
+    /// The merchant refunded the payment deliberately.
+    Refund,
 }
 
 #[derive(Debug, Clone)]

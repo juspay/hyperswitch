@@ -17,7 +17,10 @@ use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::refunds::{Execute, RSync},
-    router_request_types::{subscriptions::SubscriptionAutoCollection, ResponseId},
+    router_request_types::{
+        revenue_recovery::RecordBackPaymentMethod, subscriptions::SubscriptionAutoCollection,
+        ResponseId,
+    },
     router_response_types::{
         revenue_recovery::{DisputeRecordBackResponse, InvoiceRecordBackResponse},
         subscriptions::{
@@ -1243,6 +1246,18 @@ pub enum ChargebeeRefundPaymentMethod {
     /// A lost dispute is literally a chargeback, so Chargebee's own reporting attributes
     /// the refund correctly rather than lumping it under "other".
     Chargeback,
+    /// A refund the merchant issued deliberately. Chargebee has no dedicated value for a
+    /// refund made through a payment gateway, and `other` is its documented catch-all.
+    Other,
+}
+
+impl From<RecordBackPaymentMethod> for ChargebeeRefundPaymentMethod {
+    fn from(method: RecordBackPaymentMethod) -> Self {
+        match method {
+            RecordBackPaymentMethod::Chargeback => Self::Chargeback,
+            RecordBackPaymentMethod::Refund => Self::Other,
+        }
+    }
 }
 
 impl TryFrom<&DisputeRecordBackRouterData> for ChargebeeRecordRefundRequest {
@@ -1252,7 +1267,7 @@ impl TryFrom<&DisputeRecordBackRouterData> for ChargebeeRecordRefundRequest {
         Ok(Self {
             // Already in minor units, which is what Chargebee wants; no conversion needed.
             amount: req.amount,
-            payment_method: ChargebeeRefundPaymentMethod::Chargeback,
+            payment_method: req.payment_method.into(),
             date: req.refund_date.assume_utc().unix_timestamp(),
             reference_number: Some(req.billing_connector_transaction_id.clone()),
             comment: req.comment.clone(),

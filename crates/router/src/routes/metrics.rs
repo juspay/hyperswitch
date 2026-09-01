@@ -131,6 +131,8 @@ histogram_metric_f64!(PAYMENT_LIST_OPENSEARCH_LATENCY, GLOBAL_METER);
 
 counter_metric!(REFUND_COUNT, GLOBAL_METER);
 counter_metric!(SUCCESSFUL_REFUND, GLOBAL_METER);
+counter_metric!(REFUND_RECORD_BACK_SUCCESS_METRIC, GLOBAL_METER); // No. of refunds recorded back to the billing connector
+counter_metric!(REFUND_RECORD_BACK_FAILURE_METRIC, GLOBAL_METER); // No. of refund record-backs the billing connector rejected. These are NOT retried.
 
 counter_metric!(PAYMENT_CANCEL_COUNT, GLOBAL_METER);
 counter_metric!(SUCCESSFUL_CANCEL, GLOBAL_METER);

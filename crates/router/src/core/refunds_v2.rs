@@ -8,6 +8,7 @@ use hyperswitch_domain_models::{
     refunds::RefundListConstraints,
     router_data::{ErrorResponse, RouterData},
     router_data_v2::RefundFlowData,
+    router_request_types::revenue_recovery::RecordBackPaymentMethod,
 };
 use hyperswitch_interfaces::{
     api::{Connector as ConnectorTrait, ConnectorIntegration},
@@ -21,6 +22,7 @@ use crate::{
     core::{
         errors::{self, ConnectorErrorExt, StorageErrorExt},
         payments::{self, access_token, gateway::context as gateway_context, helpers},
+        revenue_recovery,
         utils::{self as core_utils, refunds_validator},
     },
     db, logger,
@@ -233,6 +235,40 @@ pub async fn trigger_refund_to_gateway(
         .as_ref()
         .ok()
         .and_then(|data| data.raw_connector_response.clone());
+
+    // A refund on a revenue recovery payment has to reach the billing connector too,
+    // otherwise its invoice stays marked paid while the money has gone back. Skips
+    // silently for ordinary payments, which is the common case.
+    if response.refund_status == diesel_models::enums::RefundStatus::Success {
+        match revenue_recovery::record_back::record_back_to_billing_connector(
+            state,
+            processor.get_key_store(),
+            payment_attempt,
+            payment_intent,
+            response.refund_amount,
+            RecordBackPaymentMethod::Refund,
+            Some(response.id.get_string_repr().to_owned()),
+        )
+        .await
+        {
+            Ok(revenue_recovery::record_back::RecordBackOutcome::Recorded) => {
+                metrics::REFUND_RECORD_BACK_SUCCESS_METRIC.add(1, &[])
+            }
+            // Nothing was sent, so this is neither a success nor a failure.
+            Ok(revenue_recovery::record_back::RecordBackOutcome::Skipped) => (),
+            Err(error) => {
+                // Never propagated. The refund itself succeeded and the customer has their
+                // money; failing here would report a successful refund as failed. The
+                // billing connector is left to be reconciled, which this metric flags.
+                metrics::REFUND_RECORD_BACK_FAILURE_METRIC.add(1, &[]);
+                logger::error!(
+                    ?error,
+                    refund_id = %response.id.get_string_repr(),
+                    "Failed to record the refund back to the billing connector; this will NOT be retried"
+                );
+            }
+        }
+    }
     // Implement outgoing webhooks here
     connector_response.to_refund_failed_response()?;
     Ok((response, raw_connector_response))
@@ -357,6 +393,40 @@ pub async fn internal_trigger_refund_to_gateway(
         .as_ref()
         .ok()
         .and_then(|data| data.raw_connector_response.clone());
+
+    // A refund on a revenue recovery payment has to reach the billing connector too,
+    // otherwise its invoice stays marked paid while the money has gone back. Skips
+    // silently for ordinary payments, which is the common case.
+    if response.refund_status == diesel_models::enums::RefundStatus::Success {
+        match revenue_recovery::record_back::record_back_to_billing_connector(
+            state,
+            processor.get_key_store(),
+            payment_attempt,
+            payment_intent,
+            response.refund_amount,
+            RecordBackPaymentMethod::Refund,
+            Some(response.id.get_string_repr().to_owned()),
+        )
+        .await
+        {
+            Ok(revenue_recovery::record_back::RecordBackOutcome::Recorded) => {
+                metrics::REFUND_RECORD_BACK_SUCCESS_METRIC.add(1, &[])
+            }
+            // Nothing was sent, so this is neither a success nor a failure.
+            Ok(revenue_recovery::record_back::RecordBackOutcome::Skipped) => (),
+            Err(error) => {
+                // Never propagated. The refund itself succeeded and the customer has their
+                // money; failing here would report a successful refund as failed. The
+                // billing connector is left to be reconciled, which this metric flags.
+                metrics::REFUND_RECORD_BACK_FAILURE_METRIC.add(1, &[]);
+                logger::error!(
+                    ?error,
+                    refund_id = %response.id.get_string_repr(),
+                    "Failed to record the refund back to the billing connector; this will NOT be retried"
+                );
+            }
+        }
+    }
     // Implement outgoing webhooks here
     connector_response.to_refund_failed_response()?;
     Ok((response, raw_connector_response))
