@@ -669,6 +669,8 @@ impl PaymentResourceUpdateStatus {
     }
 }
 
+/// `card_bin` (6 digits) and `extended_card_bin` (8 digits) are deprecated, use
+/// `generic_card_bin`, which accepts 6 to 10 digits.
 #[derive(
     Clone,
     Copy,
@@ -687,8 +689,11 @@ impl PaymentResourceUpdateStatus {
 #[strum(serialize_all = "snake_case")]
 pub enum BlocklistDataKind {
     PaymentMethod,
+    /// Deprecated, superseded by `GenericCardBin`
     CardBin,
+    /// Deprecated, superseded by `GenericCardBin`
     ExtendedCardBin,
+    GenericCardBin,
 }
 
 #[derive(Debug)]
@@ -9585,6 +9590,8 @@ pub enum PermissionGroup {
     ReconTransactionsManage,
     ReconRulesView,
     ReconRulesManage,
+    OffersView,
+    OffersManage,
 }
 
 #[derive(
@@ -9606,6 +9613,7 @@ pub enum ParentGroup {
     ReconExceptions,
     ReconTransactions,
     ReconRules,
+    Offers,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, serde::Serialize, serde::Deserialize)]
@@ -9638,6 +9646,7 @@ pub enum Resource {
     ReconTransaction,
     ReconRule,
     SuperpositionConfig,
+    Offers,
 }
 
 #[derive(
@@ -9669,6 +9678,10 @@ pub enum PermissionScope {
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum BankNames {
     Absa,
+    AccessBank,
+    AfricanBank,
+    AfricanBankBusiness,
+    Albaraka,
     AmericanExpress,
     AffinBank,
     AgroBank,
@@ -9680,16 +9693,46 @@ pub enum BankNames {
     BankMuamalat,
     BankRakyat,
     BankSimpananNasional,
+    BankZero,
     Barclays,
+    BidvestBank,
+    BidvestBankAlliances,
     BlikPSP,
     CapitalOne,
+    Capitec,
+    CapitecBusiness,
     Chase,
+    ChinaConstructionBank,
     Citi,
     CimbBank,
     Discover,
+    Discovery,
+    EnlBank,
+    FbcFidelityBank,
+    FinbondEpe,
+    FinbondMutualBank,
+    FirstNationalBank,
+    GotymeBank,
+    HabibOverseas,
+    HbzBank,
+    Investec,
+    Ithala,
+    JpMorganChase,
+    MtnBanking,
+    Nedbank,
     NavyFederalCreditUnion,
+    Olympus,
+    OldMutual,
+    PeoplesBankPepBank,
+    PeoplesBank,
+    PermanentBank,
     PentagonFederalCreditUnion,
+    SocieteGenerale,
+    StandardBank,
+    StateBankOfIndia,
     SynchronyBank,
+    Ubank,
+    VbsMutualBank,
     WellsFargo,
     AbnAmro,
     AsnBank,
@@ -10342,6 +10385,10 @@ pub enum BankType {
     Savings,
     Salary,
     Payment,
+    Transmission,
+    Current,
+    Bond,
+    SubscriptionShare,
 }
 #[derive(
     Clone,
