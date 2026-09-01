@@ -150,9 +150,13 @@ async fn resolve_offer_engine_merchant_id(
     let config = match offer_engine::resolve_offer_engine_credential_source(state, &dimensions)
         .await
     {
-        offer_engine::OfferEngineCredentialSource::None => None,
+        offer_engine::OfferEngineCredentialSource::None => {
+            return Err(error_stack::report!(errors::ApiErrorResponse::AccessForbidden {
+                resource: "offer_engine".to_string(),
+            }));
+        }
         offer_engine::OfferEngineCredentialSource::Application => {
-            offer_engine::OfferEngineCredentialSource::resolve_application_offer_config(state).ok()
+            offer_engine::OfferEngineCredentialSource::resolve_application_offer_config(state)
         }
         offer_engine::OfferEngineCredentialSource::Merchant => {
             let db = &*state.store;
@@ -171,15 +175,13 @@ async fn resolve_offer_engine_merchant_id(
                 state,
                 &merchant_account,
             )
-            .ok()
         }
-    };
+    }
+    .change_context(errors::ApiErrorResponse::AccessForbidden {
+        resource: "offer_engine".to_string(),
+    })?;
 
-    config.map(|config| config.merchant_id).ok_or_else(|| {
-        error_stack::report!(errors::ApiErrorResponse::AccessForbidden {
-            resource: "offer_engine".to_string(),
-        })
-    })
+    Ok(config.merchant_id)
 }
 
 /// Offer permissions held by the role. Empty means no offer access.
