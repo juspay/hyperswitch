@@ -225,7 +225,6 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            code: "IR_04",
           },
         },
       },
@@ -271,11 +270,10 @@ export const connectorDetails = {
         },
       },
       Response: {
-        status: 500,
+        status: 400,
         body: {
           error: {
-            type: "api",
-            code: "HE_00",
+            type: "invalid_request",
           },
         },
       },
