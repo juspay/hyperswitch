@@ -665,7 +665,7 @@ async fn get_adaptive_retry_allowances(
     max_retry_count: u16,
     retry_count: i32,
     now: time::PrimitiveDateTime,
-) -> (u32, u32) {
+) -> Result<(u32, u32), errors::ProcessTrackerError> {
     let grace_period_days = dimensions
         .get_recovery_grace_period_days(
             state.store.as_ref(),
@@ -681,19 +681,34 @@ async fn get_adaptive_retry_allowances(
         .and_then(|revenue_recovery_metadata| {
             revenue_recovery_metadata.invoice_billing_started_at_time
         })
-        .unwrap_or(payment_intent.created_at);
+        .ok_or_else(|| {
+            logger::error!(
+                payment_id = %payment_intent.id.get_string_repr(),
+                "adaptive retry: the invoice has no billing start time, so its grace window \
+                 cannot be established"
+            );
+            errors::ProcessTrackerError::EApiErrorResponse
+        })?;
 
-    let remaining_grace_days = grace_window_start
+    let remaining_grace_days: u32 = grace_window_start
         .checked_add(time::Duration::days(grace_period_days))
-        .map(|grace_window_end| (grace_window_end - now).whole_days())
-        .unwrap_or_default()
-        .try_into()
-        .unwrap_or_default();
+        .map(|grace_window_end| (grace_window_end - now).whole_days().max(0))
+        .and_then(|days| days.try_into().ok())
+        .ok_or_else(|| {
+            logger::error!(
+                payment_id = %payment_intent.id.get_string_repr(),
+                grace_period_days,
+                %grace_window_start,
+                "adaptive retry: the configured grace period puts the window outside the \
+                 representable date range"
+            );
+            errors::ProcessTrackerError::EApiErrorResponse
+        })?;
 
     let remaining_budget =
         u32::from(max_retry_count).saturating_sub(retry_count.try_into().unwrap_or_default());
 
-    (remaining_grace_days, remaining_budget)
+    Ok((remaining_grace_days, remaining_budget))
 }
 
 #[cfg(feature = "v2")]
@@ -789,7 +804,7 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                     retry_count,
                     now,
                 )
-                .await;
+                .await?;
 
                 let adaptive_time = match tracking_data.prev_attempt_error_code {
                     Some(error_code) => compute_adaptive_retry_time(
