@@ -278,6 +278,9 @@ pub fn mk_app(
             .service(routes::Relay::server(state.clone()))
             .service(routes::ThreeDsDecisionRule::server(state.clone()));
 
+        // THROWAWAY — dropped before the PR. See `routes::chat_probe`.
+        server_app = server_app.service(routes::ChatProbe::server(state.clone()));
+
         #[cfg(feature = "oltp")]
         {
             server_app = server_app.service(routes::PaymentMethods::server(state.clone()));
