@@ -131,7 +131,12 @@ pub async fn upsert_calculate_pcr_task(
                 payment_attempt_id,
                 revenue_recovery_retry,
                 invoice_scheduled_time: None,
-                static_ladder_progress: schedule::StaticLadderProgress::default(),
+                static_ladder_progress: Some(
+                    schedule::StaticLadderProgress::seed_for_new_invoice(
+                        intent_retry_count,
+                        billing_connector_account.get_max_hybrid_cascading_retry_count(),
+                    ),
+                ),
             };
 
             let tag = ["PCR"];
@@ -496,7 +501,7 @@ async fn insert_psync_pcr_task_to_pt(
         revenue_recovery_retry,
         invoice_scheduled_time: Some(schedule_time),
         // PSYNC has its own row; scheduling state lives on CALCULATE.
-        static_ladder_progress: schedule::StaticLadderProgress::default(),
+        static_ladder_progress: None,
     };
     let tag = ["REVENUE_RECOVERY"];
     let process_tracker_entry = storage::ProcessTrackerNew::new(
@@ -651,6 +656,18 @@ pub async fn perform_calculate_workflow(
     )
     .await?;
 
+    let static_ladder_progress = tracking_data
+        .static_ladder_progress
+        .clone()
+        .unwrap_or_else(|| {
+            schedule::StaticLadderProgress::seed_for_existing_invoice(
+                payment_intent.get_revenue_recovery_retry_count(),
+                revenue_recovery_payment_data
+                    .billing_mca
+                    .get_max_hybrid_cascading_retry_count(),
+            )
+        });
+
     // 2. Bound the invoice by the merchant's ceiling, independently of the retry ladder.
     let max_retry_count = revenue_recovery_payment_data
         .billing_mca
@@ -678,7 +695,9 @@ pub async fn perform_calculate_workflow(
                 retry_algorithm_type,
                 process.retry_count,
                 &tracking_data.static_ladder_progress,
-            )
+                &static_ladder_progress,
+            revenue_recovery_payment_data.billing_mca.get_max_retry_count(),
+        )
             .await
             {
                 Ok(token_and_schedule) => token_and_schedule,
@@ -895,7 +914,7 @@ async fn finish_calculate_workflow_with_progress(
                         "Failed to deserialize the tracking data from process tracker",
                     )?;
 
-            tracking_data.static_ladder_progress = static_ladder_progress;
+            tracking_data.static_ladder_progress = Some(static_ladder_progress);
 
             let tracking_data = serde_json::to_value(tracking_data)
                 .change_context(errors::RecoveryError::ValueNotFound)
@@ -1116,7 +1135,7 @@ async fn insert_execute_pcr_task_to_pt(
                 revenue_recovery_retry,
                 invoice_scheduled_time: Some(schedule_time),
                 // EXECUTE has its own row; scheduling state lives on CALCULATE.
-                static_ladder_progress: schedule::StaticLadderProgress::default(),
+                static_ladder_progress: None,
             };
 
             let tag = ["PCR"];

@@ -271,13 +271,23 @@ impl MerchantConnectorAccount {
             .map(|recovery| recovery.billing_connector_retry_threshold)
     }
 
-    /// Ceiling on retries an invoice may receive, counting the billing connector's own retries
-    /// alongside ours. The initial charge is not a retry.
-    pub fn get_max_retry_count(&self) -> Option<u16> {
+    /// Total retries allowed for an invoice on this billing connector, across the billing
+    /// connector's own attempts and the recovery ones.
+    pub fn get_max_retry_count(&self) -> u16 {
         self.feature_metadata
             .as_ref()
             .and_then(|metadata| metadata.revenue_recovery.as_ref())
             .map(|recovery| recovery.max_retry_count)
+            .unwrap_or_default()
+    }
+
+    /// Positions on the cascading ladder available to an invoice under the hybrid scheme.
+    pub fn get_max_hybrid_cascading_retry_count(&self) -> u16 {
+        self.feature_metadata
+            .as_ref()
+            .and_then(|metadata| metadata.revenue_recovery.as_ref())
+            .map(|recovery| recovery.max_hybrid_cascading_retry_count)
+            .unwrap_or_default()
     }
 
     pub fn get_id(&self) -> id_type::MerchantConnectorAccountId {
@@ -373,6 +383,10 @@ pub struct MerchantConnectorAccountFeatureMetadata {
 pub struct RevenueRecoveryMetadata {
     pub max_retry_count: u16,
     pub billing_connector_retry_threshold: u16,
+    /// Number of positions on the cascading (static) ladder available to an invoice under the
+    /// hybrid static + adaptive scheme.
+    #[serde(default)]
+    pub max_hybrid_cascading_retry_count: u16,
     pub mca_reference: AccountReferenceMap,
 }
 
@@ -1224,6 +1238,8 @@ impl From<MerchantConnectorAccountFeatureMetadata>
                 max_retry_count: recovery_metadata.max_retry_count,
                 billing_connector_retry_threshold: recovery_metadata
                     .billing_connector_retry_threshold,
+                max_hybrid_cascading_retry_count: recovery_metadata
+                    .max_hybrid_cascading_retry_count,
                 billing_account_reference: DieselBillingAccountReference(
                     recovery_metadata.mca_reference.recovery_to_billing,
                 ),
@@ -1247,6 +1263,8 @@ impl From<DieselMerchantConnectorAccountFeatureMetadata>
                 max_retry_count: recovery_metadata.max_retry_count,
                 billing_connector_retry_threshold: recovery_metadata
                     .billing_connector_retry_threshold,
+                max_hybrid_cascading_retry_count: recovery_metadata
+                    .max_hybrid_cascading_retry_count,
                 mca_reference: AccountReferenceMap {
                     recovery_to_billing: recovery_metadata.billing_account_reference.0,
                     billing_to_recovery,
