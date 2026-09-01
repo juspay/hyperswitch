@@ -1986,6 +1986,12 @@ describe("Card - Refund Manual Update - No 3DS", () => {
       });
   });
 
+  beforeEach(function () {
+    if (isMockServer()) {
+      this.skip();
+    }
+  });
+
   afterEach("flush global state", () => {
     cy.task("setGlobalState", globalState.data);
   });
@@ -2498,12 +2504,6 @@ describe("Card - Refund Manual Update - No 3DS", () => {
   });
 
   context("Manual Update - Connector Refund ID", () => {
-    beforeEach(function () {
-      if (isMockServer()) {
-        this.skip();
-      }
-    });
-
     it("Create Payment Intent -> Confirm Payment -> Create Refund -> Manual Update Connector Refund ID -> Retrieve Refund to Verify", () => {
       let shouldContinue = true;
 
@@ -2598,12 +2598,6 @@ describe("Card - Refund Manual Update - No 3DS", () => {
   });
 
   context("Manual Update - Connector Refund ID with Status", () => {
-    beforeEach(function () {
-      if (isMockServer()) {
-        this.skip();
-      }
-    });
-
     it("Create Payment Intent -> Confirm Payment -> Create Refund -> Manual Update Connector Refund ID and Status -> Retrieve Refund to Verify", () => {
       let shouldContinue = true;
 
