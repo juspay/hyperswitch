@@ -336,6 +336,7 @@ impl
             return_url: router_data.request.router_return_url.clone(),
             test_mode: router_data.test_mode,
             customer: Some(payments_grpc::Customer {
+                date_of_birth: None,
                 first_name: None,
                 last_name: None,
                 salutation: None,
@@ -433,6 +434,8 @@ impl
         let order_details = build_ucs_order_details(router_data.request.order_details.as_deref());
         let l2_l3_data = build_ucs_l2_l3_data(router_data.l2_l3_data.as_deref());
         Ok(Self {
+            is_account_funding_transaction: None,
+            recipient_details: None,
             split_settlement: None,
             split_payments: router_data
                 .request
@@ -455,6 +458,7 @@ impl
                 router_data.request.request_incremental_authorization,
             ),
             customer: Some(payments_grpc::Customer {
+                date_of_birth: None,
                 first_name: None,
                 last_name: None,
                 salutation: None,
@@ -710,6 +714,8 @@ impl
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
+            is_account_funding_transaction: None,
+            recipient_details: None,
             split_settlement: None,
             split_payments: None,
             domain_data: None,
@@ -728,6 +734,7 @@ impl
                 router_data.request.request_incremental_authorization,
             ),
             customer: Some(payments_grpc::Customer {
+                date_of_birth: None,
                 first_name: None,
                 last_name: None,
                 salutation: None,
@@ -1120,6 +1127,7 @@ impl
             metadata: None,
             browser_info: None,
             customer: Some(payments_grpc::Customer {
+                date_of_birth: None,
                 first_name: None,
                 last_name: None,
                 salutation: None,
@@ -1207,6 +1215,7 @@ impl
                 }),
             payment_method,
             customer: Some(payments_grpc::Customer {
+                date_of_birth: None,
                 first_name: None,
                 last_name: None,
                 salutation: None,
@@ -1318,6 +1327,7 @@ impl
                 }),
             payment_method: Some(payment_method),
             customer: Some(payments_grpc::Customer {
+                date_of_birth: None,
                 first_name: None,
                 last_name: None,
                 salutation: None,
@@ -1422,6 +1432,7 @@ impl
                 }),
             payment_method,
             customer: Some(payments_grpc::Customer {
+                date_of_birth: None,
                 first_name: None,
                 last_name: None,
                 salutation: None,
@@ -1517,6 +1528,7 @@ impl
                 }),
             payment_method: Some(payment_method),
             customer: Some(payments_grpc::Customer {
+                date_of_birth: None,
                 first_name: None,
                 last_name: None,
                 salutation: None,
@@ -1616,6 +1628,7 @@ impl
             }),
             payment_method: Some(payment_method),
             customer: Some(payments_grpc::Customer {
+                date_of_birth: None,
                 first_name: None,
                 last_name: None,
                 salutation: None,
@@ -1713,6 +1726,7 @@ impl
             }),
             payment_method: Some(payment_method),
             customer: Some(payments_grpc::Customer {
+                date_of_birth: None,
                 first_name: None,
                 last_name: None,
                 salutation: None,
@@ -1904,6 +1918,8 @@ impl
             .transpose()?;
 
         Ok(Self {
+            is_account_funding_transaction: None,
+            recipient_details: None,
             split_settlement: None,
             split_payments: None,
             domain_data: None,
@@ -1921,6 +1937,7 @@ impl
             enrolled_for_3ds: Some(false),
             request_incremental_authorization: Some(false),
             customer: Some(payments_grpc::Customer {
+                date_of_birth: None,
                 first_name: None,
                 last_name: None,
                 salutation: None,
@@ -2063,6 +2080,8 @@ impl
         let order_details = build_ucs_order_details(router_data.request.order_details.as_deref());
         let l2_l3_data = build_ucs_l2_l3_data(router_data.l2_l3_data.as_deref());
         Ok(Self {
+            is_account_funding_transaction: None,
+            recipient_details: None,
             split_settlement: None,
             split_payments: router_data
                 .request
@@ -2091,6 +2110,7 @@ impl
                 .order_tax_amount
                 .map(|order_tax_amount| order_tax_amount.get_amount_as_i64()),
             customer: Some(payments_grpc::Customer {
+                date_of_birth: None,
                 first_name: None,
                 last_name: None,
                 salutation: None,
@@ -2251,6 +2271,8 @@ impl
             .transpose()?;
 
         Ok(Self {
+            is_account_funding_transaction: None,
+            recipient_details: None,
             split_settlement: None,
             split_payments: router_data
                 .request
@@ -2274,6 +2296,7 @@ impl
                 router_data.request.request_incremental_authorization,
             ),
             customer: Some(payments_grpc::Customer {
+                date_of_birth: None,
                 first_name: None,
                 last_name: None,
                 salutation: None,
@@ -2422,6 +2445,8 @@ impl
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
+            is_account_funding_transaction: None,
+            recipient_details: None,
             mit_category: None,
             merchant_recurring_payment_id: router_data.connector_request_reference_id.clone(),
             amount: Some(payments_grpc::Money {
@@ -2430,6 +2455,7 @@ impl
             }),
             payment_method: Some(payment_method),
             customer: Some(payments_grpc::Customer {
+                date_of_birth: None,
                 first_name: None,
                 last_name: None,
                 salutation: None,
@@ -2700,6 +2726,8 @@ impl
             .attach_printable("Failed to convert authentication type")?;
 
         Ok(Self {
+            is_account_funding_transaction: None,
+            recipient_details: None,
             split_settlement: None,
             split_payments: router_data
                 .request
@@ -2779,6 +2807,7 @@ impl
             l2_l3_data: None,
             customer_document_details: to_grpc_customer_document_details(router_data),
             customer: Some(payments_grpc::Customer {
+                date_of_birth: None,
                 first_name: None,
                 last_name: None,
                 salutation: None,
@@ -2873,6 +2902,7 @@ impl transformers::ForeignTryFrom<&RouterData<Session, PaymentsSessionData, Paym
                 .map(|payment_method_type| payment_method_type.into()),
             country_alpha2_code: country,
             customer: Some(payments_grpc::Customer {
+                date_of_birth: None,
                 first_name: None,
                 last_name: None,
                 salutation: None,
@@ -7874,6 +7904,7 @@ impl ForeignFrom<common_enums::PayoutSendPriority> for payments_grpc::payout_enu
 impl ForeignFrom<&router_request_types::CustomerDetails> for payments_grpc::Customer {
     fn foreign_from(customer: &router_request_types::CustomerDetails) -> Self {
         Self {
+            date_of_birth: None,
             id: customer
                 .customer_id
                 .clone()
@@ -8022,6 +8053,7 @@ impl
         let access_token = router_data.access_token.as_ref().map(|t| t.token.clone());
 
         Ok(Self {
+            merchant_request_id: None,
             merchant_payout_id: router_data.payout_id.clone(),
             address,
             connector_feature_data,
@@ -8074,6 +8106,7 @@ impl
             .map(|secret| Secret::new(secret.expose().to_string()));
 
         Ok(Self {
+            merchant_request_id: None,
             merchant_payout_id: router_data.payout_id.clone(),
             address: Some(address),
             connector_feature_data,
@@ -8143,6 +8176,7 @@ impl
             .map(|metadata| Secret::new(metadata.expose().to_string()));
 
         Ok(Self {
+            merchant_request_id: None,
             merchant_payout_id: router_data.payout_id.clone(),
             connector_feature_data,
             payout_method_data,
@@ -8211,6 +8245,7 @@ impl
             .transpose()?;
 
         Ok(Self {
+            merchant_request_id: None,
             merchant_payout_id: router_data.payout_id.clone(),
             address: Some(address),
             amount: Some(money),
@@ -8292,6 +8327,7 @@ impl
             .transpose()?;
 
         Ok(Self {
+            merchant_request_id: None,
             merchant_quote_id: router_data.quote_id.clone(),
             address,
             amount: Some(money),
@@ -8350,6 +8386,7 @@ impl
         };
 
         Ok(Self {
+            merchant_request_id: None,
             merchant_payout_id: router_data.payout_id.clone(),
             address,
             customer: Some(customer),
@@ -8415,6 +8452,7 @@ impl
             )?;
 
         Ok(Self {
+            merchant_request_id: None,
             merchant_payout_id: router_data.payout_id.clone(),
             address,
             payout_method_data,
@@ -8445,6 +8483,7 @@ impl
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
+            merchant_request_id: None,
             merchant_payout_id: router_data.payout_id.clone(),
             connector_payout_id: router_data.request.connector_payout_id.clone(),
             access_token: router_data.access_token.clone().map(|at| at.token),
