@@ -121,6 +121,13 @@ pub async fn upsert_calculate_pcr_task(
                 payment_id.get_string_repr()
             );
 
+            let max_hybrid_cascading_retry_count = billing_connector_account
+                .get_max_hybrid_cascading_retry_count()
+                .ok_or(errors::RevenueRecoveryError::RetryCountFetchFailed)
+                .attach_printable(
+                    "Failed to get max hybrid cascading retry count from billing merchant connector account",
+                )?;
+
             // Create tracking data
             let calculate_workflow_tracking_data = pcr::RevenueRecoveryWorkflowTrackingData {
                 billing_mca_id: billing_connector_account.get_id(),
@@ -134,7 +141,7 @@ pub async fn upsert_calculate_pcr_task(
                 static_ladder_progress: Some(
                     schedule::StaticLadderProgress::seed_for_new_invoice(
                         intent_retry_count,
-                        billing_connector_account.get_max_hybrid_cascading_retry_count(),
+                        max_hybrid_cascading_retry_count,
                     ),
                 ),
             };
@@ -592,11 +599,9 @@ pub async fn perform_payments_sync(
 }
 
 /// `attempts_already_made` counts the initial charge, which is not a retry, so the retry about to
-/// be scheduled is retry number `attempts_already_made`. No ceiling configured means no gate.
-fn is_retry_budget_exhausted(attempts_already_made: i32, max_retry_count: Option<u16>) -> bool {
-    max_retry_count
-        .map(|max_retry_count| attempts_already_made > i32::from(max_retry_count))
-        .unwrap_or(false)
+/// be scheduled is retry number `attempts_already_made`.
+fn is_retry_budget_exhausted(attempts_already_made: i32, max_retry_count: u16) -> bool {
+    attempts_already_made > i32::from(max_retry_count)
 }
 
 pub async fn perform_calculate_workflow(
@@ -662,22 +667,31 @@ pub async fn perform_calculate_workflow(
     )
     .await?;
 
-    let static_ladder_progress = tracking_data
-        .static_ladder_progress
-        .clone()
-        .unwrap_or_else(|| {
+    let static_ladder_progress = match tracking_data.static_ladder_progress.clone() {
+        Some(static_ladder_progress) => static_ladder_progress,
+        None => {
+            let max_hybrid_cascading_retry_count = revenue_recovery_payment_data
+                .billing_mca
+                .get_max_hybrid_cascading_retry_count()
+                .ok_or(errors::RecoveryError::ValueNotFound)
+                .attach_printable(
+                    "Failed to get max hybrid cascading retry count from billing merchant connector account",
+                )?;
             schedule::StaticLadderProgress::seed_for_existing_invoice(
                 payment_intent.get_revenue_recovery_retry_count(),
-                revenue_recovery_payment_data
-                    .billing_mca
-                    .get_max_hybrid_cascading_retry_count(),
+                max_hybrid_cascading_retry_count,
             )
-        });
+        }
+    };
 
     // 2. Bound the invoice by the merchant's ceiling, independently of the retry ladder.
     let max_retry_count = revenue_recovery_payment_data
         .billing_mca
-        .get_max_retry_count();
+        .get_max_retry_count()
+        .ok_or(errors::RecoveryError::ValueNotFound)
+        .attach_printable(
+            "Failed to get max retry count from billing merchant connector account",
+        )?;
 
     let (payment_processor_token_response, next_static_ladder_progress) =
         if is_retry_budget_exhausted(process.retry_count, max_retry_count) {
@@ -702,7 +716,7 @@ pub async fn perform_calculate_workflow(
                 process.retry_count,
                 &tracking_data,
                 &static_ladder_progress,
-                revenue_recovery_payment_data.billing_mca.get_max_retry_count(),
+                max_retry_count,
         )
             .await
             {
