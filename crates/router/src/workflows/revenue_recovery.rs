@@ -656,7 +656,7 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
     let mut payment_processor_token_response = PaymentProcessorTokenResponse::None;
     // Updated scheduling state, set only when a retry is actually scheduled by the adaptive
     // path. The other responses reschedule the CALCULATE job without making an attempt, so
-    // persisting there would consume a pinned static time for a retry that never happened.
+    // persisting there would consume a ladder position for a retry that never happened.
     let mut next_static_ladder_progress = None;
     match retry_algorithm_type {
         RevenueRecoveryAlgorithmType::Monitoring => {
@@ -709,6 +709,7 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                 // the token. The only additions are the adaptive candidate and the choice
                 // between the two.
                 let queried_rung = static_ladder_progress.next_rung();
+
                 let static_time = get_schedule_time_to_retry_mit_payments(
                     state.store.as_ref(),
                     state.superposition_service.as_ref(),
@@ -718,9 +719,26 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                 .await
                 .ok_or(errors::ProcessTrackerError::EApiErrorResponse)?;
 
-                // The one extra call. `None` whenever the algorithm has no opinion, in which
-                // case the decision resolves to the static time exactly as cascading would.
-                let adaptive_time: Option<time::PrimitiveDateTime> = None;
+                let (remaining_grace_days, remaining_budget) = get_adaptive_retry_allowances(
+                    state,
+                    &dimensions,
+                    payment_intent,
+                    retry_count,
+                    now,
+                )
+                .await;
+
+                let adaptive_time = match tracking_data.prev_attempt_error_code {
+                    Some(error_code) => compute_adaptive_retry_time(
+                        state,
+                        error_code,
+                        remaining_grace_days,
+                        remaining_budget,
+                    )
+                    .await
+                    .map(common_utils::date_time::convert_to_pdt),
+                    None => None,
+                };
 
                 let decision = pcr::schedule::decide_next_retry(
                     static_ladder_progress,
@@ -733,6 +751,10 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                     source = ?decision.source,
                     queried_rung = queried_rung,
                     static_time = ?static_time,
+                    adaptive_time = ?adaptive_time,
+                    error_code = ?tracking_data.prev_attempt_error_code,
+                    remaining_grace_days = remaining_grace_days,
+                    remaining_budget = remaining_budget,
                     schedule_time = ?decision.schedule_time,
                     "Adaptive retry decision"
                 );
