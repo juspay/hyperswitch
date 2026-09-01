@@ -75,35 +75,22 @@ describe("Card - ThreeDS payment flow test", () => {
         cy.handleRedirection(globalState, expected_redirection);
       });
 
-      cy.step("verify payment account reference", () => {
+      cy.step("retrieve payment", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: verify payment account reference");
+          cy.task("cli_log", "Skipping step: retrieve payment");
           return;
         }
-        const connectorId = globalState.get("connectorId");
-        if (connectorId !== "stripe") {
-          cy.task(
-            "cli_log",
-            `Skipping PAR verification for connector: ${connectorId}`
-          );
-          return;
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["3DSAutoCapture"];
+
+        // Stripe returns PAR only after the 3DS challenge completes,
+        // so it is verified on the post-redirection retrieve
+        if (globalState.get("connectorId") === "stripe") {
+          confirmData.Response.body.payment_account_reference = "dynamic_par";
         }
-        cy.request({
-          method: "GET",
-          url: `${globalState.get("baseUrl")}/payments/${globalState.get(
-            "paymentID"
-          )}?force_sync=true&expand_attempts=true`,
-          headers: {
-            "Content-Type": "application/json",
-            "api-key": globalState.get("apiKey"),
-          },
-        }).then((response) => {
-          expect(response.status).to.equal(200);
-          expect(
-            response.body.payment_account_reference,
-            "payment_account_reference"
-          ).to.be.a("string").and.to.not.be.empty;
-        });
+
+        cy.retrievePaymentCallTest({ globalState, data: confirmData });
       });
     });
   });
