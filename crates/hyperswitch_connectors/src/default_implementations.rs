@@ -9010,6 +9010,7 @@ default_imp_for_revenue_recovery_dispute_record_back!(
     connectors::Gigadat,
     connectors::Givepayments,
     connectors::Globalpay,
+    connectors::GlobalpaymentsHeartland,
     connectors::Globepay,
     connectors::Gocardless,
     connectors::GotymeSanlam,
