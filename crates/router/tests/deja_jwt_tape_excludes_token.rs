@@ -58,9 +58,7 @@ fn recorded_call_carries_a_digest_and_never_the_token() {
     // decision being registered for one — an earlier version of this test set
     // the decision alone and recorded nothing at all. The guard must outlive
     // the call below, so it is bound rather than dropped.
-    let _correlation = deja_context::enter(
-        deja_context::ContextSnapshot::new(CORRELATION_ID).with_recording_decision(true),
-    );
+    let _correlation = deja::test_support::recording_correlation(CORRELATION_ID);
 
     let outcome = decode_jwt_verified::<Claims>(TOKEN, b"test-secret");
     assert_eq!(
