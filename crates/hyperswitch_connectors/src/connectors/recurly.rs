@@ -280,6 +280,19 @@ impl
 
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 impl api::revenue_recovery_v2::RevenueRecoveryRecordBackV2 for Recurly {}
+// Recurly does not support recording a dispute back; it takes the unimplemented default.
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+impl api::revenue_recovery_v2::RevenueRecoveryDisputeRecordBackV2 for Recurly {}
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+impl
+    ConnectorIntegrationV2<
+        recovery_router_flows::DisputeRecordBack,
+        recovery_flow_common_types::DisputeRecordBackData,
+        recovery_request_types::DisputeRecordBackRequest,
+        recovery_response_types::DisputeRecordBackResponse,
+    > for Recurly
+{
+}
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 impl api::revenue_recovery_v2::BillingConnectorPaymentsSyncIntegrationV2 for Recurly {}
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]

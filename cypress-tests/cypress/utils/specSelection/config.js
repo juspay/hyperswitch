@@ -47,6 +47,7 @@ export const CONNECTOR_PAYMENT_METHODS = Object.freeze({
   facilitapay: ["bank_transfer"],
   fiservcommercehub: ["card"],
   gigadat: ["bank_redirect"],
+  givepayments: ["card"],
   globepay: ["wallet"],
   iatapay: ["bank_redirect", "real_time_payment", "upi"],
   inespay: ["bank_debit"],

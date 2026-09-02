@@ -2805,6 +2805,19 @@ where
     D: OperationSessionGetters<F> + Send + Sync,
     Op: Operation<F, R, Data = D> + Send + Sync,
 {
+    // Log the inputs of the modular-vs-legacy decision so a wrong branch is diagnosable:
+    // the feature flag, the payment method's version and the modular/legacy modification
+    // timestamps are everything `should_use_modular_pm_path` looks at.
+    let pm_decision_inputs = payment_data
+        .get_payment_method_info()
+        .map(|pm| (pm.version, pm.compatibility_updated_at, pm.last_modified));
+    logger::info!(
+        payment_id = ?payment_data.get_payment_attempt().payment_id,
+        is_payment_method_modular_allowed = feature_config.is_payment_method_modular_allowed,
+        payment_method_decision_inputs = ?pm_decision_inputs,
+        "resolving modular vs legacy payment method update path"
+    );
+
     if payment_data.get_payment_method_info().is_some_and(|pm| {
         feature_config.should_use_modular_pm_path(
             Some(pm.version),
@@ -2812,9 +2825,9 @@ where
             Some(pm.last_modified),
         )
     }) {
-        logger::debug!(
+        logger::info!(
             payment_id = ?payment_data.get_payment_attempt().payment_id,
-            "Modular merchant detected; calling update_modular_pm_and_mandate"
+            "Modular payment method path selected; calling update_modular_pm_and_mandate"
         );
 
         let domain_payment_method_data =
@@ -2833,9 +2846,11 @@ where
             )
             .await?;
     } else {
-        logger::debug!(
+        // Reached when the flag is off, the timestamps favour legacy, or there is no
+        // payment_method_info at all — the decision-inputs log above disambiguates.
+        logger::info!(
             payment_id = ?payment_data.get_payment_attempt().payment_id,
-            "Non-modular merchant; calling save_pm_and_mandate"
+            "Legacy payment method path selected; calling save_pm_and_mandate"
         );
         operation
             .to_post_update_tracker()?
@@ -14978,11 +14993,38 @@ async fn resolve_offer_eligibility_details(
             .with_processor_merchant_id(processor.get_processor_merchant_id())
             .with_organization_id(processor.get_account().get_org_id().clone())
             .with_profile_id(profile_id.clone());
-        offer_engine::resolve_offer_engine_config(state, &offer_dimensions)
-            .await
-            .ok()
-            .flatten()
-            .zip(currency)
+        let resolved_config =
+            match offer_engine::resolve_offer_engine_credential_source(state, &offer_dimensions)
+                .await
+            {
+                offer_engine::OfferEngineCredentialSource::None => None,
+                offer_engine::OfferEngineCredentialSource::Application => {
+                    offer_engine::OfferEngineCredentialSource::resolve_application_offer_config(
+                        state,
+                    )
+                    .inspect_err(|error| {
+                        logger::warn!(
+                            ?error,
+                            "offer engine: unable to resolve offer config; offers unavailable"
+                        )
+                    })
+                    .ok()
+                }
+                offer_engine::OfferEngineCredentialSource::Merchant => {
+                    offer_engine::OfferEngineCredentialSource::resolve_merchant_offer_config(
+                        state,
+                        processor.get_account(),
+                    )
+                    .inspect_err(|error| {
+                        logger::warn!(
+                            ?error,
+                            "offer engine: unable to resolve offer config; offers unavailable"
+                        )
+                    })
+                    .ok()
+                }
+            };
+        resolved_config.zip(currency)
     };
 
     match offer_context {
