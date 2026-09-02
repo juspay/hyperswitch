@@ -4164,6 +4164,18 @@ pub struct AdditionalCardInfo {
     /// Card type, can be either `credit` or `debit`
     pub card_type: Option<String>,
 
+    /// The product the card is issued under, e.g. `CLASSIC` or `ELECTRON`.
+    /// Free form, as the value comes straight from the BIN record.
+    pub card_subtype: Option<String>,
+
+    /// The segment the card is issued to, e.g. `Consumer`, `Commercial`, `Business`
+    /// or `Government`. Free form, as the value comes straight from the BIN record.
+    pub card_segment_type: Option<String>,
+
+    /// How the card is funded, as recorded against its BIN. More granular than
+    /// `card_type`, which collapses deferred debit and charge cards.
+    pub funding_source: Option<api_enums::FundingSource>,
+
     pub card_issuing_country: Option<String>,
     pub card_issuing_country_code: Option<String>,
     pub bank_code: Option<String>,
@@ -5891,6 +5903,18 @@ pub struct CardResponse {
     pub last4: Option<String>,
     #[smithy(value_type = "Option<String>")]
     pub card_type: Option<String>,
+    /// The product the card is issued under, e.g. `CLASSIC` or `ELECTRON`.
+    #[smithy(value_type = "Option<String>")]
+    pub card_subtype: Option<String>,
+    /// The segment the card is issued to, e.g. `Consumer`, `Commercial`, `Business`
+    /// or `Government`.
+    #[smithy(value_type = "Option<String>")]
+    pub card_segment_type: Option<String>,
+    /// How the card is funded, as recorded against its BIN. More granular than
+    /// `card_type`, which collapses deferred debit and charge cards.
+    #[schema(value_type = Option<FundingSource>, example = "CREDIT")]
+    #[smithy(value_type = "Option<FundingSource>")]
+    pub funding_source: Option<api_enums::FundingSource>,
     #[schema(value_type = Option<CardNetwork>, example = "Visa")]
     #[smithy(value_type = "Option<CardNetwork>")]
     pub card_network: Option<api_enums::CardNetwork>,
@@ -9482,6 +9506,9 @@ impl From<AdditionalCardInfo> for CardResponse {
         Self {
             last4: card.last4,
             card_type: card.card_type,
+            card_subtype: card.card_subtype,
+            card_segment_type: card.card_segment_type,
+            funding_source: card.funding_source,
             card_network: card.card_network,
             card_issuer: card.card_issuer,
             card_issuing_country: card.card_issuing_country,

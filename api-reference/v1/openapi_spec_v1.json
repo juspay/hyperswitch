@@ -17202,6 +17202,24 @@
             "type": "string",
             "nullable": true
           },
+          "card_subtype": {
+            "type": "string",
+            "description": "The product the card is issued under, e.g. `CLASSIC` or `ELECTRON`.",
+            "nullable": true
+          },
+          "card_segment_type": {
+            "type": "string",
+            "description": "The segment the card is issued to, e.g. `Consumer`, `Commercial`, `Business`\nor `Government`.",
+            "nullable": true
+          },
+          "funding_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FundingSource"
+              }
+            ],
+            "nullable": true
+          },
           "card_network": {
             "allOf": [
               {
