@@ -1142,6 +1142,7 @@ impl Conversion for domain::MerchantAccount {
             is_platform_account: self.is_platform_account,
             product_type: self.product_type,
             merchant_account_type: self.merchant_account_type,
+            fingerprint_secret: self.fingerprint_secret,
         };
 
         Ok(diesel_models::MerchantAccount::from(setter))
@@ -1206,6 +1207,7 @@ impl Conversion for domain::MerchantAccount {
                     version: item.version,
                     product_type: item.product_type,
                     merchant_account_type: item.merchant_account_type.unwrap_or_default(),
+                    fingerprint_secret: item.fingerprint_secret,
                 }
                 .into(),
             )
@@ -1223,6 +1225,7 @@ impl Conversion for domain::MerchantAccount {
             merchant_name: self.merchant_name.map(Encryption::from),
             merchant_details: self.merchant_details.map(Encryption::from),
             publishable_key: Some(self.publishable_key),
+            storage_scheme: self.storage_scheme,
             metadata: self.metadata,
             created_at: now,
             modified_at: now,
@@ -1234,6 +1237,7 @@ impl Conversion for domain::MerchantAccount {
                 .product_type
                 .or(Some(common_enums::MerchantProductType::Orchestration)),
             merchant_account_type: self.merchant_account_type,
+            fingerprint_secret: self.fingerprint_secret,
         })
     }
 }
