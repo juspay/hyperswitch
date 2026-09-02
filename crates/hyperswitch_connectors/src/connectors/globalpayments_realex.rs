@@ -642,13 +642,25 @@ static GLOBALPAYMENTS_REALEX_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymen
             enums::PaymentMethod::Card,
             enums::PaymentMethodType::Credit,
             PaymentMethodDetails {
-                mandates: enums::FeatureStatus::Supported,
+                // Mandates / MIT / recurring are deliberately out of scope: SetupMandate,
+                // RepeatPayment and MandateRevoke are all in the connector's
+                // `not_implemented` list on the UCS side.
+                mandates: enums::FeatureStatus::NotSupported,
                 refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
                 specific_features: Some(
                     api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
                         api_models::feature_matrix::CardSpecificFeatures {
-                            three_ds: common_enums::FeatureStatus::Supported,
+                            // 3DS2 is fully implemented (UCS PreAuthenticate / Authenticate /
+                            // PostAuthenticate against the Global Payments 3DS2 JSON API) and
+                            // HS routing into pre-authentication is verified, but not one 3DS
+                            // request has ever completed against the gateway: the sandbox
+                            // account is not provisioned for 3-D Secure
+                            // (`403 That Account ID is not configured for 3D Secure`; the legacy
+                            // XML `3ds-verifyenrolled` likewise returns `503 No mpi details
+                            // setup`). Declared NotSupported until a 3DS payment is proven end
+                            // to end; flip to Supported once Global Payments enable it.
+                            three_ds: common_enums::FeatureStatus::NotSupported,
                             no_three_ds: common_enums::FeatureStatus::Supported,
                             supported_card_networks: supported_card_networks.clone(),
                         }
@@ -661,13 +673,25 @@ static GLOBALPAYMENTS_REALEX_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymen
             enums::PaymentMethod::Card,
             enums::PaymentMethodType::Debit,
             PaymentMethodDetails {
-                mandates: enums::FeatureStatus::Supported,
+                // Mandates / MIT / recurring are deliberately out of scope: SetupMandate,
+                // RepeatPayment and MandateRevoke are all in the connector's
+                // `not_implemented` list on the UCS side.
+                mandates: enums::FeatureStatus::NotSupported,
                 refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
                 specific_features: Some(
                     api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
                         api_models::feature_matrix::CardSpecificFeatures {
-                            three_ds: common_enums::FeatureStatus::Supported,
+                            // 3DS2 is fully implemented (UCS PreAuthenticate / Authenticate /
+                            // PostAuthenticate against the Global Payments 3DS2 JSON API) and
+                            // HS routing into pre-authentication is verified, but not one 3DS
+                            // request has ever completed against the gateway: the sandbox
+                            // account is not provisioned for 3-D Secure
+                            // (`403 That Account ID is not configured for 3D Secure`; the legacy
+                            // XML `3ds-verifyenrolled` likewise returns `503 No mpi details
+                            // setup`). Declared NotSupported until a 3DS payment is proven end
+                            // to end; flip to Supported once Global Payments enable it.
+                            three_ds: common_enums::FeatureStatus::NotSupported,
                             no_three_ds: common_enums::FeatureStatus::Supported,
                             supported_card_networks,
                         }
