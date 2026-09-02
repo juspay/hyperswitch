@@ -63,7 +63,7 @@ pub type EmailOutcome = Outcome<()>;
 /// both backends build a single-recipient message. When that is lifted, a destination widens to a
 /// recipient list without the wire contract changing, since a request only ever names an id.
 #[async_trait::async_trait]
-pub trait EmailNotifier: Send + Sync + std::fmt::Debug {
+pub trait EmailNotifier: Send + Sync {
     /// Attempt delivery.
     ///
     /// A provider that refuses returns `Ok(Outcome::Refused)`, not an error. Email cannot reach
@@ -76,10 +76,12 @@ pub trait EmailNotifier: Send + Sync + std::fmt::Debug {
 /// The client is shared across destinations and the recipient is not, which is the whole shape of
 /// the type: one transport, many addresses.
 ///
-/// `Debug` is derived rather than written out. `pii::Email` masks its own local part, so the
-/// recipient renders as `******@example.com` — the same thing every other email in this workspace
-/// logs as. Letting the types decide beats an impl someone has to remember to update.
-#[derive(Debug, Clone)]
+/// Not `Debug`, and neither is [`EmailNotifier`]. Deriving would need `dyn EmailService` to be
+/// `Debug`, and the alternative is a hand-written impl whose only job is to skip the one field
+/// that cannot be — so the bound is dropped rather than paid for. Nothing formats a notifier.
+/// [`ChatNotifier`](super::chat::ChatNotifier) keeps it, because every chat implementation derives
+/// it for free.
+#[derive(Clone)]
 pub struct EmailServiceNotifier {
     destination: String,
     client: Arc<Box<dyn EmailService>>,
@@ -179,15 +181,12 @@ mod tests {
     /// A subject carries merchant ids and a body carries volumes, and neither belongs in a log
     /// line. `Secret` is what enforces that, so `Debug` can be derived everywhere rather than
     /// hand-written and kept in step by hand.
-    #[tokio::test]
-    async fn debug_leaks_no_content() {
-        let rendered = format!("{:?} {:?}", notification(), no_email_notifier().await);
+    #[test]
+    fn debug_leaks_no_content() {
+        let rendered = format!("{:?}", notification());
 
         assert!(!rendered.contains("merchant_1234"));
         assert!(!rendered.contains("4,201"));
-        // `pii::Email` masks its own local part and keeps the domain, which is what every other
-        // email in this workspace logs as.
-        assert!(!rendered.contains("oncall@"));
     }
 
     /// A destination with no address would accept alerts and send them nowhere, so it has to fail

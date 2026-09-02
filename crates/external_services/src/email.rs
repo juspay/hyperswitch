@@ -42,12 +42,8 @@ pub trait EmailClient: Sync + Send + dyn_clone::DynClone {
 }
 
 /// A super trait which is automatically implemented for all EmailClients
-///
-/// `Debug` so that a caller holding one as a field can derive `Debug` rather than hand-write an
-/// impl to skip it. Matches [`crate::chat_service::ChatClient`], and every implementor already
-/// derives it.
 #[async_trait::async_trait]
-pub trait EmailService: Sync + Send + std::fmt::Debug + dyn_clone::DynClone {
+pub trait EmailService: Sync + Send + dyn_clone::DynClone {
     /// Compose and send email using the email data
     async fn compose_and_send_email(
         &self,
@@ -56,16 +52,10 @@ pub trait EmailService: Sync + Send + std::fmt::Debug + dyn_clone::DynClone {
         proxy_url: Option<&String>,
     ) -> EmailResult<()>;
 
-    /// Send contents that are already composed.
+    /// Send contents that are already composed, for a caller with no template to render.
     ///
-    /// For a caller that holds a subject, a body and a recipient and has no template to render.
-    /// [`EmailService::compose_and_send_email`] exists to *run* an [`EmailData`], and its
-    /// `base_url` is there because the product emails build links against it; a caller with
-    /// nothing to compose would otherwise have to implement [`EmailData`] purely to hand back what
-    /// it was given, and invent a `base_url` for that impl to ignore.
-    ///
-    /// Composition is defined in terms of this rather than the other way round, so the two paths
-    /// cannot drift.
+    /// [`EmailService::compose_and_send_email`] is defined in terms of this, so the two cannot
+    /// drift.
     async fn send_contents(
         &self,
         contents: EmailContents,
@@ -76,7 +66,7 @@ pub trait EmailService: Sync + Send + std::fmt::Debug + dyn_clone::DynClone {
 #[async_trait::async_trait]
 impl<T> EmailService for T
 where
-    T: EmailClient + std::fmt::Debug,
+    T: EmailClient,
     <Self as EmailClient>::RichText: Send,
 {
     async fn compose_and_send_email(
