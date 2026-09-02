@@ -909,7 +909,7 @@ Cypress.Commands.add(
  * @param {Object} createBusinessProfile - The business profile creation request body
  * @param {Object} globalState - The global state object
  * @param {string} [profilePrefix="profile"] - Prefix used to namespace the stored profile ID in globalState (e.g. "webhookConfigProfile" stores as globalState.set("webhookConfigProfileId", ...)). Defaults to "profile" for backward compatibility.
- * @param {number} [expectedStatus=200] - Expected HTTP status code. Use 400 for negative test cases that assert validation errors.
+ * @param {number} [expectedStatus=200] - Expected HTTP status code (400 for malformed values, 422 for semantic validation errors).
  */
 Cypress.Commands.add(
   "createBusinessProfileTest",

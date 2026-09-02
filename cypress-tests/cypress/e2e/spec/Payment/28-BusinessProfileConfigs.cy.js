@@ -590,7 +590,7 @@ describe("Config Tests", () => {
         createBody,
         globalState,
         "webhookNegMandateProfile",
-        400
+        422
       );
     });
 
@@ -607,7 +607,7 @@ describe("Config Tests", () => {
         createBody,
         globalState,
         "webhookNegInvoiceProfile",
-        400
+        422
       );
     });
 
