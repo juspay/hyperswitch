@@ -328,16 +328,10 @@ pub struct OfferNotifyRequest {
 /// Response marker for `/offers/notify`; a 2xx is treated as delivered.
 pub struct OfferNotifyResponse;
 
-/// Browse request to Offer Engine
+/// Browse request to Offer Engine. Carries no `order`: Offer Engine requires an amount inside
+/// an `order` once one is present, and browse has no order. The merchant comes from the API key.
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct BrowseOfferListRequest {
-    pub order: BrowseOfferOrder,
-}
-
-/// Order context for a browse request.
-#[derive(Debug, Clone, serde::Serialize)]
-pub struct BrowseOfferOrder {
-    pub merchant_id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub currency: Option<common_enums::Currency>,
 }
