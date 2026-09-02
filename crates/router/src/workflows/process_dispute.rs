@@ -78,6 +78,7 @@ impl ProcessTrackerWorkflow<SessionState> for ProcessDisputeWorkflow {
             state,
             tracking_data.dispute_payload.object_reference_id.clone(),
             platform.get_processor(),
+            None,
         )
         .await?;
 

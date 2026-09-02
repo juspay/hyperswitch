@@ -661,6 +661,7 @@ pub async fn get_payment_intent_payment_attempt(
                     .find_payment_attempt_by_processor_merchant_id_connector_txn_id(
                         processor_merchant_id,
                         id,
+                        None,
                         storage_scheme,
                         key_store,
                     )

@@ -199,6 +199,7 @@ pub async fn find_payment_intent_from_payment_id_type(
                 .find_payment_attempt_by_processor_merchant_id_connector_txn_id(
                     platform.get_processor().get_account().get_id(),
                     &connector_transaction_id,
+                    None,
                     platform.get_processor().get_account().storage_scheme,
                     platform.get_processor().get_key_store(),
                 )
@@ -260,6 +261,7 @@ pub async fn find_payment_intent_from_refund_id_type(
                 platform.get_processor().get_account().get_id(),
                 &id,
                 connector_name,
+                None,
                 platform.get_processor().get_account().storage_scheme,
             )
             .await

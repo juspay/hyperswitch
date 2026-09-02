@@ -879,6 +879,7 @@ pub async fn fetch_disputes_from_connector(
             &state,
             dispute.object_reference_id.clone(),
             platform.get_processor(),
+            None,
         )
         .await;
 

@@ -3127,6 +3127,7 @@ dependencies = [
  "deja",
  "diesel",
  "error-stack 0.4.1",
+ "futures 0.3.31",
  "hyperswitch_masking",
  "router_derive",
  "router_env",
@@ -3135,6 +3136,7 @@ dependencies = [
  "strum 0.26.3",
  "thiserror 1.0.69",
  "time 0.3.41",
+ "tokio 1.48.0",
 ]
 
 [[package]]
