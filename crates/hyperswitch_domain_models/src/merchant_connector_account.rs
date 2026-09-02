@@ -271,6 +271,15 @@ impl MerchantConnectorAccount {
             .map(|recovery| recovery.billing_connector_retry_threshold)
     }
 
+    /// Ceiling on retries an invoice may receive, counting the billing connector's own retries
+    /// alongside ours. The initial charge is not a retry.
+    pub fn get_max_retry_count(&self) -> Option<u16> {
+        self.feature_metadata
+            .as_ref()
+            .and_then(|metadata| metadata.revenue_recovery.as_ref())
+            .map(|recovery| recovery.max_retry_count)
+    }
+
     pub fn get_id(&self) -> id_type::MerchantConnectorAccountId {
         self.id.clone()
     }

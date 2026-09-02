@@ -681,6 +681,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, NoonPaymentsResponse, T, PaymentsRespon
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     })
                 }
             },

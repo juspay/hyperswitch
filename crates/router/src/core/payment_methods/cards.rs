@@ -4954,10 +4954,21 @@ pub async fn build_merchant_enabled_pms_context(
         None => false,
     };
 
-    let offers_enabled = matches!(
-        offer_engine::resolve_offer_engine_config(state, &dimensions).await,
-        Ok(Some(_))
-    );
+    let offers_enabled =
+        match offer_engine::resolve_offer_engine_credential_source(state, &dimensions).await {
+            offer_engine::OfferEngineCredentialSource::None => false,
+            offer_engine::OfferEngineCredentialSource::Application => {
+                offer_engine::OfferEngineCredentialSource::resolve_application_offer_config(state)
+                    .is_ok()
+            }
+            offer_engine::OfferEngineCredentialSource::Merchant => {
+                offer_engine::OfferEngineCredentialSource::resolve_merchant_offer_config(
+                    state,
+                    platform.get_processor().get_account(),
+                )
+                .is_ok()
+            }
+        };
 
     let sdk_next_action = payment_method_utils::get_sdk_next_action_for_payment_method_list(
         state,

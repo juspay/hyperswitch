@@ -820,6 +820,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, NovalnetPaymentsResponse, T, PaymentsRe
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     }),
                     ..item.data
                 })
@@ -1285,6 +1286,7 @@ impl<F>
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     }),
                     ..item.data
                 })
@@ -1376,6 +1378,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<NovalnetCaptureResponse>>
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     }),
                     ..item.data
                 })
@@ -1561,6 +1564,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<NovalnetCancelResponse>>
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     }),
                     ..item.data
                 })

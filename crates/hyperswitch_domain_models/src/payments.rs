@@ -156,6 +156,9 @@ pub struct PaymentIntent {
     pub profile_acquirer_id: Option<id_type::ProfileAcquirerId>,
     pub external_surcharge_strategy: Option<common_enums::SurchargeStrategy>,
     pub external_surcharge_applicable: Option<bool>,
+    pub is_account_funded_transaction: Option<bool>,
+    #[encrypt]
+    pub recipient_details: Option<Encryptable<Secret<Value>>>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -406,6 +409,25 @@ impl PaymentIntent {
                     None
                 }
             })
+    }
+
+    /// Decrypt and parse the recipient details
+    pub fn get_recipient_details(
+        &self,
+    ) -> CustomResult<
+        Option<api_models::payments::RecipientDetails>,
+        common_utils::errors::ParsingError,
+    > {
+        self.recipient_details
+            .as_ref()
+            .map(|details| {
+                let decrypted_value = details.clone().into_inner().expose();
+                ValueExt::parse_value::<api_models::payments::RecipientDetails>(
+                    decrypted_value,
+                    "RecipientDetails",
+                )
+            })
+            .transpose()
     }
 
     #[cfg(feature = "v1")]
@@ -1008,6 +1030,11 @@ pub struct PaymentIntent {
     /// Denotes the surcharge strategy for this payment.
     pub external_surcharge_strategy: Option<common_enums::SurchargeStrategy>,
     pub external_surcharge_applicable: Option<bool>,
+    /// Denotes whether this payment is an account funded transaction.
+    pub is_account_funded_transaction: Option<bool>,
+    /// The details of the party receiving the funds in an account funded transaction.
+    #[encrypt]
+    pub recipient_details: Option<Encryptable<Secret<Value>>>,
 }
 
 #[cfg(feature = "v2")]
@@ -1218,6 +1245,8 @@ impl PaymentIntent {
             profile_acquirer_id: None,
             external_surcharge_strategy: None,
             external_surcharge_applicable: None,
+            is_account_funded_transaction: request.is_account_funded_transaction,
+            recipient_details: decrypted_payment_intent.recipient_details,
         })
     }
 

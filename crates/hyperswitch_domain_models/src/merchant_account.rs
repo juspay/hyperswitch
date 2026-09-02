@@ -56,6 +56,7 @@ pub struct MerchantAccount {
     pub merchant_account_type: common_enums::MerchantAccountType,
     pub network_tokenization_credentials: OptionalEncryptableValue,
     pub fingerprint_secret: Option<Secret<String>>,
+    pub offer_engine_config: OptionalEncryptableValue,
 }
 
 #[cfg(feature = "v1")]
@@ -95,6 +96,7 @@ pub struct MerchantAccountSetter {
     pub merchant_account_type: common_enums::MerchantAccountType,
     pub network_tokenization_credentials: OptionalEncryptableValue,
     pub fingerprint_secret: Option<Secret<String>>,
+    pub offer_engine_config: OptionalEncryptableValue,
 }
 
 #[cfg(feature = "v1")]
@@ -134,6 +136,7 @@ impl From<MerchantAccountSetter> for MerchantAccount {
             merchant_account_type: item.merchant_account_type,
             network_tokenization_credentials: item.network_tokenization_credentials,
             fingerprint_secret: item.fingerprint_secret,
+            offer_engine_config: item.offer_engine_config,
         }
     }
 }
@@ -232,6 +235,14 @@ impl MerchantAccount {
         &self.default_profile
     }
 
+    #[cfg(feature = "v1")]
+    /// Get the decrypted merchant-level Offer Engine config JSON, if configured
+    pub fn get_offer_engine_config(&self) -> Option<&pii::SecretSerdeValue> {
+        self.offer_engine_config
+            .as_ref()
+            .map(|config| config.get_inner())
+    }
+
     #[cfg(feature = "v2")]
     /// Get the unique identifier of MerchantAccount
     pub fn get_id(&self) -> &common_utils::id_type::MerchantId {
@@ -294,6 +305,7 @@ pub enum MerchantAccountUpdate {
         payment_link_config: Option<serde_json::Value>,
         pm_collect_link_config: Option<serde_json::Value>,
         network_tokenization_credentials: OptionalEncryptableValue,
+        offer_engine_config: OptionalEncryptableValue,
     },
     StorageSchemeUpdate {
         storage_scheme: MerchantStorageScheme,
@@ -351,6 +363,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 payment_link_config,
                 pm_collect_link_config,
                 network_tokenization_credentials,
+                offer_engine_config,
             } => Self {
                 merchant_name: merchant_name.map(Encryption::from),
                 merchant_details: merchant_details.map(Encryption::from),
@@ -381,6 +394,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 product_type: None,
                 network_tokenization_credentials: network_tokenization_credentials
                     .map(Encryption::from),
+                offer_engine_config: offer_engine_config.map(Encryption::from),
             },
             MerchantAccountUpdate::StorageSchemeUpdate { storage_scheme } => Self {
                 storage_scheme: Some(storage_scheme),
@@ -411,6 +425,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 is_platform_account: None,
                 product_type: None,
                 network_tokenization_credentials: None,
+                offer_engine_config: None,
             },
             MerchantAccountUpdate::ReconUpdate { recon_status } => Self {
                 recon_status: Some(recon_status),
@@ -441,6 +456,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 is_platform_account: None,
                 product_type: None,
                 network_tokenization_credentials: None,
+                offer_engine_config: None,
             },
             MerchantAccountUpdate::UnsetDefaultProfile => Self {
                 default_profile: Some(None),
@@ -471,6 +487,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 is_platform_account: None,
                 product_type: None,
                 network_tokenization_credentials: None,
+                offer_engine_config: None,
             },
             MerchantAccountUpdate::ModifiedAtUpdate => Self {
                 modified_at: now,
@@ -501,6 +518,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 is_platform_account: None,
                 product_type: None,
                 network_tokenization_credentials: None,
+                offer_engine_config: None,
             },
         }
     }
@@ -731,6 +749,7 @@ impl Conversion for MerchantAccount {
                 .network_tokenization_credentials
                 .map(|credentials| credentials.into()),
             fingerprint_secret: self.fingerprint_secret,
+            offer_engine_config: self.offer_engine_config.map(|config| config.into()),
         };
 
         Ok(diesel_models::MerchantAccount::from(setter))
@@ -826,6 +845,20 @@ impl Conversion for MerchantAccount {
                     })
                     .await?,
                 fingerprint_secret: item.fingerprint_secret,
+                offer_engine_config: item
+                    .offer_engine_config
+                    .async_lift(|inner| async {
+                        crypto_operation(
+                            state,
+                            type_name!(Self::DstType),
+                            CryptoOperation::DecryptOptional(inner),
+                            key_manager_identifier.clone(),
+                            key.peek(),
+                        )
+                        .await
+                        .and_then(|val| val.try_into_optionaloperation())
+                    })
+                    .await?,
             })
         }
         .await
@@ -875,6 +908,7 @@ impl Conversion for MerchantAccount {
                 .network_tokenization_credentials
                 .map(|credentials| credentials.into()),
             fingerprint_secret: self.fingerprint_secret,
+            offer_engine_config: self.offer_engine_config.map(|config| config.into()),
         })
     }
 }

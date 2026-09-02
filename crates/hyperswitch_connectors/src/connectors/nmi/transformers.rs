@@ -260,6 +260,7 @@ fn build_nmi_vault_response(
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             AttemptStatus::AuthenticationPending,
         ),
@@ -497,6 +498,7 @@ impl
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 if item.data.request.is_auto_capture()? {
                     AttemptStatus::Charged
@@ -1214,6 +1216,7 @@ impl
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 AttemptStatus::Charged,
             ),
@@ -1344,6 +1347,7 @@ impl<T> TryFrom<ResponseRouterData<SetupMandate, StandardResponse, T, PaymentsRe
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 AttemptStatus::Charged,
             ),
@@ -1423,6 +1427,7 @@ impl TryFrom<PaymentsResponseRouterData<StandardResponse>>
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 if item.data.request.is_auto_capture()? {
                     AttemptStatus::Charged
@@ -1476,6 +1481,7 @@ impl<T> TryFrom<ResponseRouterData<Void, StandardResponse, T, PaymentsResponseDa
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 AttemptStatus::VoidInitiated,
             ),
@@ -1537,6 +1543,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SyncResponse, T, PaymentsResponseData>>
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             }),

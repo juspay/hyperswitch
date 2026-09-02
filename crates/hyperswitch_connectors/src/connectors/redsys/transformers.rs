@@ -968,6 +968,7 @@ fn build_threeds_invoke_response(
         incremental_authorization_allowed: None,
         authentication_data,
         charges: None,
+        payment_account_reference: None,
     });
 
     Ok((enums::AttemptStatus::AuthenticationPending, response))
@@ -1012,6 +1013,7 @@ fn build_threeds_invoke_exempt_response(
         incremental_authorization_allowed: None,
         authentication_data,
         charges: None,
+        payment_account_reference: None,
     });
 
     Ok((enums::AttemptStatus::AuthenticationPending, response))
@@ -1693,6 +1695,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<RedsysResponse>> for PaymentsCapt
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     })
                 };
                 (response, status)
@@ -1806,6 +1809,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<RedsysResponse>> for PaymentsCance
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     })
                 };
                 (response, status)
@@ -1958,6 +1962,7 @@ fn get_payments_response(
                 incremental_authorization_allowed: None,
                 authentication_data,
                 charges: None,
+                payment_account_reference: None,
             })
         };
 
@@ -1980,6 +1985,7 @@ fn get_payments_response(
             incremental_authorization_allowed: None,
             authentication_data,
             charges: None,
+            payment_account_reference: None,
         });
 
         Ok((response, enums::AttemptStatus::AuthenticationPending))
@@ -2286,6 +2292,7 @@ impl<F> TryFrom<ResponseRouterData<F, RedsysSyncResponse, PaymentsSyncData, Paym
                             incremental_authorization_allowed: None,
                             authentication_data: None,
                             charges: None,
+                            payment_account_reference: None,
                         });
                         (status, payment_response)
                     }
@@ -2324,6 +2331,7 @@ impl<F> TryFrom<ResponseRouterData<F, RedsysSyncResponse, PaymentsSyncData, Paym
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     });
 
                     (status, payment_response)

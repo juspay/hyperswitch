@@ -160,6 +160,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, StripebillingPaymentsResponse, T, Payme
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -658,6 +659,8 @@ impl
                 .change_context(errors::ConnectorError::MissingRequiredField {
                     field_name: "invoice_id in the response".into(),
                 })?,
+                // Stripe Billing's record-back does not return a usable transaction id.
+                connector_transaction_id: None,
             }),
             ..item.data
         })

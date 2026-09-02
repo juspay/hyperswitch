@@ -3230,6 +3230,7 @@ impl StripeChargeEnum {
 pub struct StripeCharge {
     pub id: String,
     pub payment_method_details: Option<StripePaymentMethodDetailsResponse>,
+    pub outcome: Option<StripeChargeOutcome>,
 }
 
 #[derive(Deserialize, Clone, Debug, PartialEq, Eq, Serialize)]
@@ -3261,6 +3262,7 @@ pub struct StripeAdditionalCardDetails {
     #[serde(default, with = "common_utils::custom_serde::timestamp::option")]
     capture_before: Option<PrimitiveDateTime>,
     overcapture: Option<StripeOvercaptureResponse>,
+    payment_account_reference: Option<String>,
 }
 
 #[derive(Deserialize, Clone, Debug, PartialEq, Eq, Serialize)]
@@ -3586,18 +3588,20 @@ where
 
         //Note: we might have to call retrieve_setup_intent to get the network_transaction_id in case its not sent in PaymentIntentResponse
         // Or we identify the mandate txns before hand and always call SetupIntent in case of mandate payment call
-        let network_txn_id = match item.response.latest_charge.as_ref() {
+        let card_details_from_latest_charge = match item.response.latest_charge.as_ref() {
             Some(StripeChargeEnum::ChargeObject(charge_object)) => charge_object
                 .payment_method_details
                 .as_ref()
                 .and_then(|payment_method_details| match payment_method_details {
-                    StripePaymentMethodDetailsResponse::Card { card } => {
-                        card.network_transaction_id.clone()
-                    }
+                    StripePaymentMethodDetailsResponse::Card { card } => Some(card),
                     _ => None,
                 }),
             _ => None,
         };
+        let network_txn_id =
+            card_details_from_latest_charge.and_then(|card| card.network_transaction_id.clone());
+        let payment_account_reference =
+            card_details_from_latest_charge.and_then(|card| card.payment_account_reference.clone());
 
         let connector_metadata =
             get_connector_metadata(item.response.next_action.as_ref(), item.response.amount)?;
@@ -3629,6 +3633,7 @@ where
                 network_txn_id,
                 network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.id),
+                payment_account_reference,
                 incremental_authorization_allowed: item
                     .data
                     .request
@@ -3940,17 +3945,20 @@ where
                 item.response.id.clone(),
             )
         } else {
-            let network_transaction_id = match item.response.latest_charge.clone() {
+            let card_details_from_latest_charge = match item.response.latest_charge.clone() {
                 Some(StripeChargeEnum::ChargeObject(charge_object)) => charge_object
                     .payment_method_details
                     .and_then(|payment_method_details| match payment_method_details {
-                        StripePaymentMethodDetailsResponse::Card { card } => {
-                            card.network_transaction_id
-                        }
+                        StripePaymentMethodDetailsResponse::Card { card } => Some(card),
                         _ => None,
                     }),
                 _ => None,
             };
+            let network_transaction_id = card_details_from_latest_charge
+                .as_ref()
+                .and_then(|card| card.network_transaction_id.clone());
+            let payment_account_reference =
+                card_details_from_latest_charge.and_then(|card| card.payment_account_reference);
             let charges = item
                 .response
                 .latest_charge
@@ -3969,6 +3977,7 @@ where
                 network_txn_id: network_transaction_id,
                 network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.id.clone()),
+                payment_account_reference,
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges,
@@ -4044,17 +4053,20 @@ where
                 item.response.id.clone(),
             )
         } else {
-            let network_transaction_id = match item.response.latest_attempt {
+            let card_details_from_latest_attempt = match item.response.latest_attempt {
                 Some(LatestAttempt::PaymentIntentAttempt(attempt)) => attempt
                     .payment_method_details
                     .and_then(|payment_method_details| match payment_method_details {
-                        StripePaymentMethodDetailsResponse::Card { card } => {
-                            card.network_transaction_id
-                        }
+                        StripePaymentMethodDetailsResponse::Card { card } => Some(card),
                         _ => None,
                     }),
                 _ => None,
             };
+            let network_transaction_id = card_details_from_latest_attempt
+                .as_ref()
+                .and_then(|card| card.network_transaction_id.clone());
+            let payment_account_reference =
+                card_details_from_latest_attempt.and_then(|card| card.payment_account_reference);
 
             Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
@@ -4064,6 +4076,7 @@ where
                 network_txn_id: network_transaction_id,
                 network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.id),
+                payment_account_reference,
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
@@ -4783,6 +4796,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, ChargesResponse, T, PaymentsResponseDat
                 network_txn_id: None,
                 network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.id.clone()),
+                payment_account_reference: None,
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
@@ -4792,6 +4806,114 @@ impl<F, T> TryFrom<ResponseRouterData<F, ChargesResponse, T, PaymentsResponseDat
         Ok(Self {
             status,
             response,
+            ..item.data
+        })
+    }
+}
+
+/// Stripe charge `outcome` object, shared by charge sync and the intent's `latest_charge`.
+#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
+pub struct StripeChargeOutcome {
+    #[serde(rename = "type")]
+    pub outcome_type: Option<String>,
+    pub network_status: Option<String>,
+    pub reason: Option<String>,
+    pub risk_level: Option<String>,
+    pub risk_score: Option<i32>,
+    pub seller_message: Option<String>,
+    pub advice_code: Option<String>,
+    pub network_advice_code: Option<String>,
+    pub network_decline_code: Option<String>,
+    pub rule: Option<String>,
+}
+
+/// Stripe charge retrieve response, used when an attempt is tracked by a `ch_` charge id.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct ChargeSyncResponse {
+    pub id: String,
+    pub status: StripePaymentStatus,
+    pub payment_intent: Option<String>,
+    pub amount_captured: Option<MinorUnit>,
+    pub failure_code: Option<String>,
+    pub failure_message: Option<String>,
+    pub outcome: Option<StripeChargeOutcome>,
+    pub payment_method_details: Option<StripePaymentMethodDetailsResponse>,
+}
+
+impl<F, T> TryFrom<ResponseRouterData<F, ChargeSyncResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<F, ChargeSyncResponse, T, PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        let status = get_stripe_payment_status(item.response.status, item.data.status);
+
+        let resource_id = item
+            .response
+            .payment_intent
+            .clone()
+            .unwrap_or_else(|| item.response.id.clone());
+        let outcome = item.response.outcome.clone();
+        let response = if is_payment_failure(status) {
+            Err(hyperswitch_domain_models::router_data::ErrorResponse {
+                code: item
+                    .response
+                    .failure_code
+                    .clone()
+                    .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+                message: item
+                    .response
+                    .failure_message
+                    .clone()
+                    .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+                reason: item.response.failure_message.clone(),
+                status_code: item.http_code,
+                attempt_status: Some(status),
+                connector_transaction_id: Some(resource_id.clone()),
+                connector_response_reference_id: Some(resource_id.clone()),
+                network_advice_code: outcome.as_ref().and_then(|o| o.network_advice_code.clone()),
+                network_decline_code: outcome
+                    .as_ref()
+                    .and_then(|o| o.network_decline_code.clone()),
+                network_error_message: outcome.as_ref().and_then(|o| o.seller_message.clone()),
+                connector_metadata: None,
+            })
+        } else {
+            let payment_account_reference =
+                item.response
+                    .payment_method_details
+                    .as_ref()
+                    .and_then(|payment_method_details| match payment_method_details {
+                        StripePaymentMethodDetailsResponse::Card { card } => {
+                            card.payment_account_reference.clone()
+                        }
+                        _ => None,
+                    });
+
+            Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(resource_id.clone()),
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
+                connector_metadata: None,
+                network_txn_id: None,
+                network_txn_link_id: None,
+                connector_response_reference_id: Some(resource_id.clone()),
+                payment_account_reference,
+                incremental_authorization_allowed: None,
+                authentication_data: None,
+                charges: None,
+            })
+        };
+
+        Ok(Self {
+            status,
+            response,
+            amount_captured: item
+                .response
+                .amount_captured
+                .map(|amount| amount.get_amount_as_i64()),
+            minor_amount_captured: item.response.amount_captured,
             ..item.data
         })
     }

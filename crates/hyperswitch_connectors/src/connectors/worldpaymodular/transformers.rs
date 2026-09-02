@@ -267,6 +267,7 @@ pub fn get_worldpay_combined_psync_response(
             incremental_authorization_allowed: None,
             authentication_data: None,
             charges: None,
+            payment_account_reference: None,
         }),
         ..data.clone()
     })
@@ -290,6 +291,7 @@ pub fn get_worldpay_combined_capture_response(
             incremental_authorization_allowed: None,
             authentication_data: None,
             charges: None,
+            payment_account_reference: None,
         }),
         ..data.clone()
     })
@@ -311,6 +313,7 @@ pub fn get_worldpay_void_response(
             incremental_authorization_allowed: None,
             authentication_data: None,
             charges: None,
+            payment_account_reference: None,
         }),
         ..data.clone()
     })
@@ -389,6 +392,7 @@ impl TryFrom<PaymentsResponseRouterData<WorldpaymodularPaymentsResponse>>
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })

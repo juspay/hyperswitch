@@ -796,6 +796,7 @@ fn process_nexixpay_preprocessing_response(
             incremental_authorization_allowed: None,
             authentication_data,
             charges: None,
+            payment_account_reference: None,
         }),
     };
 
@@ -1398,6 +1399,7 @@ impl TryFrom<PaymentsResponseRouterData<NexixpayPaymentsResponse>> for PaymentsA
                             incremental_authorization_allowed: None,
                             authentication_data: None,
                             charges: None,
+                            payment_account_reference: None,
                         }),
                         ..item.data
                     }),
@@ -1452,6 +1454,7 @@ impl TryFrom<PaymentsResponseRouterData<NexixpayPaymentsResponse>> for PaymentsA
                             incremental_authorization_allowed: None,
                             authentication_data: None,
                             charges: None,
+                            payment_account_reference: None,
                         }),
                         ..item.data
                     }),
@@ -1530,6 +1533,7 @@ impl TryFrom<PaymentsPreAuthenticateResponseRouterData<NexixpayPaymentsResponse>
                             incremental_authorization_allowed: None,
                             authentication_data: None,
                             charges: None,
+                            payment_account_reference: None,
                         }),
                         ..item.data
                     }),
@@ -1577,6 +1581,7 @@ impl TryFrom<PaymentsPreAuthenticateResponseRouterData<NexixpayPaymentsResponse>
                             incremental_authorization_allowed: None,
                             authentication_data: None,
                             charges: None,
+                            payment_account_reference: None,
                         }),
                         ..item.data
                     }),
@@ -1740,6 +1745,7 @@ impl<F>
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             }),
@@ -1934,6 +1940,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<NexixpayTransactionResponse>>
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             }),
@@ -1988,6 +1995,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<NexixpayOperationResponse>>
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -2046,6 +2054,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<NexixpayOperationResponse>>
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -2139,6 +2148,7 @@ impl
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             }),

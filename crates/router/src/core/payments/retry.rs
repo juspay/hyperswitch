@@ -642,6 +642,10 @@ where
                     .get_payment_attempt()
                     .sender_payment_instrument_id
                     .clone(),
+                payment_account_reference: payment_data
+                    .get_payment_attempt()
+                    .payment_account_reference
+                    .clone(),
             };
 
             #[cfg(feature = "v1")]
@@ -880,6 +884,7 @@ pub fn make_new_auto_retry_payment_attempt(
         // Carry the offer forward so the auto-retry keeps the same offer-reduced amount.
         applied_offer_details: old_payment_attempt.applied_offer_details,
         sender_payment_instrument_id: Default::default(),
+        payment_account_reference: Default::default(),
     }
 }
 

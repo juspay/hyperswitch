@@ -940,6 +940,7 @@ impl TryFrom<PaymentsPreprocessingResponseRouterData<PaysafePaymentHandleRespons
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             payment_method_token: Some(PaymentMethodToken::Token(
                 item.response.payment_handle_token.clone(),
@@ -1015,6 +1016,7 @@ impl TryFrom<PaymentsResponseRouterData<PaysafePaymentsResponse>> for PaymentsAu
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -1054,6 +1056,7 @@ impl TryFrom<PaymentsResponseRouterData<PaysafePaymentHandleResponse>>
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -1749,6 +1752,7 @@ impl<F>
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -1985,6 +1989,7 @@ impl<F> TryFrom<ResponseRouterData<F, PaysafeSyncResponse, PaymentsSyncData, Pay
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             })
         };
 
@@ -2062,6 +2067,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PaysafeSettlementResponse, T, PaymentsR
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -2132,6 +2138,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, VoidResponse, T, PaymentsResponseData>>
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })

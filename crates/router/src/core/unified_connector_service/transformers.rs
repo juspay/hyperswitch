@@ -433,6 +433,7 @@ impl
         let order_details = build_ucs_order_details(router_data.request.order_details.as_deref());
         let l2_l3_data = build_ucs_l2_l3_data(router_data.l2_l3_data.as_deref());
         Ok(Self {
+            split_settlement: None,
             split_payments: router_data
                 .request
                 .split_payments
@@ -632,6 +633,7 @@ impl
                         payment_method: Some(payments_grpc::payment_method::PaymentMethod::Token(
                             payments_grpc::TokenPaymentMethodType {
                                 token: Some(Secret::new(handle_token.to_string())),
+                                token_payment_method_type: None,
                             },
                         )),
                     })
@@ -708,6 +710,7 @@ impl
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
+            split_settlement: None,
             split_payments: None,
             domain_data: None,
             mit_category: None,
@@ -1600,6 +1603,10 @@ impl
             .transpose()
             .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
             .map(|s| s.into());
+        let state = router_data
+            .access_token
+            .as_ref()
+            .map(ConnectorState::foreign_from);
 
         Ok(Self {
             merchant_order_id: Some(router_data.connector_request_reference_id.clone()),
@@ -1633,7 +1640,7 @@ impl
             metadata,
             return_url: router_data.request.router_return_url.clone(),
             continue_redirection_url: router_data.request.complete_authorize_url.clone(),
-            state: None,
+            state,
             browser_info: router_data
                 .request
                 .browser_info
@@ -1776,6 +1783,7 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
+            split_settlement: None,
             connector_transaction_id,
             merchant_capture_id: Some(router_data.connector_request_reference_id.clone()),
             amount_to_capture: Some(payments_grpc::Money {
@@ -1896,6 +1904,7 @@ impl
             .transpose()?;
 
         Ok(Self {
+            split_settlement: None,
             split_payments: None,
             domain_data: None,
             mit_category: None,
@@ -2054,6 +2063,7 @@ impl
         let order_details = build_ucs_order_details(router_data.request.order_details.as_deref());
         let l2_l3_data = build_ucs_l2_l3_data(router_data.l2_l3_data.as_deref());
         Ok(Self {
+            split_settlement: None,
             split_payments: router_data
                 .request
                 .split_payments
@@ -2241,6 +2251,7 @@ impl
             .transpose()?;
 
         Ok(Self {
+            split_settlement: None,
             split_payments: router_data
                 .request
                 .split_payments
@@ -2689,6 +2700,7 @@ impl
             .attach_printable("Failed to convert authentication type")?;
 
         Ok(Self {
+            split_settlement: None,
             split_payments: router_data
                 .request
                 .split_payments
@@ -3059,6 +3071,7 @@ impl
                     network_txn_id: response.network_transaction_id.clone(),
                     network_txn_link_id: None,
                     connector_response_reference_id: response.merchant_order_id.clone(),
+                    payment_account_reference: None,
                     incremental_authorization_allowed: None,
                     authentication_data,
                     charges: None,
@@ -3251,6 +3264,7 @@ impl
                     network_txn_id: response.network_transaction_id.clone(),
                     network_txn_link_id: response.network_txn_link_id.clone(),
                     connector_response_reference_id: response.connector_reference_id.clone(),
+                    payment_account_reference: response.payment_account_reference,
                     incremental_authorization_allowed: response.incremental_authorization_allowed,
                     authentication_data: None,
                     charges: response.splits.map(common_types::payments::ConnectorChargeResponseData::foreign_try_from).transpose()?,
@@ -3358,6 +3372,7 @@ impl transformers::ForeignTryFrom<(payments_grpc::PaymentServiceCaptureResponse,
                     network_txn_id: None,
                     network_txn_link_id: None,
                     connector_response_reference_id: response.connector_reference_id.clone(),
+                    payment_account_reference: response.payment_account_reference,
                     incremental_authorization_allowed: response.incremental_authorization_allowed,
                     authentication_data: None,
                     charges: response.splits.map(common_types::payments::ConnectorChargeResponseData::foreign_try_from).transpose()?,
@@ -3556,6 +3571,7 @@ impl
                     network_txn_id: response.network_transaction_id,
                     network_txn_link_id: None,
                     connector_response_reference_id,
+                    payment_account_reference: response.payment_account_reference,
                     incremental_authorization_allowed: response.incremental_authorization_allowed,
                     authentication_data: None,
                     charges: response.splits.map(common_types::payments::ConnectorChargeResponseData::foreign_try_from).transpose()?,
@@ -3678,6 +3694,7 @@ impl
                     network_txn_id: response.network_transaction_id.clone(),
                     network_txn_link_id: response.network_txn_link_id.clone(),
                     connector_response_reference_id: response.merchant_charge_id.clone(),
+                    payment_account_reference: response.payment_account_reference,
                     incremental_authorization_allowed: response.incremental_authorization_allowed,
                     authentication_data: None,
                     charges: response.splits.map(common_types::payments::ConnectorChargeResponseData::foreign_try_from).transpose()?,
@@ -5402,6 +5419,40 @@ impl transformers::ForeignTryFrom<common_enums::BankNames> for payments_grpc::Ba
             common_enums::BankNames::Seb => Ok(Self::Seb),
             common_enums::BankNames::Swedbank => Ok(Self::Swedbank),
             common_enums::BankNames::MockUkPayments => Ok(Self::MockUkPayments),
+            common_enums::BankNames::AccessBank => Ok(Self::AccessBank),
+            common_enums::BankNames::Albaraka => Ok(Self::Albaraka),
+            common_enums::BankNames::ChinaConstructionBank => Ok(Self::ChinaConstructionBank),
+            common_enums::BankNames::Discovery => Ok(Self::Discovery),
+            common_enums::BankNames::EnlBank => Ok(Self::EnlBank),
+            common_enums::BankNames::FirstNationalBank => Ok(Self::FirstNationalBank),
+            common_enums::BankNames::GotymeBank => Ok(Self::GotymeBank),
+            common_enums::BankNames::HabibOverseas => Ok(Self::HabibOverseas),
+            common_enums::BankNames::HbzBank => Ok(Self::HbzBank),
+            common_enums::BankNames::Investec => Ok(Self::Investec),
+            common_enums::BankNames::JpMorganChase => Ok(Self::JpMorganChase),
+            common_enums::BankNames::MtnBanking => Ok(Self::MtnBanking),
+            common_enums::BankNames::Olympus => Ok(Self::Olympus),
+            common_enums::BankNames::OldMutual => Ok(Self::OldMutual),
+            common_enums::BankNames::PermanentBank => Ok(Self::PermanentBank),
+            common_enums::BankNames::SocieteGenerale => Ok(Self::SocieteGenerale),
+            common_enums::BankNames::StandardBank => Ok(Self::StandardBank),
+            common_enums::BankNames::StateBankOfIndia => Ok(Self::StateBankOfIndia),
+            common_enums::BankNames::Ubank => Ok(Self::Ubank),
+            common_enums::BankNames::VbsMutualBank => Ok(Self::VbsMutualBank),
+            common_enums::BankNames::BankZero => Ok(Self::BankZero),
+            common_enums::BankNames::BidvestBank => Ok(Self::BidvestBank),
+            common_enums::BankNames::BidvestBankAlliances => Ok(Self::BidvestBankAlliances),
+            common_enums::BankNames::FbcFidelityBank => Ok(Self::FbcFidelityBank),
+            common_enums::BankNames::FinbondEpe => Ok(Self::FinbondEpe),
+            common_enums::BankNames::FinbondMutualBank => Ok(Self::FinbondMutualBank),
+            common_enums::BankNames::Ithala => Ok(Self::Ithala),
+            common_enums::BankNames::PeoplesBankPepBank => Ok(Self::PeoplesBankPepBank),
+            common_enums::BankNames::PeoplesBank => Ok(Self::PeoplesBank),
+            common_enums::BankNames::Nedbank => Ok(Self::Nedbank),
+            common_enums::BankNames::Capitec => Ok(Self::Capitec),
+            common_enums::BankNames::CapitecBusiness => Ok(Self::CapitecBusiness),
+            common_enums::BankNames::AfricanBank => Ok(Self::AfricanBank),
+            common_enums::BankNames::AfricanBankBusiness => Ok(Self::AfricanBankBusiness),
         }
     }
 }
@@ -5415,6 +5466,10 @@ impl transformers::ForeignTryFrom<common_enums::BankType> for payments_grpc::Ban
             common_enums::BankType::Savings => Ok(Self::Savings),
             common_enums::BankType::Salary => Ok(Self::Salary),
             common_enums::BankType::Payment => Ok(Self::Payment),
+            common_enums::BankType::Transmission => Ok(Self::Transmission),
+            common_enums::BankType::Current => Ok(Self::Current),
+            common_enums::BankType::Bond => Ok(Self::Bond),
+            common_enums::BankType::SubscriptionShare => Ok(Self::SubscriptionShare),
         }
     }
 }
@@ -5659,6 +5714,7 @@ impl
                     network_txn_id: response.network_transaction_id.clone(),
                     network_txn_link_id: None,
                     connector_response_reference_id: response.merchant_order_id.clone(),
+                    payment_account_reference: None,
                     incremental_authorization_allowed: None,
                     authentication_data,
                     charges: None,
@@ -6913,6 +6969,7 @@ impl
                     network_txn_id: response.network_transaction_id.clone(),
                     network_txn_link_id: None,
                     connector_response_reference_id: response.merchant_order_id.clone(),
+                    payment_account_reference: None,
                     incremental_authorization_allowed: None,
                     authentication_data,
                     charges: None,
@@ -7342,6 +7399,7 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
             .map(|payment_method_type| payment_method_type.into());
 
         Ok(Self {
+            split_settlement_refund: None,
             split_refunds: router_data
                 .request
                 .split_refunds
@@ -7785,6 +7843,7 @@ impl transformers::ForeignTryFrom<(payments_grpc::PaymentServiceVoidResponse, At
                     network_txn_id: None,
                     network_txn_link_id: None,
                     connector_response_reference_id: response.connector_reference_id.clone(),
+                    payment_account_reference: response.payment_account_reference,
                     incremental_authorization_allowed: response.incremental_authorization_allowed,
                     authentication_data: None,
                     charges: response.splits.map(common_types::payments::ConnectorChargeResponseData::foreign_try_from).transpose()?,
@@ -8193,6 +8252,7 @@ impl
             merchant_payout_id: router_data.payout_id.clone(),
             address: Some(address),
             amount: Some(money),
+            payout_connector_metadata: None,
             destination_currency: destination_currency.into(),
             customer: Some(customer),
             access_token: router_data.access_token.clone().map(|at| at.token),
@@ -8218,7 +8278,6 @@ impl
                 .map(payments_grpc::SourceBankData::foreign_try_from)
                 .transpose()?,
             description: router_data.description.clone(),
-            payout_connector_metadata: None,
         })
     }
 }
@@ -8834,6 +8893,10 @@ impl ForeignFrom<&common_enums::BankType> for payments_grpc::BankType {
             common_enums::BankType::Savings => Self::Savings,
             common_enums::BankType::Salary => Self::Salary,
             common_enums::BankType::Payment => Self::Payment,
+            common_enums::BankType::Bond => Self::Bond,
+            common_enums::BankType::Current => Self::Current,
+            common_enums::BankType::Transmission => Self::Transmission,
+            common_enums::BankType::SubscriptionShare => Self::SubscriptionShare,
         }
     }
 }

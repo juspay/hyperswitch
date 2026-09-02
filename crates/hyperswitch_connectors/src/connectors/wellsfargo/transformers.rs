@@ -1141,7 +1141,12 @@ impl TryFrom<Option<common_enums::BankType>> for AccountType {
             Some(bank_type) => match bank_type {
                 common_enums::BankType::Checking => Ok(Self::C),
                 common_enums::BankType::Savings => Ok(Self::S),
-                b_type @ (common_enums::BankType::Salary | common_enums::BankType::Payment) => {
+                b_type @ (common_enums::BankType::Salary
+                | common_enums::BankType::Payment
+                | common_enums::BankType::Bond
+                | common_enums::BankType::Current
+                | common_enums::BankType::SubscriptionShare
+                | common_enums::BankType::Transmission) => {
                     Err(errors::ConnectorError::NotSupported {
                         message: format!("bank_type {b_type} is not supported"),
                         connector: "wellsfargo",
@@ -1827,6 +1832,7 @@ fn get_payment_response(
                 incremental_authorization_allowed,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             })
         }
     }
@@ -2021,6 +2027,7 @@ impl
                     ),
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
             },
             connector_response,
@@ -2128,6 +2135,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<WellsfargoTransactionResponse>>
                             incremental_authorization_allowed,
                             authentication_data: None,
                             charges: None,
+                            payment_account_reference: None,
                         }),
                         ..item.data
                     })
@@ -2146,6 +2154,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<WellsfargoTransactionResponse>>
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             }),
