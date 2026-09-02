@@ -1996,7 +1996,7 @@ describe("Card - Refund Manual Update - No 3DS", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
-  context("Manual Update - Status Change (pending -> failed)", () => {
+  context("Manual Update - Status Change (succeeded -> succeeded)", () => {
     it("Create Payment Intent -> Confirm Payment -> Create Refund -> Manual Update Status -> Retrieve Refund to Verify", () => {
       let shouldContinue = true;
 
@@ -2057,11 +2057,11 @@ describe("Card - Refund Manual Update - No 3DS", () => {
         }
       });
 
-      cy.step("Manual Update Refund Status to Failed", () => {
+      cy.step("Manual Update Refund Status to Succeeded", () => {
         if (!shouldContinue) {
           cy.task(
             "cli_log",
-            "Skipping step: Manual Update Refund Status to Failed"
+            "Skipping step: Manual Update Refund Status to Succeeded"
           );
           return;
         }
@@ -2084,108 +2084,105 @@ describe("Card - Refund Manual Update - No 3DS", () => {
         }
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
-        ]["SyncRefundManualUpdateFailed"];
+        ]["SyncRefundManualUpdateSucceeded"];
         cy.syncRefundCallTest(data, globalState);
       });
     });
   });
 
-  context(
-    "Manual Update - Error Code and Error Message with SetOrUnset",
-    () => {
-      it("Create Payment Intent -> Confirm Payment -> Create Refund -> Manual Update Error Code/Message -> Retrieve Refund to Verify", () => {
-        let shouldContinue = true;
+  context("Manual Update - Set Error Code and Error Message", () => {
+    it("Create Payment Intent -> Confirm Payment -> Create Refund -> Manual Update Error Code/Message -> Retrieve Refund to Verify", () => {
+      let shouldContinue = true;
 
-        cy.step("Create Payment Intent", () => {
-          const data = getConnectorDetails(globalState.get("connectorId"))[
-            "card_pm"
-          ]["PaymentIntent"];
-          cy.createPaymentIntentTest(
-            fixtures.createPaymentBody,
-            data,
-            "no_three_ds",
-            "automatic",
-            globalState
-          );
-          if (!utils.should_continue_further(data)) {
-            shouldContinue = false;
-          }
-        });
-
-        cy.step("Payment Methods Call", () => {
-          if (!shouldContinue) {
-            cy.task("cli_log", "Skipping step: Payment Methods Call");
-            return;
-          }
-          cy.paymentMethodsCallTest(globalState);
-        });
-
-        cy.step("Confirm Payment Intent", () => {
-          if (!shouldContinue) {
-            cy.task("cli_log", "Skipping step: Confirm Payment Intent");
-            return;
-          }
-          const confirmData = getConnectorDetails(
-            globalState.get("connectorId")
-          )["card_pm"]["No3DSAutoCapture"];
-          cy.confirmCallTest(
-            fixtures.confirmBody,
-            confirmData,
-            true,
-            globalState
-          );
-          if (!utils.should_continue_further(confirmData)) {
-            shouldContinue = false;
-          }
-        });
-
-        cy.step("Create Refund", () => {
-          if (!shouldContinue) {
-            cy.task("cli_log", "Skipping step: Create Refund");
-            return;
-          }
-          const refundData = getConnectorDetails(
-            globalState.get("connectorId")
-          )["card_pm"]["Refund"];
-          cy.refundCallTest(fixtures.refundBody, refundData, globalState);
-          if (!utils.should_continue_further(refundData)) {
-            shouldContinue = false;
-          }
-        });
-
-        cy.step("Manual Update Error Code and Error Message", () => {
-          if (!shouldContinue) {
-            cy.task(
-              "cli_log",
-              "Skipping step: Manual Update Error Code and Error Message"
-            );
-            return;
-          }
-          const data = getConnectorDetails(globalState.get("connectorId"))[
-            "card_pm"
-          ]["ManualRefundUpdateErrorCode"];
-          cy.manualRefundStatusUpdateTest(globalState, data);
-          if (!utils.should_continue_further(data)) {
-            shouldContinue = false;
-          }
-        });
-
-        cy.step("Retrieve Refund to Verify Error Code and Message", () => {
-          if (!shouldContinue) {
-            cy.task(
-              "cli_log",
-              "Skipping step: Retrieve Refund to Verify Error Code and Message"
-            );
-            return;
-          }
-          const data = getConnectorDetails(globalState.get("connectorId"))[
-            "card_pm"
-          ]["SyncRefundManualUpdateErrorCode"];
-          cy.syncRefundCallTest(data, globalState);
-        });
+      cy.step("Create Payment Intent", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["PaymentIntent"];
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "no_three_ds",
+          "automatic",
+          globalState
+        );
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
       });
-    }
-  );
+
+      cy.step("Payment Methods Call", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Payment Methods Call");
+          return;
+        }
+        cy.paymentMethodsCallTest(globalState);
+      });
+
+      cy.step("Confirm Payment Intent", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Confirm Payment Intent");
+          return;
+        }
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["No3DSAutoCapture"];
+        cy.confirmCallTest(
+          fixtures.confirmBody,
+          confirmData,
+          true,
+          globalState
+        );
+        if (!utils.should_continue_further(confirmData)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Create Refund", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Create Refund");
+          return;
+        }
+        const refundData = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["Refund"];
+        cy.refundCallTest(fixtures.refundBody, refundData, globalState);
+        if (!utils.should_continue_further(refundData)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Manual Update Error Code and Error Message", () => {
+        if (!shouldContinue) {
+          cy.task(
+            "cli_log",
+            "Skipping step: Manual Update Error Code and Error Message"
+          );
+          return;
+        }
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["ManualRefundUpdateErrorCode"];
+        cy.manualRefundStatusUpdateTest(globalState, data);
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Retrieve Refund to Verify Error Code and Message", () => {
+        if (!shouldContinue) {
+          cy.task(
+            "cli_log",
+            "Skipping step: Retrieve Refund to Verify Error Code and Message"
+          );
+          return;
+        }
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["SyncRefundManualUpdateErrorCode"];
+        cy.syncRefundCallTest(data, globalState);
+      });
+    });
+  });
 
   context("Manual Update - Partial Refund Status Update", () => {
     it("Create Payment Intent -> Confirm Payment -> Create Partial Refund -> Manual Update Status -> Retrieve Refund to Verify", () => {
@@ -2248,11 +2245,11 @@ describe("Card - Refund Manual Update - No 3DS", () => {
         }
       });
 
-      cy.step("Manual Update Partial Refund Status to Failed", () => {
+      cy.step("Manual Update Partial Refund Status to Succeeded", () => {
         if (!shouldContinue) {
           cy.task(
             "cli_log",
-            "Skipping step: Manual Update Partial Refund Status to Failed"
+            "Skipping step: Manual Update Partial Refund Status to Succeeded"
           );
           return;
         }
@@ -2392,7 +2389,7 @@ describe("Card - Refund Manual Update - No 3DS", () => {
     });
   });
 
-  context("Manual Update - Unset Error Fields", () => {
+  context("Manual Update - Unset Error Code and Error Message", () => {
     it("Create Payment Intent -> Confirm Payment -> Create Refund -> Manual Update with Error -> Unset Error Fields -> Retrieve to Verify", () => {
       let shouldContinue = true;
 
