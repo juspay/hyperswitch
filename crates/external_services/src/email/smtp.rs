@@ -24,9 +24,6 @@ use tokio::{
 
 use crate::email::{EmailClient, EmailError, EmailResult, EmailSettings, IntermediateString};
 
-/// `"*"` bypasses everything; otherwise each entry matches `host` exactly or as a
-/// domain suffix (`"example.com"` bypasses `"smtp.example.com"` but not
-/// `"notexample.com"`).
 fn is_bypassed(bypass_list: Option<&str>, host: &str) -> bool {
     let Some(list) = bypass_list else {
         return false;
@@ -37,7 +34,6 @@ fn is_bypassed(bypass_list: Option<&str>, host: &str) -> bool {
         .any(|entry| entry == "*" || host == entry || host.ends_with(&format!(".{entry}")))
 }
 
-/// Bounds memory against a proxy that streams without ever sending a terminator.
 const MAX_CONNECT_RESPONSE_BYTES: usize = 8192;
 
 async fn connect_direct(host: &str, port: u16) -> Result<TcpStream, SmtpError> {
@@ -55,8 +51,6 @@ async fn connect_via_proxy(
         .parse::<http::Uri>()
         .map_err(SmtpError::ProxyUrlParsingFailed)?;
     if !matches!(uri.scheme_str(), Some("http") | None) {
-        // Only plain-TCP proxies are supported — https:// or socks5:// would get an
-        // HTTP CONNECT written at a port that isn't speaking HTTP.
         return Err(SmtpError::UnsupportedProxyScheme(
             uri.scheme_str().unwrap_or("<none>").to_owned(),
         ));
@@ -93,9 +87,6 @@ async fn connect_via_proxy(
     Ok(stream)
 }
 
-/// Reads byte-by-byte up to the trailing blank line — no `BufReader`, since it could
-/// pull bytes belonging to the SMTP greeting into its own buffer and lose them once
-/// only the raw stream is handed to lettre.
 async fn read_connect_response(stream: &mut TcpStream) -> Result<(), SmtpError> {
     let mut header = Vec::new();
     let mut byte = [0u8; 1];
@@ -143,8 +134,6 @@ pub struct SmtpServer {
 }
 
 impl SmtpServer {
-    /// Creates the SMTP connection, tunneling through a proxy when one is configured
-    /// and the host isn't bypassed.
     pub(crate) async fn create_client(
         &self,
         proxy_url: Option<&str>,
@@ -158,8 +147,6 @@ impl SmtpServer {
             .filter(|url| !url.trim().is_empty())
             .filter(|_| !is_bypassed(self.bypass_proxy_hosts.as_deref(), host));
 
-        // Nothing below has a timeout of its own, so each step is wrapped individually
-        // or a hung proxy/server blocks the send indefinitely.
         let stream = tokio::time::timeout(timeout, async {
             match use_proxy {
                 Some(proxy_url) => connect_via_proxy(proxy_url, host, port).await,
@@ -221,8 +208,7 @@ pub struct SmtpServerConfig {
     pub host: String,
     /// portname of the SMTP server eg: 25
     pub port: u16,
-    /// Timeout in seconds applied per network step (dial, connect, STARTTLS, AUTH,
-    /// SEND, QUIT), not to the operation as a whole. eg: 10
+    /// timeout for the SMTP server connection in seconds eg: 10
     pub timeout: u64,
     /// Username name of the SMTP server
     pub username: Option<Secret<String>>,
@@ -327,8 +313,6 @@ impl EmailClient for SmtpServer {
             .map_err(SmtpError::SendingFailure)
             .change_context(EmailError::EmailSendingFailure)?;
 
-        // The message is already accepted at this point, so a failing/hanging QUIT
-        // must not fail the send — that would risk a caller retrying and double-sending.
         match tokio::time::timeout(timeout, conn.quit()).await {
             Ok(Ok(_)) => {}
             Ok(Err(error)) => {
