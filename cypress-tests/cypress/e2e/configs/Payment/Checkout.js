@@ -164,6 +164,8 @@ export const connectorDetails = {
           status: "succeeded",
           shipping_cost: 50,
           amount: 6000,
+          // Visa returns a dynamic PAR string
+          payment_account_reference: "dynamic_par",
         },
       },
     },
@@ -213,6 +215,8 @@ export const connectorDetails = {
         body: {
           status: "requires_capture",
           payment_method_data: {},
+          // Visa returns a dynamic PAR string
+          payment_account_reference: "dynamic_par",
         },
       },
     },
@@ -230,6 +234,8 @@ export const connectorDetails = {
         body: {
           status: "succeeded",
           payment_method_data: {},
+          // Visa returns a dynamic PAR string
+          payment_account_reference: "dynamic_par",
         },
       },
     },
