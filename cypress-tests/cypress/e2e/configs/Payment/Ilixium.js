@@ -187,6 +187,122 @@ export const connectorDetails = {
         },
       },
     }),
+    SaveCardUseNo3DSAutoCapture: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: verifiedCardDetails,
+        },
+        currency: "USD",
+        setup_future_usage: "on_session",
+        metadata: ilixiumMetadata,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_message: "4",
+          error_code: "4",
+        },
+      },
+    }),
+    SaveCardUseNo3DSAutoCaptureOffSession: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: verifiedCardDetails,
+        },
+        setup_future_usage: "off_session",
+        metadata: ilixiumMetadata,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_message: "4",
+          error_code: "4",
+        },
+      },
+    }),
+    SaveCardUse3DSAutoCaptureOffSession: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: threeDsCardDetails,
+        },
+        setup_future_usage: "off_session",
+        metadata: ilixiumMetadata,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_message: "4",
+          error_code: "4",
+        },
+      },
+    }),
+    SaveCardUseNo3DSManualCapture: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: verifiedCardDetails,
+        },
+        currency: "USD",
+        setup_future_usage: "on_session",
+        metadata: ilixiumMetadata,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    }),
+    SaveCardUseNo3DSManualCaptureOffSession: getCustomExchange({
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: verifiedCardDetails,
+        },
+        amount: 1000,
+        setup_future_usage: "off_session",
+        metadata: ilixiumMetadata,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    }),
+    SaveCardConfirmManualCaptureOffSession: getCustomExchange({
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+      },
+      Request: {
+        setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            message:
+              "No eligible connector was found for the current payment method configuration",
+            type: "invalid_request",
+          },
+        },
+      },
+    }),
     manualPaymentRefund: getCustomExchange({
       Request: {
         amount: 500,
