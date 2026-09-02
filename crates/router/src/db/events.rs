@@ -1997,6 +1997,7 @@ mod tests {
             version: common_enums::ApiVersion::V1,
             network_tokenization_credentials: None,
             fingerprint_secret: None,
+            offer_engine_config: None,
         });
         let merchant_account = state
             .store

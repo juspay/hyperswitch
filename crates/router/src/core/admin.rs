@@ -643,6 +643,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                         consts::FINGERPRINT_SECRET_LENGTH,
                         "fs",
                     ))),
+                    offer_engine_config: None,
                 },
             )
         }
@@ -1217,6 +1218,21 @@ impl MerchantAccountUpdateBridge for api::MerchantAccountUpdate {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to encrypt network_tokenization_credentials")?;
 
+        let offer_engine_config = self
+            .offer_engine_config
+            .async_map(|value| {
+                core_utils::create_encrypted_data(
+                    key_manager_state,
+                    key_store,
+                    value,
+                    type_name!(storage::MerchantAccount),
+                )
+            })
+            .await
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt offer_engine_config")?;
+
         let identifier = km_types::Identifier::Merchant(key_store.merchant_id.clone());
         Ok(storage::MerchantAccountUpdate::Update {
             merchant_name: self
@@ -1273,6 +1289,7 @@ impl MerchantAccountUpdateBridge for api::MerchantAccountUpdate {
             pm_collect_link_config,
             routing_algorithm: self.routing_algorithm,
             network_tokenization_credentials,
+            offer_engine_config,
         })
     }
 }
