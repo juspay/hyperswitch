@@ -987,14 +987,14 @@ impl
         let payment_method_subtype =
             item.payment_method_subtype
                 .ok_or(errors::ValidationError::MissingRequiredField {
-                    field_name: "payment_method_subtype".to_string(),
+                    field_name: "payment_method_subtype".into(),
                 })?;
 
         // For payment methods that are active we should always have the payment method type
         let payment_method_type =
             item.payment_method_type
                 .ok_or(errors::ValidationError::MissingRequiredField {
-                    field_name: "payment_method_type".to_string(),
+                    field_name: "payment_method_type".into(),
                 })?;
 
         let payment_method_data = item
@@ -1060,7 +1060,7 @@ impl
                 .customer_id
                 .get_required_value("GlobalCustomerId")
                 .change_context(errors::ValidationError::MissingRequiredField {
-                    field_name: "customer_id".to_string(),
+                    field_name: "customer_id".into(),
                 })?,
             payment_method_type,
             payment_method_subtype,
@@ -1096,14 +1096,14 @@ impl
         let payment_method_subtype =
             item.payment_method_subtype
                 .ok_or(errors::ValidationError::MissingRequiredField {
-                    field_name: "payment_method_subtype".to_string(),
+                    field_name: "payment_method_subtype".into(),
                 })?;
 
         // For payment methods that are active we should always have the payment method type
         let payment_method_type =
             item.payment_method_type
                 .ok_or(errors::ValidationError::MissingRequiredField {
-                    field_name: "payment_method_type".to_string(),
+                    field_name: "payment_method_type".into(),
                 })?;
 
         let payment_method_data = item
@@ -1206,7 +1206,7 @@ impl
                 .customer_id
                 .get_required_value("GlobalCustomerId")
                 .change_context(errors::ValidationError::MissingRequiredField {
-                    field_name: "customer_id".to_string(),
+                    field_name: "customer_id".into(),
                 })?,
             payment_method_type,
             payment_method_subtype,

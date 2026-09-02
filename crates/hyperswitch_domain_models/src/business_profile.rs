@@ -1165,7 +1165,7 @@ impl Profile {
             .to_owned()
             .ok_or(error_stack::report!(
                 api_error_response::ApiErrorResponse::MissingRequiredField {
-                    field_name: "billing_processor_id"
+                    field_name: "billing_processor_id".into()
                 }
             ))
     }

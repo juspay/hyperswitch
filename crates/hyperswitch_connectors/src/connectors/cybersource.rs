@@ -677,7 +677,7 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
     ) -> CustomResult<String, errors::ConnectorError> {
         let redirect_response = req.request.redirect_response.clone().ok_or(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "redirect_response",
+                field_name: "redirect_response".into(),
             },
         )?;
         match redirect_response.params {
@@ -701,7 +701,7 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
             req.request
                 .currency
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "currency",
+                    field_name: "currency".into(),
                 })?;
         let amount = convert_amount(self.amount_converter, minor_amount, currency)?;
         let connector_router_data = cybersource::CybersourceRouterData::from((amount, req));
@@ -874,13 +874,13 @@ impl ConnectorIntegration<Authenticate, PaymentsAuthenticateData, PaymentsRespon
             req.request
                 .minor_amount
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "minor_amount",
+                    field_name: "minor_amount".into(),
                 })?;
         let currency =
             req.request
                 .currency
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "currency",
+                    field_name: "currency".into(),
                 })?;
         let amount = convert_amount(self.amount_converter, minor_amount, currency)?;
         let connector_router_data = cybersource::CybersourceRouterData::from((amount, req));
@@ -968,13 +968,13 @@ impl ConnectorIntegration<PostAuthenticate, PaymentsPostAuthenticateData, Paymen
             req.request
                 .minor_amount
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "minor_amount",
+                    field_name: "minor_amount".into(),
                 })?;
         let currency =
             req.request
                 .currency
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "currency",
+                    field_name: "currency".into(),
                 })?;
         let amount = convert_amount(self.amount_converter, minor_amount, currency)?;
         let connector_router_data = cybersource::CybersourceRouterData::from((amount, req));
@@ -1950,13 +1950,13 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Cy
             req.request
                 .minor_amount
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "Amount",
+                    field_name: "Amount".into(),
                 })?;
         let currency =
             req.request
                 .currency
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "Currency",
+                    field_name: "Currency".into(),
                 })?;
         let amount = convert_amount(self.amount_converter, minor_amount, currency)?;
         let connector_router_data = cybersource::CybersourceRouterData::from((amount, req));

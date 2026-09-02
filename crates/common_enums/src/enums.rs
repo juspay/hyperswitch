@@ -1907,6 +1907,7 @@ impl EventClass {
                 EventType::RefundSucceeded,
                 EventType::RefundFailed,
                 EventType::SurchargeRefundSucceeded,
+                EventType::RefundReview,
             ]),
             Self::Disputes => HashSet::from([
                 EventType::DisputeOpened,
@@ -1966,6 +1967,7 @@ pub enum EventType {
     ActionRequired,
     RefundSucceeded,
     RefundFailed,
+    RefundReview,
     DisputeOpened,
     DisputeExpired,
     DisputeAccepted,
@@ -2899,23 +2901,30 @@ impl PaymentMethod {
         }
     }
 
-    pub fn is_additional_payment_method_data_sensitive(&self) -> bool {
-        match self {
-            Self::BankTransfer | Self::BankRedirect => true,
-            Self::Card
-            | Self::CardRedirect
-            | Self::PayLater
-            | Self::Wallet
-            | Self::GiftCard
-            | Self::Crypto
-            | Self::BankDebit
-            | Self::Reward
-            | Self::RealTimePayment
-            | Self::Upi
-            | Self::Voucher
-            | Self::OpenBanking
-            | Self::MobilePayment
-            | Self::NetworkToken => false,
+    pub fn is_additional_payment_method_data_sensitive(
+        &self,
+        payment_method_type: Option<PaymentMethodType>,
+    ) -> bool {
+        match (self, payment_method_type) {
+            (Self::BankTransfer | Self::BankRedirect, _)
+            | (Self::Wallet, Some(PaymentMethodType::Paypal)) => true,
+            (
+                Self::Card
+                | Self::CardRedirect
+                | Self::PayLater
+                | Self::Wallet
+                | Self::GiftCard
+                | Self::Crypto
+                | Self::BankDebit
+                | Self::Reward
+                | Self::RealTimePayment
+                | Self::Upi
+                | Self::Voucher
+                | Self::OpenBanking
+                | Self::MobilePayment
+                | Self::NetworkToken,
+                _,
+            ) => false,
         }
     }
 }
@@ -9678,6 +9687,10 @@ pub enum PermissionScope {
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum BankNames {
     Absa,
+    AccessBank,
+    AfricanBank,
+    AfricanBankBusiness,
+    Albaraka,
     AmericanExpress,
     AffinBank,
     AgroBank,
@@ -9689,16 +9702,46 @@ pub enum BankNames {
     BankMuamalat,
     BankRakyat,
     BankSimpananNasional,
+    BankZero,
     Barclays,
+    BidvestBank,
+    BidvestBankAlliances,
     BlikPSP,
     CapitalOne,
+    Capitec,
+    CapitecBusiness,
     Chase,
+    ChinaConstructionBank,
     Citi,
     CimbBank,
     Discover,
+    Discovery,
+    EnlBank,
+    FbcFidelityBank,
+    FinbondEpe,
+    FinbondMutualBank,
+    FirstNationalBank,
+    GotymeBank,
+    HabibOverseas,
+    HbzBank,
+    Investec,
+    Ithala,
+    JpMorganChase,
+    MtnBanking,
+    Nedbank,
     NavyFederalCreditUnion,
+    Olympus,
+    OldMutual,
+    PeoplesBankPepBank,
+    PeoplesBank,
+    PermanentBank,
     PentagonFederalCreditUnion,
+    SocieteGenerale,
+    StandardBank,
+    StateBankOfIndia,
     SynchronyBank,
+    Ubank,
+    VbsMutualBank,
     WellsFargo,
     AbnAmro,
     AsnBank,
@@ -10351,6 +10394,10 @@ pub enum BankType {
     Savings,
     Salary,
     Payment,
+    Transmission,
+    Current,
+    Bond,
+    SubscriptionShare,
 }
 #[derive(
     Clone,

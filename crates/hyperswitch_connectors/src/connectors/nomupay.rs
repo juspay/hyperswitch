@@ -158,7 +158,7 @@ fn get_signature(
                 .zip(jws_blocks.get(2))
                 .map(|(first, third)| format!("{first}..{third}"))
                 .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
-                    field_name: "JWS blocks not sufficient for detached payload",
+                    field_name: "JWS blocks not sufficient for detached payload".into(),
                 })?;
 
             Ok(jws_detached)

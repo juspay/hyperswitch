@@ -331,7 +331,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
             .as_ref()
             .get_required_value("customer_id")
             .change_context(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "customer.customer_id",
+                field_name: "customer.customer_id".into(),
             })?;
 
         // Fetch customer details if present
@@ -354,7 +354,11 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
                 Ok(None)
             } else {
                 Err(report!(errors::ApiErrorResponse::MissingRequiredFields {
-                    field_names: vec!["customer.name", "customer.email", "customer.phone"],
+                    field_names: vec![
+                        "customer.name".into(),
+                        "customer.email".into(),
+                        "customer.phone".into()
+                    ],
                 }))
             },
             // If found, send back CustomerDetails from DB
@@ -387,7 +391,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
             .as_ref()
             .get_required_value("customer_id")
             .change_context(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "customer_id",
+                field_name: "customer_id".into(),
             })?;
         let key_manager_state: &KeyManagerState = &self.state.into();
 
