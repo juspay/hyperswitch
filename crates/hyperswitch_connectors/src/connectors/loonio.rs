@@ -758,7 +758,7 @@ impl ConnectorIntegration<PoSync, PayoutsData, PayoutsResponseData> for Loonio {
     ) -> CustomResult<String, errors::ConnectorError> {
         let transfer_id = req.request.connector_payout_id.to_owned().ok_or(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "transaction_id",
+                field_name: "transaction_id".into(),
             },
         )?;
         Ok(format!(

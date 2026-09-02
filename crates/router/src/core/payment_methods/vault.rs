@@ -1372,12 +1372,12 @@ impl Vaultable for api::BankTransferPayout {
             Some(PaymentMethodType::Ach) => Self::Ach(payouts::AchBankTransfer {
                 bank_account_number: bank_sensitive_data.bank_account_number.ok_or(
                     errors::VaultError::MissingRequiredField {
-                        field_name: "bank_account_number",
+                        field_name: "bank_account_number".into(),
                     },
                 )?,
                 bank_routing_number: bank_sensitive_data.bank_routing_number.ok_or(
                     errors::VaultError::MissingRequiredField {
-                        field_name: "bank_routing_number",
+                        field_name: "bank_routing_number".into(),
                     },
                 )?,
                 bank_name: bank_insensitive_data.bank_name,
@@ -1388,12 +1388,12 @@ impl Vaultable for api::BankTransferPayout {
             Some(PaymentMethodType::Bacs) => Self::Bacs(payouts::BacsBankTransfer {
                 bank_account_number: bank_sensitive_data.bank_account_number.ok_or(
                     errors::VaultError::MissingRequiredField {
-                        field_name: "bank_account_number",
+                        field_name: "bank_account_number".into(),
                     },
                 )?,
                 bank_sort_code: bank_sensitive_data.bank_sort_code.ok_or(
                     errors::VaultError::MissingRequiredField {
-                        field_name: "bank_sort_code",
+                        field_name: "bank_sort_code".into(),
                     },
                 )?,
                 bank_name: bank_insensitive_data.bank_name,
@@ -1407,14 +1407,16 @@ impl Vaultable for api::BankTransferPayout {
                 bank_number: bank_sensitive_data.bank_number,
                 bank_country_code: bank_insensitive_data.bank_country_code.ok_or(
                     errors::VaultError::MissingRequiredField {
-                        field_name: "bank_country_code",
+                        field_name: "bank_country_code".into(),
                     },
                 )?,
             }),
             Some(PaymentMethodType::Sepa) => Self::Sepa(payouts::SepaBankTransfer {
                 iban: bank_sensitive_data
                     .iban
-                    .ok_or(errors::VaultError::MissingRequiredField { field_name: "iban" })?,
+                    .ok_or(errors::VaultError::MissingRequiredField {
+                        field_name: "iban".into(),
+                    })?,
                 bic: bank_sensitive_data.bic,
                 bank_name: bank_insensitive_data.bank_name,
                 bank_country_code: bank_insensitive_data.bank_country_code,
@@ -1424,7 +1426,7 @@ impl Vaultable for api::BankTransferPayout {
             Some(PaymentMethodType::Pix) => Self::Pix(payouts::PixAccountBankTransfer {
                 bank_account_number: bank_sensitive_data.bank_account_number.ok_or(
                     errors::VaultError::MissingRequiredField {
-                        field_name: "bank_account_number",
+                        field_name: "bank_account_number".into(),
                     },
                 )?,
                 bank_branch: bank_insensitive_data.bank_branch,
@@ -1438,29 +1440,33 @@ impl Vaultable for api::BankTransferPayout {
             Some(PaymentMethodType::PixKey) => Self::PixKey(payouts::PixKeyBankTransfer {
                 pix_key: bank_sensitive_data.pix_key.ok_or(
                     errors::VaultError::MissingRequiredField {
-                        field_name: "pix_key",
+                        field_name: "pix_key".into(),
                     },
                 )?,
             }),
             Some(PaymentMethodType::PixEmv) => Self::PixEmv(payouts::PixEmvBankTransfer {
                 emv: bank_sensitive_data
                     .emv
-                    .ok_or(errors::VaultError::MissingRequiredField { field_name: "emv" })?,
+                    .ok_or(errors::VaultError::MissingRequiredField {
+                        field_name: "emv".into(),
+                    })?,
             }),
             Some(PaymentMethodType::OpenBanking) => Self::OpenBanking(payouts::OpenBanking {
                 iban: bank_sensitive_data
                     .iban
-                    .ok_or(errors::VaultError::MissingRequiredField { field_name: "iban" })?,
+                    .ok_or(errors::VaultError::MissingRequiredField {
+                        field_name: "iban".into(),
+                    })?,
                 account_holder_name: bank_sensitive_data.account_holder_name.ok_or(
                     errors::VaultError::MissingRequiredField {
-                        field_name: "account_holder_name",
+                        field_name: "account_holder_name".into(),
                     },
                 )?,
             }),
             Some(PaymentMethodType::Payshap) => Self::Payshap(payouts::PayshapBankTransfer {
                 bank_account_number: bank_sensitive_data.bank_account_number.ok_or(
                     errors::VaultError::MissingRequiredField {
-                        field_name: "bank_account_number",
+                        field_name: "bank_account_number".into(),
                     },
                 )?,
                 account_holder_name: bank_sensitive_data.account_holder_name,
@@ -2844,7 +2850,7 @@ pub async fn retrieve_volatile_payment_method_from_redis(
         .locker_id
         .clone()
         .ok_or(errors::VaultError::MissingRequiredField {
-            field_name: "locker_id",
+            field_name: "locker_id".into(),
         })
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Missing locker_id for VaultRetrieveRequest")?;
@@ -2924,7 +2930,7 @@ pub async fn retrieve_payment_method_from_vault(
                 .locker_id
                 .clone()
                 .ok_or(errors::VaultError::MissingRequiredField {
-                    field_name: "locker_id",
+                    field_name: "locker_id".into(),
                 })
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Missing locker_id for VaultRetrieveRequest")?;

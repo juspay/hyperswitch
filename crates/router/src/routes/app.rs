@@ -1970,6 +1970,10 @@ impl Blocklist {
             .service(
                 web::resource("/toggle").route(web::post().to(blocklist::toggle_blocklist_guard)),
             )
+            .service(web::resource("/count").route(web::get().to(blocklist::get_blocklist_count)))
+            .service(
+                web::resource("/lookup").route(web::get().to(blocklist::lookup_blocklist_entry)),
+            )
             .service(
                 web::resource("/batch")
                     .route(web::post().to(blocklist::upload_batch_blocklist))

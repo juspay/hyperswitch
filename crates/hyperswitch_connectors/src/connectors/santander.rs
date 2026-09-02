@@ -270,7 +270,7 @@ impl ConnectorIntegration<UpdatePostConfirm, PaymentsUpdatePostConfirmData, Paym
                         req.request.connector_attempt_metadata.clone(),
                     )
                     .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "metadata",
+                        field_name: "metadata".into(),
                     })?;
 
                     match santander_variant {
@@ -306,7 +306,7 @@ impl ConnectorIntegration<UpdatePostConfirm, PaymentsUpdatePostConfirmData, Paym
                     let workspace_id = boleto_mca_metadata
                         .workspace_id
                         .ok_or(errors::ConnectorError::MissingRequiredField {
-                            field_name: "workspace_id",
+                            field_name: "workspace_id".into(),
                         })?
                         .peek()
                         .to_string();
@@ -411,7 +411,7 @@ where
             req.access_token
                 .clone()
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "access_token",
+                    field_name: "access_token".into(),
                 })?;
         let santander_mca_metadata = SantanderMetadataObject::try_from(&req.connector_meta_data)?;
 
@@ -749,7 +749,7 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
             AccessTokenUrlPath::Boleto => {
                 let secondary_base_url = connectors.santander.secondary_base_url.clone().ok_or(
                     errors::ConnectorError::MissingRequiredField {
-                        field_name: "secondary_base_url for Santander",
+                        field_name: "secondary_base_url for Santander".into(),
                     },
                 )?;
                 Ok(format!("{}auth/oauth/v2/token", secondary_base_url))
@@ -841,18 +841,18 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let feature_metadata = req.request.feature_metadata.clone().ok_or(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "feature_metadata",
+                field_name: "feature_metadata".into(),
             },
         )?;
         let fixed_rec_amount_in_minor = feature_metadata
             .get_optional_fixed_recurring_mit_amount_for_pix_automatico()
             .change_context(errors::ConnectorError::InvalidDataFormat {
-                field_name: "feature_metadata.pix_automatico_additional_details",
+                field_name: "feature_metadata.pix_automatico_additional_details".into(),
             })?;
         let min_rec_amount_in_minor = feature_metadata
             .get_optional_min_recurring_amount_for_pix_automatico()
             .change_context(errors::ConnectorError::InvalidDataFormat {
-                field_name: "feature_metadata.pix_automatico_additional_details",
+                field_name: "feature_metadata.pix_automatico_additional_details".into(),
             })?;
         let fixed_rec_amount = fixed_rec_amount_in_minor
             .map(|amount| convert_amount(self.amount_converter, amount, req.request.currency))
@@ -1087,7 +1087,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                             ))
                         }
                         None => Err(errors::ConnectorError::MissingRequiredField {
-                            field_name: "pix_additional_details",
+                            field_name: "pix_additional_details".into(),
                         }
                         .into()),
                     }
@@ -1122,13 +1122,13 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                     let secondary_base_url =
                         connectors.santander.secondary_base_url.clone().ok_or(
                             errors::ConnectorError::MissingRequiredField {
-                                field_name: "secondary_base_url for Santander",
+                                field_name: "secondary_base_url for Santander".into(),
                             },
                         )?;
                     let workspace_id = boleto_mca_metadata
                         .workspace_id
                         .ok_or(errors::ConnectorError::MissingRequiredField {
-                            field_name: "workspace_id",
+                            field_name: "workspace_id".into(),
                         })?
                         .peek()
                         .to_string();
@@ -1301,7 +1301,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
         {
             let txid =
                 connector_transaction_id.ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "connector_transaction_id",
+                    field_name: "connector_transaction_id".into(),
                 })?;
             return Ok(format!("{}api/v1/cobr/{}", self.base_url(connectors), txid,));
         }
@@ -1338,7 +1338,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
                                 self.base_url(connectors),
                                 connector_transaction_id.ok_or(
                                     errors::ConnectorError::MissingRequiredField {
-                                        field_name: "connector_transaction_id"
+                                        field_name: "connector_transaction_id".into()
                                     }
                                 )?
                             )),
@@ -1348,7 +1348,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
                                 self.base_url(connectors),
                                 connector_transaction_id.ok_or(
                                     errors::ConnectorError::MissingRequiredField {
-                                        field_name: "connector_transaction_id"
+                                        field_name: "connector_transaction_id".into()
                                     }
                                 )?
                             )),
@@ -1398,13 +1398,13 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
                             .ok_or(errors::ConnectorError::FailedToObtainIntegrationUrl)?;
                         let connector_transaction_id = connector_transaction_id.ok_or(
                             errors::ConnectorError::MissingRequiredField {
-                                field_name: "connector_transaction_id",
+                                field_name: "connector_transaction_id".into(),
                             },
                         )?;
                         let workspace_id = boleto_mca_metadata
                             .workspace_id
                             .ok_or(errors::ConnectorError::MissingRequiredField {
-                                field_name: "workspace_id",
+                                field_name: "workspace_id".into(),
                             })?
                             .peek()
                             .to_string();
@@ -1425,7 +1425,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
                             .as_ref()
                             .and_then(|data| data.expiry_date.zip(data.entry_date.clone()))
                             .ok_or(errors::ConnectorError::MissingRequiredField {
-                                field_name: "issue_date/due_date",
+                                field_name: "issue_date/due_date".into(),
                             })?;
                         let payment_date_final = time::OffsetDateTime::now_utc()
                             .date()
@@ -1667,7 +1667,7 @@ impl ConnectorIntegration<PreAuthorizeVoid, PaymentsPreAuthorizeCancelData, Paym
                         req.request.connector_meta.clone(),
                     )
                     .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "connector_meta",
+                        field_name: "connector_meta".into(),
                     })?;
 
                     match santander_variant {
@@ -1706,7 +1706,7 @@ impl ConnectorIntegration<PreAuthorizeVoid, PaymentsPreAuthorizeCancelData, Paym
                     let workspace_id = boleto_mca_metadata
                         .workspace_id
                         .ok_or(errors::ConnectorError::MissingRequiredField {
-                            field_name: "workspace_id",
+                            field_name: "workspace_id".into(),
                         })?
                         .peek()
                         .to_string();
@@ -1837,7 +1837,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Santand
                         .and_then(|metadata| metadata.get("end_to_end_id"))
                         .and_then(|val| val.as_str().map(|id| id.to_string()))
                         .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
-                            field_name: "end_to_end_id",
+                            field_name: "end_to_end_id".into(),
                         })?;
                     let refund_id = req.request.refund_id.clone();
                     let base_url = self.base_url(connectors);
@@ -1986,7 +1986,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Santander
             None => None,
         }
         .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
-            field_name: "end_to_end_id",
+            field_name: "end_to_end_id".into(),
         })?;
         let base_url = self.base_url(connectors);
         let refund_id = &req.request.refund_id;

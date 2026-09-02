@@ -268,7 +268,7 @@ impl PaymentsResponseData {
                 ..
             } => Ok(txn_id.to_string()),
             _ => Err(ApiErrorResponse::MissingRequiredField {
-                field_name: "ConnectorTransactionId",
+                field_name: "ConnectorTransactionId".into(),
             }
             .into()),
         }
@@ -898,7 +898,7 @@ impl VaultIdType {
         match self {
             Self::SingleVaultId(vault_id) => Ok(vault_id.to_string()),
             Self::MultiVauldIds(_) => Err(ApiErrorResponse::MissingRequiredField {
-                field_name: "SingleVaultId",
+                field_name: "SingleVaultId".into(),
             }
             .into()),
         }

@@ -1,5 +1,11 @@
 use async_bb8_diesel::AsyncRunQueryDsl;
-use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
+use diesel::{
+    associations::HasTable,
+    dsl::{count_star, sql},
+    expression::SqlLiteral,
+    sql_types::Integer,
+    BoolExpressionMethods, ExpressionMethods, QueryDsl,
+};
 use error_stack::ResultExt;
 
 use super::generics;
@@ -9,6 +15,18 @@ use crate::{
     schema::blocklist::dsl,
     DatabaseConnectionWithContext, StorageResult,
 };
+
+/// Postgres `length(fingerprint_id)`, used to bucket blocklist entries by digit-string length for
+/// `/blocklist/count`'s `counts_by_length` without fetching every row into the app.
+///
+/// Written as raw SQL rather than `define_sql_function!` because diesel cannot prove a function-call
+/// expression is valid in its own `GROUP BY`: the generated `pg_length<T>: ValidGrouping<GB>`
+/// delegates to `T: ValidGrouping<GB>`, and a bare column is only valid when
+/// `GB: IsContainedInGroupBy<column>`, which nothing implements for `pg_length<fingerprint_id>`.
+/// `SqlLiteral` sidesteps this with a blanket `impl<ST, T, GB> ValidGrouping<GB>`.
+fn fingerprint_length() -> SqlLiteral<Integer> {
+    sql::<Integer>("length(fingerprint_id)")
+}
 
 /// The generic kind also matches the deprecated fixed-width kinds, so rows written before
 /// `generic_card_bin` existed stay visible.
@@ -246,6 +264,42 @@ impl Blocklist {
                 ),
         )
         .await
+    }
+
+    pub async fn count_by_fingerprint_length_processor_merchant_id_profile_id_data_kind(
+        conn: &DatabaseConnectionWithContext<'_>,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
+        profile_id: &common_utils::id_type::ProfileId,
+        data_kind: common_enums::BlocklistDataKind,
+    ) -> StorageResult<Vec<(i32, i64)>> {
+        let data_kinds = equivalent_data_kinds(data_kind);
+        let query = <Self as HasTable>::table()
+            .filter(
+                dsl::processor_merchant_id
+                    .eq(processor_merchant_id.to_owned())
+                    .or(dsl::processor_merchant_id
+                        .is_null()
+                        .and(dsl::merchant_id.eq(processor_merchant_id.to_owned())))
+                    .and(dsl::data_kind.eq_any(data_kinds))
+                    .and(
+                        dsl::profile_id
+                            .eq(profile_id.to_owned())
+                            .or(dsl::profile_id.is_null()),
+                    ),
+            )
+            .group_by(fingerprint_length())
+            .select((fingerprint_length(), count_star()));
+
+        generics::db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
+            conn.request_id(),
+            conn.event_emitter(),
+            generics::db_metrics::DatabaseOperation::Count,
+            query.get_results_async(conn.raw_connection()),
+        )
+        .await
+        .map_err(|e| error_stack::report!(e))
+        .change_context(errors::DatabaseError::Others)
+        .attach_printable("Failed to count blocklist entries by fingerprint length")
     }
 
     pub async fn list_by_processor_merchant_id(

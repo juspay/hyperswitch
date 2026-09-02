@@ -629,7 +629,7 @@ impl Conversion for MerchantAccount {
         let publishable_key =
             item.publishable_key
                 .ok_or(ValidationError::MissingRequiredField {
-                    field_name: "publishable_key".to_string(),
+                    field_name: "publishable_key".into(),
                 })?;
 
         async {
@@ -768,7 +768,7 @@ impl Conversion for MerchantAccount {
         let publishable_key =
             item.publishable_key
                 .ok_or(ValidationError::MissingRequiredField {
-                    field_name: "publishable_key".to_string(),
+                    field_name: "publishable_key".into(),
                 })?;
 
         async {
