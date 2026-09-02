@@ -1274,6 +1274,7 @@ routing_logs_topic = "hyperswitch-routing-api-events"
 revenue_recovery_topic = "hyperswitch-revenue-recovery-events"
 external_service_call_topic = "hyperswitch-external-service-call-events"
 account_updater_topic = "hyperswitch-account-updater-events"
+microservice_logs_topic = "hyperswitch-microservice-api-log-events"
 
 [analytics]
 source = "sqlx"

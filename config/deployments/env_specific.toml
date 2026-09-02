@@ -110,6 +110,7 @@ routing_logs_topic = "topic"             # Kafka topic to be used for Routing ev
 revenue_recovery_topic = "topic"         # Kafka topic to be used for Revenue Recovery Events
 external_service_call_topic = "topic"   # Kafka topic to be used for External Service Call Events
 account_updater_topic = "topic"         # Kafka topic to be used for Account Updater Synchronization Events
+microservice_logs_topic = "topic"       # Kafka topic to be used for internal microservice call events
 
 # File storage configuration
 [file_storage]

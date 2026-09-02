@@ -22,6 +22,7 @@ pub mod audit_events;
 pub mod connector_api_logs;
 pub mod event_logger;
 pub mod external_service_call;
+pub mod microservice_api_logs;
 pub mod outgoing_webhook_logs;
 pub mod routing_api_logs;
 #[derive(Debug, Serialize, Clone, Copy)]
@@ -44,6 +45,7 @@ pub enum EventType {
     RevenueRecovery,
     ExternalServiceCall,
     AccountUpdater,
+    MicroserviceApiLogs,
 }
 
 #[derive(Debug, Default, Deserialize, Clone)]
@@ -80,6 +82,13 @@ impl Default for EventsHandler {
 
 impl events_interfaces::EventHandlerInterface for EventsHandler {
     fn log_connector_event(&self, event: &events_interfaces::connector_api_logs::ConnectorEvent) {
+        self.log_event(event);
+    }
+
+    fn log_microservice_event(
+        &self,
+        event: &events_interfaces::microservice_api_logs::MicroserviceEvent,
+    ) {
         self.log_event(event);
     }
 }
