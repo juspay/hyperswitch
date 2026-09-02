@@ -466,6 +466,7 @@ export const connectorDetails = {
     },
     ZeroAuthConfirmPayment: {
       Request: {
+        currency: "EUR",
         payment_type: "setup_mandate",
         payment_method: "card",
         payment_method_type: "credit",
@@ -863,8 +864,29 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_code: "800.900.300",
+          error_code: "600.200.500",
           error_message: "invalid authentication information",
+        },
+      },
+    },
+    Eft: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "eft",
+        payment_method_data: {
+          bank_redirect: {
+            eft: {
+              provider: "ozow",
+            },
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "200.300.404",
+          error_message: "invalid or missing parameter",
         },
       },
     },
