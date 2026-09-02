@@ -283,7 +283,17 @@ where
     let runner = process.runner.unwrap_or_else(|| "unknown".to_string());
     metrics::WORKFLOW_EXECUTION_DURATION.record(
         workflow_duration,
-        router_env::metric_attributes!(("runner", runner)),
+        router_env::metric_attributes!(
+            ("runner", runner),
+            (
+                "application_source",
+                state.get_application_source().to_string()
+            ),
+            (
+                "tenant_id",
+                state.get_tenant_id().get_string_repr().to_owned()
+            )
+        ),
     );
 
     metrics::TASK_PROCESSED.add(1, &[]);
