@@ -49,10 +49,14 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
-use hyperswitch_masking::{ExposeInterface, Mask};
+use hyperswitch_masking::{ExposeInterface, Mask, PeekInterface};
 use transformers as globalpayments_realex;
 
-use crate::{constants::headers, types::ResponseRouterData, utils};
+use crate::{
+    constants::headers,
+    types::ResponseRouterData,
+    utils::{self, PaymentsAuthorizeRequestData},
+};
 
 #[derive(Clone)]
 pub struct GlobalpaymentsRealex {
@@ -685,6 +689,86 @@ static GLOBALPAYMENTS_REALEX_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
 static GLOBALPAYMENTS_REALEX_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
 
 impl ConnectorSpecifications for GlobalpaymentsRealex {
+    /// Check if pre-authentication flow is required.
+    ///
+    /// The 3DS2 authentication for this connector is driven by the Unified Connector Service
+    /// over the dedicated `PreAuthenticate` / `Authenticate` / `PostAuthenticate` flows, so a
+    /// merchant-initiated `three_ds` card authorization must first go through pre-authentication.
+    /// When the caller already supplies `authentication_data` from an external authentication,
+    /// the connector keeps its existing consume-only behaviour and goes straight to authorize.
+    fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
+        match current_flow {
+            api::CurrentFlowInfo::Authorize {
+                auth_type,
+                request_data,
+            } => {
+                auth_type.is_three_ds()
+                    && request_data.is_card()
+                    && request_data.authentication_data.is_none()
+            }
+            // No alternate flow for complete authorize
+            api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
+            api::CurrentFlowInfo::SetupMandate { .. } => false,
+            api::CurrentFlowInfo::Psync { .. }
+            | api::CurrentFlowInfo::UpdatePostConfirm { .. }
+            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
+        }
+    }
+
+    /// Check if authentication flow is required.
+    ///
+    /// The device data collection (3DS Method) notification URL carries a query string, so a
+    /// return with non-empty `params` is the device profiling leg and must run `Authenticate`.
+    fn is_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
+        match current_flow {
+            api::CurrentFlowInfo::Authorize { .. } => {
+                // during authorize flow, there is no authentication call needed
+                false
+            }
+            api::CurrentFlowInfo::CompleteAuthorize { request_data, .. } => {
+                let redirection_params = request_data
+                    .redirect_response
+                    .as_ref()
+                    .and_then(|redirect_response| redirect_response.params.as_ref());
+                match redirection_params {
+                    Some(param) if !param.peek().is_empty() => true,
+                    Some(_) | None => false,
+                }
+            }
+            api::CurrentFlowInfo::SetupMandate { .. } => false,
+            api::CurrentFlowInfo::Psync { .. }
+            | api::CurrentFlowInfo::UpdatePostConfirm { .. }
+            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
+        }
+    }
+
+    /// Check if post-authentication flow is required.
+    ///
+    /// The challenge notification URL carries no query string, so a return with empty or absent
+    /// `params` is the ACS challenge result and must run `PostAuthenticate`.
+    fn is_post_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
+        match current_flow {
+            api::CurrentFlowInfo::Authorize { .. } => {
+                // during authorize flow, there is no post_authentication call needed
+                false
+            }
+            api::CurrentFlowInfo::CompleteAuthorize { request_data, .. } => {
+                let redirection_params = request_data
+                    .redirect_response
+                    .as_ref()
+                    .and_then(|redirect_response| redirect_response.params.as_ref());
+                match redirection_params {
+                    Some(param) if !param.peek().is_empty() => false,
+                    Some(_) | None => true,
+                }
+            }
+            api::CurrentFlowInfo::SetupMandate { .. } => false,
+            api::CurrentFlowInfo::Psync { .. }
+            | api::CurrentFlowInfo::UpdatePostConfirm { .. }
+            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
+        }
+    }
+
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&GLOBALPAYMENTS_REALEX_CONNECTOR_INFO)
     }
