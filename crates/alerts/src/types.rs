@@ -31,14 +31,23 @@
 //! provider's own `ok` field, for the same reason: this shape's failure mode is a caller that reads
 //! `200` and stops looking.
 //!
+//! ## Content is `Secret`, so redaction is the type's job
+//!
+//! `text`, `subject` and `body` are `Secret<String>`. A subject carries merchant ids and a body
+//! carries payment volumes, and `services::server_wrap` takes `T: Debug`, so one added log line
+//! would otherwise put both in the log stream. A hand-written `Debug` would do the same job until
+//! somebody adds a field and forgets; the type cannot forget.
+//!
+//! Sizes are logged where they are useful — the chat client already emits `chars` per request — so
+//! nothing diagnostic is lost by redacting here.
+//!
 //! ## Nothing here renders
 //!
 //! `text`, `subject` and `body` are delivered exactly as they arrive. The caller decides what its
 //! message looks like, in whatever markup its destination reads. `body` is HTML, because both email
 //! backends in `external_services` hardcode an HTML body and there is no plain-text path to reach.
 
-use std::fmt;
-
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::domain::notifier::{
@@ -48,11 +57,11 @@ use crate::domain::notifier::{
 };
 
 /// The body of `POST /alerts/chat/notify/{destination}`.
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ChatNotifyRequest {
     /// The message, in the markup the destination reads. Delivered unchanged.
-    pub text: String,
+    pub text: Secret<String>,
 
     /// Post this as a reply in the thread of an earlier message, identified by the `message_id`
     /// that message's response returned.
@@ -61,14 +70,14 @@ pub struct ChatNotifyRequest {
 }
 
 /// The body of `POST /alerts/email/notify/{destination}`.
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct EmailNotifyRequest {
     /// The subject line, delivered unchanged.
-    pub subject: String,
+    pub subject: Secret<String>,
 
     /// The body, as HTML. See the module docs: the transport offers nothing else today.
-    pub body: String,
+    pub body: Secret<String>,
 }
 
 /// Whether the message arrived.
@@ -166,29 +175,6 @@ impl From<EmailOutcome> for EmailNotifyResponse {
     }
 }
 
-// `Debug` is written out rather than derived on both requests, because `services::server_wrap`
-// takes `T: Debug` and one added log line would otherwise put a subject full of merchant ids and a
-// body full of payment volumes into the log stream. Sizes are what you actually want when an alert
-// did not arrive.
-
-impl fmt::Debug for ChatNotifyRequest {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("ChatNotifyRequest")
-            .field("text_chars", &self.text.chars().count())
-            .field("threaded", &self.reply_to.is_some())
-            .finish()
-    }
-}
-
-impl fmt::Debug for EmailNotifyRequest {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("EmailNotifyRequest")
-            .field("subject_chars", &self.subject.chars().count())
-            .field("body_chars", &self.body.chars().count())
-            .finish()
-    }
-}
-
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::expect_used, clippy::indexing_slicing)]
 mod tests {
@@ -268,17 +254,19 @@ mod tests {
         assert!(error.to_string().contains("reply_to"));
     }
 
+    /// The property is now the type's, not a hand-written `Debug`'s: a field added later cannot
+    /// leak by someone forgetting to update an impl.
     #[test]
     fn debug_never_prints_the_message() {
         let chat = ChatNotifyRequest {
-            text: "acquirer_declined for merchant_1234".to_owned(),
+            text: "acquirer_declined for merchant_1234".to_owned().into(),
             reply_to: None,
         };
         assert!(!format!("{chat:?}").contains("merchant_1234"));
 
         let email = EmailNotifyRequest {
-            subject: "merchant_1234 not converting".to_owned(),
-            body: "<pre>4,201 of 5,000 payments lost</pre>".to_owned(),
+            subject: "merchant_1234 not converting".to_owned().into(),
+            body: "<pre>4,201 of 5,000 payments lost</pre>".to_owned().into(),
         };
         let rendered = format!("{email:?}");
         assert!(!rendered.contains("merchant_1234"));

@@ -11,6 +11,8 @@
 //! `ChatClient::post_message` maps onto [`ChatNotifier`](super::chat::ChatNotifier) one to one,
 //! with nothing to decide.
 
+use hyperswitch_masking::{PeekInterface, Secret};
+
 use super::Outcome;
 use crate::{errors::AlertsApiResult, logger};
 
@@ -18,11 +20,11 @@ use crate::{errors::AlertsApiResult, logger};
 #[derive(Debug, Clone)]
 pub struct EmailNotification {
     /// The subject line, delivered unchanged.
-    pub subject: String,
+    pub subject: Secret<String>,
 
     /// The body, as HTML. Both backends in `external_services::email` hardcode an HTML body, so
     /// there is nothing else to send until that module grows a plain-text path.
-    pub body: String,
+    pub body: Secret<String>,
 }
 
 /// The result of one email delivery attempt.
@@ -73,8 +75,8 @@ impl EmailNotifier for LogEmailNotifier {
         logger::info!(
             tag = "email_notify_skipped",
             destination = %self.destination,
-            subject_chars = notification.subject.chars().count(),
-            body_chars = notification.body.chars().count(),
+            subject_chars = notification.subject.peek().chars().count(),
+            body_chars = notification.body.peek().chars().count(),
             "not delivered: no email transport is wired yet"
         );
 
@@ -91,8 +93,8 @@ mod tests {
     async fn a_log_destination_reports_delivery() {
         let outcome = LogEmailNotifier::new("oncall".to_owned())
             .notify(EmailNotification {
-                subject: "3 merchants not converting".to_owned(),
-                body: "<pre>...</pre>".to_owned(),
+                subject: "3 merchants not converting".to_owned().into(),
+                body: "<pre>...</pre>".to_owned().into(),
             })
             .await
             .unwrap();

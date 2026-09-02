@@ -8,6 +8,7 @@ use std::sync::{
 use external_services::chat_service::{
     ChatClient, ChatError, ChatErrorReason, ChatMessage, MessageId,
 };
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 
 use super::{Outcome, Refusal};
 use crate::{
@@ -28,7 +29,7 @@ const PROVIDER_INTERNAL_ERROR: &str = "internal_error";
 #[derive(Debug, Clone)]
 pub struct ChatNotification {
     /// The message, in the markup the destination reads. Delivered unchanged.
-    pub text: String,
+    pub text: Secret<String>,
 
     /// Post as a reply under this message, if given.
     pub reply_to: Option<String>,
@@ -85,8 +86,10 @@ impl ChatClientNotifier {
 impl ChatNotifier for ChatClientNotifier {
     async fn notify(&self, notification: ChatNotification) -> AlertsApiResult<ChatOutcome> {
         let message = match notification.reply_to {
-            Some(reply_to) => ChatMessage::reply(notification.text, MessageId::ts(reply_to)),
-            None => ChatMessage::new(notification.text),
+            Some(reply_to) => {
+                ChatMessage::reply(notification.text.expose(), MessageId::ts(reply_to))
+            }
+            None => ChatMessage::new(notification.text.expose()),
         };
 
         match self.client.post_message(message).await {
@@ -229,7 +232,7 @@ impl ChatNotifier for LogChatNotifier {
         logger::info!(
             tag = "chat_notify_skipped",
             destination = %self.destination,
-            chars = notification.text.chars().count(),
+            chars = notification.text.peek().chars().count(),
             threaded = notification.reply_to.is_some(),
             "not delivered: this destination is configured as `log`"
         );
@@ -371,14 +374,14 @@ mod tests {
 
         let first = notifier
             .notify(ChatNotification {
-                text: "first".to_owned(),
+                text: "first".to_owned().into(),
                 reply_to: None,
             })
             .await
             .unwrap();
         let second = notifier
             .notify(ChatNotification {
-                text: "second".to_owned(),
+                text: "second".to_owned().into(),
                 reply_to: None,
             })
             .await

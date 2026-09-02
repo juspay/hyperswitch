@@ -58,6 +58,10 @@ Accepted rather than fixed — the alternative is extracting raw bytes and deser
 trading typed extraction for the concealment of a documented schema. `tests/notify.rs` asserts it so
 it stays a recorded property.
 
+`text`, `subject` and `body` are `Secret<String>`, so redaction is the type's job rather than a
+hand-written `Debug` that someone has to remember to update when a field is added. Sizes still
+reach the logs from the client, which emits `chars` per request.
+
 ## The API
 
 Two routes, one per channel. **The path says where, the body says what** — the URL names the
