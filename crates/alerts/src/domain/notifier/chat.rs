@@ -54,7 +54,7 @@ pub type ChatOutcome = Outcome<ChatReceipt>;
 /// One implementation is bound to one destination, so there is no channel argument and no way to
 /// address a channel that was not configured.
 #[async_trait::async_trait]
-pub trait ChatNotifier: Send + Sync {
+pub trait ChatNotifier: Send + Sync + std::fmt::Debug {
     /// Attempt delivery.
     ///
     /// A provider that refuses returns `Ok(Outcome::Refused)`, not an error: it was reached and it

@@ -240,9 +240,7 @@ mod tests {
             destinations: HashMap::from([("sr_alerts".to_owned(), ChatDestination::Xyne(config))]),
         };
 
-        let Err(error) = build_chat_registry(&settings, &Proxy::default()) else {
-            panic!("a destination with no channel must not build")
-        };
+        let error = build_chat_registry(&settings, &Proxy::default()).unwrap_err();
         assert!(error.to_string().contains("sr_alerts"));
     }
 
