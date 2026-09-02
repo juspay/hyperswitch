@@ -110,48 +110,7 @@ describe("Block Implicit Customer Creation", () => {
           cy.task("cli_log", "Skipping step: Wait for config propagation");
           return;
         }
-        const maxAttempts = 60;
-        const intervalMs = 5000;
-        const poll = (attempt) => {
-          if (attempt >= maxAttempts) {
-            throw new Error(
-              `Superposition config did not propagate within ${(maxAttempts * intervalMs) / 1000}s`
-            );
-          }
-          cy.request({
-            method: "POST",
-            url: `${globalState.get("baseUrl")}/payments`,
-            headers: {
-              "api-key": globalState.get("apiKey"),
-              "Content-Type": "application/json",
-            },
-            body: {
-              ...fixtures.createPaymentBody,
-              currency: "USD",
-              amount: 100,
-              customer_id: `poll_block_${Date.now()}_${attempt}`,
-              authentication_type: "no_three_ds",
-              capture_method: "automatic",
-              profile_id: globalState.get("profileId"),
-            },
-            failOnStatusCode: false,
-          }).then((response) => {
-            if (response.status === 404) {
-              cy.task(
-                "cli_log",
-                `Config propagated after ${attempt + 1} poll attempt(s)`
-              );
-            } else {
-              cy.task(
-                "cli_log",
-                `Poll attempt ${attempt + 1}: got ${response.status}, waiting ${intervalMs / 1000}s...`
-              );
-              // eslint-disable-next-line cypress/no-unnecessary-waiting
-              cy.wait(intervalMs).then(() => poll(attempt + 1));
-            }
-          });
-        };
-        poll(0);
+        cy.waitForConfigPropagation(globalState, 404, "block");
       });
 
       cy.step(
@@ -212,48 +171,7 @@ describe("Block Implicit Customer Creation", () => {
             cy.task("cli_log", "Skipping step: Wait for config propagation");
             return;
           }
-          const maxAttempts = 60;
-          const intervalMs = 5000;
-          const poll = (attempt) => {
-            if (attempt >= maxAttempts) {
-              throw new Error(
-                `Superposition config did not propagate within ${(maxAttempts * intervalMs) / 1000}s`
-              );
-            }
-            cy.request({
-              method: "POST",
-              url: `${globalState.get("baseUrl")}/payments`,
-              headers: {
-                "api-key": globalState.get("apiKey"),
-                "Content-Type": "application/json",
-              },
-              body: {
-                ...fixtures.createPaymentBody,
-                currency: "USD",
-                amount: 100,
-                customer_id: `poll_allow_${Date.now()}_${attempt}`,
-                authentication_type: "no_three_ds",
-                capture_method: "automatic",
-                profile_id: globalState.get("profileId"),
-              },
-              failOnStatusCode: false,
-            }).then((response) => {
-              if (response.status === 200) {
-                cy.task(
-                  "cli_log",
-                  `Config propagated after ${attempt + 1} poll attempt(s)`
-                );
-              } else {
-                cy.task(
-                  "cli_log",
-                  `Poll attempt ${attempt + 1}: got ${response.status}, waiting ${intervalMs / 1000}s...`
-                );
-                // eslint-disable-next-line cypress/no-unnecessary-waiting
-                cy.wait(intervalMs).then(() => poll(attempt + 1));
-              }
-            });
-          };
-          poll(0);
+          cy.waitForConfigPropagation(globalState, 200, "allow");
         });
 
         cy.step(
