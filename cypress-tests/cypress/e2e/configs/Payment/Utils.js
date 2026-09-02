@@ -606,7 +606,12 @@ export const CONNECTOR_LISTS = {
     DDC_RACE_CONDITION: ["worldpay"],
     CONNECTOR_TESTING_DATA: ["adyen", "airwallex", "braintree", "noon"],
     // ucs connectors
-    UCS_CONNECTORS: ["authorizedotnet", "fiservcommercehub", "givepayments", "ilixium"],
+    UCS_CONNECTORS: [
+      "authorizedotnet",
+      "fiservcommercehub",
+      "givepayments",
+      "ilixium",
+    ],
     OVERCAPTURE: ["adyen"],
     IFRAME_REDIRECTION: [
       "adyen",
