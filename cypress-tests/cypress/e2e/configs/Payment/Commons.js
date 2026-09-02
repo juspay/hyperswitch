@@ -2886,6 +2886,17 @@ export const connectorDetails = {
         customer_acceptance: customerAcceptance,
       },
     }),
+    ZeroAuthConfirmPaymentManual: getCustomExchange({
+      Request: {
+        payment_type: "setup_mandate",
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
+      },
+    }),
     SaveCardUseNo3DSAutoCapture: getCustomExchange({
       Request: {
         payment_method: "card",

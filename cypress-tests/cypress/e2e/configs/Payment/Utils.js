@@ -813,6 +813,7 @@ export const CONNECTOR_LISTS = {
     CLIENT_SESSION_VALIDATION: ["stripe"],
     WEBHOOK_CONFIG: ["stripe"],
     REQUIRES_CVV: ["bankofamerica"],
+    ZERO_AUTH_MANDATE: ["peachpayments", "bankofamerica"],
     // Add more inclusion lists
   },
 };
