@@ -13,12 +13,13 @@ use hyperswitch_domain_models::{
         flow_common_types::{
             AccessTokenFlowData, AuthenticationTokenFlowData, BillingConnectorInvoiceSyncFlowData,
             BillingConnectorPaymentsSyncFlowData, ConnectorWebhookConfigurationFlowData,
-            DisputesFlowData, ExternalAuthenticationFlowData, ExternalVaultProxyFlowData,
-            FilesFlowData, GetSubscriptionEstimateData, GetSubscriptionItemPricesData,
-            GetSubscriptionItemsData, GiftCardBalanceCheckFlowData, InvoiceRecordBackData,
-            MandateRevokeFlowData, PaymentFlowData, RefundFlowData, SubscriptionCancelData,
-            SubscriptionCreateData, SubscriptionCustomerData, SubscriptionPauseData,
-            SubscriptionResumeData, UasFlowData, VaultConnectorFlowData, WebhookSourceVerifyData,
+            DisputeRecordBackData, DisputesFlowData, ExternalAuthenticationFlowData,
+            ExternalVaultProxyFlowData, FilesFlowData, GetSubscriptionEstimateData,
+            GetSubscriptionItemPricesData, GetSubscriptionItemsData, GiftCardBalanceCheckFlowData,
+            InvoiceRecordBackData, MandateRevokeFlowData, PaymentFlowData, RefundFlowData,
+            SubscriptionCancelData, SubscriptionCreateData, SubscriptionCustomerData,
+            SubscriptionPauseData, SubscriptionResumeData, UasFlowData, VaultConnectorFlowData,
+            WebhookSourceVerifyData,
         },
         RouterDataV2,
     },
@@ -97,6 +98,7 @@ fn get_default_router_data<F, Req, Resp>(
         minor_amount_capturable: None,
         authorized_amount: None,
         customer_document_details: None,
+        customer_date_of_birth: None,
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
@@ -945,6 +947,7 @@ default_router_data_conversion!(GetSubscriptionEstimateData);
 default_router_data_conversion!(SubscriptionResumeData);
 default_router_data_conversion!(SubscriptionPauseData);
 default_router_data_conversion!(SubscriptionCancelData);
+default_router_data_conversion!(DisputeRecordBackData);
 
 impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for UasFlowData {
     fn from_old_router_data(

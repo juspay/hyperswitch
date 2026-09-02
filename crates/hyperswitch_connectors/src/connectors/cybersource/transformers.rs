@@ -388,7 +388,7 @@ impl TryFrom<&SetupMandateRouterData> for CybersourceZeroMandateRequest {
                             },
                         )),
                         Some(PaymentSolution::GooglePay),
-                        Some(google_pay_data.info.card_network.clone()),
+                        None,
                         None,
                     ),
                     WalletData::SamsungPay(samsung_pay_data) => (
@@ -473,14 +473,7 @@ impl TryFrom<&SetupMandateRouterData> for CybersourceZeroMandateRequest {
                     )
                 })
             })
-            .unwrap_or_else(|| {
-                solution
-                    .as_ref()
-                    .map(|pm_solution| {
-                        get_wallet_commerce_indicator(pm_solution, network.as_deref()).to_string()
-                    })
-                    .unwrap_or_else(|| "internet".to_string())
-            });
+            .unwrap_or_else(|| "internet".to_string());
 
         let processing_information = ProcessingInformation {
             capture: Some(false),
@@ -930,7 +923,19 @@ impl
     ) -> Result<Self, Self::Error> {
         let mut commerce_indicator = solution
             .as_ref()
-            .map(|pm_solution| get_wallet_commerce_indicator(pm_solution, network.as_deref()))
+            .map(|pm_solution| match pm_solution {
+                PaymentSolution::ApplePay | PaymentSolution::SamsungPay => network
+                    .as_ref()
+                    .map(|card_network| match card_network.to_lowercase().as_str() {
+                        "amex" => "internet",
+                        "discover" => "internet",
+                        "mastercard" => "spa",
+                        "visa" => "internet",
+                        _ => "internet",
+                    })
+                    .unwrap_or("internet"),
+                PaymentSolution::GooglePay => "internet",
+            })
             .unwrap_or("internet")
             .to_string();
 
@@ -1311,42 +1316,6 @@ fn get_commerce_indicator_for_external_authentication(
         }
     }
     .to_string()
-}
-
-fn get_wallet_commerce_indicator(
-    payment_solution: &PaymentSolution,
-    card_network: Option<&str>,
-) -> &'static str {
-    let card_network = normalize_cybersource_card_network(card_network);
-    match payment_solution {
-        PaymentSolution::ApplePay => match card_network {
-            Some("amex") => "aesk",
-            Some("discover") => "dipb",
-            Some("jcb") => "js",
-            Some("mastercard") => "spa",
-            Some("maestro") => "spa",
-            Some("visa") => "vbv",
-            _ => "internet",
-        },
-        PaymentSolution::SamsungPay => match card_network {
-            Some("diners") => "pb",
-            Some("mastercard") => "spa",
-            Some("maestro") => "spa",
-            Some("amex") => "aesk",
-            Some("visa") => "vbv",
-            _ => "internet",
-        },
-        PaymentSolution::GooglePay => match card_network {
-            Some("diners") => "pb",
-            Some("mastercard") => "spa",
-            Some("maestro") => "spa",
-            Some("visa") => "vbv",
-            Some("amex") => "aesk",
-            Some("discover") => "dipb",
-            Some("jcb") => "js",
-            _ => "internet",
-        },
-    }
 }
 
 fn normalize_cybersource_card_network(card_network: Option<&str>) -> Option<&'static str> {
@@ -2389,11 +2358,8 @@ impl
                     transaction_type: TransactionType::InApp,
                 },
             }));
-        let processing_information = ProcessingInformation::try_from((
-            item,
-            Some(PaymentSolution::GooglePay),
-            Some(google_pay_data.info.card_network.clone()),
-        ))?;
+        let processing_information =
+            ProcessingInformation::try_from((item, Some(PaymentSolution::GooglePay), None))?;
         let client_reference_information = ClientReferenceInformation::from(item);
         let merchant_defined_information = convert_metadata_to_merchant_defined_info(
             item.router_data.request.metadata.clone(),
@@ -3515,6 +3481,7 @@ fn get_payment_response(
                 incremental_authorization_allowed,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             })
         }
     }
@@ -3601,6 +3568,7 @@ impl TryFrom<PaymentsResponseRouterData<CybersourceAuthSetupResponse>>
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             }),
@@ -4301,6 +4269,7 @@ impl TryFrom<PaymentsPreprocessingResponseRouterData<CybersourcePreProcessingRes
                             incremental_authorization_allowed: None,
                             authentication_data,
                             charges: None,
+                            payment_account_reference: None,
                         }),
                         ..item.data
                     })
@@ -4545,6 +4514,7 @@ impl
                     ),
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
             },
             connector_response,
@@ -4656,6 +4626,7 @@ impl<F>
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             }),
@@ -4791,6 +4762,7 @@ impl<F>
                             incremental_authorization_allowed: None,
                             authentication_data,
                             charges: None,
+                            payment_account_reference: None,
                         }),
                         ..item.data
                     })
@@ -4928,6 +4900,7 @@ impl<F>
                             incremental_authorization_allowed: None,
                             authentication_data,
                             charges: None,
+                            payment_account_reference: None,
                         }),
                         ..item.data
                     })
@@ -5029,6 +5002,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<CybersourceTransactionResponse>>
                             incremental_authorization_allowed,
                             authentication_data: None,
                             charges: None,
+                            payment_account_reference: None,
                         }),
                         ..item.data
                     })
@@ -5047,6 +5021,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<CybersourceTransactionResponse>>
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             }),
@@ -5467,6 +5442,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, CybersourceFulfillResponse>> for Pa
                 error_code: None,
                 error_message: None,
                 payout_connector_metadata: None,
+                connector_eligibility_reference_id: None,
             }),
             ..item.data
         })

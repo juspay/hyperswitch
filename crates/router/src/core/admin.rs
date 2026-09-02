@@ -643,6 +643,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                         consts::FINGERPRINT_SECRET_LENGTH,
                         "fs",
                     ))),
+                    offer_engine_config: None,
                 },
             )
         }
@@ -1217,6 +1218,21 @@ impl MerchantAccountUpdateBridge for api::MerchantAccountUpdate {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to encrypt network_tokenization_credentials")?;
 
+        let offer_engine_config = self
+            .offer_engine_config
+            .async_map(|value| {
+                core_utils::create_encrypted_data(
+                    key_manager_state,
+                    key_store,
+                    value,
+                    type_name!(storage::MerchantAccount),
+                )
+            })
+            .await
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt offer_engine_config")?;
+
         let identifier = km_types::Identifier::Merchant(key_store.merchant_id.clone());
         Ok(storage::MerchantAccountUpdate::Update {
             merchant_name: self
@@ -1273,6 +1289,7 @@ impl MerchantAccountUpdateBridge for api::MerchantAccountUpdate {
             pm_collect_link_config,
             routing_algorithm: self.routing_algorithm,
             network_tokenization_credentials,
+            offer_engine_config,
         })
     }
 }
@@ -4458,6 +4475,7 @@ pub async fn update_profile(
     merchant_id: id_type::MerchantId,
     key_store: domain::MerchantKeyStore,
     request: api::ProfileUpdate,
+    provider_merchant_id: Option<hyperswitch_domain_models::platform::ProviderMerchantId>,
 ) -> RouterResponse<api::ProfileResponse> {
     let db = state.store.as_ref();
 
@@ -4477,6 +4495,33 @@ pub async fn update_profile(
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
         })?;
+
+    // DE-cut-over profiles manage routing via the routing APIs; direct writes would diverge the engines.
+    #[cfg(feature = "v1")]
+    if request.routing_algorithm.is_some() || request.payout_routing_algorithm.is_some() {
+        // The provider merchant is a real superposition dimension and differs from the
+        // processor under connected-account auth, so it must match what the routing and
+        // payment paths resolve; fall back to the auth merchant only when unavailable.
+        let dimensions = crate::core::configs::dimension_state::Dimensions::new()
+            .with_processor_merchant_id(
+                hyperswitch_domain_models::platform::ProcessorMerchantId::from(merchant_id.clone()),
+            )
+            .with_provider_merchant_id(provider_merchant_id.unwrap_or_else(|| {
+                hyperswitch_domain_models::platform::ProviderMerchantId::new(merchant_id.clone())
+            }))
+            .with_profile_id(profile_id.clone());
+        if crate::core::payments::routing::utils::is_decision_engine_routing_effective(
+            &state,
+            &dimensions,
+        )
+        .await
+        {
+            return Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: "routing_algorithm cannot be set directly for a profile routed by the Decision Engine; use the routing APIs".to_string(),
+            }
+            .into());
+        }
+    }
 
     let profile_update = request
         .get_update_profile_object(&state, &key_store, &business_profile)

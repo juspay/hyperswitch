@@ -545,6 +545,12 @@ pub async fn payment_method_modular_forward_compat_action(
         .with_organization_id(organization_id.clone());
     let should_schedule_modular_forward_compat =
         utils::get_should_schedule_modular_forward_compat(state, &dimensions, customer_id).await;
+    logger::debug!(
+        should_schedule_modular_forward_compat,
+        merchant_id=%merchant_id.get_string_repr(),
+        organization_id=%organization_id.get_string_repr(),
+        "resolved modular forward compat scheduling flag"
+    );
 
     let organization_id = organization_id.clone();
     should_schedule_modular_forward_compat.then(|| {
@@ -563,13 +569,22 @@ pub async fn payment_method_modular_forward_compat_action(
                 )
                 .await;
 
-                if let Err(err) = res {
-                    logger::error!(
-                        ?err,
-                        payment_method_id=%payment_method.get_id(),
-                        merchant_id=%payment_method.merchant_id.get_string_repr(),
-                        "Failed to schedule modular forward compatibility PT after payment method DB write"
-                    );
+                match res {
+                    Err(err) => {
+                        logger::error!(
+                            ?err,
+                            payment_method_id=%payment_method.get_id(),
+                            merchant_id=%payment_method.merchant_id.get_string_repr(),
+                            "Failed to schedule modular forward compatibility PT after payment method DB write"
+                        );
+                    }
+                    Ok(_) => {
+                        logger::info!(
+                            payment_method_id=%payment_method.get_id(),
+                            merchant_id=%payment_method.merchant_id.get_string_repr(),
+                            "Scheduled modular forward compatibility PT after payment method DB write"
+                        );
+                    }
                 }
             })
         })
@@ -1238,7 +1253,7 @@ pub async fn retrieve_payment_method_with_token(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("PaymentMethod not found")?;
 
-            let db_account_holder_name =
+            let (db_account_holder_name, db_bank_name) =
                 if let Some(domain::PaymentMethodsData::BankRedirect(bank_redirect_data)) =
                     payment_method.get_payment_methods_data()
                 {
@@ -1248,7 +1263,8 @@ pub async fn retrieve_payment_method_with_token(
                             masked_iban: _,
                             masked_sort_code: _,
                             account_holder_name,
-                        } => account_holder_name.clone(),
+                            bank_name,
+                        } => (account_holder_name.clone(), bank_name),
                     }
                 } else {
                     return Err(report!(errors::ApiErrorResponse::InternalServerError)
@@ -1275,6 +1291,7 @@ pub async fn retrieve_payment_method_with_token(
                         sort_code: vault_sort_code,
                         account_holder_name: db_account_holder_name,
                         additional_details: connector_payment_method_details.map(Secret::new),
+                        bank_name: db_bank_name,
                     },
                 )),
                 payment_method_id: Some(bank_redirect.payment_method_id.clone()),
@@ -1635,6 +1652,7 @@ pub(crate) async fn get_payment_method_create_request(
                         sort_code,
                         account_holder_name,
                         additional_details: _,
+                        bank_name,
                     }) => {
                         let payment_method_request = payment_methods::PaymentMethodCreate {
                             payment_method: Some(payment_method),
@@ -1659,6 +1677,7 @@ pub(crate) async fn get_payment_method_create_request(
                                         iban: iban.clone(),
                                         sort_code: sort_code.clone(),
                                         account_holder_name: account_holder_name.clone(),
+                                        bank_name: *bank_name,
                                     },
                                 ),
                             ),
@@ -4271,7 +4290,10 @@ pub async fn list_payment_methods_for_session(
         hyperswitch_domain_models::merchant_connector_account::FlattenedPaymentMethodsEnabled::from_payment_connectors_list(payment_connector_accounts)
             .perform_filtering()
             .get_required_fields(RequiredFieldsInput::new(state.conf.required_fields.clone()))
-            .generate_response_for_session(customer_payment_methods);
+            .generate_response_for_session(
+                customer_payment_methods,
+                &state.conf.customer_acceptance_support,
+            );
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
         response,
@@ -4521,6 +4543,7 @@ impl RequiredFieldsForEnabledPaymentMethodTypes {
     fn generate_response_for_session(
         self,
         customer_payment_methods: Vec<payment_methods::CustomerPaymentMethodResponseItem>,
+        customer_acceptance_support_config: &settings::CustomerAcceptanceSupportConfig,
     ) -> payment_methods::PaymentMethodListResponseForSession {
         let response_payment_methods = self
             .0
@@ -4531,6 +4554,11 @@ impl RequiredFieldsForEnabledPaymentMethodTypes {
                     payment_method_subtype: payment_methods_enabled.payment_method_subtype,
                     required_fields: payment_methods_enabled.required_fields,
                     extra_information: None,
+                    customer_acceptance_support: customer_acceptance_support_config
+                        .get_customer_acceptance_support(
+                            payment_methods_enabled.payment_method_type,
+                            payment_methods_enabled.payment_method_subtype,
+                        ),
                 },
             )
             .collect();

@@ -826,6 +826,8 @@ pub struct PaymentAttempt {
     pub external_surcharge_details: Option<common_types::payments::ExternalSurchargeDetails>,
     /// Normalized applied-offer details from Offer Engine
     pub applied_offer_details: Option<common_types::payments::AppliedOfferDetails>,
+    /// Payment Account Reference (PAR) returned by the connector for the underlying card
+    pub payment_account_reference: Option<String>,
 }
 
 impl PaymentAttempt {
@@ -995,6 +997,7 @@ impl PaymentAttempt {
             authorized_amount: None,
             external_surcharge_details: None,
             applied_offer_details: None,
+            payment_account_reference: None,
         })
     }
 
@@ -1091,6 +1094,7 @@ impl PaymentAttempt {
             authorized_amount: None,
             external_surcharge_details: None,
             applied_offer_details: None,
+            payment_account_reference: None,
         })
     }
 
@@ -1194,6 +1198,7 @@ impl PaymentAttempt {
             authorized_amount: None,
             external_surcharge_details: None,
             applied_offer_details: None,
+            payment_account_reference: None,
         })
     }
 
@@ -1228,6 +1233,9 @@ impl PaymentAttempt {
                             .as_ref()
                             .and_then(|data| data.charge_id.clone())
                     }),
+                    // Populated later, when the payment is recorded back to the
+                    // billing connector.
+                    billing_connector_transaction_id: None,
                 }
             }),
         };
@@ -1322,6 +1330,7 @@ impl PaymentAttempt {
             authorized_amount: None,
             external_surcharge_details: None,
             applied_offer_details: None,
+            payment_account_reference: None,
         })
     }
 
@@ -1401,6 +1410,7 @@ pub struct PaymentAttempt {
     pub mandate_data: Option<MandateDetails>,
     pub payment_method_billing_address_id: Option<String>,
     pub fingerprint_id: Option<String>,
+    pub fingerprint_type: Option<common_enums::FingerprintType>,
     pub charge_id: Option<String>,
     pub client_source: Option<String>,
     pub client_version: Option<String>,
@@ -1444,6 +1454,8 @@ pub struct PaymentAttempt {
     pub external_surcharge_details: Option<common_types::payments::ExternalSurchargeDetails>,
     /// Normalized applied-offer details from Offer Engine
     pub applied_offer_details: Option<common_types::payments::AppliedOfferDetails>,
+    /// Payment Account Reference (PAR) returned by the connector for the underlying card
+    pub payment_account_reference: Option<String>,
     /// Sender payment instrument ID
     pub sender_payment_instrument_id: Option<String>,
 }
@@ -1648,6 +1660,32 @@ impl PaymentAttempt {
 
     pub fn extract_card_network(&self) -> Option<common_enums::CardNetwork> {
         todo!()
+    }
+
+    /// Funding type of the card, as stored on the attempt's payment method data.
+    pub fn extract_card_type(&self) -> Option<String> {
+        self.extract_additional_card_info()
+            .and_then(|card_info| card_info.card_type)
+    }
+
+    /// Country in which the card was issued, as stored on the attempt's payment method data.
+    pub fn extract_card_issuing_country(&self) -> Option<String> {
+        self.extract_additional_card_info()
+            .and_then(|card_info| card_info.card_issuing_country)
+    }
+
+    /// Issuer identification number of the card, as stored on the attempt's payment method data.
+    pub fn extract_card_isin(&self) -> Option<String> {
+        self.extract_additional_card_info()
+            .and_then(|card_info| card_info.card_isin)
+    }
+
+    /// The card details recorded on the attempt, if the payment method data holds a card.
+    fn extract_additional_card_info(&self) -> Option<api_models::payments::AdditionalCardInfo> {
+        self.get_payment_method_data()
+            .ok()
+            .flatten()
+            .and_then(|data| data.get_additional_card_info())
     }
 
     fn get_connector_metadata_value(&self) -> Option<&Value> {
@@ -1888,7 +1926,9 @@ impl PaymentAttempt {
     pub fn check_and_get_payment_method_data_based_on_encryption_strategy(&self) -> Option<Value> {
         if self
             .payment_method
-            .map(|payment_method| payment_method.is_additional_payment_method_data_sensitive())
+            .map(|payment_method| {
+                payment_method.is_additional_payment_method_data_sensitive(self.payment_method_type)
+            })
             .unwrap_or(false)
         {
             self.encrypted_payment_method_data
@@ -1971,6 +2011,7 @@ pub enum PaymentAttemptUpdate {
         amount_to_capture: Option<MinorUnit>,
         capture_method: Option<storage_enums::CaptureMethod>,
         fingerprint_id: Option<String>,
+        fingerprint_type: Option<common_enums::FingerprintType>,
         payment_method_billing_address_id: Option<String>,
         updated_by: String,
         network_transaction_id: Option<String>,
@@ -2019,6 +2060,7 @@ pub enum PaymentAttemptUpdate {
         authentication_id: Option<id_type::AuthenticationId>,
         payment_method_billing_address_id: Option<String>,
         fingerprint_id: Option<String>,
+        fingerprint_type: Option<common_enums::FingerprintType>,
         payment_method_id: Option<String>,
         client_source: Option<String>,
         client_version: Option<String>,
@@ -2106,6 +2148,7 @@ pub enum PaymentAttemptUpdate {
         recommended_action: Option<Option<storage_enums::RecommendedAction>>,
         card_network: Option<storage_enums::CardNetwork>,
         sender_payment_instrument_id: Option<String>,
+        payment_account_reference: Option<String>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -2234,6 +2277,7 @@ impl PaymentAttemptUpdate {
                 amount_to_capture,
                 capture_method,
                 fingerprint_id,
+                fingerprint_type,
                 network_transaction_id,
                 network_transaction_link_id,
                 payment_method_billing_address_id,
@@ -2256,6 +2300,7 @@ impl PaymentAttemptUpdate {
                 surcharge_amount: net_amount.get_surcharge_amount(),
                 tax_amount: net_amount.get_tax_on_surcharge(),
                 fingerprint_id,
+                fingerprint_type,
                 payment_method_billing_address_id,
                 network_transaction_id,
                 network_transaction_link_id,
@@ -2345,6 +2390,7 @@ impl PaymentAttemptUpdate {
                 error_code,
                 error_message,
                 fingerprint_id,
+                fingerprint_type,
                 updated_by,
                 merchant_connector_id: connector_id,
                 payment_method_id,
@@ -2388,6 +2434,7 @@ impl PaymentAttemptUpdate {
                 surcharge_amount: net_amount.get_surcharge_amount(),
                 tax_amount: net_amount.get_tax_on_surcharge(),
                 fingerprint_id,
+                fingerprint_type,
                 updated_by,
                 merchant_connector_id: connector_id,
                 payment_method_id,
@@ -2474,6 +2521,7 @@ impl PaymentAttemptUpdate {
                 recommended_action,
                 card_network,
                 sender_payment_instrument_id,
+                payment_account_reference,
             } => {
                 let connector_details = ConnectorErrorDetails::new(
                     error_code.clone(),
@@ -2540,6 +2588,7 @@ impl PaymentAttemptUpdate {
                         .map(Encryption::from),
                     error_details,
                     sender_payment_instrument_id,
+                    payment_account_reference,
                 }
             }
             Self::UnresolvedResponseUpdate {
@@ -2893,6 +2942,12 @@ pub enum PaymentAttemptUpdate {
         amount_to_capture: Option<MinorUnit>,
         updated_by: String,
     },
+    /// Update the attempt's feature metadata after recording the payment back to the
+    /// billing connector. Touches nothing else.
+    RecordBackUpdate {
+        feature_metadata: Option<PaymentAttemptFeatureMetadata>,
+        updated_by: String,
+    },
     /// Update the payment after attempting capture with the connector
     CaptureUpdate {
         status: storage_enums::AttemptStatus,
@@ -3006,6 +3061,7 @@ impl behaviour::Conversion for PaymentAttempt {
             authentication_id: self.authentication_id,
             mandate_data: self.mandate_data.map(Into::into),
             fingerprint_id: self.fingerprint_id,
+            fingerprint_type: self.fingerprint_type,
             payment_method_billing_address_id: self.payment_method_billing_address_id,
             charge_id: self.charge_id,
             client_source: self.client_source,
@@ -3046,6 +3102,7 @@ impl behaviour::Conversion for PaymentAttempt {
             retry_type: self.retry_type,
             external_surcharge_details: self.external_surcharge_details,
             applied_offer_details: self.applied_offer_details,
+            payment_account_reference: self.payment_account_reference,
             sender_payment_instrument_id: self.sender_payment_instrument_id,
         })
     }
@@ -3150,6 +3207,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 mandate_data: storage_model.mandate_data.map(Into::into),
                 payment_method_billing_address_id: storage_model.payment_method_billing_address_id,
                 fingerprint_id: storage_model.fingerprint_id,
+                fingerprint_type: storage_model.fingerprint_type,
                 charge_id: storage_model.charge_id,
                 client_source: storage_model.client_source,
                 client_version: storage_model.client_version,
@@ -3189,6 +3247,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 installment_data: storage_model.installment_data,
                 external_surcharge_details: storage_model.external_surcharge_details,
                 applied_offer_details: storage_model.applied_offer_details,
+                payment_account_reference: storage_model.payment_account_reference,
                 sender_payment_instrument_id: storage_model.sender_payment_instrument_id,
             })
         }
@@ -3262,6 +3321,7 @@ impl behaviour::Conversion for PaymentAttempt {
             authentication_id: self.authentication_id,
             mandate_data: self.mandate_data.map(Into::into),
             fingerprint_id: self.fingerprint_id,
+            fingerprint_type: self.fingerprint_type,
             payment_method_billing_address_id: self.payment_method_billing_address_id,
             client_source: self.client_source,
             client_version: self.client_version,
@@ -3294,6 +3354,7 @@ impl behaviour::Conversion for PaymentAttempt {
             installment_data: self.installment_data,
             external_surcharge_details: self.external_surcharge_details,
             applied_offer_details: self.applied_offer_details,
+            payment_account_reference: self.payment_account_reference,
             sender_payment_instrument_id: self.sender_payment_instrument_id,
         })
     }
@@ -3513,6 +3574,40 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 amount_captured: None,
                 payment_method_data: None,
             },
+            PaymentAttemptUpdate::RecordBackUpdate {
+                feature_metadata,
+                updated_by,
+            } => Self {
+                feature_metadata: feature_metadata.as_ref().map(From::from),
+                updated_by,
+                modified_at: common_utils::date_time::now(),
+                amount_to_capture: None,
+                payment_method_id: None,
+                error_message: None,
+                browser_info: None,
+                error_code: None,
+                error_reason: None,
+                merchant_connector_id: None,
+                unified_code: None,
+                unified_message: None,
+                connector_payment_id: None,
+                connector_payment_data: None,
+                connector: None,
+                redirection_data: None,
+                status: None,
+                connector_metadata: None,
+                amount_capturable: None,
+                connector_token_details: None,
+                authentication_type: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                connector_request_reference_id: None,
+                connector_response_reference_id: None,
+                cancellation_reason: None,
+                amount_captured: None,
+                payment_method_data: None,
+            },
             PaymentAttemptUpdate::PreCaptureUpdate {
                 amount_to_capture,
                 updated_by,
@@ -3636,6 +3731,8 @@ pub struct PaymentAttemptRevenueRecoveryData {
     pub attempt_triggered_by: common_enums::TriggeredBy,
     // stripe specific field used to identify duplicate attempts.
     pub charge_id: Option<String>,
+    /// Transaction id returned by the billing connector at record-back time.
+    pub billing_connector_transaction_id: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -3647,6 +3744,9 @@ impl From<&PaymentAttemptFeatureMetadata> for DieselPaymentAttemptFeatureMetadat
                 .map(|recovery_data| DieselPassiveChurnRecoveryData {
                     attempt_triggered_by: recovery_data.attempt_triggered_by,
                     charge_id: recovery_data.charge_id.clone(),
+                    billing_connector_transaction_id: recovery_data
+                        .billing_connector_transaction_id
+                        .clone(),
                 });
         Self { revenue_recovery }
     }
@@ -3660,7 +3760,64 @@ impl From<DieselPaymentAttemptFeatureMetadata> for PaymentAttemptFeatureMetadata
                 .map(|recovery_data| PaymentAttemptRevenueRecoveryData {
                     attempt_triggered_by: recovery_data.attempt_triggered_by,
                     charge_id: recovery_data.charge_id,
+                    billing_connector_transaction_id: recovery_data
+                        .billing_connector_transaction_id,
                 });
         Self { revenue_recovery }
+    }
+}
+
+#[cfg(all(test, feature = "v2"))]
+mod card_info_extraction_tests {
+    use api_models::payments::{AdditionalCardInfo, AdditionalPaymentData};
+    use common_utils::ext_traits::{Encode, ValueExt};
+
+    /// The enriched card details are stored on the attempt's `payment_method_data` and read back
+    /// from there when the payment intent's feature metadata is built, so the fields have to
+    /// survive that json round trip.
+    #[test]
+    fn enriched_card_details_survive_the_payment_method_data_round_trip() {
+        let card_info = AdditionalCardInfo {
+            card_issuer: Some("JP MORGAN CHASE".to_string()),
+            card_type: Some("credit".to_string()),
+            card_issuing_country: Some("UNITED STATES".to_string()),
+            card_isin: Some("424242".to_string()),
+            ..Default::default()
+        };
+
+        let stored_value = AdditionalPaymentData::Card(Box::new(card_info))
+            .encode_to_value()
+            .expect("additional payment data should serialize");
+
+        let parsed = stored_value
+            .parse_value::<AdditionalPaymentData>("AdditionalPaymentData")
+            .expect("additional payment data should deserialize")
+            .get_additional_card_info()
+            .expect("card details should be present");
+
+        assert_eq!(parsed.card_type.as_deref(), Some("credit"));
+        assert_eq!(
+            parsed.card_issuing_country.as_deref(),
+            Some("UNITED STATES")
+        );
+        assert_eq!(parsed.card_issuer.as_deref(), Some("JP MORGAN CHASE"));
+        assert_eq!(parsed.card_isin.as_deref(), Some("424242"));
+    }
+
+    /// A webhook without a card bin leaves the enriched fields empty rather than failing.
+    #[test]
+    fn missing_card_details_round_trip_as_none() {
+        let stored_value = AdditionalPaymentData::Card(Box::default())
+            .encode_to_value()
+            .expect("additional payment data should serialize");
+
+        let parsed = stored_value
+            .parse_value::<AdditionalPaymentData>("AdditionalPaymentData")
+            .expect("additional payment data should deserialize")
+            .get_additional_card_info()
+            .expect("card details should be present");
+
+        assert_eq!(parsed.card_type, None);
+        assert_eq!(parsed.card_issuing_country, None);
     }
 }

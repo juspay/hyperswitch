@@ -39,6 +39,7 @@ import { connectorDetails as fiservcommercehubConnectorDetails } from "./Fiservc
 import { connectorDetails as fiuuConnectorDetails } from "./Fiuu.js";
 import { connectorDetails as forteConnectorDetails } from "./Forte.js";
 import { connectorDetails as getnetConnectorDetails } from "./Getnet.js";
+import { connectorDetails as givepaymentsConnectorDetails } from "./Givepayments.js";
 import { connectorDetails as gigadatConnectorDetails } from "./Gigadat.js";
 import { connectorDetails as globalpayConnectorDetails } from "./Globalpay.js";
 import { connectorDetails as globepayConnectorDetails } from "./Globepay.js";
@@ -131,6 +132,7 @@ const connectorDetails = {
   finix: finixConnectorDetails,
   forte: forteConnectorDetails,
   getnet: getnetConnectorDetails,
+  givepayments: givepaymentsConnectorDetails,
   gigadat: gigadatConnectorDetails,
   globalpay: globalpayConnectorDetails,
   globepay: globepayConnectorDetails,
@@ -601,7 +603,7 @@ export const CONNECTOR_LISTS = {
     DDC_RACE_CONDITION: ["worldpay"],
     CONNECTOR_TESTING_DATA: ["adyen", "airwallex", "braintree", "noon"],
     // ucs connectors
-    UCS_CONNECTORS: ["authorizedotnet", "fiservcommercehub"],
+    UCS_CONNECTORS: ["authorizedotnet", "fiservcommercehub", "givepayments"],
     OVERCAPTURE: ["adyen"],
     IFRAME_REDIRECTION: [
       "adyen",

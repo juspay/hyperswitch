@@ -110,6 +110,7 @@ pub struct Settings<S: SecretState> {
     pub jwekey: SecretStateContainer<Jwekey, S>,
     pub webhooks: WebhooksSettings,
     pub pm_filters: ConnectorFilters,
+    pub customer_acceptance_support: CustomerAcceptanceSupportConfig,
     pub bank_config: BankRedirectConfig,
     pub api_keys: SecretStateContainer<ApiKeys, S>,
     pub file_storage: FileStorageConfig,
@@ -138,6 +139,7 @@ pub struct Settings<S: SecretState> {
     pub webhook_source_verification_call: WebhookSourceVerificationCall,
     pub billing_connectors_payment_sync: BillingConnectorPaymentsSyncCall,
     pub billing_connectors_invoice_sync: BillingConnectorInvoiceSyncCall,
+    pub billing_connectors_dispute_record_back: BillingConnectorDisputeRecordBackCall,
     pub payment_method_auth: SecretStateContainer<PaymentMethodAuth, S>,
     pub connector_request_reference_id_config: ConnectorRequestReferenceIdConfig,
     #[cfg(feature = "payouts")]
@@ -966,6 +968,32 @@ pub enum PaymentMethodFilterKey {
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
+#[serde(transparent)]
+pub struct CustomerAcceptanceSupportConfig(
+    pub HashMap<enums::PaymentMethod, PaymentMethodTypeCustomerAcceptanceSupport>,
+);
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(transparent)]
+pub struct PaymentMethodTypeCustomerAcceptanceSupport(
+    pub HashMap<enums::PaymentMethodType, common_enums::CustomerAcceptanceSupport>,
+);
+
+impl CustomerAcceptanceSupportConfig {
+    pub fn get_customer_acceptance_support(
+        &self,
+        payment_method: enums::PaymentMethod,
+        payment_method_type: enums::PaymentMethodType,
+    ) -> common_enums::CustomerAcceptanceSupport {
+        self.0
+            .get(&payment_method)
+            .and_then(|pm_types| pm_types.0.get(&payment_method_type))
+            .copied()
+            .unwrap_or_default()
+    }
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct CurrencyCountryFlowFilter {
     #[serde(deserialize_with = "deserialize_optional_hashset")]
@@ -1288,6 +1316,12 @@ pub struct BillingConnectorPaymentsSyncCall {
 pub struct BillingConnectorInvoiceSyncCall {
     #[serde(deserialize_with = "deserialize_hashset")]
     pub billing_connectors_which_requires_invoice_sync_call: HashSet<enums::Connector>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct BillingConnectorDisputeRecordBackCall {
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub billing_connectors_which_requires_dispute_record_back_call: HashSet<enums::Connector>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

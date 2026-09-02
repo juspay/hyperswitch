@@ -1,14 +1,18 @@
 diff --git a/crates/diesel_models/src/schema_v2.rs b/crates/diesel_models/src/schema_v2.rs
-index 90470d8..ebe1a7e 100644
 --- a/crates/diesel_models/src/schema_v2.rs
 +++ b/crates/diesel_models/src/schema_v2.rs
-@@ -1368,12 +1368,77 @@ diesel::table! {
-         processor_merchant_id -> Nullable<Varchar>,
+@@ -1349,14 +1349,79 @@
+         #[max_length = 64]
+         profile_id -> Nullable<Varchar>,
          #[max_length = 255]
-         created_by -> Nullable<Varchar>,
-     }
- }
- 
+         secure_link -> Nullable<Varchar>,
+         #[max_length = 64]
+         processor_merchant_id -> Nullable<Varchar>,
++        #[max_length = 255]
++        created_by -> Nullable<Varchar>,
++    }
++}
++
 +diesel::table! {
 +    use diesel::sql_types::*;
 +    use crate::enums::diesel_exports::*;
@@ -50,8 +54,8 @@ index 90470d8..ebe1a7e 100644
 +        external_vault_source -> Nullable<Varchar>,
 +        #[max_length = 64]
 +        vault_type -> Nullable<Varchar>,
-+        #[max_length = 255]
-+        created_by -> Nullable<Varchar>,
+         #[max_length = 255]
+         created_by -> Nullable<Varchar>,
 +        #[max_length = 255]
 +        last_modified_by -> Nullable<Varchar>,
 +        customer_details -> Nullable<Bytea>,
@@ -71,16 +75,13 @@ index 90470d8..ebe1a7e 100644
 +        auxiliary_fingerprint_id -> Nullable<Varchar>,
 +        connector_payment_method_details -> Nullable<Jsonb>,
 +        external_vault_token_data -> Nullable<Bytea>,
-+    }
-+}
-+
+     }
+ }
+ 
  diesel::table! {
      use diesel::sql_types::*;
      use crate::enums::diesel_exports::*;
- 
-     payout_attempt (merchant_id, payout_attempt_id) {
-         #[max_length = 64]
-@@ -1918,12 +1983,13 @@ diesel::allow_tables_to_appear_in_same_query!(
+@@ -1917,12 +1982,13 @@
      merchant_connector_account,
      merchant_key_store,
      organization,
@@ -93,4 +94,4 @@ index 90470d8..ebe1a7e 100644
      process_tracker,
      refund,
      relay,
-     reverse_lookup,
+     revenue_recovery_retry_stats,

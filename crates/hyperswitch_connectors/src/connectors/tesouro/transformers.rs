@@ -399,6 +399,7 @@ impl TesouroPaymentMethodDetails {
                 apple_pay,
                 google_pay,
                 samsung_pay: _,
+                paypal: _,
             } => {
                 if let Some(google_pay_token) = google_pay {
                     Ok((
@@ -1109,6 +1110,7 @@ impl TryFrom<PaymentsResponseRouterData<TesouroAuthorizeResponse>> for PaymentsA
                                 incremental_authorization_allowed: None,
                                 authentication_data: None,
                                 charges: None,
+                                payment_account_reference: None,
                             }),
                             ..item.data
                         }),
@@ -1154,6 +1156,7 @@ impl TryFrom<PaymentsResponseRouterData<TesouroAuthorizeResponse>> for PaymentsA
                                 incremental_authorization_allowed: None,
                                 authentication_data: None,
                                 charges: None,
+                                payment_account_reference: None,
                             }),
                             ..item.data
                         }),
@@ -1291,6 +1294,7 @@ impl<F>
                             incremental_authorization_allowed: None,
                             authentication_data: None,
                             charges: None,
+                            payment_account_reference: None,
                         }),
                         ..item.data
                     })
@@ -1426,6 +1430,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<TesouroCaptureResponse>>
                                     incremental_authorization_allowed: None,
                                     authentication_data: None,
                                     charges: None,
+                                    payment_account_reference: None,
                                 }),
                                 ..item.data
                             })
@@ -1468,6 +1473,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<TesouroCaptureResponse>>
                                 incremental_authorization_allowed: None,
                                 authentication_data: None,
                                 charges: None,
+                                payment_account_reference: None,
                             }),
                             ..item.data
                         }),
@@ -1572,6 +1578,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<TesouroVoidResponse>> for Payments
                                     incremental_authorization_allowed: None,
                                     authentication_data: None,
                                     charges: None,
+                                    payment_account_reference: None,
                                 }),
                                 ..item.data
                             })
@@ -1614,6 +1621,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<TesouroVoidResponse>> for Payments
                                 incremental_authorization_allowed: None,
                                 authentication_data: None,
                                 charges: None,
+                                payment_account_reference: None,
                             }),
                             ..item.data
                         }),
@@ -2017,6 +2025,7 @@ impl<F> TryFrom<ResponseRouterData<F, TesouroSyncResponse, PaymentsSyncData, Pay
                             incremental_authorization_allowed: None,
                             authentication_data: None,
                             charges: None,
+                            payment_account_reference: None,
                         }),
                         ..item.data
                     })

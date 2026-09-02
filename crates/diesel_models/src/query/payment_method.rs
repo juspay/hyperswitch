@@ -16,17 +16,20 @@ use crate::schema_v2::payment_methods::dsl::{self, id as pm_id};
 use crate::{
     enums as storage_enums, errors, kv,
     payment_method::{self, PaymentMethod, PaymentMethodNew},
-    PgPooledConn, StorageResult,
+    DatabaseConnectionWithContext, StorageResult,
 };
 
 impl PaymentMethodNew {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<PaymentMethod> {
-        generics::generic_insert(conn, self).await
+    pub async fn insert(
+        self,
+        conn: &DatabaseConnectionWithContext<'_>,
+    ) -> StorageResult<PaymentMethod> {
+        Box::pin(generics::generic_insert(conn, self)).await
     }
 
     pub async fn generate_drainer_insert_query(
         self,
-        conn: &mut PgPooledConn,
+        conn: &mut DatabaseConnectionWithContext<'_>,
     ) -> StorageResult<kv::SerializableQuery> {
         kv::generate_insert_query(conn, self)
             .await
@@ -37,7 +40,7 @@ impl PaymentMethodNew {
 #[cfg(feature = "v1")]
 impl PaymentMethod {
     pub async fn delete_by_payment_method_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         payment_method_id: String,
     ) -> StorageResult<Self> {
         generics::generic_delete_one_with_result::<<Self as HasTable>::Table, _, Self>(
@@ -48,7 +51,7 @@ impl PaymentMethod {
     }
 
     pub async fn delete_by_merchant_id_payment_method_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         merchant_id: &common_utils::id_type::MerchantId,
         payment_method_id: &str,
     ) -> StorageResult<Self> {
@@ -61,7 +64,10 @@ impl PaymentMethod {
         .await
     }
 
-    pub async fn find_by_locker_id(conn: &PgPooledConn, locker_id: &str) -> StorageResult<Self> {
+    pub async fn find_by_locker_id(
+        conn: &DatabaseConnectionWithContext<'_>,
+        locker_id: &str,
+    ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::locker_id.eq(locker_id.to_owned()),
@@ -70,7 +76,7 @@ impl PaymentMethod {
     }
 
     pub async fn find_by_payment_method_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         payment_method_id: &str,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
@@ -81,7 +87,7 @@ impl PaymentMethod {
     }
 
     pub async fn find_by_merchant_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<
@@ -100,7 +106,7 @@ impl PaymentMethod {
     }
 
     pub async fn find_by_customer_id_merchant_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         customer_id: &common_utils::id_type::CustomerId,
         merchant_id: &common_utils::id_type::MerchantId,
         limit: Option<i64>,
@@ -118,7 +124,7 @@ impl PaymentMethod {
     }
 
     pub async fn find_by_merchant_id_payment_method_ids(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         merchant_id: &common_utils::id_type::MerchantId,
         payment_method_ids: &[String],
         limit: Option<i64>,
@@ -139,7 +145,7 @@ impl PaymentMethod {
     }
 
     pub async fn get_count_by_customer_id_merchant_id_status(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         customer_id: &common_utils::id_type::CustomerId,
         merchant_id: &common_utils::id_type::MerchantId,
         status: common_enums::PaymentMethodStatus,
@@ -156,8 +162,10 @@ impl PaymentMethod {
         router_env::logger::debug!(query = %debug_query::<Pg, _>(&filter).to_string());
 
         generics::db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            filter.get_result_async::<i64>(conn),
+            conn.request_id(),
+            conn.event_emitter(),
             generics::db_metrics::DatabaseOperation::Count,
+            filter.get_result_async::<i64>(conn.raw_connection()),
         )
         .await
         .change_context(errors::DatabaseError::Others)
@@ -165,7 +173,7 @@ impl PaymentMethod {
     }
 
     pub async fn get_count_by_merchant_id_status(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         merchant_id: &common_utils::id_type::MerchantId,
         status: common_enums::PaymentMethodStatus,
     ) -> StorageResult<i64> {
@@ -178,8 +186,10 @@ impl PaymentMethod {
         router_env::logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
         generics::db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            query.get_result_async::<i64>(conn),
+            conn.request_id(),
+            conn.event_emitter(),
             generics::db_metrics::DatabaseOperation::Count,
+            query.get_result_async::<i64>(conn.raw_connection()),
         )
         .await
         .change_context(errors::DatabaseError::Others)
@@ -187,7 +197,7 @@ impl PaymentMethod {
     }
 
     pub async fn find_by_customer_id_merchant_id_status(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         customer_id: &common_utils::id_type::CustomerId,
         merchant_id: &common_utils::id_type::MerchantId,
         status: storage_enums::PaymentMethodStatus,
@@ -207,7 +217,7 @@ impl PaymentMethod {
     }
 
     pub async fn find_by_customer_id_merchant_id_status_pm_type(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         customer_id: &common_utils::id_type::CustomerId,
         merchant_id: &common_utils::id_type::MerchantId,
         status: storage_enums::PaymentMethodStatus,
@@ -230,7 +240,7 @@ impl PaymentMethod {
 
     pub async fn update_with_payment_method_id(
         self,
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         payment_method: payment_method::PaymentMethodUpdateInternal,
     ) -> StorageResult<Self> {
         match generics::generic_update_with_unique_predicate_get_result::<
@@ -254,7 +264,7 @@ impl PaymentMethod {
     }
 
     pub async fn find_by_fingerprint_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         fingerprint_id: &str,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
@@ -268,7 +278,7 @@ impl PaymentMethod {
 #[cfg(feature = "v2")]
 impl PaymentMethod {
     pub async fn find_by_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         id: &common_utils::id_type::GlobalPaymentMethodId,
     ) -> StorageResult<Self> {
         generics::generic_filter::<<Self as HasTable>::Table, _, _, Self>(
@@ -286,7 +296,7 @@ impl PaymentMethod {
     }
 
     pub async fn find_by_global_customer_id_merchant_id_statuses(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         customer_id: &common_utils::id_type::GlobalCustomerId,
         merchant_id: &common_utils::id_type::MerchantId,
         statuses: Vec<storage_enums::PaymentMethodStatus>,
@@ -306,7 +316,7 @@ impl PaymentMethod {
     }
 
     pub async fn find_by_global_customer_id_merchant_id_status(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         customer_id: &common_utils::id_type::GlobalCustomerId,
         merchant_id: &common_utils::id_type::MerchantId,
         status: storage_enums::PaymentMethodStatus,
@@ -326,7 +336,7 @@ impl PaymentMethod {
     }
 
     pub async fn find_by_global_customer_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         customer_id: &common_utils::id_type::GlobalCustomerId,
         limit: Option<i64>,
     ) -> StorageResult<Vec<Self>> {
@@ -342,7 +352,7 @@ impl PaymentMethod {
 
     pub async fn update_with_id_and_locker_fingerprint_id(
         self,
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         payment_method: payment_method::PaymentMethodUpdateInternal,
     ) -> StorageResult<Self> {
         let locker_fingerprint_id = self.locker_fingerprint_id.clone();
@@ -370,7 +380,7 @@ impl PaymentMethod {
     }
 
     pub async fn find_by_fingerprint_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         fingerprint_id: &str,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
@@ -381,7 +391,7 @@ impl PaymentMethod {
     }
 
     pub async fn get_count_by_merchant_id_status(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         merchant_id: &common_utils::id_type::MerchantId,
         status: common_enums::PaymentMethodStatus,
     ) -> StorageResult<i64> {
@@ -394,15 +404,20 @@ impl PaymentMethod {
         router_env::logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
         generics::db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            query.get_result_async::<i64>(conn),
+            conn.request_id(),
+            conn.event_emitter(),
             generics::db_metrics::DatabaseOperation::Count,
+            query.get_result_async::<i64>(conn.raw_connection()),
         )
         .await
         .change_context(errors::DatabaseError::Others)
         .attach_printable("Failed to get a count of payment methods")
     }
 
-    pub async fn find_by_locker_id(conn: &PgPooledConn, locker_id: &str) -> StorageResult<Self> {
+    pub async fn find_by_locker_id(
+        conn: &DatabaseConnectionWithContext<'_>,
+        locker_id: &str,
+    ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::locker_id.eq(locker_id.to_owned()),
@@ -415,7 +430,7 @@ impl payment_method::PaymentMethodUpdateInternal {
     #[cfg(feature = "v1")]
     pub async fn generate_drainer_update_query(
         self,
-        conn: &mut PgPooledConn,
+        conn: &mut DatabaseConnectionWithContext<'_>,
         payment_method_id: String,
     ) -> StorageResult<kv::SerializableQuery> {
         kv::generate_update_query_with_predicate::<<PaymentMethod as HasTable>::Table, _, _>(
@@ -430,7 +445,7 @@ impl payment_method::PaymentMethodUpdateInternal {
     #[cfg(feature = "v2")]
     pub async fn generate_drainer_update_query(
         self,
-        conn: &mut PgPooledConn,
+        conn: &mut DatabaseConnectionWithContext<'_>,
         id: common_utils::id_type::GlobalPaymentMethodId,
     ) -> StorageResult<kv::SerializableQuery> {
         kv::generate_update_query_with_predicate::<<PaymentMethod as HasTable>::Table, _, _>(
