@@ -86,6 +86,10 @@ pub mod db_metrics {
                 status_code: if success { 200 } else { 500 },
                 success,
                 latency_ms: time_elapsed.as_millis(),
+                #[allow(
+                    clippy::disallowed_methods,
+                    reason = "telemetry timestamp; never reaches the wire or a compared result"
+                )]
                 created_at_timestamp: common_utils::date_time::now_unix_timestamp_nanos(),
             });
         }

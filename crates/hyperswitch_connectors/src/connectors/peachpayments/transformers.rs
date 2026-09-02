@@ -906,7 +906,8 @@ fn get_transaction_operations(
 }
 
 fn get_send_date_time() -> Result<String, errors::ConnectorError> {
-    OffsetDateTime::now_utc()
+    common_utils::date_time::now()
+        .assume_utc()
         .format(&time::format_description::well_known::Iso8601::DEFAULT)
         .map_err(|_| errors::ConnectorError::RequestEncodingFailed)
 }

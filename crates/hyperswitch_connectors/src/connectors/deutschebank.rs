@@ -215,7 +215,8 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         let auth = deutschebank::DeutschebankAuthType::try_from(&req.connector_auth_type)?;
         let client_id = auth.client_id.expose();
-        let date = Date(SystemTime::now().into()).to_string();
+        let date = common_utils::date_time::now_rfc7231_http_date()
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let random_string = Alphanumeric.sample_string(&mut rand::thread_rng(), 50);
 
         let string_to_sign = client_id.clone() + &date + &random_string;

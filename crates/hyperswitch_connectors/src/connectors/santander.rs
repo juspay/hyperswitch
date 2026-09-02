@@ -1427,7 +1427,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
                             .ok_or(errors::ConnectorError::MissingRequiredField {
                                 field_name: "issue_date/due_date".into(),
                             })?;
-                        let payment_date_final = time::OffsetDateTime::now_utc()
+                        let payment_date_final = common_utils::date_time::now()
                             .date()
                             .format(&time::macros::format_description!("[year]-[month]-[day]"))
                             .change_context(errors::ConnectorError::DateFormattingFailed)?;

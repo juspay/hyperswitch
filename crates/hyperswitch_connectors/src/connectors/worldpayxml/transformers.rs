@@ -2397,8 +2397,7 @@ where
 fn generate_jwt_for_ddc(
     metadata_for_jwt: WorldpayxmlConnectorMetadataObject,
 ) -> Result<String, errors::ConnectorError> {
-    let iat: u64 = chrono::Utc::now()
-        .timestamp()
+    let iat: u64 = common_utils::date_time::now_unix_timestamp()
         .try_into()
         .map_err(|_| errors::ConnectorError::ResponseDeserializationFailed)?;
 
@@ -2450,8 +2449,7 @@ fn generate_challenge_jwt(
     return_url: String,
     metadata_for_jwt: WorldpayxmlConnectorMetadataObject,
 ) -> Result<String, errors::ConnectorError> {
-    let iat: u64 = chrono::Utc::now()
-        .timestamp()
+    let iat: u64 = common_utils::date_time::now_unix_timestamp()
         .try_into()
         .map_err(|_| errors::ConnectorError::ResponseDeserializationFailed)?;
 

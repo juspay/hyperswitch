@@ -106,7 +106,7 @@ where
 
         let connector_method = Self::get_http_method(self);
 
-        let timestamp = OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000;
+        let timestamp = common_utils::date_time::now_unix_timestamp_millis();
 
         let secret_key = boku::BokuAuthType::try_from(&req.connector_auth_type)?
             .key_id

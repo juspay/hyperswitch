@@ -818,8 +818,11 @@ impl TryFrom<&TesouroRouterData<&PaymentsAuthorizeRouterData>> for TesouroAuthor
                             })?;
                         Some(tesouro_metadata.activity_date)
                     } else {
-                        let now = chrono::Utc::now();
-                        Some(now.format("%Y-%m-%d").to_string())
+                        Some(
+                            common_utils::date_time::now()
+                                .format(&time::macros::format_description!("[year]-[month]-[day]"))
+                                .change_context(errors::ConnectorError::RequestEncodingFailed)?,
+                        )
                     }
                 };
 

@@ -117,11 +117,8 @@ fn get_signature(
 ) -> CustomResult<String, errors::ConnectorError> {
     match body {
         RequestContent::Json(masked_json) => {
-            let expiration_time = SystemTime::now() + Duration::from_secs(4 * 60);
-            let expires_in = match expiration_time.duration_since(UNIX_EPOCH) {
-                Ok(duration) => duration.as_secs(),
-                Err(_e) => 0,
-            };
+            let expires_in =
+                u64::try_from(common_utils::date_time::now_unix_timestamp() + 4 * 60).unwrap_or(0);
 
             let mut option_map = Map::new();
             option_map.insert("alg".to_string(), json!("ES256"));

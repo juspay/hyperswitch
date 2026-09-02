@@ -79,6 +79,7 @@ pub mod date_time {
         deja::time(component = "common_utils", operation = "date_time::now", codec = SerdeCodec,)
     )]
     pub fn now() -> PrimitiveDateTime {
+        #[allow(clippy::disallowed_methods, reason = "this function IS the seam")]
         let utc_date_time = OffsetDateTime::now_utc();
         PrimitiveDateTime::new(utc_date_time.date(), utc_date_time.time())
     }
@@ -99,10 +100,47 @@ pub mod date_time {
         )
     )]
     pub fn now_unix_timestamp() -> i64 {
+        #[allow(clippy::disallowed_methods, reason = "this function IS the seam")]
         OffsetDateTime::now_utc().unix_timestamp()
     }
 
-    /// Return the UNIX timestamp in nanoseconds of the current date and time in UTC
+    /// Return the UNIX timestamp in milliseconds of the current date and time in UTC.
+    ///
+    /// Several connectors sign a millisecond timestamp into an outbound request.
+    /// They open-coded `now_utc().unix_timestamp_nanos() / 1_000_000`, which
+    /// reads the clock outside any seam and so cannot be reproduced on replay.
+    #[cfg_attr(feature = "deja", track_caller)]
+    #[cfg_attr(
+        feature = "deja",
+        deja::time(
+            component = "common_utils",
+            operation = "date_time::now_unix_timestamp_millis",
+            codec = SerdeCodec,
+        )
+    )]
+    pub fn now_unix_timestamp_millis() -> i128 {
+        // Read the clock directly rather than via `now_unix_timestamp_nanos()`:
+        // that one is not a seam, and routing through it would put an unseamed
+        // read on a seamed path.
+        #[allow(
+            clippy::disallowed_methods,
+            reason = "this IS the seam for a millisecond timestamp"
+        )]
+        let now = OffsetDateTime::now_utc();
+        now.unix_timestamp_nanos() / 1_000_000
+    }
+
+    /// Return the UNIX timestamp in nanoseconds of the current date and time in UTC.
+    ///
+    /// NOT a seam, deliberately: its only callers stamp telemetry events, one per
+    /// database call and one per redis call, and recording those would add roughly
+    /// nineteen clock events per request for a value that never reaches the wire
+    /// or a compared result. It is on `disallowed-methods` so that a new caller on
+    /// a request path has to say why; use `now_unix_timestamp_millis` there.
+    #[allow(
+        clippy::disallowed_methods,
+        reason = "telemetry-only; see the doc comment"
+    )]
     pub fn now_unix_timestamp_nanos() -> i128 {
         OffsetDateTime::now_utc().unix_timestamp_nanos()
     }
@@ -143,6 +181,7 @@ pub mod date_time {
             .encode();
         // Read the clock directly rather than via `now()`: both are instrumented seams, and
         // nesting them would record a redundant inner event for every outer call.
+        #[allow(clippy::disallowed_methods, reason = "this function IS the seam")]
         convert_to_pdt(OffsetDateTime::now_utc())
             .assume_utc()
             .format(&Iso8601::<ISO_CONFIG>)
@@ -158,6 +197,7 @@ pub mod date_time {
         )
     )]
     pub fn now_rfc7231_http_date() -> Result<String, time::error::Format> {
+        #[allow(clippy::disallowed_methods, reason = "this function IS the seam")]
         let now_utc = OffsetDateTime::now_utc();
         // Desired format: ddd, DD MMM YYYY HH:mm:ss GMT
         // Example: Fri, 23 May 2025 06:19:35 GMT

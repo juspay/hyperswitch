@@ -3639,6 +3639,10 @@ impl
             } => {
                 // Validate expiry_date doesn't exceed 5 days from now
                 if let Some(expiry) = expiry_date {
+                    // Local validation only: this value bounds a supplied
+                    // expiry_date and never reaches the outbound request, so it
+                    // needs no seam. See results/jwt-generic-fix.md, bucket C.
+                    #[allow(clippy::disallowed_methods, reason = "compared locally; never sent")]
                     let now = OffsetDateTime::now_utc();
                     let max_expiry = now + Duration::days(5);
                     let max_expiry_primitive =
@@ -5036,7 +5040,9 @@ pub fn get_wait_screen_metadata(
 ) -> CustomResult<Option<serde_json::Value>, errors::ConnectorError> {
     match next_action.action.payment_method_type {
         PaymentType::Blik => {
-            let current_time = OffsetDateTime::now_utc().unix_timestamp_nanos();
+            let current_time = common_utils::date_time::now()
+                .assume_utc()
+                .unix_timestamp_nanos();
             Ok(Some(serde_json::json!(WaitScreenData {
                 display_from_timestamp: current_time,
                 display_to_timestamp: Some(current_time + Duration::minutes(1).whole_nanoseconds()),
@@ -5044,7 +5050,9 @@ pub fn get_wait_screen_metadata(
             })))
         }
         PaymentType::Mbway => {
-            let current_time = OffsetDateTime::now_utc().unix_timestamp_nanos();
+            let current_time = common_utils::date_time::now()
+                .assume_utc()
+                .unix_timestamp_nanos();
             Ok(Some(serde_json::json!(WaitScreenData {
                 display_from_timestamp: current_time,
                 display_to_timestamp: None,

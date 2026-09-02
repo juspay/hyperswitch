@@ -95,7 +95,7 @@ where
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
     {
-        let timestamp = OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000;
+        let timestamp = common_utils::date_time::now_unix_timestamp_millis();
         let auth: fiserv::FiservAuthType =
             fiserv::FiservAuthType::try_from(&req.connector_auth_type)?;
         let mut auth_header = self.get_auth_header(&req.connector_auth_type)?;

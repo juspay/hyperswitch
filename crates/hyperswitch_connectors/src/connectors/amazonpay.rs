@@ -229,9 +229,11 @@ where
             ),
             (
                 HEADER_DATE.to_string(),
-                Utc::now()
-                    .format("%Y-%m-%dT%H:%M:%SZ")
-                    .to_string()
+                common_utils::date_time::now()
+                    .format(&time::macros::format_description!(
+                        "[year]-[month]-[day]T[hour]:[minute]:[second]Z"
+                    ))
+                    .change_context(errors::ConnectorError::RequestEncodingFailed)?
                     .into_masked(),
             ),
             (

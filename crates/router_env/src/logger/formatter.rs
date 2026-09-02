@@ -227,7 +227,13 @@ where
         map_serializer.serialize_entry(FN, name)?;
         map_serializer
             .serialize_entry(FULL_NAME, &format_args!("{}::{}", metadata.target(), name))?;
-        if let Ok(time) = &time::OffsetDateTime::now_utc().format(&Iso8601::DEFAULT) {
+        // The log line's own timestamp: telemetry, never part of a request.
+        #[allow(
+            clippy::disallowed_methods,
+            reason = "log timestamp; never reaches the wire or a compared result"
+        )]
+        let formatted_time = time::OffsetDateTime::now_utc().format(&Iso8601::DEFAULT);
+        if let Ok(time) = &formatted_time {
             map_serializer.serialize_entry(TIME, time)?;
         }
 

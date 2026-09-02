@@ -6,4 +6,8 @@ allow-unwrap-in-tests = true
 
 disallowed-methods = [
   { path = "diesel::query_dsl::QueryDsl::into_boxed", reason = "dynamic list queries must be built via diesel_models::list::boxed_list_query! or diesel_models::list::into_boxed_list" },
+  { path = "time::OffsetDateTime::now_utc", reason = "a clock read outside a seam cannot be reproduced on replay; use common_utils::date_time (now, now_unix_timestamp, now_unix_timestamp_millis, now_rfc7231_http_date, date_as_yyyymmddthhmmssmmmz), or #[allow] with a reason if the value never leaves the process" },
+  { path = "chrono::Utc::now", reason = "a clock read outside a seam cannot be reproduced on replay; use common_utils::date_time, or #[allow] with a reason if the value never leaves the process" },
+  { path = "std::time::SystemTime::now", reason = "a clock read outside a seam cannot be reproduced on replay; use common_utils::date_time, or #[allow] with a reason if the value never leaves the process" },
+  { path = "common_utils::date_time::now_unix_timestamp_nanos", reason = "not a seam despite living beside them: telemetry-only, and seaming it would add ~19 events per request. On a request path use now_unix_timestamp_millis instead" },
 ]

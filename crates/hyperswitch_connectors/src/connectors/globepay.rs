@@ -104,7 +104,7 @@ fn get_globlepay_query_params(
     connector_auth_type: &ConnectorAuthType,
 ) -> CustomResult<String, errors::ConnectorError> {
     let auth_type = globepay::GlobepayAuthType::try_from(connector_auth_type)?;
-    let time = (OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000).to_string();
+    let time = common_utils::date_time::now_unix_timestamp_millis().to_string();
     let nonce_str = rand::distributions::Alphanumeric.sample_string(&mut rand::thread_rng(), 12);
     let valid_string = format!(
         "{}&{time}&{nonce_str}&{}",

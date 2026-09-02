@@ -69,12 +69,7 @@ where
             .get_request_body(req, connectors)?
             .get_inner_value()
             .expose();
-        let timestamp = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .ok()
-            .ok_or(errors::ConnectorError::RequestEncodingFailed)?
-            .as_millis()
-            .to_string();
+        let timestamp = common_utils::date_time::now_unix_timestamp_millis().to_string();
         let nonce = rand::distributions::Alphanumeric.sample_string(&mut rand::thread_rng(), 19);
         let signature_string = auth.api_key.clone().zip(auth.merchant_token.clone()).map(
             |(api_key, merchant_token)| {
