@@ -1107,10 +1107,10 @@ fn get_payment_status(
             |next_action| match next_action {
                 AirwallexNextAction::Payments(payments_next_action) => {
                     match payments_next_action.stage {
-                        AirwallexNextActionStage::WaitingDeviceDataCollection => {
+                        Some(AirwallexNextActionStage::WaitingDeviceDataCollection) => {
                             enums::AttemptStatus::DeviceDataCollectionPending
                         }
-                        AirwallexNextActionStage::WaitingUserInfoInput => {
+                        Some(AirwallexNextActionStage::WaitingUserInfoInput) | None => {
                             enums::AttemptStatus::AuthenticationPending
                         }
                     }
@@ -1145,8 +1145,8 @@ pub struct AirwallexRedirectFormData {
 pub struct AirwallexPaymentsNextAction {
     url: Url,
     method: Method,
-    data: AirwallexRedirectFormData,
-    stage: AirwallexNextActionStage,
+    data: Option<AirwallexRedirectFormData>,
+    stage: Option<AirwallexNextActionStage>,
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
@@ -1214,7 +1214,7 @@ pub struct AirwallexPaymentsSyncResponse {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum AirwallexAuthorizeResponse {
-    AirwallexPaymentsResponse(AirwallexPaymentsResponse),
+    AirwallexPaymentsResponse(Box<AirwallexPaymentsResponse>),
     AirwallexRedirectResponse(AirwallexRedirectResponse),
 }
 
@@ -1222,41 +1222,32 @@ fn get_redirection_form(response_url_data: AirwallexPaymentsNextAction) -> Optio
     Some(RedirectForm::Form {
         endpoint: response_url_data.url.to_string(),
         method: response_url_data.method,
-        form_fields: std::collections::HashMap::from([
-            //Some form fields might be empty based on the authentication type by the connector
-            (
-                "JWT".to_string(),
-                response_url_data
-                    .data
-                    .jwt
-                    .map(|jwt| jwt.expose())
-                    .unwrap_or_default(),
-            ),
-            (
-                "threeDSMethodData".to_string(),
-                response_url_data
-                    .data
-                    .three_ds_method_data
-                    .map(|three_ds_method_data| three_ds_method_data.expose())
-                    .unwrap_or_default(),
-            ),
-            (
-                "token".to_string(),
-                response_url_data
-                    .data
-                    .token
-                    .map(|token: Secret<String>| token.expose())
-                    .unwrap_or_default(),
-            ),
-            (
-                "provider".to_string(),
-                response_url_data.data.provider.unwrap_or_default(),
-            ),
-            (
-                "version".to_string(),
-                response_url_data.data.version.unwrap_or_default(),
-            ),
-        ]),
+        form_fields: response_url_data
+            .data
+            .map(|data| {
+                std::collections::HashMap::from([
+                    //Some form fields might be empty based on the authentication type by the connector
+                    (
+                        "JWT".to_string(),
+                        data.jwt.map(|jwt| jwt.expose()).unwrap_or_default(),
+                    ),
+                    (
+                        "threeDSMethodData".to_string(),
+                        data.three_ds_method_data
+                            .map(|three_ds_method_data| three_ds_method_data.expose())
+                            .unwrap_or_default(),
+                    ),
+                    (
+                        "token".to_string(),
+                        data.token
+                            .map(|token: Secret<String>| token.expose())
+                            .unwrap_or_default(),
+                    ),
+                    ("provider".to_string(), data.provider.unwrap_or_default()),
+                    ("version".to_string(), data.version.unwrap_or_default()),
+                ])
+            })
+            .unwrap_or_default(),
     })
 }
 
@@ -1284,7 +1275,7 @@ where
                     T,
                     PaymentsResponseData,
                 > {
-                    response: res,
+                    response: *res,
                     data,
                     http_code,
                 })
@@ -1341,7 +1332,7 @@ where
                     // If the connector sends waiting for DDC and our status is already DDC Pending
                     // that means we initiated the call to collect the data and now we expect a different response
                     (
-                            AirwallexNextActionStage::WaitingDeviceDataCollection,
+                            Some(AirwallexNextActionStage::WaitingDeviceDataCollection),
                             enums::AttemptStatus::DeviceDataCollectionPending,
                             _
                         )
