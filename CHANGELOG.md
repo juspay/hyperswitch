@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.08.26.1-hotfix5
+
+### Features
+
+- **routing:** Add a metrics label for the Decision Engine batch evaluate endpoint ([#13986](https://github.com/juspay/hyperswitch/pull/13986)) ([`4810382`](https://github.com/juspay/hyperswitch/commit/4810382dc3aa1b27a535908d6e3fc007baecb0f8))
+
+**Full Changelog:** [`2026.08.26.1-hotfix4...2026.08.26.1-hotfix5`](https://github.com/juspay/hyperswitch/compare/2026.08.26.1-hotfix4...2026.08.26.1-hotfix5)
+
+- - -
+
 ## 2026.08.26.1-hotfix4
 
 ### Features
