@@ -878,7 +878,7 @@ export const connectorDetails = {
     InstantBankTransferFinland: getCustomExchange(
       {
         Configs: {
-          SKIP_NEXT_ACTION_CHECK: true,
+          TRIGGER_SKIP: true,
         },
         Response: {
           status: 200,
@@ -895,7 +895,7 @@ export const connectorDetails = {
     InstantBankTransferPoland: getCustomExchange(
       {
         Configs: {
-          SKIP_NEXT_ACTION_CHECK: true,
+          TRIGGER_SKIP: true,
         },
         Response: {
           status: 200,

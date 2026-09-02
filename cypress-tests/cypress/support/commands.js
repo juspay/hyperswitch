@@ -3899,7 +3899,7 @@ Cypress.Commands.add(
                 }
                 break;
               default:
-                if (!configs?.SKIP_NEXT_ACTION_CHECK) {
+                if (!configs?.TRIGGER_SKIP) {
                   expect(response.body)
                     .to.have.property("next_action")
                     .to.have.property("redirect_to_url");
