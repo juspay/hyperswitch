@@ -1097,6 +1097,8 @@ async fn insert_execute_pcr_task_to_pt(
                     )?;
 
             tracking_data.revenue_recovery_retry = revenue_recovery_retry;
+            tracking_data.static_ladder_progress = static_ladder_progress;
+            tracking_data.prev_attempt_error_code = prev_attempt_error_code;
 
             let tracking_data_json = serde_json::to_value(&tracking_data)
                 .change_context(errors::RecoveryError::ValueNotFound)
