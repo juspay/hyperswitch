@@ -164,7 +164,7 @@ describe("Card - Customer Deletion and Psync", () => {
           }
           const data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
-          ]["3DSAutoCapture"];
+          ]["No3DSAutoCapture"];
 
           cy.retrievePaymentCallTest({ globalState, data });
 
@@ -188,7 +188,7 @@ describe("Card - Customer Deletion and Psync", () => {
           }
           const data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
-          ]["3DSAutoCapture"];
+          ]["No3DSAutoCapture"];
 
           cy.retrievePaymentCallTest({ globalState, data });
         });

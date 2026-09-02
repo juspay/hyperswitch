@@ -6,7 +6,7 @@ import {
 import { getCustomExchange } from "./Modifiers";
 
 const successfulNo3DSCardDetails = {
-  card_number: "4242424242424242",
+  card_number: "378282246310005",
   card_exp_month: "10",
   card_exp_year: "50",
   card_holder_name: "morino",
@@ -35,6 +35,22 @@ const failedNo3DSCardDetails = {
   card_exp_year: "35",
   card_holder_name: "joseph Doe",
   card_cvc: "123",
+};
+
+const parPositiveCardDetails = {
+  card_number: "4242424242424242",
+  card_exp_month: "10",
+  card_exp_year: "50",
+  card_holder_name: "morino",
+  card_cvc: "737",
+};
+
+const parNegativeCardDetails = {
+  card_number: "378282246310005",
+  card_exp_month: "10",
+  card_exp_year: "50",
+  card_holder_name: "morino",
+  card_cvc: "737",
 };
 
 const singleUseMandateData = {
@@ -172,12 +188,12 @@ const payment_method_data_3ds = {
 
 const payment_method_data_no3ds = {
   card: {
-    last4: "4242",
+    last4: "0005",
     card_type: "CREDIT",
-    card_network: "Visa",
-    card_issuer: "STRIPE PAYMENTS UK LIMITED",
-    card_issuing_country: "UNITEDKINGDOM",
-    card_isin: "424242",
+    card_network: "AmericanExpress",
+    card_issuer: "AMERICAN EXPRESS US CARS",
+    card_issuing_country: "UNITED STATES OF AMERICA",
+    card_isin: "378282",
     card_extended_bin: null,
     card_exp_month: "10",
     card_exp_year: "50",
@@ -302,8 +318,6 @@ export const connectorDetails = {
           amount_received: 6050,
           amount: 6000,
           net_amount: 6050,
-          // Visa returns a dynamic PAR string
-          payment_account_reference: "dynamic_par",
         },
       },
     },
@@ -363,8 +377,6 @@ export const connectorDetails = {
           payment_method: "card",
           attempt_count: 1,
           payment_method_data: payment_method_data_no3ds,
-          // Visa returns a dynamic PAR string
-          payment_account_reference: "dynamic_par",
         },
       },
     },
@@ -385,8 +397,42 @@ export const connectorDetails = {
           payment_method: "card",
           attempt_count: 1,
           payment_method_data: payment_method_data_no3ds,
-          // Visa returns a dynamic PAR string
+        },
+      },
+    },
+    PARPositiveNo3DSAutoCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: parPositiveCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
           payment_account_reference: "dynamic_par",
+        },
+      },
+    },
+    PARNegativeNo3DSAutoCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: parNegativeCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          payment_account_reference: null,
         },
       },
     },
@@ -499,8 +545,6 @@ export const connectorDetails = {
           amount: 6000,
           amount_capturable: 0,
           amount_received: 6000,
-          // Visa returns a dynamic PAR string
-          payment_account_reference: "dynamic_par",
         },
       },
     },
@@ -515,8 +559,6 @@ export const connectorDetails = {
           amount: 6000,
           amount_capturable: 0,
           amount_received: 2000,
-          // Visa returns a dynamic PAR string
-          payment_account_reference: "dynamic_par",
         },
       },
     },
