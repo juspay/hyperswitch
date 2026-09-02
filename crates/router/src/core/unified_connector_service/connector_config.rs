@@ -443,6 +443,18 @@ pub enum ConnectorSpecificConfig {
         location_id: Secret<String>,
         api_secret_key: Secret<String>,
     },
+    /// Global Payments RealEx (legacy Global Payments XML API) configuration.
+    /// Field names mirror `GlobalpaymentsRealexConfig` in the connector-service proto.
+    /// `shared_secret`   = shared secret used to build the sha1 digest (never sent verbatim)
+    /// `merchant_id`     = Merchant Id / Client Id (`<merchantid>`)
+    /// `account`         = RealEx sub-account, e.g. "internet" (`<account>`)
+    /// `refund_password` = rebate/refund password, hashed into `<refundhash>`
+    GlobalpaymentsRealex {
+        shared_secret: Secret<String>,
+        merchant_id: Secret<String>,
+        account: Secret<String>,
+        refund_password: Secret<String>,
+    },
     /// Paytm connector configuration
     Paytm {
         merchant_id: Secret<String>,
@@ -1586,6 +1598,24 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     api_secret_key: api_secret.clone(),
                 }),
                 _ => Err(err("Forte requires MultiAuthKey auth type")),
+            },
+            Connector::GlobalpaymentsRealex => match auth {
+                ConnectorAuthType::MultiAuthKey {
+                    api_key,
+                    key1,
+                    api_secret,
+                    key2,
+                } => Ok(Self::GlobalpaymentsRealex {
+                    shared_secret: api_key.clone(),
+                    merchant_id: key1.clone(),
+                    account: key2.clone(),
+                    refund_password: api_secret.clone(),
+                }),
+                _ => Err(err(
+                    "GlobalpaymentsRealex requires MultiAuthKey auth type \
+                     (api_key = shared secret, key1 = merchant id, key2 = account, \
+                     api_secret = refund password)",
+                )),
             },
             Connector::Paybox => match auth {
                 ConnectorAuthType::MultiAuthKey {
