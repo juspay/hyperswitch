@@ -3908,7 +3908,10 @@ Cypress.Commands.add(
                     response.body.next_action.redirect_to_url
                   );
                   globalState.set("nextActionType", "redirect_to_url");
-                } else if (response.body.status === "failed" && configs?.TRIGGER_SKIP) {
+                } else if (
+                  response.body.status === "failed" &&
+                  configs?.TRIGGER_SKIP
+                ) {
                   // Known, connector-side failure explicitly opted into via
                   // Configs.TRIGGER_SKIP (e.g. a payment method not enabled
                   // on the connector's sandbox project) - nothing to assert.
