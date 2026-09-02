@@ -14951,11 +14951,10 @@ pub async fn payments_submit_eligibility(
 /// Resolve Offer Engine eligibility into `(amount_details, offer_details)` for the
 /// eligibility response.
 ///
-/// Both are `None` when eligibility is denied or Offer Engine is not available
-/// (config resolution failures are treated as "offers not available"). A `/list`
-/// failure while Offer Engine is enabled fails eligibility. When enabled but no
-/// offer is selected, the payable amount is returned unchanged with an empty
-/// offer list.
+/// Both are `None` when eligibility is denied, the payment method is not one Offer
+/// Engine serves, or Offer Engine is not available. A `/list` failure is failed
+/// **open** (logged + metered, payable amount unchanged); `/apply` at confirm stays
+/// fail-closed.
 #[cfg(all(feature = "oltp", feature = "v1"))]
 #[allow(clippy::too_many_arguments)]
 async fn resolve_offer_eligibility_details(
@@ -14978,12 +14977,11 @@ async fn resolve_offer_eligibility_details(
     Option<api_models::payments::EligibilityAmountDetails>,
     Option<api_models::payments::EligibilityOfferDetails>,
 )> {
-    // Offers apply only when eligibility is not denied, an Offer Engine config
-    // resolves, and the currency is known (config-resolution failures are treated
-    // as "offers not available").
     let offer_context = if matches!(
         next_action,
         api_models::payments::NextActionCall::Deny { .. }
+    ) || !offer_engine::is_supported_payment_method_type(
+        &payment_method_type,
     ) {
         None
     } else {
@@ -15064,12 +15062,17 @@ async fn resolve_offer_eligibility_details(
                 card_alias,
             };
 
-            // A `/list` failure while Offer Engine is enabled fails eligibility.
             let selected =
                 offer_engine::eligibility::run_offer_eligibility(state, offer_config, ctx)
                     .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Offer Engine /list failed")?;
+                    .unwrap_or_else(|error| {
+                        logger::warn!(
+                            ?error,
+                            "Offer Engine /list failed; proceeding without offers (fail-open)"
+                        );
+                        metrics::OFFER_ENGINE_LIST_FAILURES.add(1, &[]);
+                        None
+                    });
 
             match selected {
                 // Enabled but no eligible offer: payable amount unchanged.
@@ -15082,7 +15085,7 @@ async fn resolve_offer_eligibility_details(
                     Some(api_models::payments::EligibilityOfferDetails::default()),
                 )),
                 // Eligible offer: store the quote for confirm to validate `/apply`
-                // against (keyed by offer id, the first-launch quote id; TTL kept).
+                // against (keyed by a generated offer_quote_id; TTL kept).
                 Some(selected) => {
                     let processor_merchant_id = processor.get_account().get_id().clone();
                     // Issue a unique quote id; confirm echoes it back to apply this offer.

@@ -86,10 +86,24 @@ impl OfferEngineCredentialSource {
             })?
             .get_inner();
 
+        let api_key = app_config.api_key.clone().ok_or_else(|| {
+            error_stack::report!(OfferEngineError::MissingApplicationConfig(
+                "offer_engine.api_key is required when credential source is application"
+                    .to_string()
+            ))
+        })?;
+
+        let merchant_id = app_config.merchant_id.clone().ok_or_else(|| {
+            error_stack::report!(OfferEngineError::MissingApplicationConfig(
+                "offer_engine.merchant_id is required when credential source is application"
+                    .to_string()
+            ))
+        })?;
+
         Ok(ResolvedOfferEngineConfig {
             base_url: app_config.base_url.clone(),
-            api_key: app_config.api_key.clone(),
-            merchant_id: app_config.merchant_id.clone(),
+            api_key,
+            merchant_id,
         })
     }
 

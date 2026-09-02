@@ -376,9 +376,10 @@ impl SecretsHandler for settings::OfferEngineConfig {
         secret_management_client: &dyn SecretManagementInterface,
     ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
         let offer_engine = value.get_inner();
-        let api_key = secret_management_client
-            .get_secret(offer_engine.api_key.clone())
-            .await?;
+        let api_key = match offer_engine.api_key.clone() {
+            Some(api_key) => Some(secret_management_client.get_secret(api_key).await?),
+            None => None,
+        };
 
         Ok(value.transition_state(|offer_engine| Self {
             api_key,
