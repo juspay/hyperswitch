@@ -33,7 +33,10 @@ use external_services::grpc_client::dynamic_routing::{
     success_rate_client::SuccessBasedDynamicRouting, DynamicRoutingError,
 };
 #[cfg(feature = "v1")]
-use hyperswitch_domain_models::routing::PaymentRoutingInfo;
+use hyperswitch_domain_models::{
+    router_flow_types::payments::is_external_three_ds_retry_eligible_flow,
+    routing::PaymentRoutingInfo,
+};
 use hyperswitch_domain_models::{
     address::Address,
     routing::{PreRoutingConnectorChoice, RoutingData},
@@ -70,7 +73,7 @@ use crate::{
             routing::utils::DecisionEngineApiHandler, OperationSessionGetters,
             OperationSessionSetters,
         },
-        routing, utils as core_utils,
+        routing,
     },
     logger, services,
     types::{
@@ -1384,7 +1387,7 @@ pub fn try_get_pre_determined_connector<F, D>(
     business_profile: &domain::Profile,
 ) -> errors::RouterResult<Option<api::ConnectorCallType>>
 where
-    F: Send + Clone,
+    F: Send + Clone + 'static,
     D: OperationSessionGetters<F>,
 {
     match try_get_attempt_connector::<F, D>(connectors, payment_data, routing_data)? {
@@ -1432,13 +1435,12 @@ fn try_expand_predetermined_connector_for_external_three_ds_retry<F, D>(
     business_profile: &domain::Profile,
 ) -> Option<api::ConnectorCallType>
 where
-    F: Send + Clone,
+    F: Send + Clone + 'static,
     D: OperationSessionGetters<F>,
 {
-    let flow_name = core_utils::get_flow_name::<F>().unwrap_or_default();
     let attempt = payment_data.get_payment_attempt();
 
-    let is_eligible = matches!(flow_name.as_str(), "Authorize" | "SetupMandate")
+    let is_eligible = is_external_three_ds_retry_eligible_flow::<F>()
         && business_profile.is_auto_retries_enabled
         && attempt.external_three_ds_authentication_attempted == Some(true);
 
