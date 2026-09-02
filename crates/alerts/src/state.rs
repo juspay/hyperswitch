@@ -67,7 +67,10 @@ impl AppState {
         #[allow(clippy::expect_used)]
         let chat = build_chat_registry(raw_conf.chat.get_inner(), &raw_conf.proxy)
             .expect("Failed to build the chat destinations");
-        let email = build_email_registry(&raw_conf.email, &raw_conf.proxy).await;
+        #[allow(clippy::expect_used)]
+        let email = build_email_registry(&raw_conf.email, &raw_conf.proxy)
+            .await
+            .expect("Failed to build the email destinations");
 
         if chat.is_empty() && email.is_empty() {
             logger::warn!(
@@ -139,20 +142,19 @@ fn build_chat_registry(
 /// with its own credential, email has one transport and many addresses. Building a client per
 /// destination would open a connection pool per recipient for no reason.
 ///
-/// Nothing here can fail. `create_email_client` logs and falls back rather than returning an error
-/// — which is why [`crate::settings::EmailSettings::validate`] runs the same validation at boot, so
-/// a bad SES configuration stops the process instead of quietly becoming a client that never sends.
+/// A transport that cannot be built is an error, matching the chat side: a destination that is
+/// configured and broken must stop the boot rather than answer every alert with a 502.
 async fn build_email_registry(
     settings: &EmailSettings,
     proxy: &Proxy,
-) -> Registry<dyn EmailNotifier> {
+) -> Result<Registry<dyn EmailNotifier>, ConfigurationError> {
     if settings.destinations.is_empty() {
-        return Registry::default();
+        return Ok(Registry::default());
     }
 
-    let client = Arc::new(create_email_client(&settings.client, proxy).await);
+    let client = Arc::new(create_email_client(&settings.client, proxy).await?);
 
-    Registry::new(
+    Ok(Registry::new(
         settings
             .destinations
             .iter()
@@ -166,7 +168,7 @@ async fn build_email_registry(
                 (id.clone(), notifier)
             })
             .collect(),
-    )
+    ))
 }
 
 /// Build the email transport named in configuration.
@@ -174,12 +176,30 @@ async fn build_email_registry(
 /// Mirrors the router's `create_email_client` (`router/src/routes/app.rs:411`), which is private to
 /// that crate. Copied rather than shared because lifting it into `external_services` would mean
 /// moving `Proxy` handling with it, and the function is a three-arm match.
+///
+/// **SES is probed rather than trusted.** `AwsSes::create` builds a client to check the
+/// configuration and then throws the result away — `.map_err(|e| logger::error!(..)).ok()` — so it
+/// returns a usable-looking client even when assuming the role failed. A wrong role ARN would boot
+/// cleanly and turn every alert into a 502 forever. Calling the fallible `create_client` first
+/// makes that a startup failure instead.
+///
+/// The cost is one extra `AssumeRole` at boot, and one trade worth naming: a transient AWS outage
+/// now prevents startup. For a service whose entire job is delivery, refusing to start with a clear
+/// error beats running while silently dropping every alert.
 async fn create_email_client(
     settings: &EmailClientSettings,
     proxy: &Proxy,
-) -> Box<dyn EmailService> {
-    match &settings.client_config {
+) -> Result<Box<dyn EmailService>, ConfigurationError> {
+    Ok(match &settings.client_config {
         EmailClientConfigs::Ses { aws_ses } => {
+            AwsSes::create_client(settings, aws_ses, proxy.https_url.clone())
+                .await
+                .map_err(|error| {
+                    ConfigurationError::ConfigParsingError(format!(
+                        "the SES email transport is not usable: {error}"
+                    ))
+                })?;
+
             Box::new(AwsSes::create(settings, aws_ses, proxy.https_url.clone()).await)
         }
         EmailClientConfigs::Smtp { smtp } => {
@@ -188,7 +208,7 @@ async fn create_email_client(
         // The default, and the off switch: accepts and logs. A deployment runs with this until SES
         // credentials exist, which is why there is no separate "email enabled" flag.
         EmailClientConfigs::NoEmailClient => Box::new(NoEmailClient::create().await),
-    }
+    })
 }
 
 #[cfg(test)]
@@ -220,7 +240,9 @@ mod tests {
             destinations: HashMap::from([("sr_alerts".to_owned(), ChatDestination::Xyne(config))]),
         };
 
-        let error = build_chat_registry(&settings, &Proxy::default()).unwrap_err();
+        let Err(error) = build_chat_registry(&settings, &Proxy::default()) else {
+            panic!("a destination with no channel must not build")
+        };
         assert!(error.to_string().contains("sr_alerts"));
     }
 
@@ -250,7 +272,8 @@ mod tests {
             &email_settings_with(&["oncall", "escalation"]),
             &Proxy::default(),
         )
-        .await;
+        .await
+        .unwrap();
 
         assert_eq!(registry.len(), 2);
         assert!(registry.get("oncall").is_some());
@@ -264,6 +287,7 @@ mod tests {
         assert!(
             build_email_registry(&EmailSettings::default(), &Proxy::default())
                 .await
+                .unwrap()
                 .is_empty()
         );
         assert!(

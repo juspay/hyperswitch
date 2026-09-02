@@ -15,7 +15,7 @@ use common_utils::{ext_traits::ConfigExt, pii};
 use config::{Environment, File};
 use external_services::{
     chat_service::{slack::SlackConfig, xyne::XyneConfig},
-    email::EmailSettings as EmailClientSettings,
+    email::{EmailClientConfigs, EmailSettings as EmailClientSettings},
     managers::secrets_management::SecretsManagementConfig,
 };
 use hyperswitch_interfaces::{
@@ -173,6 +173,20 @@ impl EmailSettings {
         self.client
             .validate()
             .map_err(|error| errors::ConfigurationError::ConfigParsingError(error.to_owned()))?;
+
+        // `EmailSettings::validate` checks only the backend-specific section — SES's role ARN,
+        // SMTP's host — and never the shared sender. It defaults to an empty `pii::Email`, which
+        // SMTP then fails on while building the `From` mailbox and SES submits as an empty sender.
+        // Without this, a missing `sender_email` boots cleanly and turns every alert into a 502.
+        common_utils::fp_utils::when(
+            !matches!(self.client.client_config, EmailClientConfigs::NoEmailClient)
+                && !crate::domain::notifier::email::is_usable_recipient(&self.client.sender_email),
+            || {
+                Err(errors::ConfigurationError::ConfigParsingError(
+                    "email sender_email must be set when an email transport is configured".into(),
+                ))
+            },
+        )?;
 
         for (id, destination) in &self.destinations {
             common_utils::fp_utils::when(

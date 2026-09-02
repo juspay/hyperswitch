@@ -91,7 +91,10 @@ impl Refusal {
 ///
 /// Built once at startup rather than per request: a chat destination holds a validated endpoint,
 /// and re-reading configuration per alert would move a boot-time failure into the delivery path.
-#[derive(Debug)]
+///
+/// Deliberately not `Debug`: the notifier traits are not either, since requiring it forced a
+/// hand-written impl on the one implementation holding a non-`Debug` client, and nothing formats a
+/// registry.
 pub struct Registry<T: ?Sized> {
     destinations: HashMap<String, Arc<T>>,
 }

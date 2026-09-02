@@ -63,7 +63,7 @@ pub type EmailOutcome = Outcome<()>;
 /// both backends build a single-recipient message. When that is lifted, a destination widens to a
 /// recipient list without the wire contract changing, since a request only ever names an id.
 #[async_trait::async_trait]
-pub trait EmailNotifier: Send + Sync + std::fmt::Debug {
+pub trait EmailNotifier: Send + Sync {
     /// Attempt delivery.
     ///
     /// A provider that refuses returns `Ok(Outcome::Refused)`, not an error. Email cannot reach
@@ -97,17 +97,6 @@ impl EmailServiceNotifier {
             recipient,
             proxy_url,
         }
-    }
-}
-
-// Written out rather than derived, because `Box<dyn EmailService>` is not `Debug`. It names only
-// the destination: the recipient masks itself, but a field nobody prints cannot be peeked into a
-// log line by accident either.
-impl std::fmt::Debug for EmailServiceNotifier {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("EmailServiceNotifier")
-            .field("destination", &self.destination)
-            .finish_non_exhaustive()
     }
 }
 
@@ -210,16 +199,39 @@ mod tests {
         assert_eq!(outcome, Outcome::Delivered(()));
     }
 
-    /// A subject carries merchant ids and a body carries volumes. Neither belongs in a log line,
-    /// and nor does the recipient.
-    #[tokio::test]
-    async fn debug_leaks_neither_the_content_nor_the_recipient() {
-        let rendered = format!("{:?} {:?}", no_email_notifier().await, notification());
+    /// A subject carries merchant ids and a body carries volumes, and neither belongs in a log
+    /// line. `Secret` is what enforces that, rather than a hand-written `Debug` somebody has to
+    /// remember to update.
+    #[test]
+    fn debug_leaks_no_content() {
+        let rendered = format!("{:?}", notification());
 
-        assert!(rendered.contains("oncall"));
-        assert!(!rendered.contains("example.com"));
         assert!(!rendered.contains("merchant_1234"));
         assert!(!rendered.contains("4,201"));
+    }
+
+    /// `compose_and_send_email` uses `base_url` for exactly one thing — passing it to
+    /// `get_email_data` — so the empty string we hand it reaches nothing but this impl, which
+    /// drops it. Pinned rather than argued: if a future `AlertEmail` ever starts reading it, this
+    /// fails instead of quietly composing a different email.
+    #[tokio::test]
+    async fn base_url_cannot_affect_the_composed_email() {
+        let compose = |base_url: &'static str| async move {
+            AlertEmail {
+                subject: "subject".to_owned().into(),
+                body: "<pre>body</pre>".to_owned().into(),
+                recipient: recipient(),
+            }
+            .get_email_data(base_url)
+            .await
+            .unwrap()
+        };
+
+        let empty = compose("").await;
+        let populated = compose("https://example.com").await;
+
+        assert_eq!(empty.subject, populated.subject);
+        assert_eq!(empty.body.into_inner(), populated.body.into_inner());
     }
 
     #[tokio::test]
