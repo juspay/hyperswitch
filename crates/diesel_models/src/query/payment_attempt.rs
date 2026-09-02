@@ -2,16 +2,16 @@
 use std::collections::HashSet;
 
 use async_bb8_diesel::AsyncRunQueryDsl;
-#[cfg(feature = "v1")]
-use diesel::Table;
 use diesel::{
     associations::HasTable, debug_query, pg::Pg, BoolExpressionMethods, ExpressionMethods, QueryDsl,
 };
+#[cfg(feature = "v1")]
+use diesel::{JoinOnDsl, Table};
 use error_stack::{report, ResultExt};
 
 use super::generics;
 #[cfg(feature = "v1")]
-use crate::schema::payment_attempt::dsl;
+use crate::schema::{payment_attempt::dsl, payment_intent::dsl as payment_intent_dsl};
 #[cfg(feature = "v2")]
 use crate::schema_v2::payment_attempt::dsl;
 use crate::{
@@ -610,5 +610,50 @@ impl PaymentAttemptUpdateInternal {
         )
         .await
         .attach_printable("Failed to generate update query for payment attempt")
+    }
+}
+
+#[cfg(feature = "v1")]
+impl PaymentAttempt {
+    pub async fn find_for_payment_report(
+        conn: &DatabaseConnectionWithContext<'_>,
+        organization_id: &common_utils::id_type::OrganizationId,
+        merchant_ids: Option<Vec<common_utils::id_type::MerchantId>>,
+        profile_ids: Option<Vec<common_utils::id_type::ProfileId>>,
+        time_lower_limit: time::PrimitiveDateTime,
+        time_upper_limit: time::PrimitiveDateTime,
+        limit: i64,
+    ) -> StorageResult<Vec<(Self, Option<PaymentIntent>)>> {
+        let mut query = crate::list::into_boxed_list(
+            <Self as HasTable>::table()
+                .left_join(
+                    payment_intent_dsl::payment_intent
+                        .on(payment_intent_dsl::active_attempt_id.eq(dsl::attempt_id)),
+                )
+                .filter(dsl::organization_id.eq(organization_id.to_owned()))
+                .filter(dsl::created_at.between(time_lower_limit, time_upper_limit))
+                .order(dsl::created_at.asc())
+                .limit(limit),
+        );
+
+        if let Some(merchant_ids) = merchant_ids {
+            query = query.filter(dsl::merchant_id.eq_any(merchant_ids));
+        }
+
+        if let Some(profile_ids) = profile_ids {
+            query = query.filter(dsl::profile_id.eq_any(profile_ids));
+        }
+
+        router_env::logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
+
+        db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
+            conn.request_id(),
+            conn.event_emitter(),
+            db_metrics::DatabaseOperation::Filter,
+            query.get_results_async::<(Self, Option<PaymentIntent>)>(conn.raw_connection()),
+        )
+        .await
+        .change_context(DatabaseError::Others)
+        .attach_printable("Error fetching payment attempts with intents for payment report")
     }
 }

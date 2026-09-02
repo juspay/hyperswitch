@@ -100,6 +100,24 @@ impl FileStorageInterface for FileSystem {
             .await
             .change_context(FileStorageError::RetrieveFailed)?)
     }
+
+    /// Returns a `file://` URL pointing to the file on the local file system. The URL does
+    /// not expire; the expiry parameter only applies to storage backends that support
+    /// time-limited access.
+    async fn get_signed_url(
+        &self,
+        file_key: &str,
+        _expires_in: std::time::Duration,
+    ) -> CustomResult<String, FileStorageError> {
+        let file_path = get_file_path(file_key);
+        url::Url::from_file_path(&file_path)
+            .map(String::from)
+            .map_err(|()| {
+                error_stack::report!(FileStorageError::SignedUrlGenerationFailed).attach_printable(
+                    format!("Failed to construct file URL from path: {file_path:?}"),
+                )
+            })
+    }
 }
 
 /// Represents an error that can occur during local file system storage operations.

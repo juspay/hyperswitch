@@ -11336,6 +11336,7 @@ pub enum ProcessTrackerRunner {
     BatchBlocklistUpload,
     NetworkTokenizationWorkflow,
     OfferEngineNotifyWorkflow,
+    GenerateReportWorkflow,
 }
 
 #[derive(

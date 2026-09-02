@@ -79,6 +79,7 @@ use crate::{
         ephemeral_key::EphemeralKeyInterface,
         events::EventInterface,
         file::FileMetadataInterface,
+        generate_report::PaymentReportInterface,
         generic_link::GenericLinkInterface,
         gsm::GsmInterface,
         health_check::HealthCheckDbInterface,
@@ -596,6 +597,37 @@ impl CustomerInterface for KafkaStore {
     ) -> CustomResult<domain::Customer, errors::StorageError> {
         self.diesel_store
             .insert_customer(customer_data, key_store, storage_scheme)
+            .await
+    }
+}
+
+#[async_trait::async_trait]
+impl PaymentReportInterface for KafkaStore {
+    #[cfg(feature = "v1")]
+    async fn find_payment_report_rows(
+        &self,
+        organization_id: &id_type::OrganizationId,
+        merchant_ids: Option<Vec<id_type::MerchantId>>,
+        profile_ids: Option<Vec<id_type::ProfileId>>,
+        time_lower_limit: PrimitiveDateTime,
+        time_upper_limit: PrimitiveDateTime,
+        limit: i64,
+    ) -> CustomResult<
+        Vec<(
+            diesel_models::PaymentAttempt,
+            Option<diesel_models::PaymentIntent>,
+        )>,
+        errors::StorageError,
+    > {
+        self.diesel_store
+            .find_payment_report_rows(
+                organization_id,
+                merchant_ids,
+                profile_ids,
+                time_lower_limit,
+                time_upper_limit,
+                limit,
+            )
             .await
     }
 }
