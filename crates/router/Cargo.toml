@@ -300,8 +300,8 @@ common_utils = { version = "0.1.0", path = "../common_utils", features = [
     "keymanager",
 ] }
 common_types = { version = "0.1.0", path = "../common_types" }
-deja = { git = "https://github.com/juspay/deja", rev = "337181ebfd74b7e571a63a9cce515ff3c9309db7", optional = true, default-features = false }
-deja-core = { git = "https://github.com/juspay/deja", rev = "337181ebfd74b7e571a63a9cce515ff3c9309db7", optional = true }
+deja = { git = "https://github.com/juspay/deja", rev = "1838093c7f29938022ba0614d7b78fd2a2e92c4d", optional = true, default-features = false }
+deja-core = { git = "https://github.com/juspay/deja", rev = "1838093c7f29938022ba0614d7b78fd2a2e92c4d", optional = true }
 connector_configs = { version = "0.1.0", path = "../connector_configs" }
 currency_conversion = { version = "0.1.0", path = "../currency_conversion" }
 diesel_models = { version = "0.1.0", path = "../diesel_models", features = [
@@ -342,14 +342,6 @@ derive_deref = "1.1.1"
 rand = "0.8.5"
 serial_test = "3.2.0"
 tempfile = "3.8"
-# Test-only: making a correlation current is what gates boundary recording, and at
-# this pin the `deja` facade re-exports `set_recording_decision` but not
-# `deja_context::enter` / `ContextSnapshot`. deja #97 adds
-# `deja::test_support::recording_correlation`, so this line goes when #14023 moves
-# the pin to a revision that carries it. Until then this rev must match the `deja`
-# rev above: two copies of deja-context are two sets of its thread-locals, and the
-# recording would come back empty rather than fail.
-deja-context = { git = "https://github.com/juspay/deja", rev = "337181ebfd74b7e571a63a9cce515ff3c9309db7" }
 time = { version = "0.3.41", features = ["macros"] }
 tokio = "1.48.0"
 tracing-subscriber = { version = "0.3.19", default-features = false, features = ["registry"] }
