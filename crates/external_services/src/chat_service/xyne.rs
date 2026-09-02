@@ -1,10 +1,14 @@
-//! Xyne, an internally hosted chat service.
+//! [Xyne](https://xynehq.com), an open-source search and answer engine, which also exposes a
+//! Slack-compatible messaging API.
 //!
-//! Xyne fronts a Slack-compatible API — `{base}/slack/chat.postMessage`, the `{ok, error, ts}`
-//! envelope, `thread_ts` threading — so the wire work is shared with [`super::slack`] and lives in
+//! That API is Slack's — `{base}/slack/chat.postMessage`, the `{ok, error, ts}` envelope,
+//! `thread_ts` threading — so the wire work is shared with [`super::slack`] and lives in
 //! [`super::slack_compatible`]. What is Xyne's own is the path namespace and the credential: a JWT
 //! issued to the app, presented as a bearer token. It is **not** a Slack `xoxb-` token, and the
 //! two are not interchangeable despite the shared protocol.
+//!
+//! The messaging surface is not part of Xyne's published API reference, which covers search and
+//! ingestion; the contract implemented here was established against a working deployment.
 
 use hyperswitch_interfaces::types::Proxy;
 use hyperswitch_masking::Secret;

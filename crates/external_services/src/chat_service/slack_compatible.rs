@@ -426,6 +426,20 @@ mod tests {
     }
 
     #[test]
+    fn a_refusal_naming_no_code_is_still_a_refusal() {
+        // Malformed, but unambiguously a refusal — calling it an unreadable response would be a
+        // worse lie than naming the code as unspecified.
+        let error = read(json!({"ok": false})).unwrap().unwrap_err();
+        match error.current_context() {
+            ChatError::Rejected { reason } => assert_eq!(
+                reason,
+                &ChatErrorReason::Other(UNSPECIFIED_ERROR_CODE.to_owned())
+            ),
+            other => panic!("expected a rejection, got {other:?}"),
+        }
+    }
+
+    #[test]
     fn ok_true_with_no_id_anywhere_is_reported_rather_than_faked() {
         let error = read(json!({"ok": true})).unwrap().unwrap_err();
         assert!(matches!(

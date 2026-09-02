@@ -13,7 +13,7 @@
 /// The Slack chat API.
 pub mod slack;
 
-/// Xyne, an internally hosted chat service exposing a Slack-compatible API.
+/// Xyne, which exposes a Slack-compatible messaging API.
 pub mod xyne;
 
 /// The wire protocol Xyne and Slack share. Private: nothing outside this module should have to
