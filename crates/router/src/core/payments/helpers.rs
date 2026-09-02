@@ -6363,6 +6363,7 @@ pub async fn get_additional_payment_data(
                     })),
                     google_pay: None,
                     samsung_pay: None,
+                    paypal: None,
                 }))
             }
             domain::WalletData::GooglePay(google_pay_pm_data) => {
@@ -6389,6 +6390,7 @@ pub async fn get_additional_payment_data(
                         },
                     )),
                     samsung_pay: None,
+                    paypal: None,
                 }))
             }
             domain::WalletData::SamsungPay(samsung_pay_pm_data) => {
@@ -6417,12 +6419,14 @@ pub async fn get_additional_payment_data(
                             email: None,
                         },
                     )),
+                    paypal: None,
                 }))
             }
             _ => Ok(Some(api_models::payments::AdditionalPaymentData::Wallet {
                 apple_pay: None,
                 google_pay: None,
                 samsung_pay: None,
+                paypal: None,
             })),
         },
         domain::PaymentMethodData::PayLater(_) => Ok(Some(
@@ -8383,6 +8387,7 @@ pub fn add_connector_response_to_additional_payment_data(
                 apple_pay,
                 google_pay,
                 samsung_pay,
+                paypal,
             },
             AdditionalPaymentMethodConnectorResponse::GooglePay { auth_code, .. }
             | AdditionalPaymentMethodConnectorResponse::ApplePay { auth_code, .. },
@@ -8400,6 +8405,26 @@ pub fn add_connector_response_to_additional_payment_data(
                 })
             }),
             samsung_pay: samsung_pay.clone(),
+            paypal: paypal.clone(),
+        },
+        (
+            api_models::payments::AdditionalPaymentData::Wallet {
+                apple_pay,
+                google_pay,
+                samsung_pay,
+                ..
+            },
+            AdditionalPaymentMethodConnectorResponse::Paypal { email, payer_id },
+        ) => api_models::payments::AdditionalPaymentData::Wallet {
+            apple_pay: apple_pay.clone(),
+            google_pay: google_pay.clone(),
+            samsung_pay: samsung_pay.clone(),
+            paypal: Some(Box::new(
+                payment_additional_types::PaypalWalletAdditionalData {
+                    email,
+                    payer_id: payer_id.map(|payer_id| payer_id.expose()),
+                },
+            )),
         },
         #[cfg(feature = "v2")]
         (
@@ -8455,7 +8480,10 @@ pub async fn get_payment_method_data_and_encrypted_payment_method_data(
     if payment_attempt
         .payment_method
         .as_ref()
-        .map(|payment_method| payment_method.is_additional_payment_method_data_sensitive())
+        .map(|payment_method| {
+            payment_method
+                .is_additional_payment_method_data_sensitive(payment_attempt.payment_method_type)
+        })
         .unwrap_or(false)
     {
         let encrypted_payment_method_data = additional_payment_method_data_intermediate

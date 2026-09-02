@@ -83,7 +83,7 @@ pub async fn list_blocked_payment_methods() {}
         content_type = "multipart/form-data",
         description = "A multipart/form-data request with a `file` field containing a UTF-8 CSV (max 5 MiB). \
             The CSV must have a header row: `type,data,metadata`. \
-            `type`: one of `card_bin` (6 digits), `extended_card_bin` (8 digits), `fingerprint`. \
+            `type`: one of `generic_card_bin` (6 to 10 digits), `fingerprint`. \
             `metadata`: optional, `key=value` pairs separated by `;` (e.g. `reason=fraud;source=manual`). \
             Maximum 100,000 data rows.",
     ),

@@ -15,11 +15,12 @@
 
 [default-configs]
 deja_record = { value = false, schema = { type = "boolean" }, description = "Deja per-request recording decision — default SKIP (false). The deja_dimension cohort override (seeded by scripts/seed_superposition.sh) sets this true for the recordable endpoint bucket; /health and other probe traffic fall through to false.", change_reason = "Deja recording sampler" }
-offer_engine_enabled = { value = false, schema = { type = "boolean" }, description = "Master gate for the Offer Engine integration. When false (default) Offer Engine is never called, regardless of offer_engine_credential_source. Set true (per tenant/env override) to allow Offer Engine calls.", change_reason = "Offer Engine disabled by default; enable via Superposition override" }
-offer_engine_credential_source = { value = "none", schema = { type = "string", enum = [
+"offer_engine.enabled" = { value = false, schema = { type = "boolean" }, description = "Master gate for the Offer Engine integration. When false (default) Offer Engine is never called, regardless of offer_engine.credential_source. Set true (per tenant/env override) to allow Offer Engine calls.", change_reason = "Offer Engine disabled by default; enable via Superposition override" }
+"offer_engine.credential_source" = { value = "none", schema = { type = "string", enum = [
     "none",
     "application",
-] }, description = "Source of Offer Engine credentials once offer_engine_enabled is true: 'none' skips Offer Engine; 'application' uses the static offer_engine application config. Future org/merchant/profile sources will extend the enum alongside their credential storage.", change_reason = "Offer Engine credential source is a string enum: 'none' disables, 'application' enables; extensible to org/merchant/profile sources" }
+    "merchant",
+] }, description = "Source of Offer Engine credentials once offer_engine.enabled is true: 'none' skips Offer Engine; 'application' uses the static offer_engine application config; 'merchant' uses the per-merchant credentials stored on the merchant account. Future org/profile sources will extend the enum alongside their credential storage.", change_reason = "Offer Engine credential source is a string enum: 'none' disables, 'application' uses app config, 'merchant' uses merchant-account credentials; extensible to org/profile sources" }
 "account_updater.enabled" = { value = false, schema = { type = "boolean" }, description = "Master gate for the Account Updater integration. When false (default) Account Updater is never called, regardless of account_updater.credential_source. Set true (per tenant/env override) to allow Account Updater calls.", change_reason = "Account Updater disabled by default; enable via Superposition override" }
 "account_updater.credential_source" = { value = "none", schema = { type = "string", enum = [
     "none",

@@ -118,6 +118,11 @@ pub async fn get_feature_config(
 
     let is_payment_method_modular_allowed =
         payment_methods::utils::get_should_call_pm_modular_service(state, &dimensions, None).await;
+    router_env::logger::debug!(
+        is_payment_method_modular_allowed,
+        organization_id=%platform.get_processor().get_account().organization_id.get_string_repr(),
+        "resolved PM modular service feature flag"
+    );
     FeatureConfig {
         is_payment_method_modular_allowed,
     }

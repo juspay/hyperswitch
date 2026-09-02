@@ -406,9 +406,9 @@ pub const UCS_DDC_METHOD_URL_KEY: &str = "threeDsMethodUrl";
 /// Superposition configuration keys
 pub mod superposition {
     /// Offer Engine master gate key: boolean, `false` (default) disables all Offer Engine calls.
-    pub const OFFER_ENGINE_ENABLED: &str = "offer_engine_enabled";
-    /// Offer Engine credential source key: `"none"` skips Offer Engine, `"application"` uses the static app config.
-    pub const OFFER_ENGINE_CREDENTIAL_SOURCE: &str = "offer_engine_credential_source";
+    pub const OFFER_ENGINE_ENABLED: &str = "offer_engine.enabled";
+    /// Offer Engine credential source key: `"none"` skips Offer Engine, `"application"` uses the static app config, `"merchant"` uses per-merchant credentials.
+    pub const OFFER_ENGINE_CREDENTIAL_SOURCE: &str = "offer_engine.credential_source";
     /// Account Updater master gate key: `false` (default) disables all Account Updater calls.
     pub const ACCOUNT_UPDATER_ENABLED: &str = "account_updater.enabled";
     /// Account Updater credential source key: `"none"` skips Account Updater, `"application"` uses the static application config.
