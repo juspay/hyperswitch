@@ -2,7 +2,13 @@
 
 use std::{collections::HashMap, sync::Arc};
 
-use external_services::chat_service::{slack::SlackClient, xyne::XyneClient};
+use external_services::{
+    chat_service::{slack::SlackClient, xyne::XyneClient},
+    email::{
+        no_email::NoEmailClient, ses::AwsSes, smtp::SmtpServer, EmailClientConfigs, EmailService,
+        EmailSettings as EmailClientSettings,
+    },
+};
 use hyperswitch_interfaces::{
     secrets_interface::secret_state::{RawSecret, SecuredSecret},
     types::Proxy,
@@ -11,7 +17,7 @@ use hyperswitch_interfaces::{
 use crate::{
     domain::notifier::{
         chat::{ChatClientNotifier, ChatNotifier, LogChatNotifier},
-        email::{EmailNotifier, LogEmailNotifier},
+        email::{EmailNotifier, EmailServiceNotifier},
         Registry,
     },
     errors::ConfigurationError,
@@ -61,7 +67,7 @@ impl AppState {
         #[allow(clippy::expect_used)]
         let chat = build_chat_registry(raw_conf.chat.get_inner(), &raw_conf.proxy)
             .expect("Failed to build the chat destinations");
-        let email = build_email_registry(&raw_conf.email);
+        let email = build_email_registry(&raw_conf.email, &raw_conf.proxy).await;
 
         if chat.is_empty() && email.is_empty() {
             logger::warn!(
@@ -129,19 +135,60 @@ fn build_chat_registry(
 
 /// Turn configured email destinations into the notifiers that serve them.
 ///
-/// Every one is a log destination for now. How `alerts` reaches `external_services::email` is
-/// the email transport ticket's decision, and this function is where its answer lands.
-fn build_email_registry(settings: &EmailSettings) -> Registry<dyn EmailNotifier> {
+/// **One client, shared by every destination.** Unlike chat, where a destination *is* an endpoint
+/// with its own credential, email has one transport and many addresses. Building a client per
+/// destination would open a connection pool per recipient for no reason.
+///
+/// Nothing here can fail. `create_email_client` logs and falls back rather than returning an error
+/// — which is why [`crate::settings::EmailSettings::validate`] runs the same validation at boot, so
+/// a bad SES configuration stops the process instead of quietly becoming a client that never sends.
+async fn build_email_registry(
+    settings: &EmailSettings,
+    proxy: &Proxy,
+) -> Registry<dyn EmailNotifier> {
+    if settings.destinations.is_empty() {
+        return Registry::default();
+    }
+
+    let client = Arc::new(create_email_client(&settings.client, proxy).await);
+
     Registry::new(
         settings
             .destinations
-            .keys()
-            .map(|id| {
-                let notifier: Arc<dyn EmailNotifier> = Arc::new(LogEmailNotifier::new(id.clone()));
+            .iter()
+            .map(|(id, destination)| {
+                let notifier: Arc<dyn EmailNotifier> = Arc::new(EmailServiceNotifier::new(
+                    id.clone(),
+                    Arc::clone(&client),
+                    destination.to.clone(),
+                    proxy.https_url.clone(),
+                ));
                 (id.clone(), notifier)
             })
             .collect(),
     )
+}
+
+/// Build the email transport named in configuration.
+///
+/// Mirrors the router's `create_email_client` (`router/src/routes/app.rs:411`), which is private to
+/// that crate. Copied rather than shared because lifting it into `external_services` would mean
+/// moving `Proxy` handling with it, and the function is a three-arm match.
+async fn create_email_client(
+    settings: &EmailClientSettings,
+    proxy: &Proxy,
+) -> Box<dyn EmailService> {
+    match &settings.client_config {
+        EmailClientConfigs::Ses { aws_ses } => {
+            Box::new(AwsSes::create(settings, aws_ses, proxy.https_url.clone()).await)
+        }
+        EmailClientConfigs::Smtp { smtp } => {
+            Box::new(SmtpServer::create(settings, smtp.clone()).await)
+        }
+        // The default, and the off switch: accepts and logs. A deployment runs with this until SES
+        // credentials exist, which is why there is no separate "email enabled" flag.
+        EmailClientConfigs::NoEmailClient => Box::new(NoEmailClient::create().await),
+    }
 }
 
 #[cfg(test)]
@@ -177,27 +224,74 @@ mod tests {
         assert!(error.to_string().contains("sr_alerts"));
     }
 
-    #[test]
-    fn email_destinations_become_notifiers() {
-        let settings = EmailSettings {
-            destinations: HashMap::from([(
-                "oncall".to_owned(),
-                EmailDestination {
-                    to: serde_json::from_value(serde_json::json!("oncall@example.com")).unwrap(),
-                },
-            )]),
-        };
-
-        assert_eq!(build_email_registry(&settings).len(), 1);
+    fn email_settings_with(ids: &[&str]) -> EmailSettings {
+        EmailSettings {
+            client: EmailClientSettings::default(),
+            destinations: ids
+                .iter()
+                .map(|id| {
+                    (
+                        (*id).to_owned(),
+                        EmailDestination {
+                            to: serde_json::from_value(serde_json::json!("oncall@example.com"))
+                                .unwrap(),
+                        },
+                    )
+                })
+                .collect(),
+        }
     }
 
-    #[test]
-    fn an_empty_registry_reports_itself_as_empty() {
-        assert!(build_email_registry(&EmailSettings::default()).is_empty());
+    /// The default client is `NoEmailClient`, so this builds the whole registry — transport
+    /// included — without reaching for SES credentials.
+    #[tokio::test]
+    async fn email_destinations_share_one_client() {
+        let registry = build_email_registry(
+            &email_settings_with(&["oncall", "escalation"]),
+            &Proxy::default(),
+        )
+        .await;
+
+        assert_eq!(registry.len(), 2);
+        assert!(registry.get("oncall").is_some());
+        assert!(registry.get("missing").is_none());
+    }
+
+    /// No destinations means no transport is built at all, so a deployment that has not configured
+    /// email does not construct an SES client it will never use.
+    #[tokio::test]
+    async fn an_empty_registry_reports_itself_as_empty() {
+        assert!(
+            build_email_registry(&EmailSettings::default(), &Proxy::default())
+                .await
+                .is_empty()
+        );
         assert!(
             build_chat_registry(&ChatSettings::default(), &Proxy::default())
                 .unwrap()
                 .is_empty()
         );
+    }
+
+    /// A destination with no address would accept alerts and send them nowhere.
+    #[test]
+    fn a_destination_without_an_address_fails_validation() {
+        let mut settings = email_settings_with(&["oncall"]);
+        settings.destinations.insert(
+            "broken".to_owned(),
+            EmailDestination {
+                to: Default::default(),
+            },
+        );
+
+        let error = settings.validate().unwrap_err();
+        assert!(error.to_string().contains("broken"));
+    }
+
+    /// Validation of the transport is skipped when nothing uses it, so a first deployment does not
+    /// need a verified SES sender before anyone has asked for an email.
+    #[test]
+    fn an_unused_transport_is_not_validated() {
+        EmailSettings::default().validate().unwrap();
     }
 }

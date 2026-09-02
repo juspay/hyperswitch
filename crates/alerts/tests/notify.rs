@@ -19,24 +19,32 @@ use alerts::{
     auth::X_INTERNAL_API_KEY,
     domain::notifier::{
         chat::{ChatNotifier, LogChatNotifier},
-        email::{EmailNotifier, LogEmailNotifier},
+        email::{EmailNotifier, EmailServiceNotifier},
         Registry,
     },
     routes::Alerts,
     state::AppState,
 };
+use external_services::email::no_email::NoEmailClient;
 use serde_json::{json, Value};
 
 const API_KEY: &str = "test_internal_key";
 const CHAT: &str = "sr_alerts";
 const EMAIL: &str = "oncall";
 
-fn state() -> AppState {
+async fn state() -> AppState {
     let conf = serde_json::from_value(json!({ "auth": { "internal_api_key": API_KEY } }))
         .expect("the test configuration should deserialize");
 
     let chat: Arc<dyn ChatNotifier> = Arc::new(LogChatNotifier::new(CHAT.to_owned()));
-    let email: Arc<dyn EmailNotifier> = Arc::new(LogEmailNotifier::new(EMAIL.to_owned()));
+    // The real notifier over `NoEmailClient`, which accepts and logs. Exercises the composition
+    // path rather than a stand-in, and needs no credentials.
+    let email: Arc<dyn EmailNotifier> = Arc::new(EmailServiceNotifier::new(
+        EMAIL.to_owned(),
+        Arc::new(Box::new(NoEmailClient::create().await)),
+        serde_json::from_value(json!("oncall@example.com")).expect("a valid recipient"),
+        None,
+    ));
 
     AppState {
         conf: Arc::new(conf),
@@ -46,7 +54,7 @@ fn state() -> AppState {
 }
 
 async fn call(request: TestRequest) -> (StatusCode, Value) {
-    let app = test::init_service(App::new().service(Alerts::server(state()))).await;
+    let app = test::init_service(App::new().service(Alerts::server(state().await))).await;
     let response = test::call_service(&app, request.to_request()).await;
     let status = response.status();
     let body = test::read_body(response).await;

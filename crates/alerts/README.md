@@ -166,9 +166,21 @@ credentials exist, and refusing to start would make the service undeployable bef
 destination that is configured but cannot be built *is* a boot failure, because dropping it would
 leave the service answering "unknown destination" to something that is very much configured.
 
+Email destinations share **one transport**, configured under `[email]` using
+`external_services`' own settings, so the SES / SMTP / no-email selection and its validation are the
+router's rather than a second copy. Unlike chat, where a destination *is* an endpoint with its own
+credential, email is one transport and many addresses.
+
+`NO_EMAIL_CLIENT` is the default and the off switch — a backend that sends nothing already is one,
+so there is no separate "email enabled" flag. The transport is validated at boot only when
+destinations exist, so a service with none does not need a verified sender to start, and a
+destination with no address fails the boot rather than accepting alerts and sending them nowhere.
+
 Two limits are inherited from `external_services::email`, both tracked separately: an email
 destination holds one address, so reaching three people is three destinations, and the body must be
-HTML. Email delivery itself is not wired yet — every email destination accepts and logs.
+HTML. Related: `EmailError` has no refusal vocabulary — a rejected recipient, a throttle and an
+unverified sender all arrive as one variant — so email only ever reports `delivered` or fails.
+`status: "refused"` is reachable for chat and not yet for email.
 
 ## Layout
 
