@@ -146,7 +146,8 @@ impl ExternalThreeDsRetryEligible for SetupMandate {
 pub fn is_external_three_ds_retry_eligible_flow<F: 'static>() -> bool {
     use std::any::TypeId;
 
-    (TypeId::of::<F>() == TypeId::of::<Authorize>() && Authorize::supports_external_three_ds_retry())
+    (TypeId::of::<F>() == TypeId::of::<Authorize>()
+        && Authorize::supports_external_three_ds_retry())
         || (TypeId::of::<F>() == TypeId::of::<SetupMandate>()
             && SetupMandate::supports_external_three_ds_retry())
 }

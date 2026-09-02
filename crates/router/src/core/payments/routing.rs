@@ -32,14 +32,14 @@ use external_services::grpc_client::dynamic_routing::{
     elimination_based_client::EliminationBasedRouting,
     success_rate_client::SuccessBasedDynamicRouting, DynamicRoutingError,
 };
+use hyperswitch_domain_models::{
+    address::Address,
+    routing::{PreRoutingConnectorChoice, RoutingData},
+};
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::{
     router_flow_types::payments::is_external_three_ds_retry_eligible_flow,
     routing::PaymentRoutingInfo,
-};
-use hyperswitch_domain_models::{
-    address::Address,
-    routing::{PreRoutingConnectorChoice, RoutingData},
 };
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use hyperswitch_interfaces::events::routing_api_logs::{ApiMethod, RoutingEngine};
