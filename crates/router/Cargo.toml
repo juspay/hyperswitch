@@ -341,6 +341,12 @@ awc = { version = "3.7.0", features = ["rustls"] }
 derive_deref = "1.1.1"
 rand = "0.8.5"
 serial_test = "3.2.0"
+tempfile = "3.8"
+# Test-only: making a correlation current is what gates boundary recording, and
+# `deja`'s facade re-exports `set_recording_decision` but not `deja_context::enter`
+# / `ContextSnapshot`, so a host cannot drive its own boundaries through the
+# facade alone. Depended on directly until the facade carries them.
+deja-context = { git = "https://github.com/juspay/deja", rev = "337181ebfd74b7e571a63a9cce515ff3c9309db7" }
 time = { version = "0.3.41", features = ["macros"] }
 tokio = "1.48.0"
 tracing-subscriber = { version = "0.3.19", default-features = false, features = ["registry"] }
