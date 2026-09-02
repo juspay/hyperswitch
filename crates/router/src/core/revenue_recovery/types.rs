@@ -817,6 +817,20 @@ impl Action {
         let db = &*state.store;
         match self {
             Self::SyncPayment(payment_attempt) => {
+                let static_ladder_progress =
+                    serde_json::from_value::<pcr::RevenueRecoveryWorkflowTrackingData>(
+                        execute_task_process.tracking_data.clone(),
+                    )
+                    .map_err(|error| {
+                        logger::warn!(
+                            ?error,
+                            process_id = %execute_task_process.id,
+                            "Failed to read the ladder position off the execute workflow"
+                        );
+                    })
+                    .ok()
+                    .and_then(|tracking_data| tracking_data.static_ladder_progress);
+
                 // Carry the failed attempt's pre-resolved standardised error code into the
                 // PSYNC task it schedules.
                 revenue_recovery_core::insert_psync_pcr_task_to_pt(
@@ -833,6 +847,7 @@ impl Action {
                     storage::ProcessTrackerRunner::PassiveRecoveryWorkflow,
                     revenue_recovery_payment_data.retry_algorithm,
                     state.conf.application_source,
+                    static_ladder_progress,
                 )
                 .await
                 .change_context(errors::RecoveryError::ProcessTrackerFailure)

@@ -280,6 +280,14 @@ impl MerchantConnectorAccount {
             .map(|recovery| recovery.max_retry_count)
     }
 
+    /// Positions on the cascading ladder available to an invoice under the hybrid scheme.
+    pub fn get_max_hybrid_cascading_retry_count(&self) -> Option<u16> {
+        self.feature_metadata
+            .as_ref()
+            .and_then(|metadata| metadata.revenue_recovery.as_ref())
+            .map(|recovery| recovery.max_hybrid_cascading_retry_count)
+    }
+
     pub fn get_id(&self) -> id_type::MerchantConnectorAccountId {
         self.id.clone()
     }
@@ -373,6 +381,10 @@ pub struct MerchantConnectorAccountFeatureMetadata {
 pub struct RevenueRecoveryMetadata {
     pub max_retry_count: u16,
     pub billing_connector_retry_threshold: u16,
+    /// Number of positions on the cascading (static) ladder available to an invoice under the
+    /// hybrid static + adaptive scheme.
+    #[serde(default)]
+    pub max_hybrid_cascading_retry_count: u16,
     pub mca_reference: AccountReferenceMap,
 }
 
@@ -1224,6 +1236,8 @@ impl From<MerchantConnectorAccountFeatureMetadata>
                 max_retry_count: recovery_metadata.max_retry_count,
                 billing_connector_retry_threshold: recovery_metadata
                     .billing_connector_retry_threshold,
+                max_hybrid_cascading_retry_count: recovery_metadata
+                    .max_hybrid_cascading_retry_count,
                 billing_account_reference: DieselBillingAccountReference(
                     recovery_metadata.mca_reference.recovery_to_billing,
                 ),
@@ -1247,6 +1261,8 @@ impl From<DieselMerchantConnectorAccountFeatureMetadata>
                 max_retry_count: recovery_metadata.max_retry_count,
                 billing_connector_retry_threshold: recovery_metadata
                     .billing_connector_retry_threshold,
+                max_hybrid_cascading_retry_count: recovery_metadata
+                    .max_hybrid_cascading_retry_count,
                 mca_reference: AccountReferenceMap {
                     recovery_to_billing: recovery_metadata.billing_account_reference.0,
                     billing_to_recovery,
