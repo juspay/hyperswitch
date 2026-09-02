@@ -292,16 +292,40 @@ pub async fn list_delivery_attempts(
         ))
         .attach_printable("No delivery attempts found with the specified `initial_attempt_id`")
     } else {
+        // All events in a delivery attempt chain share an `initial_attempt_id`, and therefore the
+        // same business profile, so a single lookup covers the whole list.
+        let sensitive_header_names = match events
+            .first()
+            .and_then(|event| event.business_profile_id.clone())
+        {
+            Some(business_profile_id) => store
+                .find_business_profile_by_profile_id(&key_store, &business_profile_id)
+                .await
+                .inspect_err(|error| {
+                    router_env::logger::error!(
+                        ?error,
+                        "Failed to find business profile for webhook event delivery attempts, \
+                         redacting all webhook header values"
+                    )
+                })
+                .ok()
+                .and_then(|business_profile| {
+                    business_profile.get_sensitive_webhook_header_names()
+                }),
+            None => None,
+        };
+
         Ok(ApplicationResponse::Json(
             events
                 .into_iter()
                 .map(|event| {
-                    api::webhook_events::EventRetrieveResponse::try_from(
+                    api::webhook_events::EventRetrieveResponse::foreign_try_from((
                         domain::EventWithDeliverySuccessSource {
                             event,
                             source: domain::DeliverySuccessSource::ListDeliveryAttempts,
                         },
-                    )
+                        sensitive_header_names.as_ref(),
+                    ))
                 })
                 .collect::<Result<Vec<_>, _>>()?,
         ))
@@ -367,7 +391,6 @@ pub async fn retry_delivery_attempt(
         .attach_printable("Failed to find business profile")?;
 
     let delivery_attempt = storage::enums::WebhookDeliveryAttempt::ManualRetry;
-    let new_event_id = super::utils::generate_event_id();
     let idempotent_event_id = super::utils::get_idempotent_event_id(
         &event_to_retry.primary_object_id,
         event_to_retry.event_type,
@@ -375,6 +398,9 @@ pub async fn retry_delivery_attempt(
     )
     .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
     .attach_printable("Failed to generate idempotent event ID")?;
+
+    let new_event_id = super::utils::generate_event_id();
+    let sensitive_header_names = business_profile.get_sensitive_webhook_header_names();
 
     let now = common_utils::date_time::now();
     let new_event = domain::Event {
@@ -438,12 +464,13 @@ pub async fn retry_delivery_attempt(
         .to_not_found_response(errors::ApiErrorResponse::EventNotFound)?;
 
     Ok(ApplicationResponse::Json(
-        api::webhook_events::EventRetrieveResponse::try_from(
+        api::webhook_events::EventRetrieveResponse::foreign_try_from((
             domain::EventWithDeliverySuccessSource {
                 event: updated_event,
                 source: domain::DeliverySuccessSource::ListDeliveryAttempts,
             },
-        )?,
+            sensitive_header_names.as_ref(),
+        ))?,
     ))
 }
 

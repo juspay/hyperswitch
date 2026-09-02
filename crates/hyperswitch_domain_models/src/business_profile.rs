@@ -1,10 +1,10 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use common_enums::enums as api_enums;
 use common_types::{domain::AcquirerConfig, primitive_wrappers};
 use common_utils::{
     crypto::{OptionalEncryptableName, OptionalEncryptableValue},
-    errors::{CustomResult, ValidationError},
+    errors::{CustomResult, ParsingError, ValidationError},
     ext_traits::{OptionExt, ValueExt},
     pii,
 };
@@ -16,7 +16,7 @@ use diesel_models::business_profile::{
     SurchargeConnectorDetails, WebhookDetails,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::ExposeInterface;
+use hyperswitch_masking::{ExposeInterface, Secret};
 use router_env::logger;
 
 use crate::{errors::api_error_response, merchant_key_store::MerchantKeyStore, payments};
@@ -917,7 +917,56 @@ impl From<ProfileDbBuilder> for Profile {
     }
 }
 
+/// Outgoing webhook header names treated as carrying authentication material. A header is
+/// redacted in event retrieval responses only when it is both configured as a custom outgoing
+/// webhook header and named here.
+///
+/// Deliberately narrow: a merchant can name a custom header anything, so this can never be a
+/// complete list. Letting merchants declare a header as sensitive is the intended way to cover
+/// the rest.
+const SENSITIVE_WEBHOOK_HEADER_NAMES: [&str; 1] = ["authorization"];
+
 impl Profile {
+    pub fn get_outgoing_webhook_headers(
+        &self,
+    ) -> CustomResult<Option<HashMap<String, Secret<String>>>, ParsingError> {
+        self.outgoing_webhook_custom_http_headers
+            .as_ref()
+            .map(|outgoing_webhook_custom_http_headers| {
+                outgoing_webhook_custom_http_headers
+                    .clone()
+                    .into_inner()
+                    .expose()
+                    .parse_value::<HashMap<String, Secret<String>>>(
+                        "HashMap<String, Secret<String>>",
+                    )
+            })
+            .transpose()
+    }
+
+    pub fn get_sensitive_webhook_header_names(&self) -> Option<HashSet<String>> {
+        let custom_http_headers = self
+            .get_outgoing_webhook_headers()
+            .inspect_err(|error| {
+                logger::error!(
+                    ?error,
+                    "Failed to parse outgoing webhook custom HTTP headers"
+                )
+            })
+            .ok()?;
+
+        Some(
+            custom_http_headers
+                .unwrap_or_default()
+                .into_keys()
+                .map(|header_name| header_name.to_ascii_lowercase())
+                .filter(|header_name| {
+                    SENSITIVE_WEBHOOK_HEADER_NAMES.contains(&header_name.as_str())
+                })
+                .collect(),
+        )
+    }
+
     pub fn get_is_tax_connector_enabled(&self) -> bool {
         let is_tax_connector_enabled = self.is_tax_connector_enabled;
         match &self.tax_connector_id {

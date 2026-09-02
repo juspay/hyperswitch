@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use std::{collections::HashSet, marker::PhantomData};
 
 use base64::Engine;
 use common_utils::{
@@ -14,6 +14,7 @@ use hyperswitch_domain_models::{
     router_response_types::{VerifyWebhookSourceResponseData, VerifyWebhookStatus},
 };
 use hyperswitch_interfaces::webhooks::IncomingWebhook;
+use hyperswitch_masking::Secret;
 use redis_interface as redis;
 use router_env::tracing;
 
@@ -555,5 +556,29 @@ where
         Err(error) => Err(error)
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Error while deleting redis key"),
+    }
+}
+
+/// The value substituted for sensitive webhook header values
+pub const REDACTED_HEADER_VALUE: &str = "*** ***";
+
+/// `Secret` does not mask values under ordinary serde serialization, and header sensitivity
+/// depends on the header *name*, which the value wrapper cannot observe. Values are therefore
+/// replaced before the webhook content is returned in an API response.
+///
+/// Header names are compared case-insensitively.
+/// `None` means the sensitive header names could not be determined, in which case every value is
+/// redacted rather than risking exposure.
+pub fn redact_header_values(
+    headers: &mut [(String, Secret<String>)],
+    sensitive_header_names: Option<&HashSet<String>>,
+) {
+    for (header_name, header_value) in headers {
+        let is_sensitive = sensitive_header_names
+            .is_none_or(|names| names.contains(header_name.to_ascii_lowercase().as_str()));
+
+        if is_sensitive {
+            *header_value = Secret::new(REDACTED_HEADER_VALUE.to_string());
+        }
     }
 }
