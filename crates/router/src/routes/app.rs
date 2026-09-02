@@ -420,9 +420,14 @@ pub async fn create_email_client(
             )
             .await,
         ),
-        EmailClientConfigs::Smtp { smtp } => {
-            Box::new(SmtpServer::create(&settings.email, smtp.clone()).await)
-        }
+        EmailClientConfigs::Smtp { smtp } => Box::new(
+            SmtpServer::create(
+                &settings.email,
+                smtp.clone(),
+                settings.proxy.bypass_proxy_hosts.clone(),
+            )
+            .await,
+        ),
         EmailClientConfigs::NoEmailClient => Box::new(NoEmailClient::create().await),
     }
 }

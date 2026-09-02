@@ -3610,6 +3610,7 @@ dependencies = [
  "tonic-types",
  "typed-builder 0.21.2",
  "url 2.5.4",
+ "urlencoding",
  "vaultrs",
 ]
 
@@ -5572,11 +5573,13 @@ version = "0.11.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "87ffd14fa289730e3ad68edefdc31f603d56fe716ec38f2076bb7410e09147c2"
 dependencies = [
+ "async-trait",
  "base64 0.22.1",
  "chumsky",
  "email-encoding",
  "email_address",
  "fastrand",
+ "futures-io",
  "futures-util",
  "hostname",
  "httpdate",
@@ -5588,6 +5591,7 @@ dependencies = [
  "quoted_printable",
  "socket2 0.5.10",
  "tokio 1.48.0",
+ "tokio-native-tls",
  "url 2.5.4",
 ]
 
