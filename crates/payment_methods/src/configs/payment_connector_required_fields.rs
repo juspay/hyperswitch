@@ -1851,6 +1851,9 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
             Connector::Imerchantsolutions,
             fields(vec![], card_basic(), vec![]),
         ),
+        // Pay.com needs only the raw card fields; billing details and address are all
+        // optional on `/v1/charges` and `/v1/holds`.
+        (Connector::Paydotcom, fields(vec![], card_basic(), vec![])),
         (
             Connector::Ilixium,
             fields(

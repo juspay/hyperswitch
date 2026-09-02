@@ -8291,3 +8291,35 @@ payment_method_type = "payshap"
 payment_method_type = "payshap_proxy"
 [gotyme_sanlam_payout.connector_webhook_details]
 merchant_secret="Source verification key"
+
+[paydotcom]
+[paydotcom.connector_auth.HeaderKey]
+api_key = "API Key"
+[[paydotcom.credit]]
+payment_method_type = "Visa"
+[[paydotcom.credit]]
+payment_method_type = "Mastercard"
+[[paydotcom.credit]]
+payment_method_type = "AmericanExpress"
+[[paydotcom.credit]]
+payment_method_type = "Discover"
+[[paydotcom.credit]]
+payment_method_type = "DinersClub"
+[[paydotcom.credit]]
+payment_method_type = "JCB"
+[[paydotcom.credit]]
+payment_method_type = "UnionPay"
+[[paydotcom.debit]]
+payment_method_type = "Visa"
+[[paydotcom.debit]]
+payment_method_type = "Mastercard"
+[[paydotcom.debit]]
+payment_method_type = "AmericanExpress"
+[[paydotcom.debit]]
+payment_method_type = "Discover"
+[[paydotcom.debit]]
+payment_method_type = "DinersClub"
+[[paydotcom.debit]]
+payment_method_type = "JCB"
+[[paydotcom.debit]]
+payment_method_type = "UnionPay"
