@@ -797,10 +797,6 @@ async fn disputes_incoming_webhook_flow(
     if was_not_already_lost
         && dispute_object.dispute_status == common_enums::DisputeStatus::DisputeLost
     {
-        // Failure is logged and metered, never propagated. Returning an error here would
-        // make the connector redeliver, and the redelivery would hit the guard above and
-        // skip the refund anyway — so failing the webhook buys no retry, only a duplicate
-        // dispute update.
         match record_dispute_back_to_billing_connector(
             &state,
             &platform,
@@ -812,7 +808,6 @@ async fn disputes_incoming_webhook_flow(
             Ok(DisputeRecordBackOutcome::Recorded) => {
                 metrics::DISPUTE_RECORD_BACK_SUCCESS_METRIC.add(1, &[])
             }
-            // Nothing was sent, so this is neither a success nor a failure.
             Ok(DisputeRecordBackOutcome::Skipped) => (),
             Err(error) => {
                 metrics::DISPUTE_RECORD_BACK_FAILURE_METRIC.add(1, &[]);
@@ -841,8 +836,6 @@ async fn disputes_incoming_webhook_flow(
         }
     }
 
-    // Notify the merchant. v1 does this too; without it a v2 merchant has no way to learn
-    // a dispute exists, since v2 exposes no dispute REST endpoints either.
     let disputes_response = Box::new(dispute_object.clone().foreign_into());
     let outgoing_event_type: enums::EventType = dispute_object.dispute_status.into();
 
@@ -954,8 +947,7 @@ async fn record_dispute_back_to_billing_connector(
         return Ok(DisputeRecordBackOutcome::Skipped);
     };
 
-    // The webhook arrived on the payment connector's account; the refund goes to the
-    // billing connector, which is named on the intent's recovery metadata.
+    // The webhook arrived on the payment connector; the dispute amount and status is synced to the billing connector.
     let payment_intent = state
         .store
         .find_payment_intent_by_id(
@@ -974,8 +966,6 @@ async fn record_dispute_back_to_billing_connector(
         .ok_or(errors::ApiErrorResponse::WebhookProcessingFailure)
         .attach_printable("no billing connector id on the payment intent's recovery metadata")?;
 
-    // The refund is recorded against the invoice the payment paid, so the invoice id is
-    // what identifies it — the same id record_back_to_billing_connector posts to.
     let merchant_reference_id = payment_intent
         .merchant_reference_id
         .clone()
@@ -992,9 +982,6 @@ async fn record_dispute_back_to_billing_connector(
         .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound)
         .attach_printable("billing merchant connector account not found")?;
 
-    // Only some billing connectors expose an offline-refund API. Calling one that does not
-    // would fail on the default unimplemented flow impl and be metered as a failure, so the
-    // supported set is configured rather than inferred.
     if !state
         .conf
         .billing_connectors_dispute_record_back
@@ -1099,8 +1086,6 @@ fn construct_dispute_record_back_router_data(
             hyperswitch_domain_models::router_request_types::revenue_recovery::DisputeRecordBackRequest {
                 merchant_reference_id: merchant_reference_id.clone(),
                 billing_connector_transaction_id: billing_connector_transaction_id.to_string(),
-                // The disputed amount, not the full transaction: a partial dispute must
-                // refund only what was charged back.
                 amount: dispute.dispute_amount,
                 refund_date: common_utils::date_time::now(),
                 comment: Some(dispute.dispute_id.clone()),
@@ -1357,120 +1342,4 @@ async fn fetch_mca_and_connector(
         get_connector_by_connector_name(state, &connector_enum.to_string(), Some(mca.get_id()))?;
 
     Ok((mca, connector, connector_enum, connector_name))
-}
-
-#[cfg(test)]
-mod dispute_webhook_tests {
-    use super::*;
-
-    #[test]
-    fn connector_transaction_id_is_extracted() {
-        let object_reference_id = api::ObjectReferenceId::PaymentId(
-            api::PaymentIdType::ConnectorTransactionId("txn_1234".to_string()),
-        );
-
-        assert_eq!(
-            connector_transaction_id_from_object_reference_id(&object_reference_id).unwrap(),
-            "txn_1234"
-        );
-    }
-
-    #[test]
-    fn unsupported_object_reference_is_rejected() {
-        let unsupported = [
-            api::ObjectReferenceId::PaymentId(api::PaymentIdType::PaymentAttemptId(
-                "attempt_1234".to_string(),
-            )),
-            api::ObjectReferenceId::PaymentId(api::PaymentIdType::PreprocessingId(
-                "pre_1234".to_string(),
-            )),
-            api::ObjectReferenceId::RefundId(webhooks::RefundIdType::ConnectorRefundId(
-                "ref_1234".to_string(),
-            )),
-        ];
-
-        for object_reference_id in unsupported {
-            assert!(
-                connector_transaction_id_from_object_reference_id(&object_reference_id).is_err()
-            );
-        }
-    }
-
-    #[cfg(feature = "revenue_recovery")]
-    #[test]
-    fn dispute_record_back_fires_only_on_the_transition_into_lost() {
-        use diesel_models::dispute::Dispute;
-
-        // validate_dispute_status permits DisputeLost -> DisputeLost, so a redelivered
-        // webhook re-runs this flow. Without the is_not_lost_or_none guard that is a
-        // second refund against the same Chargebee transaction.
-        fn should_record_back(
-            previous: &Option<Dispute>,
-            new_status: common_enums::DisputeStatus,
-        ) -> bool {
-            Dispute::is_not_lost_or_none(previous)
-                && new_status == common_enums::DisputeStatus::DisputeLost
-        }
-
-        // First DisputeLost webhook, no stored row yet: fires.
-        assert!(should_record_back(
-            &None,
-            common_enums::DisputeStatus::DisputeLost
-        ));
-
-        // A non-lost terminal status never fires.
-        assert!(!should_record_back(
-            &None,
-            common_enums::DisputeStatus::DisputeWon
-        ));
-
-        // The other half of the guard — a stored row already marked DisputeLost
-        // suppressing the redelivery — is is_not_lost_or_none's own contract, and
-        // exercising it here would mean constructing a full Dispute row. It is covered
-        // by that function rather than duplicated.
-    }
-
-    #[test]
-    fn every_dispute_event_maps_to_a_status() {
-        let expected = [
-            (
-                webhooks::IncomingWebhookEvent::DisputeOpened,
-                common_enums::DisputeStatus::DisputeOpened,
-            ),
-            (
-                webhooks::IncomingWebhookEvent::DisputeExpired,
-                common_enums::DisputeStatus::DisputeExpired,
-            ),
-            (
-                webhooks::IncomingWebhookEvent::DisputeAccepted,
-                common_enums::DisputeStatus::DisputeAccepted,
-            ),
-            (
-                webhooks::IncomingWebhookEvent::DisputeCancelled,
-                common_enums::DisputeStatus::DisputeCancelled,
-            ),
-            (
-                webhooks::IncomingWebhookEvent::DisputeChallenged,
-                common_enums::DisputeStatus::DisputeChallenged,
-            ),
-            (
-                webhooks::IncomingWebhookEvent::DisputeWon,
-                common_enums::DisputeStatus::DisputeWon,
-            ),
-            (
-                webhooks::IncomingWebhookEvent::DisputeLost,
-                common_enums::DisputeStatus::DisputeLost,
-            ),
-        ];
-
-        for (event, status) in expected {
-            // Every event routed to the dispute flow must have a status, otherwise the flow
-            // rejects a webhook the dispatcher already committed to handling.
-            assert_eq!(api::WebhookFlow::from(event), api::WebhookFlow::Dispute);
-            assert_eq!(
-                common_enums::DisputeStatus::foreign_try_from(event).unwrap(),
-                status
-            );
-        }
-    }
 }

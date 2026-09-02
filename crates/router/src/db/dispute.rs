@@ -424,7 +424,6 @@ mod storage_impl {
             }
         }
 
-        // v2 disputes are not stored in KV, so this reads the database directly.
         #[instrument(skip_all)]
         #[cfg(feature = "v2")]
         async fn find_by_processor_merchant_id_payment_id_connector_dispute_id(
