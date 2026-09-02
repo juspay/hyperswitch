@@ -58,8 +58,13 @@ pub type AlertsResult<T> = error_stack::Result<T, ConfigurationError>;
 /// Errors raised while handling a request.
 ///
 /// Semantic rather than HTTP-shaped: a variant says what went wrong, not what status code the
-/// client should see. The mapping to a status code happens once, in the [`ErrorSwitch`] impl
-/// below, so a handler never has to think about HTTP.
+/// client should see. The mapping happens once, in the [`ErrorSwitch`] impl below, so a handler
+/// never has to think about HTTP.
+///
+/// **A provider refusing a message is not in here.** That is an outcome, reported through
+/// [`crate::domain::notifier::Outcome`] and answered with a `200`. What remains is a request we
+/// cannot act on, and a notifier that did not work — which is exactly what a `4xx`/`5xx` from this
+/// service should mean, so an alert on 5xx pages someone only when the service is genuinely broken.
 #[derive(Debug, Error)]
 pub enum AlertsError {
     /// Something failed that the client can do nothing about.
@@ -69,6 +74,21 @@ pub enum AlertsError {
     /// The internal API key was missing, malformed, or did not match.
     #[error("Authentication failed")]
     Unauthorized,
+
+    /// The path named a destination that is not configured.
+    #[error("No destination is configured under `{destination}`")]
+    UnknownDestination {
+        /// The id the request asked for.
+        destination: String,
+    },
+
+    /// The provider could not be reached, or answered outside its documented envelope. Nothing is
+    /// known about whether the message was delivered, which is what separates this from a refusal.
+    #[error("The destination `{destination}` could not be reached")]
+    ProviderUnavailable {
+        /// The destination that could not be reached.
+        destination: String,
+    },
 }
 
 /// The result type for request handling.
@@ -89,6 +109,69 @@ impl ErrorSwitch<ApiErrorResponse> for AlertsError {
                 1,
                 "API key not provided or invalid",
             )),
+            // The id is already in the path the caller sent, so there is nothing to echo back, and
+            // the configured ids are deliberately not listed.
+            Self::UnknownDestination { .. } => {
+                ApiErrorResponse::NotFound(ApiError::new("IR", 2, "Unknown destination"))
+            }
+            // 502 rather than 500: the failure is on the far side of a hop we made. Note this is
+            // the *only* provider-shaped error left, because every answer the provider gives is a
+            // 200 outcome instead.
+            Self::ProviderUnavailable { .. } => ApiErrorResponse::BadGateway(ApiError::new(
+                "HE",
+                3,
+                "The destination could not be reached",
+            )),
         }
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used, clippy::indexing_slicing)]
+mod tests {
+    use actix_web::ResponseError;
+
+    use super::*;
+
+    fn status_of(error: &AlertsError) -> u16 {
+        ErrorSwitch::<ApiErrorResponse>::switch(error)
+            .status_code()
+            .as_u16()
+    }
+
+    /// The rule this service is built on: a 5xx means the notifier did not work. Anything the
+    /// provider actually said is a 200 and never reaches here.
+    #[test]
+    fn only_our_own_failures_are_5xx() {
+        assert_eq!(
+            status_of(&AlertsError::ProviderUnavailable {
+                destination: "sr_alerts".to_owned(),
+            }),
+            502
+        );
+        assert_eq!(status_of(&AlertsError::InternalServerError), 500);
+    }
+
+    #[test]
+    fn a_request_we_cannot_act_on_is_4xx() {
+        assert_eq!(
+            status_of(&AlertsError::UnknownDestination {
+                destination: "typo".to_owned(),
+            }),
+            404
+        );
+        assert_eq!(status_of(&AlertsError::Unauthorized), 401);
+    }
+
+    /// A caller that guessed an id should not be handed the registry.
+    #[test]
+    fn an_unknown_destination_does_not_leak_the_configured_ids() {
+        let body = ErrorSwitch::<ApiErrorResponse>::switch(&AlertsError::UnknownDestination {
+            destination: "typo".to_owned(),
+        })
+        .to_string();
+
+        assert!(body.contains("IR_02"));
+        assert!(!body.contains("typo"));
     }
 }

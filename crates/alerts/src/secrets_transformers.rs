@@ -5,14 +5,17 @@
 //! `Settings<RawSecret>`, so that everything downstream is statically known to hold resolved
 //! values. Mirrors `drainer::secrets_transformers`.
 
+use std::collections::HashMap;
+
 use common_utils::errors::CustomResult;
+use external_services::chat_service::{slack::SlackConfig, xyne::XyneConfig};
 use hyperswitch_interfaces::secrets_interface::{
     secret_handler::SecretsHandler,
     secret_state::{RawSecret, SecretStateContainer, SecuredSecret},
     SecretManagementInterface, SecretsManagementError,
 };
 
-use crate::settings::{AuthSettings, Settings};
+use crate::settings::{AuthSettings, ChatDestination, ChatSettings, Settings};
 
 #[async_trait::async_trait]
 impl SecretsHandler for AuthSettings {
@@ -28,6 +31,45 @@ impl SecretsHandler for AuthSettings {
         Ok(value.transition_state(|_auth| Self {
             internal_api_key: raw_internal_api_key,
         }))
+    }
+}
+
+/// Chat credentials are resolved one destination at a time.
+///
+/// Sequentially rather than concurrently: this runs once, at boot, against a handful of
+/// destinations, and a failure that names the destination it came from is worth more here than the
+/// milliseconds a join would save.
+#[async_trait::async_trait]
+impl SecretsHandler for ChatSettings {
+    async fn convert_to_raw_secret(
+        value: SecretStateContainer<Self, SecuredSecret>,
+        secret_management_client: &dyn SecretManagementInterface,
+    ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
+        let secured = value.get_inner();
+        let mut destinations = HashMap::with_capacity(secured.destinations.len());
+
+        for (id, destination) in &secured.destinations {
+            let resolved = match destination {
+                ChatDestination::Xyne(config) => ChatDestination::Xyne(XyneConfig {
+                    app_jwt: secret_management_client
+                        .get_secret(config.app_jwt.clone())
+                        .await?,
+                    ..config.clone()
+                }),
+                ChatDestination::Slack(config) => ChatDestination::Slack(SlackConfig {
+                    bot_token: secret_management_client
+                        .get_secret(config.bot_token.clone())
+                        .await?,
+                    ..config.clone()
+                }),
+                // Holds no credential, so there is nothing to resolve.
+                ChatDestination::Log => ChatDestination::Log,
+            };
+
+            destinations.insert(id.clone(), resolved);
+        }
+
+        Ok(value.transition_state(|_chat| Self { destinations }))
     }
 }
 
@@ -57,10 +99,18 @@ pub async fn fetch_raw_secrets(
         .validate()
         .expect("Decrypted auth internal api key is unusable");
 
+    #[allow(clippy::expect_used)]
+    let chat = ChatSettings::convert_to_raw_secret(conf.chat, secret_management_client)
+        .await
+        .expect("Failed to decrypt a chat destination credential");
+
     Settings {
         server: conf.server,
         log: conf.log,
         auth,
         secrets_management: conf.secrets_management,
+        proxy: conf.proxy,
+        chat,
+        email: conf.email,
     }
 }

@@ -11,7 +11,9 @@
 use actix_web::{web, Scope};
 
 use crate::{
-    routes::{alerts, health_check},
+    errors::types::{ApiError, ApiErrorResponse},
+    logger,
+    routes::{health_check, notify},
     state::AppState,
 };
 
@@ -24,11 +26,46 @@ impl Alerts {
     /// Everything mounted here is authenticated. Anything that must be reachable without
     /// credentials belongs in [`Health`] instead — not as a path exception inside a guard, which
     /// is where auth bypasses come from.
+    ///
+    /// The path carries both facts: which channel, and which destination within it. The body is
+    /// content only. See [`crate::types`] for why the destination is not a body field, and why a
+    /// provider refusing a message comes back as a `200` rather than an error.
     pub fn server(state: AppState) -> Scope {
         web::scope("/alerts")
             .app_data(web::Data::new(state))
-            .service(web::resource("/ping").route(web::get().to(alerts::ping)))
+            .app_data(json_config())
+            .service(web::scope("/chat").service(
+                web::resource("/notify/{destination}").route(web::post().to(notify::chat)),
+            ))
+            .service(web::scope("/email").service(
+                web::resource("/notify/{destination}").route(web::post().to(notify::email)),
+            ))
     }
+}
+
+/// Make a malformed body render like every other error this service returns.
+///
+/// Without this, actix answers its own plain-text 400 and a caller has two error formats to parse
+/// depending on how wrong it got things.
+///
+/// The parse failure itself goes to the log and not to the client, following
+/// [`crate::services::server_wrap`]: serde's message quotes the offending part of the body, and a
+/// body here carries merchant ids and payment volumes.
+fn json_config() -> web::JsonConfig {
+    web::JsonConfig::default().error_handler(|error, request| {
+        logger::warn!(
+            path = %request.path(),
+            error = %error,
+            "Request rejected: the body could not be parsed"
+        );
+
+        ApiErrorResponse::BadRequest(ApiError::new(
+            "IR",
+            4,
+            "The request body could not be parsed",
+        ))
+        .into()
+    })
 }
 
 /// Liveness, deliberately unauthenticated.

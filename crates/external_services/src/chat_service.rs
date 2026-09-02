@@ -71,8 +71,8 @@ impl MessageId {
 
 /// A message to post.
 ///
-/// The fields are private and reached through a builder and accessors on purpose: this is the type
-/// most likely to grow, and private fields mean it can grow without breaking callers.
+/// The fields are private and reached through constructors and accessors on purpose: this is the
+/// type most likely to grow, and private fields mean it can grow without breaking callers.
 ///
 /// Two directions it is expected to grow, and how:
 ///
@@ -103,12 +103,18 @@ impl ChatMessage {
         }
     }
 
-    /// Post this message as a reply threaded under `message_id`.
+    /// A message threaded as a reply under `message_id`.
     ///
     /// Serialised as `thread_ts` by Slack-compatible backends.
-    pub fn reply_to(mut self, message_id: MessageId) -> Self {
-        self.reply_to = Some(message_id);
-        self
+    ///
+    /// A second constructor rather than a `mut self` builder on top of [`ChatMessage::new`]:
+    /// whether a message is threaded is known at the call site, so it is an argument rather than a
+    /// state a value passes through.
+    pub fn reply(text: impl Into<String>, message_id: MessageId) -> Self {
+        Self {
+            text: text.into(),
+            reply_to: Some(message_id),
+        }
     }
 
     /// The message body.
@@ -158,7 +164,7 @@ pub enum ChatError {
     #[error("Chat provider accepted the message without returning a message id")]
     MissingMessageId,
 
-    /// [`ChatMessage::reply_to`] carried an id this backend cannot thread against — typically an
+    /// [`ChatMessage::reply`] carried an id this backend cannot thread against — typically an
     /// id minted by a different backend.
     #[error("The message id supplied cannot thread a reply on this chat provider")]
     IncompatibleReplyTarget,

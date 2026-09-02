@@ -163,8 +163,14 @@ impl EmailClient for SmtpServer {
             .map_err(SmtpError::MessageBuildingFailed)
             .change_context(EmailError::EmailSendingFailure)?;
 
-        email_client
-            .send(&email)
+        // `SmtpTransport` is lettre's **blocking** transport, so `send` parks the calling thread
+        // until the relay answers or the timeout expires. Awaiting it directly on an async runtime
+        // stalls that worker for everything else it was scheduled to do — which on a service
+        // running few workers takes the health check down with it.
+        tokio::task::spawn_blocking(move || email_client.send(&email))
+            .await
+            .change_context(EmailError::EmailSendingFailure)
+            .attach_printable("the blocking SMTP send task could not be joined")?
             .map_err(SmtpError::SendingFailure)
             .change_context(EmailError::EmailSendingFailure)?;
         Ok(())

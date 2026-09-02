@@ -9,13 +9,18 @@
 //! configuration can be used to serve requests, so "did we remember to decrypt this?" is answered
 //! by the type checker rather than by review.
 
-use std::path::PathBuf;
+use std::{collections::HashMap, path::PathBuf};
 
-use common_utils::ext_traits::ConfigExt;
+use common_utils::{ext_traits::ConfigExt, pii};
 use config::{Environment, File};
-use external_services::managers::secrets_management::SecretsManagementConfig;
-use hyperswitch_interfaces::secrets_interface::secret_state::{
-    SecretState, SecretStateContainer, SecuredSecret,
+use external_services::{
+    chat_service::{slack::SlackConfig, xyne::XyneConfig},
+    email::{EmailClientConfigs, EmailSettings as EmailClientSettings},
+    managers::secrets_management::SecretsManagementConfig,
+};
+use hyperswitch_interfaces::{
+    secrets_interface::secret_state::{SecretState, SecretStateContainer, SecuredSecret},
+    types::Proxy,
 };
 use hyperswitch_masking::{PeekInterface, Secret};
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
@@ -50,6 +55,152 @@ pub struct Settings<S: SecretState> {
     pub auth: SecretStateContainer<AuthSettings, S>,
     /// How secret values in this file are resolved at boot.
     pub secrets_management: SecretsManagementConfig,
+    /// Outbound HTTP proxy. A deployment fact rather than a property of any destination, which is
+    /// why it sits here and is handed to every chat client rather than repeated per destination.
+    pub proxy: Proxy,
+    /// Chat destinations this service can deliver to.
+    pub chat: SecretStateContainer<ChatSettings, S>,
+    /// Email destinations this service can deliver to.
+    pub email: EmailSettings,
+}
+
+/// Chat destinations, keyed by the id a request names.
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct ChatSettings {
+    /// Every chat destination, by id.
+    ///
+    /// **Ids arriving from the environment are lowercased and cannot contain `__`.** The `config`
+    /// crate lowercases every environment key before splitting it (`config-0.14.1/src/env.rs`),
+    /// and `__` is the level separator, so `ALERTS__CHAT__DESTINATIONS__SR_ALERTS__CHANNEL` sets
+    /// `chat.destinations.sr_alerts.channel` and there is no spelling that yields `SR_ALERTS` or
+    /// `sr__alerts`. [`ChatSettings::validate`] rejects an id that cannot survive the round trip,
+    /// so this is a boot failure rather than a lookup that mysteriously misses.
+    pub destinations: HashMap<String, ChatDestination>,
+}
+
+/// One chat destination, tagged by the kind of backend it talks to.
+///
+/// Xyne and Slack are the same protocol with a different base URL and credential, so they are two
+/// variants over one client rather than two integrations.
+#[derive(Debug, Deserialize, Clone)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum ChatDestination {
+    /// A Xyne channel.
+    Xyne(XyneConfig),
+    /// A Slack channel.
+    Slack(SlackConfig),
+    /// Accepts messages and delivers nothing.
+    ///
+    /// For exercising the path before credentials exist. A destination *type* rather than a flag
+    /// on a real destination, so the delivery path never has to ask whether it is pretending.
+    Log,
+}
+
+/// Email destinations and the transport that serves them.
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct EmailSettings {
+    /// The transport, shared by every destination: which backend, and who mail comes from.
+    ///
+    /// `external_services`' own type, reused wholesale rather than mirrored, so the SES / SMTP /
+    /// no-email selection and its validation come for free and cannot drift from the router's. It
+    /// carries a few fields this service has no use for (`allowed_unverified_days`, the two recon
+    /// recipient addresses); they default and are ignored, which is a smaller price than a second
+    /// representation of the same configuration.
+    ///
+    /// Defaults to `NO_EMAIL_CLIENT`, which accepts and logs. That is the off switch: it needs no
+    /// flag of its own, and it is what a deployment runs with before SES credentials exist.
+    #[serde(flatten)]
+    pub client: EmailClientSettings,
+
+    /// Every email destination, by id. Same id constraints as [`ChatSettings::destinations`].
+    pub destinations: HashMap<String, EmailDestination>,
+}
+
+/// One email destination.
+#[derive(Debug, Deserialize, Clone)]
+pub struct EmailDestination {
+    /// Where the alert goes.
+    ///
+    /// A single address, because `EmailClient::send_email` accepts one and both backends build a
+    /// single-recipient message. Reaching three people is three destinations today; when
+    /// a follow-up ticket lands this widens to a list and no caller changes, since a request
+    /// only ever names an id.
+    pub to: pii::Email,
+}
+
+/// Ids are addressed by callers and set from the environment, so they must survive both. `config`
+/// lowercases environment keys and splits on `__`; an id that would come back different is
+/// rejected at boot rather than silently failing to match at lookup time.
+fn validate_destination_ids<T>(
+    destinations: &HashMap<String, T>,
+    section: &str,
+) -> Result<(), errors::ConfigurationError> {
+    for id in destinations.keys() {
+        if id.is_empty() || id.contains("__") || id != &id.to_lowercase() {
+            Err(errors::ConfigurationError::ConfigParsingError(format!(
+                "{section} destination id `{id}` must be lowercase, non-empty and free of `__`, \
+                 so that it can be set from the environment"
+            )))?
+        }
+    }
+    Ok(())
+}
+
+impl ChatSettings {
+    /// Reject destination ids that cannot be set from the environment.
+    pub fn validate(&self) -> Result<(), errors::ConfigurationError> {
+        validate_destination_ids(&self.destinations, "chat")
+    }
+}
+
+impl EmailSettings {
+    /// Reject destination ids that cannot be set from the environment, an unusable transport, and
+    /// a destination with no address.
+    ///
+    /// The transport check is `external_services`' own, so SES and SMTP are validated exactly as
+    /// the router validates them. It runs only when destinations exist: a deployment with none has
+    /// nothing to misconfigure, and demanding a verified SES sender before anyone has asked for an
+    /// email would make the service undeployable for no gain.
+    pub fn validate(&self) -> Result<(), errors::ConfigurationError> {
+        validate_destination_ids(&self.destinations, "email")?;
+
+        if self.destinations.is_empty() {
+            return Ok(());
+        }
+
+        self.client
+            .validate()
+            .map_err(|error| errors::ConfigurationError::ConfigParsingError(error.to_owned()))?;
+
+        // `EmailSettings::validate` checks only the backend-specific section — SES's role ARN,
+        // SMTP's host — and never the shared sender. It defaults to an empty `pii::Email`, which
+        // SMTP then fails on while building the `From` mailbox and SES submits as an empty sender.
+        // Without this, a missing `sender_email` boots cleanly and turns every alert into a 502.
+        common_utils::fp_utils::when(
+            !matches!(self.client.client_config, EmailClientConfigs::NoEmailClient)
+                && !crate::domain::notifier::email::is_usable_recipient(&self.client.sender_email),
+            || {
+                Err(errors::ConfigurationError::ConfigParsingError(
+                    "email sender_email must be set when an email transport is configured".into(),
+                ))
+            },
+        )?;
+
+        for (id, destination) in &self.destinations {
+            common_utils::fp_utils::when(
+                !crate::domain::notifier::email::is_usable_recipient(&destination.to),
+                || {
+                    Err(errors::ConfigurationError::ConfigParsingError(format!(
+                        "email destination `{id}` has no recipient address"
+                    )))
+                },
+            )?;
+        }
+
+        Ok(())
+    }
 }
 
 /// Credentials guarding this service's routes.
@@ -171,9 +322,71 @@ impl Settings<SecuredSecret> {
     pub fn validate(&self) -> Result<(), errors::ConfigurationError> {
         self.server.validate()?;
         self.auth.get_inner().validate()?;
+        self.chat.get_inner().validate()?;
+        self.email.validate()?;
         self.secrets_management
             .validate()
             .map_err(|error| errors::ConfigurationError::ConfigParsingError(error.into()))?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used, clippy::indexing_slicing)]
+mod tests {
+    use super::*;
+
+    fn chat_with_ids(ids: &[&str]) -> ChatSettings {
+        ChatSettings {
+            destinations: ids
+                .iter()
+                .map(|id| ((*id).to_owned(), ChatDestination::Log))
+                .collect(),
+        }
+    }
+
+    #[test]
+    fn a_usable_destination_id_is_accepted() {
+        chat_with_ids(&["sr_alerts", "zero-volume", "oncall2"])
+            .validate()
+            .unwrap();
+    }
+
+    /// Each of these is a lookup that would silently miss when the id came from the environment,
+    /// because `config` lowercases keys and splits on `__`.
+    #[test]
+    fn ids_that_cannot_round_trip_through_the_environment_are_rejected() {
+        for id in ["SR_ALERTS", "sr__alerts", ""] {
+            assert!(
+                chat_with_ids(&[id]).validate().is_err(),
+                "`{id}` should be rejected"
+            );
+        }
+    }
+
+    /// The tag is what makes Xyne and Slack two variants of one client rather than two
+    /// integrations, and `log` has to sit in the same enum or the delivery path grows a branch.
+    #[test]
+    fn a_destination_is_selected_by_its_type_tag() {
+        let destinations: HashMap<String, ChatDestination> =
+            serde_json::from_value(serde_json::json!({
+                "sr_alerts": { "type": "xyne", "app_jwt": "jwt", "channel": "C123" },
+                "escalation": { "type": "slack", "bot_token": "xoxb-1", "channel": "C456" },
+                "smoke": { "type": "log" },
+            }))
+            .unwrap();
+
+        assert!(matches!(
+            destinations.get("sr_alerts"),
+            Some(ChatDestination::Xyne(_))
+        ));
+        assert!(matches!(
+            destinations.get("escalation"),
+            Some(ChatDestination::Slack(_))
+        ));
+        assert!(matches!(
+            destinations.get("smoke"),
+            Some(ChatDestination::Log)
+        ));
     }
 }

@@ -80,7 +80,7 @@ prost = { version = "0.14", optional = true }
 prost-reflect = { version = "0.16.5", features = ["serde"], optional = true }
 prost-types = { version = "0.14", optional = true }
 time = { version = "0.3.41", features = ["serde", "serde-well-known", "std"] }
-tokio = "1.48.0"
+tokio = { version = "1.48.0", features = ["rt"] }
 tonic = "0.14"
 tonic-prost = { version = "0.14", optional = true }
 tonic-reflection = "0.14.0"

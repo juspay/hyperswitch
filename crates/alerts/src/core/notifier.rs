@@ -1,12 +1,61 @@
-//! Notification: receiving alert data and delivering it to a destination channel.
+//! Per-request notification logic: resolve a destination, hand the message over, report what
+//! happened.
 //!
-//! Empty by design. The `Notifier` trait, the envelope every channel renders, and the webhook that
-//! receives them are defined in "Define the Notifier interface and the webhook API"
-//! (hyperswitch-cloud#23116). This module exists now so that ticket fills a seam that is already
-//! there rather than relitigating where it goes.
-//!
-//! One constraint is already settled and must survive whatever lands here: **a `Notifier` is a
-//! pure sink**. It is told what to say; it does not decide. The `hyperswitch-alerts` R service
-//! learned this the hard way — when deciding and delivering lived in the same step, the first sink
-//! consumed the shared lifecycle store and every later sink went permanently silent. Any design
-//! where an implementation mutates shared delivery state reintroduces that bug.
+//! The whole of it is "look up the id, call the notifier". That is deliberate — the crate is a
+//! pipe, and anything more here would be a decision the caller should have made. What the layer
+//! buys is a seam a handler can be tested against without HTTP, and one place where "unknown
+//! destination" is turned into an error rather than repeated per route.
+
+use error_stack::report;
+
+use crate::{
+    domain::notifier::{
+        chat::{ChatNotification, ChatOutcome},
+        email::{EmailNotification, EmailOutcome},
+    },
+    errors::{AlertsApiResult, AlertsError},
+    state::AppState,
+    types::{ChatNotifyRequest, EmailNotifyRequest},
+};
+
+/// Deliver a chat message to the named destination.
+pub async fn notify_chat(
+    state: AppState,
+    destination: &str,
+    request: ChatNotifyRequest,
+) -> AlertsApiResult<ChatOutcome> {
+    state
+        .chat
+        .get(destination)
+        .ok_or_else(|| {
+            report!(AlertsError::UnknownDestination {
+                destination: destination.to_owned(),
+            })
+        })?
+        .notify(ChatNotification {
+            text: request.text,
+            reply_to: request.reply_to,
+        })
+        .await
+}
+
+/// Deliver an email to the named destination.
+pub async fn notify_email(
+    state: AppState,
+    destination: &str,
+    request: EmailNotifyRequest,
+) -> AlertsApiResult<EmailOutcome> {
+    state
+        .email
+        .get(destination)
+        .ok_or_else(|| {
+            report!(AlertsError::UnknownDestination {
+                destination: destination.to_owned(),
+            })
+        })?
+        .notify(EmailNotification {
+            subject: request.subject,
+            body: request.body,
+        })
+        .await
+}

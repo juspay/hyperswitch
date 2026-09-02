@@ -15,12 +15,14 @@
 
 pub mod auth;
 pub mod core;
+pub mod domain;
 pub mod errors;
 pub mod logger;
 pub mod routes;
 pub mod services;
 pub mod settings;
 pub mod state;
+pub mod types;
 
 mod secrets_transformers;
 
