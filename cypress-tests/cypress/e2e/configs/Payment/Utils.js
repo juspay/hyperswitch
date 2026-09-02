@@ -42,7 +42,6 @@ import { connectorDetails as getnetConnectorDetails } from "./Getnet.js";
 import { connectorDetails as gigadatConnectorDetails } from "./Gigadat.js";
 import { connectorDetails as globalpayConnectorDetails } from "./Globalpay.js";
 import { connectorDetails as globepayConnectorDetails } from "./Globepay.js";
-import { connectorDetails as gotymeSanlamConnectorDetails } from "./GotymeSanlam.js";
 import { connectorDetails as helcimConnectorDetails } from "./Helcim.js";
 import { connectorDetails as hipayConnectorDetails } from "./Hipay.js";
 import { connectorDetails as iatapayConnectorDetails } from "./Iatapay.js";
@@ -135,7 +134,6 @@ const connectorDetails = {
   gigadat: gigadatConnectorDetails,
   globalpay: globalpayConnectorDetails,
   globepay: globepayConnectorDetails,
-  gotyme_sanlam: gotymeSanlamConnectorDetails,
   helcim: helcimConnectorDetails,
   hipay: hipayConnectorDetails,
   iatapay: iatapayConnectorDetails,
@@ -200,7 +198,6 @@ const connectorDetails = {
 const ALIASED_CONNECTORS = {
   stripeconnect: "stripe",
   payloadconnect: "payload",
-  gotyme_sanlam: "absa_sanlam",
 };
 
 /**
@@ -670,7 +667,6 @@ export const CONNECTOR_LISTS = {
       "stax",
       "stripe",
       "wellsfargo",
-      "gotyme_sanlam",
     ], // payload verified as working
     BANK_REDIRECT_BANCONTACT: ["adyen", "stripe"],
     BANK_REDIRECT_MANDATE: ["adyen", "stripe"],

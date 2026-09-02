@@ -3,6 +3,7 @@ import { validateConfig } from "../../../utils/featureFlags.js";
 import { connectorDetails as adyenConnectorDetails } from "./Adyen.js";
 import { connectorDetails as adyenPlatformConnectorDetails } from "./AdyenPlatform.js";
 import { connectorDetails as CommonConnectorDetails } from "./Commons.js";
+import { connectorDetails as gotymeSanlamConnectorDetails } from "./GotymeSanlam.js";
 import { connectorDetails as wiseConnectorDetails } from "./Wise.js";
 import { connectorDetails as nomupayConnectorDetails } from "./Nomupay.js";
 import { connectorDetails as truelayerConnectorDetails } from "./Truelayer.js";
@@ -11,6 +12,7 @@ const connectorDetails = {
   adyen: adyenConnectorDetails,
   adyenplatform: adyenPlatformConnectorDetails,
   commons: CommonConnectorDetails,
+  gotyme_sanlam: gotymeSanlamConnectorDetails,
   nomupay: nomupayConnectorDetails,
   truelayer: truelayerConnectorDetails,
   wise: wiseConnectorDetails,
@@ -99,6 +101,8 @@ export const CONNECTOR_LISTS = {
     PAYOUT_LINK: ["wise"],
     BANK_TRANSFER_OPEN_BANKING: ["truelayer"],
     BANK_TRANSFER_OPEN_BANKING_INVALID_REFERENCE_FULFILL: [],
+    BANK_TRANSFER_PAYSHAP: ["gotyme_sanlam"],
+    BANK_TRANSFER_PAYSHAP_PROXY: ["gotyme_sanlam"],
     BANK_TRANSFER_SEPA: ["adyen", "adyenplatform", "nomupay", "wise"],
     SAVED_CARD: ["adyen", "adyenplatform", "nomupay", "wise"],
     SAVED_BANK_TRANSFER_SEPA: ["adyen", "adyenplatform", "nomupay", "wise"],
@@ -131,4 +135,40 @@ export const should_continue_further = (data) => {
   } else {
     return true;
   }
+};
+
+/*
+ * Injects sensitive payout bank transfer details (bank_account_number,
+ * account_holder_name, bank_name, shap_id) from the gitignored `creds.json`
+ * (`<connector>_payout` -> `payout_bank_transfer`, stashed into globalState by
+ * `createPayoutConnectorCallTest`) into the bank_transfer payout_method_data
+ * of a payout create/confirm request body. Connector configs only declare the
+ * payout_method_type; the sensitive values never live in committed code.
+ * No-op for every connector other than `gotyme_sanlam`.
+ */
+export const injectGotymePayoutBankTransfer = (body, globalState) => {
+  if (globalState.get("connectorId") !== "gotyme_sanlam") {
+    return body;
+  }
+
+  const payoutBankTransferDetails = globalState.get(
+    "payoutBankTransferDetails"
+  );
+  const bankTransferData = body?.payout_method_data?.bank_transfer;
+
+  if (!payoutBankTransferDetails || !bankTransferData) {
+    return body;
+  }
+
+  const credsForType =
+    payoutBankTransferDetails[bankTransferData.payout_method_type];
+
+  if (credsForType) {
+    body.payout_method_data.bank_transfer = {
+      ...bankTransferData,
+      ...credsForType,
+    };
+  }
+
+  return body;
 };

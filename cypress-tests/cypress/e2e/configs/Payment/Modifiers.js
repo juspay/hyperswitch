@@ -25,7 +25,6 @@ function normalize(input) {
     wellsfargo: "Wellsfargo",
     nmi: "Nmi",
     stripeconnect: "stripe",
-    gotyme_sanlam: "GotymeSanlam",
     // Add more known exceptions here
   };
 
