@@ -34,15 +34,7 @@ describe("Payment Methods Tests", () => {
   });
 
   context("Set default payment method", () => {
-    it("List PM for customer -> Create Payment Method -> create-payment-call-test -> confirm-payment-call-test -> List PM for customer -> Set default payment method", function () {
-      if (
-        utils.CONNECTOR_LISTS.EXCLUDE.SAVE_CARD.includes(
-          globalState.get("connectorId")
-        )
-      ) {
-        this.skip();
-      }
-
+    it("List PM for customer -> Create Payment Method -> create-payment-call-test -> confirm-payment-call-test -> List PM for customer -> Set default payment method", () => {
       let shouldContinue = true;
 
       cy.step("List PM for customer", () => {
@@ -142,15 +134,7 @@ describe("Payment Methods Tests", () => {
     });
 
     context("Create No 3DS off session save card payment", () => {
-      it("create+confirm-payment-call-test -> List PM for customer", function () {
-        if (
-          utils.CONNECTOR_LISTS.EXCLUDE.SAVE_CARD.includes(
-            globalState.get("connectorId")
-          )
-        ) {
-          this.skip();
-        }
-
+      it("create+confirm-payment-call-test -> List PM for customer", () => {
         cy.step("create+confirm-payment-call-test", () => {
           const data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
@@ -180,15 +164,7 @@ describe("Payment Methods Tests", () => {
     });
 
     context("Create 3DS off session save card payment", () => {
-      it("create+confirm-payment-call-test -> Handle redirection -> List PM for customer", function () {
-        if (
-          utils.CONNECTOR_LISTS.EXCLUDE.SAVE_CARD.includes(
-            globalState.get("connectorId")
-          )
-        ) {
-          this.skip();
-        }
-
+      it("create+confirm-payment-call-test -> Handle redirection -> List PM for customer", () => {
         cy.step("create+confirm-payment-call-test", () => {
           const data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
@@ -227,15 +203,7 @@ describe("Payment Methods Tests", () => {
     });
 
     context("Create 3DS off session save card payment with token", () => {
-      it("create-payment-call-test -> confirm-save-card-payment-call-test -> Handle redirection -> List PM for customer", function () {
-        if (
-          utils.CONNECTOR_LISTS.EXCLUDE.SAVE_CARD.includes(
-            globalState.get("connectorId")
-          )
-        ) {
-          this.skip();
-        }
-
+      it("create-payment-call-test -> confirm-save-card-payment-call-test -> Handle redirection -> List PM for customer", () => {
         const saveCardBody = Cypress._.cloneDeep(fixtures.saveCardConfirmBody);
 
         cy.step("create-payment-call-test", () => {
@@ -310,15 +278,7 @@ describe("Payment Methods Tests", () => {
         cy.task("setGlobalState", globalState.data);
       });
 
-      it("create-payment-call-test -> confirm-save-card-payment-call-test -> List PM for customer", function () {
-        if (
-          utils.CONNECTOR_LISTS.EXCLUDE.SAVE_CARD.includes(
-            globalState.get("connectorId")
-          )
-        ) {
-          this.skip();
-        }
-
+      it("create-payment-call-test -> confirm-save-card-payment-call-test -> List PM for customer", () => {
         const saveCardBody = Cypress._.cloneDeep(fixtures.saveCardConfirmBody);
 
         cy.step("create-payment-call-test", () => {
