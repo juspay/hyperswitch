@@ -188,9 +188,10 @@ mod tests {
             .await;
 
         let message_id = client_for(&server)
-            .post_message(
-                ChatMessage::new("recovered").reply_to(MessageId::ts("1503435956.000247")),
-            )
+            .post_message(ChatMessage::reply(
+                "recovered",
+                MessageId::ts("1503435956.000247"),
+            ))
             .await
             .unwrap();
 

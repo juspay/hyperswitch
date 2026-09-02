@@ -8,10 +8,9 @@
 //! usually means a new [`crate::errors::AlertsError`] variant mapping onto an existing one of
 //! these, not a new variant here.
 //!
-//! [`Extra`] is the same idea as `api_models`' field of that name: the status code and the stable
-//! code say what kind of thing went wrong, and `reason` carries the provider's own word for it so
-//! a caller debugging a failed alert does not have to read our logs to find out that Xyne said
-//! `channel_not_found`.
+//! **A provider refusing a message does not reach this module.** The status code answers "did the
+//! notifier function?", and a refusal means it did. Refusals are reported as a normal `200`
+//! response — see [`crate::types`] — which is why nothing here carries a provider's error code.
 
 use serde::Serialize;
 
@@ -34,31 +33,6 @@ impl ErrorType {
     }
 }
 
-/// Detail flattened into the error body alongside the code and the message.
-///
-/// Every field is skipped when absent, so an error that has nothing extra to say serialises
-/// exactly as it did before this existed.
-#[derive(Debug, Serialize, Clone, Default)]
-pub struct Extra {
-    /// The destination the request named, echoed back. Present on anything destination-shaped, so
-    /// a caller with several configured ids does not have to guess which one failed.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub destination: Option<String>,
-
-    /// A stable, matchable code in the provider's snake_case vocabulary — `channel_not_found`,
-    /// `msg_too_long`, `thread_not_found`.
-    ///
-    /// Never prose, so a caller can branch on it. Not always the exact bytes the provider sent,
-    /// because `external_services` folds synonyms on the way in (`is_archived` arrives as
-    /// `not_in_channel`); what is guaranteed is that one condition always yields one code.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub reason: Option<String>,
-
-    /// How long the provider asked us to wait, when it said. Accompanies a 429.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub retry_after_seconds: Option<u64>,
-}
-
 /// The payload carried by every wire error.
 ///
 /// `sub_code` and `error_identifier` combine into a stable, greppable code (`IR_01`) that survives
@@ -71,12 +45,10 @@ pub struct ApiError {
     pub error_identifier: u16,
     /// Human-readable description. Must never contain a secret or the contents of a request.
     pub error_message: String,
-    /// Machine-readable detail, flattened into the body.
-    pub extra: Option<Extra>,
 }
 
 impl ApiError {
-    /// Construct an [`ApiError`] with no extra detail.
+    /// Construct an [`ApiError`].
     pub fn new(
         sub_code: &'static str,
         error_identifier: u16,
@@ -86,56 +58,53 @@ impl ApiError {
             sub_code,
             error_identifier,
             error_message: error_message.to_string(),
-            extra: None,
         }
-    }
-
-    /// Attach machine-readable detail.
-    pub fn with_extra(mut self, extra: Extra) -> Self {
-        self.extra = Some(extra);
-        self
     }
 }
 
 /// Every error this service can return to a client, keyed by HTTP semantics.
+///
+/// Deliberately short. Everything a provider says about a message is a `200`, so the only failures
+/// left are a request we cannot act on, and a notifier that did not work.
 #[derive(Debug, Serialize)]
 pub enum ApiErrorResponse {
-    /// 400 — the request was wrong in a way its sender can fix.
-    ///
-    /// Covers a provider refusal that blames the request, not just a malformed body: a message
-    /// over the provider's size limit is the caller's problem, and answering 500 would tell them
-    /// to retry something that will never succeed.
+    /// 400 — the request was malformed.
     BadRequest(ApiError),
     /// 401 — authentication failed.
     Unauthorized(ApiError),
-    /// 429 — the provider is rate limiting us.
-    TooManyRequests(ApiError),
-    /// 500 — the service failed, including where our own configuration is what the provider
-    /// rejected. A bad channel id or a revoked token is not something the caller can fix.
+    /// 404 — the destination named in the path is not configured.
+    NotFound(ApiError),
+    /// 500 — the service failed.
     InternalServerError(ApiError),
-    /// 502 — the provider could not be reached, or answered something we could not read.
+    /// 502 — the provider could not be reached, or answered outside its documented envelope, so
+    /// whether the message was delivered is unknown.
     BadGateway(ApiError),
 }
 
 impl ApiErrorResponse {
     /// The payload of whichever variant this is.
-    pub(crate) fn get_internal_error(&self) -> &ApiError {
+    ///
+    /// Named for the payload rather than for "internal", which `api_models` uses and which reads
+    /// as *internal server error* at a glance.
+    pub(crate) fn payload(&self) -> &ApiError {
         match self {
             Self::BadRequest(error)
             | Self::Unauthorized(error)
-            | Self::TooManyRequests(error)
+            | Self::NotFound(error)
             | Self::InternalServerError(error)
             | Self::BadGateway(error) => error,
         }
     }
 
     /// The error category reported to the client.
+    ///
+    /// Mirrors `api_models::errors::types::ApiErrorResponse::error_type`.
     fn error_type(&self) -> &'static str {
         match self {
-            Self::BadRequest(_) | Self::Unauthorized(_) => ErrorType::InvalidRequestError.as_str(),
-            Self::TooManyRequests(_) | Self::InternalServerError(_) | Self::BadGateway(_) => {
-                ErrorType::AlertsError.as_str()
+            Self::BadRequest(_) | Self::Unauthorized(_) | Self::NotFound(_) => {
+                ErrorType::InvalidRequestError.as_str()
             }
+            Self::InternalServerError(_) | Self::BadGateway(_) => ErrorType::AlertsError.as_str(),
         }
     }
 }
@@ -150,19 +119,15 @@ pub struct ErrorResponse {
     pub message: String,
     /// The stable code, e.g. `IR_01`.
     pub code: String,
-    /// Machine-readable detail, flattened so `reason` sits beside `code` rather than nested.
-    #[serde(flatten, skip_serializing_if = "Option::is_none")]
-    pub extra: Option<Extra>,
 }
 
 impl From<&ApiErrorResponse> for ErrorResponse {
     fn from(value: &ApiErrorResponse) -> Self {
-        let error_info = value.get_internal_error();
+        let error_info = value.payload();
         Self {
             code: format!("{}_{:02}", error_info.sub_code, error_info.error_identifier),
             message: error_info.error_message.clone(),
             error_type: value.error_type(),
-            extra: error_info.extra.clone(),
         }
     }
 }
@@ -185,30 +150,25 @@ mod tests {
     use super::*;
 
     #[test]
-    fn an_error_without_extra_serialises_unchanged() {
+    fn an_error_serialises_as_a_stable_code_and_a_message() {
         let response = ApiErrorResponse::Unauthorized(ApiError::new("IR", 1, "nope"));
         let body: serde_json::Value = serde_json::from_str(&response.to_string()).unwrap();
 
         assert_eq!(body["error"]["code"], "IR_01");
         assert_eq!(body["error"]["type"], "invalid_request");
-        assert!(body["error"].get("reason").is_none());
-        assert!(body["error"].get("destination").is_none());
     }
 
+    /// A notifier that could not reach the provider is our problem; a request we cannot parse is
+    /// the caller's. Nothing in between reaches this module.
     #[test]
-    fn extra_is_flattened_beside_the_code() {
-        let response = ApiErrorResponse::BadRequest(
-            ApiError::new("IR", 3, "the provider refused the message").with_extra(Extra {
-                destination: Some("sr_alerts".to_owned()),
-                reason: Some("msg_too_long".to_owned()),
-                ..Default::default()
-            }),
+    fn categories_follow_who_the_error_belongs_to() {
+        assert_eq!(
+            ApiErrorResponse::BadGateway(ApiError::new("HE", 3, "x")).error_type(),
+            "alerts_error"
         );
-        let body: serde_json::Value = serde_json::from_str(&response.to_string()).unwrap();
-
-        assert_eq!(body["error"]["code"], "IR_03");
-        assert_eq!(body["error"]["reason"], "msg_too_long");
-        assert_eq!(body["error"]["destination"], "sr_alerts");
-        assert!(body["error"].get("retry_after_seconds").is_none());
+        assert_eq!(
+            ApiErrorResponse::NotFound(ApiError::new("IR", 2, "x")).error_type(),
+            "invalid_request"
+        );
     }
 }

@@ -19,7 +19,7 @@ pub mod types;
 use common_utils::errors::ErrorSwitch;
 use thiserror::Error;
 
-use crate::errors::types::{ApiError, ApiErrorResponse, Extra};
+use crate::errors::types::{ApiError, ApiErrorResponse};
 
 /// Errors raised while the application is starting up.
 ///
@@ -58,14 +58,13 @@ pub type AlertsResult<T> = error_stack::Result<T, ConfigurationError>;
 /// Errors raised while handling a request.
 ///
 /// Semantic rather than HTTP-shaped: a variant says what went wrong, not what status code the
-/// client should see. The mapping to a status code happens once, in the [`ErrorSwitch`] impl
-/// below, so a handler never has to think about HTTP.
+/// client should see. The mapping happens once, in the [`ErrorSwitch`] impl below, so a handler
+/// never has to think about HTTP.
 ///
-/// The delivery failures are split by **blame**, not by where in the stack they were raised.
-/// A provider that refuses a message because it was too long is telling the caller something the
-/// caller can act on, so it is a 400; a provider that refuses because our configured channel id is
-/// wrong is telling *us* something, so it is a 500 no matter that the same API call produced both.
-/// Answering 500 to an oversized message would invite a retry that can never succeed.
+/// **A provider refusing a message is not in here.** That is an outcome, reported through
+/// [`crate::domain::notifier::Outcome`] and answered with a `200`. What remains is a request we
+/// cannot act on, and a notifier that did not work — which is exactly what a `4xx`/`5xx` from this
+/// service should mean, so an alert on 5xx pages someone only when the service is genuinely broken.
 #[derive(Debug, Error)]
 pub enum AlertsError {
     /// Something failed that the client can do nothing about.
@@ -76,44 +75,15 @@ pub enum AlertsError {
     #[error("Authentication failed")]
     Unauthorized,
 
-    /// The request named a destination that is not configured.
+    /// The path named a destination that is not configured.
     #[error("No destination is configured under `{destination}`")]
     UnknownDestination {
         /// The id the request asked for.
         destination: String,
     },
 
-    /// The provider refused the message for a reason the caller can fix — it was too long, or the
-    /// thread it replied to no longer exists.
-    #[error("The destination refused the message: {reason}")]
-    MessageRejected {
-        /// The destination that refused it.
-        destination: String,
-        /// A stable snake_case code, never prose, so a caller can match on it.
-        reason: String,
-    },
-
-    /// The provider refused because of how the destination is configured here: an unknown channel,
-    /// a credential that is not accepted, a channel the bot was never invited to.
-    #[error("The destination `{destination}` is not usable: {reason}")]
-    DestinationUnusable {
-        /// The destination whose configuration is wrong.
-        destination: String,
-        /// A stable snake_case code, never prose.
-        reason: String,
-    },
-
-    /// The provider asked us to slow down.
-    #[error("The destination `{destination}` is rate limiting us")]
-    RateLimited {
-        /// The destination that rate limited us.
-        destination: String,
-        /// How long it asked us to wait, when it said.
-        retry_after_seconds: Option<u64>,
-    },
-
-    /// The provider could not be reached, or answered something that is not its documented
-    /// envelope. Nothing is known about whether the message was delivered.
+    /// The provider could not be reached, or answered outside its documented envelope. Nothing is
+    /// known about whether the message was delivered, which is what separates this from a refusal.
     #[error("The destination `{destination}` could not be reached")]
     ProviderUnavailable {
         /// The destination that could not be reached.
@@ -139,50 +109,19 @@ impl ErrorSwitch<ApiErrorResponse> for AlertsError {
                 1,
                 "API key not provided or invalid",
             )),
-            // The id is echoed rather than the configured ids listed: a caller that guessed wrong
-            // should not be handed the whole registry.
-            Self::UnknownDestination { destination } => ApiErrorResponse::BadRequest(
-                ApiError::new("IR", 2, "Unknown destination").with_extra(Extra {
-                    destination: Some(destination.clone()),
-                    ..Default::default()
-                }),
-            ),
-            Self::MessageRejected {
-                destination,
-                reason,
-            } => ApiErrorResponse::BadRequest(
-                ApiError::new("IR", 3, "The destination refused the message").with_extra(Extra {
-                    destination: Some(destination.clone()),
-                    reason: Some(reason.clone()),
-                    ..Default::default()
-                }),
-            ),
-            Self::RateLimited {
-                destination,
-                retry_after_seconds,
-            } => ApiErrorResponse::TooManyRequests(
-                ApiError::new("HE", 4, "The destination is rate limiting us").with_extra(Extra {
-                    destination: Some(destination.clone()),
-                    retry_after_seconds: *retry_after_seconds,
-                    ..Default::default()
-                }),
-            ),
-            Self::DestinationUnusable {
-                destination,
-                reason,
-            } => ApiErrorResponse::InternalServerError(
-                ApiError::new("HE", 2, "The destination is not usable").with_extra(Extra {
-                    destination: Some(destination.clone()),
-                    reason: Some(reason.clone()),
-                    ..Default::default()
-                }),
-            ),
-            Self::ProviderUnavailable { destination } => ApiErrorResponse::BadGateway(
-                ApiError::new("HE", 3, "The destination could not be reached").with_extra(Extra {
-                    destination: Some(destination.clone()),
-                    ..Default::default()
-                }),
-            ),
+            // The id is already in the path the caller sent, so there is nothing to echo back, and
+            // the configured ids are deliberately not listed.
+            Self::UnknownDestination { .. } => {
+                ApiErrorResponse::NotFound(ApiError::new("IR", 2, "Unknown destination"))
+            }
+            // 502 rather than 500: the failure is on the far side of a hop we made. Note this is
+            // the *only* provider-shaped error left, because every answer the provider gives is a
+            // 200 outcome instead.
+            Self::ProviderUnavailable { .. } => ApiErrorResponse::BadGateway(ApiError::new(
+                "HE",
+                3,
+                "The destination could not be reached",
+            )),
         }
     }
 }
@@ -200,68 +139,39 @@ mod tests {
             .as_u16()
     }
 
-    /// The blame split, asserted directly: the same provider call produces both of these and they
-    /// must not land on the same status.
+    /// The rule this service is built on: a 5xx means the notifier did not work. Anything the
+    /// provider actually said is a 200 and never reaches here.
     #[test]
-    fn refusal_blames_the_caller_and_misconfiguration_blames_us() {
-        assert_eq!(
-            status_of(&AlertsError::MessageRejected {
-                destination: "sr_alerts".to_owned(),
-                reason: "msg_too_long".to_owned(),
-            }),
-            400
-        );
-        assert_eq!(
-            status_of(&AlertsError::DestinationUnusable {
-                destination: "sr_alerts".to_owned(),
-                reason: "channel_not_found".to_owned(),
-            }),
-            500
-        );
-    }
-
-    #[test]
-    fn transport_and_rate_limiting_have_their_own_statuses() {
+    fn only_our_own_failures_are_5xx() {
         assert_eq!(
             status_of(&AlertsError::ProviderUnavailable {
                 destination: "sr_alerts".to_owned(),
             }),
             502
         );
+        assert_eq!(status_of(&AlertsError::InternalServerError), 500);
+    }
+
+    #[test]
+    fn a_request_we_cannot_act_on_is_4xx() {
         assert_eq!(
-            status_of(&AlertsError::RateLimited {
-                destination: "sr_alerts".to_owned(),
-                retry_after_seconds: Some(30),
+            status_of(&AlertsError::UnknownDestination {
+                destination: "typo".to_owned(),
             }),
-            429
+            404
         );
+        assert_eq!(status_of(&AlertsError::Unauthorized), 401);
     }
 
+    /// A caller that guessed an id should not be handed the registry.
     #[test]
-    fn a_rate_limit_carries_retry_after_as_a_header() {
-        let response = ErrorSwitch::<ApiErrorResponse>::switch(&AlertsError::RateLimited {
-            destination: "sr_alerts".to_owned(),
-            retry_after_seconds: Some(30),
-        })
-        .error_response();
-
-        assert_eq!(
-            response
-                .headers()
-                .get(actix_web::http::header::RETRY_AFTER)
-                .and_then(|value| value.to_str().ok()),
-            Some("30")
-        );
-    }
-
-    #[test]
-    fn an_unknown_destination_does_not_leak_the_registry() {
+    fn an_unknown_destination_does_not_leak_the_configured_ids() {
         let body = ErrorSwitch::<ApiErrorResponse>::switch(&AlertsError::UnknownDestination {
             destination: "typo".to_owned(),
         })
         .to_string();
 
         assert!(body.contains("IR_02"));
-        assert!(body.contains("typo"));
+        assert!(!body.contains("typo"));
     }
 }

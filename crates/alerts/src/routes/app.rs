@@ -27,21 +27,19 @@ impl Alerts {
     /// credentials belongs in [`Health`] instead — not as a path exception inside a guard, which
     /// is where auth bypasses come from.
     ///
-    /// One route per channel, and the path names the channel: `/chat/notify` takes a chat body and
-    /// `/email/notify` takes an email one. See [`crate::types`] for why the alternative — one
-    /// `/notify/{id}` over a tagged body — was rejected.
+    /// The path carries both facts: which channel, and which destination within it. The body is
+    /// content only. See [`crate::types`] for why the destination is not a body field, and why a
+    /// provider refusing a message comes back as a `200` rather than an error.
     pub fn server(state: AppState) -> Scope {
         web::scope("/alerts")
             .app_data(web::Data::new(state))
             .app_data(json_config())
-            .service(
-                web::scope("/chat")
-                    .service(web::resource("/notify").route(web::post().to(notify::chat))),
-            )
-            .service(
-                web::scope("/email")
-                    .service(web::resource("/notify").route(web::post().to(notify::email))),
-            )
+            .service(web::scope("/chat").service(
+                web::resource("/notify/{destination}").route(web::post().to(notify::chat)),
+            ))
+            .service(web::scope("/email").service(
+                web::resource("/notify/{destination}").route(web::post().to(notify::email)),
+            ))
     }
 }
 

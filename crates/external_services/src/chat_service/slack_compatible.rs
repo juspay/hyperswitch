@@ -602,7 +602,7 @@ mod tests {
         let endpoint = endpoint("https://example.com", "/", "token").unwrap();
 
         let payload = endpoint
-            .build_payload(&ChatMessage::new("hi").reply_to(MessageId::ts("1.2")))
+            .build_payload(&ChatMessage::reply("hi", MessageId::ts("1.2")))
             .unwrap();
 
         assert_eq!(payload.thread_ts.as_deref(), Some("1.2"));

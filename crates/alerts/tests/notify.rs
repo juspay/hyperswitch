@@ -1,9 +1,8 @@
 //! The notify routes, exercised through actix as a caller would reach them.
 //!
-//! These go through the real route tree rather than calling handlers directly, because most of
-//! what this ticket decided lives *between* the handler and the caller: the guard, the body
-//! extractor's rejection shape, the status code a failure maps onto. A unit test on a handler
-//! would step over all three.
+//! These go through the real route tree rather than calling handlers directly, because most of what
+//! this ticket decided lives *between* the handler and the caller: the guard, the path extractor,
+//! the body extractor's rejection shape, and which outcomes are a `200` versus an error.
 //!
 //! Both destinations are `log` destinations, so nothing here reaches a network.
 
@@ -18,7 +17,7 @@ use actix_web::{
 };
 use alerts::{
     auth::X_INTERNAL_API_KEY,
-    core::notifier::{
+    domain::notifier::{
         chat::{ChatNotifier, LogChatNotifier},
         email::{EmailNotifier, LogEmailNotifier},
         Registry,
@@ -29,33 +28,23 @@ use alerts::{
 use serde_json::{json, Value};
 
 const API_KEY: &str = "test_internal_key";
-const CHAT_DESTINATION: &str = "sr_alerts";
-const EMAIL_DESTINATION: &str = "oncall";
+const CHAT: &str = "sr_alerts";
+const EMAIL: &str = "oncall";
 
 fn state() -> AppState {
-    let conf = serde_json::from_value(json!({
-        "auth": { "internal_api_key": API_KEY },
-    }))
-    .expect("the test configuration should deserialize");
+    let conf = serde_json::from_value(json!({ "auth": { "internal_api_key": API_KEY } }))
+        .expect("the test configuration should deserialize");
 
-    let chat: Arc<dyn ChatNotifier> = Arc::new(LogChatNotifier::new(CHAT_DESTINATION.to_owned()));
-    let email: Arc<dyn EmailNotifier> =
-        Arc::new(LogEmailNotifier::new(EMAIL_DESTINATION.to_owned()));
+    let chat: Arc<dyn ChatNotifier> = Arc::new(LogChatNotifier::new(CHAT.to_owned()));
+    let email: Arc<dyn EmailNotifier> = Arc::new(LogEmailNotifier::new(EMAIL.to_owned()));
 
     AppState {
         conf: Arc::new(conf),
-        chat: Arc::new(Registry::new(HashMap::from([(
-            CHAT_DESTINATION.to_owned(),
-            chat,
-        )]))),
-        email: Arc::new(Registry::new(HashMap::from([(
-            EMAIL_DESTINATION.to_owned(),
-            email,
-        )]))),
+        chat: Arc::new(Registry::new(HashMap::from([(CHAT.to_owned(), chat)]))),
+        email: Arc::new(Registry::new(HashMap::from([(EMAIL.to_owned(), email)]))),
     }
 }
 
-/// Send a request through the whole guarded scope and return the status and parsed body.
 async fn call(request: TestRequest) -> (StatusCode, Value) {
     let app = test::init_service(App::new().service(Alerts::server(state()))).await;
     let response = test::call_service(&app, request.to_request()).await;
@@ -65,75 +54,86 @@ async fn call(request: TestRequest) -> (StatusCode, Value) {
     (status, serde_json::from_slice(&body).unwrap_or(Value::Null))
 }
 
-fn chat_request(body: Value) -> TestRequest {
+fn post(uri: &str, body: Value) -> TestRequest {
     TestRequest::post()
-        .uri("/alerts/chat/notify")
-        .insert_header((X_INTERNAL_API_KEY, API_KEY))
-        .set_json(body)
-}
-
-fn email_request(body: Value) -> TestRequest {
-    TestRequest::post()
-        .uri("/alerts/email/notify")
+        .uri(uri)
         .insert_header((X_INTERNAL_API_KEY, API_KEY))
         .set_json(body)
 }
 
 #[actix_web::test]
-async fn a_chat_notification_returns_a_message_id() {
-    let (status, body) = call(chat_request(json!({
-        "destination": CHAT_DESTINATION,
-        "text": "*3 merchants not converting*",
-    })))
+async fn a_chat_notification_reports_delivery_and_a_message_id() {
+    let (status, body) = call(post(
+        &format!("/alerts/chat/notify/{CHAT}"),
+        json!({ "text": "*3 merchants not converting*" }),
+    ))
     .await;
 
     assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["status"], "delivered");
     assert!(body["message_id"].as_str().is_some_and(|id| !id.is_empty()));
+    assert!(body.get("error_code").is_none());
 }
 
-/// The threading round trip R needs for recovery notices: post, keep the id, reply under it.
+/// The threading round trip a recovery notice needs: post, keep the id, reply under it.
 #[actix_web::test]
 async fn a_chat_notification_can_reply_under_an_earlier_message() {
-    let (_, first) = call(chat_request(json!({
-        "destination": CHAT_DESTINATION,
-        "text": "alerts",
-    })))
+    let (_, first) = call(post(
+        &format!("/alerts/chat/notify/{CHAT}"),
+        json!({ "text": "alerts" }),
+    ))
     .await;
 
-    let (status, second) = call(chat_request(json!({
-        "destination": CHAT_DESTINATION,
-        "text": "recovered",
-        "reply_to": first["message_id"],
-    })))
+    let (status, second) = call(post(
+        &format!("/alerts/chat/notify/{CHAT}"),
+        json!({ "text": "recovered", "reply_to": first["message_id"] }),
+    ))
     .await;
 
     assert_eq!(status, StatusCode::OK);
-    assert!(second["message_id"].as_str().is_some());
+    assert_eq!(second["status"], "delivered");
 }
 
 #[actix_web::test]
-async fn an_email_notification_returns_an_empty_body() {
-    let (status, body) = call(email_request(json!({
-        "destination": EMAIL_DESTINATION,
-        "subject": "[Hyperswitch] 3 merchants not converting",
-        "body": "<pre>...</pre>",
-    })))
+async fn an_email_notification_reports_delivery() {
+    let (status, body) = call(post(
+        &format!("/alerts/email/notify/{EMAIL}"),
+        json!({ "subject": "3 merchants not converting", "body": "<pre>...</pre>" }),
+    ))
     .await;
 
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(body, json!({}));
+    assert_eq!(body["status"], "delivered");
 }
 
-/// Threading against a mailing list is a caller bug. Dropping the field silently would leave a
-/// recovery notice floating with nothing linking it to what it cleared, and nobody would notice.
+/// The load-bearing property of the response shape: a caller cannot read a `200` and assume the
+/// message arrived, because `status` is always there to be checked.
+#[actix_web::test]
+async fn every_success_carries_a_status() {
+    for (uri, body) in [
+        (
+            format!("/alerts/chat/notify/{CHAT}"),
+            json!({ "text": "x" }),
+        ),
+        (
+            format!("/alerts/email/notify/{EMAIL}"),
+            json!({ "subject": "s", "body": "b" }),
+        ),
+    ] {
+        let (status, body) = call(post(&uri, body)).await;
+        assert_eq!(status, StatusCode::OK);
+        assert!(body.get("status").is_some(), "{uri} returned no status");
+    }
+}
+
+/// Threading against a mailing list is a caller bug, and `deny_unknown_fields` makes it loud rather
+/// than a field that quietly goes nowhere.
 #[actix_web::test]
 async fn threading_against_an_email_destination_is_rejected() {
-    let (status, body) = call(email_request(json!({
-        "destination": EMAIL_DESTINATION,
-        "subject": "recovered",
-        "body": "<pre>...</pre>",
-        "reply_to": "1503435956.000247",
-    })))
+    let (status, body) = call(post(
+        &format!("/alerts/email/notify/{EMAIL}"),
+        json!({ "subject": "s", "body": "b", "reply_to": "cmtk931s1" }),
+    ))
     .await;
 
     assert_eq!(status, StatusCode::BAD_REQUEST);
@@ -141,36 +141,41 @@ async fn threading_against_an_email_destination_is_rejected() {
 }
 
 #[actix_web::test]
-async fn an_unknown_destination_is_the_callers_problem_and_names_itself() {
-    let (status, body) = call(chat_request(json!({
-        "destination": "typo",
-        "text": "hello",
-    })))
-    .await;
+async fn an_unknown_destination_is_a_404() {
+    let (status, body) = call(post("/alerts/chat/notify/typo", json!({ "text": "x" }))).await;
 
-    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(status, StatusCode::NOT_FOUND);
     assert_eq!(body["error"]["code"], "IR_02");
-    assert_eq!(body["error"]["destination"], "typo");
+}
+
+/// The id a caller guessed must not come back, and nor must the ones that exist.
+#[actix_web::test]
+async fn an_unknown_destination_does_not_echo_or_enumerate() {
+    let (_, body) = call(post("/alerts/chat/notify/typo", json!({ "text": "x" }))).await;
+
+    let rendered = body.to_string();
+    assert!(!rendered.contains("typo"));
+    assert!(!rendered.contains(CHAT));
 }
 
 /// A malformed body must render like every other error, not as actix's own plain-text 400.
 #[actix_web::test]
 async fn a_missing_field_renders_in_our_error_shape() {
-    let (status, body) = call(chat_request(json!({ "destination": CHAT_DESTINATION }))).await;
+    let (status, body) = call(post(&format!("/alerts/chat/notify/{CHAT}"), json!({}))).await;
 
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert_eq!(body["error"]["code"], "IR_04");
     assert_eq!(body["error"]["type"], "invalid_request");
 }
 
-/// Serde's message quotes the body, and a body carries merchant ids and payment volumes. It goes
-/// to the log; the caller gets the code.
+/// Serde's message quotes the body, and a body carries merchant ids and payment volumes. It goes to
+/// the log; the caller gets the code.
 #[actix_web::test]
 async fn a_parse_failure_does_not_echo_the_body_back() {
-    let (_, body) = call(chat_request(json!({
-        "destination": CHAT_DESTINATION,
-        "text": 12345,
-    })))
+    let (_, body) = call(post(
+        &format!("/alerts/chat/notify/{CHAT}"),
+        json!({ "text": 12345 }),
+    ))
     .await;
 
     assert!(!body.to_string().contains("12345"));
@@ -178,58 +183,61 @@ async fn a_parse_failure_does_not_echo_the_body_back() {
 
 #[actix_web::test]
 async fn both_routes_are_behind_the_guard() {
-    let unauthenticated = [
+    for (uri, body) in [
         (
-            "/alerts/chat/notify",
-            json!({ "destination": CHAT_DESTINATION, "text": "hello" }),
+            format!("/alerts/chat/notify/{CHAT}"),
+            json!({ "text": "x" }),
         ),
         (
-            "/alerts/email/notify",
-            json!({ "destination": EMAIL_DESTINATION, "subject": "s", "body": "b" }),
+            format!("/alerts/email/notify/{EMAIL}"),
+            json!({ "subject": "s", "body": "b" }),
         ),
-    ];
-
-    for (uri, body) in unauthenticated {
-        let (status, body) = call(TestRequest::post().uri(uri).set_json(body)).await;
+    ] {
+        let (status, body) = call(TestRequest::post().uri(&uri).set_json(body)).await;
 
         assert_eq!(status, StatusCode::UNAUTHORIZED, "{uri} must be guarded");
         assert_eq!(body["error"]["code"], "IR_01");
     }
 }
 
+/// The guard runs before the destination is resolved, so an unauthenticated caller cannot probe
+/// which ids exist by watching the status change.
+#[actix_web::test]
+async fn a_bad_key_is_rejected_before_the_destination_is_resolved() {
+    let (known, _) = call(
+        TestRequest::post()
+            .uri(&format!("/alerts/chat/notify/{CHAT}"))
+            .insert_header((X_INTERNAL_API_KEY, "wrong"))
+            .set_json(json!({ "text": "x" })),
+    )
+    .await;
+
+    let (unknown, _) = call(
+        TestRequest::post()
+            .uri("/alerts/chat/notify/typo")
+            .insert_header((X_INTERNAL_API_KEY, "wrong"))
+            .set_json(json!({ "text": "x" })),
+    )
+    .await;
+
+    assert_eq!(known, StatusCode::UNAUTHORIZED);
+    assert_eq!(unknown, StatusCode::UNAUTHORIZED);
+}
+
 /// **Known and accepted:** actix runs the body extractor before the handler, and the guard runs
-/// inside the handler via `server_wrap`, so a request with an unparseable body is answered 400
-/// without its key ever being checked.
-///
-/// Asserted rather than fixed. Restoring "guard strictly first" means extracting the body as raw
-/// bytes and deserializing by hand after authenticating, which trades actix's typed extraction and
-/// its rejection handling for a leak of nothing: the response distinguishes a malformed body from
-/// a well-formed one, and the body schema is public. Kept as a test so the ordering is a recorded
-/// property rather than something a reviewer rediscovers.
+/// inside the handler via `server_wrap`, so an unparseable body is answered 400 without its key
+/// being checked. Restoring "guard strictly first" means extracting raw bytes and deserializing by
+/// hand, trading typed extraction for the concealment of a documented schema. Kept as a test so the
+/// ordering is a recorded property rather than something a reviewer rediscovers.
 #[actix_web::test]
 async fn an_unparseable_body_is_rejected_before_the_key_is_checked() {
     let (status, body) = call(
         TestRequest::post()
-            .uri("/alerts/chat/notify")
-            .set_json(json!({ "destination": CHAT_DESTINATION })),
+            .uri(&format!("/alerts/chat/notify/{CHAT}"))
+            .set_json(json!({})),
     )
     .await;
 
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert_eq!(body["error"]["code"], "IR_04");
-}
-
-/// The guard runs before the body is looked at, so an unauthenticated caller cannot learn which
-/// destinations exist by watching the error change.
-#[actix_web::test]
-async fn a_bad_key_is_rejected_before_the_destination_is_resolved() {
-    let (status, _) = call(
-        TestRequest::post()
-            .uri("/alerts/chat/notify")
-            .insert_header((X_INTERNAL_API_KEY, "wrong"))
-            .set_json(json!({ "destination": CHAT_DESTINATION, "text": "hello" })),
-    )
-    .await;
-
-    assert_eq!(status, StatusCode::UNAUTHORIZED);
 }

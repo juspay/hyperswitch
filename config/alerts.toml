@@ -78,11 +78,10 @@ type = "log"
 # Email destinations, keyed the same way.
 #
 # One address per destination: `EmailClient::send_email` accepts a single recipient and both
-# backends build a single-recipient message. Reaching three people is three destinations today.
-# hyperswitch-cloud#23160 tracks lifting that, after which this widens to a list without any caller
+# backends build a single-recipient message, so reaching three people is three destinations today.
+# Widening it is tracked separately, and when it lands this becomes a list without any caller
 # changing, since a request only ever names an id.
 #
-# Delivery is not wired yet — every destination here accepts and logs, and the transport lands in
-# hyperswitch-cloud#23111.
+# Delivery is not wired yet: every destination here accepts and logs.
 [email.destinations.smoke]
 to = "alerts@example.com"

@@ -9,7 +9,7 @@ use hyperswitch_interfaces::{
 };
 
 use crate::{
-    core::notifier::{
+    domain::notifier::{
         chat::{ChatClientNotifier, ChatNotifier, LogChatNotifier},
         email::{EmailNotifier, LogEmailNotifier},
         Registry,
@@ -130,7 +130,7 @@ fn build_chat_registry(
 /// Turn configured email destinations into the notifiers that serve them.
 ///
 /// Every one is a log destination for now. How `alerts` reaches `external_services::email` is
-/// hyperswitch-cloud#23111's decision, and this function is where its answer lands.
+/// the email transport ticket's decision, and this function is where its answer lands.
 fn build_email_registry(settings: &EmailSettings) -> Registry<dyn EmailNotifier> {
     Registry::new(
         settings

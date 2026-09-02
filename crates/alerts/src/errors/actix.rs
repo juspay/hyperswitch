@@ -2,6 +2,10 @@
 //!
 //! Kept in its own module, mirroring `api_models::errors::actix`, so that the error *shape*
 //! ([`super::types`]) stays independent of the framework rendering it.
+//!
+//! No `Retry-After` here. A provider rate limiting us is reported as a `200` carrying
+//! `retry_after_seconds`, because the notifier reached the provider and did its job; a header that
+//! belongs on a `429` has nowhere to sit in that design.
 
 use actix_web::http::header;
 use reqwest::StatusCode;
@@ -13,28 +17,15 @@ impl actix_web::ResponseError for ApiErrorResponse {
         match self {
             Self::BadRequest(_) => StatusCode::BAD_REQUEST,
             Self::Unauthorized(_) => StatusCode::UNAUTHORIZED,
-            Self::TooManyRequests(_) => StatusCode::TOO_MANY_REQUESTS,
+            Self::NotFound(_) => StatusCode::NOT_FOUND,
             Self::InternalServerError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             Self::BadGateway(_) => StatusCode::BAD_GATEWAY,
         }
     }
 
     fn error_response(&self) -> actix_web::HttpResponse {
-        let mut builder = actix_web::HttpResponseBuilder::new(self.status_code());
-        builder.insert_header((header::CONTENT_TYPE, mime::APPLICATION_JSON));
-
-        // A 429 carries the wait as a header as well as in the body. The body field is what R
-        // reads, since it parses JSON anyway; the header is what every generic HTTP client and
-        // proxy between here and there already understands.
-        if let Some(seconds) = self
-            .get_internal_error()
-            .extra
-            .as_ref()
-            .and_then(|extra| extra.retry_after_seconds)
-        {
-            builder.insert_header((header::RETRY_AFTER, seconds));
-        }
-
-        builder.body(self.to_string())
+        actix_web::HttpResponseBuilder::new(self.status_code())
+            .insert_header((header::CONTENT_TYPE, mime::APPLICATION_JSON))
+            .body(self.to_string())
     }
 }

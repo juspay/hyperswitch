@@ -98,7 +98,7 @@ pub enum ChatDestination {
 
 /// Email destinations, keyed by the id a request names.
 ///
-/// No transport configuration yet: the email client is chosen in hyperswitch-cloud#23111, which
+/// No transport configuration yet: the email client is chosen in the email transport ticket, which
 /// owns how `alerts` reaches `external_services::email`. Until then every destination here
 /// resolves to a log destination.
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -115,7 +115,7 @@ pub struct EmailDestination {
     ///
     /// A single address, because `EmailClient::send_email` accepts one and both backends build a
     /// single-recipient message. Reaching three people is three destinations today; when
-    /// hyperswitch-cloud#23160 lands this widens to a list and no caller changes, since a request
+    /// a follow-up ticket lands this widens to a list and no caller changes, since a request
     /// only ever names an id.
     pub to: pii::Email,
 }
