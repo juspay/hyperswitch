@@ -1701,9 +1701,7 @@ where
                 invoice_billing_started_at_time: revenue_recovery
                     .as_ref()
                     .and_then(|data| data.invoice_billing_started_at_time)
-                    .or(self
-                        .revenue_recovery_data
-                        .invoice_billing_started_at_time),
+                    .or(self.revenue_recovery_data.invoice_billing_started_at_time),
                 billing_connector_payment_method_details,
                 first_payment_attempt_network_advice_code: first_network_advice_code,
                 first_payment_attempt_network_decline_code: first_network_decline_code,
