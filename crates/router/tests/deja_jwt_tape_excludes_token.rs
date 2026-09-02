@@ -1,3 +1,6 @@
+// Integration test: assertions use panic!/expect(); allow the production-code
+// lints the v2 clippy profile denies.
+#![allow(clippy::panic, clippy::expect_used, clippy::unwrap_used)]
 //! A recording must be able to pair a replayed `decode_jwt` with its recorded
 //! outcome without carrying the token that produced it.
 //!
