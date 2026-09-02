@@ -89,7 +89,7 @@ pub enum AlertsError {
     MessageRejected {
         /// The destination that refused it.
         destination: String,
-        /// The provider's own code, kept verbatim so a caller can match on it.
+        /// A stable snake_case code, never prose, so a caller can match on it.
         reason: String,
     },
 
@@ -99,7 +99,7 @@ pub enum AlertsError {
     DestinationUnusable {
         /// The destination whose configuration is wrong.
         destination: String,
-        /// The provider's own code.
+        /// A stable snake_case code, never prose.
         reason: String,
     },
 

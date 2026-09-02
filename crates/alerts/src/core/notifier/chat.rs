@@ -96,6 +96,29 @@ impl ChatNotifier for ChatClientNotifier {
     }
 }
 
+/// The stable, matchable code for a refusal, in the provider's own snake_case vocabulary.
+///
+/// **Not `Display`.** [`ChatErrorReason`]'s `Display` is prose written for a log line ("channel not
+/// found"), and this value goes into the `reason` field of an HTTP error body where a caller is
+/// expected to match on it. Deriving one from the other would make the wire contract move whenever
+/// somebody rewords an error message.
+///
+/// **Not always the exact bytes the provider sent**, either, and it cannot be: `external_services`
+/// folds synonyms on the way in, so `is_archived` arrives as `NotInChannel` and `account_inactive`
+/// as `TokenRevoked`. What is guaranteed is that the same condition always produces the same code.
+fn reason_code(reason: &ChatErrorReason) -> String {
+    match reason {
+        ChatErrorReason::ChannelNotFound => "channel_not_found".to_owned(),
+        ChatErrorReason::NotInChannel => "not_in_channel".to_owned(),
+        ChatErrorReason::InvalidAuth => "invalid_auth".to_owned(),
+        ChatErrorReason::TokenRevoked => "token_revoked".to_owned(),
+        ChatErrorReason::MessageTooLong => "msg_too_long".to_owned(),
+        ChatErrorReason::RateLimited { .. } => "rate_limited".to_owned(),
+        // Already a wire code, carried through untouched.
+        ChatErrorReason::Other(code) => code.clone(),
+    }
+}
+
 /// Decide who a chat failure belongs to.
 ///
 /// Split by blame rather than by layer. The provider answers a bad channel id and an oversized
@@ -112,7 +135,7 @@ fn classify(destination: &str, error: &ChatError) -> AlertsError {
             // to `max_message_chars` on the way out.
             ChatErrorReason::MessageTooLong => AlertsError::MessageRejected {
                 destination,
-                reason: "msg_too_long".to_owned(),
+                reason: reason_code(reason),
             },
             ChatErrorReason::RateLimited {
                 retry_after_seconds,
@@ -126,16 +149,16 @@ fn classify(destination: &str, error: &ChatError) -> AlertsError {
             | ChatErrorReason::InvalidAuth
             | ChatErrorReason::TokenRevoked => AlertsError::DestinationUnusable {
                 destination,
-                reason: reason.to_string(),
+                reason: reason_code(reason),
             },
             ChatErrorReason::Other(code) if code == PROVIDER_INTERNAL_ERROR => {
                 AlertsError::ProviderUnavailable { destination }
             }
             // Everything else the backends put in `Other` blames the request:
             // `invalid_arguments`, `thread_not_found`, `user_not_found`.
-            ChatErrorReason::Other(code) => AlertsError::MessageRejected {
+            ChatErrorReason::Other(_) => AlertsError::MessageRejected {
                 destination,
-                reason: code.clone(),
+                reason: reason_code(reason),
             },
         },
 
@@ -292,6 +315,53 @@ mod tests {
                 "{error:?} should report the provider as unavailable"
             );
         }
+    }
+
+    /// `reason` is advertised as matchable, so every value it can take has to be a code rather
+    /// than a sentence. This caught a real bug: four variants were rendered through `Display` and
+    /// reached the wire as prose like `channel not found`.
+    #[test]
+    fn every_reason_is_a_matchable_code_not_prose() {
+        let reasons = [
+            ChatErrorReason::ChannelNotFound,
+            ChatErrorReason::NotInChannel,
+            ChatErrorReason::InvalidAuth,
+            ChatErrorReason::TokenRevoked,
+            ChatErrorReason::MessageTooLong,
+            ChatErrorReason::RateLimited {
+                retry_after_seconds: None,
+            },
+            ChatErrorReason::Other("invalid_arguments".to_owned()),
+        ];
+
+        for reason in reasons {
+            let code = reason_code(&reason);
+            assert!(
+                !code.is_empty()
+                    && !code.contains(' ')
+                    && code
+                        .chars()
+                        .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_'),
+                "{reason:?} produced `{code}`, which is not a matchable code"
+            );
+        }
+    }
+
+    /// The provider's spelling, not ours. Pinned because these are a wire contract now.
+    #[test]
+    fn reason_codes_match_the_providers_spelling() {
+        assert_eq!(
+            reason_code(&ChatErrorReason::ChannelNotFound),
+            "channel_not_found"
+        );
+        assert_eq!(
+            reason_code(&ChatErrorReason::MessageTooLong),
+            "msg_too_long"
+        );
+        assert_eq!(
+            reason_code(&ChatErrorReason::Other("thread_not_found".to_owned())),
+            "thread_not_found"
+        );
     }
 
     #[test]

@@ -45,8 +45,12 @@ pub struct Extra {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub destination: Option<String>,
 
-    /// The provider's own error code, verbatim — `channel_not_found`, `msg_too_long`,
-    /// `internal_error`. Never a message we invented, so it can be matched on.
+    /// A stable, matchable code in the provider's snake_case vocabulary — `channel_not_found`,
+    /// `msg_too_long`, `thread_not_found`.
+    ///
+    /// Never prose, so a caller can branch on it. Not always the exact bytes the provider sent,
+    /// because `external_services` folds synonyms on the way in (`is_archived` arrives as
+    /// `not_in_channel`); what is guaranteed is that one condition always yields one code.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reason: Option<String>,
 

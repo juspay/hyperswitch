@@ -98,8 +98,11 @@ arm for a channel it can never serve.
 
 Split by **blame**, not by which layer raised them. The provider reports an oversized message and
 an unknown channel through the same field of the same response, and they are not the same problem:
-one the caller can fix, one it cannot. `reason` carries the provider's own code so a caller can
-match on it rather than parse prose.
+one the caller can fix, one it cannot. `reason` carries a stable snake_case code in the provider's
+vocabulary — `channel_not_found`, `msg_too_long`, `thread_not_found` — so a caller can branch on it
+rather than parse prose. It is never the `Display` of an internal error, and it is not always the
+exact bytes the provider sent, since `external_services` folds synonyms on the way in
+(`is_archived` arrives as `not_in_channel`). One condition always yields one code.
 
 | | Status | Code |
 |---|---|---|
