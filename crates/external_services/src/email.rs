@@ -51,6 +51,22 @@ pub trait EmailService: Sync + Send + dyn_clone::DynClone {
         email_data: Box<dyn EmailData + Send>,
         proxy_url: Option<&String>,
     ) -> EmailResult<()>;
+
+    /// Send contents that are already composed.
+    ///
+    /// For a caller that holds a subject, a body and a recipient and has no template to render.
+    /// [`EmailService::compose_and_send_email`] exists to *run* an [`EmailData`], and its
+    /// `base_url` is there because the product emails build links against it; a caller with
+    /// nothing to compose would otherwise have to implement [`EmailData`] purely to hand back what
+    /// it was given, and invent a `base_url` for that impl to ignore.
+    ///
+    /// Composition is defined in terms of this rather than the other way round, so the two paths
+    /// cannot drift.
+    async fn send_contents(
+        &self,
+        contents: EmailContents,
+        proxy_url: Option<&String>,
+    ) -> EmailResult<()>;
 }
 
 #[async_trait::async_trait]
@@ -68,11 +84,19 @@ where
         let email_data = email_data.get_email_data(base_url);
         let email_data = email_data.await?;
 
+        self.send_contents(email_data, proxy_url).await
+    }
+
+    async fn send_contents(
+        &self,
+        contents: EmailContents,
+        proxy_url: Option<&String>,
+    ) -> EmailResult<()> {
         let EmailContents {
             subject,
             body,
             recipient,
-        } = email_data;
+        } = contents;
 
         let rich_text_string = self.convert_to_rich_text(body)?;
 
