@@ -1,6 +1,5 @@
 pub mod amount;
 pub mod apply;
-#[cfg(feature = "v1")]
 pub mod browse;
 pub mod client;
 pub mod config;
