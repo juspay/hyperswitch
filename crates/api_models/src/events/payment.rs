@@ -436,6 +436,14 @@ impl ApiEventMetric for payment_methods::PaymentMethodDeleteResponse {
 impl ApiEventMetric for payment_methods::CustomerPaymentMethodsListResponse {}
 
 #[cfg(feature = "v1")]
+impl ApiEventMetric for payments::PaymentsSessionServerRequest {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        // The payment id arrives as a path parameter, so it is not recoverable from the body.
+        Some(ApiEventsType::Miscellaneous)
+    }
+}
+
+#[cfg(feature = "v1")]
 impl ApiEventMetric for payment_methods::ClientPaymentMethodsListRequest {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::PaymentMethodList {

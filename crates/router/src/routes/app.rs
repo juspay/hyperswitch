@@ -1029,6 +1029,10 @@ impl Payments {
                         .route(web::post().to(payments::payments_update)),
                 )
                 .service(
+                    web::resource("/{payment_id}/session_tokens")
+                        .route(web::post().to(payments::payments_connector_session_server)),
+                )
+                .service(
                     web::resource("/{payment_id}/post_session_tokens").route(web::post().to(payments::payments_post_session_tokens)),
                 )
                 .service(

@@ -9722,6 +9722,23 @@ pub struct PaymentsSessionRequest {
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
 }
 
+#[cfg(feature = "v1")]
+/// Request body for the server-to-server session token endpoint.
+///
+/// The payment is identified by the path parameter and the caller is authenticated with the
+/// merchant API key, so neither `payment_id` nor `client_secret` belongs in the body. Unknown
+/// fields are rejected so that a client secret sent here fails loudly rather than being ignored.
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PaymentsSessionServerRequest {
+    /// The list of the supported wallets
+    #[schema(value_type = Vec<PaymentMethodType>)]
+    pub wallets: Vec<api_enums::PaymentMethodType>,
+    /// Merchant connector details used to make payments.
+    #[schema(value_type = Option<MerchantConnectorDetailsWrap>)]
+    pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
+}
+
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentsUpdateMetadataRequest {
