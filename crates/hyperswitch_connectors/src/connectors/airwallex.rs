@@ -148,12 +148,24 @@ impl ConnectorCommon for Airwallex {
                     .provider_original_response_code
                     .clone()
                     .and_then(airwallex::map_error_code_to_message);
+                // When Airwallex rejects a confirm_continue operation on a PaymentIntent that has
+                // already reached the SUCCEEDED status, the payment is genuinely completed. Mark it
+                // as charged so the core does not finalize it as failed. The message is the only
+                // carrier of the intent status because `AirwallexErrorResponse` has no status field.
+                let attempt_status = match (response.code.as_str(), response.message.as_str()) {
+                    ("invalid_status_for_operation", message)
+                        if message.contains("status SUCCEEDED") =>
+                    {
+                        Some(enums::AttemptStatus::Charged)
+                    }
+                    _ => None,
+                };
                 Ok(ErrorResponse {
                     status_code,
                     code: response.code,
                     message: response.message,
                     reason: response.source,
-                    attempt_status: None,
+                    attempt_status,
                     connector_transaction_id: None,
                     connector_response_reference_id: None,
                     network_advice_code: None,
@@ -1450,5 +1462,78 @@ impl ConnectorSpecifications for Airwallex {
         } else {
             api::ConnectorCustomerAction::NoAction
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use hyperswitch_domain_models::router_data::ErrorResponse;
+    use hyperswitch_interfaces::types::Response;
+
+    use super::*;
+
+    fn build_error_response(body: &str) -> ErrorResponse {
+        // Arrange
+        let response = Response {
+            headers: None,
+            response: bytes::Bytes::from(body.to_string()),
+            status_code: http::StatusCode::BAD_REQUEST.as_u16(),
+        };
+
+        // Act
+        Airwallex::new()
+            .build_error_response(response, None)
+            .unwrap()
+    }
+
+    #[test]
+    fn should_treat_invalid_status_for_operation_on_succeeded_intent_as_charged() {
+        // Arrange
+        let body = r#"{"code":"invalid_status_for_operation","message":"The PaymentIntent status SUCCEEDED is invalid for operation confirm_continue.","source":"payment_intent"}"#;
+
+        // Act
+        let error_response = build_error_response(body);
+
+        // Assert
+        assert_eq!(
+            error_response.attempt_status,
+            Some(enums::AttemptStatus::Charged)
+        );
+    }
+
+    #[test]
+    fn should_not_treat_genuine_decline_as_charged() {
+        // Arrange
+        let body = r#"{"code":"card_declined","message":"Your card was declined."}"#;
+
+        // Act
+        let error_response = build_error_response(body);
+
+        // Assert
+        assert_eq!(error_response.attempt_status, None);
+    }
+
+    #[test]
+    fn should_not_treat_failed_intent_error_as_charged() {
+        // Arrange
+        let body = r#"{"code":"invalid_status_for_operation","message":"The PaymentIntent status FAILED is invalid for operation confirm_continue."}"#;
+
+        // Act
+        let error_response = build_error_response(body);
+
+        // Assert
+        assert_eq!(error_response.attempt_status, None);
+    }
+
+    #[test]
+    fn should_not_treat_succeeded_message_with_other_error_code_as_charged() {
+        // Arrange
+        let body = r#"{"code":"payment_intent_expired","message":"The PaymentIntent status SUCCEEDED is invalid for operation confirm_continue."}"#;
+
+        // Act
+        let error_response = build_error_response(body);
+
+        // Assert
+        assert_eq!(error_response.attempt_status, None);
     }
 }
