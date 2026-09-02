@@ -113,6 +113,7 @@ pub struct ConnectorAuthentication {
     pub payconex: Option<BodyKey>,
     pub citigate: Option<BodyKey>,
     pub payu: Option<BodyKey>,
+    pub payzum: Option<HeaderKey>,
     pub peachpayments: Option<HeaderKey>,
     pub phonepe: Option<HeaderKey>,
     pub placetopay: Option<BodyKey>,
