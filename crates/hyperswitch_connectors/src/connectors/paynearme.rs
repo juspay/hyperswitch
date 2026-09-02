@@ -23,7 +23,8 @@ use hyperswitch_domain_models::{
         RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
-        ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods,
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
@@ -595,7 +596,53 @@ impl webhooks::IncomingWebhook for Paynearme {
 }
 
 static PAYNEARME_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
-    LazyLock::new(SupportedPaymentMethods::new);
+    LazyLock::new(|| {
+        // Mirrors the UCS-side declaration in
+        // connector-integration/src/connectors/paynearme.rs: card only, and
+        // sale/auto-capture only because the PayNearMe API v3.0 has no capture
+        // endpoint at all. 3-D Secure does not exist anywhere in that API, so
+        // `three_ds` is NotSupported.
+        let supported_capture_methods = vec![enums::CaptureMethod::Automatic];
+
+        let supported_card_networks = vec![
+            common_enums::CardNetwork::Visa,
+            common_enums::CardNetwork::Mastercard,
+            common_enums::CardNetwork::AmericanExpress,
+            common_enums::CardNetwork::Discover,
+        ];
+
+        let card_details = || PaymentMethodDetails {
+            // Mandates / autopay are out of scope for this integration.
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: Some(
+                api_models::feature_matrix::PaymentMethodSpecificFeatures::Card(
+                    api_models::feature_matrix::CardSpecificFeatures {
+                        three_ds: common_enums::FeatureStatus::NotSupported,
+                        no_three_ds: common_enums::FeatureStatus::Supported,
+                        supported_card_networks: supported_card_networks.clone(),
+                    },
+                ),
+            ),
+        };
+
+        let mut paynearme_supported_payment_methods = SupportedPaymentMethods::new();
+        // PayNearMe classifies credit vs debit from the BIN; the request always
+        // sends `payment_method_type: "card"`, so both map to the same details.
+        paynearme_supported_payment_methods.add(
+            enums::PaymentMethod::Card,
+            enums::PaymentMethodType::Credit,
+            card_details(),
+        );
+        paynearme_supported_payment_methods.add(
+            enums::PaymentMethod::Card,
+            enums::PaymentMethodType::Debit,
+            card_details(),
+        );
+
+        paynearme_supported_payment_methods
+    });
 
 static PAYNEARME_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "PayNearMe",
@@ -608,6 +655,28 @@ static PAYNEARME_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
 static PAYNEARME_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
 
 impl ConnectorSpecifications for Paynearme {
+    /// "With PayNearMe, an order is required any time money moves." `/create_order`
+    /// must run before `/create_payment_method`, and the UCS connector reads the
+    /// resulting `pnm_order_identifier` out of `connector_order_id` — so
+    /// Hyperswitch has to drive the CreateOrder pre-call. Without this the
+    /// Authorize leg fails with `Missing required field: connector_order_id`.
+    fn is_order_create_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
+        match current_flow {
+            api::CurrentFlowInfo::Authorize {
+                auth_type: _,
+                request_data,
+            } => matches!(
+                &request_data.payment_method_data,
+                hyperswitch_domain_models::payment_method_data::PaymentMethodData::Card(_)
+            ),
+            api::CurrentFlowInfo::CompleteAuthorize { .. }
+            | api::CurrentFlowInfo::SetupMandate { .. }
+            | api::CurrentFlowInfo::Psync { .. }
+            | api::CurrentFlowInfo::UpdatePostConfirm { .. }
+            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
+        }
+    }
+
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&PAYNEARME_CONNECTOR_INFO)
     }
