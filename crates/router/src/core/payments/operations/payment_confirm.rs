@@ -3238,13 +3238,30 @@ async fn apply_selected_offer<F: Clone + Send + Sync>(
         .with_processor_merchant_id(processor.get_processor_merchant_id())
         .with_organization_id(processor.get_account().get_org_id().clone())
         .with_profile_id(profile_id.clone());
-    let offer_config = offer_engine::resolve_offer_engine_config(state, &offer_dimensions)
-        .await
-        .ok()
-        .flatten()
-        .ok_or(report!(errors::ApiErrorResponse::PreconditionFailed {
-            message: "Offer Engine is not available for this offer selection".to_string(),
-        }))?;
+    let offer_config = match offer_engine::resolve_offer_engine_credential_source(
+        state,
+        &offer_dimensions,
+    )
+    .await
+    {
+        offer_engine::OfferEngineCredentialSource::None => {
+            return Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                message: "Offer Engine is not available for this offer selection".to_string(),
+            }));
+        }
+        offer_engine::OfferEngineCredentialSource::Application => {
+            offer_engine::OfferEngineCredentialSource::resolve_application_offer_config(state)
+        }
+        offer_engine::OfferEngineCredentialSource::Merchant => {
+            offer_engine::OfferEngineCredentialSource::resolve_merchant_offer_config(
+                state,
+                processor.get_account(),
+            )
+        }
+    }
+    .change_context(errors::ApiErrorResponse::PreconditionFailed {
+        message: "Offer Engine is not available for this offer selection".to_string(),
+    })?;
 
     let processor_merchant_id = processor.get_account().get_id().clone();
     let payment_id = payment_data.payment_attempt.payment_id.clone();

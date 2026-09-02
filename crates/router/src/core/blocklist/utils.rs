@@ -41,13 +41,11 @@ pub async fn delete_entry_from_blocklist(
     .await?;
 
     let blocklist_entry = match request {
-        api_blocklist::DeleteFromBlocklistRequest::CardBin(bin) => {
+        #[allow(deprecated)]
+        api_blocklist::DeleteFromBlocklistRequest::CardBin(bin)
+        | api_blocklist::DeleteFromBlocklistRequest::ExtendedCardBin(bin)
+        | api_blocklist::DeleteFromBlocklistRequest::GenericCardBin(bin) => {
             delete_card_bin_blocklist_entry(state, &bin, processor_merchant_id, &profile_id).await?
-        }
-
-        api_blocklist::DeleteFromBlocklistRequest::ExtendedCardBin(xbin) => {
-            delete_card_bin_blocklist_entry(state, &xbin, processor_merchant_id, &profile_id)
-                .await?
         }
 
         api_blocklist::DeleteFromBlocklistRequest::Fingerprint(fingerprint_id) => state
@@ -152,28 +150,32 @@ pub async fn list_blocklist_entries_for_merchant(
     })
 }
 
-fn validate_card_bin(bin: &str) -> RouterResult<()> {
-    if bin.len() == 6 && bin.chars().all(|c| c.is_ascii_digit()) {
-        Ok(())
-    } else {
-        Err(errors::ApiErrorResponse::InvalidDataFormat {
-            field_name: "data".to_string(),
-            expected_format: "a 6 digit number".to_string(),
-        }
-        .into())
-    }
-}
+pub(super) fn validate_bin(
+    bin: &str,
+    data_kind: common_enums::BlocklistDataKind,
+) -> RouterResult<()> {
+    let expected = match data_kind {
+        common_enums::BlocklistDataKind::CardBin => Some((6..=6, "a 6 digit number")),
+        common_enums::BlocklistDataKind::ExtendedCardBin => Some((8..=8, "an 8 digit number")),
+        common_enums::BlocklistDataKind::GenericCardBin => Some((
+            cards::validate::MIN_CARD_BIN_LENGTH..=cards::validate::MAX_CARD_BIN_LENGTH,
+            "a 6 to 10 digit number",
+        )),
+        // A fingerprint is an opaque hash, it has no digit format to enforce.
+        common_enums::BlocklistDataKind::PaymentMethod => None,
+    };
 
-fn validate_extended_card_bin(bin: &str) -> RouterResult<()> {
-    if bin.len() == 8 && bin.chars().all(|c| c.is_ascii_digit()) {
-        Ok(())
-    } else {
-        Err(errors::ApiErrorResponse::InvalidDataFormat {
-            field_name: "data".to_string(),
-            expected_format: "an 8 digit number".to_string(),
-        }
-        .into())
-    }
+    expected.map_or(Ok(()), |(lengths, expected_format)| {
+        (lengths.contains(&bin.len()) && cards::validate::validate_card_number_chars(bin).is_ok())
+            .then_some(())
+            .ok_or_else(|| {
+                errors::ApiErrorResponse::InvalidDataFormat {
+                    field_name: "data".to_string(),
+                    expected_format: expected_format.to_string(),
+                }
+                .into()
+            })
+    })
 }
 
 pub async fn insert_entry_into_blocklist(
@@ -194,8 +196,9 @@ pub async fn insert_entry_into_blocklist(
     .await?;
 
     let blocklist_entry = match &to_block {
+        #[allow(deprecated)]
         api_blocklist::AddToBlocklistRequest::CardBin(bin) => {
-            validate_card_bin(bin)?;
+            validate_bin(bin, common_enums::BlocklistDataKind::CardBin)?;
             duplicate_check_insert_bin(
                 bin,
                 state,
@@ -206,14 +209,27 @@ pub async fn insert_entry_into_blocklist(
             .await?
         }
 
+        #[allow(deprecated)]
         api_blocklist::AddToBlocklistRequest::ExtendedCardBin(bin) => {
-            validate_extended_card_bin(bin)?;
+            validate_bin(bin, common_enums::BlocklistDataKind::ExtendedCardBin)?;
             duplicate_check_insert_bin(
                 bin,
                 state,
                 platform,
                 &profile_id,
                 common_enums::BlocklistDataKind::ExtendedCardBin,
+            )
+            .await?
+        }
+
+        api_blocklist::AddToBlocklistRequest::GenericCardBin(bin) => {
+            validate_bin(bin, common_enums::BlocklistDataKind::GenericCardBin)?;
+            duplicate_check_insert_bin(
+                bin,
+                state,
+                platform,
+                &profile_id,
+                common_enums::BlocklistDataKind::GenericCardBin,
             )
             .await?
         }
@@ -422,26 +438,14 @@ pub async fn should_payment_be_blocked(
             None
         };
 
-    // Hashed Cardbin to check whether or not this payment should be blocked.
-    let card_bin_fingerprint = payment_method_data
+    let card_bin_prefixes = payment_method_data
         .as_ref()
         .and_then(|pm_data| match pm_data {
-            domain::EligibilityPaymentMethodData::Card(card) => {
-                Some(card.card_number.get_card_isin())
-            }
+            domain::EligibilityPaymentMethodData::Card(card) => Some(&card.card_number),
             _ => None,
-        });
-
-    // Hashed Extended Cardbin to check whether or not this payment should be blocked.
-    let extended_card_bin_fingerprint =
-        payment_method_data
-            .as_ref()
-            .and_then(|pm_data| match pm_data {
-                domain::EligibilityPaymentMethodData::Card(card) => {
-                    Some(card.card_number.get_extended_card_bin())
-                }
-                _ => None,
-            });
+        })
+        .map(cards::CardNumber::get_blocklist_bin_prefixes)
+        .unwrap_or_default();
 
     // Extended bin of the wallet's decrypted token, to check whether or not this payment should be blocked.
     let decrypted_token_extended_bin = payment_method_data
@@ -449,56 +453,25 @@ pub async fn should_payment_be_blocked(
         .and_then(|pm_data| pm_data.get_decrypted_token_extended_bin());
 
     //validating the payment method.
-    let mut blocklist_futures = Vec::new();
     let profile_id = business_profile.get_id();
-
-    if let Some(card_number_fingerprint) = card_number_fingerprint.as_ref() {
-        blocklist_futures.push(
-            db.find_blocklist_entry_by_processor_merchant_id_profile_id_fingerprint_id(
-                processor_merchant_id,
-                profile_id,
-                card_number_fingerprint,
-            ),
-        );
-    }
-
-    if let Some(card_bin_fingerprint) = card_bin_fingerprint.as_ref() {
-        blocklist_futures.push(
-            db.find_blocklist_entry_by_processor_merchant_id_profile_id_fingerprint_id(
-                processor_merchant_id,
-                profile_id,
-                card_bin_fingerprint,
-            ),
-        );
-    }
-
-    if let Some(extended_card_bin_fingerprint) = extended_card_bin_fingerprint.as_ref() {
-        blocklist_futures.push(
-            db.find_blocklist_entry_by_processor_merchant_id_profile_id_fingerprint_id(
-                processor_merchant_id,
-                profile_id,
-                extended_card_bin_fingerprint,
-            ),
-        );
-    }
-
-    if let Some(decrypted_token_extended_bin) = decrypted_token_extended_bin.as_ref() {
-        blocklist_futures.push(
-            db.find_blocklist_entry_by_processor_merchant_id_profile_id_fingerprint_id(
-                processor_merchant_id,
-                profile_id,
-                decrypted_token_extended_bin,
-            ),
-        );
-    }
-
-    let blocklist_lookups = futures::future::join_all(blocklist_futures).await;
+    let fingerprint_ids = card_number_fingerprint
+        .into_iter()
+        .chain(card_bin_prefixes)
+        .chain(decrypted_token_extended_bin)
+        .collect::<Vec<_>>();
 
     let mut block_reason: Option<BlockReason> = None;
-    for lookup in blocklist_lookups {
-        match lookup {
-            Ok(_) => {
-                block_reason = Some(BlockReason::BlockedBin);
+    if !fingerprint_ids.is_empty() {
+        match db
+            .find_blocklist_entries_by_processor_merchant_id_profile_id_fingerprint_ids(
+                processor_merchant_id,
+                profile_id,
+                fingerprint_ids,
+            )
+            .await
+        {
+            Ok(entry) => {
+                block_reason = entry.is_some().then_some(BlockReason::BlockedBin);
             }
             Err(e) => {
                 logger::error!(blocklist_db_error=?e, "failed db operations for blocklist");

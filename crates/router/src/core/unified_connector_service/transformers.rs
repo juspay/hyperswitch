@@ -5419,6 +5419,40 @@ impl transformers::ForeignTryFrom<common_enums::BankNames> for payments_grpc::Ba
             common_enums::BankNames::Seb => Ok(Self::Seb),
             common_enums::BankNames::Swedbank => Ok(Self::Swedbank),
             common_enums::BankNames::MockUkPayments => Ok(Self::MockUkPayments),
+            common_enums::BankNames::AccessBank => Ok(Self::AccessBank),
+            common_enums::BankNames::Albaraka => Ok(Self::Albaraka),
+            common_enums::BankNames::ChinaConstructionBank => Ok(Self::ChinaConstructionBank),
+            common_enums::BankNames::Discovery => Ok(Self::Discovery),
+            common_enums::BankNames::EnlBank => Ok(Self::EnlBank),
+            common_enums::BankNames::FirstNationalBank => Ok(Self::FirstNationalBank),
+            common_enums::BankNames::GotymeBank => Ok(Self::GotymeBank),
+            common_enums::BankNames::HabibOverseas => Ok(Self::HabibOverseas),
+            common_enums::BankNames::HbzBank => Ok(Self::HbzBank),
+            common_enums::BankNames::Investec => Ok(Self::Investec),
+            common_enums::BankNames::JpMorganChase => Ok(Self::JpMorganChase),
+            common_enums::BankNames::MtnBanking => Ok(Self::MtnBanking),
+            common_enums::BankNames::Olympus => Ok(Self::Olympus),
+            common_enums::BankNames::OldMutual => Ok(Self::OldMutual),
+            common_enums::BankNames::PermanentBank => Ok(Self::PermanentBank),
+            common_enums::BankNames::SocieteGenerale => Ok(Self::SocieteGenerale),
+            common_enums::BankNames::StandardBank => Ok(Self::StandardBank),
+            common_enums::BankNames::StateBankOfIndia => Ok(Self::StateBankOfIndia),
+            common_enums::BankNames::Ubank => Ok(Self::Ubank),
+            common_enums::BankNames::VbsMutualBank => Ok(Self::VbsMutualBank),
+            common_enums::BankNames::BankZero => Ok(Self::BankZero),
+            common_enums::BankNames::BidvestBank => Ok(Self::BidvestBank),
+            common_enums::BankNames::BidvestBankAlliances => Ok(Self::BidvestBankAlliances),
+            common_enums::BankNames::FbcFidelityBank => Ok(Self::FbcFidelityBank),
+            common_enums::BankNames::FinbondEpe => Ok(Self::FinbondEpe),
+            common_enums::BankNames::FinbondMutualBank => Ok(Self::FinbondMutualBank),
+            common_enums::BankNames::Ithala => Ok(Self::Ithala),
+            common_enums::BankNames::PeoplesBankPepBank => Ok(Self::PeoplesBankPepBank),
+            common_enums::BankNames::PeoplesBank => Ok(Self::PeoplesBank),
+            common_enums::BankNames::Nedbank => Ok(Self::Nedbank),
+            common_enums::BankNames::Capitec => Ok(Self::Capitec),
+            common_enums::BankNames::CapitecBusiness => Ok(Self::CapitecBusiness),
+            common_enums::BankNames::AfricanBank => Ok(Self::AfricanBank),
+            common_enums::BankNames::AfricanBankBusiness => Ok(Self::AfricanBankBusiness),
         }
     }
 }
@@ -5432,6 +5466,10 @@ impl transformers::ForeignTryFrom<common_enums::BankType> for payments_grpc::Ban
             common_enums::BankType::Savings => Ok(Self::Savings),
             common_enums::BankType::Salary => Ok(Self::Salary),
             common_enums::BankType::Payment => Ok(Self::Payment),
+            common_enums::BankType::Transmission => Ok(Self::Transmission),
+            common_enums::BankType::Current => Ok(Self::Current),
+            common_enums::BankType::Bond => Ok(Self::Bond),
+            common_enums::BankType::SubscriptionShare => Ok(Self::SubscriptionShare),
         }
     }
 }
@@ -8855,6 +8893,10 @@ impl ForeignFrom<&common_enums::BankType> for payments_grpc::BankType {
             common_enums::BankType::Savings => Self::Savings,
             common_enums::BankType::Salary => Self::Salary,
             common_enums::BankType::Payment => Self::Payment,
+            common_enums::BankType::Bond => Self::Bond,
+            common_enums::BankType::Current => Self::Current,
+            common_enums::BankType::Transmission => Self::Transmission,
+            common_enums::BankType::SubscriptionShare => Self::SubscriptionShare,
         }
     }
 }

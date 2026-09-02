@@ -341,6 +341,8 @@ impl
         Ok(Self {
             response: Ok(recovery_response_types::InvoiceRecordBackResponse {
                 merchant_reference_id,
+                // Recurly's record-back does not return a usable transaction id.
+                connector_transaction_id: None,
             }),
             ..item.data
         })

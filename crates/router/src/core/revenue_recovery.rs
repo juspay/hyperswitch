@@ -295,21 +295,26 @@ pub async fn perform_execute_payment(
         types::Decision::Execute => {
             let connector_customer_id = revenue_recovery_metadata.get_connector_customer_id();
 
-            let last_token_used = payment_intent
-                .feature_metadata
-                .as_ref()
-                .and_then(|fm| fm.payment_revenue_recovery_metadata.as_ref())
-                .map(|rr| {
-                    rr.billing_connector_payment_details
-                        .payment_processor_token
-                        .clone()
-                });
+            let last_token_used =
+                revenue_recovery_workflow::get_invoice_payment_processor_token(payment_intent);
+
+            // Same dimensions calculate resolves the flag on
+            let adaptive_retry_enabled = crate::core::configs::dimension_state::Dimensions::new()
+                .with_processor_merchant_id(payment_intent.merchant_id.clone().into())
+                .with_connector(revenue_recovery_payment_data.billing_mca.connector_name)
+                .get_adaptive_retry_enabled(
+                    state.store.as_ref(),
+                    state.superposition_service.as_ref(),
+                    None,
+                )
+                .await;
 
             let processor_token = storage::revenue_recovery_redis_operation::RedisTokenManager::get_token_based_on_retry_type(
                 state,
                 &connector_customer_id,
                 tracking_data.revenue_recovery_retry,
                 last_token_used.as_deref(),
+                adaptive_retry_enabled,
             )
             .await
             .change_context(errors::ApiErrorResponse::GenericNotFoundError {
