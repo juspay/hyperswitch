@@ -2,7 +2,6 @@ use common_enums::enums;
 use common_types::primitive_wrappers;
 use common_utils::{
     errors::ParsingError,
-    ext_traits::ValueExt,
     id_type,
     pii::{Email, IpAddress},
     request::Method,
@@ -14,8 +13,8 @@ use hyperswitch_domain_models::{
         BankRedirectData, BankTransferData, PayLaterData, PaymentMethodData, WalletData,
     },
     router_data::{
-        AccessToken, ConnectorAuthType, ConnectorResponseData, ExtendedAuthorizationResponseData,
-        RouterData,
+        AccessToken, ConnectorAuthType, ConnectorResponseData, ErrorResponse,
+        ExtendedAuthorizationResponseData, RouterData,
     },
     router_flow_types::{
         refunds::{Execute, RSync},
@@ -28,7 +27,7 @@ use hyperswitch_domain_models::{
     },
     types,
 };
-use hyperswitch_interfaces::errors;
+use hyperswitch_interfaces::{consts, errors};
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -522,6 +521,7 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
         let mut payment_method_options = None;
         let request = &item.router_data.request;
         let is_mit_payment = request.is_mit_payment();
+        // Mandate/MIT payments only need payment_consent_id; payment_method is omitted.
         let payment_method = if is_mit_payment {
             None
         } else {
@@ -634,7 +634,7 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
             PaymentMethodData::PayLater(_paylater_data) => {
                 item.router_data.request.router_return_url.clone()
             }
-            _ => request.complete_authorize_url.clone(),
+            _ => request.router_return_url.clone(),
         };
 
         let is_mandate_payment = is_mit_payment
@@ -1098,9 +1098,10 @@ fn get_payment_status(
 ) -> enums::AttemptStatus {
     match status.clone() {
         AirwallexPaymentStatus::Succeeded => enums::AttemptStatus::Charged,
-        AirwallexPaymentStatus::Failed => enums::AttemptStatus::Failure,
+        AirwallexPaymentStatus::Failed | AirwallexPaymentStatus::RequiresPaymentMethod => {
+            enums::AttemptStatus::Failure
+        }
         AirwallexPaymentStatus::Pending => enums::AttemptStatus::Pending,
-        AirwallexPaymentStatus::RequiresPaymentMethod => enums::AttemptStatus::PaymentMethodAwaited,
         AirwallexPaymentStatus::RequiresCustomerAction => next_action.as_ref().map_or(
             enums::AttemptStatus::AuthenticationPending,
             |next_action| match next_action {
@@ -1169,6 +1170,14 @@ pub struct AirwallexPaymentsResponse {
 #[derive(Default, Debug, Clone, Deserialize, PartialEq, Serialize)]
 pub struct AirwallexPaymentAttemptResponse {
     payment_method: Option<AirwallexPaymentMethodResponse>,
+    failure_details: Option<AirwallexPaymentFailureDetails>,
+}
+
+#[derive(Default, Debug, Clone, Deserialize, PartialEq, Serialize)]
+pub struct AirwallexPaymentFailureDetails {
+    code: Option<String>,
+    message: Option<String>,
+    provider_original_response_description: Option<String>,
 }
 
 #[derive(Default, Debug, Clone, Deserialize, PartialEq, Serialize)]
@@ -1199,6 +1208,7 @@ pub struct AirwallexPaymentsSyncResponse {
     //ID of the PaymentConsent related to this PaymentIntent
     payment_consent_id: Option<Secret<String>>,
     next_action: Option<AirwallexPaymentsNextAction>,
+    latest_payment_attempt: Option<AirwallexPaymentAttemptResponse>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -1385,22 +1395,52 @@ where
                 )
             });
 
-        Ok(Self {
-            status,
-            reference_id: Some(item.response.id.clone()),
-            response: Ok(PaymentsResponseData::TransactionResponse {
+        let response = if status.is_payment_terminal_failure() {
+            let failure_details = item
+                .response
+                .latest_payment_attempt
+                .as_ref()
+                .and_then(|attempt| attempt.failure_details.clone());
+            Err(ErrorResponse {
+                code: failure_details
+                    .as_ref()
+                    .and_then(|details| details.code.clone())
+                    .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                message: failure_details
+                    .as_ref()
+                    .and_then(|details| details.message.clone())
+                    .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+                reason: failure_details
+                    .and_then(|details| details.provider_original_response_description),
+                status_code: item.http_code,
+                attempt_status: Some(status),
+                connector_transaction_id: Some(item.response.id.clone()),
+                connector_response_reference_id: Some(item.response.id.clone()),
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            })
+        } else {
+            Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: Box::new(redirection_data),
                 mandate_reference,
                 connector_metadata: None,
                 network_txn_id: None,
                 network_txn_link_id: None,
-                connector_response_reference_id: Some(item.response.id),
+                connector_response_reference_id: Some(item.response.id.clone()),
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
                 payment_account_reference: None,
-            }),
+            })
+        };
+
+        Ok(Self {
+            status,
+            reference_id: Some(item.response.id.clone()),
+            response,
             connector_response,
             ..item.data
         })
@@ -1443,23 +1483,53 @@ impl<F, T> TryFrom<ResponseRouterData<F, AirwallexRedirectResponse, T, PaymentsR
                 )
             },
         );
+        let mandate_reference =
+            Box::new(
+                item.response
+                    .payment_consent_id
+                    .clone()
+                    .map(|id| MandateReference {
+                        connector_mandate_id: Some(id.expose()),
+                        payment_method_id: None,
+                        mandate_metadata: None,
+                        connector_mandate_request_reference_id: None,
+                    }),
+            );
 
-        Ok(Self {
-            status,
-            reference_id: Some(item.response.id.clone()),
-            response: Ok(PaymentsResponseData::TransactionResponse {
+        let response = if status.is_payment_terminal_failure() {
+            Err(ErrorResponse {
+                code: consts::NO_ERROR_CODE.to_string(),
+                message: consts::NO_ERROR_MESSAGE.to_string(),
+                reason: None,
+                status_code: item.http_code,
+                attempt_status: Some(status),
+                connector_transaction_id: Some(item.response.id.clone()),
+                connector_response_reference_id: Some(item.response.id.clone()),
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            })
+        } else {
+            Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: Box::new(redirection_data),
-                mandate_reference: Box::new(None),
+                mandate_reference,
                 connector_metadata: None,
                 network_txn_id: None,
                 network_txn_link_id: None,
-                connector_response_reference_id: Some(item.response.id),
+                connector_response_reference_id: Some(item.response.id.clone()),
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
                 payment_account_reference: None,
-            }),
+            })
+        };
+
+        Ok(Self {
+            status,
+            reference_id: Some(item.response.id.clone()),
+            response,
             ..item.data
         })
     }
@@ -1498,22 +1568,65 @@ impl
         } else {
             None
         };
-        Ok(Self {
-            status,
-            reference_id: Some(item.response.id.clone()),
-            response: Ok(PaymentsResponseData::TransactionResponse {
+        let mandate_reference =
+            Box::new(
+                item.response
+                    .payment_consent_id
+                    .clone()
+                    .map(|id| MandateReference {
+                        connector_mandate_id: Some(id.expose()),
+                        payment_method_id: None,
+                        mandate_metadata: None,
+                        connector_mandate_request_reference_id: None,
+                    }),
+            );
+
+        let response = if status.is_payment_terminal_failure() {
+            let failure_details = item
+                .response
+                .latest_payment_attempt
+                .as_ref()
+                .and_then(|attempt| attempt.failure_details.clone());
+            Err(ErrorResponse {
+                code: failure_details
+                    .as_ref()
+                    .and_then(|details| details.code.clone())
+                    .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                message: failure_details
+                    .as_ref()
+                    .and_then(|details| details.message.clone())
+                    .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+                reason: failure_details
+                    .and_then(|details| details.provider_original_response_description),
+                status_code: item.http_code,
+                attempt_status: Some(status),
+                connector_transaction_id: Some(item.response.id.clone()),
+                connector_response_reference_id: Some(item.response.id.clone()),
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            })
+        } else {
+            Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: Box::new(redirection_data),
-                mandate_reference: Box::new(None),
+                mandate_reference,
                 connector_metadata: None,
                 network_txn_id: None,
                 network_txn_link_id: None,
-                connector_response_reference_id: Some(item.response.id),
+                connector_response_reference_id: Some(item.response.id.clone()),
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
                 payment_account_reference: None,
-            }),
+            })
+        };
+
+        Ok(Self {
+            status,
+            reference_id: Some(item.response.id.clone()),
+            response,
             ..item.data
         })
     }
