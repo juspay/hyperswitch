@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, collections::HashSet};
 
 use common_enums::enums as api_enums;
 use common_types::{domain::AcquirerConfig, primitive_wrappers};
@@ -11,15 +11,348 @@ use common_utils::{
 #[cfg(feature = "v2")]
 use diesel_models::business_profile::RevenueRecoveryAlgorithmData;
 use diesel_models::business_profile::{
-    AuthenticationConnectorDetails, BusinessPaymentLinkConfig, BusinessPayoutLinkConfig,
-    CardTestingGuardConfig, ExternalVaultConnectorDetails, PaymentMethodBlockingConfig,
-    SurchargeConnectorDetails, WebhookDetails,
+    self as storage_types, AuthenticationConnectorDetails, BusinessPaymentLinkConfig,
+    BusinessPayoutLinkConfig, CardTestingGuardConfig, ExternalVaultConnectorDetails,
+    PaymentMethodBlockingConfig, SurchargeConnectorDetails,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::ExposeInterface;
+use hyperswitch_masking::{ExposeInterface, Secret};
 use router_env::logger;
+use strum::IntoEnumIterator;
 
-use crate::{errors::api_error_response, merchant_key_store::MerchantKeyStore, payments};
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct MultipleWebhookDetail {
+    pub webhook_endpoint_id: common_utils::id_type::WebhookEndpointId,
+    pub webhook_url: Secret<String>,
+    pub events: HashSet<common_enums::EventType>,
+    pub status: common_enums::OutgoingWebhookEndpointStatus,
+    pub is_legacy_url: bool,
+}
+
+impl ForeignFrom<storage_types::MultipleWebhookDetail> for MultipleWebhookDetail {
+    fn foreign_from(item: storage_types::MultipleWebhookDetail) -> Self {
+        Self {
+            webhook_endpoint_id: item.webhook_endpoint_id,
+            webhook_url: item.webhook_url,
+            events: item.events,
+            status: item.status,
+            is_legacy_url: item.is_legacy_url,
+        }
+    }
+}
+
+impl ForeignFrom<MultipleWebhookDetail> for storage_types::MultipleWebhookDetail {
+    fn foreign_from(item: MultipleWebhookDetail) -> Self {
+        Self {
+            webhook_endpoint_id: item.webhook_endpoint_id,
+            webhook_url: item.webhook_url,
+            events: item.events,
+            status: item.status,
+            is_legacy_url: item.is_legacy_url,
+        }
+    }
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct WebhookUrls(pub Vec<MultipleWebhookDetail>);
+
+impl From<Vec<MultipleWebhookDetail>> for WebhookUrls {
+    fn from(item: Vec<MultipleWebhookDetail>) -> Self {
+        Self(item)
+    }
+}
+
+impl WebhookUrls {
+    pub fn get_legacy_url(&self) -> Option<Secret<String>> {
+        self.0
+            .iter()
+            .find(|webhook_detail| webhook_detail.is_legacy_url)
+            .map(|webhook_detail| webhook_detail.webhook_url.clone())
+    }
+
+    pub fn get_legacy_events(&self) -> HashSet<common_enums::EventType> {
+        self.0
+            .iter()
+            .find(|webhook_detail| webhook_detail.is_legacy_url)
+            .map(|webhook_detail| webhook_detail.events.clone())
+            .unwrap_or_default()
+    }
+
+    pub fn update_legacy_webhook_url(&mut self, new_url: Secret<String>) {
+        if let Some(legacy_webhook) = self
+            .0
+            .iter_mut()
+            .find(|webhook_detail| webhook_detail.is_legacy_url)
+        {
+            legacy_webhook.webhook_url = new_url;
+        }
+    }
+
+    pub fn merge_events_into_legacy_url(&mut self, events: HashSet<common_enums::EventType>) {
+        if let Some(legacy_webhook) = self
+            .0
+            .iter_mut()
+            .find(|webhook_detail| webhook_detail.is_legacy_url)
+        {
+            legacy_webhook.events.extend(events);
+        }
+    }
+
+    pub fn replace_events_in_legacy_url(
+        &mut self,
+        event_class: common_enums::EventClass,
+        new_events: HashSet<common_enums::EventType>,
+    ) {
+        if let Some(legacy_webhook) = self
+            .0
+            .iter_mut()
+            .find(|webhook_detail| webhook_detail.is_legacy_url)
+        {
+            let class_events = event_class.event_types();
+            legacy_webhook.events.retain(|e| !class_events.contains(e));
+            legacy_webhook.events.extend(new_events);
+        }
+    }
+
+    pub fn get_multiple_webhook_urls(
+        legacy_url: Option<Secret<String>>,
+        multiple_urls: Option<Vec<storage_types::MultipleWebhookDetail>>,
+    ) -> Self {
+        let mut urls = Vec::new();
+        let mut processed_endpoint_ids = HashSet::new();
+        let existing_legacy_entry = multiple_urls
+            .as_ref()
+            .and_then(|list| list.iter().find(|detail| detail.is_legacy_url));
+
+        if let Some(legacy_url_value) = legacy_url {
+            let webhook_endpoint_id = existing_legacy_entry
+                .map(|entry| entry.webhook_endpoint_id.clone())
+                .unwrap_or_else(common_utils::generate_webhook_endpoint_id_of_default_length);
+
+            if processed_endpoint_ids.insert(webhook_endpoint_id.clone()) {
+                urls.push(MultipleWebhookDetail {
+                    webhook_endpoint_id,
+                    webhook_url: legacy_url_value,
+                    events: existing_legacy_entry
+                        .map(|entry| entry.events.clone())
+                        .unwrap_or_else(|| common_enums::EventType::iter().collect()),
+                    status: existing_legacy_entry
+                        .map(|entry| entry.status)
+                        .unwrap_or(common_enums::OutgoingWebhookEndpointStatus::Active),
+                    is_legacy_url: true,
+                });
+            }
+        }
+
+        if let Some(multiple_urls_list) = multiple_urls {
+            for detail in multiple_urls_list {
+                if detail.is_legacy_url {
+                    continue;
+                }
+                if processed_endpoint_ids.insert(detail.webhook_endpoint_id.clone()) {
+                    urls.push(detail.foreign_into());
+                }
+            }
+        }
+        Self(urls)
+    }
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct WebhookDetails {
+    pub webhook_version: Option<String>,
+    pub webhook_username: Option<String>,
+    pub webhook_password: Option<Secret<String>>,
+    pub payment_created_enabled: Option<bool>,
+    pub multiple_webhooks_list: Option<WebhookUrls>,
+}
+
+impl ForeignFrom<storage_types::WebhookDetails> for WebhookDetails {
+    fn foreign_from(item: storage_types::WebhookDetails) -> Self {
+        let mut webhook_urls =
+            WebhookUrls::get_multiple_webhook_urls(item.webhook_url, item.multiple_webhooks_list);
+
+        if let Some(payment_statuses) = &item.payment_statuses_enabled {
+            let events: HashSet<common_enums::EventType> = payment_statuses
+                .iter()
+                .filter_map(|s| (*s).into())
+                .collect();
+            webhook_urls.merge_events_into_legacy_url(events);
+        }
+        if let Some(refund_statuses) = &item.refund_statuses_enabled {
+            let events: HashSet<common_enums::EventType> =
+                refund_statuses.iter().filter_map(|s| (*s).into()).collect();
+            webhook_urls.merge_events_into_legacy_url(events);
+        }
+        #[cfg(feature = "payouts")]
+        if let Some(payout_statuses) = &item.payout_statuses_enabled {
+            let events: HashSet<common_enums::EventType> =
+                payout_statuses.iter().filter_map(|s| (*s).into()).collect();
+            webhook_urls.merge_events_into_legacy_url(events);
+        }
+
+        Self {
+            webhook_version: item.webhook_version,
+            webhook_username: item.webhook_username,
+            webhook_password: item.webhook_password,
+            payment_created_enabled: item.payment_created_enabled,
+            multiple_webhooks_list: Some(webhook_urls),
+        }
+    }
+}
+
+impl WebhookDetails {
+    pub fn merge(self, other: Self) -> Self {
+        Self {
+            webhook_version: other.webhook_version.or(self.webhook_version),
+            webhook_username: other.webhook_username.or(self.webhook_username),
+            webhook_password: other.webhook_password.or(self.webhook_password),
+            payment_created_enabled: other
+                .payment_created_enabled
+                .or(self.payment_created_enabled),
+            multiple_webhooks_list: other.multiple_webhooks_list.or(self.multiple_webhooks_list),
+        }
+    }
+
+    pub fn update_from_api(
+        existing: Option<Self>,
+        api_webhook: api_models::admin::WebhookDetails,
+    ) -> Self {
+        let mut existing_webhook_urls = existing
+            .as_ref()
+            .and_then(|d| d.multiple_webhooks_list.clone())
+            .unwrap_or_else(|| WebhookUrls::get_multiple_webhook_urls(None, None));
+
+        if let Some(new_url) = api_webhook.webhook_url {
+            existing_webhook_urls.update_legacy_webhook_url(new_url);
+        }
+
+        if let Some(payment_statuses) = &api_webhook.payment_statuses_enabled {
+            let events: HashSet<common_enums::EventType> = payment_statuses
+                .iter()
+                .filter_map(|s| (*s).into())
+                .collect();
+            existing_webhook_urls
+                .replace_events_in_legacy_url(common_enums::EventClass::Payments, events);
+        }
+
+        if let Some(refund_statuses) = &api_webhook.refund_statuses_enabled {
+            let events: HashSet<common_enums::EventType> =
+                refund_statuses.iter().filter_map(|s| (*s).into()).collect();
+            existing_webhook_urls
+                .replace_events_in_legacy_url(common_enums::EventClass::Refunds, events);
+        }
+
+        #[cfg(feature = "payouts")]
+        if let Some(payout_statuses) = &api_webhook.payout_statuses_enabled {
+            let events: HashSet<common_enums::EventType> =
+                payout_statuses.iter().filter_map(|s| (*s).into()).collect();
+            existing_webhook_urls
+                .replace_events_in_legacy_url(common_enums::EventClass::Payouts, events);
+        }
+
+        let api_webhook_as_domain = Self {
+            webhook_version: api_webhook.webhook_version,
+            webhook_username: api_webhook.webhook_username,
+            webhook_password: api_webhook.webhook_password,
+            payment_created_enabled: api_webhook.payment_created_enabled,
+            multiple_webhooks_list: Some(existing_webhook_urls),
+        };
+
+        match existing {
+            Some(existing_details) => existing_details.merge(api_webhook_as_domain),
+            None => api_webhook_as_domain,
+        }
+    }
+}
+
+impl ForeignFrom<WebhookDetails> for storage_types::WebhookDetails {
+    fn foreign_from(item: WebhookDetails) -> Self {
+        let webhook_url = item
+            .multiple_webhooks_list
+            .as_ref()
+            .and_then(|list| list.get_legacy_url());
+
+        let legacy_events = item
+            .multiple_webhooks_list
+            .as_ref()
+            .map(|list| list.get_legacy_events())
+            .unwrap_or_default();
+
+        let payment_statuses_enabled: Option<Vec<common_enums::IntentStatus>> = {
+            let statuses: Vec<common_enums::IntentStatus> = common_enums::IntentStatus::iter()
+                .filter(|s| {
+                    let et: Option<common_enums::EventType> = (*s).into();
+                    et.is_some_and(|e| legacy_events.contains(&e))
+                })
+                .collect();
+            if statuses.is_empty() {
+                None
+            } else {
+                Some(statuses)
+            }
+        };
+
+        let refund_statuses_enabled: Option<Vec<common_enums::RefundStatus>> = {
+            let statuses: Vec<common_enums::RefundStatus> = common_enums::RefundStatus::iter()
+                .filter(|s| {
+                    let et: Option<common_enums::EventType> = (*s).into();
+                    et.is_some_and(|e| legacy_events.contains(&e))
+                })
+                .collect();
+            if statuses.is_empty() {
+                None
+            } else {
+                Some(statuses)
+            }
+        };
+
+        #[cfg(feature = "payouts")]
+        let payout_statuses_enabled: Option<Vec<common_enums::PayoutStatus>> = {
+            let statuses: Vec<common_enums::PayoutStatus> = common_enums::PayoutStatus::iter()
+                .filter(|s| {
+                    let et: Option<common_enums::EventType> = (*s).into();
+                    et.is_some_and(|e| legacy_events.contains(&e))
+                })
+                .collect();
+            if statuses.is_empty() {
+                None
+            } else {
+                Some(statuses)
+            }
+        };
+
+        #[cfg(not(feature = "payouts"))]
+        let payout_statuses_enabled: Option<Vec<common_enums::PayoutStatus>> = None;
+
+        Self {
+            webhook_version: item.webhook_version,
+            webhook_username: item.webhook_username,
+            webhook_password: item.webhook_password,
+            webhook_url,
+            payment_created_enabled: item.payment_created_enabled,
+            payment_succeeded_enabled: Some(
+                legacy_events.contains(&common_enums::EventType::PaymentSucceeded),
+            ),
+            payment_failed_enabled: Some(
+                legacy_events.contains(&common_enums::EventType::PaymentFailed),
+            ),
+            payment_statuses_enabled,
+            refund_statuses_enabled,
+            payout_statuses_enabled,
+            multiple_webhooks_list: item
+                .multiple_webhooks_list
+                .map(|urls| urls.0.into_iter().map(ForeignFrom::foreign_from).collect()),
+        }
+    }
+}
+
+use crate::{
+    errors::api_error_response,
+    merchant_key_store::MerchantKeyStore,
+    payments,
+    transformers::{ForeignFrom, ForeignInto},
+};
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Profile {
@@ -952,8 +1285,9 @@ impl Profile {
 
     pub fn get_webhook_url_from_profile(&self) -> CustomResult<String, ValidationError> {
         self.webhook_details
-            .clone()
-            .and_then(|details| details.webhook_url)
+            .as_ref()
+            .and_then(|details| details.multiple_webhooks_list.as_ref())
+            .and_then(|list| list.get_legacy_url())
             .get_required_value("webhook_details.webhook_url")
             .map(ExposeInterface::expose)
     }
@@ -1128,31 +1462,80 @@ impl Profile {
     pub fn get_configured_payment_webhook_statuses(
         &self,
     ) -> Option<Cow<'_, [common_enums::IntentStatus]>> {
-        self.webhook_details
+        let events = self
+            .webhook_details
             .as_ref()
-            .and_then(|details| details.payment_statuses_enabled.as_ref())
-            .filter(|statuses_vec| !statuses_vec.is_empty())
-            .map(|statuses_vec| Cow::Borrowed(statuses_vec.as_slice()))
+            .and_then(|details| details.multiple_webhooks_list.as_ref())
+            .map(|list| list.get_legacy_events())
+            .unwrap_or_default();
+
+        let statuses: Vec<common_enums::IntentStatus> = common_enums::IntentStatus::iter()
+            .filter(|s| {
+                let et: Option<common_enums::EventType> = (*s).into();
+                et.is_some_and(|e| events.contains(&e))
+            })
+            .collect();
+
+        if statuses.is_empty() {
+            None
+        } else {
+            Some(Cow::Owned(statuses))
+        }
     }
 
     pub fn get_configured_refund_webhook_statuses(
         &self,
     ) -> Option<Cow<'_, [common_enums::RefundStatus]>> {
-        self.webhook_details
+        let events = self
+            .webhook_details
             .as_ref()
-            .and_then(|details| details.refund_statuses_enabled.as_ref())
-            .filter(|statuses_vec| !statuses_vec.is_empty())
-            .map(|statuses_vec| Cow::Borrowed(statuses_vec.as_slice()))
+            .and_then(|details| details.multiple_webhooks_list.as_ref())
+            .map(|list| list.get_legacy_events())
+            .unwrap_or_default();
+
+        let statuses: Vec<common_enums::RefundStatus> = common_enums::RefundStatus::iter()
+            .filter(|s| {
+                let et: Option<common_enums::EventType> = (*s).into();
+                et.is_some_and(|e| events.contains(&e))
+            })
+            .collect();
+
+        if statuses.is_empty() {
+            None
+        } else {
+            Some(Cow::Owned(statuses))
+        }
     }
 
     pub fn get_configured_payout_webhook_statuses(
         &self,
     ) -> Option<Cow<'_, [common_enums::PayoutStatus]>> {
-        self.webhook_details
-            .as_ref()
-            .and_then(|details| details.payout_statuses_enabled.as_ref())
-            .filter(|statuses_vec| !statuses_vec.is_empty())
-            .map(|statuses_vec| Cow::Borrowed(statuses_vec.as_slice()))
+        #[cfg(feature = "payouts")]
+        {
+            let events = self
+                .webhook_details
+                .as_ref()
+                .and_then(|details| details.multiple_webhooks_list.as_ref())
+                .map(|list| list.get_legacy_events())
+                .unwrap_or_default();
+
+            let statuses: Vec<common_enums::PayoutStatus> = common_enums::PayoutStatus::iter()
+                .filter(|s| {
+                    let et: Option<common_enums::EventType> = (*s).into();
+                    et.is_some_and(|e| events.contains(&e))
+                })
+                .collect();
+
+            if statuses.is_empty() {
+                None
+            } else {
+                Some(Cow::Owned(statuses))
+            }
+        }
+        #[cfg(not(feature = "payouts"))]
+        {
+            None
+        }
     }
 
     pub fn get_billing_processor_id(

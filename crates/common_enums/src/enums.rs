@@ -1898,6 +1898,7 @@ impl EventClass {
                 EventType::PaymentCancelled,
                 EventType::PaymentCancelledPostCapture,
                 EventType::PaymentAuthorized,
+                EventType::PaymentPartiallyAuthorized,
                 EventType::PaymentCaptured,
                 EventType::PaymentExpired,
                 EventType::ActionRequired,
@@ -1946,6 +1947,7 @@ impl EventClass {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    strum::EnumIter,
     ToSchema,
 )]
 #[router_derive::diesel_enum(storage_type = "db_enum")]

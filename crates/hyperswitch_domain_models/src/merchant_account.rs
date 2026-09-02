@@ -16,7 +16,9 @@ use router_env::logger;
 
 use crate::{
     behaviour::Conversion,
+    business_profile::WebhookDetails,
     merchant_key_store,
+    transformers::ForeignInto,
     type_encryption::{crypto_operation, AsyncLift, CryptoOperation},
 };
 
@@ -30,7 +32,7 @@ pub struct MerchantAccount {
     pub redirect_to_merchant_with_http_post: bool,
     pub merchant_name: OptionalEncryptableName,
     pub merchant_details: OptionalEncryptableValue,
-    pub webhook_details: Option<diesel_models::business_profile::WebhookDetails>,
+    pub webhook_details: Option<WebhookDetails>,
     pub sub_merchants_enabled: Option<bool>,
     pub parent_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub publishable_key: String,
@@ -70,7 +72,7 @@ pub struct MerchantAccountSetter {
     pub redirect_to_merchant_with_http_post: bool,
     pub merchant_name: OptionalEncryptableName,
     pub merchant_details: OptionalEncryptableValue,
-    pub webhook_details: Option<diesel_models::business_profile::WebhookDetails>,
+    pub webhook_details: Option<WebhookDetails>,
     pub sub_merchants_enabled: Option<bool>,
     pub parent_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub publishable_key: String,
@@ -287,7 +289,7 @@ pub enum MerchantAccountUpdate {
         merchant_name: OptionalEncryptableName,
         merchant_details: OptionalEncryptableValue,
         return_url: Option<String>,
-        webhook_details: Option<diesel_models::business_profile::WebhookDetails>,
+        webhook_details: Option<WebhookDetails>,
         sub_merchants_enabled: Option<bool>,
         parent_merchant_id: Option<common_utils::id_type::MerchantId>,
         enable_payment_response_hash: Option<bool>,
@@ -368,7 +370,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 merchant_name: merchant_name.map(Encryption::from),
                 merchant_details: merchant_details.map(Encryption::from),
                 frm_routing_algorithm,
-                webhook_details,
+                webhook_details: webhook_details.map(|val| val.foreign_into()),
                 routing_algorithm,
                 sub_merchants_enabled,
                 parent_merchant_id,
@@ -721,7 +723,7 @@ impl Conversion for MerchantAccount {
             redirect_to_merchant_with_http_post: self.redirect_to_merchant_with_http_post,
             merchant_name: self.merchant_name.map(|name| name.into()),
             merchant_details: self.merchant_details.map(|details| details.into()),
-            webhook_details: self.webhook_details,
+            webhook_details: self.webhook_details.map(|val| val.foreign_into()),
             sub_merchants_enabled: self.sub_merchants_enabled,
             parent_merchant_id: self.parent_merchant_id,
             publishable_key: Some(self.publishable_key),
@@ -806,7 +808,7 @@ impl Conversion for MerchantAccount {
                         .and_then(|val| val.try_into_optionaloperation())
                     })
                     .await?,
-                webhook_details: item.webhook_details,
+                webhook_details: item.webhook_details.map(|val| val.foreign_into()),
                 sub_merchants_enabled: item.sub_merchants_enabled,
                 parent_merchant_id: item.parent_merchant_id,
                 publishable_key,
@@ -875,7 +877,7 @@ impl Conversion for MerchantAccount {
             merchant_name: self.merchant_name.map(Encryption::from),
             merchant_details: self.merchant_details.map(Encryption::from),
             return_url: self.return_url,
-            webhook_details: self.webhook_details,
+            webhook_details: self.webhook_details.map(|val| val.foreign_into()),
             sub_merchants_enabled: self.sub_merchants_enabled,
             parent_merchant_id: self.parent_merchant_id,
             enable_payment_response_hash: Some(self.enable_payment_response_hash),

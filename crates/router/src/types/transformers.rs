@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use actix_web::http::header::HeaderMap;
 use api_models::{
     card_issuer as card_issuer_types, cards_info as card_info_types, enums as api_enums,
@@ -18,6 +20,7 @@ use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{mandates, payments::payment_intent::CustomerData};
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
+use strum::IntoEnumIterator;
 
 use super::domain;
 #[cfg(feature = "v2")]
@@ -2530,40 +2533,120 @@ impl ForeignFrom<diesel_models::business_profile::WalletBlockingConfig>
 }
 
 impl ForeignFrom<api_models::admin::WebhookDetails>
-    for diesel_models::business_profile::WebhookDetails
+    for hyperswitch_domain_models::business_profile::WebhookDetails
 {
     fn foreign_from(item: api_models::admin::WebhookDetails) -> Self {
+        let mut webhook_urls =
+            hyperswitch_domain_models::business_profile::WebhookUrls::get_multiple_webhook_urls(
+                item.webhook_url,
+                None,
+            );
+
+        if let Some(payment_statuses) = &item.payment_statuses_enabled {
+            let events: HashSet<api_enums::EventType> = payment_statuses
+                .iter()
+                .filter_map(|s| (*s).into())
+                .collect();
+            webhook_urls.replace_events_in_legacy_url(api_enums::EventClass::Payments, events);
+        }
+
+        if let Some(refund_statuses) = &item.refund_statuses_enabled {
+            let events: HashSet<api_enums::EventType> =
+                refund_statuses.iter().filter_map(|s| (*s).into()).collect();
+            webhook_urls.replace_events_in_legacy_url(api_enums::EventClass::Refunds, events);
+        }
+
+        #[cfg(feature = "payouts")]
+        if let Some(payout_statuses) = &item.payout_statuses_enabled {
+            let events: HashSet<api_enums::EventType> =
+                payout_statuses.iter().filter_map(|s| (*s).into()).collect();
+            webhook_urls.replace_events_in_legacy_url(api_enums::EventClass::Payouts, events);
+        }
+
         Self {
             webhook_version: item.webhook_version,
             webhook_username: item.webhook_username,
             webhook_password: item.webhook_password,
-            webhook_url: item.webhook_url,
             payment_created_enabled: item.payment_created_enabled,
-            payment_failed_enabled: item.payment_failed_enabled,
-            payment_succeeded_enabled: item.payment_succeeded_enabled,
-            payment_statuses_enabled: item.payment_statuses_enabled,
-            refund_statuses_enabled: item.refund_statuses_enabled,
-            payout_statuses_enabled: item.payout_statuses_enabled,
-            multiple_webhooks_list: None,
+            multiple_webhooks_list: Some(webhook_urls),
         }
     }
 }
 
-impl ForeignFrom<diesel_models::business_profile::WebhookDetails>
+impl ForeignFrom<hyperswitch_domain_models::business_profile::WebhookDetails>
     for api_models::admin::WebhookDetails
 {
-    fn foreign_from(item: diesel_models::business_profile::WebhookDetails) -> Self {
+    fn foreign_from(item: hyperswitch_domain_models::business_profile::WebhookDetails) -> Self {
+        let webhook_url = item
+            .multiple_webhooks_list
+            .as_ref()
+            .and_then(|list| list.get_legacy_url());
+
+        let legacy_events = item
+            .multiple_webhooks_list
+            .as_ref()
+            .map(|list| list.get_legacy_events())
+            .unwrap_or_default();
+
+        let payment_statuses_enabled: Option<Vec<api_enums::IntentStatus>> = {
+            let statuses: Vec<api_enums::IntentStatus> = api_enums::IntentStatus::iter()
+                .filter(|s| {
+                    let et: Option<api_enums::EventType> = (*s).into();
+                    et.is_some_and(|e| legacy_events.contains(&e))
+                })
+                .collect();
+            if statuses.is_empty() {
+                None
+            } else {
+                Some(statuses)
+            }
+        };
+
+        let refund_statuses_enabled: Option<Vec<api_enums::RefundStatus>> = {
+            let statuses: Vec<api_enums::RefundStatus> = api_enums::RefundStatus::iter()
+                .filter(|s| {
+                    let et: Option<api_enums::EventType> = (*s).into();
+                    et.is_some_and(|e| legacy_events.contains(&e))
+                })
+                .collect();
+            if statuses.is_empty() {
+                None
+            } else {
+                Some(statuses)
+            }
+        };
+
+        #[cfg(feature = "payouts")]
+        let payout_statuses_enabled: Option<Vec<api_enums::PayoutStatus>> = {
+            let statuses: Vec<api_enums::PayoutStatus> = api_enums::PayoutStatus::iter()
+                .filter(|s| {
+                    let et: Option<api_enums::EventType> = (*s).into();
+                    et.is_some_and(|e| legacy_events.contains(&e))
+                })
+                .collect();
+            if statuses.is_empty() {
+                None
+            } else {
+                Some(statuses)
+            }
+        };
+
         Self {
             webhook_version: item.webhook_version,
             webhook_username: item.webhook_username,
             webhook_password: item.webhook_password,
-            webhook_url: item.webhook_url,
+            webhook_url,
             payment_created_enabled: item.payment_created_enabled,
-            payment_failed_enabled: item.payment_failed_enabled,
-            payment_succeeded_enabled: item.payment_succeeded_enabled,
-            payment_statuses_enabled: item.payment_statuses_enabled,
-            refund_statuses_enabled: item.refund_statuses_enabled,
-            payout_statuses_enabled: item.payout_statuses_enabled,
+            payment_succeeded_enabled: Some(
+                legacy_events.contains(&api_enums::EventType::PaymentSucceeded),
+            ),
+            payment_failed_enabled: Some(
+                legacy_events.contains(&api_enums::EventType::PaymentFailed),
+            ),
+            payment_statuses_enabled,
+            refund_statuses_enabled,
+            #[cfg(feature = "payouts")]
+            payout_statuses_enabled,
         }
     }
 }

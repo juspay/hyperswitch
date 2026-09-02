@@ -305,6 +305,13 @@ pub fn generate_profile_id_of_default_length() -> id_type::ProfileId {
     id_type::ProfileId::generate()
 }
 
+/// Generate a webhook id with default length, with prefix as `whe`
+pub fn generate_webhook_endpoint_id_of_default_length() -> id_type::WebhookEndpointId {
+    use id_type::GenerateId;
+
+    id_type::WebhookEndpointId::generate()
+}
+
 /// Generate a routing id with default length, with prefix as `routing`
 #[cfg_attr(feature = "deja", track_caller)]
 pub fn generate_routing_id_of_default_length() -> id_type::RoutingId {
