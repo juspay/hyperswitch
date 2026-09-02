@@ -8414,7 +8414,6 @@ dependencies = [
  "csv",
  "currency_conversion",
  "deja",
- "deja-context",
  "deja-core",
  "derive_deref",
  "diesel",
