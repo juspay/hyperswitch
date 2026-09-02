@@ -179,12 +179,21 @@ export const connectorDetails = {
       },
     },
     No3DSFailPayment: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: verifiedCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        metadata: ilixiumMetadata,
+      },
       Response: {
         status: 200,
         body: {
           status: "failed",
-          error_message: "VA8",
-          error_code: "VA8",
+          error_message: "4",
+          error_code: "4",
         },
       },
     }),
