@@ -6,8 +6,8 @@ use super::{
     client::OfferEngineClient,
     config::resolve_offer_engine_credential_source,
     types::{
-        BrowseOfferListEntry, BrowseOfferListRequest, BrowseOfferOrder,
-        OfferEngineCredentialSource, OfferStatus, ResolvedOfferEngineConfig,
+        BrowseOfferListRequest, BrowseOfferOrder, OfferEngineCredentialSource, OfferStatus,
+        ResolvedOfferEngineConfig,
     },
 };
 use crate::{
@@ -53,7 +53,7 @@ pub async fn browse_offers(
                 .offers
                 .into_iter()
                 .filter(|entry| entry.status == OfferStatus::Eligible)
-                .map(to_browse_offer)
+                .map(BrowseOffer::from)
                 .collect(),
         },
     ))
@@ -103,19 +103,4 @@ async fn resolve_offer_config(
     .change_context(errors::ApiErrorResponse::AccessForbidden {
         resource: "offer_engine".to_string(),
     })
-}
-
-fn to_browse_offer(entry: BrowseOfferListEntry) -> BrowseOffer {
-    let (title, description) = entry.offer_description.map_or((None, None), |description| {
-        (description.title, description.description)
-    });
-
-    BrowseOffer {
-        code: entry.offer_code,
-        title,
-        display_title: entry.display_title,
-        description,
-        currency: entry.currency,
-        valid_till: entry.valid_till,
-    }
 }

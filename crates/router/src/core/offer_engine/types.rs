@@ -363,3 +363,20 @@ pub struct BrowseOfferListEntry {
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub valid_till: Option<time::PrimitiveDateTime>,
 }
+
+impl From<BrowseOfferListEntry> for api_models::offer_engine::BrowseOffer {
+    fn from(entry: BrowseOfferListEntry) -> Self {
+        let (title, description) = entry.offer_description.map_or((None, None), |description| {
+            (description.title, description.description)
+        });
+
+        Self {
+            code: entry.offer_code,
+            title,
+            display_title: entry.display_title,
+            description,
+            currency: entry.currency,
+            valid_till: entry.valid_till,
+        }
+    }
+}

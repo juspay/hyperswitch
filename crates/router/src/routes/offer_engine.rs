@@ -26,6 +26,7 @@ pub async fn offer_engine_connectivity_check(
     .await
 }
 
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::OfferEngineBrowseOffers))]
 pub async fn offer_engine_browse_offers(
     state: web::Data<app::AppState>,
@@ -39,12 +40,7 @@ pub async fn offer_engine_browse_offers(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, payload, _| {
-            // `AuthenticationData::profile` is optional in v1 and always present in v2.
-            #[cfg(feature = "v1")]
             let profile_id = auth.profile.map(|profile| profile.get_id().clone());
-            #[cfg(feature = "v2")]
-            let profile_id = Some(auth.profile.get_id().clone());
-
             offer_engine::browse::browse_offers(state, auth.platform, profile_id, payload)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {

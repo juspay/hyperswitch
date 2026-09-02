@@ -749,16 +749,24 @@ pub struct OfferEngine;
 
 impl OfferEngine {
     pub fn server(state: AppState) -> Scope {
-        web::scope("/offer_engine")
+        #[allow(unused_mut)]
+        let mut route = web::scope("/offer_engine")
             .app_data(web::Data::new(state))
             .service(
                 web::resource("/connectivity")
                     .route(web::post().to(offer_engine::offer_engine_connectivity_check)),
-            )
-            .service(
+            );
+
+        // Offers are only supported on v1.
+        #[cfg(feature = "v1")]
+        {
+            route = route.service(
                 web::resource("/offers/list")
                     .route(web::post().to(offer_engine::offer_engine_browse_offers)),
-            )
+            );
+        }
+
+        route
     }
 }
 
