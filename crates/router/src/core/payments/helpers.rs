@@ -3947,7 +3947,7 @@ pub async fn store_payment_method_data_in_vault(
             connector.should_store_google_pay_pan_only_for_three_ds(
                 payment_method,
                 payment_attempt.authentication_type,
-                is_google_pay_pan_only(payment_method_data),
+                payment_method_data.is_google_pay_pan_only(),
             )
         });
 
@@ -3975,15 +3975,6 @@ pub async fn store_payment_method_data_in_vault(
     Ok(None)
 }
 
-fn is_google_pay_pan_only(payment_method_data: &domain::PaymentMethodData) -> bool {
-    let domain::PaymentMethodData::Wallet(domain::WalletData::GooglePay(gpay_data)) =
-        payment_method_data
-    else {
-        return false;
-    };
-
-    gpay_data.is_pan_only()
-}
 pub fn should_store_payment_method_data_in_vault(
     temp_locker_enable_config: &TempLockerEnableConfig,
     option_connector: Option<String>,

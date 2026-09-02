@@ -324,6 +324,14 @@ impl PaymentMethodData {
         matches!(self, Self::NetworkToken(_))
     }
 
+    pub fn is_google_pay_pan_only(&self) -> bool {
+        if let Self::Wallet(WalletData::GooglePay(gpay_data)) = self {
+            gpay_data.is_pan_only()
+        } else {
+            false
+        }
+    }
+
     pub fn get_co_badged_card_data(&self) -> Option<&payment_methods::CoBadgedCardData> {
         match self {
             Self::Card(card) => card.co_badged_card_data.as_ref(),
