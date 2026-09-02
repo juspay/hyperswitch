@@ -3634,6 +3634,7 @@ dependencies = [
  "typed-builder 0.21.2",
  "url 2.5.4",
  "vaultrs",
+ "wiremock",
 ]
 
 [[package]]

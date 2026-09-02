@@ -4,6 +4,8 @@
 
 #[cfg(feature = "aws_kms")]
 pub mod aws_kms;
+/// Delivery of chat messages to a destination channel
+pub mod chat_service;
 /// crm module
 pub mod crm;
 #[cfg(feature = "email")]

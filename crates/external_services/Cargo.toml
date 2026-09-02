@@ -122,6 +122,14 @@ tonic-prost-build = "0.14"
 # Test-only: the deja gRPC transport test drives a real tonic server over a
 # TcpListener via `tokio_stream::wrappers::TcpListenerStream` (the `net` feature).
 tokio-stream = { version = "0.1.17", features = ["net"] }
+# Test-only: `#[tokio::test]` and a runtime to drive the async client tests. The
+# non-dev dependency deliberately leaves these off so a normal build does not
+# pull in the multi-threaded runtime.
+tokio = { version = "1.48.0", features = ["macros", "rt-multi-thread"] }
+# Test-only: a real HTTP server on a loopback port, so the chat client tests
+# exercise the whole transport — headers, JSON body, status, envelope — with no
+# credentials and nothing stubbed below the wire.
+wiremock = "0.6.3"
 
 [lints]
 workspace = true
