@@ -282,6 +282,7 @@ impl PaymentMethodVaultingData {
                             common_utils::new_type::mask_sensitive_field(sort_code.peek(), 4)
                         }),
                         account_holder_name: None,
+                        bank_name: None,
                     },
                 )
             }

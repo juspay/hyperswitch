@@ -459,6 +459,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, WiseRecipientCreateResponse>>
                 error_code: None,
                 error_message: None,
                 payout_connector_metadata: None,
+                connector_eligibility_reference_id: None,
             }),
             ..item.data
         })
@@ -508,6 +509,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, WisePayoutQuoteResponse>> for Payou
                 error_code: None,
                 error_message: None,
                 payout_connector_metadata: None,
+                connector_eligibility_reference_id: None,
             }),
             ..item.data
         })
@@ -573,6 +575,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, WisePayoutResponse>> for PayoutsRou
                 error_code: None,
                 error_message: None,
                 payout_connector_metadata: None,
+                connector_eligibility_reference_id: None,
             }),
             ..item.data
         })
@@ -622,6 +625,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, WiseFulfillResponse>> for PayoutsRo
                 error_code: None,
                 error_message: None,
                 payout_connector_metadata: None,
+                connector_eligibility_reference_id: None,
             }),
             ..item.data
         })
@@ -711,6 +715,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, WisePayoutSyncResponse>> for Payout
                 error_code: None,
                 error_message: None,
                 payout_connector_metadata: None,
+                connector_eligibility_reference_id: None,
             }),
             ..item.data
         })

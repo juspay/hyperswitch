@@ -561,6 +561,13 @@ impl<F> TryFrom<RawPaymentCounterparty<'_, F>>
                         message: "Bank transfer via OpenBanking is not supported".to_string(),
                         connector: "Adyenplatform",
                     })?,
+                    payouts::BankTransfer::Payshap(..)
+                    | payouts::BankTransfer::PayshapProxy(..) => {
+                        Err(ConnectorError::NotSupported {
+                            message: "Bank transfer via PayShap is not supported".to_string(),
+                            connector: "Adyenplatform",
+                        })?
+                    }
                 };
                 let counterparty = AdyenPayoutMethodDetails::BankAccount(AdyenBankAccountDetails {
                     account_holder,
@@ -670,6 +677,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, AdyenTransferResponse>> for Payouts
                 error_code: None,
                 error_message: None,
                 payout_connector_metadata: None,
+                connector_eligibility_reference_id: None,
             }),
             ..item.data
         })

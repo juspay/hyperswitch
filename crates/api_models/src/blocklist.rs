@@ -9,9 +9,15 @@ const DEFAULT_BATCH_LIST_LIMIT: u8 = 10;
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case", tag = "type", content = "data")]
 pub enum BlocklistRequest {
+    /// Deprecated, use `generic_card_bin`. A card number prefix of exactly 6 digits.
+    #[deprecated(note = "use GenericCardBin, which accepts 6 to 10 digits")]
     CardBin(String),
     Fingerprint(String),
+    /// Deprecated, use `generic_card_bin`. A card number prefix of exactly 8 digits.
+    #[deprecated(note = "use GenericCardBin, which accepts 6 to 10 digits")]
     ExtendedCardBin(String),
+    /// A card number prefix of 6 to 10 digits.
+    GenericCardBin(String),
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -33,6 +39,8 @@ pub struct BlocklistResponse {
     pub data_kind: enums::BlocklistDataKind,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: time::PrimitiveDateTime,
+    #[schema(value_type = Option<String>, example = "pro_abcdefghijklmnop")]
+    pub profile_id: Option<common_utils::id_type::ProfileId>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]

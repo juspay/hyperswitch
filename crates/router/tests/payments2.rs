@@ -208,6 +208,7 @@ async fn payments_create_core() {
         external_3ds_authentication_attempted: None,
         expires_on: None,
         fingerprint: None,
+        fingerprint_type: None,
         browser_info: None,
         payment_method_id: None,
         payment_method_status: None,
@@ -240,6 +241,8 @@ async fn payments_create_core() {
         is_stored_credential: None,
         request_extended_authorization: None,
         billing_descriptor: None,
+        is_account_funded_transaction: None,
+        recipient_details: None,
         partner_merchant_identifier_details: None,
         payment_method_tokenization_details: None,
         error_details: None,
@@ -249,6 +252,7 @@ async fn payments_create_core() {
         connector_response_metadata: None,
         connector_customer_id: None,
         sender_payment_instrument_id: None,
+        payment_account_reference: None,
     };
 
     let expected_response =
@@ -525,6 +529,7 @@ async fn payments_create_core_adyen_no_redirect() {
             external_3ds_authentication_attempted: None,
             expires_on: None,
             fingerprint: None,
+            fingerprint_type: None,
             browser_info: None,
             payment_method_id: None,
             payment_method_status: None,
@@ -556,6 +561,8 @@ async fn payments_create_core_adyen_no_redirect() {
             is_stored_credential: None,
             request_extended_authorization: None,
             billing_descriptor: None,
+            is_account_funded_transaction: None,
+            recipient_details: None,
             partner_merchant_identifier_details: None,
             payment_method_tokenization_details: None,
             error_details: None,
@@ -566,6 +573,7 @@ async fn payments_create_core_adyen_no_redirect() {
             network_transaction_link_id: None,
             connector_customer_id: None,
             sender_payment_instrument_id: None,
+            payment_account_reference: None,
         },
         vec![],
     ));

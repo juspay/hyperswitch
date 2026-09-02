@@ -39,6 +39,8 @@ use tracing_futures::Instrument;
 use super::payment_update::PaymentUpdate;
 use super::{Operation, OperationSessionSetters, PostUpdateTracker};
 #[cfg(feature = "v1")]
+use crate::core::offer_engine;
+#[cfg(feature = "v1")]
 use crate::core::payment_methods::transformers::call_modular_payment_method_update;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use crate::core::routing::helpers as routing_helpers;
@@ -363,25 +365,47 @@ where
                         .await
                         {
                             Ok(_) => {
-                                logger::info!("Successfully called modular payment method update");
+                                logger::info!(
+                                    payment_method_id=%pm_id,
+                                    "Successfully called modular payment method update"
+                                );
                             }
                             Err(err) => {
+                                // Non-fatal by design: the attempt still gets the pm_id below,
+                                // so this log is the only trace the modular update failed and
+                                // the payment method may be stale (missing connector token /
+                                // NTI / acknowledgement).
                                 logger::error!(
-                                    "Failed to call modular payment method update: {}",
-                                    err
+                                    error=%err,
+                                    payment_method_id=%pm_id,
+                                    merchant_id=%payment_data.payment_attempt.processor_merchant_id.get_string_repr(),
+                                    profile_id=%payment_data.payment_attempt.profile_id.get_string_repr(),
+                                    "Failed to call modular payment method update; continuing with possibly stale payment method"
                                 );
                             }
                         };
                         payment_data.payment_attempt.payment_method_id = Some(pm_id.clone());
                     } else {
-                        logger::info!("No updates found for modular payment method update call");
+                        logger::info!(
+                            payment_method_id=%pm_id,
+                            "No updates found for modular payment method update call"
+                        );
                     }
                 }
             }
-            (_, _) => {
-                logger::info!("Payment method is not eligible for modular update");
+            (is_volatile, payment_method_id) => {
+                logger::info!(
+                    ?is_volatile,
+                    ?payment_method_id,
+                    "Payment method is not eligible for modular update (volatile, or no payment method attached)"
+                );
             }
         }
+    } else {
+        logger::debug!(
+            payment_method=?payment_data.payment_attempt.payment_method,
+            "Payment method type is not eligible for modular update; skipping"
+        );
     }
     Ok(())
 }
@@ -930,14 +954,20 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                 .get_payment_method_info()
                 .map(|pm| pm.last_modified),
         ) {
-            let _ = update_pm_connector_mandate_details(
+            if let Err(err) = update_pm_connector_mandate_details(
                 state,
                 provider,
                 initiator,
                 payment_data,
                 router_data,
             )
-            .await;
+            .await
+            {
+                logger::error!(
+                    error=?err,
+                    "Failed to update legacy payment method connector mandate details"
+                );
+            }
         }
         Ok(())
     }
@@ -1253,14 +1283,20 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
                 .get_payment_method_info()
                 .map(|pm| pm.last_modified),
         ) {
-            let _ = update_pm_connector_mandate_details(
+            if let Err(err) = update_pm_connector_mandate_details(
                 state,
                 provider,
                 initiator,
                 payment_data,
                 router_data,
             )
-            .await;
+            .await
+            {
+                logger::error!(
+                    error=?err,
+                    "Failed to update legacy payment method connector mandate details"
+                );
+            }
         }
         Ok(())
     }
@@ -2106,14 +2142,20 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
                 .get_payment_method_info()
                 .map(|pm| pm.last_modified),
         ) {
-            let _ = update_pm_connector_mandate_details(
+            if let Err(err) = update_pm_connector_mandate_details(
                 state,
                 provider,
                 initiator,
                 payment_data,
                 router_data,
             )
-            .await;
+            .await
+            {
+                logger::error!(
+                    error=?err,
+                    "Failed to update legacy payment method connector mandate details"
+                );
+            }
         }
         Ok(())
     }
@@ -2257,14 +2299,20 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
                 .get_payment_method_info()
                 .map(|pm| pm.last_modified),
         ) {
-            let _ = update_pm_connector_mandate_details(
+            if let Err(err) = update_pm_connector_mandate_details(
                 state,
                 provider,
                 initiator,
                 payment_data,
                 router_data,
             )
-            .await;
+            .await
+            {
+                logger::error!(
+                    error=?err,
+                    "Failed to update legacy payment method connector mandate details"
+                );
+            }
         }
         Ok(())
     }
@@ -2679,6 +2727,12 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 .ok()
                                 .and_then(|resp| resp.get_network_transaction_link_id());
 
+                            let payment_account_reference = router_data
+                                .response
+                                .as_ref()
+                                .ok()
+                                .and_then(|resp| resp.get_payment_account_reference());
+
                             let encoded_data = payment_data.payment_attempt.encoded_data.clone();
 
                             let authentication_data = (*redirection_data)
@@ -2871,6 +2925,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                         sender_payment_instrument_id: router_data
                                             .sender_payment_instrument_id
                                             .clone(),
+                                        payment_account_reference,
                                     }),
                                 ),
                             };
@@ -3225,6 +3280,9 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
         )
         .await;
     }
+
+    offer_engine::schedule_payment_notification_for_attempt(state, &payment_data.payment_attempt)
+        .await;
 
     match router_data.integrity_check {
         Ok(()) => Ok(payment_data),
@@ -4678,6 +4736,7 @@ impl<F: Clone + Send + Sync>
                                         phone_country_code: None,
                                         tax_registration_id: None,
                                         customer_document_details: Some(customer_document_details),
+                                        date_of_birth: None,
                                     });
                                 }
 
