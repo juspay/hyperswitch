@@ -21,6 +21,7 @@ pub mod routes;
 pub mod services;
 pub mod settings;
 pub mod state;
+pub mod types;
 
 mod secrets_transformers;
 

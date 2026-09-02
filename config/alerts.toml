@@ -36,3 +36,53 @@ internal_api_key = "alerts_dev_key"
 # variants are compiled in under the `release` feature and treat them as handles to resolve.
 [secrets_management]
 secrets_manager = "no_encryption"
+
+# Outbound HTTP proxy, if the pod cannot reach chat providers directly. A deployment fact, so it
+# lives here once rather than on each destination.
+[proxy]
+
+# Chat destinations, keyed by the id a request names in its `destination` field. A request carries
+# no channel id and no credential — only an id from this table.
+#
+# Ids set from the environment arrive lowercased and cannot contain `__`, because `config`
+# lowercases every environment key and splits levels on `__`. The service refuses to start on an id
+# that would not survive that, rather than failing to match it at lookup time.
+#
+#   ALERTS__CHAT__DESTINATIONS__SR_ALERTS__TYPE=xyne
+#   ALERTS__CHAT__DESTINATIONS__SR_ALERTS__APP_JWT=...
+#   ALERTS__CHAT__DESTINATIONS__SR_ALERTS__CHANNEL=...
+#
+# `type = "log"` accepts messages and delivers nothing. It exists so the whole path — guard, route,
+# registry, response — can be exercised before real credentials exist. It logs sizes, never the
+# message: this writes to the same stream as everything else and an alert body carries merchant ids
+# and payment volumes.
+[chat.destinations.smoke]
+type = "log"
+
+# A real Xyne destination looks like this. `base_url` defaults to production and `timeout_seconds`
+# and `max_message_chars` to the client's own defaults, so a channel and a credential are all that
+# is required.
+#
+# [chat.destinations.sr_alerts]
+# type = "xyne"
+# app_jwt = "..."
+# channel = "..."
+#
+# Slack is the same client with a different base URL and credential, not a second integration.
+#
+# [chat.destinations.escalation]
+# type = "slack"
+# bot_token = "xoxb-..."
+# channel = "..."
+
+# Email destinations, keyed the same way.
+#
+# One address per destination: `EmailClient::send_email` accepts a single recipient and both
+# backends build a single-recipient message. Reaching three people is three destinations today.
+# hyperswitch-cloud#23160 tracks lifting that, after which this widens to a list without any caller
+# changing, since a request only ever names an id.
+#
+# Delivery is not wired yet — every destination here accepts and logs, and the transport lands in
+# hyperswitch-cloud#23111.
+[email.destinations.smoke]
+to = "alerts@example.com"
