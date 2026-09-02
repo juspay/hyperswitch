@@ -316,7 +316,7 @@ where
                 )
                 .await?;
 
-            let (router_data, _mca_type_details) = complete_connector_service(
+            let (router_data, _mca_type_details) = Box::pin(complete_connector_service(
                 &updated_state,
                 platform.get_processor(),
                 &operation,
@@ -332,7 +332,7 @@ where
                 None,
                 call_connector_service_response,
                 &dimensions,
-            )
+            ))
             .await?;
 
             let connector_response_data = common_types::domain::ConnectorResponseData {
@@ -427,7 +427,7 @@ where
                 )
                 .await?;
 
-            let (router_data, _mca_type_details) = complete_connector_service(
+            let (router_data, _mca_type_details) = Box::pin(complete_connector_service(
                 &updated_state,
                 platform.get_processor(),
                 &operation,
@@ -443,7 +443,7 @@ where
                 None,
                 call_connector_service_response,
                 &dimensions,
-            )
+            ))
             .await?;
 
             let connector_response_data = common_types::domain::ConnectorResponseData {
@@ -1091,7 +1091,7 @@ where
                         )
                         .await?;
 
-                    let (router_data, mca) = complete_connector_service(
+                    let (router_data, mca) = Box::pin(complete_connector_service(
                         &updated_state,
                         platform.get_processor(),
                         &operation,
@@ -1109,7 +1109,7 @@ where
                         None,
                         call_connector_service_response,
                         &dimensions.without_profile_id(),
-                    )
+                    ))
                     .await?;
 
                     let op_ref = &operation;
@@ -1279,7 +1279,7 @@ where
                         )
                         .await?;
 
-                    let (router_data, mca) = complete_connector_service(
+                    let (router_data, mca) = Box::pin(complete_connector_service(
                         &updated_state,
                         platform.get_processor(),
                         &operation,
@@ -1297,7 +1297,7 @@ where
                         None,
                         call_connector_service_response,
                         &dimensions.without_profile_id(),
-                    )
+                    ))
                     .await?;
 
                     #[cfg(all(feature = "retry", feature = "v1"))]
@@ -1469,7 +1469,7 @@ where
                     frm_configs
                         .clone()
                         .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                            field_name: "frm_configs",
+                            field_name: "frm_configs".into(),
                         })
                         .attach_printable("Frm configs label not found")?,
                     &mut should_continue_capture,
@@ -4650,7 +4650,7 @@ pub trait PaymentRedirectFlow: Sync {
         #[cfg(feature = "v1")]
         let resource_id = api::PaymentIdTypeExt::get_payment_intent_id(&req.resource_id)
             .change_context(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "payment_id",
+                field_name: "payment_id".into(),
             })?;
 
         #[cfg(feature = "v2")]
@@ -5098,7 +5098,7 @@ impl ValidateStatusForOperation for &PaymentRedirectSync {
             | common_enums::IntentStatus::Review => {
                 Err(errors::ApiErrorResponse::PaymentUnexpectedState {
                     current_flow: format!("{self:?}"),
-                    field_name: "status".to_string(),
+                    field_name: "status".into(),
                     current_value: intent_status.to_string(),
                     states: ["requires_customer_action".to_string()].join(", "),
                 })
@@ -8384,7 +8384,7 @@ pub async fn get_session_token_for_click_to_pay(
     let click_to_pay_mca_id = authentication_product_ids
         .get_click_to_pay_connector_account_id()
         .change_context(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "authentication_product_ids",
+            field_name: "authentication_product_ids".into(),
         })?;
     let merchant_connector_account = state
         .store
@@ -8524,15 +8524,15 @@ pub fn validate_customer_details_for_click_to_pay(
         (Some(_), Some(_), None) => Ok(()),
         (Some(_), None, Some(_)) => Ok(()),
         (None, Some(_), None) => Err(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "phone",
+            field_name: "phone".into(),
         })
         .attach_printable("phone number is not present in payment_intent.customer_details"),
         (Some(_), None, None) => Err(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "phone_country_code",
+            field_name: "phone_country_code".into(),
         })
         .attach_printable("phone_country_code is not present in payment_intent.customer_details"),
         (_, _, _) => Err(errors::ApiErrorResponse::MissingRequiredFields {
-            field_names: vec!["phone", "phone_country_code", "email"],
+            field_names: vec!["phone".into(), "phone_country_code".into(), "email".into()],
         })
         .attach_printable("either of phone, phone_country_code or email is not present in payment_intent.customer_details"),
     }
@@ -10012,7 +10012,7 @@ impl PaymentEligibilityData {
         payments_eligibility_request
             .validate_payment_method_input()
             .change_context(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "Either payment_token or payment_method_data",
+                field_name: "Either payment_token or payment_method_data".into(),
             })?;
         let payment_intent = state
             .store
@@ -13405,7 +13405,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
         .map(|browser_information| browser_information.parse_value("BrowserInformation"))
         .transpose()
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "browser_info",
+            field_name: "browser_info".into(),
         })?;
     let payment_connector_name = payment_attempt
         .connector
@@ -13602,7 +13602,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
                 .as_ref()
                 .map(|address| address.into())
                 .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "billing_address",
+                    field_name: "billing_address".into(),
                 })?,
             shipping_address.as_ref().map(|address| address.into()),
             browser_info,
@@ -13675,7 +13675,7 @@ pub async fn payment_start_redirection(
         || {
             Err(errors::ApiErrorResponse::PaymentUnexpectedState {
                 current_flow: "PaymentStartRedirection".to_string(),
-                field_name: "status".to_string(),
+                field_name: "status".into(),
                 current_value: payment_intent.status.to_string(),
                 states: ["requires_customer_action".to_string()].join(", "),
             })

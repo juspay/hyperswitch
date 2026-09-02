@@ -436,7 +436,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
 
         let primary_business_details = self.get_primary_details_as_value().change_context(
             errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "primary_business_details",
+                field_name: "primary_business_details".into(),
             },
         )?;
 
@@ -444,25 +444,25 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
 
         let pm_collect_link_config = self.get_pm_link_config_as_value().change_context(
             errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "pm_collect_link_config",
+                field_name: "pm_collect_link_config".into(),
             },
         )?;
 
         let merchant_details = self.get_merchant_details_as_secret().change_context(
             errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "merchant_details",
+                field_name: "merchant_details".into(),
             },
         )?;
 
         self.parse_routing_algorithm()
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "routing_algorithm",
+                field_name: "routing_algorithm".into(),
             })
             .attach_printable("Invalid routing algorithm given")?;
 
         let metadata = self.get_metadata_as_secret().change_context(
             errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "metadata",
+                field_name: "metadata".into(),
             },
         )?;
 
@@ -884,13 +884,13 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
 
         let metadata = self.get_metadata_as_secret().change_context(
             errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "metadata",
+                field_name: "metadata".into(),
             },
         )?;
 
         let merchant_details = self.get_merchant_details_as_secret().change_context(
             errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "merchant_details",
+                field_name: "merchant_details".into(),
             },
         )?;
 
@@ -977,7 +977,7 @@ pub async fn list_merchant_account(
         .map(|merchant_account| {
             api::MerchantAccountResponse::foreign_try_from(merchant_account).change_context(
                 errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "merchant_account",
+                    field_name: "merchant_account".into(),
                 },
             )
         })
@@ -1011,7 +1011,7 @@ pub async fn list_merchant_account(
         .map(|merchant_account| {
             api::MerchantAccountResponse::foreign_try_from(merchant_account).change_context(
                 errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "merchant_account",
+                    field_name: "merchant_account".into(),
                 },
             )
         })
@@ -1066,7 +1066,7 @@ pub async fn create_profile_from_business_labels(
         .clone()
         .parse_value::<Vec<admin_types::PrimaryBusinessDetails>>("PrimaryBusinessDetails")
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "routing_algorithm",
+            field_name: "routing_algorithm".into(),
         })
         .attach_printable("Invalid routing algorithm given")?;
 
@@ -1134,25 +1134,25 @@ impl MerchantAccountUpdateBridge for api::MerchantAccountUpdate {
         let db = state.store.as_ref();
         let primary_business_details = self.get_primary_details_as_value().change_context(
             errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "primary_business_details",
+                field_name: "primary_business_details".into(),
             },
         )?;
 
         let pm_collect_link_config = self.get_pm_link_config_as_value().change_context(
             errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "pm_collect_link_config",
+                field_name: "pm_collect_link_config".into(),
             },
         )?;
 
         let merchant_details = self.get_merchant_details_as_secret().change_context(
             errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "merchant_details",
+                field_name: "merchant_details".into(),
             },
         )?;
 
         self.parse_routing_algorithm().change_context(
             errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "routing_algorithm",
+                field_name: "routing_algorithm".into(),
             },
         )?;
 
@@ -1308,13 +1308,13 @@ impl MerchantAccountUpdateBridge for api::MerchantAccountUpdate {
 
         let merchant_details = self.get_merchant_details_as_secret().change_context(
             errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "merchant_details",
+                field_name: "merchant_details".into(),
             },
         )?;
 
         let metadata = self.get_metadata_as_secret().change_context(
             errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "metadata",
+                field_name: "metadata".into(),
             },
         )?;
 
@@ -1471,14 +1471,14 @@ async fn get_parent_merchant(
             Some(
                 parent_merchant.ok_or_else(|| {
                     report!(errors::ValidationError::MissingRequiredField {
-                        field_name: "parent_merchant_id".to_string()
+                        field_name: "parent_merchant_id".into()
                     })
                     .change_context(errors::ApiErrorResponse::PreconditionFailed {
                         message: "If `sub_merchants_enabled` is `true`, then `parent_merchant_id` is mandatory".to_string(),
                     })
                 })
                 .map(|id| validate_merchant_id(state, id,key_store).change_context(
-                    errors::ApiErrorResponse::InvalidDataValue { field_name: "parent_merchant_id" }
+                    errors::ApiErrorResponse::InvalidDataValue { field_name: "parent_merchant_id".into() }
                 ))?
                 .await?
                 .get_id().to_owned()
@@ -1558,7 +1558,7 @@ impl ConnectorMetadata<'_> {
             .map(api_models::payments::ConnectorMetadata::from_value)
             .transpose()
             .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-                field_name: "metadata".to_string(),
+                field_name: "metadata".into(),
                 expected_format: "connector metadata".to_string(),
             })?
             .and_then(|metadata| metadata.get_apple_pay_certificates())
@@ -1567,7 +1567,7 @@ impl ConnectorMetadata<'_> {
             })
             .transpose()
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "certificate/certificate key",
+                field_name: "certificate/certificate key".into(),
             })?;
         Ok(())
     }
@@ -2015,7 +2015,7 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
                 .unwrap_or(mca.connector_account_details.clone().into_inner()),
         )
         .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-            field_name: "connector_account_details".to_string(),
+            field_name: "connector_account_details".into(),
             expected_format: "auth_type and api_key".to_string(),
         })?;
 
@@ -2185,7 +2185,7 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
             .unwrap_or(mca.connector_account_details.clone().into_inner())
             .parse_value("ConnectorAuthType")
             .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-                field_name: "connector_account_details".to_string(),
+                field_name: "connector_account_details".into(),
                 expected_format: "auth_type and api_key".to_string(),
             })?;
         let metadata = self.metadata.clone().or(mca.metadata.clone());
@@ -2193,7 +2193,7 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
         let connector_name = mca.connector_name.as_ref();
         let connector_enum = api_models::enums::Connector::from_str(connector_name)
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "connector",
+                field_name: "connector".into(),
             })
             .attach_printable_lazy(|| {
                 format!("unable to parse connector name {connector_name:?}")
@@ -2350,7 +2350,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
             self.connector_account_details.clone(),
         )
         .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-            field_name: "connector_account_details".to_string(),
+            field_name: "connector_account_details".into(),
             expected_format: "auth_type and api_key".to_string(),
         })?;
 
@@ -2403,7 +2403,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
                     FromRequestEncryptableMerchantConnectorAccount {
                         connector_account_details: self.connector_account_details.ok_or(
                             errors::ApiErrorResponse::MissingRequiredField {
-                                field_name: "connector_account_details",
+                                field_name: "connector_account_details".into(),
                             },
                         )?,
                         connector_wallets_details:
@@ -2551,7 +2551,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
             self.connector_account_details.clone(),
         )
         .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-            field_name: "connector_account_details".to_string(),
+            field_name: "connector_account_details".into(),
             expected_format: "auth_type and api_key".to_string(),
         })?;
 
@@ -2603,7 +2603,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
                     FromRequestEncryptableMerchantConnectorAccount {
                         connector_account_details: self.connector_account_details.ok_or(
                             errors::ApiErrorResponse::MissingRequiredField {
-                                field_name: "connector_account_details",
+                                field_name: "connector_account_details".into(),
                             },
                         )?,
                         connector_wallets_details:
@@ -2710,7 +2710,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
                     Ok(business_profile)
                 }
                 _ => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "profile_id or business_country, business_label"
+                    field_name: "profile_id or business_country, business_label".into()
                 })),
             },
         }
@@ -3117,7 +3117,7 @@ pub async fn update_connector(
         routable_connector: &Some(
             euclid::enums::RoutableConnectors::from_str(&mca.connector_name).map_err(|_| {
                 errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "connector_name",
+                    field_name: "connector_name".into(),
                 }
             })?,
         ),
@@ -3197,7 +3197,7 @@ pub async fn delete_connector(
         routable_connector: &Some(
             euclid::enums::RoutableConnectors::from_str(&mca.connector_name).map_err(|_| {
                 errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "connector_name",
+                    field_name: "connector_name".into(),
                 }
             })?,
         ),
@@ -3275,7 +3275,7 @@ pub async fn delete_connector(
         routable_connector: &Some(
             euclid::enums::RoutableConnectors::from_str(&mca.connector_name.to_string()).map_err(
                 |_| errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "connector_name",
+                    field_name: "connector_name".into(),
                 },
             )?,
         ),
@@ -3513,7 +3513,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
                 .clone()
                 .parse_value("RoutingAlgorithm")
                 .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "routing_algorithm",
+                    field_name: "routing_algorithm".into(),
                 })
                 .attach_printable("Invalid routing algorithm given")?;
         }
@@ -4108,7 +4108,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 .clone()
                 .parse_value("RoutingAlgorithm")
                 .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "routing_algorithm",
+                    field_name: "routing_algorithm".into(),
                 })
                 .attach_printable("Invalid routing algorithm given")?;
         }
@@ -4129,7 +4129,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
             .map(|config| {
                 config.encode_to_value().change_context(
                     errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "extended_card_info_config",
+                        field_name: "extended_card_info_config".into(),
                     },
                 )
             })
@@ -4345,7 +4345,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
             .map(|config| {
                 config.encode_to_value().change_context(
                     errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "extended_card_info_config",
+                        field_name: "extended_card_info_config".into(),
                     },
                 )
             })
