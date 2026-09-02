@@ -825,6 +825,22 @@ async fn disputes_incoming_webhook_flow(
         }
     }
 
+    // A lost dispute must stop counting as refundable, or the merchant could pay out twice.
+    if was_not_already_lost
+        && dispute_object.dispute_status == common_enums::DisputeStatus::DisputeLost
+    {
+        if let Err(error) =
+            record_disputed_amount_on_intent(&state, &platform, &payment_attempt, &dispute_object)
+                .await
+        {
+            logger::error!(
+                ?error,
+                dispute_id = %dispute_object.dispute_id,
+                "Failed to record the disputed amount on the payment intent"
+            );
+        }
+    }
+
     // Notify the merchant. v1 does this too; without it a v2 merchant has no way to learn
     // a dispute exists, since v2 exposes no dispute REST endpoints either.
     let disputes_response = Box::new(dispute_object.clone().foreign_into());
@@ -857,6 +873,50 @@ async fn disputes_incoming_webhook_flow(
         payment_id: dispute_object.payment_id,
         status: dispute_object.dispute_status,
     })
+}
+
+/// Add a lost dispute's amount to the intent's running total of unrefundable money.
+/// Awaited rather than spawned as v1 does, because the value gates refunds.
+async fn record_disputed_amount_on_intent(
+    state: &SessionState,
+    platform: &domain::Platform,
+    payment_attempt: &PaymentAttempt,
+    dispute: &diesel_models::dispute::Dispute,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    let key_store = platform.get_processor().get_key_store();
+    let storage_scheme = platform.get_processor().get_account().storage_scheme;
+
+    let payment_intent = state
+        .store
+        .find_payment_intent_by_id(&payment_attempt.payment_id, key_store, storage_scheme)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound)?;
+
+    let previous = payment_intent.state_metadata.clone().unwrap_or_default();
+    let total_disputed_amount = previous
+        .total_disputed_amount
+        .map_or(dispute.dispute_amount, |amount| {
+            amount + dispute.dispute_amount
+        });
+
+    let state_metadata = previous.with_total_disputed_amount(total_disputed_amount);
+
+    state
+        .store
+        .update_payment_intent(
+            payment_intent,
+            hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::StateMetadataUpdate {
+                state_metadata,
+                updated_by: storage_scheme.to_string(),
+            },
+            key_store,
+            storage_scheme,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("failed to update the payment intent's state metadata")?;
+
+    Ok(())
 }
 
 #[cfg(all(feature = "revenue_recovery", feature = "v2"))]

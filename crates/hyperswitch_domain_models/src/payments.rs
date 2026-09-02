@@ -452,7 +452,6 @@ impl PaymentIntent {
         }
     }
 
-    #[cfg(feature = "v1")]
     pub fn validate_amount_against_intent_state_metadata(
         &self,
         requested_amount: Option<MinorUnit>,
@@ -1035,6 +1034,8 @@ pub struct PaymentIntent {
     /// The details of the party receiving the funds in an account funded transaction.
     #[encrypt]
     pub recipient_details: Option<Encryptable<Secret<Value>>>,
+    /// Amounts that are no longer refundable, whether refunded or lost to a dispute.
+    pub state_metadata: Option<common_types::payments::PaymentIntentStateMetadata>,
 }
 
 #[cfg(feature = "v2")]
@@ -1247,6 +1248,7 @@ impl PaymentIntent {
             external_surcharge_applicable: None,
             is_account_funded_transaction: request.is_account_funded_transaction,
             recipient_details: decrypted_payment_intent.recipient_details,
+            state_metadata: None,
         })
     }
 
