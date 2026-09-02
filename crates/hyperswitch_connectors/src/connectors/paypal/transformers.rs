@@ -10,9 +10,9 @@ use api_models::{
 };
 use base64::Engine;
 use common_enums::enums as storage_enums;
-#[cfg(feature = "payouts")]
-use common_utils::pii::Email;
-use common_utils::{consts, errors::CustomResult, request::Method, types::StringMajorUnit};
+use common_utils::{
+    consts, errors::CustomResult, pii::Email, request::Method, types::StringMajorUnit,
+};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{
@@ -20,8 +20,9 @@ use hyperswitch_domain_models::{
         PayLaterData, PaymentMethodData, VoucherData, WalletData,
     },
     router_data::{
-        AccessToken, ConnectorAuthType, ConnectorResponseData, ErrorResponse,
-        ExtendedAuthorizationResponseData, FeatureData, RouterData,
+        AccessToken, AdditionalPaymentMethodConnectorResponse, ConnectorAuthType,
+        ConnectorResponseData, ErrorResponse, ExtendedAuthorizationResponseData, FeatureData,
+        RouterData,
     },
     router_flow_types::{
         payments::{Authorize, PostSessionTokens},
@@ -2578,6 +2579,11 @@ where
         let status = payment_collection_item.status.clone();
         let status = get_payment_attempt_status(status, item.data.status);
 
+        let connector_response = get_connector_response_with_payer_details(
+            item.data.payment_method_type,
+            item.response.payer.as_ref(),
+        );
+
         if is_payment_failure(status) {
             let error_code = payment_collection_item
                 .processor_response
@@ -2663,6 +2669,7 @@ where
                 charges: None,
                 payment_account_reference: None,
             }),
+            connector_response,
             sender_payment_instrument_id: item
                 .response
                 .payer
@@ -2767,6 +2774,10 @@ impl<F, T>
             order_id: None,
         });
         let purchase_units = item.response.purchase_units.first();
+        let connector_response = get_connector_response_with_payer_details(
+            item.data.payment_method_type,
+            item.response.payer.as_ref(),
+        );
         Ok(Self {
             status,
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -2787,6 +2798,7 @@ impl<F, T>
                 charges: None,
                 payment_account_reference: None,
             }),
+            connector_response,
             sender_payment_instrument_id: item
                 .response
                 .payer
@@ -2831,6 +2843,10 @@ impl
             order_id: None,
         });
         let purchase_units = item.response.purchase_units.first();
+        let connector_response = get_connector_response_with_payer_details(
+            item.data.payment_method_type,
+            item.response.payer.as_ref(),
+        );
         Ok(Self {
             status,
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -2851,6 +2867,7 @@ impl
                 charges: None,
                 payment_account_reference: None,
             }),
+            connector_response,
             ..item.data
         })
     }
@@ -3046,6 +3063,10 @@ impl<F, T> TryFrom<ResponseRouterData<F, PaypalPaymentsSyncResponse, T, Payments
                 charges: None,
                 payment_account_reference: None,
             }),
+            connector_response: get_connector_response_with_payer_details(
+                item.data.payment_method_type,
+                item.response.payer.as_ref(),
+            ),
             sender_payment_instrument_id: item
                 .response
                 .payer
@@ -3404,6 +3425,34 @@ pub struct PaypalCaptureResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Payer {
     payer_id: Option<Secret<String>>,
+    email_address: Option<Email>,
+}
+
+impl Payer {
+    fn get_wallet_additional_data(&self) -> Option<AdditionalPaymentMethodConnectorResponse> {
+        match (self.email_address.clone(), self.payer_id.clone()) {
+            (None, None) => None,
+            (email, payer_id) => {
+                Some(AdditionalPaymentMethodConnectorResponse::Paypal { email, payer_id })
+            }
+        }
+    }
+}
+
+/// Builds the connector response with the payer details received from paypal.
+/// This should only be populated for paypal wallet payments (PaypalRedirect and PaypalSdk
+/// flows, both of which use `PaymentMethodType::Paypal`), and not for payments processed
+/// via paypal as a card processor.
+fn get_connector_response_with_payer_details(
+    payment_method_type: Option<common_enums::PaymentMethodType>,
+    payer: Option<&Payer>,
+) -> Option<ConnectorResponseData> {
+    match payment_method_type {
+        Some(common_enums::PaymentMethodType::Paypal) => payer
+            .and_then(|payer| payer.get_wallet_additional_data())
+            .map(ConnectorResponseData::with_additional_payment_method_data),
+        _ => None,
+    }
 }
 
 fn get_payment_attempt_status(
@@ -3501,6 +3550,10 @@ impl TryFrom<PaymentsCaptureResponseRouterData<PaypalCaptureResponse>>
                 charges: None,
                 payment_account_reference: None,
             }),
+            connector_response: get_connector_response_with_payer_details(
+                item.data.payment_method_type,
+                item.response.payer.as_ref(),
+            ),
             amount_captured: Some(amount_captured),
             ..item.data
         })

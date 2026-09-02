@@ -689,6 +689,8 @@ pub enum Flow {
     HypersenseVerifyToken,
     /// Signout Hypersense Token
     HypersenseSignoutToken,
+    /// Validate a dashboard token on behalf of an external service
+    ExternalServiceValidateToken,
     /// Payment Method Session Create
     PaymentMethodSessionCreate,
     /// Payment Method Session Retrieve
@@ -755,6 +757,8 @@ pub enum Flow {
     TokenizationDelete,
     /// Payment method data backfill flow
     RecoveryDataBackfill,
+    /// Revenue recovery retry stats admin migration (CSV upload)
+    RecoveryRetryStatsMigration,
     /// Revenue recovery Redis operations flow
     RevenueRecoveryRedis,
     /// Payment Method balance check flow

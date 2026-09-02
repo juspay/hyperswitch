@@ -1235,9 +1235,15 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                                         payment_data.set_payment_method_info(Some(pm_info));
                                     }
                                     Err(err) => {
+                                        // Non-fatal by design: the payment proceeds without a
+                                        // saved payment method, so this error log is the only
+                                        // trace that saving was attempted and failed.
                                         logger::error!(
-                                            "Error creating payment method in PM Modular service: {:?}",
-                                            err
+                                            error=?err,
+                                            payment_id=%payment_data.payment_intent.payment_id.get_string_repr(),
+                                            merchant_id=%platform.get_processor().get_account().get_id().get_string_repr(),
+                                            profile_id=%business_profile.get_id().get_string_repr(),
+                                            "Error creating payment method in PM Modular service; continuing payment without saved payment method"
                                         );
                                     }
                                 }
@@ -1415,15 +1421,28 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     .await?
                 }
                 Some(payment_method) => {
-                    logger::info!("Organization is not eligible for PM Modular Service, skipping fetch payment method.");
+                    // Reached when the modular flag is off OR the payment method's timestamps
+                    // favour the legacy copy — not only for non-eligible organizations.
+                    logger::info!(
+                        payment_method_id=%payment_method.get_id(),
+                        payment_method_version=?payment_method.version,
+                        compatibility_updated_at=?payment_method.compatibility_updated_at,
+                        last_modified=?payment_method.last_modified,
+                        "Legacy payment method path selected, skipping fetch from PM Modular Service."
+                    );
                     operations::PaymentMethodFetchData::from_legacy(payment_method, token_data)
                 }
-                None => operations::PaymentMethodFetchData {
-                    payment_intent: None,
-                    payment_method_info: None,
-                    payment_method_with_raw_data: None,
-                    token_data,
-                },
+                None => {
+                    logger::debug!(
+                        "No stored payment method resolved from the request; skipping payment method fetch."
+                    );
+                    operations::PaymentMethodFetchData {
+                        payment_intent: None,
+                        payment_method_info: None,
+                        payment_method_with_raw_data: None,
+                        token_data,
+                    }
+                }
             }
         };
 
@@ -3219,13 +3238,30 @@ async fn apply_selected_offer<F: Clone + Send + Sync>(
         .with_processor_merchant_id(processor.get_processor_merchant_id())
         .with_organization_id(processor.get_account().get_org_id().clone())
         .with_profile_id(profile_id.clone());
-    let offer_config = offer_engine::resolve_offer_engine_config(state, &offer_dimensions)
-        .await
-        .ok()
-        .flatten()
-        .ok_or(report!(errors::ApiErrorResponse::PreconditionFailed {
-            message: "Offer Engine is not available for this offer selection".to_string(),
-        }))?;
+    let offer_config = match offer_engine::resolve_offer_engine_credential_source(
+        state,
+        &offer_dimensions,
+    )
+    .await
+    {
+        offer_engine::OfferEngineCredentialSource::None => {
+            return Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                message: "Offer Engine is not available for this offer selection".to_string(),
+            }));
+        }
+        offer_engine::OfferEngineCredentialSource::Application => {
+            offer_engine::OfferEngineCredentialSource::resolve_application_offer_config(state)
+        }
+        offer_engine::OfferEngineCredentialSource::Merchant => {
+            offer_engine::OfferEngineCredentialSource::resolve_merchant_offer_config(
+                state,
+                processor.get_account(),
+            )
+        }
+    }
+    .change_context(errors::ApiErrorResponse::PreconditionFailed {
+        message: "Offer Engine is not available for this offer selection".to_string(),
+    })?;
 
     let processor_merchant_id = processor.get_account().get_id().clone();
     let payment_id = payment_data.payment_attempt.payment_id.clone();
