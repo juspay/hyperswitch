@@ -384,7 +384,11 @@ pub struct SinglePurposeOrLoginToken {
     pub tenant_id: Option<id_type::TenantId>,
 }
 
-#[derive(serde::Deserialize)]
+// `Serialize` so the decode boundary can record the claims it reconstructs.
+// The untagged round-trip is unambiguous in this direction: `EmbeddedToken`
+// carries neither `user_id` nor `role_id`, both of which `AuthToken` requires,
+// so an embedded token's JSON cannot deserialize as an `AuthToken`.
+#[derive(serde::Serialize, serde::Deserialize)]
 #[serde(untagged)]
 pub enum AuthOrEmbeddedClaims {
     AuthToken(AuthToken),
@@ -5000,7 +5004,7 @@ where
 
 pub async fn parse_jwt_payload<A, T>(headers: &HeaderMap, state: &A) -> RouterResult<T>
 where
-    T: serde::de::DeserializeOwned,
+    T: Serialize + serde::de::DeserializeOwned,
     A: SessionStateInfo + Sync,
 {
     let cookie_token_result =
@@ -6205,23 +6209,107 @@ where
     }
 }
 
-pub async fn decode_jwt<T>(token: &str, state: &impl SessionStateInfo) -> RouterResult<T>
-where
-    T: serde::de::DeserializeOwned,
-{
-    let conf = state.conf();
-    let secret = conf.secrets.get_inner().jwt_secret.peek().as_bytes();
+/// The decision `jsonwebtoken` reaches about a token, as something that can be
+/// recorded.
+///
+/// [`errors::ApiErrorResponse`] cannot be: it derives neither `Serialize` nor
+/// `Deserialize`, and it carries a hundred variants that have nothing to do with
+/// this call. `decode_jwt` collapses every `jsonwebtoken` failure into two of
+/// them anyway, so these are those two and nothing else crosses the boundary.
+/// The mapping back to the public error type stays in `decode_jwt`, unchanged.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, thiserror::Error,
+)]
+pub enum JwtDecodeOutcome {
+    /// The token parsed and verified, but `exp` had passed.
+    #[error("expired JWT token")]
+    Expired,
+    /// Anything else: malformed, wrong algorithm, bad signature, absent claims.
+    #[error("invalid JWT token")]
+    Invalid,
+}
 
+/// Names a token to the recorder without putting the token in the tape.
+///
+/// A recording lives in object storage for weeks and is read by anyone who can
+/// read the bucket; a dashboard JWT stays valid for two days
+/// (`consts::JWT_TOKEN_TIME_IN_SECS`). The digest is enough to pair a replayed
+/// call with its recorded outcome and cannot be presented as a credential.
+#[cfg(feature = "deja")]
+fn token_digest(token: &str) -> String {
+    blake3::hash(token.as_bytes()).to_hex().to_string()
+}
+
+/// Verifies `token` and returns its claims, or which of the two failures it hit.
+///
+/// This is a boundary because the clock that decides the answer is not one deja
+/// can reach. `Validation::new` defaults `validate_exp` to true and
+/// `jsonwebtoken` reads `SystemTime::now()` itself, so the instrumented
+/// `date_time::now` boundary never sees it — the same bypass already recorded
+/// on the issuing side in `services::jwt::generate_exp`. API-key expiry has no
+/// such problem: it compares against `date_time::now()` and so already replays
+/// deterministically. Recording the decode outcome takes the clock out of the
+/// replay path entirely, rather than trying to hold it still.
+///
+/// The seam is deliberately this narrow. Recording the whole authentication
+/// result instead would also swallow the merchant-key-store, merchant-account,
+/// business-profile and decrypt calls that follow it, which are exactly the
+/// calls a replay exists to compare.
+///
+/// A token absent from the recording does not decode silently: the substitute
+/// misses and the boundary fail-stops, the same as any other missed substitute.
+///
+/// `pub` only so the boundary can be exercised from an integration test:
+/// `set_global_runtime_hook` is a one-shot `OnceLock`, so record and replay
+/// each need their own test binary, and a test binary cannot reach a private
+/// item. Callers should use [`decode_jwt`].
+#[doc(hidden)]
+#[cfg_attr(
+    feature = "deja",
+    deja::time(
+        component = "router::authentication",
+        operation = "decode_jwt",
+        codec = deja::codec::ResultCodec::<T, JwtDecodeOutcome>,
+        args = {
+            serde_json::json!({
+                "token_digest": token_digest(token),
+                // Two call sites may present the same token for different
+                // claims, and their recorded shapes differ. Identity says which.
+                "claims_type": std::any::type_name::<T>(),
+            })
+        },
+    )
+)]
+pub fn decode_jwt_verified<T>(
+    token: &str,
+    secret: &[u8],
+) -> common_utils::errors::CustomResult<T, JwtDecodeOutcome>
+where
+    T: Serialize + serde::de::DeserializeOwned,
+{
     let key = DecodingKey::from_secret(secret);
     decode::<T>(token, &key, &Validation::new(Algorithm::HS256))
         .map(|decoded| decoded.claims)
         .map_err(|e| {
             if e.kind() == &ExpiredSignature {
-                report!(errors::ApiErrorResponse::ExpiredJwtToken)
+                report!(JwtDecodeOutcome::Expired)
             } else {
-                report!(errors::ApiErrorResponse::InvalidJwtToken)
+                report!(JwtDecodeOutcome::Invalid)
             }
         })
+}
+
+pub async fn decode_jwt<T>(token: &str, state: &impl SessionStateInfo) -> RouterResult<T>
+where
+    T: Serialize + serde::de::DeserializeOwned,
+{
+    let conf = state.conf();
+    let secret = conf.secrets.get_inner().jwt_secret.peek().as_bytes();
+
+    decode_jwt_verified::<T>(token, secret).map_err(|report| match report.current_context() {
+        JwtDecodeOutcome::Expired => report!(errors::ApiErrorResponse::ExpiredJwtToken),
+        JwtDecodeOutcome::Invalid => report!(errors::ApiErrorResponse::InvalidJwtToken),
+    })
 }
 
 pub fn get_api_key(headers: &HeaderMap) -> RouterResult<&str> {
