@@ -1,3 +1,6 @@
+// Integration test: assertions use panic!/expect(); allow the production-code
+// lints the v2 clippy profile denies.
+#![allow(clippy::panic, clippy::expect_used, clippy::unwrap_used)]
 //! A token the recording has never seen must not decode silently on replay.
 //!
 //! Substituting the decode outcome is what takes the clock out of the replay
