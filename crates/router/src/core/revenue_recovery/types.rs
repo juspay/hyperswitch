@@ -1476,7 +1476,14 @@ pub async fn reopen_calculate_workflow_on_payment_failure(
                         .reopen_workflow_buffer_time_in_seconds,
                 );
 
-            let new_retry_count = process.retry_count + 1;
+            // `process` is the EXECUTE tracker, which only counts our own attempts. The calculate
+            // ladder needs the invoice total, so take it from the intent metadata instead.
+            let new_retry_count = payment_intent
+                .feature_metadata
+                .as_ref()
+                .and_then(|metadata| metadata.payment_revenue_recovery_metadata.as_ref())
+                .map(|recovery_metadata| i32::from(recovery_metadata.total_retry_count))
+                .unwrap_or(process.retry_count + 1);
 
             // Check if a process tracker entry already exists for this payment intent
             let existing_entry = db
