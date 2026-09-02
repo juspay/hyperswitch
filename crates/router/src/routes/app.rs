@@ -69,7 +69,7 @@ use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_ve
 #[cfg(feature = "oltp")]
 use super::webhooks::*;
 use super::{
-    admin, api_keys, cache::*, card_issuer, chat, connector_onboarding, disputes,
+    admin, api_keys, cache::*, card_issuer, chat, chat_probe, connector_onboarding, disputes,
     external_service_auth as external_service_auth_routes, files, gsm, health::*, offer_engine,
     oidc, profiles, relay, user, user_role,
 };
@@ -2745,6 +2745,17 @@ impl Gsm {
             .service(web::resource("/get").route(web::post().to(gsm::get_gsm_rule)))
             .service(web::resource("/update").route(web::post().to(gsm::update_gsm_rule)))
             .service(web::resource("/delete").route(web::post().to(gsm::delete_gsm_rule)))
+    }
+}
+pub struct ChatProbe;
+
+/// THROWAWAY — dropped before the PR. See `routes::chat_probe`.
+impl ChatProbe {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/chat_probe")
+            .app_data(web::Data::new(state))
+            .service(web::resource("/xyne").route(web::post().to(chat_probe::probe_xyne)))
+            .service(web::resource("/slack").route(web::post().to(chat_probe::probe_slack)))
     }
 }
 pub struct Chat;

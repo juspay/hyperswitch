@@ -9,6 +9,8 @@ pub mod blocklist;
 pub mod cache;
 pub mod card_issuer;
 pub mod cards_info;
+// THROWAWAY — dropped before the PR. See the module docs.
+pub mod chat_probe;
 pub mod configs;
 #[cfg(feature = "olap")]
 pub mod connector_onboarding;
@@ -95,7 +97,7 @@ pub use self::app::PaymentMethodSession;
 pub use self::app::Proxy;
 pub use self::app::{
     ApiKeys, AppState, ApplePayCertificatesMigration, Authentication, Cache, CardIssuers, Cards,
-    Chat, Configs, ConnectorOnboarding, Customers, Disputes, Embedded, EphemeralKey,
+    Chat, ChatProbe, Configs, ConnectorOnboarding, Customers, Disputes, Embedded, EphemeralKey,
     ExternalService, FeatureMatrix, Files, Forex, Gsm, Health, Hypersense, Mandates,
     MerchantAccount, MerchantConnectorAccount, OfferEngine, Oidc, PaymentLink, PaymentMethods,
     Payments, Poll, ProcessTracker, ProcessTrackerDeprecated, Profile, ProfileAcquirer, ProfileNew,
