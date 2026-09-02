@@ -243,7 +243,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelPo
             .refunds
             .iter()
             .any(|refund| refund.is_refund_applied());
-
         crate::utils::when(is_refund_issued, || {
             Err(error_stack::report!(
                 errors::ApiErrorResponse::PreconditionFailed {
