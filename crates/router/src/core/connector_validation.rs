@@ -296,8 +296,8 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 givepayments::transformers::GivepaymentsAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
-            api_enums::Connector::Globalpaymentsheartland => {
-                globalpaymentsheartland::transformers::GlobalpaymentsheartlandAuthType::try_from(
+            api_enums::Connector::GlobalpaymentsHeartland => {
+                globalpayments_heartland::transformers::GlobalpaymentsHeartlandAuthType::try_from(
                     self.auth_type,
                 )?;
                 Ok(())

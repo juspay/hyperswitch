@@ -739,7 +739,7 @@ pub enum ConnectorSpecificConfig {
         destination_account_number: Option<Secret<String>>,
     },
     /// Global Payments Heartland (Portico gateway) connector configuration
-    Globalpaymentsheartland {
+    GlobalpaymentsHeartland {
         /// Portico SecretAPIKey (skapi_cert_... / skapi_prod_...), sent in the SOAP
         /// body at Ver1.0/Header/SecretAPIKey
         api_key: Secret<String>,
@@ -1879,11 +1879,11 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 }
                 _ => Err(err("Mifinity requires HeaderKey auth type")),
             },
-            Connector::Globalpaymentsheartland => match auth {
-                ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Globalpaymentsheartland {
+            Connector::GlobalpaymentsHeartland => match auth {
+                ConnectorAuthType::HeaderKey { api_key } => Ok(Self::GlobalpaymentsHeartland {
                     api_key: api_key.clone(),
                 }),
-                _ => Err(err("Globalpaymentsheartland requires HeaderKey auth type")),
+                _ => Err(err("GlobalpaymentsHeartland requires HeaderKey auth type")),
             },
             // --- Unsupported connectors ---
             _ => Err(

@@ -118,7 +118,7 @@ pub enum Connector {
     Gigadat,
     Givepayments,
     Globalpay,
-    Globalpaymentsheartland,
+    GlobalpaymentsHeartland,
     Globepay,
     Gocardless,
     GotymeSanlam,
@@ -478,7 +478,7 @@ impl Connector {
             Self::Cybersource | Self::Archipel | Self::Nuvei | Self::Adyen
             // Portico cannot authenticate: its Secure3D block only carries results computed
             // by a separate authentication connector, so external 3DS is its only 3DS mode.
-            | Self::Globalpaymentsheartland => true,
+            | Self::GlobalpaymentsHeartland => true,
         }
     }
 

@@ -66,7 +66,7 @@ pub struct ConnectorAuthentication {
     pub gigadat: Option<SignatureKey>,
     pub givepayments: Option<HeaderKey>,
     pub globalpay: Option<BodyKey>,
-    pub globalpaymentsheartland: Option<HeaderKey>,
+    pub globalpayments_heartland: Option<HeaderKey>,
     pub globepay: Option<BodyKey>,
     pub gocardless: Option<HeaderKey>,
     pub gpayments: Option<HeaderKey>,

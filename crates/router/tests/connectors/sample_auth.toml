@@ -406,5 +406,5 @@ key1 = "Account Id"
 [givepayments]
 api_key = "API Key"
 
-[globalpaymentsheartland]
+[globalpayments_heartland]
 api_key = "Secret API Key"

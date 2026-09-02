@@ -15,11 +15,11 @@ use hyperswitch_masking::Secret;
 /// bound to the secret key server-side — Portico echoes the resolved
 /// `MerchNbr` / `SiteId` / `DeviceId` back on every response.
 #[allow(dead_code)] // `secret_api_key` is consumed by UCS, not by this stub
-pub struct GlobalpaymentsheartlandAuthType {
+pub struct GlobalpaymentsHeartlandAuthType {
     pub(super) secret_api_key: Secret<String>,
 }
 
-impl TryFrom<&ConnectorAuthType> for GlobalpaymentsheartlandAuthType {
+impl TryFrom<&ConnectorAuthType> for GlobalpaymentsHeartlandAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {

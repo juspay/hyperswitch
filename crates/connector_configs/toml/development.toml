@@ -9236,30 +9236,30 @@ payment_method_type = "payshap_proxy"
 [gotyme_sanlam_payout.connector_webhook_details]
 merchant_secret="Source verification key"
 
-[globalpaymentsheartland]
-[[globalpaymentsheartland.credit]]
+[globalpayments_heartland]
+[[globalpayments_heartland.credit]]
 payment_method_type = "Mastercard"
-[[globalpaymentsheartland.credit]]
+[[globalpayments_heartland.credit]]
 payment_method_type = "Visa"
-[[globalpaymentsheartland.credit]]
+[[globalpayments_heartland.credit]]
 payment_method_type = "AmericanExpress"
-[[globalpaymentsheartland.credit]]
+[[globalpayments_heartland.credit]]
 payment_method_type = "JCB"
-[[globalpaymentsheartland.credit]]
+[[globalpayments_heartland.credit]]
 payment_method_type = "Discover"
-[[globalpaymentsheartland.credit]]
+[[globalpayments_heartland.credit]]
 payment_method_type = "DinersClub"
-[[globalpaymentsheartland.debit]]
+[[globalpayments_heartland.debit]]
 payment_method_type = "Mastercard"
-[[globalpaymentsheartland.debit]]
+[[globalpayments_heartland.debit]]
 payment_method_type = "Visa"
-[[globalpaymentsheartland.debit]]
+[[globalpayments_heartland.debit]]
 payment_method_type = "AmericanExpress"
-[[globalpaymentsheartland.debit]]
+[[globalpayments_heartland.debit]]
 payment_method_type = "JCB"
-[[globalpaymentsheartland.debit]]
+[[globalpayments_heartland.debit]]
 payment_method_type = "Discover"
-[[globalpaymentsheartland.debit]]
+[[globalpayments_heartland.debit]]
 payment_method_type = "DinersClub"
-[globalpaymentsheartland.connector_auth.HeaderKey]
+[globalpayments_heartland.connector_auth.HeaderKey]
 api_key = "Secret API Key"

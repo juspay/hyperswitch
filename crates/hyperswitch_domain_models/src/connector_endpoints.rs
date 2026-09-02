@@ -68,7 +68,7 @@ pub struct Connectors {
     pub gigadat: ConnectorParams,
     pub givepayments: ConnectorParams,
     pub globalpay: ConnectorParams,
-    pub globalpaymentsheartland: ConnectorParams,
+    pub globalpayments_heartland: ConnectorParams,
     pub globepay: ConnectorParams,
     pub gocardless: ConnectorParams,
     pub gotyme_sanlam: ConnectorParams,

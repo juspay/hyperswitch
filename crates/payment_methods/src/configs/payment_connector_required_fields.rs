@@ -1522,7 +1522,7 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
         (Connector::Forte, fields(vec![], card_with_name(), vec![])),
         (Connector::Globalpay, fields(vec![], vec![], card_basic())),
         (
-            Connector::Globalpaymentsheartland,
+            Connector::GlobalpaymentsHeartland,
             fields(vec![], card_basic(), vec![]),
         ),
         (
