@@ -2,22 +2,24 @@
 //!
 //! ## Reaching `external_services::email`
 //!
-//! That module's object-safe trait exposes exactly one method, and it is built for templated
-//! product emails: `compose_and_send_email(base_url, Box<dyn EmailData>, proxy_url)`. `EmailData`
-//! is the composition hook, where an implementation renders a template against a base URL. This
-//! crate has a subject and a body already in hand, no template, and no meaningful base URL.
+//! That module's object-safe trait was built for templated product emails:
+//! `compose_and_send_email(base_url, Box<dyn EmailData>, proxy_url)`, where `EmailData` renders a
+//! template against a base URL. This crate has a subject and a body already in hand, no template,
+//! and no base URL.
 //!
-//! Three ways to bridge that were open, and the choice is less free than it looks:
+//! Rather than implement `EmailData` to hand back what it was given — and invent a `base_url` for
+//! that impl to ignore — `EmailService` gained [`send_contents`], and composition is now defined in
+//! terms of it. The trait was missing an operation; it was not missing a clever caller.
 //!
-//! - **Implement `EmailData` and ignore `base_url`.** What [`AlertEmail`] does. Nothing outside
-//!   this crate changes.
-//! - **Add a plain-send method to `EmailService`.** Honest, and smaller here — but it widens a
-//!   trait `router` depends on, to suit one caller.
-//! - **Depend on the concrete backends.** Loses the SES / SMTP / no-email selection that
-//!   `EmailClientConfigs` gives for free, and with it the ability to turn email off by config.
+//! That costs existing callers nothing. `EmailService` has exactly one implementor, the blanket
+//! `impl<T> EmailService for T where T: EmailClient`, so SES, SMTP and `no_email` gained the method
+//! for free and every `compose_and_send_email` call site is untouched.
 //!
-//! The first is the only one whose cost stays inside this crate, so a dummy `base_url` is the
-//! price. It is one ignored parameter in one function, and it buys not touching a shared trait.
+//! Dropping to the concrete backends instead was the other option, and it loses the SES / SMTP /
+//! no-email selection `EmailClientConfigs` gives for free — and with it the ability to turn email
+//! off by configuration.
+//!
+//! [`send_contents`]: EmailService::send_contents
 //!
 //! ## Email cannot refuse
 //!
@@ -29,10 +31,8 @@
 
 use std::sync::Arc;
 
-use common_utils::{errors::CustomResult, pii};
-use external_services::email::{
-    EmailContents, EmailData, EmailError, EmailService, IntermediateString,
-};
+use common_utils::pii;
+use external_services::email::{EmailContents, EmailService, IntermediateString};
 use hyperswitch_masking::{PeekInterface, Secret};
 
 use super::Outcome;
@@ -104,15 +104,12 @@ impl EmailServiceNotifier {
 impl EmailNotifier for EmailServiceNotifier {
     async fn notify(&self, notification: EmailNotification) -> AlertsApiResult<EmailOutcome> {
         self.client
-            .compose_and_send_email(
-                // No template renders against this, so there is no URL to give. `EmailData` takes
-                // one because the router's product emails build links with it.
-                "",
-                Box::new(AlertEmail {
-                    subject: notification.subject,
-                    body: notification.body,
+            .send_contents(
+                EmailContents {
+                    subject: notification.subject.peek().clone(),
+                    body: IntermediateString::new(notification.body.peek().clone()),
                     recipient: self.recipient.clone(),
-                }),
+                },
                 self.proxy_url.as_ref(),
             )
             .await
@@ -123,30 +120,6 @@ impl EmailNotifier for EmailServiceNotifier {
             })?;
 
         Ok(Outcome::Delivered(()))
-    }
-}
-
-/// An alert, in the shape `EmailService` composes from.
-///
-/// `get_email_data` hands back what it was given. There is no template and nothing to render, which
-/// is why `base_url` is ignored — see the module docs for why this trait is the bridge anyway.
-///
-/// The content stays [`Secret`] right up to the moment it is handed over, so nothing between the
-/// route and the transport holds an unwrapped subject or body.
-struct AlertEmail {
-    subject: Secret<String>,
-    body: Secret<String>,
-    recipient: pii::Email,
-}
-
-#[async_trait::async_trait]
-impl EmailData for AlertEmail {
-    async fn get_email_data(&self, _base_url: &str) -> CustomResult<EmailContents, EmailError> {
-        Ok(EmailContents {
-            subject: self.subject.peek().clone(),
-            body: IntermediateString::new(self.body.peek().clone()),
-            recipient: self.recipient.clone(),
-        })
     }
 }
 
@@ -186,8 +159,8 @@ mod tests {
         }
     }
 
-    /// `NoEmailClient` accepts and logs, so this exercises the whole composition path — the
-    /// `EmailData` bridge included — without a transport.
+    /// `NoEmailClient` accepts and logs, so this exercises the real path to the transport — with no
+    /// `EmailData` in it any more — without needing credentials.
     #[tokio::test]
     async fn the_no_email_backend_reports_delivery() {
         let outcome = no_email_notifier()
@@ -208,45 +181,6 @@ mod tests {
 
         assert!(!rendered.contains("merchant_1234"));
         assert!(!rendered.contains("4,201"));
-    }
-
-    /// `compose_and_send_email` uses `base_url` for exactly one thing — passing it to
-    /// `get_email_data` — so the empty string we hand it reaches nothing but this impl, which
-    /// drops it. Pinned rather than argued: if a future `AlertEmail` ever starts reading it, this
-    /// fails instead of quietly composing a different email.
-    #[tokio::test]
-    async fn base_url_cannot_affect_the_composed_email() {
-        let compose = |base_url: &'static str| async move {
-            AlertEmail {
-                subject: "subject".to_owned().into(),
-                body: "<pre>body</pre>".to_owned().into(),
-                recipient: recipient(),
-            }
-            .get_email_data(base_url)
-            .await
-            .unwrap()
-        };
-
-        let empty = compose("").await;
-        let populated = compose("https://example.com").await;
-
-        assert_eq!(empty.subject, populated.subject);
-        assert_eq!(empty.body.into_inner(), populated.body.into_inner());
-    }
-
-    #[tokio::test]
-    async fn the_composed_email_carries_the_notification_unchanged() {
-        let contents = AlertEmail {
-            subject: "subject".to_owned().into(),
-            body: "<pre>body</pre>".to_owned().into(),
-            recipient: recipient(),
-        }
-        .get_email_data("")
-        .await
-        .unwrap();
-
-        assert_eq!(contents.subject, "subject");
-        assert_eq!(contents.body.into_inner(), "<pre>body</pre>");
     }
 
     /// A destination with no address would accept alerts and send them nowhere, so it has to fail
