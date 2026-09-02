@@ -31,6 +31,7 @@ pub enum IncomingWebhookEvent {
     SourceTransactionCreated,
     RefundFailure,
     RefundSuccess,
+    RefundReview,
     DisputeOpened,
     DisputeExpired,
     DisputeAccepted,
@@ -288,9 +289,9 @@ impl From<IncomingWebhookEvent> for WebhookFlow {
             | IncomingWebhookEvent::PaymentIntentExtendAuthorizationSuccess
             | IncomingWebhookEvent::PaymentIntentExtendAuthorizationFailure => Self::Payment,
             IncomingWebhookEvent::EventNotSupported => Self::ReturnResponse,
-            IncomingWebhookEvent::RefundSuccess | IncomingWebhookEvent::RefundFailure => {
-                Self::Refund
-            }
+            IncomingWebhookEvent::RefundSuccess
+            | IncomingWebhookEvent::RefundFailure
+            | IncomingWebhookEvent::RefundReview => Self::Refund,
             IncomingWebhookEvent::MandateActive | IncomingWebhookEvent::MandateRevoked => {
                 Self::Mandate
             }
