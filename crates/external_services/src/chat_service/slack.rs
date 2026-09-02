@@ -15,7 +15,7 @@ use serde::Deserialize;
 use url::Url;
 
 use super::{
-    slack_compatible::{Endpoint, DEFAULT_MAX_MESSAGE_CHARS, DEFAULT_TIMEOUT_SECONDS},
+    slack_compatible::{Endpoint, DEFAULT_TIMEOUT_SECONDS},
     ChatClient, ChatMessage, ChatResult, MessageId,
 };
 
@@ -36,6 +36,9 @@ fn default_base_url() -> Url {
 fn default_timeout_seconds() -> u64 {
     DEFAULT_TIMEOUT_SECONDS
 }
+
+/// Slack's documented limit on the `text` field of `chat.postMessage`.
+const DEFAULT_MAX_MESSAGE_CHARS: usize = 40_000;
 
 fn default_max_message_chars() -> usize {
     DEFAULT_MAX_MESSAGE_CHARS
@@ -111,7 +114,9 @@ mod tests {
         Mock::given(method("POST"))
             .and(path("/chat.postMessage"))
             .and(header("authorization", "Bearer xoxb-test"))
-            .and(body_json(json!({"channel": "C1", "text": "hello"})))
+            .and(body_json(
+                json!({"channel": "C1", "text": "hello", "mrkdwn": true}),
+            ))
             .respond_with(
                 ResponseTemplate::new(200).set_body_json(json!({"ok": true, "ts": "1.1"})),
             )

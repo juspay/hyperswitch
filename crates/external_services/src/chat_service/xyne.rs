@@ -16,7 +16,7 @@ use serde::Deserialize;
 use url::Url;
 
 use super::{
-    slack_compatible::{Endpoint, DEFAULT_MAX_MESSAGE_CHARS, DEFAULT_TIMEOUT_SECONDS},
+    slack_compatible::{Endpoint, DEFAULT_TIMEOUT_SECONDS},
     ChatClient, ChatMessage, ChatResult, MessageId,
 };
 
@@ -37,6 +37,14 @@ fn default_base_url() -> Url {
 fn default_timeout_seconds() -> u64 {
     DEFAULT_TIMEOUT_SECONDS
 }
+
+/// What Xyne's adapter enforces before it will store a message.
+///
+/// A quarter of Slack's own limit, so the two backends cannot share a default. Note the adapter
+/// measures the message *after* it has rendered the markup, and rendering expands the text, so a
+/// body close to this ceiling can still be refused — lower it in config if that happens rather
+/// than raising it here.
+const DEFAULT_MAX_MESSAGE_CHARS: usize = 10_000;
 
 fn default_max_message_chars() -> usize {
     DEFAULT_MAX_MESSAGE_CHARS
@@ -146,7 +154,9 @@ mod tests {
             .and(path(METHOD_PATH))
             .and(header("authorization", format!("Bearer {TOKEN}").as_str()))
             .and(header("content-type", "application/json"))
-            .and(body_json(json!({"channel": CHANNEL, "text": "hello"})))
+            .and(body_json(
+                json!({"channel": CHANNEL, "text": "hello", "mrkdwn": true}),
+            ))
             .respond_with(
                 ResponseTemplate::new(200)
                     .set_body_json(json!({"ok": true, "ts": "1503435956.000247"})),
@@ -168,7 +178,7 @@ mod tests {
         Mock::given(method("POST"))
             .and(path(METHOD_PATH))
             .and(body_json(
-                json!({"channel": CHANNEL, "text": "recovered", "thread_ts": "1503435956.000247"}),
+                json!({"channel": CHANNEL, "text": "recovered", "thread_ts": "1503435956.000247", "mrkdwn": true}),
             ))
             .respond_with(
                 ResponseTemplate::new(200)
@@ -378,6 +388,8 @@ mod tests {
 
         assert_eq!(config.base_url.as_str(), DEFAULT_BASE_URL);
         assert_eq!(config.timeout_seconds, DEFAULT_TIMEOUT_SECONDS);
-        assert_eq!(config.max_message_chars, DEFAULT_MAX_MESSAGE_CHARS);
+        // Spelled out rather than compared against the constant: this is a quarter of Slack's
+        // limit, and silently inheriting Slack's would mean sending messages Xyne refuses.
+        assert_eq!(config.max_message_chars, 10_000);
     }
 }

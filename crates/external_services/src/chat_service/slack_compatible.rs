@@ -24,9 +24,6 @@ use crate::http_client;
 /// The method that posts a message. The only one this crate calls; `files.upload` is out of v1.
 const CHAT_POST_MESSAGE: &str = "chat.postMessage";
 
-/// Slack's documented limit on the `text` field of `chat.postMessage`.
-pub(super) const DEFAULT_MAX_MESSAGE_CHARS: usize = 40_000;
-
 /// Long enough that a slow provider is not mistaken for a dead one, short enough that a caller
 /// delivering a time-sensitive message is not held indefinitely.
 pub(super) const DEFAULT_TIMEOUT_SECONDS: u64 = 30;
@@ -221,6 +218,7 @@ impl Endpoint {
             channel: self.channel.clone(),
             text: truncate(message.text(), self.max_message_chars),
             thread_ts,
+            mrkdwn: true,
         })
     }
 }
@@ -232,6 +230,15 @@ struct PostMessagePayload {
     text: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     thread_ts: Option<String>,
+
+    /// Always sent, and never omitted.
+    ///
+    /// Slack treats markup as enabled by default, so this is redundant there. Xyne does not:
+    /// its adapter takes the markup path only on `mrkdwn === true`, so an omitted flag delivers
+    /// `*bold*` and backticks as literal characters. Since the whole point of
+    /// [`ChatMessage::text`](super::ChatMessage::text) is markup, sending it explicitly is the
+    /// only spelling that behaves the same on both.
+    mrkdwn: bool,
 }
 
 /// The `chat.postMessage` response, exactly as it arrives.
@@ -307,6 +314,13 @@ enum SlackErrorCode {
     /// The same condition, spelled without the underscore on some endpoints.
     #[serde(rename = "ratelimited")]
     RateLimitedCompact,
+    /// The request did not satisfy the endpoint's schema — a fault on this side of the wire.
+    InvalidArguments,
+    /// The message named as a reply target no longer resolves.
+    ThreadNotFound,
+    /// The provider failed on its own account. Distinct from every other code here, all of which
+    /// blame the request: this one is the provider's fault and may succeed if tried again.
+    InternalError,
     /// Any code not listed above, kept verbatim.
     #[serde(untagged)]
     Unrecognised(String),
@@ -325,6 +339,12 @@ impl From<SlackErrorCode> for ChatErrorReason {
             SlackErrorCode::RateLimited | SlackErrorCode::RateLimitedCompact => Self::RateLimited {
                 retry_after_seconds: None,
             },
+            // These three have no neutral variant yet, so they ride in `Other` with their code
+            // intact. `internal_error` is the one worth promoting first if a caller ever needs to
+            // decide whether retrying is worthwhile.
+            SlackErrorCode::InvalidArguments => Self::Other("invalid_arguments".to_owned()),
+            SlackErrorCode::ThreadNotFound => Self::Other("thread_not_found".to_owned()),
+            SlackErrorCode::InternalError => Self::Other("internal_error".to_owned()),
             SlackErrorCode::Unrecognised(code) => Self::Other(code),
         }
     }
@@ -366,6 +386,10 @@ mod tests {
     use serde_json::json;
 
     use super::*;
+
+    /// Any cap generous enough not to interfere; the per-backend defaults live with their
+    /// clients, since Slack and Xyne do not agree on one.
+    const TEST_MAX_MESSAGE_CHARS: usize = 40_000;
 
     /// Parse a body and run it through the conversion, exactly as `post_message` does.
     fn read(value: serde_json::Value) -> Result<ChatResult<MessageId>, serde_json::Error> {
@@ -502,6 +526,12 @@ mod tests {
             );
         }
 
+        // Codes the Xyne adapter emits that have no neutral variant yet. They must still arrive
+        // with their meaning legible rather than as an empty `Other`.
+        for code in ["invalid_arguments", "thread_not_found", "internal_error"] {
+            assert_eq!(reason(code), ChatErrorReason::Other(code.to_owned()));
+        }
+
         // A code the provider adds later survives intact rather than being flattened away.
         assert_eq!(
             reason("something_new"),
@@ -516,7 +546,7 @@ mod tests {
             Secret::new(token.to_owned()),
             "C1".to_owned(),
             DEFAULT_TIMEOUT_SECONDS,
-            DEFAULT_MAX_MESSAGE_CHARS,
+            TEST_MAX_MESSAGE_CHARS,
             Proxy::default(),
         )
     }
@@ -534,7 +564,7 @@ mod tests {
             Secret::new("token".to_owned()),
             "  ".to_owned(),
             DEFAULT_TIMEOUT_SECONDS,
-            DEFAULT_MAX_MESSAGE_CHARS,
+            TEST_MAX_MESSAGE_CHARS,
             Proxy::default(),
         );
         assert!(blank_channel.is_err());
