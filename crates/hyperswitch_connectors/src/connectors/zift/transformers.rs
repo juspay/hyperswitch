@@ -1,7 +1,6 @@
 use api_models::payments::AdditionalPaymentData;
 use common_enums::enums;
 use common_utils::types::StringMinorUnit;
-use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
@@ -666,24 +665,39 @@ pub struct ZiftSyncRequest {
     request_type: RequestType,
     #[serde(flatten)]
     auth: ZiftAuthType,
-    transaction_id: i64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    transaction_id: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    transaction_code: Option<String>,
 }
 impl TryFrom<&PaymentsSyncRouterData> for ZiftSyncRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &PaymentsSyncRouterData) -> Result<Self, Self::Error> {
         let auth = ZiftAuthType::try_from(&item.connector_auth_type)?;
-        let transaction_id = item
-            .request
-            .connector_transaction_id
-            .get_connector_transaction_id()
-            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+
+        // Zift's `find` request accepts either `transactionId` or `transactionCode`.
+        // When the connector transaction id is not present, fall back to the
+        // transaction code of the original transaction, i.e. the connector
+        // response reference id or the connector request reference id.
+        let (transaction_id, transaction_code) = match &item.request.connector_transaction_id {
+            ResponseId::ConnectorTransactionId(transaction_id) => (
+                Some(
+                    transaction_id
+                        .parse::<i64>()
+                        .map_err(|_| errors::ConnectorError::ResponseDeserializationFailed)?,
+                ),
+                None,
+            ),
+            ResponseId::EncodedData(_) | ResponseId::NoResponseId => {
+                (None, Some(item.connector_request_reference_id.clone()))
+            }
+        };
 
         Ok(Self {
             request_type: RequestType::Find,
             auth,
-            transaction_id: transaction_id
-                .parse::<i64>()
-                .map_err(|_| errors::ConnectorError::ResponseDeserializationFailed)?,
+            transaction_id,
+            transaction_code,
         })
     }
 }
@@ -692,6 +706,7 @@ impl TryFrom<&PaymentsSyncRouterData> for ZiftSyncRequest {
 pub struct ZiftSyncResponse {
     pub transaction_status: TransactionStatus,
     pub transaction_type: PaymentRequestType,
+    pub transaction_id: Option<i64>,
     pub response_message: Option<String>,
     pub response_code: Option<String>,
 }
@@ -732,6 +747,20 @@ impl TryFrom<ResponseRouterData<PSync, ZiftSyncResponse, PaymentsSyncData, Payme
                 TransactionStatus::Cancelled => common_enums::AttemptStatus::CaptureFailed,
             },
         };
+        // Populate the previous connector transaction id. If it is empty,
+        // populate the new one returned by the `find` response.
+        let resource_id = item
+            .data
+            .request
+            .connector_transaction_id
+            .get_optional_response_id()
+            .map(ResponseId::ConnectorTransactionId)
+            .or_else(|| {
+                item.response.transaction_id.map(|transaction_id| {
+                    ResponseId::ConnectorTransactionId(transaction_id.to_string())
+                })
+            })
+            .unwrap_or(ResponseId::NoResponseId);
         let response = if attempt_status == common_enums::AttemptStatus::Failure {
             Err(ErrorResponse {
                 code: item
@@ -747,7 +776,10 @@ impl TryFrom<ResponseRouterData<PSync, ZiftSyncResponse, PaymentsSyncData, Payme
                 reason: item.response.response_message,
                 status_code: item.http_code,
                 attempt_status: Some(attempt_status),
-                connector_transaction_id: None,
+                connector_transaction_id: item
+                    .response
+                    .transaction_id
+                    .map(|transaction_id| transaction_id.to_string()),
                 connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
@@ -756,7 +788,7 @@ impl TryFrom<ResponseRouterData<PSync, ZiftSyncResponse, PaymentsSyncData, Payme
             })
         } else {
             Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::NoResponseId,
+                resource_id,
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
                 connector_metadata: None,

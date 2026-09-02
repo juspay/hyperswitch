@@ -343,6 +343,10 @@ pub enum Flow {
     GetBatchBlocklistJobStatus,
     /// List batch blocklist upload jobs for a merchant
     ListBatchBlocklistJobs,
+    /// Get blocklist entry counts, broken down by fingerprint length
+    GetBlocklistCount,
+    /// Look up whether a value is present in the blocklist
+    LookupBlocklistEntry,
     /// Incoming Webhook Receive
     IncomingWebhookReceive,
     /// Recovery incoming webhook receive
@@ -689,6 +693,8 @@ pub enum Flow {
     HypersenseVerifyToken,
     /// Signout Hypersense Token
     HypersenseSignoutToken,
+    /// Validate a dashboard token on behalf of an external service
+    ExternalServiceValidateToken,
     /// Payment Method Session Create
     PaymentMethodSessionCreate,
     /// Payment Method Session Retrieve
@@ -755,6 +761,8 @@ pub enum Flow {
     TokenizationDelete,
     /// Payment method data backfill flow
     RecoveryDataBackfill,
+    /// Revenue recovery retry stats admin migration (CSV upload)
+    RecoveryRetryStatsMigration,
     /// Revenue recovery Redis operations flow
     RevenueRecoveryRedis,
     /// Payment Method balance check flow
