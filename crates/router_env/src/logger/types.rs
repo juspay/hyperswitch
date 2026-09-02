@@ -343,6 +343,10 @@ pub enum Flow {
     GetBatchBlocklistJobStatus,
     /// List batch blocklist upload jobs for a merchant
     ListBatchBlocklistJobs,
+    /// Get blocklist entry counts, broken down by fingerprint length
+    GetBlocklistCount,
+    /// Look up whether a value is present in the blocklist
+    LookupBlocklistEntry,
     /// Incoming Webhook Receive
     IncomingWebhookReceive,
     /// Recovery incoming webhook receive

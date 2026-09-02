@@ -89,8 +89,8 @@ use crate::{
     payment_methods,
     payments::additional_info::{
         BankDebitAdditionalData, BankRedirectDetails, BankTransferAdditionalData,
-        CardTokenAdditionalData, GiftCardAdditionalData, UpiAdditionalData,
-        WalletAdditionalDataForCard,
+        CardTokenAdditionalData, GiftCardAdditionalData, PaypalWalletAdditionalData,
+        UpiAdditionalData, WalletAdditionalDataForCard,
     },
     platform,
 };
@@ -4254,6 +4254,7 @@ pub enum AdditionalPaymentData {
         apple_pay: Option<Box<ApplepayPaymentMethod>>,
         google_pay: Option<Box<WalletAdditionalDataForCard>>,
         samsung_pay: Option<Box<WalletAdditionalDataForCard>>,
+        paypal: Option<Box<PaypalWalletAdditionalData>>,
     },
     PayLater {
         klarna_sdk: Option<KlarnaSdkPaymentMethod>,
@@ -6316,6 +6317,9 @@ pub enum WalletResponseData {
     #[schema(value_type = WalletAdditionalDataForCard)]
     #[smithy(value_type = "Option<WalletAdditionalDataForCard>")]
     SamsungPay(Box<WalletAdditionalDataForCard>),
+    #[schema(value_type = PaypalWalletAdditionalData)]
+    #[smithy(value_type = "Option<PaypalWalletAdditionalData>")]
+    Paypal(Box<PaypalWalletAdditionalData>),
 }
 
 #[derive(
@@ -9532,8 +9536,9 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
                 apple_pay,
                 google_pay,
                 samsung_pay,
-            } => match (apple_pay, google_pay, samsung_pay) {
-                (Some(apple_pay_pm), _, _) => Self::Wallet(Box::new(WalletResponse {
+                paypal,
+            } => match (apple_pay, google_pay, samsung_pay, paypal) {
+                (Some(apple_pay_pm), _, _, _) => Self::Wallet(Box::new(WalletResponse {
                     details: Some(WalletResponseData::ApplePay(Box::new(
                         WalletAdditionalDataForCard {
                             last4: Some(
@@ -9557,11 +9562,14 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
                         },
                     ))),
                 })),
-                (_, Some(google_pay_pm), _) => Self::Wallet(Box::new(WalletResponse {
+                (_, Some(google_pay_pm), _, _) => Self::Wallet(Box::new(WalletResponse {
                     details: Some(WalletResponseData::GooglePay(google_pay_pm)),
                 })),
-                (_, _, Some(samsung_pay_pm)) => Self::Wallet(Box::new(WalletResponse {
+                (_, _, Some(samsung_pay_pm), _) => Self::Wallet(Box::new(WalletResponse {
                     details: Some(WalletResponseData::SamsungPay(samsung_pay_pm)),
+                })),
+                (_, _, _, Some(paypal_pm)) => Self::Wallet(Box::new(WalletResponse {
+                    details: Some(WalletResponseData::Paypal(paypal_pm)),
                 })),
                 _ => Self::Wallet(Box::new(WalletResponse { details: None })),
             },
