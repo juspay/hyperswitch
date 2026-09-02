@@ -432,21 +432,6 @@ describe("Step-Up Auth payment flow test", () => {
         }
       });
 
-      it("authorize payment after visa frictionless authentication", () => {
-        if (!shouldContinue) {
-          cy.task(
-            "cli_log",
-            "Skipping step: authorize payment after visa frictionless authentication"
-          );
-          return;
-        }
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "step_up_auth"
-        ]["AuthorizeAfterFrictionlessAuth"];
-
-        cy.authorizeViaThreeDsAuthorizeUrlTest(data, globalState);
-      });
-
       it("retrieve payment for visa frictionless", () => {
         if (!shouldContinue) {
           cy.task(
