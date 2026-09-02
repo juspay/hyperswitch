@@ -1869,6 +1869,8 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::PixEmv | PaymentMethodType::PixQr => Self::BankTransfer,
             PaymentMethodType::PixAutomaticoPush => Self::BankTransfer,
             PaymentMethodType::PixAutomaticoQr => Self::BankTransfer,
+            PaymentMethodType::Payshap => Self::BankTransfer,
+            PaymentMethodType::PayshapProxy => Self::BankTransfer,
             PaymentMethodType::Pse => Self::BankTransfer,
             PaymentMethodType::LocalBankTransfer => Self::BankTransfer,
             PaymentMethodType::PayBright => Self::PayLater,
@@ -2175,9 +2177,8 @@ impl From<RefundStatus> for Option<EventType> {
         match value {
             RefundStatus::Success => Some(EventType::RefundSucceeded),
             RefundStatus::Failure => Some(EventType::RefundFailed),
-            RefundStatus::ManualReview
-            | RefundStatus::Pending
-            | RefundStatus::TransactionFailure => None,
+            RefundStatus::ManualReview => Some(EventType::RefundReview),
+            RefundStatus::Pending | RefundStatus::TransactionFailure => None,
         }
     }
 }

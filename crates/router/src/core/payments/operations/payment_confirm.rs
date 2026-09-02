@@ -402,7 +402,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .map(Encode::encode_to_value)
             .transpose()
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "browser_info",
+                field_name: "browser_info".into(),
             })?;
         let customer_acceptance = request.customer_acceptance.clone().or(payment_attempt
             .customer_acceptance
@@ -970,7 +970,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let payment_data = Box::pin(apply_offer_engine_offer(
             state,
             request,
-            platform.get_processor(),
+            platform,
             payment_data,
         ))
         .await?;
@@ -1191,7 +1191,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             if should_create {
                                 let payment_method = req.payment_method.ok_or(
                                     errors::ApiErrorResponse::MissingRequiredField {
-                                        field_name: "payment_method",
+                                        field_name: "payment_method".into(),
                                     },
                                 )?;
 
@@ -1201,7 +1201,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                                     .and_then(|pmd| pmd.payment_method_data.clone())
                                     .map(Into::into)
                                     .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                                        field_name: "payment_method_data",
+                                        field_name: "payment_method_data".into(),
                                     })?;
                                 let customer =
                                     customer.ok_or(errors::ApiErrorResponse::CustomerNotFound)?;
@@ -1235,9 +1235,15 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                                         payment_data.set_payment_method_info(Some(pm_info));
                                     }
                                     Err(err) => {
+                                        // Non-fatal by design: the payment proceeds without a
+                                        // saved payment method, so this error log is the only
+                                        // trace that saving was attempted and failed.
                                         logger::error!(
-                                            "Error creating payment method in PM Modular service: {:?}",
-                                            err
+                                            error=?err,
+                                            payment_id=%payment_data.payment_intent.payment_id.get_string_repr(),
+                                            merchant_id=%platform.get_processor().get_account().get_id().get_string_repr(),
+                                            profile_id=%business_profile.get_id().get_string_repr(),
+                                            "Error creating payment method in PM Modular service; continuing payment without saved payment method"
                                         );
                                     }
                                 }
@@ -1415,15 +1421,28 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     .await?
                 }
                 Some(payment_method) => {
-                    logger::info!("Organization is not eligible for PM Modular Service, skipping fetch payment method.");
+                    // Reached when the modular flag is off OR the payment method's timestamps
+                    // favour the legacy copy — not only for non-eligible organizations.
+                    logger::info!(
+                        payment_method_id=%payment_method.get_id(),
+                        payment_method_version=?payment_method.version,
+                        compatibility_updated_at=?payment_method.compatibility_updated_at,
+                        last_modified=?payment_method.last_modified,
+                        "Legacy payment method path selected, skipping fetch from PM Modular Service."
+                    );
                     operations::PaymentMethodFetchData::from_legacy(payment_method, token_data)
                 }
-                None => operations::PaymentMethodFetchData {
-                    payment_intent: None,
-                    payment_method_info: None,
-                    payment_method_with_raw_data: None,
-                    token_data,
-                },
+                None => {
+                    logger::debug!(
+                        "No stored payment method resolved from the request; skipping payment method fetch."
+                    );
+                    operations::PaymentMethodFetchData {
+                        payment_intent: None,
+                        payment_method_info: None,
+                        payment_method_with_raw_data: None,
+                        token_data,
+                    }
+                }
             }
         };
 
@@ -1879,7 +1898,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     let click_to_pay_mca_id = authentication_product_ids
                     .get_click_to_pay_connector_account_id()
                     .change_context(errors::ApiErrorResponse::MissingRequiredField {
-                        field_name: "authentication_product_ids",
+                        field_name: "authentication_product_ids".into(),
                     })?;
                     let merchant_id = &business_profile.merchant_id;
                     let connector_mca = state
@@ -1899,7 +1918,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             common_utils::id_type::AuthenticationId::generate_authentication_id(consts::AUTHENTICATION_ID_PREFIX);
                         let payment_method = payment_data.payment_attempt.payment_method.ok_or(
                             errors::ApiErrorResponse::MissingRequiredField {
-                                field_name: "payment_method",
+                                field_name: "payment_method".into(),
                             },
                         )?;
 
@@ -2067,7 +2086,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             let (authentication_create_response, eligibility_response) = {
                 let auth_config = &state.conf.micro_services.authentication_service;
                 let currency = payment_data.payment_intent.currency.ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "currency",
+                    field_name: "currency".into(),
                 }).attach_printable("Currency missing")?;
 
                 let auth_req = api_models::authentication::AuthenticationCreateRequest {
@@ -2111,7 +2130,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     }
                     None => {
                         Err(errors::ApiErrorResponse::MissingRequiredField {
-                            field_name: "payment_method_data",
+                            field_name: "payment_method_data".into(),
                         })
                         .attach_printable("payment_method_data missing in payment_data")?
                     }
@@ -2311,7 +2330,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         .and_then(|authentication_details| authentication_details.three_ds_data)
                         .and_then(|data| data.authentication_cryptogram)
                         .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                            field_name: "authentication_cryptogram",
+                            field_name: "authentication_cryptogram".into(),
                         })?;
 
                     match cryptogram {
@@ -2778,6 +2797,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         let m_error_code = error_code.clone();
         let m_error_message = error_message.clone();
         let m_fingerprint_id = payment_data.payment_attempt.fingerprint_id.clone();
+        let m_fingerprint_type = payment_data.payment_attempt.fingerprint_type;
         let m_db = state.clone().store;
         let surcharge_amount = payment_data
             .payment_attempt
@@ -2852,6 +2872,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         authentication_id,
                         payment_method_billing_address_id,
                         fingerprint_id: m_fingerprint_id,
+                        fingerprint_type: m_fingerprint_type,
                         payment_method_id: m_payment_method_id,
                         client_source,
                         client_version,
@@ -3003,6 +3024,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                             .payment_intent
                             .is_iframe_redirection_enabled,
                         is_confirm_operation: true, // Indicates that this is a confirm operation
+                        is_account_funded_transaction: payment_data
+                            .payment_intent
+                            .is_account_funded_transaction,
+                        recipient_details: payment_data.payment_intent.recipient_details.clone(),
                         payment_channel: payment_data.payment_intent.payment_channel,
                         feature_metadata: payment_data.payment_intent.feature_metadata.clone(),
                         tax_status: payment_data.payment_intent.tax_status,
@@ -3083,7 +3108,7 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
         let request_merchant_id = request.merchant_id.as_ref();
         helpers::validate_merchant_id(processor.get_account().get_id(), request_merchant_id)
             .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-                field_name: "merchant_id".to_string(),
+                field_name: "merchant_id".into(),
                 expected_format: "merchant_id from merchant account".to_string(),
             })?;
 
@@ -3146,7 +3171,7 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
 async fn apply_offer_engine_offer<F: Clone + Send + Sync>(
     state: &SessionState,
     request: &api::PaymentsRequest,
-    processor: &domain::Processor,
+    platform: &domain::Platform,
     payment_data: PaymentData<F>,
 ) -> RouterResult<PaymentData<F>> {
     // First launch supports a single offer; reject multiple rather than picking one.
@@ -3179,8 +3204,9 @@ async fn apply_offer_engine_offer<F: Clone + Send + Sync>(
         (None, Some(requested)) => {
             Box::pin(apply_selected_offer(
                 state,
-                processor,
+                platform,
                 requested,
+                request.payment_token.as_deref(),
                 payment_data,
             ))
             .await
@@ -3193,10 +3219,12 @@ async fn apply_offer_engine_offer<F: Clone + Send + Sync>(
 #[cfg(feature = "v1")]
 async fn apply_selected_offer<F: Clone + Send + Sync>(
     state: &SessionState,
-    processor: &domain::Processor,
+    platform: &domain::Platform,
     offer_quote_id: String,
+    payment_token: Option<&str>,
     mut payment_data: PaymentData<F>,
 ) -> RouterResult<PaymentData<F>> {
+    let processor = platform.get_processor();
     // An offer was selected, so Offer Engine must be available. Target config at
     // merchant/org/profile (same as eligibility) so overrides resolve consistently.
     let profile_id = payment_data
@@ -3209,14 +3237,31 @@ async fn apply_selected_offer<F: Clone + Send + Sync>(
     let offer_dimensions = dimension_state::Dimensions::new()
         .with_processor_merchant_id(processor.get_processor_merchant_id())
         .with_organization_id(processor.get_account().get_org_id().clone())
-        .with_profile_id(profile_id);
-    let offer_config = offer_engine::resolve_offer_engine_config(state, &offer_dimensions)
-        .await
-        .ok()
-        .flatten()
-        .ok_or(report!(errors::ApiErrorResponse::PreconditionFailed {
-            message: "Offer Engine is not available for this offer selection".to_string(),
-        }))?;
+        .with_profile_id(profile_id.clone());
+    let offer_config = match offer_engine::resolve_offer_engine_credential_source(
+        state,
+        &offer_dimensions,
+    )
+    .await
+    {
+        offer_engine::OfferEngineCredentialSource::None => {
+            return Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                message: "Offer Engine is not available for this offer selection".to_string(),
+            }));
+        }
+        offer_engine::OfferEngineCredentialSource::Application => {
+            offer_engine::OfferEngineCredentialSource::resolve_application_offer_config(state)
+        }
+        offer_engine::OfferEngineCredentialSource::Merchant => {
+            offer_engine::OfferEngineCredentialSource::resolve_merchant_offer_config(
+                state,
+                processor.get_account(),
+            )
+        }
+    }
+    .change_context(errors::ApiErrorResponse::PreconditionFailed {
+        message: "Offer Engine is not available for this offer selection".to_string(),
+    })?;
 
     let processor_merchant_id = processor.get_account().get_id().clone();
     let payment_id = payment_data.payment_attempt.payment_id.clone();
@@ -3248,10 +3293,53 @@ async fn apply_selected_offer<F: Clone + Send + Sync>(
         .ok_or(report!(errors::ApiErrorResponse::PreconditionFailed {
             message: "Payment method is required to apply an offer".to_string(),
         }))?;
-    let offer_card = payment_data
+    // Reconstruct the card `/eligibility` quoted against, so `/apply` sends the same
+    // BIN + `card_alias`: use the request card (fresh) if present, else dereference the
+    // saved `payment_token` to the real card from the locker (same as `/eligibility`).
+    let offer_pmd = match payment_data
         .payment_method_data
+        .clone()
+        .map(domain::EligibilityPaymentMethodData::from)
+        .filter(|offer_pmd| offer_pmd.get_card_data().is_some())
+    {
+        Some(offer_pmd) => Some(offer_pmd),
+        None => payment_token
+            .zip(payment_data.payment_attempt.payment_method)
+            .async_map(|(payment_token, payment_method)| async move {
+                Box::pin(
+                    payments::PaymentEligibilityData::resolve_payment_token_to_method_data(
+                        state,
+                        platform,
+                        &hyperswitch_masking::Secret::new(payment_token.to_owned()),
+                        payment_method,
+                        &profile_id,
+                    ),
+                )
+                .await
+            })
+            .await
+            .transpose()?
+            .flatten(),
+    };
+
+    let offer_card = offer_pmd
         .as_ref()
-        .and_then(|payment_method_data| payment_method_data.get_card_data());
+        .and_then(|offer_pmd| offer_pmd.get_card_data());
+
+    let card_alias = match offer_card.map(|card| &card.card_number) {
+        Some(card_number) => Some(
+            offer_engine::velocity::generate_card_alias(
+                state,
+                processor.get_account(),
+                card_number,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::PreconditionFailed {
+                message: "Cannot apply offer: card velocity key unavailable".to_string(),
+            })?,
+        ),
+        None => None,
+    };
 
     let ctx = offer_engine::apply::OfferApplyContext {
         payment_id,
@@ -3265,13 +3353,13 @@ async fn apply_selected_offer<F: Clone + Send + Sync>(
                 .as_ref()
                 .map(|network| network.to_string())
         }),
-        card_bin: payment_data
-            .payment_method_data
+        card_bin: offer_pmd
             .as_ref()
-            .and_then(|payment_method_data| payment_method_data.get_card_iin()),
+            .and_then(|offer_pmd| offer_pmd.get_card_iin()),
         card_type: offer_card.and_then(|card| card.card_type.clone()),
         bank_code: offer_card.and_then(|card| card.bank_code.clone()),
         card_country: offer_card.and_then(|card| card.card_issuing_country.clone()),
+        card_alias,
     };
 
     let applied = Box::pin(offer_engine::apply::run_offer_apply(

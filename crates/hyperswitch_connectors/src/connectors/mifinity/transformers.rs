@@ -137,7 +137,7 @@ impl TryFrom<&MifinityRouterData<&types::PaymentsAuthorizeRouterData>> for Mifin
                     );
                     let client_reference = item.router_data.customer_id.clone().ok_or(
                         errors::ConnectorError::MissingRequiredField {
-                            field_name: "client_reference",
+                            field_name: "client_reference".into(),
                         },
                     )?;
                     let destination_account_number = metadata.destination_account_number;
@@ -283,6 +283,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, MifinityPaymentsResponse, T, PaymentsRe
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     }),
                     ..item.data
                 })
@@ -300,6 +301,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, MifinityPaymentsResponse, T, PaymentsRe
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             }),
@@ -370,6 +372,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, MifinityPsyncResponse, T, PaymentsRespo
                                 incremental_authorization_allowed: None,
                                 authentication_data: None,
                                 charges: None,
+                                payment_account_reference: None,
                             }),
                             ..item.data
                         })
@@ -387,6 +390,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, MifinityPsyncResponse, T, PaymentsRespo
                             incremental_authorization_allowed: None,
                             authentication_data: None,
                             charges: None,
+                            payment_account_reference: None,
                         }),
                         ..item.data
                     }),
@@ -405,6 +409,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, MifinityPsyncResponse, T, PaymentsRespo
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             }),

@@ -10,7 +10,10 @@ use regex::Regex;
 #[cfg(feature = "logs")]
 use router_env::logger;
 
-use crate::errors::{CustomResult, ValidationError};
+use crate::{
+    consts,
+    errors::{CustomResult, ValidationError},
+};
 
 /// Validates a given phone number using the [phonenumber] crate
 ///
@@ -21,6 +24,31 @@ pub fn validate_phone_number(phone_number: &str) -> Result<(), ValidationError> 
     })?;
 
     Ok(())
+}
+
+/// Validates a phone country (calling) code, e.g. `"+1"` or `"91"`.
+///
+/// It returns a [ValidationError::InvalidValue] if the value is empty, longer than
+/// [`consts::MAX_PHONE_COUNTRY_CODE_LENGTH`], or contains characters other than digits and an
+/// optional leading `+`.
+pub fn validate_phone_country_code(phone_country_code: &str) -> Result<(), ValidationError> {
+    let is_valid = !phone_country_code.is_empty()
+        && phone_country_code.len() <= consts::MAX_PHONE_COUNTRY_CODE_LENGTH
+        && phone_country_code
+            .strip_prefix('+')
+            .unwrap_or(phone_country_code)
+            .chars()
+            .all(|character| character.is_ascii_digit());
+
+    if is_valid {
+        Ok(())
+    } else {
+        Err(ValidationError::InvalidValue {
+            message: format!(
+                "phone_country_code must be a valid country calling code (e.g. \"+1\"), got \"{phone_country_code}\""
+            ),
+        })
+    }
 }
 
 /// Performs a simple validation against a provided email address.

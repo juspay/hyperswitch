@@ -19,6 +19,7 @@ use super::amount;
 pub enum OfferEngineCredentialSource {
     None,
     Application,
+    Merchant,
 }
 
 #[derive(Debug, Clone)]
@@ -32,6 +33,8 @@ pub struct ResolvedOfferEngineConfig {
 pub enum OfferEngineError {
     #[error("Offer Engine application config is missing or invalid: {0}")]
     MissingApplicationConfig(String),
+    #[error("Offer Engine merchant config is missing or invalid: {0}")]
+    MissingMerchantConfig(String),
     #[error("Offer Engine request failed")]
     RequestFailed,
     #[error("Failed to parse Offer Engine response")]
@@ -74,6 +77,8 @@ pub struct OfferPaymentMethodInfo {
     pub bank_code: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub card_country: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub card_alias: Option<String>,
 }
 
 /// Customer sent to Offer Engine.
@@ -284,3 +289,41 @@ impl OfferApplyResponse {
         })
     }
 }
+
+/// Transaction status reported to Offer Engine when revoking an applied offer; currently always `FAILURE`, the only valid revoke transition from the post-`/apply` `PENDING` state.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
+pub enum OfferTxnStatus {
+    #[default]
+    #[serde(rename = "FAILURE")]
+    Failure,
+}
+
+/// Per-offer status reported alongside a notification; `/apply` already availed the offer, so this only ever revokes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+pub enum OfferNotifyStatus {
+    #[serde(rename = "REVOKED")]
+    Revoked,
+}
+
+/// A single offer's outcome inside a notification.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct OfferNotifyOffer {
+    pub offer_id: String,
+    pub status: OfferNotifyStatus,
+    pub error_code: Option<String>,
+    pub error_message: Option<String>,
+}
+
+/// Request body for `/offers/notify`.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct OfferNotifyRequest {
+    pub order_id: String,
+    pub txn_id: String,
+    pub txn_status: OfferTxnStatus,
+    pub merchant_id: String,
+    pub offers: Vec<OfferNotifyOffer>,
+    pub refund_id: Option<String>,
+}
+
+/// Response marker for `/offers/notify`; a 2xx is treated as delivered.
+pub struct OfferNotifyResponse;

@@ -674,12 +674,14 @@ pub enum StripePaymentMethodData {
 impl StripePaymentMethodData {
     fn get_stripe_ntid_card_token_data(
         payment_method_data: &payment_method_data::CardDetailsForNetworkTransactionId,
+        billing_address: StripeBillingAddressCardToken,
     ) -> Result<Self, error_stack::Report<ConnectorError>> {
         Ok(Self::NtidCardToken(StripeNtidCardToken {
             payment_method_type: Some(StripePaymentMethodType::Card),
             token_card_number: payment_method_data.card_number.clone(),
             token_card_exp_month: payment_method_data.card_exp_month.clone(),
             token_card_exp_year: payment_method_data.card_exp_year.clone(),
+            billing: billing_address,
         }))
     }
 }
@@ -712,6 +714,8 @@ pub struct StripeNtidCardToken {
     pub token_card_exp_month: Secret<String>,
     #[serde(rename = "card[exp_year]")]
     pub token_card_exp_year: Secret<String>,
+    #[serde(flatten)]
+    pub billing: StripeBillingAddressCardToken,
 }
 
 // Struct to call the Stripe tokens API to create a PSP token for the card details provided
@@ -983,6 +987,8 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             | enums::PaymentMethodType::PixQr
             | enums::PaymentMethodType::PixAutomaticoPush
             | enums::PaymentMethodType::PixAutomaticoQr
+            | enums::PaymentMethodType::Payshap
+            | enums::PaymentMethodType::PayshapProxy
             | enums::PaymentMethodType::UpiCollect
             | enums::PaymentMethodType::UpiIntent
             | enums::PaymentMethodType::Cashapp
@@ -1291,14 +1297,14 @@ fn validate_shipping_address_against_payment_method(
 
                 if !missing_fields.is_empty() {
                     return Err(ConnectorError::MissingRequiredFields {
-                        field_names: missing_fields,
+                        field_names: missing_fields.into_iter().map(Into::into).collect(),
                     }
                     .into());
                 }
                 Ok(())
             }
             None => Err(ConnectorError::MissingRequiredField {
-                field_name: "shipping.address",
+                field_name: "shipping.address".into(),
             }
             .into()),
         },
@@ -1543,7 +1549,7 @@ fn create_stripe_payment_method(
             Ok((
                 wallet_specific_data,
                 pm_type,
-                StripeBillingAddress::default(),
+                payment_request_details.billing_address,
             ))
         }
         PaymentMethodData::BankDebit(bank_debit_data) => {
@@ -1566,7 +1572,7 @@ fn create_stripe_payment_method(
                     }),
                 )),
                 None,
-                StripeBillingAddress::default(),
+                payment_request_details.billing_address,
             )),
             payment_method_data::BankTransferData::MultibancoBankTransfer {} => Ok((
                 StripePaymentMethodData::BankTransfer(
@@ -1576,7 +1582,7 @@ fn create_stripe_payment_method(
                             payment_method_type: StripeCreditTransferTypes::Multibanco,
                             email: payment_request_details.billing_address.email.ok_or(
                                 ConnectorError::MissingRequiredField {
-                                    field_name: "billing_address.email",
+                                    field_name: "billing_address.email".into(),
                                 },
                             )?,
                         },
@@ -1594,7 +1600,7 @@ fn create_stripe_payment_method(
                         payment_method_type: StripePaymentMethodType::CustomerBalance,
                         country: payment_request_details.billing_address.country.ok_or(
                             ConnectorError::MissingRequiredField {
-                                field_name: "billing_address.country",
+                                field_name: "billing_address.country".into(),
                             },
                         )?,
                     }),
@@ -1960,7 +1966,7 @@ impl TryFrom<&BankRedirectData> for StripePaymentMethodData {
                     payment_method_data_type,
                     code: Secret::new(blik_code.clone().ok_or(
                         ConnectorError::MissingRequiredField {
-                            field_name: "blik_code",
+                            field_name: "blik_code".into(),
                         },
                     )?),
                 })),
@@ -2045,7 +2051,7 @@ impl
                 let expiry_year_4_digit = predecrypted_data
                     .get_four_digit_expiry_year()
                     .change_context(ConnectorError::InvalidDataFormat {
-                        field_name: "expiry_year_4_digit",
+                        field_name: "expiry_year_4_digit".into(),
                     })?;
 
                 match (
@@ -2099,7 +2105,7 @@ impl
                             .tokenization_data
                             .get_encrypted_google_pay_token()
                             .change_context(ConnectorError::MissingRequiredField {
-                                field_name: "gpay wallet_token",
+                                field_name: "gpay wallet_token".into(),
                             })?
                             .as_bytes()
                             .parse_struct::<StripeGpayToken>("StripeGpayToken")
@@ -2452,7 +2458,7 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
                             ),
                             billing_address: billing_address.ok_or_else(|| {
                                 ConnectorError::MissingRequiredField {
-                                    field_name: "billing_address",
+                                    field_name: "billing_address".into(),
                                 }
                             })?,
                             request_incremental_authorization: item.request.request_incremental_authorization,
@@ -2546,7 +2552,7 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
                                         .clone()
                                         .get_required_value("online")
                                         .change_context(ConnectorError::MissingRequiredField {
-                                            field_name: "online",
+                                            field_name: "online".into(),
                                         })?;
                                     StripeMandateRequest {
                                         mandate_type: StripeMandateType::Online {
@@ -2555,7 +2561,7 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
                                                 .get_required_value("ip_address")
                                                 .change_context(
                                                     ConnectorError::MissingRequiredField {
-                                                        field_name: "ip_address",
+                                                        field_name: "ip_address".into(),
                                                     },
                                                 )?,
                                             user_agent: online_mandate.user_agent,
@@ -2750,13 +2756,13 @@ fn get_payment_method_type_for_saved_payment_method_payment(
                         StripePaymentMethodType::try_from(payment_method_type)
                     }
                     None => Err(ConnectorError::MissingRequiredField {
-                        field_name: "payment_method_type",
+                        field_name: "payment_method_type".into(),
                     }
                     .into()),
                 }
             }
             None => Err(ConnectorError::MissingRequiredField {
-                field_name: "recurring_mandate_payment_data",
+                field_name: "recurring_mandate_payment_data".into(),
             }
             .into()),
         }?;
@@ -2870,7 +2876,10 @@ impl TryFrom<&TokenizationRouterData> for TokenRequest {
                 })
             }
             PaymentMethodData::CardDetailsForNetworkTransactionId(card_details) => {
-                StripePaymentMethodData::get_stripe_ntid_card_token_data(card_details)?
+                StripePaymentMethodData::get_stripe_ntid_card_token_data(
+                    card_details,
+                    billing_address,
+                )?
             }
             _ => {
                 create_stripe_payment_method(
@@ -3221,6 +3230,7 @@ impl StripeChargeEnum {
 pub struct StripeCharge {
     pub id: String,
     pub payment_method_details: Option<StripePaymentMethodDetailsResponse>,
+    pub outcome: Option<StripeChargeOutcome>,
 }
 
 #[derive(Deserialize, Clone, Debug, PartialEq, Eq, Serialize)]
@@ -3252,6 +3262,7 @@ pub struct StripeAdditionalCardDetails {
     #[serde(default, with = "common_utils::custom_serde::timestamp::option")]
     capture_before: Option<PrimitiveDateTime>,
     overcapture: Option<StripeOvercaptureResponse>,
+    payment_account_reference: Option<String>,
 }
 
 #[derive(Deserialize, Clone, Debug, PartialEq, Eq, Serialize)]
@@ -3577,18 +3588,20 @@ where
 
         //Note: we might have to call retrieve_setup_intent to get the network_transaction_id in case its not sent in PaymentIntentResponse
         // Or we identify the mandate txns before hand and always call SetupIntent in case of mandate payment call
-        let network_txn_id = match item.response.latest_charge.as_ref() {
+        let card_details_from_latest_charge = match item.response.latest_charge.as_ref() {
             Some(StripeChargeEnum::ChargeObject(charge_object)) => charge_object
                 .payment_method_details
                 .as_ref()
                 .and_then(|payment_method_details| match payment_method_details {
-                    StripePaymentMethodDetailsResponse::Card { card } => {
-                        card.network_transaction_id.clone()
-                    }
+                    StripePaymentMethodDetailsResponse::Card { card } => Some(card),
                     _ => None,
                 }),
             _ => None,
         };
+        let network_txn_id =
+            card_details_from_latest_charge.and_then(|card| card.network_transaction_id.clone());
+        let payment_account_reference =
+            card_details_from_latest_charge.and_then(|card| card.payment_account_reference.clone());
 
         let connector_metadata =
             get_connector_metadata(item.response.next_action.as_ref(), item.response.amount)?;
@@ -3620,6 +3633,7 @@ where
                 network_txn_id,
                 network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.id),
+                payment_account_reference,
                 incremental_authorization_allowed: item
                     .data
                     .request
@@ -3931,17 +3945,20 @@ where
                 item.response.id.clone(),
             )
         } else {
-            let network_transaction_id = match item.response.latest_charge.clone() {
+            let card_details_from_latest_charge = match item.response.latest_charge.clone() {
                 Some(StripeChargeEnum::ChargeObject(charge_object)) => charge_object
                     .payment_method_details
                     .and_then(|payment_method_details| match payment_method_details {
-                        StripePaymentMethodDetailsResponse::Card { card } => {
-                            card.network_transaction_id
-                        }
+                        StripePaymentMethodDetailsResponse::Card { card } => Some(card),
                         _ => None,
                     }),
                 _ => None,
             };
+            let network_transaction_id = card_details_from_latest_charge
+                .as_ref()
+                .and_then(|card| card.network_transaction_id.clone());
+            let payment_account_reference =
+                card_details_from_latest_charge.and_then(|card| card.payment_account_reference);
             let charges = item
                 .response
                 .latest_charge
@@ -3960,6 +3977,7 @@ where
                 network_txn_id: network_transaction_id,
                 network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.id.clone()),
+                payment_account_reference,
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges,
@@ -4035,17 +4053,20 @@ where
                 item.response.id.clone(),
             )
         } else {
-            let network_transaction_id = match item.response.latest_attempt {
+            let card_details_from_latest_attempt = match item.response.latest_attempt {
                 Some(LatestAttempt::PaymentIntentAttempt(attempt)) => attempt
                     .payment_method_details
                     .and_then(|payment_method_details| match payment_method_details {
-                        StripePaymentMethodDetailsResponse::Card { card } => {
-                            card.network_transaction_id
-                        }
+                        StripePaymentMethodDetailsResponse::Card { card } => Some(card),
                         _ => None,
                     }),
                 _ => None,
             };
+            let network_transaction_id = card_details_from_latest_attempt
+                .as_ref()
+                .and_then(|card| card.network_transaction_id.clone());
+            let payment_account_reference =
+                card_details_from_latest_attempt.and_then(|card| card.payment_account_reference);
 
             Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
@@ -4055,6 +4076,7 @@ where
                 network_txn_id: network_transaction_id,
                 network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.id),
+                payment_account_reference,
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
@@ -4321,7 +4343,7 @@ impl<F> TryFrom<&RefundsRouterData<F>> for ChargeRefundRequest {
         let amount = item.request.minor_refund_amount;
         match item.request.split_refunds.as_ref() {
             None => Err(ConnectorError::MissingRequiredField {
-                field_name: "split_refunds",
+                field_name: "split_refunds".into(),
             }
             .into()),
 
@@ -4349,7 +4371,7 @@ impl<F> TryFrom<&RefundsRouterData<F>> for ChargeRefundRequest {
                     })
                 }
                 _ => Err(ConnectorError::MissingRequiredField {
-                    field_name: "stripe_split_refund",
+                    field_name: "stripe_split_refund".into(),
                 })?,
             },
         }
@@ -4774,6 +4796,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, ChargesResponse, T, PaymentsResponseDat
                 network_txn_id: None,
                 network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.id.clone()),
+                payment_account_reference: None,
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
@@ -4783,6 +4806,114 @@ impl<F, T> TryFrom<ResponseRouterData<F, ChargesResponse, T, PaymentsResponseDat
         Ok(Self {
             status,
             response,
+            ..item.data
+        })
+    }
+}
+
+/// Stripe charge `outcome` object, shared by charge sync and the intent's `latest_charge`.
+#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
+pub struct StripeChargeOutcome {
+    #[serde(rename = "type")]
+    pub outcome_type: Option<String>,
+    pub network_status: Option<String>,
+    pub reason: Option<String>,
+    pub risk_level: Option<String>,
+    pub risk_score: Option<i32>,
+    pub seller_message: Option<String>,
+    pub advice_code: Option<String>,
+    pub network_advice_code: Option<String>,
+    pub network_decline_code: Option<String>,
+    pub rule: Option<String>,
+}
+
+/// Stripe charge retrieve response, used when an attempt is tracked by a `ch_` charge id.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct ChargeSyncResponse {
+    pub id: String,
+    pub status: StripePaymentStatus,
+    pub payment_intent: Option<String>,
+    pub amount_captured: Option<MinorUnit>,
+    pub failure_code: Option<String>,
+    pub failure_message: Option<String>,
+    pub outcome: Option<StripeChargeOutcome>,
+    pub payment_method_details: Option<StripePaymentMethodDetailsResponse>,
+}
+
+impl<F, T> TryFrom<ResponseRouterData<F, ChargeSyncResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<F, ChargeSyncResponse, T, PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        let status = get_stripe_payment_status(item.response.status, item.data.status);
+
+        let resource_id = item
+            .response
+            .payment_intent
+            .clone()
+            .unwrap_or_else(|| item.response.id.clone());
+        let outcome = item.response.outcome.clone();
+        let response = if is_payment_failure(status) {
+            Err(hyperswitch_domain_models::router_data::ErrorResponse {
+                code: item
+                    .response
+                    .failure_code
+                    .clone()
+                    .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+                message: item
+                    .response
+                    .failure_message
+                    .clone()
+                    .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+                reason: item.response.failure_message.clone(),
+                status_code: item.http_code,
+                attempt_status: Some(status),
+                connector_transaction_id: Some(resource_id.clone()),
+                connector_response_reference_id: Some(resource_id.clone()),
+                network_advice_code: outcome.as_ref().and_then(|o| o.network_advice_code.clone()),
+                network_decline_code: outcome
+                    .as_ref()
+                    .and_then(|o| o.network_decline_code.clone()),
+                network_error_message: outcome.as_ref().and_then(|o| o.seller_message.clone()),
+                connector_metadata: None,
+            })
+        } else {
+            let payment_account_reference =
+                item.response
+                    .payment_method_details
+                    .as_ref()
+                    .and_then(|payment_method_details| match payment_method_details {
+                        StripePaymentMethodDetailsResponse::Card { card } => {
+                            card.payment_account_reference.clone()
+                        }
+                        _ => None,
+                    });
+
+            Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(resource_id.clone()),
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
+                connector_metadata: None,
+                network_txn_id: None,
+                network_txn_link_id: None,
+                connector_response_reference_id: Some(resource_id.clone()),
+                payment_account_reference,
+                incremental_authorization_allowed: None,
+                authentication_data: None,
+                charges: None,
+            })
+        };
+
+        Ok(Self {
+            status,
+            response,
+            amount_captured: item
+                .response
+                .amount_captured
+                .map(|amount| amount.get_amount_as_i64()),
+            minor_amount_captured: item.response.amount_captured,
             ..item.data
         })
     }
@@ -5293,11 +5424,11 @@ fn mandatory_parameters_for_sepa_bank_debit_mandates(
     match is_customer_initiated_mandate_payment {
         Some(true) => Ok(StripeBillingAddress {
             name: Some(billing_name.ok_or(ConnectorError::MissingRequiredField {
-                field_name: "billing_name",
+                field_name: "billing_name".into(),
             })?),
 
             email: Some(billing_email.ok_or(ConnectorError::MissingRequiredField {
-                field_name: "billing_email",
+                field_name: "billing_email".into(),
             })?),
             ..StripeBillingAddress::default()
         }),
@@ -5481,6 +5612,8 @@ where
 
 #[cfg(test)]
 mod test_validate_shipping_address_against_payment_method {
+    use std::borrow::Cow;
+
     use common_enums::CountryAlpha2;
     use hyperswitch_interfaces::errors::ConnectorError;
     use hyperswitch_masking::Secret;
@@ -5589,7 +5722,7 @@ mod test_validate_shipping_address_against_payment_method {
     #[test]
     fn should_return_error_when_missing_multiple_fields() {
         // Arrange
-        let expected_missing_field_names: Vec<&'static str> =
+        let expected_missing_field_names: Vec<&str> =
             vec!["shipping.address.zip", "shipping.address.country"];
         let stripe_shipping_address = create_stripe_shipping_address(
             "name".to_string(),
@@ -5609,11 +5742,11 @@ mod test_validate_shipping_address_against_payment_method {
         assert!(result.is_err());
         let missing_fields = get_missing_fields(result.unwrap_err().current_context()).to_owned();
         for field in missing_fields {
-            assert!(expected_missing_field_names.contains(&field));
+            assert!(expected_missing_field_names.contains(&field.as_ref()));
         }
     }
 
-    fn get_missing_fields(connector_error: &ConnectorError) -> Vec<&'static str> {
+    fn get_missing_fields(connector_error: &ConnectorError) -> Vec<Cow<'static, str>> {
         if let ConnectorError::MissingRequiredFields { field_names } = connector_error {
             return field_names.to_vec();
         }

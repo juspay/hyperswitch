@@ -359,7 +359,7 @@ fn get_payout_bank_details(
     let wise_address_details = match get_payout_address_details(address) {
         Some(a) => Ok(a),
         None => Err(ConnectorError::MissingRequiredField {
-            field_name: "address",
+            field_name: "address".into(),
         }),
     }?;
     match payout_method_data {
@@ -408,7 +408,7 @@ impl<F> TryFrom<&WiseRouterData<&PayoutsRouterData<F>>> for WiseRecipientCreateR
         let source_id = match item.connector_auth_type.to_owned() {
             ConnectorAuthType::BodyKey { api_key: _, key1 } => Ok(key1),
             _ => Err(ConnectorError::MissingRequiredField {
-                field_name: "source_id for PayoutRecipient creation",
+                field_name: "source_id for PayoutRecipient creation".into(),
             }),
         }?;
         let payout_type = request.get_payout_type()?;
@@ -421,11 +421,11 @@ impl<F> TryFrom<&WiseRouterData<&PayoutsRouterData<F>>> for WiseRecipientCreateR
             PayoutType::Bank => {
                 let account_holder_name = customer_details
                     .ok_or(ConnectorError::MissingRequiredField {
-                        field_name: "customer_details for PayoutRecipient creation",
+                        field_name: "customer_details for PayoutRecipient creation".into(),
                     })?
                     .name
                     .ok_or(ConnectorError::MissingRequiredField {
-                        field_name: "customer_details.name for PayoutRecipient creation",
+                        field_name: "customer_details.name for PayoutRecipient creation".into(),
                     })?;
                 Ok(Self {
                     profile: source_id,
@@ -459,6 +459,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, WiseRecipientCreateResponse>>
                 error_code: None,
                 error_message: None,
                 payout_connector_metadata: None,
+                connector_eligibility_reference_id: None,
             }),
             ..item.data
         })
@@ -508,6 +509,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, WisePayoutQuoteResponse>> for Payou
                 error_code: None,
                 error_message: None,
                 payout_connector_metadata: None,
+                connector_eligibility_reference_id: None,
             }),
             ..item.data
         })
@@ -532,7 +534,7 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for WisePayoutCreateRequest {
                 };
                 let target_account: i64 = connector_customer_id.trim().parse().map_err(|_| {
                     ConnectorError::MissingRequiredField {
-                        field_name: "profile",
+                        field_name: "profile".into(),
                     }
                 })?;
                 Ok(Self {
@@ -573,6 +575,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, WisePayoutResponse>> for PayoutsRou
                 error_code: None,
                 error_message: None,
                 payout_connector_metadata: None,
+                connector_eligibility_reference_id: None,
             }),
             ..item.data
         })
@@ -622,6 +625,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, WiseFulfillResponse>> for PayoutsRo
                 error_code: None,
                 error_message: None,
                 payout_connector_metadata: None,
+                connector_eligibility_reference_id: None,
             }),
             ..item.data
         })
@@ -711,6 +715,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, WisePayoutSyncResponse>> for Payout
                 error_code: None,
                 error_message: None,
                 payout_connector_metadata: None,
+                connector_eligibility_reference_id: None,
             }),
             ..item.data
         })

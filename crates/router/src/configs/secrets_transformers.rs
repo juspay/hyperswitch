@@ -376,9 +376,10 @@ impl SecretsHandler for settings::OfferEngineConfig {
         secret_management_client: &dyn SecretManagementInterface,
     ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
         let offer_engine = value.get_inner();
-        let api_key = secret_management_client
-            .get_secret(offer_engine.api_key.clone())
-            .await?;
+        let api_key = match offer_engine.api_key.clone() {
+            Some(api_key) => Some(secret_management_client.get_secret(api_key).await?),
+            None => None,
+        };
 
         Ok(value.transition_state(|offer_engine| Self {
             api_key,
@@ -706,6 +707,7 @@ pub(crate) async fn fetch_raw_secrets(
         jwekey,
         webhooks: conf.webhooks,
         pm_filters: conf.pm_filters,
+        customer_acceptance_support: conf.customer_acceptance_support,
         payout_method_filters: conf.payout_method_filters,
         bank_config: conf.bank_config,
         api_keys,
@@ -732,6 +734,7 @@ pub(crate) async fn fetch_raw_secrets(
         webhook_source_verification_call: conf.webhook_source_verification_call,
         billing_connectors_payment_sync: conf.billing_connectors_payment_sync,
         billing_connectors_invoice_sync: conf.billing_connectors_invoice_sync,
+        billing_connectors_dispute_record_back: conf.billing_connectors_dispute_record_back,
         payment_method_auth,
         connector_request_reference_id_config: conf.connector_request_reference_id_config,
         #[cfg(feature = "payouts")]
