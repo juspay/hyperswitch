@@ -378,7 +378,6 @@ impl Connector {
             | Self::Getnet
             | Self::Gigadat
             | Self::Globalpay
-            | Self::Globalpaymentsheartland
             | Self::Globepay
             | Self::Gocardless
             | Self::GotymeSanlam
@@ -476,7 +475,10 @@ impl Connector {
             | Self::Ilixium
             | Self::Givepayments => false,
             Self::Stripe | Self::Checkout | Self::Zift | Self::Nmi | Self::Braintree|
-            Self::Cybersource | Self::Archipel | Self::Nuvei | Self::Adyen => true,
+            Self::Cybersource | Self::Archipel | Self::Nuvei | Self::Adyen
+            // Portico cannot authenticate: its Secure3D block only carries results computed
+            // by a separate authentication connector, so external 3DS is its only 3DS mode.
+            | Self::Globalpaymentsheartland => true,
         }
     }
 
