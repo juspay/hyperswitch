@@ -3899,7 +3899,7 @@ Cypress.Commands.add(
                 }
                 break;
               default:
-                if (!configs?.TRIGGER_SKIP) {
+                if (response.body.status === "requires_customer_action") {
                   expect(response.body)
                     .to.have.property("next_action")
                     .to.have.property("redirect_to_url");
@@ -3908,6 +3908,14 @@ Cypress.Commands.add(
                     response.body.next_action.redirect_to_url
                   );
                   globalState.set("nextActionType", "redirect_to_url");
+                } else if (response.body.status === "failed" && configs?.TRIGGER_SKIP) {
+                  // Known, connector-side failure explicitly opted into via
+                  // Configs.TRIGGER_SKIP (e.g. a payment method not enabled
+                  // on the connector's sandbox project) - nothing to assert.
+                } else {
+                  throw new Error(
+                    `Unexpected payment status "${response.body.status}" in bank transfer confirm response`
+                  );
                 }
                 break;
             }
