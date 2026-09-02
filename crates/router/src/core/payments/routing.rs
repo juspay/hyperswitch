@@ -1011,7 +1011,8 @@ impl RoutingStage for SessionRoutingStage {
             let de_routing_effective =
                 utils::is_decision_engine_routing_effective(input.state, input.dimensions).await;
             let shadow_evaluation_enabled = input.state.conf.open_router.static_routing_enabled
-                && input.state.conf.open_router.shadow_routing_enabled;
+                && input.state.conf.open_router.shadow_routing_enabled
+                && profile_has_active_routing_algorithm(input.business_profile);
 
             // Built up front so the Decision Engine calls can be issued together rather
             // than one wallet type at a time. A rule may branch on payment method type, so
@@ -1725,6 +1726,20 @@ impl RoutingStage for HybridRoutingStage {
     }
 }
 
+/// Whether the profile has an active routing algorithm for the Decision Engine to evaluate.
+#[cfg(feature = "v1")]
+fn profile_has_active_routing_algorithm(business_profile: &domain::Profile) -> bool {
+    business_profile
+        .routing_algorithm
+        .clone()
+        .and_then(|ra| {
+            ra.parse_value::<api::routing::RoutingAlgorithmRef>("RoutingAlgorithmRef")
+                .ok()
+        })
+        .and_then(|algorithm_ref| algorithm_ref.algorithm_id)
+        .is_some()
+}
+
 #[allow(clippy::too_many_arguments)]
 #[cfg(feature = "v1")]
 pub async fn perform_hybrid_routing_if_enabled(
@@ -1758,15 +1773,7 @@ pub async fn perform_hybrid_routing_if_enabled(
     // skipped on the premise that it only ever runs for cut-over profiles).
     let is_decision_engine_cutover_enabled =
         utils::is_decision_engine_routing_effective(state, dimensions).await;
-    let has_active_routing_algorithm = business_profile
-        .routing_algorithm
-        .clone()
-        .and_then(|ra| {
-            ra.parse_value::<api::routing::RoutingAlgorithmRef>("RoutingAlgorithmRef")
-                .ok()
-        })
-        .and_then(|algorithm_ref| algorithm_ref.algorithm_id)
-        .is_some();
+    let has_active_routing_algorithm = profile_has_active_routing_algorithm(business_profile);
 
     // A cut-over profile's rules live on the Decision Engine, so a missing Hyperswitch
     // algorithm is the normal state and must not skip evaluation; for every other profile
@@ -3132,7 +3139,8 @@ pub async fn perform_session_flow_routing(
     // Not cut over, the evaluation is shadow-only and off the request path.
     let collect_shadow_entries = !de_routing_effective
         && session_input.state.conf.open_router.static_routing_enabled
-        && session_input.state.conf.open_router.shadow_routing_enabled;
+        && session_input.state.conf.open_router.shadow_routing_enabled
+        && profile_has_active_routing_algorithm(business_profile);
 
     // Same list for every wallet type, so it is fetched once rather than per iteration.
     let de_fallback_config = if de_routing_effective || collect_shadow_entries {
