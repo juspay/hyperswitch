@@ -279,7 +279,7 @@ impl MerchantConnectorAccount {
             .and_then(|metadata| metadata.revenue_recovery.as_ref())
             .map(|recovery| recovery.max_retry_count)
     }
-    
+
     /// Positions on the cascading ladder available to an invoice under the hybrid scheme.
     pub fn get_max_hybrid_cascading_retry_count(&self) -> Option<u16> {
         self.feature_metadata

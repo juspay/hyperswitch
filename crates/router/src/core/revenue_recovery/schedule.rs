@@ -309,8 +309,12 @@ mod tests {
 
     #[test]
     fn adaptive_identical_to_static_loses() {
-        let decision =
-            expect_decision(&StaticLadderProgress::default(), 1, Some(at(240)), Some(at(240)));
+        let decision = expect_decision(
+            &StaticLadderProgress::default(),
+            1,
+            Some(at(240)),
+            Some(at(240)),
+        );
 
         assert_eq!(decision.source, ScheduleSource::Static);
     }
