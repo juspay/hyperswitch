@@ -1,5 +1,6 @@
 pub mod amount;
 pub mod apply;
+pub mod browse;
 pub mod client;
 pub mod config;
 pub mod connectivity;

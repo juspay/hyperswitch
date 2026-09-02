@@ -755,6 +755,10 @@ impl OfferEngine {
                 web::resource("/connectivity")
                     .route(web::post().to(offer_engine::offer_engine_connectivity_check)),
             )
+            .service(
+                web::resource("/offers/list")
+                    .route(web::post().to(offer_engine::offer_engine_browse_offers)),
+            )
     }
 }
 
