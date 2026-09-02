@@ -27,7 +27,8 @@ const CHAT_POST_MESSAGE: &str = "chat.postMessage";
 /// Slack's documented limit on the `text` field of `chat.postMessage`.
 pub(super) const DEFAULT_MAX_MESSAGE_CHARS: usize = 40_000;
 
-/// Matches the R alerts service, which has run this in production against Xyne.
+/// Long enough that a slow provider is not mistaken for a dead one, short enough that a caller
+/// delivering a time-sensitive message is not held indefinitely.
 pub(super) const DEFAULT_TIMEOUT_SECONDS: u64 = 30;
 
 /// Appended to a message that had to be cut down to fit.
@@ -35,6 +36,9 @@ const TRUNCATION_MARKER: &str = "\n…(truncated)";
 
 /// How much of an unexpected response body is worth carrying into the logs.
 const BODY_SNIPPET_CHARS: usize = 512;
+
+/// Stands in when a refusal names no error code at all.
+const UNSPECIFIED_ERROR_CODE: &str = "unspecified";
 
 /// One destination on a Slack-compatible API: where to post, as whom, and to which channel.
 ///
@@ -241,7 +245,7 @@ struct PostMessagePayload {
 #[derive(Debug, Deserialize)]
 struct PostMessageResponse {
     ok: bool,
-    error: Option<String>,
+    error: Option<SlackErrorCode>,
     ts: Option<String>,
     message: Option<NestedMessage>,
 }
@@ -257,11 +261,13 @@ impl TryFrom<PostMessageResponse> for MessageId {
 
     fn try_from(response: PostMessageResponse) -> Result<Self, Self::Error> {
         if !response.ok {
-            let code = response.error.unwrap_or_default();
-            return Err(ChatError::Rejected {
-                reason: reason_from_code(&code),
-            })
-            .attach_printable_lazy(|| format!("chat provider error code: {code}"));
+            // A refusal carrying no code at all is malformed, but it is still unambiguously a
+            // refusal — reporting it as an unreadable response would be a worse lie.
+            let reason = response.error.map_or_else(
+                || ChatErrorReason::Other(UNSPECIFIED_ERROR_CODE.to_owned()),
+                ChatErrorReason::from,
+            );
+            return Err(ChatError::Rejected { reason }.into());
         }
 
         response
@@ -277,24 +283,50 @@ impl TryFrom<PostMessageResponse> for MessageId {
     }
 }
 
-/// Map a provider error code onto the backend-neutral vocabulary.
+/// The `error` field of a refused response.
 ///
-/// Slack spells its rate-limit code both ways depending on the endpoint, and treats a deactivated
-/// account the same way an operator has to treat a revoked token — re-issue it.
-///
-/// No `Retry-After` here: the provider sends that header with a `429`, which is handled before a
-/// body is ever parsed. A rate-limit code arriving at HTTP 200 comes without one.
-fn reason_from_code(code: &str) -> ChatErrorReason {
-    match code {
-        "channel_not_found" => ChatErrorReason::ChannelNotFound,
-        "not_in_channel" | "is_archived" => ChatErrorReason::NotInChannel,
-        "invalid_auth" | "not_authed" => ChatErrorReason::InvalidAuth,
-        "token_revoked" | "account_inactive" => ChatErrorReason::TokenRevoked,
-        "msg_too_long" => ChatErrorReason::MessageTooLong,
-        "rate_limited" | "ratelimited" => ChatErrorReason::RateLimited {
-            retry_after_seconds: None,
-        },
-        other => ChatErrorReason::Other(other.to_owned()),
+/// A type rather than a string match: the wire spellings live in one derive that serde checks, and
+/// adding a code means adding a variant instead of remembering to extend a `match`. A code the
+/// provider adds later still arrives intact through [`SlackErrorCode::Unrecognised`], so nothing
+/// is flattened away for the logs.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum SlackErrorCode {
+    ChannelNotFound,
+    NotInChannel,
+    /// The channel exists and accepts nothing further — the same problem for a caller as not being
+    /// a member of it.
+    IsArchived,
+    InvalidAuth,
+    NotAuthed,
+    TokenRevoked,
+    /// A deactivated account needs the same remedy as a revoked token: re-issue the credential.
+    AccountInactive,
+    MsgTooLong,
+    RateLimited,
+    /// The same condition, spelled without the underscore on some endpoints.
+    #[serde(rename = "ratelimited")]
+    RateLimitedCompact,
+    /// Any code not listed above, kept verbatim.
+    #[serde(untagged)]
+    Unrecognised(String),
+}
+
+impl From<SlackErrorCode> for ChatErrorReason {
+    fn from(code: SlackErrorCode) -> Self {
+        match code {
+            SlackErrorCode::ChannelNotFound => Self::ChannelNotFound,
+            SlackErrorCode::NotInChannel | SlackErrorCode::IsArchived => Self::NotInChannel,
+            SlackErrorCode::InvalidAuth | SlackErrorCode::NotAuthed => Self::InvalidAuth,
+            SlackErrorCode::TokenRevoked | SlackErrorCode::AccountInactive => Self::TokenRevoked,
+            SlackErrorCode::MsgTooLong => Self::MessageTooLong,
+            // `Retry-After` rides on a 429, which is handled before a body is ever parsed, so a
+            // rate-limit code arriving at HTTP 200 comes without one.
+            SlackErrorCode::RateLimited | SlackErrorCode::RateLimitedCompact => Self::RateLimited {
+                retry_after_seconds: None,
+            },
+            SlackErrorCode::Unrecognised(code) => Self::Other(code),
+        }
     }
 }
 
@@ -338,6 +370,14 @@ mod tests {
     /// Parse a body and run it through the conversion, exactly as `post_message` does.
     fn read(value: serde_json::Value) -> Result<ChatResult<MessageId>, serde_json::Error> {
         serde_json::from_value::<PostMessageResponse>(value).map(TryInto::try_into)
+    }
+
+    /// Deserialize a wire error code and map it, which is the whole path a refusal takes. Going
+    /// through serde rather than constructing the variant means the spellings are covered too.
+    fn reason(code: &str) -> ChatErrorReason {
+        serde_json::from_value::<SlackErrorCode>(json!(code))
+            .unwrap()
+            .into()
     }
 
     #[test]
@@ -428,33 +468,29 @@ mod tests {
     #[test]
     fn error_codes_map_onto_neutral_reasons() {
         assert_eq!(
-            reason_from_code("channel_not_found"),
+            reason("channel_not_found"),
             ChatErrorReason::ChannelNotFound
         );
+        assert_eq!(reason("not_in_channel"), ChatErrorReason::NotInChannel);
+        assert_eq!(reason("is_archived"), ChatErrorReason::NotInChannel);
+        assert_eq!(reason("invalid_auth"), ChatErrorReason::InvalidAuth);
+        assert_eq!(reason("not_authed"), ChatErrorReason::InvalidAuth);
+        assert_eq!(reason("token_revoked"), ChatErrorReason::TokenRevoked);
+        assert_eq!(reason("account_inactive"), ChatErrorReason::TokenRevoked);
+        assert_eq!(reason("msg_too_long"), ChatErrorReason::MessageTooLong);
+
+        for spelling in ["rate_limited", "ratelimited"] {
+            assert_eq!(
+                reason(spelling),
+                ChatErrorReason::RateLimited {
+                    retry_after_seconds: None
+                }
+            );
+        }
+
+        // A code the provider adds later survives intact rather than being flattened away.
         assert_eq!(
-            reason_from_code("not_in_channel"),
-            ChatErrorReason::NotInChannel
-        );
-        assert_eq!(
-            reason_from_code("invalid_auth"),
-            ChatErrorReason::InvalidAuth
-        );
-        assert_eq!(
-            reason_from_code("token_revoked"),
-            ChatErrorReason::TokenRevoked
-        );
-        assert_eq!(
-            reason_from_code("msg_too_long"),
-            ChatErrorReason::MessageTooLong
-        );
-        assert_eq!(
-            reason_from_code("ratelimited"),
-            ChatErrorReason::RateLimited {
-                retry_after_seconds: None
-            }
-        );
-        assert_eq!(
-            reason_from_code("something_new"),
+            reason("something_new"),
             ChatErrorReason::Other("something_new".to_owned())
         );
     }

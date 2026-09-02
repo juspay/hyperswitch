@@ -168,48 +168,38 @@ pub enum ChatError {
 ///
 /// Backends map their own codes into this; the code they actually sent is preserved either in
 /// [`ChatErrorReason::Other`] or on the error report's attachments, so nothing is lost for logs.
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// `Display` is what [`ChatError::Rejected`] interpolates as `{reason}`, so each message lives on
+/// the variant it describes rather than in a separate impl that can drift from it.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum ChatErrorReason {
     /// No such channel, or the credential cannot see it.
+    #[error("channel not found")]
     ChannelNotFound,
 
     /// The channel exists but the bot is not a member of it.
+    #[error("not a member of the channel")]
     NotInChannel,
 
     /// The credential was not accepted.
+    #[error("credential rejected")]
     InvalidAuth,
 
     /// The credential was valid and has since been revoked or deactivated; it needs re-issuing.
+    #[error("credential revoked")]
     TokenRevoked,
 
     /// The message exceeded the provider's size limit.
+    #[error("message too long")]
     MessageTooLong,
 
     /// The caller is posting too fast.
+    #[error("rate limited{}", retry_after_seconds.map_or_else(String::new, |seconds| format!(", retry after {seconds}s")))]
     RateLimited {
         /// How long the provider asked us to wait, when it said.
         retry_after_seconds: Option<u64>,
     },
 
     /// Anything else, carrying the provider's own code verbatim.
+    #[error("{0}")]
     Other(String),
-}
-
-impl std::fmt::Display for ChatErrorReason {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::ChannelNotFound => f.write_str("channel not found"),
-            Self::NotInChannel => f.write_str("not a member of the channel"),
-            Self::InvalidAuth => f.write_str("credential rejected"),
-            Self::TokenRevoked => f.write_str("credential revoked"),
-            Self::MessageTooLong => f.write_str("message too long"),
-            Self::RateLimited {
-                retry_after_seconds: Some(seconds),
-            } => write!(f, "rate limited, retry after {seconds}s"),
-            Self::RateLimited {
-                retry_after_seconds: None,
-            } => f.write_str("rate limited"),
-            Self::Other(code) => write!(f, "{code}"),
-        }
-    }
 }
