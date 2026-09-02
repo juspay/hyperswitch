@@ -75,13 +75,31 @@ type = "log"
 # bot_token = "xoxb-..."
 # channel = "..."
 
-# Email destinations, keyed the same way.
+# The email transport, shared by every email destination. `external_services`' own configuration,
+# so the backend selection and its validation are the router's, not a second copy of them.
+#
+# `NO_EMAIL_CLIENT` accepts and logs. That is the off switch and the default: no separate "email
+# enabled" flag exists, because a backend that sends nothing already is one. A deployment runs with
+# this until SES credentials exist.
+#
+#   active_email_client = "SES"          and an [email.aws_ses] section
+#   active_email_client = "SMTP"         and an [email.smtp] section
+#
+# The transport is validated at boot only when destinations exist, so a service with no email
+# destinations does not need a verified sender to start.
+[email]
+active_email_client = "NO_EMAIL_CLIENT"
+sender_email = "alerts@example.com"
+aws_region = ""
+
+# Email destinations, keyed the same way as chat.
 #
 # One address per destination: `EmailClient::send_email` accepts a single recipient and both
 # backends build a single-recipient message, so reaching three people is three destinations today.
 # Widening it is tracked separately, and when it lands this becomes a list without any caller
 # changing, since a request only ever names an id.
 #
-# Delivery is not wired yet: every destination here accepts and logs.
+# A destination with no address fails the boot rather than accepting alerts and sending them
+# nowhere.
 [email.destinations.smoke]
 to = "alerts@example.com"

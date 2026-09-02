@@ -51,6 +51,16 @@ pub trait EmailService: Sync + Send + dyn_clone::DynClone {
         email_data: Box<dyn EmailData + Send>,
         proxy_url: Option<&String>,
     ) -> EmailResult<()>;
+
+    /// Send contents that are already composed, for a caller with no template to render.
+    ///
+    /// [`EmailService::compose_and_send_email`] is defined in terms of this, so the two cannot
+    /// drift.
+    async fn send_contents(
+        &self,
+        contents: EmailContents,
+        proxy_url: Option<&String>,
+    ) -> EmailResult<()>;
 }
 
 #[async_trait::async_trait]
@@ -68,11 +78,19 @@ where
         let email_data = email_data.get_email_data(base_url);
         let email_data = email_data.await?;
 
+        self.send_contents(email_data, proxy_url).await
+    }
+
+    async fn send_contents(
+        &self,
+        contents: EmailContents,
+        proxy_url: Option<&String>,
+    ) -> EmailResult<()> {
         let EmailContents {
             subject,
             body,
             recipient,
-        } = email_data;
+        } = contents;
 
         let rich_text_string = self.convert_to_rich_text(body)?;
 

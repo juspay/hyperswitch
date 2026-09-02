@@ -15,6 +15,7 @@ use common_utils::{ext_traits::ConfigExt, pii};
 use config::{Environment, File};
 use external_services::{
     chat_service::{slack::SlackConfig, xyne::XyneConfig},
+    email::{EmailClientConfigs, EmailSettings as EmailClientSettings},
     managers::secrets_management::SecretsManagementConfig,
 };
 use hyperswitch_interfaces::{
@@ -96,14 +97,23 @@ pub enum ChatDestination {
     Log,
 }
 
-/// Email destinations, keyed by the id a request names.
-///
-/// No transport configuration yet: the email client is chosen in the email transport ticket, which
-/// owns how `alerts` reaches `external_services::email`. Until then every destination here
-/// resolves to a log destination.
+/// Email destinations and the transport that serves them.
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct EmailSettings {
+    /// The transport, shared by every destination: which backend, and who mail comes from.
+    ///
+    /// `external_services`' own type, reused wholesale rather than mirrored, so the SES / SMTP /
+    /// no-email selection and its validation come for free and cannot drift from the router's. It
+    /// carries a few fields this service has no use for (`allowed_unverified_days`, the two recon
+    /// recipient addresses); they default and are ignored, which is a smaller price than a second
+    /// representation of the same configuration.
+    ///
+    /// Defaults to `NO_EMAIL_CLIENT`, which accepts and logs. That is the off switch: it needs no
+    /// flag of its own, and it is what a deployment runs with before SES credentials exist.
+    #[serde(flatten)]
+    pub client: EmailClientSettings,
+
     /// Every email destination, by id. Same id constraints as [`ChatSettings::destinations`].
     pub destinations: HashMap<String, EmailDestination>,
 }
@@ -146,9 +156,50 @@ impl ChatSettings {
 }
 
 impl EmailSettings {
-    /// Reject destination ids that cannot be set from the environment.
+    /// Reject destination ids that cannot be set from the environment, an unusable transport, and
+    /// a destination with no address.
+    ///
+    /// The transport check is `external_services`' own, so SES and SMTP are validated exactly as
+    /// the router validates them. It runs only when destinations exist: a deployment with none has
+    /// nothing to misconfigure, and demanding a verified SES sender before anyone has asked for an
+    /// email would make the service undeployable for no gain.
     pub fn validate(&self) -> Result<(), errors::ConfigurationError> {
-        validate_destination_ids(&self.destinations, "email")
+        validate_destination_ids(&self.destinations, "email")?;
+
+        if self.destinations.is_empty() {
+            return Ok(());
+        }
+
+        self.client
+            .validate()
+            .map_err(|error| errors::ConfigurationError::ConfigParsingError(error.to_owned()))?;
+
+        // `EmailSettings::validate` checks only the backend-specific section — SES's role ARN,
+        // SMTP's host — and never the shared sender. It defaults to an empty `pii::Email`, which
+        // SMTP then fails on while building the `From` mailbox and SES submits as an empty sender.
+        // Without this, a missing `sender_email` boots cleanly and turns every alert into a 502.
+        common_utils::fp_utils::when(
+            !matches!(self.client.client_config, EmailClientConfigs::NoEmailClient)
+                && !crate::domain::notifier::email::is_usable_recipient(&self.client.sender_email),
+            || {
+                Err(errors::ConfigurationError::ConfigParsingError(
+                    "email sender_email must be set when an email transport is configured".into(),
+                ))
+            },
+        )?;
+
+        for (id, destination) in &self.destinations {
+            common_utils::fp_utils::when(
+                !crate::domain::notifier::email::is_usable_recipient(&destination.to),
+                || {
+                    Err(errors::ConfigurationError::ConfigParsingError(format!(
+                        "email destination `{id}` has no recipient address"
+                    )))
+                },
+            )?;
+        }
+
+        Ok(())
     }
 }
 

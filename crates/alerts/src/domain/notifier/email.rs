@@ -1,20 +1,42 @@
 //! Delivering an alert to an email destination.
 //!
-//! **Only [`LogEmailNotifier`] exists today, and that is deliberate.** A real implementation means
-//! choosing how to reach `external_services::email`, whose object-safe trait exposes one method
-//! built for templated product emails: `compose_and_send_email(base_url, Box<dyn EmailData>,
-//! proxy_url)`. This crate has a subject and a body already in hand, no template and no meaningful
-//! base URL. That choice belongs to the ticket that owns it, which asks for the reasoning in its
-//! pull request. This one fixes the contract; that one fills it in.
+//! ## Reaching `external_services::email`
 //!
-//! Chat is not in the same position, which is why it has a real implementation:
-//! `ChatClient::post_message` maps onto [`ChatNotifier`](super::chat::ChatNotifier) one to one,
-//! with nothing to decide.
+//! That module's object-safe trait was built for templated product emails:
+//! `compose_and_send_email(base_url, Box<dyn EmailData>, proxy_url)`, where `EmailData` renders a
+//! template against a base URL. This crate has a subject and a body already in hand, no template,
+//! and no base URL.
+//!
+//! Rather than implement `EmailData` to hand back what it was given — and invent a `base_url` for
+//! that impl to ignore — `EmailService` gained [`send_contents`], and composition is now defined in
+//! terms of it. The trait was missing an operation; it was not missing a clever caller.
+//!
+//! That costs existing callers nothing. `EmailService` has exactly one implementor, the blanket
+//! `impl<T> EmailService for T where T: EmailClient`, so SES, SMTP and `no_email` gained the method
+//! for free and every `compose_and_send_email` call site is untouched.
+//!
+//! Dropping to the concrete backends instead was the other option, and it loses the SES / SMTP /
+//! no-email selection `EmailClientConfigs` gives for free — and with it the ability to turn email
+//! off by configuration.
+//!
+//! [`send_contents`]: EmailService::send_contents
+//!
+//! ## Email cannot refuse
+//!
+//! `EmailError` has no refusal vocabulary: a rejected recipient, a throttle and an unverified SES
+//! sender all arrive as `EmailSendingFailure`. So this channel only ever produces
+//! [`Outcome::Delivered`] or an error, and `status: "refused"` is unreachable for it until that
+//! enum grows. The response shape stays uniform across channels; email simply never uses half of
+//! it yet.
 
+use std::sync::Arc;
+
+use common_utils::pii;
+use external_services::email::{EmailContents, EmailService, IntermediateString};
 use hyperswitch_masking::{PeekInterface, Secret};
 
 use super::Outcome;
-use crate::{errors::AlertsApiResult, logger};
+use crate::errors::{AlertsApiResult, AlertsError};
 
 /// A message to send to one email destination.
 #[derive(Debug, Clone)]
@@ -22,8 +44,9 @@ pub struct EmailNotification {
     /// The subject line, delivered unchanged.
     pub subject: Secret<String>,
 
-    /// The body, as HTML. Both backends in `external_services::email` hardcode an HTML body, so
-    /// there is nothing else to send until that module grows a plain-text path.
+    /// The body, as HTML. Both backends hardcode an HTML body — `email/ses.rs` builds it with
+    /// `.html(...)`, `email/smtp.rs` sets `ContentType::TEXT_HTML` — so there is nothing else to
+    /// send until that module grows a plain-text path.
     pub body: Secret<String>,
 }
 
@@ -40,65 +63,137 @@ pub type EmailOutcome = Outcome<()>;
 /// both backends build a single-recipient message. When that is lifted, a destination widens to a
 /// recipient list without the wire contract changing, since a request only ever names an id.
 #[async_trait::async_trait]
-pub trait EmailNotifier: Send + Sync + std::fmt::Debug {
+pub trait EmailNotifier: Send + Sync {
     /// Attempt delivery.
     ///
-    /// A provider that refuses returns `Ok(Outcome::Refused)`, not an error: it was reached and it
-    /// answered. `Err` means the attempt itself failed, so whether the mail was sent is unknown.
+    /// A provider that refuses returns `Ok(Outcome::Refused)`, not an error. Email cannot reach
+    /// that arm today — see the module docs.
     async fn notify(&self, notification: EmailNotification) -> AlertsApiResult<EmailOutcome>;
 }
 
-/// An [`EmailNotifier`] that delivers nothing and says so.
+/// An [`EmailNotifier`] backed by the shared `external_services` email client.
 ///
-/// The counterpart of [`LogChatNotifier`](super::chat::LogChatNotifier), and for now the only
-/// implementation, so `/email/notify/{destination}` answers with the real contract while delivery
-/// waits on the transport ticket.
+/// The client is shared across destinations and the recipient is not, which is the whole shape of
+/// the type: one transport, many addresses.
 ///
-/// It logs the destination and the sizes, never the subject or the body: a subject carries merchant
-/// ids and a body carries payment volumes, and this writes to the same log stream as everything
-/// else.
-#[derive(Debug)]
-pub struct LogEmailNotifier {
+/// Not `Debug`, and neither is [`EmailNotifier`]. Deriving would need `dyn EmailService` to be
+/// `Debug`, and the alternative is a hand-written impl whose only job is to skip the one field
+/// that cannot be — so the bound is dropped rather than paid for. Nothing formats a notifier.
+/// [`ChatNotifier`](super::chat::ChatNotifier) keeps it, because every chat implementation derives
+/// it for free.
+#[derive(Clone)]
+pub struct EmailServiceNotifier {
     destination: String,
+    client: Arc<Box<dyn EmailService>>,
+    recipient: pii::Email,
+    proxy_url: Option<String>,
 }
 
-impl LogEmailNotifier {
-    /// Build a log destination under the id it was configured with.
-    pub fn new(destination: String) -> Self {
-        Self { destination }
+impl EmailServiceNotifier {
+    /// Bind the shared client to one destination's recipient.
+    pub fn new(
+        destination: String,
+        client: Arc<Box<dyn EmailService>>,
+        recipient: pii::Email,
+        proxy_url: Option<String>,
+    ) -> Self {
+        Self {
+            destination,
+            client,
+            recipient,
+            proxy_url,
+        }
     }
 }
 
 #[async_trait::async_trait]
-impl EmailNotifier for LogEmailNotifier {
+impl EmailNotifier for EmailServiceNotifier {
     async fn notify(&self, notification: EmailNotification) -> AlertsApiResult<EmailOutcome> {
-        logger::info!(
-            tag = "email_notify_skipped",
-            destination = %self.destination,
-            subject_chars = notification.subject.peek().chars().count(),
-            body_chars = notification.body.peek().chars().count(),
-            "not delivered: no email transport is wired yet"
-        );
+        self.client
+            .send_contents(
+                EmailContents {
+                    subject: notification.subject.peek().clone(),
+                    body: IntermediateString::new(notification.body.peek().clone()),
+                    recipient: self.recipient.clone(),
+                },
+                self.proxy_url.as_ref(),
+            )
+            .await
+            .map_err(|report| {
+                report.change_context(AlertsError::ProviderUnavailable {
+                    destination: self.destination.clone(),
+                })
+            })?;
 
         Ok(Outcome::Delivered(()))
     }
 }
 
+/// Whether an address is usable as a recipient.
+///
+/// `pii::Email` validates the format on the way in, so this only catches the empty default that a
+/// `#[serde(default)]` configuration produces when the field is missing entirely — which would
+/// otherwise become a destination that accepts alerts and sends them nowhere.
+pub fn is_usable_recipient(recipient: &pii::Email) -> bool {
+    !recipient.peek().trim().is_empty()
+}
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::expect_used, clippy::indexing_slicing)]
 mod tests {
+    use external_services::email::no_email::NoEmailClient;
+
     use super::*;
 
+    fn recipient() -> pii::Email {
+        serde_json::from_value(serde_json::json!("oncall@example.com")).unwrap()
+    }
+
+    async fn no_email_notifier() -> EmailServiceNotifier {
+        EmailServiceNotifier::new(
+            "oncall".to_owned(),
+            Arc::new(Box::new(NoEmailClient::create().await)),
+            recipient(),
+            None,
+        )
+    }
+
+    fn notification() -> EmailNotification {
+        EmailNotification {
+            subject: "merchant_1234 not converting".to_owned().into(),
+            body: "<pre>4,201 of 5,000 payments lost</pre>".to_owned().into(),
+        }
+    }
+
+    /// `NoEmailClient` accepts and logs, so this exercises the real path to the transport — with no
+    /// `EmailData` in it any more — without needing credentials.
     #[tokio::test]
-    async fn a_log_destination_reports_delivery() {
-        let outcome = LogEmailNotifier::new("oncall".to_owned())
-            .notify(EmailNotification {
-                subject: "3 merchants not converting".to_owned().into(),
-                body: "<pre>...</pre>".to_owned().into(),
-            })
+    async fn the_no_email_backend_reports_delivery() {
+        let outcome = no_email_notifier()
+            .await
+            .notify(notification())
             .await
             .unwrap();
 
         assert_eq!(outcome, Outcome::Delivered(()));
+    }
+
+    /// A subject carries merchant ids and a body carries volumes, and neither belongs in a log
+    /// line. `Secret` is what enforces that, so `Debug` can be derived everywhere rather than
+    /// hand-written and kept in step by hand.
+    #[test]
+    fn debug_leaks_no_content() {
+        let rendered = format!("{:?}", notification());
+
+        assert!(!rendered.contains("merchant_1234"));
+        assert!(!rendered.contains("4,201"));
+    }
+
+    /// A destination with no address would accept alerts and send them nowhere, so it has to fail
+    /// at boot rather than at delivery.
+    #[test]
+    fn an_absent_recipient_is_not_usable() {
+        assert!(is_usable_recipient(&recipient()));
+        assert!(!is_usable_recipient(&pii::Email::default()));
     }
 }
