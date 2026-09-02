@@ -42,8 +42,12 @@ pub trait EmailClient: Sync + Send + dyn_clone::DynClone {
 }
 
 /// A super trait which is automatically implemented for all EmailClients
+///
+/// `Debug` so that a caller holding one as a field can derive `Debug` rather than hand-write an
+/// impl to skip it. Matches [`crate::chat_service::ChatClient`], and every implementor already
+/// derives it.
 #[async_trait::async_trait]
-pub trait EmailService: Sync + Send + dyn_clone::DynClone {
+pub trait EmailService: Sync + Send + std::fmt::Debug + dyn_clone::DynClone {
     /// Compose and send email using the email data
     async fn compose_and_send_email(
         &self,
@@ -72,7 +76,7 @@ pub trait EmailService: Sync + Send + dyn_clone::DynClone {
 #[async_trait::async_trait]
 impl<T> EmailService for T
 where
-    T: EmailClient,
+    T: EmailClient + std::fmt::Debug,
     <Self as EmailClient>::RichText: Send,
 {
     async fn compose_and_send_email(
