@@ -336,7 +336,10 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
 
 impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for D24 {}
 
-// WebPay refunds are out of scope for this integration.
+// Refunds are implemented in the unified connector service (`POST /v3/refunds` and
+// `GET /v3/refunds/{refund_id}`), which is where every `d24` call is executed —
+// `d24` is a member of `ucs_only_connectors`. These stubs exist only to satisfy the
+// `ConnectorIntegration` bounds on this side and are never invoked.
 impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for D24 {}
 
 impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for D24 {}
@@ -380,7 +383,11 @@ static D24_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLo
         enums::PaymentMethodType::CardRedirect,
         PaymentMethodDetails {
             mandates: enums::FeatureStatus::NotSupported,
-            refunds: enums::FeatureStatus::NotSupported,
+            // Load-bearing, not merely descriptive: `validate_for_valid_refunds`
+            // reads this through `PaymentMethodDetails::supports_refund()`, so with
+            // `NotSupported` every `POST /refunds` is rejected before the connector
+            // is ever called.
+            refunds: enums::FeatureStatus::Supported,
             supported_capture_methods,
             specific_features: None,
         },
