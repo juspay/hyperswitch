@@ -399,6 +399,7 @@ impl TesouroPaymentMethodDetails {
                 apple_pay,
                 google_pay,
                 samsung_pay: _,
+                paypal: _,
             } => {
                 if let Some(google_pay_token) = google_pay {
                     Ok((

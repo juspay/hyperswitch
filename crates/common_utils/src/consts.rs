@@ -153,6 +153,10 @@ pub const MAX_ALLOWED_MERCHANT_NAME_LENGTH: usize = 64;
 /// Maximum allowed length for CardIssuerName
 pub const MAX_ALLOWED_CARD_ISSUER_NAME_LENGTH: usize = 255;
 
+/// Maximum allowed length for a phone country (calling) code, matching the `VARCHAR(8)`
+/// column used to store it
+pub const MAX_PHONE_COUNTRY_CODE_LENGTH: usize = 8;
+
 /// Default locale
 pub const DEFAULT_LOCALE: &str = "en";
 
@@ -170,6 +174,11 @@ pub const MAX_DESCRIPTION_LENGTH: u16 = 255;
 
 /// Max length allowed for Statement Descriptor
 pub const MAX_STATEMENT_DESCRIPTOR_LENGTH: u16 = 22;
+
+/// Max length allowed for a blocklist lookup value. Matches the longest value `fingerprint_id` can
+/// legitimately hold: a card BIN is at most 10 digits and a locker fingerprint id is a 20-character
+/// nano id. The column itself is `VARCHAR(64)`, so anything longer could never match a row.
+pub const MAX_BLOCKLIST_LOOKUP_DATA_LENGTH: u16 = 20;
 /// Payout flow identifier used for performing GSM operations
 pub const PAYOUT_FLOW_STR: &str = "payout_flow";
 
