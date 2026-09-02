@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.08.31.0-hotfix1
+
+### Features
+
+- **connector:** [datatrans] googlepay 3ds ([#13981](https://github.com/juspay/hyperswitch/pull/13981)) ([`ad53c9d`](https://github.com/juspay/hyperswitch/commit/ad53c9d4cf18069d0451b1176a1f63d038f2fe5a))
+
+**Full Changelog:** [`2026.08.31.0...2026.08.31.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2026.08.31.0...2026.08.31.0-hotfix1)
+
+- - -
+
 ## 2026.08.31.0
 
 ### Features
