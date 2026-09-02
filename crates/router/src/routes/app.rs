@@ -747,26 +747,20 @@ impl Health {
 
 pub struct OfferEngine;
 
+/// Offers are only supported on v1.
+#[cfg(feature = "v1")]
 impl OfferEngine {
     pub fn server(state: AppState) -> Scope {
-        #[allow(unused_mut)]
-        let mut route = web::scope("/offer_engine")
+        web::scope("/offer_engine")
             .app_data(web::Data::new(state))
             .service(
                 web::resource("/connectivity")
                     .route(web::post().to(offer_engine::offer_engine_connectivity_check)),
-            );
-
-        // Offers are only supported on v1.
-        #[cfg(feature = "v1")]
-        {
-            route = route.service(
+            )
+            .service(
                 web::resource("/offers/list")
                     .route(web::post().to(offer_engine::offer_engine_browse_offers)),
-            );
-        }
-
-        route
+            )
     }
 }
 
