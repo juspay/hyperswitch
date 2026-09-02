@@ -499,52 +499,6 @@ impl
     }
 }
 
-/// Connectors whose Authorize leg must be handed the `connector_metadata` produced by a
-/// preceding pre-task (today only `pre_authentication_step`).
-///
-/// Pay.com's gateway-3DS journey is three HTTP calls split across three flow executions:
-/// PreAuthenticate mints a `chrg_`/`hld_` id, the Authorize that follows turns it into a
-/// challenge session (`/v1/sessions/authentication/linked`), and CompleteAuthorize confirms.
-/// The id travels to the second leg on `connector_feature_data`, which the Authorize
-/// builder otherwise never populates (the CompleteAuthorize builder already forwards
-/// `request.connector_meta` into the same field, which is why the third leg works today).
-///
-/// This is an explicit opt-in list rather than an unconditional forward because
-/// `router_data.response` is non-default for every connector that ran a pre-task and
-/// continued (Redsys, Shift4, Nuvei, Paysafe, Xendit's settlement split). Forwarding for
-/// those would put bytes on the wire they do not send today — Redsys, for one, echoes
-/// `connector_feature_data` straight back into the attempt's `connector_metadata`.
-/// Add a connector here only after checking what connector-service does with the field
-/// on its Authorize flow.
-const CONNECTORS_FORWARDING_PRE_TASK_METADATA_ON_AUTHORIZE: &[&str] = &["paydotcom"];
-
-/// Serialises the pre-task `connector_metadata` for the Authorize request's
-/// `connector_feature_data`, for the connectors that opt into it.
-///
-/// Returns `None` for every other connector, and for a plain Authorize (where
-/// `router_data.response` is still `Err(ErrorResponse::default())`).
-fn pre_task_connector_metadata_for_authorize(
-    router_data: &RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>,
-) -> Result<Option<Secret<String>>, error_stack::Report<UnifiedConnectorServiceError>> {
-    if !CONNECTORS_FORWARDING_PRE_TASK_METADATA_ON_AUTHORIZE
-        .contains(&router_data.connector.as_str())
-    {
-        return Ok(None);
-    }
-
-    match &router_data.response {
-        Ok(PaymentsResponseData::TransactionResponse {
-            connector_metadata: Some(connector_metadata),
-            ..
-        }) => Ok(Some(
-            serde_json::to_string(connector_metadata)
-                .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
-                .into(),
-        )),
-        _ => Ok(None),
-    }
-}
-
 impl
     transformers::ForeignTryFrom<(
         &RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>,
@@ -733,7 +687,7 @@ impl
                 .map(payments_grpc::PaymentChannel::foreign_try_from)
                 .transpose()?
                 .map(|payment_channel| payment_channel.into()),
-            connector_feature_data: pre_task_connector_metadata_for_authorize(router_data)?,
+            connector_feature_data: None,
             locale: router_data.request.locale.clone(),
             continue_redirection_url: router_data.request.complete_authorize_url.clone(),
             redirection_response: None,

@@ -284,9 +284,9 @@ impl api::ConnectorSpecifications for Paydotcom {
         Some(&PAYDOTCOM_SUPPORTED_WEBHOOK_FLOWS)
     }
 
-    /// Gateway-driven 3DS needs a PreAuthenticate leg to mint the `chrg_`/`hld_` id that
-    /// the following Authorize turns into a challenge session. Non-3DS and external-MPI
-    /// 3DS are single-call Authorize and must not take this path.
+    /// Gateway-driven 3DS runs as PreAuthenticate -> Authenticate -> CompleteAuthorize.
+    /// Leg 1 mints the `chrg_`/`hld_` id the challenge will authenticate. Non-3DS and
+    /// external-MPI 3DS are single-call Authorize and must not take this path.
     fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
         match current_flow {
             api::CurrentFlowInfo::Authorize {
@@ -297,6 +297,32 @@ impl api::ConnectorSpecifications for Paydotcom {
                     && request_data.is_card()
                     // External-MPI 3DS already carries the merchant's own eci/cavv and
                     // settles in a single Authorize call — no PreAuthenticate leg.
+                    && request_data.authentication_data.is_none()
+            }
+            api::CurrentFlowInfo::CompleteAuthorize { .. }
+            | api::CurrentFlowInfo::SetupMandate { .. }
+            | api::CurrentFlowInfo::Psync { .. }
+            | api::CurrentFlowInfo::UpdatePostConfirm { .. }
+            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
+        }
+    }
+
+    /// Leg 2 of the same journey: connector-service turns the id leg 1 minted into a
+    /// linked authentication session and returns the challenge URL. The gate is identical
+    /// to `is_pre_authentication_flow_required` because the two legs are inseparable —
+    /// every PreAuthenticate this connector runs leaves a resource that only the
+    /// Authenticate leg can hand a shopper.
+    ///
+    /// The `chrg_`/`hld_` id reaches this leg on `authentication_data`, which
+    /// `authentication_step` already carries over from the PreAuthenticate response.
+    fn is_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
+        match current_flow {
+            api::CurrentFlowInfo::Authorize {
+                auth_type,
+                request_data,
+            } => {
+                auth_type.is_three_ds()
+                    && request_data.is_card()
                     && request_data.authentication_data.is_none()
             }
             api::CurrentFlowInfo::CompleteAuthorize { .. }
