@@ -421,6 +421,17 @@ pub struct MerchantAccountMetadata {
     pub data: Option<pii::SecretSerdeValue>,
 }
 
+/// Merchant-level Offer Engine credentials (Offer Engine issues one account per merchant)
+#[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
+pub struct OfferEngineMerchantConfig {
+    /// API key issued by Offer Engine for this merchant
+    #[schema(value_type = String)]
+    pub api_key: Secret<String>,
+
+    /// The Offer Engine merchant id sent in Offer Engine request bodies
+    pub merchant_id: String,
+}
+
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -502,6 +513,10 @@ pub struct MerchantAccountUpdate {
     /// Network tokenization credentials for this merchant account
     #[schema(value_type = Option<NetworkTokeizationProviderCredentials>)]
     pub network_tokenization_credentials: Option<NetworkTokeizationProviderCredentials>,
+
+    /// Merchant-level Offer Engine credentials, used when the resolved credential source is `merchant`
+    #[schema(value_type = Option<OfferEngineMerchantConfig>)]
+    pub offer_engine_config: Option<OfferEngineMerchantConfig>,
 }
 
 #[cfg(feature = "v1")]

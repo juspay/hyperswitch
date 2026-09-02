@@ -46,6 +46,7 @@ pub struct MerchantAccount {
     pub merchant_account_type: common_enums::MerchantAccountType,
     pub network_tokenization_credentials: OptionalEncryptableValue,
     pub fingerprint_secret: Option<Secret<String>>,
+    pub offer_engine_config: OptionalEncryptableValue,
 }
 
 #[cfg(feature = "v1")]
@@ -85,6 +86,7 @@ pub struct MerchantAccountSetter {
     pub merchant_account_type: common_enums::MerchantAccountType,
     pub network_tokenization_credentials: OptionalEncryptableValue,
     pub fingerprint_secret: Option<Secret<String>>,
+    pub offer_engine_config: OptionalEncryptableValue,
 }
 
 #[cfg(feature = "v1")]
@@ -124,6 +126,7 @@ impl From<MerchantAccountSetter> for MerchantAccount {
             merchant_account_type: item.merchant_account_type,
             network_tokenization_credentials: item.network_tokenization_credentials,
             fingerprint_secret: item.fingerprint_secret,
+            offer_engine_config: item.offer_engine_config,
         }
     }
 }
@@ -222,6 +225,14 @@ impl MerchantAccount {
         &self.default_profile
     }
 
+    #[cfg(feature = "v1")]
+    /// Get the decrypted merchant-level Offer Engine config JSON, if configured
+    pub fn get_offer_engine_config(&self) -> Option<&pii::SecretSerdeValue> {
+        self.offer_engine_config
+            .as_ref()
+            .map(|config| config.get_inner())
+    }
+
     #[cfg(feature = "v2")]
     /// Get the unique identifier of MerchantAccount
     pub fn get_id(&self) -> &common_utils::id_type::MerchantId {
@@ -284,6 +295,7 @@ pub enum MerchantAccountUpdate {
         payment_link_config: Option<serde_json::Value>,
         pm_collect_link_config: Option<serde_json::Value>,
         network_tokenization_credentials: OptionalEncryptableValue,
+        offer_engine_config: OptionalEncryptableValue,
     },
     StorageSchemeUpdate {
         storage_scheme: MerchantStorageScheme,

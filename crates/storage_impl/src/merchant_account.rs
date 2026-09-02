@@ -901,6 +901,7 @@ impl ForeignFrom<domain::MerchantAccountUpdate> for MerchantAccountUpdateInterna
                 payment_link_config,
                 pm_collect_link_config,
                 network_tokenization_credentials,
+                offer_engine_config,
             } => Self {
                 merchant_name: merchant_name.map(Encryption::from),
                 merchant_details: merchant_details.map(Encryption::from),
@@ -931,6 +932,7 @@ impl ForeignFrom<domain::MerchantAccountUpdate> for MerchantAccountUpdateInterna
                 product_type: None,
                 network_tokenization_credentials: network_tokenization_credentials
                     .map(Encryption::from),
+                offer_engine_config: offer_engine_config.map(Encryption::from),
             },
             domain::MerchantAccountUpdate::StorageSchemeUpdate { storage_scheme } => Self {
                 storage_scheme: Some(storage_scheme),
@@ -961,6 +963,7 @@ impl ForeignFrom<domain::MerchantAccountUpdate> for MerchantAccountUpdateInterna
                 is_platform_account: None,
                 product_type: None,
                 network_tokenization_credentials: None,
+                offer_engine_config: None,
             },
             domain::MerchantAccountUpdate::ReconUpdate { recon_status } => Self {
                 recon_status: Some(recon_status),
@@ -991,6 +994,7 @@ impl ForeignFrom<domain::MerchantAccountUpdate> for MerchantAccountUpdateInterna
                 is_platform_account: None,
                 product_type: None,
                 network_tokenization_credentials: None,
+                offer_engine_config: None,
             },
             domain::MerchantAccountUpdate::UnsetDefaultProfile => Self {
                 default_profile: Some(None),
@@ -1021,6 +1025,7 @@ impl ForeignFrom<domain::MerchantAccountUpdate> for MerchantAccountUpdateInterna
                 is_platform_account: None,
                 product_type: None,
                 network_tokenization_credentials: None,
+                offer_engine_config: None,
             },
             domain::MerchantAccountUpdate::ModifiedAtUpdate => Self {
                 modified_at: now,
@@ -1051,6 +1056,7 @@ impl ForeignFrom<domain::MerchantAccountUpdate> for MerchantAccountUpdateInterna
                 is_platform_account: None,
                 product_type: None,
                 network_tokenization_credentials: None,
+                offer_engine_config: None,
             },
         }
     }
@@ -1284,6 +1290,7 @@ impl Conversion for domain::MerchantAccount {
                 .network_tokenization_credentials
                 .map(|credentials| credentials.into()),
             fingerprint_secret: self.fingerprint_secret,
+            offer_engine_config: self.offer_engine_config.map(|config| config.into()),
         };
 
         Ok(diesel_models::MerchantAccount::from(setter))
@@ -1380,6 +1387,20 @@ impl Conversion for domain::MerchantAccount {
                         })
                         .await?,
                     fingerprint_secret: item.fingerprint_secret,
+                    offer_engine_config: item
+                        .offer_engine_config
+                        .async_lift(|inner| async {
+                            crypto_operation(
+                                state,
+                                type_name!(Self::DstType),
+                                CryptoOperation::DecryptOptional(inner),
+                                key_manager_identifier.clone(),
+                                key.peek(),
+                            )
+                            .await
+                            .and_then(|val| val.try_into_optionaloperation())
+                        })
+                        .await?,
                 }
                 .into(),
             )
@@ -1431,6 +1452,7 @@ impl Conversion for domain::MerchantAccount {
                 .map(|credentials| credentials.into()),
             storage_scheme: self.storage_scheme,
             fingerprint_secret: self.fingerprint_secret,
+            offer_engine_config: self.offer_engine_config.map(|config| config.into()),
         })
     }
 }
