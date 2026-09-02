@@ -616,6 +616,7 @@ redirect_uri = ""  # Redirect URI registered for the OIDC client
 [tokenization]
 stripe = { long_lived_token = false, payment_method = "wallet", payment_method_type = { type = "disable_only", list = "google_pay" } }
 checkout = { long_lived_token = false, payment_method = "wallet", apple_pay_pre_decrypt_flow = "network_tokenization",google_pay_pre_decrypt_flow = "network_tokenization" }
+datatrans = { long_lived_token = false, payment_method = "wallet", payment_method_type = { type = "enable_only", list = "google_pay" } }
 mollie = { long_lived_token = false, payment_method = "card" }
 stax = { long_lived_token = true, payment_method = "card,bank_debit" }
 square = { long_lived_token = false, payment_method = "card" }
@@ -1483,6 +1484,9 @@ base_url = "http://127.0.0.1:8080" #Base URL
 [billing_connectors_invoice_sync]
 billing_connectors_which_requires_invoice_sync_call = "recurly" # List of billing connectors which has invoice sync api call
 
+[billing_connectors_dispute_record_back]
+billing_connectors_which_requires_dispute_record_back_call = "chargebee" # List of billing connectors which support the dispute record back api call
+
 [revenue_recovery]
 monitoring_threshold_in_seconds = 60  # 60 secs , threshold for monitoring the retry system
 retry_algorithm_type = "cascading"  # type of retry algorithm
@@ -1565,8 +1569,8 @@ backup_file_path = "./config/superposition_seed.toml" # Path to a local file for
 
 [offer_engine]
 base_url = "https://offer-engine.example.com/" # Base URL of the Offer Engine service
-api_key = ""                                  # API key for API-key authenticated Offer Engine calls
-merchant_id = ""                              # Offer Engine merchant id sent in request bodies
+api_key = ""                                  # API key for the `application` credential source; omit when credentials are at the merchant level
+merchant_id = ""                              # Offer Engine merchant id for the `application` credential source; omit when credentials are at the merchant level
 
 # Credentials and call settings for the Account Updater flow; omit the section entirely to keep it off
 [account_updater.juspay]

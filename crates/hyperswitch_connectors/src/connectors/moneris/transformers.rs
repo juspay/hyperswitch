@@ -175,7 +175,7 @@ impl TryFrom<&MonerisRouterData<&PaymentsAuthorizeRouterData>> for MonerisPaymen
                         .request
                         .connector_mandate_id()
                         .ok_or(errors::ConnectorError::MissingRequiredField {
-                            field_name: "connector_mandate_id",
+                            field_name: "connector_mandate_id".into(),
                         })?
                         .into(),
                 });

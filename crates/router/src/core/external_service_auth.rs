@@ -147,19 +147,42 @@ async fn resolve_offer_engine_merchant_id(
         .with_organization_id(payload.org_id.clone())
         .with_profile_id(payload.profile_id.clone());
 
-    offer_engine::resolve_offer_engine_config(state, &dimensions)
-        .await
-        .inspect_err(|error| {
-            router_env::logger::warn!(?error, "failed to resolve Offer Engine config");
-        })
-        .ok()
-        .flatten()
-        .map(|config| config.merchant_id)
-        .ok_or_else(|| {
-            error_stack::report!(errors::ApiErrorResponse::AccessForbidden {
-                resource: "offer_engine".to_string(),
-            })
-        })
+    let config =
+        match offer_engine::resolve_offer_engine_credential_source(state, &dimensions).await {
+            offer_engine::OfferEngineCredentialSource::None => {
+                return Err(error_stack::report!(
+                    errors::ApiErrorResponse::AccessForbidden {
+                        resource: "offer_engine".to_string(),
+                    }
+                ));
+            }
+            offer_engine::OfferEngineCredentialSource::Application => {
+                offer_engine::OfferEngineCredentialSource::resolve_application_offer_config(state)
+            }
+            offer_engine::OfferEngineCredentialSource::Merchant => {
+                let db = &*state.store;
+                let key_store = db
+                    .get_merchant_key_store_by_merchant_id(
+                        &payload.merchant_id,
+                        &db.get_master_key().to_vec().into(),
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+                let merchant_account = db
+                    .find_merchant_account_by_merchant_id(&payload.merchant_id, &key_store)
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+                offer_engine::OfferEngineCredentialSource::resolve_merchant_offer_config(
+                    state,
+                    &merchant_account,
+                )
+            }
+        }
+        .change_context(errors::ApiErrorResponse::AccessForbidden {
+            resource: "offer_engine".to_string(),
+        })?;
+
+    Ok(config.merchant_id)
 }
 
 /// Offer permissions held by the role. Empty means no offer access.

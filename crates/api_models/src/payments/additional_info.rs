@@ -427,6 +427,20 @@ pub enum UpiAdditionalData {
     Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
 )]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct PaypalWalletAdditionalData {
+    /// Email address associated with the payer's PayPal account
+    #[schema(value_type = Option<String>, example = "johntest@test.com")]
+    pub email: Option<common_utils::pii::Email>,
+    /// Unique identifier of the payer in PayPal
+    #[schema(value_type = Option<String>, example = "7DY7FRMPQ8CT6")]
+    #[smithy(value_type = "Option<String>")]
+    pub payer_id: Option<String>,
+}
+
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct UpiCollectAdditionalData {
     /// Masked VPA ID
     #[schema(value_type = Option<String>, example = "ab********@okhdfcbank")]

@@ -2177,9 +2177,8 @@ impl From<RefundStatus> for Option<EventType> {
         match value {
             RefundStatus::Success => Some(EventType::RefundSucceeded),
             RefundStatus::Failure => Some(EventType::RefundFailed),
-            RefundStatus::ManualReview
-            | RefundStatus::Pending
-            | RefundStatus::TransactionFailure => None,
+            RefundStatus::ManualReview => Some(EventType::RefundReview),
+            RefundStatus::Pending | RefundStatus::TransactionFailure => None,
         }
     }
 }
