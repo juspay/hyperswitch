@@ -206,6 +206,7 @@ pub async fn update_merchant_active_algorithm_ref(
         payment_link_config: None,
         pm_collect_link_config: None,
         network_tokenization_credentials: None,
+        offer_engine_config: None,
     };
 
     let db = &*state.store;
