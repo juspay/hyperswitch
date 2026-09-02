@@ -1651,6 +1651,11 @@ impl
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             description: router_data.description.clone(),
             merchant_transaction_id: None,
+            // Forward the order created by the preceding CreateOrder leg. Elavon PG's
+            // hosted-payment-page 3DS opens its payment session against that Order resource.
+            // This is the live path for card 3DS; setting only the external-vault variant
+            // below silently leaves the field None and the connector rejects the session.
+            connector_order_id: router_data.request.order_id.clone(),
         })
     }
 }
@@ -1748,6 +1753,9 @@ impl
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             description: router_data.description.clone(),
             merchant_transaction_id: Some(router_data.connector_request_reference_id.clone()),
+            // Forward the order created by the preceding CreateOrder leg. Elavon PG's
+            // hosted-payment-page 3DS opens its payment session against that Order resource.
+            connector_order_id: router_data.request.order_id.clone(),
         })
     }
 }

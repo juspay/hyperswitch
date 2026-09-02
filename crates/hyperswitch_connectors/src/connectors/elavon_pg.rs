@@ -65,7 +65,11 @@ use hyperswitch_interfaces::{
 use hyperswitch_masking::{Mask, PeekInterface};
 use transformers as elavon_pg;
 
-use crate::{constants::headers, types::ResponseRouterData, utils};
+use crate::{
+    constants::headers,
+    types::ResponseRouterData,
+    utils::{self, PaymentsAuthorizeRequestData},
+};
 
 #[derive(Clone)]
 pub struct ElavonPg {
@@ -709,19 +713,51 @@ impl ConnectorSpecifications for ElavonPg {
         Some(&ELAVON_PG_SUPPORTED_WEBHOOK_FLOWS)
     }
 
-    /// Elavon PG never runs a pre-authentication leg.
+    /// Elavon PG runs card 3DS through its **Hosted Payment Pages**, which needs an `Order`
+    /// created before the payment session can be opened.
     ///
-    /// The EPG direct API supports **external / pass-through 3DS only**: the ECI, CAVV,
-    /// DS transaction id and protocol version are produced by a separate 3DS provider and
-    /// travel in the `threeDSecure` object on the single `POST /transactions` sale. EPG
-    /// itself performs 3DS only inside its Hosted Payment Pages, where the shopper enters
-    /// the PAN on Elavon's own page - a path that is unreachable from here.
+    /// `create_order_at_connector` runs before `pre_authentication_step`, so this gate and
+    /// `is_pre_authentication_flow_required` below must agree: both are card-3DS only.
+    fn is_order_create_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
+        match current_flow {
+            api::CurrentFlowInfo::Authorize {
+                auth_type,
+                request_data,
+            } => auth_type.is_three_ds() && request_data.is_card(),
+            api::CurrentFlowInfo::CompleteAuthorize { .. }
+            | api::CurrentFlowInfo::SetupMandate { .. }
+            | api::CurrentFlowInfo::Psync { .. }
+            | api::CurrentFlowInfo::UpdatePostConfirm { .. }
+            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
+        }
+    }
+
+    /// Card 3DS only. Elavon PG performs 3DS itself solely inside its Hosted Payment Pages:
+    /// `POST /orders` then `POST /payment-sessions` (`doThreeDSecure: true`) yields a shopper
+    /// URL, the shopper completes card entry and the challenge on Elavon's page, and the sale
+    /// is settled from `CompleteAuthorize` with `POST /transactions {"paymentSession": href}`.
+    /// The payment-session href is threaded across the redirect in
+    /// `authentication_data.threeds_server_transaction_id`.
     ///
-    /// Returning `true` for card 3DS would make `authorize_flow` call the UCS
-    /// `pre_authenticate` RPC, which this connector does not implement, failing the payment
-    /// with `Unimplemented - pre_authenticate flow for elavon_pg`. There is likewise no
-    /// `CompleteAuthorize` leg, because EPG never returns a redirect or a challenge.
-    fn is_pre_authentication_flow_required(&self, _current_flow: api::CurrentFlowInfo) -> bool {
-        false
+    /// Note this means the PAN is captured by Elavon, not by us, on the 3DS path. Non-3DS card
+    /// sales and external / pass-through 3DS sales are unaffected and stay server-side: they
+    /// send the card (plus a `threeDSecure` object for external 3DS) straight to
+    /// `POST /transactions` with no pre-authentication leg.
+    ///
+    /// `should_continue_after_preauthenticate` in `authorize_flow.rs` has no arm for this
+    /// connector, so its default `false` applies: HS stops after PreAuthenticate and redirects
+    /// the shopper rather than settling immediately. That is the behaviour this flow needs.
+    fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
+        match current_flow {
+            api::CurrentFlowInfo::Authorize {
+                auth_type,
+                request_data,
+            } => auth_type.is_three_ds() && request_data.is_card(),
+            api::CurrentFlowInfo::CompleteAuthorize { .. }
+            | api::CurrentFlowInfo::SetupMandate { .. }
+            | api::CurrentFlowInfo::Psync { .. }
+            | api::CurrentFlowInfo::UpdatePostConfirm { .. }
+            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
+        }
     }
 }
