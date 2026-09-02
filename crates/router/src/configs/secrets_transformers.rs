@@ -733,6 +733,7 @@ pub(crate) async fn fetch_raw_secrets(
         webhook_source_verification_call: conf.webhook_source_verification_call,
         billing_connectors_payment_sync: conf.billing_connectors_payment_sync,
         billing_connectors_invoice_sync: conf.billing_connectors_invoice_sync,
+        billing_connectors_dispute_record_back: conf.billing_connectors_dispute_record_back,
         payment_method_auth,
         connector_request_reference_id_config: conf.connector_request_reference_id_config,
         #[cfg(feature = "payouts")]

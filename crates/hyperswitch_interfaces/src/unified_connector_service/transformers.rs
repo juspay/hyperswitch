@@ -531,7 +531,7 @@ impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
                     network_txn_id: response.network_transaction_id.clone(),
                     network_txn_link_id: response.network_txn_link_id.clone(),
                     connector_response_reference_id: response.connector_reference_id,
-                    payment_account_reference: None,
+                    payment_account_reference: response.payment_account_reference,
                     incremental_authorization_allowed: response.incremental_authorization_allowed,
                     authentication_data: None,
                     charges: response.splits.map(common_types::payments::ConnectorChargeResponseData::foreign_try_from).transpose()?,
@@ -909,11 +909,11 @@ impl ForeignTryFrom<payments_grpc::BankType> for common_enums::BankType {
             payments_grpc::BankType::Savings => Ok(Self::Savings),
             payments_grpc::BankType::Salary => Ok(Self::Salary),
             payments_grpc::BankType::Payment => Ok(Self::Payment),
-            payments_grpc::BankType::Bond
-            | payments_grpc::BankType::Transmission
-            | payments_grpc::BankType::Current
-            | payments_grpc::BankType::SubscriptionShare
-            | payments_grpc::BankType::Unspecified => Err(error_stack::Report::new(
+            payments_grpc::BankType::Bond => Ok(Self::Bond),
+            payments_grpc::BankType::Transmission => Ok(Self::Transmission),
+            payments_grpc::BankType::Current => Ok(Self::Current),
+            payments_grpc::BankType::SubscriptionShare => Ok(Self::SubscriptionShare),
+            payments_grpc::BankType::Unspecified => Err(error_stack::Report::new(
                 UnifiedConnectorServiceError::ResponseDeserializationFailed,
             )
             .attach_printable("BankType unsupported")),

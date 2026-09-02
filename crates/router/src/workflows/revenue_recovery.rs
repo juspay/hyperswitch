@@ -630,6 +630,9 @@ pub enum PaymentProcessorTokenResponse {
         next_available_time: time::PrimitiveDateTime,
     },
 
+    /// The configured retry ladder has no slot left for this invoice
+    RetriesExhausted,
+
     /// No retry info available / nothing to do yet
     None,
 }
@@ -664,14 +667,20 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
             let dimensions = crate::core::configs::dimension_state::Dimensions::new()
                 .with_processor_merchant_id(payment_intent.merchant_id.clone().into())
                 .with_connector(billing_connector);
-            let time = get_schedule_time_to_retry_mit_payments(
+            let schedule_time = get_schedule_time_to_retry_mit_payments(
                 state.store.as_ref(),
                 state.superposition_service.as_ref(),
                 &dimensions,
                 retry_count,
             )
-            .await
-            .ok_or(errors::ProcessTrackerError::EApiErrorResponse)?;
+            .await;
+
+            // Distinct from `None` below, which means "no token right now, come back later" and
+            // keeps the calculate job alive.
+            let Some(time) = schedule_time else {
+                logger::info!(retry_count, "Retry ladder exhausted for this invoice");
+                return Ok((PaymentProcessorTokenResponse::RetriesExhausted, None));
+            };
 
             payment_processor_token_response = get_token_availability_for_schedule_time(
                 state,
@@ -783,6 +792,10 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
             logger::info!("Next available retry at {:?}", next_available_time);
         }
 
+        PaymentProcessorTokenResponse::RetriesExhausted => {
+            logger::debug!("Retry ladder exhausted");
+        }
+
         PaymentProcessorTokenResponse::None => {
             logger::debug!("No retry info available");
         }
@@ -794,6 +807,22 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
     ))
 }
 
+#[cfg(feature = "v2")]
+pub(crate) fn get_invoice_payment_processor_token(
+    payment_intent: &PaymentIntent,
+) -> Option<String> {
+    payment_intent
+        .feature_metadata
+        .as_ref()
+        .and_then(|metadata| metadata.payment_revenue_recovery_metadata.as_ref())
+        .map(|recovery_metadata| {
+            recovery_metadata
+                .billing_connector_payment_details
+                .payment_processor_token
+                .clone()
+        })
+}
+
 /// Check the invoice's payment processor token against a schedule time already decided.
 /// Shared by the cascading and adaptive paths so both gate on the same conditions
 #[cfg(feature = "v2")]
@@ -803,16 +832,7 @@ async fn get_token_availability_for_schedule_time(
     payment_intent: &PaymentIntent,
     scheduled_time: time::PrimitiveDateTime,
 ) -> CustomResult<PaymentProcessorTokenResponse, errors::ProcessTrackerError> {
-    let payment_processor_token = payment_intent
-        .feature_metadata
-        .as_ref()
-        .and_then(|metadata| metadata.payment_revenue_recovery_metadata.as_ref())
-        .map(|recovery_metadata| {
-            recovery_metadata
-                .billing_connector_payment_details
-                .payment_processor_token
-                .clone()
-        });
+    let payment_processor_token = get_invoice_payment_processor_token(payment_intent);
 
     let payment_processor_tokens_details =
         RedisTokenManager::get_payment_processor_metadata_for_connector_customer(
@@ -1213,11 +1233,6 @@ pub async fn check_hard_decline(
     state: &SessionState,
     payment_attempt: &payment_attempt::PaymentAttempt,
 ) -> Result<bool, error_stack::Report<storage_impl::errors::RecoveryError>> {
-    let error_message = payment_attempt
-        .error
-        .as_ref()
-        .map(|details| details.message.clone());
-
     let error_code = payment_attempt
         .error
         .as_ref()
@@ -1228,6 +1243,21 @@ pub async fn check_hard_decline(
         .clone()
         .ok_or(storage_impl::errors::RecoveryError::ValueNotFound)
         .attach_printable("unable to derive payment connector from payment attempt")?;
+
+    // Stripe returns the same generic `message` for every card decline and carries the issuer's
+    // decline code only in `reason` (`message - <message>, decline_code - <decline_code>`), so the
+    // gsm lookup uses `reason` for stripe to tell a lost card apart from a retryable decline.
+    let matches_gsm_on_error_reason = connector_name
+        .parse::<common_enums::connector_enums::Connector>()
+        .map(|connector| connector == common_enums::connector_enums::Connector::Stripe)
+        .unwrap_or(false);
+
+    let error_message = payment_attempt.error.as_ref().map(|details| {
+        matches_gsm_on_error_reason
+            .then(|| details.reason.clone())
+            .flatten()
+            .unwrap_or_else(|| details.message.clone())
+    });
 
     let gsm_record = payments::helpers::get_gsm_record(
         state,

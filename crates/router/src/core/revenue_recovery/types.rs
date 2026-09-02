@@ -228,7 +228,7 @@ impl RevenueRecoveryPaymentIntentStatus {
                     state,
                     &payment_attempt,
                     payment_intent,
-                    &revenue_recovery_payment_data.billing_mca,
+                    revenue_recovery_payment_data,
                 )
                 .await
                 .change_context(errors::RecoveryError::RecordBackToBillingConnectorFailed)
@@ -928,7 +928,7 @@ impl Action {
                     state,
                     payment_attempt,
                     payment_intent,
-                    &revenue_recovery_payment_data.billing_mca,
+                    revenue_recovery_payment_data,
                 )
                 .await
                 .change_context(errors::RecoveryError::RecordBackToBillingConnectorFailed)
@@ -1236,7 +1236,7 @@ impl Action {
                     state,
                     payment_attempt,
                     payment_intent,
-                    &revenue_recovery_payment_data.billing_mca,
+                    revenue_recovery_payment_data,
                 )
                 .await
                 .change_context(errors::RecoveryError::RecordBackToBillingConnectorFailed)
@@ -1476,7 +1476,14 @@ pub async fn reopen_calculate_workflow_on_payment_failure(
                         .reopen_workflow_buffer_time_in_seconds,
                 );
 
-            let new_retry_count = process.retry_count + 1;
+            // `process` is the EXECUTE tracker, which only counts our own attempts. The calculate
+            // ladder needs the invoice total, so take it from the intent metadata instead.
+            let new_retry_count = payment_intent
+                .feature_metadata
+                .as_ref()
+                .and_then(|metadata| metadata.payment_revenue_recovery_metadata.as_ref())
+                .map(|recovery_metadata| i32::from(recovery_metadata.total_retry_count))
+                .unwrap_or(process.retry_count + 1);
 
             // Check if a process tracker entry already exists for this payment intent
             let existing_entry = db
@@ -1541,10 +1548,11 @@ async fn record_back_to_billing_connector(
     state: &SessionState,
     payment_attempt: &PaymentAttempt,
     payment_intent: &PaymentIntent,
-    billing_mca: &merchant_connector_account::MerchantConnectorAccount,
+    revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
 ) -> RecoveryResult<()> {
     logger::info!("Entering record_back_to_billing_connector");
 
+    let billing_mca = &revenue_recovery_payment_data.billing_mca;
     let connector_name = billing_mca.connector_name.to_string();
     let connector_data = api_types::ConnectorData::get_connector_by_name(
         &state.conf.connectors,
@@ -1580,7 +1588,7 @@ async fn record_back_to_billing_connector(
     .change_context(errors::RecoveryError::RecordBackToBillingConnectorFailed)
     .attach_printable("Failed while handling response of record back to billing connector")?;
 
-    match response.response {
+    let record_back_response = match response.response {
         Ok(response) => Ok(response),
         error @ Err(_) => {
             router_env::logger::error!(?error);
@@ -1588,7 +1596,71 @@ async fn record_back_to_billing_connector(
                 .attach_printable("Failed while recording back to billing connector")
         }
     }?;
+
+    persist_billing_connector_transaction_id(
+        state,
+        payment_attempt,
+        revenue_recovery_payment_data,
+        record_back_response.connector_transaction_id.as_deref(),
+    )
+    .await;
+
     Ok(())
+}
+
+/// Merge the billing connector's transaction id into the attempt's feature metadata.
+///
+/// Failure is logged, never propagated: the payment succeeded and the billing connector
+/// recorded it. Losing the id degrades a future dispute refund; it does not invalidate
+/// anything that already happened.
+async fn persist_billing_connector_transaction_id(
+    state: &SessionState,
+    payment_attempt: &PaymentAttempt,
+    revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
+    connector_transaction_id: Option<&str>,
+) {
+    let Some(connector_transaction_id) = connector_transaction_id else {
+        return;
+    };
+
+    // Merge rather than replace: attempt_triggered_by and charge_id must survive.
+    let Some(mut feature_metadata) = payment_attempt.feature_metadata.clone() else {
+        logger::warn!(
+            "No feature metadata on the attempt; cannot store the billing connector transaction id"
+        );
+        return;
+    };
+    let Some(revenue_recovery) = feature_metadata.revenue_recovery.as_mut() else {
+        logger::warn!(
+            "No revenue recovery metadata on the attempt; cannot store the billing connector transaction id"
+        );
+        return;
+    };
+    revenue_recovery.billing_connector_transaction_id = Some(connector_transaction_id.to_string());
+
+    let storage_scheme = revenue_recovery_payment_data
+        .merchant_account
+        .storage_scheme;
+    let update = hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::RecordBackUpdate {
+        feature_metadata: Some(feature_metadata),
+        updated_by: storage_scheme.to_string(),
+    };
+
+    if let Err(error) = state
+        .store
+        .update_payment_attempt(
+            &revenue_recovery_payment_data.key_store,
+            payment_attempt.clone(),
+            update,
+            storage_scheme,
+        )
+        .await
+    {
+        logger::error!(
+            ?error,
+            "Failed to persist the billing connector transaction id on the payment attempt"
+        );
+    }
 }
 
 pub fn construct_invoice_record_back_router_data(
