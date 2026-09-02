@@ -15046,6 +15046,7 @@
           "action_required",
           "refund_succeeded",
           "refund_failed",
+          "refund_review",
           "dispute_opened",
           "dispute_expired",
           "dispute_accepted",

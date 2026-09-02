@@ -1567,8 +1567,8 @@ backup_file_path = "./config/superposition_seed.toml" # Path to a local file for
 
 [offer_engine]
 base_url = "https://offer-engine.example.com/" # Base URL of the Offer Engine service
-api_key = ""                                  # API key for API-key authenticated Offer Engine calls
-merchant_id = ""                              # Offer Engine merchant id sent in request bodies
+api_key = ""                                  # API key for the `application` credential source; omit when credentials are at the merchant level
+merchant_id = ""                              # Offer Engine merchant id for the `application` credential source; omit when credentials are at the merchant level
 
 # Credentials and call settings for the Account Updater flow; omit the section entirely to keep it off
 [account_updater.juspay]
