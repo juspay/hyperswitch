@@ -82,7 +82,6 @@ pub struct Settings<S: SecretState> {
     pub application_source: common_enums::ApplicationSource,
     pub proxy: Proxy,
     pub env: Env,
-    pub chat: SecretStateContainer<ChatSettings, S>,
     pub sage: SecretStateContainer<SageSettings, S>,
     pub master_database: SecretStateContainer<Database, S>,
     /// Falls back to `master_database` when not configured.
@@ -477,14 +476,6 @@ pub struct CloneConnectorAllowlistConfig {
 pub struct Platform {
     pub enabled: bool,
     pub allow_connected_merchants: bool,
-}
-
-#[derive(Debug, Deserialize, Clone, Default)]
-#[serde(default)]
-pub struct ChatSettings {
-    pub enabled: bool,
-    pub hyperswitch_ai_host: String,
-    pub encryption_key: Secret<String>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -1527,7 +1518,6 @@ impl Settings<SecuredSecret> {
         self.secrets.get_inner().validate()?;
         self.locker.validate()?;
         self.connectors.validate("connectors")?;
-        self.chat.get_inner().validate()?;
         self.sage.get_inner().validate()?;
         self.cors.validate()?;
 
