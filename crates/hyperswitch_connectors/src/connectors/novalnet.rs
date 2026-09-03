@@ -982,7 +982,7 @@ impl webhooks::IncomingWebhook for Novalnet {
 
         let transaction_status =
             optional_transaction_status.ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "transaction_status",
+                field_name: "transaction_status".into(),
             })?;
         // NOTE: transaction_status will always be present for Webhooks
         // But we are handling optional type here, since we are reusing TransactionData Struct from NovalnetPaymentsResponseTransactionData for Webhooks response too

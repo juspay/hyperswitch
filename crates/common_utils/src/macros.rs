@@ -240,7 +240,7 @@ mod id_type {
 
                     let merchant_ref_id = $crate::id_type::LengthId::from(value).change_context(
                         $crate::errors::ValidationError::IncorrectValueProvided {
-                            field_name: $field_name,
+                            field_name: $field_name.into(),
                         },
                     )?;
 

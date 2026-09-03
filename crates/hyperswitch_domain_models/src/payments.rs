@@ -1054,7 +1054,7 @@ impl PaymentIntent {
             })
             .ok_or(
                 common_utils::errors::ValidationError::MissingRequiredField {
-                    field_name: "connector_customer_id".to_string(),
+                    field_name: "connector_customer_id".into(),
                 },
             )
     }
@@ -1256,6 +1256,17 @@ impl PaymentIntent {
         self.feature_metadata
             .as_ref()
             .and_then(|feature_metadata| feature_metadata.payment_revenue_recovery_metadata.clone())
+    }
+
+    /// Retries already made against this invoice, by the billing connector and by recovery
+    /// together. Zero for an intent that has not entered recovery.
+    pub fn get_revenue_recovery_retry_count(&self) -> Option<u16> {
+        self.feature_metadata
+            .as_ref()
+            .and_then(|feature_metadata| {
+                feature_metadata.payment_revenue_recovery_metadata.as_ref()
+            })
+            .map(|revenue_recovery_metadata| revenue_recovery_metadata.total_retry_count)
     }
 
     pub fn get_feature_metadata(&self) -> Option<FeatureMetadata> {

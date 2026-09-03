@@ -402,7 +402,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .map(Encode::encode_to_value)
             .transpose()
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "browser_info",
+                field_name: "browser_info".into(),
             })?;
         let customer_acceptance = request.customer_acceptance.clone().or(payment_attempt
             .customer_acceptance
@@ -1191,7 +1191,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             if should_create {
                                 let payment_method = req.payment_method.ok_or(
                                     errors::ApiErrorResponse::MissingRequiredField {
-                                        field_name: "payment_method",
+                                        field_name: "payment_method".into(),
                                     },
                                 )?;
 
@@ -1201,7 +1201,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                                     .and_then(|pmd| pmd.payment_method_data.clone())
                                     .map(Into::into)
                                     .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                                        field_name: "payment_method_data",
+                                        field_name: "payment_method_data".into(),
                                     })?;
                                 let customer =
                                     customer.ok_or(errors::ApiErrorResponse::CustomerNotFound)?;
@@ -1898,7 +1898,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     let click_to_pay_mca_id = authentication_product_ids
                     .get_click_to_pay_connector_account_id()
                     .change_context(errors::ApiErrorResponse::MissingRequiredField {
-                        field_name: "authentication_product_ids",
+                        field_name: "authentication_product_ids".into(),
                     })?;
                     let merchant_id = &business_profile.merchant_id;
                     let connector_mca = state
@@ -1918,7 +1918,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             common_utils::id_type::AuthenticationId::generate_authentication_id(consts::AUTHENTICATION_ID_PREFIX);
                         let payment_method = payment_data.payment_attempt.payment_method.ok_or(
                             errors::ApiErrorResponse::MissingRequiredField {
-                                field_name: "payment_method",
+                                field_name: "payment_method".into(),
                             },
                         )?;
 
@@ -2086,7 +2086,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             let (authentication_create_response, eligibility_response) = {
                 let auth_config = &state.conf.micro_services.authentication_service;
                 let currency = payment_data.payment_intent.currency.ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "currency",
+                    field_name: "currency".into(),
                 }).attach_printable("Currency missing")?;
 
                 let auth_req = api_models::authentication::AuthenticationCreateRequest {
@@ -2130,7 +2130,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     }
                     None => {
                         Err(errors::ApiErrorResponse::MissingRequiredField {
-                            field_name: "payment_method_data",
+                            field_name: "payment_method_data".into(),
                         })
                         .attach_printable("payment_method_data missing in payment_data")?
                     }
@@ -2330,7 +2330,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         .and_then(|authentication_details| authentication_details.three_ds_data)
                         .and_then(|data| data.authentication_cryptogram)
                         .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                            field_name: "authentication_cryptogram",
+                            field_name: "authentication_cryptogram".into(),
                         })?;
 
                     match cryptogram {
@@ -3108,7 +3108,7 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
         let request_merchant_id = request.merchant_id.as_ref();
         helpers::validate_merchant_id(processor.get_account().get_id(), request_merchant_id)
             .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-                field_name: "merchant_id".to_string(),
+                field_name: "merchant_id".into(),
                 expected_format: "merchant_id from merchant account".to_string(),
             })?;
 

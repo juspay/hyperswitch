@@ -430,6 +430,9 @@ pub mod superposition {
         "pt_mapping_outgoing_connector_webhooks";
     /// PCR (Revenue Recovery) payments retry process tracker mapping key
     pub const PT_MAPPING_PCR_RETRIES: &str = "process_tracker.pt_mapping_pcr_retries";
+    /// Static ladder process tracker mapping used by the adaptive revenue recovery retry
+    /// algorithm, kept separate from the cascading ladder so the two can be tuned independently
+    pub const PT_MAPPING_ADAPTIVE_RETRIES: &str = "process_tracker.pt_mapping_adaptive_retries";
     /// Revenue Recovery retry-stats key. Enables recording of retry outcome stats
     pub const REVREC_RETRY_STATS_ENABLED: &str = "revenue_recovery.retry_stats.enabled";
     /// Whether the adaptive revenue recovery retry algorithm — static ladder combined with

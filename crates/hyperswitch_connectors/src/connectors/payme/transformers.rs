@@ -381,7 +381,7 @@ impl TryFrom<&PaymeRouterData<&CreateOrderRouterData>> for GenerateSaleRequest {
             .clone()
             .get_required_value("order_details")
             .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "order_details",
+                field_name: "order_details".into(),
             })?;
         let services = get_services(item.router_data.auth_type);
         let product_name = order_details
@@ -402,7 +402,7 @@ impl TryFrom<&PaymeRouterData<&CreateOrderRouterData>> for GenerateSaleRequest {
             .clone()
             .get_required_value("router_return_url")
             .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "router_return_url",
+                field_name: "router_return_url".into(),
             })?;
         let sale_callback_url = item
             .router_data
@@ -411,7 +411,7 @@ impl TryFrom<&PaymeRouterData<&CreateOrderRouterData>> for GenerateSaleRequest {
             .clone()
             .get_required_value("webhook_url")
             .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "webhook_url",
+                field_name: "webhook_url".into(),
             })?;
         Ok(Self {
             seller_payme_id,
@@ -942,7 +942,7 @@ impl TryFrom<&PaymentsCompleteAuthorizeRouterData> for Pay3dsRequest {
 
                 let jwt_data: PaymeRedirectResponseData = serde_json::from_value(payload_data)
                     .change_context(errors::ConnectorError::MissingConnectorRedirectionPayload {
-                        field_name: "meta_data_jwt",
+                        field_name: "meta_data_jwt".into(),
                     })?;
 
                 let payme_sale_id = item
