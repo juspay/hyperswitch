@@ -1,3 +1,5 @@
+#[cfg(feature = "v2")]
+pub mod account_updater;
 pub mod admin;
 pub mod api_keys;
 pub mod api_locking;
@@ -12,7 +14,6 @@ pub mod cache;
 pub mod card_issuer;
 pub mod card_testing_guard;
 pub mod cards_info;
-pub mod chat;
 pub mod conditional_config;
 pub mod configs;
 #[cfg(feature = "olap")]
@@ -35,6 +36,7 @@ pub mod health_check;
 pub mod mandate;
 pub mod merchant_connector_webhook_management;
 pub mod metrics;
+pub mod offer_engine;
 pub mod payment_link;
 #[cfg(feature = "v2")]
 pub mod payment_method_balance;

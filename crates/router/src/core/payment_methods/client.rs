@@ -11,7 +11,7 @@
 /// Merchant secret-key auth is not supported for this client endpoint.
 use api_models::payment_methods::{
     ClientPaymentMethodsListResponse, CustomerPaymentMethod, CustomerPaymentMethodDataForClient,
-    CustomerPaymentMethodForClient, PaymentMethodListIntentDataInput,
+    CustomerPaymentMethodForClient, MaskedBankDetails, PaymentMethodListIntentDataInput,
     ResponsePaymentMethodsEnabledForClient,
 };
 use common_utils::{consts, ext_traits::AsyncExt, generate_id, id_type};
@@ -48,16 +48,29 @@ pub trait CustomerPaymentMethodsFetcher: Send + Sync {
         state: &routes::SessionState,
         platform: &domain::Platform,
         payment_intent: Option<&storage::PaymentIntent>,
+        payment_attempt: Option<&storage::PaymentAttempt>,
         customer: &domain::Customer,
         dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> errors::RouterResult<Vec<CustomerPaymentMethodForClient>>;
+}
+
+fn bank_redirect_data_for_client(
+    payment_method: common_enums::PaymentMethod,
+    bank: Option<MaskedBankDetails>,
+) -> Option<CustomerPaymentMethodDataForClient> {
+    if payment_method == common_enums::PaymentMethod::BankRedirect {
+        bank.map(CustomerPaymentMethodDataForClient::BankRedirect)
+    } else {
+        None
+    }
 }
 
 /// Convert a legacy `CustomerPaymentMethod` into the slimmer client-facing type.
 fn to_client_pm(pm: CustomerPaymentMethod) -> CustomerPaymentMethodForClient {
     let payment_method_data = pm
         .card
-        .map(|card| CustomerPaymentMethodDataForClient::Card(Box::new(card)));
+        .map(|card| CustomerPaymentMethodDataForClient::Card(Box::new(card)))
+        .or_else(|| bank_redirect_data_for_client(pm.payment_method, pm.bank));
 
     CustomerPaymentMethodForClient {
         payment_token: pm.payment_token,
@@ -82,13 +95,15 @@ impl CustomerPaymentMethodsFetcher for DbCustomerPaymentMethodsFetcher {
         state: &routes::SessionState,
         platform: &domain::Platform,
         payment_intent: Option<&storage::PaymentIntent>,
+        payment_attempt: Option<&storage::PaymentAttempt>,
         customer: &domain::Customer,
         dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> errors::RouterResult<Vec<CustomerPaymentMethodForClient>> {
         let customer_payment_methods_response = Box::pin(cards::list_customer_payment_method(
             state,
-            platform.clone(),
-            payment_intent.cloned(),
+            platform,
+            payment_intent,
+            payment_attempt,
             customer.get_id(),
             None, // limit
             dimensions,
@@ -168,14 +183,16 @@ impl CustomerPaymentMethodsFetcher for ModularCustomerPaymentMethodsFetcher {
         state: &routes::SessionState,
         platform: &domain::Platform,
         _payment_intent: Option<&storage::PaymentIntent>,
+        _payment_attempt: Option<&storage::PaymentAttempt>,
         customer: &domain::Customer,
         dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> errors::RouterResult<Vec<CustomerPaymentMethodForClient>> {
         let merchant_id = platform.get_processor().get_account().get_id().clone();
-        let id = customer
-            .get_global_id()
-            .cloned()
-            .ok_or(errors::ApiErrorResponse::MissingRequiredField { field_name: "id" })?;
+        let id = customer.get_global_id().cloned().ok_or(
+            errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "id".into(),
+            },
+        )?;
 
         let items = list_customer_payment_methods_from_modular_service(
             state,
@@ -195,28 +212,23 @@ impl CustomerPaymentMethodsFetcher for ModularCustomerPaymentMethodsFetcher {
             )
             .await;
 
-        // Fetch all MCAs for the merchant so we can check whether the connector that
-        // issued a mandate token is still active for this profile — mirroring the
+        // Fetch enabled MCAs for the merchant so we can check whether the connector that
+        // issued a mandate token is still enabled for this profile — mirroring the
         // `get_mca_status` check performed in the legacy DB flow.
         let merchant_connector_accounts = state
             .store
-            .find_merchant_connector_account_without_encrypted_by_merchant_id_and_disabled_list(
+            .list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
                 &merchant_id,
-                true,
+                &self.profile_id,
             )
             .await
             .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
                 id: merchant_id.get_string_repr().to_owned(),
             })?;
 
-        // Pre-compute the set of MCA IDs that are active for this profile
         let active_mca_ids: std::collections::HashSet<id_type::MerchantConnectorAccountId> =
             merchant_connector_accounts
                 .iter()
-                .filter(|mca| {
-                    mca.disabled.is_some_and(|disabled| !disabled)
-                        && mca.profile_id == self.profile_id
-                })
                 .map(|mca| mca.get_id())
                 .collect();
 
@@ -418,11 +430,22 @@ async fn fetch_enabled_payment_methods(
     ))
     .await?;
 
-    let mut flat_pms = merchant_enabled_pms_context.payment_experience_pms_for_client();
-    flat_pms.extend(merchant_enabled_pms_context.card_network_pms_for_client());
+    let customer_acceptance_support_config = &state.conf.customer_acceptance_support;
+
+    let mut flat_pms = merchant_enabled_pms_context
+        .payment_experience_pms_for_client(customer_acceptance_support_config);
+    flat_pms.extend(
+        merchant_enabled_pms_context
+            .card_network_pms_for_client(customer_acceptance_support_config),
+    );
     flat_pms.extend(merchant_enabled_pms_context.bank_redirect_pms_for_client(state)?);
-    flat_pms.extend(merchant_enabled_pms_context.bank_debit_pms_for_client());
-    flat_pms.extend(merchant_enabled_pms_context.bank_transfer_pms_for_client());
+    flat_pms.extend(
+        merchant_enabled_pms_context.bank_debit_pms_for_client(customer_acceptance_support_config),
+    );
+    flat_pms.extend(
+        merchant_enabled_pms_context
+            .bank_transfer_pms_for_client(customer_acceptance_support_config),
+    );
 
     Ok(EnabledPmsResult {
         payment_methods_enabled: flat_pms,
@@ -520,6 +543,7 @@ async fn fetch_customer_payment_methods(
                     state,
                     platform,
                     Some(&payment_intent_context.payment_intent),
+                    Some(&payment_intent_context.payment_attempt),
                     customer,
                     &dimensions,
                 )
@@ -531,6 +555,7 @@ async fn fetch_customer_payment_methods(
                         state,
                         platform,
                         Some(&payment_intent_context.payment_intent),
+                        Some(&payment_intent_context.payment_attempt),
                         customer,
                         &dimensions,
                     )

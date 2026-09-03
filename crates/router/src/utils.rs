@@ -1,4 +1,3 @@
-pub mod chat;
 #[cfg(feature = "olap")]
 pub mod connector_onboarding;
 pub mod currency;
@@ -116,7 +115,15 @@ pub mod error_parser {
     }
 }
 
+// deja: a nanoid-based random id distinct from common_utils::generate_id. Used
+// for merchant fingerprint secrets and other persisted ids, so it must replay to
+// the recorded value or the substituted INSERT args diverge (and a live insert
+// collides with the record-phase row).
 #[inline]
+#[cfg_attr(
+    feature = "deja",
+    deja::id(component = "router::utils", operation = "generate_id", codec = SerdeCodec,)
+)]
 pub fn generate_id(length: usize, prefix: &str) -> String {
     format!("{}_{}", prefix, nanoid!(length, &consts::ALPHABETS))
 }

@@ -724,6 +724,15 @@ export const connectorDetails = {
       },
       ...commonConnectorDetails.card_pm.MITAutoCapture,
     }),
+    MITAutoCaptureWithCustomerAcceptance: getCustomExchange({
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: DUPLICATION_TIMEOUT,
+        },
+      },
+      ...commonConnectorDetails.card_pm.MITAutoCaptureWithCustomerAcceptance,
+    }),
     MITManualCapture: {
       Configs: {
         DELAY: {
@@ -780,6 +789,7 @@ export const connectorDetails = {
           STATUS: true,
           TIMEOUT: DUPLICATION_TIMEOUT,
         },
+        LOCAL_VAULT_REQUIRED: true,
       },
       Request: {
         amount: 6540,

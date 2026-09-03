@@ -349,7 +349,7 @@ api_secret = "Secret key"
 
 [authipay]
 api_key = "MyApiKey"
-api_secret = "MySecretKey"
+key1 = "MySecretKey"
 
 [checkbook]
 api_key="Client ID"
@@ -402,3 +402,6 @@ key1 = "Merchant Id"
 [payconex]
 api_key = "API Key"
 key1 = "Account Id"
+
+[givepayments]
+api_key = "API Key"

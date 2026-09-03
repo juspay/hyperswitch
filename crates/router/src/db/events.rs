@@ -1967,6 +1967,9 @@ mod tests {
                 payment_statuses_enabled: None,
                 refund_statuses_enabled: None,
                 payout_statuses_enabled: None,
+                dispute_statuses_enabled: None,
+                mandate_statuses_enabled: None,
+                invoice_statuses_enabled: None,
                 multiple_webhooks_list: None,
             }),
             sub_merchants_enabled: None,
@@ -1996,6 +1999,8 @@ mod tests {
             product_type: None,
             version: common_enums::ApiVersion::V1,
             network_tokenization_credentials: None,
+            fingerprint_secret: None,
+            offer_engine_config: None,
         });
         let merchant_account = state
             .store
@@ -2035,6 +2040,9 @@ mod tests {
                 payment_statuses_enabled: None,
                 refund_statuses_enabled: None,
                 payout_statuses_enabled: None,
+                dispute_statuses_enabled: None,
+                mandate_statuses_enabled: None,
+                invoice_statuses_enabled: None,
                 multiple_webhooks_list: None,
             }),
             metadata: None,
@@ -2121,6 +2129,7 @@ mod tests {
             processor_merchant_id: merchant_id,
             initiator: None,
             sdk_authorization: None,
+            applied_offer: None,
             connector: None,
             customer: None,
             disputes: None,
@@ -2177,6 +2186,7 @@ mod tests {
             external_3ds_authentication_attempted: None,
             expires_on: None,
             fingerprint: None,
+            fingerprint_type: None,
             browser_info: None,
             payment_method_id: None,
             payment_method_status: None,
@@ -2209,6 +2219,8 @@ mod tests {
             is_stored_credential: None,
             request_extended_authorization: None,
             billing_descriptor: None,
+            is_account_funded_transaction: None,
+            recipient_details: None,
             partner_merchant_identifier_details: None,
             payment_method_tokenization_details: None,
             error_details: None,
@@ -2218,6 +2230,7 @@ mod tests {
             connector_response_metadata: None,
             connector_customer_id: None,
             sender_payment_instrument_id: None,
+            payment_account_reference: None,
         };
         let content =
             api_webhooks::OutgoingWebhookContent::PaymentDetails(Box::new(expected_response));

@@ -151,6 +151,8 @@ pub fn construct_uas_router_data<F: Clone, Req, Res>(
         customer_document_details: None,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
+        customer_date_of_birth: None,
     })
 }
 
@@ -254,7 +256,7 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                     .map(common_utils::ext_traits::Encode::encode_to_value)
                     .transpose()
                     .change_context(ApiErrorResponse::InvalidDataValue {
-                        field_name: "browser_information",
+                        field_name: "browser_information".into(),
                     })?;
                 Ok(
                     hyperswitch_domain_models::authentication::AuthenticationUpdate::PreAuthenticationUpdate {
@@ -319,6 +321,13 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                 let authentication_status = common_enums::AuthenticationStatus::foreign_from(
                     authentication_details.trans_status.clone(),
                 );
+                let exemption_accepted =
+                    authentication.psd2_sca_exemption_type.as_ref().map(|_| {
+                        matches!(
+                            &authentication_details.trans_status,
+                            common_enums::TransactionStatus::Success
+                        )
+                    });
                 authentication_details
                     .authentication_value
                     .async_map(|auth_val| {
@@ -375,6 +384,8 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                         device_display: device_details
                             .as_ref()
                             .and_then(|details| details.device_display.clone()),
+                        platform: None,
+                        exemption_accepted,
                         updated_by: storage_scheme.to_string(),
                     },
                 )
@@ -480,7 +491,7 @@ pub fn authenticate_authentication_client_secret_and_check_expiry(
         .clone()
         .get_required_value("authentication_client_secret")
         .change_context(ApiErrorResponse::MissingRequiredField {
-            field_name: "client_secret",
+            field_name: "client_secret".into(),
         })
         .attach_printable("client secret not found in db")?;
 
@@ -612,7 +623,7 @@ fn get_vault_details(
             )
         }
         (None, None) => Err(ApiErrorResponse::MissingRequiredField {
-            field_name: "Either Card or Network Token details",
+            field_name: "Either Card or Network Token details".into(),
         }
         .into()),
     }
@@ -711,6 +722,8 @@ pub fn construct_uas_webhook_router_data<F: Clone, Req, Res>(
         customer_document_details: None,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
+        customer_date_of_birth: None,
     })
 }
 

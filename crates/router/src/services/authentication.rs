@@ -245,6 +245,29 @@ impl AuthenticationType {
             | Self::NoAuth => None,
         }
     }
+
+    pub fn get_user_id(&self) -> Option<String> {
+        match self {
+            Self::OrganizationJwt { user_id, .. }
+            | Self::MerchantJwtWithProfileId { user_id, .. }
+            | Self::UserJwt { user_id, .. }
+            | Self::SinglePurposeJwt { user_id, .. }
+            | Self::SinglePurposeOrLoginJwt { user_id, .. } => Some(user_id.clone()),
+            Self::MerchantJwt { user_id, .. } => user_id.clone(),
+            Self::ApiKey { .. }
+            | Self::AdminApiKey
+            | Self::AdminApiAuthWithMerchantId { .. }
+            | Self::BasicAuth { .. }
+            | Self::MerchantId { .. }
+            | Self::PublishableKey { .. }
+            | Self::SdkAuthorization { .. }
+            | Self::WebhookAuth { .. }
+            | Self::InternalMerchantIdProfileId { .. }
+            | Self::EmbeddedJwt { .. }
+            | Self::InternalApiKey
+            | Self::NoAuth => None,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, serde::Deserialize, strum::Display)]
@@ -742,7 +765,7 @@ where
                 .map(id_type::ProfileId::from_str)
                 .transpose()
                 .change_context(errors::ValidationError::IncorrectValueProvided {
-                    field_name: "X-Profile-Id",
+                    field_name: "X-Profile-Id".into(),
                 })
                 .change_context(errors::ApiErrorResponse::Unauthorized)?;
 
@@ -1307,7 +1330,7 @@ where
         let profile_id = HeaderMapStruct::new(request_headers)
             .get_id_type_from_header_if_present::<id_type::ProfileId>(headers::X_PROFILE_ID)
             .change_context(errors::ValidationError::IncorrectValueProvided {
-                field_name: "X-Profile-Id",
+                field_name: "X-Profile-Id".into(),
             })
             .change_context(errors::ApiErrorResponse::Unauthorized)?;
 
@@ -2190,7 +2213,7 @@ impl<'a> HeaderMapStruct<'a> {
             .attach_printable(format!("Failed to find header key: {key}"))?
             .to_str()
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "`{key}` in headers",
+                field_name: "`{key}` in headers".into(),
             })
             .attach_printable(format!(
                 "Failed to convert header value to string for header key: {key}",
@@ -2241,7 +2264,7 @@ impl<'a> HeaderMapStruct<'a> {
             .get_required_value(headers::AUTHORIZATION)?
             .to_str()
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: headers::AUTHORIZATION,
+                field_name: headers::AUTHORIZATION.into(),
             })
             .attach_printable("Failed to convert authorization header to string")
     }
@@ -2258,7 +2281,7 @@ impl<'a> HeaderMapStruct<'a> {
             .map(|value| value.to_str())
             .transpose()
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "`{key}` in headers",
+                field_name: "`{key}` in headers".into(),
             })
             .attach_printable(format!(
                 "Failed to convert header value to string for header key: {key}",
@@ -5179,6 +5202,34 @@ where
 
 pub type AuthenticationDataWithUserId = (AuthenticationData, Option<String>);
 
+/// Auth data paired with the dashboard user behind the request. Unlike
+/// `AuthenticationDataWithUserId`, it carries the whole token identity — a user holds different
+/// roles in different lineages, so the role backing *this* session has to be resolvable.
+#[cfg(feature = "v1")]
+pub type AuthenticationDataWithUser = (AuthenticationData, UserFromToken);
+
+#[cfg(feature = "v1")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<AuthenticationDataWithUser, A> for JWTAuth
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(AuthenticationDataWithUser, AuthenticationType)> {
+        // Both halves are delegated rather than reimplemented, so the permission and tenant checks
+        // stay in one place and this cannot drift from them.
+        let (auth_data, auth_type): (AuthenticationData, AuthenticationType) =
+            self.authenticate_and_fetch(request_headers, state).await?;
+        let (user, _): (UserFromToken, AuthenticationType) =
+            self.authenticate_and_fetch(request_headers, state).await?;
+
+        Ok(((auth_data, user), auth_type))
+    }
+}
+
 #[cfg(feature = "v1")]
 #[async_trait]
 impl<A> AuthenticateAndFetch<AuthenticationDataWithUserId, A> for JWTAuth
@@ -5256,7 +5307,7 @@ where
             (auth.clone(), Some(payload.user_id.clone())),
             AuthenticationType::MerchantJwt {
                 merchant_id: payload.merchant_id,
-                user_id: None,
+                user_id: Some(payload.user_id),
             },
         ))
     }
@@ -5868,7 +5919,7 @@ where
             .get_client_secret()
             .check_value_present("client_secret")
             .map_err(|_| errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "client_secret",
+                field_name: "client_secret".into(),
             })?;
         return Ok((
             Box::new(HeaderAuth(PublishableKeyAuth {
@@ -5960,7 +6011,7 @@ where
                     api::AuthFlow::Client,
                 )),
                 (true, false) => Err(errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "client_secret",
+                    field_name: "client_secret".into(),
                 }
                 .into()),
                 (false, _) => Err(errors::ApiErrorResponse::Unauthorized.into()),

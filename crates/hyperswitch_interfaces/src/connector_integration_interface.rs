@@ -1,8 +1,11 @@
-use api_models::webhooks::{IncomingWebhookEvent, ObjectReferenceId};
+use api_models::{
+    merchant_connector_webhook_management::{Scope, ScopeIdentifier},
+    webhooks::{IncomingWebhookEvent, ObjectReferenceId},
+};
 use common_enums::PaymentAction;
 use common_utils::{crypto, errors::CustomResult, request::Request};
 use hyperswitch_domain_models::{
-    api::ApplicationResponse,
+    api::WebhookResponse,
     connector_endpoints::Connectors,
     errors::api_error_response::ApiErrorResponse,
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
@@ -356,7 +359,7 @@ impl IncomingWebhook for ConnectorEnum {
         connector_authentication_type: Option<
             crypto::Encryptable<hyperswitch_masking::Secret<serde_json::Value>>,
         >,
-    ) -> CustomResult<ApplicationResponse<serde_json::Value>, errors::ConnectorError> {
+    ) -> CustomResult<WebhookResponse<serde_json::Value>, errors::ConnectorError> {
         match self {
             Self::Old(connector) => connector.get_webhook_api_response(
                 request,
@@ -779,6 +782,21 @@ impl ConnectorSpecifications for ConnectorEnum {
         }
     }
 
+    #[cfg(feature = "payouts")]
+    fn generate_payout_connector_request_reference_id(
+        &self,
+        payout_attempt: &hyperswitch_domain_models::payouts::payout_attempt::PayoutAttempt,
+    ) -> String {
+        match self {
+            Self::Old(connector) => {
+                connector.generate_payout_connector_request_reference_id(payout_attempt)
+            }
+            Self::New(connector) => {
+                connector.generate_payout_connector_request_reference_id(payout_attempt)
+            }
+        }
+    }
+
     #[cfg(feature = "v1")]
     fn generate_connector_customer_id(
         &self,
@@ -824,14 +842,15 @@ impl ConnectorSpecifications for ConnectorEnum {
 
     fn is_payment_recurrence_operation_needed(
         &self,
-        payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
+        setup_future_usage: Option<common_enums::FutureUsage>,
+        current_flow: Option<CurrentFlowInfo>,
     ) -> Option<bool> {
         match self {
             Self::Old(connector) => {
-                connector.is_payment_recurrence_operation_needed(payment_intent)
+                connector.is_payment_recurrence_operation_needed(setup_future_usage, current_flow)
             }
             Self::New(connector) => {
-                connector.is_payment_recurrence_operation_needed(payment_intent)
+                connector.is_payment_recurrence_operation_needed(setup_future_usage, current_flow)
             }
         }
     }
@@ -850,12 +869,14 @@ impl ConnectorSpecifications for ConnectorEnum {
         }
     }
 
-    fn get_api_webhook_config(
+    fn get_webhook_registration_plan(
         &self,
-    ) -> &'static common_types::connector_webhook_configuration::WebhookSetupCapabilities {
+        scope: &Scope,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(ScopeIdentifier, String)>, errors::ConnectorError> {
         match self {
-            Self::Old(connector) => connector.get_api_webhook_config(),
-            Self::New(connector) => connector.get_api_webhook_config(),
+            Self::Old(connector) => connector.get_webhook_registration_plan(scope, connectors),
+            Self::New(connector) => connector.get_webhook_registration_plan(scope, connectors),
         }
     }
 }

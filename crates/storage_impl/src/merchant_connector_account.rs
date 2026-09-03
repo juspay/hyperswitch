@@ -153,6 +153,31 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for kv_router_store::KV
     }
 
     #[instrument(skip_all)]
+    async fn list_merchant_connector_accounts_without_encrypted_including_disabled_by_merchant_id_profile_id(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+        profile_id: &common_utils::id_type::ProfileId,
+    ) -> CustomResult<domain::MerchantConnectorAccountsWithoutEncrypted, Self::Error> {
+        self.router_store
+            .list_merchant_connector_accounts_without_encrypted_including_disabled_by_merchant_id_profile_id(merchant_id, profile_id)
+            .await
+    }
+
+    #[instrument(skip_all)]
+    async fn list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+        profile_id: &common_utils::id_type::ProfileId,
+    ) -> CustomResult<domain::MerchantConnectorAccountsWithoutEncrypted, Self::Error> {
+        self.router_store
+            .list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
+                merchant_id,
+                profile_id,
+            )
+            .await
+    }
+
+    #[instrument(skip_all)]
     #[cfg(all(feature = "olap", feature = "v2"))]
     async fn list_connector_account_by_profile_id(
         &self,
@@ -612,6 +637,58 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
     }
 
     #[instrument(skip_all)]
+    async fn list_merchant_connector_accounts_without_encrypted_including_disabled_by_merchant_id_profile_id(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+        profile_id: &common_utils::id_type::ProfileId,
+    ) -> CustomResult<domain::MerchantConnectorAccountsWithoutEncrypted, Self::Error> {
+        let conn = pg_accounts_connection_read(self).await?;
+        let items = storage::MerchantConnectorAccount::list_merchant_connector_accounts_without_encrypted_including_disabled_by_merchant_id_profile_id(
+            &conn,
+            merchant_id,
+            profile_id,
+        )
+        .await
+        .map_err(|error| report!(Self::Error::from(error)))?;
+
+        let output = items
+            .into_iter()
+            .map(domain::MerchantConnectorAccountWithoutEncrypted::try_from)
+            .collect::<Result<Vec<_>, _>>()
+            .change_context(Self::Error::DecryptionError)?;
+
+        Ok(domain::MerchantConnectorAccountsWithoutEncrypted::new(
+            output,
+        ))
+    }
+
+    #[instrument(skip_all)]
+    async fn list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+        profile_id: &common_utils::id_type::ProfileId,
+    ) -> CustomResult<domain::MerchantConnectorAccountsWithoutEncrypted, Self::Error> {
+        let conn = pg_accounts_connection_read(self).await?;
+        let items = storage::MerchantConnectorAccount::list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
+            &conn,
+            merchant_id,
+            profile_id,
+        )
+        .await
+        .map_err(|error| report!(Self::Error::from(error)))?;
+
+        let output = items
+            .into_iter()
+            .map(domain::MerchantConnectorAccountWithoutEncrypted::try_from)
+            .collect::<Result<Vec<_>, _>>()
+            .change_context(Self::Error::DecryptionError)?;
+
+        Ok(domain::MerchantConnectorAccountsWithoutEncrypted::new(
+            output,
+        ))
+    }
+
+    #[instrument(skip_all)]
     #[cfg(all(feature = "olap", feature = "v2"))]
     async fn list_connector_account_by_profile_id(
         &self,
@@ -652,7 +729,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
         let conn = pg_accounts_connection_write(self).await?;
 
         async fn update_call(
-            connection: &diesel_models::PgPooledConn,
+            connection: &diesel_models::DatabaseConnectionWithContext<'_>,
             (merchant_connector_account, mca_update): (
                 domain::MerchantConnectorAccount,
                 storage::MerchantConnectorAccountUpdateInternal,
@@ -667,87 +744,92 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
             Ok(())
         }
 
-        conn.transaction_async(|connection_pool| async move {
-            for (merchant_connector_account, update_merchant_connector_account) in
-                merchant_connector_accounts
-            {
-                #[cfg(feature = "v1")]
-                let _connector_name = merchant_connector_account.connector_name.clone();
-
-                #[cfg(feature = "v2")]
-                let _connector_name = merchant_connector_account.connector_name.to_string();
-
-                let _profile_id = merchant_connector_account.profile_id.clone();
-
-                let _merchant_id = merchant_connector_account.merchant_id.clone();
-                let _merchant_connector_id = merchant_connector_account.get_id().clone();
-
-                let update = update_call(
-                    &connection_pool,
-                    (
-                        merchant_connector_account,
-                        update_merchant_connector_account,
-                    ),
-                );
-
-                #[cfg(feature = "accounts_cache")]
-                // Redact all caches as any of might be used because of backwards compatibility
-                Box::pin(cache::publish_and_redact_multiple(
-                    self,
-                    [
-                        cache::CacheKind::Accounts(
-                            format!("{}_{}", _profile_id.get_string_repr(), _connector_name).into(),
-                        ),
-                        cache::CacheKind::Accounts(
-                            format!(
-                                "{}_{}",
-                                _merchant_id.get_string_repr(),
-                                _merchant_connector_id.get_string_repr()
-                            )
-                            .into(),
-                        ),
-                        cache::CacheKind::CGraph(
-                            format!(
-                                "cgraph_{}_{}",
-                                _merchant_id.get_string_repr(),
-                                _profile_id.get_string_repr()
-                            )
-                            .into(),
-                        ),
-                    ],
-                    || update,
-                ))
-                .await
-                .map_err(|error| {
-                    // Returning `DatabaseConnectionError` after logging the actual error because
-                    // -> it is not possible to get the underlying from `error_stack::Report<C>`
-                    // -> it is not possible to write a `From` impl to convert the `diesel::result::Error` to `error_stack::Report<StorageError>`
-                    //    because of Rust's orphan rules
-                    router_env::logger::error!(
-                        ?error,
-                        "DB transaction for updating multiple merchant connector account failed"
-                    );
-                    Self::Error::DatabaseConnectionError
-                })?;
-
-                #[cfg(not(feature = "accounts_cache"))]
+        // The connection handed to the closure is another handle to the connection `conn` already
+        // holds, so queries issued through `conn` run within this transaction.
+        let connection_pool = &conn;
+        conn.raw_connection()
+            .transaction_async(move |_| async move {
+                for (merchant_connector_account, update_merchant_connector_account) in
+                    merchant_connector_accounts
                 {
-                    update.await.map_err(|error| {
+                    #[cfg(feature = "v1")]
+                    let _connector_name = merchant_connector_account.connector_name.clone();
+
+                    #[cfg(feature = "v2")]
+                    let _connector_name = merchant_connector_account.connector_name.to_string();
+
+                    let _profile_id = merchant_connector_account.profile_id.clone();
+
+                    let _merchant_id = merchant_connector_account.merchant_id.clone();
+                    let _merchant_connector_id = merchant_connector_account.get_id().clone();
+
+                    let update = update_call(
+                        connection_pool,
+                        (
+                            merchant_connector_account,
+                            update_merchant_connector_account,
+                        ),
+                    );
+
+                    #[cfg(feature = "accounts_cache")]
+                    // Redact all caches as any of might be used because of backwards compatibility
+                    Box::pin(cache::publish_and_redact_multiple(
+                        self,
+                        [
+                            cache::CacheKind::Accounts(
+                                format!("{}_{}", _profile_id.get_string_repr(), _connector_name)
+                                    .into(),
+                            ),
+                            cache::CacheKind::Accounts(
+                                format!(
+                                    "{}_{}",
+                                    _merchant_id.get_string_repr(),
+                                    _merchant_connector_id.get_string_repr()
+                                )
+                                .into(),
+                            ),
+                            cache::CacheKind::CGraph(
+                                format!(
+                                    "cgraph_{}_{}",
+                                    _merchant_id.get_string_repr(),
+                                    _profile_id.get_string_repr()
+                                )
+                                .into(),
+                            ),
+                        ],
+                        || update,
+                    ))
+                    .await
+                    .map_err(|error| {
                         // Returning `DatabaseConnectionError` after logging the actual error because
                         // -> it is not possible to get the underlying from `error_stack::Report<C>`
                         // -> it is not possible to write a `From` impl to convert the `diesel::result::Error` to `error_stack::Report<StorageError>`
                         //    because of Rust's orphan rules
                         router_env::logger::error!(
+                        ?error,
+                        "DB transaction for updating multiple merchant connector account failed"
+                    );
+                        Self::Error::DatabaseConnectionError
+                    })?;
+
+                    #[cfg(not(feature = "accounts_cache"))]
+                    {
+                        update.await.map_err(|error| {
+                            // Returning `DatabaseConnectionError` after logging the actual error because
+                            // -> it is not possible to get the underlying from `error_stack::Report<C>`
+                            // -> it is not possible to write a `From` impl to convert the `diesel::result::Error` to `error_stack::Report<StorageError>`
+                            //    because of Rust's orphan rules
+                            router_env::logger::error!(
                             ?error,
                             "DB transaction for updating multiple merchant connector account failed"
                         );
-                        Self::Error::DatabaseConnectionError
-                    })?;
+                            Self::Error::DatabaseConnectionError
+                        })?;
+                    }
                 }
-            }
-            Ok::<_, Self::Error>(())
-        })
-        .await?;
+                Ok::<_, Self::Error>(())
+            })
+            .await?;
         Ok(())
     }
 
@@ -789,7 +871,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
         #[cfg(feature = "accounts_cache")]
         {
             // Redact all caches as any of might be used because of backwards compatibility
-            cache::publish_and_redact_multiple(
+            Box::pin(cache::publish_and_redact_multiple(
                 self,
                 [
                     cache::CacheKind::Accounts(
@@ -821,7 +903,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
                     ),
                 ],
                 update_call,
-            )
+            ))
             .await
         }
 
@@ -871,7 +953,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
         #[cfg(feature = "accounts_cache")]
         {
             // Redact all caches as any of might be used because of backwards compatibility
-            cache::publish_and_redact_multiple(
+            Box::pin(cache::publish_and_redact_multiple(
                 self,
                 [
                     cache::CacheKind::Accounts(
@@ -898,7 +980,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
                     ),
                 ],
                 update_call,
-            )
+            ))
             .await
         }
 
@@ -1408,6 +1490,72 @@ impl MerchantConnectorAccountInterface for MockDb {
                 } else {
                     account.merchant_id == *merchant_id && account.disabled == Some(false)
                 }
+            })
+            .cloned()
+            .collect::<Vec<storage::MerchantConnectorAccount>>();
+
+        let output = accounts
+            .into_iter()
+            .map(domain::MerchantConnectorAccountWithoutEncrypted::try_from)
+            .collect::<Result<Vec<_>, _>>()
+            .change_context(StorageError::DecryptionError)?;
+
+        Ok(domain::MerchantConnectorAccountsWithoutEncrypted::new(
+            output,
+        ))
+    }
+
+    async fn list_merchant_connector_accounts_without_encrypted_including_disabled_by_merchant_id_profile_id(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+        profile_id: &common_utils::id_type::ProfileId,
+    ) -> CustomResult<domain::MerchantConnectorAccountsWithoutEncrypted, StorageError> {
+        let accounts = self
+            .merchant_connector_accounts
+            .lock()
+            .await
+            .iter()
+            .filter(|account: &&storage::MerchantConnectorAccount| {
+                #[cfg(feature = "v1")]
+                let profile_matches = account.profile_id.as_ref() == Some(profile_id);
+                #[cfg(feature = "v2")]
+                let profile_matches = account.profile_id == *profile_id;
+
+                account.merchant_id == *merchant_id && profile_matches
+            })
+            .cloned()
+            .collect::<Vec<storage::MerchantConnectorAccount>>();
+
+        let output = accounts
+            .into_iter()
+            .map(domain::MerchantConnectorAccountWithoutEncrypted::try_from)
+            .collect::<Result<Vec<_>, _>>()
+            .change_context(StorageError::DecryptionError)?;
+
+        Ok(domain::MerchantConnectorAccountsWithoutEncrypted::new(
+            output,
+        ))
+    }
+
+    async fn list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+        profile_id: &common_utils::id_type::ProfileId,
+    ) -> CustomResult<domain::MerchantConnectorAccountsWithoutEncrypted, StorageError> {
+        let accounts = self
+            .merchant_connector_accounts
+            .lock()
+            .await
+            .iter()
+            .filter(|account: &&storage::MerchantConnectorAccount| {
+                #[cfg(feature = "v1")]
+                let profile_matches = account.profile_id.as_ref() == Some(profile_id);
+                #[cfg(feature = "v2")]
+                let profile_matches = account.profile_id == *profile_id;
+
+                account.merchant_id == *merchant_id
+                    && profile_matches
+                    && account.disabled == Some(false)
             })
             .cloned()
             .collect::<Vec<storage::MerchantConnectorAccount>>();

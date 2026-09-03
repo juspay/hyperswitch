@@ -59,6 +59,9 @@ pub enum SplitPaymentsRequest {
     /// XenditSplitPayment
     #[smithy(value_type = "XenditSplitRequest")]
     XenditSplitPayment(XenditSplitRequest),
+    /// PayloadSplitPayment
+    #[smithy(value_type = "PayloadSplitPaymentRequest")]
+    PayloadSplitPayment(PayloadSplitPaymentRequest),
 }
 impl_to_sql_from_sql_json!(SplitPaymentsRequest);
 
@@ -98,6 +101,54 @@ pub struct StripeSplitPaymentRequest {
     pub on_behalf_of: Option<String>,
 }
 impl_to_sql_from_sql_json!(StripeSplitPaymentRequest);
+
+#[derive(
+    Serialize,
+    Deserialize,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    FromSqlRow,
+    AsExpression,
+    ToSchema,
+    SmithyModel,
+)]
+#[diesel(sql_type = Jsonb)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+/// A single ledger entry distributing payment to one receiver for Payload split payments
+pub struct PayloadLedgerItem {
+    /// Amount in minor units to be routed to this receiver out of the payment
+    #[schema(value_type = i64, example = 995)]
+    #[smithy(value_type = "i64")]
+    pub amount: MinorUnit,
+    /// processing_id of the receiver
+    #[smithy(value_type = "String")]
+    pub receiver_id: String,
+}
+impl_to_sql_from_sql_json!(PayloadLedgerItem);
+
+#[derive(
+    Serialize,
+    Deserialize,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    FromSqlRow,
+    AsExpression,
+    ToSchema,
+    SmithyModel,
+)]
+#[diesel(sql_type = Jsonb)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+/// Split payment configuration for Payload — distributes a payment across multiple receivers via ledger entries
+pub struct PayloadSplitPaymentRequest {
+    /// Ledger entries specifying how the payment is distributed across receivers
+    #[smithy(value_type = "Vec<PayloadLedgerItem>")]
+    pub ledger: Vec<PayloadLedgerItem>,
+}
+impl_to_sql_from_sql_json!(PayloadSplitPaymentRequest);
 
 #[derive(
     Serialize, Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema,
@@ -154,7 +205,7 @@ impl MerchantCountryCode {
             .parse::<u32>()
             .map_err(Report::from)
             .change_context(errors::ValidationError::IncorrectValueProvided {
-                field_name: "merchant_country_code",
+                field_name: "merchant_country_code".into(),
             })
             .attach_printable_lazy(|| {
                 format!("Country code {country_code} is negative or too large")
@@ -162,7 +213,7 @@ impl MerchantCountryCode {
 
         common_enums::Country::from_numeric(code)
             .map_err(|_| errors::ValidationError::IncorrectValueProvided {
-                field_name: "merchant_country_code",
+                field_name: "merchant_country_code".into(),
             })
             .attach_printable_lazy(|| format!("Invalid country code {code}"))
     }
@@ -409,6 +460,9 @@ pub enum ConnectorChargeResponseData {
     /// XenditChargeResponseData
     #[smithy(value_type = "XenditChargeResponseData")]
     XenditSplitPayment(XenditChargeResponseData),
+    /// PayloadChargeResponseData
+    #[smithy(value_type = "PayloadSplitPaymentRequest")]
+    PayloadSplitPayment(PayloadSplitPaymentRequest),
 }
 
 impl_to_sql_from_sql_json!(ConnectorChargeResponseData);
@@ -610,6 +664,11 @@ pub struct GpayEcryptedTokenizationData {
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 /// This struct represents the decrypted Google Pay payment data
 pub struct GPayPredecryptData {
+    /// Indicates whether Google Pay supplied a funding PAN or a tokenized device PAN.
+    #[schema(value_type = Option<GooglePayAuthMethod>)]
+    #[smithy(value_type = "Option<GooglePayAuthMethod>")]
+    pub auth_method: Option<common_enums::GooglePayAuthMethod>,
+
     /// The card's expiry month
     #[schema(value_type = String)]
     #[smithy(value_type = "String")]
@@ -1598,3 +1657,58 @@ pub struct ExternalSurchargeDetails {
 }
 
 impl_to_sql_from_sql_json!(ExternalSurchargeDetails);
+
+/// Applied-offer details from Offer Engine `/apply`, persisted on `payment_attempt`
+/// as JSONB. Versioned (tagged by `version`) for forward-compatible schema evolution.
+#[derive(
+    Clone,
+    Debug,
+    serde::Deserialize,
+    Eq,
+    ToSchema,
+    PartialEq,
+    serde::Serialize,
+    diesel::AsExpression,
+)]
+#[diesel(sql_type = Jsonb)]
+#[serde(tag = "version", rename_all = "snake_case")]
+pub enum AppliedOfferDetails {
+    /// Version 1 of the applied-offer details.
+    V1(AppliedOfferDetailsV1),
+}
+
+impl AppliedOfferDetails {
+    /// Borrow the inner current-version details.
+    pub fn inner(&self) -> &AppliedOfferDetailsV1 {
+        match self {
+            Self::V1(details) => details,
+        }
+    }
+
+    /// Consume into the inner current-version details.
+    pub fn into_inner(self) -> AppliedOfferDetailsV1 {
+        match self {
+            Self::V1(details) => details,
+        }
+    }
+}
+
+/// Version 1 of the applied-offer details.
+#[derive(Clone, Debug, serde::Deserialize, Eq, ToSchema, PartialEq, serde::Serialize)]
+pub struct AppliedOfferDetailsV1 {
+    /// Quote id issued at eligibility and echoed back at confirm to apply this offer
+    pub offer_quote_id: String,
+    /// Offer Engine merchant id the offer was applied under
+    pub offer_engine_merchant_id: String,
+    /// Offer Engine transaction id (the Hyperswitch payment attempt id used at `/apply`)
+    pub offer_engine_txn_id: String,
+    /// Offer Engine offer id that was applied
+    pub offer_id: String,
+    /// Charge-reducing offer amount in minor units
+    pub offer_amount: MinorUnit,
+    /// Currency of the applied offer amount
+    #[schema(value_type = Currency, example = "USD")]
+    pub currency: enums::Currency,
+}
+
+impl_to_sql_from_sql_json!(AppliedOfferDetails);

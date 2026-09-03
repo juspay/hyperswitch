@@ -185,7 +185,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 .or(payment_attempt.get_surcharge_details()),
         )
         .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-            field_name: "amount_to_capture".to_string(),
+            field_name: "amount_to_capture".into(),
             expected_format: "amount_to_capture lesser than or equal to amount".to_string(),
         })?;
 
@@ -964,6 +964,7 @@ impl ForeignTryFrom<domain::Customer> for CustomerData {
                 router_env::logger::error!(error = ?report, "Failed to convert customer document details");
                 errors::ApiErrorResponse::InternalServerError
             })?,
+            date_of_birth: None,
         })
     }
 }
@@ -993,7 +994,7 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
         let request_merchant_id = request.merchant_id.as_ref();
         helpers::validate_merchant_id(processor.get_account().get_id(), request_merchant_id)
             .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-                field_name: "merchant_id".to_string(),
+                field_name: "merchant_id".into(),
                 expected_format: "merchant_id from merchant account".to_string(),
             })?;
 
@@ -1003,7 +1004,7 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
             request.surcharge_details,
         )
         .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-            field_name: "amount_to_capture".to_string(),
+            field_name: "amount_to_capture".into(),
             expected_format: "amount_to_capture lesser than or equal to amount".to_string(),
         })?;
 
@@ -1068,6 +1069,8 @@ impl PaymentUpdate {
                 .customer
                 .as_ref()
                 .and_then(|customer| customer.document_details.clone()),
+            is_account_funded_transaction: request.is_account_funded_transaction,
+            recipient_details: request.recipient_details.clone(),
         }
     }
 
@@ -1143,6 +1146,11 @@ impl PaymentUpdate {
             .surcharge_details
             .as_ref()
             .map(|surcharge_details| surcharge_details.tax_on_surcharge_amount);
+        let offer_amount = payment_data
+            .payment_attempt
+            .applied_offer_details
+            .as_ref()
+            .map(|applied_offer_details| applied_offer_details.inner().offer_amount);
         let network_transaction_id = payment_data.payment_attempt.network_transaction_id.clone();
         let network_transaction_link_id = payment_data
             .payment_attempt
@@ -1161,6 +1169,7 @@ impl PaymentUpdate {
             amount_to_capture,
             capture_method,
             fingerprint_id: None,
+            fingerprint_type: None,
             payment_method_billing_address_id,
             updated_by: storage_scheme.to_string(),
             network_transaction_id,
@@ -1175,6 +1184,7 @@ impl PaymentUpdate {
                 surcharge_amount,
                 tax_amount,
                 None,
+                offer_amount,
             ),
             shipping_cost: payment_data.payment_intent.shipping_cost,
             order_tax_amount: payment_data
@@ -1249,6 +1259,23 @@ impl PaymentUpdate {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to encrypt shipping details")?;
 
+        // Re-encrypt the recipient details only when the update request carries them; otherwise
+        // retain whatever is already stored on the intent.
+        let recipient_details = match request.recipient_details.as_ref() {
+            Some(recipient_details) => Some(
+                core_utils::create_encrypted_data(
+                    &key_manager_state,
+                    key_store,
+                    recipient_details.clone(),
+                    common_utils::type_name!(diesel_models::payment_intent::PaymentIntent),
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Unable to encrypt recipient details")?,
+            ),
+            None => payment_data.payment_intent.recipient_details.clone(),
+        };
+
         let order_details = payment_data.payment_intent.order_details.clone();
         let connector_metadata = payment_data.payment_intent.connector_metadata.clone();
         let frm_metadata = payment_data.payment_intent.frm_metadata.clone();
@@ -1317,6 +1344,10 @@ impl PaymentUpdate {
                 statement_descriptor_name,
                 statement_descriptor_suffix,
                 billing_descriptor: payment_data.payment_intent.billing_descriptor.clone(),
+                is_account_funded_transaction: request
+                    .is_account_funded_transaction
+                    .or(payment_data.payment_intent.is_account_funded_transaction),
+                recipient_details,
                 order_details,
                 metadata,
                 connector_metadata,

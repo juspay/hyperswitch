@@ -439,4 +439,185 @@ describe("Config Tests", () => {
       );
     });
   });
+
+  context("Webhook Config Disabled Events — Create and Update", () => {
+    let shouldContinue = true;
+
+    beforeEach(function () {
+      if (!shouldContinue) {
+        this.skip();
+      }
+    });
+
+    it("Create Business Profile with webhook disabled events", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["WebhookConfig"]["Create"];
+      const createBody = {
+        ...fixtures.businessProfile.bpCreate,
+        webhook_details: data.Request.webhook_details,
+      };
+      cy.createBusinessProfileTest(
+        createBody,
+        globalState,
+        "webhookConfigProfile"
+      );
+
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
+
+    it("Update Business Profile webhook disabled events", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["WebhookConfig"]["Update"];
+      const updateBody = {
+        webhook_details: data.Request.webhook_details,
+      };
+      cy.updateBusinessProfileWebhookConfigTest(
+        updateBody,
+        globalState,
+        "webhookConfigProfile"
+      );
+
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
+
+    after("cleanup webhookConfigProfile", () => {
+      cy.deleteBusinessProfileTest(globalState, "webhookConfigProfile");
+    });
+  });
+
+  context("Webhook Config Disabled Events — Negative Cases", () => {
+    beforeEach(function () {
+      const connectorId = globalState.get("connectorId");
+      const webhookConfigConnectors =
+        utils.CONNECTOR_LISTS.INCLUDE.WEBHOOK_CONFIG;
+
+      // Skip if connector is NOT in the webhook config list
+      const shouldSkip =
+        Array.isArray(webhookConfigConnectors) &&
+        !webhookConfigConnectors.includes(connectorId);
+
+      if (shouldSkip) {
+        this.skip();
+      }
+    });
+
+    it("Create Business Profile with invalid refund_statuses_enabled — expect error", () => {
+      const createBody = {
+        ...fixtures.businessProfile.bpCreate,
+        profile_name: "negative_webhook_test",
+        webhook_details: {
+          webhook_version: "1.0.2",
+          payment_statuses_enabled: ["succeeded"],
+          refund_statuses_enabled: ["succeeded"],
+          payout_statuses_enabled: ["success"],
+        },
+      };
+      cy.createBusinessProfileTest(
+        createBody,
+        globalState,
+        "webhookNegativeProfile",
+        400
+      );
+    });
+
+    it("Create Business Profile with invalid payment_statuses_enabled — expect error", () => {
+      const createBody = {
+        ...fixtures.businessProfile.bpCreate,
+        profile_name: "neg_payment_status_test",
+        webhook_details: {
+          webhook_version: "1.0.2",
+          payment_statuses_enabled: ["invalid_status"],
+          refund_statuses_enabled: ["success", "failure"],
+          payout_statuses_enabled: ["success", "failed"],
+        },
+      };
+      cy.createBusinessProfileTest(
+        createBody,
+        globalState,
+        "webhookNegPaymentProfile",
+        400
+      );
+    });
+
+    it("Create Business Profile with invalid payout_statuses_enabled — expect error", () => {
+      const createBody = {
+        ...fixtures.businessProfile.bpCreate,
+        profile_name: "neg_payout_status_test",
+        webhook_details: {
+          webhook_version: "1.0.2",
+          payment_statuses_enabled: ["succeeded"],
+          refund_statuses_enabled: ["success", "failure"],
+          payout_statuses_enabled: ["invalid_payout"],
+        },
+      };
+      cy.createBusinessProfileTest(
+        createBody,
+        globalState,
+        "webhookNegPayoutProfile",
+        400
+      );
+    });
+
+    it("Create Business Profile with invalid dispute_statuses_enabled — expect error", () => {
+      const createBody = {
+        ...fixtures.businessProfile.bpCreate,
+        profile_name: "neg_dispute_status_test",
+        webhook_details: {
+          webhook_version: "1.0.2",
+          dispute_statuses_enabled: ["invalid_dispute"],
+        },
+      };
+      cy.createBusinessProfileTest(
+        createBody,
+        globalState,
+        "webhookNegDisputeProfile",
+        400
+      );
+    });
+
+    it("Create Business Profile with unsupported mandate_statuses_enabled — expect error", () => {
+      const createBody = {
+        ...fixtures.businessProfile.bpCreate,
+        profile_name: "neg_mandate_status_test",
+        webhook_details: {
+          webhook_version: "1.0.2",
+          mandate_statuses_enabled: ["inactive"],
+        },
+      };
+      cy.createBusinessProfileTest(
+        createBody,
+        globalState,
+        "webhookNegMandateProfile",
+        422
+      );
+    });
+
+    it("Create Business Profile with unsupported invoice_statuses_enabled — expect error", () => {
+      const createBody = {
+        ...fixtures.businessProfile.bpCreate,
+        profile_name: "neg_invoice_status_test",
+        webhook_details: {
+          webhook_version: "1.0.2",
+          invoice_statuses_enabled: ["payment_failed"],
+        },
+      };
+      cy.createBusinessProfileTest(
+        createBody,
+        globalState,
+        "webhookNegInvoiceProfile",
+        422
+      );
+    });
+
+    after("cleanup negative-case profiles", () => {
+      cy.deleteBusinessProfileTest(globalState, "webhookNegativeProfile");
+      cy.deleteBusinessProfileTest(globalState, "webhookNegPaymentProfile");
+      cy.deleteBusinessProfileTest(globalState, "webhookNegPayoutProfile");
+      cy.deleteBusinessProfileTest(globalState, "webhookNegDisputeProfile");
+      cy.deleteBusinessProfileTest(globalState, "webhookNegMandateProfile");
+      cy.deleteBusinessProfileTest(globalState, "webhookNegInvoiceProfile");
+    });
+  });
 });

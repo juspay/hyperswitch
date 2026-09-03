@@ -256,7 +256,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .map(Encode::encode_to_value)
             .transpose()
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "browser_info",
+                field_name: "browser_info".into(),
             })?;
 
         let attempt_id = if core_utils::is_merchant_enabled_for_payment_id_as_connector_request_id(
@@ -360,6 +360,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             profile_id.clone(),
             &customer_acceptance,
             payment_method_recurring_details.clone(),
+            payment_method_with_raw_data
+                .as_ref()
+                .and_then(|payment_method| payment_method.raw_payment_method_data.clone()),
             customer_details.customer_id.as_ref(),
             dimensions,
         )
@@ -450,7 +453,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                                                 connector_id.get_connector_mandate_id(),
                                                 connector_id.get_payment_method_id(),
                                                 None,
-                                                None,
+                                                connector_id.get_mandate_metadata(),
                                                 connector_id
                                                     .get_connector_mandate_request_reference_id(),
                                                 None,
@@ -1241,7 +1244,7 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
             request.surcharge_details,
         )
         .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-            field_name: "amount_to_capture".to_string(),
+            field_name: "amount_to_capture".into(),
             expected_format: "amount_to_capture lesser than amount".to_string(),
         })?;
 
@@ -1447,6 +1450,7 @@ impl PaymentCreate {
         profile_id: common_utils::id_type::ProfileId,
         customer_acceptance: &Option<common_payments_types::CustomerAcceptance>,
         payment_method_recurring_details: Option<domain::PaymentMethodData>,
+        modular_raw_payment_method_data: Option<domain::PaymentMethodData>,
         customer_id: Option<&common_utils::id_type::CustomerId>,
         dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<(
@@ -1474,6 +1478,7 @@ impl PaymentCreate {
             })
             .map(domain::PaymentMethodData::from)
             .or(payment_method_recurring_details)
+            .or(modular_raw_payment_method_data)
             .zip(Some(profile_id.clone())) // since data is consumed by async move, profile_id needs to be send separately
             .async_map(|(payment_method_data, _)| async move {
                 helpers::get_additional_payment_data(
@@ -1528,6 +1533,7 @@ impl PaymentCreate {
                                     .ok(),
                                     google_pay: None,
                                     samsung_pay: None,
+                                    paypal: None,
                                 })
                             }
                             Some(enums::PaymentMethodType::GooglePay) => {
@@ -1535,6 +1541,7 @@ impl PaymentCreate {
                                     apple_pay: None,
                                     google_pay: Some(Box::new(wallet.into())),
                                     samsung_pay: None,
+                                    paypal: None,
                                 })
                             }
                             Some(enums::PaymentMethodType::SamsungPay) => {
@@ -1542,6 +1549,7 @@ impl PaymentCreate {
                                     apple_pay: None,
                                     google_pay: None,
                                     samsung_pay: Some(Box::new(wallet.into())),
+                                    paypal: None,
                                 })
                             }
                             _ => None,
@@ -1554,6 +1562,7 @@ impl PaymentCreate {
                                 apple_pay: None,
                                 google_pay: None,
                                 samsung_pay: None,
+                                paypal: None,
                             })
                         }
                         _ => None,
@@ -1702,6 +1711,7 @@ impl PaymentCreate {
                 unified_code: None,
                 unified_message: None,
                 fingerprint_id: None,
+                fingerprint_type: None,
                 authentication_connector: None,
                 authentication_id: None,
                 client_source: None,
@@ -1744,7 +1754,9 @@ impl PaymentCreate {
                 retry_type: None,
                 installment_data: None,
                 external_surcharge_details: None,
+                applied_offer_details: None,
                 sender_payment_instrument_id: None,
+                payment_account_reference: None,
             },
             additional_pm_data,
 
@@ -1872,6 +1884,14 @@ impl PaymentCreate {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to encode shipping details to serde_json::Value")?;
 
+        let recipient_details_encoded = request
+            .recipient_details
+            .clone()
+            .map(|recipient| Encode::encode_to_value(&recipient).map(Secret::new))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encode recipient details to serde_json::Value")?;
+
         let encrypted_data = domain::types::crypto_operation(
             &key_manager_state,
             type_name!(storage::PaymentIntent),
@@ -1881,6 +1901,7 @@ impl PaymentCreate {
                         shipping_details: shipping_details_encoded,
                         billing_details: billing_details_encoded,
                         customer_details: customer_details_encoded,
+                        recipient_details: recipient_details_encoded,
                     },
                 ),
             ),
@@ -1996,6 +2017,8 @@ impl PaymentCreate {
             enable_overcapture: request.enable_overcapture,
             mit_category: request.mit_category,
             billing_descriptor: request.billing_descriptor.clone(),
+            is_account_funded_transaction: request.is_account_funded_transaction,
+            recipient_details: encrypted_data.recipient_details,
             tokenization: request.tokenization,
             partner_merchant_identifier_details: request
                 .partner_merchant_identifier_details
@@ -2056,7 +2079,7 @@ async fn create_payment_link(
 
     let payment_link_config_encoded_value = payment_link_config.encode_to_value().change_context(
         errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "payment_link_config",
+            field_name: "payment_link_config".into(),
         },
     )?;
 

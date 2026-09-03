@@ -1099,6 +1099,7 @@ async fn process_unreferenced_refund(
 
     let relay_router_data = UnreferencedRefundRouterData {
         request,
+        connector_resource_id: request.connector_resource_id.as_deref(),
         access_token,
         auth_type: &auth_type,
         base_url,
@@ -1110,7 +1111,7 @@ async fn process_unreferenced_refund(
         .attach_printable("Failed to build relay request")?;
 
     let api_response =
-        call_connector_api(state, connector_request, "relay_unreferenced_refund").await;
+        call_connector_api(state, connector_request, "relay_unreferenced_refund", None).await;
 
     let (response_bytes, relay_update) = match api_response {
         Ok(resp) => {
@@ -1128,7 +1129,18 @@ async fn process_unreferenced_refund(
                 status: relay_status,
                 error_code: connector_resp.error_code,
                 error_message: connector_resp.error_message,
-                response_data: None,
+                response_data: connector_resp
+                    .response_data
+                    .and_then(|d| {
+                        serde_json::to_value(d)
+                            .inspect_err(|err| {
+                                router_env::logger::error!(
+                                    "Failed to serialize relay response_data: {err:?}"
+                                )
+                            })
+                            .ok()
+                    })
+                    .map(Secret::new),
             };
             (bytes, relay_update)
         }

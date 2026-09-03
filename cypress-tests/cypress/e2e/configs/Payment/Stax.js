@@ -21,7 +21,7 @@ const successfulThreeDSCardDetails = {
 
 const failedCardDetails = {
   ...successfulNo3DSCardDetails,
-  card_number: "4012888888881881", // Standard decline test card for stax - "Do Not Honor" response
+  card_number: "6011000990139424", // Standard decline test card for stax - "Do Not Honor" response
 };
 
 export const fullNameRequiredField = {
@@ -65,7 +65,7 @@ const payment_method_data_no3ds = {
     last4: "1111",
     card_type: "DEBIT",
     card_network: "Visa",
-    card_issuer: "Conotoxia Sp Z Oo",
+    card_issuer: "CONOTOXIA SP Z OO",
     card_issuing_country: "POLAND",
     card_isin: "411111",
     card_extended_bin: null,
@@ -215,6 +215,7 @@ export const connectorDetails = {
     },
     No3DSFailPayment: {
       Request: {
+        amount: 9999,
         payment_method: "card",
         payment_method_data: {
           card: failedCardDetails,
@@ -837,6 +838,32 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          mandate_id: null,
+          payment_method: "card",
+          payment_method_data: payment_method_data_no3ds,
+          connector: "stax",
+        },
+      },
+    },
+    MITAutoCaptureWithCustomerAcceptance: {
+      // stax does not support MIT payments with mandate_id
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "127.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
+      },
       Response: {
         status: 200,
         body: {

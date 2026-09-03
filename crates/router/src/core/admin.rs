@@ -34,12 +34,11 @@ use crate::types::transformers::ForeignFrom;
 use crate::{
     consts,
     core::{
-        configs::dimension_state,
         connector_validation::ConnectorAuthTypeAndMetadataValidation,
         disputes,
         encryption::transfer_encryption_key,
         errors::{self, RouterResponse, RouterResult, StorageErrorExt},
-        payment_methods::{cards, transformers},
+        payment_methods::{cards, transformers, vault},
         payments::helpers::{self},
         pm_auth::helpers::PaymentAuthConnectorDataExt,
         routing, utils as core_utils,
@@ -65,28 +64,24 @@ use crate::{
     utils,
 };
 
+// deja: the publishable key embeds a random UUIDv4 and is persisted on the
+// merchant row + returned in the response, so it must replay to the recorded
+// string for byte-exact self-replay.
 #[inline]
+#[cfg_attr(
+    feature = "deja",
+    deja::id(
+        component = "router::admin",
+        operation = "create_merchant_publishable_key",
+        codec = SerdeCodec,
+    )
+)]
 pub fn create_merchant_publishable_key() -> String {
     format!(
         "pk_{}_{}",
         router_env::env::prefix_for_env(),
         Uuid::new_v4().simple()
     )
-}
-
-/// Insert merchant configs using Superposition for fingerprint_secret
-pub async fn insert_merchant_configs_with_superposition(
-    state: &SessionState,
-    dimensions: &dimension_state::DimensionsWithProcessorMerchantId,
-) -> RouterResult<()> {
-    let fingerprint_secret = utils::generate_id(consts::FINGERPRINT_SECRET_LENGTH, "fs");
-
-    dimensions
-        .set_fingerprint_secret(state.superposition_service.as_ref(), &fingerprint_secret)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to create fingerprint_secret in Superposition")?;
-    Ok(())
 }
 
 #[cfg(feature = "olap")]
@@ -329,6 +324,14 @@ pub async fn create_merchant_account(
 
     let key_manager_state: &KeyManagerState = &(&state).into();
     let merchant_id = req.get_merchant_reference_id();
+
+    if state.conf.locker.locker_enabled && state.conf.locker.create_entity_on_merchant_create {
+        vault::create_entity_in_locker(&state, &merchant_id)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to create entity in locker for merchant")?;
+    }
+
     let identifier = km_types::Identifier::Merchant(merchant_id.clone());
     keymanager::transfer_key_to_key_manager(
         key_manager_state,
@@ -397,16 +400,7 @@ pub async fn create_merchant_account(
         None,
     );
 
-    let dimensions = dimension_state::Dimensions::new()
-        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id());
-
     add_publishable_key_to_decision_service(&state, &platform);
-
-    Box::pin(insert_merchant_configs_with_superposition(
-        &state,
-        &dimensions,
-    ))
-    .await?;
 
     Ok(service_api::ApplicationResponse::Json(
         api::MerchantAccountResponse::foreign_try_from(merchant_account)
@@ -442,7 +436,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
 
         let primary_business_details = self.get_primary_details_as_value().change_context(
             errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "primary_business_details",
+                field_name: "primary_business_details".into(),
             },
         )?;
 
@@ -450,25 +444,25 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
 
         let pm_collect_link_config = self.get_pm_link_config_as_value().change_context(
             errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "pm_collect_link_config",
+                field_name: "pm_collect_link_config".into(),
             },
         )?;
 
         let merchant_details = self.get_merchant_details_as_secret().change_context(
             errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "merchant_details",
+                field_name: "merchant_details".into(),
             },
         )?;
 
         self.parse_routing_algorithm()
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "routing_algorithm",
+                field_name: "routing_algorithm".into(),
             })
             .attach_printable("Invalid routing algorithm given")?;
 
         let metadata = self.get_metadata_as_secret().change_context(
             errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "metadata",
+                field_name: "metadata".into(),
             },
         )?;
 
@@ -645,6 +639,11 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     product_type: self.product_type,
                     merchant_account_type,
                     network_tokenization_credentials,
+                    fingerprint_secret: Some(Secret::new(utils::generate_id(
+                        consts::FINGERPRINT_SECRET_LENGTH,
+                        "fs",
+                    ))),
+                    offer_engine_config: None,
                 },
             )
         }
@@ -653,9 +652,14 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
 
         let mut domain_merchant_account = domain::MerchantAccount::from(merchant_account);
 
-        CreateProfile::new(self.primary_business_details.clone())
-            .create_profiles(state, &mut domain_merchant_account, &key_store)
-            .await?;
+        Box::pin(
+            CreateProfile::new(self.primary_business_details.clone()).create_profiles(
+                state,
+                &mut domain_merchant_account,
+                &key_store,
+            ),
+        )
+        .await?;
 
         Ok(domain_merchant_account)
     }
@@ -776,12 +780,12 @@ impl CreateProfile {
             Self::CreateFromPrimaryBusinessDetails {
                 primary_business_details,
             } => {
-                let business_profiles = Self::create_profiles_for_each_business_details(
+                let business_profiles = Box::pin(Self::create_profiles_for_each_business_details(
                     state,
                     merchant_account.clone(),
                     primary_business_details,
                     key_store,
-                )
+                ))
                 .await?;
 
                 // Update the default business profile in merchant account
@@ -792,9 +796,12 @@ impl CreateProfile {
                 }
             }
             Self::CreateDefaultProfile => {
-                let business_profile = self
-                    .create_default_business_profile(state, merchant_account.clone(), key_store)
-                    .await?;
+                let business_profile = Box::pin(self.create_default_business_profile(
+                    state,
+                    merchant_account.clone(),
+                    key_store,
+                ))
+                .await?;
 
                 merchant_account.default_profile = Some(business_profile.get_id().to_owned());
             }
@@ -810,12 +817,12 @@ impl CreateProfile {
         merchant_account: domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<domain::Profile> {
-        let business_profile = create_and_insert_business_profile(
+        let business_profile = Box::pin(create_and_insert_business_profile(
             state,
             api_models::admin::ProfileCreate::default(),
             merchant_account.clone(),
             key_store,
-        )
+        ))
         .await?;
 
         Ok(business_profile)
@@ -844,12 +851,12 @@ impl CreateProfile {
                 ..Default::default()
             };
 
-            create_and_insert_business_profile(
+            Box::pin(create_and_insert_business_profile(
                 state,
                 profile_create_request,
                 merchant_account.clone(),
                 key_store,
-            )
+            ))
             .await
             .map_err(|profile_insert_error| {
                 logger::warn!("Profile already exists {profile_insert_error:?}");
@@ -877,13 +884,13 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
 
         let metadata = self.get_metadata_as_secret().change_context(
             errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "metadata",
+                field_name: "metadata".into(),
             },
         )?;
 
         let merchant_details = self.get_merchant_details_as_secret().change_context(
             errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "merchant_details",
+                field_name: "merchant_details".into(),
             },
         )?;
 
@@ -941,6 +948,10 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     version: common_types::consts::API_VERSION,
                     product_type: self.product_type,
                     merchant_account_type,
+                    fingerprint_secret: Some(Secret::new(utils::generate_id(
+                        consts::FINGERPRINT_SECRET_LENGTH,
+                        "fs",
+                    ))),
                 }),
             )
         }
@@ -966,7 +977,7 @@ pub async fn list_merchant_account(
         .map(|merchant_account| {
             api::MerchantAccountResponse::foreign_try_from(merchant_account).change_context(
                 errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "merchant_account",
+                    field_name: "merchant_account".into(),
                 },
             )
         })
@@ -1000,7 +1011,7 @@ pub async fn list_merchant_account(
         .map(|merchant_account| {
             api::MerchantAccountResponse::foreign_try_from(merchant_account).change_context(
                 errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "merchant_account",
+                    field_name: "merchant_account".into(),
                 },
             )
         })
@@ -1055,7 +1066,7 @@ pub async fn create_profile_from_business_labels(
         .clone()
         .parse_value::<Vec<admin_types::PrimaryBusinessDetails>>("PrimaryBusinessDetails")
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "routing_algorithm",
+            field_name: "routing_algorithm".into(),
         })
         .attach_printable("Invalid routing algorithm given")?;
 
@@ -1073,12 +1084,12 @@ pub async fn create_profile_from_business_labels(
             ..Default::default()
         };
 
-        let profile_create_result = create_and_insert_business_profile(
+        let profile_create_result = Box::pin(create_and_insert_business_profile(
             state,
             profile_create_request,
             merchant_account.clone(),
             key_store,
-        )
+        ))
         .await
         .map_err(|profile_insert_error| {
             // If there is any duplicate error, we need not take any action
@@ -1123,25 +1134,25 @@ impl MerchantAccountUpdateBridge for api::MerchantAccountUpdate {
         let db = state.store.as_ref();
         let primary_business_details = self.get_primary_details_as_value().change_context(
             errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "primary_business_details",
+                field_name: "primary_business_details".into(),
             },
         )?;
 
         let pm_collect_link_config = self.get_pm_link_config_as_value().change_context(
             errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "pm_collect_link_config",
+                field_name: "pm_collect_link_config".into(),
             },
         )?;
 
         let merchant_details = self.get_merchant_details_as_secret().change_context(
             errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "merchant_details",
+                field_name: "merchant_details".into(),
             },
         )?;
 
         self.parse_routing_algorithm().change_context(
             errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "routing_algorithm",
+                field_name: "routing_algorithm".into(),
             },
         )?;
 
@@ -1188,13 +1199,13 @@ impl MerchantAccountUpdateBridge for api::MerchantAccountUpdate {
         self.primary_business_details
             .clone()
             .async_map(|primary_business_details| async {
-                let _ = create_profile_from_business_labels(
+                let _ = Box::pin(create_profile_from_business_labels(
                     state,
                     db,
                     key_store,
                     merchant_id,
                     primary_business_details,
-                )
+                ))
                 .await;
             })
             .await;
@@ -1206,6 +1217,21 @@ impl MerchantAccountUpdateBridge for api::MerchantAccountUpdate {
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to encrypt network_tokenization_credentials")?;
+
+        let offer_engine_config = self
+            .offer_engine_config
+            .async_map(|value| {
+                core_utils::create_encrypted_data(
+                    key_manager_state,
+                    key_store,
+                    value,
+                    type_name!(storage::MerchantAccount),
+                )
+            })
+            .await
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt offer_engine_config")?;
 
         let identifier = km_types::Identifier::Merchant(key_store.merchant_id.clone());
         Ok(storage::MerchantAccountUpdate::Update {
@@ -1263,6 +1289,7 @@ impl MerchantAccountUpdateBridge for api::MerchantAccountUpdate {
             pm_collect_link_config,
             routing_algorithm: self.routing_algorithm,
             network_tokenization_credentials,
+            offer_engine_config,
         })
     }
 }
@@ -1281,13 +1308,13 @@ impl MerchantAccountUpdateBridge for api::MerchantAccountUpdate {
 
         let merchant_details = self.get_merchant_details_as_secret().change_context(
             errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "merchant_details",
+                field_name: "merchant_details".into(),
             },
         )?;
 
         let metadata = self.get_metadata_as_secret().change_context(
             errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "metadata",
+                field_name: "metadata".into(),
             },
         )?;
 
@@ -1444,14 +1471,14 @@ async fn get_parent_merchant(
             Some(
                 parent_merchant.ok_or_else(|| {
                     report!(errors::ValidationError::MissingRequiredField {
-                        field_name: "parent_merchant_id".to_string()
+                        field_name: "parent_merchant_id".into()
                     })
                     .change_context(errors::ApiErrorResponse::PreconditionFailed {
                         message: "If `sub_merchants_enabled` is `true`, then `parent_merchant_id` is mandatory".to_string(),
                     })
                 })
                 .map(|id| validate_merchant_id(state, id,key_store).change_context(
-                    errors::ApiErrorResponse::InvalidDataValue { field_name: "parent_merchant_id" }
+                    errors::ApiErrorResponse::InvalidDataValue { field_name: "parent_merchant_id".into() }
                 ))?
                 .await?
                 .get_id().to_owned()
@@ -1531,7 +1558,7 @@ impl ConnectorMetadata<'_> {
             .map(api_models::payments::ConnectorMetadata::from_value)
             .transpose()
             .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-                field_name: "metadata".to_string(),
+                field_name: "metadata".into(),
                 expected_format: "connector metadata".to_string(),
             })?
             .and_then(|metadata| metadata.get_apple_pay_certificates())
@@ -1540,7 +1567,7 @@ impl ConnectorMetadata<'_> {
             })
             .transpose()
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "certificate/certificate key",
+                field_name: "certificate/certificate key".into(),
             })?;
         Ok(())
     }
@@ -1564,31 +1591,25 @@ impl PMAuthConfigValidation<'_> {
         })
         .attach_printable("Failed to deserialize Payment Method Auth config")?;
 
+        // Fetching disabled MCAs too: PM auth config may reference MCAs that are
+        // temporarily disabled — validation checks existence, not activity.
         let all_mcas = self
             .db
-            .find_merchant_connector_account_without_encrypted_by_merchant_id_and_disabled_list(
+            .list_merchant_connector_accounts_without_encrypted_including_disabled_by_merchant_id_profile_id(
                 self.merchant_id,
-                true,
+                self.profile_id,
             )
             .await
             .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
                 id: self.merchant_id.get_string_repr().to_owned(),
             })?;
         for conn_choice in config.enabled_payment_methods {
-            let pm_auth_mca = all_mcas
+            all_mcas
                 .iter()
                 .find(|mca| mca.get_id() == conn_choice.mca_id)
                 .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
                     message: "payment method auth connector account not found".to_string(),
                 })?;
-
-            if &pm_auth_mca.profile_id != self.profile_id {
-                return Err(errors::ApiErrorResponse::GenericNotFoundError {
-                    message: "payment method auth profile_id differs from connector profile_id"
-                        .to_string(),
-                }
-                .into());
-            }
         }
 
         Ok(services::ApplicationResponse::StatusOk)
@@ -1994,7 +2015,7 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
                 .unwrap_or(mca.connector_account_details.clone().into_inner()),
         )
         .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-            field_name: "connector_account_details".to_string(),
+            field_name: "connector_account_details".into(),
             expected_format: "auth_type and api_key".to_string(),
         })?;
 
@@ -2164,7 +2185,7 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
             .unwrap_or(mca.connector_account_details.clone().into_inner())
             .parse_value("ConnectorAuthType")
             .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-                field_name: "connector_account_details".to_string(),
+                field_name: "connector_account_details".into(),
                 expected_format: "auth_type and api_key".to_string(),
             })?;
         let metadata = self.metadata.clone().or(mca.metadata.clone());
@@ -2172,7 +2193,7 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
         let connector_name = mca.connector_name.as_ref();
         let connector_enum = api_models::enums::Connector::from_str(connector_name)
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "connector",
+                field_name: "connector".into(),
             })
             .attach_printable_lazy(|| {
                 format!("unable to parse connector name {connector_name:?}")
@@ -2329,7 +2350,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
             self.connector_account_details.clone(),
         )
         .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-            field_name: "connector_account_details".to_string(),
+            field_name: "connector_account_details".into(),
             expected_format: "auth_type and api_key".to_string(),
         })?;
 
@@ -2382,7 +2403,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
                     FromRequestEncryptableMerchantConnectorAccount {
                         connector_account_details: self.connector_account_details.ok_or(
                             errors::ApiErrorResponse::MissingRequiredField {
-                                field_name: "connector_account_details",
+                                field_name: "connector_account_details".into(),
                             },
                         )?,
                         connector_wallets_details:
@@ -2530,7 +2551,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
             self.connector_account_details.clone(),
         )
         .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-            field_name: "connector_account_details".to_string(),
+            field_name: "connector_account_details".into(),
             expected_format: "auth_type and api_key".to_string(),
         })?;
 
@@ -2582,7 +2603,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
                     FromRequestEncryptableMerchantConnectorAccount {
                         connector_account_details: self.connector_account_details.ok_or(
                             errors::ApiErrorResponse::MissingRequiredField {
-                                field_name: "connector_account_details",
+                                field_name: "connector_account_details".into(),
                             },
                         )?,
                         connector_wallets_details:
@@ -2689,7 +2710,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
                     Ok(business_profile)
                 }
                 _ => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "profile_id or business_country, business_label"
+                    field_name: "profile_id or business_country, business_label".into()
                 })),
             },
         }
@@ -2886,12 +2907,11 @@ async fn validate_pm_auth(
             })
             .attach_printable("Failed to deserialize Payment Method Auth config")?;
 
+    // Fetching disabled MCAs too: PM auth config may reference MCAs that are
+    // temporarily disabled — validation checks existence, not activity.
     let all_mcas = state
         .store
-        .find_merchant_connector_account_without_encrypted_by_merchant_id_and_disabled_list(
-            merchant_id,
-            true,
-        )
+        .list_merchant_connector_accounts_without_encrypted_including_disabled_by_merchant_id_profile_id(merchant_id, profile_id)
         .await
         .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: platform
@@ -2903,20 +2923,12 @@ async fn validate_pm_auth(
         })?;
 
     for conn_choice in config.enabled_payment_methods {
-        let pm_auth_mca = all_mcas
+        all_mcas
             .iter()
             .find(|mca| mca.get_id() == conn_choice.mca_id)
             .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
                 message: "payment method auth connector account not found".to_string(),
             })?;
-
-        if &pm_auth_mca.profile_id != profile_id {
-            return Err(errors::ApiErrorResponse::GenericNotFoundError {
-                message: "payment method auth profile_id differs from connector profile_id"
-                    .to_string(),
-            }
-            .into());
-        }
     }
 
     Ok(services::ApplicationResponse::StatusOk)
@@ -3105,7 +3117,7 @@ pub async fn update_connector(
         routable_connector: &Some(
             euclid::enums::RoutableConnectors::from_str(&mca.connector_name).map_err(|_| {
                 errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "connector_name",
+                    field_name: "connector_name".into(),
                 }
             })?,
         ),
@@ -3185,7 +3197,7 @@ pub async fn delete_connector(
         routable_connector: &Some(
             euclid::enums::RoutableConnectors::from_str(&mca.connector_name).map_err(|_| {
                 errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "connector_name",
+                    field_name: "connector_name".into(),
                 }
             })?,
         ),
@@ -3263,7 +3275,7 @@ pub async fn delete_connector(
         routable_connector: &Some(
             euclid::enums::RoutableConnectors::from_str(&mca.connector_name.to_string()).map_err(
                 |_| errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "connector_name",
+                    field_name: "connector_name".into(),
                 },
             )?,
         ),
@@ -3501,7 +3513,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
                 .clone()
                 .parse_value("RoutingAlgorithm")
                 .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "routing_algorithm",
+                    field_name: "routing_algorithm".into(),
                 })
                 .attach_printable("Invalid routing algorithm given")?;
         }
@@ -4096,7 +4108,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 .clone()
                 .parse_value("RoutingAlgorithm")
                 .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "routing_algorithm",
+                    field_name: "routing_algorithm".into(),
                 })
                 .attach_printable("Invalid routing algorithm given")?;
         }
@@ -4117,7 +4129,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
             .map(|config| {
                 config.encode_to_value().change_context(
                     errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "extended_card_info_config",
+                        field_name: "extended_card_info_config".into(),
                     },
                 )
             })
@@ -4333,7 +4345,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
             .map(|config| {
                 config.encode_to_value().change_context(
                     errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "extended_card_info_config",
+                        field_name: "extended_card_info_config".into(),
                     },
                 )
             })
@@ -4463,6 +4475,7 @@ pub async fn update_profile(
     merchant_id: id_type::MerchantId,
     key_store: domain::MerchantKeyStore,
     request: api::ProfileUpdate,
+    provider_merchant_id: Option<hyperswitch_domain_models::platform::ProviderMerchantId>,
 ) -> RouterResponse<api::ProfileResponse> {
     let db = state.store.as_ref();
 
@@ -4482,6 +4495,33 @@ pub async fn update_profile(
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
         })?;
+
+    // DE-cut-over profiles manage routing via the routing APIs; direct writes would diverge the engines.
+    #[cfg(feature = "v1")]
+    if request.routing_algorithm.is_some() || request.payout_routing_algorithm.is_some() {
+        // The provider merchant is a real superposition dimension and differs from the
+        // processor under connected-account auth, so it must match what the routing and
+        // payment paths resolve; fall back to the auth merchant only when unavailable.
+        let dimensions = crate::core::configs::dimension_state::Dimensions::new()
+            .with_processor_merchant_id(
+                hyperswitch_domain_models::platform::ProcessorMerchantId::from(merchant_id.clone()),
+            )
+            .with_provider_merchant_id(provider_merchant_id.unwrap_or_else(|| {
+                hyperswitch_domain_models::platform::ProviderMerchantId::new(merchant_id.clone())
+            }))
+            .with_profile_id(profile_id.clone());
+        if crate::core::payments::routing::utils::is_decision_engine_routing_effective(
+            &state,
+            &dimensions,
+        )
+        .await
+        {
+            return Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: "routing_algorithm cannot be set directly for a profile routed by the Decision Engine; use the routing APIs".to_string(),
+            }
+            .into());
+        }
+    }
 
     let profile_update = request
         .get_update_profile_object(&state, &key_store, &business_profile)

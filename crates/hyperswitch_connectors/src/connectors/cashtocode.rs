@@ -12,7 +12,7 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    api::ApplicationResponse,
+    api::WebhookResponse,
     router_data::{AccessToken, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -460,7 +460,7 @@ impl webhooks::IncomingWebhook for Cashtocode {
         _connector_authentication_type: Option<
             common_utils::crypto::Encryptable<Secret<serde_json::Value>>,
         >,
-    ) -> CustomResult<ApplicationResponse<serde_json::Value>, errors::ConnectorError> {
+    ) -> CustomResult<WebhookResponse<serde_json::Value>, errors::ConnectorError> {
         let status = "EXECUTED".to_string();
         let obj: transformers::CashtocodePaymentsSyncResponse = request
             .body
@@ -468,7 +468,7 @@ impl webhooks::IncomingWebhook for Cashtocode {
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
         let response: serde_json::Value =
             serde_json::json!({ "status": status, "transactionId" : obj.transaction_id});
-        Ok(ApplicationResponse::Json(response))
+        Ok(WebhookResponse::Json(response))
     }
 }
 

@@ -384,6 +384,85 @@ export const connectorDetails = {
         },
       },
     },
+    L2L3Data: {
+      // Stripe L2/L3 data: Level 2 (tax/shipping) and Level 3 (line items) for payment processing
+      // Amount must equal sum of order_details excluding shipping_cost
+      Request: {
+        currency: "USD",
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        // amount must equal sum of order_details line items only (excluding shipping_cost)
+        amount: 6000,
+        order_tax_amount: null,
+        shipping_cost: 1000,
+        shipping: {
+          address: {
+            city: "SANTA MARIA",
+            country: "US",
+            line1: "ewwe",
+            line2: "wer",
+            zip: "123342",
+            state: "we",
+            first_name: "were",
+            last_name: "wer",
+            // Merchant origin for tax/shipping calculation; null when not location-dependent
+            origin_zip: null,
+          },
+        },
+        merchant_order_reference_id: "stripe-l2l3-order-reference",
+        // Single item design prevents amount_details accumulation during test retries
+        order_details: [
+          {
+            product_name: "Test Product Bundle",
+            quantity: 1,
+            amount: 6000,
+            requires_shipping: true,
+          },
+        ],
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          // Confirm endpoint returns only status; L2/L3 data verified via retrieve response
+          status: "succeeded",
+        },
+      },
+    },
+    L2L3DataRetrieve: {
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          shipping_cost: 1000,
+          merchant_order_reference_id: "stripe-l2l3-order-reference",
+          order_details: [
+            {
+              product_name: "Test Product Bundle",
+              quantity: 1,
+              amount: 6000,
+              requires_shipping: true,
+            },
+          ],
+          shipping: {
+            address: {
+              line1: "ewwe",
+              line2: "wer",
+              city: "SANTA MARIA",
+              state: "we",
+              zip: "123342",
+              country: "US",
+              first_name: "were",
+              last_name: "wer",
+            },
+          },
+        },
+      },
+    },
     No3DSFailPayment: {
       Request: {
         payment_method: "card",
@@ -657,6 +736,15 @@ export const connectorDetails = {
         },
       },
       ...commonConnectorDetails.card_pm.MITAutoCapture,
+    }),
+    MITAutoCaptureWithCustomerAcceptance: getCustomExchange({
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          specName: ["connectorAgnosticNTID"],
+          value: "connector_2",
+        },
+      },
+      ...commonConnectorDetails.card_pm.MITAutoCaptureWithCustomerAcceptance,
     }),
     MITManualCapture: {
       Request: {},
@@ -2060,6 +2148,43 @@ export const connectorDetails = {
       },
     }),
   },
+  vault_tokenization: {
+    // The should_disable_vault_tokenization flag is toggled via
+    // cy.setConfigs() in the spec's before hook — it is NOT part of the
+    // payment request body. Both disabled (flag=true) and enabled
+    // (flag=false) states produce the same API-observable outcome
+    // (status=succeeded, authentication_type=three_ds), so both test
+    // cases share a single exchange definition.
+    VaultTokenization: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: { card: externalThreeDSCardDetails },
+        currency: "USD",
+        amount: 6500,
+        authentication_type: "three_ds",
+        request_external_three_ds_authentication: true,
+        three_ds_data: {
+          authentication_cryptogram: {
+            cavv: {
+              authentication_cryptogram: "3q2+78r+ur7erb7vyv66vv////8=",
+            },
+          },
+          ds_trans_id: "c4e59ceb-a382-4d6a-bc87-385d591fa09d",
+          version: "2.1.0",
+          eci: "05",
+          transaction_status: "Y",
+          exemption_indicator: "low_value",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          authentication_type: "three_ds",
+        },
+      },
+    }),
+  },
   pm_list: {
     PmListResponse: {
       PmListNull: {
@@ -2451,6 +2576,77 @@ export const connectorDetails = {
           error_code: "payment_method_not_available",
           error_message:
             "WeChatPay is not available in the selected region/currency",
+        },
+      },
+    },
+  },
+  webhook_config: {
+    // WebhookConfig: webhook_username and webhook_password are masked
+    // placeholders — not real credentials. They are safe to use in any
+    // connector config as placeholder webhook auth data.
+    Create: getCustomExchange({
+      Request: {
+        webhook_details: {
+          webhook_version: "2024.01",
+          webhook_username: "<WEBHOOK_USERNAME>",
+          webhook_password: "<WEBHOOK_PASSWORD>",
+          webhook_url: "https://example.com/webhook",
+          payment_created_enabled: true,
+          payment_succeeded_enabled: true,
+          payment_failed_enabled: false,
+          refund_created_enabled: true,
+          refund_succeeded_enabled: true,
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          webhook_details: {
+            payment_failed_enabled: false,
+            payment_succeeded_enabled: true,
+            payment_created_enabled: true,
+            refund_created_enabled: true,
+            refund_succeeded_enabled: true,
+          },
+        },
+      },
+    }),
+    Update: getCustomExchange({
+      Request: {
+        webhook_details: {
+          webhook_version: "2024.01",
+          webhook_username: "<WEBHOOK_USERNAME_UPDATED>",
+          webhook_password: "<WEBHOOK_PASSWORD_UPDATED>",
+          webhook_url: "https://example.com/webhook_updated",
+          payment_created_enabled: true,
+          payment_succeeded_enabled: true,
+          payment_failed_enabled: true,
+          refund_created_enabled: true,
+          refund_succeeded_enabled: true,
+          dispute_created_enabled: true,
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          webhook_details: {
+            payment_failed_enabled: true,
+            payment_succeeded_enabled: true,
+            payment_created_enabled: true,
+            refund_created_enabled: true,
+            refund_succeeded_enabled: true,
+            dispute_created_enabled: true,
+          },
+        },
+      },
+    }),
+  },
+  Dispute: {
+    AcceptDispute: {
+      Response: {
+        status: 200,
+        body: {
+          dispute_status: "dispute_accepted",
         },
       },
     },

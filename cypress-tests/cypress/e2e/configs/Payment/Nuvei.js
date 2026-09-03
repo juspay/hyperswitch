@@ -101,6 +101,7 @@ export const connectorDetails = {
       Request: {
         currency: "USD",
         shipping_cost: 50,
+        amount: 11500,
       },
       Response: {
         status: 200,
@@ -108,6 +109,7 @@ export const connectorDetails = {
           status: "requires_payment_method",
           shipping_cost: 50,
           amount: 11500,
+          amount_capturable: 11550,
         },
       },
     },
@@ -511,6 +513,25 @@ export const connectorDetails = {
     MITAutoCapture: {
       Request: {
         amount_to_capture: 6000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    MITAutoCaptureWithCustomerAcceptance: {
+      Request: {
+        amount_to_capture: 6000,
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "127.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
       },
       Response: {
         status: 200,
@@ -1009,9 +1030,9 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action",
-          error_code: null,
-          error_message: null,
+          status: "failed",
+          error_code: "-1",
+          error_message: "System Error",
         },
       },
     },

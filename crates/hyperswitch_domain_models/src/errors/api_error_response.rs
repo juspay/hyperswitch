@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use api_models::errors::types::Extra;
 use common_utils::errors::ErrorSwitch;
 use http::StatusCode;
@@ -179,7 +181,7 @@ pub enum ApiErrorResponse {
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_03", message = "The HTTP method is not applicable for this API")]
     InvalidHttpMethod,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_04", message = "Missing required param: {field_name}")]
-    MissingRequiredField { field_name: &'static str },
+    MissingRequiredField { field_name: Cow<'static, str> },
     #[error(
         error_type = ErrorType::InvalidRequestError, code = "IR_05",
         message = "{field_name} contains invalid data. Expected format is {expected_format}"
@@ -192,7 +194,7 @@ pub enum ApiErrorResponse {
     InvalidRequestData { message: String },
     /// Typically used when a field has invalid value, or deserialization of the value contained in a field fails.
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_07", message = "Invalid value provided: {field_name}")]
-    InvalidDataValue { field_name: &'static str },
+    InvalidDataValue { field_name: Cow<'static, str> },
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_08", message = "Client secret was not provided")]
     ClientSecretNotGiven,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_08", message = "Client secret has expired")]
@@ -203,6 +205,8 @@ pub enum ApiErrorResponse {
     MandateActive,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_11", message = "Customer has already been redacted")]
     CustomerRedacted,
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_11", message = "Payment method has already been redacted")]
+    PaymentMethodRedacted,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_12", message = "Reached maximum refund attempts")]
     MaximumRefundCount,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_13", message = "The refund amount exceeds the amount captured")]
@@ -234,7 +238,7 @@ pub enum ApiErrorResponse {
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_20", message = "{flow} flow not supported by the {connector} connector")]
     FlowNotSupported { flow: String, connector: String },
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_21", message = "Missing required params")]
-    MissingRequiredFields { field_names: Vec<&'static str> },
+    MissingRequiredFields { field_names: Vec<Cow<'static, str>> },
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_22", message = "Access forbidden. Not authorized to access this resource {resource}")]
     AccessForbidden { resource: String },
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_23", message = "{message}")]
@@ -594,6 +598,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             }
             Self::CustomerRedacted => {
                 AER::BadRequest(ApiError::new("IR", 11, "Customer has already been redacted", None))
+            }
+            Self::PaymentMethodRedacted => {
+                AER::BadRequest(ApiError::new("IR", 11, "Payment method has already been redacted", None))
             }
             Self::MaximumRefundCount => AER::BadRequest(ApiError::new("IR", 12, "Reached maximum refund attempts", None)),
             Self::RefundAmountExceedsPaymentAmount => {

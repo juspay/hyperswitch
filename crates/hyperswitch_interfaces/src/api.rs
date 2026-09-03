@@ -32,6 +32,7 @@ pub mod vault_v2;
 
 use std::fmt::Debug;
 
+use api_models::merchant_connector_webhook_management::{Scope, ScopeIdentifier};
 use common_enums::{
     enums::{
         self, CallConnectorAction, CaptureMethod, EventClass, IntentStatus, PaymentAction,
@@ -545,7 +546,8 @@ pub trait ConnectorSpecifications {
     /// Validate if another operation is required
     fn is_payment_recurrence_operation_needed(
         &self,
-        _payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
+        _setup_future_usage: Option<common_enums::FutureUsage>,
+        _current_flow: Option<CurrentFlowInfo>,
     ) -> Option<bool> {
         Some(false)
     }
@@ -603,6 +605,16 @@ pub trait ConnectorSpecifications {
             .unwrap_or_else(|| payment_attempt.id.get_string_repr().to_owned())
     }
 
+    #[cfg(feature = "payouts")]
+    /// Generate connector request reference ID for payout flows
+    fn generate_payout_connector_request_reference_id(
+        &self,
+        payout_attempt: &hyperswitch_domain_models::payouts::payout_attempt::PayoutAttempt,
+    ) -> String {
+        // send payout_attempt_id as connector_request_reference_id for payout flows by default
+        payout_attempt.payout_attempt_id.to_owned()
+    }
+
     /// Is Authorize session token required before authorize
     fn is_authorize_session_token_call_required(
         &self,
@@ -641,11 +653,14 @@ pub trait ConnectorSpecifications {
         false
     }
 
-    /// Get connector's API webhook configuration object
-    fn get_api_webhook_config(
+    /// Returns the webhook registration plan for this connector.
+    /// Given the requested scope returns a list of (identifier, webhook_url)` tuples. Each tuple corresponds to one connector integration call.
+    fn get_webhook_registration_plan(
         &self,
-    ) -> &'static common_types::connector_webhook_configuration::WebhookSetupCapabilities {
-        &consts::DEFAULT_WEBHOOK_SETUP_CAPABILITIES
+        _scope: &Scope,
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(ScopeIdentifier, String)>, errors::ConnectorError> {
+        Ok(Vec::new())
     }
 }
 

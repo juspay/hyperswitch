@@ -6,6 +6,8 @@ mod capture;
 pub mod card_issuer;
 pub mod cards_info;
 pub mod configs;
+#[cfg(feature = "v2")]
+pub mod revenue_recovery_retry_stats;
 
 pub mod authentication;
 pub mod authorization;
@@ -23,7 +25,6 @@ pub mod fraud_check;
 pub mod generic_link;
 pub mod generics;
 pub mod gsm;
-pub mod hyperswitch_ai_interaction;
 pub mod invoice;
 pub mod locker_mock_up;
 pub mod mandate;

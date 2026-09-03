@@ -232,12 +232,12 @@ impl TryFrom<&types::TokenizationRouterData> for DwollaFundingSourceRequest {
             }) => {
                 let account_type =
                     (*bank_type).ok_or_else(|| errors::ConnectorError::MissingRequiredField {
-                        field_name: "bank_type",
+                        field_name: "bank_type".into(),
                     })?;
 
                 let name = bank_account_holder_name.clone().ok_or_else(|| {
                     errors::ConnectorError::MissingRequiredField {
-                        field_name: "bank_account_holder_name",
+                        field_name: "bank_account_holder_name".into(),
                     }
                 })?;
 
@@ -265,7 +265,7 @@ impl<'a> TryFrom<&DwollaRouterData<'a, &PaymentsAuthorizeRouterData>> for Dwolla
             Some(PaymentMethodToken::Token(pm_token)) => pm_token,
             _ => {
                 return Err(report!(errors::ConnectorError::MissingRequiredField {
-                    field_name: "payment_method_token",
+                    field_name: "payment_method_token".into(),
                 }))
             }
         };
@@ -341,6 +341,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, DwollaPSyncResponse, T, PaymentsRespons
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     }),
                     status: AttemptStatus::from(status),
                     ..item.data
@@ -361,6 +362,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, DwollaPSyncResponse, T, PaymentsRespons
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     }),
                     status: AttemptStatus::from(map_topic_to_status(
                         webhook_response.topic.as_str(),
@@ -385,7 +387,7 @@ impl<'a, F> TryFrom<&DwollaRouterData<'a, &RefundsRouterData<F>>> for DwollaRefu
                     .and_then(|token| token.as_str().map(|s| s.to_string()))
             })
             .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
-                field_name: "payment_token",
+                field_name: "payment_token".into(),
             })?;
 
         let metadata = utils::to_connector_meta_from_secret::<DwollaMetaData>(

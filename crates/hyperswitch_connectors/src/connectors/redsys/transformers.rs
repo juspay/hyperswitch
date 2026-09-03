@@ -315,7 +315,7 @@ impl EmvThreedsData {
                 "alava" => Ok("VI"),
                 "avila" | "esav" => Ok("AV"),
                 _ => Err(errors::ConnectorError::InvalidDataFormat {
-                    field_name: "address.state",
+                    field_name: "address.state".into(),
                 }),
             }?;
             addr_state.to_string()
@@ -880,6 +880,10 @@ impl ForeignTryFrom<&RedsysThreeDsInvokeData> for router_request_types::UcsAuthe
             trans_status: None,
             transaction_id: None,
             ucaf_collection_indicator: None,
+            challenge_code: None,
+            challenge_cancel: None,
+            challenge_code_reason: None,
+            message_extension: None,
         })
     }
 }
@@ -901,6 +905,10 @@ impl ForeignTryFrom<&ThreeDsInvokeExempt> for router_request_types::UcsAuthentic
             trans_status: None,
             transaction_id: None,
             ucaf_collection_indicator: None,
+            challenge_code: None,
+            challenge_cancel: None,
+            challenge_code_reason: None,
+            message_extension: None,
         })
     }
 }
@@ -960,6 +968,7 @@ fn build_threeds_invoke_response(
         incremental_authorization_allowed: None,
         authentication_data,
         charges: None,
+        payment_account_reference: None,
     });
 
     Ok((enums::AttemptStatus::AuthenticationPending, response))
@@ -1004,6 +1013,7 @@ fn build_threeds_invoke_exempt_response(
         incremental_authorization_allowed: None,
         authentication_data,
         charges: None,
+        payment_account_reference: None,
     });
 
     Ok((enums::AttemptStatus::AuthenticationPending, response))
@@ -1223,14 +1233,14 @@ impl TryFrom<&RedsysRouterData<&PaymentsAuthenticateRouterData>> for RedsysTrans
             .clone()
             .and_then(|auth| auth.threeds_server_transaction_id.clone())
             .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "authentication_data.threeds_server_transaction_id",
+                field_name: "authentication_data.threeds_server_transaction_id".into(),
             })?;
 
         let message_version = authentication_data
             .clone()
             .and_then(|auth| auth.message_version.as_ref().map(|v| v.to_string()))
             .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "authentication_data.message_version",
+                field_name: "authentication_data.message_version".into(),
             })?;
 
         let ds_merchant_order = item.router_data.connector_request_reference_id.clone();
@@ -1685,6 +1695,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<RedsysResponse>> for PaymentsCapt
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     })
                 };
                 (response, status)
@@ -1798,6 +1809,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<RedsysResponse>> for PaymentsCance
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     })
                 };
                 (response, status)
@@ -1950,6 +1962,7 @@ fn get_payments_response(
                 incremental_authorization_allowed: None,
                 authentication_data,
                 charges: None,
+                payment_account_reference: None,
             })
         };
 
@@ -1972,6 +1985,7 @@ fn get_payments_response(
             incremental_authorization_allowed: None,
             authentication_data,
             charges: None,
+            payment_account_reference: None,
         });
 
         Ok((response, enums::AttemptStatus::AuthenticationPending))
@@ -2278,6 +2292,7 @@ impl<F> TryFrom<ResponseRouterData<F, RedsysSyncResponse, PaymentsSyncData, Paym
                             incremental_authorization_allowed: None,
                             authentication_data: None,
                             charges: None,
+                            payment_account_reference: None,
                         });
                         (status, payment_response)
                     }
@@ -2316,6 +2331,7 @@ impl<F> TryFrom<ResponseRouterData<F, RedsysSyncResponse, PaymentsSyncData, Paym
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     });
 
                     (status, payment_response)

@@ -9,6 +9,9 @@ pub mod user;
 /// types that are wrappers around primitive types
 pub mod primitive_wrappers;
 
+/// List-query pagination and sorting types
+pub mod list;
+
 use std::{
     borrow::Cow,
     fmt::Display,
@@ -46,7 +49,8 @@ use utoipa::ToSchema;
 
 use crate::{
     consts::{
-        self, MAX_DESCRIPTION_LENGTH, MAX_STATEMENT_DESCRIPTOR_LENGTH, PUBLISHABLE_KEY_LENGTH,
+        self, MAX_BLOCKLIST_LOOKUP_DATA_LENGTH, MAX_DESCRIPTION_LENGTH,
+        MAX_STATEMENT_DESCRIPTOR_LENGTH, PUBLISHABLE_KEY_LENGTH,
     },
     errors::{CustomResult, ParsingError, PercentageError, ValidationError},
     fp_utils::when,
@@ -54,11 +58,11 @@ use crate::{
 };
 
 /// Represents Percentage Value between 0 and 100 both inclusive
-#[derive(Clone, Default, Debug, PartialEq, Serialize)]
+#[derive(Clone, Default, Debug, PartialEq, Serialize, ToSchema)]
 pub struct Percentage<const PRECISION: u8> {
     // this value will range from 0 to 100, decimal length defined by precision macro
     /// Percentage value ranging between 0 and 100
-    percentage: f32,
+    percentage: f64,
 }
 
 fn get_invalid_percentage_error_message(precision: u8) -> String {
@@ -74,7 +78,7 @@ impl<const PRECISION: u8> Percentage<PRECISION> {
         if Self::is_valid_string_value(&value)? {
             Ok(Self {
                 percentage: value
-                    .parse::<f32>()
+                    .parse::<f64>()
                     .change_context(PercentageError::InvalidPercentageValue)?,
             })
         } else {
@@ -83,7 +87,7 @@ impl<const PRECISION: u8> Percentage<PRECISION> {
         }
     }
     /// function to get percentage value
-    pub fn get_percentage(&self) -> f32 {
+    pub fn get_percentage(&self) -> f64 {
         self.percentage
     }
 
@@ -105,8 +109,7 @@ impl<const PRECISION: u8> Percentage<PRECISION> {
                 "Cannot calculate percentage for amount greater than {max_amount}",
             ))
         } else {
-            let percentage_f64 = f64::from(self.percentage);
-            let result = (amount as f64 * (percentage_f64 / 100.0)).ceil() as i64;
+            let result = (amount as f64 * (self.percentage / 100.0)).ceil() as i64;
             Ok(MinorUnit::new(result))
         }
     }
@@ -115,12 +118,12 @@ impl<const PRECISION: u8> Percentage<PRECISION> {
         let float_value = Self::is_valid_float_string(value)?;
         Ok(Self::is_valid_range(float_value) && Self::is_valid_precision_length(value))
     }
-    fn is_valid_float_string(value: &str) -> CustomResult<f32, PercentageError> {
+    fn is_valid_float_string(value: &str) -> CustomResult<f64, PercentageError> {
         value
-            .parse::<f32>()
+            .parse::<f64>()
             .change_context(PercentageError::InvalidPercentageValue)
     }
-    fn is_valid_range(value: f32) -> bool {
+    fn is_valid_range(value: f64) -> bool {
         (0.0..=100.0).contains(&value)
     }
     fn is_valid_precision_length(value: &str) -> bool {
@@ -1018,6 +1021,20 @@ impl Description {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize, AsExpression)]
 #[diesel(sql_type = sql_types::Text)]
 pub struct StatementDescriptor(LengthString<MAX_STATEMENT_DESCRIPTOR_LENGTH, 1>);
+
+/// Domain type for a blocklist lookup value - a card BIN or a locker fingerprint id.
+///
+/// Length is enforced on deserialization, so a value too long to ever match a `fingerprint_id` is
+/// rejected at the API boundary rather than reaching a query.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+pub struct BlocklistLookupData(LengthString<MAX_BLOCKLIST_LOOKUP_DATA_LENGTH, 1>);
+
+impl BlocklistLookupData {
+    /// Get the string representation of the lookup value
+    pub fn get_string_repr(&self) -> &str {
+        &self.0 .0
+    }
+}
 
 impl<DB> Queryable<sql_types::Text, DB> for Description
 where

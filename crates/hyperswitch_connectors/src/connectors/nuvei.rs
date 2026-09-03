@@ -1811,6 +1811,7 @@ impl ConnectorSpecifications for Nuvei {
             } => auth_type.is_three_ds() && request_data.is_card(),
             api::CurrentFlowInfo::Psync { .. } => false,
             api::CurrentFlowInfo::UpdatePostConfirm { .. } => false,
+            api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
         }
     }
 
@@ -1827,5 +1828,22 @@ impl ConnectorSpecifications for Nuvei {
         _current_flow: Option<api::CurrentFlowInfo>,
     ) -> bool {
         true
+    }
+
+    #[cfg(feature = "v1")]
+    fn generate_connector_request_reference_id(
+        &self,
+        payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
+        payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+        is_config_enabled_to_send_payment_id_as_connector_request_id: bool,
+    ) -> String {
+        if is_config_enabled_to_send_payment_id_as_connector_request_id
+            && payment_intent.is_payment_id_from_merchant.unwrap_or(false)
+        {
+            payment_attempt.payment_id.get_string_repr().to_owned()
+        } else {
+            let max_payment_reference_id_length = nuvei::MAX_CLIENT_UNIQUE_ID_LENGTH;
+            nanoid::nanoid!(max_payment_reference_id_length)
+        }
     }
 }

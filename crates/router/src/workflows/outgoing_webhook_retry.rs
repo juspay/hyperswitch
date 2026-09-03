@@ -508,7 +508,8 @@ async fn get_outgoing_webhook_content_and_event_type(
                 | ApplicationResponse::Form(_)
                 | ApplicationResponse::GenericLinkForm(_)
                 | ApplicationResponse::PaymentLinkForm(_)
-                | ApplicationResponse::FileData(_) => {
+                | ApplicationResponse::FileData(_)
+                | ApplicationResponse::IncomingWebhookEvent { .. } => {
                     Err(errors::ProcessTrackerError::ResourceFetchingFailed {
                         resource_name: tracking_data.primary_object_id.clone(),
                     })
@@ -568,7 +569,8 @@ async fn get_outgoing_webhook_content_and_event_type(
                     | ApplicationResponse::Form(_)
                     | ApplicationResponse::GenericLinkForm(_)
                     | ApplicationResponse::PaymentLinkForm(_)
-                    | ApplicationResponse::FileData(_) => {
+                    | ApplicationResponse::FileData(_)
+                    | ApplicationResponse::IncomingWebhookEvent { .. } => {
                         Err(errors::ProcessTrackerError::ResourceFetchingFailed {
                             resource_name: tracking_data.primary_object_id.clone(),
                         })
@@ -599,7 +601,8 @@ async fn get_outgoing_webhook_content_and_event_type(
                 | ApplicationResponse::Form(_)
                 | ApplicationResponse::GenericLinkForm(_)
                 | ApplicationResponse::PaymentLinkForm(_)
-                | ApplicationResponse::FileData(_) => {
+                | ApplicationResponse::FileData(_)
+                | ApplicationResponse::IncomingWebhookEvent { .. } => {
                     Err(errors::ProcessTrackerError::ResourceFetchingFailed {
                         resource_name: tracking_data.primary_object_id.clone(),
                     })

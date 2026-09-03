@@ -173,3 +173,33 @@ impl ApiEventMetric for ResolveConfigResponse {
         Some(ApiEventsType::Miscellaneous)
     }
 }
+
+/// A single matching context in a resolved-config explanation timeline.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ResolveExplanationEntry {
+    /// Identifier of the context that matched.
+    pub context_id: String,
+    /// Dimension conditions that made this context match.
+    pub condition: serde_json::Value,
+    /// Identifier of the override applied by this context.
+    pub override_id: String,
+    /// Value before this context's override was applied.
+    pub value_before: serde_json::Value,
+    /// Value after this context's override was applied.
+    pub value_after: serde_json::Value,
+}
+
+/// Explanation of how matching contexts affect a single resolved config key.
+#[derive(Debug, serde::Serialize)]
+pub struct ResolveConfigExplanationResponse {
+    /// The configuration key being explained.
+    pub key: String,
+    /// Ordered list of contexts that contributed to the resolved value.
+    pub timeline: Vec<ResolveExplanationEntry>,
+}
+
+impl ApiEventMetric for ResolveConfigExplanationResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Miscellaneous)
+    }
+}

@@ -283,7 +283,7 @@ pub async fn handle_metadata_update(
                 .map(|card_brand| enums::CardNetwork::from_str(&card_brand))
                 .transpose()
                 .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "card network",
+                    field_name: "card network".into(),
                 })
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Invalid Card Network stored in vault")?;
@@ -334,6 +334,7 @@ pub async fn handle_metadata_update(
             let pm_update = if is_pan_update {
                 storage::PaymentMethodUpdate::AdditionalDataUpdate {
                     locker_id: Some(res.payment_method_id),
+                    locker_fingerprint_id: None,
                     payment_method_data: pm_data_encrypted.map(Into::into),
                     status: None,
                     payment_method: None,
@@ -350,10 +351,12 @@ pub async fn handle_metadata_update(
                     last_used_at: None,
                     connector_mandate_details: None,
                     network_tokenization_data: None,
+                    connector_payment_method_details: Box::new(None),
                 }
             } else {
                 storage::PaymentMethodUpdate::AdditionalDataUpdate {
                     locker_id: None,
+                    locker_fingerprint_id: None,
                     payment_method_data: None,
                     status: None,
                     payment_method: None,
@@ -370,12 +373,14 @@ pub async fn handle_metadata_update(
                     last_used_at: None,
                     connector_mandate_details: None,
                     network_tokenization_data: None,
+                    connector_payment_method_details: Box::new(None),
                 }
             };
             let db = &*state.store;
             let compat_action = payment_methods::payment_method_modular_compat_action(
                 state,
                 &payment_method.merchant_id,
+                &platform.get_provider().get_account().organization_id,
                 payment_method.customer_id.as_ref(),
             )
             .await;

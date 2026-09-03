@@ -199,3 +199,10 @@ impl PayloadVerificationStatus {
         matches!(self, Self::Verified | Self::OwnerVerified)
     }
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PayloadWebhookRegisterResponse {
+    pub id: String,
+    pub trigger: String,
+    pub url: String,
+}

@@ -1359,6 +1359,7 @@ pub fn is_payout_err_state(status: api_enums::PayoutStatus) -> bool {
         api_enums::PayoutStatus::Cancelled
             | api_enums::PayoutStatus::Failed
             | api_enums::PayoutStatus::Ineligible
+            | api_enums::PayoutStatus::NotPermitted
     )
 }
 
@@ -1463,6 +1464,11 @@ pub async fn update_payouts_and_payout_attempt(
             .to_owned()
             .clone()
             .or(payouts.description.clone()),
+        billing_descriptor: req
+            .billing_descriptor
+            .to_owned()
+            .or(payouts.billing_descriptor.clone())
+            .map(Box::new),
         recurring: req.recurring.to_owned().unwrap_or(payouts.recurring),
         auto_fulfill: req.auto_fulfill.to_owned().unwrap_or(payouts.auto_fulfill),
         return_url: req
@@ -1576,6 +1582,7 @@ pub(super) fn get_customer_details_from_request(
         phone_country_code: customer_phone_code,
         tax_registration_id,
         document_details,
+        date_of_birth: None,
     }
 }
 
@@ -1600,7 +1607,7 @@ pub async fn get_translated_unified_code_and_message(
         .await
         .transpose()
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "unified_message",
+            field_name: "unified_message".into(),
         })?
         .or_else(|| unified_message.cloned()))
 }
@@ -1810,4 +1817,37 @@ pub fn should_continue_payout<F: Clone + 'static>(
     router_data: &router_types::PayoutsRouterData<F>,
 ) -> bool {
     router_data.response.is_ok()
+}
+
+pub fn merge_connector_metadata(
+    merchant_metadata: Option<pii::SecretSerdeValue>,
+    connector_metadata: Option<pii::SecretSerdeValue>,
+) -> Option<pii::SecretSerdeValue> {
+    let connector_details = connector_metadata
+        .as_ref()
+        .and_then(|metadata| metadata.peek().as_object())
+        .filter(|details| !details.is_empty());
+
+    let merchant_details = match merchant_metadata.as_ref().map(|metadata| metadata.peek()) {
+        Some(serde_json::Value::Object(details)) => Some(details.clone()),
+        Some(_) | None => None,
+    };
+
+    // if both are present, it is merged but in case of conflict, connector metadata takes precedence
+    let merged = match (connector_details, merchant_details) {
+        (Some(connector_details), Some(mut merged)) => {
+            for (key, value) in connector_details {
+                merged.entry(key.clone()).or_insert_with(|| value.clone());
+            }
+            Some(merged)
+        }
+        (connector_details, merchant_details) => merchant_details.or(connector_details.cloned()),
+    };
+
+    // `metadata` also holds a serialized FeatureMetadata, whose unset fields are written out
+    // as nulls. They carry nothing and only clutter the payout response.
+    merged.map(|mut details| {
+        details.retain(|_, value| !value.is_null());
+        Secret::new(serde_json::Value::Object(details))
+    })
 }

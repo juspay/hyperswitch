@@ -266,6 +266,8 @@ pub enum AuthenticationUpdate {
         device_brand: Option<String>,
         device_os: Option<String>,
         device_display: Option<String>,
+        platform: Option<String>,
+        exemption_accepted: Option<bool>,
         updated_by: String,
     },
     PostAuthenticationUpdate {
@@ -547,6 +549,8 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 device_brand,
                 device_os,
                 device_display,
+                platform,
+                exemption_accepted,
                 updated_by,
             } => Self {
                 trans_status: Some(trans_status),
@@ -569,6 +573,8 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 device_brand,
                 device_os,
                 device_display,
+                platform,
+                exemption_accepted,
                 updated_by,
                 ..Default::default()
             },

@@ -95,6 +95,8 @@ pub enum TrustpayPaymentMethod {
     IDeal,
     Sofort,
     Blik,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
@@ -420,7 +422,8 @@ fn get_debtor_info(
         TrustpayPaymentMethod::Eps
         | TrustpayPaymentMethod::Giropay
         | TrustpayPaymentMethod::IDeal
-        | TrustpayPaymentMethod::Sofort => None,
+        | TrustpayPaymentMethod::Sofort
+        | TrustpayPaymentMethod::Unknown => None,
     })
 }
 
@@ -583,12 +586,14 @@ impl TryFrom<&TrustpayRouterData<&PaymentsAuthorizeRouterData>> for TrustpayPaym
                         redirect_url: item.router_data.request.get_router_return_url()?,
                         enrollment_status: 'Y', // Set to 'Y' as network provider not providing this value in response
                         eci: token_data.eci.clone().ok_or_else(|| {
-                            errors::ConnectorError::MissingRequiredField { field_name: "eci" }
+                            errors::ConnectorError::MissingRequiredField {
+                                field_name: "eci".into(),
+                            }
                         })?,
                         authentication_status: 'Y', // Set to 'Y' since presence of token_cryptogram is already validated
                         verification_id: token_data.get_cryptogram().ok_or_else(|| {
                             errors::ConnectorError::MissingRequiredField {
-                                field_name: "verification_id",
+                                field_name: "verification_id".into(),
                             }
                         })?,
                     },
@@ -764,26 +769,46 @@ pub enum TrustpayBankRedirectPaymentStatus {
     Rejected,
     Authorizing,
     Pending,
+    #[serde(other)]
+    Unknown,
 }
 
-impl From<TrustpayBankRedirectPaymentStatus> for enums::AttemptStatus {
-    fn from(item: TrustpayBankRedirectPaymentStatus) -> Self {
-        match item {
-            TrustpayBankRedirectPaymentStatus::Paid => Self::Charged,
-            TrustpayBankRedirectPaymentStatus::Rejected => Self::AuthorizationFailed,
-            TrustpayBankRedirectPaymentStatus::Authorized => Self::Authorized,
-            TrustpayBankRedirectPaymentStatus::Authorizing => Self::Authorizing,
-            TrustpayBankRedirectPaymentStatus::Pending => Self::Authorizing,
+fn get_bank_redirect_attempt_status(
+    item: TrustpayBankRedirectPaymentStatus,
+    prev_status: enums::AttemptStatus,
+) -> enums::AttemptStatus {
+    match item {
+        TrustpayBankRedirectPaymentStatus::Paid => enums::AttemptStatus::Charged,
+        TrustpayBankRedirectPaymentStatus::Rejected => enums::AttemptStatus::AuthorizationFailed,
+        TrustpayBankRedirectPaymentStatus::Authorized => enums::AttemptStatus::Authorized,
+        TrustpayBankRedirectPaymentStatus::Authorizing => enums::AttemptStatus::Authorizing,
+        TrustpayBankRedirectPaymentStatus::Pending => enums::AttemptStatus::Authorizing,
+        TrustpayBankRedirectPaymentStatus::Unknown => {
+            router_env::logger::warn!(
+                "Unknown trustpay bank redirect payment status received; retaining previous status {:?}",
+                prev_status
+            );
+            prev_status
         }
     }
 }
 
-impl From<TrustpayBankRedirectPaymentStatus> for enums::RefundStatus {
-    fn from(item: TrustpayBankRedirectPaymentStatus) -> Self {
-        match item {
-            TrustpayBankRedirectPaymentStatus::Paid => Self::Success,
-            TrustpayBankRedirectPaymentStatus::Rejected => Self::Failure,
-            _ => Self::Pending,
+fn get_bank_redirect_refund_status(
+    item: TrustpayBankRedirectPaymentStatus,
+    prev_status: enums::RefundStatus,
+) -> enums::RefundStatus {
+    match item {
+        TrustpayBankRedirectPaymentStatus::Paid => enums::RefundStatus::Success,
+        TrustpayBankRedirectPaymentStatus::Rejected => enums::RefundStatus::Failure,
+        TrustpayBankRedirectPaymentStatus::Authorized
+        | TrustpayBankRedirectPaymentStatus::Authorizing
+        | TrustpayBankRedirectPaymentStatus::Pending => enums::RefundStatus::Pending,
+        TrustpayBankRedirectPaymentStatus::Unknown => {
+            router_env::logger::warn!(
+                "Unknown trustpay bank redirect refund status received; retaining previous status {:?}",
+                prev_status
+            );
+            prev_status
         }
     }
 }
@@ -915,6 +940,7 @@ fn handle_cards_response(
         incremental_authorization_allowed: None,
         authentication_data: None,
         charges: None,
+        payment_account_reference: None,
     };
     Ok((status, error, payment_response_data, None))
 }
@@ -946,6 +972,7 @@ fn handle_bank_redirects_response(
         incremental_authorization_allowed: None,
         authentication_data: None,
         charges: None,
+        payment_account_reference: None,
     };
     Ok((status, error, payment_response_data, None))
 }
@@ -996,6 +1023,7 @@ fn handle_bank_redirects_error_response(
         incremental_authorization_allowed: None,
         authentication_data: None,
         charges: None,
+        payment_account_reference: None,
     };
     Ok((status, error, payment_response_data, None))
 }
@@ -1003,6 +1031,7 @@ fn handle_bank_redirects_error_response(
 fn handle_bank_redirects_sync_response(
     response: SyncResponseBankRedirect,
     status_code: u16,
+    previous_attempt_status: enums::AttemptStatus,
 ) -> CustomResult<
     (
         enums::AttemptStatus,
@@ -1012,7 +1041,10 @@ fn handle_bank_redirects_sync_response(
     ),
     errors::ConnectorError,
 > {
-    let status = enums::AttemptStatus::from(response.payment_information.status);
+    let status = get_bank_redirect_attempt_status(
+        response.payment_information.status,
+        previous_attempt_status,
+    );
     let error = if utils::is_payment_failure(status) {
         let reason_info = response
             .payment_information
@@ -1065,6 +1097,7 @@ fn handle_bank_redirects_sync_response(
         incremental_authorization_allowed: None,
         authentication_data: None,
         charges: None,
+        payment_account_reference: None,
     };
     Ok((status, error, payment_response_data, None))
 }
@@ -1072,6 +1105,7 @@ fn handle_bank_redirects_sync_response(
 pub fn handle_webhook_response(
     payment_information: WebhookPaymentInformation,
     status_code: u16,
+    previous_attempt_status: enums::AttemptStatus,
 ) -> CustomResult<
     (
         enums::AttemptStatus,
@@ -1081,7 +1115,8 @@ pub fn handle_webhook_response(
     ),
     errors::ConnectorError,
 > {
-    let status = enums::AttemptStatus::try_from(payment_information.status.clone())?;
+    let status =
+        get_webhook_attempt_status(payment_information.status.clone(), previous_attempt_status)?;
     let error = if utils::is_payment_failure(status) {
         let reason_info = payment_information
             .status_reason_information
@@ -1122,6 +1157,7 @@ pub fn handle_webhook_response(
         incremental_authorization_allowed: None,
         authentication_data: None,
         charges: None,
+        payment_account_reference: None,
     };
     let connector_response = payment_information.get_connector_response();
 
@@ -1149,13 +1185,13 @@ pub fn get_trustpay_response(
             handle_bank_redirects_response(*response)
         }
         TrustpayPaymentsResponse::BankRedirectSync(response) => {
-            handle_bank_redirects_sync_response(*response, status_code)
+            handle_bank_redirects_sync_response(*response, status_code, previous_attempt_status)
         }
         TrustpayPaymentsResponse::BankRedirectError(response) => {
             handle_bank_redirects_error_response(*response, status_code, previous_attempt_status)
         }
         TrustpayPaymentsResponse::WebhookResponse(response) => {
-            handle_webhook_response(*response, status_code)
+            handle_webhook_response(*response, status_code, previous_attempt_status)
         }
     }
 }
@@ -1424,7 +1460,7 @@ impl TryFrom<CreateOrderResponseRouterData<TrustpayCreateIntentResponse>>
             .payment_method_type
             .get_required_value("payment_method_type")
             .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "payment_method_type",
+                field_name: "payment_method_type".into(),
             })?;
 
         match (pmt, create_intent_response) {
@@ -1770,8 +1806,9 @@ fn handle_cards_refund_response(
 fn handle_webhooks_refund_response(
     response: WebhookPaymentInformation,
     status_code: u16,
+    previous_refund_status: enums::RefundStatus,
 ) -> CustomResult<(Option<ErrorResponse>, RefundsResponseData), errors::ConnectorError> {
-    let refund_status = enums::RefundStatus::try_from(response.status)?;
+    let refund_status = get_webhook_refund_status(response.status, previous_refund_status)?;
     let error = if utils::is_refund_failure(refund_status) {
         let reason_info = response.status_reason_information.unwrap_or_default();
         Some(ErrorResponse {
@@ -1841,8 +1878,12 @@ fn handle_bank_redirects_refund_response(
 fn handle_bank_redirects_refund_sync_response(
     response: SyncResponseBankRedirect,
     status_code: u16,
+    previous_refund_status: enums::RefundStatus,
 ) -> (Option<ErrorResponse>, RefundsResponseData) {
-    let refund_status = enums::RefundStatus::from(response.payment_information.status);
+    let refund_status = get_bank_redirect_refund_status(
+        response.payment_information.status,
+        previous_refund_status,
+    );
     let error = if utils::is_refund_failure(refund_status) {
         let reason_info = response
             .payment_information
@@ -1911,18 +1952,23 @@ fn handle_bank_redirects_refund_sync_error_response(
 impl<F> TryFrom<RefundsResponseRouterData<F, RefundResponse>> for RefundsRouterData<F> {
     type Error = Error;
     fn try_from(item: RefundsResponseRouterData<F, RefundResponse>) -> Result<Self, Self::Error> {
+        let previous_refund_status = item.data.request.refund_status;
         let (error, response) = match item.response {
             RefundResponse::CardsRefund(response) => {
                 handle_cards_refund_response(*response, item.http_code)?
             }
             RefundResponse::WebhookRefund(response) => {
-                handle_webhooks_refund_response(*response, item.http_code)?
+                handle_webhooks_refund_response(*response, item.http_code, previous_refund_status)?
             }
             RefundResponse::BankRedirectRefund(response) => {
                 handle_bank_redirects_refund_response(*response, item.http_code)
             }
             RefundResponse::BankRedirectRefundSyncResponse(response) => {
-                handle_bank_redirects_refund_sync_response(*response, item.http_code)
+                handle_bank_redirects_refund_sync_response(
+                    *response,
+                    item.http_code,
+                    previous_refund_status,
+                )
             }
             RefundResponse::BankRedirectError(response) => {
                 handle_bank_redirects_refund_sync_error_response(*response, item.http_code)
@@ -2030,6 +2076,8 @@ pub struct TrustpayErrorResponse {
 pub enum CreditDebitIndicator {
     Crdt,
     Dbit,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(strum::Display, Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -2042,26 +2090,42 @@ pub enum WebhookStatus {
     Unknown,
 }
 
-impl TryFrom<WebhookStatus> for enums::AttemptStatus {
-    type Error = errors::ConnectorError;
-    fn try_from(item: WebhookStatus) -> Result<Self, Self::Error> {
-        match item {
-            WebhookStatus::Paid => Ok(Self::Charged),
-            WebhookStatus::Rejected => Ok(Self::AuthorizationFailed),
-            _ => Err(errors::ConnectorError::WebhookEventTypeNotFound),
+fn get_webhook_attempt_status(
+    item: WebhookStatus,
+    prev_status: enums::AttemptStatus,
+) -> Result<enums::AttemptStatus, errors::ConnectorError> {
+    match item {
+        WebhookStatus::Paid => Ok(enums::AttemptStatus::Charged),
+        WebhookStatus::Rejected => Ok(enums::AttemptStatus::AuthorizationFailed),
+        WebhookStatus::Unknown => {
+            router_env::logger::warn!(
+                "Unknown trustpay webhook status received; retaining previous status {:?}",
+                prev_status
+            );
+            Ok(prev_status)
+        }
+        WebhookStatus::Refunded | WebhookStatus::Chargebacked => {
+            Err(errors::ConnectorError::WebhookEventTypeNotFound)
         }
     }
 }
 
-impl TryFrom<WebhookStatus> for enums::RefundStatus {
-    type Error = errors::ConnectorError;
-    fn try_from(item: WebhookStatus) -> Result<Self, Self::Error> {
-        match item {
-            WebhookStatus::Paid => Ok(Self::Success),
-            WebhookStatus::Refunded => Ok(Self::Success),
-            WebhookStatus::Rejected => Ok(Self::Failure),
-            _ => Err(errors::ConnectorError::WebhookEventTypeNotFound),
+fn get_webhook_refund_status(
+    item: WebhookStatus,
+    prev_status: enums::RefundStatus,
+) -> Result<enums::RefundStatus, errors::ConnectorError> {
+    match item {
+        WebhookStatus::Paid => Ok(enums::RefundStatus::Success),
+        WebhookStatus::Refunded => Ok(enums::RefundStatus::Success),
+        WebhookStatus::Rejected => Ok(enums::RefundStatus::Failure),
+        WebhookStatus::Unknown => {
+            router_env::logger::warn!(
+                "Unknown trustpay webhook status received; retaining previous refund status {:?}",
+                prev_status
+            );
+            Ok(prev_status)
         }
+        WebhookStatus::Chargebacked => Err(errors::ConnectorError::WebhookEventTypeNotFound),
     }
 }
 

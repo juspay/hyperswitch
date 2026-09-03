@@ -993,6 +993,17 @@ impl NewUser {
     }
 }
 
+// deja: the signup user_id is a raw random UUIDv4. Wrapped in an annotated helper
+// so it replays to the recorded value — otherwise the `users` INSERT diverges and
+// runs live (collides with the record-phase user, rolling signup back).
+#[cfg_attr(
+    feature = "deja",
+    deja::id(component = "router::user", operation = "generate_user_id", codec = SerdeCodec,)
+)]
+fn generate_user_id() -> String {
+    uuid::Uuid::new_v4().to_string()
+}
+
 impl TryFrom<NewUser> for storage_user::UserNew {
     type Error = error_stack::Report<UserErrors>;
 
@@ -1005,7 +1016,7 @@ impl TryFrom<NewUser> for storage_user::UserNew {
 
         let now = common_utils::date_time::now();
         Ok(Self {
-            user_id: uuid::Uuid::new_v4().to_string(),
+            user_id: generate_user_id(),
             name: value.get_name(),
             email: value.get_email().into_inner(),
             password: hashed_password,

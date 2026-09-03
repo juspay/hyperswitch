@@ -1,5 +1,8 @@
 //! Commonly used constants
 
+/// Structured log tag for external service latency events.
+pub const EXTERNAL_CALL_TAG: &str = "ExternalCall";
+
 /// Number of characters in a generated ID
 pub const ID_LENGTH: usize = 20;
 
@@ -18,6 +21,13 @@ pub const TOKEN_TTL: i64 = 900;
 pub static FRM_CONFIGS_EG: &str = r#"
 [{"gateway":"stripe","payment_methods":[{"payment_method":"card","payment_method_types":[{"payment_method_type":"credit","card_networks":["Visa"],"flow":"pre","action":"cancel_txn"},{"payment_method_type":"debit","card_networks":["Visa"],"flow":"pre"}]}]}]
 "#;
+
+/// Global minimum limit for any list API.
+pub const LIST_MIN_LIMIT: u32 = 1;
+/// Global maximum limit for any list API (single cap across endpoints).
+pub const LIST_MAX_LIMIT: u32 = 100;
+/// Global default limit for any list API when the caller omits it.
+pub const LIST_DEFAULT_LIMIT: u32 = 10;
 
 /// Maximum limit for payments list get api
 pub const PAYMENTS_LIST_MAX_LIMIT_V1: u32 = 100;
@@ -43,8 +53,21 @@ pub fn default_payouts_list_limit() -> u32 {
     10
 }
 
+/// Default limit for refunds list API
+pub const REFUNDS_LIST_DEFAULT_LIMIT: u32 = 10;
+/// Maximum limit for refunds list API
+pub const REFUNDS_LIST_MAX_LIMIT: u32 = 100;
+
+/// Default limit for disputes list API
+pub const DISPUTES_LIST_DEFAULT_LIMIT: u32 = 10;
+/// Maximum limit for disputes list API
+pub const DISPUTES_LIST_MAX_LIMIT: u32 = 100;
+
 /// surcharge percentage maximum precision length
 pub const SURCHARGE_PERCENTAGE_PRECISION_LENGTH: u8 = 2;
+
+/// discount percentage maximum precision length
+pub const DISCOUNT_PERCENTAGE_PRECISION_LENGTH: u8 = 2;
 
 /// installment interest rate maximum precision length
 pub const INSTALLMENT_INTEREST_RATE_PRECISION_LENGTH: u8 = 2;
@@ -130,6 +153,10 @@ pub const MAX_ALLOWED_MERCHANT_NAME_LENGTH: usize = 64;
 /// Maximum allowed length for CardIssuerName
 pub const MAX_ALLOWED_CARD_ISSUER_NAME_LENGTH: usize = 255;
 
+/// Maximum allowed length for a phone country (calling) code, matching the `VARCHAR(8)`
+/// column used to store it
+pub const MAX_PHONE_COUNTRY_CODE_LENGTH: usize = 8;
+
 /// Default locale
 pub const DEFAULT_LOCALE: &str = "en";
 
@@ -147,6 +174,11 @@ pub const MAX_DESCRIPTION_LENGTH: u16 = 255;
 
 /// Max length allowed for Statement Descriptor
 pub const MAX_STATEMENT_DESCRIPTOR_LENGTH: u16 = 22;
+
+/// Max length allowed for a blocklist lookup value. Matches the longest value `fingerprint_id` can
+/// legitimately hold: a card BIN is at most 10 digits and a locker fingerprint id is a 20-character
+/// nano id. The column itself is `VARCHAR(64)`, so anything longer could never match a row.
+pub const MAX_BLOCKLIST_LOOKUP_DATA_LENGTH: u16 = 20;
 /// Payout flow identifier used for performing GSM operations
 pub const PAYOUT_FLOW_STR: &str = "payout_flow";
 
@@ -170,6 +202,12 @@ pub const X_FLOW_NAME: &str = "x-flow";
 /// Connector name
 pub const X_CONNECTOR_NAME: &str = "x-connector";
 
+/// Payment method
+pub const X_PAYMENT_METHOD: &str = "x-payment-method";
+
+/// Payment method type
+pub const X_PAYMENT_METHOD_TYPE: &str = "x-payment-method-type";
+
 /// Sub-flow name
 pub const X_SUB_FLOW_NAME: &str = "x-sub-flow";
 
@@ -181,9 +219,6 @@ pub const X_PROXY_NAME: &str = "x-proxy-name";
 
 /// Config Override Header for UCS
 pub const X_CONFIG_OVERRIDE: &str = "x-config-override";
-
-/// Chat Session ID
-pub const X_CHAT_SESSION_ID: &str = "x-chat-session-id";
 
 /// Merchant ID Header
 pub const X_MERCHANT_ID: &str = "x-merchant-id";
@@ -233,12 +268,6 @@ pub const REQUEST_TIME_OUT: u64 = 30;
 
 /// API client request timeout for ai service (in seconds)
 pub const REQUEST_TIME_OUT_FOR_AI_SERVICE: u64 = 120;
-
-/// Default limit for list operations (can be used across different entities)
-pub const DEFAULT_LIST_LIMIT: i64 = 100;
-
-/// Default offset for list operations (can be used across different entities)
-pub const DEFAULT_LIST_OFFSET: i64 = 0;
 
 /// Default number of card issuers returned in a list request
 pub const DEFAULT_CARD_ISSUER_LIST_LIMIT: u8 = 30;

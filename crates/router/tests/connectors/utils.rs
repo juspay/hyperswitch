@@ -411,6 +411,7 @@ pub trait ConnectorActions: Connector {
                 merchant_config_currency: None,
                 capture_method: None,
                 additional_payment_method_data: None,
+                payment_connector_request_reference_id: None,
             }),
             payment_info,
         );
@@ -454,15 +455,16 @@ pub trait ConnectorActions: Connector {
     ) -> RouterData<Flow, types::PayoutsData, Res> {
         self.generate_data(
             types::PayoutsData {
+                connector_eligibility_reference_id: None,
                 payout_id: common_utils::id_type::PayoutId::generate(),
                 amount: 1,
                 minor_amount: MinorUnit::new(1),
                 connector_payout_id,
                 destination_currency: payment_info.to_owned().map_or(enums::Currency::EUR, |pi| {
-                    pi.currency.map_or(enums::Currency::EUR, |c| c)
+                    pi.currency.unwrap_or(enums::Currency::EUR)
                 }),
                 source_currency: payment_info.to_owned().map_or(enums::Currency::EUR, |pi| {
-                    pi.currency.map_or(enums::Currency::EUR, |c| c)
+                    pi.currency.unwrap_or(enums::Currency::EUR)
                 }),
                 entity_type: enums::PayoutEntityType::Individual,
                 payout_type: Some(payout_type),
@@ -474,6 +476,7 @@ pub trait ConnectorActions: Connector {
                     phone_country_code: Some("+31".to_string()),
                     tax_registration_id: Some("1232343243".to_string().into()),
                     document_details: None,
+                    date_of_birth: None,
                 }),
                 vendor_details: None,
                 priority: None,
@@ -483,6 +486,7 @@ pub trait ConnectorActions: Connector {
                 payout_connector_metadata: None,
                 additional_payout_method_data: None,
                 source_bank_data: None,
+                billing_descriptor: None,
             },
             payment_info,
         )
@@ -510,8 +514,7 @@ pub trait ConnectorActions: Connector {
             auth_type: info
                 .clone()
                 .map_or(enums::AuthenticationType::NoThreeDs, |a| {
-                    a.auth_type
-                        .map_or(enums::AuthenticationType::NoThreeDs, |a| a)
+                    a.auth_type.unwrap_or(enums::AuthenticationType::NoThreeDs)
                 }),
             payment_method: enums::PaymentMethod::Card,
             payment_method_type: None,
@@ -572,6 +575,8 @@ pub trait ConnectorActions: Connector {
             customer_document_details: None,
             feature_data: None,
             sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
+            customer_date_of_birth: None,
         }
     }
 
@@ -827,7 +832,7 @@ pub trait ConnectorActions: Connector {
                 create_res
                     .connector_payout_id
                     .ok_or(ConnectorError::MissingRequiredField {
-                        field_name: "connector_payout_id",
+                        field_name: "connector_payout_id".into(),
                     })?,
                 payout_type,
                 payment_info.to_owned(),
@@ -1011,6 +1016,7 @@ impl Default for PaymentAuthorizeType {
             metadata: None,
             authentication_data: None,
             ucs_authentication_data: None,
+            force_3ds_challenge: None,
             customer_acceptance: None,
             split_payments: None,
             guest_customer: None,
@@ -1029,11 +1035,14 @@ impl Default for PaymentAuthorizeType {
             is_stored_credential: None,
             mit_category: None,
             billing_descriptor: None,
+            is_account_funded_transaction: None,
+            recipient_details: None,
             tokenization: None,
             partner_merchant_identifier_details: None,
             feature_metadata: None,
             installment_details: None,
             connector_intent_metadata: None,
+            business_country: None,
         };
         Self(data)
     }
@@ -1129,6 +1138,7 @@ impl Default for PaymentRefundType {
             merchant_config_currency: None,
             capture_method: None,
             additional_payment_method_data: None,
+            payment_connector_request_reference_id: None,
         };
         Self(data)
     }
@@ -1216,6 +1226,7 @@ pub fn get_connector_metadata(
             incremental_authorization_allowed: _,
             authentication_data: None,
             charges: _,
+            payment_account_reference: _,
         }) => connector_metadata,
         _ => None,
     }

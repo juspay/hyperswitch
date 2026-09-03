@@ -1,0 +1,27 @@
+---
+title: "Legacy Decision Gateway"
+description: "Compatibility example for the legacy /decision_gateway route."
+---
+
+# Legacy Decision Gateway
+
+`/decision_gateway` is retained for compatibility with older integrations. New integrations should use [`/decide-gateway`](/decision-engine-api-reference/api-reference/guides/run-transactions/decide-gateway-sr-based).
+
+```bash
+curl --location "$BASE_URL/decision_gateway" \
+  --header "$AUTH_HEADER" \
+  --header "Content-Type: application/json" \
+  --data '{
+    "merchantId": "merchant_demo",
+    "eligibleGatewayList": ["stripe", "adyen"],
+    "rankingAlgorithm": "SR_BASED_ROUTING",
+    "paymentInfo": {
+      "paymentId": "legacy_001",
+      "amount": 1000,
+      "currency": "USD",
+      "paymentType": "ORDER_PAYMENT",
+      "paymentMethodType": "CARD",
+      "paymentMethod": "CREDIT"
+    }
+  }'
+```

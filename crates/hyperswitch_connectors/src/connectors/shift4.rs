@@ -512,7 +512,7 @@ impl ConnectorIntegration<PreAuthenticate, PaymentsPreAuthenticateData, Payments
             req.request
                 .currency
                 .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
-                    field_name: "currency",
+                    field_name: "currency".into(),
                 })?,
         )?;
         let connector_router_data = shift4::Shift4RouterData::try_from((amount, req))?;
@@ -620,7 +620,7 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
             req.request
                 .currency
                 .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
-                    field_name: "currency",
+                    field_name: "currency".into(),
                 })?,
         )?;
         let connector_router_data = shift4::Shift4RouterData::try_from((amount, req))?;
@@ -1108,11 +1108,12 @@ impl ConnectorSpecifications for Shift4 {
             // No alternate flow for complete authorize and SetupMandate
             api::CurrentFlowInfo::SetupMandate { .. }
             | api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
-            api::CurrentFlowInfo::Psync { .. } | api::CurrentFlowInfo::UpdatePostConfirm { .. } => {
-                false
-            }
+            api::CurrentFlowInfo::Psync { .. }
+            | api::CurrentFlowInfo::UpdatePostConfirm { .. }
+            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
         }
     }
+
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&SHIFT4_CONNECTOR_INFO)
     }

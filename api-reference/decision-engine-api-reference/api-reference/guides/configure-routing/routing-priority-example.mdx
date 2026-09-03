@@ -1,0 +1,25 @@
+---
+title: "Priority Routing Example"
+description: "Priority-list routing create example."
+---
+
+# Priority Routing Example
+
+```bash
+curl --location "$BASE_URL/routing/create" \
+  --header "$AUTH_HEADER" \
+  --header "Content-Type: application/json" \
+  --data '{
+    "name": "priority rule",
+    "created_by": "merchant_demo",
+    "algorithm_for": "payment",
+    "algorithm": {
+      "type": "priority",
+      "data": [
+        { "gateway_name": "stripe", "gateway_id": "mca_111" },
+        { "gateway_name": "adyen", "gateway_id": "mca_112" },
+        { "gateway_name": "checkout", "gateway_id": "mca_113" }
+      ]
+    }
+  }'
+```

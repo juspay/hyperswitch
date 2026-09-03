@@ -43,7 +43,7 @@ const failedNo3DSCardDetails = {
 //     last4: "1111",
 //     card_type: "DEBIT",
 //     card_network: "Visa",
-//     card_issuer: "CONOTOXIA SP Z O.O.",
+//     card_issuer: "CONOTOXIA SP Z OO",
 //     card_issuing_country: "POLAND",
 //     card_isin: "411111",
 //     card_extended_bin: null,
@@ -264,6 +264,28 @@ export const connectorDetails = {
       },
       Request: {
         currency: "USD",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    MITAutoCaptureWithCustomerAcceptance: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        currency: "USD",
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "127.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
       },
       Response: {
         status: 200,

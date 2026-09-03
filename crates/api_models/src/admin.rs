@@ -327,21 +327,44 @@ pub struct CardBlockingConfig {
     #[schema(value_type = Option<Vec<CardType>>)]
     pub card_types: Option<HashSet<common_enums::CardType>>,
     /// Set of card subtypes to block
-    #[schema(value_type = Option<Vec<CardSubtype>>)]
-    pub card_subtypes: Option<HashSet<common_enums::CardSubtype>>,
+    #[schema(value_type = Option<Vec<String>>)]
+    pub card_subtypes: Option<HashSet<String>>,
     /// Set of card issuer IDs to block
     pub issuers: Option<HashSet<String>>,
     /// Whether to block if BIN is provided but no matching record found in cards_info table.
     /// Defaults to false (allow payment if BIN not found in database).
     pub block_if_bin_info_unavailable: Option<bool>,
+    /// Set of card networks to block
+    #[schema(value_type = Option<Vec<CardNetwork>>)]
+    pub card_networks: Option<HashSet<common_enums::CardNetwork>>,
+    /// Set of card funding sources to block
+    #[schema(value_type = Option<Vec<FundingSource>>)]
+    pub funding_sources: Option<HashSet<common_enums::FundingSource>>,
+    /// Set of card segment types to block
+    #[schema(value_type = Option<Vec<CardSegmentType>>)]
+    pub card_segment_types: Option<HashSet<common_enums::CardSegmentType>>,
+    /// Whether virtual cards should be blocked
+    pub block_virtual_cards: Option<bool>,
+    /// Whether non-reloadable prepaid cards should be blocked
+    pub block_non_reloadable_prepaid_cards: Option<bool>,
+    /// Whether cards from BINs marked for gambling should be blocked
+    pub gambling_blocked: Option<bool>,
 }
 
 /// Wallet-specific blocking configuration for Apple Pay and Google Pay
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
 pub struct WalletBlockingConfig {
-    /// Set of card types to block for wallet payments (e.g., ["Credit", "Debit"])
-    #[schema(value_type = Option<Vec<CardType>>)]
+    /// Set of card types to block for all wallet payments (e.g., ["Credit", "Debit"]).
+    ///
+    /// Deprecated: this applies one rule to every wallet, so a card type cannot be blocked on
+    /// Apple Pay without also blocking it on Google Pay. Use `apple_pay.card_types` and
+    /// `google_pay.card_types` instead, which are evaluated per wallet against that wallet's decrypted card.
+    #[schema(value_type = Option<Vec<CardType>>, deprecated)]
     pub card_types: Option<HashSet<common_enums::CardType>>,
+    /// Apple Pay-specific blocking configuration
+    pub apple_pay: Option<CardBlockingConfig>,
+    /// Google Pay-specific blocking configuration
+    pub google_pay: Option<CardBlockingConfig>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -396,6 +419,17 @@ pub struct MerchantAccountMetadata {
 
     #[serde(flatten)]
     pub data: Option<pii::SecretSerdeValue>,
+}
+
+/// Merchant-level Offer Engine credentials (Offer Engine issues one account per merchant)
+#[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
+pub struct OfferEngineMerchantConfig {
+    /// API key issued by Offer Engine for this merchant
+    #[schema(value_type = String)]
+    pub api_key: Secret<String>,
+
+    /// The Offer Engine merchant id sent in Offer Engine request bodies
+    pub merchant_id: String,
 }
 
 #[cfg(feature = "v1")]
@@ -479,6 +513,10 @@ pub struct MerchantAccountUpdate {
     /// Network tokenization credentials for this merchant account
     #[schema(value_type = Option<NetworkTokeizationProviderCredentials>)]
     pub network_tokenization_credentials: Option<NetworkTokeizationProviderCredentials>,
+
+    /// Merchant-level Offer Engine credentials, used when the resolved credential source is `merchant`
+    #[schema(value_type = Option<OfferEngineMerchantConfig>)]
+    pub offer_engine_config: Option<OfferEngineMerchantConfig>,
 }
 
 #[cfg(feature = "v1")]
@@ -860,16 +898,28 @@ pub struct WebhookDetails {
 
     /// List of payment statuses that triggers a webhook for payment intents
     #[schema(value_type = Vec<IntentStatus>, example = json!(["succeeded", "failed", "partially_captured", "requires_merchant_action"]))]
-    pub payment_statuses_enabled: Option<Vec<api_enums::IntentStatus>>,
+    pub payment_statuses_enabled: Option<HashSet<api_enums::IntentStatus>>,
 
     /// List of refund statuses that triggers a webhook for refunds
-    #[schema(value_type = Vec<IntentStatus>, example = json!(["success", "failure"]))]
-    pub refund_statuses_enabled: Option<Vec<api_enums::RefundStatus>>,
+    #[schema(value_type = Vec<RefundStatus>, example = json!(["success", "failure"]))]
+    pub refund_statuses_enabled: Option<HashSet<api_enums::RefundStatus>>,
 
     /// List of payout statuses that triggers a webhook for payouts
     #[cfg(feature = "payouts")]
     #[schema(value_type = Option<Vec<PayoutStatus>>, example = json!(["success", "failed"]))]
-    pub payout_statuses_enabled: Option<Vec<api_enums::PayoutStatus>>,
+    pub payout_statuses_enabled: Option<HashSet<api_enums::PayoutStatus>>,
+
+    /// List of dispute statuses that trigger outgoing webhooks for disputes
+    #[schema(value_type = Option<Vec<DisputeStatus>>, example = json!(["dispute_opened", "dispute_won"]))]
+    pub dispute_statuses_enabled: Option<HashSet<api_enums::DisputeStatus>>,
+
+    /// List of mandate statuses that trigger outgoing webhooks for mandates
+    #[schema(value_type = Option<Vec<MandateStatus>>, example = json!(["active", "inactive"]))]
+    pub mandate_statuses_enabled: Option<HashSet<api_enums::MandateStatus>>,
+
+    /// List of invoice statuses that trigger outgoing webhooks for subscriptions
+    #[schema(value_type = Option<Vec<InvoiceStatus>>, example = json!(["invoice_paid"]))]
+    pub invoice_statuses_enabled: Option<HashSet<api_enums::InvoiceStatus>>,
 }
 
 impl WebhookDetails {
@@ -896,24 +946,33 @@ impl WebhookDetails {
             payout_statuses_enabled: other
                 .payout_statuses_enabled
                 .or(self.payout_statuses_enabled),
+            dispute_statuses_enabled: other
+                .dispute_statuses_enabled
+                .or(self.dispute_statuses_enabled),
+            mandate_statuses_enabled: other
+                .mandate_statuses_enabled
+                .or(self.mandate_statuses_enabled),
+            invoice_statuses_enabled: other
+                .invoice_statuses_enabled
+                .or(self.invoice_statuses_enabled),
         }
     }
 
-    fn validate_statuses<T>(statuses: &[T], status_type_name: &str) -> Result<(), String>
+    fn validate_statuses<T>(statuses: &HashSet<T>, status_type_name: &str) -> Result<(), String>
     where
-        T: strum::IntoEnumIterator + Copy + PartialEq + std::fmt::Debug,
+        T: strum::IntoEnumIterator + Copy + Eq + std::hash::Hash + std::fmt::Debug,
         T: Into<Option<api_enums::EventType>>,
     {
-        let valid_statuses: Vec<T> = T::iter().filter(|s| (*s).into().is_some()).collect();
+        let valid_statuses: HashSet<T> = T::iter().filter(|s| (*s).into().is_some()).collect();
 
-        for status in statuses {
-            if !valid_statuses.contains(status) {
-                return Err(format!(
+        statuses
+            .iter()
+            .find(|status| !valid_statuses.contains(status))
+            .map_or(Ok(()), |status| {
+                Err(format!(
                     "Invalid {status_type_name} webhook status provided: {status:?}"
-                ));
-            }
-        }
-        Ok(())
+                ))
+            })
     }
 
     pub fn validate(&self) -> Result<(), String> {
@@ -930,6 +989,18 @@ impl WebhookDetails {
             if let Some(payout_statuses) = &self.payout_statuses_enabled {
                 Self::validate_statuses(payout_statuses, "payout")?;
             }
+        }
+
+        if let Some(dispute_statuses) = &self.dispute_statuses_enabled {
+            Self::validate_statuses(dispute_statuses, "dispute")?;
+        }
+
+        if let Some(mandate_statuses) = &self.mandate_statuses_enabled {
+            Self::validate_statuses(mandate_statuses, "mandate")?;
+        }
+
+        if let Some(invoice_statuses) = &self.invoice_statuses_enabled {
+            Self::validate_statuses(invoice_statuses, "invoice")?;
         }
 
         Ok(())
@@ -1225,6 +1296,11 @@ pub struct RevenueRecoveryMetadata {
     /// Maximum number of `billing connector` retries before revenue recovery can start executing retries.
     #[schema(value_type = u16, example = "10")]
     pub billing_connector_retry_threshold: u16,
+    /// Number of cascading (static) retries an invoice may use under the hybrid static + adaptive
+    /// scheme.
+    #[serde(default)]
+    #[schema(value_type = u16, example = "5")]
+    pub max_hybrid_cascading_retry_count: u16,
     /// Billing account reference id is payment gateway id at billing connector end.
     /// Merchants need to provide a mapping between these merchant connector account and the corresponding account reference IDs for each `billing connector`.
     #[schema(value_type = u16, example = r#"{ "mca_vDSg5z6AxnisHq5dbJ6g": "stripe_123", "mca_vDSg5z6AumisHqh4x5m1": "adyen_123" }"#)]
@@ -1632,7 +1708,7 @@ pub struct MerchantConnectorResponse {
     pub connector_wallets_details: Option<ConnectorWalletDetails>,
 
     /// Details about the connector’s webhook configuration
-    #[schema(value_type = Option<WebhookSetupCapabilities>)]
+    #[schema(value_type = Option<WebhookSetupCapabilities>, deprecated)]
     pub webhook_setup_capabilities:
         Option<common_types::connector_webhook_configuration::WebhookSetupCapabilities>,
 }
@@ -3620,6 +3696,9 @@ pub struct PaymentLinkConfigRequest {
     /// Flag to display the merchant name in the payment link
     #[schema(default = true, example = true)]
     pub show_merchant_name: Option<bool>,
+    /// Custom text for the separator shown between wallet and card payment method sections
+    #[schema(value_type = Option<String>, max_length = 64, example = "Or pay with")]
+    pub payment_methods_separator_text: Option<String>,
 }
 
 impl PaymentLinkConfigRequest {
@@ -3753,6 +3832,8 @@ pub struct PaymentLinkConfig {
     pub color_icon_card_cvc_error: Option<String>,
     /// Flag to display the merchant name in the payment link
     pub show_merchant_name: Option<bool>,
+    /// Custom text for the separator shown between wallet and card payment method sections
+    pub payment_methods_separator_text: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
@@ -3865,6 +3946,7 @@ mod tests {
             is_setup_mandate_flow: None,
             color_icon_card_cvc_error: None,
             show_merchant_name: None,
+            payment_methods_separator_text: None,
         };
         assert!(safe_request.validate().is_ok());
 
