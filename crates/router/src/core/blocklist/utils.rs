@@ -178,6 +178,124 @@ pub(super) fn validate_bin(
     })
 }
 
+pub async fn get_blocklist_count(
+    state: &SessionState,
+    processor: &domain::Processor,
+    profile_id: Option<common_utils::id_type::ProfileId>,
+    query: api_blocklist::BlocklistCountQuery,
+) -> RouterResult<api_blocklist::BlocklistCountResponse> {
+    let processor_merchant_id = processor.get_account().get_id();
+    let profile_id = core_utils::get_profile_id_from_business_details(
+        None,
+        None,
+        processor,
+        profile_id.as_ref(),
+        &*state.store,
+        true,
+    )
+    .await?;
+
+    let (total_count, counts_by_length) = match query.data_kind {
+        // Fingerprints are fixed-width hashes, so there is no breakdown worth grouping for.
+        common_enums::BlocklistDataKind::PaymentMethod => {
+            let total_count = state
+                .store
+                .get_blocklist_entries_count_by_processor_merchant_id_profile_id_data_kind(
+                    processor_merchant_id,
+                    Some(&profile_id),
+                    query.data_kind,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("failed to count blocklist entries")?;
+
+            (total_count, None)
+        }
+
+        common_enums::BlocklistDataKind::CardBin
+        | common_enums::BlocklistDataKind::ExtendedCardBin
+        | common_enums::BlocklistDataKind::GenericCardBin => {
+            let length_counts = state
+                .store
+                .count_blocklist_entries_by_fingerprint_length_processor_merchant_id_profile_id_data_kind(
+                    processor_merchant_id,
+                    &profile_id,
+                    query.data_kind,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("failed to count blocklist entries by fingerprint length")?;
+
+            let counts_by_length = length_counts
+                .into_iter()
+                .map(|(length, count)| {
+                    let length = usize::try_from(length)
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable(
+                            "fingerprint length returned by the database did not fit in usize",
+                        )?;
+                    let count = usize::try_from(count)
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable(
+                            "blocklist entry count returned by the database did not fit in usize",
+                        )?;
+                    Ok((length, count))
+                })
+                .collect::<RouterResult<std::collections::BTreeMap<_, _>>>()?;
+
+            (counts_by_length.values().sum(), Some(counts_by_length))
+        }
+    };
+
+    Ok(api_blocklist::BlocklistCountResponse {
+        data_kind: query.data_kind,
+        total_count,
+        counts_by_length,
+    })
+}
+
+pub async fn lookup_blocklist_entry(
+    state: &SessionState,
+    processor: &domain::Processor,
+    profile_id: Option<common_utils::id_type::ProfileId>,
+    query: api_blocklist::BlocklistLookupQuery,
+) -> RouterResult<api_blocklist::BlocklistLookupResponse> {
+    let processor_merchant_id = processor.get_account().get_id();
+    let profile_id = core_utils::get_profile_id_from_business_details(
+        None,
+        None,
+        processor,
+        profile_id.as_ref(),
+        &*state.store,
+        true,
+    )
+    .await?;
+
+    let result = state
+        .store
+        .find_blocklist_entry_by_processor_merchant_id_profile_id_fingerprint_id(
+            processor_merchant_id,
+            &profile_id,
+            query.data.get_string_repr(),
+        )
+        .await;
+
+    let blocked = match result {
+        Ok(_) => true,
+        Err(error) if error.current_context().is_db_not_found() => false,
+        Err(error) => {
+            return Err(error
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("failed to look up blocklist entry"));
+        }
+    };
+
+    Ok(api_blocklist::BlocklistLookupResponse {
+        data: query.data.get_string_repr().to_string(),
+        blocked,
+    })
+}
+
 pub async fn insert_entry_into_blocklist(
     state: &SessionState,
     platform: &domain::Platform,
