@@ -473,7 +473,7 @@ impl TryFrom<&SetupMandateRouterData> for CybersourceZeroMandateRequest {
                     )
                 })
             })
-            .unwrap_or_else(|| {
+            .or_else(|| {
                 get_commerce_indicator_for_wallet_payment(
                     solution.as_ref(),
                     &item.request.payment_method_data,
@@ -520,7 +520,8 @@ pub struct ProcessingInformation {
     action_list: Option<Vec<CybersourceActionsList>>,
     action_token_types: Option<Vec<CybersourceActionsTokenType>>,
     authorization_options: Option<CybersourceAuthorizationOptions>,
-    commerce_indicator: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    commerce_indicator: Option<String>,
     capture: Option<bool>,
     capture_options: Option<CaptureOptions>,
     payment_solution: Option<String>,
@@ -1102,7 +1103,7 @@ impl
                         ),
                         None => None,
                     };
-                    commerce_indicator = "recurring".to_string();
+                    commerce_indicator = Some("recurring".to_string());
                     (
                         None,
                         None,
@@ -1172,7 +1173,7 @@ impl
                         ),
                         None => None,
                     };
-                    commerce_indicator = "recurring".to_string(); //
+                    commerce_indicator = Some("recurring".to_string());
                     (
                         None,
                         None,
@@ -1237,7 +1238,7 @@ impl
             authorization_options,
             capture_options: None,
             commerce_indicator: commerce_indicator_for_external_authentication
-                .unwrap_or(commerce_indicator),
+                .or(commerce_indicator),
         })
     }
 }
@@ -1344,21 +1345,12 @@ fn get_commerce_indicator_for_wallet_payment(
     payment_method_data: &PaymentMethodData,
     authentication_type: enums::AuthenticationType,
     card_network: Option<&str>,
-) -> String {
-    payment_solution
-        .map(|pm_solution| match pm_solution {
-            PaymentSolution::GooglePay => {
-                let is_google_pay_pan_only = match payment_method_data {
-                    PaymentMethodData::Wallet(WalletData::GooglePay(gpay_data)) => {
-                        gpay_data.is_pan_only()
-                    }
-                    _ => false,
-                };
-
-                if is_google_pay_pan_only && !authentication_type.is_three_ds() {
-                    "internet"
-                } else {
-                    match normalize_cybersource_card_network(card_network) {
+) -> Option<String> {
+    let commerce_indicator = match payment_solution {
+        Some(PaymentSolution::GooglePay) => {
+            if payment_method_data.is_google_pay_pan_only() {
+                if authentication_type.is_three_ds() {
+                    Some(match normalize_cybersource_card_network(card_network) {
                         Some("diners") => "pb",
                         Some("mastercard") => "spa",
                         Some("maestro") => "spa",
@@ -1367,18 +1359,27 @@ fn get_commerce_indicator_for_wallet_payment(
                         Some("discover") => "dipb",
                         Some("jcb") => "js",
                         _ => "internet",
-                    }
+                    })
+                } else {
+                    Some("internet")
                 }
+            } else {
+                // CRYPTOGRAM_3DS credentials already carry the cryptogram and ECI as part
+                // of the network token, so the commerce_indicator field is omitted.
+                None
             }
-            PaymentSolution::ApplePay | PaymentSolution::SamsungPay => card_network
+        }
+        Some(PaymentSolution::ApplePay) | Some(PaymentSolution::SamsungPay) => Some(
+            card_network
                 .map(|card_network| match card_network.to_lowercase().as_str() {
                     "mastercard" => "spa",
                     _ => "internet",
                 })
                 .unwrap_or("internet"),
-        })
-        .unwrap_or("internet")
-        .to_string()
+        ),
+        None => Some("internet"),
+    };
+    commerce_indicator.map(String::from)
 }
 
 impl
@@ -1455,10 +1456,12 @@ impl
             action_token_types,
             authorization_options,
             capture_options: None,
-            commerce_indicator: three_ds_data
-                .indicator
-                .to_owned()
-                .unwrap_or(String::from("internet")),
+            commerce_indicator: Some(
+                three_ds_data
+                    .indicator
+                    .to_owned()
+                    .unwrap_or(String::from("internet")),
+            ),
         })
     }
 }
@@ -3137,7 +3140,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsCaptureRouterData>>
                 action_token_types: None,
                 authorization_options: None,
                 capture: None,
-                commerce_indicator: String::from("internet"),
+                commerce_indicator: Some(String::from("internet")),
                 payment_solution: None,
             },
             order_information: OrderInformationWithBill {
@@ -3183,7 +3186,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsIncrementalAuthorizationRouterData>
                     ignore_avs_result: connector_merchant_config.disable_avs,
                     ignore_cv_result: connector_merchant_config.disable_cvn,
                 }),
-                commerce_indicator: String::from("internet"),
+                commerce_indicator: Some(String::from("internet")),
                 capture: None,
                 capture_options: None,
                 payment_solution: None,
