@@ -156,6 +156,9 @@ pub struct PaymentIntent {
     pub profile_acquirer_id: Option<id_type::ProfileAcquirerId>,
     pub external_surcharge_strategy: Option<common_enums::SurchargeStrategy>,
     pub external_surcharge_applicable: Option<bool>,
+    pub is_account_funded_transaction: Option<bool>,
+    #[encrypt]
+    pub recipient_details: Option<Encryptable<Secret<Value>>>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -414,6 +417,25 @@ impl PaymentIntent {
                     None
                 }
             })
+    }
+
+    /// Decrypt and parse the recipient details
+    pub fn get_recipient_details(
+        &self,
+    ) -> CustomResult<
+        Option<api_models::payments::RecipientDetails>,
+        common_utils::errors::ParsingError,
+    > {
+        self.recipient_details
+            .as_ref()
+            .map(|details| {
+                let decrypted_value = details.clone().into_inner().expose();
+                ValueExt::parse_value::<api_models::payments::RecipientDetails>(
+                    decrypted_value,
+                    "RecipientDetails",
+                )
+            })
+            .transpose()
     }
 
     #[cfg(feature = "v1")]
@@ -1016,6 +1038,11 @@ pub struct PaymentIntent {
     /// Denotes the surcharge strategy for this payment.
     pub external_surcharge_strategy: Option<common_enums::SurchargeStrategy>,
     pub external_surcharge_applicable: Option<bool>,
+    /// Denotes whether this payment is an account funded transaction.
+    pub is_account_funded_transaction: Option<bool>,
+    /// The details of the party receiving the funds in an account funded transaction.
+    #[encrypt]
+    pub recipient_details: Option<Encryptable<Secret<Value>>>,
 }
 
 #[cfg(feature = "v2")]
@@ -1035,7 +1062,7 @@ impl PaymentIntent {
             })
             .ok_or(
                 common_utils::errors::ValidationError::MissingRequiredField {
-                    field_name: "connector_customer_id".to_string(),
+                    field_name: "connector_customer_id".into(),
                 },
             )
     }
@@ -1226,6 +1253,8 @@ impl PaymentIntent {
             profile_acquirer_id: None,
             external_surcharge_strategy: None,
             external_surcharge_applicable: None,
+            is_account_funded_transaction: request.is_account_funded_transaction,
+            recipient_details: decrypted_payment_intent.recipient_details,
         })
     }
 
@@ -1235,6 +1264,17 @@ impl PaymentIntent {
         self.feature_metadata
             .as_ref()
             .and_then(|feature_metadata| feature_metadata.payment_revenue_recovery_metadata.clone())
+    }
+
+    /// Retries already made against this invoice, by the billing connector and by recovery
+    /// together. Zero for an intent that has not entered recovery.
+    pub fn get_revenue_recovery_retry_count(&self) -> Option<u16> {
+        self.feature_metadata
+            .as_ref()
+            .and_then(|feature_metadata| {
+                feature_metadata.payment_revenue_recovery_metadata.as_ref()
+            })
+            .map(|revenue_recovery_metadata| revenue_recovery_metadata.total_retry_count)
     }
 
     pub fn get_feature_metadata(&self) -> Option<FeatureMetadata> {
@@ -1561,6 +1601,7 @@ pub struct RevenueRecoveryData {
     pub connector_customer_id: String,
     pub retry_count: Option<u16>,
     pub invoice_next_billing_time: Option<PrimitiveDateTime>,
+    pub invoice_billing_started_at_time: Option<PrimitiveDateTime>,
     pub triggered_by: storage_enums::enums::TriggeredBy,
     pub card_network: Option<common_enums::CardNetwork>,
     pub card_issuer: Option<String>,
@@ -1669,10 +1710,17 @@ where
                     router_env::logger::error!(?err, "Failed to parse connector string to enum");
                     errors::api_error_response::ApiErrorResponse::InternalServerError
                 })?,
-                invoice_next_billing_time: self.revenue_recovery_data.invoice_next_billing_time,
-                invoice_billing_started_at_time: self
-                    .revenue_recovery_data
-                    .invoice_next_billing_time,
+                // Both billing times belong to the invoice rather than to an individual attempt,
+                // so the value recorded first is retained and later webhooks only seed it when it
+                // is still unset.
+                invoice_next_billing_time: revenue_recovery
+                    .as_ref()
+                    .and_then(|data| data.invoice_next_billing_time)
+                    .or(self.revenue_recovery_data.invoice_next_billing_time),
+                invoice_billing_started_at_time: revenue_recovery
+                    .as_ref()
+                    .and_then(|data| data.invoice_billing_started_at_time)
+                    .or(self.revenue_recovery_data.invoice_billing_started_at_time),
                 billing_connector_payment_method_details,
                 first_payment_attempt_network_advice_code: first_network_advice_code,
                 first_payment_attempt_network_decline_code: first_network_decline_code,

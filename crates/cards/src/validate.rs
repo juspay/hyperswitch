@@ -15,6 +15,13 @@ pub const MIN_CARD_NUMBER_LENGTH: usize = 8;
 /// Maximum limit of a card number will not exceed 19 by ISO standards
 pub const MAX_CARD_NUMBER_LENGTH: usize = 19;
 
+/// Narrowest card number prefix that may be blocklisted
+pub const MIN_CARD_BIN_LENGTH: usize = 6;
+
+/// Widest card number prefix that may be blocklisted. Bounded well short of a full card number
+/// because blocklist prefixes are stored in plaintext, unlike vault-hashed card numbers.
+pub const MAX_CARD_BIN_LENGTH: usize = 10;
+
 #[derive(Debug, Deserialize, Serialize, Error)]
 #[error("{0}")]
 pub struct CardNumberValidationErr(&'static str);
@@ -28,12 +35,22 @@ pub struct CardNumber(StrongSecret<String, CardNumberStrategy>);
 pub struct NetworkToken(StrongSecret<String, CardNumberStrategy>);
 
 impl CardNumber {
+    fn get_bin_prefix(&self, len: usize) -> String {
+        self.0.peek().chars().take(len).collect::<String>()
+    }
+
     pub fn get_card_isin(&self) -> String {
-        self.0.peek().chars().take(6).collect::<String>()
+        self.get_bin_prefix(6)
     }
 
     pub fn get_extended_card_bin(&self) -> String {
-        self.0.peek().chars().take(8).collect::<String>()
+        self.get_bin_prefix(8)
+    }
+
+    pub fn get_blocklist_bin_prefixes(&self) -> Vec<String> {
+        (MIN_CARD_BIN_LENGTH..=MAX_CARD_BIN_LENGTH)
+            .map(|len| self.get_bin_prefix(len))
+            .collect()
     }
     pub fn get_card_no(&self) -> String {
         self.0.peek().chars().collect::<String>()

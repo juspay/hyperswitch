@@ -273,6 +273,7 @@ impl TryFrom<&PaymePaySaleResponse> for PaymentsResponseData {
             incremental_authorization_allowed: None,
             authentication_data: None,
             charges: None,
+            payment_account_reference: None,
         })
     }
 }
@@ -347,6 +348,7 @@ impl From<&SaleQuery> for PaymentsResponseData {
             incremental_authorization_allowed: None,
             authentication_data: None,
             charges: None,
+            payment_account_reference: None,
         }
     }
 }
@@ -379,7 +381,7 @@ impl TryFrom<&PaymeRouterData<&CreateOrderRouterData>> for GenerateSaleRequest {
             .clone()
             .get_required_value("order_details")
             .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "order_details",
+                field_name: "order_details".into(),
             })?;
         let services = get_services(item.router_data.auth_type);
         let product_name = order_details
@@ -400,7 +402,7 @@ impl TryFrom<&PaymeRouterData<&CreateOrderRouterData>> for GenerateSaleRequest {
             .clone()
             .get_required_value("router_return_url")
             .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "router_return_url",
+                field_name: "router_return_url".into(),
             })?;
         let sale_callback_url = item
             .router_data
@@ -409,7 +411,7 @@ impl TryFrom<&PaymeRouterData<&CreateOrderRouterData>> for GenerateSaleRequest {
             .clone()
             .get_required_value("webhook_url")
             .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "webhook_url",
+                field_name: "webhook_url".into(),
             })?;
         Ok(Self {
             seller_payme_id,
@@ -640,6 +642,7 @@ impl<F>
                             incremental_authorization_allowed: None,
                             authentication_data: None,
                             charges: None,
+                            payment_account_reference: None,
                         }),
                         ..item.data
                     }),
@@ -769,6 +772,7 @@ impl<F>
                             incremental_authorization_allowed: None,
                             authentication_data: None,
                             charges: None,
+                            payment_account_reference: None,
                         }),
                         ..item.data
                     }),
@@ -938,7 +942,7 @@ impl TryFrom<&PaymentsCompleteAuthorizeRouterData> for Pay3dsRequest {
 
                 let jwt_data: PaymeRedirectResponseData = serde_json::from_value(payload_data)
                     .change_context(errors::ConnectorError::MissingConnectorRedirectionPayload {
-                        field_name: "meta_data_jwt",
+                        field_name: "meta_data_jwt".into(),
                     })?;
 
                 let payme_sale_id = item
@@ -1383,6 +1387,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<PaymeVoidResponse>> for PaymentsCa
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             })
         };
         Ok(Self {

@@ -159,6 +159,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, TrustlyPaymentsResponse, T, PaymentsRes
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -459,14 +460,14 @@ fn get_customer_details(
                 .first_name
                 .clone()
                 .ok_or(ConnectorError::MissingRequiredField {
-                    field_name: "first_name",
+                    field_name: "first_name".into(),
                 })?
                 .expose();
             let last_name = address
                 .last_name
                 .clone()
                 .ok_or(ConnectorError::MissingRequiredField {
-                    field_name: "last_name",
+                    field_name: "last_name".into(),
                 })?
                 .expose();
 
@@ -475,7 +476,7 @@ fn get_customer_details(
     }
 
     Err(ConnectorError::MissingRequiredField {
-        field_name: "customer's first name / last name",
+        field_name: "customer's first name / last name".into(),
     })
 }
 
@@ -493,12 +494,12 @@ impl<F> TryFrom<&TrustlyRouterData<&PayoutsRouterData<F>>> for RegisterAccountRe
                         (
                             trustly_data.bank_account_number.ok_or(
                                 ConnectorError::MissingRequiredField {
-                                    field_name: "account_number",
+                                    field_name: "account_number".into(),
                                 },
                             )?,
                             trustly_data.bank_number.ok_or(
                                 ConnectorError::MissingRequiredField {
-                                    field_name: "bank_number",
+                                    field_name: "bank_number".into(),
                                 },
                             )?,
                         )
@@ -568,6 +569,8 @@ impl<F> TryFrom<&TrustlyRouterData<&PayoutsRouterData<F>>> for RegisterAccountRe
                 | BankTransfer::Pix(_)
                 | BankTransfer::PixKey(_)
                 | BankTransfer::PixEmv(_)
+                | BankTransfer::Payshap(_)
+                | BankTransfer::PayshapProxy(_)
                 | BankTransfer::OpenBanking(_) => Err(ConnectorError::NotImplemented(
                     get_unimplemented_payment_method_error_message("Trustly"),
                 ))?,
@@ -715,7 +718,7 @@ impl<F> TryFrom<&TrustlyRouterData<&PayoutsRouterData<F>>> for AccountPayoutRequ
                         attributes: Some(AccountPayoutAttributes {
                             shopper_statement: item.router_data.description.clone().ok_or(
                                 ConnectorError::MissingRequiredField {
-                                    field_name: "description",
+                                    field_name: "description".into(),
                                 },
                             )?,
                         }),
@@ -753,6 +756,8 @@ impl<F> TryFrom<&TrustlyRouterData<&PayoutsRouterData<F>>> for AccountPayoutRequ
                 | BankTransfer::Pix(_)
                 | BankTransfer::PixKey(_)
                 | BankTransfer::PixEmv(_)
+                | BankTransfer::Payshap(_)
+                | BankTransfer::PayshapProxy(_)
                 | BankTransfer::OpenBanking(_) => Err(ConnectorError::NotImplemented(
                     get_unimplemented_payment_method_error_message("Trustly"),
                 ))?,

@@ -64,6 +64,7 @@ pub enum PaymentsResponseData {
         network_txn_id: Option<String>,
         network_txn_link_id: Option<String>,
         connector_response_reference_id: Option<String>,
+        payment_account_reference: Option<String>,
         incremental_authorization_allowed: Option<bool>,
         authentication_data: Option<Box<UcsAuthenticationData>>,
         charges: Option<common_types::payments::ConnectorChargeResponseData>,
@@ -248,6 +249,16 @@ impl PaymentsResponseData {
         }
     }
 
+    pub fn get_payment_account_reference(&self) -> Option<String> {
+        match self {
+            Self::TransactionResponse {
+                payment_account_reference,
+                ..
+            } => payment_account_reference.clone(),
+            _ => None,
+        }
+    }
+
     pub fn get_connector_transaction_id(
         &self,
     ) -> Result<String, error_stack::Report<ApiErrorResponse>> {
@@ -257,7 +268,7 @@ impl PaymentsResponseData {
                 ..
             } => Ok(txn_id.to_string()),
             _ => Err(ApiErrorResponse::MissingRequiredField {
-                field_name: "ConnectorTransactionId",
+                field_name: "ConnectorTransactionId".into(),
             }
             .into()),
         }
@@ -277,6 +288,7 @@ impl PaymentsResponseData {
                     network_txn_id: auth_network_txn_id,
                     network_txn_link_id: auth_network_txn_link_id,
                     connector_response_reference_id: auth_connector_response_reference_id,
+                    payment_account_reference: auth_payment_account_reference,
                     incremental_authorization_allowed: auth_incremental_auth_allowed,
                     authentication_data: auth_authentication_data,
                     charges: auth_charges,
@@ -289,6 +301,7 @@ impl PaymentsResponseData {
                     network_txn_id: capture_network_txn_id,
                     network_txn_link_id: capture_network_txn_link_id,
                     connector_response_reference_id: capture_connector_response_reference_id,
+                    payment_account_reference: capture_payment_account_reference,
                     incremental_authorization_allowed: capture_incremental_auth_allowed,
                     authentication_data: capture_authentication_data,
                     charges: capture_charges,
@@ -317,6 +330,9 @@ impl PaymentsResponseData {
                 connector_response_reference_id: capture_connector_response_reference_id
                     .clone()
                     .or(auth_connector_response_reference_id.clone()),
+                payment_account_reference: capture_payment_account_reference
+                    .clone()
+                    .or(auth_payment_account_reference.clone()),
                 incremental_authorization_allowed: (*capture_incremental_auth_allowed)
                     .or(*auth_incremental_auth_allowed),
                 authentication_data: capture_authentication_data
@@ -882,7 +898,7 @@ impl VaultIdType {
         match self {
             Self::SingleVaultId(vault_id) => Ok(vault_id.to_string()),
             Self::MultiVauldIds(_) => Err(ApiErrorResponse::MissingRequiredField {
-                field_name: "SingleVaultId",
+                field_name: "SingleVaultId".into(),
             }
             .into()),
         }

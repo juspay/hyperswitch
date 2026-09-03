@@ -207,6 +207,7 @@ impl<F, T>
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             })
         };
         match (amount_captured_in_minor_units, status) {

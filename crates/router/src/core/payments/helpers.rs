@@ -1114,7 +1114,7 @@ fn validate_card_cvc(
     let card_cvc =
         cvc.parse::<u16>()
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "card_cvc",
+                field_name: "card_cvc".into(),
             })?;
     ::cards::CardSecurityCode::try_from(card_cvc).change_context(
         errors::ApiErrorResponse::PreconditionFailed {
@@ -1135,7 +1135,7 @@ pub fn validate_card_expiry(
         .to_string()
         .parse::<u8>()
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "card_exp_month",
+            field_name: "card_exp_month".into(),
         })?;
     let month = ::cards::CardExpirationMonth::try_from(exp_month).change_context(
         errors::ApiErrorResponse::PreconditionFailed {
@@ -1151,7 +1151,7 @@ pub fn validate_card_expiry(
         year_str
             .parse::<u16>()
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "card_exp_year",
+                field_name: "card_exp_year".into(),
             })?;
     let year = ::cards::CardExpirationYear::try_from(exp_year).change_context(
         errors::ApiErrorResponse::PreconditionFailed {
@@ -1782,6 +1782,11 @@ pub fn get_customer_details_from_request_or_pm_table(
         .as_ref()
         .and_then(|customer_details| customer_details.tax_registration_id.clone());
 
+    let date_of_birth = request
+        .customer
+        .as_ref()
+        .and_then(|customer_details| customer_details.date_of_birth.clone());
+
     let document_details = match mandate_type {
         Some(api::MandateTransactionType::NewMandateTransaction) | None => {
             // Extracting customer details from request in case of CIT/One-Off
@@ -1824,6 +1829,7 @@ pub fn get_customer_details_from_request_or_pm_table(
         phone_country_code: customer_phone_code,
         tax_registration_id,
         document_details,
+        date_of_birth,
     })
 }
 
@@ -1846,7 +1852,7 @@ pub async fn get_connector_data_from_request(
         .as_ref()
         .map(|connector_details| connector_details.connector_name.to_string())
         .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "merchant_connector_details",
+            field_name: "merchant_connector_details".into(),
         })?;
     let connector_data: api::ConnectorData = api::ConnectorData::get_connector_by_name(
         &state.conf.connectors,
@@ -1886,6 +1892,7 @@ pub async fn populate_raw_customer_details<F: Clone>(
             phone_country_code: request_customer_details.phone_country_code.clone(),
             tax_registration_id: request_customer_details.tax_registration_id.clone(),
             customer_document_details: request_customer_details.document_details.clone(),
+            date_of_birth: None,
         })
     } else {
         None
@@ -1931,6 +1938,7 @@ pub async fn populate_raw_customer_details<F: Clone>(
                 .document_details
                 .clone()
                 .or(parsed_customer_data.customer_document_details.clone()),
+            date_of_birth: None,
         })
         .or(temp_customer_data);
 
@@ -2258,6 +2266,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                                 .change_context(storage_impl::StorageError::SerializationFailed)
                         })
                         .transpose()?,
+                    date_of_birth: None,
                 };
 
                 // Merge with existing payment intent customer details if present
@@ -2896,7 +2905,7 @@ pub async fn retrieve_payment_method_data_with_permanent_token(
         .map(|conn| {
             api_enums::Connector::from_str(conn.as_str())
                 .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "connector",
+                    field_name: "connector".into(),
                 })
                 .attach_printable_lazy(|| format!("unable to parse connector name {connector:?}"))
         })
@@ -3976,7 +3985,7 @@ pub(crate) fn validate_capture_method(
         capture_method == storage_enums::CaptureMethod::Automatic,
         || {
             Err(report!(errors::ApiErrorResponse::PaymentUnexpectedState {
-                field_name: "capture_method".to_string(),
+                field_name: "capture_method".into(),
                 current_flow: "captured".to_string(),
                 current_value: capture_method.to_string(),
                 states: "manual, manual_multiple, scheduled".to_string()
@@ -3994,7 +4003,7 @@ pub(crate) fn validate_status_with_capture_method(
         && !(capture_method == storage_enums::CaptureMethod::ManualMultiple)
     {
         return Err(report!(errors::ApiErrorResponse::PaymentUnexpectedState {
-            field_name: "capture_method".to_string(),
+            field_name: "capture_method".into(),
             current_flow: "captured".to_string(),
             current_value: capture_method.to_string(),
             states: "manual_multiple".to_string()
@@ -4007,7 +4016,7 @@ pub(crate) fn validate_status_with_capture_method(
             && status != storage_enums::IntentStatus::Processing,
         || {
             Err(report!(errors::ApiErrorResponse::PaymentUnexpectedState {
-                field_name: "payment.status".to_string(),
+                field_name: "payment.status".into(),
                 current_flow: "captured".to_string(),
                 current_value: status.to_string(),
                 states: "requires_capture, partially_captured_and_capturable, processing"
@@ -4024,7 +4033,7 @@ pub(crate) fn validate_amount_to_capture(
 ) -> RouterResult<()> {
     utils::when(amount_to_capture.is_some_and(|value| value <= 0), || {
         Err(report!(errors::ApiErrorResponse::InvalidDataFormat {
-            field_name: "amount".to_string(),
+            field_name: "amount".into(),
             expected_format: "positive integer".to_string(),
         }))
     })?;
@@ -4054,7 +4063,7 @@ pub(crate) fn validate_payment_method_fields_present(
         req.payment_method.is_none() && payment_method_data.is_some(),
         || {
             Err(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "payment_method",
+                field_name: "payment_method".into(),
             })
         },
     )?;
@@ -4066,7 +4075,7 @@ pub(crate) fn validate_payment_method_fields_present(
         ) && (req.payment_method_type.is_none()),
         || {
             Err(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "payment_method_type",
+                field_name: "payment_method_type".into(),
             })
         },
     )?;
@@ -4079,7 +4088,7 @@ pub(crate) fn validate_payment_method_fields_present(
             && req.ctp_service_details.is_none(),
         || {
             Err(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "payment_method_data",
+                field_name: "payment_method_data".into(),
             })
         },
     )?;
@@ -4800,7 +4809,7 @@ pub async fn verify_payment_intent_time_and_client_secret(
 
             let payment_id = id_type::PaymentId::wrap(payment_id).change_context(
                 errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "payment_id",
+                    field_name: "payment_id".into(),
                 },
             )?;
 
@@ -4961,6 +4970,8 @@ mod tests {
             enable_partial_authorization: None,
             enable_overcapture: None,
             billing_descriptor: None,
+            is_account_funded_transaction: None,
+            recipient_details: None,
             partner_merchant_identifier_details: None,
             state_metadata: None,
             installment_options: None,
@@ -5054,6 +5065,8 @@ mod tests {
             enable_partial_authorization: None,
             enable_overcapture: None,
             billing_descriptor: None,
+            is_account_funded_transaction: None,
+            recipient_details: None,
             tokenization: None,
             partner_merchant_identifier_details: None,
             state_metadata: None,
@@ -5147,6 +5160,8 @@ mod tests {
             enable_partial_authorization: None,
             enable_overcapture: None,
             billing_descriptor: None,
+            is_account_funded_transaction: None,
+            recipient_details: None,
             partner_merchant_identifier_details: None,
             state_metadata: None,
             installment_options: None,
@@ -5413,6 +5428,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         feature_data: router_data.feature_data,
         sender_payment_instrument_id: router_data.sender_payment_instrument_id,
         connector_returned_payment_method_details: None,
+        customer_date_of_birth: router_data.customer_date_of_birth,
     }
 }
 
@@ -5695,6 +5711,7 @@ impl AttemptType {
             // New payment method billing address can be passed for a retry
             payment_method_billing_address_id: None,
             fingerprint_id: None,
+            fingerprint_type: None,
             client_source: old_payment_attempt.client_source,
             client_version: old_payment_attempt.client_version,
             customer_acceptance: old_payment_attempt.customer_acceptance,
@@ -5731,6 +5748,7 @@ impl AttemptType {
             external_surcharge_details: None,
             applied_offer_details: None,
             sender_payment_instrument_id: None,
+            payment_account_reference: None,
         }
     }
 
@@ -6345,6 +6363,7 @@ pub async fn get_additional_payment_data(
                     })),
                     google_pay: None,
                     samsung_pay: None,
+                    paypal: None,
                 }))
             }
             domain::WalletData::GooglePay(google_pay_pm_data) => {
@@ -6371,6 +6390,7 @@ pub async fn get_additional_payment_data(
                         },
                     )),
                     samsung_pay: None,
+                    paypal: None,
                 }))
             }
             domain::WalletData::SamsungPay(samsung_pay_pm_data) => {
@@ -6399,12 +6419,14 @@ pub async fn get_additional_payment_data(
                             email: None,
                         },
                     )),
+                    paypal: None,
                 }))
             }
             _ => Ok(Some(api_models::payments::AdditionalPaymentData::Wallet {
                 apple_pay: None,
                 google_pay: None,
                 samsung_pay: None,
+                paypal: None,
             })),
         },
         domain::PaymentMethodData::PayLater(_) => Ok(Some(
@@ -6933,7 +6955,7 @@ pub fn get_applepay_metadata(
                 })
         })
         .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-            field_name: "connector_metadata".to_string(),
+            field_name: "connector_metadata".into(),
             expected_format: "applepay_metadata_format".to_string(),
         })
 }
@@ -8365,6 +8387,7 @@ pub fn add_connector_response_to_additional_payment_data(
                 apple_pay,
                 google_pay,
                 samsung_pay,
+                paypal,
             },
             AdditionalPaymentMethodConnectorResponse::GooglePay { auth_code, .. }
             | AdditionalPaymentMethodConnectorResponse::ApplePay { auth_code, .. },
@@ -8382,6 +8405,26 @@ pub fn add_connector_response_to_additional_payment_data(
                 })
             }),
             samsung_pay: samsung_pay.clone(),
+            paypal: paypal.clone(),
+        },
+        (
+            api_models::payments::AdditionalPaymentData::Wallet {
+                apple_pay,
+                google_pay,
+                samsung_pay,
+                ..
+            },
+            AdditionalPaymentMethodConnectorResponse::Paypal { email, payer_id },
+        ) => api_models::payments::AdditionalPaymentData::Wallet {
+            apple_pay: apple_pay.clone(),
+            google_pay: google_pay.clone(),
+            samsung_pay: samsung_pay.clone(),
+            paypal: Some(Box::new(
+                payment_additional_types::PaypalWalletAdditionalData {
+                    email,
+                    payer_id: payer_id.map(|payer_id| payer_id.expose()),
+                },
+            )),
         },
         #[cfg(feature = "v2")]
         (
@@ -8437,7 +8480,10 @@ pub async fn get_payment_method_data_and_encrypted_payment_method_data(
     if payment_attempt
         .payment_method
         .as_ref()
-        .map(|payment_method| payment_method.is_additional_payment_method_data_sensitive())
+        .map(|payment_method| {
+            payment_method
+                .is_additional_payment_method_data_sensitive(payment_attempt.payment_method_type)
+        })
         .unwrap_or(false)
     {
         let encrypted_payment_method_data = additional_payment_method_data_intermediate
@@ -9072,7 +9118,7 @@ pub async fn validate_routing_id_with_profile_id(
                     profile_id
                 );
                 err.change_context(errors::ApiErrorResponse::InvalidDataFormat {
-                    field_name: "routing_algorithm_id".to_string(),
+                    field_name: "routing_algorithm_id".into(),
                     expected_format: "A valid routing_id that belongs to the business_profile"
                         .to_string(),
                 })
@@ -9133,8 +9179,8 @@ pub async fn validate_merchant_connector_ids_in_connector_mandate_details(
                     ) {
                         Err(errors::ApiErrorResponse::MissingRequiredFields {
                             field_names: vec![
-                                "original_payment_authorized_currency",
-                                "original_payment_authorized_amount",
+                                "original_payment_authorized_currency".into(),
+                                "original_payment_authorized_amount".into(),
                             ],
                         })
                         .attach_printable(format!(
@@ -9145,7 +9191,7 @@ pub async fn validate_merchant_connector_ids_in_connector_mandate_details(
                 }
                 (_, Some(_)) => (),
                 (_, None) => Err(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "merchant_connector_id",
+                    field_name: "merchant_connector_id".into(),
                 })
                 .attach_printable_lazy(|| {
                     format!(
@@ -9177,7 +9223,7 @@ pub fn validate_platform_request_for_marketplace(
                     != MinorUnit::zero()
                 {
                     return Err(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "split_payments.stripe_split_payment.application_fees",
+                        field_name: "split_payments.stripe_split_payment.application_fees".into(),
                     });
                 }
             }
@@ -9189,7 +9235,7 @@ pub fn validate_platform_request_for_marketplace(
                     > amount.into()
                 {
                     return Err(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "split_payments.stripe_split_payment.application_fees",
+                        field_name: "split_payments.stripe_split_payment.application_fees".into(),
                     });
                 }
             }
@@ -9212,7 +9258,8 @@ pub fn validate_platform_request_for_marketplace(
                 api::Amount::Zero => {
                     if total_split_amount != 0 {
                         return Err(errors::ApiErrorResponse::InvalidDataValue {
-                            field_name: "Sum of split amounts should be equal to the total amount",
+                            field_name: "Sum of split amounts should be equal to the total amount"
+                                .into(),
                         });
                     }
                 }
@@ -9237,7 +9284,7 @@ pub fn validate_platform_request_for_marketplace(
                             if split_item.account.is_none() {
                                 return Err(errors::ApiErrorResponse::MissingRequiredField {
                                     field_name:
-                                        "split_payments.adyen_split_payment.split_items.account",
+                                        "split_payments.adyen_split_payment.split_items.account".into(),
                                 });
                             }
                         }
@@ -9247,14 +9294,14 @@ pub fn validate_platform_request_for_marketplace(
                             if split_item.amount.is_none() {
                                 return Err(errors::ApiErrorResponse::MissingRequiredField {
                                     field_name:
-                                        "split_payments.adyen_split_payment.split_items.amount",
+                                        "split_payments.adyen_split_payment.split_items.amount".into(),
                                 });
                             }
                             if let enums::AdyenSplitType::TopUp = split_item.split_type {
                                 if split_item.account.is_none() {
                                     return Err(errors::ApiErrorResponse::MissingRequiredField {
                                         field_name:
-                                            "split_payments.adyen_split_payment.split_items.account",
+                                            "split_payments.adyen_split_payment.split_items.account".into(),
                                     });
                                 }
                                 if adyen_split_payment.store.is_some() {
@@ -9298,7 +9345,8 @@ pub fn validate_platform_request_for_marketplace(
                         if total_split_amount != 0 {
                             return Err(errors::ApiErrorResponse::InvalidDataValue {
                                 field_name:
-                                    "Sum of split amounts should be equal to the total amount",
+                                    "Sum of split amounts should be equal to the total amount"
+                                        .into(),
                             });
                         }
                     }
@@ -9549,7 +9597,7 @@ pub async fn get_merchant_connector_account_v2(
                 id: merchant_connector_id.get_string_repr().to_string(),
             }),
         None => Err(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "merchant_connector_id",
+            field_name: "merchant_connector_id".into(),
         })
         .attach_printable("merchant_connector_id is not provided"),
     }

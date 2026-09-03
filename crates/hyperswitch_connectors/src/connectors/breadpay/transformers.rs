@@ -207,6 +207,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, BreadpayTransactionResponse, T, Payment
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -255,6 +256,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, BreadpayPaymentsResponse, T, PaymentsRe
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })

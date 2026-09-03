@@ -316,7 +316,7 @@ where
                 )
                 .await?;
 
-            let (router_data, _mca_type_details) = complete_connector_service(
+            let (router_data, _mca_type_details) = Box::pin(complete_connector_service(
                 &updated_state,
                 platform.get_processor(),
                 &operation,
@@ -332,7 +332,7 @@ where
                 None,
                 call_connector_service_response,
                 &dimensions,
-            )
+            ))
             .await?;
 
             let connector_response_data = common_types::domain::ConnectorResponseData {
@@ -427,7 +427,7 @@ where
                 )
                 .await?;
 
-            let (router_data, _mca_type_details) = complete_connector_service(
+            let (router_data, _mca_type_details) = Box::pin(complete_connector_service(
                 &updated_state,
                 platform.get_processor(),
                 &operation,
@@ -443,7 +443,7 @@ where
                 None,
                 call_connector_service_response,
                 &dimensions,
-            )
+            ))
             .await?;
 
             let connector_response_data = common_types::domain::ConnectorResponseData {
@@ -1091,7 +1091,7 @@ where
                         )
                         .await?;
 
-                    let (router_data, mca) = complete_connector_service(
+                    let (router_data, mca) = Box::pin(complete_connector_service(
                         &updated_state,
                         platform.get_processor(),
                         &operation,
@@ -1109,7 +1109,7 @@ where
                         None,
                         call_connector_service_response,
                         &dimensions.without_profile_id(),
-                    )
+                    ))
                     .await?;
 
                     let op_ref = &operation;
@@ -1279,7 +1279,7 @@ where
                         )
                         .await?;
 
-                    let (router_data, mca) = complete_connector_service(
+                    let (router_data, mca) = Box::pin(complete_connector_service(
                         &updated_state,
                         platform.get_processor(),
                         &operation,
@@ -1297,7 +1297,7 @@ where
                         None,
                         call_connector_service_response,
                         &dimensions.without_profile_id(),
-                    )
+                    ))
                     .await?;
 
                     #[cfg(all(feature = "retry", feature = "v1"))]
@@ -1469,7 +1469,7 @@ where
                     frm_configs
                         .clone()
                         .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                            field_name: "frm_configs",
+                            field_name: "frm_configs".into(),
                         })
                         .attach_printable("Frm configs label not found")?,
                     &mut should_continue_capture,
@@ -2805,6 +2805,19 @@ where
     D: OperationSessionGetters<F> + Send + Sync,
     Op: Operation<F, R, Data = D> + Send + Sync,
 {
+    // Log the inputs of the modular-vs-legacy decision so a wrong branch is diagnosable:
+    // the feature flag, the payment method's version and the modular/legacy modification
+    // timestamps are everything `should_use_modular_pm_path` looks at.
+    let pm_decision_inputs = payment_data
+        .get_payment_method_info()
+        .map(|pm| (pm.version, pm.compatibility_updated_at, pm.last_modified));
+    logger::info!(
+        payment_id = ?payment_data.get_payment_attempt().payment_id,
+        is_payment_method_modular_allowed = feature_config.is_payment_method_modular_allowed,
+        payment_method_decision_inputs = ?pm_decision_inputs,
+        "resolving modular vs legacy payment method update path"
+    );
+
     if payment_data.get_payment_method_info().is_some_and(|pm| {
         feature_config.should_use_modular_pm_path(
             Some(pm.version),
@@ -2812,9 +2825,9 @@ where
             Some(pm.last_modified),
         )
     }) {
-        logger::debug!(
+        logger::info!(
             payment_id = ?payment_data.get_payment_attempt().payment_id,
-            "Modular merchant detected; calling update_modular_pm_and_mandate"
+            "Modular payment method path selected; calling update_modular_pm_and_mandate"
         );
 
         let domain_payment_method_data =
@@ -2833,9 +2846,11 @@ where
             )
             .await?;
     } else {
-        logger::debug!(
+        // Reached when the flag is off, the timestamps favour legacy, or there is no
+        // payment_method_info at all — the decision-inputs log above disambiguates.
+        logger::info!(
             payment_id = ?payment_data.get_payment_attempt().payment_id,
-            "Non-modular merchant; calling save_pm_and_mandate"
+            "Legacy payment method path selected; calling save_pm_and_mandate"
         );
         operation
             .to_post_update_tracker()?
@@ -3007,7 +3022,7 @@ pub async fn external_vault_proxy_for_payments_operation_core<F, Req, Op, FData,
     dimensions: DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<(D, Req, Option<u16>, Option<u128>)>
 where
-    F: Send + Clone + Sync,
+    F: Send + Clone + Sync + 'static,
     Req: Authenticate + Clone,
     Op: Operation<F, Req, Data = D> + Send + Sync,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
@@ -3659,7 +3674,7 @@ pub async fn external_vault_proxy_for_payments_core<F, Res, Req, Op, FData, D>(
     return_raw_connector_response: Option<bool>,
 ) -> RouterResponse<Res>
 where
-    F: Send + Clone + Sync,
+    F: Send + Clone + Sync + 'static,
     FData: Send + Sync + Clone,
     Op: Operation<F, Req, Data = D> + Send + Sync + Clone,
     Req: Debug + Authenticate + Clone,
@@ -4635,7 +4650,7 @@ pub trait PaymentRedirectFlow: Sync {
         #[cfg(feature = "v1")]
         let resource_id = api::PaymentIdTypeExt::get_payment_intent_id(&req.resource_id)
             .change_context(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "payment_id",
+                field_name: "payment_id".into(),
             })?;
 
         #[cfg(feature = "v2")]
@@ -5083,7 +5098,7 @@ impl ValidateStatusForOperation for &PaymentRedirectSync {
             | common_enums::IntentStatus::Review => {
                 Err(errors::ApiErrorResponse::PaymentUnexpectedState {
                     current_flow: format!("{self:?}"),
-                    field_name: "status".to_string(),
+                    field_name: "status".into(),
                     current_value: intent_status.to_string(),
                     states: ["requires_customer_action".to_string()].join(", "),
                 })
@@ -8369,7 +8384,7 @@ pub async fn get_session_token_for_click_to_pay(
     let click_to_pay_mca_id = authentication_product_ids
         .get_click_to_pay_connector_account_id()
         .change_context(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "authentication_product_ids",
+            field_name: "authentication_product_ids".into(),
         })?;
     let merchant_connector_account = state
         .store
@@ -8509,15 +8524,15 @@ pub fn validate_customer_details_for_click_to_pay(
         (Some(_), Some(_), None) => Ok(()),
         (Some(_), None, Some(_)) => Ok(()),
         (None, Some(_), None) => Err(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "phone",
+            field_name: "phone".into(),
         })
         .attach_printable("phone number is not present in payment_intent.customer_details"),
         (Some(_), None, None) => Err(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "phone_country_code",
+            field_name: "phone_country_code".into(),
         })
         .attach_printable("phone_country_code is not present in payment_intent.customer_details"),
         (_, _, _) => Err(errors::ApiErrorResponse::MissingRequiredFields {
-            field_names: vec!["phone", "phone_country_code", "email"],
+            field_names: vec!["phone".into(), "phone_country_code".into(), "email".into()],
         })
         .attach_printable("either of phone, phone_country_code or email is not present in payment_intent.customer_details"),
     }
@@ -9784,6 +9799,8 @@ pub struct PaymentDataUpdateRequestFields {
     pub metadata: Option<serde_json::Value>,
     pub merchant_order_reference_id: Option<String>,
     pub customer_document_details: Option<api_models::customers::CustomerDocumentDetails>,
+    pub is_account_funded_transaction: Option<bool>,
+    pub recipient_details: Option<api_models::payments::RecipientDetails>,
 }
 
 #[derive(Clone)]
@@ -9995,7 +10012,7 @@ impl PaymentEligibilityData {
         payments_eligibility_request
             .validate_payment_method_input()
             .change_context(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "Either payment_token or payment_method_data",
+                field_name: "Either payment_token or payment_method_data".into(),
             })?;
         let payment_intent = state
             .store
@@ -11298,7 +11315,7 @@ pub async fn choose_connector<F, Req, D>(
     call_connector_action: CallConnectorAction,
 ) -> RouterResult<Option<ConnectorCallType>>
 where
-    F: Send + Clone,
+    F: Send + Clone + 'static,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
     let connector_choice = operation
@@ -11351,6 +11368,7 @@ where
                             fallback_config,
                             backend_input,
                             transaction_type,
+                            dimensions,
                         )
                         .await?;
                         ConnectorCallType::SessionMultiple(routing_output)
@@ -11652,7 +11670,7 @@ pub async fn perform_routing_for_connector_selection<F, D>(
     backend_input: dsl_inputs::BackendInput,
 ) -> RouterResult<ConnectorCallType>
 where
-    F: Send + Clone,
+    F: Send + Clone + 'static,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
     let request_straight_through: Option<api::routing::StraightThroughAlgorithm> =
@@ -11904,7 +11922,7 @@ pub async fn decide_connector<F, D>(
     is_payment_method_modular_allowed: bool,
 ) -> RouterResult<ConnectorCallType>
 where
-    F: Send + Clone,
+    F: Send + Clone + 'static,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
     // Pre-determined flow
@@ -11915,6 +11933,7 @@ where
         &state.conf.connectors,
         payment_data,
         routing_data,
+        business_profile,
     )
     .inspect_err(|err| {
         logger::error!(
@@ -12827,6 +12846,7 @@ pub async fn perform_session_token_routing<F, D>(
     fallback_config: Vec<api_models::routing::RoutableConnectorChoice>,
     mut backend_input: dsl_inputs::BackendInput,
     transaction_type: enums::TransactionType,
+    dimensions: &DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
 ) -> RouterResult<api::SessionConnectorDatas>
 where
     F: Clone,
@@ -12855,6 +12875,12 @@ where
         active_mca_ids: &active_mca_ids,
         default_config: &fallback_config,
         backend_input: &mut backend_input,
+        dimensions,
+        payment_id: payment_data
+            .get_payment_intent()
+            .payment_id
+            .get_string_repr()
+            .to_string(),
     };
 
     let routing_algorithm: routing::MerchantAccountRoutingAlgorithm = business_profile
@@ -13380,7 +13406,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
         .map(|browser_information| browser_information.parse_value("BrowserInformation"))
         .transpose()
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "browser_info",
+            field_name: "browser_info".into(),
         })?;
     let payment_connector_name = payment_attempt
         .connector
@@ -13577,7 +13603,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
                 .as_ref()
                 .map(|address| address.into())
                 .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "billing_address",
+                    field_name: "billing_address".into(),
                 })?,
             shipping_address.as_ref().map(|address| address.into()),
             browser_info,
@@ -13650,7 +13676,7 @@ pub async fn payment_start_redirection(
         || {
             Err(errors::ApiErrorResponse::PaymentUnexpectedState {
                 current_flow: "PaymentStartRedirection".to_string(),
-                field_name: "status".to_string(),
+                field_name: "status".into(),
                 current_value: payment_intent.status.to_string(),
                 states: ["requires_customer_action".to_string()].join(", "),
             })
@@ -14926,11 +14952,10 @@ pub async fn payments_submit_eligibility(
 /// Resolve Offer Engine eligibility into `(amount_details, offer_details)` for the
 /// eligibility response.
 ///
-/// Both are `None` when eligibility is denied or Offer Engine is not available
-/// (config resolution failures are treated as "offers not available"). A `/list`
-/// failure while Offer Engine is enabled fails eligibility. When enabled but no
-/// offer is selected, the payable amount is returned unchanged with an empty
-/// offer list.
+/// Both are `None` when eligibility is denied, the payment method is not one Offer
+/// Engine serves, or Offer Engine is not available. A `/list` failure is failed
+/// **open** (logged + metered, payable amount unchanged); `/apply` at confirm stays
+/// fail-closed.
 #[cfg(all(feature = "oltp", feature = "v1"))]
 #[allow(clippy::too_many_arguments)]
 async fn resolve_offer_eligibility_details(
@@ -14953,12 +14978,11 @@ async fn resolve_offer_eligibility_details(
     Option<api_models::payments::EligibilityAmountDetails>,
     Option<api_models::payments::EligibilityOfferDetails>,
 )> {
-    // Offers apply only when eligibility is not denied, an Offer Engine config
-    // resolves, and the currency is known (config-resolution failures are treated
-    // as "offers not available").
     let offer_context = if matches!(
         next_action,
         api_models::payments::NextActionCall::Deny { .. }
+    ) || !offer_engine::is_supported_payment_method_type(
+        &payment_method_type,
     ) {
         None
     } else {
@@ -14968,11 +14992,38 @@ async fn resolve_offer_eligibility_details(
             .with_processor_merchant_id(processor.get_processor_merchant_id())
             .with_organization_id(processor.get_account().get_org_id().clone())
             .with_profile_id(profile_id.clone());
-        offer_engine::resolve_offer_engine_config(state, &offer_dimensions)
-            .await
-            .ok()
-            .flatten()
-            .zip(currency)
+        let resolved_config =
+            match offer_engine::resolve_offer_engine_credential_source(state, &offer_dimensions)
+                .await
+            {
+                offer_engine::OfferEngineCredentialSource::None => None,
+                offer_engine::OfferEngineCredentialSource::Application => {
+                    offer_engine::OfferEngineCredentialSource::resolve_application_offer_config(
+                        state,
+                    )
+                    .inspect_err(|error| {
+                        logger::warn!(
+                            ?error,
+                            "offer engine: unable to resolve offer config; offers unavailable"
+                        )
+                    })
+                    .ok()
+                }
+                offer_engine::OfferEngineCredentialSource::Merchant => {
+                    offer_engine::OfferEngineCredentialSource::resolve_merchant_offer_config(
+                        state,
+                        processor.get_account(),
+                    )
+                    .inspect_err(|error| {
+                        logger::warn!(
+                            ?error,
+                            "offer engine: unable to resolve offer config; offers unavailable"
+                        )
+                    })
+                    .ok()
+                }
+            };
+        resolved_config.zip(currency)
     };
 
     match offer_context {
@@ -15012,12 +15063,17 @@ async fn resolve_offer_eligibility_details(
                 card_alias,
             };
 
-            // A `/list` failure while Offer Engine is enabled fails eligibility.
             let selected =
                 offer_engine::eligibility::run_offer_eligibility(state, offer_config, ctx)
                     .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Offer Engine /list failed")?;
+                    .unwrap_or_else(|error| {
+                        logger::warn!(
+                            ?error,
+                            "Offer Engine /list failed; proceeding without offers (fail-open)"
+                        );
+                        metrics::OFFER_ENGINE_LIST_FAILURES.add(1, &[]);
+                        None
+                    });
 
             match selected {
                 // Enabled but no eligible offer: payable amount unchanged.
@@ -15030,7 +15086,7 @@ async fn resolve_offer_eligibility_details(
                     Some(api_models::payments::EligibilityOfferDetails::default()),
                 )),
                 // Eligible offer: store the quote for confirm to validate `/apply`
-                // against (keyed by offer id, the first-launch quote id; TTL kept).
+                // against (keyed by a generated offer_quote_id; TTL kept).
                 Some(selected) => {
                     let processor_merchant_id = processor.get_account().get_id().clone();
                     // Issue a unique quote id; confirm echoes it back to apply this offer.
