@@ -333,10 +333,10 @@ describe("[Payout] [Bank Transfer - Open Banking]", () => {
   }
 });
 
-// Fulfill is intentionally not covered for Payshap / Payshap Proxy: the payout
-// fulfill call is env-blocked in the dev environment (connector base_url="dev"
-// produces 500 HE_00), so coverage stops after create/confirm and verifies the
-// payout state via retrieve instead.
+// Payshap / Payshap Proxy fulfill coverage asserts the deterministic
+// shipped-environment behavior: the OSS dummy connector base_url ("dev") is
+// not a valid URL, so the fulfill call returns 500 HE_00 and the payout
+// silently stays in requires_fulfillment.
 describe("[Payout] [Bank Transfer - Payshap]", () => {
   let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
@@ -431,17 +431,68 @@ describe("[Payout] [Bank Transfer - Payshap]", () => {
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
-    // No fulfill it-block: fulfill is env-blocked (500 HE_00) for this
-    // connector, so the flow is verified up to requires_fulfillment via
-    // confirm and the retrieve below.
     it("retrieve-payout-call-test", () => {
       cy.retrievePayoutCallTest(globalState);
     });
   });
+
+  context(
+    "[Payout] [Bank transfer - Payshap] Create, Confirm and Fulfill",
+    () => {
+      let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
+
+      beforeEach(function () {
+        if (!shouldContinue) {
+          this.skip();
+        }
+      });
+
+      it("create customer", () => {
+        cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
+      });
+
+      // Create, confirm and fulfill intentionally share one it block: fulfill
+      // must always target the payout created by the immediately preceding
+      // create call, because a fulfill retry on the same payout fails in the
+      // process tracker (DuplicateValue) before reaching the connector.
+      it("create-confirm-and-fulfill-payout-test", () => {
+        const confirmData = utils.getConnectorDetails(
+          globalState.get("connectorId")
+        )["bank_transfer_pm"]["payshap"]["Confirm"];
+        const fulfillData = utils.getConnectorDetails(
+          globalState.get("connectorId")
+        )["bank_transfer_pm"]["payshap"]["Fulfill"];
+
+        if (!utils.should_continue_further(confirmData)) {
+          shouldContinue = false;
+          return;
+        }
+
+        cy.createConfirmPayoutTest(
+          fixtures.createPayoutBody,
+          confirmData,
+          true,
+          false,
+          globalState
+        );
+        cy.fulfillPayoutCallTest({}, fulfillData, globalState);
+        // No should_continue_further on the fulfill data: its expected response
+        // is an error body, and the retrieve below must always run to verify
+        // the silent-failure state of the payout.
+      });
+
+      it("retrieve-payout-after-fulfill-test", () => {
+        const data = utils.getConnectorDetails(globalState.get("connectorId"))[
+          "bank_transfer_pm"
+        ]["payshap"]["RetrieveAfterFulfill"];
+
+        cy.retrievePayoutCallTest(globalState, data);
+      });
+    }
+  );
 });
 
-// Fulfill is intentionally not covered for Payshap Proxy — see the note above
-// the Payshap describe.
+// Payshap Proxy fulfill coverage — see the note above the Payshap describe.
 describe("[Payout] [Bank Transfer - Payshap Proxy]", () => {
   let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
@@ -540,11 +591,63 @@ describe("[Payout] [Bank Transfer - Payshap Proxy]", () => {
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
-    // No fulfill it-block: fulfill is env-blocked (500 HE_00) for this
-    // connector, so the flow is verified up to requires_fulfillment via
-    // confirm and the retrieve below.
     it("retrieve-payout-call-test", () => {
       cy.retrievePayoutCallTest(globalState);
     });
   });
+
+  context(
+    "[Payout] [Bank transfer - Payshap Proxy] Create, Confirm and Fulfill",
+    () => {
+      let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
+
+      beforeEach(function () {
+        if (!shouldContinue) {
+          this.skip();
+        }
+      });
+
+      it("create customer", () => {
+        cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
+      });
+
+      // Create, confirm and fulfill intentionally share one it block: fulfill
+      // must always target the payout created by the immediately preceding
+      // create call, because a fulfill retry on the same payout fails in the
+      // process tracker (DuplicateValue) before reaching the connector.
+      it("create-confirm-and-fulfill-payout-test", () => {
+        const confirmData = utils.getConnectorDetails(
+          globalState.get("connectorId")
+        )["bank_transfer_pm"]["payshap_proxy"]["Confirm"];
+        const fulfillData = utils.getConnectorDetails(
+          globalState.get("connectorId")
+        )["bank_transfer_pm"]["payshap_proxy"]["Fulfill"];
+
+        if (!utils.should_continue_further(confirmData)) {
+          shouldContinue = false;
+          return;
+        }
+
+        cy.createConfirmPayoutTest(
+          fixtures.createPayoutBody,
+          confirmData,
+          true,
+          false,
+          globalState
+        );
+        cy.fulfillPayoutCallTest({}, fulfillData, globalState);
+        // No should_continue_further on the fulfill data: its expected response
+        // is an error body, and the retrieve below must always run to verify
+        // the silent-failure state of the payout.
+      });
+
+      it("retrieve-payout-after-fulfill-test", () => {
+        const data = utils.getConnectorDetails(globalState.get("connectorId"))[
+          "bank_transfer_pm"
+        ]["payshap_proxy"]["RetrieveAfterFulfill"];
+
+        cy.retrievePayoutCallTest(globalState, data);
+      });
+    }
+  );
 });

@@ -18,9 +18,11 @@ const billing = {
  * `cypress/e2e/configs/Payout/Utils.js`. The configs below only declare WHICH
  * payout_method_type is used.
  *
- * Fulfill is intentionally not covered for this connector: the payout fulfill
- * call is blocked in the dev environment (connector base_url="dev" produces
- * 500 HE_00), so only Create and Confirm are asserted.
+ * The Fulfill keys assert the deterministic shipped-environment behavior: the
+ * OSS dummy connector base_url ("dev") is not a valid URL, so the fulfill call
+ * fails inside the router with 500 HE_00 and the payout silently stays in
+ * requires_fulfillment. The RetrieveAfterFulfill keys assert that silent
+ * failure state (status unchanged, no error code/message on the payout).
  */
 export const connectorDetails = {
   bank_transfer_pm: {
@@ -66,6 +68,28 @@ export const connectorDetails = {
           },
         },
       },
+      Fulfill: {
+        Response: {
+          status: 500,
+          body: {
+            error: {
+              type: "api",
+              message: "Something went wrong",
+              code: "HE_00",
+            },
+          },
+        },
+      },
+      RetrieveAfterFulfill: {
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_fulfillment",
+            error_code: null,
+            error_message: null,
+          },
+        },
+      },
     },
     payshap_proxy: {
       Create: {
@@ -106,6 +130,28 @@ export const connectorDetails = {
             status: "requires_fulfillment",
             payout_type: "bank",
             connector: "gotyme_sanlam",
+          },
+        },
+      },
+      Fulfill: {
+        Response: {
+          status: 500,
+          body: {
+            error: {
+              type: "api",
+              message: "Something went wrong",
+              code: "HE_00",
+            },
+          },
+        },
+      },
+      RetrieveAfterFulfill: {
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_fulfillment",
+            error_code: null,
+            error_message: null,
           },
         },
       },
