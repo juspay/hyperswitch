@@ -205,7 +205,7 @@ impl MerchantCountryCode {
             .parse::<u32>()
             .map_err(Report::from)
             .change_context(errors::ValidationError::IncorrectValueProvided {
-                field_name: "merchant_country_code",
+                field_name: "merchant_country_code".into(),
             })
             .attach_printable_lazy(|| {
                 format!("Country code {country_code} is negative or too large")
@@ -213,7 +213,7 @@ impl MerchantCountryCode {
 
         common_enums::Country::from_numeric(code)
             .map_err(|_| errors::ValidationError::IncorrectValueProvided {
-                field_name: "merchant_country_code",
+                field_name: "merchant_country_code".into(),
             })
             .attach_printable_lazy(|| format!("Invalid country code {code}"))
     }
@@ -958,7 +958,7 @@ impl ApplePayPredecryptData {
 }
 
 /// type of action that needs to taken after consuming recovery payload
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum RecoveryAction {
     /// Stops the process tracker and update the payment intent.

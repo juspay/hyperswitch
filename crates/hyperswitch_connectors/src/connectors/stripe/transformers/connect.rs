@@ -418,7 +418,7 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for StripeConnectRecipientAccountCreateRe
                             .bank_country_code
                             .get_required_value("bank_country_code")
                             .change_context(errors::ConnectorError::MissingRequiredField {
-                                field_name: "bank_country_code",
+                                field_name: "bank_country_code".into(),
                             })?,
                         external_account_currency: request.destination_currency.to_owned(),
                         external_account_account_holder_name: customer_name,

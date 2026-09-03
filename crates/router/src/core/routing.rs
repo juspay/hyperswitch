@@ -867,14 +867,16 @@ pub async fn create_routing_algorithm_under_profile(
     let name = request
         .name
         .get_required_value("name")
-        .change_context(errors::ApiErrorResponse::MissingRequiredField { field_name: "name" })
+        .change_context(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "name".into(),
+        })
         .attach_printable("Name of config not given")?;
 
     let description = request
         .description
         .get_required_value("description")
         .change_context(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "description",
+            field_name: "description".into(),
         })
         .attach_printable("Description of config not given")?;
 
@@ -883,7 +885,7 @@ pub async fn create_routing_algorithm_under_profile(
         .clone()
         .get_required_value("algorithm")
         .change_context(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "algorithm",
+            field_name: "algorithm".into(),
         })
         .attach_printable("Algorithm of config not given")?;
 
@@ -893,7 +895,7 @@ pub async fn create_routing_algorithm_under_profile(
         .profile_id
         .get_required_value("profile_id")
         .change_context(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "profile_id",
+            field_name: "profile_id".into(),
         })
         .attach_printable("Profile_id not provided")?;
 
@@ -1796,7 +1798,7 @@ pub async fn unlink_routing_config(
         .profile_id
         .get_required_value("profile_id")
         .change_context(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "profile_id",
+            field_name: "profile_id".into(),
         })
         .attach_printable("Profile_id not provided")?;
 

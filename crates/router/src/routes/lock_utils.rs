@@ -36,7 +36,6 @@ pub enum ApiIdentifier {
     User,
     UserRole,
     ConnectorOnboarding,
-    AiWorkflow,
     Poll,
     ApplePayCertificatesMigration,
     Relay,
@@ -44,6 +43,7 @@ pub enum ApiIdentifier {
     CardNetworkTokenization,
     Hypersense,
     ExternalServiceAuth,
+    OfferEngine,
     PaymentMethodSession,
     ProcessTracker,
     Authentication,
@@ -112,6 +112,8 @@ impl From<Flow> for ApiIdentifier {
             Flow::BatchBlocklistUpload => Self::Blocklist,
             Flow::GetBatchBlocklistJobStatus => Self::Blocklist,
             Flow::ListBatchBlocklistJobs => Self::Blocklist,
+            Flow::GetBlocklistCount => Self::Blocklist,
+            Flow::LookupBlocklistEntry => Self::Blocklist,
             Flow::MerchantConnectorsCreate
             | Flow::MerchantConnectorsRetrieve
             | Flow::MerchantConnectorsUpdate
@@ -136,6 +138,7 @@ impl From<Flow> for ApiIdentifier {
             Flow::EphemeralKeyCreate | Flow::EphemeralKeyDelete => Self::Ephemeral,
             Flow::DeepHealthCheck | Flow::HealthCheck => Self::Health,
             Flow::OfferEngineConnectivityCheck => Self::Health,
+            Flow::OfferEngineBrowseOffers => Self::OfferEngine,
             Flow::MandatesRetrieve | Flow::MandatesRevoke | Flow::MandatesList => Self::Mandates,
             Flow::PaymentMethodsCreate
             | Flow::PaymentMethodsMigrate
@@ -344,8 +347,6 @@ impl From<Flow> for ApiIdentifier {
             | Flow::ListUsersInternal
             | Flow::ListMembersForEntity
             | Flow::LaunchSage => Self::User,
-
-            Flow::GetDataFromHyperswitchAiFlow | Flow::ListAllChatInteractions => Self::AiWorkflow,
 
             Flow::ListRolesV2
             | Flow::ListInvitableRolesAtEntityLevel
