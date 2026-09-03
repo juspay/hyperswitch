@@ -144,6 +144,10 @@ export const should_continue_further = (data) => {
  * `createPayoutConnectorCallTest`) into the bank_transfer payout_method_data
  * of a payout create/confirm request body. Connector configs only declare the
  * payout_method_type; the sensitive values never live in committed code.
+ * `creds.json` may group multiple account variants under one payout method
+ * type (e.g. `payshap` -> `intrabank` / `interbank`), but the payout API
+ * accepts only the flat bank fields, so a variant group is flattened to a
+ * single variant (interbank preferred: full field set) before injection.
  * No-op for every connector other than `gotyme_sanlam`.
  */
 export const injectGotymePayoutBankTransfer = (body, globalState) => {
@@ -160,8 +164,22 @@ export const injectGotymePayoutBankTransfer = (body, globalState) => {
     return body;
   }
 
-  const credsForType =
+  let credsForType =
     payoutBankTransferDetails[bankTransferData.payout_method_type];
+
+  // A variant group (e.g. payshap -> {intrabank: {...}, interbank: {...}})
+  // holds only object values, unlike flat creds (e.g. {shap_id: "..."}).
+  // Select one variant so its fields are spread flat into the request below.
+  const isVariantGroup =
+    credsForType &&
+    Object.keys(credsForType).length > 0 &&
+    Object.values(credsForType).every(
+      (variant) => variant && typeof variant === "object"
+    );
+
+  if (isVariantGroup) {
+    credsForType = credsForType.interbank || credsForType.intrabank;
+  }
 
   if (credsForType) {
     body.payout_method_data.bank_transfer = {

@@ -574,7 +574,10 @@ This will redirect all Silverflow API calls from Hyperswitch to your local mock 
   // `injectGotymePayoutBankTransfer` in `cypress/e2e/configs/Payout/Utils.js`)
   // so they never appear in committed connector configs. Keys inside
   // `payout_bank_transfer` must match the `payout_method_type` values used by
-  // the connector's payout configs.
+  // the connector's payout configs. A payout method may either map flat
+  // request fields directly, or group multiple account variants (e.g. payshap
+  // `intrabank` / `interbank`); a variant group is flattened to a single
+  // variant (interbank preferred) before its fields are injected.
   "gotyme_sanlam_payout": {
     "connector_account_details": {
       "auth_type": "BodyKey",
@@ -583,9 +586,14 @@ This will redirect all Silverflow API calls from Hyperswitch to your local mock 
     },
     "payout_bank_transfer": {
       "payshap": {
-        "bank_account_number": "bank_account_number",
-        "account_holder_name": "account_holder_name",
-        "bank_name": "bank_name"
+        "intrabank": {
+          "bank_account_number": "bank_account_number"
+        },
+        "interbank": {
+          "bank_account_number": "bank_account_number",
+          "account_holder_name": "account_holder_name",
+          "bank_name": "bank_name"
+        }
       },
       "payshap_proxy": {
         "shap_id": "shap_id"
