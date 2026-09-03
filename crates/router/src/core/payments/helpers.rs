@@ -7076,13 +7076,20 @@ fn mask_middle(value: &str, prefix_len: usize, suffix_len: usize) -> String {
     let chars: Vec<char> = value.chars().collect();
     let len = chars.len();
 
-    if len <= prefix_len + suffix_len {
+    let Some(masked_len) = len.checked_sub(prefix_len + suffix_len) else {
         return "*".repeat(len);
-    }
+    };
+    // Safe: masked_len's existence above proves len >= prefix_len + suffix_len >= suffix_len.
+    let split_at = len - suffix_len;
 
-    let prefix: String = chars[..prefix_len].iter().collect();
-    let suffix: String = chars[len - suffix_len..].iter().collect();
-    format!("{prefix}{}{suffix}", "*".repeat(len - prefix_len - suffix_len))
+    let (Some(prefix_chars), Some(suffix_chars)) = (chars.get(..prefix_len), chars.get(split_at..))
+    else {
+        return "*".repeat(len);
+    };
+
+    let prefix: String = prefix_chars.iter().collect();
+    let suffix: String = suffix_chars.iter().collect();
+    format!("{prefix}{}{suffix}", "*".repeat(masked_len))
 }
 
 /// Stores Hyperswitch's internally generated Apple Pay private key into the MCA `metadata`
@@ -7124,10 +7131,7 @@ pub fn carry_forward_apple_pay_system_generated_key(
         None => return new_metadata,
     };
 
-    let new_metadata = match new_metadata {
-        Some(metadata) => metadata,
-        None => return None,
-    };
+    let new_metadata = new_metadata?;
 
     Some(
         apple_pay_metadata::Metadata::parse(Some(&new_metadata))
