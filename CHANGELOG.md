@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.09.02.0-hotfix1
+
+### Features
+
+- **offers:** Add merchant-level Offer Engine credential source ([#14037](https://github.com/juspay/hyperswitch/pull/14037)) ([`6dd1434`](https://github.com/juspay/hyperswitch/commit/6dd14342f7d491f30e5d17be3c7989c6e8027c65))
+
+**Full Changelog:** [`2026.09.02.0...2026.09.02.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2026.09.02.0...2026.09.02.0-hotfix1)
+
+- - -
+
 ## 2026.09.02.0
 
 ### Features
