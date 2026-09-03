@@ -58,6 +58,7 @@ pub struct MerchantAccount {
     pub merchant_account_type: Option<common_enums::MerchantAccountType>,
     pub network_tokenization_credentials: Option<Encryption>,
     pub fingerprint_secret: Option<Secret<String>>,
+    pub offer_engine_config: Option<Encryption>,
 }
 
 #[cfg(feature = "v1")]
@@ -95,6 +96,7 @@ pub struct MerchantAccountSetter {
     pub merchant_account_type: common_enums::MerchantAccountType,
     pub network_tokenization_credentials: Option<Encryption>,
     pub fingerprint_secret: Option<Secret<String>>,
+    pub offer_engine_config: Option<Encryption>,
 }
 
 #[cfg(feature = "v1")]
@@ -135,6 +137,7 @@ impl From<MerchantAccountSetter> for MerchantAccount {
             merchant_account_type: Some(item.merchant_account_type),
             network_tokenization_credentials: item.network_tokenization_credentials,
             fingerprint_secret: item.fingerprint_secret,
+            offer_engine_config: item.offer_engine_config,
         }
     }
 }
@@ -171,6 +174,7 @@ pub struct MerchantAccount {
     pub merchant_account_type: Option<common_enums::MerchantAccountType>,
     pub network_tokenization_credentials: Option<Encryption>,
     pub fingerprint_secret: Option<Secret<String>>,
+    pub offer_engine_config: Option<Encryption>,
 }
 
 #[cfg(feature = "v2")]
@@ -193,6 +197,7 @@ impl From<MerchantAccountSetter> for MerchantAccount {
             merchant_account_type: Some(item.merchant_account_type),
             network_tokenization_credentials: None, // need to check if we can have this column in v2
             fingerprint_secret: item.fingerprint_secret,
+            offer_engine_config: None,
         }
     }
 }
@@ -267,6 +272,7 @@ pub struct MerchantAccountNew {
     pub merchant_account_type: common_enums::MerchantAccountType,
     pub network_tokenization_credentials: Option<Encryption>,
     pub fingerprint_secret: Option<Secret<String>>,
+    pub offer_engine_config: Option<Encryption>,
 }
 
 #[cfg(feature = "v2")]
@@ -340,4 +346,5 @@ pub struct MerchantAccountUpdateInternal {
     pub is_platform_account: Option<bool>,
     pub product_type: Option<common_enums::MerchantProductType>,
     pub network_tokenization_credentials: Option<Encryption>,
+    pub offer_engine_config: Option<Encryption>,
 }

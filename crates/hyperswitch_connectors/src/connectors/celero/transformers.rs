@@ -140,7 +140,7 @@ impl TryFrom<&DomainAddress> for CeleroAddress {
                 email: address.email.clone(),
             }),
             None => Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "address_details",
+                field_name: "address_details".into(),
             }
             .into()),
         }

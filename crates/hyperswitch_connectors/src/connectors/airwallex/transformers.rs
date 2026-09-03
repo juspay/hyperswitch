@@ -124,7 +124,7 @@ impl TryFrom<&AirwallexRouterData<&types::CreateOrderRouterData>> for AirwallexI
                         }),
                     })
                     .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "order_details",
+                        field_name: "order_details".into(),
                     })?,
             ),
             _ => None,
@@ -654,7 +654,7 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
         let payment_consent_id = if is_mit_payment {
             let mandate_id = item.router_data.request.connector_mandate_id().ok_or(
                 errors::ConnectorError::MissingRequiredField {
-                    field_name: "connector_mandate_id",
+                    field_name: "connector_mandate_id".into(),
                 },
             )?;
 
@@ -724,22 +724,22 @@ fn get_banktransfer_details(
                     bank_transfer: IndonesianBankTransferDetails {
                         shopper_name: item.router_data.get_billing_full_name().map_err(|_| {
                             errors::ConnectorError::MissingRequiredField {
-                                field_name: "shopper_name",
+                                field_name: "shopper_name".into(),
                             }
                         })?,
                         shopper_email: item.router_data.get_billing_email().map_err(|_| {
                             errors::ConnectorError::MissingRequiredField {
-                                field_name: "shopper_email",
+                                field_name: "shopper_email".into(),
                             }
                         })?,
                         bank_name: bank_name.ok_or(
                             errors::ConnectorError::MissingRequiredField {
-                                field_name: "bank_name",
+                                field_name: "bank_name".into(),
                             },
                         )?,
                         country_code: item.router_data.get_billing_country().map_err(|_| {
                             errors::ConnectorError::MissingRequiredField {
-                                field_name: "country_code",
+                                field_name: "country_code".into(),
                             }
                         })?,
                     },
@@ -767,7 +767,7 @@ fn get_paylater_details(
                 klarna: KlarnaDetails {
                     country_code: item.router_data.get_billing_country().map_err(|_| {
                         errors::ConnectorError::MissingRequiredField {
-                            field_name: "country_code",
+                            field_name: "country_code".into(),
                         }
                     })?,
                     billing: Some(Billing {
@@ -794,11 +794,11 @@ fn get_paylater_details(
                         .router_data
                         .get_billing_phone()
                         .map_err(|_| errors::ConnectorError::MissingRequiredField {
-                            field_name: "shopper_phone",
+                            field_name: "shopper_phone".into(),
                         })?
                         .get_number_with_country_code()
                         .map_err(|_| errors::ConnectorError::MissingRequiredField {
-                            field_name: "country_code",
+                            field_name: "country_code".into(),
                         })?,
                 },
                 payment_method_type: AirwallexPaymentType::Atome,
@@ -821,12 +821,12 @@ fn get_bankredirect_details(
                 trustly: TrustlyDetails {
                     shopper_name: item.router_data.get_billing_full_name().map_err(|_| {
                         errors::ConnectorError::MissingRequiredField {
-                            field_name: "shopper_name",
+                            field_name: "shopper_name".into(),
                         }
                     })?,
                     country_code: item.router_data.get_billing_country().map_err(|_| {
                         errors::ConnectorError::MissingRequiredField {
-                            field_name: "country_code",
+                            field_name: "country_code".into(),
                         }
                     })?,
                 },
@@ -838,7 +838,7 @@ fn get_bankredirect_details(
                 blik: BlikDetails {
                     shopper_name: item.router_data.get_billing_full_name().map_err(|_| {
                         errors::ConnectorError::MissingRequiredField {
-                            field_name: "shopper_name",
+                            field_name: "shopper_name".into(),
                         }
                     })?,
                 },
@@ -869,7 +869,7 @@ fn get_wallet_details(
                 .get_encrypted_google_pay_token()
                 .attach_printable("Failed to get gpay wallet token")
                 .map_err(|_| errors::ConnectorError::MissingRequiredField {
-                    field_name: "gpay wallet_token",
+                    field_name: "gpay wallet_token".into(),
                 })?;
             AirwallexPaymentMethod::Wallets(AirwallexWalletData::GooglePay(GooglePayData {
                 googlepay: GooglePayDetails {
@@ -890,11 +890,11 @@ fn get_wallet_details(
                         .cloned()
                         .or_else(|| item.router_data.get_billing_full_name().ok())
                         .ok_or(errors::ConnectorError::MissingRequiredField {
-                            field_name: "shopper_name",
+                            field_name: "shopper_name".into(),
                         })?,
                     country_code: item.router_data.get_billing_country().map_err(|_| {
                         errors::ConnectorError::MissingRequiredField {
-                            field_name: "country_code",
+                            field_name: "country_code".into(),
                         }
                     })?,
                 },
@@ -912,16 +912,16 @@ fn get_wallet_details(
                         .cloned()
                         .or_else(|| item.router_data.get_billing_full_name().ok())
                         .ok_or(errors::ConnectorError::MissingRequiredField {
-                            field_name: "shopper_name",
+                            field_name: "shopper_name".into(),
                         })?,
                     shopper_email: item.router_data.get_billing_email().map_err(|_| {
                         errors::ConnectorError::MissingRequiredField {
-                            field_name: "shopper_email",
+                            field_name: "shopper_email".into(),
                         }
                     })?,
                     country_code: item.router_data.get_billing_country().map_err(|_| {
                         errors::ConnectorError::MissingRequiredField {
-                            field_name: "country_code",
+                            field_name: "country_code".into(),
                         }
                     })?,
                 },
@@ -1022,7 +1022,7 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for AirwallexCompleteR
                     .as_ref()
                     .map(|f| f.payload.to_owned())
                     .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "redirect_response.payload",
+                        field_name: "redirect_response.payload".into(),
                     })?
                     .as_ref()
                     .map(|data| serde_json::to_string(data.peek()))
@@ -2074,7 +2074,7 @@ impl TryFrom<&types::ConnectorCustomerRouterData> for CustomerRequest {
             last_name: item.request.name.to_owned(),
             merchant_customer_id: item.customer_id.to_owned().ok_or(
                 errors::ConnectorError::MissingRequiredField {
-                    field_name: "customer_id",
+                    field_name: "customer_id".into(),
                 },
             )?,
         })

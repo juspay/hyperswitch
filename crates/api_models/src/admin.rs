@@ -421,6 +421,17 @@ pub struct MerchantAccountMetadata {
     pub data: Option<pii::SecretSerdeValue>,
 }
 
+/// Merchant-level Offer Engine credentials (Offer Engine issues one account per merchant)
+#[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
+pub struct OfferEngineMerchantConfig {
+    /// API key issued by Offer Engine for this merchant
+    #[schema(value_type = String)]
+    pub api_key: Secret<String>,
+
+    /// The Offer Engine merchant id sent in Offer Engine request bodies
+    pub merchant_id: String,
+}
+
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -502,6 +513,10 @@ pub struct MerchantAccountUpdate {
     /// Network tokenization credentials for this merchant account
     #[schema(value_type = Option<NetworkTokeizationProviderCredentials>)]
     pub network_tokenization_credentials: Option<NetworkTokeizationProviderCredentials>,
+
+    /// Merchant-level Offer Engine credentials, used when the resolved credential source is `merchant`
+    #[schema(value_type = Option<OfferEngineMerchantConfig>)]
+    pub offer_engine_config: Option<OfferEngineMerchantConfig>,
 }
 
 #[cfg(feature = "v1")]
@@ -1248,6 +1263,11 @@ pub struct RevenueRecoveryMetadata {
     /// Maximum number of `billing connector` retries before revenue recovery can start executing retries.
     #[schema(value_type = u16, example = "10")]
     pub billing_connector_retry_threshold: u16,
+    /// Number of cascading (static) retries an invoice may use under the hybrid static + adaptive
+    /// scheme.
+    #[serde(default)]
+    #[schema(value_type = u16, example = "5")]
+    pub max_hybrid_cascading_retry_count: u16,
     /// Billing account reference id is payment gateway id at billing connector end.
     /// Merchants need to provide a mapping between these merchant connector account and the corresponding account reference IDs for each `billing connector`.
     #[schema(value_type = u16, example = r#"{ "mca_vDSg5z6AxnisHq5dbJ6g": "stripe_123", "mca_vDSg5z6AumisHqh4x5m1": "adyen_123" }"#)]

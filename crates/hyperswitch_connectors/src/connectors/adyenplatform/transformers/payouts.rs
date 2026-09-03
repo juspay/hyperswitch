@@ -239,13 +239,13 @@ impl TryFrom<&hyperswitch_domain_models::address::AddressDetails> for AdyenAddre
         let line1 = address
             .get_line1()
             .change_context(ConnectorError::MissingRequiredField {
-                field_name: "billing.address.line1",
+                field_name: "billing.address.line1".into(),
             })?
             .clone();
         let line2 = address
             .get_line2()
             .change_context(ConnectorError::MissingRequiredField {
-                field_name: "billing.address.line2",
+                field_name: "billing.address.line2".into(),
             })?
             .clone();
         Ok(Self {
@@ -271,7 +271,7 @@ impl<F> TryFrom<(&PayoutsRouterData<F>, &payouts::CardPayout)> for AdyenAccountH
             .and_then(|billing| billing.address.as_ref().map(|addr| addr.try_into()))
             .transpose()?
             .ok_or(ConnectorError::MissingRequiredField {
-                field_name: "address",
+                field_name: "address".into(),
             })?;
 
         let (first_name, last_name) = if let Some(card_holder_name) = &card.card_holder_name {
@@ -281,21 +281,21 @@ impl<F> TryFrom<(&PayoutsRouterData<F>, &payouts::CardPayout)> for AdyenAccountH
                 .first()
                 .map(|s| Secret::new(s.to_string()))
                 .ok_or(ConnectorError::MissingRequiredField {
-                    field_name: "card_holder_name.first_name",
+                    field_name: "card_holder_name.first_name".into(),
                 })?;
             let last_name = if name_parts.len() > 1 {
                 let remaining_names: Vec<&str> = name_parts.iter().skip(1).copied().collect();
                 Some(Secret::new(remaining_names.join(" ")))
             } else {
                 return Err(ConnectorError::MissingRequiredField {
-                    field_name: "card_holder_name.last_name",
+                    field_name: "card_holder_name.last_name".into(),
                 }
                 .into());
             };
             (Some(first_name), last_name)
         } else {
             return Err(ConnectorError::MissingRequiredField {
-                field_name: "card_holder_name",
+                field_name: "card_holder_name".into(),
             }
             .into());
         };
@@ -326,7 +326,7 @@ impl<F> TryFrom<(&PayoutsRouterData<F>, &payouts::BankTransfer)> for AdyenAccoun
             .and_then(|billing| billing.address.as_ref().map(|addr| addr.try_into()))
             .transpose()?
             .ok_or(ConnectorError::MissingRequiredField {
-                field_name: "address",
+                field_name: "address".into(),
             })?;
 
         let full_name = router_data.get_billing_full_name()?;
@@ -372,7 +372,7 @@ impl<F> TryFrom<StoredPaymentCounterparty<'_, F>>
                 let address = billing_address
                     .and_then(|billing| billing.address.as_ref())
                     .ok_or(ConnectorError::MissingRequiredField {
-                        field_name: "address",
+                        field_name: "address".into(),
                     })?
                     .try_into()?;
 
@@ -484,10 +484,10 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for Name {
 
         Ok(Self {
             first_name: first_name.ok_or(ConnectorError::MissingRequiredField {
-                field_name: "first_name",
+                field_name: "first_name".into(),
             })?,
             last_name: last_name.ok_or(ConnectorError::MissingRequiredField {
-                field_name: "first_name",
+                field_name: "first_name".into(),
             })?,
         })
     }
@@ -576,7 +576,7 @@ impl<F> TryFrom<RawPaymentCounterparty<'_, F>>
                 let priority = request
                     .priority
                     .ok_or(ConnectorError::MissingRequiredField {
-                        field_name: "priority",
+                        field_name: "priority".into(),
                     })?;
 
                 Ok((counterparty, Some(AdyenPayoutPriority::from(priority))))
@@ -610,7 +610,7 @@ impl<F> TryFrom<&AdyenPlatformRouterData<&PayoutsRouterData<F>>> for AdyenTransf
                 .try_into()?
             } else {
                 return Err(ConnectorError::MissingRequiredField {
-                    field_name: "payout_method_data or stored_payment_method_id",
+                    field_name: "payout_method_data or stored_payment_method_id".into(),
                 }
                 .into());
             };
