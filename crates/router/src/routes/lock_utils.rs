@@ -117,7 +117,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::MerchantConnectorsRetrieve
             | Flow::MerchantConnectorsUpdate
             | Flow::MerchantConnectorsDelete
-            | Flow::MerchantConnectorsList => Self::MerchantConnector,
+            | Flow::MerchantConnectorsList
+            | Flow::ApplePayCertificateGenerate => Self::MerchantConnector,
             Flow::ConfigKeyCreate
             | Flow::ConfigKeyFetch
             | Flow::ConfigKeyUpdate

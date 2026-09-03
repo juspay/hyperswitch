@@ -931,6 +931,53 @@ pub async fn connector_update(
     ))
     .await
 }
+/// Merchant Connector - Generate Apple Pay Certificate
+///
+/// Generates an EC keypair and a Certificate Signing Request (CSR) for Apple Pay's payment
+/// processing certificate flow. Hyperswitch retains the private key internally and returns
+/// only the CSR — the merchant submits the CSR to Apple, then uploads the resulting signed
+/// certificate back onto this merchant connector account via the regular update API. The
+/// private key never leaves Hyperswitch, so the merchant does not need to handle it.
+#[cfg(feature = "v1")]
+#[instrument(skip_all, fields(flow = ?Flow::ApplePayCertificateGenerate))]
+pub async fn apple_pay_certificate_generate(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<(
+        common_utils::id_type::MerchantId,
+        common_utils::id_type::MerchantConnectorAccountId,
+    )>,
+) -> HttpResponse {
+    let flow = Flow::ApplePayCertificateGenerate;
+    let (merchant_id, merchant_connector_id) = path.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        |state, auth, _, _| {
+            generate_apple_pay_certificate(
+                state,
+                auth.platform.get_processor().get_account().get_id().clone(),
+                merchant_connector_id.clone(),
+            )
+        },
+        auth::auth_type(
+            &auth::ApiKeyAuthWithMerchantIdFromRouteAllowPlatform(merchant_id.clone()),
+            &auth::JWTAndEmbeddedAuth {
+                merchant_id_from_route: Some(merchant_id.clone()),
+                permission: Some(Permission::ProfileConnectorWrite),
+                allow_connected: true,
+                allow_platform: true,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 /// Merchant Connector - Delete
 ///
 /// Delete or Detach a Merchant Connector from Merchant Account
