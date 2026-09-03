@@ -3022,7 +3022,7 @@ pub async fn external_vault_proxy_for_payments_operation_core<F, Req, Op, FData,
     dimensions: DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<(D, Req, Option<u16>, Option<u128>)>
 where
-    F: Send + Clone + Sync,
+    F: Send + Clone + Sync + 'static,
     Req: Authenticate + Clone,
     Op: Operation<F, Req, Data = D> + Send + Sync,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
@@ -3674,7 +3674,7 @@ pub async fn external_vault_proxy_for_payments_core<F, Res, Req, Op, FData, D>(
     return_raw_connector_response: Option<bool>,
 ) -> RouterResponse<Res>
 where
-    F: Send + Clone + Sync,
+    F: Send + Clone + Sync + 'static,
     FData: Send + Sync + Clone,
     Op: Operation<F, Req, Data = D> + Send + Sync + Clone,
     Req: Debug + Authenticate + Clone,
@@ -11315,7 +11315,7 @@ pub async fn choose_connector<F, Req, D>(
     call_connector_action: CallConnectorAction,
 ) -> RouterResult<Option<ConnectorCallType>>
 where
-    F: Send + Clone,
+    F: Send + Clone + 'static,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
     let connector_choice = operation
@@ -11670,7 +11670,7 @@ pub async fn perform_routing_for_connector_selection<F, D>(
     backend_input: dsl_inputs::BackendInput,
 ) -> RouterResult<ConnectorCallType>
 where
-    F: Send + Clone,
+    F: Send + Clone + 'static,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
     let request_straight_through: Option<api::routing::StraightThroughAlgorithm> =
@@ -11922,7 +11922,7 @@ pub async fn decide_connector<F, D>(
     is_payment_method_modular_allowed: bool,
 ) -> RouterResult<ConnectorCallType>
 where
-    F: Send + Clone,
+    F: Send + Clone + 'static,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
     // Pre-determined flow
@@ -11933,6 +11933,7 @@ where
         &state.conf.connectors,
         payment_data,
         routing_data,
+        business_profile,
     )
     .inspect_err(|err| {
         logger::error!(

@@ -17621,6 +17621,20 @@
           }
         }
       },
+      "InvoiceStatus": {
+        "type": "string",
+        "enum": [
+          "invoice_created",
+          "payment_pending",
+          "payment_pending_timeout",
+          "payment_succeeded",
+          "payment_failed",
+          "payment_canceled",
+          "invoice_paid",
+          "manual_review",
+          "voided"
+        ]
+      },
       "JCSVoucherData": {
         "type": "object",
         "properties": {
@@ -31198,6 +31212,13 @@
             "example": "10",
             "minimum": 0
           },
+          "max_hybrid_cascading_retry_count": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Number of cascading (static) retries an invoice may use under the hybrid static + adaptive\nscheme.",
+            "example": "5",
+            "minimum": 0
+          },
           "billing_account_reference": {
             "type": "integer",
             "format": "int32",
@@ -35487,7 +35508,7 @@
           "refund_statuses_enabled": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/IntentStatus"
+              "$ref": "#/components/schemas/RefundStatus"
             },
             "description": "List of refund statuses that triggers a webhook for refunds",
             "example": [
@@ -35504,6 +35525,41 @@
             "example": [
               "success",
               "failed"
+            ],
+            "nullable": true
+          },
+          "dispute_statuses_enabled": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DisputeStatus"
+            },
+            "description": "List of dispute statuses that trigger outgoing webhooks for disputes",
+            "example": [
+              "dispute_opened",
+              "dispute_won"
+            ],
+            "nullable": true
+          },
+          "mandate_statuses_enabled": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MandateStatus"
+            },
+            "description": "List of mandate statuses that trigger outgoing webhooks for mandates",
+            "example": [
+              "active",
+              "inactive"
+            ],
+            "nullable": true
+          },
+          "invoice_statuses_enabled": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InvoiceStatus"
+            },
+            "description": "List of invoice statuses that trigger outgoing webhooks for subscriptions",
+            "example": [
+              "invoice_paid"
             ],
             "nullable": true
           }

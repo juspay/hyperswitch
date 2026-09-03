@@ -427,10 +427,6 @@ pub enum Flow {
     ApplePayCertificatesMigration,
     /// Gsm Rule Delete flow
     GsmRuleDelete,
-    /// Get data from embedded flow
-    GetDataFromHyperswitchAiFlow,
-    // List all chat interactions
-    ListAllChatInteractions,
     /// Mint a sage session for the dashboard user.
     LaunchSage,
     /// User Sign Up
