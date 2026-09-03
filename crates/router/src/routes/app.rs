@@ -2140,6 +2140,12 @@ impl MerchantConnectorAccount {
                     web::resource("/{merchant_id}/connectors/webhooks/{merchant_connector_id}")
                         .route(web::post().to(connector_webhook_register))
                         .route(web::get().to(retrieve_connector_webhook)),
+                )
+                .service(
+                    web::resource(
+                        "/{merchant_id}/connectors/{merchant_connector_id}/applepay/certificate/generate",
+                    )
+                    .route(web::post().to(apple_pay_certificate_generate)),
                 );
         }
         #[cfg(feature = "oltp")]

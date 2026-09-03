@@ -7785,7 +7785,10 @@ async fn decrypt_apple_pay_wallet_data(
             .attach_printable("failed to parse apple pay token to json")?
             .decrypt(
                 &payment_processing_details.payment_processing_certificate,
-                &payment_processing_details.payment_processing_certificate_key,
+                payment_processing_details
+                    .system_generated_payment_processing_certificate_key
+                    .as_ref()
+                    .unwrap_or(&payment_processing_details.payment_processing_certificate_key),
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -9174,6 +9177,7 @@ fn check_apple_pay_metadata(
                                     .get_inner()
                                     .apple_pay_ppc_key
                                     .clone(),
+                                system_generated_payment_processing_certificate_key: None,
                             },
                         ))
                     }
