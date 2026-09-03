@@ -84,12 +84,9 @@ impl ForeignFrom<&api_models::payments::ConnectorMetadata>
             worldpayxml: _,
         } = metadata;
         Self {
-            checkout: match checkout {
-                Some(data) => Some(payments_grpc::CheckoutAdditionalInformation {
-                    purpose_of_payment: data.purpose_of_payment.clone(),
-                }),
-                None => None,
-            },
+            checkout: checkout.as_ref().map(|data| payments_grpc::CheckoutAdditionalInformation {
+                purpose_of_payment: data.purpose_of_payment.clone(),
+            }),
         }
     }
 }
