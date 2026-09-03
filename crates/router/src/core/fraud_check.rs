@@ -152,6 +152,7 @@ where
         FraudCheckLastStep::Processing
     ) {
         use common_utils::ext_traits::ValueExt;
+        use hyperswitch_masking::ExposeInterface;
 
         // Routed to UCS only when configuration says so (`ucs_frm_connectors`)
         // and UCS is actually available — see
@@ -203,14 +204,48 @@ where
                     None
                 });
 
+            // Buyer contact details are encrypted on the intent. Decrypted the
+            // same way the native FRM flows do (see `checkout_flow.rs`), so a
+            // UCS-backed provider sees exactly what Signifyd would.
+            let customer_details = frm_data
+                .payment_intent
+                .customer_details
+                .clone()
+                .map(|customer_details_encrypted| {
+                    customer_details_encrypted
+                        .into_inner()
+                        .expose()
+                        .parse_value::<hyperswitch_domain_models::payments::payment_intent::CustomerData>(
+                            "CustomerData",
+                        )
+                })
+                .transpose()
+                .inspect_err(|error| {
+                    router_env::logger::warn!(
+                        ?error,
+                        "Failed to parse customer details for the FRM pre risk check; \
+                         continuing without buyer contact details"
+                    )
+                })
+                .ok()
+                .flatten();
+
             let context = crate::core::unified_connector_service::frm::FrmPreRiskCheckContext {
                 amount: frm_data.payment_attempt.net_amount.get_total_amount(),
                 currency,
                 customer_id: frm_data.payment_intent.customer_id.as_ref(),
+                customer_details: customer_details.as_ref(),
+                // Taken from `payment_data` rather than the attempt: the attempt
+                // stores only the redacted additional data, while the pre-auth
+                // FRM check runs while the real instrument is still in hand.
+                payment_method_data: payment_data.get_payment_method_data(),
+                payment_method_type: frm_data.payment_attempt.payment_method_type,
+                payment_method_token: payment_data.get_payment_method_token(),
                 browser_info: browser_info.as_ref(),
                 address: &frm_data.address,
                 order_details: frm_data.order_details.as_ref(),
                 merchant_transaction_id: frm_data.payment_attempt.attempt_id.clone(),
+                merchant_id: platform.get_processor().get_account().get_id(),
                 frm_metadata: frm_data.frm_metadata.as_ref(),
                 access_token: access_token.as_ref(),
             };

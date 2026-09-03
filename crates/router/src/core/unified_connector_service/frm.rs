@@ -22,8 +22,13 @@ use common_utils::{errors::CustomResult, id_type, types::MinorUnit};
 use error_stack::ResultExt;
 use external_services::grpc_client::LineageIds;
 use hyperswitch_domain_models::{
-    platform::Processor, router_request_types::ResponseId,
-    router_response_types::fraud_check::FraudCheckResponseData, types::OrderDetailsWithAmount,
+    payment_method_data::PaymentMethodData,
+    payments::payment_intent::CustomerData,
+    platform::Processor,
+    router_data::PaymentMethodToken,
+    router_request_types::ResponseId,
+    router_response_types::fraud_check::FraudCheckResponseData,
+    types::OrderDetailsWithAmount,
 };
 use hyperswitch_interfaces::unified_connector_service::{
     transformers, UnifiedConnectorServiceError,
@@ -31,7 +36,10 @@ use hyperswitch_interfaces::unified_connector_service::{
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use unified_connector_service_client::payments as payments_grpc;
 
-use super::{build_unified_connector_service_auth_metadata, get_ucs_client};
+use super::{
+    build_unified_connector_service_auth_metadata, build_unified_connector_service_payment_method,
+    get_ucs_client,
+};
 use crate::{
     core::{
         errors::{self, RouterResult},
@@ -102,11 +110,29 @@ pub struct FrmPreRiskCheckContext<'a> {
     pub amount: MinorUnit,
     pub currency: common_enums::Currency,
     pub customer_id: Option<&'a id_type::CustomerId>,
+    /// Name, email and phone for the buyer, decrypted from
+    /// `payment_intent.customer_details`. Risk providers key their buyer history
+    /// on these as much as on `customer_id`, so sending only the id leaves a
+    /// provider unable to correlate across merchants or spot a mismatched
+    /// contact detail.
+    pub customer_details: Option<&'a CustomerData>,
+    /// The instrument being risk-scored. Card BIN, last four, expiry and
+    /// issuer are the primary signals for card fraud, so a risk evaluation
+    /// without this is materially weaker than one with it.
+    pub payment_method_data: Option<&'a PaymentMethodData>,
+    pub payment_method_type: Option<common_enums::PaymentMethodType>,
+    /// Present when the instrument was tokenized by an earlier step; the
+    /// shared builder prefers it over raw card data when both exist.
+    pub payment_method_token: Option<&'a PaymentMethodToken>,
     pub browser_info:
         Option<&'a hyperswitch_domain_models::router_request_types::BrowserInformation>,
     pub address: &'a hyperswitch_domain_models::payment_address::PaymentAddress,
     pub order_details: Option<&'a Vec<OrderDetailsWithAmount>>,
     pub merchant_transaction_id: String,
+    /// Merchant identity for risk scoring. Providers scope buyer and instrument
+    /// reputation per merchant, so this is what separates "this card is new here"
+    /// from "this card is new anywhere".
+    pub merchant_id: &'a id_type::MerchantId,
     /// Merchant-supplied provider signals (device id, tenure, velocity, …),
     /// forwarded verbatim as `connector_feature_data`.
     pub frm_metadata: Option<&'a common_utils::pii::SecretSerdeValue>,
@@ -127,10 +153,63 @@ impl ForeignTryFrom<FrmPreRiskCheckContext<'_>> for payments_grpc::FrmServicePre
         };
 
         // `customer_id` is the stable merchant-side key risk providers use to
-        // build cross-transaction history for the buyer.
-        let customer_info = ctx.customer_id.map(|id| payments_grpc::Customer {
-            id: Some(id.get_string_repr().to_owned()),
-            ..Default::default()
+        // build cross-transaction history for the buyer; the contact details
+        // alongside it are what they match on when the id is new.
+        let customer_info = (ctx.customer_id.is_some() || ctx.customer_details.is_some()).then(
+            || {
+                let details = ctx.customer_details;
+                payments_grpc::Customer {
+                    id: ctx.customer_id.map(|id| id.get_string_repr().to_owned()),
+                    // Sent as the full name; providers that want the parts split
+                    // it themselves, since Hyperswitch does not store them apart.
+                    name: details
+                        .and_then(|details| details.name.as_ref())
+                        .map(|name| name.peek().to_owned()),
+                    email: details
+                        .and_then(|details| details.email.as_ref())
+                        .map(|email| Secret::new(email.peek().to_owned())),
+                    phone_number: details
+                        .and_then(|details| details.phone.as_ref())
+                        .map(|phone| Secret::new(phone.peek().to_owned())),
+                    phone_country_code: details
+                        .and_then(|details| details.phone_country_code.clone()),
+                    ..Default::default()
+                }
+            },
+        );
+
+        // Reuses the same builder the payments UCS path uses, so the instrument
+        // is encoded identically for a risk check and for the authorization that
+        // follows it.
+        //
+        // A payment method Hyperswitch cannot encode degrades to `None` rather
+        // than failing: the FRM pre-check propagates its error with `?` in
+        // `pre_payment_frm_core`, so returning `Err` here would fail the payment
+        // outright over a risk-signal encoding problem. `None` reproduces the
+        // previous behaviour for that case and nothing worse.
+        let payment_method = ctx.payment_method_data.and_then(|payment_method_data| {
+            build_unified_connector_service_payment_method(
+                payment_method_data.clone(),
+                ctx.payment_method_type,
+                ctx.payment_method_token,
+                None,
+            )
+            .inspect_err(|error| {
+                router_env::logger::warn!(
+                    ?error,
+                    "Failed to encode the payment method for the FRM pre risk check; \
+                     the provider will score this transaction without instrument details"
+                )
+            })
+            .ok()
+        });
+
+        // Merchant identity for risk scoring. The MCC lives on the business
+        // profile, which this call site does not load, so it is left unset
+        // rather than issuing an extra fetch for a field no current provider reads.
+        let merchant_details = Some(payments_grpc::MerchantDetails {
+            merchant_id: Some(ctx.merchant_id.get_string_repr().to_owned()),
+            merchant_category_code: None,
         });
 
         let browser_info = ctx
@@ -151,10 +230,12 @@ impl ForeignTryFrom<FrmPreRiskCheckContext<'_>> for payments_grpc::FrmServicePre
         Ok(Self {
             amount: Some(amount),
             customer_info,
+            payment_method,
             browser_info,
             merchant_transaction_id: Some(ctx.merchant_transaction_id),
             order_details,
             address: build_payment_address(ctx.address),
+            merchant_details,
             connector_feature_data: ctx
                 .frm_metadata
                 .map(|metadata| Secret::new(metadata.clone().expose().to_string())),
