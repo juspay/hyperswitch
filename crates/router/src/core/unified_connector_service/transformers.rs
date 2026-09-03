@@ -68,6 +68,32 @@ const UPI_WAIT_SCREEN_DISPLAY_DURATION_MINUTES: i64 = 5;
 const UPI_POLL_DELAY_IN_SECS: u16 = 5;
 const UPI_POLL_FREQUENCY: u16 = 60;
 
+impl ForeignFrom<&api_models::payments::ConnectorMetadata>
+    for payments_grpc::AdditionalConnectorDetails
+{
+    fn foreign_from(metadata: &api_models::payments::ConnectorMetadata) -> Self {
+        let api_models::payments::ConnectorMetadata {
+            checkout,
+            apple_pay: _,
+            airwallex: _,
+            noon: _,
+            braintree: _,
+            adyen: _,
+            peachpayments: _,
+            santander: _,
+            worldpayxml: _,
+        } = metadata;
+        Self {
+            checkout: match checkout {
+                Some(data) => Some(payments_grpc::CheckoutAdditionalInformation {
+                    purpose_of_payment: data.purpose_of_payment.clone(),
+                }),
+                None => None,
+            },
+        }
+    }
+}
+
 impl ForeignFrom<common_enums::ProductType> for payments_grpc::ProductType {
     fn foreign_from(product_type: common_enums::ProductType) -> Self {
         match product_type {
@@ -727,6 +753,11 @@ impl
                 .as_ref()
                 .map(payments_grpc::RecipientDetails::foreign_try_from)
                 .transpose()?,
+            additional_connector_details: router_data
+                .request
+                .connector_intent_metadata
+                .as_ref()
+                .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
         })
     }
 }
@@ -978,6 +1009,11 @@ impl
                 .as_ref()
                 .map(payments_grpc::RecipientDetails::foreign_try_from)
                 .transpose()?,
+            additional_connector_details: router_data
+                .request
+                .connector_intent_metadata
+                .as_ref()
+                .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
         })
     }
 }
@@ -2200,6 +2236,11 @@ impl
                 .as_ref()
                 .map(payments_grpc::RecipientDetails::foreign_try_from)
                 .transpose()?,
+            additional_connector_details: router_data
+                .request
+                .connector_intent_metadata
+                .as_ref()
+                .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
         })
     }
 }
@@ -2410,6 +2451,11 @@ impl
                 .as_ref()
                 .map(payments_grpc::RecipientDetails::foreign_try_from)
                 .transpose()?,
+            additional_connector_details: router_data
+                .request
+                .connector_intent_metadata
+                .as_ref()
+                .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
         })
     }
 }
@@ -2593,6 +2639,7 @@ impl
             currency_conversion_data: None,
             is_account_funding_transaction: None,
             recipient_details: None,
+            additional_connector_details: None,
         })
     }
 }
@@ -2779,6 +2826,11 @@ impl
                 .as_ref()
                 .map(payments_grpc::RecipientDetails::foreign_try_from)
                 .transpose()?,
+            additional_connector_details: router_data
+                .request
+                .connector_intent_metadata
+                .as_ref()
+                .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
         })
     }
 }
@@ -3087,6 +3139,11 @@ impl
                 .as_ref()
                 .map(payments_grpc::RecipientDetails::foreign_try_from)
                 .transpose()?,
+            additional_connector_details: router_data
+                .request
+                .connector_intent_metadata
+                .as_ref()
+                .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
         })
     }
 }
