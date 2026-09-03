@@ -14,9 +14,14 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
   });
 
   afterEach("flush global state", () => {
-    // This spec's tests create their own customers for local mandate
-    // testing, overwriting globalState.customerId. Restore the original
-    // customer before flushing so later specs don't inherit one scoped to
+    cy.task("setGlobalState", globalState.data);
+  });
+
+  after("restore customerId", () => {
+    // Most tests in this spec intentionally continue using a customer
+    // created by an earlier test in the same file, so customerId can't be
+    // restored after every test. Restore it only once, after the whole
+    // spec finishes, so later specs don't inherit a customer scoped to
     // this spec's own tests.
     globalState.set("customerId", originalCustomerId);
     cy.task("setGlobalState", globalState.data);

@@ -14,10 +14,16 @@ describe("Payment Methods Tests", () => {
   });
 
   afterEach("flush global state", () => {
-    // This spec's tests create their own customers for local payment-method
-    // testing, overwriting globalState.customerId. Restore the original
-    // customer before flushing so later specs don't inherit one scoped to
-    // this spec's own tests.
+    cy.task("setGlobalState", globalState.data);
+  });
+
+  after("restore customerId", () => {
+    // Some tests in this spec intentionally continue using a customer
+    // created by an earlier test in the same file (e.g. "Set default
+    // payment method" reuses "Create payment method for customer"'s
+    // customer), so customerId can't be restored after every test.
+    // Restore it only once, after the whole spec finishes, so later specs
+    // don't inherit a customer scoped to this spec's own tests.
     globalState.set("customerId", originalCustomerId);
     cy.task("setGlobalState", globalState.data);
   });
