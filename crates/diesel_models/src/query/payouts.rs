@@ -14,15 +14,6 @@ use crate::{
     DatabaseConnectionWithContext, StorageResult,
 };
 
-diesel::define_sql_function! {
-    #[sql_name = "concat"]
-    fn active_payout_attempt_id(
-        payout_id: diesel::sql_types::VarChar,
-        separator: diesel::sql_types::VarChar,
-        attempt_count: diesel::sql_types::SmallInt,
-    ) -> diesel::sql_types::VarChar;
-}
-
 impl PayoutsNew {
     pub async fn insert(self, conn: &DatabaseConnectionWithContext<'_>) -> StorageResult<Payouts> {
         generics::generic_insert(conn, self).await
