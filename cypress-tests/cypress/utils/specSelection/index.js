@@ -75,3 +75,39 @@ export function resolveSpecs({ service, connectorId }) {
     reason: `connector "${connectorId}" supports ${supported.join(", ")}`,
   };
 }
+
+/**
+ * Splits a resolved spec list across N shards for concurrent execution.
+ *
+ * Every shard gets the full, in-order `prerequisiteSpecs` prefix (each shard
+ * is its own Cypress/Node process, so `globalState` — and the merchant it
+ * seeds — is not shared across shards) followed by this shard's slice of the
+ * remaining specs, round-robined by index so the naturally slower/heavier
+ * specs (higher-numbered, generally later-added) don't all land in one shard.
+ *
+ * @param {object} options
+ * @param {string[]} options.specs - Output of `resolveSpecs().specs`.
+ * @param {string[]} [options.prerequisiteSpecs] - Basenames every shard must
+ *   run first, from `SERVICES[service].prerequisiteSpecs`.
+ * @param {number} options.shardIndex - 1-based shard number.
+ * @param {number} options.shardTotal - Total shard count.
+ * @returns {string[]} This shard's specs, prerequisites first.
+ */
+export function shardSpecs({
+  specs,
+  prerequisiteSpecs = [],
+  shardIndex,
+  shardTotal,
+}) {
+  if (!shardTotal || shardTotal <= 1) return specs;
+
+  const isPrerequisite = (specPath) =>
+    prerequisiteSpecs.includes(path.basename(specPath));
+
+  const prerequisites = specs.filter(isPrerequisite);
+  const rest = specs.filter((specPath) => !isPrerequisite(specPath));
+
+  const shardRest = rest.filter((_, i) => i % shardTotal === shardIndex - 1);
+
+  return [...prerequisites, ...shardRest];
+}

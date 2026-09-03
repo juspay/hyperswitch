@@ -181,10 +181,27 @@ const PAYMENT_SPEC_METHODS = Object.freeze({
  *
  * Only `payments` is wired today; the remaining `cypress:*` scripts keep their
  * plain spec globs. Register a service here to filter it too.
+ *
+ * `prerequisiteSpecs` are specs every shard must run before its own slice when
+ * `--shard` splits the service (see `shardSpecs` in `index.js`): `01`-`03`
+ * create the merchant/customer/connector and seed `globalState` with
+ * `merchantId`/`customerId`/`publishableKey`/`organizationId`/`profileId`/
+ * `merchantConnectorId`, which every later spec's `before` hook reads. `00`
+ * is self-contained (creates its own merchant) but kept first since specs run
+ * in sorted-filename order and nothing depends on it running before `01`-`03`
+ * specifically — it just has nothing to gain from being sharded out on its
+ * own. No spec past `03` reads state written by another spec past `03`: each
+ * creates and consumes its own payment/refund/dispute within itself.
  */
 export const SERVICES = Object.freeze({
   payments: {
     specDir: "cypress/e2e/spec/Payment",
     specMethods: PAYMENT_SPEC_METHODS,
+    prerequisiteSpecs: [
+      "00-CoreFlows.cy.js",
+      "01-AccountCreate.cy.js",
+      "02-CustomerCreate.cy.js",
+      "03-ConnectorCreate.cy.js",
+    ],
   },
 });
