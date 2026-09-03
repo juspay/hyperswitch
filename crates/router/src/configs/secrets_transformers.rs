@@ -293,29 +293,6 @@ impl SecretsHandler for settings::UserAuthMethodSettings {
 }
 
 #[async_trait::async_trait]
-impl SecretsHandler for settings::ChatSettings {
-    async fn convert_to_raw_secret(
-        value: SecretStateContainer<Self, SecuredSecret>,
-        secret_management_client: &dyn SecretManagementInterface,
-    ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
-        let chat_settings = value.get_inner();
-
-        let encryption_key = if chat_settings.enabled {
-            secret_management_client
-                .get_secret(chat_settings.encryption_key.clone())
-                .await?
-        } else {
-            chat_settings.encryption_key.clone()
-        };
-
-        Ok(value.transition_state(|chat_settings| Self {
-            encryption_key,
-            ..chat_settings
-        }))
-    }
-}
-
-#[async_trait::async_trait]
 impl SecretsHandler for settings::SageSettings {
     async fn convert_to_raw_secret(
         value: SecretStateContainer<Self, SecuredSecret>,
@@ -376,9 +353,10 @@ impl SecretsHandler for settings::OfferEngineConfig {
         secret_management_client: &dyn SecretManagementInterface,
     ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
         let offer_engine = value.get_inner();
-        let api_key = secret_management_client
-            .get_secret(offer_engine.api_key.clone())
-            .await?;
+        let api_key = match offer_engine.api_key.clone() {
+            Some(api_key) => Some(secret_management_client.get_secret(api_key).await?),
+            None => None,
+        };
 
         Ok(value.transition_state(|offer_engine| Self {
             api_key,
@@ -625,11 +603,6 @@ pub(crate) async fn fetch_raw_secrets(
         .await;
 
     #[allow(clippy::expect_used)]
-    let chat = settings::ChatSettings::convert_to_raw_secret(conf.chat, secret_management_client)
-        .await
-        .expect("Failed to decrypt chat configs");
-
-    #[allow(clippy::expect_used)]
     let sage = settings::SageSettings::convert_to_raw_secret(conf.sage, secret_management_client)
         .await
         .expect("Failed to decrypt sage configs");
@@ -677,7 +650,6 @@ pub(crate) async fn fetch_raw_secrets(
     Settings {
         server: conf.server,
         application_source: conf.application_source,
-        chat,
         sage,
         master_database,
         accounts_database,

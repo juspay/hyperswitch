@@ -1172,7 +1172,7 @@ impl webhooks::IncomingWebhook for Payload {
         )?;
         let currency = payment_context.currency.ok_or_else(|| {
             errors::ConnectorError::MissingRequiredField {
-                field_name: "currency",
+                field_name: "currency".into(),
             }
         })?;
 
@@ -1186,7 +1186,7 @@ impl webhooks::IncomingWebhook for Payload {
             dispute_stage: api_models::enums::DisputeStage::Dispute,
             connector_dispute_id: webhook_body.triggered_on.transaction_id.ok_or_else(|| {
                 errors::ConnectorError::MissingRequiredField {
-                    field_name: "connector_dispute_id",
+                    field_name: "connector_dispute_id".into(),
                 }
             })?,
             connector_reason: None,

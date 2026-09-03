@@ -82,7 +82,6 @@ pub struct Settings<S: SecretState> {
     pub application_source: common_enums::ApplicationSource,
     pub proxy: Proxy,
     pub env: Env,
-    pub chat: SecretStateContainer<ChatSettings, S>,
     pub sage: SecretStateContainer<SageSettings, S>,
     pub master_database: SecretStateContainer<Database, S>,
     /// Falls back to `master_database` when not configured.
@@ -481,14 +480,6 @@ pub struct Platform {
 
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
-pub struct ChatSettings {
-    pub enabled: bool,
-    pub hyperswitch_ai_host: String,
-    pub encryption_key: Secret<String>,
-}
-
-#[derive(Debug, Deserialize, Clone, Default)]
-#[serde(default)]
 pub struct SageSettings {
     pub enabled: bool,
     pub base_url: String,
@@ -709,8 +700,8 @@ pub struct ForexApi {
 #[derive(Debug, Deserialize, Clone)]
 pub struct OfferEngineConfig {
     pub base_url: url::Url,
-    pub api_key: Secret<String>,
-    pub merchant_id: String,
+    pub api_key: Option<Secret<String>>,
+    pub merchant_id: Option<String>,
 }
 
 impl OfferEngineConfig {
@@ -720,18 +711,28 @@ impl OfferEngineConfig {
                 "offer_engine.base_url must end with a trailing slash".into(),
             ))
         })?;
-        common_utils::fp_utils::when(self.api_key.peek().is_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "offer_engine.api_key must not be empty".into(),
-            ))
-        })?;
-        common_utils::fp_utils::when(self.merchant_id.is_empty(), || {
-            Err(error_stack::Report::from(
-                ApplicationError::InvalidConfigurationValueError(
-                    "offer_engine.merchant_id must not be empty".into(),
-                ),
-            ))
-        })
+        common_utils::fp_utils::when(
+            self.api_key
+                .as_ref()
+                .is_some_and(|api_key| api_key.peek().is_empty()),
+            || {
+                Err(ApplicationError::InvalidConfigurationValueError(
+                    "offer_engine.api_key must not be empty".into(),
+                ))
+            },
+        )?;
+        common_utils::fp_utils::when(
+            self.merchant_id
+                .as_ref()
+                .is_some_and(|merchant_id| merchant_id.is_empty()),
+            || {
+                Err(error_stack::Report::from(
+                    ApplicationError::InvalidConfigurationValueError(
+                        "offer_engine.merchant_id must not be empty".into(),
+                    ),
+                ))
+            },
+        )
     }
 }
 
@@ -1527,7 +1528,6 @@ impl Settings<SecuredSecret> {
         self.secrets.get_inner().validate()?;
         self.locker.validate()?;
         self.connectors.validate("connectors")?;
-        self.chat.get_inner().validate()?;
         self.sage.get_inner().validate()?;
         self.cors.validate()?;
 

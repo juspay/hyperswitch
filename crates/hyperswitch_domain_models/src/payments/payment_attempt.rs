@@ -350,7 +350,7 @@ impl AttemptAmountDetails {
     ) -> Result<(), ValidationError> {
         common_utils::fp_utils::when(request_amount_to_capture > self.get_net_amount(), || {
             Err(ValidationError::IncorrectValueProvided {
-                field_name: "amount_to_capture",
+                field_name: "amount_to_capture".into(),
             })
         })
     }

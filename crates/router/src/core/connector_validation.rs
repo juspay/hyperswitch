@@ -746,7 +746,7 @@ impl ConnectorAuthTypeValidation<'_> {
             } => {
                 if auth_key_map.is_empty() {
                     Err(errors::ApiErrorResponse::InvalidDataFormat {
-                        field_name: "connector_account_details.auth_key_map".to_string(),
+                        field_name: "connector_account_details.auth_key_map".into(),
                         expected_format: "a non empty map".to_string(),
                     }
                     .into())
