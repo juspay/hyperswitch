@@ -37,6 +37,10 @@ export const generateRandomString = (prefix = "cyMerchant") => {
   return `${prefix}_${randomString}`;
 };
 
+export const setCustomerId = (customerCreateBody, customerId) => {
+  customerCreateBody["customer_id"] = customerId;
+};
+
 export const setMerchantId = (merchantCreateBody, merchantId) => {
   merchantCreateBody["merchant_id"] = merchantId;
 };

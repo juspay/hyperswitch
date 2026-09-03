@@ -2311,6 +2311,14 @@ Cypress.Commands.add("connectorListByMid", (globalState) => {
 Cypress.Commands.add(
   "createCustomerCallTest",
   (customerCreateBody, globalState) => {
+    // Fixtures ship a fixed customer_id (e.g. "john123") shared across every
+    // spec that uses them. That's fine sequentially, but CYPRESS_SPEC_SHARDS
+    // runs several shards concurrently, each its own merchant — mirrors
+    // merchantCreateCallTest's own randomised merchant_id so no two shards'
+    // customer-create calls are ever identical requests in flight together.
+    const customerId = RequestBodyUtils.generateRandomString("cyCustomer");
+    RequestBodyUtils.setCustomerId(customerCreateBody, customerId);
+
     cy.request({
       method: "POST",
       url: `${globalState.get("baseUrl")}/customers`,
