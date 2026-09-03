@@ -2892,7 +2892,7 @@ impl TryFrom<&GooglePayWalletData> for PaymentInformation {
                                     .get_encrypted_google_pay_token()
                                     .change_context(
                                         errors::ConnectorError::MissingRequiredField {
-                                            field_name: "gpay wallet_token",
+                                            field_name: "gpay wallet_token".into(),
                                         },
                                     )?,
                             ),
@@ -2911,11 +2911,11 @@ impl TryFrom<&GooglePayWalletData> for PaymentInformation {
                         expiration_year: predecrypt_data
                             .get_four_digit_expiry_year()
                             .change_context(errors::ConnectorError::InvalidDataFormat {
-                                field_name: "expiration_year",
+                                field_name: "expiration_year".into(),
                             })?,
                         expiration_month: predecrypt_data.get_expiry_month().change_context(
                             errors::ConnectorError::InvalidDataFormat {
-                                field_name: "expiration_month",
+                                field_name: "expiration_month".into(),
                             },
                         )?,
                         cryptogram: predecrypt_data.cryptogram.clone(),
@@ -4333,7 +4333,7 @@ impl
             .connector_meta
             .clone()
             .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "connector_meta",
+                field_name: "connector_meta".into(),
             })?
             .parse_value("CybersourceThreeDSMetadata")
             .change_context(errors::ConnectorError::InvalidConnectorConfig {
