@@ -3169,15 +3169,12 @@ pub async fn generate_apple_pay_certificate(
             &key_store,
         )
         .await
-        .to_not_found_response(
-            errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                id: merchant_connector_id.get_string_repr().to_string(),
-            },
-        )?;
+        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+            id: merchant_connector_id.get_string_repr().to_string(),
+        })?;
 
-    let (private_key_pem, csr) = helpers::generate_apple_pay_keypair_and_csr(
-        mca.get_id().get_string_repr(),
-    )?;
+    let (private_key_pem, csr) =
+        helpers::generate_apple_pay_keypair_and_csr(mca.get_id().get_string_repr())?;
 
     let updated_metadata =
         helpers::set_apple_pay_system_generated_key(mca.metadata.clone(), private_key_pem);

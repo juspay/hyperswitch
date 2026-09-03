@@ -7062,8 +7062,7 @@ fn mask_apple_pay_certificate_key(
     let masked = match (header, footer) {
         (Some(header), Some(footer)) => {
             let body: String = body_lines.concat();
-            let masked_body =
-                mask_middle(&body, UNMASKED_PREFIX_LEN, UNMASKED_SUFFIX_LEN);
+            let masked_body = mask_middle(&body, UNMASKED_PREFIX_LEN, UNMASKED_SUFFIX_LEN);
             format!("{header}\n{masked_body}\n{footer}\n")
         }
         // Not a two-armor-line PEM block (shouldn't happen for a key we generated ourselves);
@@ -7086,7 +7085,10 @@ fn mask_middle(value: &str, prefix_len: usize, suffix_len: usize) -> String {
 
     let prefix: String = chars[..prefix_len].iter().collect();
     let suffix: String = chars[len - suffix_len..].iter().collect();
-    format!("{prefix}{}{suffix}", "*".repeat(len - prefix_len - suffix_len))
+    format!(
+        "{prefix}{}{suffix}",
+        "*".repeat(len - prefix_len - suffix_len)
+    )
 }
 
 /// Stores Hyperswitch's internally generated Apple Pay private key into the MCA `metadata`
@@ -7121,7 +7123,8 @@ pub fn carry_forward_apple_pay_system_generated_key(
     existing_metadata: Option<&pii::SecretSerdeValue>,
     new_metadata: Option<pii::SecretSerdeValue>,
 ) -> Option<pii::SecretSerdeValue> {
-    let existing_key = apple_pay_metadata::Metadata::parse(existing_metadata).get_system_generated_key();
+    let existing_key =
+        apple_pay_metadata::Metadata::parse(existing_metadata).get_system_generated_key();
 
     let existing_key = match existing_key {
         Some(key) => key,
