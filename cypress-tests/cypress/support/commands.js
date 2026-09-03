@@ -7077,6 +7077,86 @@ Cypress.Commands.add("retrievePayoutCallTest", (globalState, data) => {
   });
 });
 
+/**
+ * Retrieves a payout with force_sync=true (PoSync) and asserts the response.
+ *
+ * GET /payouts/{payout_id}?force_sync=true
+ *
+ * The first sync right after payout create can hit a transient bank-side
+ * HTTP 408 while the transfer settles, so transient statuses are retried
+ * and the configured `Configs.DELAY` settling window is honored before the
+ * first attempt.
+ *
+ * @param {Object} globalState - Global state instance
+ * @param {Object} data - Connector config entry ({ Configs, Response })
+ * @param {string} [payoutId=null] - Payout id to sync; defaults to the
+ *   payoutID stored in globalState by createConfirmPayoutTest
+ */
+Cypress.Commands.add(
+  "retrievePayoutForceSyncCallTest",
+  (globalState, data, payoutId = null) => {
+    const { Configs: configs = {}, Response: resData = {} } = data || {};
+    execConfig(validateConfig(configs));
+
+    const payout_id = payoutId || globalState.get("payoutID");
+    const headers = {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("apiKey"),
+    };
+    const maxAttempts = 4;
+    const retryIntervalMs = 15000;
+    // 500 is included because UCS upstream failures (e.g. the transient
+    // bank-side gRPC deadline on the first sync after create) surface as
+    // HTTP 500 from the router — see HYP-226 API_TRACE issues.
+    const retryableStatuses = [408, 500, 502, 503, 504];
+
+    const syncAttempt = (attempt) =>
+      cy
+        .request({
+          method: "GET",
+          url: `${globalState.get("baseUrl")}/payouts/${payout_id}?force_sync=true`,
+          headers,
+          failOnStatusCode: false,
+        })
+        .then((response) => {
+          logRequestId(response.headers["x-request-id"]);
+
+          return cy.wrap(response).then(() => {
+            if (response.status === 200) {
+              expect(response.headers["content-type"]).to.include(
+                "application/json"
+              );
+              expect(response.body.payout_id).to.equal(payout_id);
+              expect(response.body.amount).to.equal(
+                globalState.get("payoutAmount")
+              );
+              for (const key in resData.body) {
+                expect(resData.body[key]).to.deep.equal(response.body[key]);
+              }
+              return response;
+            }
+
+            if (
+              attempt < maxAttempts &&
+              retryableStatuses.includes(response.status)
+            ) {
+              cy.task(
+                "cli_log",
+                `payout force_sync attempt ${attempt}/${maxAttempts} got status ${response.status}; retrying in ${retryIntervalMs}ms`
+              );
+              cy.wait(retryIntervalMs);
+              return syncAttempt(attempt + 1);
+            }
+
+            defaultErrorHandler(response, resData);
+            return response;
+          });
+        });
+
+    return syncAttempt(1);
+  }
+);
+
 // User API calls
 // Below 3 commands should be called in sequence to login a user
 Cypress.Commands.add("userLogin", (globalState) => {

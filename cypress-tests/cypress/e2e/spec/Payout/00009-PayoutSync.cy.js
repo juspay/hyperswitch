@@ -1,0 +1,219 @@
+import * as fixtures from "../../../fixtures/imports";
+import State from "../../../utils/State";
+import * as utils from "../../configs/Payout/Utils";
+
+let globalState;
+
+const getPayoutBody = () => Cypress._.cloneDeep(fixtures.createPayoutBody);
+
+// UCS rollout flows that must be enabled (primary) for sepa_bank_transfer
+// payouts to route through the unified connector service.
+const UCS_ROLLOUT_FLOWS = [
+  "PoEligibility",
+  "PoCreate",
+  "PoFulfill",
+  "PoSync",
+  "PoRecipient",
+  "PoRecipientAccount",
+];
+
+const UCS_ROLLOUT_VALUE =
+  '{"rollout_percent": 1.0, "execution_mode": "primary"}';
+
+const getUcsRolloutKey = (merchantId, connector, flow) =>
+  `ucs_rollout_config_${merchantId}_${connector}_sepa_bank_transfer_${flow}`;
+
+describe("[Payout] Sync", () => {
+  let shouldContinue = true;
+
+  before("seed global state", () => {
+    cy.task("getGlobalState").then((state) => {
+      globalState = new State(state);
+
+      if (
+        !globalState.get("payoutsExecution") ||
+        !utils.CONNECTOR_LISTS?.INCLUDE?.PAYOUT_SYNC?.includes(
+          globalState.get("connectorId")
+        )
+      ) {
+        shouldContinue = false;
+      }
+    });
+  });
+
+  afterEach("flush global state", () => {
+    cy.task("setGlobalState", globalState.data);
+  });
+
+  beforeEach(function () {
+    if (!shouldContinue) {
+      this.skip();
+    }
+  });
+
+  it("create customer", () => {
+    cy.createCustomerCallTest(
+      Cypress._.cloneDeep(fixtures.customerCreateBody),
+      globalState
+    );
+  });
+
+  context("UCS setup for sepa_bank_transfer payouts", () => {
+    it("setup-ucs-configs", () => {
+      const merchantId = globalState.get("merchantId");
+      const connector = globalState.get("connectorId");
+
+      cy.setConfigs(globalState, "ucs_enabled", "true", "CREATE");
+
+      UCS_ROLLOUT_FLOWS.forEach((flow) => {
+        cy.setConfigs(
+          globalState,
+          getUcsRolloutKey(merchantId, connector, flow),
+          UCS_ROLLOUT_VALUE,
+          "CREATE"
+        );
+      });
+    });
+  });
+
+  context("Payout create with auto fulfill then force sync", () => {
+    let shouldContinue = true;
+
+    beforeEach(function () {
+      if (!shouldContinue) {
+        this.skip();
+      }
+    });
+
+    it("confirm-payout-call-with-auto-fulfill-test", () => {
+      const data = Cypress._.cloneDeep(
+        utils.getConnectorDetails(globalState.get("connectorId"))[
+          "bank_transfer_pm"
+        ]["sepa_bank_transfer"]["Fulfill"]
+      );
+      if (!utils.should_continue_further(data)) {
+        shouldContinue = false;
+        return;
+      }
+
+      cy.createConfirmPayoutTest(
+        getPayoutBody(),
+        data,
+        true,
+        true,
+        globalState
+      ).then((response) => {
+        // UCS path engagement and VoP eligibility executed at the bank
+        expect(response.body.metadata.gateway_system).to.equal(
+          "unified_connector_service"
+        );
+        expect(response.body.metadata.vop_status).to.equal("MTCH");
+        // Beneficiary bank details are masked in the response
+        expect(response.body.payout_method_data.bank.iban).to.equal(
+          "DE945************80002"
+        );
+        expect(response.body.payout_method_data.bank.bic).to.equal(
+          "DEU*****237"
+        );
+        // connector_transaction_id is a plain 32-hex ref (not compound)
+        expect(response.body.connector_transaction_id).to.match(
+          /^[0-9A-F]{32}$/
+        );
+        globalState.set(
+          "payoutConnectorTransactionId",
+          response.body.connector_transaction_id
+        );
+      });
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
+
+    it("force-sync-payout-call-test", () => {
+      const data = Cypress._.cloneDeep(
+        utils.getConnectorDetails(globalState.get("connectorId"))[
+          "bank_transfer_pm"
+        ]["sepa_bank_transfer"]["Sync"]
+      );
+      if (!utils.should_continue_further(data)) {
+        shouldContinue = false;
+        return;
+      }
+
+      cy.retrievePayoutForceSyncCallTest(globalState, data).then((response) => {
+        // Sync preserves the create response's connector_transaction_id
+        expect(response.body.connector_transaction_id).to.equal(
+          globalState.get("payoutConnectorTransactionId")
+        );
+        expect(response.body.metadata.gateway_system).to.equal(
+          "unified_connector_service"
+        );
+      });
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
+
+    it("force-sync-payout-idempotency-test", () => {
+      const data = Cypress._.cloneDeep(
+        utils.getConnectorDetails(globalState.get("connectorId"))[
+          "bank_transfer_pm"
+        ]["sepa_bank_transfer"]["SyncIdempotent"]
+      );
+
+      cy.retrievePayoutForceSyncCallTest(globalState, data).then((response) => {
+        // Re-sync is idempotent: still success with the same
+        // connector_transaction_id
+        expect(response.body.connector_transaction_id).to.equal(
+          globalState.get("payoutConnectorTransactionId")
+        );
+      });
+    });
+  });
+
+  context("Negative: payout create without source account holder name", () => {
+    it("create-payout-without-source-account-holder-name-test", () => {
+      const data = Cypress._.cloneDeep(
+        utils.getConnectorDetails(globalState.get("connectorId"))[
+          "bank_transfer_pm"
+        ]["sepa_bank_transfer"]["CreateWithoutSourceAccountHolderName"]
+      );
+
+      cy.createConfirmPayoutTest(
+        getPayoutBody(),
+        data,
+        true,
+        true,
+        globalState
+      );
+    });
+  });
+
+  context("Negative: force sync unknown payout", () => {
+    it("force-sync-unknown-payout-test", () => {
+      const data = Cypress._.cloneDeep(
+        utils.getConnectorDetails(globalState.get("connectorId"))[
+          "bank_transfer_pm"
+        ]["sepa_bank_transfer"]["SyncNonExistentPayout"]
+      );
+
+      cy.retrievePayoutForceSyncCallTest(
+        globalState,
+        data,
+        "payout_unknown123"
+      );
+    });
+  });
+
+  context("UCS cleanup", () => {
+    it("cleanup-ucs-configs", () => {
+      const merchantId = globalState.get("merchantId");
+      const connector = globalState.get("connectorId");
+
+      UCS_ROLLOUT_FLOWS.forEach((flow) => {
+        cy.setConfigs(
+          globalState,
+          getUcsRolloutKey(merchantId, connector, flow),
+          UCS_ROLLOUT_VALUE,
+          "DELETE"
+        );
+      });
+    });
+  });
+});
