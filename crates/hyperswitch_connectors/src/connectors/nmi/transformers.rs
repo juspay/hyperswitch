@@ -206,7 +206,7 @@ fn process_nmi_vault_response(
     let auth_type: NmiAuthType = connector_auth_type.try_into()?;
     let amount_data = amount;
     let currency_data = currency.ok_or(ConnectorError::MissingRequiredField {
-        field_name: "currency",
+        field_name: "currency".into(),
     })?;
 
     build_nmi_vault_response(
@@ -241,7 +241,7 @@ fn build_nmi_vault_response(
                         .customer_vault_id
                         .clone()
                         .ok_or(ConnectorError::MissingRequiredField {
-                            field_name: "customer_vault_id",
+                            field_name: "customer_vault_id".into(),
                         })?
                         .peek()
                         .to_string(),
@@ -420,7 +420,7 @@ impl TryFrom<&NmiRouterData<&PaymentsCompleteAuthorizeRouterData>> for NmiComple
 
         let three_ds_data: NmiRedirectResponseData = serde_json::from_value(payload_data)
             .change_context(ConnectorError::MissingConnectorRedirectionPayload {
-                field_name: "three_ds_data",
+                field_name: "three_ds_data".into(),
             })?;
 
         let (_, _, cvv) = get_card_details(item.router_data.request.payment_method_data.clone())?;
@@ -965,7 +965,7 @@ impl TryFrom<(&GooglePayWalletData, Option<PaymentMethodToken>)> for GooglePayPa
                         ccexp: google_pay_decrypt_data
                             .get_expiry_date_as_mmyy()
                             .change_context(ConnectorError::InvalidDataFormat {
-                                field_name: "expiration_month/expiration_year",
+                                field_name: "expiration_month/expiration_year".into(),
                             })?,
                         cavv: google_pay_decrypt_data.cryptogram.clone(),
                         eci: google_pay_decrypt_data.eci_indicator.clone(),
@@ -988,7 +988,7 @@ impl TryFrom<(&GooglePayWalletData, Option<PaymentMethodToken>)> for GooglePayPa
                             .tokenization_data
                             .get_encrypted_google_pay_token()
                             .change_context(ConnectorError::MissingRequiredField {
-                                field_name: "gpay wallet_token",
+                                field_name: "gpay wallet_token".into(),
                             })?
                             .clone(),
                     ),
@@ -1033,7 +1033,7 @@ impl TryFrom<(&ApplePayWalletData, Option<PaymentMethodToken>)> for ApplePayPaym
                         ccexp: apple_pay_decrypt_data
                             .get_expiry_date_as_mmyy()
                             .change_context(ConnectorError::InvalidDataFormat {
-                                field_name: "application_expiration_date",
+                                field_name: "application_expiration_date".into(),
                             })?,
                         cavv: apple_pay_decrypt_data
                             .payment_data
@@ -1057,13 +1057,13 @@ impl TryFrom<(&ApplePayWalletData, Option<PaymentMethodToken>)> for ApplePayPaym
                     .payment_data
                     .get_encrypted_apple_pay_payment_data_mandatory()
                     .change_context(ConnectorError::MissingRequiredField {
-                        field_name: "Apple pay encrypted data",
+                        field_name: "Apple pay encrypted data".into(),
                     })?;
 
                 let base64_decoded_apple_pay_data = base64::prelude::BASE64_STANDARD
                     .decode(apple_pay_encrypted_data)
                     .change_context(ConnectorError::InvalidDataFormat {
-                        field_name: "apple_pay_encrypted_data",
+                        field_name: "apple_pay_encrypted_data".into(),
                     })?;
 
                 let hex_encoded_apple_pay_data = hex::encode(base64_decoded_apple_pay_data);
@@ -1283,7 +1283,7 @@ impl TryFrom<&PaymentsCancelRouterData> for NmiCancelRequest {
                 })
             }
             None => Err(ConnectorError::MissingRequiredField {
-                field_name: "cancellation_reason",
+                field_name: "cancellation_reason".into(),
             }
             .into()),
         }

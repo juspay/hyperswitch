@@ -152,7 +152,7 @@ impl
             .feature_metadata
             .as_ref()
             .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "feature_metadata",
+                field_name: "feature_metadata".into(),
             })?
             .get_pix_automatico_push_expiry_time()
             .change_context(errors::ConnectorError::ParsingFailed)
@@ -224,7 +224,7 @@ impl
             .as_ref()
             .map(|qr_data| qr_data.jornada.clone())
             .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "response.dadosQR.jornada",
+                field_name: "response.dadosQR.jornada".into(),
             })?;
         let expiry_type = journey.and_then(Option::<ExpiryType>::from);
         let connector_metadata = match item
@@ -587,7 +587,7 @@ impl
                 .and_then(|fm| fm.boleto_additional_details.as_ref())
                 .and_then(|details| details.due_date)
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "feature_metadata.boleto_additional_details.due_date",
+                    field_name: "feature_metadata.boleto_additional_details.due_date".into(),
                 })?,
         );
 
@@ -646,7 +646,7 @@ impl
             .customer_document_details
             .clone()
             .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "customer.document_details",
+                field_name: "customer.document_details".into(),
             })?;
 
         let (document_type, document_number) = match customer_document_details.document_type {
@@ -792,7 +792,7 @@ impl
             .customer_document_details
             .clone()
             .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "customer.document_details",
+                field_name: "customer.document_details".into(),
             })?;
         let (cpf, cnpj) = match customer_document_details.document_type {
             common_types::customers::DocumentKind::Cpf => {
@@ -974,7 +974,7 @@ impl TryFrom<&SantanderRouterData<&PaymentsAuthorizeRouterData>>
                 _ => None,
             })
             .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "feature_metadata.pix_automatico_additional_details.mit",
+                field_name: "feature_metadata.pix_automatico_additional_details.mit".into(),
             })?;
 
         let santander_mca_metadata =
@@ -999,7 +999,7 @@ impl TryFrom<&SantanderRouterData<&PaymentsAuthorizeRouterData>>
 
                         let final_account = account.or(push_metadata.account_number).ok_or(
                             errors::ConnectorError::MissingRequiredField {
-                                field_name: "account_number",
+                                field_name: "account_number".into(),
                             },
                         )?;
 
@@ -1007,7 +1007,7 @@ impl TryFrom<&SantanderRouterData<&PaymentsAuthorizeRouterData>>
                             .map(SantanderAccountType::from)
                             .or_else(|| push_metadata.account_type.map(SantanderAccountType::from))
                             .ok_or(errors::ConnectorError::MissingRequiredField {
-                                field_name: "account_type",
+                                field_name: "account_type".into(),
                             })?;
 
                         (final_branch, final_account, final_account_type)
@@ -1022,7 +1022,7 @@ impl TryFrom<&SantanderRouterData<&PaymentsAuthorizeRouterData>>
 
                         let final_account = account.or(qr_metadata.account_number).ok_or(
                             errors::ConnectorError::MissingRequiredField {
-                                field_name: "account_number",
+                                field_name: "account_number".into(),
                             },
                         )?;
 
@@ -1030,7 +1030,7 @@ impl TryFrom<&SantanderRouterData<&PaymentsAuthorizeRouterData>>
                             .map(SantanderAccountType::from)
                             .or_else(|| qr_metadata.account_type.map(SantanderAccountType::from))
                             .ok_or(errors::ConnectorError::MissingRequiredField {
-                                field_name: "account_type",
+                                field_name: "account_type".into(),
                             })?;
 
                         (final_branch, final_account, final_account_type)
@@ -1060,14 +1060,14 @@ impl TryFrom<&SantanderRouterData<&PaymentsAuthorizeRouterData>>
                             push_metadata.branch_code,
                             push_metadata.account_number.ok_or(
                                 errors::ConnectorError::MissingRequiredField {
-                                    field_name: "account_number",
+                                    field_name: "account_number".into(),
                                 },
                             )?,
                             push_metadata
                                 .account_type
                                 .map(SantanderAccountType::from)
                                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                                    field_name: "account_type",
+                                    field_name: "account_type".into(),
                                 })?,
                         )
                     }
@@ -1081,14 +1081,14 @@ impl TryFrom<&SantanderRouterData<&PaymentsAuthorizeRouterData>>
                             qr_metadata.branch_code,
                             qr_metadata.account_number.ok_or(
                                 errors::ConnectorError::MissingRequiredField {
-                                    field_name: "account_number",
+                                    field_name: "account_number".into(),
                                 },
                             )?,
                             qr_metadata
                                 .account_type
                                 .map(SantanderAccountType::from)
                                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                                    field_name: "account_type",
+                                    field_name: "account_type".into(),
                                 })?,
                         )
                     }
@@ -2323,7 +2323,7 @@ pub fn format_as_date_only(
     date_time: Option<time::PrimitiveDateTime>,
 ) -> Result<String, errors::ConnectorError> {
     let dt = date_time.ok_or(errors::ConnectorError::MissingRequiredField {
-        field_name: "due_date",
+        field_name: "due_date".into(),
     })?;
 
     let format = time::macros::format_description!("[year]-[month]-[day]");
@@ -2526,7 +2526,7 @@ impl
             .as_ref()
             .and_then(|metadata| metadata.pix_automatico_additional_details.as_ref())
             .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "feature_metadata.pix_automatico_additional_details",
+                field_name: "feature_metadata.pix_automatico_additional_details".into(),
             })?;
 
         let (retry_policy, mandate_details) = match pix_automatico_meta {
@@ -2539,14 +2539,15 @@ impl
             api_models::payments::PixAutomaticoAdditionalDetails::PixAutomaticoMit(_) => {
                 return Err(errors::ConnectorError::MissingRequiredField {
                     field_name:
-                        "feature_metadata.pix_automatico_additional_details (expected CIT flow)",
+                        "feature_metadata.pix_automatico_additional_details (expected CIT flow)"
+                            .into(),
                 })?;
             }
         };
 
         let contrato = item.request.merchant_order_reference_id.clone().ok_or(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "merchant_order_reference_id",
+                field_name: "merchant_order_reference_id".into(),
             },
         )?;
 
@@ -2563,7 +2564,8 @@ impl
             .or(request_customer_name.clone())
             .ok_or(errors::ConnectorError::MissingRequiredField {
                 field_name:
-                    "billing.address.first_name or billing.address.last_name or customer.name",
+                    "billing.address.first_name or billing.address.last_name or customer.name"
+                        .into(),
             })?;
 
         let (cpf, cnpj) = item
@@ -2582,14 +2584,14 @@ impl
                 }
             })
             .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "customer.document_details",
+                field_name: "customer.document_details".into(),
             })?;
 
         let objeto =
             item.description
                 .clone()
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "description",
+                    field_name: "description".into(),
                 })?;
 
         if objeto.len() > 35 {
@@ -2614,7 +2616,7 @@ impl
                 // Validate that start_date is not before current date
                 if start_date.date() < current_date {
                     return Err(errors::ConnectorError::InvalidDataFormat {
-                        field_name: "mandate_details.start_date",
+                        field_name: "mandate_details.start_date".into(),
                     }
                     .into());
                 }
@@ -2632,7 +2634,7 @@ impl
                 // Validate that end_date is not before current date
                 if end_date.date() < current_date {
                     return Err(errors::ConnectorError::InvalidDataFormat {
-                        field_name: "mandate_details.end_date",
+                        field_name: "mandate_details.end_date".into(),
                     });
                 }
                 format_as_date_only(Some(end_date))
@@ -2658,7 +2660,7 @@ impl
             (None, None) => None,
             (Some(_), Some(_)) => {
                 return Err(errors::ConnectorError::InvalidDataFormat {
-                    field_name: "mandate_details.fixed_recurring_amount & mandate_details.min_recurring_amount cannot be present at the same time",
+                    field_name: "mandate_details.fixed_recurring_amount & mandate_details.min_recurring_amount cannot be present at the same time".into(),
                 }
                 .into());
             }
@@ -2799,7 +2801,7 @@ impl TryFrom<&PaymentsPushNotificationRouterData> for SantanderPixAutomaticSolic
             .feature_metadata
             .as_ref()
             .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "feature_metadata",
+                field_name: "feature_metadata".into(),
             })?
             .get_pix_automatico_push_expiry_time()
             .change_context(errors::ConnectorError::ParsingFailed)
@@ -2827,13 +2829,13 @@ impl TryFrom<&PaymentsPushNotificationRouterData> for SantanderPixAutomaticSolic
                 } => (account_number, branch_code, bank_identifier),
                 _ => {
                     return Err(errors::ConnectorError::MissingRequiredField {
-                        field_name: "payment_method_data.bank_transfer.pix_automatico_push",
+                        field_name: "payment_method_data.bank_transfer.pix_automatico_push".into(),
                     })?
                 }
             },
             _ => {
                 return Err(errors::ConnectorError::MissingRequiredField {
-                    field_name: "payment_method_data.bank_transfer.pix_automatico_push",
+                    field_name: "payment_method_data.bank_transfer.pix_automatico_push".into(),
                 })?
             }
         };
@@ -2841,7 +2843,7 @@ impl TryFrom<&PaymentsPushNotificationRouterData> for SantanderPixAutomaticSolic
         // Extract customer document details
         let customer_document_details = item.customer_document_details.clone().ok_or(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "customer.document_details",
+                field_name: "customer.document_details".into(),
             },
         )?;
 
@@ -2872,7 +2874,7 @@ impl TryFrom<&PaymentsPushNotificationRouterData> for SantanderPixAutomaticSolic
                     .1
                     .clone()
                     .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "payment_method_data.bank_transfer.branch_code",
+                        field_name: "payment_method_data.bank_transfer.branch_code".into(),
                     })?
                     .expose()
                     .into(),
@@ -2880,7 +2882,7 @@ impl TryFrom<&PaymentsPushNotificationRouterData> for SantanderPixAutomaticSolic
                     .0
                     .clone()
                     .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "payment_method_data.bank_transfer.account_number",
+                        field_name: "payment_method_data.bank_transfer.account_number".into(),
                     })?
                     .expose()
                     .into(),
@@ -2890,7 +2892,7 @@ impl TryFrom<&PaymentsPushNotificationRouterData> for SantanderPixAutomaticSolic
                     .2
                     .clone()
                     .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "payment_method_data.bank_transfer.bank_identifier",
+                        field_name: "payment_method_data.bank_transfer.bank_identifier".into(),
                     })?
                     .expose()
                     .into(),

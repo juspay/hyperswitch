@@ -1091,13 +1091,13 @@ impl ConnectorRedirectResponse for Nmi {
         match action {
             PaymentAction::CompleteAuthorize => {
                 let payload_data = json_payload.ok_or(ConnectorError::MissingRequiredField {
-                    field_name: "connector_metadata",
+                    field_name: "connector_metadata".into(),
                 })?;
 
                 let redirect_res: nmi::NmiRedirectResponse = serde_json::from_value(payload_data)
                     .change_context(
                     ConnectorError::MissingConnectorRedirectionPayload {
-                        field_name: "redirect_res",
+                        field_name: "redirect_res".into(),
                     },
                 )?;
 

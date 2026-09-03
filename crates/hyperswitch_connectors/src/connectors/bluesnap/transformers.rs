@@ -330,7 +330,7 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsAuthorizeRouterData>> for Blues
                         .address
                         .get_required_value("billing_address")
                         .change_context(errors::ConnectorError::MissingRequiredField {
-                            field_name: "billing",
+                            field_name: "billing".into(),
                         })?;
 
                     let mut address = Vec::new();
@@ -495,7 +495,7 @@ impl TryFrom<&types::PaymentsSessionRouterData> for BluesnapCreateWalletToken {
         }?;
         let domain_name = session_token_data.initiative_context.ok_or(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "apple pay initiative_context",
+                field_name: "apple pay initiative_context".into(),
             },
         )?;
 
@@ -627,7 +627,7 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
             .as_ref()
             .and_then(|res| res.payload.to_owned())
             .ok_or(errors::ConnectorError::MissingConnectorRedirectionPayload {
-                field_name: "request.redirect_response.payload",
+                field_name: "request.redirect_response.payload".into(),
             })?
             .parse_value("BluesnapRedirectionResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -648,12 +648,12 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
             .clone()
             .and_then(|res| res.params.to_owned())
             .ok_or(errors::ConnectorError::MissingConnectorRedirectionPayload {
-                field_name: "request.redirect_response.params",
+                field_name: "request.redirect_response.params".into(),
             })?
             .peek()
             .split_once('=')
             .ok_or(errors::ConnectorError::MissingConnectorRedirectionPayload {
-                field_name: "request.redirect_response.params.paymentToken",
+                field_name: "request.redirect_response.params.paymentToken".into(),
             })?
             .1
             .to_string();
@@ -675,7 +675,7 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
                 three_d_secure_reference_id: redirection_result
                     .three_d_secure
                     .ok_or(errors::ConnectorError::MissingConnectorRedirectionPayload {
-                        field_name: "three_d_secure_reference_id",
+                        field_name: "three_d_secure_reference_id".into(),
                     })?
                     .three_d_secure_reference_id,
             }),

@@ -589,6 +589,7 @@ export const CONNECTOR_LISTS = {
   INCLUDE: {
     // Tracking extension to other connectors: #13520
     SPLIT_PAYMENTS: ["stripeconnect", "payloadconnect"],
+    PROCESSING_METHOD_ID: ["payload"],
     MANDATES_USING_NTID_PROXY: ["cybersource", "checkout"],
     // Card and mandate flows of 54-TsysTransitMandates. The mandates need a
     // profile with connector agnostic MIT enabled, which keeps them out of the
@@ -780,7 +781,7 @@ export const CONNECTOR_LISTS = {
     CARD_TESTING_GUARD: ["bankofamerica"],
     CLEAR_PAN_RETRY: ["bankofamerica"],
     L2L3DATA: ["checkout", "nuvei", "stripe", "worldpayvantiv"],
-    REFUND_MANUAL_UPDATE: ["bankofamerica", "cybersource"],
+    REFUND_MANUAL_UPDATE: ["stripe"],
     REFUND_TYPE: ["stripe", "adyen", "checkout"],
     MANUAL_PAYMENT_UPDATE: ["stripe"],
     CRYPTO_PAYMENT: ["bitpay", "coingate", "cryptopay"],
@@ -814,6 +815,7 @@ export const CONNECTOR_LISTS = {
     WEBHOOK_CONFIG: ["stripe"],
     REQUIRES_CVV: ["bankofamerica"],
     PAYMENT_ACCOUNT_REFERENCE: ["stripe", "checkout"],
+    BLOCK_IMPLICIT_CUSTOMER_CREATION: ["adyen"],
     // Add more inclusion lists
   },
 };

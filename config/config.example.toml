@@ -1534,10 +1534,6 @@ version = "HOSTNAME"        # value of HOSTNAME from deployment which tells its 
 enabled = true # Enable or disable platform features
 allow_connected_merchants = false # Enable or disable connected merchant account features
 
-[chat]
-enabled = false                                # Enable or disable chat features
-hyperswitch_ai_host = "http://0.0.0.0:8000"    # Hyperswitch ai workflow host
-encryption_key = ""                            # Key to encrypt and decrypt chats
 
 [trace_header]
 header_name = "x-request-id"    # HTTP header name for request tracing (can be x-trace-id, x-correlation-id, etc.)
@@ -1567,8 +1563,8 @@ backup_file_path = "./config/superposition_seed.toml" # Path to a local file for
 
 [offer_engine]
 base_url = "https://offer-engine.example.com/" # Base URL of the Offer Engine service
-api_key = ""                                  # API key for API-key authenticated Offer Engine calls
-merchant_id = ""                              # Offer Engine merchant id sent in request bodies
+api_key = ""                                  # API key for the `application` credential source; omit when credentials are at the merchant level
+merchant_id = ""                              # Offer Engine merchant id for the `application` credential source; omit when credentials are at the merchant level
 
 # Credentials and call settings for the Account Updater flow; omit the section entirely to keep it off
 [account_updater.juspay]
