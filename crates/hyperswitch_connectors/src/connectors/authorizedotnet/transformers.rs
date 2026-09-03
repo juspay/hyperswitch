@@ -502,7 +502,7 @@ impl TryFrom<&SetupMandateRouterData> for CreateCustomerPaymentProfileRequest {
                         .payment_data
                         .get_encrypted_apple_pay_payment_data_mandatory()
                         .change_context(errors::ConnectorError::MissingRequiredField {
-                            field_name: "Apple pay encrypted data",
+                            field_name: "Apple pay encrypted data".into(),
                         })?;
 
                     Ok(PaymentProfile {
@@ -1668,7 +1668,7 @@ impl<F, T>
                     })
                     .transpose()
                     .change_context(errors::ConnectorError::MissingRequiredField {
-                        field_name: "connector_metadata",
+                        field_name: "connector_metadata".into(),
                     })?;
 
                 let connector_response_data =
@@ -1778,7 +1778,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AuthorizedotnetVoidResponse, T, Payment
                     })
                     .transpose()
                     .change_context(errors::ConnectorError::MissingRequiredField {
-                        field_name: "connector_metadata",
+                        field_name: "connector_metadata".into(),
                     })?;
                 Ok(Self {
                     status,
@@ -1901,7 +1901,7 @@ fn get_refund_metadata(
         (Some(payment_detail), _) => Ok(payment_detail),
         (_, Some(payment_detail)) => Ok(payment_detail),
         (None, None) => Err(errors::ConnectorError::MissingRequiredField {
-            field_name: "payment_details",
+            field_name: "payment_details".into(),
         }
         .into()),
     }
@@ -2428,7 +2428,7 @@ fn get_wallet_data(
                 .payment_data
                 .get_encrypted_apple_pay_payment_data_mandatory()
                 .change_context(errors::ConnectorError::MissingRequiredField {
-                    field_name: "Apple pay encrypted data",
+                    field_name: "Apple pay encrypted data".into(),
                 })?;
             Ok(PaymentDetails::OpaqueData(WalletDetails {
                 data_descriptor: WalletMethod::Applepay,

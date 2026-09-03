@@ -1,4 +1,44 @@
 #[utoipa::path(
+    get,
+    path = "/blocklist/count",
+    params (
+        ("data_kind" = BlocklistDataKind, Query, description = "Kind of blocklist entries to count"),
+        ("X-Profile-Id" = Option<String>, Header, description = "Restricts the count to entries \
+         belonging to this business profile, plus entries with no profile. If omitted, the \
+         merchant's default profile is used; merchants with more than one profile have no default \
+         and will receive an error asking for this header."),
+    ),
+    responses(
+        (status = 200, description = "Blocklist entry counts", body = BlocklistCountResponse),
+        (status = 400, description = "Invalid Data, or no profile could be resolved")
+    ),
+    tag = "Blocklist",
+    operation_id = "Count blocked fingerprints of a particular kind",
+    security(("api_key" = []))
+)]
+pub async fn get_blocklist_count() {}
+
+#[utoipa::path(
+    get,
+    path = "/blocklist/lookup",
+    params (
+        ("data" = String, Query, description = "The raw value to check against the blocklist, e.g. a card BIN"),
+        ("X-Profile-Id" = Option<String>, Header, description = "Restricts the lookup to entries \
+         belonging to this business profile, plus entries with no profile. If omitted, the \
+         merchant's default profile is used; merchants with more than one profile have no default \
+         and will receive an error asking for this header."),
+    ),
+    responses(
+        (status = 200, description = "Blocklist lookup result", body = BlocklistLookupResponse),
+        (status = 400, description = "Invalid Data, or no profile could be resolved")
+    ),
+    tag = "Blocklist",
+    operation_id = "Look up whether a value is blocked",
+    security(("api_key" = []))
+)]
+pub async fn lookup_blocklist_entry() {}
+
+#[utoipa::path(
     post,
     path = "/blocklist/toggle",
     params (
@@ -83,7 +123,7 @@ pub async fn list_blocked_payment_methods() {}
         content_type = "multipart/form-data",
         description = "A multipart/form-data request with a `file` field containing a UTF-8 CSV (max 5 MiB). \
             The CSV must have a header row: `type,data,metadata`. \
-            `type`: one of `card_bin` (6 digits), `extended_card_bin` (8 digits), `fingerprint`. \
+            `type`: one of `generic_card_bin` (6 to 10 digits), `fingerprint`. \
             `metadata`: optional, `key=value` pairs separated by `;` (e.g. `reason=fraud;source=manual`). \
             Maximum 100,000 data rows.",
     ),

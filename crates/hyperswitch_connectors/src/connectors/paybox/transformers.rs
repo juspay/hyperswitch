@@ -450,7 +450,8 @@ impl TryFrom<&PayboxRouterData<&types::PaymentsAuthorizeRouterData>> for PayboxP
                                     .clone()
                                     .ok_or_else(|| {
                                         errors::ConnectorError::MissingRequiredField {
-                                            field_name: "connector_mandate_request_reference_id",
+                                            field_name: "connector_mandate_request_reference_id"
+                                                .into(),
                                         }
                                     })?;
                                 Some(Secret::new(reference_id))
@@ -1068,13 +1069,13 @@ impl TryFrom<&PayboxRouterData<&types::PaymentsCompleteAuthorizeRouterData>> for
     ) -> Result<Self, Self::Error> {
         let redirect_response = item.router_data.request.redirect_response.clone().ok_or(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "redirect_response",
+                field_name: "redirect_response".into(),
             },
         )?;
         let redirect_payload: RedirectionAuthResponse = redirect_response
             .payload
             .ok_or(errors::ConnectorError::MissingConnectorRedirectionPayload {
-                field_name: "request.redirect_response.payload",
+                field_name: "request.redirect_response.payload".into(),
             })?
             .peek()
             .clone()
@@ -1124,7 +1125,7 @@ impl TryFrom<&PayboxRouterData<&types::PaymentsCompleteAuthorizeRouterData>> for
                                 .connector_mandate_request_reference_id
                                 .clone()
                                 .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
-                                    field_name: "connector_mandate_request_reference_id",
+                                    field_name: "connector_mandate_request_reference_id".into(),
                                 })?;
                             Some(Secret::new(reference_id))
                         }
