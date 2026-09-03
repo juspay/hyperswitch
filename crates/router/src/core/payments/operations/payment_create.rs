@@ -852,7 +852,14 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             .payment_intent
             .skip_external_tax_calculation
             .unwrap_or(false);
-        if is_tax_connector_enabled && !skip_external_tax_calculation {
+        // When the merchant has concluded the settlement, the tax pipeline must not mutate
+        // the net amount.
+        let settlement_conclusion_applied =
+            payment_data.payment_intent.is_settlement_conclusion_applied();
+        if is_tax_connector_enabled
+            && !skip_external_tax_calculation
+            && !settlement_conclusion_applied
+        {
             let db = state.store.as_ref();
 
             let merchant_connector_id = business_profile
@@ -1804,10 +1811,25 @@ impl PaymentCreate {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Error converting connector_metadata to Value")?;
 
-        let feature_metadata = request
-            .get_feature_metadata_as_value()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error converting feature_metadata to Value")?;
+        let feature_metadata = match (
+            request.feature_metadata.clone(),
+            request.settlement_conclusion_applied,
+        ) {
+            (None, None) => None,
+            (request_feature_metadata, settlement_conclusion_applied) => {
+                // The settlement conclusion flag is persisted in the intent's feature
+                // metadata so that later flows (capture / recurring) honour the guarantee
+                // that the merchant-concluded amounts are not mutated by tax/surcharge.
+                let mut feature_metadata = request_feature_metadata.unwrap_or_default();
+                feature_metadata.settlement_conclusion_applied = settlement_conclusion_applied;
+                Some(
+                    feature_metadata
+                        .encode_to_value()
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Error converting feature_metadata to Value")?,
+                )
+            }
+        };
 
         let payment_link_id = payment_link_data.map(|pl_data| pl_data.payment_link_id);
 

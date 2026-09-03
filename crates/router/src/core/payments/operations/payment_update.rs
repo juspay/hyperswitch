@@ -398,7 +398,16 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                         .surcharge_details
                         .as_ref()
                         .map(RequestSurchargeDetails::get_total_surcharge_amount)
-                        .or(payment_attempt.get_total_surcharge_amount());
+                        .or_else(|| {
+                            // When the merchant has concluded the settlement, previously
+                            // pipeline-added surcharge must not be re-applied on top of the
+                            // merchant-concluded amounts.
+                            if payment_intent.is_settlement_conclusion_applied() {
+                                None
+                            } else {
+                                payment_attempt.get_total_surcharge_amount()
+                            }
+                        });
                     amount + surcharge_amount.unwrap_or_default()
                 };
                 (Box::new(operations::PaymentConfirm), amount.into())
@@ -488,10 +497,16 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         });
 
         let order_tax_amount = pmt_order_tax_amount.or_else(|| {
-            payment_intent
-                .tax_details
-                .clone()
-                .and_then(|tax| tax.default.map(|a| a.order_tax_amount))
+            // When the merchant has concluded the settlement, the tax pipeline must not
+            // mutate the net amount: previously stored tax is not re-applied.
+            if payment_intent.is_settlement_conclusion_applied() {
+                None
+            } else {
+                payment_intent
+                    .tax_details
+                    .clone()
+                    .and_then(|tax| tax.default.map(|a| a.order_tax_amount))
+            }
         });
 
         payment_intent.shipping_cost = request.shipping_cost.or(payment_intent.shipping_cost);
@@ -502,6 +517,13 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         payment_attempt
             .net_amount
             .set_order_tax_amount(request.order_tax_amount.or(order_tax_amount));
+
+        if let Some(settlement_conclusion_applied) = request.settlement_conclusion_applied {
+            payment_intent
+                .set_settlement_conclusion_applied(settlement_conclusion_applied)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to persist settlement_conclusion_applied")?;
+        }
 
         let payment_data = PaymentData {
             flow: PhantomData,
@@ -690,7 +712,14 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             .payment_intent
             .skip_external_tax_calculation
             .unwrap_or(false);
-        if is_tax_connector_enabled && !skip_external_tax_calculation {
+        // When the merchant has concluded the settlement, the tax pipeline must not mutate
+        // the net amount.
+        let settlement_conclusion_applied =
+            payment_data.payment_intent.is_settlement_conclusion_applied();
+        if is_tax_connector_enabled
+            && !skip_external_tax_calculation
+            && !settlement_conclusion_applied
+        {
             let db = state.store.as_ref();
 
             let merchant_connector_id = business_profile

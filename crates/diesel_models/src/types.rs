@@ -305,6 +305,9 @@ pub struct FeatureMetadata {
     pub pix_automatico_additional_details: Option<PixAutomaticoAdditionalDetails>,
     /// Extra information for Finix connector for fraud checks and risk evaluation
     pub finix_additional_details: Option<FinixAdditionalDetails>,
+    /// Indicates that the merchant has concluded the settlement for this payment; the tax
+    /// and surcharge pipelines must not mutate the payment's net amount.
+    pub settlement_conclusion_applied: Option<bool>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]

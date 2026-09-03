@@ -2360,6 +2360,15 @@ where
     F: Send + Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync,
 {
+    // When the merchant has concluded the settlement, the surcharge pipeline must not
+    // mutate the merchant-concluded net amount.
+    if payment_data
+        .get_payment_intent()
+        .is_settlement_conclusion_applied()
+    {
+        return Ok(());
+    }
+
     if is_external_surcharge_pending(business_profile, payment_data) {
         let is_mit = payment_data.get_payment_intent().off_session == Some(true);
 
@@ -2405,6 +2414,15 @@ where
     F: Send + Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync,
 {
+    // When the merchant has concluded the settlement, the surcharge pipeline must not
+    // mutate the merchant-concluded net amount.
+    if payment_data
+        .get_payment_intent()
+        .is_settlement_conclusion_applied()
+    {
+        return Ok(());
+    }
+
     if payment_data
         .get_payment_intent()
         .get_surcharge_mode(business_profile)
@@ -4741,6 +4759,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
                 boleto_additional_details: None,
                 pix_automatico_additional_details: None,
                 finix_additional_details: None,
+                settlement_conclusion_applied: None,
             }),
             ..Default::default()
         };
@@ -5352,6 +5371,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                     boleto_additional_details: None,
                     pix_automatico_additional_details: None,
                     finix_additional_details: None,
+                    settlement_conclusion_applied: None,
                 }),
                 ..Default::default()
             };

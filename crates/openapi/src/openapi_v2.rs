@@ -529,6 +529,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::AirwallexData,
         api_models::payments::BraintreeData,
         api_models::payments::DatatransConnectorMetadataData,
+        api_models::payments::DatatransMcpData,
         api_models::payments::NoonData,
         api_models::payments::PeachpaymentsData,
         api_models::payments::OrderDetailsWithAmount,

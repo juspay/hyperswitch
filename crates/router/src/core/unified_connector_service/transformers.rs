@@ -71,6 +71,10 @@ const UPI_POLL_FREQUENCY: u16 = 60;
 /// merchant supplies in the payment intent's `connector_metadata`. UCS models MCP
 /// as a currency conversion quote, so the Datatrans-specific fields are mapped
 /// onto the generic quote here.
+///
+/// The MCP `amount`/`currency` are the merchant settlement leg, so they map onto the
+/// quote's `merchant_order_amount`. The payment's own `amount`/`currency` stay the
+/// customer-facing leg and are sent separately as the request amount.
 fn convert_currency_conversion_data(
     connector_intent_metadata: Option<&api_models::payments::ConnectorMetadata>,
 ) -> Result<
@@ -79,33 +83,34 @@ fn convert_currency_conversion_data(
 > {
     connector_intent_metadata
         .and_then(|metadata| metadata.datatrans.as_ref())
+        .and_then(|datatrans| datatrans.mcp.as_ref())
         .map(
-            |datatrans| -> Result<
+            |mcp| -> Result<
                 payments_grpc::CurrencyConversionData,
                 error_stack::Report<UnifiedConnectorServiceError>,
             > {
                 let currency =
                     <payments_grpc::Currency as transformers::ForeignTryFrom<_>>::foreign_try_from(
-                        datatrans.currency,
+                        mcp.currency,
                     )?;
                 Ok(payments_grpc::CurrencyConversionData {
                     decision: payments_grpc::CurrencyConversionDecision::NotApplicable.into(),
                     quote: Some(payments_grpc::CurrencyConversionQuote {
                         merchant_order_amount: Some(payments_grpc::Money {
-                            minor_amount: datatrans.amount.get_amount_as_i64(),
+                            minor_amount: mcp.amount.get_amount_as_i64(),
                             currency: currency.into(),
                         }),
-                        exchange_rate: datatrans.conversion_rate.map(|rate| rate.to_string()),
-                        exchange_rate_id: datatrans.retrieval_reference_number.clone(),
-                        provider: Some(datatrans.provider.clone()),
+                        exchange_rate: mcp.conversion_rate.map(|rate| rate.to_string()),
+                        exchange_rate_id: mcp.retrieval_reference_number.clone(),
+                        provider: Some(mcp.provider.clone()),
                         currency_conversion_type: Some(
                             payments_grpc::CurrencyConversionType::Mcp.into(),
                         ),
-                        quoted_at: datatrans
+                        quoted_at: mcp
                             .transaction_date
                             .map(|dt| dt.assume_utc().unix_timestamp()),
-                        conversion_reason_code: Some(datatrans.reason_indicator.clone()),
-                        user_id: Some(datatrans.user_id.clone()),
+                        conversion_reason_code: Some(mcp.reason_indicator.clone()),
+                        user_id: Some(mcp.user_id.clone()),
                         connector_quote_id: None,
                         rate_source: None,
                         markup_percentage: None,

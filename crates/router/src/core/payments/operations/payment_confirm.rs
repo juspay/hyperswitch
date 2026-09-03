@@ -500,6 +500,13 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .attach_printable("Error converting feature_metadata to Value")?
             .map(hyperswitch_masking::Secret::new)
             .or(payment_intent.feature_metadata);
+
+        if let Some(settlement_conclusion_applied) = request.settlement_conclusion_applied {
+            payment_intent
+                .set_settlement_conclusion_applied(settlement_conclusion_applied)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to persist settlement_conclusion_applied")?;
+        }
         payment_intent.metadata = request.metadata.clone().or(payment_intent.metadata);
         payment_intent.frm_metadata = request.frm_metadata.clone().or(payment_intent.frm_metadata);
         payment_intent.request_incremental_authorization = request
@@ -883,9 +890,13 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 .and_then(|tax| tax.default.map(|a| a.order_tax_amount))
         });
 
-        payment_attempt
-            .net_amount
-            .set_order_tax_amount(order_tax_amount);
+        // When the merchant has concluded the settlement, the tax pipeline must not mutate
+        // the net amount: the merchant-concluded amounts are final.
+        if !payment_intent.is_settlement_conclusion_applied() {
+            payment_attempt
+                .net_amount
+                .set_order_tax_amount(order_tax_amount);
+        }
 
         payment_attempt.connector_mandate_detail = Some(
             DieselConnectorMandateReferenceId::foreign_from(ConnectorMandateReferenceId::new(

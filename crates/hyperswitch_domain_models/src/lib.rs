@@ -123,6 +123,7 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             boleto_additional_details,
             pix_automatico_additional_details,
             finix_additional_details,
+            settlement_conclusion_applied,
             ..
         } = from;
 
@@ -140,6 +141,7 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
                 .map(diesel_models::types::PixAutomaticoAdditionalDetails::convert_from),
             finix_additional_details: finix_additional_details
                 .map(diesel_models::types::FinixAdditionalDetails::convert_from),
+            settlement_conclusion_applied,
         }
     }
 
@@ -152,6 +154,7 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             boleto_additional_details,
             pix_automatico_additional_details,
             finix_additional_details,
+            settlement_conclusion_applied,
             ..
         } = self;
 
@@ -164,6 +167,7 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             pix_automatico_additional_details: pix_automatico_additional_details
                 .map(|v| v.convert_back()),
             finix_additional_details: finix_additional_details.map(|v| v.convert_back()),
+            settlement_conclusion_applied,
         }
     }
 }

@@ -1606,6 +1606,16 @@ pub struct PaymentsRequest {
     /// The strategy to use when applying surcharge for this payment.
     #[schema(value_type = Option<SurchargeStrategy>)]
     pub external_surcharge_strategy: Option<common_enums::SurchargeStrategy>,
+
+    /// Indicates that the merchant has already concluded the settlement for this payment and the
+    /// amounts supplied in the request are final. When `true`, Hyperswitch will not let the tax
+    /// or surcharge pipelines mutate the payment's net amount, so the concluded amounts cannot
+    /// drift from what the merchant quoted the shopper. Defaults to `false`.
+    ///
+    /// This flag is Hyperswitch-side only and is never forwarded to the connector.
+    #[schema(default = false, example = false)]
+    #[smithy(value_type = "Option<bool>")]
+    pub settlement_conclusion_applied: Option<bool>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
@@ -10171,10 +10181,26 @@ pub struct BraintreeData {
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct DatatransConnectorMetadataData {
-    /// The targeted currency.
+    /// Multi-currency processing (MCP) details. When present, the merchant is charging the
+    /// customer in the customer's currency while settling in its own configured currency.
+    #[smithy(value_type = "Option<DatatransMcpData>")]
+    pub mcp: Option<DatatransMcpData>,
+}
+
+/// Datatrans multi-currency processing (MCP) details supplied by the merchant.
+///
+/// `amount`/`currency` here describe the **merchant settlement leg** — what Planet pays out to
+/// the merchant. The payment's own `amount`/`currency` remain the **customer-facing leg**, i.e.
+/// what the shopper saw at checkout and is charged. Hyperswitch never recomputes either leg; the
+/// merchant is the source of truth for both.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct DatatransMcpData {
+    /// The merchant settlement currency, i.e. the currency the merchant is paid out in.
     #[smithy(value_type = "Currency")]
     pub currency: api_enums::Currency,
-    /// The amount in the targeted currency.
+    /// The merchant settlement amount, expressed in `currency`. The merchant converts the
+    /// customer-facing amount itself and supplies the result here.
     #[schema(value_type = i64)]
     #[smithy(value_type = "i64")]
     pub amount: MinorUnit,
@@ -11901,7 +11927,9 @@ impl FeatureMetadata {
 
 /// additional data that might be required by hyperswitch
 #[cfg(feature = "v1")]
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel, PartialEq)]
+#[derive(
+    Debug, Default, Clone, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel, PartialEq,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct FeatureMetadata {
     /// Redirection response coming in request as metadata field only for redirection scenarios
@@ -11927,6 +11955,12 @@ pub struct FeatureMetadata {
     /// Extra information for Finix connector for fraud checks and risk evaluation
     #[smithy(value_type = "Option<FinixAdditionalDetails>")]
     pub finix_additional_details: Option<FinixAdditionalDetails>,
+    /// Indicates that the merchant has concluded the settlement for this payment; the tax
+    /// and surcharge pipelines must not mutate the payment's net amount. This mirrors the
+    /// top-level `settlement_conclusion_applied` request flag and is persisted with the
+    /// payment intent so that later flows honour the same guarantee.
+    #[smithy(value_type = "Option<bool>")]
+    pub settlement_conclusion_applied: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -11981,6 +12015,9 @@ impl FeatureMetadata {
                 finix_additional_details: self
                     .finix_additional_details
                     .or(other.finix_additional_details),
+                settlement_conclusion_applied: self
+                    .settlement_conclusion_applied
+                    .or(other.settlement_conclusion_applied),
             }
         } else {
             self
