@@ -1402,13 +1402,13 @@ fn transform_redirection_response_for_pre_authenticate_flow(
         ) => {
             let access_token = form_fields.get("access_token").cloned().ok_or(
                 ucs_transformers::UnifiedConnectorServiceError::MissingRequiredField {
-                    field_name: "access_token",
+                    field_name: "access_token".into(),
                 },
             )?;
             let ddc_url = form_fields.get("ddc_url").unwrap_or(endpoint).clone();
             let reference_id = form_fields.get("reference_id").cloned().ok_or(
                 ucs_transformers::UnifiedConnectorServiceError::MissingRequiredField {
-                    field_name: "reference_id",
+                    field_name: "reference_id".into(),
                 },
             )?;
 

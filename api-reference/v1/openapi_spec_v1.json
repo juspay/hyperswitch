@@ -6757,6 +6757,104 @@
         ]
       }
     },
+    "/blocklist/count": {
+      "get": {
+        "tags": [
+          "Blocklist"
+        ],
+        "operationId": "Count blocked fingerprints of a particular kind",
+        "parameters": [
+          {
+            "name": "data_kind",
+            "in": "query",
+            "description": "Kind of blocklist entries to count",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/BlocklistDataKind"
+            }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Restricts the count to entries belonging to this business profile, plus entries with no profile. If omitted, the merchant's default profile is used; merchants with more than one profile have no default and will receive an error asking for this header.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Blocklist entry counts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BlocklistCountResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid Data, or no profile could be resolved"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/blocklist/lookup": {
+      "get": {
+        "tags": [
+          "Blocklist"
+        ],
+        "operationId": "Look up whether a value is blocked",
+        "parameters": [
+          {
+            "name": "data",
+            "in": "query",
+            "description": "The raw value to check against the blocklist, e.g. a card BIN",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Restricts the lookup to entries belonging to this business profile, plus entries with no profile. If omitted, the merchant's default profile is used; merchants with more than one profile have no default and will receive an error asking for this header.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Blocklist lookup result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BlocklistLookupResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid Data, or no profile could be resolved"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/blocklist/batch": {
       "post": {
         "tags": [
@@ -15461,6 +15559,43 @@
           "blocked_issuer"
         ]
       },
+      "BlocklistCountQuery": {
+        "type": "object",
+        "required": [
+          "data_kind"
+        ],
+        "properties": {
+          "data_kind": {
+            "$ref": "#/components/schemas/BlocklistDataKind"
+          }
+        }
+      },
+      "BlocklistCountResponse": {
+        "type": "object",
+        "required": [
+          "data_kind",
+          "total_count"
+        ],
+        "properties": {
+          "data_kind": {
+            "$ref": "#/components/schemas/BlocklistDataKind"
+          },
+          "total_count": {
+            "type": "integer",
+            "description": "The total number of blocked entries for the given data_kind",
+            "minimum": 0
+          },
+          "counts_by_length": {
+            "type": "object",
+            "description": "The number of blocked entries for each BIN length, keyed by the BIN length.\n\nFor `generic_card_bin`, this also includes entries blocked as `card_bin` or\n`extended_card_bin`. Omitted for `payment_method`, since fingerprints have a fixed length.",
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "nullable": true
+          }
+        }
+      },
       "BlocklistDataKind": {
         "type": "string",
         "description": "`card_bin` (6 digits) and `extended_card_bin` (8 digits) are deprecated, use\n`generic_card_bin`, which accepts 6 to 10 digits.",
@@ -15470,6 +15605,35 @@
           "extended_card_bin",
           "generic_card_bin"
         ]
+      },
+      "BlocklistLookupQuery": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "string",
+            "description": "The raw value to check against the blocklist, e.g. a card BIN. Limited to 20 characters,\nthe longest value a `fingerprint_id` can hold.",
+            "maxLength": 20
+          }
+        }
+      },
+      "BlocklistLookupResponse": {
+        "type": "object",
+        "required": [
+          "data",
+          "blocked"
+        ],
+        "properties": {
+          "data": {
+            "type": "string"
+          },
+          "blocked": {
+            "type": "boolean",
+            "description": "Whether an entry matching `data` exists in the blocklist, under any data_kind"
+          }
+        }
       },
       "BlocklistRequest": {
         "oneOf": [
@@ -22444,6 +22608,7 @@
           "action_required",
           "refund_succeeded",
           "refund_failed",
+          "refund_review",
           "dispute_opened",
           "dispute_expired",
           "dispute_accepted",
