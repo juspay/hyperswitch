@@ -22,13 +22,9 @@ use common_utils::{errors::CustomResult, id_type, types::MinorUnit};
 use error_stack::ResultExt;
 use external_services::grpc_client::LineageIds;
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
-    payments::payment_intent::CustomerData,
-    platform::Processor,
-    router_data::PaymentMethodToken,
-    router_request_types::ResponseId,
-    router_response_types::fraud_check::FraudCheckResponseData,
-    types::OrderDetailsWithAmount,
+    payment_method_data::PaymentMethodData, payments::payment_intent::CustomerData,
+    platform::Processor, router_data::PaymentMethodToken, router_request_types::ResponseId,
+    router_response_types::fraud_check::FraudCheckResponseData, types::OrderDetailsWithAmount,
 };
 use hyperswitch_interfaces::unified_connector_service::{
     transformers, UnifiedConnectorServiceError,
@@ -155,8 +151,8 @@ impl ForeignTryFrom<FrmPreRiskCheckContext<'_>> for payments_grpc::FrmServicePre
         // `customer_id` is the stable merchant-side key risk providers use to
         // build cross-transaction history for the buyer; the contact details
         // alongside it are what they match on when the id is new.
-        let customer_info = (ctx.customer_id.is_some() || ctx.customer_details.is_some()).then(
-            || {
+        let customer_info =
+            (ctx.customer_id.is_some() || ctx.customer_details.is_some()).then(|| {
                 let details = ctx.customer_details;
                 payments_grpc::Customer {
                     id: ctx.customer_id.map(|id| id.get_string_repr().to_owned()),
@@ -175,8 +171,7 @@ impl ForeignTryFrom<FrmPreRiskCheckContext<'_>> for payments_grpc::FrmServicePre
                         .and_then(|details| details.phone_country_code.clone()),
                     ..Default::default()
                 }
-            },
-        );
+            });
 
         // Reuses the same builder the payments UCS path uses, so the instrument
         // is encoded identically for a risk check and for the authorization that
