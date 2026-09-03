@@ -89,6 +89,70 @@ where
     let _task_handle = tokio::spawn(future.in_current_span());
 }
 
+// In-process retry budget for the locker call below. Kept in memory only, so it's exempt from
+// the serialization/PCI concerns a persisted retry of the same call would carry.
+#[cfg(any(feature = "v1", all(test, feature = "deja")))]
+const SAVE_PAYMENT_METHOD_LOCKER_MAX_ATTEMPTS: u32 = 3;
+#[cfg(any(feature = "v1", all(test, feature = "deja")))]
+const SAVE_PAYMENT_METHOD_LOCKER_RETRY_DELAY: std::time::Duration =
+    std::time::Duration::from_millis(500);
+
+#[cfg(feature = "v1")]
+const SAVE_PAYMENT_METHOD_ATTEMPT_UPDATE_TASK: &str = "SAVE_PAYMENT_METHOD_ATTEMPT_UPDATE";
+#[cfg(feature = "v1")]
+const SAVE_PAYMENT_METHOD_ATTEMPT_UPDATE_TAG: &str = "SAVE_PAYMENT_METHOD_ATTEMPT_UPDATE";
+
+/// Enqueues a `ProcessTracker` retry for the `payment_attempt.payment_method_id` DB write that
+/// follows a successful save-payment-method locker call. Called only once that write has failed
+/// inline (issue #12904) - by then the vault entry already exists, so tracking data is IDs only.
+#[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
+async fn enqueue_save_payment_method_attempt_update_task(
+    db: &dyn crate::db::StorageInterface,
+    attempt_id: String,
+    payment_id: common_utils::id_type::PaymentId,
+    merchant_id: common_utils::id_type::MerchantId,
+    payment_method_id: Option<String>,
+    updated_by: String,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    let tracking_data = storage::payment_attempt::SavePaymentMethodAttemptUpdateTrackingData {
+        attempt_id: attempt_id.clone(),
+        payment_id,
+        merchant_id,
+        payment_method_id,
+        updated_by,
+    };
+
+    let runner = storage::ProcessTrackerRunner::SavePaymentMethodAttemptUpdateWorkflow;
+    let task = SAVE_PAYMENT_METHOD_ATTEMPT_UPDATE_TASK;
+    let tag = [SAVE_PAYMENT_METHOD_ATTEMPT_UPDATE_TAG];
+    let process_tracker_id = format!("{runner}_{task}_{attempt_id}");
+    let schedule_time = common_utils::date_time::now();
+
+    let process_tracker_entry = storage::ProcessTrackerNew::new(
+        process_tracker_id,
+        task,
+        runner,
+        tag,
+        tracking_data,
+        None,
+        schedule_time,
+        common_types::consts::API_VERSION,
+        common_enums::ApplicationSource::default(),
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to construct SAVE_PAYMENT_METHOD_ATTEMPT_UPDATE process tracker task")?;
+
+    db.insert_process(process_tracker_entry)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable_lazy(|| {
+            format!(
+                "Failed while inserting SAVE_PAYMENT_METHOD_ATTEMPT_UPDATE task for attempt_id: {attempt_id}"
+            )
+        })
+}
+
 #[cfg(feature = "v1")]
 async fn prepare_pm_update_from_psync(
     state: &SessionState,
@@ -857,43 +921,71 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             let save_payment_method_future = async move {
                 logger::info!("Starting async call to save_payment_method in locker");
 
-                let result = Box::pin(tokenization::save_payment_method(
-                    &state,
-                    connector_name,
-                    save_payment_data,
-                    customer_id,
-                    &cloned_platform,
-                    payment_method_type,
-                    billing_name,
-                    payment_method_billing_address.as_ref(),
-                    &business_profile,
-                    connector_mandate_reference_id,
-                    merchant_connector_id.clone(),
-                    vault_operation.clone(),
-                    payment_method_info.clone(),
-                    payment_method_token.clone(),
-                    customer_details.clone(),
-                    &async_dimension,
-                ))
-                .await;
+                // Retry a transient locker failure a few times before giving up (#12904).
+                let mut result = Err(report!(errors::ApiErrorResponse::InternalServerError))
+                    .attach_printable("save_payment_method was never attempted");
+                for attempt in 1..=SAVE_PAYMENT_METHOD_LOCKER_MAX_ATTEMPTS {
+                    result = Box::pin(tokenization::save_payment_method(
+                        &state,
+                        connector_name.clone(),
+                        save_payment_data.clone(),
+                        customer_id.clone(),
+                        &cloned_platform,
+                        payment_method_type,
+                        billing_name.clone(),
+                        payment_method_billing_address.as_ref(),
+                        &business_profile,
+                        connector_mandate_reference_id.clone(),
+                        merchant_connector_id.clone(),
+                        vault_operation.clone(),
+                        payment_method_info.clone(),
+                        payment_method_token.clone(),
+                        customer_details.clone(),
+                        &async_dimension,
+                    ))
+                    .await;
+
+                    match &result {
+                        Ok(_) => break,
+                        Err(err) if attempt < SAVE_PAYMENT_METHOD_LOCKER_MAX_ATTEMPTS => {
+                            logger::warn!(
+                                attempt,
+                                "Asynchronously saving card in locker failed, retrying : {:?}",
+                                err
+                            );
+                            tokio::time::sleep(SAVE_PAYMENT_METHOD_LOCKER_RETRY_DELAY).await;
+                        }
+                        Err(_) => {}
+                    }
+                }
 
                 if let Err(err) = result {
-                    logger::error!("Asynchronously saving card in locker failed : {:?}", err);
+                    logger::error!(
+                        "Asynchronously saving card in locker failed after {} attempts : {:?}",
+                        SAVE_PAYMENT_METHOD_LOCKER_MAX_ATTEMPTS,
+                        err
+                    );
+                    metrics::SAVE_PAYMENT_METHOD_LOCKER_SAVE_FAILURE.add(1, &[]);
                 } else if let Ok(tokenization::SavePaymentMethodDataResponse {
                     payment_method_id,
                     ..
                 }) = result
                 {
+                    let storage_scheme = cloned_platform.get_processor().get_account().storage_scheme;
+                    let updated_by = storage_scheme.to_string();
                     let payment_attempt_update =
                         storage::PaymentAttemptUpdate::PaymentMethodDetailsUpdate {
-                            payment_method_id,
-                            updated_by: cloned_platform
-                                .get_processor()
-                                .get_account()
-                                .storage_scheme
-                                .clone()
-                                .to_string(),
+                            payment_method_id: payment_method_id.clone(),
+                            updated_by: updated_by.clone(),
                         };
+
+                    // Captured before `payment_attempt` is moved below, in case the update fails.
+                    #[cfg(feature = "v1")]
+                    let attempt_id_for_retry = payment_attempt.attempt_id.clone();
+                    #[cfg(feature = "v1")]
+                    let payment_id_for_retry = payment_attempt.payment_id.clone();
+                    #[cfg(feature = "v1")]
+                    let merchant_id_for_retry = payment_attempt.merchant_id.clone();
 
                     #[cfg(feature = "v1")]
                     let respond = state
@@ -901,7 +993,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                         .update_payment_attempt_with_attempt_id(
                             payment_attempt,
                             payment_attempt_update,
-                            cloned_platform.get_processor().get_account().storage_scheme,
+                            storage_scheme,
                             cloned_platform.get_processor().get_key_store(),
                         )
                         .await;
@@ -914,12 +1006,42 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                             &key_store.clone(),
                             payment_attempt,
                             payment_attempt_update,
-                            cloned_platform.get_processor().get_account().storage_scheme,
+                            storage_scheme,
                         )
                         .await;
 
                     if let Err(err) = respond {
                         logger::error!("Error updating payment attempt: {:?}", err);
+
+                        // Vault save already succeeded, only this DB write failed - hand it to
+                        // ProcessTracker for a durable retry instead of dropping it (#12904).
+                        #[cfg(feature = "v1")]
+                        {
+                            match enqueue_save_payment_method_attempt_update_task(
+                                state.store.as_ref(),
+                                attempt_id_for_retry,
+                                payment_id_for_retry,
+                                merchant_id_for_retry,
+                                payment_method_id,
+                                updated_by,
+                            )
+                            .await
+                            {
+                                Ok(()) => {
+                                    metrics::SAVE_PAYMENT_METHOD_ATTEMPT_UPDATE_ENQUEUED
+                                        .add(1, &[]);
+                                }
+                                Err(enqueue_err) => {
+                                    logger::error!(
+                                        "Failed to enqueue save-payment-method attempt update retry, \
+                                         vault<->DB state is inconsistent and will not self-heal : {:?}",
+                                        enqueue_err
+                                    );
+                                    metrics::SAVE_PAYMENT_METHOD_ATTEMPT_UPDATE_ENQUEUE_FAILURE
+                                        .add(1, &[]);
+                                }
+                            }
+                        }
                     };
                 }
             };
