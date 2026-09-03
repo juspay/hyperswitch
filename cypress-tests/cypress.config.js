@@ -3,6 +3,8 @@ import mochawesome from "cypress-mochawesome-reporter/plugin.js";
 import crypto from "crypto";
 import fs from "fs";
 import { getTimeoutMultiplier } from "./cypress/utils/RequestBodyUtils.js";
+import { multiplexLifecycleEvents } from "./cypress/utils/pluginEvents.js";
+import { registerSpecTimings } from "./cypress/utils/specTimings.js";
 
 let globalState;
 
@@ -39,7 +41,15 @@ export default defineConfig({
   env: forwardedEnv,
   e2e: {
     setupNodeEvents(on, config) {
-      mochawesome(on);
+      // Cypress keeps one handler per event, so every lifecycle listener below
+      // — the reporter's, the timing report's and this file's own — has to be
+      // registered through the multiplexer or the last one silently wins.
+      const onEvent = multiplexLifecycleEvents(on);
+
+      // Timings register first so the breakdown still reaches the log if the
+      // reporter's own `after:run` throws while generating the report.
+      registerSpecTimings(onEvent);
+      mochawesome(onEvent);
 
       on("task", {
         setGlobalState: (val) => {
@@ -76,7 +86,7 @@ export default defineConfig({
           return signature;
         },
       });
-      on("after:spec", (spec, results) => {
+      onEvent("after:spec", (spec, results) => {
         // Clean up resources after each spec
         if (
           results &&
