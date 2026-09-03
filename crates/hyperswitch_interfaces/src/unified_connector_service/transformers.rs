@@ -1857,13 +1857,13 @@ impl ForeignTryFrom<payments_grpc::RedirectForm> for RedirectForm {
             ),
             Some(payments_grpc::redirect_form::FormType::WorldpayxmlChallenge(_)) => Err(
                 UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                    "Script form type is not implemented".to_string(),
+                    "Worldpayxml Challenge form type is not implemented".to_string(),
                 )
                 .into(),
             ),
             Some(payments_grpc::redirect_form::FormType::WorldpayxmlDdc(_)) => Err(
                 UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                    "Script form type is not implemented".to_string(),
+                    "Worldpayxml Ddc form type is not implemented".to_string(),
                 )
                 .into(),
             ),
