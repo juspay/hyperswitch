@@ -593,6 +593,7 @@ export const CONNECTOR_LISTS = {
   INCLUDE: {
     // Tracking extension to other connectors: #13520
     SPLIT_PAYMENTS: ["stripeconnect", "payloadconnect"],
+    PROCESSING_METHOD_ID: ["payload"],
     MANDATES_USING_NTID_PROXY: ["cybersource", "checkout"],
     // Card and mandate flows of 54-TsysTransitMandates. The mandates need a
     // profile with connector agnostic MIT enabled, which keeps them out of the
