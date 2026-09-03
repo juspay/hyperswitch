@@ -1855,7 +1855,7 @@ impl ForeignTryFrom<payments_grpc::RedirectForm> for RedirectForm {
                     jwt: ddc
                         .jwt
                         .ok_or(UnifiedConnectorServiceError::MissingRequiredField {
-                            field_name: "jwt",
+                            field_name: "jwt".into(),
                         })?
                         .expose(),
                 })
@@ -1865,7 +1865,7 @@ impl ForeignTryFrom<payments_grpc::RedirectForm> for RedirectForm {
                     jwt: challenge
                         .jwt
                         .ok_or(UnifiedConnectorServiceError::MissingRequiredField {
-                            field_name: "jwt",
+                            field_name: "jwt".into(),
                         })?
                         .expose(),
                 })
