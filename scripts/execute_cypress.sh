@@ -140,6 +140,7 @@ execute_test() {
     local shard_display
     local -a xvfb_pids=()
     local -a shard_pids=()
+    local -a shard_labels=()
 
     for ((shard_i = 1; shard_i <= shards; shard_i++)); do
       shard_display=$((base_display + shard_i))
@@ -154,13 +155,33 @@ execute_test() {
         export CYPRESS_CONNECTOR="$connector"
         export DISPLAY=":${shard_display}"
         export REPORT_NAME="${service}_${connector}_shard${shard_i}_report"
-        npm run "cypress:${service}" -- --shard "${shard_i}/${shards}"
+
+        # A shard that gets killed outright (OOM, or otherwise) under heavy
+        # concurrency exits non-zero with no test-level failure to show for
+        # it — retrying once turns that into either a pass or a second,
+        # diagnosable failure instead of a shard that silently vanishes.
+        if ! npm run "cypress:${service}" -- --shard "${shard_i}/${shards}"; then
+          echo "[shard ${shard_i}/${shards}] failed, retrying once" >&2
+          npm run "cypress:${service}" -- --shard "${shard_i}/${shards}"
+        fi
       ) &
       shard_pids+=("$!")
+      shard_labels+=("${shard_i}/${shards}")
+      # Stagger shard launches so all `shards` Chrome+Cypress+Xvfb processes
+      # don't spin up in the same instant — that startup moment is the
+      # single biggest simultaneous CPU/memory spike of the whole run.
+      sleep 2
     done
 
+    local shard_idx=0
     for pid in "${shard_pids[@]}"; do
-      wait "$pid" || exit_code=1
+      if wait "$pid"; then
+        print_color green "[shard ${shard_labels[$shard_idx]}] exited 0"
+      else
+        print_color red "[shard ${shard_labels[$shard_idx]}] exited non-zero (pid ${pid})"
+        exit_code=1
+      fi
+      shard_idx=$((shard_idx + 1))
     done
 
     for pid in "${xvfb_pids[@]}"; do
