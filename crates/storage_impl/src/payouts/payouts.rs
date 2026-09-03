@@ -18,7 +18,6 @@ use diesel_models::{
         Payouts as DieselPayouts, PayoutsNew as DieselPayoutsNew,
         PayoutsUpdate as DieselPayoutsUpdate,
     },
-    query::payouts::active_payout_attempt_id,
 };
 #[cfg(all(feature = "olap", feature = "v1"))]
 use diesel_models::{
