@@ -348,11 +348,8 @@ pub struct BrowseOfferListResponse {
 pub struct BrowseOfferListEntry {
     pub status: OfferStatus,
     pub offer_code: String,
-    #[serde(default)]
     pub offer_description: Option<OfferDescription>,
-    #[serde(default)]
     pub display_title: Option<String>,
-    #[serde(default)]
     pub currency: Option<common_enums::Currency>,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub valid_till: Option<time::PrimitiveDateTime>,
