@@ -113,7 +113,7 @@ export const connectorDetails = {
         customer_acceptance: null,
         metadata: ilixiumMetadata,
       },
-      // Creds we currently have only supports manaul capture. Therefore mapped error code for auto capture.
+      // Creds we currently have only supports manual capture. Therefore mapped error code for auto capture.
       Response: {
         status: 200,
         body: {
