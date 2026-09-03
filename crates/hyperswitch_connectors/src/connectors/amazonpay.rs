@@ -392,6 +392,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                 | WalletDataPaymentMethod::RevolutPay(_)
                 | WalletDataPaymentMethod::Paysera(_)
                 | WalletDataPaymentMethod::Skrill(_)
+                | WalletDataPaymentMethod::Neteller(_)
                 | WalletDataPaymentMethod::Mifinity(_) => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("amazonpay"),

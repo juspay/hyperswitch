@@ -3833,6 +3833,7 @@ impl GetPaymentMethodType for WalletData {
                 api_enums::PaymentMethodType::AmazonPay
             }
             Self::Skrill(_) => api_enums::PaymentMethodType::Skrill,
+            Self::Neteller(_) => api_enums::PaymentMethodType::Neteller,
             Self::Paysera(_) => api_enums::PaymentMethodType::Paysera,
             Self::MomoRedirect(_) => api_enums::PaymentMethodType::Momo,
             Self::KakaoPayRedirect(_) => api_enums::PaymentMethodType::KakaoPay,
@@ -5314,6 +5315,10 @@ pub enum WalletData {
     #[schema(title = "Skrill")]
     #[smithy(value_type = "SkrillData")]
     Skrill(SkrillData),
+    /// The wallet data for Neteller
+    #[schema(title = "Neteller")]
+    #[smithy(value_type = "NetellerData")]
+    Neteller(NetellerData),
     // The wallet data for Swish
     #[schema(title = "SwishQr")]
     #[smithy(value_type = "SwishQrData")]
@@ -5375,6 +5380,7 @@ impl GetAddressFromPaymentMethodData for WalletData {
             | Self::AmazonPay(_)
             | Self::AmazonPayRedirect(_)
             | Self::Skrill(_)
+            | Self::Neteller(_)
             | Self::Paysera(_)
             | Self::ApplePay(_)
             | Self::ApplePayRedirect(_)
@@ -5622,6 +5628,12 @@ pub struct AmazonPayRedirectData {}
 )]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct SkrillData {}
+
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct NetellerData {}
 
 #[derive(
     Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,

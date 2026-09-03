@@ -1804,6 +1804,7 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::AmazonPay => Self::Wallet,
             PaymentMethodType::Paysera => Self::Wallet,
             PaymentMethodType::Skrill => Self::Wallet,
+            PaymentMethodType::Neteller => Self::Wallet,
             PaymentMethodType::ApplePay => Self::Wallet,
             PaymentMethodType::Bacs => Self::BankDebit,
             PaymentMethodType::BancontactCard => Self::BankRedirect,
