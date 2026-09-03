@@ -141,7 +141,9 @@ async fn enqueue_save_payment_method_attempt_update_task(
         common_enums::ApplicationSource::default(),
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to construct SAVE_PAYMENT_METHOD_ATTEMPT_UPDATE process tracker task")?;
+    .attach_printable(
+        "Failed to construct SAVE_PAYMENT_METHOD_ATTEMPT_UPDATE process tracker task",
+    )?;
 
     db.insert_process(process_tracker_entry)
         .await
@@ -971,7 +973,8 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                     ..
                 }) = result
                 {
-                    let storage_scheme = cloned_platform.get_processor().get_account().storage_scheme;
+                    let storage_scheme =
+                        cloned_platform.get_processor().get_account().storage_scheme;
                     let updated_by = storage_scheme.to_string();
                     let payment_attempt_update =
                         storage::PaymentAttemptUpdate::PaymentMethodDetailsUpdate {

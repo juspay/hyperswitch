@@ -152,10 +152,8 @@ mod tests {
             attempt_id: "attempt_123".to_string(),
             payment_id: id_type::PaymentId::wrap("payment_123".to_string())
                 .expect("valid payment_id"),
-            merchant_id: id_type::MerchantId::try_from(std::borrow::Cow::Borrowed(
-                "merchant_123",
-            ))
-            .expect("valid merchant_id"),
+            merchant_id: id_type::MerchantId::try_from(std::borrow::Cow::Borrowed("merchant_123"))
+                .expect("valid merchant_id"),
             payment_method_id: Some("pm_123".to_string()),
             updated_by: "psql".to_string(),
         };
