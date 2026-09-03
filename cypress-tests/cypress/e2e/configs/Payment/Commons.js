@@ -2623,7 +2623,7 @@ export const connectorDetails = {
     }),
     ManualRefundUpdate: getCustomExchange({
       Request: {
-        status: "failed",
+        status: "succeeded",
       },
       Response: {
         status: 200,
@@ -2632,7 +2632,7 @@ export const connectorDetails = {
     }),
     ManualRefundUpdateErrorCode: getCustomExchange({
       Request: {
-        status: "failed",
+        status: "succeeded",
         error_code: {
           set: "TEST_ERROR_CODE",
         },
@@ -2647,13 +2647,7 @@ export const connectorDetails = {
     }),
     ManualRefundUpdatePartialRefund: getCustomExchange({
       Request: {
-        status: "failed",
-        error_code: {
-          set: "PARTIAL_REFUND_FAILED",
-        },
-        error_message: {
-          set: "Partial refund failed via manual update",
-        },
+        status: "succeeded",
       },
       Response: {
         status: 200,
@@ -2662,7 +2656,7 @@ export const connectorDetails = {
     }),
     ManualRefundUpdateIdempotency: getCustomExchange({
       Request: {
-        status: "failed",
+        status: "succeeded",
         error_code: {
           set: "IDEMPOTENCY_TEST",
         },
@@ -2689,11 +2683,30 @@ export const connectorDetails = {
         body: {},
       },
     }),
-    SyncRefundManualUpdateFailed: getCustomExchange({
+    ManualRefundUpdateConnectorRefundId: getCustomExchange({
+      Request: {
+        connector_refund_id: "updated_refund_id",
+      },
+      Response: {
+        status: 200,
+        body: {},
+      },
+    }),
+    ManualRefundUpdateConnectorRefundIdWithStatus: getCustomExchange({
+      Request: {
+        connector_refund_id: "combined_refund_id",
+        status: "succeeded",
+      },
+      Response: {
+        status: 200,
+        body: {},
+      },
+    }),
+    SyncRefundManualUpdateSucceeded: getCustomExchange({
       Response: {
         status: 200,
         body: {
-          status: "failed",
+          status: "succeeded",
         },
       },
     }),
@@ -2701,7 +2714,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "failed",
+          status: "succeeded",
           error_code: "TEST_ERROR_CODE",
           error_message: "Test error message for manual update",
         },
@@ -2711,9 +2724,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "failed",
-          error_code: "PARTIAL_REFUND_FAILED",
-          error_message: "Partial refund failed via manual update",
+          status: "succeeded",
         },
       },
     }),
@@ -2721,7 +2732,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "failed",
+          status: "succeeded",
           error_code: "IDEMPOTENCY_TEST",
           error_message: "First manual update for idempotency test",
         },
@@ -2731,7 +2742,26 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "failed",
+          status: "succeeded",
+          error_code: null,
+          error_message: null,
+        },
+      },
+    }),
+    SyncRefundManualUpdateConnectorRefundId: getCustomExchange({
+      Response: {
+        status: 200,
+        body: {
+          connector_refund_id: "updated_refund_id",
+        },
+      },
+    }),
+    SyncRefundManualUpdateConnectorRefundIdWithStatus: getCustomExchange({
+      Response: {
+        status: 200,
+        body: {
+          connector_refund_id: "combined_refund_id",
+          status: "succeeded",
         },
       },
     }),

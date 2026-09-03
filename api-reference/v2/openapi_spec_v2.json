@@ -15047,6 +15047,7 @@
           "action_required",
           "refund_succeeded",
           "refund_failed",
+          "refund_review",
           "dispute_opened",
           "dispute_expired",
           "dispute_accepted",
@@ -27939,6 +27940,23 @@
           }
         }
       },
+      "PaypalWalletAdditionalData": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "Email address associated with the payer's PayPal account",
+            "example": "johntest@test.com",
+            "nullable": true
+          },
+          "payer_id": {
+            "type": "string",
+            "description": "Unique identifier of the payer in PayPal",
+            "example": "7DY7FRMPQ8CT6",
+            "nullable": true
+          }
+        }
+      },
       "PayseraData": {
         "type": "object"
       },
@@ -31178,6 +31196,13 @@
             "format": "int32",
             "description": "Maximum number of `billing connector` retries before revenue recovery can start executing retries.",
             "example": "10",
+            "minimum": 0
+          },
+          "max_hybrid_cascading_retry_count": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Number of cascading (static) retries an invoice may use under the hybrid static + adaptive\nscheme.",
+            "example": "5",
             "minimum": 0
           },
           "billing_account_reference": {
@@ -35367,6 +35392,17 @@
             "properties": {
               "samsung_pay": {
                 "$ref": "#/components/schemas/WalletAdditionalDataForCard"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "paypal"
+            ],
+            "properties": {
+              "paypal": {
+                "$ref": "#/components/schemas/PaypalWalletAdditionalData"
               }
             }
           }

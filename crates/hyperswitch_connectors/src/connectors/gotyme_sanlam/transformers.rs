@@ -151,7 +151,7 @@ impl<F> TryFrom<(&PayoutsRouterData<F>, StringMajorUnit)> for GotymeSanlamPayout
                     .shap_id
                     .as_ref()
                     .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "payshap_proxy.shap_id",
+                        field_name: "payshap_proxy.shap_id".into(),
                     })?
                     .to_owned();
 
