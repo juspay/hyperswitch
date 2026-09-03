@@ -69,7 +69,7 @@ impl PaymentMethodCreateExt for PaymentMethodCreate {
                 && self.payment_method_subtype.is_none(),
             || {
                 Err(report!(errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "payment_method_subtype"
+                    field_name: "payment_method_subtype".into()
                 }))
             },
         )?;
@@ -157,7 +157,7 @@ impl PaymentMethodSessionExt for api_models::payment_methods::PaymentMethodSessi
                 && self.payment_method_subtype.is_none(),
             || {
                 Err(report!(errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "payment_method_subtype"
+                    field_name: "payment_method_subtype".into()
                 }))
             },
         )?;

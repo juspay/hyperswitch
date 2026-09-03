@@ -470,7 +470,7 @@ fn map_refund_status(
                 | FiservemeaPaymentResult::Fraud => Ok(enums::RefundStatus::Failure),
             },
             None => Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "transactionResult",
+                field_name: "transactionResult".into(),
             }),
         },
     }

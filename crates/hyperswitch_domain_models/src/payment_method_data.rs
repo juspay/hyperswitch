@@ -2046,13 +2046,13 @@ impl TryFrom<payment_methods::PaymentMethodCreateData> for PaymentMethodData {
             })),
             payment_methods::PaymentMethodCreateData::ProxyCard(_) => Err(
                 common_utils::errors::ValidationError::IncorrectValueProvided {
-                    field_name: "Payment method data",
+                    field_name: "Payment method data".into(),
                 }
                 .into(),
             ),
             payment_methods::PaymentMethodCreateData::Wallet(_) => Err(
                 common_utils::errors::ValidationError::IncorrectValueProvided {
-                    field_name: "Payment method data",
+                    field_name: "Payment method data".into(),
                 }
                 .into(),
             ),
@@ -3513,6 +3513,7 @@ pub struct TokenizedCardValue1 {
     pub card_last_four: Option<String>,
     pub card_token: Option<String>,
     pub card_holder_name: Option<Secret<String>>,
+    pub card_network: Option<common_enums::CardNetwork>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
