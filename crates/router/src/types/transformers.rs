@@ -23,7 +23,7 @@ use super::domain;
 #[cfg(feature = "v2")]
 use crate::db::storage::revenue_recovery_redis_operation;
 use crate::{
-    core::errors,
+    core::{errors, payments::helpers as payments_helpers},
     headers::{
         ACCEPT_LANGUAGE, BROWSER_NAME, X_APP_ID, X_CLIENT_PLATFORM, X_CLIENT_SOURCE,
         X_CLIENT_VERSION, X_MERCHANT_DOMAIN, X_PAYMENT_CONFIRM_SOURCE, X_REDIRECT_URI,
@@ -1156,6 +1156,9 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
                 .attach_printable("Failed to encode ConnectorAuthType")?,
         );
 
+        let metadata =
+            payments_helpers::strip_apple_pay_system_generated_key(item.metadata.clone());
+
         #[cfg(feature = "v2")]
         let response = Self {
             id: item.get_id(),
@@ -1165,7 +1168,7 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
             connector_account_details: masked_connector_account_details,
             disabled: item.disabled,
             payment_methods_enabled,
-            metadata: item.metadata,
+            metadata,
             frm_configs,
             connector_webhook_details: item
                 .connector_webhook_details
@@ -1219,7 +1222,7 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
             test_mode: item.test_mode,
             disabled: item.disabled,
             payment_methods_enabled,
-            metadata: item.metadata,
+            metadata,
             business_country: item.business_country,
             business_label: item.business_label,
             business_sub_label: item.business_sub_label,

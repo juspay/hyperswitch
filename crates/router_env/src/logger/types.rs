@@ -90,6 +90,8 @@ pub enum Flow {
     MerchantConnectorsUpdate,
     /// Merchant Connectors delete flow.
     MerchantConnectorsDelete,
+    /// Apple Pay certificate signing request generation flow.
+    ApplePayCertificateGenerate,
     /// Merchant Connectors list flow.
     MerchantConnectorsList,
     /// Merchant Transfer Keys
