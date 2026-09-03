@@ -1,3 +1,11 @@
+import {
+  blockedPaymentErrorBodyForBinUnavailable,
+  blockedPaymentErrorBodyForCardSubtype,
+  blockedPaymentErrorBodyForDebitCard,
+  blockedPaymentErrorBodyForIssuingCountry,
+} from "./Commons";
+import { getCustomExchange } from "./Modifiers";
+
 const successfulNo3DSCardDetails = {
   card_number: "1111222233334444",
   card_exp_month: "05",
@@ -141,6 +149,12 @@ export const connectorDetails = {
       },
     },
     "3DSManualCapture": {
+      // Paybox preprod merchant is not 3DS-enrolled (StatusPBX 'Commerce non 3DSecure',
+      // error_code 00041 'PAYBOX : ID3D inconnu'); remove this skip when a real
+      // 3DS-enrolled merchant_id is supplied in creds.json key2.
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -160,6 +174,12 @@ export const connectorDetails = {
       },
     },
     "3DSAutoCapture": {
+      // Paybox preprod merchant is not 3DS-enrolled (StatusPBX 'Commerce non 3DSecure',
+      // error_code 00041 'PAYBOX : ID3D inconnu'); remove this skip when a real
+      // 3DS-enrolled merchant_id is supplied in creds.json key2.
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -243,10 +263,11 @@ export const connectorDetails = {
       },
     },
     SyncRefund: {
+      // Paybox preprod sandbox refunds do not settle synchronously.
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "pending",
         },
       },
     },
@@ -422,6 +443,12 @@ export const connectorDetails = {
       },
     },
     MITAutoCapture: {
+      // Mandates set up through a paybox zero-auth payment stay `processing`,
+      // so the saved payment method remains `inactive` on retrieve even after
+      // a successful MIT payment.
+      Configs: {
+        skipPaymentMethodStatusAssertion: true,
+      },
       Request: {
         currency: "EUR",
         amount: 6000,
@@ -522,6 +549,12 @@ export const connectorDetails = {
       },
     },
     PaymentMethodIdMandate3DSManualCapture: {
+      // Paybox preprod merchant is not 3DS-enrolled (StatusPBX 'Commerce non 3DSecure',
+      // error_code 00041 'PAYBOX : ID3D inconnu'); remove this skip when a real
+      // 3DS-enrolled merchant_id is supplied in creds.json key2.
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -797,5 +830,79 @@ export const connectorDetails = {
         },
       },
     },
+  },
+  payment_method_blocking_pm: {
+    // Paybox routing rejects non-French billing with IR_39 before the
+    // blocklist guard runs, so these confirms override the Commons configs
+    // (which leave billing to the US-billing confirm fixture) with French
+    // billing.
+    BlockIssuingCountry: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "4000000000000002",
+            card_exp_month: "03",
+            card_exp_year: "30",
+            card_holder_name: "joseph Doeeee",
+            card_cvc: "737",
+            card_network: "Visa",
+          },
+        },
+        billing: billingData,
+      },
+      Response: blockedPaymentErrorBodyForIssuingCountry,
+    }),
+    BlockCardType: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "4111111111111111",
+            card_exp_month: "03",
+            card_exp_year: "30",
+            card_holder_name: "joseph Doeeee",
+            card_cvc: "737",
+            card_network: "Visa",
+          },
+        },
+        billing: billingData,
+      },
+      Response: blockedPaymentErrorBodyForDebitCard,
+    }),
+    BlockCardSubtype: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "378282246310005",
+            card_exp_month: "03",
+            card_exp_year: "30",
+            card_holder_name: "joseph Doeeee",
+            card_cvc: "737",
+            card_network: "Visa",
+          },
+        },
+        billing: billingData,
+      },
+      Response: blockedPaymentErrorBodyForCardSubtype,
+    }),
+    BlockIfBinInfoUnavailable: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "6304000000000000",
+            card_exp_month: "03",
+            card_exp_year: "30",
+            card_holder_name: "joseph Doeeee",
+            card_cvc: "737",
+            card_network: "Visa",
+          },
+        },
+        billing: billingData,
+      },
+      Response: blockedPaymentErrorBodyForBinUnavailable,
+    }),
   },
 };
