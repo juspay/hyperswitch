@@ -321,8 +321,7 @@ pub fn mk_app(
             .service(routes::User::server(state.clone()))
             .service(routes::ApiKeys::server(state.clone()))
             .service(routes::Routing::server(state.clone()))
-            .service(routes::UnifiedConnectorService::server(state.clone()))
-            .service(routes::Chat::server(state.clone()));
+            .service(routes::UnifiedConnectorService::server(state.clone()));
 
         #[cfg(all(feature = "olap", any(feature = "v1", feature = "v2")))]
         {
