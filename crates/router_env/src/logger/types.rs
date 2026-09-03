@@ -58,6 +58,8 @@ pub enum Flow {
     DeepHealthCheck,
     /// Offer Engine connectivity check (dev/admin only)
     OfferEngineConnectivityCheck,
+    /// Browse the offers available to a merchant
+    OfferEngineBrowseOffers,
     /// OIDC Discovery endpoint
     OidcDiscovery,
     /// OIDC JWKS endpoint

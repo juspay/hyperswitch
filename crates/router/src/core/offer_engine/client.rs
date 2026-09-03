@@ -10,8 +10,9 @@ use hyperswitch_masking::{Mask, PeekInterface};
 use router_env::{IdReuse, RequestIdentifier};
 
 use super::types::{
-    OfferApplyRequest, OfferApplyResponse, OfferEngineError, OfferListRequest, OfferListResponse,
-    OfferNotifyRequest, ResolvedOfferEngineConfig,
+    BrowseOfferListRequest, BrowseOfferListResponse, OfferApplyRequest, OfferApplyResponse,
+    OfferEngineError, OfferListRequest, OfferListResponse, OfferNotifyRequest,
+    ResolvedOfferEngineConfig,
 };
 use crate::{consts::BASE64_ENGINE, routes::SessionState};
 
@@ -56,6 +57,17 @@ impl OfferEngineClient {
         request: OfferListRequest,
     ) -> CustomResult<OfferListResponse, OfferEngineError> {
         OfferList::call(state, self, OfferListV1Request(request))
+            .await
+            .map(|response| response.0)
+            .map_err(map_offer_engine_error)
+    }
+
+    pub async fn browse_offers(
+        &self,
+        state: &SessionState,
+        request: BrowseOfferListRequest,
+    ) -> CustomResult<BrowseOfferListResponse, OfferEngineError> {
+        OfferBrowseList::call(state, self, OfferBrowseListV1Request(request))
             .await
             .map(|response| response.0)
             .map_err(map_offer_engine_error)
@@ -284,6 +296,42 @@ hyperswitch_interfaces::impl_microservice_flow!(
     v1_response = OfferNotifyV1Response,
     client = OfferEngineClient,
     body = OfferNotify::build_body
+);
+
+pub struct OfferBrowseList;
+pub struct OfferBrowseListV1Request(pub BrowseOfferListRequest);
+pub struct OfferBrowseListV1Response(pub BrowseOfferListResponse);
+
+impl TryFrom<&OfferBrowseListV1Request> for BrowseOfferListRequest {
+    type Error = MicroserviceClientError;
+    fn try_from(value: &OfferBrowseListV1Request) -> Result<Self, Self::Error> {
+        Ok(value.0.clone())
+    }
+}
+
+impl TryFrom<BrowseOfferListResponse> for OfferBrowseListV1Response {
+    type Error = MicroserviceClientError;
+    fn try_from(value: BrowseOfferListResponse) -> Result<Self, Self::Error> {
+        Ok(Self(value))
+    }
+}
+
+impl OfferBrowseList {
+    fn build_body(&self, request: BrowseOfferListRequest) -> Option<RequestContent> {
+        Some(RequestContent::Json(Box::new(request)))
+    }
+}
+
+hyperswitch_interfaces::impl_microservice_flow!(
+    OfferBrowseList,
+    method = Method::Post,
+    path = OFFERS_LIST_PATH,
+    v1_request = OfferBrowseListV1Request,
+    v2_request = BrowseOfferListRequest,
+    v2_response = BrowseOfferListResponse,
+    v1_response = OfferBrowseListV1Response,
+    client = OfferEngineClient,
+    body = OfferBrowseList::build_body
 );
 
 #[derive(Debug, Clone, serde::Serialize)]
