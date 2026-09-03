@@ -2607,6 +2607,22 @@ pub struct Card {
     #[smithy(value_type = "Option<String>")]
     pub card_type: Option<String>,
 
+    /// The product the card is issued under, e.g. `CLASSIC` or `ELECTRON`
+    #[schema(example = "CLASSIC")]
+    #[smithy(value_type = "Option<String>")]
+    pub card_subtype: Option<String>,
+
+    /// The segment the card is issued to
+    #[schema(value_type = Option<CardSegmentType>, example = "consumer")]
+    #[smithy(value_type = "Option<CardSegmentType>")]
+    pub card_segment_type: Option<api_enums::CardSegmentType>,
+
+    /// How the card is funded. More granular than `card_type`, which collapses
+    /// deferred debit and charge cards.
+    #[schema(value_type = Option<FundingSource>, example = "CREDIT")]
+    #[smithy(value_type = "Option<FundingSource>")]
+    pub funding_source: Option<api_enums::FundingSource>,
+
     #[schema(example = "INDIA")]
     #[smithy(value_type = "Option<String>")]
     pub card_issuing_country: Option<String>,
@@ -2670,6 +2686,22 @@ pub struct CardWithNoCVC {
     #[schema(example = "CREDIT")]
     #[smithy(value_type = "Option<String>")]
     pub card_type: Option<String>,
+
+    /// The product the card is issued under, e.g. `CLASSIC` or `ELECTRON`
+    #[schema(example = "CLASSIC")]
+    #[smithy(value_type = "Option<String>")]
+    pub card_subtype: Option<String>,
+
+    /// The segment the card is issued to
+    #[schema(value_type = Option<CardSegmentType>, example = "consumer")]
+    #[smithy(value_type = "Option<CardSegmentType>")]
+    pub card_segment_type: Option<api_enums::CardSegmentType>,
+
+    /// How the card is funded. More granular than `card_type`, which collapses
+    /// deferred debit and charge cards.
+    #[schema(value_type = Option<FundingSource>, example = "CREDIT")]
+    #[smithy(value_type = "Option<FundingSource>")]
+    pub funding_source: Option<api_enums::FundingSource>,
 
     #[schema(example = "INDIA")]
     #[smithy(value_type = "Option<String>")]
@@ -4168,9 +4200,9 @@ pub struct AdditionalCardInfo {
     /// Free form, as the value comes straight from the BIN record.
     pub card_subtype: Option<String>,
 
-    /// The segment the card is issued to, e.g. `Consumer`, `Commercial`, `Business`
-    /// or `Government`. Free form, as the value comes straight from the BIN record.
-    pub card_segment_type: Option<String>,
+    /// The segment the card is issued to, as recorded against its BIN
+    #[schema(value_type = Option<CardSegmentType>, example = "consumer")]
+    pub card_segment_type: Option<api_enums::CardSegmentType>,
 
     /// How the card is funded, as recorded against its BIN. More granular than
     /// `card_type`, which collapses deferred debit and charge cards.
@@ -5906,10 +5938,10 @@ pub struct CardResponse {
     /// The product the card is issued under, e.g. `CLASSIC` or `ELECTRON`.
     #[smithy(value_type = "Option<String>")]
     pub card_subtype: Option<String>,
-    /// The segment the card is issued to, e.g. `Consumer`, `Commercial`, `Business`
-    /// or `Government`.
-    #[smithy(value_type = "Option<String>")]
-    pub card_segment_type: Option<String>,
+    /// The segment the card is issued to, as recorded against its BIN
+    #[schema(value_type = Option<CardSegmentType>, example = "consumer")]
+    #[smithy(value_type = "Option<CardSegmentType>")]
+    pub card_segment_type: Option<api_enums::CardSegmentType>,
     /// How the card is funded, as recorded against its BIN. More granular than
     /// `card_type`, which collapses deferred debit and charge cards.
     #[schema(value_type = Option<FundingSource>, example = "CREDIT")]

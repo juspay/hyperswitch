@@ -115,6 +115,12 @@ pub struct NetworkTransactionIdAndCardDetails {
 
     pub card_type: Option<String>,
 
+    pub card_subtype: Option<String>,
+
+    pub card_segment_type: Option<api_enums::CardSegmentType>,
+
+    pub funding_source: Option<api_enums::FundingSource>,
+
     pub card_issuing_country: Option<String>,
 
     pub card_issuing_country_code: Option<String>,
@@ -450,6 +456,9 @@ pub struct Card {
     pub card_issuer: Option<String>,
     pub card_network: Option<common_enums::CardNetwork>,
     pub card_type: Option<String>,
+    pub card_subtype: Option<String>,
+    pub card_segment_type: Option<common_enums::CardSegmentType>,
+    pub funding_source: Option<common_enums::FundingSource>,
     pub card_issuing_country: Option<String>,
     pub card_issuing_country_code: Option<String>,
     pub bank_code: Option<String>,
@@ -478,6 +487,14 @@ impl Card {
                 .clone()
                 .or(additional_card_info.card_network.clone()),
             card_type: self.card_type.clone().or(additional_card_info.card_type),
+            card_subtype: self
+                .card_subtype
+                .clone()
+                .or(additional_card_info.card_subtype),
+            card_segment_type: self
+                .card_segment_type
+                .or(additional_card_info.card_segment_type),
+            funding_source: self.funding_source.or(additional_card_info.funding_source),
             card_issuing_country: self
                 .card_issuing_country
                 .clone()
@@ -512,6 +529,9 @@ pub struct CardWithOptionalCVC {
     pub card_issuer: Option<String>,
     pub card_network: Option<common_enums::CardNetwork>,
     pub card_type: Option<String>,
+    pub card_subtype: Option<String>,
+    pub card_segment_type: Option<common_enums::CardSegmentType>,
+    pub funding_source: Option<common_enums::FundingSource>,
     pub card_issuing_country: Option<String>,
     pub card_issuing_country_code: Option<String>,
     pub bank_code: Option<String>,
@@ -557,6 +577,14 @@ impl CardWithOptionalCVC {
                 .clone()
                 .or(additional_card_info.card_network.clone()),
             card_type: self.card_type.clone().or(additional_card_info.card_type),
+            card_subtype: self
+                .card_subtype
+                .clone()
+                .or(additional_card_info.card_subtype),
+            card_segment_type: self
+                .card_segment_type
+                .or(additional_card_info.card_segment_type),
+            funding_source: self.funding_source.or(additional_card_info.funding_source),
             card_issuing_country: self
                 .card_issuing_country
                 .clone()
@@ -624,6 +652,9 @@ pub struct CardDetailsForNetworkTransactionId {
     pub card_issuer: Option<String>,
     pub card_network: Option<common_enums::CardNetwork>,
     pub card_type: Option<String>,
+    pub card_subtype: Option<String>,
+    pub card_segment_type: Option<common_enums::CardSegmentType>,
+    pub funding_source: Option<common_enums::FundingSource>,
     pub card_issuing_country: Option<String>,
     pub card_issuing_country_code: Option<String>,
     pub bank_code: Option<String>,
@@ -650,6 +681,14 @@ impl CardDetailsForNetworkTransactionId {
                 .clone()
                 .or(additional_card_info.card_network.clone()),
             card_type: self.card_type.clone().or(additional_card_info.card_type),
+            card_subtype: self
+                .card_subtype
+                .clone()
+                .or(additional_card_info.card_subtype),
+            card_segment_type: self
+                .card_segment_type
+                .or(additional_card_info.card_segment_type),
+            funding_source: self.funding_source.or(additional_card_info.funding_source),
             card_issuing_country: self
                 .card_issuing_country
                 .clone()
@@ -714,6 +753,9 @@ pub struct CardWithLimitedDetails {
     pub card_issuer: Option<String>,
     pub card_network: Option<api_enums::CardNetwork>,
     pub card_type: Option<String>,
+    pub card_subtype: Option<String>,
+    pub card_segment_type: Option<common_enums::CardSegmentType>,
+    pub funding_source: Option<common_enums::FundingSource>,
     pub card_issuing_country: Option<String>,
     pub card_issuing_country_code: Option<String>,
     pub bank_code: Option<String>,
@@ -741,6 +783,14 @@ impl CardWithLimitedDetails {
                 .clone()
                 .or(additional_card_info.card_network.clone()),
             card_type: self.card_type.clone().or(additional_card_info.card_type),
+            card_subtype: self
+                .card_subtype
+                .clone()
+                .or(additional_card_info.card_subtype),
+            card_segment_type: self
+                .card_segment_type
+                .or(additional_card_info.card_segment_type),
+            funding_source: self.funding_source.or(additional_card_info.funding_source),
             card_issuing_country: self
                 .card_issuing_country
                 .clone()
@@ -871,6 +921,9 @@ impl From<CardWithLimitedData> for CardWithLimitedDetails {
             card_issuer: None,
             card_network: None,
             card_type: None,
+            card_subtype: None,
+            card_segment_type: None,
+            funding_source: None,
             card_issuing_country: None,
             card_issuing_country_code: None,
             bank_code: None,
@@ -890,6 +943,9 @@ impl From<NetworkTransactionIdAndCardDetails> for CardDetailsForNetworkTransacti
             card_issuer: card_details_for_nti.card_issuer,
             card_network: card_details_for_nti.card_network,
             card_type: card_details_for_nti.card_type,
+            card_subtype: card_details_for_nti.card_subtype,
+            card_segment_type: card_details_for_nti.card_segment_type,
+            funding_source: card_details_for_nti.funding_source,
             card_issuing_country: card_details_for_nti.card_issuing_country,
             card_issuing_country_code: card_details_for_nti.card_issuing_country_code,
             bank_code: card_details_for_nti.bank_code,
@@ -1990,6 +2046,9 @@ impl TryFrom<payment_methods::PaymentMethodCreateData> for PaymentMethodData {
                 card_issuer,
                 card_network,
                 card_type: card_type.map(|card_type| card_type.to_string()),
+                card_subtype: None,
+                card_segment_type: None,
+                funding_source: None,
                 card_issuing_country: card_issuing_country.map(|country| country.to_string()),
                 card_issuing_country_code: None,
                 bank_code: None,
@@ -2189,6 +2248,9 @@ impl
             card_issuer,
             card_network,
             card_type,
+            card_subtype,
+            card_segment_type,
+            funding_source,
             card_issuing_country,
             card_issuing_country_code,
             bank_code,
@@ -2203,6 +2265,9 @@ impl
             card_issuer,
             card_network,
             card_type,
+            card_subtype,
+            card_segment_type,
+            funding_source,
             card_issuing_country,
             card_issuing_country_code,
             bank_code,
@@ -2233,6 +2298,9 @@ impl
             card_issuer,
             card_network,
             card_type,
+            card_subtype,
+            card_segment_type,
+            funding_source,
             card_issuing_country,
             card_issuing_country_code,
             bank_code,
@@ -2247,6 +2315,9 @@ impl
             card_issuer,
             card_network,
             card_type,
+            card_subtype,
+            card_segment_type,
+            funding_source,
             card_issuing_country,
             card_issuing_country_code,
             bank_code,
@@ -2457,6 +2528,9 @@ impl
             card_issuer: card_detail.card_issuer,
             card_network: card_detail.card_network,
             card_type: card_detail.card_type.map(|val| val.to_string()),
+            card_subtype: None,
+            card_segment_type: None,
+            funding_source: None,
             card_issuing_country: card_detail.card_issuing_country.map(|val| val.to_string()),
             card_issuing_country_code: None,
             bank_code: None,
@@ -4534,6 +4608,9 @@ impl
             card_issuer: card_details.card_issuer,
             card_network: card_details.card_network,
             card_type: card_details.card_type,
+            card_subtype: None,
+            card_segment_type: None,
+            funding_source: None,
             card_issuing_country: card_details.issuer_country,
             card_issuing_country_code: card_details.issuer_country_code,
             bank_code: None,
@@ -4590,6 +4667,9 @@ impl From<api_mandates::NetworkTransactionIdAndCardDetails> for NetworkTransacti
             card_issuer: value.card_issuer,
             card_network: value.card_network,
             card_type: value.card_type,
+            card_subtype: value.card_subtype,
+            card_segment_type: value.card_segment_type,
+            funding_source: value.funding_source,
             card_issuing_country: value.card_issuing_country,
             card_issuing_country_code: value.card_issuing_country_code,
             bank_code: value.bank_code,
