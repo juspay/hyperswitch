@@ -198,6 +198,8 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::routing::call_update_gateway_score_open_router,
         routes::routing::evaluate_routing_rule,
 
+        // Routes for offers
+        routes::offer_engine::offer_engine_browse_offers,
         // Routes for blocklist
         routes::blocklist::remove_entry_from_blocklist,
         routes::blocklist::list_blocked_payment_methods,
@@ -1017,6 +1019,10 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::routing::ast::NumberComparison,
         api_models::payment_methods::RequestPaymentMethodTypes,
         api_models::payments::PaymentLinkStatus,
+        api_models::offer_engine::BrowseOffersRequest,
+        api_models::offer_engine::OfferPaymentInfo,
+        api_models::offer_engine::BrowseOffersResponse,
+        api_models::offer_engine::BrowseOffer,
         api_models::blocklist::BlocklistRequest,
         api_models::blocklist::BlocklistResponse,
         api_models::blocklist::ToggleBlocklistResponse,
