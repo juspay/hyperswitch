@@ -407,6 +407,18 @@ jobs:
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_MERCHANT_CERT_KEY: ${{ secrets.APPLE_PAY_MERCHANT_CERTIFICATE_KEY }}
           # Apply seeded Superposition config quickly in CI (default is 300s).
           ROUTER__SUPERPOSITION__POLLING_INTERVAL: 10
+          # Default pool of 5 per DB section / 5 (Redis) starved under
+          # CYPRESS_SPEC_SHARDS=3 concurrent shards hitting this one server —
+          # the batch-1 sharded pilot failed mostly on "expected error object
+          # to have client_secret", consistent with requests queuing on
+          # exhausted connection pools rather than a real product/test bug.
+          # 4 sections x 20 = 80, under the postgres:alpine service's default
+          # max_connections=100. Scoped to this job only.
+          ROUTER__MASTER_DATABASE__MAX_POOL_SIZE: 20
+          ROUTER__REPLICA_DATABASE__MAX_POOL_SIZE: 20
+          ROUTER__ACCOUNTS_DATABASE__MAX_POOL_SIZE: 20
+          ROUTER__GLOBAL_DATABASE__MAX_POOL_SIZE: 20
+          ROUTER__REDIS__POOL_SIZE: 20
           SERVER_LOG_PATH: ${{ github.workspace }}/server-logs.txt
         run: |
           # Start the server in the background
