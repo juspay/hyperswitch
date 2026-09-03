@@ -32863,6 +32863,10 @@
           },
           "payment_processing_certificate_key": {
             "type": "string"
+          },
+          "system_generated_payment_processing_certificate_key": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
