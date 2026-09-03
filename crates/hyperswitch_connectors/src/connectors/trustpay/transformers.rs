@@ -586,12 +586,14 @@ impl TryFrom<&TrustpayRouterData<&PaymentsAuthorizeRouterData>> for TrustpayPaym
                         redirect_url: item.router_data.request.get_router_return_url()?,
                         enrollment_status: 'Y', // Set to 'Y' as network provider not providing this value in response
                         eci: token_data.eci.clone().ok_or_else(|| {
-                            errors::ConnectorError::MissingRequiredField { field_name: "eci" }
+                            errors::ConnectorError::MissingRequiredField {
+                                field_name: "eci".into(),
+                            }
                         })?,
                         authentication_status: 'Y', // Set to 'Y' since presence of token_cryptogram is already validated
                         verification_id: token_data.get_cryptogram().ok_or_else(|| {
                             errors::ConnectorError::MissingRequiredField {
-                                field_name: "verification_id",
+                                field_name: "verification_id".into(),
                             }
                         })?,
                     },
@@ -1458,7 +1460,7 @@ impl TryFrom<CreateOrderResponseRouterData<TrustpayCreateIntentResponse>>
             .payment_method_type
             .get_required_value("payment_method_type")
             .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "payment_method_type",
+                field_name: "payment_method_type".into(),
             })?;
 
         match (pmt, create_intent_response) {

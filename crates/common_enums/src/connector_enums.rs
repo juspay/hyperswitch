@@ -516,11 +516,14 @@ impl Connector {
 #[derive(
     Debug,
     Clone,
+    Copy,
     PartialEq,
     Eq,
+    Hash,
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
+    strum::EnumIter,
     strum::EnumString,
     ToSchema,
 )]

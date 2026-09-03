@@ -815,7 +815,7 @@ impl PaymentMethodsController for PmCards<'_> {
                 .locker_id
                 .clone()
                 .ok_or(errors::VaultError::MissingRequiredField {
-                    field_name: "locker_id",
+                    field_name: "locker_id".into(),
                 })
                 .attach_printable(
                     "Payment Method with the fingerprint already exists but is missing locker_id",
@@ -923,7 +923,7 @@ impl PaymentMethodsController for PmCards<'_> {
                 .locker_id
                 .clone()
                 .ok_or(errors::VaultError::MissingRequiredField {
-                    field_name: "locker_id",
+                    field_name: "locker_id".into(),
                 })
                 .attach_printable(
                     "Payment Method with the fingerprint already exists but is missing locker_id",
@@ -1030,7 +1030,7 @@ impl PaymentMethodsController for PmCards<'_> {
                 .locker_id
                 .clone()
                 .ok_or(errors::VaultError::MissingRequiredField {
-                    field_name: "locker_id",
+                    field_name: "locker_id".into(),
                 })
                 .attach_printable(
                     "Payment Method with the fingerprint already exists but is missing locker_id",
@@ -1575,7 +1575,7 @@ impl PaymentMethodsController for PmCards<'_> {
             .to_owned()
             .get_required_value("Customer key")
             .change_context(errors::VaultError::MissingRequiredField {
-                field_name: "Customer key",
+                field_name: "Customer key".into(),
             })
             .attach_printable("entity_id is required to get fingerprint id from vault")?;
 
@@ -2169,7 +2169,7 @@ pub fn encode_vault_fingerprint_request(
         let key = key
             .get_required_value("Customer key is required")
             .change_context(errors::VaultError::MissingRequiredField {
-                field_name: "Customer key",
+                field_name: "Customer key".into(),
             })?;
 
         let data = serde_json::to_string(&pmd.clone().to_fingerprint_data())
@@ -2452,7 +2452,7 @@ pub fn authenticate_pm_client_secret_and_check_expiry(
         .clone()
         .get_required_value("client_secret")
         .change_context(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "client_secret",
+            field_name: "client_secret".into(),
         })
         .attach_printable("client secret not found in db")?;
 
@@ -4726,7 +4726,7 @@ pub async fn build_merchant_enabled_pms_context(
         let connector_variant = api_enums::Connector::from_str(connector.as_str())
             .change_context(errors::ConnectorError::InvalidConnectorName)
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "connector",
+                field_name: "connector".into(),
             })
             .attach_printable_lazy(|| format!("unable to parse connector name {connector:?}"))?;
         state.conf.required_fields.0.get(&payment_method).map(
@@ -5498,7 +5498,7 @@ async fn validate_payment_method_and_client_secret(
     let pm_id = pm_vec
         .first()
         .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "client_secret",
+            field_name: "client_secret".into(),
         })?;
 
     let payment_method = db
@@ -5704,7 +5704,7 @@ pub async fn filter_payment_methods(
                     let connector_variant = api_enums::Connector::from_str(connector.as_str())
                         .change_context(errors::ConnectorError::InvalidConnectorName)
                         .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                            field_name: "connector",
+                            field_name: "connector".into(),
                         })
                         .attach_printable_lazy(|| {
                             format!("unable to parse connector name {connector:?}")
@@ -7456,7 +7456,7 @@ pub async fn execute_card_tokenization(
             .id
             .as_ref()
             .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "customer_id",
+                field_name: "customer_id".into(),
             })?;
     let network_token_details = executor
         .tokenize_card(customer_id, &domain_card, optional_cvc)
@@ -7508,7 +7508,7 @@ pub async fn execute_payment_method_tokenization(
             .id
             .as_ref()
             .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "customer_id",
+                field_name: "customer_id".into(),
             })?;
 
     // Fetch card from locker

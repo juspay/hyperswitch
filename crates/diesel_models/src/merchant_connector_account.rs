@@ -301,6 +301,8 @@ pub struct RevenueRecoveryMetadata {
     pub max_retry_count: u16,
     /// Maximum number of `billing connector` retries before revenue recovery can start executing retries.
     pub billing_connector_retry_threshold: u16,
+    #[serde(default)]
+    pub max_hybrid_cascading_retry_count: u16,
     /// Billing account reference id is payment gateway id at billing connector end.
     /// Merchants need to provide a mapping between these merchant connector account and the corresponding  
     /// account reference IDs for each `billing connector`.
