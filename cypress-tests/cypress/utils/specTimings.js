@@ -1,4 +1,6 @@
 /* eslint-disable no-console */
+import fs from "fs";
+
 /**
  * Per-spec wall-clock accounting for `cypress run`.
  *
@@ -28,6 +30,9 @@ const SLOWEST_SPECS_SHOWN = 15;
 // Widest spec name in the suite is ~40 chars; columns hold "1234.5s".
 const NAME_WIDTH = 42;
 const VALUE_WIDTH = 9;
+// A spec whose `between` bucket exceeds this is flagged as likely bloated
+// support-file bundling rather than normal browser relaunch overhead.
+const SLOW_BETWEEN_THRESHOLD_MS = 5000;
 
 function formatSeconds(ms) {
   return `${(ms / MS_PER_SECOND).toFixed(1)}s`;
@@ -76,9 +81,12 @@ function mochaDuration(results) {
   return 0;
 }
 
-function printReport(timings) {
-  if (timings.length === 0) return;
-
+/**
+ * Build the report as an array of plain-text lines, so the same content can
+ * go to both the console (for local runs) and a GitHub Actions step summary
+ * (for CI, where it renders in the checks UI instead of buried in a log).
+ */
+function buildReportLines(timings) {
   const totals = timings.reduce(
     (acc, timing) => ({
       between: acc.between + timing.between,
@@ -93,24 +101,25 @@ function printReport(timings) {
   const bucketRow = (label, ms) =>
     `    ${label.padEnd(NAME_WIDTH - 2)}${formatSeconds(ms).padStart(VALUE_WIDTH)}${formatPercent(ms, wallClock).padStart(VALUE_WIDTH)}`;
 
-  console.log("");
-  console.log(`  (Spec Timings — ${timings.length} specs)`);
-  console.log("");
-  console.log(
+  const lines = [];
+  lines.push("");
+  lines.push(`  (Spec Timings — ${timings.length} specs)`);
+  lines.push("");
+  lines.push(
     `  ${"Wall clock".padEnd(NAME_WIDTH)}${formatSeconds(wallClock).padStart(VALUE_WIDTH)}`
   );
-  console.log(bucketRow("tests    (mocha bodies)", totals.tests));
-  console.log(bucketRow("hooks    (before/after)", totals.hooks));
-  console.log(bucketRow("between  (relaunch+bundle)", totals.between));
-  console.log(bucketRow("spec     (boot+video+report)", totals.spec));
-  console.log("");
+  lines.push(bucketRow("tests    (mocha bodies)", totals.tests));
+  lines.push(bucketRow("hooks    (before/after)", totals.hooks));
+  lines.push(bucketRow("between  (relaunch+bundle)", totals.between));
+  lines.push(bucketRow("spec     (boot+video+report)", totals.spec));
+  lines.push("");
 
   const overheadPerSpec =
     (totals.between + totals.spec) / timings.length / MS_PER_SECOND;
-  console.log(
+  lines.push(
     `  Fixed cost per spec file: ${overheadPerSpec.toFixed(1)}s  (${timings.length} specs)`
   );
-  console.log("");
+  lines.push("");
 
   const slowest = [...timings]
     .sort((a, b) => b.total - a.total)
@@ -122,10 +131,10 @@ function printReport(timings) {
       .map((value) => value.padStart(VALUE_WIDTH))
       .join("");
 
-  console.log(`  Slowest ${slowest.length} specs`);
-  console.log(specRow("", "total", "tests", "hooks", "between", "spec"));
+  lines.push(`  Slowest ${slowest.length} specs`);
+  lines.push(specRow("", "total", "tests", "hooks", "between", "spec"));
   for (const timing of slowest) {
-    console.log(
+    lines.push(
       specRow(
         timing.name,
         formatSeconds(timing.total),
@@ -136,7 +145,54 @@ function printReport(timings) {
       )
     );
   }
-  console.log("");
+  lines.push("");
+
+  const slowBetween = timings
+    .filter((timing) => timing.between > SLOW_BETWEEN_THRESHOLD_MS)
+    .sort((a, b) => b.between - a.between);
+  if (slowBetween.length > 0) {
+    lines.push(
+      `  Flagged: ${slowBetween.length} spec(s) with between > ${formatSeconds(SLOW_BETWEEN_THRESHOLD_MS)} (likely bloated support-file bundling)`
+    );
+    for (const timing of slowBetween) {
+      lines.push(
+        `    ${timing.name.padEnd(NAME_WIDTH)}${formatSeconds(timing.between).padStart(VALUE_WIDTH)}`
+      );
+    }
+    lines.push("");
+  }
+
+  return lines;
+}
+
+/**
+ * A GitHub Actions step summary renders as markdown, so the report is wrapped
+ * in a code fence to keep its fixed-width columns intact instead of having
+ * markdown collapse the whitespace.
+ */
+function writeStepSummary(lines) {
+  const summaryPath = process.env.GITHUB_STEP_SUMMARY;
+  if (!summaryPath) return;
+
+  const markdown = ["", "## Spec Timings", "", "```", ...lines, "```", ""].join(
+    "\n"
+  );
+  fs.appendFileSync(summaryPath, markdown);
+}
+
+function printReport(timings) {
+  if (timings.length === 0) return;
+
+  const lines = buildReportLines(timings);
+  for (const line of lines) {
+    console.log(line);
+  }
+
+  try {
+    writeStepSummary(lines);
+  } catch (error) {
+    console.log(`  (Spec Timings step summary unavailable: ${error.message})`);
+  }
 }
 
 /**
