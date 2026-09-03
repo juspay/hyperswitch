@@ -140,6 +140,45 @@ export const connectorDetails = {
         },
       },
     },
+    PaymentIntentWithProcessingMethodId: {
+      Request: {
+        currency: "USD",
+        metadata: {
+          processing_method_id: "pm_3fNsdcDR2fSf0PpqzXgwR",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          metadata: {
+            processing_method_id: "pm_3fNsdcDR2fSf0PpqzXgwR",
+          },
+        },
+      },
+    },
+    PaymentConfirmWithProcessingMethodId: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        metadata: {
+          processing_method_id: "pm_3fNsdcDR2fSf0PpqzXgwR",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          metadata: {
+            processing_method_id: "pm_3fNsdcDR2fSf0PpqzXgwR",
+          },
+        },
+      },
+    },
     "3DSManualCapture": {
       Configs: {
         TRIGGER_SKIP: true,
@@ -572,6 +611,34 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+        },
+      },
+    },
+    MandateSingleUseNo3DSAutoCaptureWithProcessingMethodId: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: DUPLICATION_TIMEOUT,
+        },
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        mandate_data: singleUseMandateData,
+        metadata: {
+          processing_method_id: "pm_3fNsdcDR2fSf0PpqzXgwR",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          metadata: {
+            processing_method_id: "pm_3fNsdcDR2fSf0PpqzXgwR",
+          },
         },
       },
     },
