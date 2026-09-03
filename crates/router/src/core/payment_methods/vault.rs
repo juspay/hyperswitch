@@ -2057,6 +2057,19 @@ pub async fn call_to_vault<V: pm_types::VaultingInterface>(
         additional_headers.unwrap_or_default()
     };
 
+    #[cfg(feature = "v2")]
+    let additional_headers = if V::supports_plain_response() && locker.plain_fingerprint_response
+    {
+        let mut additional_headers = additional_headers;
+        additional_headers.insert(
+            consts::V2_VAULT_RESPONSE_ENCODING_HEADER.to_string(),
+            consts::V2_VAULT_RESPONSE_ENCODING_PLAIN.to_string(),
+        );
+        additional_headers
+    } else {
+        additional_headers
+    };
+
     let request = create_vault_request::<V>(
         jwekey,
         locker,
@@ -2079,8 +2092,21 @@ pub async fn call_to_vault<V: pm_types::VaultingInterface>(
             .add(1, router_env::metric_attributes!(("operation", flow_name)));
     });
 
+    let response = response
+        .get_response()
+        .change_context(errors::VaultError::ResponseDeserializationFailed)
+        .attach_printable("Failed to get response from vault")?;
+
+    #[cfg(feature = "v2")]
+    if is_plain_vault_response(&response) {
+        return String::from_utf8(response.response.to_vec())
+            .change_context(errors::VaultError::ResponseDeserializationFailed)
+            .attach_printable("Plain vault response is not valid UTF-8");
+    }
+
     let jwe_body: services::JweBody = response
-        .get_response_inner("JweBody")
+        .response
+        .parse_struct("JweBody")
         .change_context(errors::VaultError::ResponseDeserializationFailed)
         .attach_printable("Failed to get JweBody from vault response")?;
 
@@ -2094,6 +2120,18 @@ pub async fn call_to_vault<V: pm_types::VaultingInterface>(
     .attach_printable("Error getting decrypted vault response payload")?;
 
     Ok(decrypted_payload)
+}
+
+/// The vault marks a response it returned unencrypted (at the caller's request) with the same
+/// header the caller sent; anything without it is a JWE envelope.
+#[cfg(feature = "v2")]
+fn is_plain_vault_response(response: &types::Response) -> bool {
+    response
+        .headers
+        .as_ref()
+        .and_then(|headers| headers.get(consts::V2_VAULT_RESPONSE_ENCODING_HEADER))
+        .and_then(|value| value.to_str().ok())
+        .is_some_and(|value| value == consts::V2_VAULT_RESPONSE_ENCODING_PLAIN)
 }
 
 pub async fn create_entity_in_locker(

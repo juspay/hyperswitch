@@ -1056,6 +1056,11 @@ pub struct Locker {
     pub ttl_for_storage_in_secs: i64,
     pub decryption_scheme: DecryptionScheme,
     pub create_entity_on_merchant_create: bool,
+    /// Ask the vault for plain (unencrypted) fingerprint responses. The vault honours this only
+    /// when it has opted in, and marks such responses with a header, so the two sides need not
+    /// be flipped in lockstep. Request payloads remain encrypted either way.
+    #[cfg(feature = "v2")]
+    pub plain_fingerprint_response: bool,
 }
 
 impl Locker {

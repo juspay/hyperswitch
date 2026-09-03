@@ -28,6 +28,12 @@ pub trait VaultingInterface {
     fn get_vaulting_request_url() -> &'static str;
 
     fn get_vaulting_flow_name() -> &'static str;
+
+    /// Whether this flow may accept a plain (unencrypted) response from the vault. Only flows
+    /// whose response carries no sensitive data should opt in.
+    fn supports_plain_response() -> bool {
+        false
+    }
 }
 
 #[cfg(feature = "v1")]
@@ -148,6 +154,11 @@ impl VaultingInterface for GetVaultFingerprint {
 
     fn get_vaulting_flow_name() -> &'static str {
         consts::V2_VAULT_GET_FINGERPRINT_FLOW_TYPE
+    }
+
+    // The response is only a fingerprint id.
+    fn supports_plain_response() -> bool {
+        true
     }
 }
 
@@ -578,7 +589,7 @@ pub struct PaymentMethodUpdateHandler<'a> {
     pub profile: &'a hyperswitch_domain_models::business_profile::Profile,
     pub request: hyperswitch_domain_models::payment_methods::PaymentMethodUpdate,
     pub payment_method: hyperswitch_domain_models::payment_methods::PaymentMethod,
-    pub state: &'a crate::routes::app::SessionState,
+    pub state: &'a SessionState,
     /// Where `payment_method` was resolved from. Persistent unless the update
     /// request routed through volatile storage.
     pub source: common_enums::StorageType,
