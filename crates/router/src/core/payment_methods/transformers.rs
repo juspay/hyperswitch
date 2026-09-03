@@ -589,6 +589,9 @@ pub fn mk_add_card_response_hs(
         card_issuer: card.card_issuer,
         card_network: card.card_network,
         card_type: card.card_type,
+        card_subtype: card.card_subtype,
+        card_segment_type: card.card_segment_type,
+        funding_source: card.funding_source,
         saved_to_locker: true,
     };
     domain::PaymentMethodResponse {
@@ -638,6 +641,9 @@ pub fn generate_pm_vaulting_req_from_update_request(
             card_network: card_create.card_network,
             card_issuer: card_create.card_issuer,
             card_type: card_create.card_type,
+            card_subtype: card_create.card_subtype,
+            card_segment_type: card_create.card_segment_type,
+            funding_source: card_create.funding_source,
             card_holder_name: update_card
                 .card_holder_name
                 .or(card_create.card_holder_name),
@@ -886,6 +892,9 @@ pub fn get_card_detail(
         issuer_country_code: None,
         card_network: None,
         card_type: None,
+        card_subtype: None,
+        card_segment_type: None,
+        funding_source: None,
         saved_to_locker: true,
     };
     Ok(card_detail)
@@ -913,6 +922,9 @@ pub fn get_card_detail(
         card_issuer: None,
         card_network: None,
         card_type: None,
+        card_subtype: None,
+        card_segment_type: None,
+        funding_source: None,
         saved_to_locker: true,
     };
     Ok(card_detail)
