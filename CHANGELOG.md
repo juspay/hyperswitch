@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.09.03.1
+
+### Features
+
+- **authentication:** Added GSM retry for external 3ds authorization failure ([#13933](https://github.com/juspay/hyperswitch/pull/13933)) ([`64de611`](https://github.com/juspay/hyperswitch/commit/64de61168f9864e4e5a1a5670380a6087ba416e2))
+
+**Full Changelog:** [`2026.09.03.0...2026.09.03.1`](https://github.com/juspay/hyperswitch/compare/2026.09.03.0...2026.09.03.1)
+
+- - -
+
 ## 2026.09.03.0
 
 ### Features
