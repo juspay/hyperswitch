@@ -118,6 +118,11 @@ pub async fn get_feature_config(
 
     let is_payment_method_modular_allowed =
         payment_methods::utils::get_should_call_pm_modular_service(state, &dimensions, None).await;
+    router_env::logger::debug!(
+        is_payment_method_modular_allowed,
+        organization_id=%platform.get_processor().get_account().organization_id.get_string_repr(),
+        "resolved PM modular service feature flag"
+    );
     FeatureConfig {
         is_payment_method_modular_allowed,
     }
@@ -598,7 +603,7 @@ pub async fn construct_refund_router_data<'a, F>(
     let connector_enum = Connector::from_str(connector_id)
         .change_context(errors::ConnectorError::InvalidConnectorName)
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "connector",
+            field_name: "connector".into(),
         })
         .attach_printable_lazy(|| format!("unable to parse connector name {connector_id:?}"))?;
 
@@ -619,7 +624,7 @@ pub async fn construct_refund_router_data<'a, F>(
         .map(|b| b.parse_value("BrowserInformation"))
         .transpose()
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "browser_info",
+            field_name: "browser_info".into(),
         })?;
 
     let connector_refund_id = refund.get_optional_connector_refund_id().cloned();
@@ -969,7 +974,7 @@ pub fn get_split_refunds(
 
                     if option_for_user_id.is_some() {
                         Err(errors::ApiErrorResponse::MissingRequiredField {
-                            field_name: "split_refunds.xendit_split_refund.for_user_id",
+                            field_name: "split_refunds.xendit_split_refund.for_user_id".into(),
                         })?
                     } else {
                         Ok(None)
@@ -1757,7 +1762,7 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<F: Clone>(
                     data.to_owned()
                         .parse_value("OrderDetailsWithAmount")
                         .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                            field_name: "OrderDetailsWithAmount",
+                            field_name: "OrderDetailsWithAmount".into(),
                         })
                         .attach_printable("Unable to parse OrderDetailsWithAmount")
                 })
@@ -1974,7 +1979,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         .profile_id
         .as_ref()
         .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "profile_id",
+            field_name: "profile_id".into(),
         })
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("profile_id is not set in file_metadata")?;
@@ -2319,7 +2324,7 @@ pub async fn get_profile_id_from_business_details(
                 Ok(business_profile.get_id().to_owned())
             }
             _ => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "profile_id or business_country, business_label"
+                field_name: "profile_id or business_country, business_label".into()
             })),
         },
     }

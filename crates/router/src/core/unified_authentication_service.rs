@@ -232,7 +232,7 @@ impl UnifiedAuthenticationService for ClickToPay {
             .attach_printable("Missing authentication id in tracker")?;
 
         let currency = currency.ok_or(ApiErrorResponse::MissingRequiredField {
-            field_name: "currency",
+            field_name: "currency".into(),
         })?;
 
         let current_time = common_utils::date_time::date_as_yyyymmddthhmmssmmmz()
@@ -430,12 +430,12 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
             pre_authentication_data: PreAuthenticationData {
                 threeds_server_transaction_id: authentication.threeds_server_transaction_id.ok_or(
                     ApiErrorResponse::MissingRequiredField {
-                        field_name: "authentication.threeds_server_transaction_id",
+                        field_name: "authentication.threeds_server_transaction_id".into(),
                     },
                 )?,
                 message_version: authentication.message_version.ok_or(
                     ApiErrorResponse::MissingRequiredField {
-                        field_name: "authentication.message_version",
+                        field_name: "authentication.message_version".into(),
                     },
                 )?,
                 acquirer_bin: authentication.acquirer_bin,
@@ -523,7 +523,7 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
                 authentication
                     .and_then(|auth| auth.threeds_server_transaction_id)
                     .ok_or(ApiErrorResponse::MissingRequiredField {
-                        field_name: "authentication.threeds_server_transaction_id",
+                        field_name: "authentication.threeds_server_transaction_id".into(),
                     })?,
             ),
             routing_region,
@@ -1167,7 +1167,7 @@ pub async fn authentication_eligibility_core(
             let card_network = card_network
                 .get_required_value("card_network")
                 .change_context(ApiErrorResponse::MissingRequiredField {
-                    field_name: "card_network",
+                    field_name: "card_network".into(),
                 })
                 .attach_printable("Card network is mandatory for resolving acquirer details")?;
 
@@ -2585,7 +2585,7 @@ pub async fn get_session_token_for_click_to_pay(
     let click_to_pay_mca_id = authentication_product_ids
         .get_click_to_pay_connector_account_id()
         .change_context(ApiErrorResponse::MissingRequiredField {
-            field_name: "authentication_product_ids",
+            field_name: "authentication_product_ids".into(),
         })?;
     let key_manager_state = &state.into();
 

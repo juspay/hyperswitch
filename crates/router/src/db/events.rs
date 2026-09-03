@@ -1967,6 +1967,9 @@ mod tests {
                 payment_statuses_enabled: None,
                 refund_statuses_enabled: None,
                 payout_statuses_enabled: None,
+                dispute_statuses_enabled: None,
+                mandate_statuses_enabled: None,
+                invoice_statuses_enabled: None,
                 multiple_webhooks_list: None,
             }),
             sub_merchants_enabled: None,
@@ -1997,6 +2000,7 @@ mod tests {
             version: common_enums::ApiVersion::V1,
             network_tokenization_credentials: None,
             fingerprint_secret: None,
+            offer_engine_config: None,
         });
         let merchant_account = state
             .store
@@ -2036,6 +2040,9 @@ mod tests {
                 payment_statuses_enabled: None,
                 refund_statuses_enabled: None,
                 payout_statuses_enabled: None,
+                dispute_statuses_enabled: None,
+                mandate_statuses_enabled: None,
+                invoice_statuses_enabled: None,
                 multiple_webhooks_list: None,
             }),
             metadata: None,
