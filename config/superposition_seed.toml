@@ -2565,6 +2565,28 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
     ],
 ], start_after = 60 }, schema = { type = "object" }, description = "Payout sync retry mapping configuration per connector", change_reason = "Initial setup" }
 "payments.poll_config_external_three_ds" = { value = { delay_in_secs = 2, frequency = 5 }, schema = { type = "object" }, description = "Poll configuration for external 3DS authentication per connector", change_reason = "Initial setup" }
+"process_tracker.pt_mapping_adaptive_retries" = { value = { default_mapping = { frequencies = [
+    [
+        10800,
+        2,
+    ],
+    [
+        21600,
+        3,
+    ],
+    [
+        32400,
+        3,
+    ],
+    [
+        43200,
+        3,
+    ],
+    [
+        64800,
+        3,
+    ],
+], start_after = 60 } }, schema = { type = "object" }, description = "Static ladder process tracker mapping used by the adaptive revenue recovery retry algorithm", change_reason = "Initial setup" }
 "process_tracker.pt_mapping_dispute_sync" = { value = { default_mapping = { frequencies = [
     [
         300,
