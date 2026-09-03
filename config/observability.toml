@@ -1,11 +1,12 @@
-# Configuration for the standalone `alerts` service.
+# Configuration for the standalone `observability` service.
 #
-# Read by `cargo run -p alerts`. Override the path with `-f <file>`, or move the config directory
-# with the `CONFIG_DIR` environment variable.
+# Read by `cargo run -p observability`. Override the path with `-f <file>`, or move the config
+# directory with the `CONFIG_DIR` environment variable.
 #
-# Every value here can be overridden by an environment variable prefixed `ALERTS__`, with `__`
-# separating levels — `ALERTS__AUTH__INTERNAL_API_KEY` sets `auth.internal_api_key`. In deployed
-# environments the key comes from the environment or from a secrets manager, never from this file.
+# Every value here can be overridden by an environment variable prefixed `OBSERVABILITY__`, with
+# `__` separating levels — `OBSERVABILITY__AUTH__INTERNAL_API_KEY` sets `auth.internal_api_key`. In
+# deployed environments the key comes from the environment or from a secrets manager, never from
+# this file.
 
 [server]
 host = "127.0.0.1"
@@ -30,7 +31,7 @@ metrics_enabled = false
 # start. The value below is a local development placeholder and must not reach any deployed
 # environment.
 [auth]
-internal_api_key = "alerts_dev_key"
+internal_api_key = "observability_dev_key"
 
 # How the secrets above are resolved at boot. `no_encryption` takes them literally; the KMS
 # variants are compiled in under the `release` feature and treat them as handles to resolve.
@@ -48,9 +49,9 @@ secrets_manager = "no_encryption"
 # lowercases every environment key and splits levels on `__`. The service refuses to start on an id
 # that would not survive that, rather than failing to match it at lookup time.
 #
-#   ALERTS__CHAT__DESTINATIONS__SR_ALERTS__TYPE=xyne
-#   ALERTS__CHAT__DESTINATIONS__SR_ALERTS__APP_JWT=...
-#   ALERTS__CHAT__DESTINATIONS__SR_ALERTS__CHANNEL=...
+#   OBSERVABILITY__CHAT__DESTINATIONS__SR_ALERTS__TYPE=xyne
+#   OBSERVABILITY__CHAT__DESTINATIONS__SR_ALERTS__APP_JWT=...
+#   OBSERVABILITY__CHAT__DESTINATIONS__SR_ALERTS__CHANNEL=...
 #
 # `type = "log"` accepts messages and delivers nothing. It exists so the whole path — guard, route,
 # registry, response — can be exercised before real credentials exist. It logs sizes, never the

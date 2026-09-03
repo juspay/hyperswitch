@@ -10,6 +10,6 @@ use crate::logger;
 
 #[instrument(skip_all)]
 pub async fn health() -> impl actix_web::Responder {
-    logger::info!("Alerts health was called");
-    actix_web::HttpResponse::Ok().body("Alerts health is good")
+    logger::info!("Observability health was called");
+    actix_web::HttpResponse::Ok().body("Observability health is good")
 }

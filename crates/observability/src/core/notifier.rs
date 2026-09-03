@@ -13,7 +13,7 @@ use crate::{
         chat::{ChatNotification, ChatOutcome},
         email::{EmailNotification, EmailOutcome},
     },
-    errors::{AlertsApiResult, AlertsError},
+    errors::{ObservabilityApiResult, ObservabilityError},
     state::AppState,
     types::{ChatNotifyRequest, EmailNotifyRequest},
 };
@@ -23,12 +23,12 @@ pub async fn notify_chat(
     state: AppState,
     destination: &str,
     request: ChatNotifyRequest,
-) -> AlertsApiResult<ChatOutcome> {
+) -> ObservabilityApiResult<ChatOutcome> {
     state
         .chat
         .get(destination)
         .ok_or_else(|| {
-            report!(AlertsError::UnknownDestination {
+            report!(ObservabilityError::UnknownDestination {
                 destination: destination.to_owned(),
             })
         })?
@@ -44,12 +44,12 @@ pub async fn notify_email(
     state: AppState,
     destination: &str,
     request: EmailNotifyRequest,
-) -> AlertsApiResult<EmailOutcome> {
+) -> ObservabilityApiResult<EmailOutcome> {
     state
         .email
         .get(destination)
         .ok_or_else(|| {
-            report!(AlertsError::UnknownDestination {
+            report!(ObservabilityError::UnknownDestination {
                 destination: destination.to_owned(),
             })
         })?

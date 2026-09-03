@@ -1,6 +1,6 @@
 //! Resolving secret values at boot.
 //!
-//! In release builds the values in `alerts.toml` may be KMS handles rather than the secrets
+//! In release builds the values in `observability.toml` may be KMS handles rather than the secrets
 //! themselves. This module performs the one-time transition from `Settings<SecuredSecret>` to
 //! `Settings<RawSecret>`, so that everything downstream is statically known to hold resolved
 //! values. Mirrors `drainer::secrets_transformers`.

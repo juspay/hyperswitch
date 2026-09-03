@@ -12,7 +12,7 @@ use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 
 use super::{Outcome, Refusal};
 use crate::{
-    errors::{AlertsApiResult, AlertsError},
+    errors::{ObservabilityApiResult, ObservabilityError},
     logger,
 };
 
@@ -59,7 +59,7 @@ pub trait ChatNotifier: Send + Sync + std::fmt::Debug {
     ///
     /// A provider that refuses returns `Ok(Outcome::Refused)`, not an error: it was reached and it
     /// answered. `Err` means the attempt itself failed, so whether the message arrived is unknown.
-    async fn notify(&self, notification: ChatNotification) -> AlertsApiResult<ChatOutcome>;
+    async fn notify(&self, notification: ChatNotification) -> ObservabilityApiResult<ChatOutcome>;
 }
 
 /// A [`ChatNotifier`] backed by a real chat transport.
@@ -84,7 +84,7 @@ impl ChatClientNotifier {
 
 #[async_trait::async_trait]
 impl ChatNotifier for ChatClientNotifier {
-    async fn notify(&self, notification: ChatNotification) -> AlertsApiResult<ChatOutcome> {
+    async fn notify(&self, notification: ChatNotification) -> ObservabilityApiResult<ChatOutcome> {
         let message = match notification.reply_to {
             Some(reply_to) => {
                 ChatMessage::reply(notification.text.expose(), MessageId::ts(reply_to))
@@ -125,7 +125,7 @@ enum Verdict {
     /// The provider accepted the message but named no id for it.
     DeliveredWithoutId,
     /// Nothing is known about delivery.
-    Failed(fn(String) -> AlertsError),
+    Failed(fn(String) -> ObservabilityError),
 }
 
 /// Decide whether a chat failure is a refusal, a delivery, or an unknown.
@@ -143,7 +143,9 @@ fn classify(error: &ChatError) -> Verdict {
         ChatError::Rejected { reason } => match reason {
             // The provider blaming itself is not an answer about the message, so nothing is known.
             ChatErrorReason::Other(code) if code == PROVIDER_INTERNAL_ERROR => {
-                Verdict::Failed(|destination| AlertsError::ProviderUnavailable { destination })
+                Verdict::Failed(|destination| ObservabilityError::ProviderUnavailable {
+                    destination,
+                })
             }
             ChatErrorReason::RateLimited {
                 retry_after_seconds,
@@ -164,13 +166,13 @@ fn classify(error: &ChatError) -> Verdict {
 
         // No answer, or one outside the documented envelope. Delivery is genuinely unknown.
         ChatError::RequestFailed | ChatError::HttpStatus { .. } | ChatError::UnreadableResponse => {
-            Verdict::Failed(|destination| AlertsError::ProviderUnavailable { destination })
+            Verdict::Failed(|destination| ObservabilityError::ProviderUnavailable { destination })
         }
 
         // Rejected at boot by `Endpoint::new`, so reaching here means a destination was built some
         // other way.
         ChatError::InvalidConfiguration(_) => {
-            Verdict::Failed(|_destination| AlertsError::InternalServerError)
+            Verdict::Failed(|_destination| ObservabilityError::InternalServerError)
         }
     }
 }
@@ -226,7 +228,7 @@ impl LogChatNotifier {
 
 #[async_trait::async_trait]
 impl ChatNotifier for LogChatNotifier {
-    async fn notify(&self, notification: ChatNotification) -> AlertsApiResult<ChatOutcome> {
+    async fn notify(&self, notification: ChatNotification) -> ObservabilityApiResult<ChatOutcome> {
         let sequence = self.sequence.fetch_add(1, Ordering::Relaxed);
 
         logger::info!(

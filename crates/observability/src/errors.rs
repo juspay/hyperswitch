@@ -5,7 +5,7 @@
 //! | Layer | Type | Rendered to HTTP? |
 //! |---|---|---|
 //! | Boot / configuration | [`ConfigurationError`] | never — the process exits instead |
-//! | Internal, semantic | [`AlertsError`] | no — carried in an [`error_stack::Report`] |
+//! | Internal, semantic | [`ObservabilityError`] | no — carried in an [`error_stack::Report`] |
 //! | Wire | [`types::ApiErrorResponse`] | yes — via its `ResponseError` impl in [`actix`] |
 //!
 //! The two request-side layers are bridged by [`common_utils::errors::ErrorSwitch`], which
@@ -53,7 +53,7 @@ impl From<config::ConfigError> for ConfigurationError {
 }
 
 /// The result type for anything that runs during startup.
-pub type AlertsResult<T> = error_stack::Result<T, ConfigurationError>;
+pub type ObservabilityResult<T> = error_stack::Result<T, ConfigurationError>;
 
 /// Errors raised while handling a request.
 ///
@@ -66,7 +66,7 @@ pub type AlertsResult<T> = error_stack::Result<T, ConfigurationError>;
 /// cannot act on, and a notifier that did not work — which is exactly what a `4xx`/`5xx` from this
 /// service should mean, so an alert on 5xx pages someone only when the service is genuinely broken.
 #[derive(Debug, Error)]
-pub enum AlertsError {
+pub enum ObservabilityError {
     /// Something failed that the client can do nothing about.
     #[error("Internal server error")]
     InternalServerError,
@@ -92,9 +92,9 @@ pub enum AlertsError {
 }
 
 /// The result type for request handling.
-pub type AlertsApiResult<T> = error_stack::Result<T, AlertsError>;
+pub type ObservabilityApiResult<T> = error_stack::Result<T, ObservabilityError>;
 
-impl ErrorSwitch<ApiErrorResponse> for AlertsError {
+impl ErrorSwitch<ApiErrorResponse> for ObservabilityError {
     fn switch(&self) -> ApiErrorResponse {
         match self {
             Self::InternalServerError => ApiErrorResponse::InternalServerError(ApiError::new(
@@ -133,7 +133,7 @@ mod tests {
 
     use super::*;
 
-    fn status_of(error: &AlertsError) -> u16 {
+    fn status_of(error: &ObservabilityError) -> u16 {
         ErrorSwitch::<ApiErrorResponse>::switch(error)
             .status_code()
             .as_u16()
@@ -144,32 +144,33 @@ mod tests {
     #[test]
     fn only_our_own_failures_are_5xx() {
         assert_eq!(
-            status_of(&AlertsError::ProviderUnavailable {
+            status_of(&ObservabilityError::ProviderUnavailable {
                 destination: "sr_alerts".to_owned(),
             }),
             502
         );
-        assert_eq!(status_of(&AlertsError::InternalServerError), 500);
+        assert_eq!(status_of(&ObservabilityError::InternalServerError), 500);
     }
 
     #[test]
     fn a_request_we_cannot_act_on_is_4xx() {
         assert_eq!(
-            status_of(&AlertsError::UnknownDestination {
+            status_of(&ObservabilityError::UnknownDestination {
                 destination: "typo".to_owned(),
             }),
             404
         );
-        assert_eq!(status_of(&AlertsError::Unauthorized), 401);
+        assert_eq!(status_of(&ObservabilityError::Unauthorized), 401);
     }
 
     /// A caller that guessed an id should not be handed the registry.
     #[test]
     fn an_unknown_destination_does_not_leak_the_configured_ids() {
-        let body = ErrorSwitch::<ApiErrorResponse>::switch(&AlertsError::UnknownDestination {
-            destination: "typo".to_owned(),
-        })
-        .to_string();
+        let body =
+            ErrorSwitch::<ApiErrorResponse>::switch(&ObservabilityError::UnknownDestination {
+                destination: "typo".to_owned(),
+            })
+            .to_string();
 
         assert!(body.contains("IR_02"));
         assert!(!body.contains("typo"));

@@ -36,7 +36,7 @@ use external_services::email::{EmailContents, EmailService, IntermediateString};
 use hyperswitch_masking::{PeekInterface, Secret};
 
 use super::Outcome;
-use crate::errors::{AlertsApiResult, AlertsError};
+use crate::errors::{ObservabilityApiResult, ObservabilityError};
 
 /// A message to send to one email destination.
 #[derive(Debug, Clone)]
@@ -68,7 +68,8 @@ pub trait EmailNotifier: Send + Sync {
     ///
     /// A provider that refuses returns `Ok(Outcome::Refused)`, not an error. Email cannot reach
     /// that arm today — see the module docs.
-    async fn notify(&self, notification: EmailNotification) -> AlertsApiResult<EmailOutcome>;
+    async fn notify(&self, notification: EmailNotification)
+        -> ObservabilityApiResult<EmailOutcome>;
 }
 
 /// An [`EmailNotifier`] backed by the shared `external_services` email client.
@@ -108,7 +109,10 @@ impl EmailServiceNotifier {
 
 #[async_trait::async_trait]
 impl EmailNotifier for EmailServiceNotifier {
-    async fn notify(&self, notification: EmailNotification) -> AlertsApiResult<EmailOutcome> {
+    async fn notify(
+        &self,
+        notification: EmailNotification,
+    ) -> ObservabilityApiResult<EmailOutcome> {
         self.client
             .send_contents(
                 EmailContents {
@@ -120,7 +124,7 @@ impl EmailNotifier for EmailServiceNotifier {
             )
             .await
             .map_err(|report| {
-                report.change_context(AlertsError::ProviderUnavailable {
+                report.change_context(ObservabilityError::ProviderUnavailable {
                     destination: self.destination.clone(),
                 })
             })?;

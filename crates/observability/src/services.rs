@@ -17,7 +17,7 @@ use serde::Serialize;
 
 use crate::{
     auth::Authenticate,
-    errors::{types::ApiErrorResponse, AlertsError},
+    errors::{types::ApiErrorResponse, ObservabilityError},
     logger,
     state::AppState,
 };
@@ -36,7 +36,7 @@ pub async fn server_wrap<T, Q, F, Fut>(
 ) -> HttpResponse
 where
     F: FnOnce(AppState, T) -> Fut,
-    Fut: Future<Output = error_stack::Result<Q, AlertsError>>,
+    Fut: Future<Output = error_stack::Result<Q, ObservabilityError>>,
     Q: Serialize + Debug,
     T: Debug,
 {

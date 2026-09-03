@@ -14,7 +14,7 @@ use actix_web::http::header::HeaderMap;
 use error_stack::report;
 use hyperswitch_masking::PeekInterface;
 
-use crate::{errors::AlertsError, state::AppState};
+use crate::{errors::ObservabilityError, state::AppState};
 
 /// The header carrying the internal API key.
 ///
@@ -32,7 +32,7 @@ pub trait Authenticate: Sync {
         &self,
         request_headers: &HeaderMap,
         state: &AppState,
-    ) -> error_stack::Result<(), AlertsError>;
+    ) -> error_stack::Result<(), ObservabilityError>;
 }
 
 /// Requires a valid internal API key in the [`X_INTERNAL_API_KEY`] header.
@@ -44,16 +44,16 @@ impl Authenticate for InternalApiKeyAuth {
         &self,
         request_headers: &HeaderMap,
         state: &AppState,
-    ) -> error_stack::Result<(), AlertsError> {
+    ) -> error_stack::Result<(), ObservabilityError> {
         let supplied_key = request_headers
             .get(X_INTERNAL_API_KEY)
             .ok_or_else(|| {
-                report!(AlertsError::Unauthorized)
+                report!(ObservabilityError::Unauthorized)
                     .attach_printable("Internal API key header not present")
             })?
             .to_str()
             .map_err(|_| {
-                report!(AlertsError::Unauthorized)
+                report!(ObservabilityError::Unauthorized)
                     .attach_printable("Internal API key header is not valid UTF-8")
             })?;
 
@@ -63,7 +63,7 @@ impl Authenticate for InternalApiKeyAuth {
         // workspace's first constant-time comparison dependency here would be inconsistent
         // without being meaningfully safer for an internal endpoint.
         if supplied_key != configured_key {
-            Err(report!(AlertsError::Unauthorized)
+            Err(report!(ObservabilityError::Unauthorized)
                 .attach_printable("Internal API key authentication failure"))?;
         }
 
@@ -84,7 +84,7 @@ impl Authenticate for NoAuth {
         &self,
         _request_headers: &HeaderMap,
         _state: &AppState,
-    ) -> error_stack::Result<(), AlertsError> {
+    ) -> error_stack::Result<(), ObservabilityError> {
         Ok(())
     }
 }
