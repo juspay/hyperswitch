@@ -86,31 +86,6 @@ export default defineConfig({
           return signature;
         },
       });
-      onEvent("after:spec", (spec, results) => {
-        // Clean up resources after each spec
-        if (
-          results &&
-          results.video &&
-          !results.tests.some((test) =>
-            test.attempts.some((attempt) => attempt.state === "failed")
-          )
-        ) {
-          // Only try to delete if the video file exists
-          try {
-            if (fs.existsSync(results.video)) {
-              fs.unlinkSync(results.video);
-            }
-          } catch (error) {
-            // Log the error but don't fail the test
-            // eslint-disable-next-line no-console
-            console.warn(
-              `Warning: Could not delete video file: ${results.video}`
-            );
-            // eslint-disable-next-line no-console
-            console.warn(error);
-          }
-        }
-      });
       return config;
     },
     experimentalRunAllSpecs: true,
@@ -135,9 +110,7 @@ export default defineConfig({
     taskTimeout: Math.round(120000 * timeoutMultiplier),
     screenshotsFolder: screenshotsFolderName,
     retries: retries,
-    video: true,
-    videoCompression: 32,
-    videosFolder: `cypress/videos/${connectorId}`,
+    video: false,
     chromeWebSecurity: false,
   },
 });
