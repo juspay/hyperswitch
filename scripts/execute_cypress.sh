@@ -136,21 +136,10 @@ execute_test() {
     # Each shard is its own Cypress/Node process — `globalState` in
     # cypress.config.js lives per-process, so shards cannot share it — with
     # its own Xvfb display and report file, run concurrently.
-    #
-    # Concurrent shards writing straight to the job's shared stdout interleave
-    # line-by-line into an unreadable scramble (and can make a shard's output
-    # look like it's missing entirely, buried inside another shard's specs).
-    # Each shard's full output is captured to its own file instead, then
-    # printed back whole, one shard at a time, in shard order, once the run
-    # finishes — trading real-time streaming for a log that's actually
-    # readable afterwards.
     local shard_i
     local shard_display
     local -a xvfb_pids=()
     local -a shard_pids=()
-    local -a shard_labels=()
-    local shard_log_dir
-    shard_log_dir=$(mktemp -d)
 
     for ((shard_i = 1; shard_i <= shards; shard_i++)); do
       shard_display=$((base_display + shard_i))
@@ -165,53 +154,14 @@ execute_test() {
         export CYPRESS_CONNECTOR="$connector"
         export DISPLAY=":${shard_display}"
         export REPORT_NAME="${service}_${connector}_shard${shard_i}_report"
-
-        # A shard that gets killed outright (OOM, or otherwise) under heavy
-        # concurrency exits non-zero with no test-level failure to show for
-        # it — retrying once turns that into either a pass or a second,
-        # diagnosable failure instead of a shard that silently vanishes.
-        if ! npm run "cypress:${service}" -- --shard "${shard_i}/${shards}"; then
-          echo "[shard ${shard_i}/${shards}] failed, retrying once" >&2
-          npm run "cypress:${service}" -- --shard "${shard_i}/${shards}"
-        fi
-      ) > "${shard_log_dir}/shard${shard_i}.log" 2>&1 &
+        npm run "cypress:${service}" -- --shard "${shard_i}/${shards}"
+      ) &
       shard_pids+=("$!")
-      shard_labels+=("${shard_i}/${shards}")
-      # Stagger shard launches so all `shards` Chrome+Cypress+Xvfb processes
-      # don't spin up in the same instant — that startup moment is the
-      # single biggest simultaneous CPU/memory spike of the whole run.
-      sleep 2
     done
 
-    local shard_idx=0
-    local shard_status
     for pid in "${shard_pids[@]}"; do
-      shard_i=$((shard_idx + 1))
-
-      # Wait first: the log file is only complete once the process backing
-      # it has actually exited, so printing it before `wait` returns risks
-      # showing a partial capture mid-write.
-      if wait "$pid"; then
-        shard_status=0
-      else
-        shard_status=1
-      fi
-
-      echo "======================================================"
-      print_color blue "[shard ${shard_labels[$shard_idx]}] output"
-      echo "======================================================"
-      cat "${shard_log_dir}/shard${shard_i}.log"
-
-      if [[ "$shard_status" -eq 0 ]]; then
-        print_color green "[shard ${shard_labels[$shard_idx]}] exited 0"
-      else
-        print_color red "[shard ${shard_labels[$shard_idx]}] exited non-zero (pid ${pid})"
-        exit_code=1
-      fi
-      shard_idx=$((shard_idx + 1))
+      wait "$pid" || exit_code=1
     done
-
-    rm -rf "$shard_log_dir"
 
     for pid in "${xvfb_pids[@]}"; do
       kill "$pid" 2>/dev/null || true
