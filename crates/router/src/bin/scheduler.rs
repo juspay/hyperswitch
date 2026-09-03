@@ -411,6 +411,21 @@ impl ProcessTrackerWorkflows<routes::SessionState> for WorkflowRunner {
                             )
                     }
                 }
+                storage::ProcessTrackerRunner::SavePaymentMethodAttemptUpdateWorkflow => {
+                    #[cfg(feature = "v1")]
+                    {
+                        Ok(Box::new(
+                            workflows::save_payment_method_attempt_update::SavePaymentMethodAttemptUpdateWorkflow,
+                        ))
+                    }
+                    #[cfg(feature = "v2")]
+                    {
+                        Err(error_stack::report!(ProcessTrackerError::UnexpectedFlow))
+                            .attach_printable(
+                                "Cannot run save payment method attempt update workflow when v1 feature is disabled",
+                            )
+                    }
+                }
             }
         };
 

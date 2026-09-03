@@ -1,4 +1,4 @@
-use common_utils::types::MinorUnit;
+use common_utils::{id_type, types::MinorUnit};
 use diesel_models::{capture::CaptureNew, enums};
 use error_stack::ResultExt;
 pub use hyperswitch_domain_models::payments::payment_attempt::{
@@ -8,6 +8,17 @@ pub use hyperswitch_domain_models::payments::payment_attempt::{
 use crate::{
     core::errors, errors::RouterResult, types::transformers::ForeignFrom, utils::OptionExt,
 };
+
+/// IDs-only tracking data for `SavePaymentMethodAttemptUpdateWorkflow`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct SavePaymentMethodAttemptUpdateTrackingData {
+    pub attempt_id: String,
+    pub payment_id: id_type::PaymentId,
+    pub merchant_id: id_type::MerchantId,
+    pub payment_method_id: Option<String>,
+    pub updated_by: String,
+}
+
 pub trait PaymentAttemptExt {
     fn make_new_capture(
         &self,
