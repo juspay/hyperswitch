@@ -1,7 +1,7 @@
 //! The wire contract: what a caller sends and what it gets back.
 //!
 //! Lives here rather than in an API-models crate for the same reason [`crate::errors::types`] does
-//! — `alerts` has none — and moves wholesale if one ever appears.
+//! — `observability` has none — and moves wholesale if one ever appears.
 //!
 //! ## The URL says where, the body says what
 //!

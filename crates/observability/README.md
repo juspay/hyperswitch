@@ -1,10 +1,10 @@
-# alerts
+# observability
 
-The alerting plane for Hyperswitch.
+The observability plane for Hyperswitch.
 
-`alerts` is the home for alert *delivery*. Deciding what is alert-worthy — thresholds, detectors,
-suppression — is **not** done here; alerts arrive already decided and this crate routes them to a
-destination.
+`observability` is the home for alert *delivery*. Deciding what is alert-worthy — thresholds,
+detectors, suppression — is **not** done here; alerts arrive already decided and this crate routes
+them to a destination.
 
 Its first and currently only concern is the [`notifier`](src/domain/notifier.rs): the component that
 receives alert data over a webhook and delivers it to a channel. Further alerting concerns are
@@ -14,25 +14,39 @@ expected to live alongside it rather than inside it.
 
 The crate ships two ways, on the `drainer` model:
 
-- **Standalone** — `cargo run -p alerts`, its own `actix` `HttpServer`, released independently.
+- **Standalone** — `cargo run -p observability`, its own `actix` `HttpServer`, released
+  independently.
 - **Embedded** — a library exposing an `actix` `Scope` the router can mount in-process.
 
 Only the standalone path is wired up today. Mounting in the router is deliberately deferred; the
 crate exposes `Scope` factories rather than raw handlers so both paths share one route definition
 when that lands.
 
+### Why the deployed name differs
+
+The standalone deployment is **`hyperswitch-observability-plane`** — that is the name in ECR, in
+the Helm chart and in ArgoCD. The crate is `observability`, without the suffix, and the difference
+is deliberate rather than an oversight.
+
+"Plane" is a deployment-topology word: a tier deployed and scaled apart from the data path. That
+is true of the standalone binary and false of the embedded library, which runs inside the router's
+process where there is no separate plane at all. The suffix therefore belongs to the artifact that
+is one, and not to the crate that is both.
+
+The binary keeps the crate's name, so the Dockerfile takes `BINARY=observability`.
+
 ## Versioning
 
-`alerts` has **no `v1`/`v2` feature flags**. The API version duality is the router's concern, and
-this crate stays out of it by not depending on any version-flavoured type. Keep it that way:
-adding a dependency on `diesel_models` or `hyperswitch_domain_models` would drag the feature
-matrix in with it.
+`observability` has **no `v1`/`v2` feature flags**. The API version duality is the router's
+concern, and this crate stays out of it by not depending on any version-flavoured type. Keep it
+that way: adding a dependency on `diesel_models` or `hyperswitch_domain_models` would drag the
+feature matrix in with it.
 
 ## Configuration
 
-Reads `config/alerts.toml` by default; override with `-f <path>`. Every value can be overridden by
-an environment variable prefixed `ALERTS__`, with `__` separating levels — so
-`ALERTS__AUTH__INTERNAL_API_KEY` sets `auth.internal_api_key`.
+Reads `config/observability.toml` by default; override with `-f <path>`. Every value can be
+overridden by an environment variable prefixed `OBSERVABILITY__`, with `__` separating levels — so
+`OBSERVABILITY__AUTH__INTERNAL_API_KEY` sets `auth.internal_api_key`.
 
 Configuration is validated at boot and startup fails loudly on a missing internal API key, rather
 than on the first request.
@@ -68,6 +82,17 @@ Two routes, one per channel. **The path says where, the body says what** — the
 channel and the destination, the body carries only content. Channel ids, recipient addresses and
 credentials live in configuration, so a caller cannot address a channel that was not set up for it
 and no credential travels on the wire.
+
+The whole surface, guarded and not:
+
+| Method | Path | Auth |
+|---|---|---|
+| `POST` | `/alerts/chat/notify/{destination}` | `X-Internal-Api-Key` |
+| `POST` | `/alerts/email/notify/{destination}` | `X-Internal-Api-Key` |
+| `GET` | `/health` | none — liveness |
+
+The scope is `/alerts` rather than `/observability`: it names the resource being posted, not the
+service, so it stays correct as the crate widens past delivery.
 
 ```http
 POST /alerts/chat/notify/{destination}
@@ -151,9 +176,10 @@ Configured under `chat.destinations.<id>` and `email.destinations.<id>`, resolve
 
 **Ids set from the environment arrive lowercased and cannot contain `__`.** The `config` crate
 lowercases every environment key before splitting it, and `__` is the level separator, so
-`ALERTS__CHAT__DESTINATIONS__SR_ALERTS__CHANNEL` sets `chat.destinations.sr_alerts.channel` and
-there is no spelling that yields `SR_ALERTS`. The service refuses to start on an id that would not
-survive the round trip, rather than failing to match it at lookup time.
+`OBSERVABILITY__CHAT__DESTINATIONS__SR_ALERTS__CHANNEL` sets
+`chat.destinations.sr_alerts.channel` and there is no spelling that yields `SR_ALERTS`. The
+service refuses to start on an id that would not survive the round trip, rather than failing to
+match it at lookup time.
 
 A chat destination is tagged `xyne`, `slack` or `log`. Xyne and Slack are one client differing in
 base URL and credential, not two integrations. `log` accepts messages and delivers nothing, so the

@@ -1,7 +1,7 @@
 //! Application configuration.
 //!
-//! Read from `config/alerts.toml` (override with `-f`), with every value overridable by an
-//! `ALERTS__`-prefixed environment variable using `__` to separate levels.
+//! Read from `config/observability.toml` (override with `-f`), with every value overridable by an
+//! `OBSERVABILITY__`-prefixed environment variable using `__` to separate levels.
 //!
 //! [`Settings`] is generic over [`SecretState`]: it is deserialized as `Settings<SecuredSecret>`,
 //! where secret values may be KMS handles, and transitions to `Settings<RawSecret>` at boot once
@@ -30,14 +30,14 @@ use serde::Deserialize;
 use crate::errors;
 
 /// The default configuration file name, looked up inside the config directory.
-const CONFIG_FILE_NAME: &str = "alerts.toml";
+const CONFIG_FILE_NAME: &str = "observability.toml";
 
 /// Command line arguments accepted by the standalone binary.
 #[derive(clap::Parser, Default)]
 #[cfg_attr(feature = "vergen", command(version = router_env::version!()))]
 pub struct CmdLineConf {
     /// Config file.
-    /// Application will look for "config/alerts.toml" if this option isn't specified.
+    /// Application will look for "config/observability.toml" if this option isn't specified.
     #[arg(short = 'f', long, value_name = "FILE")]
     pub config_path: Option<PathBuf>,
 }
@@ -72,7 +72,8 @@ pub struct ChatSettings {
     ///
     /// **Ids arriving from the environment are lowercased and cannot contain `__`.** The `config`
     /// crate lowercases every environment key before splitting it (`config-0.14.1/src/env.rs`),
-    /// and `__` is the level separator, so `ALERTS__CHAT__DESTINATIONS__SR_ALERTS__CHANNEL` sets
+    /// and `__` is the level separator, so
+    /// `OBSERVABILITY__CHAT__DESTINATIONS__SR_ALERTS__CHANNEL` sets
     /// `chat.destinations.sr_alerts.channel` and there is no spelling that yields `SR_ALERTS` or
     /// `sr__alerts`. [`ChatSettings::validate`] rejects an id that cannot survive the round trip,
     /// so this is a boot failure rather than a lookup that mysteriously misses.
@@ -281,10 +282,10 @@ impl Settings<SecuredSecret> {
     /// Values are resolved in the following priority order (1 being least priority):
     ///
     /// 1. Defaults from the implementation of the `Default` trait.
-    /// 2. Values from the config file — `config/alerts.toml` unless overridden by `-f`. The
+    /// 2. Values from the config file — `config/observability.toml` unless overridden by `-f`. The
     ///    config directory itself can be moved with the `CONFIG_DIR` environment variable.
-    /// 3. Environment variables prefixed with `ALERTS` and each level separated by double
-    ///    underscores, e.g. `ALERTS__AUTH__INTERNAL_API_KEY`.
+    /// 3. Environment variables prefixed with `OBSERVABILITY` and each level separated by double
+    ///    underscores, e.g. `OBSERVABILITY__AUTH__INTERNAL_API_KEY`.
     ///
     /// Unlike `drainer`, this service reads a file dedicated to it rather than the shared
     /// per-environment config: it has no runnable defaults to fall back on, since there is no
@@ -299,7 +300,7 @@ impl Settings<SecuredSecret> {
         let config = router_env::Config::builder(&environment.to_string())?
             .add_source(File::from(config_path).required(false))
             .add_source(
-                Environment::with_prefix("ALERTS")
+                Environment::with_prefix("OBSERVABILITY")
                     .try_parsing(true)
                     .separator("__"),
             )

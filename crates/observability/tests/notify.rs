@@ -15,7 +15,8 @@ use actix_web::{
     test::{self, TestRequest},
     App,
 };
-use alerts::{
+use external_services::email::no_email::NoEmailClient;
+use observability::{
     auth::X_INTERNAL_API_KEY,
     domain::notifier::{
         chat::{ChatNotifier, LogChatNotifier},
@@ -25,7 +26,6 @@ use alerts::{
     routes::Alerts,
     state::AppState,
 };
-use external_services::email::no_email::NoEmailClient;
 use serde_json::{json, Value};
 
 const API_KEY: &str = "test_internal_key";

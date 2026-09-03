@@ -1,12 +1,12 @@
 //! The wire error layer: what a client actually receives.
 //!
 //! Mirrors `api_models::errors::types` in both shape and file layout. It lives in this crate
-//! rather than in `api_models` only because `alerts` has no API-models crate of its own; if one
-//! ever appears, this module moves wholesale.
+//! rather than in `api_models` only because `observability` has no API-models crate of its own;
+//! if one ever appears, this module moves wholesale.
 //!
 //! Variants here are keyed to **HTTP semantics**, not to causes. Adding a new failure mode
-//! usually means a new [`crate::errors::AlertsError`] variant mapping onto an existing one of
-//! these, not a new variant here.
+//! usually means a new [`crate::errors::ObservabilityError`] variant mapping onto an existing
+//! one of these, not a new variant here.
 //!
 //! **A provider refusing a message does not reach this module.** The status code answers "did the
 //! notifier function?", and a refusal means it did. Refusals are reported as a normal `200`
@@ -20,7 +20,7 @@ pub enum ErrorType {
     /// The request itself was at fault.
     InvalidRequestError,
     /// The service was at fault.
-    AlertsError,
+    ObservabilityError,
 }
 
 impl ErrorType {
@@ -28,7 +28,7 @@ impl ErrorType {
     fn as_str(&self) -> &'static str {
         match self {
             Self::InvalidRequestError => "invalid_request",
-            Self::AlertsError => "alerts_error",
+            Self::ObservabilityError => "observability_error",
         }
     }
 }
@@ -104,7 +104,9 @@ impl ApiErrorResponse {
             Self::BadRequest(_) | Self::Unauthorized(_) | Self::NotFound(_) => {
                 ErrorType::InvalidRequestError.as_str()
             }
-            Self::InternalServerError(_) | Self::BadGateway(_) => ErrorType::AlertsError.as_str(),
+            Self::InternalServerError(_) | Self::BadGateway(_) => {
+                ErrorType::ObservabilityError.as_str()
+            }
         }
     }
 }
@@ -164,7 +166,7 @@ mod tests {
     fn categories_follow_who_the_error_belongs_to() {
         assert_eq!(
             ApiErrorResponse::BadGateway(ApiError::new("HE", 3, "x")).error_type(),
-            "alerts_error"
+            "observability_error"
         );
         assert_eq!(
             ApiErrorResponse::NotFound(ApiError::new("IR", 2, "x")).error_type(),

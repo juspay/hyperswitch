@@ -1,8 +1,8 @@
-//! The alerting plane for Hyperswitch.
+//! The observability plane for Hyperswitch.
 //!
-//! `alerts` delivers alerts. Deciding what is alert-worthy happens elsewhere; alerts arrive here
-//! already decided. Its first concern is [`core::notifier`], and further alerting concerns are
-//! expected to live alongside it.
+//! `observability` delivers alerts. Deciding what is alert-worthy happens elsewhere; alerts
+//! arrive here already decided. Its first concern is [`core::notifier`], and further alerting
+//! concerns are expected to live alongside it.
 //!
 //! Laid out on the router's lines: [`core`] decides, [`routes`] exposes, and the whole route tree
 //! is visible in [`routes::app`].
@@ -41,7 +41,7 @@ pub type Settings = settings::Settings<RawSecret>;
 /// When the router mounts this crate it already has its own, and running two would produce two
 /// competing ids for one request — which is why they belong on the server rather than on the
 /// scope.
-pub async fn start_server(state: AppState) -> errors::AlertsResult<Server> {
+pub async fn start_server(state: AppState) -> errors::ObservabilityResult<Server> {
     let server = state.conf.server.clone();
 
     let web_server = actix_web::HttpServer::new(move || {

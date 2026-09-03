@@ -312,29 +312,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "alerts"
-version = "0.1.0"
-dependencies = [
- "actix-web",
- "async-trait",
- "clap 4.5.38",
- "common_utils",
- "config",
- "error-stack 0.4.1",
- "external_services",
- "hyperswitch_interfaces",
- "hyperswitch_masking",
- "mime 0.3.17",
- "reqwest 0.11.27",
- "router_env",
- "serde",
- "serde_json",
- "serde_path_to_error",
- "thiserror 1.0.69",
- "tokio 1.48.0",
-]
-
-[[package]]
 name = "alloc-no-stdlib"
 version = "2.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6497,6 +6474,29 @@ dependencies = [
  "sha2",
  "thiserror 1.0.69",
  "url 2.5.4",
+]
+
+[[package]]
+name = "observability"
+version = "0.1.0"
+dependencies = [
+ "actix-web",
+ "async-trait",
+ "clap 4.5.38",
+ "common_utils",
+ "config",
+ "error-stack 0.4.1",
+ "external_services",
+ "hyperswitch_interfaces",
+ "hyperswitch_masking",
+ "mime 0.3.17",
+ "reqwest 0.11.27",
+ "router_env",
+ "serde",
+ "serde_json",
+ "serde_path_to_error",
+ "thiserror 1.0.69",
+ "tokio 1.48.0",
 ]
 
 [[package]]

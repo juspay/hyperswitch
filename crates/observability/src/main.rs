@@ -1,17 +1,17 @@
-//! The standalone `alerts` binary.
+//! The standalone `observability` binary.
 //!
 //! No signal handling: unlike `drainer`, which must interrupt a loop actix knows nothing about,
 //! everything this service does happens inside a request, and actix's own graceful shutdown
 //! already stops accepting and drains in-flight requests on `SIGTERM`.
 
-use alerts::{
-    errors::{self, AlertsResult},
+use observability::{
+    errors::{self, ObservabilityResult},
     settings, start_server,
     state::AppState,
 };
 
 #[actix_web::main]
-async fn main() -> AlertsResult<()> {
+async fn main() -> ObservabilityResult<()> {
     let cmd_line = <settings::CmdLineConf as clap::Parser>::parse();
 
     #[allow(clippy::expect_used)]
@@ -22,14 +22,17 @@ async fn main() -> AlertsResult<()> {
     // not a failure on the first alert.
     #[allow(clippy::expect_used)]
     conf.validate()
-        .expect("Failed to validate alerts configuration");
+        .expect("Failed to validate observability configuration");
 
     let state = AppState::new(conf).await;
 
     #[allow(clippy::print_stdout)] // The logger has not yet been initialized
     #[cfg(feature = "vergen")]
     {
-        println!("Starting alerts (Version: {})", router_env::git_tag!());
+        println!(
+            "Starting observability (Version: {})",
+            router_env::git_tag!()
+        );
     }
 
     let _guard = router_env::setup(
@@ -38,8 +41,8 @@ async fn main() -> AlertsResult<()> {
         [router_env::service_name!(), "actix_server"],
     );
 
-    alerts::logger::info!(
-        "Alerts started on {}:{}",
+    observability::logger::info!(
+        "Observability started on {}:{}",
         state.conf.server.host,
         state.conf.server.port
     );
