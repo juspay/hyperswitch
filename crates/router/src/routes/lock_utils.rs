@@ -36,7 +36,6 @@ pub enum ApiIdentifier {
     User,
     UserRole,
     ConnectorOnboarding,
-    AiWorkflow,
     Poll,
     ApplePayCertificatesMigration,
     Relay,
@@ -346,8 +345,6 @@ impl From<Flow> for ApiIdentifier {
             | Flow::ListUsersInternal
             | Flow::ListMembersForEntity
             | Flow::LaunchSage => Self::User,
-
-            Flow::GetDataFromHyperswitchAiFlow | Flow::ListAllChatInteractions => Self::AiWorkflow,
 
             Flow::ListRolesV2
             | Flow::ListInvitableRolesAtEntityLevel

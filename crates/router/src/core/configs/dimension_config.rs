@@ -645,6 +645,23 @@ impl DatabaseBackedConfig for PtMappingPcrRetries {
 }
 
 config! {
+    superposition_key = PT_MAPPING_ADAPTIVE_RETRIES,
+    output = scheduler::types::process_data::RevenueRecoveryPaymentProcessTrackerMapping,
+    default = scheduler::types::process_data::RevenueRecoveryPaymentProcessTrackerMapping::default(),
+    object = true,
+    requires = dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
+    targeting_key = id_type::PaymentId
+}
+
+impl DatabaseBackedConfig for PtMappingAdaptiveRetries {
+    const KEY: &'static str = "pt_mapping_adaptive_retries";
+
+    fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        Some(Self::KEY.to_string())
+    }
+}
+
+config! {
     superposition_key = ADAPTIVE_RETRY_ENABLED,
     output = bool,
     default = false,

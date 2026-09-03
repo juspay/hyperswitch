@@ -31197,6 +31197,13 @@
             "example": "10",
             "minimum": 0
           },
+          "max_hybrid_cascading_retry_count": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Number of cascading (static) retries an invoice may use under the hybrid static + adaptive\nscheme.",
+            "example": "5",
+            "minimum": 0
+          },
           "billing_account_reference": {
             "type": "integer",
             "format": "int32",
