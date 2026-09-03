@@ -4,6 +4,18 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.08.26.1-hotfix6
+
+### Features
+
+- **connector:**
+  - [WorldpayWPG][Checkout] Populate auth_code from connector response ([#13990](https://github.com/juspay/hyperswitch/pull/13990)) ([`e872cc9`](https://github.com/juspay/hyperswitch/commit/e872cc97fbdba61cd87c3104f8f5252d05e436c2))
+  - [datatrans] googlepay 3ds ([#14018](https://github.com/juspay/hyperswitch/pull/14018)) ([`d582738`](https://github.com/juspay/hyperswitch/commit/d582738799230775af64a2fd42af13af9660acde))
+
+**Full Changelog:** [`2026.08.26.1-hotfix5...2026.08.26.1-hotfix6`](https://github.com/juspay/hyperswitch/compare/2026.08.26.1-hotfix5...2026.08.26.1-hotfix6)
+
+- - -
+
 ## 2026.08.26.1-hotfix5
 
 ### Features
