@@ -4241,6 +4241,5 @@ pub fn update_gateway_system_in_payout_metadata(
 
     payout_data.payouts.metadata = Some(Secret::new(updated_metadata.clone()));
 
-    Ok(())  
+    Ok(())
 }
-
