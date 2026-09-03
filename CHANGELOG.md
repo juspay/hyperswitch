@@ -4,6 +4,40 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.09.03.0
+
+### Features
+
+- **offers:** Add merchant-level Offer Engine credential source ([#13831](https://github.com/juspay/hyperswitch/pull/13831)) ([`33b9170`](https://github.com/juspay/hyperswitch/commit/33b91704cac3f9755da8c7e208ec89197bbcd15b))
+- **revenue_recovery:** Add DisputeRecordBack flow and implement it for Chargebee ([#13919](https://github.com/juspay/hyperswitch/pull/13919)) ([`d8a07c8`](https://github.com/juspay/hyperswitch/commit/d8a07c8d30ef42af65d9284c156b3a339dd7cb31))
+- **router:** Add blocklist count and lookup endpoints ([#13887](https://github.com/juspay/hyperswitch/pull/13887)) ([`cfb479e`](https://github.com/juspay/hyperswitch/commit/cfb479e803aea8507499979efd6f16ad08266bd0))
+- **routing:** Add a metrics label for the Decision Engine batch evaluate endpoint ([#13909](https://github.com/juspay/hyperswitch/pull/13909)) ([`b44f560`](https://github.com/juspay/hyperswitch/commit/b44f560b12a2f4b3a23a2059d0f734633ad2e710))
+- **ucs:** Add account_funded_transactions support in HS <> Prism ([#13921](https://github.com/juspay/hyperswitch/pull/13921)) ([`a3befca`](https://github.com/juspay/hyperswitch/commit/a3befca3fb9ca45ce244e0da2dd537d97a1c684e))
+
+### Bug Fixes
+
+- **connector:** [Adyen] Fix RefundedReversed Parsing ([#13601](https://github.com/juspay/hyperswitch/pull/13601)) ([`b88b8ee`](https://github.com/juspay/hyperswitch/commit/b88b8ee7be979d6911c9f5cf588055f450e53b15))
+- **cypress:**
+  - Fix Aci, Bambora, Hipay, and Paybox test configs ([#13907](https://github.com/juspay/hyperswitch/pull/13907)) ([`d797207`](https://github.com/juspay/hyperswitch/commit/d7972079fd3914c28abd8e3a5cbcd17b11f7757e))
+  - Fix Shift4 3DS redirect handling and Stax test config ([#13937](https://github.com/juspay/hyperswitch/pull/13937)) ([`302896a`](https://github.com/juspay/hyperswitch/commit/302896a83f6e7486c6c682ee007d565b84c642f9))
+- **offers:** Fail open on eligibility list failure and relax config ([#14008](https://github.com/juspay/hyperswitch/pull/14008)) ([`fb4c2c8`](https://github.com/juspay/hyperswitch/commit/fb4c2c8b5fa993fc104102dde8c2387202e0d19f))
+- **payment-methods:** Add ph code validation in customer create flow ([#13752](https://github.com/juspay/hyperswitch/pull/13752)) ([`ebd6fda`](https://github.com/juspay/hyperswitch/commit/ebd6fda93c5425e42d44200b1cd0c46d467e45f2))
+- **revenue-recovery:** Invoke adaptive retry algo ([#13926](https://github.com/juspay/hyperswitch/pull/13926)) ([`56cc591`](https://github.com/juspay/hyperswitch/commit/56cc59175e31c566abb4dc81ed893d2abf2e9462))
+- **revenue_recovery:** Fix the invoice_billing__start_at_time which is getting overridden by multiple attempts ([#13982](https://github.com/juspay/hyperswitch/pull/13982)) ([`56e4aee`](https://github.com/juspay/hyperswitch/commit/56e4aee0790964cff9778b8ddf6f891612bc37ad))
+- **ucs:** Surface UCS client errors as proper 4xx API responses ([#13709](https://github.com/juspay/hyperswitch/pull/13709)) ([`973a5ed`](https://github.com/juspay/hyperswitch/commit/973a5edb12842ef8df860868e0eacb6be01592b5))
+
+### Testing
+
+- **cypress:** Add refund manual update connector_refund_id coverage for stripe ([#13916](https://github.com/juspay/hyperswitch/pull/13916)) ([`5de5570`](https://github.com/juspay/hyperswitch/commit/5de557072504f4c0f82b13f339e53834cbfe0a4e))
+
+### Miscellaneous Tasks
+
+- Remove hyperswitch AI interactions and chat modules ([#14006](https://github.com/juspay/hyperswitch/pull/14006)) ([`0efb2b4`](https://github.com/juspay/hyperswitch/commit/0efb2b45cc02b62cf46fec2b765dff944a95eed5))
+
+**Full Changelog:** [`2026.09.02.0...2026.09.03.0`](https://github.com/juspay/hyperswitch/compare/2026.09.02.0...2026.09.03.0)
+
+- - -
+
 ## 2026.09.02.0
 
 ### Features
