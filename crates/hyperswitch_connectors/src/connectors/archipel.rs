@@ -954,7 +954,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Ar
             req.request
                 .minor_amount
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "Amount",
+                    field_name: "Amount".into(),
                 })?,
             config_data.tenant_id,
             req,

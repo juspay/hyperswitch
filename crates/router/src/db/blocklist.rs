@@ -70,6 +70,15 @@ pub trait BlocklistInterface {
         data_kind: common_enums::BlocklistDataKind,
     ) -> CustomResult<usize, errors::StorageError>;
 
+    /// Counts blocklist entries grouped by fingerprint length, computed via a SQL `GROUP BY`
+    /// rather than fetching every row - backs `/blocklist/count`'s `counts_by_length`.
+    async fn count_blocklist_entries_by_fingerprint_length_processor_merchant_id_profile_id_data_kind(
+        &self,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
+        profile_id: &common_utils::id_type::ProfileId,
+        data_kind: common_enums::BlocklistDataKind,
+    ) -> CustomResult<Vec<(i32, i64)>, errors::StorageError>;
+
     async fn list_blocklist_entries_by_processor_merchant_id(
         &self,
         processor_merchant_id: &common_utils::id_type::MerchantId,
@@ -402,6 +411,26 @@ impl BlocklistInterface for Store {
     }
 
     #[instrument(skip_all)]
+    async fn count_blocklist_entries_by_fingerprint_length_processor_merchant_id_profile_id_data_kind(
+        &self,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
+        profile_id: &common_utils::id_type::ProfileId,
+        data_kind: common_enums::BlocklistDataKind,
+    ) -> CustomResult<Vec<(i32, i64)>, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+        storage::Blocklist::count_by_fingerprint_length_processor_merchant_id_profile_id_data_kind(
+            &conn,
+            processor_merchant_id,
+            profile_id,
+            data_kind,
+        )
+        .await
+        .change_context(errors::StorageError::DatabaseError(report!(
+            diesel_models::errors::DatabaseError::Others
+        )))
+    }
+
+    #[instrument(skip_all)]
     async fn bulk_insert_blocklist_entries(
         &self,
         entries: Vec<storage::BlocklistNew>,
@@ -508,6 +537,15 @@ impl BlocklistInterface for MockDb {
         _profile_id: Option<&common_utils::id_type::ProfileId>,
         _data_kind: common_enums::BlocklistDataKind,
     ) -> CustomResult<usize, errors::StorageError> {
+        Err(errors::StorageError::MockDbError)?
+    }
+
+    async fn count_blocklist_entries_by_fingerprint_length_processor_merchant_id_profile_id_data_kind(
+        &self,
+        _processor_merchant_id: &common_utils::id_type::MerchantId,
+        _profile_id: &common_utils::id_type::ProfileId,
+        _data_kind: common_enums::BlocklistDataKind,
+    ) -> CustomResult<Vec<(i32, i64)>, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
     }
 
@@ -690,6 +728,22 @@ impl BlocklistInterface for KafkaStore {
         self.diesel_store
             .get_blocklist_entries_count_by_processor_merchant_id_data_kind(
                 processor_merchant_id,
+                data_kind,
+            )
+            .await
+    }
+
+    #[instrument(skip_all)]
+    async fn count_blocklist_entries_by_fingerprint_length_processor_merchant_id_profile_id_data_kind(
+        &self,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
+        profile_id: &common_utils::id_type::ProfileId,
+        data_kind: common_enums::BlocklistDataKind,
+    ) -> CustomResult<Vec<(i32, i64)>, errors::StorageError> {
+        self.diesel_store
+            .count_blocklist_entries_by_fingerprint_length_processor_merchant_id_profile_id_data_kind(
+                processor_merchant_id,
+                profile_id,
                 data_kind,
             )
             .await

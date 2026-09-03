@@ -345,6 +345,10 @@ pub enum Flow {
     GetBatchBlocklistJobStatus,
     /// List batch blocklist upload jobs for a merchant
     ListBatchBlocklistJobs,
+    /// Get blocklist entry counts, broken down by fingerprint length
+    GetBlocklistCount,
+    /// Look up whether a value is present in the blocklist
+    LookupBlocklistEntry,
     /// Incoming Webhook Receive
     IncomingWebhookReceive,
     /// Recovery incoming webhook receive
@@ -425,10 +429,6 @@ pub enum Flow {
     ApplePayCertificatesMigration,
     /// Gsm Rule Delete flow
     GsmRuleDelete,
-    /// Get data from embedded flow
-    GetDataFromHyperswitchAiFlow,
-    // List all chat interactions
-    ListAllChatInteractions,
     /// Mint a sage session for the dashboard user.
     LaunchSage,
     /// User Sign Up

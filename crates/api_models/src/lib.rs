@@ -6,7 +6,6 @@ pub mod authentication;
 pub mod blocklist;
 pub mod card_issuer;
 pub mod cards_info;
-pub mod chat;
 pub mod conditional_configs;
 pub mod connector_enums;
 pub mod connector_onboarding;

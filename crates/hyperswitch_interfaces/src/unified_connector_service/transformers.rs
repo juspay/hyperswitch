@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{borrow::Cow, str::FromStr};
 
 use common_enums::AttemptStatus;
 use common_types::primitive_wrappers::{ExtendedAuthorizationAppliedBool, OvercaptureEnabledBool};
@@ -29,8 +29,92 @@ const CONNECTOR_ERROR_RESPONSE_CODE: &str = "CONNECTOR_ERROR_RESPONSE";
 // direct connector timeout handling.
 const CONNECTOR_TIMEOUT_HTTP_STATUS_CODE: u16 = 504;
 
+/// Machine-readable error codes sent by UCS in `IntegrationError.error_code`.
+///
+/// These are SCREAMING_SNAKE_CASE variant names from UCS's
+/// `domain_types::errors::IntegrationError` enum (via `strum::AsRefStr`).
+/// Parsing from the proto string is fallible — unknown codes yield `None`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum UcsIntegrationErrorCode {
+    MissingRequiredField,
+    MissingRequiredFields,
+    InvalidDataFormat,
+    MismatchedPaymentData,
+    InvalidWallet,
+    InvalidWalletToken,
+    MissingPaymentMethodType,
+    MissingApplePayTokenData,
+    MandatePaymentDataMismatch,
+    MaxFieldLengthViolated,
+    AmountConversionFailed,
+    MissingConnectorTransactionId,
+    MissingConnectorRefundId,
+    MissingConnectorMandateId,
+    MissingConnectorMandateMetadata,
+    MissingConnectorRelatedTransactionId,
+    FailedToObtainAuthType,
+    InvalidConnectorConfig,
+    NoConnectorMetaData,
+    ConfigurationError,
+    NotImplemented,
+    NotSupported,
+    FlowNotSupported,
+    CaptureMethodNotSupported,
+    CurrencyNotSupported,
+    RequestEncodingFailed,
+    HeaderMapConstructionFailed,
+    BodySerializationFailed,
+    UrlParsingFailed,
+    UrlEncodingFailed,
+    FailedToObtainIntegrationUrl,
+    SourceVerificationFailed,
+}
+
+impl UcsIntegrationErrorCode {
+    /// Parses the proto `error_code` string into a typed variant.
+    fn parse(code: &str) -> Option<Self> {
+        match code {
+            "MISSING_REQUIRED_FIELD" => Some(Self::MissingRequiredField),
+            "MISSING_REQUIRED_FIELDS" => Some(Self::MissingRequiredFields),
+            "INVALID_DATA_FORMAT" => Some(Self::InvalidDataFormat),
+            "MISMATCHED_PAYMENT_DATA" => Some(Self::MismatchedPaymentData),
+            "INVALID_WALLET" => Some(Self::InvalidWallet),
+            "INVALID_WALLET_TOKEN" => Some(Self::InvalidWalletToken),
+            "MISSING_PAYMENT_METHOD_TYPE" => Some(Self::MissingPaymentMethodType),
+            "MISSING_APPLE_PAY_TOKEN_DATA" => Some(Self::MissingApplePayTokenData),
+            "MANDATE_PAYMENT_DATA_MISMATCH" => Some(Self::MandatePaymentDataMismatch),
+            "MAX_FIELD_LENGTH_VIOLATED" => Some(Self::MaxFieldLengthViolated),
+            "AMOUNT_CONVERSION_FAILED" => Some(Self::AmountConversionFailed),
+            "MISSING_CONNECTOR_TRANSACTION_ID" => Some(Self::MissingConnectorTransactionId),
+            "MISSING_CONNECTOR_REFUND_ID" => Some(Self::MissingConnectorRefundId),
+            "MISSING_CONNECTOR_MANDATE_ID" => Some(Self::MissingConnectorMandateId),
+            "MISSING_CONNECTOR_MANDATE_METADATA" => Some(Self::MissingConnectorMandateMetadata),
+            "MISSING_CONNECTOR_RELATED_TRANSACTION_ID" => {
+                Some(Self::MissingConnectorRelatedTransactionId)
+            }
+            "FAILED_TO_OBTAIN_AUTH_TYPE" => Some(Self::FailedToObtainAuthType),
+            "INVALID_CONNECTOR_CONFIG" => Some(Self::InvalidConnectorConfig),
+            "NO_CONNECTOR_META_DATA" => Some(Self::NoConnectorMetaData),
+            "CONFIGURATION_ERROR" => Some(Self::ConfigurationError),
+            "NOT_IMPLEMENTED" => Some(Self::NotImplemented),
+            "NOT_SUPPORTED" => Some(Self::NotSupported),
+            "FLOW_NOT_SUPPORTED" => Some(Self::FlowNotSupported),
+            "CAPTURE_METHOD_NOT_SUPPORTED" => Some(Self::CaptureMethodNotSupported),
+            "CURRENCY_NOT_SUPPORTED" => Some(Self::CurrencyNotSupported),
+            "REQUEST_ENCODING_FAILED" => Some(Self::RequestEncodingFailed),
+            "HEADER_MAP_CONSTRUCTION_FAILED" => Some(Self::HeaderMapConstructionFailed),
+            "BODY_SERIALIZATION_FAILED" => Some(Self::BodySerializationFailed),
+            "URL_PARSING_FAILED" => Some(Self::UrlParsingFailed),
+            "URL_ENCODING_FAILED" => Some(Self::UrlEncodingFailed),
+            "FAILED_TO_OBTAIN_INTEGRATION_URL" => Some(Self::FailedToObtainIntegrationUrl),
+            "SOURCE_VERIFICATION_FAILED" => Some(Self::SourceVerificationFailed),
+            _ => None,
+        }
+    }
+}
+
 /// Unified Connector Service error variants
-#[derive(Debug, Clone, thiserror::Error)]
+#[derive(Debug, thiserror::Error)]
 pub enum UnifiedConnectorServiceError {
     /// Error occurred while communicating with the gRPC server.
     #[error("Error from gRPC Server : {0}")]
@@ -64,14 +148,14 @@ pub enum UnifiedConnectorServiceError {
     #[error("Missing required field: {field_name}")]
     MissingRequiredField {
         /// Missing Field
-        field_name: &'static str,
+        field_name: Cow<'static, str>,
     },
 
     /// Multiple required fields were missing in the request.
     #[error("Missing required fields: {field_names:?}")]
     MissingRequiredFields {
         /// Missing Fields
-        field_names: Vec<&'static str>,
+        field_names: Vec<Cow<'static, str>>,
     },
 
     /// The requested step or feature is not yet implemented.
@@ -86,7 +170,7 @@ pub enum UnifiedConnectorServiceError {
     #[error("Invalid Data format")]
     InvalidDataFormat {
         /// Field Name for which data is invalid
-        field_name: &'static str,
+        field_name: Cow<'static, str>,
     },
 
     /// Failed to obtain authentication type
@@ -802,14 +886,14 @@ impl ForeignTryFrom<payments_grpc::Ach>
             account_number: hyperswitch_masking::Secret::new(
                 ach.account_number
                     .ok_or(UnifiedConnectorServiceError::MissingRequiredField {
-                        field_name: "account_number",
+                        field_name: "account_number".into(),
                     })?
                     .expose(),
             ),
             routing_number: hyperswitch_masking::Secret::new(
                 ach.routing_number
                     .ok_or(UnifiedConnectorServiceError::MissingRequiredField {
-                        field_name: "routing_number",
+                        field_name: "routing_number".into(),
                     })?
                     .expose(),
             ),
@@ -833,7 +917,7 @@ impl ForeignTryFrom<payments_grpc::Sepa>
             iban: hyperswitch_masking::Secret::new(
                 sepa.iban
                     .ok_or(UnifiedConnectorServiceError::MissingRequiredField {
-                        field_name: "iban",
+                        field_name: "iban".into(),
                     })?
                     .expose(),
             ),
@@ -854,14 +938,14 @@ impl ForeignTryFrom<payments_grpc::Bacs>
             account_number: hyperswitch_masking::Secret::new(
                 bacs.account_number
                     .ok_or(UnifiedConnectorServiceError::MissingRequiredField {
-                        field_name: "account_number",
+                        field_name: "account_number".into(),
                     })?
                     .expose(),
             ),
             sort_code: hyperswitch_masking::Secret::new(
                 bacs.sort_code
                     .ok_or(UnifiedConnectorServiceError::MissingRequiredField {
-                        field_name: "sort_code",
+                        field_name: "sort_code".into(),
                     })?
                     .expose(),
             ),
@@ -882,14 +966,14 @@ impl ForeignTryFrom<payments_grpc::Becs>
             account_number: hyperswitch_masking::Secret::new(
                 becs.account_number
                     .ok_or(UnifiedConnectorServiceError::MissingRequiredField {
-                        field_name: "account_number",
+                        field_name: "account_number".into(),
                     })?
                     .expose(),
             ),
             bsb_number: hyperswitch_masking::Secret::new(
                 becs.bsb_number
                     .ok_or(UnifiedConnectorServiceError::MissingRequiredField {
-                        field_name: "bsb_number",
+                        field_name: "bsb_number".into(),
                     })?
                     .expose(),
             ),
@@ -1735,12 +1819,12 @@ impl ForeignTryFrom<payments_grpc::RedirectForm> for RedirectForm {
                 let amount_money =
                     nmi.amount
                         .ok_or(UnifiedConnectorServiceError::MissingRequiredField {
-                            field_name: "amount",
+                            field_name: "amount".into(),
                         })?;
                 let currency = match payments_grpc::Currency::try_from(amount_money.currency) {
                     Ok(payments_grpc::Currency::Unspecified) | Err(_) => {
                         Err(UnifiedConnectorServiceError::MissingRequiredField {
-                            field_name: "currency",
+                            field_name: "currency".into(),
                         })
                     }
                     Ok(c) => common_enums::Currency::from_str(c.as_str_name())
@@ -1757,7 +1841,7 @@ impl ForeignTryFrom<payments_grpc::RedirectForm> for RedirectForm {
                     public_key: hyperswitch_masking::Secret::new(
                         nmi.public_key
                             .ok_or(UnifiedConnectorServiceError::MissingRequiredField {
-                                field_name: "public_key",
+                                field_name: "public_key".into(),
                             })?
                             .expose(),
                     ),
@@ -1856,30 +1940,28 @@ impl UnifiedConnectorServiceError {
             | Self::RequestEncodingFailed
             | Self::RequestEncodingFailedWithReason(_)
             | Self::InvalidConnectorName
-            | Self::MissingConnectorName => 400,
+            | Self::MissingConnectorName
+            | Self::FailedToObtainAuthType => 400,
             Self::NotImplemented(_) => 501,
             _ => 500,
         }
     }
 
     /// Maps tonic::Status to UnifiedConnectorServiceError.
-    /// First tries to extract a connector HTTP error from proto-encoded status details.
+    ///
+    /// Decode priority:
+    /// 1. Connector HTTP error — proto `ConnectorError` in details with `CONNECTOR_ERROR_RESPONSE` code
+    /// 2. Connector timeout — `DeadlineExceeded` gRPC code
+    /// 3. Integration error — proto `IntegrationError` in details with structured `error_code`
+    /// 4. Raw tonic status — catch-all for undecodable or server-side gRPC errors
     pub fn from_grpc_error(status: &tonic::Status, connector_name: &str) -> Self {
-        // Try to extract ConnectorError from proto-encoded status details
-        if let Some(error_from_details) =
-            Self::decode_connector_error_response(status, connector_name)
-        {
-            return error_from_details;
-        }
-
-        if let Some(timeout_error) = Self::decode_connector_timeout(status, connector_name) {
-            return timeout_error;
-        }
-
-        Self::TonicStatus {
-            code: status.code(),
-            message: status.message().to_string(),
-        }
+        Self::decode_connector_error_response(status, connector_name)
+            .or_else(|| Self::decode_connector_timeout(status, connector_name))
+            .or_else(|| Self::decode_integration_error(status, connector_name))
+            .unwrap_or_else(|| Self::TonicStatus {
+                code: status.code(),
+                message: status.message().to_string(),
+            })
     }
 
     /// Decodes a connector HTTP error (4xx/5xx) from tonic status details, returning `None` for UCS-side errors.
@@ -1970,6 +2052,98 @@ impl UnifiedConnectorServiceError {
             network_error_message: None,
         })))
     }
+
+    /// Decodes a UCS integration error (request-phase validation failure) from tonic status
+    /// details. UCS encodes `IntegrationError` proto into `Status::with_details()` with a
+    /// structured `error_code` (e.g. `MISSING_REQUIRED_FIELD`, `INVALID_DATA_FORMAT`).
+    ///
+    /// Maps the `error_code` to the corresponding `UnifiedConnectorServiceError` variant so
+    /// that downstream `ErrorSwitch<ConnectorError>` produces the correct Hyperswitch API
+    /// error code (e.g. `IR_04` instead of `CE_01`).
+    ///
+    /// Returns `None` when details are empty, cannot be decoded as `IntegrationError`, or
+    /// the `error_code` is not recognized — the caller falls through to `TonicStatus`.
+    fn decode_integration_error(status: &tonic::Status, connector_name: &str) -> Option<Self> {
+        let details = status.details();
+        if details.is_empty() {
+            return None;
+        }
+
+        payments_grpc::IntegrationError::decode(details)
+            .inspect_err(|e| {
+                router_env::logger::debug!(
+                    error = ?e,
+                    connector_name = connector_name,
+                    "Failed to decode IntegrationError from tonic status details"
+                );
+            })
+            .ok()
+            .and_then(|ie| Self::integration_error_code_to_variant(&ie))
+    }
+
+    /// Maps a decoded `IntegrationError` proto to the corresponding
+    /// `UnifiedConnectorServiceError` variant based on its `error_code`.
+    ///
+    /// Each arm maps to a `ConnectorError` variant that `to_payment_failed_response`
+    /// (router/src/core/errors/utils.rs) converts to the correct `ApiErrorResponse`:
+    ///
+    /// | ConnectorError          | ApiErrorResponse                | Code  |
+    /// |-------------------------|---------------------------------|-------|
+    /// | MissingRequiredField    | MissingRequiredField            | IR_04 |
+    /// | MissingRequiredFields   | MissingRequiredFields           | IR_21 |
+    /// | InvalidDataFormat       | InvalidDataValue                | IR_06 |
+    /// | NotImplemented          | NotImplemented                  | IR_00 |
+    /// | FailedToObtainAuthType  | InvalidConnectorConfiguration  | IR_30 |
+    /// | RequestEncodingFailed   | InternalServerError             | HE_00 |
+    fn integration_error_code_to_variant(ie: &payments_grpc::IntegrationError) -> Option<Self> {
+        use UcsIntegrationErrorCode as Code;
+
+        UcsIntegrationErrorCode::parse(&ie.error_code).map(|code| match code {
+            // Missing field(s) → IR_04 / IR_21
+            Code::MissingRequiredField
+            | Code::MissingConnectorTransactionId
+            | Code::MissingConnectorRefundId
+            | Code::MissingConnectorMandateId
+            | Code::MissingConnectorMandateMetadata
+            | Code::MissingConnectorRelatedTransactionId
+            | Code::MissingApplePayTokenData
+            | Code::MissingPaymentMethodType => Self::MissingRequiredField {
+                field_name: Cow::Owned(ie.error_message.clone()),
+            },
+            Code::MissingRequiredFields => Self::MissingRequiredFields {
+                field_names: vec![Cow::Owned(ie.error_message.clone())],
+            },
+            // Invalid data / validation errors → IR_06
+            Code::InvalidDataFormat
+            | Code::MismatchedPaymentData
+            | Code::InvalidWallet
+            | Code::InvalidWalletToken
+            | Code::MandatePaymentDataMismatch
+            | Code::MaxFieldLengthViolated
+            | Code::AmountConversionFailed => Self::InvalidDataFormat {
+                field_name: Cow::Owned(ie.error_message.clone()),
+            },
+            // Auth / config errors → IR_30
+            Code::FailedToObtainAuthType
+            | Code::InvalidConnectorConfig
+            | Code::NoConnectorMetaData
+            | Code::ConfigurationError => Self::FailedToObtainAuthType,
+            // Unsupported flow / feature → IR_00
+            Code::NotImplemented
+            | Code::NotSupported
+            | Code::FlowNotSupported
+            | Code::CaptureMethodNotSupported
+            | Code::CurrencyNotSupported => Self::NotImplemented(ie.error_message.clone()),
+            // UCS internal failures → HE_00
+            Code::RequestEncodingFailed
+            | Code::HeaderMapConstructionFailed
+            | Code::BodySerializationFailed
+            | Code::UrlParsingFailed
+            | Code::UrlEncodingFailed
+            | Code::FailedToObtainIntegrationUrl
+            | Code::SourceVerificationFailed => Self::RequestEncodingFailed,
+        })
+    }
 }
 
 impl ErrorSwitch<ApiErrorResponse> for UnifiedConnectorServiceError {
@@ -2014,31 +2188,38 @@ impl ErrorSwitch<ApiErrorResponse> for UnifiedConnectorServiceError {
 impl ErrorSwitch<ConnectorError> for UnifiedConnectorServiceError {
     fn switch(&self) -> ConnectorError {
         match self {
-            Self::TonicStatus { code, message } => {
-                // UCS/Prism server failures must surface as Hyperswitch 5xx errors, not as
-                // payment authorization failures with a nested 5xx payload.
-                if Self::tonic_status_is_ucs_server_error(*code) {
-                    return ConnectorError::ResponseHandlingFailed;
+            // TonicStatus only reaches here when decode_integration_error did not
+            // recognize the error_code (or details were empty/undecodable).
+            // Server errors → ResponseHandlingFailed, Unimplemented → NotImplemented,
+            // anything else → RequestEncodingFailed as a safe client-error default.
+            Self::TonicStatus { code, message } => match code {
+                _ if Self::tonic_status_is_ucs_server_error(*code) => {
+                    ConnectorError::ResponseHandlingFailed
                 }
-
-                if *code == tonic::Code::Unimplemented {
-                    return ConnectorError::NotImplemented(message.clone());
-                }
-
-                // UCS validation/client-class errors keep the encoded payload for callers that
-                // already rely on structured processing-step data.
-                let status_code = Self::tonic_to_http_status(*code);
+                tonic::Code::Unimplemented => ConnectorError::NotImplemented(message.clone()),
+                tonic::Code::Unauthenticated => ConnectorError::FailedToObtainAuthType,
+                // All other codes (InvalidArgument, FailedPrecondition, NotFound,
+                // AlreadyExists, PermissionDenied, OutOfRange, etc.) land here when
+                // decode_integration_error could not extract a structured error_code.
+                // Without the proto details we cannot classify them correctly, so we
+                // surface them as an internal error rather than risk a misleading IR code.
+                _ => ConnectorError::ResponseHandlingFailed,
+            },
+            // Connector errors — serialize the details into ProcessingStepFailed so
+            // downstream handlers (to_payment_failed_response) can surface them instead
+            // of producing a bare InternalServerError.
+            Self::ConnectorError(inner) => {
                 let error_body = serde_json::json!({
-                    "code": format!("UCS_{}", status_code),
-                    "message": message,
-                    "status_code": status_code,
+                    "code": inner.code,
+                    "message": inner.message,
+                    "status_code": inner.status_code,
+                    "reason": inner.reason,
+                    "connector": inner.connector,
                 });
                 ConnectorError::ProcessingStepFailed(Some(bytes::Bytes::from(
                     error_body.to_string(),
                 )))
             }
-            // Connector errors with status code → ResponseHandlingFailed
-            Self::ConnectorError(_) => ConnectorError::ResponseHandlingFailed,
             // Connection/availability errors → ResponseHandlingFailed
             Self::ConnectionError(_) => ConnectorError::ResponseHandlingFailed,
             // Request encoding errors
@@ -2046,9 +2227,9 @@ impl ErrorSwitch<ConnectorError> for UnifiedConnectorServiceError {
             | Self::RequestEncodingFailedWithReason(_)
             | Self::InvalidDataFormat { .. } => ConnectorError::RequestEncodingFailed,
             // Missing field errors
-            Self::MissingRequiredField { field_name } => {
-                ConnectorError::MissingRequiredField { field_name }
-            }
+            Self::MissingRequiredField { field_name } => ConnectorError::MissingRequiredField {
+                field_name: field_name.clone(),
+            },
             Self::MissingRequiredFields { field_names } => ConnectorError::MissingRequiredFields {
                 field_names: field_names.clone(),
             },
