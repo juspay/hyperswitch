@@ -368,7 +368,7 @@ impl ConnectorIntegration<ExternalVaultRetrieveFlow, VaultRequestData, VaultResp
 
         let alias = req.request.connector_vault_id.clone().ok_or(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "connector_vault_id",
+                field_name: "connector_vault_id".into(),
             },
         )?;
 

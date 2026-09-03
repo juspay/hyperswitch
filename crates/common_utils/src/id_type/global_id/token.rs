@@ -27,7 +27,7 @@ impl GlobalTokenId {
     pub fn from_string(token_string: &str) -> CustomResult<Self, ValidationError> {
         let token = super::GlobalId::from_string(Cow::Owned(token_string.to_string()))
             .change_context(ValidationError::IncorrectValueProvided {
-                field_name: "GlobalTokenId",
+                field_name: "GlobalTokenId".into(),
             })?;
         Ok(Self(token))
     }

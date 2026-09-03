@@ -191,7 +191,7 @@ impl TryFrom<&FinixRouterData<'_, Authorize, PaymentsAuthorizeData, PaymentsResp
                     cardholder_authentication: auth_data.cavv.clone(),
                     electronic_commerce_indicator: auth_data.eci.clone().ok_or(
                         ConnectorError::MissingRequiredField {
-                            field_name: "Electronic Commerce Indicator (ECI)",
+                            field_name: "Electronic Commerce Indicator (ECI)".into(),
                         },
                     )?,
                     transaction_id: auth_data.threeds_server_transaction_id.clone(),
@@ -290,7 +290,7 @@ fn get_token_request<Flow, Req, Res>(
                     .tokenization_data
                     .get_encrypted_google_pay_token()
                     .change_context(ConnectorError::MissingRequiredField {
-                        field_name: "google_pay_token",
+                        field_name: "google_pay_token".into(),
                     })?;
                 Ok(FinixCreatePaymentInstrumentRequest {
                     instrument_type: FinixPaymentInstrumentType::GOOGLEPAY,
@@ -314,20 +314,20 @@ fn get_token_request<Flow, Req, Res>(
                     .payment_data
                     .get_encrypted_apple_pay_payment_data_mandatory()
                     .change_context(ConnectorError::MissingRequiredField {
-                        field_name: "Apple pay encrypted data",
+                        field_name: "Apple pay encrypted data".into(),
                     })?;
 
                 let decoded_data = base64::prelude::BASE64_STANDARD
                     .decode(applepay_encrypt_data)
                     .change_context(ConnectorError::InvalidDataFormat {
-                        field_name: "apple_pay_encrypted_data",
+                        field_name: "apple_pay_encrypted_data".into(),
                     })?;
 
                 let apple_pay_token: FinixApplePayEncryptedData = serde_json::from_slice(
                     &decoded_data,
                 )
                 .change_context(ConnectorError::InvalidDataFormat {
-                    field_name: "apple_pay_token_json",
+                    field_name: "apple_pay_token_json".into(),
                 })?;
 
                 let finix_token = FinixApplePayPaymentToken {
@@ -364,7 +364,7 @@ fn get_token_request<Flow, Req, Res>(
 
                 let third_party_token = serde_json::to_string(&finix_token).change_context(
                     ConnectorError::InvalidDataFormat {
-                        field_name: "apple pay token",
+                        field_name: "apple pay token".into(),
                     },
                 )?;
 
@@ -855,7 +855,7 @@ impl FinixWebhookBody {
             FinixEmbedded::Disputes { disputes } => {
                 let dispute = disputes.get_first_event()?;
                 let currency = payment_currency.ok_or(ConnectorError::MissingRequiredField {
-                    field_name: "currency",
+                    field_name: "currency".into(),
                 })?;
                 let amount = utils::convert_amount(
                     super::Finix::new().amount_converter_webhooks,
