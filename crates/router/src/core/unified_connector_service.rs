@@ -1052,10 +1052,7 @@ where
                     create_updated_session_state_with_proxy(state.clone(), proxy_override)
                 }
                 None => {
-                    // Not merely un-proxied: the path is downgraded to Direct and the shadow
-                    // comparison never runs. At debug that disappearance is invisible at default
-                    // log levels, which makes a configured-and-expected comparison absent with
-                    // nothing saying why.
+                    // info, not debug: this downgrade has to be visible at default log levels.
                     router_env::logger::info!(
                         "No proxy override available for Shadow UCS; falling back to Direct, so no shadow comparison will run for this request"
                     );
