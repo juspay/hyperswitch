@@ -5,8 +5,8 @@
  * `plugins/child/run_plugins.js` only `task` merges, every other event does
  * `registeredEventsByName[event] = eventId`, so a second registration silently
  * replaces the first. That bites as soon as two things want the same hook —
- * `cypress-mochawesome-reporter` owns `before:run`/`after:run` to merge its
- * report, and this config owns `after:spec` to drop videos for passing specs.
+ * e.g. a future plugin also wanting `before:run`/`after:run` alongside the
+ * spec timing report already registered on them in `cypress.config.js`.
  *
  * Wrapping `on` fans one Cypress registration out to every handler, in
  * registration order, awaiting each.

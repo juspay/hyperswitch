@@ -460,6 +460,7 @@ jobs:
           name: ${{ matrix.batch.report_artifact_name }}
           path: |
             cypress-tests/cypress/reports/
+          if-no-files-found: ignore
           retention-days: 1
 
   mandatory-cypress-tests-consolidated-result:
@@ -727,6 +728,7 @@ jobs:
           name: ${{ matrix.batch.report_artifact_name }}
           path: |
             cypress-tests/cypress/reports/
+          if-no-files-found: ignore
           retention-days: 1
 
   extended-cypress-tests-consolidated-result:
@@ -1190,6 +1192,7 @@ jobs:
           name: ${{ matrix.batch.report_artifact_name }}
           path: |
             cypress-tests/cypress/reports/
+          if-no-files-found: ignore
           retention-days: 1
 
   mitm-cassette-replay-cypress-tests-consolidated-result:
@@ -1461,6 +1464,7 @@ jobs:
           name: ${{ matrix.batch.report_artifact_name }}
           path: |
             cypress-tests/cypress/reports/
+          if-no-files-found: ignore
           retention-days: 1
 
   runner_alpha:
@@ -1688,6 +1692,7 @@ jobs:
           name: cypress-test-results-alpha
           path: |
             cypress-tests/cypress/reports/
+          if-no-files-found: ignore
           retention-days: 1
 
   runner_v2:
