@@ -143,7 +143,6 @@ where
     // `CheckoutOrSale` after the first call) ensures nSure is asked exactly once
     // per payment, so the provider is not billed twice and does not see a
     // repeated `uniqueRequestId`.
-    #[cfg(feature = "v1")]
     if matches!(
         frm_data.fraud_check.frm_transaction_type,
         FraudCheckType::PreFrm
