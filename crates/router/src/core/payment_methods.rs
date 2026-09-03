@@ -5993,12 +5993,12 @@ pub async fn retrieve_payment_method(
         (
             Some(payment_methods::RawPaymentMethodData::Card(card_details)),
             Some(network_token_details),
-        ) => Some(payment_methods::RawPaymentMethodData::CardWithNT(
-            Box::new(payment_methods::RawCardWithNTDetails {
+        ) => Some(payment_methods::RawPaymentMethodData::CardWithNT(Box::new(
+            payment_methods::RawCardWithNTDetails {
                 card_details,
                 network_token_details,
-            }),
-        )),
+            },
+        ))),
         (raw_payment_method_data, _) => raw_payment_method_data,
     };
 
