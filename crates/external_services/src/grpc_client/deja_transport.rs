@@ -41,14 +41,8 @@ const OPERATION: &str = "unary";
 /// type serves the shared hyper pool (dynamic routing / health / recovery)
 /// and the UCS `tonic::transport::Channel`s.
 ///
-/// The inner transport is optional because a host may build its transport
-/// eagerly and fallibly — `tonic::transport::Endpoint::connect` is a perfectly
-/// reasonable choice — and under replay that connect is ceremony: every unary
-/// rpc is substituted here and the transport beneath is never driven. Rather
-/// than ask such a host to become lazy (which would change what it does in
-/// production, and make a recording diverge from the thing it records), the
-/// boundary can stand in for a transport that was never built. See
-/// [`DejaGrpcTransport::substituted`] and [`connect_or_substitute`].
+/// `inner` is `None` only for a boundary built by
+/// [`DejaGrpcTransport::substituted`] — see there and [`connect_or_substitute`].
 #[derive(Debug, Clone)]
 pub struct DejaGrpcTransport<S> {
     inner: Option<S>,
@@ -62,74 +56,43 @@ impl<S> DejaGrpcTransport<S> {
 
     /// A boundary with no transport beneath it.
     ///
-    /// Valid ONLY where every call is substituted, i.e. replay. Nothing here is
-    /// a fault: the host's connect legitimately did not succeed (the service is
-    /// unreachable from a replay namespace, and it does not need to be), and
-    /// replay never issues the call live, so there is nothing for a transport to
-    /// do. Readiness is answered directly and every call is served from the
-    /// recording; a call the recording cannot answer fail-stops via
-    /// [`fail_stop_absent_transport`] rather than silently attempting to connect.
+    /// Valid ONLY under replay, where every call is served from the recording:
+    /// readiness is answered directly, and a call the recording cannot answer
+    /// fail-stops via [`fail_stop_absent_transport`] rather than connecting.
     pub fn substituted() -> Self {
         Self { inner: None }
     }
 }
 
-/// Wrap a transport the host builds eagerly, standing in for it when replay
-/// makes it unnecessary.
+/// Wrap a transport the host builds eagerly, standing in for it under replay.
 ///
-/// This is the seam for a host whose construction is eager and fallible. Under
-/// replay the `connect` closure is never run — no rpc is issued live, so the
-/// transport is dead weight and its connect cannot succeed in a namespace where
-/// the service is deliberately absent. In every other mode `connect` runs
-/// exactly as the host wrote it and its failure means exactly what the host
-/// means by it, so **record behaves identically to production**. That symmetry
-/// is the point: a recorder that changes the thing it observes is worse than the
-/// gap it closes.
-///
-/// `None` propagates the host's own "could not build the client" outcome
-/// unchanged.
+/// Under replay `connect` is never run: no rpc is issued live, so the transport
+/// is dead weight and could not have connected anyway. In every other mode it
+/// runs verbatim, and `None` propagates the host's own outcome unchanged.
 pub async fn connect_or_substitute<S, F, Fut>(connect: F) -> Option<DejaGrpcTransport<S>>
 where
     F: FnOnce() -> Fut,
     Fut: Future<Output = Option<S>>,
 {
     if deja::__private::runtime_mode().is_replay() {
-        return Some(DejaGrpcTransport::substituted());
+        Some(DejaGrpcTransport::substituted())
+    } else {
+        connect().await.map(DejaGrpcTransport::new)
     }
-    connect().await.map(DejaGrpcTransport::new)
 }
 
 /// Replay fail-stop for a boundary that deliberately has no transport.
 ///
-/// Distinct from `deja::__private::fail_stop_substitute_miss` on purpose. That
-/// message tells the reader re-running is unsafe and offers
-/// `replay_strategy = Execute` as the remedy; with no transport there is nothing
-/// to re-run and `Execute` is not available, so reusing it would hand a reader
-/// an instruction that cannot work.
+/// Distinct from `deja::__private::fail_stop_substitute_miss`, whose message
+/// offers `replay_strategy = Execute` as the remedy: with nothing beneath the
+/// boundary there is nothing to run, and the miss says nothing about the
+/// candidate either way.
 ///
-/// The distinction also decides who is on the hook. A miss with a transport
-/// present may be a genuine novel call — the candidate did something the
-/// recording has no answer for, and its author may need to look. A miss with the
-/// transport absent establishes nothing about the candidate at all: this
-/// boundary could not have served the call whatever the candidate did. Reporting
-/// both with one message re-creates the triage failure where an
-/// instrumentation-parity problem is indistinguishable from a candidate defect.
-///
-/// Carries [`deja::FAIL_STOP_SENTINEL`] like every other fail-stop, so
-/// `catch_fail_stop_async` still converts it into the response that records the
-/// divergence and a censored run stays detectable from the diff artifact alone.
-///
-/// Names the rpc path and authority, not just the boundary and component: this
-/// wrapper is installed on the shared hyper pool (dynamic routing / health /
-/// recovery) as well as on the UCS channels, and those share every module-level
-/// constant. The rpc path is the only part of the identity that says WHICH
-/// transport was absent, and a reader who cannot tell a dynamic-routing miss
-/// from a UCS one pays for it in triage time.
-// The panic is not incidental: it IS deja's fail-stop mechanism. `catch_fail_stop_async`
-// classifies a caught payload by `FAIL_STOP_SENTINEL` and renders it as the response that
-// records the divergence, so a censored run stays detectable from the diff artifact alone.
-// Returning an error instead would erase the stop from that artifact. Same reason
-// `deja::__private::fail_stop_substitute_miss` panics.
+/// Names the rpc path and authority because `BOUNDARY` and `COMPONENT` are
+/// module constants shared by every transport this wrapper is installed on.
+// Panicking IS deja's fail-stop mechanism, not an accident: `catch_fail_stop_async`
+// classifies the payload by `FAIL_STOP_SENTINEL` and renders the divergence. Returning
+// an error instead would erase the stop from the diff artifact.
 #[allow(clippy::panic)]
 #[cold]
 #[inline(never)]
@@ -155,11 +118,9 @@ fn fail_stop_absent_transport(
     );
 }
 
-/// A boundary with no transport asked to issue a call live.
-///
-/// Unreachable in practice: [`DejaGrpcTransport::substituted`] is only produced
-/// under replay, where the `run` thunk is never invoked. Named rather than
-/// silent so that if the invariant is ever broken the reason is legible.
+/// A boundary with no transport asked to issue a call live. Unreachable in
+/// practice — [`DejaGrpcTransport::substituted`] exists only under replay, where
+/// the `run` thunk is never invoked — but named so a broken invariant is legible.
 #[derive(Debug)]
 pub struct AbsentTransportError;
 
@@ -212,17 +173,13 @@ where
     fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         match &mut self.inner {
             // KNOWN FRAGILITY, deliberately left alone. This delegates ungated by
-            // `is_active()`, so on replay the inner service still answers
-            // readiness. That is safe for the transports wrapped today only
-            // because tonic's readiness is buffer-backed, not connection-backed:
-            // `Endpoint::connect_lazy` -> `Channel::new` -> `Buffer::pair`, and
-            // `Buffer::poll_ready` checks worker liveness and queue capacity, not
-            // a connection (tonic 0.14.5). An inner service that instead answered
-            // readiness from a live connection would fail HERE, before `call` can
-            // substitute, and replay would break in a way that looks like a
-            // transport fault. Gating this on a mode predicate is not the fix —
-            // the mode's initialization order makes that a live hazard rather than
-            // a latent one — so it is tracked deja-side where that lifecycle lives.
+            // `is_active()`, so the inner service answers readiness even on replay.
+            // Safe only because tonic's readiness is buffer-backed, not
+            // connection-backed: `Buffer::poll_ready` checks worker liveness and
+            // queue capacity, not a connection (tonic 0.14.5). An inner service
+            // that answered from a live connection would fail HERE, before `call`
+            // can substitute. Tracked deja-side, where the mode lifecycle a gate
+            // would have to depend on lives.
             Some(inner) => inner.poll_ready(cx).map_err(Into::into),
             // Nothing to drive: substitution answers every call.
             None => Poll::Ready(Ok(())),
@@ -366,8 +323,8 @@ where
     );
 
     match inner {
-        // Transport present: unchanged. A miss here may be a genuine novel call,
-        // so it keeps `dispatch_async`'s default substitute-miss fail-stop.
+        // Transport present: a miss may be a genuine novel call, so this keeps
+        // `dispatch_async`'s default substitute-miss fail-stop.
         Some(inner) => {
             deja::__private::dispatch_async(
                 observation,
@@ -380,8 +337,8 @@ where
         }
         // Transport deliberately absent: a miss establishes nothing about the
         // candidate, so it gets its own reason. The `run` thunk is never invoked
-        // on this path — replay + Substitute neither runs nor re-runs — and is an
-        // error rather than an unreachable so a broken invariant stays legible.
+        // here (replay + Substitute neither runs nor re-runs); an error rather
+        // than an `unreachable!` so a broken invariant stays legible.
         None => {
             deja::__private::dispatch_async_or_miss(
                 observation,
