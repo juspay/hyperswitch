@@ -10501,6 +10501,10 @@ pub struct PaymentProcessingDetails {
     #[schema(value_type = String)]
     #[smithy(value_type = "String")]
     pub payment_processing_certificate_key: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub system_generated_payment_processing_certificate_key: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]

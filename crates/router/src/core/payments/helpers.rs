@@ -6900,6 +6900,262 @@ async fn get_and_merge_apple_pay_metadata(
     Ok(connector_wallets_details_optional)
 }
 
+/// Partial, lenient views of the Apple Pay portion of MCA `metadata`, used only to read/write
+/// the internally-generated-key fields without disturbing anything else stored there.
+///
+/// Every named field is optional and each level carries a `#[serde(flatten)]` catch-all map,
+/// so parsing an arbitrary (possibly unrelated, possibly partially-filled) metadata blob can
+/// never fail structurally and never drops unmodeled data on reserialization — there is no
+/// `unwrap`/`expect`/panic possible in this parse-modify-reserialize path.
+mod apple_pay_metadata {
+    use hyperswitch_masking::{PeekInterface, Secret};
+    use serde::{Deserialize, Serialize};
+
+    use super::pii;
+
+    #[derive(Debug, Clone, Default, Serialize, Deserialize)]
+    pub struct Metadata {
+        pub apple_pay_combined: Option<ApplePayCombined>,
+        #[serde(flatten)]
+        pub other: serde_json::Map<String, serde_json::Value>,
+    }
+
+    #[derive(Debug, Clone, Default, Serialize, Deserialize)]
+    pub struct ApplePayCombined {
+        pub manual: Option<Manual>,
+        #[serde(flatten)]
+        pub other: serde_json::Map<String, serde_json::Value>,
+    }
+
+    #[derive(Debug, Clone, Default, Serialize, Deserialize)]
+    pub struct Manual {
+        pub session_token_data: Option<SessionTokenData>,
+        #[serde(flatten)]
+        pub other: serde_json::Map<String, serde_json::Value>,
+    }
+
+    #[derive(Debug, Clone, Default, Serialize, Deserialize)]
+    pub struct SessionTokenData {
+        pub payment_processing_certificate_key: Option<Secret<String>>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub system_generated_payment_processing_certificate_key: Option<Secret<String>>,
+        #[serde(flatten)]
+        pub other: serde_json::Map<String, serde_json::Value>,
+    }
+
+    impl Metadata {
+        pub fn parse(metadata: Option<&pii::SecretSerdeValue>) -> Self {
+            metadata
+                .map(|value| value.peek().clone())
+                .map(|value| serde_json::from_value(value).unwrap_or_default())
+                .unwrap_or_default()
+        }
+
+        pub fn into_secret_value(self) -> pii::SecretSerdeValue {
+            let value = serde_json::to_value(self)
+                .unwrap_or_else(|_| serde_json::Value::Object(serde_json::Map::new()));
+            Secret::new(value)
+        }
+
+        pub fn get_system_generated_key(&self) -> Option<Secret<String>> {
+            self.apple_pay_combined
+                .as_ref()
+                .and_then(|combined| combined.manual.as_ref())
+                .and_then(|manual| manual.session_token_data.as_ref())
+                .and_then(|session_token_data| {
+                    session_token_data
+                        .system_generated_payment_processing_certificate_key
+                        .clone()
+                })
+        }
+
+        /// Clears the system-generated key if `session_token_data` already exists; never
+        /// fabricates any of the intermediate structure when it doesn't.
+        pub fn strip_system_generated_key(mut self) -> Self {
+            if let Some(session_token_data) = self
+                .apple_pay_combined
+                .as_mut()
+                .and_then(|combined| combined.manual.as_mut())
+                .and_then(|manual| manual.session_token_data.as_mut())
+            {
+                session_token_data.system_generated_payment_processing_certificate_key = None;
+            }
+            self
+        }
+
+        /// Runs `apply` on the (possibly newly-created) `session_token_data` level, preserving
+        /// every other field already present at every level above and below it.
+        pub fn update_session_token_data(
+            mut self,
+            apply: impl FnOnce(&mut SessionTokenData),
+        ) -> Self {
+            let mut combined = self.apple_pay_combined.unwrap_or_default();
+            let mut manual = combined.manual.unwrap_or_default();
+            let mut session_token_data = manual.session_token_data.unwrap_or_default();
+
+            apply(&mut session_token_data);
+
+            manual.session_token_data = Some(session_token_data);
+            combined.manual = Some(manual);
+            self.apple_pay_combined = Some(combined);
+            self
+        }
+    }
+}
+
+/// Generates a fresh EC-256 (prime256v1) keypair and a CSR signed by it. Returns
+/// `(private_key_pem, csr_pem)`. Callers must never return `private_key_pem` in any API
+/// response — it is only meant to be persisted directly into MCA metadata.
+pub fn generate_apple_pay_keypair_and_csr(
+    common_name: &str,
+) -> CustomResult<(hyperswitch_masking::Secret<String>, String), errors::ApiErrorResponse> {
+    generate_apple_pay_keypair_and_csr_impl(common_name)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to generate Apple Pay keypair and CSR")
+}
+
+fn generate_apple_pay_keypair_and_csr_impl(
+    common_name: &str,
+) -> Result<(hyperswitch_masking::Secret<String>, String), openssl::error::ErrorStack> {
+    let group = openssl::ec::EcGroup::from_curve_name(openssl::nid::Nid::X9_62_PRIME256V1)?;
+    let ec_key = openssl::ec::EcKey::generate(&group)?;
+    let pkey = PKey::from_ec_key(ec_key)?;
+
+    let mut name_builder = openssl::x509::X509NameBuilder::new()?;
+    name_builder.append_entry_by_text("CN", common_name)?;
+    let name = name_builder.build();
+
+    let mut req_builder = openssl::x509::X509Req::builder()?;
+    req_builder.set_subject_name(&name)?;
+    req_builder.set_pubkey(&pkey)?;
+    req_builder.sign(&pkey, openssl::hash::MessageDigest::sha256())?;
+    let csr = req_builder.build();
+
+    let private_key_pem = String::from_utf8_lossy(&pkey.private_key_to_pem_pkcs8()?).into_owned();
+    let csr_pem = String::from_utf8_lossy(&csr.to_pem()?).into_owned();
+
+    Ok((hyperswitch_masking::Secret::new(private_key_pem), csr_pem))
+}
+
+/// Masks a PEM-encoded private key for display: keeps the armor lines (the "BEGIN"/"END"
+/// header and footer lines) intact and readable on their own lines, and replaces only the
+/// base64 body with asterisks, leaving a few characters visible at each end so the value still
+/// reads as "a key" in the dashboard rather than as noise. Falls back to masking the entire
+/// value verbatim (no panic) if the input isn't shaped like a PEM block with both armor lines
+/// present.
+fn mask_apple_pay_certificate_key(
+    key: &hyperswitch_masking::Secret<String>,
+) -> hyperswitch_masking::Secret<String> {
+    const UNMASKED_PREFIX_LEN: usize = 4;
+    const UNMASKED_SUFFIX_LEN: usize = 4;
+
+    let pem = key.clone().expose();
+    let mut lines = pem.lines();
+    let header = lines.next();
+    let mut body_lines: Vec<&str> = lines.collect();
+    let footer = body_lines.pop();
+
+    let masked = match (header, footer) {
+        (Some(header), Some(footer)) => {
+            let body: String = body_lines.concat();
+            let masked_body =
+                mask_middle(&body, UNMASKED_PREFIX_LEN, UNMASKED_SUFFIX_LEN);
+            format!("{header}\n{masked_body}\n{footer}\n")
+        }
+        // Not a two-armor-line PEM block (shouldn't happen for a key we generated ourselves);
+        // fall back to masking the whole thing rather than risk showing it unmasked.
+        _ => mask_middle(&pem, UNMASKED_PREFIX_LEN, UNMASKED_SUFFIX_LEN),
+    };
+
+    hyperswitch_masking::Secret::new(masked)
+}
+
+/// Replaces every character of `value` between the first `prefix_len` and last `suffix_len`
+/// characters with `*`. Masks the whole value if it's too short to leave both ends unmasked.
+fn mask_middle(value: &str, prefix_len: usize, suffix_len: usize) -> String {
+    let chars: Vec<char> = value.chars().collect();
+    let len = chars.len();
+
+    if len <= prefix_len + suffix_len {
+        return "*".repeat(len);
+    }
+
+    let prefix: String = chars[..prefix_len].iter().collect();
+    let suffix: String = chars[len - suffix_len..].iter().collect();
+    format!("{prefix}{}{suffix}", "*".repeat(len - prefix_len - suffix_len))
+}
+
+/// Stores Hyperswitch's internally generated Apple Pay private key into the MCA `metadata`
+/// under `apple_pay_combined.manual.session_token_data`, creating that scaffold if it doesn't
+/// exist yet (the merchant may not have filled in the Apple Pay form at this point). The
+/// masked placeholder is written into `payment_processing_certificate_key` once, here, at
+/// generation time — every subsequent read of this MCA returns that masked value as-is; the
+/// real key is never re-derived or re-exposed on any read path.
+pub fn set_apple_pay_system_generated_key(
+    existing_metadata: Option<pii::SecretSerdeValue>,
+    private_key_pem: hyperswitch_masking::Secret<String>,
+) -> pii::SecretSerdeValue {
+    let masked_key = mask_apple_pay_certificate_key(&private_key_pem);
+
+    apple_pay_metadata::Metadata::parse(existing_metadata.as_ref())
+        .update_session_token_data(|session_token_data| {
+            session_token_data.system_generated_payment_processing_certificate_key =
+                Some(private_key_pem);
+            session_token_data.payment_processing_certificate_key = Some(masked_key);
+        })
+        .into_secret_value()
+}
+
+/// Hyperswitch's internally generated Apple Pay private key is never part of a merchant's
+/// update request payload (the dashboard form doesn't know about it), so it must be carried
+/// forward from the currently stored metadata into the metadata being persisted. No-op when
+/// the existing metadata doesn't carry such a key, and — importantly — a no-op (returns `None`,
+/// meaning "leave the metadata column untouched") when the merchant's request didn't include
+/// metadata at all, rather than persisting a metadata blob that contains only the Apple Pay
+/// key and silently drops every other stored metadata field.
+pub fn carry_forward_apple_pay_system_generated_key(
+    existing_metadata: Option<&pii::SecretSerdeValue>,
+    new_metadata: Option<pii::SecretSerdeValue>,
+) -> Option<pii::SecretSerdeValue> {
+    let existing_key = apple_pay_metadata::Metadata::parse(existing_metadata).get_system_generated_key();
+
+    let existing_key = match existing_key {
+        Some(key) => key,
+        None => return new_metadata,
+    };
+
+    let new_metadata = match new_metadata {
+        Some(metadata) => metadata,
+        None => return None,
+    };
+
+    Some(
+        apple_pay_metadata::Metadata::parse(Some(&new_metadata))
+            .update_session_token_data(|session_token_data| {
+                session_token_data.system_generated_payment_processing_certificate_key =
+                    Some(existing_key);
+            })
+            .into_secret_value(),
+    )
+}
+
+/// Strips Hyperswitch's internally generated Apple Pay private key out of `metadata` before it
+/// is returned in any API response. The masked `payment_processing_certificate_key` (written
+/// once, permanently, at generation time by [`set_apple_pay_system_generated_key`]) is left
+/// untouched and is what the client sees instead. A no-op — `metadata` is returned completely
+/// unchanged, not merely re-serialized — whenever the key isn't present at all, which keeps
+/// every merchant who never used this feature entirely unaffected.
+pub fn strip_apple_pay_system_generated_key(
+    metadata: Option<pii::SecretSerdeValue>,
+) -> Option<pii::SecretSerdeValue> {
+    let parsed = apple_pay_metadata::Metadata::parse(metadata.as_ref());
+    if parsed.get_system_generated_key().is_none() {
+        return metadata;
+    }
+
+    Some(parsed.strip_system_generated_key().into_secret_value())
+}
+
 pub fn is_googlepay_predecrypted_flow_supported(
     connector_metadata: Option<pii::SecretSerdeValue>,
 ) -> bool {
