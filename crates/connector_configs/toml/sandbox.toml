@@ -7043,7 +7043,7 @@ type = "Text"
 name = "three_ds_requestor_id"
 label = "ThreeDS request id"
 placeholder = "Enter ThreeDS request id"
-required = false
+required = true
 type = "Text"
 [juspaythreedsserver.connector_auth.NoKey]
 [juspaythreedsserver.metadata.merchant_category_code]
