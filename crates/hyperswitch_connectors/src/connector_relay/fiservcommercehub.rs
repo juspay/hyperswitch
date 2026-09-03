@@ -405,7 +405,7 @@ impl ConnectorRelayIntegration for Fiservcommercehub {
             .as_ref()
             .map(|t| t.token.peek().as_str())
             .ok_or(ConnectorError::MissingRequiredField {
-                field_name: "access_token",
+                field_name: "access_token".into(),
             })
             .attach_printable(
                 "FiservCommerceHub requires an RSA public key via access_token for card encryption",

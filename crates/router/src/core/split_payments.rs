@@ -91,14 +91,14 @@ async fn get_payment_method_amount_split(
             .payment_method_data
             .clone()
             .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "payment_method_data",
+                field_name: "payment_method_data".into(),
             })?,
         payment_method_type: request.payment_method_type,
         payment_method_subtype: request
             .payment_method_subtype
             .get_required_value("payment_method_subtype")
             .change_context(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "payment_method_subtype",
+                field_name: "payment_method_subtype".into(),
             })?,
     };
 

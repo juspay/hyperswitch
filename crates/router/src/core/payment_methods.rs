@@ -254,7 +254,7 @@ pub async fn initiate_pm_collect_link(
     .await?;
     let customer_id = id_type::CustomerId::try_from(Cow::from(pm_collect_link.primary_reference))
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
-        field_name: "customer_id",
+        field_name: "customer_id".into(),
     })?;
 
     // Return response
@@ -377,7 +377,7 @@ pub async fn render_pm_collect_link(
                     pm_collect_link.primary_reference.clone(),
                 ))
                 .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "customer_id",
+                    field_name: "customer_id".into(),
                 })?;
                 // Fetch customer
 
@@ -1135,13 +1135,13 @@ pub async fn retrieve_payment_method_with_token(
         storage::PaymentTokenData::BankDebit(bank_debit) => {
             let customer_id = payment_intent.customer_id.as_ref().ok_or(
                 errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "customer",
+                    field_name: "customer".into(),
                 },
             )?;
 
             let locker_id = bank_debit.locker_id.as_ref().ok_or(
                 errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "locker_id",
+                    field_name: "locker_id".into(),
                 },
             )?;
 
@@ -1224,13 +1224,13 @@ pub async fn retrieve_payment_method_with_token(
         storage::PaymentTokenData::BankRedirect(bank_redirect) => {
             let customer_id = payment_intent.customer_id.as_ref().ok_or(
                 errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "customer",
+                    field_name: "customer".into(),
                 },
             )?;
 
             let locker_id = bank_redirect.locker_id.as_ref().ok_or(
                 errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "locker_id",
+                    field_name: "locker_id".into(),
                 },
             )?;
 
@@ -1693,12 +1693,12 @@ pub(crate) async fn get_payment_method_create_request(
                 }
             }
             None => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "payment_method_type"
+                field_name: "payment_method_type".into()
             })
             .attach_printable("PaymentMethodType Required")),
         },
         None => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "payment_method_data"
+            field_name: "payment_method_data".into()
         })
         .attach_printable("PaymentMethodData required Or Card is already saved")),
     }
@@ -4895,12 +4895,12 @@ fn convert_from_saved_payment_method_data(
                     card_number: external_vault_token_data.tokenized_card_number,
                     card_exp_month: card_details.expiry_month.ok_or(
                         errors::ApiErrorResponse::MissingRequiredField {
-                            field_name: "card_details.expiry_month",
+                            field_name: "card_details.expiry_month".into(),
                         },
                     )?,
                     card_exp_year: card_details.expiry_year.ok_or(
                         errors::ApiErrorResponse::MissingRequiredField {
-                            field_name: "card_details.expiry_year",
+                            field_name: "card_details.expiry_year".into(),
                         },
                     )?,
                     card_holder_name: card_details.card_holder_name,
@@ -6401,12 +6401,12 @@ impl RawPaymentMethodFetchAccess {
                     .network_token_locker_id
                     .clone()
                     .ok_or(report!(errors::ApiErrorResponse::MissingRequiredField {
-                        field_name: "network_token_locker_id"
+                        field_name: "network_token_locker_id".into()
                     }))?;
 
                 let customer_id = payment_method.customer_id.clone().ok_or(report!(
                     errors::ApiErrorResponse::MissingRequiredField {
-                        field_name: "customer_id"
+                        field_name: "customer_id".into()
                     }
                 ))?;
 
@@ -7358,7 +7358,7 @@ pub async fn payment_methods_session_update_payment_method(
         token_opt => {
             // Existing saved PM flow: token must be present
             let pm_token = token_opt.ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "payment_method_token",
+                field_name: "payment_method_token".into(),
             })?;
 
             // Validate token is associated with this session
@@ -7840,7 +7840,7 @@ pub async fn check_network_token_status(
                 .is_none(),
             || {
                 Err(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "payment_method_id",
+                    field_name: "payment_method_id".into(),
                 })
             },
         )?;
@@ -8078,7 +8078,7 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
                 message: "Payment method type not supported for update".to_string(),
             })?
             .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "payment_method_data",
+                field_name: "payment_method_data".into(),
             })?;
 
         let is_metadata_changed_for_same_fingerprint =

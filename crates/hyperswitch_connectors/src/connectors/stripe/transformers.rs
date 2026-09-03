@@ -1297,14 +1297,14 @@ fn validate_shipping_address_against_payment_method(
 
                 if !missing_fields.is_empty() {
                     return Err(ConnectorError::MissingRequiredFields {
-                        field_names: missing_fields,
+                        field_names: missing_fields.into_iter().map(Into::into).collect(),
                     }
                     .into());
                 }
                 Ok(())
             }
             None => Err(ConnectorError::MissingRequiredField {
-                field_name: "shipping.address",
+                field_name: "shipping.address".into(),
             }
             .into()),
         },
@@ -1582,7 +1582,7 @@ fn create_stripe_payment_method(
                             payment_method_type: StripeCreditTransferTypes::Multibanco,
                             email: payment_request_details.billing_address.email.ok_or(
                                 ConnectorError::MissingRequiredField {
-                                    field_name: "billing_address.email",
+                                    field_name: "billing_address.email".into(),
                                 },
                             )?,
                         },
@@ -1600,7 +1600,7 @@ fn create_stripe_payment_method(
                         payment_method_type: StripePaymentMethodType::CustomerBalance,
                         country: payment_request_details.billing_address.country.ok_or(
                             ConnectorError::MissingRequiredField {
-                                field_name: "billing_address.country",
+                                field_name: "billing_address.country".into(),
                             },
                         )?,
                     }),
@@ -1966,7 +1966,7 @@ impl TryFrom<&BankRedirectData> for StripePaymentMethodData {
                     payment_method_data_type,
                     code: Secret::new(blik_code.clone().ok_or(
                         ConnectorError::MissingRequiredField {
-                            field_name: "blik_code",
+                            field_name: "blik_code".into(),
                         },
                     )?),
                 })),
@@ -2051,7 +2051,7 @@ impl
                 let expiry_year_4_digit = predecrypted_data
                     .get_four_digit_expiry_year()
                     .change_context(ConnectorError::InvalidDataFormat {
-                        field_name: "expiry_year_4_digit",
+                        field_name: "expiry_year_4_digit".into(),
                     })?;
 
                 match (
@@ -2105,7 +2105,7 @@ impl
                             .tokenization_data
                             .get_encrypted_google_pay_token()
                             .change_context(ConnectorError::MissingRequiredField {
-                                field_name: "gpay wallet_token",
+                                field_name: "gpay wallet_token".into(),
                             })?
                             .as_bytes()
                             .parse_struct::<StripeGpayToken>("StripeGpayToken")
@@ -2458,7 +2458,7 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
                             ),
                             billing_address: billing_address.ok_or_else(|| {
                                 ConnectorError::MissingRequiredField {
-                                    field_name: "billing_address",
+                                    field_name: "billing_address".into(),
                                 }
                             })?,
                             request_incremental_authorization: item.request.request_incremental_authorization,
@@ -2552,7 +2552,7 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
                                         .clone()
                                         .get_required_value("online")
                                         .change_context(ConnectorError::MissingRequiredField {
-                                            field_name: "online",
+                                            field_name: "online".into(),
                                         })?;
                                     StripeMandateRequest {
                                         mandate_type: StripeMandateType::Online {
@@ -2561,7 +2561,7 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
                                                 .get_required_value("ip_address")
                                                 .change_context(
                                                     ConnectorError::MissingRequiredField {
-                                                        field_name: "ip_address",
+                                                        field_name: "ip_address".into(),
                                                     },
                                                 )?,
                                             user_agent: online_mandate.user_agent,
@@ -2756,13 +2756,13 @@ fn get_payment_method_type_for_saved_payment_method_payment(
                         StripePaymentMethodType::try_from(payment_method_type)
                     }
                     None => Err(ConnectorError::MissingRequiredField {
-                        field_name: "payment_method_type",
+                        field_name: "payment_method_type".into(),
                     }
                     .into()),
                 }
             }
             None => Err(ConnectorError::MissingRequiredField {
-                field_name: "recurring_mandate_payment_data",
+                field_name: "recurring_mandate_payment_data".into(),
             }
             .into()),
         }?;
@@ -4343,7 +4343,7 @@ impl<F> TryFrom<&RefundsRouterData<F>> for ChargeRefundRequest {
         let amount = item.request.minor_refund_amount;
         match item.request.split_refunds.as_ref() {
             None => Err(ConnectorError::MissingRequiredField {
-                field_name: "split_refunds",
+                field_name: "split_refunds".into(),
             }
             .into()),
 
@@ -4371,7 +4371,7 @@ impl<F> TryFrom<&RefundsRouterData<F>> for ChargeRefundRequest {
                     })
                 }
                 _ => Err(ConnectorError::MissingRequiredField {
-                    field_name: "stripe_split_refund",
+                    field_name: "stripe_split_refund".into(),
                 })?,
             },
         }
@@ -5424,11 +5424,11 @@ fn mandatory_parameters_for_sepa_bank_debit_mandates(
     match is_customer_initiated_mandate_payment {
         Some(true) => Ok(StripeBillingAddress {
             name: Some(billing_name.ok_or(ConnectorError::MissingRequiredField {
-                field_name: "billing_name",
+                field_name: "billing_name".into(),
             })?),
 
             email: Some(billing_email.ok_or(ConnectorError::MissingRequiredField {
-                field_name: "billing_email",
+                field_name: "billing_email".into(),
             })?),
             ..StripeBillingAddress::default()
         }),
@@ -5612,6 +5612,8 @@ where
 
 #[cfg(test)]
 mod test_validate_shipping_address_against_payment_method {
+    use std::borrow::Cow;
+
     use common_enums::CountryAlpha2;
     use hyperswitch_interfaces::errors::ConnectorError;
     use hyperswitch_masking::Secret;
@@ -5720,7 +5722,7 @@ mod test_validate_shipping_address_against_payment_method {
     #[test]
     fn should_return_error_when_missing_multiple_fields() {
         // Arrange
-        let expected_missing_field_names: Vec<&'static str> =
+        let expected_missing_field_names: Vec<&str> =
             vec!["shipping.address.zip", "shipping.address.country"];
         let stripe_shipping_address = create_stripe_shipping_address(
             "name".to_string(),
@@ -5740,11 +5742,11 @@ mod test_validate_shipping_address_against_payment_method {
         assert!(result.is_err());
         let missing_fields = get_missing_fields(result.unwrap_err().current_context()).to_owned();
         for field in missing_fields {
-            assert!(expected_missing_field_names.contains(&field));
+            assert!(expected_missing_field_names.contains(&field.as_ref()));
         }
     }
 
-    fn get_missing_fields(connector_error: &ConnectorError) -> Vec<&'static str> {
+    fn get_missing_fields(connector_error: &ConnectorError) -> Vec<Cow<'static, str>> {
         if let ConnectorError::MissingRequiredFields { field_names } = connector_error {
             return field_names.to_vec();
         }

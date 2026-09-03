@@ -1451,10 +1451,6 @@ background_color = "#FFFFFF"                                                    
 enabled = true
 allow_connected_merchants = true
 
-[chat]
-enabled = false
-hyperswitch_ai_host = "http://0.0.0.0:8000"
-encryption_key = ""
 
 [sage]
 enabled = false           # Master switch for sage sessions

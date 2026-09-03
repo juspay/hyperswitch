@@ -333,7 +333,7 @@ impl TryFrom<&NoonRouterData<&PaymentsAuthorizeRouterData>> for NoonPaymentsRequ
                                 api_version: GOOGLEPAY_API_VERSION,
                                 payment_method_data: GooglePayWalletData::try_from(google_pay_data)
                                     .change_context(errors::ConnectorError::InvalidDataFormat {
-                                        field_name: "google_pay_data",
+                                        field_name: "google_pay_data".into(),
                                     })?,
                             }))
                         }
@@ -427,7 +427,7 @@ impl TryFrom<&NoonRouterData<&PaymentsAuthorizeRouterData>> for NoonPaymentsRequ
                 Some(item.request.currency),
                 Some(item.request.order_category.clone().ok_or(
                     errors::ConnectorError::MissingRequiredField {
-                        field_name: "order_category",
+                        field_name: "order_category".into(),
                     },
                 )?),
             ),
