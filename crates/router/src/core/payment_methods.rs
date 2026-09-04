@@ -1343,6 +1343,9 @@ pub(crate) fn get_payment_method_create_request(
                     .transpose()
                     .ok()
                     .flatten(),
+                card_subtype: card.card_subtype.clone(),
+                card_segment_type: card.card_segment_type,
+                funding_source: card.funding_source,
                 card_cvc: Some(card.card_cvc.clone()),
             };
             let payment_method_request = payment_methods::PaymentMethodCreate {
@@ -1460,6 +1463,9 @@ pub(crate) async fn get_payment_method_create_request(
                             card_network: card_network.clone(),
                             card_issuer: card.card_issuer.clone(),
                             card_type: card.card_type.clone(),
+                            card_subtype: card.card_subtype.clone(),
+                            card_segment_type: card.card_segment_type,
+                            funding_source: card.funding_source,
                             card_cvc: None, // DO NOT POPULATE CVC FOR ADDITIONAL PAYMENT METHOD DATA
                         };
                         let payment_method_request = payment_methods::PaymentMethodCreate {
@@ -1506,6 +1512,9 @@ pub(crate) async fn get_payment_method_create_request(
                             card_network: card_network.clone(),
                             card_issuer: card.card_issuer.clone(),
                             card_type: card.card_type.clone(),
+                            card_subtype: card.card_subtype.clone(),
+                            card_segment_type: card.card_segment_type,
+                            funding_source: card.funding_source,
                             card_cvc: None, // DO NOT POPULATE CVC FOR ADDITIONAL PAYMENT METHOD DATA
                         };
                         let payment_method_request = payment_methods::PaymentMethodCreate {
@@ -3929,6 +3938,15 @@ impl PaymentMethodExt for domain::PaymentMethodVaultingData {
                                     .ok()
                                     .flatten()
                             }),
+                            card_subtype: card_info
+                                .as_ref()
+                                .and_then(|val| val.card_subtype.clone()),
+                            card_segment_type: card_info.as_ref().and_then(|val| {
+                                val.card_segment_type
+                                    .as_deref()
+                                    .and_then(|segment_type| segment_type.parse().ok())
+                            }),
+                            funding_source: card_info.as_ref().and_then(|val| val.funding_source),
                             card_cvc: card.card_cvc.clone(),
                         }),
                         payment_method_subtype,
@@ -4056,6 +4074,9 @@ impl PaymentMethodExt for payment_methods::PaymentMethodCreateData {
                     card_network: card_details.card_network,
                     card_issuer: card_details.card_issuer,
                     card_type: card_details.card_type,
+                    card_subtype: None,
+                    card_segment_type: None,
+                    funding_source: None,
                     card_isin: card_details.bin_number,
                     saved_to_locker: false,
                     co_badged_card_data: None,
@@ -4076,6 +4097,9 @@ impl PaymentMethodExt for payment_methods::PaymentMethodCreateData {
                     card_type: card_details
                         .card_type
                         .map(|card_type| card_type.to_string()),
+                    card_subtype: card_details.card_subtype,
+                    card_segment_type: card_details.card_segment_type,
+                    funding_source: card_details.funding_source,
                     saved_to_locker: false,
                     card_isin: None,
                     last4_digits: None,
@@ -5969,12 +5993,12 @@ pub async fn retrieve_payment_method(
         (
             Some(payment_methods::RawPaymentMethodData::Card(card_details)),
             Some(network_token_details),
-        ) => Some(payment_methods::RawPaymentMethodData::CardWithNT(
+        ) => Some(payment_methods::RawPaymentMethodData::CardWithNT(Box::new(
             payment_methods::RawCardWithNTDetails {
                 card_details,
                 network_token_details,
             },
-        )),
+        ))),
         (raw_payment_method_data, _) => raw_payment_method_data,
     };
 
@@ -6457,6 +6481,9 @@ impl RawPaymentMethodFetchAccess {
                         card_network: network_token_details.card_network,
                         card_issuer: network_token_details.card_issuer,
                         card_type: network_token_details.card_type,
+                        card_subtype: None,
+                        card_segment_type: None,
+                        funding_source: None,
                         card_cvc: None,
                     }),
                     _ => Err(report!(errors::ApiErrorResponse::GenericNotFoundError {
