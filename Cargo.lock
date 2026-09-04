@@ -3602,6 +3602,7 @@ dependencies = [
  "thiserror 1.0.69",
  "time 0.3.41",
  "tokio 1.48.0",
+ "tokio-socks",
  "tokio-stream",
  "tonic 0.14.5",
  "tonic-prost",
@@ -3610,7 +3611,6 @@ dependencies = [
  "tonic-types",
  "typed-builder 0.21.2",
  "url 2.5.4",
- "urlencoding",
  "vaultrs",
 ]
 
@@ -7219,7 +7219,7 @@ dependencies = [
  "regex-cache",
  "serde",
  "serde_derive",
- "strum 0.25.0",
+ "strum 0.26.3",
  "thiserror 1.0.69",
 ]
 
@@ -10782,6 +10782,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8e727b36a1a0e8b74c376ac2211e40c2c8af09fb4013c60d910495810f008e9b"
 dependencies = [
  "rustls 0.23.27",
+ "tokio 1.48.0",
+]
+
+[[package]]
+name = "tokio-socks"
+version = "0.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a7e2948f60dbe26b35f2c7fb74ac2854c1fddded0fe9d7548fcc674a246f7615"
+dependencies = [
+ "either",
+ "futures-util",
+ "thiserror 1.0.69",
  "tokio 1.48.0",
 ]
 
