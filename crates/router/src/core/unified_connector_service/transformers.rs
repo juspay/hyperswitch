@@ -2779,6 +2779,7 @@ impl
                 .as_ref()
                 .map(payments_grpc::RecipientDetails::foreign_try_from)
                 .transpose()?,
+            test_mode: router_data.test_mode,
         })
     }
 }
