@@ -81,14 +81,27 @@ impl ForeignFrom<&api_models::payments::ConnectorMetadata>
             adyen: _,
             peachpayments: _,
             santander: _,
-            worldpayxml: _,
+            worldpayxml,
         } = metadata;
+        fn to_snake_case_string<T: serde::Serialize>(value: T) -> Option<String> {
+            serde_json::to_value(value)
+                .ok()
+                .and_then(|value| value.as_str().map(ToString::to_string))
+        }
         Self {
             checkout: checkout
                 .as_ref()
                 .map(|data| payments_grpc::CheckoutAdditionalInformation {
                     purpose_of_payment: data.purpose_of_payment.clone(),
                 }),
+            worldpayxml: worldpayxml.as_ref().map(|data| {
+                payments_grpc::WorldpayxmlAdditionalInformation {
+                    funding_transaction_type: data
+                        .funding_transaction_type
+                        .and_then(to_snake_case_string),
+                    payment_purpose: data.payment_purpose.and_then(to_snake_case_string),
+                }
+            }),
         }
     }
 }
@@ -757,6 +770,7 @@ impl
                 .connector_intent_metadata
                 .as_ref()
                 .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
+            business_country: router_data.request.business_country.map(|c| c.to_string()),
         })
     }
 }
@@ -1013,6 +1027,7 @@ impl
                 .connector_intent_metadata
                 .as_ref()
                 .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
+            business_country: router_data.request.business_country.map(|c| c.to_string()),
         })
     }
 }
@@ -2240,6 +2255,7 @@ impl
                 .connector_intent_metadata
                 .as_ref()
                 .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
+            business_country: router_data.request.business_country.map(|c| c.to_string()),
         })
     }
 }
@@ -2455,6 +2471,7 @@ impl
                 .connector_intent_metadata
                 .as_ref()
                 .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
+            business_country: router_data.request.business_country.map(|c| c.to_string()),
         })
     }
 }
@@ -2522,6 +2539,7 @@ impl
         Ok(Self {
             is_account_funding_transaction: None,
             recipient_details: None,
+            business_country: None,
             split_settlement: None,
             split_payments: router_data
                 .request
