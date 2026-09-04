@@ -55,6 +55,30 @@ import {
   MICRODEPOSIT_CONFIG,
 } from "./redirectionHandler";
 
+// Paybox creds normalization: the live Paybox connector accepts only
+// MultiAuthKey auth (with a non-empty key2) — a legacy SignatureKey-shaped
+// creds.json entry fails connector create with 422 IR_06. See
+// PayboxAuthType (hyperswitch_connectors/src/connectors/paybox/transformers.rs:513-541)
+// and connector_validation.rs:721-731, plus SPI-277 trace steps 3-5.
+// Idempotent: only fires on the legacy SignatureKey shape, so a future
+// creds.json fix (real merchant_id in key2) becomes a no-op.
+function normalizeConnectorAccountDetails(connectorName, authDetails) {
+  if (
+    connectorName === "paybox" &&
+    authDetails?.connector_account_details?.auth_type === "SignatureKey"
+  ) {
+    return {
+      ...authDetails,
+      connector_account_details: {
+        ...authDetails.connector_account_details,
+        auth_type: "MultiAuthKey",
+        key2: authDetails.connector_account_details.key2 || "test_merchant",
+      },
+    };
+  }
+  return authDetails;
+}
+
 // Returns true (after logging a consistent skip line) when a redirection
 // command should bail out early because we're in replay mode.
 function skipRedirectionInMockServer(commandName) {
@@ -1569,8 +1593,12 @@ Cypress.Commands.add(
             `No credentials found for ${connectorName} in creds.json — skipping connector creation`
           );
         }
+        const normalized = normalizeConnectorAccountDetails(
+          connectorName,
+          authDetails
+        );
         createConnectorBody.connector_account_details =
-          authDetails.connector_account_details;
+          normalized.connector_account_details;
         cy.request({
           method: "POST",
           url: `${globalState.get("baseUrl")}/account/${merchantId}/connectors`,
@@ -1657,8 +1685,12 @@ Cypress.Commands.add(
           );
         }
 
+        const normalized = normalizeConnectorAccountDetails(
+          connector_id,
+          authDetails
+        );
         createConnectorBody.connector_account_details =
-          authDetails.connector_account_details;
+          normalized.connector_account_details;
 
         if (authDetails && authDetails.metadata) {
           createConnectorBody.metadata = {

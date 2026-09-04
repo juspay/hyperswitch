@@ -17,6 +17,10 @@ describe("Card - SingleUse Mandates flow test", () => {
           utils.shouldExcludeConnector(
             globalState.get("connectorId"),
             utils.CONNECTOR_LISTS.EXCLUDE.MANDATE_ID_TEST
+          ) ||
+          utils.shouldExcludeConnector(
+            globalState.get("connectorId"),
+            utils.CONNECTOR_LISTS.EXCLUDE.ZERO_AUTH_MANDATE
           )
         ) {
           skip = true;
