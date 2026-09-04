@@ -908,21 +908,87 @@ pub fn extract_rsa_public_key_components(
     Ok((n_b64, e_b64))
 }
 
+/// Random bytes for a cryptographic operation whose output has to be reproducible
+/// on replay.
+///
+/// deja: this is the seam for entropy that a crypto primitive consumes internally.
+/// Recording the bytes the primitive draws substitutes the *input*: the candidate
+/// still runs the real algorithm over its own plaintext, so a changed algorithm or
+/// a changed message still diverges. Same shape as `GcmAes256::nonce`, which does
+/// this for the AEAD nonce.
+#[cfg_attr(feature = "deja", track_caller)]
+#[cfg_attr(
+    feature = "deja",
+    deja::id(
+        component = "common_utils::crypto",
+        operation = "secure_random_bytes",
+        codec = SerdeCodec,
+    )
+)]
+fn secure_random_bytes(length: usize) -> Vec<u8> {
+    use rand::RngCore;
+
+    let mut bytes = vec![0_u8; length];
+    rand::rngs::OsRng.fill_bytes(&mut bytes);
+    bytes
+}
+
+/// An `OsRng` that draws through [`secure_random_bytes`].
+///
+/// `rand_core`'s traits are not sealed, so an RNG can be handed to the `rsa`
+/// crate. (`ring`'s `SecureRandom` *is* sealed, which is why `RsaPssSha256`
+/// below cannot get the same treatment.)
+#[derive(Debug, Clone, Copy)]
+struct SeamedOsRng;
+
+impl rand::RngCore for SeamedOsRng {
+    fn next_u32(&mut self) -> u32 {
+        let bytes: [u8; 4] = secure_random_bytes(4).try_into().unwrap_or([0; 4]);
+        u32::from_le_bytes(bytes)
+    }
+
+    fn next_u64(&mut self) -> u64 {
+        let bytes: [u8; 8] = secure_random_bytes(8).try_into().unwrap_or([0; 8]);
+        u64::from_le_bytes(bytes)
+    }
+
+    fn fill_bytes(&mut self, dest: &mut [u8]) {
+        let bytes = secure_random_bytes(dest.len());
+        if bytes.len() == dest.len() {
+            dest.copy_from_slice(&bytes);
+        }
+    }
+
+    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), rand::Error> {
+        self.fill_bytes(dest);
+        Ok(())
+    }
+}
+
+// Safety: every byte comes from `OsRng`; the seam only changes when they are
+// drawn, never how.
+impl rand::CryptoRng for SeamedOsRng {}
+
 /// Encrypt plaintext using RSA-OAEP with SHA-256.
 /// `public_key_der` must be a DER-encoded SubjectPublicKeyInfo (PKCS#8) public key.
 /// Returns the raw ciphertext bytes.
+//
+// deja: OAEP padding is randomised, so the ciphertext differs on every run and
+// fiservcommercehub's outbound request (`connector_relay/fiservcommercehub.rs:343`)
+// never matched its recording. The RNG is an argument here, so the fix is to
+// substitute the padding bytes rather than the ciphertext -- no key material and
+// no plaintext enters the tape, and a candidate that changed the encryption still
+// diverges.
 pub fn encrypt_rsa_oaep_sha256(
     public_key_der: &[u8],
     plaintext: &[u8],
 ) -> CustomResult<Vec<u8>, errors::CryptoError> {
-    use rand::rngs::OsRng;
-
     let public_key = rsa::RsaPublicKey::from_public_key_der(public_key_der)
         .change_context(errors::CryptoError::EncodingFailed)
         .attach_printable("Failed to parse DER public key for RSA-OAEP")?;
 
     let padding = Oaep::new::<rsa::sha2::Sha256>();
-    let mut rng = OsRng;
+    let mut rng = SeamedOsRng;
 
     public_key
         .encrypt(&mut rng, padding, plaintext)
@@ -931,6 +997,28 @@ pub fn encrypt_rsa_oaep_sha256(
 }
 
 /// Represents the RSA-PSS-SHA256 signing algorithm
+//
+// deja: NOT seamed, and this is the one nondeterminism source in this PR that is
+// left open rather than closed. PSS is randomised through its salt, so amazonpay's
+// outbound signature (`connectors/amazonpay.rs:175`) differs on every run and a
+// replay of it diverges.
+//
+// The right fix is the one used everywhere else here — substitute the input, not
+// the output: seam the RNG that produces the salt, so the candidate still computes
+// its own signature and a changed algorithm or message layout still diverges. That
+// is impossible with `ring`: `ring::rand::SecureRandom` is a sealed trait
+// (`rand.rs:31`, `pub trait SecureRandom: sealed::SecureRandom` with `sealed`
+// `pub(crate)`, in both 0.16.20 and 0.17), so no RNG can be injected into
+// `RsaKeyPair::sign` from outside the crate.
+//
+// The remaining option is to seam `sign_message` itself, and that is refused: its
+// first argument is the PEM private key, and a recorded tape is read by many
+// people. Recording key material to make a replay match is not a trade worth making.
+//
+// The way to close it is to move this one impl onto the `rsa` crate — already a
+// dependency of this crate for RSA-OAEP — whose `pss::SigningKey::sign_with_rng`
+// takes the RNG as an argument. That replaces a live signing implementation, so it
+// belongs in its own change with its own verification, not in a determinism refactor.
 #[derive(Debug)]
 pub struct RsaPssSha256;
 
