@@ -2753,7 +2753,7 @@ pub async fn create_user_authentication_method(
     .change_context(UserErrors::InternalServerError)
     .attach_printable("Failed to decode DEK")?;
 
-    let id = uuid::Uuid::new_v4().to_string();
+    let id = common_utils::generate_uuid_v4().to_string();
 
     let (private_config, public_config) = utils::user::construct_public_and_private_db_configs(
         &state,
@@ -2790,7 +2790,7 @@ pub async fn create_user_authentication_method(
                 .ok_or(UserErrors::InvalidAuthMethodOperationWithMessage(
                     "Email domain not found".to_string(),
                 ))?;
-        (uuid::Uuid::new_v4().to_string(), email_domain)
+        (common_utils::generate_uuid_v4().to_string(), email_domain)
     };
 
     for db_auth_method in auth_methods {
@@ -3015,7 +3015,8 @@ pub async fn get_sso_auth_url(
     .change_context(UserErrors::InternalServerError)
     .attach_printable("Unable to parse OpenIdConnectPublicConfig")?;
 
-    let oidc_state = Secret::new(nanoid::nanoid!());
+    // nanoid's own default length, kept explicit now the call goes through the seam.
+    let oidc_state = Secret::new(common_utils::generate_nanoid_with_default_alphabet(21));
     utils::user::set_sso_id_in_redis(&state, oidc_state.clone(), request.id).await?;
 
     let redirect_url =

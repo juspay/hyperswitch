@@ -47,7 +47,7 @@ pub use hyperswitch_interfaces::{
 };
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::tracing;
-use time::{Duration, OffsetDateTime};
+use time::Duration;
 use unified_connector_service_cards::{CardNumber, NetworkToken};
 use unified_connector_service_client::payments::{
     self as payments_grpc, client_authentication_token_data,
@@ -226,7 +226,9 @@ fn build_ucs_l2_l3_data(l2_l3_data: Option<&L2L3Data>) -> Option<payments_grpc::
 
 pub fn build_upi_wait_screen_data(
 ) -> Result<serde_json::Value, error_stack::Report<UnifiedConnectorServiceError>> {
-    let current_time = OffsetDateTime::now_utc().unix_timestamp_nanos();
+    let current_time = common_utils::date_time::now()
+        .assume_utc()
+        .unix_timestamp_nanos();
 
     let wait_screen_data = api_models::payments::WaitScreenInstructions {
         display_from_timestamp: current_time,

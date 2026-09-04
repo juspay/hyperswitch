@@ -465,7 +465,7 @@ pub(super) async fn perform_redis_lock<A>(
 where
     A: SessionStateInfo,
 {
-    let lock_value: String = uuid::Uuid::new_v4().to_string();
+    let lock_value: String = common_utils::generate_uuid_v4().to_string();
     let redis_conn = state
         .store()
         .get_redis_conn()
