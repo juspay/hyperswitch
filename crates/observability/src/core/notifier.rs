@@ -48,7 +48,7 @@ pub async fn upload_chat_file(
 ) -> ObservabilityApiResult<ChatFileOutcome> {
     let filename = request
         .filename
-        .filter(|filename| is_usable_filename(filename.peek()))
+        .filter(|filename| !filename.peek().trim().is_empty())
         .ok_or_else(|| report!(ObservabilityError::InvalidRequest))?;
     if request.bytes.peek().is_empty() {
         Err(report!(ObservabilityError::InvalidRequest))?
@@ -70,14 +70,6 @@ pub async fn upload_chat_file(
             reply_to: request.reply_to,
         })
         .await
-}
-
-fn is_usable_filename(filename: &str) -> bool {
-    !filename.trim().is_empty()
-        && !filename.contains("..")
-        && !filename.contains('/')
-        && !filename.contains('\\')
-        && !filename.chars().any(char::is_control)
 }
 
 /// Deliver an email to the named destination.

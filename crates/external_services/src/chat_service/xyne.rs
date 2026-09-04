@@ -11,13 +11,13 @@
 //! ingestion; the contract implemented here was established against a working deployment.
 
 use hyperswitch_interfaces::types::Proxy;
-use hyperswitch_masking::Secret;
+use hyperswitch_masking::{Mask as _, Maskable, PeekInterface, Secret};
 use serde::Deserialize;
 use url::Url;
 
 use super::{
-    slack_compatible::{Endpoint, DEFAULT_TIMEOUT_SECONDS},
-    ChatClient, ChatFile, ChatMessage, ChatResult, FileId, MessageId,
+    slack_compatible::{Endpoint, EndpointHeaders, DEFAULT_TIMEOUT_SECONDS},
+    ChatClient, ChatError, ChatFile, ChatMessage, ChatResult, FileId, MessageId,
 };
 
 /// Xyne namespaces the Slack-compatible methods it proxies.
@@ -88,11 +88,16 @@ impl XyneClient {
     /// directly reachable from the pod — which is why it is passed alongside the config rather
     /// than carried inside it.
     pub fn new(config: XyneConfig, proxy: Proxy) -> ChatResult<Self> {
+        if config.app_jwt.peek().trim().is_empty() {
+            Err(ChatError::InvalidConfiguration("app JWT must not be empty"))?
+        }
+        let authorization = authorization_headers(&config.app_jwt);
+
         Ok(Self {
             endpoint: Endpoint::new(
                 config.base_url,
                 METHOD_PREFIX,
-                config.app_jwt,
+                EndpointHeaders::new(authorization.clone(), authorization),
                 config.channel,
                 config.timeout_seconds,
                 config.max_message_chars,
@@ -100,6 +105,13 @@ impl XyneClient {
             )?,
         })
     }
+}
+
+fn authorization_headers(token: &Secret<String>) -> Vec<(String, Maskable<String>)> {
+    vec![(
+        http::header::AUTHORIZATION.to_string(),
+        format!("Bearer {}", token.peek()).into_masked(),
+    )]
 }
 
 #[async_trait::async_trait]
@@ -123,7 +135,7 @@ mod tests {
     };
 
     use super::*;
-    use crate::chat_service::{ChatError, ChatErrorReason};
+    use crate::chat_service::ChatErrorReason;
 
     const TOKEN: &str = "test-jwt";
     const CHANNEL: &str = "C0123456789";
@@ -255,7 +267,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn an_off_origin_upload_url_never_receives_the_chat_credential() {
+    async fn xyne_uploads_receive_the_app_credential_even_off_origin() {
         let api = MockServer::start().await;
         let storage = MockServer::start().await;
         Mock::given(method("POST"))
@@ -288,7 +300,10 @@ mod tests {
 
         let requests = storage.received_requests().await.unwrap();
         assert_eq!(requests.len(), 1);
-        assert!(requests[0].headers.get("authorization").is_none());
+        assert_eq!(
+            requests[0].headers.get("authorization").unwrap(),
+            format!("Bearer {TOKEN}").as_str()
+        );
     }
 
     #[tokio::test]

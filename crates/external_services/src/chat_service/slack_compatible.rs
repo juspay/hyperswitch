@@ -13,7 +13,7 @@
 use common_utils::request::{Method, RequestBuilder, RequestContent};
 use error_stack::ResultExt;
 use hyperswitch_interfaces::types::Proxy;
-use hyperswitch_masking::{Mask as _, PeekInterface, Secret};
+use hyperswitch_masking::Maskable;
 use router_env::logger;
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -39,9 +39,23 @@ const BODY_SNIPPET_CHARS: usize = 512;
 /// Stands in when a refusal names no error code at all.
 const UNSPECIFIED_ERROR_CODE: &str = "unspecified";
 
+/// Request headers selected by the concrete backend.
+#[derive(Clone, Debug)]
+pub(super) struct EndpointHeaders {
+    api: Vec<(String, Maskable<String>)>,
+    upload: Vec<(String, Maskable<String>)>,
+}
+
+impl EndpointHeaders {
+    pub(super) fn new(
+        api: Vec<(String, Maskable<String>)>,
+        upload: Vec<(String, Maskable<String>)>,
+    ) -> Self {
+        Self { api, upload }
+    }
+}
+
 /// One destination on a Slack-compatible API: where to post, as whom, and to which channel.
-///
-/// `Debug` is derived: [`Secret`] redacts itself, so the token cannot reach a log line through it.
 #[derive(Clone, Debug)]
 pub(super) struct Endpoint {
     /// Root of the API, e.g. `https://slack.com/api`.
@@ -51,8 +65,8 @@ pub(super) struct Endpoint {
     /// (`/api/chat.postMessage`); Xyne namespaces them (`/api/apps/slack/chat.postMessage`).
     method_prefix: &'static str,
 
-    /// Presented as `Authorization: Bearer <token>`.
-    token: Secret<String>,
+    /// Headers for API method calls and the raw upload leg are supplied by the concrete backend.
+    headers: EndpointHeaders,
 
     /// Channel id is preferred over channel name; both are accepted, and the provider decides.
     channel: String,
@@ -70,7 +84,7 @@ impl Endpoint {
     pub(super) fn new(
         base_url: Url,
         method_prefix: &'static str,
-        token: Secret<String>,
+        headers: EndpointHeaders,
         channel: String,
         timeout_seconds: u64,
         max_message_chars: usize,
@@ -83,10 +97,6 @@ impl Endpoint {
             ))?
         }
 
-        if token.peek().trim().is_empty() {
-            Err(ChatError::InvalidConfiguration("token must not be empty"))?
-        }
-
         if max_message_chars == 0 {
             Err(ChatError::InvalidConfiguration(
                 "max message length must be greater than zero",
@@ -96,7 +106,7 @@ impl Endpoint {
         Ok(Self {
             base_url,
             method_prefix,
-            token,
+            headers,
             channel,
             timeout_seconds,
             max_message_chars,
@@ -143,7 +153,7 @@ impl Endpoint {
                 &url,
                 RequestContent::Json(Box::new(payload)),
                 &mime::APPLICATION_JSON,
-                true,
+                &self.headers.api,
             )
             .await?;
 
@@ -189,7 +199,7 @@ impl Endpoint {
                     length: file.bytes().len(),
                 })),
                 &mime::APPLICATION_JSON,
-                true,
+                &self.headers.api,
             )
             .await?;
         let prepared: GetUploadUrlResponse = serde_json::from_str(&prepare_body)
@@ -206,15 +216,12 @@ impl Endpoint {
             .ok_or(ChatError::UnreadableResponse)
             .attach_printable("files.getUploadURLExternal returned no file_id")?;
 
-        // Xyne returns an on-origin URL that requires its app JWT. Slack returns a pre-signed URL
-        // on files.slack.com; sending the bot credential there would leak it and is unnecessary.
-        let authorize_upload = upload_url.origin() == self.base_url.origin();
         let upload_body = self
             .send(
                 upload_url.as_str(),
                 RequestContent::RawBytes(file.bytes().to_vec()),
                 &mime::APPLICATION_OCTET_STREAM,
-                authorize_upload,
+                &self.headers.upload,
             )
             .await?;
         if let Ok(envelope) = serde_json::from_str::<UploadLegResponse>(&upload_body) {
@@ -235,7 +242,7 @@ impl Endpoint {
                     thread_ts,
                 })),
                 &mime::APPLICATION_JSON,
-                true,
+                &self.headers.api,
             )
             .await?;
         let completed: CompleteUploadResponse = serde_json::from_str(&complete_body)
@@ -258,18 +265,13 @@ impl Endpoint {
         url: &str,
         body: RequestContent,
         content_type: &mime::Mime,
-        authorize: bool,
+        backend_headers: &[(String, Maskable<String>)],
     ) -> ChatResult<String> {
-        let mut headers = vec![(
+        let mut headers = backend_headers.to_vec();
+        headers.push((
             http::header::CONTENT_TYPE.to_string(),
             content_type.essence_str().to_owned().into(),
-        )];
-        if authorize {
-            headers.push((
-                http::header::AUTHORIZATION.to_string(),
-                format!("Bearer {}", self.token.peek()).into_masked(),
-            ));
-        }
+        ));
 
         let request = RequestBuilder::new()
             .method(Method::Post)
@@ -553,6 +555,7 @@ fn snippet(body: &str, max_chars: usize) -> String {
     clippy::indexing_slicing
 )]
 mod tests {
+    use hyperswitch_masking::Mask as _;
     use serde_json::json;
 
     use super::*;
@@ -713,7 +716,13 @@ mod tests {
         Endpoint::new(
             Url::parse(base_url).unwrap(),
             method_prefix,
-            Secret::new(token.to_owned()),
+            EndpointHeaders::new(
+                vec![(
+                    http::header::AUTHORIZATION.to_string(),
+                    format!("Bearer {token}").into_masked(),
+                )],
+                Vec::new(),
+            ),
             "C1".to_owned(),
             DEFAULT_TIMEOUT_SECONDS,
             TEST_MAX_MESSAGE_CHARS,
@@ -725,13 +734,12 @@ mod tests {
     fn an_unusable_destination_is_rejected_on_the_way_in() {
         // A malformed base URL cannot reach here at all: it is a `Url`, so it fails at
         // deserialization. What is left for `Endpoint::new` is the rest of the destination.
-        assert!(endpoint("https://example.com", "/", "").is_err());
         assert!(endpoint("https://example.com", "/", "token").is_ok());
 
         let blank_channel = Endpoint::new(
             Url::parse("https://example.com").unwrap(),
             "/",
-            Secret::new("token".to_owned()),
+            EndpointHeaders::new(Vec::new(), Vec::new()),
             "  ".to_owned(),
             DEFAULT_TIMEOUT_SECONDS,
             TEST_MAX_MESSAGE_CHARS,
@@ -742,7 +750,7 @@ mod tests {
         let zero_cap = Endpoint::new(
             Url::parse("https://example.com").unwrap(),
             "/",
-            Secret::new("token".to_owned()),
+            EndpointHeaders::new(Vec::new(), Vec::new()),
             "C1".to_owned(),
             DEFAULT_TIMEOUT_SECONDS,
             0,

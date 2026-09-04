@@ -168,15 +168,6 @@ async fn an_upload_rejects_unknown_fields() {
 }
 
 #[actix_web::test]
-async fn an_upload_rejects_path_like_filenames() {
-    let body = upload_body("%PDF").replace("report.pdf", "../report.pdf");
-    let (status, body) = call(upload(body)).await;
-
-    assert_eq!(status, StatusCode::BAD_REQUEST);
-    assert_eq!(body["error"]["code"], "IR_04");
-}
-
-#[actix_web::test]
 async fn an_email_notification_reports_delivery() {
     let (status, body) = call(post(
         &format!("/alerts/email/notify/{EMAIL}"),

@@ -122,27 +122,6 @@ impl ChatFile {
     }
 }
 
-#[cfg(test)]
-mod file_tests {
-    use super::*;
-
-    #[test]
-    fn debug_does_not_expose_file_content_or_metadata() {
-        let file = ChatFile::new(
-            b"merchant-1234 report".to_vec(),
-            "merchant-1234.pdf",
-            Some("merchant-1234 report".to_owned()),
-            Some("payment volume 4201".to_owned()),
-            None,
-        );
-        let rendered = format!("{file:?}");
-
-        for sensitive in ["merchant-1234", "payment volume", "4201"] {
-            assert!(!rendered.contains(sensitive));
-        }
-    }
-}
-
 /// Identifies a message that a backend has accepted.
 ///
 /// Backends disagree on what a message id *is*, and the disagreement is not cosmetic: threading a

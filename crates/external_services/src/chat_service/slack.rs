@@ -10,13 +10,13 @@
 //! destination in use today.
 
 use hyperswitch_interfaces::types::Proxy;
-use hyperswitch_masking::Secret;
+use hyperswitch_masking::{Mask as _, Maskable, PeekInterface, Secret};
 use serde::Deserialize;
 use url::Url;
 
 use super::{
-    slack_compatible::{Endpoint, DEFAULT_TIMEOUT_SECONDS},
-    ChatClient, ChatFile, ChatMessage, ChatResult, FileId, MessageId,
+    slack_compatible::{Endpoint, EndpointHeaders, DEFAULT_TIMEOUT_SECONDS},
+    ChatClient, ChatError, ChatFile, ChatMessage, ChatResult, FileId, MessageId,
 };
 
 /// Slack serves methods directly off its API root.
@@ -75,11 +75,17 @@ pub struct SlackClient {
 impl SlackClient {
     /// Build a client for one destination, rejecting a destination that cannot work.
     pub fn new(config: SlackConfig, proxy: Proxy) -> ChatResult<Self> {
+        if config.bot_token.peek().trim().is_empty() {
+            Err(ChatError::InvalidConfiguration(
+                "bot token must not be empty",
+            ))?
+        }
+
         Ok(Self {
             endpoint: Endpoint::new(
                 config.base_url,
                 METHOD_PREFIX,
-                config.bot_token,
+                EndpointHeaders::new(authorization_headers(&config.bot_token), Vec::new()),
                 config.channel,
                 config.timeout_seconds,
                 config.max_message_chars,
@@ -87,6 +93,13 @@ impl SlackClient {
             )?,
         })
     }
+}
+
+fn authorization_headers(token: &Secret<String>) -> Vec<(String, Maskable<String>)> {
+    vec![(
+        http::header::AUTHORIZATION.to_string(),
+        format!("Bearer {}", token.peek()).into_masked(),
+    )]
 }
 
 #[async_trait::async_trait]
@@ -146,6 +159,54 @@ mod tests {
                 .unwrap(),
             MessageId::ts("1.1")
         );
+    }
+
+    #[tokio::test]
+    async fn slack_uploads_do_not_send_the_bot_credential_to_storage() {
+        let api = MockServer::start().await;
+        let storage = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/files.getUploadURLExternal"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+                "ok": true,
+                "upload_url": format!("{}/raw", storage.uri()),
+                "file_id": "pending"
+            })))
+            .mount(&api)
+            .await;
+        Mock::given(method("POST"))
+            .and(path("/raw"))
+            .respond_with(ResponseTemplate::new(200).set_body_string("OK"))
+            .mount(&storage)
+            .await;
+        Mock::given(method("POST"))
+            .and(path("/files.completeUploadExternal"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+                "ok": true,
+                "files": [{"id": "stored"}]
+            })))
+            .mount(&api)
+            .await;
+
+        let client = SlackClient::new(
+            SlackConfig {
+                base_url: Url::parse(&api.uri()).unwrap(),
+                bot_token: Secret::new("xoxb-test".to_owned()),
+                channel: "C1".to_owned(),
+                timeout_seconds: DEFAULT_TIMEOUT_SECONDS,
+                max_message_chars: DEFAULT_MAX_MESSAGE_CHARS,
+            },
+            Proxy::default(),
+        )
+        .unwrap();
+        client
+            .upload_file(ChatFile::new(vec![1], "report.pdf", None, None, None))
+            .await
+            .unwrap();
+
+        let requests = storage.received_requests().await.unwrap();
+        assert_eq!(requests.len(), 1);
+        assert!(requests[0].headers.get("authorization").is_none());
     }
 
     #[test]
