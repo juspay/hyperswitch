@@ -104,7 +104,10 @@ impl ChatFile {
     }
 
     pub(crate) fn title(&self) -> Option<&str> {
-        self.title.as_ref().map(PeekInterface::peek).map(String::as_str)
+        self.title
+            .as_ref()
+            .map(PeekInterface::peek)
+            .map(String::as_str)
     }
 
     pub(crate) fn comment(&self) -> Option<&str> {
