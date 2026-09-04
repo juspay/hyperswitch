@@ -2790,6 +2790,19 @@ pub async fn create_user_authentication_method(
                 .ok_or(UserErrors::InvalidAuthMethodOperationWithMessage(
                     "Email domain not found".to_string(),
                 ))?;
+        // deja: this is the second generate_uuid_v4 call in this function — the
+        // first is unconditional, above, at the top of the function; this one
+        // only fires here, in the empty-auth_methods branch. This function
+        // carries no #[instrument] of its own, so deja resolves the two calls
+        // by their occurrence within the span path this function inherits
+        // from its caller — not a span scoped to this function — so splitting
+        // this function or moving a call into a helper would not separate the
+        // counters. This call being written after the unconditional one is
+        // load-bearing: swap their order and the unconditional call's
+        // occurrence index would depend on whether auth_methods is empty,
+        // which is exactly the shape of a real fork-numbering collision seen
+        // elsewhere. Keep the unconditional generate_uuid_v4 call first if
+        // this function is ever restructured.
         (common_utils::generate_uuid_v4().to_string(), email_domain)
     };
 
