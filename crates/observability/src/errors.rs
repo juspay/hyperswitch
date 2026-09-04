@@ -75,6 +75,10 @@ pub enum ObservabilityError {
     #[error("Authentication failed")]
     Unauthorized,
 
+    /// The request body was structurally valid but contained unusable values.
+    #[error("The request body is invalid")]
+    InvalidRequest,
+
     /// The path named a destination that is not configured.
     #[error("No destination is configured under `{destination}`")]
     UnknownDestination {
@@ -108,6 +112,11 @@ impl ErrorSwitch<ApiErrorResponse> for ObservabilityError {
                 "IR",
                 1,
                 "API key not provided or invalid",
+            )),
+            Self::InvalidRequest => ApiErrorResponse::BadRequest(ApiError::new(
+                "IR",
+                4,
+                "The request body could not be parsed",
             )),
             // The id is already in the path the caller sent, so there is nothing to echo back, and
             // the configured ids are deliberately not listed.
@@ -161,6 +170,7 @@ mod tests {
             404
         );
         assert_eq!(status_of(&ObservabilityError::Unauthorized), 401);
+        assert_eq!(status_of(&ObservabilityError::InvalidRequest), 400);
     }
 
     /// A caller that guessed an id should not be handed the registry.

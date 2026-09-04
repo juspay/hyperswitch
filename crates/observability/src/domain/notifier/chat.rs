@@ -36,30 +36,18 @@ pub struct ChatNotification {
 }
 
 /// One file to upload to a chat destination.
+#[derive(Debug, Clone)]
 pub struct ChatFileUpload {
-    pub bytes: Vec<u8>,
-    pub filename: String,
+    pub bytes: Secret<Vec<u8>>,
+    pub filename: Secret<String>,
     pub title: Option<Secret<String>>,
     pub comment: Option<Secret<String>>,
     pub reply_to: Option<String>,
 }
 
-impl std::fmt::Debug for ChatFileUpload {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("ChatFileUpload")
-            .field("bytes", &format_args!("<{} bytes>", self.bytes.len()))
-            .field("filename", &self.filename)
-            .field("title", &self.title)
-            .field("comment", &self.comment)
-            .field("reply_to", &self.reply_to)
-            .finish()
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ChatFileReceipt {
-    pub file_id: String,
+    pub file_id: Option<String>,
 }
 
 pub type ChatFileOutcome = Outcome<ChatFileReceipt>;
@@ -150,24 +138,26 @@ impl ChatNotifier for ChatClientNotifier {
     }
 
     async fn upload_file(&self, upload: ChatFileUpload) -> ObservabilityApiResult<ChatFileOutcome> {
-        let mut file = ChatFile::new(upload.bytes, upload.filename)
-            .with_title(upload.title.map(ExposeInterface::expose))
-            .with_comment(upload.comment.map(ExposeInterface::expose));
-        if let Some(reply_to) = upload.reply_to {
-            file = file.with_reply_to(Some(MessageId::ts(reply_to)));
-        }
+        let file = ChatFile::new(
+            upload.bytes.expose(),
+            upload.filename.expose(),
+            upload.title.map(ExposeInterface::expose),
+            upload.comment.map(ExposeInterface::expose),
+            upload.reply_to.map(MessageId::ts),
+        );
 
         match self.client.upload_file(file).await {
             Ok(file_id) => Ok(Outcome::Delivered(ChatFileReceipt {
-                file_id: file_id.as_str().to_owned(),
+                file_id: file_id.as_slack_compatible().map(str::to_owned),
             })),
             Err(report) => match classify(report.current_context()) {
                 Verdict::Refused(refusal) => Ok(Outcome::Refused(refusal)),
-                Verdict::DeliveredWithoutId | Verdict::Failed(_) => Err(report.change_context(
-                    ObservabilityError::ProviderUnavailable {
-                        destination: self.destination.clone(),
-                    },
-                )),
+                Verdict::DeliveredWithoutId => {
+                    Ok(Outcome::Delivered(ChatFileReceipt { file_id: None }))
+                }
+                Verdict::Failed(error) => {
+                    Err(report.change_context(error(self.destination.clone())))
+                }
             },
         }
     }
@@ -230,9 +220,7 @@ fn classify(error: &ChatError) -> Verdict {
             Verdict::Failed(|_destination| ObservabilityError::InternalServerError)
         }
 
-        ChatError::MissingFileId => {
-            Verdict::Failed(|destination| ObservabilityError::ProviderUnavailable { destination })
-        }
+        ChatError::MissingFileId => Verdict::DeliveredWithoutId,
     }
 }
 
@@ -308,12 +296,12 @@ impl ChatNotifier for LogChatNotifier {
         logger::info!(
             tag = "chat_upload_skipped",
             destination = %self.destination,
-            bytes = upload.bytes.len(),
+            bytes = upload.bytes.peek().len(),
             threaded = upload.reply_to.is_some(),
             "not delivered: this destination is configured as `log`"
         );
         Ok(Outcome::Delivered(ChatFileReceipt {
-            file_id: format!("log-file.{sequence:06}"),
+            file_id: Some(format!("log-file.{sequence:06}")),
         }))
     }
 }
@@ -375,11 +363,10 @@ mod tests {
 
     /// The message went out. Anything that reads as retryable here posts the alert twice.
     #[test]
-    fn an_accepted_message_with_no_id_is_a_delivery() {
-        assert!(matches!(
-            classify(&ChatError::MissingMessageId),
-            Verdict::DeliveredWithoutId
-        ));
+    fn accepted_content_with_no_id_is_still_a_delivery() {
+        for error in [ChatError::MissingMessageId, ChatError::MissingFileId] {
+            assert!(matches!(classify(&error), Verdict::DeliveredWithoutId));
+        }
     }
 
     #[test]

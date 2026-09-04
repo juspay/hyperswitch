@@ -147,15 +147,33 @@ async fn an_upload_is_refused_while_streaming_past_the_configured_cap() {
 }
 
 #[actix_web::test]
-async fn upload_authentication_precedes_reading_the_multipart_body() {
+async fn an_unparseable_upload_uses_the_standard_bad_request_shape() {
     let request = TestRequest::post()
         .uri(&format!("/alerts/chat/upload/{CHAT}"))
         .insert_header(("content-type", "multipart/form-data; boundary=BOUNDARY"))
         .set_payload("not multipart");
     let (status, body) = call(request).await;
 
-    assert_eq!(status, StatusCode::UNAUTHORIZED);
-    assert_eq!(body["error"]["code"], "IR_01");
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(body["error"]["code"], "IR_04");
+}
+
+#[actix_web::test]
+async fn an_upload_rejects_unknown_fields() {
+    let body = upload_body("%PDF").replace("name=\"title\"", "name=\"titel\"");
+    let (status, body) = call(upload(body)).await;
+
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(body["error"]["code"], "IR_04");
+}
+
+#[actix_web::test]
+async fn an_upload_rejects_path_like_filenames() {
+    let body = upload_body("%PDF").replace("report.pdf", "../report.pdf");
+    let (status, body) = call(upload(body)).await;
+
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(body["error"]["code"], "IR_04");
 }
 
 #[actix_web::test]

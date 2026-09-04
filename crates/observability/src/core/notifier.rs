@@ -7,6 +7,7 @@
 //! destination" is turned into an error rather than repeated per route.
 
 use error_stack::report;
+use hyperswitch_masking::PeekInterface;
 
 use crate::{
     domain::notifier::{
@@ -45,6 +46,14 @@ pub async fn upload_chat_file(
     destination: &str,
     request: ChatUploadRequest,
 ) -> ObservabilityApiResult<ChatFileOutcome> {
+    let filename = request
+        .filename
+        .filter(|filename| is_usable_filename(filename.peek()))
+        .ok_or_else(|| report!(ObservabilityError::InvalidRequest))?;
+    if request.bytes.peek().is_empty() {
+        Err(report!(ObservabilityError::InvalidRequest))?
+    }
+
     state
         .chat
         .get(destination)
@@ -55,12 +64,20 @@ pub async fn upload_chat_file(
         })?
         .upload_file(ChatFileUpload {
             bytes: request.bytes,
-            filename: request.filename,
+            filename,
             title: request.title,
             comment: request.comment,
             reply_to: request.reply_to,
         })
         .await
+}
+
+fn is_usable_filename(filename: &str) -> bool {
+    !filename.trim().is_empty()
+        && !filename.contains("..")
+        && !filename.contains('/')
+        && !filename.contains('\\')
+        && !filename.chars().any(char::is_control)
 }
 
 /// Deliver an email to the named destination.

@@ -70,6 +70,7 @@ hex = "0.4.3"
 hyper = "0.14.32"
 hyper-proxy = "0.9.1"
 lettre = "0.11.16"
+mime = "0.3.17"
 once_cell = "1.21.3"
 serde = { version = "1.0.219", features = ["derive"] }
 thiserror = "1.0.69"

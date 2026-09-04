@@ -138,67 +138,21 @@ impl Endpoint {
             chars = payload.text.chars().count(),
         );
 
-        let request = RequestBuilder::new()
-            .method(Method::Post)
-            .url(&url)
-            .attach_default_headers()
-            .headers(vec![
-                (
-                    http::header::AUTHORIZATION.to_string(),
-                    format!("Bearer {}", self.token.peek()).into_masked(),
-                ),
-                (
-                    http::header::CONTENT_TYPE.to_string(),
-                    "application/json".to_owned().into(),
-                ),
-            ])
-            .set_body(RequestContent::Json(Box::new(payload)))
-            .build();
-
-        let response = http_client::send_request(&self.proxy, request, Some(self.timeout_seconds))
-            .await
-            .change_context(ChatError::RequestFailed)
-            .attach_printable_lazy(|| format!("chat request to {url} was not sent"))?;
-
-        let status = response.status();
-
-        // Read before the body, which consumes the response.
-        let retry_after_seconds = response
-            .headers()
-            .get(reqwest::header::RETRY_AFTER)
-            .and_then(|value| value.to_str().ok())
-            .and_then(|value| value.parse::<u64>().ok());
-
-        let body = response
-            .text()
-            .await
-            .change_context(ChatError::UnreadableResponse)
-            .attach_printable("could not read the chat provider's response body")?;
-
-        if status == reqwest::StatusCode::TOO_MANY_REQUESTS {
-            Err(ChatError::Rejected {
-                reason: ChatErrorReason::RateLimited {
-                    retry_after_seconds,
-                },
-            })?
-        }
-
-        if !status.is_success() {
-            Err(ChatError::HttpStatus {
-                status: status.as_u16(),
-            })
-            .attach_printable_lazy(|| {
-                format!("chat provider body: {}", snippet(&body, BODY_SNIPPET_CHARS))
-            })?
-        }
+        let body = self
+            .send(
+                &url,
+                RequestContent::Json(Box::new(payload)),
+                &mime::APPLICATION_JSON,
+                true,
+            )
+            .await?;
 
         // The body, not the status code, decides whether this succeeded.
         serde_json::from_str::<PostMessageResponse>(&body)
             .change_context(ChatError::UnreadableResponse)
             .attach_printable_lazy(|| {
                 format!(
-                    "chat provider returned HTTP {} with an unrecognised body: {}",
-                    status.as_u16(),
+                    "chat provider returned an unrecognised body: {}",
                     snippet(&body, BODY_SNIPPET_CHARS)
                 )
             })?
@@ -234,7 +188,7 @@ impl Endpoint {
                     filename: file.filename().to_owned(),
                     length: file.bytes().len(),
                 })),
-                "application/json",
+                &mime::APPLICATION_JSON,
                 true,
             )
             .await?;
@@ -259,7 +213,7 @@ impl Endpoint {
             .send(
                 upload_url.as_str(),
                 RequestContent::RawBytes(file.bytes().to_vec()),
-                "application/octet-stream",
+                &mime::APPLICATION_OCTET_STREAM,
                 authorize_upload,
             )
             .await?;
@@ -280,7 +234,7 @@ impl Endpoint {
                     initial_comment: file.comment().map(str::to_owned),
                     thread_ts,
                 })),
-                "application/json",
+                &mime::APPLICATION_JSON,
                 true,
             )
             .await?;
@@ -294,7 +248,7 @@ impl Endpoint {
             .unwrap_or_default()
             .into_iter()
             .find_map(|file| file.id.filter(|id| !id.is_empty()))
-            .map(FileId::new)
+            .map(FileId::slack_compatible)
             .ok_or(ChatError::MissingFileId)
             .attach_printable("the upload completed but the response named no resulting file")
     }
@@ -303,12 +257,12 @@ impl Endpoint {
         &self,
         url: &str,
         body: RequestContent,
-        content_type: &str,
+        content_type: &mime::Mime,
         authorize: bool,
     ) -> ChatResult<String> {
         let mut headers = vec![(
             http::header::CONTENT_TYPE.to_string(),
-            content_type.to_owned().into(),
+            content_type.essence_str().to_owned().into(),
         )];
         if authorize {
             headers.push((
@@ -378,14 +332,16 @@ impl Endpoint {
 }
 
 fn reject_if_needed(ok: bool, error: Option<SlackErrorCode>) -> ChatResult<()> {
-    if ok {
-        return Ok(());
+    match ok {
+        true => Ok(()),
+        false => {
+            let reason = error.map_or_else(
+                || ChatErrorReason::Other(UNSPECIFIED_ERROR_CODE.to_owned()),
+                ChatErrorReason::from,
+            );
+            Err(ChatError::Rejected { reason }.into())
+        }
     }
-    let reason = error.map_or_else(
-        || ChatErrorReason::Other(UNSPECIFIED_ERROR_CODE.to_owned()),
-        ChatErrorReason::from,
-    );
-    Err(ChatError::Rejected { reason }.into())
 }
 
 #[derive(Debug, Serialize)]

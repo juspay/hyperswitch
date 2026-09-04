@@ -47,6 +47,7 @@
 //! message looks like, in whatever markup its destination reads. `body` is HTML, because both email
 //! backends in `external_services` hardcode an HTML body and there is no plain-text path to reach.
 
+use actix_multipart::form::{bytes::Bytes, text::Text, MultipartForm};
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
@@ -69,26 +70,25 @@ pub struct ChatNotifyRequest {
     pub reply_to: Option<String>,
 }
 
-/// Parsed multipart body of `POST /alerts/chat/upload/{destination}`.
+/// Multipart fields accepted by `POST /alerts/chat/upload/{destination}`.
+#[derive(Debug, MultipartForm)]
+#[multipart(deny_unknown_fields, duplicate_field = "deny")]
+pub struct ChatUploadForm {
+    pub file: Bytes,
+    pub filename: Option<Text<String>>,
+    pub title: Option<Text<String>>,
+    pub comment: Option<Text<String>>,
+    pub reply_to: Option<Text<String>>,
+}
+
+/// Parsed multipart body passed through the authenticated request wrapper.
+#[derive(Debug)]
 pub struct ChatUploadRequest {
-    pub bytes: Vec<u8>,
-    pub filename: String,
+    pub bytes: Secret<Vec<u8>>,
+    pub filename: Option<Secret<String>>,
     pub title: Option<Secret<String>>,
     pub comment: Option<Secret<String>>,
     pub reply_to: Option<String>,
-}
-
-impl std::fmt::Debug for ChatUploadRequest {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("ChatUploadRequest")
-            .field("bytes", &format_args!("<{} bytes>", self.bytes.len()))
-            .field("filename", &self.filename)
-            .field("title", &self.title)
-            .field("comment", &self.comment)
-            .field("reply_to", &self.reply_to)
-            .finish()
-    }
 }
 
 /// The body of `POST /alerts/email/notify/{destination}`.
@@ -194,7 +194,7 @@ impl From<ChatFileOutcome> for ChatUploadResponse {
         match outcome {
             Outcome::Delivered(ChatFileReceipt { file_id }) => Self {
                 status: NotifyStatus::Delivered,
-                file_id: Some(file_id),
+                file_id,
                 error_code: None,
                 retry_after_seconds: None,
             },
@@ -255,7 +255,7 @@ mod tests {
     fn a_file_delivery_returns_a_file_id_not_a_message_id() {
         let body = body_of(&ChatUploadResponse::from(Outcome::Delivered(
             ChatFileReceipt {
-                file_id: "file-1".to_owned(),
+                file_id: Some("file-1".to_owned()),
             },
         )));
 

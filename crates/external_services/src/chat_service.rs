@@ -21,6 +21,7 @@ pub mod xyne;
 mod slack_compatible;
 
 use common_utils::errors::CustomResult;
+use hyperswitch_masking::{PeekInterface, Secret};
 
 /// Result type for chat operations.
 pub type ChatResult<T> = CustomResult<T, ChatError>;
@@ -42,81 +43,100 @@ pub trait ChatClient: Send + Sync + std::fmt::Debug {
 
 /// Identifies a file that a backend has accepted.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct FileId(String);
+#[non_exhaustive]
+pub enum FileId {
+    /// An opaque id returned by a Slack-compatible files API.
+    SlackCompatible(String),
+}
 
 impl FileId {
-    /// Build an id returned by a Slack-compatible file API.
-    pub fn new(value: impl Into<String>) -> Self {
-        Self(value.into())
+    /// Build an id returned by a Slack-compatible files API.
+    pub fn slack_compatible(value: impl Into<String>) -> Self {
+        Self::SlackCompatible(value.into())
     }
 
-    /// The provider's opaque id.
-    pub fn as_str(&self) -> &str {
-        &self.0
+    /// The provider's opaque id, when it came from a Slack-compatible backend.
+    pub fn as_slack_compatible(&self) -> Option<&str> {
+        match self {
+            Self::SlackCompatible(value) => Some(value.as_str()),
+        }
     }
 }
 
 /// A file to upload to a chat destination.
 ///
 /// Bytes are deliberately owned: the shared HTTP transport may retry a request and therefore must
-/// be able to replay its body.
+/// be able to replay its body. Content fields are secrets so derived debug output cannot expose an
+/// alert report or the identifying metadata around it.
 #[derive(Debug, Clone)]
 pub struct ChatFile {
-    bytes: Vec<u8>,
-    filename: String,
-    title: Option<String>,
-    comment: Option<String>,
+    bytes: Secret<Vec<u8>>,
+    filename: Secret<String>,
+    title: Option<Secret<String>>,
+    comment: Option<Secret<String>>,
     reply_to: Option<MessageId>,
 }
 
 impl ChatFile {
     /// Build one upload. Validation that requires destination context happens in the client.
-    pub fn new(bytes: Vec<u8>, filename: impl Into<String>) -> Self {
+    pub fn new(
+        bytes: Vec<u8>,
+        filename: impl Into<String>,
+        title: Option<String>,
+        comment: Option<String>,
+        reply_to: Option<MessageId>,
+    ) -> Self {
         Self {
-            bytes,
-            filename: filename.into(),
-            title: None,
-            comment: None,
-            reply_to: None,
+            bytes: Secret::new(bytes),
+            filename: Secret::new(filename.into()),
+            title: title.map(Secret::new),
+            comment: comment.map(Secret::new),
+            reply_to,
         }
     }
 
-    /// Set the display title.
-    pub fn with_title(mut self, title: Option<String>) -> Self {
-        self.title = title;
-        self
-    }
-
-    /// Set the message posted alongside the file.
-    pub fn with_comment(mut self, comment: Option<String>) -> Self {
-        self.comment = comment;
-        self
-    }
-
-    /// Share the file under an existing message.
-    pub fn with_reply_to(mut self, reply_to: Option<MessageId>) -> Self {
-        self.reply_to = reply_to;
-        self
-    }
-
     pub(crate) fn bytes(&self) -> &[u8] {
-        &self.bytes
+        self.bytes.peek()
     }
 
     pub(crate) fn filename(&self) -> &str {
-        &self.filename
+        self.filename.peek()
     }
 
     pub(crate) fn title(&self) -> Option<&str> {
-        self.title.as_deref()
+        self.title.as_ref().map(PeekInterface::peek).map(String::as_str)
     }
 
     pub(crate) fn comment(&self) -> Option<&str> {
-        self.comment.as_deref()
+        self.comment
+            .as_ref()
+            .map(PeekInterface::peek)
+            .map(String::as_str)
     }
 
     pub(crate) fn reply_target(&self) -> Option<&MessageId> {
         self.reply_to.as_ref()
+    }
+}
+
+#[cfg(test)]
+mod file_tests {
+    use super::*;
+
+    #[test]
+    fn debug_does_not_expose_file_content_or_metadata() {
+        let file = ChatFile::new(
+            b"merchant-1234 report".to_vec(),
+            "merchant-1234.pdf",
+            Some("merchant-1234 report".to_owned()),
+            Some("payment volume 4201".to_owned()),
+            None,
+        );
+        let rendered = format!("{file:?}");
+
+        for sensitive in ["merchant-1234", "payment volume", "4201"] {
+            assert!(!rendered.contains(sensitive));
+        }
     }
 }
 

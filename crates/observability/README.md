@@ -113,10 +113,9 @@ file=<required bytes>&filename=<optional override>&title=<optional>&comment=<opt
 ```
 
 One file is accepted per call. Uploads use the provider's external three-call flow and can be shared
-under the message named by `reply_to`; the upload itself returns a file id, not a message id. Bodies
-are capped by `chat.max_upload_bytes` (25 MiB by default), with the limit enforced while the
-multipart stream is consumed rather than after buffering it. Authentication happens before that
-stream is read.
+under the message named by `reply_to`; the upload itself returns a file id, not a message id. Bodies are capped by `chat.max_upload_bytes` (25 MiB by default). The multipart extractor buffers
+an accepted file in memory, but accounts for the body as chunks arrive and rejects the chunk that
+crosses the cap rather than first retaining an oversized body.
 
 ```http
 POST /alerts/email/notify/{destination}

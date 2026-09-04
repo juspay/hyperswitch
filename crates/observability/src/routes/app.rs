@@ -8,6 +8,7 @@
 //! Exposed as `Scope` factories rather than as an assembled `App` so that the standalone binary
 //! and a future in-router mount share one definition and cannot drift.
 
+use actix_multipart::form::MultipartFormConfig;
 use actix_web::{web, Scope};
 
 use crate::{
@@ -31,9 +32,12 @@ impl Alerts {
     /// content only. See [`crate::types`] for why the destination is not a body field, and why a
     /// provider refusing a message comes back as a `200` rather than an error.
     pub fn server(state: AppState) -> Scope {
+        let max_upload_bytes = state.conf.chat.get_inner().max_upload_bytes;
+
         web::scope("/alerts")
             .app_data(web::Data::new(state))
             .app_data(json_config())
+            .app_data(multipart_config(max_upload_bytes))
             .service(
                 web::scope("/chat")
                     .service(
@@ -73,6 +77,25 @@ fn json_config() -> web::JsonConfig {
         ))
         .into()
     })
+}
+
+fn multipart_config(max_upload_bytes: usize) -> MultipartFormConfig {
+    MultipartFormConfig::default()
+        .total_limit(max_upload_bytes)
+        .memory_limit(max_upload_bytes)
+        .error_handler(|error, request| {
+            logger::warn!(
+                path = %request.path(),
+                error = %error,
+                "Request rejected: the multipart body could not be parsed"
+            );
+            ApiErrorResponse::BadRequest(ApiError::new(
+                "IR",
+                4,
+                "The request body could not be parsed",
+            ))
+            .into()
+        })
 }
 
 /// Liveness, deliberately unauthenticated.

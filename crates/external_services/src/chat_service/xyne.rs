@@ -241,16 +241,17 @@ mod tests {
             .await;
 
         let file_id = client_for(&server)
-            .upload_file(
-                ChatFile::new(b"%PDF".to_vec(), "report.pdf")
-                    .with_title(Some("Daily report".to_owned()))
-                    .with_comment(Some("attached".to_owned()))
-                    .with_reply_to(Some(MessageId::ts("1.2"))),
-            )
+            .upload_file(ChatFile::new(
+                b"%PDF".to_vec(),
+                "report.pdf",
+                Some("Daily report".to_owned()),
+                Some("attached".to_owned()),
+                Some(MessageId::ts("1.2")),
+            ))
             .await
             .unwrap();
 
-        assert_eq!(file_id, FileId::new("stored-file"));
+        assert_eq!(file_id, FileId::slack_compatible("stored-file"));
     }
 
     #[tokio::test]
@@ -281,7 +282,7 @@ mod tests {
             .await;
 
         client_for(&api)
-            .upload_file(ChatFile::new(vec![1], "report.pdf"))
+            .upload_file(ChatFile::new(vec![1], "report.pdf", None, None, None))
             .await
             .unwrap();
 
