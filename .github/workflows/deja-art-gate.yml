@@ -1,0 +1,81 @@
+name: Deja ART Gate
+
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - labeled
+      - unlabeled
+
+permissions:
+  contents: read
+  checks: read
+
+concurrency:
+  group: deja-art-gate-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  deja-art-gate:
+    name: Deja ART verdict
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+
+    steps:
+      - name: Require the deja-art label
+        env:
+          LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+        run: |
+          if echo "${LABELS}" | jq -e 'index("deja-art")' > /dev/null; then
+            echo "deja-art label present."
+          else
+            echo "::error::Add the 'deja-art' label to run a Deja ART replay for this pull request."
+            exit 1
+          fi
+
+      - name: Wait for the Deja ART Replay verdict
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          echo "Waiting for the 'Deja ART Replay' check on ${HEAD_SHA}..."
+          ABSENT_POLLS=0
+          # 30s x 340 polls stays inside the 180-minute job timeout.
+          for _ in $(seq 1 340); do
+            RUN=$(
+              gh api "repos/${{ github.repository }}/commits/${HEAD_SHA}/check-runs?check_name=Deja%20ART%20Replay" \
+                --jq '.check_runs | sort_by(.started_at) | last'
+            )
+            STATUS=$(echo "${RUN}" | jq -r '.status // "absent"')
+            CONCLUSION=$(echo "${RUN}" | jq -r '.conclusion // empty')
+
+            if [ "${STATUS}" = "completed" ]; then
+              if [ "${CONCLUSION}" = "success" ]; then
+                echo "Deja ART replay verdict: PASS"
+                exit 0
+              fi
+              echo "::error::Deja ART replay concluded '${CONCLUSION:-unknown}'. Remove and re-add the 'deja-art' label to retry."
+              exit 1
+            fi
+
+            if [ "${STATUS}" = "absent" ]; then
+              ABSENT_POLLS=$((ABSENT_POLLS + 1))
+              # ~20 minutes with no check-run: the replay was likely never
+              # triggered for this commit (e.g. new commits were pushed after
+              # the label was added).
+              if [ "${ABSENT_POLLS}" -ge 40 ]; then
+                echo "::error::No Deja ART replay ran for this commit. Remove and re-add the 'deja-art' label to trigger one."
+                exit 1
+              fi
+              echo "No replay check for this commit yet..."
+            else
+              echo "Replay status: ${STATUS}"
+            fi
+
+            sleep 30
+          done
+
+          echo "::error::Timed out waiting for the Deja ART Replay verdict."
+          exit 1
