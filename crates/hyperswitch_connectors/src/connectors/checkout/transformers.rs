@@ -1510,6 +1510,55 @@ pub struct Source {
     avs_check: Option<String>,
     cvv_check: Option<String>,
     payment_account_reference: Option<String>,
+    /// The card's funding type
+    card_type: Option<CheckoutCardType>,
+    /// The card's category
+    card_category: Option<CheckoutCardCategory>,
+    /// The name of the card issuer
+    issuer: Option<String>,
+    /// The country of the card issuer
+    issuer_country: Option<String>,
+    /// The card's product/subtype, e.g. "Visa Classic"
+    product_type: Option<String>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum CheckoutCardType {
+    Credit,
+    Debit,
+    Prepaid,
+    Charge,
+    #[serde(rename = "DEFERRED DEBIT")]
+    DeferredDebit,
+}
+
+impl From<CheckoutCardType> for common_enums::FundingSource {
+    fn from(card_type: CheckoutCardType) -> Self {
+        match card_type {
+            CheckoutCardType::Credit => Self::Credit,
+            CheckoutCardType::Debit => Self::Debit,
+            CheckoutCardType::Prepaid => Self::Prepaid,
+            CheckoutCardType::Charge => Self::ChargeCard,
+            CheckoutCardType::DeferredDebit => Self::DeferredDebit,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum CheckoutCardCategory {
+    Consumer,
+    Commercial,
+}
+
+impl From<CheckoutCardCategory> for common_enums::CardSegmentType {
+    fn from(card_category: CheckoutCardCategory) -> Self {
+        match card_category {
+            CheckoutCardCategory::Consumer => Self::Consumer,
+            CheckoutCardCategory::Commercial => Self::Commercial,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
@@ -2596,6 +2645,11 @@ impl TryFrom<&webhooks::IncomingWebhookRequestDetails<'_>> for PaymentsResponse 
                 avs_check: src.avs_check.clone(),
                 cvv_check: src.cvv_check.clone(),
                 payment_account_reference: src.payment_account_reference.clone(),
+                card_type: src.card_type.clone(),
+                card_category: src.card_category.clone(),
+                issuer: src.issuer.clone(),
+                issuer_country: src.issuer_country.clone(),
+                product_type: src.product_type.clone(),
             }),
             scheme_id: None,
             processing: None,
@@ -2670,6 +2724,15 @@ fn convert_to_additional_payment_method_connector_response(
                 auth_code,
                 device_pan_bin: None,
                 card_bin: None,
+                card_subtype: source.and_then(|source| source.product_type.clone()),
+                card_segment_type: source
+                    .and_then(|source| source.card_category.clone())
+                    .map(common_enums::CardSegmentType::from),
+                funding_source: source
+                    .and_then(|source| source.card_type.clone())
+                    .map(common_enums::FundingSource::from),
+                issuer_name: source.and_then(|source| source.issuer.clone()),
+                issuer_country: source.and_then(|source| source.issuer_country.clone()),
             })
         }
         Some(enums::PaymentMethodType::ApplePay) => {
@@ -2677,6 +2740,15 @@ fn convert_to_additional_payment_method_connector_response(
                 auth_code,
                 device_pan_bin: None,
                 card_bin: None,
+                card_subtype: source.and_then(|source| source.product_type.clone()),
+                card_segment_type: source
+                    .and_then(|source| source.card_category.clone())
+                    .map(common_enums::CardSegmentType::from),
+                funding_source: source
+                    .and_then(|source| source.card_type.clone())
+                    .map(common_enums::FundingSource::from),
+                issuer_name: source.and_then(|source| source.issuer.clone()),
+                issuer_country: source.and_then(|source| source.issuer_country.clone()),
             })
         }
         _ => {

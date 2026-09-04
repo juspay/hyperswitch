@@ -5883,12 +5883,24 @@ pub struct ApplepayPaymentMethod {
     /// The card's expiry year
     #[schema(value_type = Option<String>, example = "003925")]
     pub card_exp_year: Option<Secret<String>>,
-    /// Unique authorisation code generated for the payment
-    pub auth_code: Option<String>,
     /// Bin of the DPAN (device PAN) obtained from decrypting the Apple Pay payment data
     pub device_pan_bin: Option<String>,
     /// Bin of the underlying card, provided by the connector when it resolves the DPAN
     pub card_bin: Option<String>,
+    /// Unique authorisation code generated for the payment
+    pub auth_code: Option<String>,
+    /// The card's product/subtype, as returned by the connector
+    pub card_subtype: Option<String>,
+    /// The card's segment (e.g. consumer, commercial), as returned by the connector
+    #[schema(value_type = Option<CardSegmentType>)]
+    pub card_segment_type: Option<api_enums::CardSegmentType>,
+    /// The card's funding source (e.g. credit, debit), as returned by the connector
+    #[schema(value_type = Option<FundingSource>)]
+    pub funding_source: Option<api_enums::FundingSource>,
+    /// The name of the card issuer, as returned by the connector
+    pub issuer_name: Option<String>,
+    /// The country of the card issuer, as returned by the connector
+    pub issuer_country: Option<String>,
 }
 
 #[derive(
@@ -9570,6 +9582,11 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
                             email: None,
                             device_pan_bin: apple_pay_pm.device_pan_bin,
                             card_bin: apple_pay_pm.card_bin,
+                            card_subtype: apple_pay_pm.card_subtype,
+                            card_segment_type: apple_pay_pm.card_segment_type,
+                            funding_source: apple_pay_pm.funding_source,
+                            issuer_name: apple_pay_pm.issuer_name,
+                            issuer_country: apple_pay_pm.issuer_country,
                         },
                     ))),
                 })),
