@@ -478,10 +478,11 @@ pub struct WalletAdditionalDataForCard {
     /// Email address associated with the wallet (e.g. PayPal email)
     #[schema(value_type = Option<String>, example = "johntest@test.com")]
     pub email: Option<common_utils::pii::Email>,
-    /// Bin of the DPAN (device PAN) obtained from decrypting the Google Pay payment data
+    /// Bin of the DPAN (device PAN) obtained from decrypting the wallet payment data.
+    /// Populated when the decrypted auth method indicates a tokenized (cryptogram) flow.
     #[schema(value_type = Option<String>, example = "411111")]
     pub device_pan_bin: Option<String>,
-    /// Bin of the underlying card, provided by the connector when it resolves the DPAN
+    /// Bin of the underlying card
     #[schema(value_type = Option<String>, example = "411111")]
     pub card_bin: Option<String>,
 }
