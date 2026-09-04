@@ -19,8 +19,7 @@ const bank_transfer_data = {
   account_holder_name: "John Doe",
 };
 
-// Deutsche Bank requires the debtor (ordering party) name; payout create is
-// rejected with HTTP 400 `IR_04` when `account_holder_name` is missing.
+// Debtor (ordering party) name is mandatory for Deutsche Bank payouts.
 const source_bank_data = {
   payout_method_type: "sepa",
   iban: "DE83215730130100853100",
@@ -28,9 +27,6 @@ const source_bank_data = {
   account_holder_name: "John Doe",
 };
 
-// Request shape mirrors the live-verified API_TRACE body (HYP-226 Step 3):
-// phone_country_code is pinned to "+49" because the shared fixture default
-// ("+65") was never verified against the deutschebank payout flow.
 const create_payout_request = {
   currency: "EUR",
   payout_type: "bank",
@@ -45,8 +41,8 @@ const create_payout_request = {
   phone_country_code: "+49",
 };
 
-// Live create with `confirm=true` + `auto_fulfill=true` returns `pending`
-// (success is only reached after PoSync with `force_sync=true`).
+// Create with auto-fulfill stays `pending`; success is only reached after
+// PoSync with `force_sync=true`.
 const pending_payout_response = {
   status: 200,
   body: {
@@ -72,10 +68,8 @@ export const connectorDetails = {
         Request: create_payout_request,
         Response: pending_payout_response,
       },
-      // PoSync (GET /payouts/{id}?force_sync=true). The first sync right
-      // after create can hit a transient bank-side HTTP 408 while the
-      // credit transfer settles, so a settling DELAY is applied before
-      // the request and the command retries transient statuses.
+      // PoSync returns a transient HTTP 408 while the transfer settles,
+      // hence the DELAY before the first attempt.
       Sync: {
         Configs: {
           DELAY: {
@@ -123,8 +117,7 @@ export const connectorDetails = {
             bank_transfer: bank_transfer_data,
           },
           // `account_holder_name` intentionally omitted — the router
-          // validates the debtor (ordering party) name up front and rejects
-          // the request with HTTP 400 `IR_04` before reaching the connector.
+          // validates the debtor name up front and rejects with 400 `IR_04`.
           source_bank_data: {
             payout_method_type: "sepa",
             iban: "DE83215730130100853100",

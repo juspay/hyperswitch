@@ -7095,18 +7095,13 @@ Cypress.Commands.add("retrievePayoutCallTest", (globalState, data) => {
 
 /**
  * Retrieves a payout with force_sync=true (PoSync) and asserts the response.
- *
- * GET /payouts/{payout_id}?force_sync=true
- *
- * The first sync right after payout create can hit a transient bank-side
- * HTTP 408 while the transfer settles, so transient statuses are retried
- * and the configured `Configs.DELAY` settling window is honored before the
- * first attempt.
+ * Transient statuses are retried while the transfer settles, and the
+ * configured `Configs.DELAY` window is honored before the first attempt.
  *
  * @param {Object} globalState - Global state instance
  * @param {Object} data - Connector config entry ({ Configs, Response })
  * @param {string} [payoutId=null] - Payout id to sync; defaults to the
- *   payoutID stored in globalState by createConfirmPayoutTest
+ *   payoutID stored in globalState
  */
 Cypress.Commands.add(
   "retrievePayoutForceSyncCallTest",
@@ -7121,9 +7116,8 @@ Cypress.Commands.add(
     };
     const maxAttempts = 4;
     const retryIntervalMs = 15000;
-    // 500 is included because UCS upstream failures (e.g. the transient
-    // bank-side gRPC deadline on the first sync after create) surface as
-    // HTTP 500 from the router — see HYP-226 API_TRACE issues.
+    // Transient UCS upstream failures on the first sync after create
+    // surface as HTTP 500 from the router.
     const retryableStatuses = [408, 500, 502, 503, 504];
 
     const syncAttempt = (attempt) =>

@@ -7,7 +7,7 @@ let globalState;
 const getPayoutBody = () => Cypress._.cloneDeep(fixtures.createPayoutBody);
 
 // UCS rollout flows that must be enabled (primary) for sepa_bank_transfer
-// payouts to route through the unified connector service.
+// payouts to route through UCS.
 const UCS_ROLLOUT_FLOWS = [
   "PoEligibility",
   "PoCreate",
@@ -103,19 +103,17 @@ describe("[Payout] Sync", () => {
         true,
         globalState
       ).then((response) => {
-        // UCS path engagement and VoP eligibility executed at the bank
+        // Payout must execute via UCS with beneficiary verification matched
         expect(response.body.metadata.gateway_system).to.equal(
           "unified_connector_service"
         );
         expect(response.body.metadata.vop_status).to.equal("MTCH");
-        // Beneficiary bank details are masked in the response
         expect(response.body.payout_method_data.bank.iban).to.equal(
           "DE945************80002"
         );
         expect(response.body.payout_method_data.bank.bic).to.equal(
           "DEU*****237"
         );
-        // connector_transaction_id is a plain 32-hex ref (not compound)
         expect(response.body.connector_transaction_id).to.match(
           /^[0-9A-F]{32}$/
         );
@@ -139,7 +137,6 @@ describe("[Payout] Sync", () => {
       }
 
       cy.retrievePayoutForceSyncCallTest(globalState, data).then((response) => {
-        // Sync preserves the create response's connector_transaction_id
         expect(response.body.connector_transaction_id).to.equal(
           globalState.get("payoutConnectorTransactionId")
         );
@@ -158,8 +155,7 @@ describe("[Payout] Sync", () => {
       );
 
       cy.retrievePayoutForceSyncCallTest(globalState, data).then((response) => {
-        // Re-sync is idempotent: still success with the same
-        // connector_transaction_id
+        // Re-sync is idempotent
         expect(response.body.connector_transaction_id).to.equal(
           globalState.get("payoutConnectorTransactionId")
         );
