@@ -739,6 +739,9 @@ impl GPayPredecryptData {
             Some(enums::GooglePayAuthMethod::Cryptogram) => {
                 Some(self.application_primary_account_number.get_card_isin())
             }
+            None if self.cryptogram.is_some() => {
+                Some(self.application_primary_account_number.get_card_isin())
+            }
             Some(enums::GooglePayAuthMethod::PanOnly) | None => None,
         }
     }
