@@ -226,6 +226,42 @@ jobs:
         shell: bash
         run: cargo check --features "release"
 
+  test-result:
+    name: Run tests on stable toolchain — Consolidated Result
+    needs: [test]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+    steps:
+      # The matrix legs run identical commands, so a genuine lint failure fails
+      # both. Only infrastructure faults hit one leg alone, so one green leg is
+      # sufficient signal.
+      - name: Evaluate matrix results
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          legs="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/jobs" --paginate \
+            --jq '.jobs[] | select(.name | startswith("Run tests on stable toolchain (")) | "\(.conclusion)\t\(.name)"')"
+
+          if [ -z "${legs}" ]; then
+            echo "::error::found no 'Run tests on stable toolchain' legs to evaluate"
+            exit 1
+          fi
+
+          echo "${legs}"
+          passed="$(printf '%s\n' "${legs}" | grep -c '^success' || true)"
+
+          if [ "${passed}" -ge 1 ]; then
+            echo "::notice::${passed} runner(s) passed"
+          else
+            echo "::error::every runner failed"
+            exit 1
+          fi
+
   typos:
     name: Spell check
     runs-on: ubuntu-latest
