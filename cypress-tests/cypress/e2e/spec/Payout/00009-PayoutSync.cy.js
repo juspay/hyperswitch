@@ -103,23 +103,10 @@ describe("[Payout] Sync", () => {
         true,
         globalState
       ).then((response) => {
-        // Payout must execute via UCS with beneficiary verification matched
-        expect(response.body.metadata.gateway_system).to.equal(
-          "unified_connector_service"
-        );
-        expect(response.body.metadata.vop_status).to.equal("MTCH");
-        expect(response.body.payout_method_data.bank.iban).to.equal(
-          "DE945************80002"
-        );
-        expect(response.body.payout_method_data.bank.bic).to.equal(
-          "DEU*****237"
-        );
-        expect(response.body.connector_transaction_id).to.match(
-          /^[0-9A-F]{32}$/
-        );
-        globalState.set(
-          "payoutConnectorTransactionId",
-          response.body.connector_transaction_id
+        cy.assertUcsPayoutCreateResponse(globalState, response);
+        cy.assertPayoutBankDetailsMasked(
+          response,
+          data.Request.payout_method_data.bank_transfer
         );
       });
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
@@ -137,12 +124,7 @@ describe("[Payout] Sync", () => {
       }
 
       cy.retrievePayoutForceSyncCallTest(globalState, data).then((response) => {
-        expect(response.body.connector_transaction_id).to.equal(
-          globalState.get("payoutConnectorTransactionId")
-        );
-        expect(response.body.metadata.gateway_system).to.equal(
-          "unified_connector_service"
-        );
+        cy.assertUcsPayoutSyncResponse(globalState, response);
       });
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
@@ -155,10 +137,7 @@ describe("[Payout] Sync", () => {
       );
 
       cy.retrievePayoutForceSyncCallTest(globalState, data).then((response) => {
-        // Re-sync is idempotent
-        expect(response.body.connector_transaction_id).to.equal(
-          globalState.get("payoutConnectorTransactionId")
-        );
+        cy.assertUcsPayoutSyncResponse(globalState, response);
       });
     });
   });

@@ -7154,6 +7154,7 @@ Cypress.Commands.add(
                 "cli_log",
                 `payout force_sync attempt ${attempt}/${maxAttempts} got status ${response.status}; retrying in ${retryIntervalMs}ms`
               );
+              // eslint-disable-next-line cypress/no-unnecessary-waiting
               cy.wait(retryIntervalMs);
               return syncAttempt(attempt + 1);
             }
@@ -7166,6 +7167,57 @@ Cypress.Commands.add(
     return syncAttempt(1);
   }
 );
+
+/**
+ * Asserts a UCS-executed payout create response: routed via UCS, beneficiary
+ * verification (VoP) matched at the bank, and a plain 32-hex connector
+ * reference, which is kept for later sync-stability checks.
+ */
+Cypress.Commands.add(
+  "assertUcsPayoutCreateResponse",
+  (globalState, response) => {
+    expect(response.body.metadata.gateway_system).to.equal(
+      "unified_connector_service"
+    );
+    expect(response.body.metadata.vop_status).to.equal("MTCH");
+    expect(response.body.connector_transaction_id).to.match(/^[0-9A-F]{32}$/);
+    globalState.set(
+      "payoutConnectorTransactionId",
+      response.body.connector_transaction_id
+    );
+  }
+);
+
+/**
+ * Asserts the response's beneficiary bank details are masked: IBAN keeps
+ * its first/last 5 chars, BIC its first/last 3. `bankData` is the
+ * `payout_method_data.bank_transfer` object sent in the create request.
+ */
+Cypress.Commands.add("assertPayoutBankDetailsMasked", (response, bankData) => {
+  const mask = (value, head, tail) =>
+    value.slice(0, head) +
+    "*".repeat(value.length - head - tail) +
+    value.slice(-tail);
+  expect(response.body.payout_method_data.bank.iban).to.equal(
+    mask(bankData.iban, 5, 5)
+  );
+  expect(response.body.payout_method_data.bank.bic).to.equal(
+    mask(bankData.bic, 3, 3)
+  );
+});
+
+/**
+ * Asserts a UCS payout sync response: still routed via UCS and the connector
+ * reference is unchanged since the payout create (idempotency).
+ */
+Cypress.Commands.add("assertUcsPayoutSyncResponse", (globalState, response) => {
+  expect(response.body.metadata.gateway_system).to.equal(
+    "unified_connector_service"
+  );
+  expect(response.body.connector_transaction_id).to.equal(
+    globalState.get("payoutConnectorTransactionId")
+  );
+});
 
 // User API calls
 // Below 3 commands should be called in sequence to login a user
