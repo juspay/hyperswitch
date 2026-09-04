@@ -1,4 +1,4 @@
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::Duration;
 
 use api_models::oidc::{
     Jwk, JwksResponse, KeyType, KeyUse, OidcAuthorizeQuery, OidcDiscoveryResponse,
@@ -192,10 +192,8 @@ async fn generate_id_token(
     state: &SessionState,
     auth_code_data: &AuthCodeData,
 ) -> OidcResult<String> {
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .change_context(OidcErrors::ServerError)?
-        .as_secs();
+    let now = u64::try_from(common_utils::date_time::now_unix_timestamp())
+        .map_err(|_| report!(OidcErrors::ServerError))?;
     let exp_duration = Duration::from_secs(ID_TOKEN_TTL_IN_SECS);
     let exp = jwt::generate_exp(exp_duration)
         .change_context(OidcErrors::ServerError)?
@@ -226,10 +224,8 @@ async fn generate_access_token(
     state: &SessionState,
     auth_code_data: &AuthCodeData,
 ) -> OidcResult<String> {
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .change_context(OidcErrors::ServerError)?
-        .as_secs();
+    let now = u64::try_from(common_utils::date_time::now_unix_timestamp())
+        .map_err(|_| report!(OidcErrors::ServerError))?;
     let exp_duration = Duration::from_secs(ACCESS_TOKEN_TTL_IN_SECS);
     let exp = jwt::generate_exp(exp_duration)
         .change_context(OidcErrors::ServerError)?

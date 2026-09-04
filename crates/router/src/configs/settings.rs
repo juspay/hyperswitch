@@ -43,7 +43,6 @@ pub use payment_methods::configs::{
     },
     AuthenticationServiceConfig, MicroServicesConfig,
 };
-use rand::seq::IteratorRandom;
 use redis_interface::RedisSettings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use rust_decimal::Decimal;
@@ -1066,8 +1065,15 @@ impl OidcSettings {
     }
 
     pub fn get_signing_key(&self) -> Option<&OidcKey> {
-        let mut rng = rand::thread_rng();
-        self.key.values().choose_stable(&mut rng)
+        // Order the candidates before drawing. `HashMap`'s iteration order is
+        // seeded per process, so seaming the draw alone would not make this
+        // reproducible: the recorded index would select a different key on a
+        // replay. Sorting by the config key gives the index a stable meaning.
+        let mut key_ids: Vec<&String> = self.key.keys().collect();
+        key_ids.sort_unstable();
+
+        let index = common_utils::generate_random_index(key_ids.len())?;
+        self.key.get(key_ids.get(index).copied()?)
     }
 
     pub fn get_all_keys(&self) -> Vec<&OidcKey> {
