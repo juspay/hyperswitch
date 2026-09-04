@@ -4,6 +4,28 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.09.04.0
+
+### Features
+
+- **router:** Add browse offers API for offer engine ([#13999](https://github.com/juspay/hyperswitch/pull/13999)) ([`03bf1eb`](https://github.com/juspay/hyperswitch/commit/03bf1ebb2f8bd8bdfb06d498e2b2fede25758132))
+- **webhooks:** Add generic outgoing webhook event configuration ([#13649](https://github.com/juspay/hyperswitch/pull/13649)) ([`1cb3c9e`](https://github.com/juspay/hyperswitch/commit/1cb3c9e11ffceb951fef457df1356119d44d0b4c))
+
+### Testing
+
+- **cypress:**
+  - Add processing_method_id coverage for Payload ([#13964](https://github.com/juspay/hyperswitch/pull/13964)) ([`978dc61`](https://github.com/juspay/hyperswitch/commit/978dc6199eeb42b95ea092bbb846facc5aa19658))
+  - BlockImplicitCustomerCreation for adyen ([#13928](https://github.com/juspay/hyperswitch/pull/13928)) ([`5e186d6`](https://github.com/juspay/hyperswitch/commit/5e186d6044b5a868d6d72177a35cfd2b1bbebbfa))
+  - Remove nuvei from connector list ([#13997](https://github.com/juspay/hyperswitch/pull/13997)) ([`3d93cae`](https://github.com/juspay/hyperswitch/commit/3d93cae6f2ea32e5d35f402a5a0819bc85d78737))
+
+### Documentation
+
+- **revenue-recovery:** Add revenue recovery api to docs ([#13730](https://github.com/juspay/hyperswitch/pull/13730)) ([`42bbdc2`](https://github.com/juspay/hyperswitch/commit/42bbdc2c61a2fe968791a4bb9ea2d586064aeaea))
+
+**Full Changelog:** [`2026.09.03.1...2026.09.04.0`](https://github.com/juspay/hyperswitch/compare/2026.09.03.1...2026.09.04.0)
+
+- - -
+
 ## 2026.09.03.1
 
 ### Features

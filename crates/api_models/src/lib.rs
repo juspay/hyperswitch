@@ -26,6 +26,7 @@ pub mod health_check;
 pub mod launch_sage;
 pub mod mandates;
 pub mod merchant_connector_webhook_management;
+pub mod offer_engine;
 pub mod oidc;
 pub mod open_router;
 pub mod organization;
