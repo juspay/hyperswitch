@@ -63,6 +63,11 @@ where
     let mut shutdown_interval =
         tokio::time::interval(Duration::from_millis(settings.graceful_shutdown_interval));
 
+    // Generated once per process rather than per poll iteration, so that the Redis consumer
+    // group registers a single, stable consumer for the lifetime of this process instead of
+    // accumulating a new entry on every poll (entries are never expired by Redis).
+    let consumer_name = format!("consumer_{}", Uuid::new_v4());
+
     let consumer_operation_counter = sync::Arc::new(atomic::AtomicU64::new(0));
     let signal = get_allowed_signals()
         .map_err(|error| {
@@ -95,6 +100,7 @@ where
                             logger::error!(?error, "Failed to perform consumer operation");
                         },
                         workflow_selector,
+                        &consumer_name,
                     )
                     .await;
                 }
@@ -138,13 +144,13 @@ pub async fn consumer_operations<T: SchedulerSessionState + 'static>(
     state: &T,
     settings: &SchedulerSettings,
     workflow_selector: impl workflows::ProcessTrackerWorkflows<T> + 'static + Copy + std::fmt::Debug,
+    consumer_name: &str,
 ) -> CustomResult<(), errors::ProcessTrackerError> {
     let stream_name = match state.get_application_source() {
         enums::ApplicationSource::Main => settings.stream.clone(),
         enums::ApplicationSource::Cug => settings.cug_stream.clone(),
     };
     let group_name = settings.consumer.consumer_group.clone();
-    let consumer_name = format!("consumer_{}", Uuid::new_v4());
 
     let _group_created = &mut state
         .get_db()
@@ -154,7 +160,7 @@ pub async fn consumer_operations<T: SchedulerSessionState + 'static>(
     let mut tasks = state
         .get_db()
         .as_scheduler()
-        .fetch_consumer_tasks(&stream_name, &group_name, &consumer_name)
+        .fetch_consumer_tasks(&stream_name, &group_name, consumer_name)
         .await?;
 
     if !tasks.is_empty() {

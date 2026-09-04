@@ -1764,6 +1764,99 @@ async fn test_consumer_group_set_last_id() {
     assert!(is_success);
 }
 
+/// Characterises the `XREADGROUP` behaviour that the scheduler consumer fix
+/// (juspay/hyperswitch#13628) relies on: `XREADGROUP` registers its consumer in the group
+/// as a side effect of the read, even when there are no new entries to deliver, and Redis
+/// never expires these registrations on its own. A caller that generates a fresh consumer
+/// name on every poll therefore grows the consumer group without bound, while one that
+/// reuses a stable name does not.
+///
+/// This pins Redis' behaviour, not the scheduler change itself — it passes with or without
+/// the `crates/scheduler` fix. Both halves are asserted so it cannot go vacuous: were a
+/// future Redis to stop registering consumers on an empty read, the rotating-name case
+/// would drop to 0 and fail here rather than silently making the stable case trivial.
+#[tokio::test]
+async fn test_xreadgroup_consumer_registration_tracks_consumer_name() {
+    let (stable_consumers, rotating_consumers) = tokio::task::spawn_blocking(move || {
+        futures::executor::block_on(async {
+            let pool = test_connection(&RedisSettings::default())
+                .await
+                .expect("failed to create redis connection pool");
+            let uid = unique_test_id();
+            let stream_name = format!("test_consumer_registration_{uid}");
+            let stream: RedisKey = stream_name.clone().into();
+            let stable_group = format!("test_stable_group_{uid}");
+            let rotating_group = format!("test_rotating_group_{uid}");
+
+            // `xgroup_create_mkstream` underneath creates the stream, so it need not exist yet.
+            for group in [&stable_group, &rotating_group] {
+                pool.consumer_group_create(
+                    &stream,
+                    group,
+                    &RedisEntryId::UserSpecifiedID {
+                        milliseconds: "0".to_string(),
+                        sequence_number: "0".to_string(),
+                    },
+                )
+                .await
+                .expect("failed to create group");
+            }
+
+            // Five reads under one stable consumer name, as the scheduler now does.
+            let stable_consumer = format!("test_stable_consumer_name_{uid}");
+            for _ in 0..5 {
+                let _ = pool
+                    .stream_read_with_options(
+                        std::slice::from_ref(&stream),
+                        vec![RedisEntryId::UndeliveredEntryID.to_stream_id()],
+                        Some(10),
+                        None,
+                        Some((stable_group.as_str(), stable_consumer.as_str())),
+                    )
+                    .await;
+            }
+
+            // Five reads under a fresh consumer name each time, as it did before the fix.
+            for i in 0..5 {
+                let rotating_consumer = format!("test_rotating_consumer_name_{uid}_{i}");
+                let _ = pool
+                    .stream_read_with_options(
+                        std::slice::from_ref(&stream),
+                        vec![RedisEntryId::UndeliveredEntryID.to_stream_id()],
+                        Some(10),
+                        None,
+                        Some((rotating_group.as_str(), rotating_consumer.as_str())),
+                    )
+                    .await;
+            }
+
+            const COUNT_CONSUMERS: &str =
+                r#"return #redis.call("XINFO", "CONSUMERS", KEYS[1], ARGV[1])"#;
+            let stable: i64 = pool
+                .evaluate_redis_script(COUNT_CONSUMERS, vec![stream_name.clone()], stable_group)
+                .await
+                .expect("failed to inspect consumer group via XINFO CONSUMERS");
+            let rotating: i64 = pool
+                .evaluate_redis_script(COUNT_CONSUMERS, vec![stream_name], rotating_group)
+                .await
+                .expect("failed to inspect consumer group via XINFO CONSUMERS");
+
+            (stable, rotating)
+        })
+    })
+    .await
+    .expect("Spawn block failure");
+
+    assert_eq!(
+        stable_consumers, 1,
+        "reusing one consumer name across five reads must register exactly one consumer"
+    );
+    assert_eq!(
+        rotating_consumers, 5,
+        "a fresh consumer name per read must register one consumer per read — this is the leak"
+    );
+}
+
 // ─── List Commands ────────────────────────────────────────────────────────────
 
 #[tokio::test]
