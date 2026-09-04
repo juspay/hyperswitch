@@ -26,7 +26,6 @@ use diesel_models::{
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::api::ApplicationResponse;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
-use rand::distributions::{Alphanumeric, DistString};
 use time::PrimitiveDateTime;
 use unicode_segmentation::UnicodeSegmentation;
 
@@ -1001,7 +1000,7 @@ impl NewUser {
     deja::id(component = "router::user", operation = "generate_user_id", codec = SerdeCodec,)
 )]
 fn generate_user_id() -> String {
-    uuid::Uuid::new_v4().to_string()
+    common_utils::generate_uuid_v4().to_string()
 }
 
 impl TryFrom<NewUser> for storage_user::UserNew {
@@ -1384,19 +1383,41 @@ pub struct RecoveryCodes(pub Vec<Secret<String>>);
 
 impl RecoveryCodes {
     pub fn generate_new() -> Self {
-        let mut rand = rand::thread_rng();
-        let recovery_codes = (0..consts::user::RECOVERY_CODES_COUNT)
+        Self(
+            Self::generate_new_inner()
+                .into_iter()
+                .map(Secret::new)
+                .collect(),
+        )
+    }
+
+    // deja: the codes are drawn from the RNG, so a replay cannot reproduce the
+    // stored row or the response unless the draw is recorded. Returns plain
+    // `String`s on purpose: masking::Secret serializes lossily to "***", which
+    // would record a useless masked value -- same reason as
+    // `generate_password_hash_inner`. The caller re-wraps immediately.
+    #[cfg_attr(feature = "deja", track_caller)]
+    #[cfg_attr(
+        feature = "deja",
+        deja::id(
+            component = "router::user",
+            operation = "generate_recovery_codes",
+            codec = SerdeCodec,
+        )
+    )]
+    fn generate_new_inner() -> Vec<String> {
+        (0..consts::user::RECOVERY_CODES_COUNT)
             .map(|_| {
-                let code_part_1 =
-                    Alphanumeric.sample_string(&mut rand, consts::user::RECOVERY_CODE_LENGTH / 2);
-                let code_part_2 =
-                    Alphanumeric.sample_string(&mut rand, consts::user::RECOVERY_CODE_LENGTH / 2);
+                let code_part_1 = common_utils::generate_random_alphanumeric_string(
+                    consts::user::RECOVERY_CODE_LENGTH / 2,
+                );
+                let code_part_2 = common_utils::generate_random_alphanumeric_string(
+                    consts::user::RECOVERY_CODE_LENGTH / 2,
+                );
 
-                Secret::new(format!("{code_part_1}-{code_part_2}"))
+                format!("{code_part_1}-{code_part_2}")
             })
-            .collect::<Vec<_>>();
-
-        Self(recovery_codes)
+            .collect()
     }
 
     pub fn get_hashed(&self) -> UserResult<Vec<Secret<String>>> {
