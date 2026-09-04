@@ -392,6 +392,12 @@ impl EligibilityCardBin {
     pub fn get_extended_card_bin(&self) -> Option<String> {
         self.card_bin.get_extended_card_bin()
     }
+
+    /// Every blocklist-relevant prefix derivable from this BIN (lengths 6 up to the
+    /// number of digits provided)
+    pub fn get_blocklist_bin_prefixes(&self) -> Vec<String> {
+        self.card_bin.get_blocklist_bin_prefixes()
+    }
 }
 
 /// Payment method data for eligibility/blocklist checks — mirrors PaymentMethodData but uses EligibilityCard
