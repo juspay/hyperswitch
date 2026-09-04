@@ -1527,6 +1527,82 @@ pub async fn payments_connector_session(
     .await
 }
 
+/// Create session tokens for a payment (server-to-server).
+///
+/// Same session flow as `POST /payments/session_tokens`, but authenticated with the merchant
+/// API key instead of a client secret or SDK authorization. The payment is identified by the
+/// path parameter, and no client secret is involved: `authenticate_client_secret` treats a
+/// `None` secret as valid, so the core needs no change.
+#[cfg(feature = "v1")]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsSessionToken, payment_id))]
+pub async fn payments_connector_session_server(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    json_payload: web::Json<payment_types::PaymentsSessionServerRequest>,
+    path: web::Path<common_utils::id_type::PaymentId>,
+) -> impl Responder {
+    let flow = Flow::PaymentsSessionToken;
+    let body = json_payload.into_inner();
+
+    let payload = payment_types::PaymentsSessionRequest {
+        payment_id: path.into_inner(),
+        client_secret: None,
+        wallets: body.wallets,
+        merchant_connector_details: body.merchant_connector_details,
+    };
+
+    let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
+        Ok(headers) => headers,
+        Err(error) => {
+            logger::error!(
+                ?error,
+                "Failed to get headers in payments_connector_session_server"
+            );
+            HeaderPayload::default()
+        }
+    };
+
+    tracing::Span::current().record("payment_id", payload.payment_id.get_string_repr());
+
+    let locking_action = payload.get_locking_input(flow.clone());
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, payload, req_state| {
+            payments::payments_core::<
+                api_types::Session,
+                payment_types::PaymentsSessionResponse,
+                _,
+                _,
+                _,
+                payments::PaymentData<api_types::Session>,
+            >(
+                state,
+                req_state,
+                auth.platform,
+                auth.profile.map(|profile| profile.get_id().clone()),
+                payments::PaymentSession,
+                payload,
+                api::AuthFlow::Merchant,
+                payments::CallConnectorAction::Trigger,
+                None,
+                None,
+                header_payload.clone(),
+                None,
+            )
+        },
+        &auth::HeaderAuth(auth::ApiKeyAuth {
+            allow_connected_scope_operation: true,
+            allow_platform_self_operation: false,
+        }),
+        locking_action,
+    ))
+    .await
+}
+
 #[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsRedirect, payment_id))]
 pub async fn payments_redirect_response(
