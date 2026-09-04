@@ -17,12 +17,6 @@ const billing = {
  * `payout_bank_transfer`) by `injectGotymePayoutBankTransfer` in
  * `cypress/e2e/configs/Payout/Utils.js`. The configs below only declare WHICH
  * payout_method_type is used.
- *
- * The Fulfill keys assert the deterministic shipped-environment behavior: the
- * OSS dummy connector base_url ("dev") is not a valid URL, so the fulfill call
- * fails inside the router with 500 HE_00 and the payout silently stays in
- * requires_fulfillment. The RetrieveAfterFulfill keys assert that silent
- * failure state (status unchanged, no error code/message on the payout).
  */
 export const connectorDetails = {
   bank_transfer_pm: {
@@ -71,7 +65,7 @@ export const connectorDetails = {
       },
       Fulfill: {
         Response: {
-          status: 500,
+          status: 200,
           body: {
             status: "initiated",
             amount: 1000,
@@ -131,7 +125,7 @@ export const connectorDetails = {
       },
       Fulfill: {
         Response: {
-          status: 500,
+          status: 200,
           body: {
             status: "initiated",
             amount: 2000,
