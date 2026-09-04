@@ -917,13 +917,7 @@ impl From<ProfileDbBuilder> for Profile {
     }
 }
 
-/// Outgoing webhook header names treated as carrying authentication material. A header is
-/// redacted in event retrieval responses only when it is both configured as a custom outgoing
-/// webhook header and named here.
-///
-/// Deliberately narrow: a merchant can name a custom header anything, so this can never be a
-/// complete list. Letting merchants declare a header as sensitive is the intended way to cover
-/// the rest.
+/// Custom list for masking sensitive webhook headers in the events API.
 const SENSITIVE_WEBHOOK_HEADER_NAMES: [&str; 1] = ["authorization"];
 
 impl Profile {

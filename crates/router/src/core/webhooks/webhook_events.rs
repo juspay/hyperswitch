@@ -309,9 +309,7 @@ pub async fn list_delivery_attempts(
                     )
                 })
                 .ok()
-                .and_then(|business_profile| {
-                    business_profile.get_sensitive_webhook_header_names()
-                }),
+                .and_then(|business_profile| business_profile.get_sensitive_webhook_header_names()),
             None => None,
         };
 
@@ -391,6 +389,7 @@ pub async fn retry_delivery_attempt(
         .attach_printable("Failed to find business profile")?;
 
     let delivery_attempt = storage::enums::WebhookDeliveryAttempt::ManualRetry;
+    let new_event_id = super::utils::generate_event_id();
     let idempotent_event_id = super::utils::get_idempotent_event_id(
         &event_to_retry.primary_object_id,
         event_to_retry.event_type,
@@ -398,9 +397,6 @@ pub async fn retry_delivery_attempt(
     )
     .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
     .attach_printable("Failed to generate idempotent event ID")?;
-
-    let new_event_id = super::utils::generate_event_id();
-    let sensitive_header_names = business_profile.get_sensitive_webhook_header_names();
 
     let now = common_utils::date_time::now();
     let new_event = domain::Event {
@@ -442,6 +438,8 @@ pub async fn retry_delivery_attempt(
         .parse_struct("OutgoingWebhookRequestContent")
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to parse webhook event request information")?;
+
+    let sensitive_header_names = business_profile.get_sensitive_webhook_header_names();
 
     Box::pin(super::outgoing::trigger_webhook_and_raise_event(
         state.clone(),

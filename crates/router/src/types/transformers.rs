@@ -20,6 +20,8 @@ use hyperswitch_domain_models::{mandates, payments::payment_intent::CustomerData
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 
 use super::domain;
+#[cfg(feature = "olap")]
+use crate::core::webhooks::utils::redact_header_values;
 #[cfg(feature = "v2")]
 use crate::db::storage::revenue_recovery_redis_operation;
 use crate::{
@@ -2282,13 +2284,10 @@ impl
             .attach_printable("Failed to parse webhook event response information")?;
 
         // The persisted event retains the original header values, which webhook retries reuse.
-        // Only these response copies are redacted.
-        crate::core::webhooks::utils::redact_header_values(
-            &mut request.headers,
-            sensitive_header_names,
-        );
+        // The keys are masked only in the response
+        redact_header_values(&mut request.headers, sensitive_header_names);
         if let Some(headers) = response.headers.as_mut() {
-            crate::core::webhooks::utils::redact_header_values(headers, sensitive_header_names);
+            redact_header_values(headers, sensitive_header_names);
         }
 
         Ok(Self {

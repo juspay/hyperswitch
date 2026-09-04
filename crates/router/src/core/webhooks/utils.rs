@@ -1,4 +1,6 @@
-use std::{collections::HashSet, marker::PhantomData};
+#[cfg(feature = "olap")]
+use std::collections::HashSet;
+use std::marker::PhantomData;
 
 use base64::Engine;
 use common_utils::{
@@ -14,6 +16,7 @@ use hyperswitch_domain_models::{
     router_response_types::{VerifyWebhookSourceResponseData, VerifyWebhookStatus},
 };
 use hyperswitch_interfaces::webhooks::IncomingWebhook;
+#[cfg(feature = "olap")]
 use hyperswitch_masking::Secret;
 use redis_interface as redis;
 use router_env::tracing;
@@ -560,6 +563,7 @@ where
 }
 
 /// The value substituted for sensitive webhook header values
+#[cfg(feature = "olap")]
 pub const REDACTED_HEADER_VALUE: &str = "*** ***";
 
 /// `Secret` does not mask values under ordinary serde serialization, and header sensitivity
@@ -569,6 +573,7 @@ pub const REDACTED_HEADER_VALUE: &str = "*** ***";
 /// Header names are compared case-insensitively.
 /// `None` means the sensitive header names could not be determined, in which case every value is
 /// redacted rather than risking exposure.
+#[cfg(feature = "olap")]
 pub fn redact_header_values(
     headers: &mut [(String, Secret<String>)],
     sensitive_header_names: Option<&HashSet<String>>,
