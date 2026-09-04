@@ -1589,6 +1589,7 @@ enabled = "true"
 base_url = "http://localhost:8000"
 connection_timeout = 10
 request_timeout = 35
+config_source = "superposition"
 ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, payconex, dlocal, barclaycard, tsys_transit, jpmorgan, datatrans, givepayments, tesouro, citigate, ilixium, moneris, elavon, worldpayraft"    # Comma-separated list of connectors that use UCS only
 ucs_psync_disabled_connectors = "cashtocode, trustly"    # Comma-separated list of connectors to disable UCS PSync call
 
@@ -1661,7 +1662,7 @@ internal_api_key = "test_internal_api_key"
 payments_base_url = "http://localhost:8080"
 
 [superposition]
-endpoint = "http://localhost:8081" # Superposition service endpoint
+endpoint = "http://localhost:8085" # Superposition service endpoint
 token = "sp_5d72598782fdd5d984f273eb5a452c33a952e07a4e0dd6de8c4ea37a621918d5" # Superposition token
 org_id = "localorg" # Organization ID in Superposition
 workspace_id = "dev" # Workspace ID in Superposition

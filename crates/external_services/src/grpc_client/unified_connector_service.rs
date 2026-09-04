@@ -89,7 +89,7 @@ pub struct UnifiedConnectorServiceClientConfig {
     pub ucs_blacklisted_connectors: HashSet<Connector>,
 
     /// Controls where UCS configuration (ucs_enabled, rollout config) is read from.
-    /// Set to "database" (default) to use the configs table, or "superposition" to use
+    /// Set to "database" to use the configs table, or "superposition" to use
     /// the Superposition service. Allows runtime switching without redeployment.
     #[serde(default = "default_config_source")]
     pub config_source: UcsConfigSource,
@@ -107,7 +107,7 @@ pub enum UcsConfigSource {
 }
 
 fn default_config_source() -> UcsConfigSource {
-    UcsConfigSource::Database
+    UcsConfigSource::Superposition
 }
 
 /// Connection timeout for the Unified Connector Service in seconds.
