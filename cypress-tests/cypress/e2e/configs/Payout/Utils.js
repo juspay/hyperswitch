@@ -94,6 +94,13 @@ export function getValueByKey(jsonObject, key) {
 
 // Connector inclusion/exclusion lists for feature gates
 export const CONNECTOR_LISTS = {
+  // Exclusion lists (skip these connectors)
+  EXCLUDE: {
+    // gotyme_sanlam only supports bank transfer payouts (payshap /
+    // payshap_proxy) and has no card payout method, so it is skipped for
+    // the card payout tests in 00003-CardTest.cy.js
+    CARD_TEST: ["gotyme_sanlam"],
+  },
   INCLUDE: {
     ENTITY_TYPE: ["wise"],
     // Payout recurring feature - only verified connectors
@@ -107,6 +114,11 @@ export const CONNECTOR_LISTS = {
     SAVED_CARD: ["adyen", "adyenplatform", "nomupay", "wise"],
     SAVED_BANK_TRANSFER_SEPA: ["adyen", "adyenplatform", "nomupay", "wise"],
   },
+};
+
+// Helper functions
+export const shouldExcludeConnector = (connectorId, list) => {
+  return Array.isArray(list) && list.includes(connectorId);
 };
 
 export const ENTITY_TYPE_LIST = [
