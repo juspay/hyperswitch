@@ -473,7 +473,7 @@ pub struct CustomerRequest {
 pub struct StripeCustomerResponse {
     pub id: String,
     pub description: Option<String>,
-    pub email: Option<String>,
+    pub email: Option<Email>,
     pub phone: Option<Secret<String>>,
     pub name: Option<Secret<String>>,
 }
