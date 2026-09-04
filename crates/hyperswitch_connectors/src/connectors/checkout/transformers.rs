@@ -2666,10 +2666,18 @@ fn convert_to_additional_payment_method_connector_response(
 ) -> Option<AdditionalPaymentMethodConnectorResponse> {
     match payment_method_type {
         Some(enums::PaymentMethodType::GooglePay) => {
-            Some(AdditionalPaymentMethodConnectorResponse::GooglePay { auth_code })
+            Some(AdditionalPaymentMethodConnectorResponse::GooglePay {
+                auth_code,
+                device_pan_bin: None,
+                card_bin: None,
+            })
         }
         Some(enums::PaymentMethodType::ApplePay) => {
-            Some(AdditionalPaymentMethodConnectorResponse::ApplePay { auth_code })
+            Some(AdditionalPaymentMethodConnectorResponse::ApplePay {
+                auth_code,
+                device_pan_bin: None,
+                card_bin: None,
+            })
         }
         _ => {
             let payment_checks = source.map(|code| {

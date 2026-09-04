@@ -4004,11 +4004,15 @@ fn get_connector_response_data(
         Some(enums::PaymentMethodType::GooglePay) => {
             AdditionalPaymentMethodConnectorResponse::GooglePay {
                 auth_code: Some(auth_code),
+                device_pan_bin: None,
+                card_bin: None,
             }
         }
         Some(enums::PaymentMethodType::ApplePay) => {
             AdditionalPaymentMethodConnectorResponse::ApplePay {
                 auth_code: Some(auth_code),
+                device_pan_bin: None,
+                card_bin: None,
             }
         }
         _ => AdditionalPaymentMethodConnectorResponse::Card {

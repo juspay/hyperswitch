@@ -5885,6 +5885,10 @@ pub struct ApplepayPaymentMethod {
     pub card_exp_year: Option<Secret<String>>,
     /// Unique authorisation code generated for the payment
     pub auth_code: Option<String>,
+    /// Bin of the DPAN (device PAN) obtained from decrypting the Apple Pay payment data
+    pub device_pan_bin: Option<String>,
+    /// Bin of the underlying card, provided by the connector when it resolves the DPAN
+    pub card_bin: Option<String>,
 }
 
 #[derive(
@@ -9564,6 +9568,8 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
                             card_exp_year: apple_pay_pm.card_exp_year,
                             auth_code: apple_pay_pm.auth_code,
                             email: None,
+                            device_pan_bin: apple_pay_pm.device_pan_bin,
+                            card_bin: apple_pay_pm.card_bin,
                         },
                     ))),
                 })),

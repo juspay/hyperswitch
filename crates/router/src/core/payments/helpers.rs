@@ -6342,13 +6342,18 @@ pub async fn get_additional_payment_data(
         },
         domain::PaymentMethodData::Wallet(wallet) => match wallet {
             domain::WalletData::ApplePay(apple_pay_wallet_data) => {
-                let (card_exp_month, card_exp_year) = match payment_method_token {
+                let (card_exp_month, card_exp_year, device_pan_bin) = match payment_method_token {
                     Some(PaymentMethodToken::ApplePayDecrypt(token)) => (
                         Some(token.application_expiration_month.clone()),
                         Some(token.application_expiration_year.clone()),
+                        Some(
+                            token
+                                .application_primary_account_number
+                                .get_card_isin(),
+                        ),
                     ),
 
-                    _ => (None, None),
+                    _ => (None, None, None),
                 };
 
                 Ok(Some(api_models::payments::AdditionalPaymentData::Wallet {
@@ -6360,6 +6365,9 @@ pub async fn get_additional_payment_data(
                         card_exp_year,
                         // These are filled after calling the processor / connector
                         auth_code: None,
+                        device_pan_bin,
+                        // Only populated if the connector resolves and returns the card's bin
+                        card_bin: None,
                     })),
                     google_pay: None,
                     samsung_pay: None,
@@ -6367,12 +6375,17 @@ pub async fn get_additional_payment_data(
                 }))
             }
             domain::WalletData::GooglePay(google_pay_pm_data) => {
-                let (card_exp_month, card_exp_year) = match payment_method_token {
+                let (card_exp_month, card_exp_year, device_pan_bin) = match payment_method_token {
                     Some(PaymentMethodToken::GooglePayDecrypt(token)) => (
                         Some(token.card_exp_month.clone()),
                         Some(token.card_exp_year.clone()),
+                        Some(
+                            token
+                                .application_primary_account_number
+                                .get_card_isin(),
+                        ),
                     ),
-                    _ => (None, None),
+                    _ => (None, None, None),
                 };
 
                 Ok(Some(api_models::payments::AdditionalPaymentData::Wallet {
@@ -6387,6 +6400,9 @@ pub async fn get_additional_payment_data(
                             // These are filled after calling the processor / connector
                             auth_code: None,
                             email: None,
+                            device_pan_bin,
+                            // Only populated if the connector resolves and returns the card's bin
+                            card_bin: None,
                         },
                     )),
                     samsung_pay: None,
@@ -6417,6 +6433,8 @@ pub async fn get_additional_payment_data(
                             // These are filled after calling the processor / connector
                             auth_code: None,
                             email: None,
+                            device_pan_bin: None,
+                            card_bin: None,
                         },
                     )),
                     paypal: None,
@@ -8389,18 +8407,30 @@ pub fn add_connector_response_to_additional_payment_data(
                 samsung_pay,
                 paypal,
             },
-            AdditionalPaymentMethodConnectorResponse::GooglePay { auth_code, .. }
-            | AdditionalPaymentMethodConnectorResponse::ApplePay { auth_code, .. },
+            AdditionalPaymentMethodConnectorResponse::GooglePay {
+                auth_code,
+                device_pan_bin,
+                card_bin,
+            }
+            | AdditionalPaymentMethodConnectorResponse::ApplePay {
+                auth_code,
+                device_pan_bin,
+                card_bin,
+            },
         ) => api_models::payments::AdditionalPaymentData::Wallet {
             apple_pay: apple_pay.as_ref().map(|apple_pay| {
                 Box::new(api_models::payments::ApplepayPaymentMethod {
                     auth_code: auth_code.clone(),
+                    device_pan_bin: device_pan_bin.clone().or_else(|| apple_pay.device_pan_bin.clone()),
+                    card_bin: card_bin.clone().or_else(|| apple_pay.card_bin.clone()),
                     ..(**apple_pay).clone()
                 })
             }),
             google_pay: google_pay.as_ref().map(|google_pay| {
                 Box::new(payment_additional_types::WalletAdditionalDataForCard {
                     auth_code: auth_code.clone(),
+                    device_pan_bin: device_pan_bin.clone().or_else(|| google_pay.device_pan_bin.clone()),
+                    card_bin: card_bin.clone().or_else(|| google_pay.card_bin.clone()),
                     ..(**google_pay).clone()
                 })
             }),

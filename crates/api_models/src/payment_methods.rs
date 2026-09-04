@@ -1854,6 +1854,8 @@ impl From<PaymentMethodDataWalletInfo> for payments::additional_info::WalletAddi
             card_exp_year: item.card_exp_year,
             auth_code: item.auth_code,
             email: item.email,
+            device_pan_bin: None,
+            card_bin: None,
         }
     }
 }
@@ -1891,6 +1893,8 @@ impl TryFrom<PaymentMethodDataWalletInfo> for Box<payments::ApplepayPaymentMetho
             card_exp_month: item.card_exp_month,
             card_exp_year: item.card_exp_year,
             auth_code: item.auth_code,
+            device_pan_bin: None,
+            card_bin: None,
         }))
     }
 }
