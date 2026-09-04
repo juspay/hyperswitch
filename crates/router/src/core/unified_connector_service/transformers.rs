@@ -727,6 +727,8 @@ impl
                 .as_ref()
                 .map(payments_grpc::RecipientDetails::foreign_try_from)
                 .transpose()?,
+            additional_connector_details: None,
+            business_country: router_data.request.business_country.map(|c| c.to_string()),
         })
     }
 }
@@ -978,6 +980,8 @@ impl
                 .as_ref()
                 .map(payments_grpc::RecipientDetails::foreign_try_from)
                 .transpose()?,
+            additional_connector_details: None,
+            business_country: router_data.request.business_country.map(|c| c.to_string()),
         })
     }
 }
@@ -2200,6 +2204,8 @@ impl
                 .as_ref()
                 .map(payments_grpc::RecipientDetails::foreign_try_from)
                 .transpose()?,
+            additional_connector_details: None,
+            business_country: router_data.request.business_country.map(|c| c.to_string()),
         })
     }
 }
@@ -2410,6 +2416,8 @@ impl
                 .as_ref()
                 .map(payments_grpc::RecipientDetails::foreign_try_from)
                 .transpose()?,
+            additional_connector_details: None,
+            business_country: router_data.request.business_country.map(|c| c.to_string()),
         })
     }
 }
@@ -2477,6 +2485,8 @@ impl
         Ok(Self {
             is_account_funding_transaction: None,
             recipient_details: None,
+            additional_connector_details: None,
+            business_country: None,
             split_settlement: None,
             split_payments: router_data
                 .request
@@ -2779,6 +2789,7 @@ impl
                 .as_ref()
                 .map(payments_grpc::RecipientDetails::foreign_try_from)
                 .transpose()?,
+            additional_connector_details: None,
         })
     }
 }
@@ -3087,6 +3098,7 @@ impl
                 .as_ref()
                 .map(payments_grpc::RecipientDetails::foreign_try_from)
                 .transpose()?,
+            additional_connector_details: None,
         })
     }
 }
