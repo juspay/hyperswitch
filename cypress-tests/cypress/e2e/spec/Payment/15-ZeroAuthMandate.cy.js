@@ -42,16 +42,7 @@ describe("Card - SingleUse Mandates flow test", () => {
       }
     });
 
-    it("Create No 3DS Payment Intent", function () {
-      if (
-        utils.shouldIncludeConnector(
-          globalState.get("connectorId"),
-          utils.CONNECTOR_LISTS.INCLUDE.ZERO_AUTH_MANDATE
-        )
-      ) {
-        this.skip();
-      }
-
+    it("Create No 3DS Payment Intent", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
       ]["ZeroAuthPaymentIntent"];
@@ -67,16 +58,7 @@ describe("Card - SingleUse Mandates flow test", () => {
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
-    it("Confirm No 3DS payment", function () {
-      if (
-        utils.shouldIncludeConnector(
-          globalState.get("connectorId"),
-          utils.CONNECTOR_LISTS.INCLUDE.ZERO_AUTH_MANDATE
-        )
-      ) {
-        this.skip();
-      }
-
+    it("Confirm No 3DS payment", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
       ]["ZeroAuthConfirmPayment"];
@@ -86,16 +68,7 @@ describe("Card - SingleUse Mandates flow test", () => {
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
-    it("Retrieve Payment Call Test", function () {
-      if (
-        utils.shouldIncludeConnector(
-          globalState.get("connectorId"),
-          utils.CONNECTOR_LISTS.INCLUDE.ZERO_AUTH_MANDATE
-        )
-      ) {
-        this.skip();
-      }
-
+    it("Retrieve Payment Call Test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
       ]["ZeroAuthConfirmPayment"];
@@ -103,29 +76,11 @@ describe("Card - SingleUse Mandates flow test", () => {
       cy.retrievePaymentCallTest({ globalState, data });
     });
 
-    it("Retrieve CustomerPM Call Test", function () {
-      if (
-        utils.shouldIncludeConnector(
-          globalState.get("connectorId"),
-          utils.CONNECTOR_LISTS.INCLUDE.ZERO_AUTH_MANDATE
-        )
-      ) {
-        this.skip();
-      }
-
+    it("Retrieve CustomerPM Call Test", () => {
       cy.listCustomerPMCallTest(globalState);
     });
 
-    it("Create Recurring Payment Intent", function () {
-      if (
-        utils.shouldIncludeConnector(
-          globalState.get("connectorId"),
-          utils.CONNECTOR_LISTS.INCLUDE.ZERO_AUTH_MANDATE
-        )
-      ) {
-        this.skip();
-      }
-
+    it("Create Recurring Payment Intent", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
       ]["PaymentIntentOffSession"];
@@ -141,16 +96,7 @@ describe("Card - SingleUse Mandates flow test", () => {
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
-    it("Confirm Recurring Payment", function () {
-      if (
-        utils.shouldIncludeConnector(
-          globalState.get("connectorId"),
-          utils.CONNECTOR_LISTS.INCLUDE.ZERO_AUTH_MANDATE
-        )
-      ) {
-        this.skip();
-      }
-
+    it("Confirm Recurring Payment", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
       ]["SaveCardConfirmAutoCaptureOffSession"];
@@ -164,16 +110,7 @@ describe("Card - SingleUse Mandates flow test", () => {
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
-    it("retrieve-payment-call-test", function () {
-      if (
-        utils.shouldIncludeConnector(
-          globalState.get("connectorId"),
-          utils.CONNECTOR_LISTS.INCLUDE.ZERO_AUTH_MANDATE
-        )
-      ) {
-        this.skip();
-      }
-
+    it("retrieve-payment-call-test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
       ]["SaveCardConfirmAutoCaptureOffSession"];
@@ -193,29 +130,11 @@ describe("Card - SingleUse Mandates flow test", () => {
         }
       });
 
-      it("Create Customer", function () {
-        if (
-          utils.shouldIncludeConnector(
-            globalState.get("connectorId"),
-            utils.CONNECTOR_LISTS.INCLUDE.ZERO_AUTH_MANDATE
-          )
-        ) {
-          this.skip();
-        }
-
+      it("Create Customer", () => {
         cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
       });
 
-      it("Create No 3DS Payment Intent", function () {
-        if (
-          utils.shouldIncludeConnector(
-            globalState.get("connectorId"),
-            utils.CONNECTOR_LISTS.INCLUDE.ZERO_AUTH_MANDATE
-          )
-        ) {
-          this.skip();
-        }
-
+      it("Create No 3DS Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["ZeroAuthPaymentIntent"];
@@ -232,16 +151,7 @@ describe("Card - SingleUse Mandates flow test", () => {
           shouldContinue = utils.should_continue_further(data);
       });
 
-      it("Confirm No 3DS payment", function () {
-        if (
-          utils.shouldIncludeConnector(
-            globalState.get("connectorId"),
-            utils.CONNECTOR_LISTS.INCLUDE.ZERO_AUTH_MANDATE
-          )
-        ) {
-          this.skip();
-        }
-
+      it("Confirm No 3DS payment", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["ZeroAuthConfirmPayment"];
@@ -252,16 +162,7 @@ describe("Card - SingleUse Mandates flow test", () => {
           shouldContinue = utils.should_continue_further(data);
       });
 
-      it("retrieve-payment-call-test", function () {
-        if (
-          utils.shouldIncludeConnector(
-            globalState.get("connectorId"),
-            utils.CONNECTOR_LISTS.INCLUDE.ZERO_AUTH_MANDATE
-          )
-        ) {
-          this.skip();
-        }
-
+      it("retrieve-payment-call-test", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["ZeroAuthMandate"];
@@ -269,16 +170,7 @@ describe("Card - SingleUse Mandates flow test", () => {
         cy.retrievePaymentCallTest({ globalState, data });
       });
 
-      it("Confirm No 3DS MIT", function () {
-        if (
-          utils.shouldIncludeConnector(
-            globalState.get("connectorId"),
-            utils.CONNECTOR_LISTS.INCLUDE.ZERO_AUTH_MANDATE
-          )
-        ) {
-          this.skip();
-        }
-
+      it("Confirm No 3DS MIT", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["MITAutoCapture"];
@@ -293,16 +185,7 @@ describe("Card - SingleUse Mandates flow test", () => {
         );
       });
 
-      it("retrieve-payment-call-test", function () {
-        if (
-          utils.shouldIncludeConnector(
-            globalState.get("connectorId"),
-            utils.CONNECTOR_LISTS.INCLUDE.ZERO_AUTH_MANDATE
-          )
-        ) {
-          this.skip();
-        }
-
+      it("retrieve-payment-call-test", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["MITAutoCapture"];
@@ -310,16 +193,7 @@ describe("Card - SingleUse Mandates flow test", () => {
         cy.retrievePaymentCallTest({ globalState, data });
       });
 
-      it("Confirm No 3DS MIT", function () {
-        if (
-          utils.shouldIncludeConnector(
-            globalState.get("connectorId"),
-            utils.CONNECTOR_LISTS.INCLUDE.ZERO_AUTH_MANDATE
-          )
-        ) {
-          this.skip();
-        }
-
+      it("Confirm No 3DS MIT", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["MITAutoCapture"];
@@ -334,16 +208,7 @@ describe("Card - SingleUse Mandates flow test", () => {
         );
       });
 
-      it("retrieve-payment-call-test", function () {
-        if (
-          utils.shouldIncludeConnector(
-            globalState.get("connectorId"),
-            utils.CONNECTOR_LISTS.INCLUDE.ZERO_AUTH_MANDATE
-          )
-        ) {
-          this.skip();
-        }
-
+      it("retrieve-payment-call-test", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["MITAutoCapture"];
@@ -362,29 +227,11 @@ describe("Card - SingleUse Mandates flow test", () => {
       }
     });
 
-    it("Create Customer", function () {
-      if (
-        utils.shouldIncludeConnector(
-          globalState.get("connectorId"),
-          utils.CONNECTOR_LISTS.INCLUDE.ZERO_AUTH_MANDATE
-        )
-      ) {
-        this.skip();
-      }
-
+    it("Create Customer", () => {
       cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
     });
 
-    it("Confirm No 3DS CIT", function () {
-      if (
-        utils.shouldIncludeConnector(
-          globalState.get("connectorId"),
-          utils.CONNECTOR_LISTS.INCLUDE.ZERO_AUTH_MANDATE
-        )
-      ) {
-        this.skip();
-      }
-
+    it("Confirm No 3DS CIT", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
       ]["ZeroAuthConfirmPayment"];
@@ -402,16 +249,7 @@ describe("Card - SingleUse Mandates flow test", () => {
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
-    it("retrieve-payment-call-test", function () {
-      if (
-        utils.shouldIncludeConnector(
-          globalState.get("connectorId"),
-          utils.CONNECTOR_LISTS.INCLUDE.ZERO_AUTH_MANDATE
-        )
-      ) {
-        this.skip();
-      }
-
+    it("retrieve-payment-call-test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
       ]["ZeroAuthMandate"];
@@ -419,16 +257,7 @@ describe("Card - SingleUse Mandates flow test", () => {
       cy.retrievePaymentCallTest({ globalState, data });
     });
 
-    it("Confirm No 3DS MIT", function () {
-      if (
-        utils.shouldIncludeConnector(
-          globalState.get("connectorId"),
-          utils.CONNECTOR_LISTS.INCLUDE.ZERO_AUTH_MANDATE
-        )
-      ) {
-        this.skip();
-      }
-
+    it("Confirm No 3DS MIT", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
       ]["MITAutoCapture"];
@@ -443,16 +272,7 @@ describe("Card - SingleUse Mandates flow test", () => {
       );
     });
 
-    it("retrieve-payment-call-test", function () {
-      if (
-        utils.shouldIncludeConnector(
-          globalState.get("connectorId"),
-          utils.CONNECTOR_LISTS.INCLUDE.ZERO_AUTH_MANDATE
-        )
-      ) {
-        this.skip();
-      }
-
+    it("retrieve-payment-call-test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
       ]["MITAutoCapture"];
