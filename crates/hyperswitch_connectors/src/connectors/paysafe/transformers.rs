@@ -120,7 +120,7 @@ impl TryFrom<&ConnectorCustomerRouterData> for PaysafeCustomerDetails {
                 received_length: customer_id.get_string_repr().len(),
             }),
             None => Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "customer_id",
+                field_name: "customer_id".into(),
             }),
         }?;
 
@@ -940,6 +940,7 @@ impl TryFrom<PaymentsPreprocessingResponseRouterData<PaysafePaymentHandleRespons
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             payment_method_token: Some(PaymentMethodToken::Token(
                 item.response.payment_handle_token.clone(),
@@ -1015,6 +1016,7 @@ impl TryFrom<PaymentsResponseRouterData<PaysafePaymentsResponse>> for PaymentsAu
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -1054,6 +1056,7 @@ impl TryFrom<PaymentsResponseRouterData<PaysafePaymentHandleResponse>>
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -1161,7 +1164,7 @@ fn get_apple_pay_decrypt_data(
         application_expiration_date: apple_pay_predecrypt_data
             .get_expiry_date_as_yymm()
             .change_context(errors::ConnectorError::InvalidDataFormat {
-                field_name: "application_expiration_date",
+                field_name: "application_expiration_date".into(),
             })?,
         currency_code: Currency::iso_4217(currency).to_string(),
         transaction_amount: Some(amount),
@@ -1226,13 +1229,13 @@ impl
                             let decoded_data = base64::prelude::BASE64_STANDARD
                                 .decode(applepay_encrypt_data)
                                 .change_context(errors::ConnectorError::InvalidDataFormat {
-                                    field_name: "apple_pay_encrypted_data",
+                                    field_name: "apple_pay_encrypted_data".into(),
                                 })?;
 
                             let apple_pay_token: DecryptedApplePayTokenData =
                                 serde_json::from_slice(&decoded_data).change_context(
                                     errors::ConnectorError::InvalidDataFormat {
-                                        field_name: "apple_pay_token_json",
+                                        field_name: "apple_pay_token_json".into(),
                                     },
                                 )?;
 
@@ -1327,13 +1330,13 @@ impl
                             let decoded_data = base64::prelude::BASE64_STANDARD
                                 .decode(applepay_encrypt_data)
                                 .change_context(errors::ConnectorError::InvalidDataFormat {
-                                    field_name: "apple_pay_encrypted_data",
+                                    field_name: "apple_pay_encrypted_data".into(),
                                 })?;
 
                             let apple_pay_token: DecryptedApplePayTokenData =
                                 serde_json::from_slice(&decoded_data).change_context(
                                     errors::ConnectorError::InvalidDataFormat {
-                                        field_name: "apple_pay_token_json",
+                                        field_name: "apple_pay_token_json".into(),
                                     },
                                 )?;
 
@@ -1413,7 +1416,8 @@ impl TryFrom<&PaymentsAuthorizeRouterData> for PaysafeMandateData {
                             .get_payment_method_token()
                     })
                     .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "payment_token (preprocessing_id or payment_method_token)",
+                        field_name: "payment_token (preprocessing_id or payment_method_token)"
+                            .into(),
                     })?,
             }),
             (false, Some(mandate_data)) => {
@@ -1447,7 +1451,8 @@ impl TryFrom<&PaymentsAuthorizeRouterData> for PaysafeMandateData {
                             .get_payment_method_token()
                     })
                     .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "payment_token (preprocessing_id or payment_method_token)",
+                        field_name: "payment_token (preprocessing_id or payment_method_token)"
+                            .into(),
                     })?,
             }),
         }
@@ -1747,6 +1752,7 @@ impl<F>
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -1983,6 +1989,7 @@ impl<F> TryFrom<ResponseRouterData<F, PaysafeSyncResponse, PaymentsSyncData, Pay
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             })
         };
 
@@ -2060,6 +2067,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PaysafeSettlementResponse, T, PaymentsR
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -2130,6 +2138,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, VoidResponse, T, PaymentsResponseData>>
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })

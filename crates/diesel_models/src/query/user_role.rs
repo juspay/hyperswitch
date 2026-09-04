@@ -17,11 +17,11 @@ use crate::{
     query::generics,
     schema::user_roles::dsl,
     user_role::*,
-    PgPooledConn, StorageResult,
+    DatabaseConnectionWithContext, StorageResult,
 };
 
 impl UserRoleNew {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<UserRole> {
+    pub async fn insert(self, conn: &DatabaseConnectionWithContext<'_>) -> StorageResult<UserRole> {
         generics::generic_insert(conn, self).await
     }
 }
@@ -77,7 +77,7 @@ impl UserRole {
     }
 
     pub async fn find_by_user_id_tenant_id_org_id_merchant_id_profile_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         user_id: String,
         tenant_id: id_type::TenantId,
         org_id: id_type::OrganizationId,
@@ -148,7 +148,7 @@ impl UserRole {
     }
 
     pub async fn find_by_user_id_tenant_id_org_id_merchant_id_profile_id_with_entity_type(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         user_id: String,
         tenant_id: id_type::TenantId,
         org_id: id_type::OrganizationId,
@@ -173,7 +173,7 @@ impl UserRole {
 
     #[allow(clippy::too_many_arguments)]
     pub async fn update_by_user_id_tenant_id_org_id_merchant_id_profile_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         user_id: String,
         tenant_id: id_type::TenantId,
         org_id: id_type::OrganizationId,
@@ -227,7 +227,7 @@ impl UserRole {
     }
 
     pub async fn delete_by_user_id_tenant_id_org_id_merchant_id_profile_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         user_id: String,
         tenant_id: id_type::TenantId,
         org_id: id_type::OrganizationId,
@@ -253,7 +253,7 @@ impl UserRole {
 
     #[allow(clippy::too_many_arguments)]
     pub async fn generic_user_roles_list_for_user(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         user_id: String,
         tenant_id: id_type::TenantId,
         org_id: Option<id_type::OrganizationId>,
@@ -300,8 +300,10 @@ impl UserRole {
         router_env::logger::debug!(query = %debug_query::<Pg,_>(&query).to_string());
 
         match generics::db_metrics::track_database_call::<Self, _, _>(
-            query.get_results_async(conn),
+            conn.request_id(),
+            conn.event_emitter(),
             generics::db_metrics::DatabaseOperation::Filter,
+            query.get_results_async(conn.raw_connection()),
         )
         .await
         {
@@ -317,7 +319,7 @@ impl UserRole {
 
     #[allow(clippy::too_many_arguments)]
     pub async fn generic_user_roles_list_for_org_and_extra(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         user_id: Option<String>,
         tenant_id: id_type::TenantId,
         org_id: id_type::OrganizationId,
@@ -359,8 +361,10 @@ impl UserRole {
         router_env::logger::debug!(query = %debug_query::<Pg,_>(&query).to_string());
 
         match generics::db_metrics::track_database_call::<Self, _, _>(
-            query.get_results_async(conn),
+            conn.request_id(),
+            conn.event_emitter(),
             generics::db_metrics::DatabaseOperation::Filter,
+            query.get_results_async(conn.raw_connection()),
         )
         .await
         {
@@ -375,7 +379,7 @@ impl UserRole {
     }
 
     pub async fn list_user_roles_by_user_id_across_tenants(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         user_id: String,
         limit: Option<u32>,
     ) -> StorageResult<Vec<Self>> {
@@ -389,8 +393,10 @@ impl UserRole {
         router_env::logger::debug!(query = %debug_query::<Pg,_>(&query).to_string());
 
         match generics::db_metrics::track_database_call::<Self, _, _>(
-            query.get_results_async(conn),
+            conn.request_id(),
+            conn.event_emitter(),
             generics::db_metrics::DatabaseOperation::Filter,
+            query.get_results_async(conn.raw_connection()),
         )
         .await
         {

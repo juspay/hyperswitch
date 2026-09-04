@@ -938,13 +938,13 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for We
             self.amount_converter,
             MinorUnit::new(req.request.amount.ok_or(
                 errors::ConnectorError::MissingRequiredField {
-                    field_name: "Amount",
+                    field_name: "Amount".into(),
                 },
             )?),
             req.request
                 .currency
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "Currency",
+                    field_name: "Currency".into(),
                 })?,
         )?;
 

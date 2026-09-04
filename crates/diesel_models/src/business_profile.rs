@@ -573,9 +573,12 @@ pub struct WebhookDetails {
     pub payment_created_enabled: Option<bool>,
     pub payment_succeeded_enabled: Option<bool>,
     pub payment_failed_enabled: Option<bool>,
-    pub payment_statuses_enabled: Option<Vec<common_enums::IntentStatus>>,
-    pub refund_statuses_enabled: Option<Vec<common_enums::RefundStatus>>,
-    pub payout_statuses_enabled: Option<Vec<common_enums::PayoutStatus>>,
+    pub payment_statuses_enabled: Option<HashSet<common_enums::IntentStatus>>,
+    pub refund_statuses_enabled: Option<HashSet<common_enums::RefundStatus>>,
+    pub payout_statuses_enabled: Option<HashSet<common_enums::PayoutStatus>>,
+    pub dispute_statuses_enabled: Option<HashSet<common_enums::DisputeStatus>>,
+    pub mandate_statuses_enabled: Option<HashSet<common_enums::MandateStatus>>,
+    pub invoice_statuses_enabled: Option<HashSet<common_enums::InvoiceStatus>>,
     pub multiple_webhooks_list: Option<Vec<MultipleWebhookDetail>>,
 }
 
@@ -645,6 +648,7 @@ pub struct PaymentLinkConfigRequest {
     pub is_setup_mandate_flow: Option<bool>,
     pub color_icon_card_cvc_error: Option<String>,
     pub show_merchant_name: Option<bool>,
+    pub payment_methods_separator_text: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq)]

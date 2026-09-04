@@ -399,7 +399,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Fis
 
         let p_sync_response = response.sync_responses.first().ok_or(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "P_Sync_Responses[0]",
+                field_name: "P_Sync_Responses[0]".into(),
             },
         )?;
 
@@ -862,7 +862,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Fiserv {
 
         let r_sync_response = response.sync_responses.first().ok_or(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "R_Sync_Responses[0]",
+                field_name: "R_Sync_Responses[0]".into(),
             },
         )?;
 

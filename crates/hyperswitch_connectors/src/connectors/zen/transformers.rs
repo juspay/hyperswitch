@@ -659,14 +659,14 @@ fn get_browser_details(
         .screen_height
         .get_required_value("screen_height")
         .change_context(errors::ConnectorError::MissingRequiredField {
-            field_name: "screen_height",
+            field_name: "screen_height".into(),
         })?;
 
     let screen_width = browser_info
         .screen_width
         .get_required_value("screen_width")
         .change_context(errors::ConnectorError::MissingRequiredField {
-            field_name: "screen_width",
+            field_name: "screen_width".into(),
         })?;
 
     let window_size = match (screen_height, screen_width) {
@@ -983,6 +983,7 @@ fn get_zen_response(
         incremental_authorization_allowed: None,
         authentication_data: None,
         charges: None,
+        payment_account_reference: None,
     };
     Ok((status, error, payment_response_data))
 }
@@ -1032,6 +1033,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, CheckoutResponse, T, PaymentsResponseDa
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..value.data
         })

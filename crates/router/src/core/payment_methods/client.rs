@@ -188,10 +188,11 @@ impl CustomerPaymentMethodsFetcher for ModularCustomerPaymentMethodsFetcher {
         dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> errors::RouterResult<Vec<CustomerPaymentMethodForClient>> {
         let merchant_id = platform.get_processor().get_account().get_id().clone();
-        let id = customer
-            .get_global_id()
-            .cloned()
-            .ok_or(errors::ApiErrorResponse::MissingRequiredField { field_name: "id" })?;
+        let id = customer.get_global_id().cloned().ok_or(
+            errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "id".into(),
+            },
+        )?;
 
         let items = list_customer_payment_methods_from_modular_service(
             state,
@@ -429,11 +430,22 @@ async fn fetch_enabled_payment_methods(
     ))
     .await?;
 
-    let mut flat_pms = merchant_enabled_pms_context.payment_experience_pms_for_client();
-    flat_pms.extend(merchant_enabled_pms_context.card_network_pms_for_client());
+    let customer_acceptance_support_config = &state.conf.customer_acceptance_support;
+
+    let mut flat_pms = merchant_enabled_pms_context
+        .payment_experience_pms_for_client(customer_acceptance_support_config);
+    flat_pms.extend(
+        merchant_enabled_pms_context
+            .card_network_pms_for_client(customer_acceptance_support_config),
+    );
     flat_pms.extend(merchant_enabled_pms_context.bank_redirect_pms_for_client(state)?);
-    flat_pms.extend(merchant_enabled_pms_context.bank_debit_pms_for_client());
-    flat_pms.extend(merchant_enabled_pms_context.bank_transfer_pms_for_client());
+    flat_pms.extend(
+        merchant_enabled_pms_context.bank_debit_pms_for_client(customer_acceptance_support_config),
+    );
+    flat_pms.extend(
+        merchant_enabled_pms_context
+            .bank_transfer_pms_for_client(customer_acceptance_support_config),
+    );
 
     Ok(EnabledPmsResult {
         payment_methods_enabled: flat_pms,

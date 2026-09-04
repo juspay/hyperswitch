@@ -449,7 +449,7 @@ impl TryFrom<&FiservRouterData<&types::PaymentsAuthorizeRouterData>> for FiservP
                         .tokenization_data
                         .get_encrypted_google_pay_token()
                         .change_context(errors::ConnectorError::MissingRequiredField {
-                            field_name: "gpay wallet_token",
+                            field_name: "gpay wallet_token".into(),
                         })?
                         .to_owned();
 
@@ -500,7 +500,7 @@ impl TryFrom<&FiservRouterData<&types::PaymentsAuthorizeRouterData>> for FiservP
                         .complete_authorize_url
                         .clone()
                         .ok_or(errors::ConnectorError::MissingRequiredField {
-                            field_name: "return_url",
+                            field_name: "return_url".into(),
                         })?;
                     Ok(FiservCheckoutChargesRequest::Checkout(
                         CheckoutPaymentsRequest {
@@ -558,7 +558,7 @@ impl TryFrom<&FiservRouterData<&types::PaymentsAuthorizeRouterData>> for FiservP
                                         .get_expiry_month()
                                         .change_context(
                                             errors::ConnectorError::MissingRequiredField {
-                                                field_name: "apple_pay_expiry_month",
+                                                field_name: "apple_pay_expiry_month".into(),
                                             },
                                         )?,
                                     expiration_year: pre_decrypt_data.get_four_digit_expiry_year(),
@@ -1028,6 +1028,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, FiservPaymentsResponse, T, PaymentsResp
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -1086,6 +1087,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, FiservSyncResponse, T, PaymentsResponse
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })

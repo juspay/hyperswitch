@@ -145,6 +145,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, EnvoyPaymentsResponse, T, PaymentsRespo
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -377,7 +378,7 @@ fn get_template_for_ach(
                 bank.account_holder_name
                     .get_required_value("account_holder_name")
                     .change_context(errors::ConnectorError::MissingRequiredField {
-                        field_name: "account_holder_name",
+                        field_name: "account_holder_name".into(),
                     })?,
             ),
         },
@@ -410,7 +411,7 @@ fn get_template_for_bacs(
                 bank.account_holder_name
                     .get_required_value("account_holder_name")
                     .change_context(errors::ConnectorError::MissingRequiredField {
-                        field_name: "account_holder_name",
+                        field_name: "account_holder_name".into(),
                     })?,
             ),
         },
@@ -446,7 +447,7 @@ fn get_template_for_sepa(
                 bank.account_holder_name
                     .get_required_value("account_holder_name")
                     .change_context(errors::ConnectorError::MissingRequiredField {
-                        field_name: "account_holder_name",
+                        field_name: "account_holder_name".into(),
                     })?,
             ),
         },
@@ -666,6 +667,7 @@ impl TryFrom<PayoutsResponseRouterData<PoFulfill, EnvoyPayoutSoapResponse>>
                     error_code,
                     error_message,
                     payout_connector_metadata: None,
+                    connector_eligibility_reference_id: None,
                 }),
                 ..item.data
             })
@@ -679,6 +681,7 @@ impl TryFrom<PayoutsResponseRouterData<PoFulfill, EnvoyPayoutSoapResponse>>
                     error_code: Some(payment_account_v3_result.status_code.clone().to_string()),
                     error_message: payment_account_v3_result.status_message.clone(),
                     payout_connector_metadata: None,
+                    connector_eligibility_reference_id: None,
                 }),
                 ..item.data
             })
