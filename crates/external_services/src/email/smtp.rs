@@ -27,9 +27,7 @@ async fn connect_direct(host: &str, port: u16) -> Result<TcpStream, SmtpError> {
         .map_err(SmtpError::DirectConnectionFailed)
 }
 
-/// SOCKS5 proxy to tunnel the SMTP connection through. Absent means connect directly.
-///
-/// Note: username/password auth (RFC 1929) is sent to the proxy in cleartext.
+/// SOCKS5 proxy to tunnel the SMTP connection through (absent means connect directly); username/password auth (RFC 1929) is sent to the proxy in cleartext.
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct Socks5Config {
@@ -327,8 +325,7 @@ pub enum SmtpError {
     /// The configured SOCKS5 proxy hostname could not be resolved.
     #[error("Failed to resolve SOCKS5 proxy address: {0:?}")]
     Socks5ProxyResolutionFailed(std::io::Error),
-    /// Establishing the SOCKS5 tunnel failed (proxy unreachable, auth rejected, or
-    /// protocol error).
+    /// Establishing the SOCKS5 tunnel failed (proxy unreachable, auth rejected, or protocol error).
     #[error("SOCKS5 proxy connection failed: {0}")]
     Socks5ConnectionFailed(tokio_socks::Error),
     /// TCP connection to the SMTP host itself failed (non-proxied direct connect).
