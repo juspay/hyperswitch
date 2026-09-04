@@ -221,6 +221,7 @@ mod tests {
     fn a_log_destination_needs_no_credential_to_build() {
         let settings = ChatSettings {
             destinations: HashMap::from([("smoke".to_owned(), ChatDestination::Log)]),
+            ..Default::default()
         };
 
         let registry = build_chat_registry(&settings, &Proxy::default()).unwrap();
@@ -238,6 +239,7 @@ mod tests {
 
         let settings = ChatSettings {
             destinations: HashMap::from([("sr_alerts".to_owned(), ChatDestination::Xyne(config))]),
+            ..Default::default()
         };
 
         let error = build_chat_registry(&settings, &Proxy::default()).unwrap_err();

@@ -13,16 +13,18 @@
 use common_utils::request::{Method, RequestBuilder, RequestContent};
 use error_stack::ResultExt;
 use hyperswitch_interfaces::types::Proxy;
-use hyperswitch_masking::{Mask as _, PeekInterface, Secret};
+use hyperswitch_masking::Maskable;
 use router_env::logger;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
-use super::{ChatError, ChatErrorReason, ChatMessage, ChatResult, MessageId};
+use super::{ChatError, ChatErrorReason, ChatFile, ChatMessage, ChatResult, FileId, MessageId};
 use crate::http_client;
 
 /// The method that posts a message. The only one this crate calls; `files.upload` is out of v1.
 const CHAT_POST_MESSAGE: &str = "chat.postMessage";
+const FILES_GET_UPLOAD_URL: &str = "files.getUploadURLExternal";
+const FILES_COMPLETE_UPLOAD: &str = "files.completeUploadExternal";
 
 /// Long enough that a slow provider is not mistaken for a dead one, short enough that a caller
 /// delivering a time-sensitive message is not held indefinitely.
@@ -37,9 +39,23 @@ const BODY_SNIPPET_CHARS: usize = 512;
 /// Stands in when a refusal names no error code at all.
 const UNSPECIFIED_ERROR_CODE: &str = "unspecified";
 
+/// Request headers selected by the concrete backend.
+#[derive(Clone, Debug)]
+pub(super) struct EndpointHeaders {
+    api: Vec<(String, Maskable<String>)>,
+    upload: Vec<(String, Maskable<String>)>,
+}
+
+impl EndpointHeaders {
+    pub(super) fn new(
+        api: Vec<(String, Maskable<String>)>,
+        upload: Vec<(String, Maskable<String>)>,
+    ) -> Self {
+        Self { api, upload }
+    }
+}
+
 /// One destination on a Slack-compatible API: where to post, as whom, and to which channel.
-///
-/// `Debug` is derived: [`Secret`] redacts itself, so the token cannot reach a log line through it.
 #[derive(Clone, Debug)]
 pub(super) struct Endpoint {
     /// Root of the API, e.g. `https://slack.com/api`.
@@ -49,8 +65,8 @@ pub(super) struct Endpoint {
     /// (`/api/chat.postMessage`); Xyne namespaces them (`/api/apps/slack/chat.postMessage`).
     method_prefix: &'static str,
 
-    /// Presented as `Authorization: Bearer <token>`.
-    token: Secret<String>,
+    /// Headers for API method calls and the raw upload leg are supplied by the concrete backend.
+    headers: EndpointHeaders,
 
     /// Channel id is preferred over channel name; both are accepted, and the provider decides.
     channel: String,
@@ -68,7 +84,7 @@ impl Endpoint {
     pub(super) fn new(
         base_url: Url,
         method_prefix: &'static str,
-        token: Secret<String>,
+        headers: EndpointHeaders,
         channel: String,
         timeout_seconds: u64,
         max_message_chars: usize,
@@ -81,10 +97,6 @@ impl Endpoint {
             ))?
         }
 
-        if token.peek().trim().is_empty() {
-            Err(ChatError::InvalidConfiguration("token must not be empty"))?
-        }
-
         if max_message_chars == 0 {
             Err(ChatError::InvalidConfiguration(
                 "max message length must be greater than zero",
@@ -94,7 +106,7 @@ impl Endpoint {
         Ok(Self {
             base_url,
             method_prefix,
-            token,
+            headers,
             channel,
             timeout_seconds,
             max_message_chars,
@@ -136,42 +148,152 @@ impl Endpoint {
             chars = payload.text.chars().count(),
         );
 
+        let body = self
+            .send(
+                &url,
+                RequestContent::Json(Box::new(payload)),
+                &mime::APPLICATION_JSON,
+                &self.headers.api,
+            )
+            .await?;
+
+        // The body, not the status code, decides whether this succeeded.
+        serde_json::from_str::<PostMessageResponse>(&body)
+            .change_context(ChatError::UnreadableResponse)
+            .attach_printable_lazy(|| {
+                format!(
+                    "chat provider returned an unrecognised body: {}",
+                    snippet(&body, BODY_SNIPPET_CHARS)
+                )
+            })?
+            .try_into()
+    }
+
+    /// Upload bytes through Slack's current external-upload flow, then share the resulting file.
+    pub(super) async fn upload_file(&self, file: ChatFile) -> ChatResult<FileId> {
+        if file.bytes().is_empty() {
+            Err(ChatError::InvalidConfiguration("file must not be empty"))?
+        }
+        if file.filename().trim().is_empty() {
+            Err(ChatError::InvalidConfiguration(
+                "filename must not be empty",
+            ))?
+        }
+
+        let thread_ts = file
+            .reply_target()
+            .map(|message_id| {
+                message_id
+                    .as_ts()
+                    .map(str::to_owned)
+                    .ok_or(ChatError::IncompatibleReplyTarget)
+            })
+            .transpose()?;
+
+        let prepare_url = self.method_url(FILES_GET_UPLOAD_URL);
+        let prepare_body = self
+            .send(
+                &prepare_url,
+                RequestContent::Json(Box::new(GetUploadUrlPayload {
+                    filename: file.filename().to_owned(),
+                    length: file.bytes().len(),
+                })),
+                &mime::APPLICATION_JSON,
+                &self.headers.api,
+            )
+            .await?;
+        let prepared: GetUploadUrlResponse = serde_json::from_str(&prepare_body)
+            .change_context(ChatError::UnreadableResponse)
+            .attach_printable("could not read files.getUploadURLExternal response")?;
+        reject_if_needed(prepared.ok, prepared.error)?;
+        let upload_url = prepared
+            .upload_url
+            .ok_or(ChatError::UnreadableResponse)
+            .attach_printable("files.getUploadURLExternal returned no upload_url")?;
+        let pending_file_id = prepared
+            .file_id
+            .filter(|id| !id.is_empty())
+            .ok_or(ChatError::UnreadableResponse)
+            .attach_printable("files.getUploadURLExternal returned no file_id")?;
+
+        let upload_body = self
+            .send(
+                upload_url.as_str(),
+                RequestContent::RawBytes(file.bytes().to_vec()),
+                &mime::APPLICATION_OCTET_STREAM,
+                &self.headers.upload,
+            )
+            .await?;
+        if let Ok(envelope) = serde_json::from_str::<UploadLegResponse>(&upload_body) {
+            reject_if_needed(envelope.ok, envelope.error)?;
+        }
+
+        let complete_url = self.method_url(FILES_COMPLETE_UPLOAD);
+        let complete_body = self
+            .send(
+                &complete_url,
+                RequestContent::Json(Box::new(CompleteUploadPayload {
+                    files: vec![CompleteUploadFile {
+                        id: pending_file_id,
+                        title: file.title().map(str::to_owned),
+                    }],
+                    channel_id: self.channel.clone(),
+                    initial_comment: file.comment().map(str::to_owned),
+                    thread_ts,
+                })),
+                &mime::APPLICATION_JSON,
+                &self.headers.api,
+            )
+            .await?;
+        let completed: CompleteUploadResponse = serde_json::from_str(&complete_body)
+            .change_context(ChatError::UnreadableResponse)
+            .attach_printable("could not read files.completeUploadExternal response")?;
+        reject_if_needed(completed.ok, completed.error)?;
+
+        completed
+            .files
+            .unwrap_or_default()
+            .into_iter()
+            .find_map(|file| file.id.filter(|id| !id.is_empty()))
+            .map(FileId::identifier)
+            .ok_or(ChatError::MissingFileId)
+            .attach_printable("the upload completed but the response named no resulting file")
+    }
+
+    async fn send(
+        &self,
+        url: &str,
+        body: RequestContent,
+        content_type: &mime::Mime,
+        backend_headers: &[(String, Maskable<String>)],
+    ) -> ChatResult<String> {
+        let mut headers = backend_headers.to_vec();
+        headers.push((
+            http::header::CONTENT_TYPE.to_string(),
+            content_type.essence_str().to_owned().into(),
+        ));
+
         let request = RequestBuilder::new()
             .method(Method::Post)
-            .url(&url)
+            .url(url)
             .attach_default_headers()
-            .headers(vec![
-                (
-                    http::header::AUTHORIZATION.to_string(),
-                    format!("Bearer {}", self.token.peek()).into_masked(),
-                ),
-                (
-                    http::header::CONTENT_TYPE.to_string(),
-                    "application/json".to_owned().into(),
-                ),
-            ])
-            .set_body(RequestContent::Json(Box::new(payload)))
+            .headers(headers)
+            .set_body(body)
             .build();
-
         let response = http_client::send_request(&self.proxy, request, Some(self.timeout_seconds))
             .await
             .change_context(ChatError::RequestFailed)
             .attach_printable_lazy(|| format!("chat request to {url} was not sent"))?;
-
         let status = response.status();
-
-        // Read before the body, which consumes the response.
         let retry_after_seconds = response
             .headers()
             .get(reqwest::header::RETRY_AFTER)
             .and_then(|value| value.to_str().ok())
             .and_then(|value| value.parse::<u64>().ok());
-
         let body = response
             .text()
             .await
-            .change_context(ChatError::UnreadableResponse)
-            .attach_printable("could not read the chat provider's response body")?;
+            .change_context(ChatError::UnreadableResponse)?;
 
         if status == reqwest::StatusCode::TOO_MANY_REQUESTS {
             Err(ChatError::Rejected {
@@ -180,7 +302,6 @@ impl Endpoint {
                 },
             })?
         }
-
         if !status.is_success() {
             Err(ChatError::HttpStatus {
                 status: status.as_u16(),
@@ -189,18 +310,7 @@ impl Endpoint {
                 format!("chat provider body: {}", snippet(&body, BODY_SNIPPET_CHARS))
             })?
         }
-
-        // The body, not the status code, decides whether this succeeded.
-        serde_json::from_str::<PostMessageResponse>(&body)
-            .change_context(ChatError::UnreadableResponse)
-            .attach_printable_lazy(|| {
-                format!(
-                    "chat provider returned HTTP {} with an unrecognised body: {}",
-                    status.as_u16(),
-                    snippet(&body, BODY_SNIPPET_CHARS)
-                )
-            })?
-            .try_into()
+        Ok(body)
     }
 
     fn build_payload(&self, message: &ChatMessage) -> ChatResult<PostMessagePayload> {
@@ -221,6 +331,68 @@ impl Endpoint {
             mrkdwn: true,
         })
     }
+}
+
+fn reject_if_needed(ok: bool, error: Option<SlackErrorCode>) -> ChatResult<()> {
+    match ok {
+        true => Ok(()),
+        false => {
+            let reason = error.map_or_else(
+                || ChatErrorReason::Other(UNSPECIFIED_ERROR_CODE.to_owned()),
+                ChatErrorReason::from,
+            );
+            Err(ChatError::Rejected { reason }.into())
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+struct GetUploadUrlPayload {
+    filename: String,
+    length: usize,
+}
+
+#[derive(Debug, Deserialize)]
+struct GetUploadUrlResponse {
+    ok: bool,
+    error: Option<SlackErrorCode>,
+    upload_url: Option<Url>,
+    file_id: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct UploadLegResponse {
+    ok: bool,
+    error: Option<SlackErrorCode>,
+}
+
+#[derive(Debug, Serialize)]
+struct CompleteUploadPayload {
+    files: Vec<CompleteUploadFile>,
+    channel_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    initial_comment: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    thread_ts: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+struct CompleteUploadFile {
+    id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    title: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct CompleteUploadResponse {
+    ok: bool,
+    error: Option<SlackErrorCode>,
+    files: Option<Vec<CompletedFile>>,
+}
+
+#[derive(Debug, Deserialize)]
+struct CompletedFile {
+    id: Option<String>,
 }
 
 /// The `chat.postMessage` request body.
@@ -383,6 +555,7 @@ fn snippet(body: &str, max_chars: usize) -> String {
     clippy::indexing_slicing
 )]
 mod tests {
+    use hyperswitch_masking::Mask as _;
     use serde_json::json;
 
     use super::*;
@@ -543,7 +716,13 @@ mod tests {
         Endpoint::new(
             Url::parse(base_url).unwrap(),
             method_prefix,
-            Secret::new(token.to_owned()),
+            EndpointHeaders::new(
+                vec![(
+                    http::header::AUTHORIZATION.to_string(),
+                    format!("Bearer {token}").into_masked(),
+                )],
+                Vec::new(),
+            ),
             "C1".to_owned(),
             DEFAULT_TIMEOUT_SECONDS,
             TEST_MAX_MESSAGE_CHARS,
@@ -555,13 +734,12 @@ mod tests {
     fn an_unusable_destination_is_rejected_on_the_way_in() {
         // A malformed base URL cannot reach here at all: it is a `Url`, so it fails at
         // deserialization. What is left for `Endpoint::new` is the rest of the destination.
-        assert!(endpoint("https://example.com", "/", "").is_err());
         assert!(endpoint("https://example.com", "/", "token").is_ok());
 
         let blank_channel = Endpoint::new(
             Url::parse("https://example.com").unwrap(),
             "/",
-            Secret::new("token".to_owned()),
+            EndpointHeaders::new(Vec::new(), Vec::new()),
             "  ".to_owned(),
             DEFAULT_TIMEOUT_SECONDS,
             TEST_MAX_MESSAGE_CHARS,
@@ -572,7 +750,7 @@ mod tests {
         let zero_cap = Endpoint::new(
             Url::parse("https://example.com").unwrap(),
             "/",
-            Secret::new("token".to_owned()),
+            EndpointHeaders::new(Vec::new(), Vec::new()),
             "C1".to_owned(),
             DEFAULT_TIMEOUT_SECONDS,
             0,

@@ -6,7 +6,7 @@ use std::sync::{
 };
 
 use external_services::chat_service::{
-    ChatClient, ChatError, ChatErrorReason, ChatMessage, MessageId,
+    ChatClient, ChatError, ChatErrorReason, ChatFile, ChatMessage, MessageId,
 };
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 
@@ -35,6 +35,23 @@ pub struct ChatNotification {
     pub reply_to: Option<String>,
 }
 
+/// One file to upload to a chat destination.
+#[derive(Debug, Clone)]
+pub struct ChatFileUpload {
+    pub bytes: Secret<Vec<u8>>,
+    pub filename: Secret<String>,
+    pub title: Option<Secret<String>>,
+    pub comment: Option<Secret<String>>,
+    pub reply_to: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ChatFileReceipt {
+    pub file_id: Option<String>,
+}
+
+pub type ChatFileOutcome = Outcome<ChatFileReceipt>;
+
 /// What a chat destination hands back when it accepts a message.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ChatReceipt {
@@ -60,6 +77,9 @@ pub trait ChatNotifier: Send + Sync + std::fmt::Debug {
     /// A provider that refuses returns `Ok(Outcome::Refused)`, not an error: it was reached and it
     /// answered. `Err` means the attempt itself failed, so whether the message arrived is unknown.
     async fn notify(&self, notification: ChatNotification) -> ObservabilityApiResult<ChatOutcome>;
+
+    /// Upload one file and optionally share it in an existing thread.
+    async fn upload_file(&self, upload: ChatFileUpload) -> ObservabilityApiResult<ChatFileOutcome>;
 }
 
 /// A [`ChatNotifier`] backed by a real chat transport.
@@ -111,6 +131,31 @@ impl ChatNotifier for ChatClientNotifier {
                     // `change_context` rather than a fresh error, so every `attach_printable` the
                     // client left on the way up — the URL, the response snippet — reaches the log
                     // while the caller sees only what `ErrorSwitch` renders.
+                    Err(report.change_context(error(self.destination.clone())))
+                }
+            },
+        }
+    }
+
+    async fn upload_file(&self, upload: ChatFileUpload) -> ObservabilityApiResult<ChatFileOutcome> {
+        let file = ChatFile::new(
+            upload.bytes.expose(),
+            upload.filename.expose(),
+            upload.title.map(ExposeInterface::expose),
+            upload.comment.map(ExposeInterface::expose),
+            upload.reply_to.map(MessageId::ts),
+        );
+
+        match self.client.upload_file(file).await {
+            Ok(file_id) => Ok(Outcome::Delivered(ChatFileReceipt {
+                file_id: file_id.as_identifier().map(str::to_owned),
+            })),
+            Err(report) => match classify(report.current_context()) {
+                Verdict::Refused(refusal) => Ok(Outcome::Refused(refusal)),
+                Verdict::DeliveredWithoutId => {
+                    Ok(Outcome::Delivered(ChatFileReceipt { file_id: None }))
+                }
+                Verdict::Failed(error) => {
                     Err(report.change_context(error(self.destination.clone())))
                 }
             },
@@ -174,6 +219,8 @@ fn classify(error: &ChatError) -> Verdict {
         ChatError::InvalidConfiguration(_) => {
             Verdict::Failed(|_destination| ObservabilityError::InternalServerError)
         }
+
+        ChatError::MissingFileId => Verdict::DeliveredWithoutId,
     }
 }
 
@@ -243,6 +290,20 @@ impl ChatNotifier for LogChatNotifier {
             message_id: Some(format!("log.{sequence:06}")),
         }))
     }
+
+    async fn upload_file(&self, upload: ChatFileUpload) -> ObservabilityApiResult<ChatFileOutcome> {
+        let sequence = self.sequence.fetch_add(1, Ordering::Relaxed);
+        logger::info!(
+            tag = "chat_upload_skipped",
+            destination = %self.destination,
+            bytes = upload.bytes.peek().len(),
+            threaded = upload.reply_to.is_some(),
+            "not delivered: this destination is configured as `log`"
+        );
+        Ok(Outcome::Delivered(ChatFileReceipt {
+            file_id: Some(format!("log-file.{sequence:06}")),
+        }))
+    }
 }
 
 #[cfg(test)]
@@ -302,11 +363,10 @@ mod tests {
 
     /// The message went out. Anything that reads as retryable here posts the alert twice.
     #[test]
-    fn an_accepted_message_with_no_id_is_a_delivery() {
-        assert!(matches!(
-            classify(&ChatError::MissingMessageId),
-            Verdict::DeliveredWithoutId
-        ));
+    fn accepted_content_with_no_id_is_still_a_delivery() {
+        for error in [ChatError::MissingMessageId, ChatError::MissingFileId] {
+            assert!(matches!(classify(&error), Verdict::DeliveredWithoutId));
+        }
     }
 
     #[test]

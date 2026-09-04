@@ -78,7 +78,7 @@ reach the logs from the client, which emits `chars` per request.
 
 ## The API
 
-Two routes, one per channel. **The path says where, the body says what** — the URL names the
+Three delivery routes across two channels. **The path says where, the body says what** — the URL names the
 channel and the destination, the body carries only content. Channel ids, recipient addresses and
 credentials live in configuration, so a caller cannot address a channel that was not set up for it
 and no credential travels on the wire.
@@ -88,6 +88,7 @@ The whole surface, guarded and not:
 | Method | Path | Auth |
 |---|---|---|
 | `POST` | `/alerts/chat/notify/{destination}` | `X-Internal-Api-Key` |
+| `POST` | `/alerts/chat/upload/{destination}` | `X-Internal-Api-Key` |
 | `POST` | `/alerts/email/notify/{destination}` | `X-Internal-Api-Key` |
 | `GET` | `/health` | none — liveness |
 
@@ -101,6 +102,20 @@ X-Internal-Api-Key: <key>
 { "text": "*3 merchants not converting*", "reply_to": "cmtk931s114h8c9mfodi4ou1s" }
 → 200 { "status": "delivered", "message_id": "cmtk931zk14lec9mf1svtd88t" }
 ```
+
+```http
+POST /alerts/chat/upload/{destination}
+X-Internal-Api-Key: <key>
+Content-Type: multipart/form-data
+
+file=<required bytes>&filename=<optional override>&title=<optional>&comment=<optional>&reply_to=<optional message_id>
+→ 200 { "status": "delivered", "file_id": "cmtmsn9c110b7s7g92e72zv1u" }
+```
+
+One file is accepted per call. Uploads use the provider's external three-call flow and can be shared
+under the message named by `reply_to`; the upload itself returns a file id, not a message id. Bodies are capped by `chat.max_upload_bytes` (25 MiB by default). The multipart extractor buffers
+an accepted file in memory, but accounts for the body as chunks arrive and rejects the chunk that
+crosses the cap rather than first retaining an oversized body.
 
 ```http
 POST /alerts/email/notify/{destination}

@@ -21,6 +21,7 @@ pub mod xyne;
 mod slack_compatible;
 
 use common_utils::errors::CustomResult;
+use hyperswitch_masking::{PeekInterface, Secret};
 
 /// Result type for chat operations.
 pub type ChatResult<T> = CustomResult<T, ChatError>;
@@ -35,6 +36,90 @@ pub type ChatResult<T> = CustomResult<T, ChatError>;
 pub trait ChatClient: Send + Sync + std::fmt::Debug {
     /// Post a message, returning the id of the message that was created.
     async fn post_message(&self, message: ChatMessage) -> ChatResult<MessageId>;
+
+    /// Upload a file and optionally share it under an existing message.
+    async fn upload_file(&self, file: ChatFile) -> ChatResult<FileId>;
+}
+
+/// Identifies a file that a backend has accepted.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[non_exhaustive]
+pub enum FileId {
+    /// An opaque identifier returned by a file upload API.
+    Identifier(String),
+}
+
+impl FileId {
+    /// Build an opaque file identifier.
+    pub fn identifier(value: impl Into<String>) -> Self {
+        Self::Identifier(value.into())
+    }
+
+    /// The provider's opaque file identifier.
+    pub fn as_identifier(&self) -> Option<&str> {
+        match self {
+            Self::Identifier(value) => Some(value.as_str()),
+        }
+    }
+}
+
+/// A file to upload to a chat destination.
+///
+/// Bytes are deliberately owned: the shared HTTP transport may retry a request and therefore must
+/// be able to replay its body. Content fields are secrets so derived debug output cannot expose an
+/// alert report or the identifying metadata around it.
+#[derive(Debug, Clone)]
+pub struct ChatFile {
+    bytes: Secret<Vec<u8>>,
+    filename: Secret<String>,
+    title: Option<Secret<String>>,
+    comment: Option<Secret<String>>,
+    reply_to: Option<MessageId>,
+}
+
+impl ChatFile {
+    /// Build one upload. Validation that requires destination context happens in the client.
+    pub fn new(
+        bytes: Vec<u8>,
+        filename: impl Into<String>,
+        title: Option<String>,
+        comment: Option<String>,
+        reply_to: Option<MessageId>,
+    ) -> Self {
+        Self {
+            bytes: Secret::new(bytes),
+            filename: Secret::new(filename.into()),
+            title: title.map(Secret::new),
+            comment: comment.map(Secret::new),
+            reply_to,
+        }
+    }
+
+    pub(crate) fn bytes(&self) -> &[u8] {
+        self.bytes.peek()
+    }
+
+    pub(crate) fn filename(&self) -> &str {
+        self.filename.peek()
+    }
+
+    pub(crate) fn title(&self) -> Option<&str> {
+        self.title
+            .as_ref()
+            .map(PeekInterface::peek)
+            .map(String::as_str)
+    }
+
+    pub(crate) fn comment(&self) -> Option<&str> {
+        self.comment
+            .as_ref()
+            .map(PeekInterface::peek)
+            .map(String::as_str)
+    }
+
+    pub(crate) fn reply_target(&self) -> Option<&MessageId> {
+        self.reply_to.as_ref()
+    }
 }
 
 /// Identifies a message that a backend has accepted.
@@ -168,6 +253,10 @@ pub enum ChatError {
     /// id minted by a different backend.
     #[error("The message id supplied cannot thread a reply on this chat provider")]
     IncompatibleReplyTarget,
+
+    /// The provider accepted an upload but did not identify the resulting file.
+    #[error("Chat provider accepted the upload without returning a file id")]
+    MissingFileId,
 }
 
 /// Why a provider refused a message, in vocabulary no single backend owns.

@@ -11,13 +11,13 @@
 //! ingestion; the contract implemented here was established against a working deployment.
 
 use hyperswitch_interfaces::types::Proxy;
-use hyperswitch_masking::Secret;
+use hyperswitch_masking::{Mask as _, Maskable, PeekInterface, Secret};
 use serde::Deserialize;
 use url::Url;
 
 use super::{
-    slack_compatible::{Endpoint, DEFAULT_TIMEOUT_SECONDS},
-    ChatClient, ChatMessage, ChatResult, MessageId,
+    slack_compatible::{Endpoint, EndpointHeaders, DEFAULT_TIMEOUT_SECONDS},
+    ChatClient, ChatError, ChatFile, ChatMessage, ChatResult, FileId, MessageId,
 };
 
 /// Xyne namespaces the Slack-compatible methods it proxies.
@@ -88,11 +88,16 @@ impl XyneClient {
     /// directly reachable from the pod — which is why it is passed alongside the config rather
     /// than carried inside it.
     pub fn new(config: XyneConfig, proxy: Proxy) -> ChatResult<Self> {
+        if config.app_jwt.peek().trim().is_empty() {
+            Err(ChatError::InvalidConfiguration("app JWT must not be empty"))?
+        }
+        let authorization = authorization_headers(&config.app_jwt);
+
         Ok(Self {
             endpoint: Endpoint::new(
                 config.base_url,
                 METHOD_PREFIX,
-                config.app_jwt,
+                EndpointHeaders::new(authorization.clone(), authorization),
                 config.channel,
                 config.timeout_seconds,
                 config.max_message_chars,
@@ -102,10 +107,21 @@ impl XyneClient {
     }
 }
 
+fn authorization_headers(token: &Secret<String>) -> Vec<(String, Maskable<String>)> {
+    vec![(
+        http::header::AUTHORIZATION.to_string(),
+        format!("Bearer {}", token.peek()).into_masked(),
+    )]
+}
+
 #[async_trait::async_trait]
 impl ChatClient for XyneClient {
     async fn post_message(&self, message: ChatMessage) -> ChatResult<MessageId> {
         self.endpoint.post_message(message).await
+    }
+
+    async fn upload_file(&self, file: ChatFile) -> ChatResult<FileId> {
+        self.endpoint.upload_file(file).await
     }
 }
 
@@ -114,12 +130,12 @@ impl ChatClient for XyneClient {
 mod tests {
     use serde_json::json;
     use wiremock::{
-        matchers::{body_json, header, method, path},
+        matchers::{body_bytes, body_json, header, method, path},
         Mock, MockServer, ResponseTemplate,
     };
 
     use super::*;
-    use crate::chat_service::{ChatError, ChatErrorReason};
+    use crate::chat_service::ChatErrorReason;
 
     const TOKEN: &str = "test-jwt";
     const CHANNEL: &str = "C0123456789";
@@ -196,6 +212,98 @@ mod tests {
             .unwrap();
 
         assert_eq!(message_id, MessageId::ts("1503435999.000111"));
+    }
+
+    #[tokio::test]
+    async fn uploads_and_threads_a_file_through_the_three_call_flow() {
+        let server = MockServer::start().await;
+        let upload_url = format!("{}/upload/pending-file", server.uri());
+
+        Mock::given(method("POST"))
+            .and(path("/api/apps/slack/files.getUploadURLExternal"))
+            .and(header("authorization", format!("Bearer {TOKEN}").as_str()))
+            .and(body_json(json!({"filename": "report.pdf", "length": 4})))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+                "ok": true,
+                "upload_url": upload_url,
+                "file_id": "pending-file"
+            })))
+            .mount(&server)
+            .await;
+        Mock::given(method("POST"))
+            .and(path("/upload/pending-file"))
+            .and(header("authorization", format!("Bearer {TOKEN}").as_str()))
+            .and(body_bytes(b"%PDF"))
+            .respond_with(ResponseTemplate::new(200).set_body_string("OK"))
+            .mount(&server)
+            .await;
+        Mock::given(method("POST"))
+            .and(path("/api/apps/slack/files.completeUploadExternal"))
+            .and(body_json(json!({
+                "files": [{"id": "pending-file", "title": "Daily report"}],
+                "channel_id": CHANNEL,
+                "initial_comment": "attached",
+                "thread_ts": "1.2"
+            })))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+                "ok": true,
+                "files": [{"id": "stored-file"}]
+            })))
+            .mount(&server)
+            .await;
+
+        let file_id = client_for(&server)
+            .upload_file(ChatFile::new(
+                b"%PDF".to_vec(),
+                "report.pdf",
+                Some("Daily report".to_owned()),
+                Some("attached".to_owned()),
+                Some(MessageId::ts("1.2")),
+            ))
+            .await
+            .unwrap();
+
+        assert_eq!(file_id, FileId::identifier("stored-file"));
+    }
+
+    #[tokio::test]
+    async fn xyne_uploads_receive_the_app_credential_even_off_origin() {
+        let api = MockServer::start().await;
+        let storage = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/api/apps/slack/files.getUploadURLExternal"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+                "ok": true,
+                "upload_url": format!("{}/raw", storage.uri()),
+                "file_id": "pending"
+            })))
+            .mount(&api)
+            .await;
+        Mock::given(method("POST"))
+            .and(path("/raw"))
+            .respond_with(ResponseTemplate::new(200).set_body_string("OK"))
+            .mount(&storage)
+            .await;
+        Mock::given(method("POST"))
+            .and(path("/api/apps/slack/files.completeUploadExternal"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+                "ok": true,
+                "files": [{"id": "stored"}]
+            })))
+            .mount(&api)
+            .await;
+
+        client_for(&api)
+            .upload_file(ChatFile::new(vec![1], "report.pdf", None, None, None))
+            .await
+            .unwrap();
+
+        let requests = storage.received_requests().await.unwrap();
+        assert_eq!(requests.len(), 1);
+        assert_eq!(
+            requests[0].headers.get("authorization").unwrap(),
+            format!("Bearer {TOKEN}").as_str()
+        );
     }
 
     #[tokio::test]

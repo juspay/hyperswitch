@@ -57,6 +57,11 @@ secrets_manager = "no_encryption"
 # registry, response — can be exercised before real credentials exist. It logs sizes, never the
 # message: this writes to the same stream as everything else and an alert body carries merchant ids
 # and payment volumes.
+#
+# Upload bodies are consumed as a stream and refused once this many field bytes have arrived.
+[chat]
+max_upload_bytes = 26214400 # 25 MiB
+
 [chat.destinations.smoke]
 type = "log"
 

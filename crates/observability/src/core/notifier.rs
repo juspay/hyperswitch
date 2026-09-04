@@ -7,15 +7,16 @@
 //! destination" is turned into an error rather than repeated per route.
 
 use error_stack::report;
+use hyperswitch_masking::PeekInterface;
 
 use crate::{
     domain::notifier::{
-        chat::{ChatNotification, ChatOutcome},
+        chat::{ChatFileOutcome, ChatFileUpload, ChatNotification, ChatOutcome},
         email::{EmailNotification, EmailOutcome},
     },
     errors::{ObservabilityApiResult, ObservabilityError},
     state::AppState,
-    types::{ChatNotifyRequest, EmailNotifyRequest},
+    types::{ChatNotifyRequest, ChatUploadRequest, EmailNotifyRequest},
 };
 
 /// Deliver a chat message to the named destination.
@@ -34,6 +35,38 @@ pub async fn notify_chat(
         })?
         .notify(ChatNotification {
             text: request.text,
+            reply_to: request.reply_to,
+        })
+        .await
+}
+
+/// Upload a file to the named chat destination.
+pub async fn upload_chat_file(
+    state: AppState,
+    destination: &str,
+    request: ChatUploadRequest,
+) -> ObservabilityApiResult<ChatFileOutcome> {
+    let filename = request
+        .filename
+        .filter(|filename| !filename.peek().trim().is_empty())
+        .ok_or_else(|| report!(ObservabilityError::InvalidRequest))?;
+    if request.bytes.peek().is_empty() {
+        Err(report!(ObservabilityError::InvalidRequest))?
+    }
+
+    state
+        .chat
+        .get(destination)
+        .ok_or_else(|| {
+            report!(ObservabilityError::UnknownDestination {
+                destination: destination.to_owned(),
+            })
+        })?
+        .upload_file(ChatFileUpload {
+            bytes: request.bytes,
+            filename,
+            title: request.title,
+            comment: request.comment,
             reply_to: request.reply_to,
         })
         .await

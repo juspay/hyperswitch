@@ -3584,6 +3584,7 @@ dependencies = [
  "hyperswitch_interfaces",
  "hyperswitch_masking",
  "lettre",
+ "mime 0.3.17",
  "once_cell",
  "open-feature",
  "prost 0.14.3",
@@ -6480,6 +6481,7 @@ dependencies = [
 name = "observability"
 version = "0.1.0"
 dependencies = [
+ "actix-multipart",
  "actix-web",
  "async-trait",
  "clap 4.5.38",

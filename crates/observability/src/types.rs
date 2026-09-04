@@ -47,11 +47,12 @@
 //! message looks like, in whatever markup its destination reads. `body` is HTML, because both email
 //! backends in `external_services` hardcode an HTML body and there is no plain-text path to reach.
 
+use actix_multipart::form::{bytes::Bytes, text::Text, MultipartForm};
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::domain::notifier::{
-    chat::{ChatOutcome, ChatReceipt},
+    chat::{ChatFileOutcome, ChatFileReceipt, ChatOutcome, ChatReceipt},
     email::EmailOutcome,
     Outcome, Refusal,
 };
@@ -66,6 +67,27 @@ pub struct ChatNotifyRequest {
     /// Post this as a reply in the thread of an earlier message, identified by the `message_id`
     /// that message's response returned.
     #[serde(default)]
+    pub reply_to: Option<String>,
+}
+
+/// Multipart fields accepted by `POST /alerts/chat/upload/{destination}`.
+#[derive(Debug, MultipartForm)]
+#[multipart(deny_unknown_fields, duplicate_field = "deny")]
+pub struct ChatUploadForm {
+    pub file: Bytes,
+    pub filename: Option<Text<String>>,
+    pub title: Option<Text<String>>,
+    pub comment: Option<Text<String>>,
+    pub reply_to: Option<Text<String>>,
+}
+
+/// Parsed multipart body passed through the authenticated request wrapper.
+#[derive(Debug)]
+pub struct ChatUploadRequest {
+    pub bytes: Secret<Vec<u8>>,
+    pub filename: Option<Secret<String>>,
+    pub title: Option<Secret<String>>,
+    pub comment: Option<Secret<String>>,
     pub reply_to: Option<String>,
 }
 
@@ -118,6 +140,18 @@ pub struct ChatNotifyResponse {
     pub retry_after_seconds: Option<u64>,
 }
 
+/// What `/alerts/chat/upload/{destination}` returns.
+#[derive(Debug, Serialize)]
+pub struct ChatUploadResponse {
+    pub status: NotifyStatus,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub file_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error_code: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub retry_after_seconds: Option<u64>,
+}
+
 /// What `/alerts/email/notify/{destination}` returns.
 #[derive(Debug, Serialize)]
 pub struct EmailNotifyResponse {
@@ -148,6 +182,28 @@ impl From<ChatOutcome> for ChatNotifyResponse {
             }) => Self {
                 status: NotifyStatus::Refused,
                 message_id: None,
+                error_code: Some(code),
+                retry_after_seconds,
+            },
+        }
+    }
+}
+
+impl From<ChatFileOutcome> for ChatUploadResponse {
+    fn from(outcome: ChatFileOutcome) -> Self {
+        match outcome {
+            Outcome::Delivered(ChatFileReceipt { file_id }) => Self {
+                status: NotifyStatus::Delivered,
+                file_id,
+                error_code: None,
+                retry_after_seconds: None,
+            },
+            Outcome::Refused(Refusal {
+                code,
+                retry_after_seconds,
+            }) => Self {
+                status: NotifyStatus::Refused,
+                file_id: None,
                 error_code: Some(code),
                 retry_after_seconds,
             },
@@ -193,6 +249,19 @@ mod tests {
         assert_eq!(body["status"], "delivered");
         assert_eq!(body["message_id"], "cmtk931s1");
         assert!(body.get("error_code").is_none());
+    }
+
+    #[test]
+    fn a_file_delivery_returns_a_file_id_not_a_message_id() {
+        let body = body_of(&ChatUploadResponse::from(Outcome::Delivered(
+            ChatFileReceipt {
+                file_id: Some("file-1".to_owned()),
+            },
+        )));
+
+        assert_eq!(body["status"], "delivered");
+        assert_eq!(body["file_id"], "file-1");
+        assert!(body.get("message_id").is_none());
     }
 
     /// The alert went out; only the ability to thread under it was lost. It must not look like a

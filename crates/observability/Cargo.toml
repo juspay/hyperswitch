@@ -23,6 +23,7 @@ release = ["vergen", "external_services/aws_kms", "external_services/gcp_kms"]
 vergen = ["router_env/vergen"]
 
 [dependencies]
+actix-multipart = "0.6.2"
 actix-web = "4.11.0"
 async-trait = "0.1.88"
 clap = { version = "4.5.38", default-features = false, features = ["std", "derive", "help", "usage"] }
