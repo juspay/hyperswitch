@@ -10396,6 +10396,7 @@ dependencies = [
  "base64 0.22.1",
  "clap 4.5.38",
  "common_enums",
+ "common_utils",
  "hyperswitch_masking",
  "rand 0.8.5",
  "regex",
