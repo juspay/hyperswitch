@@ -7093,6 +7093,132 @@ Cypress.Commands.add("retrievePayoutCallTest", (globalState, data) => {
   });
 });
 
+/**
+ * Retrieves a payout with force_sync=true (PoSync) and asserts the response.
+ * Transient statuses are retried while the transfer settles, and the
+ * configured `Configs.DELAY` window is honored before the first attempt.
+ *
+ * @param {Object} globalState - Global state instance
+ * @param {Object} data - Connector config entry ({ Configs, Response })
+ * @param {string} [payoutId=null] - Payout id to sync; defaults to the
+ *   payoutID stored in globalState
+ */
+Cypress.Commands.add(
+  "retrievePayoutForceSyncCallTest",
+  (globalState, data, payoutId = null) => {
+    const { Configs: configs = {}, Response: resData = {} } = data || {};
+    execConfig(validateConfig(configs));
+
+    const payout_id = payoutId || globalState.get("payoutID");
+    const headers = {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("apiKey"),
+    };
+    const maxAttempts = 4;
+    const retryIntervalMs = 15000;
+    // Transient UCS upstream failures on the first sync after create
+    // surface as HTTP 500 from the router.
+    const retryableStatuses = [408, 500, 502, 503, 504];
+
+    const syncAttempt = (attempt) =>
+      cy
+        .request({
+          method: "GET",
+          url: `${globalState.get("baseUrl")}/payouts/${payout_id}?force_sync=true`,
+          headers,
+          failOnStatusCode: false,
+        })
+        .then((response) => {
+          logRequestId(response.headers["x-request-id"]);
+
+          return cy.wrap(response).then(() => {
+            if (response.status === 200) {
+              expect(response.headers["content-type"]).to.include(
+                "application/json"
+              );
+              expect(response.body.payout_id).to.equal(payout_id);
+              expect(response.body.amount).to.equal(
+                globalState.get("payoutAmount")
+              );
+              for (const key in resData.body) {
+                expect(resData.body[key]).to.deep.equal(response.body[key]);
+              }
+              return response;
+            }
+
+            if (
+              attempt < maxAttempts &&
+              retryableStatuses.includes(response.status)
+            ) {
+              cy.task(
+                "cli_log",
+                `payout force_sync attempt ${attempt}/${maxAttempts} got status ${response.status}; retrying in ${retryIntervalMs}ms`
+              );
+              // eslint-disable-next-line cypress/no-unnecessary-waiting
+              cy.wait(retryIntervalMs);
+              return syncAttempt(attempt + 1);
+            }
+
+            defaultErrorHandler(response, resData);
+            return response;
+          });
+        });
+
+    return syncAttempt(1);
+  }
+);
+
+/**
+ * Asserts a UCS-executed payout create response: routed via UCS, beneficiary
+ * verification (VoP) matched at the bank, and a plain 32-hex connector
+ * reference, which is kept for later sync-stability checks.
+ */
+Cypress.Commands.add(
+  "assertUcsPayoutCreateResponse",
+  (globalState, response) => {
+    expect(response.body.metadata.gateway_system).to.equal(
+      "unified_connector_service"
+    );
+    expect(response.body.metadata.vop_status).to.equal("MTCH");
+    expect(response.body.connector_transaction_id).to.match(/^[0-9A-F]{32}$/);
+    globalState.set(
+      "payoutConnectorTransactionId",
+      response.body.connector_transaction_id
+    );
+  }
+);
+
+/**
+ * Asserts the response's beneficiary bank details are masked: IBAN keeps
+ * its first/last 5 chars, BIC its first/last 3. `bankData` is the
+ * `payout_method_data.bank_transfer` object sent in the create request.
+ */
+Cypress.Commands.add("assertPayoutBankDetailsMasked", (response, bankData) => {
+  const mask = (value, head, tail) =>
+    value.slice(0, head) +
+    "*".repeat(value.length - head - tail) +
+    value.slice(-tail);
+  expect(response.body.payout_method_data.bank.iban).to.equal(
+    mask(bankData.iban, 5, 5)
+  );
+  expect(response.body.payout_method_data.bank.bic).to.equal(
+    mask(bankData.bic, 3, 3)
+  );
+});
+
+/**
+ * Asserts a UCS payout sync response: still routed via UCS and the connector
+ * reference is unchanged since the payout create (idempotency).
+ */
+Cypress.Commands.add("assertUcsPayoutSyncResponse", (globalState, response) => {
+  expect(response.body.metadata.gateway_system).to.equal(
+    "unified_connector_service"
+  );
+  expect(response.body.connector_transaction_id).to.equal(
+    globalState.get("payoutConnectorTransactionId")
+  );
+});
+
 // User API calls
 // Below 3 commands should be called in sequence to login a user
 Cypress.Commands.add("userLogin", (globalState) => {
