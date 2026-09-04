@@ -251,7 +251,7 @@ mod tests {
             .await
             .unwrap();
 
-        assert_eq!(file_id, FileId::slack_compatible("stored-file"));
+        assert_eq!(file_id, FileId::identifier("stored-file"));
     }
 
     #[tokio::test]

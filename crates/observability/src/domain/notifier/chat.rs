@@ -148,7 +148,7 @@ impl ChatNotifier for ChatClientNotifier {
 
         match self.client.upload_file(file).await {
             Ok(file_id) => Ok(Outcome::Delivered(ChatFileReceipt {
-                file_id: file_id.as_slack_compatible().map(str::to_owned),
+                file_id: file_id.as_identifier().map(str::to_owned),
             })),
             Err(report) => match classify(report.current_context()) {
                 Verdict::Refused(refusal) => Ok(Outcome::Refused(refusal)),

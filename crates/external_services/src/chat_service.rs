@@ -45,20 +45,20 @@ pub trait ChatClient: Send + Sync + std::fmt::Debug {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum FileId {
-    /// An opaque id returned by a Slack-compatible files API.
-    SlackCompatible(String),
+    /// An opaque identifier returned by a file upload API.
+    Identifier(String),
 }
 
 impl FileId {
-    /// Build an id returned by a Slack-compatible files API.
-    pub fn slack_compatible(value: impl Into<String>) -> Self {
-        Self::SlackCompatible(value.into())
+    /// Build an opaque file identifier.
+    pub fn identifier(value: impl Into<String>) -> Self {
+        Self::Identifier(value.into())
     }
 
-    /// The provider's opaque id, when it came from a Slack-compatible backend.
-    pub fn as_slack_compatible(&self) -> Option<&str> {
+    /// The provider's opaque file identifier.
+    pub fn as_identifier(&self) -> Option<&str> {
         match self {
-            Self::SlackCompatible(value) => Some(value.as_str()),
+            Self::Identifier(value) => Some(value.as_str()),
         }
     }
 }

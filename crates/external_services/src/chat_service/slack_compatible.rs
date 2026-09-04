@@ -248,7 +248,7 @@ impl Endpoint {
             .unwrap_or_default()
             .into_iter()
             .find_map(|file| file.id.filter(|id| !id.is_empty()))
-            .map(FileId::slack_compatible)
+            .map(FileId::identifier)
             .ok_or(ChatError::MissingFileId)
             .attach_printable("the upload completed but the response named no resulting file")
     }
