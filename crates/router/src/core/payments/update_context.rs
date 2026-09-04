@@ -14,8 +14,7 @@ use api_models::{
     payment_methods::{self as payment_methods_api, SectionError},
     payments as payment_types,
 };
-use common_utils::errors::ErrorSwitch;
-use common_utils::{consts, id_type};
+use common_utils::{consts, errors::ErrorSwitch, id_type};
 use error_stack::ResultExt;
 use router_env::{instrument, logger, tracing};
 
