@@ -8,7 +8,7 @@ import getConnectorDetails, {
 
 let globalState;
 
-describe("Card - Payment Account Reference validation", () => {
+describe("Card - Payment Account Reference and auth_code validation", () => {
   before("seed global state", function () {
     let skip = false;
 
@@ -20,6 +20,10 @@ describe("Card - Payment Account Reference validation", () => {
           shouldIncludeConnector(
             globalState.get("connectorId"),
             CONNECTOR_LISTS.INCLUDE.PAYMENT_ACCOUNT_REFERENCE
+          ) &&
+          shouldIncludeConnector(
+            globalState.get("connectorId"),
+            CONNECTOR_LISTS.INCLUDE.AUTH_CODE
           )
         ) {
           skip = true;
@@ -37,6 +41,17 @@ describe("Card - Payment Account Reference validation", () => {
   });
 
   context("PAR positive - card returning payment_account_reference", () => {
+    before(function () {
+      if (
+        shouldIncludeConnector(
+          globalState.get("connectorId"),
+          CONNECTOR_LISTS.INCLUDE.PAYMENT_ACCOUNT_REFERENCE
+        )
+      ) {
+        this.skip();
+      }
+    });
+
     it("Create Payment Intent -> Confirm Payment -> Retrieve Payment", () => {
       let shouldContinue = true;
 
@@ -94,6 +109,17 @@ describe("Card - Payment Account Reference validation", () => {
   });
 
   context("PAR negative - card without payment_account_reference", () => {
+    before(function () {
+      if (
+        shouldIncludeConnector(
+          globalState.get("connectorId"),
+          CONNECTOR_LISTS.INCLUDE.PAYMENT_ACCOUNT_REFERENCE
+        )
+      ) {
+        this.skip();
+      }
+    });
+
     it("Create Payment Intent -> Confirm Payment -> Retrieve Payment", () => {
       let shouldContinue = true;
 
@@ -144,6 +170,74 @@ describe("Card - Payment Account Reference validation", () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PARNegativeNo3DSAutoCapture"];
+
+        cy.retrievePaymentCallTest({ globalState, data: confirmData });
+      });
+    });
+  });
+
+  context("auth_code - card returning auth_code", () => {
+    before(function () {
+      if (
+        shouldIncludeConnector(
+          globalState.get("connectorId"),
+          CONNECTOR_LISTS.INCLUDE.AUTH_CODE
+        )
+      ) {
+        this.skip();
+      }
+    });
+
+    it("Create Payment Intent -> Confirm Payment -> Retrieve Payment", () => {
+      let shouldContinue = true;
+
+      cy.step("Create Payment Intent", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["PaymentIntent"];
+
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "no_three_ds",
+          "automatic",
+          globalState
+        );
+
+        if (!should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Confirm Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Confirm Payment");
+          return;
+        }
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["AuthCodeNo3DSAutoCapture"];
+
+        cy.confirmCallTest(
+          fixtures.confirmBody,
+          confirmData,
+          true,
+          globalState
+        );
+
+        if (!should_continue_further(confirmData)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Retrieve Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Retrieve Payment");
+          return;
+        }
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["AuthCodeNo3DSAutoCapture"];
 
         cy.retrievePaymentCallTest({ globalState, data: confirmData });
       });

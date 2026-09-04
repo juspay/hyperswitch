@@ -814,6 +814,7 @@ export const CONNECTOR_LISTS = {
     WEBHOOK_CONFIG: ["stripe"],
     REQUIRES_CVV: ["bankofamerica"],
     PAYMENT_ACCOUNT_REFERENCE: ["stripe", "checkout"],
+    AUTH_CODE: ["checkout", "worldpayxml"],
     BLOCK_IMPLICIT_CUSTOMER_CREATION: ["adyen"],
     // Add more inclusion lists
   },
