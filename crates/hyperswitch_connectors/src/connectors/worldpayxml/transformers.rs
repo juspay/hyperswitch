@@ -2420,7 +2420,7 @@ fn generate_jwt_for_ddc(
     )?;
 
     let payload_json = DeviceDataCollectionJwt {
-        jti: uuid::Uuid::new_v4().to_string(),
+        jti: common_utils::generate_uuid_v4().to_string(),
         iat,
         iss: Secret::new(iss),
         org_unit_id: Secret::new(org_unit_id),
@@ -2472,7 +2472,7 @@ fn generate_challenge_jwt(
     )?;
 
     let payload_json = ChallengeJwt {
-        jti: uuid::Uuid::new_v4().to_string(),
+        jti: common_utils::generate_uuid_v4().to_string(),
         iat,
         iss: Secret::new(iss),
         org_unit_id: Secret::new(org_unit_id),

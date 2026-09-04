@@ -49,7 +49,6 @@ use hyperswitch_interfaces::{
 use hyperswitch_masking::{ExposeInterface, Mask, PeekInterface};
 use ring::hmac;
 use router_env::logger;
-use time::{format_description, OffsetDateTime};
 use transformers as worldline;
 
 use crate::{

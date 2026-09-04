@@ -18,7 +18,7 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::errors;
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
-use time::{Duration, OffsetDateTime};
+use time::Duration;
 
 use crate::{
     types::{

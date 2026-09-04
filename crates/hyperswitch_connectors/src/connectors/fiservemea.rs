@@ -45,9 +45,7 @@ use hyperswitch_interfaces::{
 };
 use hyperswitch_masking::{ExposeInterface, Mask, PeekInterface};
 use ring::hmac;
-use time::OffsetDateTime;
 use transformers as fiservemea;
-use uuid::Uuid;
 
 use crate::{
     constants::headers,
@@ -138,7 +136,7 @@ where
         let auth: fiservemea::FiservemeaAuthType =
             fiservemea::FiservemeaAuthType::try_from(&req.connector_auth_type)?;
 
-        let client_request_id = Uuid::new_v4().to_string();
+        let client_request_id = common_utils::generate_uuid_v4().to_string();
         let http_method = self.get_http_method();
         let hmac = match http_method {
             Method::Get => self

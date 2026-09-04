@@ -25,7 +25,6 @@ use hyperswitch_interfaces::{
 };
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
-use time::OffsetDateTime;
 
 use crate::{
     types::ResponseRouterData,

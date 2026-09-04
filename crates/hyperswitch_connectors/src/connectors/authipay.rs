@@ -116,7 +116,7 @@ where
 
         let authipay_req = self.get_request_body(req, connectors)?;
 
-        let client_request_id = uuid::Uuid::new_v4().to_string();
+        let client_request_id = common_utils::generate_uuid_v4().to_string();
         let hmac = self
             .generate_authorization_signature(
                 auth,

@@ -3249,7 +3249,7 @@ impl
                 identifier: item.data.request.scope.clone(),
                 connector_webhook_id: Some(santander_composite_webhook_id(
                     item.data.payment_method_type,
-                    &uuid::Uuid::new_v4().to_string(),
+                    &common_utils::generate_uuid_v4().to_string(),
                 )),
                 status: common_enums::WebhookRegistrationStatus::Success,
                 error_code: None,

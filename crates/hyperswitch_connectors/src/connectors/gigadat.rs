@@ -59,7 +59,6 @@ use lazy_static::lazy_static;
 #[cfg(feature = "payouts")]
 use router_env::{instrument, tracing};
 use transformers as gigadat;
-use uuid::Uuid;
 
 #[cfg(feature = "payouts")]
 use crate::utils::{to_payout_connector_meta, RouterData as RouterDataTrait};
@@ -500,7 +499,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Gigadat
             ),
             (
                 headers::IDEMPOTENCY_KEY.to_string(),
-                Uuid::new_v4().to_string().into_masked(),
+                common_utils::generate_uuid_v4().to_string().into_masked(),
             ),
         ])
     }

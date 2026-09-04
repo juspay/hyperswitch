@@ -45,9 +45,7 @@ use hyperswitch_interfaces::{
 };
 use hyperswitch_masking::{ExposeInterface, Mask, PeekInterface};
 use ring::hmac;
-use time::OffsetDateTime;
 use transformers as fiserv;
-use uuid::Uuid;
 
 use crate::{
     constants::headers, types::ResponseRouterData, utils as connector_utils, utils::convert_amount,
@@ -102,7 +100,7 @@ where
 
         let fiserv_req = self.get_request_body(req, connectors)?;
 
-        let client_request_id = Uuid::new_v4().to_string();
+        let client_request_id = common_utils::generate_uuid_v4().to_string();
         let hmac = self
             .generate_authorization_signature(
                 auth,

@@ -1,8 +1,7 @@
 pub mod transformers;
 
-use std::{sync::LazyLock, time::SystemTime};
+use std::sync::LazyLock;
 
-use actix_web::http::header::Date;
 use base64::Engine;
 use common_enums::enums;
 use common_utils::{
@@ -49,7 +48,6 @@ use hyperswitch_interfaces::{
     webhooks,
 };
 use hyperswitch_masking::{ExposeInterface, Mask, Secret};
-use rand::distributions::{Alphanumeric, DistString};
 use ring::hmac;
 use transformers as deutschebank;
 
@@ -217,7 +215,7 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
         let client_id = auth.client_id.expose();
         let date = common_utils::date_time::now_rfc7231_http_date()
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        let random_string = Alphanumeric.sample_string(&mut rand::thread_rng(), 50);
+        let random_string = common_utils::generate_random_alphanumeric_string(50);
 
         let string_to_sign = client_id.clone() + &date + &random_string;
         let key = hmac::Key::new(hmac::HMAC_SHA256, auth.client_key.expose().as_bytes());
