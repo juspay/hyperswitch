@@ -123,7 +123,15 @@ export default defineConfig({
 
     reporter: "cypress-mochawesome-reporter",
     reporterOptions: {
-      reportDir: `cypress/reports/${connectorId}`,
+      // Nested under reportName (unique per shard via REPORT_NAME, see
+      // execute_cypress.sh), not just connectorId. CYPRESS_SPEC_SHARDS runs
+      // several of these processes concurrently against the same connector,
+      // and mochawesome's overwrite:false numbering decides each file's name
+      // by counting what's already in reportDir — sharing that directory
+      // across shards races on that count, corrupting/overwriting each
+      // other's files (confirmed in CI: some shards' reports silently
+      // vanished, others ended up with another shard's specs merged in).
+      reportDir: `cypress/reports/${connectorId}/${reportName}`,
       reportFilename: reportName,
       reportPageTitle: `[${connectorId}] Cypress test report`,
       embeddedScreenshots: true,
