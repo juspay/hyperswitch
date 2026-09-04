@@ -140,7 +140,7 @@ pub async fn list_customer_payment_method_api_client() {}
         (status = 400, description = "Invalid Data"),
         (status = 404, description = "Payment Methods does not exist in records")
     ),
-    tag = "Payment Methods",
+    tag = "Payments",
     operation_id = "List Payment Methods for a Payment via Client SDK",
     security(("publishable_key" = []), ("api_key" = []))
 )]
@@ -164,7 +164,7 @@ pub async fn list_payment_methods_for_payments_client() {}
         (status = 400, description = "Invalid Data"),
         (status = 404, description = "Payment Methods does not exist in records")
     ),
-    tag = "Payment Methods",
+    tag = "Payments",
     operation_id = "List Payment Methods for a Payment",
     security(("api_key" = []))
 )]

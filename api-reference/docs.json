@@ -55,7 +55,9 @@
                       "v1/payments/payments--external-3ds-authentication",
                       "v1/payments/payments--complete-authorize",
                       "v1/payments/payments--update-metadata",
-                      "v1/payments/payments--submit-eligibility-data"
+                      "v1/payments/payments--submit-eligibility-data",
+                      "v1/payments/list-payment-methods-for-a-payment-via-client-sdk",
+                      "v1/payments/list-payment-methods-for-a-payment"
                     ]
                   },
                   {
@@ -67,9 +69,7 @@
                       "v2/payment-methods/payment-method--delete-v1",
                       "v2/payment-methods/payment-method--list-customer-saved-payment-methods-v1",
                       "v2/payment-methods/payment-method--payment-method-token-to-payment-method-id-v1",
-                      "v2/payment-methods/payment-method--set-default-payment-method-for-customer-v1",
-                      "v1/payment-methods/list-payment-methods-for-a-payment-via-client-sdk",
-                      "v1/payment-methods/list-payment-methods-for-a-payment"
+                      "v2/payment-methods/payment-method--set-default-payment-method-for-customer-v1"
                     ]
                   },
                   {

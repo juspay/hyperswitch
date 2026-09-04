@@ -2268,31 +2268,18 @@ pub async fn list_payment_methods_for_payments(
     state: web::Data<AppState>,
     req: HttpRequest,
     path: web::Path<id_type::PaymentId>,
-    query_payload: web::Query<payment_methods::ClientPaymentMethodsListRequest>,
 ) -> HttpResponse {
     let flow = Flow::PaymentMethodsList;
     let payment_id = path.into_inner();
-    let payload = query_payload.into_inner();
 
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
-        payload,
-        move |state, auth: auth::AuthenticationData, payload, _| {
+        (),
+        move |state, auth: auth::AuthenticationData, _, _| {
             let payment_id = payment_id.clone();
             async move {
-                // This route is authenticated by the merchant API key. The request struct is
-                // shared with the client route, so reject a client secret outright rather than
-                // accepting one from the query string and ignoring it.
-                if payload.client_secret.is_some() {
-                    Err(errors::ApiErrorResponse::InvalidRequestData {
-                        message: "client_secret is not supported on this endpoint; \
-                                  it is authenticated using the merchant API key"
-                            .to_string(),
-                    })?
-                }
-
                 Box::pin(payment_methods_routes::client::list_payment_methods_client(
                     state,
                     auth.platform,

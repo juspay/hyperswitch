@@ -4010,7 +4010,7 @@
     "/payments/{payment_id}/client": {
       "get": {
         "tags": [
-          "Payment Methods"
+          "Payments"
         ],
         "summary": "List payment methods for a Payment",
         "description": "Client SDK endpoint. Returns a unified response combining merchant-enabled\npayment methods and customer saved payment methods, filtered via Euclid\nconstraint graph and session flow routing.\n\nSupported auth:\n- SDK auth via `Authorization`.\n- Publishable-key auth via `api-key: pk_...` and `client_secret` query param.\n- Merchant API-key auth via `api-key: <api_key>`.",
@@ -4067,7 +4067,7 @@
     "/payments/{payment_id}/payment_methods": {
       "get": {
         "tags": [
-          "Payment Methods"
+          "Payments"
         ],
         "summary": "List payment methods for a Payment (server-to-server)",
         "description": "Server-to-server endpoint. Returns a unified response combining\nmerchant-enabled payment methods and customer saved payment methods,\nfiltered via Euclid constraint graph and session flow routing — identical\nto the client SDK endpoint, but authenticated with the merchant API key.",
