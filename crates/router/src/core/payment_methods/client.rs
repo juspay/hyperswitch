@@ -510,10 +510,12 @@ async fn filter_customer_pms_by_blocklist(
     let bins: std::collections::HashSet<String> = if guard_enabled {
         customer_pms
             .iter()
-            .filter_map(|customer_pm| match customer_pm.payment_method_data.as_ref() {
-                Some(CustomerPaymentMethodDataForClient::Card(card)) => card.card_isin.clone(),
-                _ => None,
-            })
+            .filter_map(
+                |customer_pm| match customer_pm.payment_method_data.as_ref() {
+                    Some(CustomerPaymentMethodDataForClient::Card(card)) => card.card_isin.clone(),
+                    _ => None,
+                },
+            )
             .collect()
     } else {
         std::collections::HashSet::new()
@@ -531,13 +533,15 @@ async fn filter_customer_pms_by_blocklist(
         let initial_count = customer_pms.len();
         let filtered: Vec<CustomerPaymentMethodForClient> = customer_pms
             .into_iter()
-            .filter(|customer_pm| match customer_pm.payment_method_data.as_ref() {
-                Some(CustomerPaymentMethodDataForClient::Card(card)) => !card
-                    .card_isin
-                    .as_ref()
-                    .is_some_and(|card_isin| blocked_bins.contains(card_isin)),
-                _ => true,
-            })
+            .filter(
+                |customer_pm| match customer_pm.payment_method_data.as_ref() {
+                    Some(CustomerPaymentMethodDataForClient::Card(card)) => !card
+                        .card_isin
+                        .as_ref()
+                        .is_some_and(|card_isin| blocked_bins.contains(card_isin)),
+                    _ => true,
+                },
+            )
             .collect();
         logger::info!(
             filtered_out = initial_count - filtered.len(),
