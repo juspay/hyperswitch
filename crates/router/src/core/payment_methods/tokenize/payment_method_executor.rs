@@ -315,7 +315,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizePaymentMethodRequest> {
             .clone()
             .get_required_value("customer_id")
             .change_context(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "customer",
+                field_name: "customer".into(),
             })?;
 
         let customer_id = payment_method
@@ -323,7 +323,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizePaymentMethodRequest> {
             .clone()
             .get_required_value("customer_id")
             .change_context(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "customer",
+                field_name: "customer".into(),
             })
             .attach_printable("Missing customer_id in domain payment method")?;
 
@@ -387,6 +387,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizePaymentMethodRequest> {
                 .clone()
                 .map(|tax_registration_id| tax_registration_id.into_inner()),
             document_details: None,
+            date_of_birth: None,
         };
 
         Ok((locker_id, customer_details))

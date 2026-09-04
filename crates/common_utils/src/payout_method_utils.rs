@@ -93,6 +93,10 @@ pub enum BankAdditionalData {
     Pix(Box<PixBankTransferAdditionalData>),
     /// Additional data for open banking payout method
     OpenBanking(Box<OpenBankingAdditionalData>),
+    /// Additional data for PayShap bank transfer payout method
+    Payshap(Box<PayshapBankTransferAdditionalData>),
+    /// Additional data for PayShap proxy bank transfer payout method
+    PayshapProxy(Box<PayshapProxyBankTransferAdditionalData>),
 }
 
 crate::impl_to_sql_from_sql_json!(BankAdditionalData);
@@ -235,6 +239,40 @@ pub struct PixBankTransferAdditionalData {
     /// Bank account type for PIX payouts
     #[schema(value_type = Option<BankType>)]
     pub bank_account_type: Option<common_enums::BankType>,
+}
+
+/// Masked payout method details for PayShap bank transfer payout method
+#[derive(
+    Eq, PartialEq, Clone, Debug, Deserialize, Serialize, FromSqlRow, AsExpression, ToSchema,
+)]
+#[diesel(sql_type = Jsonb)]
+pub struct PayshapBankTransferAdditionalData {
+    /// Bank account number is a unique identifier assigned by a bank to a customer.
+    #[schema(value_type = String, example = "**** 67890")]
+    pub bank_account_number: MaskedBankAccount,
+
+    /// Bank account holder name.
+    #[schema(value_type = Option<String>, example = "John Doe")]
+    pub account_holder_name: Option<Secret<String>>,
+
+    /// Bank name.
+    #[schema(value_type = Option<BankNames>, example = "absa")]
+    pub bank_name: Option<common_enums::BankNames>,
+}
+
+/// Masked payout method details for PayShap proxy bank transfer payout method
+#[derive(
+    Eq, PartialEq, Clone, Debug, Deserialize, Serialize, FromSqlRow, AsExpression, ToSchema,
+)]
+#[diesel(sql_type = Jsonb)]
+pub struct PayshapProxyBankTransferAdditionalData {
+    /// Cellphone proxy.
+    #[schema(value_type = Option<String>, example = "******* 4567")]
+    pub cellphone: Option<MaskedPhoneNumber>,
+
+    /// Shap ID proxy.
+    #[schema(value_type = Option<String>, example = "**** 3123")]
+    pub shap_id: Option<MaskedBankAccount>,
 }
 
 /// Masked payout method details for Trustly bank transfer payout method
@@ -429,6 +467,8 @@ impl From<&AdditionalPayoutMethodData> for common_enums::PaymentMethodType {
                 BankAdditionalData::Pix(_) => Self::Pix,
                 BankAdditionalData::Trustly(_) => Self::Trustly,
                 BankAdditionalData::OpenBanking(_) => Self::OpenBanking,
+                BankAdditionalData::Payshap(_) => Self::Payshap,
+                BankAdditionalData::PayshapProxy(_) => Self::PayshapProxy,
             },
             AdditionalPayoutMethodData::Wallet(wallet) => match **wallet {
                 WalletAdditionalData::ApplePayDecrypt(_) => Self::ApplePay,

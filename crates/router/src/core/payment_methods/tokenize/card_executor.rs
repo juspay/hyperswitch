@@ -331,7 +331,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
             .as_ref()
             .get_required_value("customer_id")
             .change_context(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "customer.customer_id",
+                field_name: "customer.customer_id".into(),
             })?;
 
         // Fetch customer details if present
@@ -354,7 +354,11 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
                 Ok(None)
             } else {
                 Err(report!(errors::ApiErrorResponse::MissingRequiredFields {
-                    field_names: vec!["customer.name", "customer.email", "customer.phone"],
+                    field_names: vec![
+                        "customer.name".into(),
+                        "customer.email".into(),
+                        "customer.phone".into()
+                    ],
                 }))
             },
             // If found, send back CustomerDetails from DB
@@ -370,6 +374,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
                         .clone()
                         .map(|tax_registration_id| tax_registration_id.into_inner()),
                     document_details: None,
+                    date_of_birth: None,
                 }))
             },
         )
@@ -386,7 +391,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
             .as_ref()
             .get_required_value("customer_id")
             .change_context(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "customer_id",
+                field_name: "customer_id".into(),
             })?;
         let key_manager_state: &KeyManagerState = &self.state.into();
 
@@ -467,6 +472,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
             phone_country_code: self.customer.phone_country_code.clone(),
             tax_registration_id: self.customer.tax_registration_id.clone(),
             document_details: self.customer.document_details.clone(),
+            date_of_birth: None,
         })
     }
 

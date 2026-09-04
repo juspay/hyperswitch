@@ -1347,6 +1347,7 @@ pub enum BankRedirectData {
         sort_code: Option<Secret<String>>,
         account_holder_name: Option<Secret<String>>,
         additional_details: Option<Secret<serde_json::Value>>,
+        bank_name: Option<common_enums::BankNames>,
     },
 }
 
@@ -1359,6 +1360,7 @@ impl BankRedirectData {
                 sort_code,
                 account_holder_name,
                 additional_details: _,
+                bank_name,
             } => Some(BankRedirectDetailsPaymentMethod::OpenBanking {
                 masked_iban: iban
                     .map(|iban| common_utils::new_type::mask_sensitive_field(iban.peek(), 4)),
@@ -1369,6 +1371,7 @@ impl BankRedirectData {
                     common_utils::new_type::mask_sensitive_field(sort_code.peek(), 4)
                 }),
                 account_holder_name,
+                bank_name,
             }),
             _ => None,
         }
@@ -1839,6 +1842,7 @@ impl From<payment_methods::BankRedirectData> for BankRedirectDetail {
                 account_number,
                 sort_code,
                 account_holder_name: _,
+                bank_name: _,
             } => Self::OpenBanking {
                 iban,
                 account_number,
@@ -1857,6 +1861,7 @@ impl From<BankRedirectDetailsPaymentMethod> for BankRedirectDetail {
                 masked_sort_code,
                 account_holder_name: _,
                 masked_iban,
+                bank_name: _,
             } => Self::OpenBanking {
                 account_number: masked_account_number.map(Secret::new),
                 iban: masked_iban.map(Secret::new),
@@ -2041,13 +2046,13 @@ impl TryFrom<payment_methods::PaymentMethodCreateData> for PaymentMethodData {
             })),
             payment_methods::PaymentMethodCreateData::ProxyCard(_) => Err(
                 common_utils::errors::ValidationError::IncorrectValueProvided {
-                    field_name: "Payment method data",
+                    field_name: "Payment method data".into(),
                 }
                 .into(),
             ),
             payment_methods::PaymentMethodCreateData::Wallet(_) => Err(
                 common_utils::errors::ValidationError::IncorrectValueProvided {
-                    field_name: "Payment method data",
+                    field_name: "Payment method data".into(),
                 }
                 .into(),
             ),
@@ -2846,6 +2851,7 @@ impl From<api_models::payments::BankRedirectData> for BankRedirectData {
                 account_number: None,
                 sort_code: None,
                 additional_details: None,
+                bank_name: None,
             },
         }
     }
@@ -3512,6 +3518,7 @@ pub struct TokenizedCardValue1 {
     pub card_last_four: Option<String>,
     pub card_token: Option<String>,
     pub card_holder_name: Option<Secret<String>>,
+    pub card_network: Option<common_enums::CardNetwork>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -3973,6 +3980,7 @@ pub enum BankRedirectDetailsPaymentMethod {
         masked_sort_code: Option<String>,
         account_holder_name: Option<Secret<String>>,
         masked_iban: Option<String>,
+        bank_name: Option<common_enums::BankNames>,
     },
 }
 

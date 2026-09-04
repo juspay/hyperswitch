@@ -15,6 +15,13 @@ pub const MIN_CARD_NUMBER_LENGTH: usize = 8;
 /// Maximum limit of a card number will not exceed 19 by ISO standards
 pub const MAX_CARD_NUMBER_LENGTH: usize = 19;
 
+/// Narrowest card number prefix that may be blocklisted
+pub const MIN_CARD_BIN_LENGTH: usize = 6;
+
+/// Widest card number prefix that may be blocklisted. Bounded well short of a full card number
+/// because blocklist prefixes are stored in plaintext, unlike vault-hashed card numbers.
+pub const MAX_CARD_BIN_LENGTH: usize = 10;
+
 #[derive(Debug, Deserialize, Serialize, Error)]
 #[error("{0}")]
 pub struct CardNumberValidationErr(&'static str);
@@ -47,13 +54,22 @@ impl CardBin {
     pub fn get_string_repr(&self) -> &str {
         &self.0
     }
+
+    /// Every blocklist-relevant prefix derivable from this BIN: lengths
+    /// [`MIN_CARD_BIN_LENGTH`] up to the number of digits actually provided
+    /// (capped at [`MAX_CARD_BIN_LENGTH`]).
+    pub fn get_blocklist_bin_prefixes(&self) -> Vec<String> {
+        (MIN_CARD_BIN_LENGTH..=self.0.len().min(MAX_CARD_BIN_LENGTH))
+            .map(|len| self.0.chars().take(len).collect())
+            .collect()
+    }
 }
 
 impl FromStr for CardBin {
     type Err = CardNumberValidationErr;
 
     fn from_str(card_bin: &str) -> Result<Self, Self::Err> {
-        let is_valid = (6..=10).contains(&card_bin.len())
+        let is_valid = (MIN_CARD_BIN_LENGTH..=MAX_CARD_BIN_LENGTH).contains(&card_bin.len())
             && card_bin.chars().all(|character| character.is_ascii_digit());
 
         if is_valid {
@@ -74,12 +90,22 @@ impl<'de> Deserialize<'de> for CardBin {
 }
 
 impl CardNumber {
+    fn get_bin_prefix(&self, len: usize) -> String {
+        self.0.peek().chars().take(len).collect::<String>()
+    }
+
     pub fn get_card_isin(&self) -> String {
-        self.0.peek().chars().take(6).collect::<String>()
+        self.get_bin_prefix(6)
     }
 
     pub fn get_extended_card_bin(&self) -> String {
-        self.0.peek().chars().take(8).collect::<String>()
+        self.get_bin_prefix(8)
+    }
+
+    pub fn get_blocklist_bin_prefixes(&self) -> Vec<String> {
+        (MIN_CARD_BIN_LENGTH..=MAX_CARD_BIN_LENGTH)
+            .map(|len| self.get_bin_prefix(len))
+            .collect()
     }
     pub fn get_card_no(&self) -> String {
         self.0.peek().chars().collect::<String>()

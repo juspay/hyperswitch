@@ -447,7 +447,7 @@ async fn fetch_three_ds_execution_path(
         .clone();
     let connector_enum = Connector::from_str(&connector_name)
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "connector",
+            field_name: "connector".into(),
         })
         .attach_printable_lazy(|| format!("unable to parse connector name {connector_name:?}"))?;
     let is_merchant_eligible_for_uas =
@@ -738,7 +738,7 @@ fn handle_incoming_webhook_error(
     // fetch the connector enum from the connector name
     let connector_enum = Connector::from_str(connector_name)
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "connector",
+            field_name: "connector".into(),
         })
         .attach_printable_lazy(|| format!("unable to parse connector name {connector_name:?}"))?;
 
@@ -1291,6 +1291,7 @@ async fn payout_incoming_webhook_update_status(
     // if status is failure then update the error_code and error_message as well
     let payout_attempt_update = if status.is_payout_failure() {
         PayoutAttemptUpdate::StatusUpdate {
+            connector_eligibility_reference_id: None,
             connector_payout_id: payout_attempt.connector_payout_id.clone(),
             status,
             error_message: payout_webhook_details.error_message,
@@ -1302,6 +1303,7 @@ async fn payout_incoming_webhook_update_status(
         }
     } else {
         PayoutAttemptUpdate::StatusUpdate {
+            connector_eligibility_reference_id: None,
             connector_payout_id: payout_attempt.connector_payout_id.clone(),
             status,
             error_message: None,
@@ -1396,7 +1398,7 @@ async fn payout_incoming_webhook_retrieve_status(
             "Connector not found in payout_attempt - should not reach here.".to_string(),
         ))
         .change_context(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "connector",
+            field_name: "connector".into(),
         })
         .attach_printable("Connector not found for payout fulfillment")?,
     };
@@ -1466,7 +1468,7 @@ async fn relay_refunds_incoming_webhook_flow(
             webhooks::RefundIdType::RefundId(refund_id) => {
                 let relay_id = common_utils::id_type::RelayId::from_str(&refund_id)
                     .change_context(errors::ValidationError::IncorrectValueProvided {
-                        field_name: "relay_id",
+                        field_name: "relay_id".into(),
                     })
                     .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
