@@ -45,16 +45,6 @@ impl CardBin {
         self.0.chars().take(6).collect()
     }
 
-    /// The 8-digit extended BIN, when at least 8 digits were provided
-    pub fn get_extended_card_bin(&self) -> Option<String> {
-        (self.0.len() >= 8).then(|| self.0.chars().take(8).collect())
-    }
-
-    /// The BIN exactly as provided
-    pub fn get_string_repr(&self) -> &str {
-        &self.0
-    }
-
     /// Every blocklist-relevant prefix derivable from this BIN: lengths
     /// [`MIN_CARD_BIN_LENGTH`] up to the number of digits actually provided
     /// (capped at [`MAX_CARD_BIN_LENGTH`]).

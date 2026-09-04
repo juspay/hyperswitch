@@ -388,11 +388,6 @@ impl EligibilityCardBin {
         self.card_bin.get_card_isin()
     }
 
-    /// The 8-digit extended BIN, when at least 8 digits were provided
-    pub fn get_extended_card_bin(&self) -> Option<String> {
-        self.card_bin.get_extended_card_bin()
-    }
-
     /// Every blocklist-relevant prefix derivable from this BIN (lengths 6 up to the
     /// number of digits provided)
     pub fn get_blocklist_bin_prefixes(&self) -> Vec<String> {
