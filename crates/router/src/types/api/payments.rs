@@ -8,7 +8,7 @@ pub use api_models::payments::{
 pub use api_models::payments::{
     PaymentListFilterConstraints, PaymentListResponse, PaymentListResponseV2, PaymentRetrieveBody,
     PaymentRetrieveBodyWithCredentials, PaymentsEligibilityCheckRequest,
-    PaymentsEligibilityRequest, PaymentsUpdateContextRequest, PaymentsUpdateContextResponse,
+    PaymentsEligibilityRequest,
 };
 pub use api_models::{
     feature_matrix::{

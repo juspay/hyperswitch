@@ -161,7 +161,6 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentsRetrieve
             | Flow::PaymentsRetrieveForceSync
             | Flow::PaymentsUpdate
-            | Flow::PaymentsUpdateContext
             | Flow::PaymentsConfirm
             | Flow::PaymentsCapture
             | Flow::PaymentsCancel

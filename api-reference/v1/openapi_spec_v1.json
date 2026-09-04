@@ -1022,74 +1022,6 @@
         ]
       }
     },
-    "/payments/{payment_id}/update-context": {
-      "post": {
-        "tags": [
-          "Payments"
-        ],
-        "summary": "Payments - Update context (server-to-server)",
-        "description": "Updates the payment intent's amount or currency and returns, in the same response, the\nartifacts the client SDK needs to continue: wallet session tokens and the combined\npayment-method list, both computed against the committed new amount.\n\nA `200` always means the update committed. The auxiliary sections are best-effort: either may\nbe `null` with a matching entry in `warnings`, each of which names a standalone endpoint the\ncaller can re-invoke to fill the gap.",
-        "operationId": "Update a Payment and retrieve the refreshed client context",
-        "parameters": [
-          {
-            "name": "payment_id",
-            "in": "path",
-            "description": "The identifier for the payment",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PaymentsUpdateContextRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Intent updated; composite context returned",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PaymentsUpdateContextResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid request, or the intent is not in an updatable state",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Payment does not exist in records",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "api_key": []
-          }
-        ]
-      }
-    },
     "/payments/{payment_id}/cancel": {
       "post": {
         "tags": [
@@ -33860,6 +33792,16 @@
             "example": "cHJvZmlsZV9pZD1wcm9mXzEyMyxwdWJsaXNoYWJsZV9rZXk9cGtfbGl2ZV8xMjM=",
             "nullable": true
           },
+          "payment_method_list": {
+            "type": "object",
+            "description": "The combined payment-method list for this payment.\n\nReturned only when the request carries `X-Integration-Type: server`; absent from the\nresponse for client integrations. Shape matches `ClientPaymentMethodsListResponse`.",
+            "nullable": true
+          },
+          "session_tokens": {
+            "type": "object",
+            "description": "Wallet session tokens minted for this payment.\n\nReturned only when the request carries `X-Integration-Type: server`; absent from the\nresponse for client integrations. Shape matches the `session_token` array of\n`PaymentsSessionResponse`.",
+            "nullable": true
+          },
           "connector": {
             "type": "string",
             "description": "The name of the payment connector (e.g., 'stripe', 'adyen') that processed or is processing this payment.",
@@ -35664,6 +35606,16 @@
             "example": "cHJvZmlsZV9pZD1wcm9mXzEyMyxwdWJsaXNoYWJsZV9rZXk9cGtfbGl2ZV8xMjM=",
             "nullable": true
           },
+          "payment_method_list": {
+            "type": "object",
+            "description": "The combined payment-method list for this payment.\n\nReturned only when the request carries `X-Integration-Type: server`; absent from the\nresponse for client integrations. Shape matches `ClientPaymentMethodsListResponse`.",
+            "nullable": true
+          },
+          "session_tokens": {
+            "type": "object",
+            "description": "Wallet session tokens minted for this payment.\n\nReturned only when the request carries `X-Integration-Type: server`; absent from the\nresponse for client integrations. Shape matches the `session_token` array of\n`PaymentsSessionResponse`.",
+            "nullable": true
+          },
           "connector": {
             "type": "string",
             "description": "The name of the payment connector (e.g., 'stripe', 'adyen') that processed or is processing this payment.",
@@ -36505,84 +36457,6 @@
               }
             ],
             "nullable": true
-          }
-        }
-      },
-      "PaymentsUpdateContextRequest": {
-        "type": "object",
-        "description": "Request for the composite server-to-server update-context endpoint.\n\nUpdates the intent and returns everything the client SDK needs to carry on: refreshed\nwallet session tokens and the combined payment-method list, both computed against the\ncommitted new amount. Authenticated with the merchant API key; no client secret is involved.",
-        "properties": {
-          "amount": {
-            "type": "integer",
-            "format": "int64",
-            "description": "The new amount for the intent. At least one of `amount` or `currency` is required.",
-            "example": 12999,
-            "nullable": true
-          },
-          "currency": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/Currency"
-              }
-            ],
-            "nullable": true
-          },
-          "wallets": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/PaymentMethodType"
-            },
-            "description": "Wallets to mint session tokens for. Omitted or empty skips the session-token section."
-          },
-          "include_payment_methods": {
-            "type": "boolean",
-            "description": "Whether to return the combined payment-method list. Defaults to true."
-          }
-        },
-        "additionalProperties": false
-      },
-      "PaymentsUpdateContextResponse": {
-        "type": "object",
-        "description": "Composite response for the update-context endpoint.\n\nA `200` always means the update committed and `payment` is present. The auxiliary sections\nare best-effort: each may be `null` with a matching entry in `warnings`, rather than failing\na request whose state change already landed.",
-        "required": [
-          "payment"
-        ],
-        "properties": {
-          "payment": {
-            "$ref": "#/components/schemas/PaymentsResponse"
-          },
-          "session_tokens": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/SessionToken"
-            },
-            "description": "Wallet session tokens minted against the new amount. `null` when skipped or failed.",
-            "nullable": true
-          },
-          "payment_methods": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/ClientPaymentMethodsListResponse"
-              }
-            ],
-            "nullable": true
-          },
-          "sdk_authorization": {
-            "type": "string",
-            "description": "SDK authorization for the pay flow, carried through from the update response.",
-            "nullable": true
-          },
-          "vault_sdk_authorization": {
-            "type": "string",
-            "description": "Reserved for the external-vault SDK authorization. Always `null` in this version.",
-            "nullable": true
-          },
-          "warnings": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/UpdateContextWarning"
-            },
-            "description": "Present only when a section degraded."
           }
         }
       },
@@ -46146,44 +46020,6 @@
           }
         },
         "additionalProperties": false
-      },
-      "UpdateContextSection": {
-        "type": "string",
-        "description": "The section of an update-context response that could not be produced.",
-        "enum": [
-          "session_tokens",
-          "payment_methods"
-        ]
-      },
-      "UpdateContextWarning": {
-        "type": "object",
-        "description": "A section that degraded after the update had already committed.\n\nEach code maps to the standalone endpoint the caller can re-invoke to fill the gap, so a\ndegraded response is recoverable without re-running the update.",
-        "required": [
-          "section",
-          "code",
-          "message"
-        ],
-        "properties": {
-          "section": {
-            "$ref": "#/components/schemas/UpdateContextSection"
-          },
-          "code": {
-            "type": "string",
-            "description": "Machine-readable reason, e.g. `SESSION_TOKENS_FAILED`."
-          },
-          "wallet": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PaymentMethodType"
-              }
-            ],
-            "nullable": true
-          },
-          "message": {
-            "type": "string",
-            "description": "Human-readable detail for logs and support."
-          }
-        }
       },
       "UpdateScorePayload": {
         "type": "object",

@@ -1,144 +1,179 @@
-//! Composite server-to-server update: apply an intent update, then return the artifacts the
-//! client SDK needs to carry on with the new amount.
+//! Server-integration enrichment for payments responses.
 //!
-//! This module adds no business logic. It calls three cores that already exist and joins their
-//! results, so the composite response can never drift from the standalone endpoints:
+//! A caller that sends `X-Integration-Type: server` gets the payment response it always got,
+//! plus the two artifacts its checkout would otherwise fetch in separate calls: the combined
+//! payment-method list and the wallet session tokens. Client integrations, and callers that
+//! send no header at all, are unaffected.
 //!
-//! 1. the update core, exactly as `POST /payments/{id}` invokes it;
-//! 2. the session-token core, as `POST /payments/session_tokens` invokes it;
-//! 3. the combined payment-method listing, as `GET /payments/{id}/client` invokes it.
-//!
-//! Step 1 is a hard gate. Steps 2 and 3 read the intent, so they must observe the committed
-//! amount and cannot race the update — but they do not read each other, so they run concurrently.
+//! This module adds no business logic. It calls the two existing cores — the same ones behind
+//! `POST /payments/session_tokens` and `GET /payments/{id}/client` — and attaches their results
+//! to the response. Both reads run after the write they depend on, and concurrently with each
+//! other, since neither reads the other's output.
 
-use api_models::payments as payment_types;
-use common_utils::{fp_utils, id_type};
-use error_stack::report;
+use api_models::{
+    payment_methods::{self as payment_methods_api, SectionError},
+    payments as payment_types,
+};
+use common_utils::errors::ErrorSwitch;
+use common_utils::{consts, id_type};
+use error_stack::ResultExt;
 use router_env::{instrument, logger, tracing};
 
 use crate::{
-    core::{
-        errors::{self, RouterResponse},
-        payment_methods::client as pm_client,
-        payments,
-    },
+    core::{errors, payment_methods::client as pm_client, payments},
     routes::{app::ReqState, SessionState},
     services::{ApplicationResponse, AuthFlow},
     types::{api as api_types, domain},
 };
 
-/// Codes surfaced in `warnings`. Each maps to the standalone endpoint a caller can re-invoke to
-/// fill the gap, so a degraded response is recoverable without repeating the update.
-const SESSION_TOKENS_FAILED: &str = "SESSION_TOKENS_FAILED";
-const PAYMENT_METHODS_FAILED: &str = "PAYMENT_METHODS_FAILED";
-
-/// Rejects a request that asks for no change, or an impossible one, before anything is executed.
-fn validate_request(req: &payment_types::PaymentsUpdateContextRequest) -> errors::RouterResult<()> {
-    fp_utils::when(req.amount.is_none() && req.currency.is_none(), || {
-        Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-            message: "at least one of `amount` or `currency` must be provided".to_string(),
-        }))
-    })?;
-
-    fp_utils::when(
-        req.amount
-            .is_some_and(|amount| amount.get_amount_as_i64() <= 0),
-        || {
-            Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-                message: "`amount` must be greater than zero".to_string(),
-            }))
-        },
-    )
-}
-
-/// Turns the composite request into the request the update core already understands.
-fn to_payments_request(
-    req: &payment_types::PaymentsUpdateContextRequest,
-    payment_id: &id_type::PaymentId,
-) -> payment_types::PaymentsRequest {
-    payment_types::PaymentsRequest {
-        payment_id: Some(payment_types::PaymentIdType::PaymentIntentId(
-            payment_id.clone(),
-        )),
-        amount: req.amount.map(payment_types::Amount::from),
-        currency: req.currency,
-        ..Default::default()
-    }
-}
-
-/// Unwraps a section result, recording a warning instead of failing the request when it errored.
+/// Which integration the caller is building, taken from `X-Integration-Type`.
 ///
-/// The update has already committed by the time this runs, so turning a section failure into a
-/// 5xx would hide a real state change from the caller. That is the one outcome this endpoint
-/// refuses to produce.
-fn degrade_on_error<T, E: std::fmt::Debug>(
-    result: Result<T, E>,
-    section: payment_types::UpdateContextSection,
-    code: &str,
-    warnings: &mut Vec<payment_types::UpdateContextWarning>,
-) -> Option<T> {
-    match result {
-        Ok(value) => Some(value),
-        Err(error) => {
-            logger::warn!(
-                ?error,
-                ?section,
-                "update-context section degraded after a committed update"
-            );
-            warnings.push(payment_types::UpdateContextWarning {
-                section,
-                code: code.to_string(),
-                wallet: None,
-                message: format!("{error:?}"),
-            });
-            None
-        }
+/// Defaults to `Client` when the header is absent or unrecognised, so an existing integration
+/// that has never heard of the header keeps its current response shape.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IntegrationType {
+    Client,
+    Server,
+}
+
+impl IntegrationType {
+    pub fn from_headers(headers: &actix_web::http::header::HeaderMap) -> Self {
+        headers
+            .get(consts::X_INTEGRATION_TYPE)
+            .and_then(|value| value.to_str().ok())
+            .map(|value| {
+                if value.trim().eq_ignore_ascii_case("server") {
+                    Self::Server
+                } else {
+                    Self::Client
+                }
+            })
+            .unwrap_or(Self::Client)
+    }
+
+    pub fn is_server(self) -> bool {
+        matches!(self, Self::Server)
     }
 }
 
-/// A core response is only usable when it is a plain JSON body; anything else (a redirect, a
-/// file) means the section cannot contribute to the composite.
-fn json_body<T>(response: ApplicationResponse<T>) -> Result<T, errors::ApiErrorResponse> {
-    match response {
-        ApplicationResponse::Json(payload) | ApplicationResponse::JsonWithHeaders((payload, _)) => {
-            Ok(payload)
-        }
-        _ => Err(errors::ApiErrorResponse::InternalServerError),
+/// Wallets to mint session tokens for when the caller asks for the server shape.
+///
+/// The payments request carries no wallet list of its own, so the enrichment offers every wallet
+/// we can mint a token for; the session core filters down to what the merchant actually has
+/// enabled and eligible.
+fn requested_wallets() -> Vec<api_models::enums::PaymentMethodType> {
+    use api_models::enums::PaymentMethodType;
+    vec![
+        PaymentMethodType::ApplePay,
+        PaymentMethodType::GooglePay,
+        PaymentMethodType::Paypal,
+        PaymentMethodType::SamsungPay,
+    ]
+}
+
+/// Builds the error payload a degraded section carries, from the same error the standalone
+/// endpoint would have surfaced.
+fn section_error(error: &error_stack::Report<errors::ApiErrorResponse>) -> SectionError {
+    // Route through the same conversion the HTTP layer uses, so an inline section error reads
+    // identically to the body the standalone endpoint would have returned.
+    let switched: api_models::errors::types::ApiErrorResponse = error.current_context().switch();
+    let rendered = api_models::errors::types::ErrorResponse::from(&switched);
+    SectionError {
+        error: payment_methods_api::SectionErrorDetail {
+            error_type: rendered.error_type.to_string(),
+            message: rendered.message,
+            code: rendered.code,
+        },
     }
 }
 
+/// Attaches the payment-method list and wallet session tokens to a payments response.
+///
+/// Best-effort by design: the payment write has already committed by the time this runs, so a
+/// failing section reports its own error inline and the response still succeeds. Turning a
+/// section failure into a 5xx would hide a committed state change from the caller.
 #[instrument(skip_all, fields(payment_id))]
-#[allow(clippy::too_many_arguments)]
-pub async fn payments_update_context(
-    state: SessionState,
+pub async fn attach_server_context(
+    state: &SessionState,
     req_state: ReqState,
-    platform: domain::Platform,
+    platform: &domain::Platform,
     profile_id: Option<id_type::ProfileId>,
-    payment_id: id_type::PaymentId,
-    req: payment_types::PaymentsUpdateContextRequest,
-    header_payload: hyperswitch_domain_models::payments::HeaderPayload,
-) -> RouterResponse<payment_types::PaymentsUpdateContextResponse> {
+    payment_id: &id_type::PaymentId,
+    header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+    response: &mut payment_types::PaymentsResponse,
+) {
     tracing::Span::current().record("payment_id", payment_id.get_string_repr());
 
-    validate_request(&req)?;
+    // Both reads observe the committed payment; neither reads the other's output.
+    let (session_result, payment_methods_result) = futures::future::join(
+        session_tokens(
+            state,
+            req_state,
+            platform,
+            profile_id,
+            payment_id,
+            header_payload,
+        ),
+        pm_client::list_payment_methods_client(
+            state.clone(),
+            platform.clone(),
+            payment_id.clone(),
+            // Merchant API key authenticated; there is no client secret to validate.
+            None,
+        ),
+    )
+    .await;
 
-    // ── 1 · Update — hard gate ───────────────────────────────────────────────
-    // Same core and operation the standalone update route uses. A failure here fails the whole
-    // request: nothing downstream would be meaningful, and no state has changed yet.
-    let update_response = Box::pin(payments::payments_core::<
-        api_types::UpdatePostConfirm,
-        payment_types::PaymentsResponse,
+    response.session_tokens = Some(match session_result {
+        Ok(session) => payment_types::SessionTokensResult::Success(Box::new(session)),
+        Err(error) => {
+            logger::warn!(?error, "server-integration: session tokens unavailable");
+            payment_types::SessionTokensResult::Failed(section_error(&error))
+        }
+    });
+
+    response.payment_method_list = Some(
+        match payment_methods_result.and_then(|listing| json_body(listing, "payment_method_list")) {
+            Ok(listing) => payment_methods_api::PaymentMethodListResult::Success(Box::new(listing)),
+            Err(error) => {
+                logger::warn!(
+                    ?error,
+                    "server-integration: payment-method list unavailable"
+                );
+                payment_methods_api::PaymentMethodListResult::Failed(section_error(&error))
+            }
+        },
+    );
+}
+
+/// Runs the session-token core over every wallet we can mint for.
+async fn session_tokens(
+    state: &SessionState,
+    req_state: ReqState,
+    platform: &domain::Platform,
+    profile_id: Option<id_type::ProfileId>,
+    payment_id: &id_type::PaymentId,
+    header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+) -> errors::RouterResult<payment_types::PaymentsSessionResponse> {
+    let response = Box::pin(payments::payments_core::<
+        api_types::Session,
+        payment_types::PaymentsSessionResponse,
         _,
         _,
         _,
-        payments::PaymentData<api_types::UpdatePostConfirm>,
+        payments::PaymentData<api_types::Session>,
     >(
         state.clone(),
-        req_state.clone(),
+        req_state,
         platform.clone(),
-        profile_id.clone(),
-        payments::PaymentUpdate,
-        to_payments_request(&req, &payment_id),
+        profile_id,
+        payments::PaymentSession,
+        payment_types::PaymentsSessionRequest {
+            payment_id: payment_id.clone(),
+            client_secret: None,
+            wallets: requested_wallets(),
+            merchant_connector_details: None,
+        },
         AuthFlow::Merchant,
         payments::CallConnectorAction::Trigger,
         None,
@@ -148,123 +183,22 @@ pub async fn payments_update_context(
     ))
     .await?;
 
-    let payment = json_body(update_response).map_err(|error| report!(error))?;
+    // Returned whole: the caller gets `session_token` and `vault_details` (the internal vault
+    // SDK authorization) exactly as the standalone endpoint would have returned them.
+    json_body(response, "session_tokens")
+}
 
-    // ── 2 · Fan-out — concurrent, each section degradable ─────────────────────
-    // Both read the intent and so must follow the committed update, but neither reads the
-    // other's output.
-    let wants_sessions = !req.wallets.is_empty();
-    let wants_payment_methods = req.include_payment_methods;
-
-    let session_future = async {
-        if wants_sessions {
-            Some(
-                Box::pin(payments::payments_core::<
-                    api_types::Session,
-                    payment_types::PaymentsSessionResponse,
-                    _,
-                    _,
-                    _,
-                    payments::PaymentData<api_types::Session>,
-                >(
-                    state.clone(),
-                    req_state.clone(),
-                    platform.clone(),
-                    profile_id.clone(),
-                    payments::PaymentSession,
-                    payment_types::PaymentsSessionRequest {
-                        payment_id: payment_id.clone(),
-                        client_secret: None,
-                        wallets: req.wallets.clone(),
-                        merchant_connector_details: None,
-                    },
-                    AuthFlow::Merchant,
-                    payments::CallConnectorAction::Trigger,
-                    None,
-                    None,
-                    header_payload.clone(),
-                    None,
-                ))
-                .await,
-            )
-        } else {
-            None
+/// A core response can only contribute when it is a plain JSON body.
+fn json_body<T>(response: ApplicationResponse<T>, section: &str) -> errors::RouterResult<T> {
+    match response {
+        ApplicationResponse::Json(payload) | ApplicationResponse::JsonWithHeaders((payload, _)) => {
+            Ok(payload)
         }
-    };
-
-    let payment_methods_future = async {
-        if wants_payment_methods {
-            Some(
-                Box::pin(pm_client::list_payment_methods_client(
-                    state.clone(),
-                    platform.clone(),
-                    payment_id.clone(),
-                    // API-key authenticated; there is no client secret to validate.
-                    None,
-                ))
-                .await,
-            )
-        } else {
-            None
-        }
-    };
-
-    let (session_result, payment_methods_result) =
-        futures::future::join(session_future, payment_methods_future).await;
-
-    // ── 3 · Assemble — degraded sections become null plus a warning ───────────
-    let mut warnings = Vec::new();
-
-    let session_tokens = session_result
-        .and_then(|result| {
-            degrade_on_error(
-                result,
-                payment_types::UpdateContextSection::SessionTokens,
-                SESSION_TOKENS_FAILED,
-                &mut warnings,
-            )
-        })
-        .and_then(|response| {
-            degrade_on_error(
-                json_body(response),
-                payment_types::UpdateContextSection::SessionTokens,
-                SESSION_TOKENS_FAILED,
-                &mut warnings,
-            )
-        })
-        .map(|session| session.session_token);
-
-    let payment_methods = payment_methods_result
-        .and_then(|result| {
-            degrade_on_error(
-                result,
-                payment_types::UpdateContextSection::PaymentMethods,
-                PAYMENT_METHODS_FAILED,
-                &mut warnings,
-            )
-        })
-        .and_then(|response| {
-            degrade_on_error(
-                json_body(response),
-                payment_types::UpdateContextSection::PaymentMethods,
-                PAYMENT_METHODS_FAILED,
-                &mut warnings,
-            )
-        });
-
-    // Carried through from the update rather than re-minted, so it cannot disagree with what the
-    // standalone update returns.
-    let sdk_authorization = payment.sdk_authorization.clone();
-
-    Ok(ApplicationResponse::Json(
-        payment_types::PaymentsUpdateContextResponse {
-            payment: Box::new(payment),
-            session_tokens,
-            payment_methods,
-            sdk_authorization,
-            // Reserved: the external-vault session is out of scope for this version.
-            vault_sdk_authorization: None,
-            warnings,
-        },
-    ))
+        _ => Err(error_stack::report!(
+            errors::ApiErrorResponse::InternalServerError
+        ))
+        .attach_printable_lazy(|| {
+            format!("server-integration: {section} core returned a non-JSON response")
+        }),
+    }
 }
