@@ -32,9 +32,6 @@ const FILES_GET_UPLOAD_URL: &str = "files.getUploadURLExternal";
 /// Step two has no method name — it posts to a URL step one returns.
 const FILES_COMPLETE_UPLOAD: &str = "files.completeUploadExternal";
 
-/// Sent when a file declares no media type. Both backends sniff the filename when they get this.
-const DEFAULT_UPLOAD_CONTENT_TYPE: &str = "application/octet-stream";
-
 /// The provider's code for an upload carrying nothing. Raised locally too, so an empty file is
 /// refused in one round trip fewer and reads identically either way.
 const NO_FILE_DATA: &str = "no_file_data";
@@ -243,10 +240,26 @@ impl Endpoint {
     /// `files.upload`, the one-call form, is deliberately not used: Slack retired it, so building
     /// on it would make the Slack backend's upload dead on arrival. This flow works on both.
     ///
-    /// **Not idempotent, and unlike [`Endpoint::post_message`] it cannot be retried by the
-    /// transport.** `RequestBuilder::try_clone` returns `None` for a body it cannot replay, so
-    /// `http_client` sends the bytes exactly once. Any duplicate would have to come from a caller
-    /// retrying all three steps.
+    /// **Not idempotent, and the transport retries all three legs**, exactly as it does for
+    /// [`Endpoint::post_message`]. An earlier version of this comment claimed the opposite, on the
+    /// theory that `RequestBuilder::try_clone` cannot replay an upload body; that is false here,
+    /// because [`RequestContent::RawBytes`] is a `Vec<u8>` and reqwest clones a buffered body
+    /// happily. `http_client::send_request` resends once on `ConnectionClosedIncompleteMessage`.
+    ///
+    /// What that costs, leg by leg, and why it is survivable rather than good:
+    ///
+    /// - **Reserving** twice leaves an orphaned reservation, which expires on the provider's own
+    ///   TTL. Harmless.
+    /// - **Sending bytes** twice against a reservation the provider already consumed is refused
+    ///   (`invalid_arguments`), because the reservation is no longer `pending`.
+    /// - **Completing** twice is refused for the same reason: the provider drops its upload state
+    ///   once the file is shared.
+    ///
+    /// So a retry after the provider acted turns a success into a *reported refusal* — the file is
+    /// in the channel and the caller is told it is not. It does not post the file twice, which is
+    /// the failure that would actually matter, and the caller does not retry on a refusal. Making
+    /// this exact would mean a no-retry path through `http_client`, which every connector in the
+    /// workspace shares; that is tracked rather than done here.
     pub(super) async fn upload_file(&self, file: ChatFile) -> ChatResult<FileId> {
         if file.is_empty() {
             Err(ChatError::Rejected {
@@ -298,9 +311,23 @@ impl Endpoint {
     /// credential, which is exactly why withholding it costs nothing and forwarding it would be
     /// the only real loss.
     ///
-    /// This leg does not answer with the `{ok}` envelope on success — Xyne replies with the two
-    /// characters `OK` — so a body that *does* parse as a refusal is the only failure it can
-    /// report at HTTP 200.
+    /// **The URL itself still reaches the logs**, because `http_client::send_request` logs the
+    /// whole `Request` and its `url` is an unmasked `String`. On Xyne that leaks nothing usable:
+    /// the upload endpoint authenticates, so the URL alone opens nothing. On Slack the pre-signed
+    /// URL *is* the capability, so anyone reading the logs promptly could write to the pending
+    /// upload. Nothing configures a Slack destination today; masking it means changing a shared
+    /// transport every connector uses, so it is tracked rather than done here.
+    ///
+    /// **This leg has no `{ok}` envelope on either backend, and that is the protocol rather than a
+    /// divergence.** It posts to a storage endpoint rather than to an API method: Slack documents a
+    /// plain 200 from its file store, and Xyne replies with the two characters `OK`. Only the
+    /// failure path uses the envelope, so a body that *does* parse as one is authoritative and
+    /// anything else at 2xx is taken as accepted.
+    ///
+    /// Xyne's own divergences from Slack are elsewhere and are noted where they bite: it requires
+    /// the credential on this leg where Slack's pre-signed URL does not, and its
+    /// `files.completeUploadExternal` returns file objects whose `url_private` is a path relative
+    /// to its storage root where Slack returns an absolute URL.
     async fn send_bytes(&self, upload_url: &str, file: &ChatFile) -> ChatResult<()> {
         let parsed = Url::parse(upload_url)
             .change_context(ChatError::UntrustedUploadUrl)
@@ -319,9 +346,11 @@ impl Endpoint {
 
         let same_origin = parsed.origin() == self.base_url.origin();
 
+        // `mime`'s own constant rather than a literal. Both backends sniff the filename when they
+        // are given this, which is the point of sending it rather than nothing.
         let content_type = file
             .content_type()
-            .unwrap_or(DEFAULT_UPLOAD_CONTENT_TYPE)
+            .unwrap_or(mime::APPLICATION_OCTET_STREAM.as_ref())
             .to_owned();
 
         let mut headers: Vec<(String, Maskable<String>)> =
@@ -649,7 +678,7 @@ impl TryFrom<CompleteUploadResponse> for FileId {
             .unwrap_or_default()
             .into_iter()
             .find_map(|file| file.id.filter(|id| !id.is_empty()))
-            .map(Self::new)
+            .map(Self::slack_compatible)
             .ok_or(ChatError::MissingFileId)
             .attach_printable(
                 "the file was stored and shared; retrying would upload it a second time",
@@ -1042,7 +1071,10 @@ mod upload_tests {
             .unwrap()
             .unwrap();
 
-        assert_eq!(file_id.as_str(), "cmtmsn9c110b7s7g92e72zv1u");
+        assert_eq!(
+            file_id.as_slack_compatible().unwrap(),
+            "cmtmsn9c110b7s7g92e72zv1u"
+        );
     }
 
     /// The file is stored and shared. Retrying would upload it twice, so this is reported apart

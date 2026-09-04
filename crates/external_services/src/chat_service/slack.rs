@@ -8,6 +8,11 @@
 //!
 //! This exists because it is nearly free, not because it is on the critical path: Xyne is the
 //! destination in use today.
+//!
+//! **Uploads here are unverified.** Nothing configures a Slack destination, so the shared upload
+//! path in [`super::slack_compatible`] is proven against Xyne alone. Read the notes on
+//! `Endpoint::send_bytes` before enabling one: Slack's pre-signed upload URL is a capability, it is
+//! on a different origin from the API root, and the shared transport logs request URLs.
 
 use hyperswitch_interfaces::types::Proxy;
 use hyperswitch_masking::Secret;
@@ -95,14 +100,6 @@ impl ChatClient for SlackClient {
         self.endpoint.post_message(message).await
     }
 
-    /// Uploads use `files.getUploadURLExternal` and `files.completeUploadExternal` rather than the
-    /// retired one-call `files.upload`, so this leg is the same protocol Xyne serves.
-    ///
-    /// **Verified against Xyne only.** No Slack destination is configured anywhere yet, so the
-    /// shared implementation is proven on one of the two backends it serves. The difference to
-    /// expect is that Slack's pre-signed upload URL is on `files.slack.com` rather than its API
-    /// root, so the bytes go up without the bot token — which is what Slack documents, and what
-    /// the origin rule in `Endpoint::send_bytes` produces on its own.
     async fn upload_file(&self, file: ChatFile) -> ChatResult<FileId> {
         self.endpoint.upload_file(file).await
     }

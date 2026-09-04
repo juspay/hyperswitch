@@ -142,20 +142,33 @@ impl ChatMessage {
 /// side effect the backend does not always name — Xyne's `files.completeUploadExternal` returns no
 /// `ts` at all. Conflating the two would promise threading that the upload path cannot deliver.
 ///
-/// Opaque, and not the id the upload was started with: a backend is free to remap it between
+/// An enum for the same reason [`MessageId`] is one, though the case is weaker and worth stating
+/// honestly: nothing hands a file id *back* to a backend today, so there is no round trip for a
+/// mismatched id to break. What it buys is that the first backend whose file id is not a bare
+/// string — or is not interchangeable with a Slack-compatible one — adds a variant instead of
+/// forcing this type open. Non-exhaustive, so match with a wildcard arm.
+///
+/// The value is also not the id the upload was started with: a backend is free to remap it between
 /// reserving an upload and completing it, and Xyne does.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct FileId(String);
+#[non_exhaustive]
+pub enum FileId {
+    /// An id minted by a Slack-compatible backend: opaque, and only meaningful to the backend that
+    /// issued it. Slack spells these `F...`; Xyne returns its own store id.
+    SlackCompatible(String),
+}
 
 impl FileId {
-    /// Wrap a backend's file id.
-    pub fn new(value: impl Into<String>) -> Self {
-        Self(value.into())
+    /// Build an id from a Slack-compatible backend.
+    pub fn slack_compatible(value: impl Into<String>) -> Self {
+        Self::SlackCompatible(value.into())
     }
 
-    /// The id as the backend spelled it.
-    pub fn as_str(&self) -> &str {
-        &self.0
+    /// The id as the backend spelled it, if it came from a Slack-compatible backend.
+    pub fn as_slack_compatible(&self) -> Option<&str> {
+        match self {
+            Self::SlackCompatible(value) => Some(value.as_str()),
+        }
     }
 }
 
@@ -401,7 +414,10 @@ mod tests {
     /// under an upload — which the current protocol cannot express.
     #[test]
     fn a_file_id_is_opaque_and_round_trips() {
-        assert_eq!(FileId::new("cmtmsn9c1").as_str(), "cmtmsn9c1");
+        assert_eq!(
+            FileId::slack_compatible("cmtmsn9c1").as_slack_compatible(),
+            Some("cmtmsn9c1")
+        );
     }
 
     #[test]
