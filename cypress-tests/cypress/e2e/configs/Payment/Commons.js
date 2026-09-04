@@ -4460,18 +4460,6 @@ export const connectorDetails = {
         },
       },
     }),
-    PaymentIntentNoOffer: getCustomExchange({
-      Request: {
-        currency: "USD",
-        amount: 50000,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
-        },
-      },
-    }),
     ConfirmWithoutOffer: getCustomExchange({
       Request: {
         payment_method: "card",
@@ -4484,9 +4472,9 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
-          amount: 50000,
-          net_amount: 50000,
-          amount_received: 50000,
+          amount: 100000,
+          net_amount: 100000,
+          amount_received: 100000,
           currency: "USD",
           applied_offer: null,
         },

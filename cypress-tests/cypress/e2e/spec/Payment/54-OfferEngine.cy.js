@@ -63,10 +63,11 @@ describe("Offer Engine", () => {
     });
 
     it("applied_offer is reflected on payment retrieve", () => {
-      cy.appliedOfferRetrieveCheck(
-        connectorDetails.offer_engine.AppliedOfferOnRetrieve,
-        globalState
-      );
+      cy.retrievePaymentCallTest({
+        globalState,
+        data: connectorDetails.offer_engine.AppliedOfferOnRetrieve,
+        expectedIntentStatus: "succeeded",
+      });
     });
   });
 
@@ -74,7 +75,7 @@ describe("Offer Engine", () => {
     it("payment intent create call", () => {
       cy.createPaymentIntentTest(
         fixtures.createPaymentBody,
-        connectorDetails.offer_engine.PaymentIntentNoOffer,
+        connectorDetails.offer_engine.PaymentIntentForOffer,
         "no_three_ds",
         "automatic",
         globalState

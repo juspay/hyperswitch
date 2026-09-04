@@ -4591,7 +4591,7 @@ Cypress.Commands.add(
     connectedMerchantId,
     unconfirmedPayment = false,
   }) => {
-    const { Configs: configs = {} } = data || {};
+    const { Configs: configs = {}, Response: resData } = data || {};
 
     const configInfo = execConfig(validateConfig(configs));
     const payment_id = globalState.get("paymentID");
@@ -4638,6 +4638,42 @@ Cypress.Commands.add(
               response.body.status,
               "payment status should match stored intent_status"
             ).to.equal(expectedIntentStatus);
+          }
+
+          for (const key of ["net_amount", "amount_received"]) {
+            if (resData?.body?.[key] !== undefined) {
+              expect(response.body[key], key).to.equal(resData.body[key]);
+            }
+          }
+
+          if (resData?.body && "applied_offer" in resData.body) {
+            const expectedAppliedOffer = resData.body.applied_offer;
+
+            if (expectedAppliedOffer === null) {
+              expect(response.body.applied_offer, "applied_offer").to.be.null;
+            } else {
+              const appliedOffer = response.body.applied_offer;
+              expect(appliedOffer, "applied_offer").to.not.be.null;
+              expect(appliedOffer.offer_id, "applied_offer.offer_id").to.be.a(
+                "string"
+              ).and.not.be.empty;
+              expect(
+                appliedOffer.offer_engine_merchant_id,
+                "applied_offer.offer_engine_merchant_id"
+              ).to.be.a("string").and.not.be.empty;
+              expect(
+                appliedOffer.offer_engine_txn_id,
+                "applied_offer.offer_engine_txn_id"
+              ).to.be.a("string").and.not.be.empty;
+
+              for (const key of ["offer_amount", "currency"]) {
+                if (expectedAppliedOffer[key] !== undefined) {
+                  expect(appliedOffer[key], `applied_offer.${key}`).to.equal(
+                    expectedAppliedOffer[key]
+                  );
+                }
+              }
+            }
           }
 
           if (
@@ -8163,59 +8199,6 @@ Cypress.Commands.add("offerEngineConnectivityCheck", (globalState) => {
         response.status === 200 && Boolean(response.body?.reachable)
       );
     });
-});
-
-Cypress.Commands.add("appliedOfferRetrieveCheck", (data, globalState) => {
-  const { Response: resData } = data || {};
-
-  const paymentId = globalState.get("paymentID");
-  const baseUrl = globalState.get("baseUrl");
-  const apiKey = globalState.get("apiKey");
-
-  cy.request({
-    method: "GET",
-    url: `${baseUrl}/payments/${paymentId}?force_sync=true`,
-    headers: {
-      "Content-Type": "application/json",
-      "api-key": apiKey,
-    },
-    failOnStatusCode: false,
-  }).then((response) => {
-    logRequestId(response.headers["x-request-id"]);
-
-    expect(response.status, "status_code").to.equal(200);
-
-    for (const key of ["status", "net_amount", "amount_received"]) {
-      if (resData?.body?.[key] !== undefined) {
-        expect(response.body[key], key).to.equal(resData.body[key]);
-      }
-    }
-
-    expect(response.body, "applied_offer").to.have.property("applied_offer");
-    const appliedOffer = response.body.applied_offer;
-    expect(appliedOffer, "applied_offer").to.not.be.null;
-    expect(appliedOffer.offer_id, "applied_offer.offer_id").to.be.a("string")
-      .and.not.be.empty;
-    expect(
-      appliedOffer.offer_engine_merchant_id,
-      "applied_offer.offer_engine_merchant_id"
-    ).to.be.a("string").and.not.be.empty;
-    expect(
-      appliedOffer.offer_engine_txn_id,
-      "applied_offer.offer_engine_txn_id"
-    ).to.be.a("string").and.not.be.empty;
-
-    const expectedAppliedOffer = resData?.body?.applied_offer;
-    if (expectedAppliedOffer) {
-      for (const key of ["offer_amount", "currency"]) {
-        if (expectedAppliedOffer[key] !== undefined) {
-          expect(appliedOffer[key], `applied_offer.${key}`).to.equal(
-            expectedAppliedOffer[key]
-          );
-        }
-      }
-    }
-  });
 });
 
 // DDC Race Condition Test Commands
