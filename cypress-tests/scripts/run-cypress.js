@@ -83,6 +83,7 @@ const specs = shardTotal
   ? shardSpecs({
       specs: resolvedSpecs,
       prerequisiteSpecs: SERVICES[service].prerequisiteSpecs,
+      sensitiveSpecs: SERVICES[service].sensitiveSpecs,
       shardIndex,
       shardTotal,
     })

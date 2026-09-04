@@ -217,7 +217,7 @@ jobs:
                   "name": "batch-1",
                   "connectors": "'"${MANDATORY_PAYMENTS_CONNECTORS_BATCH_1}"'",
                   "parallel": 3,
-                  "spec_shards": 7,
+                  "spec_shards": 9,
                   "report_artifact_name": "cypress-mandatory-test-results-batch-1",
                   "server_logs_artifact": "mandatory-server-logs-batch-1"
                 },
