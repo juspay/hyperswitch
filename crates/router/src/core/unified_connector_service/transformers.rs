@@ -3214,6 +3214,7 @@ impl
                 .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
                 .map(|s| s.into()),
             state,
+            test_mode: router_data.test_mode,
         })
     }
 }
