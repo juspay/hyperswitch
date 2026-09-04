@@ -46,7 +46,6 @@ async fn connect_via_socks5(
     smtp_host: &str,
     smtp_port: u16,
 ) -> Result<TcpStream, SmtpError> {
-
     let proxy_addr = tokio::net::lookup_host((socks5.host.as_str(), socks5.port))
         .await
         .map_err(SmtpError::Socks5ProxyResolutionFailed)?
