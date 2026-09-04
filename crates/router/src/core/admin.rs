@@ -2163,12 +2163,16 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
     }
 
     async fn create_domain_model_from_request(
-        self,
+        mut self,
         state: &SessionState,
         mca: &domain::MerchantConnectorAccount,
         key_manager_state: &KeyManagerState,
         platform: &domain::Platform,
     ) -> RouterResult<domain::MerchantConnectorAccountUpdate> {
+        self.metadata = helpers::carry_forward_apple_pay_system_generated_key(
+            mca.metadata.as_ref(),
+            self.metadata,
+        );
         let payment_methods_enabled = self.payment_methods_enabled.map(|pm_enabled| {
             pm_enabled
                 .iter()
@@ -3144,6 +3148,64 @@ pub async fn update_connector(
     let response = updated_mca.foreign_try_into()?;
 
     Ok(service_api::ApplicationResponse::Json(response))
+}
+
+#[cfg(feature = "v1")]
+pub async fn generate_apple_pay_certificate(
+    state: SessionState,
+    merchant_id: id_type::MerchantId,
+    merchant_connector_id: id_type::MerchantConnectorAccountId,
+) -> RouterResponse<serde_json::Value> {
+    let db = state.store.as_ref();
+    let key_store = db
+        .get_merchant_key_store_by_merchant_id(&merchant_id, &db.get_master_key().to_vec().into())
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+    let mca = db
+        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+            &merchant_id,
+            &merchant_connector_id,
+            &key_store,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+            id: merchant_connector_id.get_string_repr().to_string(),
+        })?;
+
+    let (private_key_pem, csr) =
+        helpers::generate_apple_pay_keypair_and_csr(mca.get_id().get_string_repr())?;
+
+    let updated_metadata =
+        helpers::set_apple_pay_system_generated_key(mca.metadata.clone(), private_key_pem);
+
+    db.update_merchant_connector_account(
+        mca.clone(),
+        storage::MerchantConnectorAccountUpdate::ConnectorWebhookRegisterationUpdate {
+            connector_webhook_registration_details: None,
+            connector_webhook_details: None,
+            metadata: Some(updated_metadata),
+        }
+        .into(),
+        &key_store,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable_lazy(|| {
+        format!(
+            "Failed while persisting generated Apple Pay certificate key for MCA: {merchant_connector_id:?}",
+        )
+    })?;
+
+    let content_type = "application/pkcs10"
+        .parse::<mime::Mime>()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to parse CSR content type")?;
+
+    Ok(service_api::ApplicationResponse::FileData((
+        csr.into_bytes(),
+        content_type,
+    )))
 }
 
 #[cfg(feature = "v1")]
