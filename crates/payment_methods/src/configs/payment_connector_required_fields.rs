@@ -1770,6 +1770,7 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
                         RequiredField::BillingAddressLine1,
                         RequiredField::BillingAddressZip,
                     ],
+                    billing_name(),
                 ]
                 .concat(),
             ),
