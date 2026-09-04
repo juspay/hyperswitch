@@ -211,6 +211,11 @@ pub async fn get_batches(
     {
         Ok(response) => response,
         Err(error) => {
+            // Retained as the outer guard: a backend that reports an empty read as
+            // an error rather than an empty reply still has to be handled here.
+            // `XREAD` on an absent stream is one such case. The emptiness check
+            // below covers the readers that report it as an empty reply instead,
+            // which is what `XREADGROUP` does.
             if let redis_interface::errors::RedisError::StreamEmptyOrNotAvailable =
                 error.current_context()
             {
@@ -221,8 +226,6 @@ pub async fn get_batches(
             }
         }
     };
-
-    metrics::BATCHES_CONSUMED.add(1, &[]);
 
     // StreamReadResult: stream key → Vec<(entry_id, HashMap<String, RedisValue>)>
     let (batches, entry_ids): (Vec<Vec<ProcessTrackerBatch>>, Vec<Vec<String>>) = response
@@ -248,6 +251,20 @@ pub async fn get_batches(
     // count greater than 1 is provided.
     let batches = batches.into_iter().flatten().collect::<Vec<_>>();
     let entry_ids = entry_ids.into_iter().flatten().collect::<Vec<_>>();
+
+    // An empty stream is the resting state of an idle scheduler, so this is the
+    // common path rather than an edge case. Acknowledging nothing is not a no-op:
+    // `XACK key group` with no IDs is a syntax error, and the resulting `ERROR`
+    // pair on every poll drowns out genuine acknowledge failures reported from
+    // these same two call sites.
+    if entry_ids.is_empty() {
+        logger::debug!("No batches processed as stream is empty");
+        return Ok(Vec::new());
+    }
+
+    // Counted here rather than at the read, so that an empty poll is not recorded
+    // as a consumed batch.
+    metrics::BATCHES_CONSUMED.add(1, &[]);
 
     conn.stream_acknowledge_entries(&stream_name.into(), group_name, entry_ids.clone())
         .await
