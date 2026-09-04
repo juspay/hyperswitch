@@ -30,10 +30,11 @@ pub use api_models::{
         PaymentsPostSessionTokensResponse, PaymentsRedirectRequest, PaymentsRedirectionResponse,
         PaymentsRejectRequest, PaymentsRequest, PaymentsResponse, PaymentsResponseForm,
         PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse,
-        PaymentsStartRequest, PaymentsUpdateMetadataRequest, PaymentsUpdateMetadataResponse,
-        PgRedirectResponse, PhoneDetails, ProxyPaymentMethodData, ProxyPaymentMethodDataRequest,
-        RedirectionResponse, SessionToken, UrlDetails, VaultDetails, VaultSessionDetails,
-        VerifyRequest, VerifyResponse, VgsSessionDetails, WalletData,
+        PaymentsStartRequest, PaymentsUpdateContextRequest, PaymentsUpdateContextResponse,
+        PaymentsUpdateMetadataRequest, PaymentsUpdateMetadataResponse, PgRedirectResponse,
+        PhoneDetails, ProxyPaymentMethodData, ProxyPaymentMethodDataRequest, RedirectionResponse,
+        SessionToken, UrlDetails, VaultDetails, VaultSessionDetails, VerifyRequest, VerifyResponse,
+        VgsSessionDetails, WalletData,
     },
 };
 pub use common_types::payments::{AcceptanceType, CustomerAcceptance, OnlineMandate};

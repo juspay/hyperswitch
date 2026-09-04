@@ -757,6 +757,34 @@ pub fn payments_capture() {}
 )]
 pub fn payments_connector_session() {}
 
+#[cfg(feature = "v1")]
+/// Payments - Update context (server-to-server)
+///
+/// Updates the payment intent's amount or currency and returns, in the same response, the
+/// artifacts the client SDK needs to continue: wallet session tokens and the combined
+/// payment-method list, both computed against the committed new amount.
+///
+/// A `200` always means the update committed. The auxiliary sections are best-effort: either may
+/// be `null` with a matching entry in `warnings`, each of which names a standalone endpoint the
+/// caller can re-invoke to fill the gap.
+#[utoipa::path(
+  post,
+  path = "/payments/{payment_id}/update-context",
+  params(
+      ("payment_id" = String, Path, description = "The identifier for the payment")
+  ),
+  request_body=PaymentsUpdateContextRequest,
+  responses(
+      (status = 200, description = "Intent updated; composite context returned", body = PaymentsUpdateContextResponse),
+      (status = 400, description = "Invalid request, or the intent is not in an updatable state", body = GenericErrorResponseOpenApi),
+      (status = 404, description = "Payment does not exist in records", body = GenericErrorResponseOpenApi)
+  ),
+  tag = "Payments",
+  operation_id = "Update a Payment and retrieve the refreshed client context",
+  security(("api_key" = []))
+)]
+pub fn payments_update_context() {}
+
 #[cfg(feature = "v2")]
 /// Payments - Session token
 ///

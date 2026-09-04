@@ -1029,6 +1029,10 @@ impl Payments {
                         .route(web::post().to(payments::payments_update)),
                 )
                 .service(
+                    web::resource("/{payment_id}/update-context")
+                        .route(web::post().to(payments::payments_update_context)),
+                )
+                .service(
                     web::resource("/{payment_id}/post_session_tokens").route(web::post().to(payments::payments_post_session_tokens)),
                 )
                 .service(

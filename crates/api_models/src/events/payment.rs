@@ -105,6 +105,24 @@ impl ApiEventMetric for PaymentsPostSessionTokensRequest {
 }
 
 #[cfg(feature = "v1")]
+impl ApiEventMetric for payments::PaymentsUpdateContextRequest {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        // The payment id arrives as a path parameter, so the handler stamps it on the span; the
+        // body alone cannot identify the payment.
+        None
+    }
+}
+
+#[cfg(feature = "v1")]
+impl ApiEventMetric for payments::PaymentsUpdateContextResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Payment {
+            payment_id: self.payment.payment_id.clone(),
+        })
+    }
+}
+
+#[cfg(feature = "v1")]
 impl ApiEventMetric for PaymentsUpdateMetadataRequest {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Payment {

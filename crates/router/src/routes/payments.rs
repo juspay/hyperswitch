@@ -1527,6 +1527,83 @@ pub async fn payments_connector_session(
     .await
 }
 
+/// Update a payment intent and return the refreshed client context (server-to-server).
+///
+/// Applies the amount/currency change, then returns wallet session tokens and the combined
+/// payment-method list computed against the committed new amount, so the merchant's server
+/// makes one call instead of orchestrating three. Merchant API key auth; no client secret.
+#[cfg(feature = "v1")]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsUpdateContext, payment_id))]
+pub async fn payments_update_context(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    json_payload: web::Json<payment_types::PaymentsUpdateContextRequest>,
+    path: web::Path<common_utils::id_type::PaymentId>,
+) -> impl Responder {
+    let flow = Flow::PaymentsUpdateContext;
+    let payment_id = path.into_inner();
+    let payload = json_payload.into_inner();
+
+    tracing::Span::current().record("payment_id", payment_id.get_string_repr());
+
+    let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
+        Ok(headers) => headers,
+        Err(err) => {
+            return api::log_and_return_error_response(err);
+        }
+    };
+
+    // Same auth wrapper as the standalone update this endpoint extends, so internal-service
+    // callers keep working and no client secret is ever accepted.
+    let api_auth = auth::ApiKeyAuth {
+        allow_connected_scope_operation: true,
+        allow_platform_self_operation: false,
+    };
+    let (auth_type, _auth_flow) = match auth::check_internal_api_key_auth_no_client_secret(
+        req.headers(),
+        api_auth,
+        state.conf.internal_merchant_id_profile_id_auth.clone(),
+    ) {
+        Ok(auth) => auth,
+        Err(err) => return api::log_and_return_error_response(report!(err)),
+    };
+
+    // Reuse the update flow's locking so a concurrent confirm cannot interleave with the update.
+    let locking_action = api_locking::LockAction::Hold {
+        input: api_locking::LockingInput {
+            unique_locking_key: payment_id.get_string_repr().to_owned(),
+            api_identifier: lock_utils::ApiIdentifier::Payments,
+            override_lock_retries: None,
+        },
+    };
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        move |state, auth: auth::AuthenticationData, payload, req_state| {
+            let payment_id = payment_id.clone();
+            let header_payload = header_payload.clone();
+            async move {
+                Box::pin(payments::update_context::payments_update_context(
+                    state,
+                    req_state,
+                    auth.platform,
+                    auth.profile.map(|profile| profile.get_id().clone()),
+                    payment_id,
+                    payload,
+                    header_payload,
+                ))
+                .await
+            }
+        },
+        &*auth_type,
+        locking_action,
+    ))
+    .await
+}
+
 #[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsRedirect, payment_id))]
 pub async fn payments_redirect_response(

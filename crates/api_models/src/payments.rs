@@ -9709,6 +9709,101 @@ pub struct RedirectResponse {
     pub json_payload: Option<pii::SecretSerdeValue>,
 }
 
+#[cfg(feature = "v1")]
+fn default_include_payment_methods() -> bool {
+    true
+}
+
+#[cfg(feature = "v1")]
+/// Request for the composite server-to-server update-context endpoint.
+///
+/// Updates the intent and returns everything the client SDK needs to carry on: refreshed
+/// wallet session tokens and the combined payment-method list, both computed against the
+/// committed new amount. Authenticated with the merchant API key; no client secret is involved.
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PaymentsUpdateContextRequest {
+    /// The new amount for the intent. At least one of `amount` or `currency` is required.
+    #[schema(value_type = Option<i64>, example = 12999)]
+    pub amount: Option<MinorUnit>,
+
+    /// The new currency for the intent. At least one of `amount` or `currency` is required.
+    #[schema(value_type = Option<Currency>, example = "USD")]
+    pub currency: Option<api_enums::Currency>,
+
+    /// Wallets to mint session tokens for. Omitted or empty skips the session-token section.
+    #[serde(default)]
+    #[schema(value_type = Vec<PaymentMethodType>)]
+    pub wallets: Vec<api_enums::PaymentMethodType>,
+
+    /// Whether to return the combined payment-method list. Defaults to true.
+    #[serde(default = "default_include_payment_methods")]
+    pub include_payment_methods: bool,
+}
+
+#[cfg(feature = "v1")]
+/// The section of an update-context response that could not be produced.
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum UpdateContextSection {
+    SessionTokens,
+    PaymentMethods,
+}
+
+#[cfg(feature = "v1")]
+/// A section that degraded after the update had already committed.
+///
+/// Each code maps to the standalone endpoint the caller can re-invoke to fill the gap, so a
+/// degraded response is recoverable without re-running the update.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct UpdateContextWarning {
+    /// The section that is absent from the response.
+    pub section: UpdateContextSection,
+
+    /// Machine-readable reason, e.g. `SESSION_TOKENS_FAILED`.
+    pub code: String,
+
+    /// The wallet this failure relates to, when the failure is wallet-specific.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schema(value_type = Option<PaymentMethodType>)]
+    pub wallet: Option<api_enums::PaymentMethodType>,
+
+    /// Human-readable detail for logs and support.
+    pub message: String,
+}
+
+#[cfg(feature = "v1")]
+/// Composite response for the update-context endpoint.
+///
+/// A `200` always means the update committed and `payment` is present. The auxiliary sections
+/// are best-effort: each may be `null` with a matching entry in `warnings`, rather than failing
+/// a request whose state change already landed.
+// Not `Clone`: `ClientPaymentMethodsListResponse` is not, and this type is only ever built once
+// and serialized.
+#[derive(Debug, serde::Serialize, ToSchema)]
+pub struct PaymentsUpdateContextResponse {
+    /// The committed update. Always present on a 200.
+    pub payment: Box<PaymentsResponse>,
+
+    /// Wallet session tokens minted against the new amount. `null` when skipped or failed.
+    pub session_tokens: Option<Vec<SessionToken>>,
+
+    /// Combined payment-method list, whose `intent_data` carries the new amount.
+    /// `null` when skipped or failed.
+    #[schema(value_type = Option<ClientPaymentMethodsListResponse>)]
+    pub payment_methods: Option<payment_methods::ClientPaymentMethodsListResponse>,
+
+    /// SDK authorization for the pay flow, carried through from the update response.
+    pub sdk_authorization: Option<String>,
+
+    /// Reserved for the external-vault SDK authorization. Always `null` in this version.
+    pub vault_sdk_authorization: Option<String>,
+
+    /// Present only when a section degraded.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub warnings: Vec<UpdateContextWarning>,
+}
+
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct PaymentsSessionRequest {}

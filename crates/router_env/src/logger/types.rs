@@ -186,6 +186,8 @@ pub enum Flow {
     PaymentsRetrieveUsingMerchantReferenceId,
     /// Payments update flow.
     PaymentsUpdate,
+    /// Composite server-to-server update: intent update plus session tokens and payment methods.
+    PaymentsUpdateContext,
     /// Payments confirm flow.
     PaymentsConfirm,
     /// Payments capture flow.
