@@ -1268,6 +1268,43 @@ impl From<RecurrenceStatus> for AttemptStatus {
     }
 }
 
+fn get_pix_automatico_push_sync_status(
+    recurrence_status: &RecurrenceStatus,
+    solicitation_status: Option<&RecurrenceStatus>,
+) -> AttemptStatus {
+    match (recurrence_status, solicitation_status) {
+        (RecurrenceStatus::Aprovada, _) => AttemptStatus::Charged,
+        (RecurrenceStatus::Rejeitada, _) | (RecurrenceStatus::Expirada, _) => {
+            AttemptStatus::Failure
+        }
+        (RecurrenceStatus::Cancelada, _) => AttemptStatus::Failure,
+        (RecurrenceStatus::Recebida, _)
+        | (RecurrenceStatus::Enviada, _)
+        | (RecurrenceStatus::Aceita, _)
+        | (RecurrenceStatus::Unknown, _) => AttemptStatus::Pending,
+        (RecurrenceStatus::Criada, None) => AttemptStatus::AuthenticationPending,
+        (RecurrenceStatus::Criada, Some(RecurrenceStatus::Criada)) => {
+            AttemptStatus::AuthenticationPending
+        }
+        (RecurrenceStatus::Criada, Some(RecurrenceStatus::Enviada)) => {
+            AttemptStatus::AuthenticationPending
+        }
+        (RecurrenceStatus::Criada, Some(RecurrenceStatus::Recebida)) => {
+            AttemptStatus::AuthenticationPending
+        }
+        (RecurrenceStatus::Criada, Some(RecurrenceStatus::Aceita))
+        | (RecurrenceStatus::Criada, Some(RecurrenceStatus::Aprovada)) => {
+            AttemptStatus::AuthenticationPending
+        }
+        (RecurrenceStatus::Criada, Some(RecurrenceStatus::Rejeitada)) => AttemptStatus::Failure,
+        (RecurrenceStatus::Criada, Some(RecurrenceStatus::Expirada)) => AttemptStatus::Failure,
+        (RecurrenceStatus::Criada, Some(RecurrenceStatus::Cancelada)) => AttemptStatus::Failure,
+        (RecurrenceStatus::Criada, Some(RecurrenceStatus::Unknown)) => {
+            AttemptStatus::AuthenticationPending
+        }
+    }
+}
+
 impl From<common_types::customers::DocumentKind> for SantanderDocumentKind {
     fn from(item: common_types::customers::DocumentKind) -> Self {
         match item {
@@ -1400,7 +1437,19 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsSyncResponse, T, Payme
             }
             // Journey 1/2
             SantanderPaymentsSyncResponse::PixAutomaticoConsultAndActivateJourney(res) => {
-                let status = AttemptStatus::from(res.status.clone());
+                let status = if matches!(
+                    item.data.payment_method_type,
+                    Some(enums::PaymentMethodType::PixAutomaticoPush)
+                ) {
+                    let solicitation_status = res
+                        .solicitacao
+                        .as_ref()
+                        .and_then(|solicitations| solicitations.last())
+                        .and_then(|solicitation| solicitation.status.as_ref());
+                    get_pix_automatico_push_sync_status(&res.status, solicitation_status)
+                } else {
+                    AttemptStatus::from(res.status.clone())
+                };
                 let connector_metadata = if matches!(res.status, RecurrenceStatus::Aprovada) {
                     res.atualizacao
                         .iter()
