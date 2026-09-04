@@ -490,43 +490,47 @@ async fn filter_customer_pms_by_blocklist(
     customer_pms: Vec<CustomerPaymentMethodForClient>,
 ) -> Vec<CustomerPaymentMethodForClient> {
     let processor = platform.get_processor();
-    if !blocklist_utils::is_blocklist_guard_enabled(state, processor.get_account().get_id()).await {
-        return customer_pms;
-    }
+    let guard_enabled =
+        blocklist_utils::is_blocklist_guard_enabled(state, processor.get_account().get_id()).await;
 
-    let bins: std::collections::HashSet<String> = customer_pms
-        .iter()
-        .filter_map(|customer_pm| match customer_pm.payment_method_data.as_ref() {
-            Some(CustomerPaymentMethodDataForClient::Card(card)) => card.card_isin.clone(),
-            _ => None,
-        })
-        .collect();
+    let bins: std::collections::HashSet<String> = if guard_enabled {
+        customer_pms
+            .iter()
+            .filter_map(|customer_pm| match customer_pm.payment_method_data.as_ref() {
+                Some(CustomerPaymentMethodDataForClient::Card(card)) => card.card_isin.clone(),
+                _ => None,
+            })
+            .collect()
+    } else {
+        std::collections::HashSet::new()
+    };
 
-    if bins.is_empty() {
-        return customer_pms;
-    }
+    let blocked_bins = if bins.is_empty() {
+        std::collections::HashSet::new()
+    } else {
+        blocklist_utils::get_blocked_bins(state, processor, bins).await
+    };
 
-    let blocked_bins = blocklist_utils::get_blocked_bins(state, processor, bins).await;
     if blocked_bins.is_empty() {
-        return customer_pms;
+        customer_pms
+    } else {
+        let initial_count = customer_pms.len();
+        let filtered: Vec<CustomerPaymentMethodForClient> = customer_pms
+            .into_iter()
+            .filter(|customer_pm| match customer_pm.payment_method_data.as_ref() {
+                Some(CustomerPaymentMethodDataForClient::Card(card)) => !card
+                    .card_isin
+                    .as_ref()
+                    .is_some_and(|card_isin| blocked_bins.contains(card_isin)),
+                _ => true,
+            })
+            .collect();
+        logger::info!(
+            filtered_out = initial_count - filtered.len(),
+            "Filtered blocklisted saved cards from the payment method list"
+        );
+        filtered
     }
-
-    let initial_count = customer_pms.len();
-    let filtered: Vec<CustomerPaymentMethodForClient> = customer_pms
-        .into_iter()
-        .filter(|customer_pm| match customer_pm.payment_method_data.as_ref() {
-            Some(CustomerPaymentMethodDataForClient::Card(card)) => !card
-                .card_isin
-                .as_ref()
-                .is_some_and(|card_isin| blocked_bins.contains(card_isin)),
-            _ => true,
-        })
-        .collect();
-    logger::info!(
-        filtered_out = initial_count - filtered.len(),
-        "Filtered blocklisted saved cards from the payment method list"
-    );
-    filtered
 }
 
 async fn fetch_customer_payment_methods(

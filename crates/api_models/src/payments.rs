@@ -6,7 +6,7 @@ use std::{
 };
 pub mod additional_info;
 pub mod trait_impls;
-use cards::{CardNumber, NetworkToken};
+use cards::{CardBin, CardNumber, NetworkToken};
 #[cfg(feature = "v2")]
 use common_enums::enums::PaymentConnectorTransmission;
 use common_enums::{self, GooglePayCardFundingSource, ProductType};
@@ -13036,26 +13036,9 @@ pub struct EligibilityCard {
 /// (exact-card) blocking requires the full card number via the `card` variant instead.
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, Eq, PartialEq)]
 pub struct EligibilityCardBin {
-    /// The card BIN: the first 6 to 8 digits of the card number
+    /// The card BIN: the leading 6 to 10 digits of the card number
     #[schema(value_type = String, example = "42424242")]
-    #[serde(deserialize_with = "deserialize_eligibility_card_bin")]
-    pub card_bin: String,
-}
-
-fn deserialize_eligibility_card_bin<'de, D>(deserializer: D) -> Result<String, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let card_bin = String::deserialize(deserializer)?;
-    if (6..=8).contains(&card_bin.len())
-        && card_bin.chars().all(|character| character.is_ascii_digit())
-    {
-        Ok(card_bin)
-    } else {
-        Err(de::Error::custom(
-            "card_bin must be the first 6 to 8 digits of the card number",
-        ))
-    }
+    pub card_bin: CardBin,
 }
 
 /// Payment method data for eligibility check

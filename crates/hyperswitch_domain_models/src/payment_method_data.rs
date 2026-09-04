@@ -379,18 +379,18 @@ pub struct EligibilityCard {
 /// needs the full card number.
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct EligibilityCardBin {
-    pub card_bin: String,
+    pub card_bin: cards::CardBin,
 }
 
 impl EligibilityCardBin {
     /// The 6-digit ISIN prefix of the BIN
     pub fn get_card_isin(&self) -> String {
-        self.card_bin.chars().take(6).collect()
+        self.card_bin.get_card_isin()
     }
 
-    /// The 8-digit extended BIN, when the full 8 digits were provided
+    /// The 8-digit extended BIN, when at least 8 digits were provided
     pub fn get_extended_card_bin(&self) -> Option<String> {
-        (self.card_bin.len() >= 8).then(|| self.card_bin.chars().take(8).collect())
+        self.card_bin.get_extended_card_bin()
     }
 }
 

@@ -484,41 +484,33 @@ pub async fn is_blocklist_guard_enabled(
     }
 }
 
-/// Returns the subset of `bins` (card ISINs / extended BINs) that have an active blocklist
-/// entry for this merchant. Lookups are deduplicated by the input set and run concurrently;
-/// DB errors are logged and treated as not blocked, mirroring the behaviour of
-/// [`should_payment_be_blocked`].
+/// Returns the subset of `bins` (card ISINs / extended BINs) that have an active BIN
+/// blocklist entry (`card_bin` / `extended_card_bin` kinds only — PAN-fingerprint entries
+/// cannot be matched from a BIN) for this merchant, resolved with a single batched query.
+/// DB errors are logged and treated as not blocked, mirroring [`should_payment_be_blocked`].
 pub async fn get_blocked_bins(
     state: &SessionState,
     processor: &domain::Processor,
     bins: HashSet<String>,
 ) -> HashSet<String> {
-    let db = &state.store;
-    let processor_merchant_id = processor.get_account().get_id();
+    let lookup_result = state
+        .store
+        .list_blocklist_entries_by_processor_merchant_id_card_bins(
+            processor.get_account().get_id(),
+            bins.into_iter().collect(),
+        )
+        .await;
 
-    let lookups = bins.into_iter().map(|bin| async move {
-        match db
-            .find_blocklist_entry_by_processor_merchant_id_fingerprint_id(
-                processor_merchant_id,
-                &bin,
-            )
-            .await
-        {
-            Ok(_) => Some(bin),
-            Err(error) => {
-                if !error.current_context().is_db_not_found() {
-                    logger::error!(blocklist_db_error=?error, "failed db operations for blocklist");
-                }
-                None
-            }
+    match lookup_result {
+        Ok(blocklist_entries) => blocklist_entries
+            .into_iter()
+            .map(|blocklist_entry| blocklist_entry.fingerprint_id)
+            .collect(),
+        Err(error) => {
+            logger::error!(blocklist_db_error=?error, "failed db operations for blocklist");
+            HashSet::new()
         }
-    });
-
-    futures::future::join_all(lookups)
-        .await
-        .into_iter()
-        .flatten()
-        .collect()
+    }
 }
 
 pub async fn validate_data_for_blocklist<F>(

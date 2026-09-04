@@ -27,6 +27,52 @@ pub struct CardNumber(StrongSecret<String, CardNumberStrategy>);
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
 pub struct NetworkToken(StrongSecret<String, CardNumberStrategy>);
 
+/// Card BIN — the leading 6 to 10 digits of a card number. Not a full PAN, so it is
+/// stored and serialized in plain text (matching how BIN blocklist entries are stored).
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
+pub struct CardBin(String);
+
+impl CardBin {
+    /// The 6-digit ISIN prefix of the BIN
+    pub fn get_card_isin(&self) -> String {
+        self.0.chars().take(6).collect()
+    }
+
+    /// The 8-digit extended BIN, when at least 8 digits were provided
+    pub fn get_extended_card_bin(&self) -> Option<String> {
+        (self.0.len() >= 8).then(|| self.0.chars().take(8).collect())
+    }
+
+    /// The BIN exactly as provided
+    pub fn get_string_repr(&self) -> &str {
+        &self.0
+    }
+}
+
+impl FromStr for CardBin {
+    type Err = CardNumberValidationErr;
+
+    fn from_str(card_bin: &str) -> Result<Self, Self::Err> {
+        let is_valid = (6..=10).contains(&card_bin.len())
+            && card_bin.chars().all(|character| character.is_ascii_digit());
+
+        if is_valid {
+            Ok(Self(card_bin.to_string()))
+        } else {
+            Err(CardNumberValidationErr(
+                "card_bin must be the leading 6 to 10 digits of the card number",
+            ))
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for CardBin {
+    fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        let s = String::deserialize(d)?;
+        Self::from_str(&s).map_err(serde::de::Error::custom)
+    }
+}
+
 impl CardNumber {
     pub fn get_card_isin(&self) -> String {
         self.0.peek().chars().take(6).collect::<String>()

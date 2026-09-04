@@ -50,6 +50,35 @@ impl Blocklist {
         .await
     }
 
+    /// Batched BIN-only lookup: all `card_bin` / `extended_card_bin` blocklist entries for
+    /// this merchant whose stored BIN is in `card_bins`. PAN-fingerprint entries
+    /// (`data_kind = payment_method`) are excluded — they hold vault HMACs of full card
+    /// numbers, which cannot be matched from a BIN. Uses the same
+    /// processor-merchant-with-legacy-fallback predicate as the single-entry lookups.
+    pub async fn find_by_processor_merchant_id_card_bins(
+        conn: &PgPooledConn,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
+        card_bins: Vec<String>,
+    ) -> StorageResult<Vec<Self>> {
+        generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
+            conn,
+            dsl::processor_merchant_id
+                .eq(processor_merchant_id.to_owned())
+                .or(dsl::processor_merchant_id
+                    .is_null()
+                    .and(dsl::merchant_id.eq(processor_merchant_id.to_owned())))
+                .and(dsl::data_kind.eq_any(vec![
+                    common_enums::BlocklistDataKind::CardBin,
+                    common_enums::BlocklistDataKind::ExtendedCardBin,
+                ]))
+                .and(dsl::fingerprint_id.eq_any(card_bins)),
+            None,
+            None,
+            Some(dsl::created_at.desc()),
+        )
+        .await
+    }
+
     // Fallback function for stagger release - finds by merchant_id when processor_merchant_id is NULL
     pub async fn find_by_merchant_id_fingerprint_id(
         conn: &PgPooledConn,
