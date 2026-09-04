@@ -155,6 +155,9 @@ mod payments_test {
             card_issuing_country: None,
             card_issuing_country_code: None,
             card_type: None,
+            card_subtype: None,
+            card_segment_type: None,
+            funding_source: None,
             nick_name: Some(hyperswitch_masking::Secret::new("nick_name".into())),
         }
     }
