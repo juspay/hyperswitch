@@ -958,7 +958,7 @@ impl ApplePayPredecryptData {
 }
 
 /// type of action that needs to taken after consuming recovery payload
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum RecoveryAction {
     /// Stops the process tracker and update the payment intent.
