@@ -178,6 +178,7 @@ Never share your secret api keys. Keep them guarded and secure.
 
         // Routes for Revenue Recovery flow under Process Tracker
         routes::revenue_recovery::revenue_recovery_pt_retrieve_api,
+        routes::revenue_recovery::revenue_recovery_payments_create,
 
         // Routes for proxy
         routes::proxy::proxy_core,
@@ -418,6 +419,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::PaymentLinkSdkLabelType,
         api_models::enums::PaymentLinkShowSdkTerms,
         api_models::enums::OrganizationType,
+        api_models::enums::FundingSource,
+        api_models::enums::CardSegmentType,
         api_models::enums::GooglePayCardFundingSource,
         api_models::enums::VaultTokenType,
         api_models::enums::StorageType,
@@ -985,6 +988,11 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payment_methods::PaymentMethodSessionResponse,
         api_models::payment_methods::AuthenticationDetails,
         api_models::process_tracker::revenue_recovery::RevenueRecoveryResponse,
+        api_models::payments::RecoveryPaymentsCreate,
+        api_models::payments::RecoveryPaymentsResponse,
+        api_models::payments::CustomRecoveryPaymentMethodData,
+        api_models::payments::AdditionalCardInfo,
+        common_types::payments::RecoveryAction,
         api_models::enums::RevenueRecoveryAlgorithmType,
         api_models::enums::ProcessTrackerStatus,
         api_models::proxy::ProxyRequest,

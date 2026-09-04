@@ -6570,6 +6570,55 @@
         ]
       }
     },
+    "/offer_engine/offers/list": {
+      "post": {
+        "tags": [
+          "Offers"
+        ],
+        "summary": "Offers - Browse",
+        "description": "Lists the offers currently available to the merchant. Offers that are not eligible are\nexcluded, so the response contains only offers that can be used.",
+        "operationId": "Browse offers",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BrowseOffersRequest"
+              },
+              "examples": {
+                "Browse offers for a currency": {
+                  "value": {
+                    "offer_payment_info": {
+                      "currency": "USD"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Offers available to the merchant",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowseOffersResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Offer Engine is not enabled for this merchant"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/blocklist": {
       "delete": {
         "tags": [
@@ -16007,6 +16056,82 @@
           }
         }
       },
+      "BrowseOffer": {
+        "type": "object",
+        "description": "A single offer available to the merchant.",
+        "required": [
+          "code"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "Offer code, as configured in Offer Engine.",
+            "example": "TESTHS"
+          },
+          "title": {
+            "type": "string",
+            "description": "Full offer title.",
+            "example": "Test offer HS",
+            "nullable": true
+          },
+          "display_title": {
+            "type": "string",
+            "description": "Shortened title, for constrained layouts.",
+            "example": "TSH",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "description": "Offer description.",
+            "example": "Testing offers",
+            "nullable": true
+          },
+          "currency": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Currency"
+              }
+            ],
+            "nullable": true
+          },
+          "valid_till": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the offer stops being valid.",
+            "example": "2026-08-31T18:29:59.000Z",
+            "nullable": true
+          }
+        }
+      },
+      "BrowseOffersRequest": {
+        "type": "object",
+        "description": "Request to browse the offers available to a merchant.",
+        "properties": {
+          "offer_payment_info": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OfferPaymentInfo"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "BrowseOffersResponse": {
+        "type": "object",
+        "description": "The offers a merchant can currently use.",
+        "required": [
+          "offers"
+        ],
+        "properties": {
+          "offers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BrowseOffer"
+            }
+          }
+        }
+      },
       "BrowserInformation": {
         "type": "object",
         "description": "Browser information to be used for 3DS 2.0",
@@ -16468,6 +16593,28 @@
             "example": "CREDIT",
             "nullable": true
           },
+          "card_subtype": {
+            "type": "string",
+            "description": "The product the card is issued under, e.g. `CLASSIC` or `ELECTRON`",
+            "example": "CLASSIC",
+            "nullable": true
+          },
+          "card_segment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardSegmentType"
+              }
+            ],
+            "nullable": true
+          },
+          "funding_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FundingSource"
+              }
+            ],
+            "nullable": true
+          },
           "card_issuing_country": {
             "type": "string",
             "example": "INDIA",
@@ -16711,6 +16858,27 @@
             "type": "string",
             "description": "Card Type",
             "nullable": true
+          },
+          "card_subtype": {
+            "type": "string",
+            "description": "The product the card is issued under, e.g. `CLASSIC` or `ELECTRON`",
+            "nullable": true
+          },
+          "card_segment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardSegmentType"
+              }
+            ],
+            "nullable": true
+          },
+          "funding_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FundingSource"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -16779,6 +16947,26 @@
           },
           "card_type": {
             "type": "string",
+            "nullable": true
+          },
+          "card_subtype": {
+            "type": "string",
+            "nullable": true
+          },
+          "card_segment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardSegmentType"
+              }
+            ],
+            "nullable": true
+          },
+          "funding_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FundingSource"
+              }
+            ],
             "nullable": true
           },
           "saved_to_locker": {
@@ -17202,6 +17390,27 @@
             "type": "string",
             "nullable": true
           },
+          "card_subtype": {
+            "type": "string",
+            "description": "The product the card is issued under, e.g. `CLASSIC` or `ELECTRON`.",
+            "nullable": true
+          },
+          "card_segment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardSegmentType"
+              }
+            ],
+            "nullable": true
+          },
+          "funding_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FundingSource"
+              }
+            ],
+            "nullable": true
+          },
           "card_network": {
             "allOf": [
               {
@@ -17497,6 +17706,28 @@
           "card_type": {
             "type": "string",
             "example": "CREDIT",
+            "nullable": true
+          },
+          "card_subtype": {
+            "type": "string",
+            "description": "The product the card is issued under, e.g. `CLASSIC` or `ELECTRON`",
+            "example": "CLASSIC",
+            "nullable": true
+          },
+          "card_segment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardSegmentType"
+              }
+            ],
+            "nullable": true
+          },
+          "funding_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FundingSource"
+              }
+            ],
             "nullable": true
           },
           "card_issuing_country": {
@@ -28346,6 +28577,28 @@
             "example": "CREDIT",
             "nullable": true
           },
+          "card_subtype": {
+            "type": "string",
+            "description": "The product the card is issued under, e.g. `CLASSIC` or `ELECTRON`",
+            "example": "CLASSIC",
+            "nullable": true
+          },
+          "card_segment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardSegmentType"
+              }
+            ],
+            "nullable": true
+          },
+          "funding_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FundingSource"
+              }
+            ],
+            "nullable": true
+          },
           "card_issuing_country": {
             "type": "string",
             "example": "INDIA",
@@ -29039,6 +29292,18 @@
           "merchant_id": {
             "type": "string",
             "description": "The Offer Engine merchant id sent in Offer Engine request bodies"
+          }
+        }
+      },
+      "OfferPaymentInfo": {
+        "type": "object",
+        "description": "Order context supplied when browsing offers.",
+        "required": [
+          "currency"
+        ],
+        "properties": {
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
           }
         }
       },
@@ -46698,6 +46963,27 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/CardType"
+              }
+            ],
+            "nullable": true
+          },
+          "card_subtype": {
+            "type": "string",
+            "description": "The product the card is issued under, e.g. `CLASSIC` or `ELECTRON`",
+            "nullable": true
+          },
+          "card_segment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardSegmentType"
+              }
+            ],
+            "nullable": true
+          },
+          "funding_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FundingSource"
               }
             ],
             "nullable": true
