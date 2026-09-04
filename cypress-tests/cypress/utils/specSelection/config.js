@@ -62,6 +62,7 @@ export const CONNECTOR_PAYMENT_METHODS = Object.freeze({
   prophetpay: ["card_redirect"],
   volt: ["bank_redirect"],
   tsys_transit: ["card"],
+  tesouro: ["card"],
 });
 
 /**

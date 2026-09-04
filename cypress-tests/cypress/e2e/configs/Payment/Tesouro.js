@@ -1,4 +1,34 @@
-import { customerAcceptance } from "./Commons";
+import {
+  connectorDetails as commonConnectorDetails,
+  customerAcceptance,
+} from "./Commons";
+import { getCustomExchange } from "./Modifiers";
+
+const captureMethodNotSupportedError = {
+  type: "invalid_request",
+  message: "Capture method not supported is not implemented",
+  code: "IR_00",
+};
+
+const cardsThreeDsNotSupportedError = {
+  type: "invalid_request",
+  message: "Cards 3DS is not supported by Tesouro is not implemented",
+  code: "IR_00",
+};
+
+const refundNotImplementedError = {
+  type: "invalid_request",
+  message:
+    "This feature is not implemented: refund flow for tesouro is not implemented",
+  code: "IR_00",
+};
+
+const paymentMethodNotImplementedError = {
+  type: "invalid_request",
+  message:
+    "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize is not implemented",
+  code: "IR_00",
+};
 
 const successfulNo3DSCardDetails = {
   card_number: "4530910000012345",
@@ -14,6 +44,14 @@ const successfulNoThreeDsCardDetailsRequest = {
   card_exp_year: "28",
   card_holder_name: "John",
   card_cvc: "111",
+};
+
+const failedNo3DSCardDetails = {
+  card_number: "5111111006001002",
+  card_exp_month: "01",
+  card_exp_year: "35",
+  card_holder_name: "Joseph Doe",
+  card_cvc: "123",
 };
 
 const successfulThreeDSTestCardDetails = {
@@ -43,6 +81,38 @@ const multiUseMandateData = {
     },
   },
 };
+
+const mandateBrowserInfo = {
+  user_agent:
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36",
+  accept_header:
+    "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+  language: "nl-NL",
+  color_depth: 24,
+  screen_height: 723,
+  screen_width: 1536,
+  time_zone: 0,
+  java_enabled: true,
+  java_script_enabled: true,
+  ip_address: "127.0.0.1",
+};
+
+const getMandateData = (currency) => ({
+  customer_acceptance: {
+    acceptance_type: "online",
+    accepted_at: "2025-01-01T00:00:00.000Z",
+    online: {
+      ip_address: "127.0.0.1",
+      user_agent: "Mozilla/5.0",
+    },
+  },
+  mandate_type: {
+    multi_use: {
+      amount: 6540,
+      currency,
+    },
+  },
+});
 
 export const connectorDetails = {
   card_pm: {
@@ -106,13 +176,9 @@ export const connectorDetails = {
         setup_future_usage: "on_session",
       },
       Response: {
-        status: 400,
+        status: 501,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "Payment method type not supported",
-            code: "IR_16",
-          },
+          error: captureMethodNotSupportedError,
         },
       },
     },
@@ -129,13 +195,9 @@ export const connectorDetails = {
         setup_future_usage: "on_session",
       },
       Response: {
-        status: 400,
+        status: 501,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "Payment method type not supported",
-            code: "IR_16",
-          },
+          error: cardsThreeDsNotSupportedError,
         },
       },
     },
@@ -151,9 +213,9 @@ export const connectorDetails = {
         setup_future_usage: "on_session",
       },
       Response: {
-        status: 200,
+        status: 501,
         body: {
-          status: "requires_capture",
+          error: captureMethodNotSupportedError,
         },
       },
     },
@@ -172,6 +234,22 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+        },
+      },
+    },
+    No3DSFailPayment: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: failedNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded", // Tesouro does not fail the payment even if the card is failed, it will return succeeded
         },
       },
     },
@@ -226,9 +304,9 @@ export const connectorDetails = {
         amount: 6000,
       },
       Response: {
-        status: 200,
+        status: 501,
         body: {
-          status: "succeeded",
+          error: refundNotImplementedError,
         },
       },
     },
@@ -237,9 +315,9 @@ export const connectorDetails = {
         amount: 2000,
       },
       Response: {
-        status: 200,
+        status: 501,
         body: {
-          status: "succeeded",
+          error: refundNotImplementedError,
         },
       },
     },
@@ -248,9 +326,9 @@ export const connectorDetails = {
         amount: 6000,
       },
       Response: {
-        status: 200,
+        status: 501,
         body: {
-          status: "succeeded",
+          error: refundNotImplementedError,
         },
       },
     },
@@ -259,9 +337,9 @@ export const connectorDetails = {
         amount: 2000,
       },
       Response: {
-        status: 200,
+        status: 501,
         body: {
-          status: "succeeded",
+          error: refundNotImplementedError,
         },
       },
     },
@@ -348,9 +426,9 @@ export const connectorDetails = {
         customer_acceptance: customerAcceptance,
       },
       Response: {
-        status: 200,
+        status: 501,
         body: {
-          status: "requires_capture",
+          error: captureMethodNotSupportedError,
         },
       },
     },
@@ -364,9 +442,9 @@ export const connectorDetails = {
         customer_acceptance: customerAcceptance,
       },
       Response: {
-        status: 200,
+        status: 501,
         body: {
-          status: "requires_capture",
+          error: captureMethodNotSupportedError,
         },
       },
     },
@@ -378,9 +456,9 @@ export const connectorDetails = {
         setup_future_usage: "off_session",
       },
       Response: {
-        status: 200,
+        status: 501,
         body: {
-          status: "requires_capture",
+          error: captureMethodNotSupportedError,
         },
       },
     },
@@ -396,6 +474,46 @@ export const connectorDetails = {
         },
         setup_future_usage: "off_session",
         customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    SaveCardUse3DSAutoCaptureOffSession: {
+      Request: {
+        payment_method: "card",
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        setup_future_usage: "off_session",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 501,
+        body: {
+          error: cardsThreeDsNotSupportedError,
+        },
+      },
+    },
+    SaveCardConfirmAutoCaptureOffSession: {
+      Request: {
+        setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    SaveCardConfirmAutoCaptureOffSessionWithoutBilling: {
+      Request: {
+        setup_future_usage: "off_session",
+        billing: null,
       },
       Response: {
         status: 200,
@@ -430,9 +548,9 @@ export const connectorDetails = {
         mandate_data: multiUseMandateData,
       },
       Response: {
-        status: 200,
+        status: 501,
         body: {
-          status: "requires_capture",
+          error: captureMethodNotSupportedError,
         },
       },
     },
@@ -462,9 +580,9 @@ export const connectorDetails = {
         mandate_data: singleUseMandateData,
       },
       Response: {
-        status: 200,
+        status: 501,
         body: {
-          status: "requires_capture",
+          error: captureMethodNotSupportedError,
         },
       },
     },
@@ -479,18 +597,18 @@ export const connectorDetails = {
         customer_acceptance: customerAcceptance,
       },
       Response: {
-        status: 200,
+        status: 501,
         body: {
-          status: "requires_capture",
+          error: captureMethodNotSupportedError,
         },
       },
     },
     MITManualCapture: {
       Request: {},
       Response: {
-        status: 200,
+        status: 501,
         body: {
-          status: "requires_capture",
+          error: captureMethodNotSupportedError,
         },
       },
     },
@@ -511,14 +629,38 @@ export const connectorDetails = {
         },
       },
     },
-    SaveCardConfirmAutoCaptureOffSession: {
+    PaymentMethodIdMandate3DSAutoCapture: {
       Request: {
-        setup_future_usage: "off_session",
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "USD",
+        mandate_data: null,
+        authentication_type: "three_ds",
+        customer_acceptance: customerAcceptance,
       },
       Response: {
-        status: 200,
+        status: 501,
         body: {
-          status: "succeeded",
+          error: cardsThreeDsNotSupportedError,
+        },
+      },
+    },
+    PaymentMethodIdMandate3DSManualCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        mandate_data: null,
+        authentication_type: "three_ds",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 501,
+        body: {
+          error: captureMethodNotSupportedError,
         },
       },
     },
@@ -538,5 +680,736 @@ export const connectorDetails = {
         },
       },
     },
+    DuplicateRefundID: {
+      Request: {
+        amount: 2000,
+      },
+      Response: {
+        status: 501,
+        body: {
+          error: refundNotImplementedError,
+        },
+      },
+    },
+  },
+  bank_transfer_pm: {
+    Ach: {
+      Response: {
+        status: 501,
+        body: {
+          error: paymentMethodNotImplementedError,
+        },
+      },
+    },
+    Pix: {
+      Request: {
+        payment_method: "bank_transfer",
+        payment_method_type: "pix",
+        payment_method_data: {
+          bank_transfer: {
+            pix: {},
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "BR",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "9123456789",
+            country_code: "+91",
+          },
+        },
+        currency: "BRL",
+      },
+      Response: {
+        status: 501,
+        body: {
+          error: paymentMethodNotImplementedError,
+        },
+      },
+    },
+    InstantBankTransferFinland: getCustomExchange(
+      {
+        Response: {
+          status: 501,
+          body: {
+            error: paymentMethodNotImplementedError,
+          },
+        },
+      },
+      commonConnectorDetails.bank_transfer_pm.InstantBankTransferFinland
+    ),
+    InstantBankTransferPoland: getCustomExchange(
+      {
+        Response: {
+          status: 501,
+          body: {
+            error: paymentMethodNotImplementedError,
+          },
+        },
+      },
+      commonConnectorDetails.bank_transfer_pm.InstantBankTransferPoland
+    ),
+  },
+  bank_redirect_pm: {
+    Ideal: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "ideal",
+        payment_method_data: {
+          bank_redirect: {
+            ideal: {
+              bank_name: "ing",
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "NL",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "9123456789",
+            country_code: "+31",
+          },
+        },
+      },
+      Response: {
+        status: 501,
+        body: {
+          error: paymentMethodNotImplementedError,
+        },
+      },
+      MandateSingleUseAutoCapture: {
+        Request: {
+          payment_method: "bank_redirect",
+          payment_method_type: "ideal",
+          payment_method_data: {
+            bank_redirect: {
+              ideal: {
+                bank_name: "ing",
+              },
+            },
+          },
+          browser_info: mandateBrowserInfo,
+          currency: "EUR",
+          billing: {
+            address: {
+              line1: "1467",
+              line2: "Harrison Street",
+              line3: "Harrison Street",
+              city: "San Fransico",
+              state: "California",
+              zip: "94122",
+              country: "NL",
+              first_name: "joseph",
+              last_name: "Doe",
+            },
+            phone: {
+              number: "9123456789",
+              country_code: "+31",
+            },
+          },
+          mandate_data: getMandateData("EUR"),
+          payment_type: "new_mandate",
+          setup_future_usage: "off_session",
+        },
+        Response: {
+          status: 501,
+          body: {
+            error: paymentMethodNotImplementedError,
+          },
+        },
+      },
+    },
+    BancontactCard: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "bancontact_card",
+        payment_method_data: {
+          bank_redirect: {
+            bancontact_card: {
+              card_number: "6703444444444449",
+              card_exp_month: "03",
+              card_exp_year: "2030",
+            },
+          },
+        },
+        currency: "EUR",
+        billing: {
+          address: {
+            line1: "1 Main St",
+            line2: "Apt 4",
+            city: "Brussels",
+            zip: "1000",
+            country: "BE",
+            first_name: "John",
+            last_name: "Doe",
+          },
+          email: "test@example.com",
+          phone: {
+            number: "9123456789",
+            country_code: "+32",
+          },
+        },
+      },
+      Response: {
+        status: 501,
+        body: {
+          error: paymentMethodNotImplementedError,
+        },
+      },
+      MandateSingleUseAutoCapture: {
+        Request: {
+          payment_method: "bank_redirect",
+          payment_method_type: "bancontact_card",
+          payment_method_data: {
+            bank_redirect: {
+              bancontact_card: {
+                card_number: "6703444444444449",
+                card_exp_month: "03",
+                card_exp_year: "2030",
+              },
+            },
+          },
+          browser_info: mandateBrowserInfo,
+          currency: "EUR",
+          billing: {
+            address: {
+              line1: "1 Main St",
+              line2: "Apt 4",
+              city: "Brussels",
+              zip: "1000",
+              country: "BE",
+              first_name: "John",
+              last_name: "Doe",
+            },
+            email: "test@example.com",
+            phone: {
+              number: "9123456789",
+              country_code: "+32",
+            },
+          },
+          mandate_data: getMandateData("EUR"),
+          payment_type: "new_mandate",
+          setup_future_usage: "off_session",
+        },
+        Response: {
+          status: 501,
+          body: {
+            error: paymentMethodNotImplementedError,
+          },
+        },
+      },
+    },
+    OpenBankingUk: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "open_banking_uk",
+        payment_method_data: {
+          bank_redirect: {
+            open_banking_uk: {
+              issuer: "lloyds",
+            },
+          },
+        },
+        currency: "GBP",
+        billing: {
+          address: {
+            line1: "1 Main St",
+            city: "London",
+            zip: "SW1A 1AA",
+            country: "GB",
+            first_name: "John",
+            last_name: "Doe",
+          },
+          email: "test@example.com",
+          phone: {
+            number: "9123456789",
+            country_code: "+44",
+          },
+        },
+      },
+      Response: {
+        status: 501,
+        body: {
+          error: paymentMethodNotImplementedError,
+        },
+      },
+      MandateSingleUseAutoCapture: {
+        Request: {
+          payment_method: "bank_redirect",
+          payment_method_type: "open_banking_uk",
+          payment_method_data: {
+            bank_redirect: {
+              open_banking_uk: {
+                issuer: "lloyds",
+              },
+            },
+          },
+          browser_info: mandateBrowserInfo,
+          currency: "GBP",
+          billing: {
+            address: {
+              line1: "1 Main St",
+              city: "London",
+              zip: "SW1A 1AA",
+              country: "GB",
+              first_name: "John",
+              last_name: "Doe",
+            },
+            email: "test@example.com",
+            phone: {
+              number: "9123456789",
+              country_code: "+44",
+            },
+          },
+          mandate_data: getMandateData("GBP"),
+          payment_type: "new_mandate",
+          setup_future_usage: "off_session",
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_customer_action",
+          },
+        },
+      },
+    },
+    Trustly: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "trustly",
+        payment_method_data: {
+          bank_redirect: {
+            trustly: {
+              country: "SE",
+            },
+          },
+        },
+        currency: "EUR",
+        billing: {
+          address: {
+            line1: "1 Main St",
+            city: "Stockholm",
+            zip: "11122",
+            country: "SE",
+            first_name: "John",
+            last_name: "Doe",
+          },
+          email: "test@example.com",
+          phone: {
+            number: "9123456789",
+            country_code: "+46",
+          },
+        },
+      },
+      Response: {
+        status: 501,
+        body: {
+          error: paymentMethodNotImplementedError,
+        },
+      },
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      MandateSingleUseAutoCapture: {
+        Request: {
+          payment_method: "bank_redirect",
+          payment_method_type: "trustly",
+          payment_method_data: {
+            bank_redirect: {
+              trustly: {
+                country: "SE",
+              },
+            },
+          },
+          browser_info: mandateBrowserInfo,
+          currency: "EUR",
+          billing: {
+            address: {
+              line1: "1 Main St",
+              city: "Stockholm",
+              zip: "11122",
+              country: "SE",
+              first_name: "John",
+              last_name: "Doe",
+            },
+            email: "test@example.com",
+            phone: {
+              number: "9123456789",
+              country_code: "+46",
+            },
+          },
+          mandate_data: getMandateData("EUR"),
+          payment_type: "new_mandate",
+          setup_future_usage: "off_session",
+        },
+        Response: {
+          status: 501,
+          body: {
+            error: paymentMethodNotImplementedError,
+          },
+        },
+        Configs: {
+          TRIGGER_SKIP: true,
+        },
+      },
+    },
+    Eps: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "eps",
+        payment_method_data: {
+          bank_redirect: {
+            eps: {
+              bank_name: "ing",
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "AT",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "9123456789",
+            country_code: "+91",
+          },
+        },
+      },
+      Response: {
+        status: 501,
+        body: {
+          error: paymentMethodNotImplementedError,
+        },
+      },
+    },
+    Blik: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "blik",
+        payment_method_data: {
+          bank_redirect: {
+            blik: {
+              name: "John Doe",
+              email: "example@email.com",
+              blik_code: "777987",
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "PL",
+            first_name: "john",
+            last_name: "doe",
+          },
+        },
+      },
+      Response: {
+        status: 501,
+        body: {
+          error: paymentMethodNotImplementedError,
+        },
+      },
+    },
+    Giropay: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "giropay",
+        payment_method_data: {
+          bank_redirect: {
+            giropay: {},
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "DE",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "9123456789",
+            country_code: "+91",
+          },
+        },
+      },
+      Response: {
+        status: 501,
+        body: {
+          error: paymentMethodNotImplementedError,
+        },
+      },
+    },
+    Przelewy24: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "przelewy24",
+        payment_method_data: {
+          bank_redirect: {
+            przelewy24: {
+              bank_name: "citi",
+              billing_details: {
+                email: "guest@juspay.in",
+              },
+            },
+          },
+        },
+      },
+      Response: {
+        status: 501,
+        body: {
+          error: paymentMethodNotImplementedError,
+        },
+      },
+    },
+    Sofort: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "sofort",
+        payment_method_data: {
+          bank_redirect: {
+            sofort: {},
+          },
+        },
+      },
+      Response: {
+        status: 501,
+        body: {
+          error: paymentMethodNotImplementedError,
+        },
+      },
+    },
+    OnlineBankingFpx: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "online_banking_fpx",
+        amount: 6000,
+        currency: "MYR",
+        payment_method_data: {
+          bank_redirect: {
+            online_banking_fpx: {
+              issuer: "affin_bank",
+            },
+          },
+        },
+      },
+      Response: {
+        status: 501,
+        body: {
+          error: paymentMethodNotImplementedError,
+        },
+      },
+    },
+    Interac: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "interac",
+        payment_method_data: {
+          bank_redirect: {
+            interac: {},
+          },
+          billing: {
+            email: "guest@example.com",
+            address: {
+              first_name: "John",
+              last_name: "Doe",
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "CA",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "9123456789",
+            country_code: "+91",
+          },
+        },
+      },
+      Response: {
+        status: 501,
+        body: {
+          error: paymentMethodNotImplementedError,
+        },
+      },
+    },
+    Eft: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "eft",
+        payment_method_data: {
+          bank_redirect: {
+            eft: {
+              provider: "ozow",
+            },
+          },
+        },
+      },
+      Response: {
+        status: 501,
+        body: {
+          error: paymentMethodNotImplementedError,
+        },
+      },
+    },
+  },
+  upi_pm: {
+    PaymentIntent: {
+      Request: {
+        currency: "INR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    UpiCollect: {
+      Request: {
+        payment_method: "upi",
+        payment_method_type: "upi_collect",
+        payment_method_data: {
+          upi: {
+            upi_collect: {
+              vpa_id: "successtest@iata",
+            },
+          },
+        },
+      },
+      Response: {
+        status: 501,
+        body: {
+          error: paymentMethodNotImplementedError,
+        },
+      },
+    },
+    UpiIntent: {
+      Request: {
+        payment_method: "upi",
+        payment_method_type: "upi_intent",
+        payment_method_data: {
+          upi: {
+            upi_intent: {},
+          },
+        },
+      },
+      Response: {
+        status: 501,
+        body: {
+          error: paymentMethodNotImplementedError,
+        },
+      },
+    },
+    Refund: {
+      Request: {
+        amount: 6000,
+      },
+      Response: {
+        status: 501,
+        body: {
+          error: refundNotImplementedError,
+        },
+      },
+    },
+  },
+  reward_pm: {
+    PaymentIntentUSD: getCustomExchange({
+      Request: {
+        currency: "USD",
+        amount: 6000,
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    PaymentIntentEUR: getCustomExchange({
+      Request: {
+        currency: "EUR",
+        amount: 6000,
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    Evoucher: getCustomExchange({
+      Request: {
+        payment_method: "reward",
+        payment_method_type: "evoucher",
+        payment_method_data: "reward",
+      },
+      Response: {
+        status: 501,
+        body: {
+          error: paymentMethodNotImplementedError,
+        },
+      },
+    }),
+    Classic: getCustomExchange({
+      Request: {
+        payment_method: "reward",
+        payment_method_type: "classic",
+        payment_method_data: "reward",
+      },
+      Response: {
+        status: 501,
+        body: {
+          error: paymentMethodNotImplementedError,
+        },
+      },
+    }),
   },
 };
