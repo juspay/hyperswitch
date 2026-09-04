@@ -294,7 +294,7 @@ describe("Card - SingleUse Mandates flow test", () => {
   });
 
   context(
-    "Card - Zero auth Mandate flow with Manual Capture Using PMID (create + confirm)",
+    "Card - Zero auth Mandate flow with Manual Capture Using NTID and Card Details (create + confirm)",
     () => {
       let shouldContinue = true;
 
@@ -340,8 +340,8 @@ describe("Card - SingleUse Mandates flow test", () => {
           "card_pm"
         ]["MITManualCapture"];
 
-        cy.mitUsingPMId(
-          fixtures.pmIdConfirmBody,
+        cy.mitUsingNTID(
+          fixtures.ntidConfirmBody,
           data,
           6000,
           true,

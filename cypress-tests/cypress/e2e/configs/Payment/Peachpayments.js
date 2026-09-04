@@ -378,16 +378,25 @@ export const connectorDetails = {
       },
     },
     MITManualCapture: {
-      Request: {},
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            code: "IR_39",
-            message:
-              "No eligible connector was found for the current payment method configuration",
+      // Peach sandbox rejects the generic fixture card (4242424242424242) for
+      // NTID MIT with "Server couldn't find that" / acquirer timeout; the
+      // registered peach test card (same as the CIT card) succeeds and the
+      // network_transaction_id is injected at runtime by mitUsingNTID.
+      Request: {
+        recurring_details: {
+          type: "network_transaction_id_and_card_details",
+          data: {
+            card_number: "5200000000000015",
+            card_exp_month: "01",
+            card_exp_year: "28",
+            card_holder_name: "John",
           },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
         },
       },
     },
