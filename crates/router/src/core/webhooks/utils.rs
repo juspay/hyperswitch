@@ -22,6 +22,8 @@ use redis_interface as redis;
 use router_env::tracing;
 
 use super::{types as webhook_types, MERCHANT_ID};
+#[cfg(feature = "olap")]
+use crate::consts::REDACTED_HEADER_VALUE;
 use crate::{
     core::{
         configs::dimension_state,
@@ -561,10 +563,6 @@ where
             .attach_printable("Error while deleting redis key"),
     }
 }
-
-/// The value substituted for sensitive webhook header values
-#[cfg(feature = "olap")]
-pub const REDACTED_HEADER_VALUE: &str = "*** ***";
 
 /// `Secret` does not mask values under ordinary serde serialization, and header sensitivity
 /// depends on the header *name*, which the value wrapper cannot observe. Values are therefore

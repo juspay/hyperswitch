@@ -19,7 +19,10 @@ use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, Secret};
 use router_env::logger;
 
-use crate::{errors::api_error_response, merchant_key_store::MerchantKeyStore, payments};
+use crate::{
+    consts::SENSITIVE_WEBHOOK_HEADER_NAMES, errors::api_error_response,
+    merchant_key_store::MerchantKeyStore, payments,
+};
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Profile {
@@ -916,9 +919,6 @@ impl From<ProfileDbBuilder> for Profile {
         }
     }
 }
-
-/// Custom list for masking sensitive webhook headers in the events API.
-const SENSITIVE_WEBHOOK_HEADER_NAMES: [&str; 1] = ["authorization"];
 
 impl Profile {
     pub fn get_outgoing_webhook_headers(
