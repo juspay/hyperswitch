@@ -240,26 +240,12 @@ impl Endpoint {
     /// `files.upload`, the one-call form, is deliberately not used: Slack retired it, so building
     /// on it would make the Slack backend's upload dead on arrival. This flow works on both.
     ///
-    /// **Not idempotent, and the transport retries all three legs**, exactly as it does for
-    /// [`Endpoint::post_message`]. An earlier version of this comment claimed the opposite, on the
-    /// theory that `RequestBuilder::try_clone` cannot replay an upload body; that is false here,
-    /// because [`RequestContent::RawBytes`] is a `Vec<u8>` and reqwest clones a buffered body
-    /// happily. `http_client::send_request` resends once on `ConnectionClosedIncompleteMessage`.
-    ///
-    /// What that costs, leg by leg, and why it is survivable rather than good:
-    ///
-    /// - **Reserving** twice leaves an orphaned reservation, which expires on the provider's own
-    ///   TTL. Harmless.
-    /// - **Sending bytes** twice against a reservation the provider already consumed is refused
-    ///   (`invalid_arguments`), because the reservation is no longer `pending`.
-    /// - **Completing** twice is refused for the same reason: the provider drops its upload state
-    ///   once the file is shared.
-    ///
-    /// So a retry after the provider acted turns a success into a *reported refusal* — the file is
-    /// in the channel and the caller is told it is not. It does not post the file twice, which is
-    /// the failure that would actually matter, and the caller does not retry on a refusal. Making
-    /// this exact would mean a no-retry path through `http_client`, which every connector in the
-    /// workspace shares; that is tracked rather than done here.
+    /// **Not idempotent, and the transport retries all three legs** on a closed connection, exactly
+    /// as it does for [`Endpoint::post_message`]: [`RequestContent::RawBytes`] is a `Vec<u8>`, and
+    /// reqwest replays a buffered body. A replayed leg is *refused* rather than repeated, because
+    /// the provider drops its upload state once the file is shared — so the worst outcome is a
+    /// success reported as a refusal, not a file posted twice. A no-retry path through
+    /// `http_client` would fix it and is tracked.
     pub(super) async fn upload_file(&self, file: ChatFile) -> ChatResult<FileId> {
         if file.is_empty() {
             Err(ChatError::Rejected {
@@ -303,31 +289,15 @@ impl Endpoint {
 
     /// Step two: send the bytes to the URL step one named.
     ///
-    /// The URL comes out of a response body, and the credential would otherwise travel to it. So
-    /// **the token is attached only when the URL is on the origin we were configured to talk to**,
-    /// and withheld otherwise. Refusing off-origin URLs outright was the first shape of this and it
-    /// was wrong: Slack's pre-signed URLs are served from `files.slack.com` rather than its API
-    /// root, so refusing them would break the backend by construction. They also need no
-    /// credential, which is exactly why withholding it costs nothing and forwarding it would be
-    /// the only real loss.
+    /// That URL comes out of a response body, so **the credential is attached only when the URL is
+    /// on the configured origin**, and withheld otherwise. Slack's pre-signed URLs are served from
+    /// `files.slack.com` and need no credential, so refusing them for being off-origin would break
+    /// that backend for nothing. The URL itself still reaches the logs through `http_client`, which
+    /// is harmless on Xyne — it authenticates this endpoint — and tracked for Slack, where the URL
+    /// is the capability.
     ///
-    /// **The URL itself still reaches the logs**, because `http_client::send_request` logs the
-    /// whole `Request` and its `url` is an unmasked `String`. On Xyne that leaks nothing usable:
-    /// the upload endpoint authenticates, so the URL alone opens nothing. On Slack the pre-signed
-    /// URL *is* the capability, so anyone reading the logs promptly could write to the pending
-    /// upload. Nothing configures a Slack destination today; masking it means changing a shared
-    /// transport every connector uses, so it is tracked rather than done here.
-    ///
-    /// **This leg has no `{ok}` envelope on either backend, and that is the protocol rather than a
-    /// divergence.** It posts to a storage endpoint rather than to an API method: Slack documents a
-    /// plain 200 from its file store, and Xyne replies with the two characters `OK`. Only the
-    /// failure path uses the envelope, so a body that *does* parse as one is authoritative and
-    /// anything else at 2xx is taken as accepted.
-    ///
-    /// Xyne's own divergences from Slack are elsewhere and are noted where they bite: it requires
-    /// the credential on this leg where Slack's pre-signed URL does not, and its
-    /// `files.completeUploadExternal` returns file objects whose `url_private` is a path relative
-    /// to its storage root where Slack returns an absolute URL.
+    /// **Neither backend returns the `{ok}` envelope on success here**, because this posts to a
+    /// storage endpoint rather than an API method. Only the failure path uses it.
     async fn send_bytes(&self, upload_url: &str, file: &ChatFile) -> ChatResult<()> {
         let parsed = Url::parse(upload_url)
             .change_context(ChatError::UntrustedUploadUrl)
