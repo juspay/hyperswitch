@@ -44,9 +44,13 @@ where
     fn fmt(val: &T, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let val_str: &str = val.as_ref();
 
-        if let Some(val_str) = val_str.get(val_str.len() - 4..) {
+        if let Some(last_four) = val_str
+            .len()
+            .checked_sub(4)
+            .and_then(|index| val_str.get(index..))
+        {
             // masks everything but the last 4 digits
-            write!(f, "{}{}", "*".repeat(val_str.len() - 4), val_str)
+            write!(f, "{}{}", "*".repeat(val_str.len() - 4), last_four)
         } else {
             #[cfg(feature = "logs")]
             logger::error!("Invalid phone number: {val_str}");
@@ -433,6 +437,23 @@ mod pii_masking_strategy_tests {
     fn test_invalid_newtype_email() {
         let email_check = Email::from_str("example@abc@com");
         assert!(email_check.is_err());
+    }
+
+    #[test]
+    fn test_phone_number_strategy_masking() {
+        use crate::pii::PhoneNumberStrategy;
+
+        let secret: Secret<String, PhoneNumberStrategy> = Secret::new("+15555555555".to_string());
+        assert_eq!("********5555", format!("{secret:?}"));
+
+        let secret: Secret<String, PhoneNumberStrategy> = Secret::new("5555".to_string());
+        assert_eq!("5555", format!("{secret:?}"));
+
+        // Values shorter than the unmasked suffix used to underflow and panic.
+        let secret: Secret<String, PhoneNumberStrategy> = Secret::new("555".to_string());
+        assert_eq!("*** alloc::string::String ***", format!("{secret:?}"));
+        let secret: Secret<String, PhoneNumberStrategy> = Secret::new(String::new());
+        assert_eq!("*** alloc::string::String ***", format!("{secret:?}"));
     }
 
     #[test]
