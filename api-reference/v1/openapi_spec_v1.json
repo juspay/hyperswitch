@@ -16593,6 +16593,28 @@
             "example": "CREDIT",
             "nullable": true
           },
+          "card_subtype": {
+            "type": "string",
+            "description": "The product the card is issued under, e.g. `CLASSIC` or `ELECTRON`",
+            "example": "CLASSIC",
+            "nullable": true
+          },
+          "card_segment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardSegmentType"
+              }
+            ],
+            "nullable": true
+          },
+          "funding_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FundingSource"
+              }
+            ],
+            "nullable": true
+          },
           "card_issuing_country": {
             "type": "string",
             "example": "INDIA",
@@ -16836,6 +16858,27 @@
             "type": "string",
             "description": "Card Type",
             "nullable": true
+          },
+          "card_subtype": {
+            "type": "string",
+            "description": "The product the card is issued under, e.g. `CLASSIC` or `ELECTRON`",
+            "nullable": true
+          },
+          "card_segment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardSegmentType"
+              }
+            ],
+            "nullable": true
+          },
+          "funding_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FundingSource"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -16904,6 +16947,26 @@
           },
           "card_type": {
             "type": "string",
+            "nullable": true
+          },
+          "card_subtype": {
+            "type": "string",
+            "nullable": true
+          },
+          "card_segment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardSegmentType"
+              }
+            ],
+            "nullable": true
+          },
+          "funding_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FundingSource"
+              }
+            ],
             "nullable": true
           },
           "saved_to_locker": {
@@ -17327,6 +17390,27 @@
             "type": "string",
             "nullable": true
           },
+          "card_subtype": {
+            "type": "string",
+            "description": "The product the card is issued under, e.g. `CLASSIC` or `ELECTRON`.",
+            "nullable": true
+          },
+          "card_segment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardSegmentType"
+              }
+            ],
+            "nullable": true
+          },
+          "funding_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FundingSource"
+              }
+            ],
+            "nullable": true
+          },
           "card_network": {
             "allOf": [
               {
@@ -17622,6 +17706,28 @@
           "card_type": {
             "type": "string",
             "example": "CREDIT",
+            "nullable": true
+          },
+          "card_subtype": {
+            "type": "string",
+            "description": "The product the card is issued under, e.g. `CLASSIC` or `ELECTRON`",
+            "example": "CLASSIC",
+            "nullable": true
+          },
+          "card_segment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardSegmentType"
+              }
+            ],
+            "nullable": true
+          },
+          "funding_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FundingSource"
+              }
+            ],
             "nullable": true
           },
           "card_issuing_country": {
@@ -28461,6 +28567,28 @@
           "card_type": {
             "type": "string",
             "example": "CREDIT",
+            "nullable": true
+          },
+          "card_subtype": {
+            "type": "string",
+            "description": "The product the card is issued under, e.g. `CLASSIC` or `ELECTRON`",
+            "example": "CLASSIC",
+            "nullable": true
+          },
+          "card_segment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardSegmentType"
+              }
+            ],
+            "nullable": true
+          },
+          "funding_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FundingSource"
+              }
+            ],
             "nullable": true
           },
           "card_issuing_country": {
@@ -46827,6 +46955,27 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/CardType"
+              }
+            ],
+            "nullable": true
+          },
+          "card_subtype": {
+            "type": "string",
+            "description": "The product the card is issued under, e.g. `CLASSIC` or `ELECTRON`",
+            "nullable": true
+          },
+          "card_segment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardSegmentType"
+              }
+            ],
+            "nullable": true
+          },
+          "funding_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FundingSource"
               }
             ],
             "nullable": true
