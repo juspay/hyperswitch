@@ -750,7 +750,7 @@ impl GPayPredecryptData {
     /// `PAN_ONLY`)
     pub fn get_card_bin(&self) -> Option<String> {
         match self.auth_method {
-            Some(enums::GooglePayAuthMethod::PanOnly)  => {
+            Some(enums::GooglePayAuthMethod::PanOnly) => {
                 Some(self.application_primary_account_number.get_card_isin())
             }
             None if self.cryptogram.is_none() => {
