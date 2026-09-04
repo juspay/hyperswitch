@@ -1064,13 +1064,23 @@ impl OidcSettings {
         self.client.values().find(|c| c.client_id == client_id)
     }
 
-    pub fn get_signing_key(&self) -> Option<&OidcKey> {
+    // deja: extracted out of get_signing_key so the property the sort exists
+    // for -- that the candidate order is a function of the key set's content,
+    // not of which `HashMap` instance (and therefore which hasher seed)
+    // `self.key` happens to be -- is directly testable, without needing to
+    // pin the random draw itself. See the signing-key tests below.
+    fn sorted_key_ids(&self) -> Vec<&String> {
         // Order the candidates before drawing. `HashMap`'s iteration order is
         // seeded per process, so seaming the draw alone would not make this
         // reproducible: the recorded index would select a different key on a
         // replay. Sorting by the config key gives the index a stable meaning.
         let mut key_ids: Vec<&String> = self.key.keys().collect();
         key_ids.sort_unstable();
+        key_ids
+    }
+
+    pub fn get_signing_key(&self) -> Option<&OidcKey> {
+        let key_ids = self.sorted_key_ids();
 
         let index = common_utils::generate_random_index(key_ids.len())?;
         self.key.get(key_ids.get(index).copied()?)
@@ -1078,6 +1088,59 @@ impl OidcSettings {
 
     pub fn get_all_keys(&self) -> Vec<&OidcKey> {
         self.key.values().collect()
+    }
+}
+
+#[cfg(test)]
+mod oidc_signing_key_tests {
+    use std::collections::HashMap;
+
+    use hyperswitch_masking::Secret;
+
+    use super::{OidcClient, OidcKey, OidcSettings};
+
+    fn oidc_key(kid: &str) -> OidcKey {
+        OidcKey {
+            kid: kid.to_string(),
+            private_key: Secret::new(String::new()),
+        }
+    }
+
+    fn oidc_settings_with_keys(kids: &[&str]) -> OidcSettings {
+        OidcSettings {
+            key: kids
+                .iter()
+                .map(|kid| (kid.to_string(), oidc_key(kid)))
+                .collect::<HashMap<String, OidcKey>>(),
+            client: HashMap::<String, OidcClient>::new(),
+        }
+    }
+
+    // deja: a replay reproduces `self.key`'s content from config, not its
+    // iteration order -- `HashMap`'s hasher is seeded per instance, so two
+    // `OidcSettings` built from the same config data can iterate their keys
+    // in a different order. `get_signing_key` sorts before drawing so the
+    // recorded index still names the same key; that is the property this
+    // test asserts, and it is not visible from either single call's result
+    // shape alone. If the sort in `sorted_key_ids` is ever dropped, two
+    // independently-constructed instances holding the same key set resolve
+    // their candidate order from raw hasher-seeded iteration, which very
+    // reliably differs across instances for a set this size -- so this
+    // assertion fails on that regression rather than passing by accident.
+    #[test]
+    fn signing_key_order_is_independent_of_which_hashmap_instance_holds_it() {
+        let kids = ["a", "m", "z", "b", "y", "c", "x", "d", "w", "e"];
+
+        let first = oidc_settings_with_keys(&kids);
+        let second = oidc_settings_with_keys(&kids);
+
+        assert_eq!(
+            first.sorted_key_ids(),
+            second.sorted_key_ids(),
+            "the same signing-key set, built as two separate HashMap instances, \
+             produced a different candidate order -- a recorded index would no \
+             longer name the same key on replay"
+        );
     }
 }
 

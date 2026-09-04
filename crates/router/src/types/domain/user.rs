@@ -1589,3 +1589,32 @@ where
             .change_context(UserErrors::InternalServerError)
     }
 }
+
+#[cfg(test)]
+mod recovery_codes_tests {
+    use std::collections::HashSet;
+
+    use super::RecoveryCodes;
+    use crate::consts;
+
+    // deja: `generate_new_inner` draws `RECOVERY_CODES_COUNT` codes from the
+    // RNG. "eight strings of the right length and charset" is the property a
+    // replay's shape assertions would naturally catch; pairwise distinctness
+    // is not visible from either code's shape alone. If a replay ever served
+    // the same recorded draw to two of the eight slots -- the same shape a
+    // fork-numbering collision takes -- two of a user's recovery codes would
+    // authenticate identically, and a test asserting only format or length
+    // would not notice.
+    #[test]
+    fn recovery_codes_are_pairwise_distinct() {
+        let codes = RecoveryCodes::generate_new_inner();
+        assert_eq!(codes.len(), consts::user::RECOVERY_CODES_COUNT);
+
+        let unique: HashSet<&String> = codes.iter().collect();
+        assert_eq!(
+            unique.len(),
+            codes.len(),
+            "two of the generated recovery codes are identical: {codes:?}"
+        );
+    }
+}
