@@ -51,7 +51,7 @@ use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::domain::notifier::{
-    chat::{ChatOutcome, ChatReceipt},
+    chat::{ChatFileOutcome, ChatFileReceipt, ChatOutcome, ChatReceipt},
     email::EmailOutcome,
     Outcome, Refusal,
 };
@@ -67,6 +67,28 @@ pub struct ChatNotifyRequest {
     /// that message's response returned.
     #[serde(default)]
     pub reply_to: Option<String>,
+}
+
+/// Parsed multipart body of `POST /alerts/chat/upload/{destination}`.
+pub struct ChatUploadRequest {
+    pub bytes: Vec<u8>,
+    pub filename: String,
+    pub title: Option<Secret<String>>,
+    pub comment: Option<Secret<String>>,
+    pub reply_to: Option<String>,
+}
+
+impl std::fmt::Debug for ChatUploadRequest {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("ChatUploadRequest")
+            .field("bytes", &format_args!("<{} bytes>", self.bytes.len()))
+            .field("filename", &self.filename)
+            .field("title", &self.title)
+            .field("comment", &self.comment)
+            .field("reply_to", &self.reply_to)
+            .finish()
+    }
 }
 
 /// The body of `POST /alerts/email/notify/{destination}`.
@@ -118,6 +140,18 @@ pub struct ChatNotifyResponse {
     pub retry_after_seconds: Option<u64>,
 }
 
+/// What `/alerts/chat/upload/{destination}` returns.
+#[derive(Debug, Serialize)]
+pub struct ChatUploadResponse {
+    pub status: NotifyStatus,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub file_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error_code: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub retry_after_seconds: Option<u64>,
+}
+
 /// What `/alerts/email/notify/{destination}` returns.
 #[derive(Debug, Serialize)]
 pub struct EmailNotifyResponse {
@@ -148,6 +182,28 @@ impl From<ChatOutcome> for ChatNotifyResponse {
             }) => Self {
                 status: NotifyStatus::Refused,
                 message_id: None,
+                error_code: Some(code),
+                retry_after_seconds,
+            },
+        }
+    }
+}
+
+impl From<ChatFileOutcome> for ChatUploadResponse {
+    fn from(outcome: ChatFileOutcome) -> Self {
+        match outcome {
+            Outcome::Delivered(ChatFileReceipt { file_id }) => Self {
+                status: NotifyStatus::Delivered,
+                file_id: Some(file_id),
+                error_code: None,
+                retry_after_seconds: None,
+            },
+            Outcome::Refused(Refusal {
+                code,
+                retry_after_seconds,
+            }) => Self {
+                status: NotifyStatus::Refused,
+                file_id: None,
                 error_code: Some(code),
                 retry_after_seconds,
             },
@@ -193,6 +249,19 @@ mod tests {
         assert_eq!(body["status"], "delivered");
         assert_eq!(body["message_id"], "cmtk931s1");
         assert!(body.get("error_code").is_none());
+    }
+
+    #[test]
+    fn a_file_delivery_returns_a_file_id_not_a_message_id() {
+        let body = body_of(&ChatUploadResponse::from(Outcome::Delivered(
+            ChatFileReceipt {
+                file_id: "file-1".to_owned(),
+            },
+        )));
+
+        assert_eq!(body["status"], "delivered");
+        assert_eq!(body["file_id"], "file-1");
+        assert!(body.get("message_id").is_none());
     }
 
     /// The alert went out; only the ability to thread under it was lost. It must not look like a

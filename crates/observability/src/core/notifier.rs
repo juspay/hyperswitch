@@ -10,12 +10,12 @@ use error_stack::report;
 
 use crate::{
     domain::notifier::{
-        chat::{ChatNotification, ChatOutcome},
+        chat::{ChatFileOutcome, ChatFileUpload, ChatNotification, ChatOutcome},
         email::{EmailNotification, EmailOutcome},
     },
     errors::{ObservabilityApiResult, ObservabilityError},
     state::AppState,
-    types::{ChatNotifyRequest, EmailNotifyRequest},
+    types::{ChatNotifyRequest, ChatUploadRequest, EmailNotifyRequest},
 };
 
 /// Deliver a chat message to the named destination.
@@ -34,6 +34,30 @@ pub async fn notify_chat(
         })?
         .notify(ChatNotification {
             text: request.text,
+            reply_to: request.reply_to,
+        })
+        .await
+}
+
+/// Upload a file to the named chat destination.
+pub async fn upload_chat_file(
+    state: AppState,
+    destination: &str,
+    request: ChatUploadRequest,
+) -> ObservabilityApiResult<ChatFileOutcome> {
+    state
+        .chat
+        .get(destination)
+        .ok_or_else(|| {
+            report!(ObservabilityError::UnknownDestination {
+                destination: destination.to_owned(),
+            })
+        })?
+        .upload_file(ChatFileUpload {
+            bytes: request.bytes,
+            filename: request.filename,
+            title: request.title,
+            comment: request.comment,
             reply_to: request.reply_to,
         })
         .await

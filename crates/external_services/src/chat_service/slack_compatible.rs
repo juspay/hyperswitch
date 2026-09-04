@@ -18,11 +18,13 @@ use router_env::logger;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
-use super::{ChatError, ChatErrorReason, ChatMessage, ChatResult, MessageId};
+use super::{ChatError, ChatErrorReason, ChatFile, ChatMessage, ChatResult, FileId, MessageId};
 use crate::http_client;
 
 /// The method that posts a message. The only one this crate calls; `files.upload` is out of v1.
 const CHAT_POST_MESSAGE: &str = "chat.postMessage";
+const FILES_GET_UPLOAD_URL: &str = "files.getUploadURLExternal";
+const FILES_COMPLETE_UPLOAD: &str = "files.completeUploadExternal";
 
 /// Long enough that a slow provider is not mistaken for a dead one, short enough that a caller
 /// delivering a time-sensitive message is not held indefinitely.
@@ -203,6 +205,158 @@ impl Endpoint {
             .try_into()
     }
 
+    /// Upload bytes through Slack's current external-upload flow, then share the resulting file.
+    pub(super) async fn upload_file(&self, file: ChatFile) -> ChatResult<FileId> {
+        if file.bytes().is_empty() {
+            Err(ChatError::InvalidConfiguration("file must not be empty"))?
+        }
+        if file.filename().trim().is_empty() {
+            Err(ChatError::InvalidConfiguration(
+                "filename must not be empty",
+            ))?
+        }
+
+        let thread_ts = file
+            .reply_target()
+            .map(|message_id| {
+                message_id
+                    .as_ts()
+                    .map(str::to_owned)
+                    .ok_or(ChatError::IncompatibleReplyTarget)
+            })
+            .transpose()?;
+
+        let prepare_url = self.method_url(FILES_GET_UPLOAD_URL);
+        let prepare_body = self
+            .send(
+                &prepare_url,
+                RequestContent::Json(Box::new(GetUploadUrlPayload {
+                    filename: file.filename().to_owned(),
+                    length: file.bytes().len(),
+                })),
+                "application/json",
+                true,
+            )
+            .await?;
+        let prepared: GetUploadUrlResponse = serde_json::from_str(&prepare_body)
+            .change_context(ChatError::UnreadableResponse)
+            .attach_printable("could not read files.getUploadURLExternal response")?;
+        reject_if_needed(prepared.ok, prepared.error)?;
+        let upload_url = prepared
+            .upload_url
+            .ok_or(ChatError::UnreadableResponse)
+            .attach_printable("files.getUploadURLExternal returned no upload_url")?;
+        let pending_file_id = prepared
+            .file_id
+            .filter(|id| !id.is_empty())
+            .ok_or(ChatError::UnreadableResponse)
+            .attach_printable("files.getUploadURLExternal returned no file_id")?;
+
+        // Xyne returns an on-origin URL that requires its app JWT. Slack returns a pre-signed URL
+        // on files.slack.com; sending the bot credential there would leak it and is unnecessary.
+        let authorize_upload = upload_url.origin() == self.base_url.origin();
+        let upload_body = self
+            .send(
+                upload_url.as_str(),
+                RequestContent::RawBytes(file.bytes().to_vec()),
+                "application/octet-stream",
+                authorize_upload,
+            )
+            .await?;
+        if let Ok(envelope) = serde_json::from_str::<UploadLegResponse>(&upload_body) {
+            reject_if_needed(envelope.ok, envelope.error)?;
+        }
+
+        let complete_url = self.method_url(FILES_COMPLETE_UPLOAD);
+        let complete_body = self
+            .send(
+                &complete_url,
+                RequestContent::Json(Box::new(CompleteUploadPayload {
+                    files: vec![CompleteUploadFile {
+                        id: pending_file_id,
+                        title: file.title().map(str::to_owned),
+                    }],
+                    channel_id: self.channel.clone(),
+                    initial_comment: file.comment().map(str::to_owned),
+                    thread_ts,
+                })),
+                "application/json",
+                true,
+            )
+            .await?;
+        let completed: CompleteUploadResponse = serde_json::from_str(&complete_body)
+            .change_context(ChatError::UnreadableResponse)
+            .attach_printable("could not read files.completeUploadExternal response")?;
+        reject_if_needed(completed.ok, completed.error)?;
+
+        completed
+            .files
+            .unwrap_or_default()
+            .into_iter()
+            .find_map(|file| file.id.filter(|id| !id.is_empty()))
+            .map(FileId::new)
+            .ok_or(ChatError::MissingFileId)
+            .attach_printable("the upload completed but the response named no resulting file")
+    }
+
+    async fn send(
+        &self,
+        url: &str,
+        body: RequestContent,
+        content_type: &str,
+        authorize: bool,
+    ) -> ChatResult<String> {
+        let mut headers = vec![(
+            http::header::CONTENT_TYPE.to_string(),
+            content_type.to_owned().into(),
+        )];
+        if authorize {
+            headers.push((
+                http::header::AUTHORIZATION.to_string(),
+                format!("Bearer {}", self.token.peek()).into_masked(),
+            ));
+        }
+
+        let request = RequestBuilder::new()
+            .method(Method::Post)
+            .url(url)
+            .attach_default_headers()
+            .headers(headers)
+            .set_body(body)
+            .build();
+        let response = http_client::send_request(&self.proxy, request, Some(self.timeout_seconds))
+            .await
+            .change_context(ChatError::RequestFailed)
+            .attach_printable_lazy(|| format!("chat request to {url} was not sent"))?;
+        let status = response.status();
+        let retry_after_seconds = response
+            .headers()
+            .get(reqwest::header::RETRY_AFTER)
+            .and_then(|value| value.to_str().ok())
+            .and_then(|value| value.parse::<u64>().ok());
+        let body = response
+            .text()
+            .await
+            .change_context(ChatError::UnreadableResponse)?;
+
+        if status == reqwest::StatusCode::TOO_MANY_REQUESTS {
+            Err(ChatError::Rejected {
+                reason: ChatErrorReason::RateLimited {
+                    retry_after_seconds,
+                },
+            })?
+        }
+        if !status.is_success() {
+            Err(ChatError::HttpStatus {
+                status: status.as_u16(),
+            })
+            .attach_printable_lazy(|| {
+                format!("chat provider body: {}", snippet(&body, BODY_SNIPPET_CHARS))
+            })?
+        }
+        Ok(body)
+    }
+
     fn build_payload(&self, message: &ChatMessage) -> ChatResult<PostMessagePayload> {
         let thread_ts = message
             .reply_target()
@@ -221,6 +375,66 @@ impl Endpoint {
             mrkdwn: true,
         })
     }
+}
+
+fn reject_if_needed(ok: bool, error: Option<SlackErrorCode>) -> ChatResult<()> {
+    if ok {
+        return Ok(());
+    }
+    let reason = error.map_or_else(
+        || ChatErrorReason::Other(UNSPECIFIED_ERROR_CODE.to_owned()),
+        ChatErrorReason::from,
+    );
+    Err(ChatError::Rejected { reason }.into())
+}
+
+#[derive(Debug, Serialize)]
+struct GetUploadUrlPayload {
+    filename: String,
+    length: usize,
+}
+
+#[derive(Debug, Deserialize)]
+struct GetUploadUrlResponse {
+    ok: bool,
+    error: Option<SlackErrorCode>,
+    upload_url: Option<Url>,
+    file_id: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct UploadLegResponse {
+    ok: bool,
+    error: Option<SlackErrorCode>,
+}
+
+#[derive(Debug, Serialize)]
+struct CompleteUploadPayload {
+    files: Vec<CompleteUploadFile>,
+    channel_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    initial_comment: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    thread_ts: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+struct CompleteUploadFile {
+    id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    title: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct CompleteUploadResponse {
+    ok: bool,
+    error: Option<SlackErrorCode>,
+    files: Option<Vec<CompletedFile>>,
+}
+
+#[derive(Debug, Deserialize)]
+struct CompletedFile {
+    id: Option<String>,
 }
 
 /// The `chat.postMessage` request body.

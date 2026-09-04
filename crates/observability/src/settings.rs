@@ -64,8 +64,14 @@ pub struct Settings<S: SecretState> {
     pub email: EmailSettings,
 }
 
+const DEFAULT_MAX_UPLOAD_BYTES: usize = 25 * 1024 * 1024;
+
+fn default_max_upload_bytes() -> usize {
+    DEFAULT_MAX_UPLOAD_BYTES
+}
+
 /// Chat destinations, keyed by the id a request names.
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
 pub struct ChatSettings {
     /// Every chat destination, by id.
@@ -78,6 +84,19 @@ pub struct ChatSettings {
     /// `sr__alerts`. [`ChatSettings::validate`] rejects an id that cannot survive the round trip,
     /// so this is a boot failure rather than a lookup that mysteriously misses.
     pub destinations: HashMap<String, ChatDestination>,
+
+    /// Maximum multipart body bytes accepted by the upload route.
+    #[serde(default = "default_max_upload_bytes")]
+    pub max_upload_bytes: usize,
+}
+
+impl Default for ChatSettings {
+    fn default() -> Self {
+        Self {
+            destinations: HashMap::new(),
+            max_upload_bytes: default_max_upload_bytes(),
+        }
+    }
 }
 
 /// One chat destination, tagged by the kind of backend it talks to.
@@ -152,7 +171,12 @@ fn validate_destination_ids<T>(
 impl ChatSettings {
     /// Reject destination ids that cannot be set from the environment.
     pub fn validate(&self) -> Result<(), errors::ConfigurationError> {
-        validate_destination_ids(&self.destinations, "chat")
+        validate_destination_ids(&self.destinations, "chat")?;
+        common_utils::fp_utils::when(self.max_upload_bytes == 0, || {
+            Err(errors::ConfigurationError::ConfigParsingError(
+                "chat max_upload_bytes must be greater than zero".into(),
+            ))
+        })
     }
 }
 
@@ -343,6 +367,7 @@ mod tests {
                 .iter()
                 .map(|id| ((*id).to_owned(), ChatDestination::Log))
                 .collect(),
+            ..Default::default()
         }
     }
 
@@ -367,6 +392,15 @@ mod tests {
 
     /// The tag is what makes Xyne and Slack two variants of one client rather than two
     /// integrations, and `log` has to sit in the same enum or the delivery path grows a branch.
+    #[test]
+    fn a_zero_upload_cap_is_rejected() {
+        let settings = ChatSettings {
+            max_upload_bytes: 0,
+            ..Default::default()
+        };
+        assert!(settings.validate().is_err());
+    }
+
     #[test]
     fn a_destination_is_selected_by_its_type_tag() {
         let destinations: HashMap<String, ChatDestination> =

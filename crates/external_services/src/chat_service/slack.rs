@@ -16,7 +16,7 @@ use url::Url;
 
 use super::{
     slack_compatible::{Endpoint, DEFAULT_TIMEOUT_SECONDS},
-    ChatClient, ChatMessage, ChatResult, MessageId,
+    ChatClient, ChatFile, ChatMessage, ChatResult, FileId, MessageId,
 };
 
 /// Slack serves methods directly off its API root.
@@ -93,6 +93,10 @@ impl SlackClient {
 impl ChatClient for SlackClient {
     async fn post_message(&self, message: ChatMessage) -> ChatResult<MessageId> {
         self.endpoint.post_message(message).await
+    }
+
+    async fn upload_file(&self, file: ChatFile) -> ChatResult<FileId> {
+        self.endpoint.upload_file(file).await
     }
 }
 

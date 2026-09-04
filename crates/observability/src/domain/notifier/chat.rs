@@ -6,7 +6,7 @@ use std::sync::{
 };
 
 use external_services::chat_service::{
-    ChatClient, ChatError, ChatErrorReason, ChatMessage, MessageId,
+    ChatClient, ChatError, ChatErrorReason, ChatFile, ChatMessage, MessageId,
 };
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 
@@ -35,6 +35,35 @@ pub struct ChatNotification {
     pub reply_to: Option<String>,
 }
 
+/// One file to upload to a chat destination.
+pub struct ChatFileUpload {
+    pub bytes: Vec<u8>,
+    pub filename: String,
+    pub title: Option<Secret<String>>,
+    pub comment: Option<Secret<String>>,
+    pub reply_to: Option<String>,
+}
+
+impl std::fmt::Debug for ChatFileUpload {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("ChatFileUpload")
+            .field("bytes", &format_args!("<{} bytes>", self.bytes.len()))
+            .field("filename", &self.filename)
+            .field("title", &self.title)
+            .field("comment", &self.comment)
+            .field("reply_to", &self.reply_to)
+            .finish()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ChatFileReceipt {
+    pub file_id: String,
+}
+
+pub type ChatFileOutcome = Outcome<ChatFileReceipt>;
+
 /// What a chat destination hands back when it accepts a message.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ChatReceipt {
@@ -60,6 +89,9 @@ pub trait ChatNotifier: Send + Sync + std::fmt::Debug {
     /// A provider that refuses returns `Ok(Outcome::Refused)`, not an error: it was reached and it
     /// answered. `Err` means the attempt itself failed, so whether the message arrived is unknown.
     async fn notify(&self, notification: ChatNotification) -> ObservabilityApiResult<ChatOutcome>;
+
+    /// Upload one file and optionally share it in an existing thread.
+    async fn upload_file(&self, upload: ChatFileUpload) -> ObservabilityApiResult<ChatFileOutcome>;
 }
 
 /// A [`ChatNotifier`] backed by a real chat transport.
@@ -113,6 +145,29 @@ impl ChatNotifier for ChatClientNotifier {
                     // while the caller sees only what `ErrorSwitch` renders.
                     Err(report.change_context(error(self.destination.clone())))
                 }
+            },
+        }
+    }
+
+    async fn upload_file(&self, upload: ChatFileUpload) -> ObservabilityApiResult<ChatFileOutcome> {
+        let mut file = ChatFile::new(upload.bytes, upload.filename)
+            .with_title(upload.title.map(ExposeInterface::expose))
+            .with_comment(upload.comment.map(ExposeInterface::expose));
+        if let Some(reply_to) = upload.reply_to {
+            file = file.with_reply_to(Some(MessageId::ts(reply_to)));
+        }
+
+        match self.client.upload_file(file).await {
+            Ok(file_id) => Ok(Outcome::Delivered(ChatFileReceipt {
+                file_id: file_id.as_str().to_owned(),
+            })),
+            Err(report) => match classify(report.current_context()) {
+                Verdict::Refused(refusal) => Ok(Outcome::Refused(refusal)),
+                Verdict::DeliveredWithoutId | Verdict::Failed(_) => Err(report.change_context(
+                    ObservabilityError::ProviderUnavailable {
+                        destination: self.destination.clone(),
+                    },
+                )),
             },
         }
     }
@@ -173,6 +228,10 @@ fn classify(error: &ChatError) -> Verdict {
         // other way.
         ChatError::InvalidConfiguration(_) => {
             Verdict::Failed(|_destination| ObservabilityError::InternalServerError)
+        }
+
+        ChatError::MissingFileId => {
+            Verdict::Failed(|destination| ObservabilityError::ProviderUnavailable { destination })
         }
     }
 }
@@ -241,6 +300,20 @@ impl ChatNotifier for LogChatNotifier {
 
         Ok(Outcome::Delivered(ChatReceipt {
             message_id: Some(format!("log.{sequence:06}")),
+        }))
+    }
+
+    async fn upload_file(&self, upload: ChatFileUpload) -> ObservabilityApiResult<ChatFileOutcome> {
+        let sequence = self.sequence.fetch_add(1, Ordering::Relaxed);
+        logger::info!(
+            tag = "chat_upload_skipped",
+            destination = %self.destination,
+            bytes = upload.bytes.len(),
+            threaded = upload.reply_to.is_some(),
+            "not delivered: this destination is configured as `log`"
+        );
+        Ok(Outcome::Delivered(ChatFileReceipt {
+            file_id: format!("log-file.{sequence:06}"),
         }))
     }
 }

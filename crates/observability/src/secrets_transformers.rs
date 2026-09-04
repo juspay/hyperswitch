@@ -69,7 +69,11 @@ impl SecretsHandler for ChatSettings {
             destinations.insert(id.clone(), resolved);
         }
 
-        Ok(value.transition_state(|_chat| Self { destinations }))
+        let max_upload_bytes = secured.max_upload_bytes;
+        Ok(value.transition_state(|_chat| Self {
+            destinations,
+            max_upload_bytes,
+        }))
     }
 }
 

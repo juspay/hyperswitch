@@ -17,7 +17,7 @@ use url::Url;
 
 use super::{
     slack_compatible::{Endpoint, DEFAULT_TIMEOUT_SECONDS},
-    ChatClient, ChatMessage, ChatResult, MessageId,
+    ChatClient, ChatFile, ChatMessage, ChatResult, FileId, MessageId,
 };
 
 /// Xyne namespaces the Slack-compatible methods it proxies.
@@ -107,6 +107,10 @@ impl ChatClient for XyneClient {
     async fn post_message(&self, message: ChatMessage) -> ChatResult<MessageId> {
         self.endpoint.post_message(message).await
     }
+
+    async fn upload_file(&self, file: ChatFile) -> ChatResult<FileId> {
+        self.endpoint.upload_file(file).await
+    }
 }
 
 #[cfg(test)]
@@ -114,7 +118,7 @@ impl ChatClient for XyneClient {
 mod tests {
     use serde_json::json;
     use wiremock::{
-        matchers::{body_json, header, method, path},
+        matchers::{body_bytes, body_json, header, method, path},
         Mock, MockServer, ResponseTemplate,
     };
 
@@ -196,6 +200,94 @@ mod tests {
             .unwrap();
 
         assert_eq!(message_id, MessageId::ts("1503435999.000111"));
+    }
+
+    #[tokio::test]
+    async fn uploads_and_threads_a_file_through_the_three_call_flow() {
+        let server = MockServer::start().await;
+        let upload_url = format!("{}/upload/pending-file", server.uri());
+
+        Mock::given(method("POST"))
+            .and(path("/api/apps/slack/files.getUploadURLExternal"))
+            .and(header("authorization", format!("Bearer {TOKEN}").as_str()))
+            .and(body_json(json!({"filename": "report.pdf", "length": 4})))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+                "ok": true,
+                "upload_url": upload_url,
+                "file_id": "pending-file"
+            })))
+            .mount(&server)
+            .await;
+        Mock::given(method("POST"))
+            .and(path("/upload/pending-file"))
+            .and(header("authorization", format!("Bearer {TOKEN}").as_str()))
+            .and(body_bytes(b"%PDF"))
+            .respond_with(ResponseTemplate::new(200).set_body_string("OK"))
+            .mount(&server)
+            .await;
+        Mock::given(method("POST"))
+            .and(path("/api/apps/slack/files.completeUploadExternal"))
+            .and(body_json(json!({
+                "files": [{"id": "pending-file", "title": "Daily report"}],
+                "channel_id": CHANNEL,
+                "initial_comment": "attached",
+                "thread_ts": "1.2"
+            })))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+                "ok": true,
+                "files": [{"id": "stored-file"}]
+            })))
+            .mount(&server)
+            .await;
+
+        let file_id = client_for(&server)
+            .upload_file(
+                ChatFile::new(b"%PDF".to_vec(), "report.pdf")
+                    .with_title(Some("Daily report".to_owned()))
+                    .with_comment(Some("attached".to_owned()))
+                    .with_reply_to(Some(MessageId::ts("1.2"))),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(file_id, FileId::new("stored-file"));
+    }
+
+    #[tokio::test]
+    async fn an_off_origin_upload_url_never_receives_the_chat_credential() {
+        let api = MockServer::start().await;
+        let storage = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/api/apps/slack/files.getUploadURLExternal"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+                "ok": true,
+                "upload_url": format!("{}/raw", storage.uri()),
+                "file_id": "pending"
+            })))
+            .mount(&api)
+            .await;
+        Mock::given(method("POST"))
+            .and(path("/raw"))
+            .respond_with(ResponseTemplate::new(200).set_body_string("OK"))
+            .mount(&storage)
+            .await;
+        Mock::given(method("POST"))
+            .and(path("/api/apps/slack/files.completeUploadExternal"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+                "ok": true,
+                "files": [{"id": "stored"}]
+            })))
+            .mount(&api)
+            .await;
+
+        client_for(&api)
+            .upload_file(ChatFile::new(vec![1], "report.pdf"))
+            .await
+            .unwrap();
+
+        let requests = storage.received_requests().await.unwrap();
+        assert_eq!(requests.len(), 1);
+        assert!(requests[0].headers.get("authorization").is_none());
     }
 
     #[tokio::test]

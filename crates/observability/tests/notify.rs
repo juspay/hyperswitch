@@ -33,8 +33,15 @@ const CHAT: &str = "sr_alerts";
 const EMAIL: &str = "oncall";
 
 async fn state() -> AppState {
-    let conf = serde_json::from_value(json!({ "auth": { "internal_api_key": API_KEY } }))
-        .expect("the test configuration should deserialize");
+    state_with_max(25 * 1024 * 1024).await
+}
+
+async fn state_with_max(max_upload_bytes: usize) -> AppState {
+    let conf = serde_json::from_value(json!({
+        "auth": { "internal_api_key": API_KEY },
+        "chat": { "max_upload_bytes": max_upload_bytes }
+    }))
+    .expect("the test configuration should deserialize");
 
     let chat: Arc<dyn ChatNotifier> = Arc::new(LogChatNotifier::new(CHAT.to_owned()));
     // The real notifier over `NoEmailClient`, which accepts and logs. Exercises the composition
@@ -54,7 +61,11 @@ async fn state() -> AppState {
 }
 
 async fn call(request: TestRequest) -> (StatusCode, Value) {
-    let app = test::init_service(App::new().service(Alerts::server(state().await))).await;
+    call_with_state(request, state().await).await
+}
+
+async fn call_with_state(request: TestRequest, state: AppState) -> (StatusCode, Value) {
+    let app = test::init_service(App::new().service(Alerts::server(state))).await;
     let response = test::call_service(&app, request.to_request()).await;
     let status = response.status();
     let body = test::read_body(response).await;
@@ -67,6 +78,20 @@ fn post(uri: &str, body: Value) -> TestRequest {
         .uri(uri)
         .insert_header((X_INTERNAL_API_KEY, API_KEY))
         .set_json(body)
+}
+
+fn upload(body: impl Into<Vec<u8>>) -> TestRequest {
+    TestRequest::post()
+        .uri(&format!("/alerts/chat/upload/{CHAT}"))
+        .insert_header((X_INTERNAL_API_KEY, API_KEY))
+        .insert_header(("content-type", "multipart/form-data; boundary=BOUNDARY"))
+        .set_payload(actix_web::web::Bytes::from(body.into()))
+}
+
+fn upload_body(file: &str) -> String {
+    format!(
+        "--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"report.pdf\"\r\nContent-Type: application/pdf\r\n\r\n{file}\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"title\"\r\n\r\nDaily report\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"reply_to\"\r\n\r\n1.2\r\n--BOUNDARY--\r\n"
+    )
 }
 
 #[actix_web::test]
@@ -100,6 +125,37 @@ async fn a_chat_notification_can_reply_under_an_earlier_message() {
 
     assert_eq!(status, StatusCode::OK);
     assert_eq!(second["status"], "delivered");
+}
+
+#[actix_web::test]
+async fn a_chat_file_can_be_uploaded_into_a_thread() {
+    let (status, body) = call(upload(upload_body("%PDF-test"))).await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["status"], "delivered");
+    assert!(body["file_id"].as_str().is_some_and(|id| !id.is_empty()));
+    assert!(body.get("message_id").is_none());
+}
+
+#[actix_web::test]
+async fn an_upload_is_refused_while_streaming_past_the_configured_cap() {
+    let (status, body) =
+        call_with_state(upload(upload_body("four")), state_with_max(3).await).await;
+
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(body["error"]["code"], "IR_04");
+}
+
+#[actix_web::test]
+async fn upload_authentication_precedes_reading_the_multipart_body() {
+    let request = TestRequest::post()
+        .uri(&format!("/alerts/chat/upload/{CHAT}"))
+        .insert_header(("content-type", "multipart/form-data; boundary=BOUNDARY"))
+        .set_payload("not multipart");
+    let (status, body) = call(request).await;
+
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+    assert_eq!(body["error"]["code"], "IR_01");
 }
 
 #[actix_web::test]
