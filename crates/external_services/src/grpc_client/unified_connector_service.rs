@@ -82,6 +82,32 @@ pub struct UnifiedConnectorServiceClientConfig {
     /// Set of connectors for which psync is disabled in unified connector service
     #[serde(default, deserialize_with = "deserialize_hashset")]
     pub ucs_psync_disabled_connectors: HashSet<Connector>,
+
+    /// Set of connectors that are blacklisted from using UCS and must use the Direct path.
+    /// Used in the default (non-cutover) mode where UCS is the standard path.
+    #[serde(default, deserialize_with = "deserialize_hashset")]
+    pub ucs_blacklisted_connectors: HashSet<Connector>,
+
+    /// Controls where UCS configuration (ucs_enabled, rollout config) is read from.
+    /// Set to "database" to use the configs table, or "superposition" to use
+    /// the Superposition service. Allows runtime switching without redeployment.
+    #[serde(default = "default_config_source")]
+    pub config_source: UcsConfigSource,
+}
+
+/// Controls where UCS configuration (ucs_enabled, rollout config) is read from.
+#[derive(Debug, Clone, Copy, Default, serde::Deserialize, serde::Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum UcsConfigSource {
+    /// Read UCS config from the `configs` database table (legacy behavior).
+    #[default]
+    Database,
+    /// Read UCS config from Superposition service.
+    Superposition,
+}
+
+fn default_config_source() -> UcsConfigSource {
+    UcsConfigSource::Superposition
 }
 
 /// Connection timeout for the Unified Connector Service in seconds.
