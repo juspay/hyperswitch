@@ -10,7 +10,7 @@ use error_stack::report;
 
 use crate::{
     domain::notifier::{
-        chat::{ChatNotification, ChatOutcome},
+        chat::{ChatAttachment, ChatNotification, ChatOutcome, UploadOutcome},
         email::{EmailNotification, EmailOutcome},
     },
     errors::{ObservabilityApiResult, ObservabilityError},
@@ -36,6 +36,28 @@ pub async fn notify_chat(
             text: request.text,
             reply_to: request.reply_to,
         })
+        .await
+}
+
+/// Put a file in the named chat destination.
+///
+/// The attachment arrives already parsed and already size-checked — see
+/// [`crate::routes::notify::chat_upload`] — so this layer stays what the others are: look up the
+/// id, hand it over.
+pub async fn upload_chat_file(
+    state: AppState,
+    destination: &str,
+    attachment: ChatAttachment,
+) -> ObservabilityApiResult<UploadOutcome> {
+    state
+        .chat
+        .get(destination)
+        .ok_or_else(|| {
+            report!(ObservabilityError::UnknownDestination {
+                destination: destination.to_owned(),
+            })
+        })?
+        .upload(attachment)
         .await
 }
 

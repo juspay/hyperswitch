@@ -6480,6 +6480,7 @@ dependencies = [
 name = "observability"
 version = "0.1.0"
 dependencies = [
+ "actix-multipart",
  "actix-web",
  "async-trait",
  "clap 4.5.38",
@@ -6487,6 +6488,7 @@ dependencies = [
  "config",
  "error-stack 0.4.1",
  "external_services",
+ "futures-util",
  "hyperswitch_interfaces",
  "hyperswitch_masking",
  "mime 0.3.17",

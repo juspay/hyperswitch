@@ -34,9 +34,19 @@ impl Alerts {
         web::scope("/alerts")
             .app_data(web::Data::new(state))
             .app_data(json_config())
-            .service(web::scope("/chat").service(
-                web::resource("/notify/{destination}").route(web::post().to(notify::chat)),
-            ))
+            .service(
+                web::scope("/chat")
+                    .service(
+                        web::resource("/notify/{destination}").route(web::post().to(notify::chat)),
+                    )
+                    // A sibling of `/notify` rather than a suffix on it: uploading is its own
+                    // operation with its own body format and its own result, and the path still
+                    // reads channel then destination.
+                    .service(
+                        web::resource("/upload/{destination}")
+                            .route(web::post().to(notify::chat_upload)),
+                    ),
+            )
             .service(web::scope("/email").service(
                 web::resource("/notify/{destination}").route(web::post().to(notify::email)),
             ))

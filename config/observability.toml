@@ -42,6 +42,16 @@ secrets_manager = "no_encryption"
 # lives here once rather than on each destination.
 [proxy]
 
+# The largest file `POST /alerts/chat/upload/{destination}` will accept, in bytes. Defaults to
+# 25 MiB.
+#
+# Not a provider limit — Xyne's own ceiling is 1 GB. This one protects *this* process, because an
+# upload is buffered here before it is anything else, so the number that matters is how much memory
+# a caller can make the service hold. One value for every destination, for the same reason.
+#
+# [chat]
+# max_upload_bytes = 26214400
+
 # Chat destinations, keyed by the id a request names in its `destination` field. A request carries
 # no channel id and no credential — only an id from this table.
 #

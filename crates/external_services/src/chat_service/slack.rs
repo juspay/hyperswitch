@@ -16,7 +16,7 @@ use url::Url;
 
 use super::{
     slack_compatible::{Endpoint, DEFAULT_TIMEOUT_SECONDS},
-    ChatClient, ChatMessage, ChatResult, MessageId,
+    ChatClient, ChatFile, ChatMessage, ChatResult, FileId, MessageId,
 };
 
 /// Slack serves methods directly off its API root.
@@ -93,6 +93,18 @@ impl SlackClient {
 impl ChatClient for SlackClient {
     async fn post_message(&self, message: ChatMessage) -> ChatResult<MessageId> {
         self.endpoint.post_message(message).await
+    }
+
+    /// Uploads use `files.getUploadURLExternal` and `files.completeUploadExternal` rather than the
+    /// retired one-call `files.upload`, so this leg is the same protocol Xyne serves.
+    ///
+    /// **Verified against Xyne only.** No Slack destination is configured anywhere yet, so the
+    /// shared implementation is proven on one of the two backends it serves. The difference to
+    /// expect is that Slack's pre-signed upload URL is on `files.slack.com` rather than its API
+    /// root, so the bytes go up without the bot token — which is what Slack documents, and what
+    /// the origin rule in `Endpoint::send_bytes` produces on its own.
+    async fn upload_file(&self, file: ChatFile) -> ChatResult<FileId> {
+        self.endpoint.upload_file(file).await
     }
 }
 

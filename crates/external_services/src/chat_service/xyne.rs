@@ -17,7 +17,7 @@ use url::Url;
 
 use super::{
     slack_compatible::{Endpoint, DEFAULT_TIMEOUT_SECONDS},
-    ChatClient, ChatMessage, ChatResult, MessageId,
+    ChatClient, ChatFile, ChatMessage, ChatResult, FileId, MessageId,
 };
 
 /// Xyne namespaces the Slack-compatible methods it proxies.
@@ -106,6 +106,10 @@ impl XyneClient {
 impl ChatClient for XyneClient {
     async fn post_message(&self, message: ChatMessage) -> ChatResult<MessageId> {
         self.endpoint.post_message(message).await
+    }
+
+    async fn upload_file(&self, file: ChatFile) -> ChatResult<FileId> {
+        self.endpoint.upload_file(file).await
     }
 }
 

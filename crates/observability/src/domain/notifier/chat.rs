@@ -6,7 +6,7 @@ use std::sync::{
 };
 
 use external_services::chat_service::{
-    ChatClient, ChatError, ChatErrorReason, ChatMessage, MessageId,
+    ChatClient, ChatError, ChatErrorReason, ChatFile, ChatMessage, MessageId,
 };
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 
@@ -49,6 +49,47 @@ pub struct ChatReceipt {
 /// The result of one chat delivery attempt.
 pub type ChatOutcome = Outcome<ChatReceipt>;
 
+/// A file to put in a chat destination, and how it should land.
+///
+/// `bytes` is [`Secret`] for the same reason [`ChatNotification::text`] is, and more so: an alert
+/// report is a rendered picture of merchant ids and payment volumes, and `error-stack` prints
+/// `Debug` for every value attached to a report. One failed upload would otherwise put the whole
+/// file in the log stream.
+#[derive(Debug, Clone)]
+pub struct ChatAttachment {
+    /// The name to store the file under.
+    pub filename: String,
+
+    /// The media type, when the caller declared one. Backends sniff the filename without it.
+    pub content_type: Option<String>,
+
+    /// The file itself.
+    pub bytes: Secret<Vec<u8>>,
+
+    /// A display title, if the caller wants one distinct from the filename.
+    pub title: Option<String>,
+
+    /// Text posted alongside the file, in the markup the destination reads. Delivered unchanged.
+    pub comment: Option<Secret<String>>,
+
+    /// Land the file inside the thread of an earlier message, named by its `message_id`.
+    pub reply_to: Option<String>,
+}
+
+/// What a destination hands back when it stores a file.
+///
+/// **No message id.** Sharing a file creates a message, and the current upload protocol does not
+/// name it — Xyne's `files.completeUploadExternal` returns file objects and no `ts`. So a caller
+/// can thread an upload *under* something, and can never thread anything under the upload.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FileReceipt {
+    /// The provider's id for the stored file, when it named one.
+    pub file_id: Option<String>,
+}
+
+/// The result of one upload attempt.
+pub type UploadOutcome = Outcome<FileReceipt>;
+
 /// Posts an alert to one chat destination.
 ///
 /// One implementation is bound to one destination, so there is no channel argument and no way to
@@ -60,6 +101,14 @@ pub trait ChatNotifier: Send + Sync + std::fmt::Debug {
     /// A provider that refuses returns `Ok(Outcome::Refused)`, not an error: it was reached and it
     /// answered. `Err` means the attempt itself failed, so whether the message arrived is unknown.
     async fn notify(&self, notification: ChatNotification) -> ObservabilityApiResult<ChatOutcome>;
+
+    /// Put a file in the destination, optionally inside an existing thread.
+    ///
+    /// Same contract as [`ChatNotifier::notify`]: a refusal is an `Ok` outcome, an `Err` means
+    /// nothing is known. It is a separate method rather than a variant of `notify` because the two
+    /// return different things — a file id against a message id — and because a caller with no
+    /// file has no business constructing the empty half of a union.
+    async fn upload(&self, attachment: ChatAttachment) -> ObservabilityApiResult<UploadOutcome>;
 }
 
 /// A [`ChatNotifier`] backed by a real chat transport.
@@ -116,6 +165,44 @@ impl ChatNotifier for ChatClientNotifier {
             },
         }
     }
+
+    async fn upload(&self, attachment: ChatAttachment) -> ObservabilityApiResult<UploadOutcome> {
+        let mut file = ChatFile::new(attachment.filename, attachment.bytes.expose());
+
+        if let Some(content_type) = attachment.content_type {
+            file = file.with_content_type(content_type);
+        }
+        if let Some(title) = attachment.title {
+            file = file.with_title(title);
+        }
+        if let Some(comment) = attachment.comment {
+            file = file.with_comment(comment.expose());
+        }
+        if let Some(reply_to) = attachment.reply_to {
+            file = file.reply_under(MessageId::ts(reply_to));
+        }
+
+        match self.client.upload_file(file).await {
+            Ok(file_id) => Ok(Outcome::Delivered(FileReceipt {
+                file_id: Some(file_id.as_str().to_owned()),
+            })),
+
+            Err(report) => match classify(report.current_context()) {
+                Verdict::Refused(refusal) => Ok(Outcome::Refused(refusal)),
+
+                // The bytes are stored and shared. Retrying would upload the file a second time,
+                // so losing the id is not a failure — the same reasoning as a delivery whose
+                // message id went missing.
+                Verdict::DeliveredWithoutId => {
+                    Ok(Outcome::Delivered(FileReceipt { file_id: None }))
+                }
+
+                Verdict::Failed(error) => {
+                    Err(report.change_context(error(self.destination.clone())))
+                }
+            },
+        }
+    }
 }
 
 /// What a chat failure means for the caller.
@@ -156,7 +243,16 @@ fn classify(error: &ChatError) -> Verdict {
             _ => Verdict::Refused(Refusal::new(reason_code(reason))),
         },
 
-        ChatError::MissingMessageId => Verdict::DeliveredWithoutId,
+        // Both mean the same thing on their own path: it arrived, and the id that would let us
+        // refer to it later did not.
+        ChatError::MissingMessageId | ChatError::MissingFileId => Verdict::DeliveredWithoutId,
+
+        // The provider named an upload URL we would not follow, or took the reservation without
+        // naming where to put the bytes. Either way nothing was uploaded and the provider is the
+        // one behaving oddly, so it reads as unreachable rather than as our fault.
+        ChatError::UntrustedUploadUrl | ChatError::UploadRejected => {
+            Verdict::Failed(|destination| ObservabilityError::ProviderUnavailable { destination })
+        }
 
         // `reply_to` came off the request and named an id this backend cannot thread against.
         // Rejected before anything was sent, so the message did not go anywhere.
@@ -241,6 +337,25 @@ impl ChatNotifier for LogChatNotifier {
 
         Ok(Outcome::Delivered(ChatReceipt {
             message_id: Some(format!("log.{sequence:06}")),
+        }))
+    }
+
+    async fn upload(&self, attachment: ChatAttachment) -> ObservabilityApiResult<UploadOutcome> {
+        let sequence = self.sequence.fetch_add(1, Ordering::Relaxed);
+
+        // Sizes and shape, never the bytes and never the filename: a report is named after the run
+        // that produced it and the contents are the alert itself.
+        logger::info!(
+            tag = "chat_upload_skipped",
+            destination = %self.destination,
+            bytes = attachment.bytes.peek().len(),
+            threaded = attachment.reply_to.is_some(),
+            commented = attachment.comment.is_some(),
+            "not delivered: this destination is configured as `log`"
+        );
+
+        Ok(Outcome::Delivered(FileReceipt {
+            file_id: Some(format!("log.file.{sequence:06}")),
         }))
     }
 }

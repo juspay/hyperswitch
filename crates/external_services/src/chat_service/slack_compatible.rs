@@ -10,19 +10,34 @@
 //! 200 carrying `{"ok": false, "error": "..."}`. A caller that never sees the raw response cannot
 //! forget the second one.
 
-use common_utils::request::{Method, RequestBuilder, RequestContent};
+use common_utils::request::{Method, Request, RequestBuilder, RequestContent};
 use error_stack::ResultExt;
 use hyperswitch_interfaces::types::Proxy;
-use hyperswitch_masking::{Mask as _, PeekInterface, Secret};
+use hyperswitch_masking::{Mask as _, Maskable, PeekInterface, Secret};
 use router_env::logger;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
-use super::{ChatError, ChatErrorReason, ChatMessage, ChatResult, MessageId};
+use super::{ChatError, ChatErrorReason, ChatFile, ChatMessage, ChatResult, FileId, MessageId};
 use crate::http_client;
 
-/// The method that posts a message. The only one this crate calls; `files.upload` is out of v1.
+/// The method that posts a message.
 const CHAT_POST_MESSAGE: &str = "chat.postMessage";
+
+/// Step one of an upload: reserve somewhere to put the bytes.
+const FILES_GET_UPLOAD_URL: &str = "files.getUploadURLExternal";
+
+/// Step three of an upload: share the stored file into the channel.
+///
+/// Step two has no method name — it posts to a URL step one returns.
+const FILES_COMPLETE_UPLOAD: &str = "files.completeUploadExternal";
+
+/// Sent when a file declares no media type. Both backends sniff the filename when they get this.
+const DEFAULT_UPLOAD_CONTENT_TYPE: &str = "application/octet-stream";
+
+/// The provider's code for an upload carrying nothing. Raised locally too, so an empty file is
+/// refused in one round trip fewer and reads identically either way.
+const NO_FILE_DATA: &str = "no_file_data";
 
 /// Long enough that a slow provider is not mistaken for a dead one, short enough that a caller
 /// delivering a time-sensitive message is not held indefinitely.
@@ -153,6 +168,20 @@ impl Endpoint {
             .set_body(RequestContent::Json(Box::new(payload)))
             .build();
 
+        let body = self.execute(&url, request).await?;
+
+        // The body, not the status code, decides whether this succeeded.
+        self.read_envelope::<PostMessageResponse>(&url, &body)?
+            .try_into()
+    }
+
+    /// Send a request and hand back its body, applying what every method here shares.
+    ///
+    /// A 429 is a rate-limit refusal decided before anything is parsed, since `Retry-After` rides
+    /// on the header and the body may say nothing. A non-2xx is a transport-level failure carrying
+    /// a snippet for the log. What the body *means* is per-method and stays with the caller: most
+    /// carry the `{ok}` envelope, and the raw upload leg answers `OK` in plain text.
+    async fn execute(&self, url: &str, request: Request) -> ChatResult<String> {
         let response = http_client::send_request(&self.proxy, request, Some(self.timeout_seconds))
             .await
             .change_context(ChatError::RequestFailed)
@@ -190,37 +219,226 @@ impl Endpoint {
             })?
         }
 
-        // The body, not the status code, decides whether this succeeded.
-        serde_json::from_str::<PostMessageResponse>(&body)
+        Ok(body)
+    }
+
+    /// Parse a `{ok, ...}` envelope, keeping a body we cannot read out of the success path.
+    fn read_envelope<T: serde::de::DeserializeOwned>(
+        &self,
+        url: &str,
+        body: &str,
+    ) -> ChatResult<T> {
+        serde_json::from_str::<T>(body)
             .change_context(ChatError::UnreadableResponse)
             .attach_printable_lazy(|| {
                 format!(
-                    "chat provider returned HTTP {} with an unrecognised body: {}",
-                    status.as_u16(),
-                    snippet(&body, BODY_SNIPPET_CHARS)
+                    "chat provider returned an unrecognised body for {url}: {}",
+                    snippet(body, BODY_SNIPPET_CHARS)
                 )
-            })?
+            })
+    }
+
+    /// Upload a file in the three calls the current protocol takes.
+    ///
+    /// `files.upload`, the one-call form, is deliberately not used: Slack retired it, so building
+    /// on it would make the Slack backend's upload dead on arrival. This flow works on both.
+    ///
+    /// **Not idempotent, and unlike [`Endpoint::post_message`] it cannot be retried by the
+    /// transport.** `RequestBuilder::try_clone` returns `None` for a body it cannot replay, so
+    /// `http_client` sends the bytes exactly once. Any duplicate would have to come from a caller
+    /// retrying all three steps.
+    pub(super) async fn upload_file(&self, file: ChatFile) -> ChatResult<FileId> {
+        if file.is_empty() {
+            Err(ChatError::Rejected {
+                reason: ChatErrorReason::Other(NO_FILE_DATA.to_owned()),
+            })
+            .attach_printable("refusing to upload an empty file")?
+        }
+
+        let reservation = self.reserve_upload(&file).await?;
+        self.send_bytes(&reservation.upload_url, &file).await?;
+        self.complete_upload(&file, &reservation.file_id).await
+    }
+
+    /// Step one: ask where to put the bytes.
+    async fn reserve_upload(&self, file: &ChatFile) -> ChatResult<UploadReservation> {
+        let url = self.method_url(FILES_GET_UPLOAD_URL);
+
+        logger::info!(
+            tag = "chat_reserve_upload",
+            url = %url,
+            channel = %self.channel,
+            filename = %file.filename(),
+            bytes = file.len(),
+        );
+
+        let request = RequestBuilder::new()
+            .method(Method::Post)
+            .url(&url)
+            .attach_default_headers()
+            .headers(self.json_headers())
+            .set_body(RequestContent::Json(Box::new(GetUploadUrlPayload {
+                filename: file.filename().to_owned(),
+                length: file.len(),
+            })))
+            .build();
+
+        let body = self.execute(&url, request).await?;
+        self.read_envelope::<GetUploadUrlResponse>(&url, &body)?
             .try_into()
     }
 
-    fn build_payload(&self, message: &ChatMessage) -> ChatResult<PostMessagePayload> {
-        let thread_ts = message
-            .reply_target()
-            .map(|message_id| {
-                message_id
-                    .as_ts()
-                    .map(str::to_owned)
-                    .ok_or(ChatError::IncompatibleReplyTarget)
-            })
-            .transpose()?;
+    /// Step two: send the bytes to the URL step one named.
+    ///
+    /// The URL comes out of a response body, and the credential would otherwise travel to it. So
+    /// **the token is attached only when the URL is on the origin we were configured to talk to**,
+    /// and withheld otherwise. Refusing off-origin URLs outright was the first shape of this and it
+    /// was wrong: Slack's pre-signed URLs are served from `files.slack.com` rather than its API
+    /// root, so refusing them would break the backend by construction. They also need no
+    /// credential, which is exactly why withholding it costs nothing and forwarding it would be
+    /// the only real loss.
+    ///
+    /// This leg does not answer with the `{ok}` envelope on success — Xyne replies with the two
+    /// characters `OK` — so a body that *does* parse as a refusal is the only failure it can
+    /// report at HTTP 200.
+    async fn send_bytes(&self, upload_url: &str, file: &ChatFile) -> ChatResult<()> {
+        let parsed = Url::parse(upload_url)
+            .change_context(ChatError::UntrustedUploadUrl)
+            .attach_printable_lazy(|| {
+                format!(
+                    "the provider named an unusable upload URL: {}",
+                    snippet(upload_url, BODY_SNIPPET_CHARS)
+                )
+            })?;
 
+        if !matches!(parsed.scheme(), "http" | "https") {
+            Err(ChatError::UntrustedUploadUrl).attach_printable_lazy(|| {
+                format!("upload URL scheme `{}` is not HTTP", parsed.scheme())
+            })?
+        }
+
+        let same_origin = parsed.origin() == self.base_url.origin();
+
+        let content_type = file
+            .content_type()
+            .unwrap_or(DEFAULT_UPLOAD_CONTENT_TYPE)
+            .to_owned();
+
+        let mut headers: Vec<(String, Maskable<String>)> =
+            vec![(http::header::CONTENT_TYPE.to_string(), content_type.into())];
+
+        if same_origin {
+            headers.push((
+                http::header::AUTHORIZATION.to_string(),
+                format!("Bearer {}", self.token.peek()).into_masked(),
+            ));
+        } else {
+            logger::info!(
+                tag = "chat_upload_offsite",
+                origin = %parsed.origin().ascii_serialization(),
+                "sending file contents without the credential: the upload URL is not on the \
+                 configured origin"
+            );
+        }
+
+        let request = RequestBuilder::new()
+            .method(Method::Post)
+            .url(upload_url)
+            .attach_default_headers()
+            .headers(headers)
+            .set_body(RequestContent::RawBytes(file.bytes().to_vec()))
+            .build();
+
+        let body = self.execute(upload_url, request).await?;
+
+        // A refusal still arrives as the envelope even though a success does not, so a body that
+        // parses as one is authoritative and anything else at 2xx is taken as accepted.
+        if let Ok(refusal) = serde_json::from_str::<Envelope>(&body) {
+            if !refusal.ok {
+                Err(ChatError::Rejected {
+                    reason: refusal.reason(),
+                })
+                .attach_printable("the provider refused the file contents")?
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Step three: attach the stored file to the channel, and to a thread if one was named.
+    async fn complete_upload(&self, file: &ChatFile, file_id: &str) -> ChatResult<FileId> {
+        let url = self.method_url(FILES_COMPLETE_UPLOAD);
+        let thread_ts = thread_ts_of(file.reply_target())?;
+
+        logger::info!(
+            tag = "chat_complete_upload",
+            url = %url,
+            channel = %self.channel,
+            threaded = thread_ts.is_some(),
+            bytes = file.len(),
+        );
+
+        let request = RequestBuilder::new()
+            .method(Method::Post)
+            .url(&url)
+            .attach_default_headers()
+            .headers(self.json_headers())
+            .set_body(RequestContent::Json(Box::new(CompleteUploadPayload {
+                files: vec![CompletedFile {
+                    id: file_id.to_owned(),
+                    title: file.title().map(str::to_owned),
+                }],
+                channel_id: self.channel.clone(),
+                initial_comment: file
+                    .comment()
+                    .map(|comment| truncate(comment, self.max_message_chars)),
+                thread_ts,
+            })))
+            .build();
+
+        let body = self.execute(&url, request).await?;
+        self.read_envelope::<CompleteUploadResponse>(&url, &body)?
+            .try_into()
+    }
+
+    /// The headers every JSON call here sends.
+    fn json_headers(&self) -> Vec<(String, Maskable<String>)> {
+        vec![
+            (
+                http::header::AUTHORIZATION.to_string(),
+                format!("Bearer {}", self.token.peek()).into_masked(),
+            ),
+            (
+                http::header::CONTENT_TYPE.to_string(),
+                "application/json".to_owned().into(),
+            ),
+        ]
+    }
+
+    fn build_payload(&self, message: &ChatMessage) -> ChatResult<PostMessagePayload> {
         Ok(PostMessagePayload {
             channel: self.channel.clone(),
             text: truncate(message.text(), self.max_message_chars),
-            thread_ts,
+            thread_ts: thread_ts_of(message.reply_target())?,
             mrkdwn: true,
         })
     }
+}
+
+/// The `thread_ts` a reply target serialises to, or nothing if there is no target.
+///
+/// Shared by messages and uploads: both thread the same way, and an id minted by a backend that
+/// does not use timestamps is a caller error in either.
+fn thread_ts_of(reply_to: Option<&MessageId>) -> ChatResult<Option<String>> {
+    reply_to
+        .map(|message_id| {
+            message_id
+                .as_ts()
+                .map(str::to_owned)
+                .ok_or(ChatError::IncompatibleReplyTarget)
+        })
+        .transpose()
+        .map_err(Into::into)
 }
 
 /// The `chat.postMessage` request body.
@@ -286,6 +504,155 @@ impl TryFrom<PostMessageResponse> for MessageId {
             .attach_printable(
                 "the message was accepted; a reply cannot be threaded under it, and retrying \
                  would post a duplicate",
+            )
+    }
+}
+
+/// Just the success marker and the code, for a response whose success shape is not JSON.
+///
+/// The raw upload leg answers `OK` in plain text when it works and the usual envelope when it does
+/// not, so this reads the failure without asserting anything about the success.
+#[derive(Debug, Deserialize)]
+struct Envelope {
+    ok: bool,
+    error: Option<SlackErrorCode>,
+}
+
+impl Envelope {
+    /// Why the provider refused. Only meaningful once `ok` is known to be false.
+    fn reason(self) -> ChatErrorReason {
+        self.error.map_or_else(
+            || ChatErrorReason::Other(UNSPECIFIED_ERROR_CODE.to_owned()),
+            ChatErrorReason::from,
+        )
+    }
+}
+
+/// The `files.getUploadURLExternal` request body.
+#[derive(Debug, Serialize)]
+struct GetUploadUrlPayload {
+    filename: String,
+
+    /// Both backends want the size up front. Xyne does not enforce it; Slack does.
+    length: usize,
+}
+
+/// The `files.getUploadURLExternal` response.
+#[derive(Debug, Deserialize)]
+struct GetUploadUrlResponse {
+    ok: bool,
+    error: Option<SlackErrorCode>,
+    upload_url: Option<String>,
+    file_id: Option<String>,
+}
+
+/// Where to send the bytes, and what the provider will call the result.
+///
+/// The `file_id` here is **not** the id the upload ends up with. Xyne hands out a UUID to key its
+/// own pending-upload state and returns a different, store-assigned id once the upload completes.
+///
+/// `Debug` is safe to derive: a reservation is a URL and an id, and the file is nowhere near it.
+#[derive(Debug)]
+struct UploadReservation {
+    upload_url: String,
+    file_id: String,
+}
+
+impl TryFrom<GetUploadUrlResponse> for UploadReservation {
+    type Error = error_stack::Report<ChatError>;
+
+    fn try_from(response: GetUploadUrlResponse) -> Result<Self, Self::Error> {
+        if !response.ok {
+            let reason = response.error.map_or_else(
+                || ChatErrorReason::Other(UNSPECIFIED_ERROR_CODE.to_owned()),
+                ChatErrorReason::from,
+            );
+            return Err(ChatError::Rejected { reason }.into());
+        }
+
+        // Nothing was uploaded yet, so a reservation that names neither is a failure rather than a
+        // half-delivered file: there is nothing to be duplicated by trying again.
+        match (response.upload_url, response.file_id) {
+            (Some(upload_url), Some(file_id)) if !upload_url.is_empty() && !file_id.is_empty() => {
+                Ok(Self {
+                    upload_url,
+                    file_id,
+                })
+            }
+            _ => Err(ChatError::UploadRejected).attach_printable(
+                "the provider accepted the upload request without naming a URL and a file id",
+            ),
+        }
+    }
+}
+
+/// The `files.completeUploadExternal` request body.
+#[derive(Debug, Serialize)]
+struct CompleteUploadPayload {
+    files: Vec<CompletedFile>,
+
+    /// `channel_id` rather than the older `channels`: both backends accept it, and it takes one
+    /// channel rather than a comma-separated list only the first entry of which is ever used.
+    channel_id: String,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    initial_comment: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    thread_ts: Option<String>,
+}
+
+/// One file being shared, named by the id its reservation carried.
+#[derive(Debug, Serialize)]
+struct CompletedFile {
+    id: String,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    title: Option<String>,
+}
+
+/// The `files.completeUploadExternal` response.
+///
+/// **No `ts`.** Sharing the file creates a message, and this response does not name it, so nothing
+/// can be threaded under an upload. That is why [`FileId`] exists separately from [`MessageId`].
+#[derive(Debug, Deserialize)]
+struct CompleteUploadResponse {
+    ok: bool,
+    error: Option<SlackErrorCode>,
+    files: Option<Vec<UploadedFileObject>>,
+}
+
+/// A stored file, of which only the id is load-bearing here.
+///
+/// `url_private` and `permalink` are deliberately not read: Slack returns absolute URLs and Xyne
+/// returns paths relative to its own storage root, so the field means two different things and
+/// nothing here needs either.
+#[derive(Debug, Deserialize)]
+struct UploadedFileObject {
+    id: Option<String>,
+}
+
+impl TryFrom<CompleteUploadResponse> for FileId {
+    type Error = error_stack::Report<ChatError>;
+
+    fn try_from(response: CompleteUploadResponse) -> Result<Self, Self::Error> {
+        if !response.ok {
+            let reason = response.error.map_or_else(
+                || ChatErrorReason::Other(UNSPECIFIED_ERROR_CODE.to_owned()),
+                ChatErrorReason::from,
+            );
+            return Err(ChatError::Rejected { reason }.into());
+        }
+
+        response
+            .files
+            .unwrap_or_default()
+            .into_iter()
+            .find_map(|file| file.id.filter(|id| !id.is_empty()))
+            .map(Self::new)
+            .ok_or(ChatError::MissingFileId)
+            .attach_printable(
+                "the file was stored and shared; retrying would upload it a second time",
             )
     }
 }
@@ -607,5 +974,133 @@ mod tests {
 
         assert_eq!(payload.thread_ts.as_deref(), Some("1.2"));
         assert_eq!(payload.channel, "C1");
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used, clippy::indexing_slicing)]
+mod upload_tests {
+    use serde_json::json;
+
+    use super::*;
+
+    /// Parse a completion body and convert it, exactly as `complete_upload` does.
+    fn complete(value: serde_json::Value) -> Result<ChatResult<FileId>, serde_json::Error> {
+        serde_json::from_value::<CompleteUploadResponse>(value).map(TryInto::try_into)
+    }
+
+    /// Parse a reservation body and convert it, exactly as `reserve_upload` does.
+    fn reserve(
+        value: serde_json::Value,
+    ) -> Result<ChatResult<UploadReservation>, serde_json::Error> {
+        serde_json::from_value::<GetUploadUrlResponse>(value).map(TryInto::try_into)
+    }
+
+    /// The same `ok: false`-at-HTTP-200 trap the message path guards, on the upload path.
+    #[test]
+    fn a_refused_reservation_is_not_a_success() {
+        let error = reserve(json!({"ok": false, "error": "channel_not_found"}))
+            .unwrap()
+            .unwrap_err();
+
+        assert!(matches!(
+            error.current_context(),
+            ChatError::Rejected {
+                reason: ChatErrorReason::ChannelNotFound
+            }
+        ));
+    }
+
+    /// Nothing has been uploaded at this point, so a reservation naming no URL is safe to fail
+    /// loudly: there is no half-delivered file that a retry would duplicate.
+    #[test]
+    fn a_reservation_without_a_url_is_a_failure() {
+        let error = reserve(json!({"ok": true, "file_id": "f1"}))
+            .unwrap()
+            .unwrap_err();
+
+        assert!(matches!(error.current_context(), ChatError::UploadRejected));
+    }
+
+    #[test]
+    fn a_reservation_carries_the_url_and_the_id() {
+        let reservation =
+            reserve(json!({"ok": true, "upload_url": "https://x/y", "file_id": "f1"}))
+                .unwrap()
+                .unwrap();
+
+        assert_eq!(reservation.upload_url, "https://x/y");
+        assert_eq!(reservation.file_id, "f1");
+    }
+
+    /// Verified against the live deployment: the id that comes back is the store's, not the UUID
+    /// the upload was reserved under. Reading it from the response rather than reusing the
+    /// reservation id is the whole reason this conversion exists.
+    #[test]
+    fn the_completed_id_comes_from_the_response() {
+        let file_id = complete(json!({"ok": true, "files": [{"id": "cmtmsn9c110b7s7g92e72zv1u"}]}))
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(file_id.as_str(), "cmtmsn9c110b7s7g92e72zv1u");
+    }
+
+    /// The file is stored and shared. Retrying would upload it twice, so this is reported apart
+    /// from the failures — the same call the message path makes about a missing `ts`.
+    #[test]
+    fn a_completion_without_an_id_is_not_a_transport_failure() {
+        for body in [json!({"ok": true}), json!({"ok": true, "files": []})] {
+            let error = complete(body).unwrap().unwrap_err();
+            assert!(matches!(error.current_context(), ChatError::MissingFileId));
+        }
+    }
+
+    #[test]
+    fn a_refused_completion_carries_the_reason() {
+        let error = complete(json!({"ok": false, "error": "not_in_channel"}))
+            .unwrap()
+            .unwrap_err();
+
+        assert!(matches!(
+            error.current_context(),
+            ChatError::Rejected {
+                reason: ChatErrorReason::NotInChannel
+            }
+        ));
+    }
+
+    /// The raw upload leg answers `OK` in plain text on success, so only a body that parses as the
+    /// envelope can refuse. Anything else at 2xx has to read as accepted or every upload fails.
+    #[test]
+    fn the_raw_leg_reads_a_refusal_and_ignores_anything_else() {
+        assert!(serde_json::from_str::<Envelope>("OK").is_err());
+
+        let refusal =
+            serde_json::from_str::<Envelope>(r#"{"ok":false,"error":"no_file_data"}"#).unwrap();
+        assert!(!refusal.ok);
+        assert_eq!(
+            refusal.reason(),
+            ChatErrorReason::Other("no_file_data".to_owned())
+        );
+    }
+
+    /// A refusal that names nothing is still unambiguously a refusal.
+    #[test]
+    fn an_envelope_without_a_code_still_refuses() {
+        let refusal = serde_json::from_str::<Envelope>(r#"{"ok":false}"#).unwrap();
+        assert_eq!(
+            refusal.reason(),
+            ChatErrorReason::Other(UNSPECIFIED_ERROR_CODE.to_owned())
+        );
+    }
+
+    /// Uploads thread the same way messages do, through the same helper.
+    #[test]
+    fn a_reply_target_becomes_a_thread_ts() {
+        assert_eq!(thread_ts_of(None).unwrap(), None);
+        assert_eq!(
+            thread_ts_of(Some(&MessageId::ts("1.2"))).unwrap(),
+            Some("1.2".to_owned())
+        );
     }
 }

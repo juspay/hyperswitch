@@ -69,7 +69,12 @@ impl SecretsHandler for ChatSettings {
             destinations.insert(id.clone(), resolved);
         }
 
-        Ok(value.transition_state(|_chat| Self { destinations }))
+        Ok(value.transition_state(|chat| Self {
+            destinations,
+            // Carries no secret, so it comes across unchanged rather than being defaulted — which
+            // would silently reset a configured cap on the way through this transition.
+            max_upload_bytes: chat.max_upload_bytes,
+        }))
     }
 }
 

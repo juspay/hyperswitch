@@ -89,6 +89,17 @@ pub enum ObservabilityError {
         /// The destination that could not be reached.
         destination: String,
     },
+
+    /// The upload body was not something this service can act on: no file part, an empty file, or
+    /// more bytes than the configured ceiling.
+    ///
+    /// Distinct from a refusal on purpose. Nothing was sent anywhere, so there is no provider
+    /// answer to report and no `200` outcome to carry it — this is the request being wrong.
+    #[error("The upload request could not be accepted: {reason}")]
+    InvalidUpload {
+        /// What was wrong, in terms safe to hand back: never the filename, never the contents.
+        reason: &'static str,
+    },
 }
 
 /// The result type for request handling.
@@ -122,6 +133,11 @@ impl ErrorSwitch<ApiErrorResponse> for ObservabilityError {
                 3,
                 "The destination could not be reached",
             )),
+            // The reason is a fixed string chosen here, never anything off the request, so it is
+            // safe to return and tells the caller which of the three things to fix.
+            Self::InvalidUpload { reason } => {
+                ApiErrorResponse::BadRequest(ApiError::new("IR", 5, *reason))
+            }
         }
     }
 }

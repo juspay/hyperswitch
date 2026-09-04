@@ -51,7 +51,7 @@ use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::domain::notifier::{
-    chat::{ChatOutcome, ChatReceipt},
+    chat::{ChatOutcome, ChatReceipt, FileReceipt, UploadOutcome},
     email::EmailOutcome,
     Outcome, Refusal,
 };
@@ -116,6 +116,56 @@ pub struct ChatNotifyResponse {
     /// code.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub retry_after_seconds: Option<u64>,
+}
+
+/// What `/alerts/chat/upload/{destination}` returns.
+///
+/// **No `message_id`, and that is the protocol's doing rather than an omission.** Sharing a file
+/// creates a message and `files.completeUploadExternal` does not name it, so there is nothing to
+/// thread under. A field that was always `null` would suggest the capability exists and is merely
+/// unavailable today.
+#[derive(Debug, Serialize)]
+pub struct ChatUploadResponse {
+    /// Whether the file arrived. Always present, for the same reason it is on every other
+    /// response here: a caller cannot deserialize this without confronting the question.
+    pub status: NotifyStatus,
+
+    /// The provider's id for the stored file, when it named one.
+    ///
+    /// `null` on a refusal, and on the rare success where the provider stored the file and named
+    /// no id — the report went up, and nothing here can refer to it again.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub file_id: Option<String>,
+
+    /// Why the provider refused, as a stable snake_case code. Absent on delivery.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error_code: Option<String>,
+
+    /// How long the provider asked us to wait, when it said.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub retry_after_seconds: Option<u64>,
+}
+
+impl From<UploadOutcome> for ChatUploadResponse {
+    fn from(outcome: UploadOutcome) -> Self {
+        match outcome {
+            Outcome::Delivered(FileReceipt { file_id }) => Self {
+                status: NotifyStatus::Delivered,
+                file_id,
+                error_code: None,
+                retry_after_seconds: None,
+            },
+            Outcome::Refused(Refusal {
+                code,
+                retry_after_seconds,
+            }) => Self {
+                status: NotifyStatus::Refused,
+                file_id: None,
+                error_code: Some(code),
+                retry_after_seconds,
+            },
+        }
+    }
 }
 
 /// What `/alerts/email/notify/{destination}` returns.

@@ -35,6 +35,14 @@ pub type ChatResult<T> = CustomResult<T, ChatError>;
 pub trait ChatClient: Send + Sync + std::fmt::Debug {
     /// Post a message, returning the id of the message that was created.
     async fn post_message(&self, message: ChatMessage) -> ChatResult<MessageId>;
+
+    /// Upload a file, returning the id the backend stored it under.
+    ///
+    /// A sibling of [`ChatClient::post_message`] rather than a field on [`ChatMessage`], because
+    /// it is a different endpoint with a different result. It returns a [`FileId`] and **not** a
+    /// [`MessageId`]: the upload creates a message, but the backends do not agree that you may
+    /// know its id, so nothing can be threaded under an upload.
+    async fn upload_file(&self, file: ChatFile) -> ChatResult<FileId>;
 }
 
 /// Identifies a message that a backend has accepted.
@@ -128,6 +136,145 @@ impl ChatMessage {
     }
 }
 
+/// Identifies a file a backend has stored.
+///
+/// Deliberately *not* a [`MessageId`]. Uploading produces a file, and the message carrying it is a
+/// side effect the backend does not always name — Xyne's `files.completeUploadExternal` returns no
+/// `ts` at all. Conflating the two would promise threading that the upload path cannot deliver.
+///
+/// Opaque, and not the id the upload was started with: a backend is free to remap it between
+/// reserving an upload and completing it, and Xyne does.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct FileId(String);
+
+impl FileId {
+    /// Wrap a backend's file id.
+    pub fn new(value: impl Into<String>) -> Self {
+        Self(value.into())
+    }
+
+    /// The id as the backend spelled it.
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+/// A file to upload, and how it should appear when it lands.
+///
+/// Fields are private and reached through a constructor and chained setters, matching
+/// [`ChatMessage`]. Unlike a message, most of what can be said about a file is optional, so this
+/// one takes the setters: four optional fields would otherwise be sixteen constructors.
+#[derive(Clone)]
+pub struct ChatFile {
+    filename: String,
+    content_type: Option<String>,
+    bytes: Vec<u8>,
+    title: Option<String>,
+    comment: Option<String>,
+    reply_to: Option<MessageId>,
+}
+
+impl ChatFile {
+    /// A file to upload, named and with its contents.
+    pub fn new(filename: impl Into<String>, bytes: Vec<u8>) -> Self {
+        Self {
+            filename: filename.into(),
+            content_type: None,
+            bytes,
+            title: None,
+            comment: None,
+            reply_to: None,
+        }
+    }
+
+    /// Declare the file's media type. Without one the backend infers from the filename.
+    #[must_use]
+    pub fn with_content_type(mut self, content_type: impl Into<String>) -> Self {
+        self.content_type = Some(content_type.into());
+        self
+    }
+
+    /// A display title. Xyne echoes it and stores the filename regardless; Slack honours it.
+    #[must_use]
+    pub fn with_title(mut self, title: impl Into<String>) -> Self {
+        self.title = Some(title.into());
+        self
+    }
+
+    /// Text posted alongside the file, in the destination's markup.
+    #[must_use]
+    pub fn with_comment(mut self, comment: impl Into<String>) -> Self {
+        self.comment = Some(comment.into());
+        self
+    }
+
+    /// Land the file inside the thread of an existing message.
+    #[must_use]
+    pub fn reply_under(mut self, message_id: MessageId) -> Self {
+        self.reply_to = Some(message_id);
+        self
+    }
+
+    /// The filename the backend should store.
+    pub fn filename(&self) -> &str {
+        &self.filename
+    }
+
+    /// The declared media type, if any.
+    pub fn content_type(&self) -> Option<&str> {
+        self.content_type.as_deref()
+    }
+
+    /// The file's contents.
+    pub fn bytes(&self) -> &[u8] {
+        &self.bytes
+    }
+
+    /// How many bytes there are. Backends want this before they will accept the upload.
+    pub fn len(&self) -> usize {
+        self.bytes.len()
+    }
+
+    /// Whether there is nothing to upload. Backends refuse an empty file.
+    pub fn is_empty(&self) -> bool {
+        self.bytes.is_empty()
+    }
+
+    /// The display title, if one was set.
+    pub fn title(&self) -> Option<&str> {
+        self.title.as_deref()
+    }
+
+    /// The accompanying text, if any.
+    pub fn comment(&self) -> Option<&str> {
+        self.comment.as_deref()
+    }
+
+    /// The message this file lands under, if any.
+    pub fn reply_target(&self) -> Option<&MessageId> {
+        self.reply_to.as_ref()
+    }
+}
+
+/// Hand-written so the contents cannot reach a log line.
+///
+/// The one place in this module where `Debug` is not derived. An alert report is a rendered
+/// picture of merchant ids and payment volumes, and `error-stack` prints `Debug` for every value it
+/// attaches, so a derive here would put the whole file into the log stream the first time an upload
+/// failed. Sizes are what diagnosis needs and they are all that appears.
+impl std::fmt::Debug for ChatFile {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ChatFile")
+            .field("filename", &self.filename)
+            .field("content_type", &self.content_type)
+            .field("bytes", &format_args!("{} bytes", self.bytes.len()))
+            .field("title", &self.title)
+            .field("comment", &self.comment.as_ref().map(|_| "<set>"))
+            .field("reply_to", &self.reply_to)
+            .finish()
+    }
+}
+
 /// Errors raised when posting a chat message.
 #[derive(Debug, thiserror::Error)]
 pub enum ChatError {
@@ -168,6 +315,24 @@ pub enum ChatError {
     /// id minted by a different backend.
     #[error("The message id supplied cannot thread a reply on this chat provider")]
     IncompatibleReplyTarget,
+
+    /// The upload completed but the provider named no id for the stored file.
+    ///
+    /// The file is up. Retrying would store it twice, so this is reported apart from the failures.
+    #[error("Chat provider stored the file without returning a file id")]
+    MissingFileId,
+
+    /// The provider's upload URL pointed somewhere other than the provider.
+    ///
+    /// The multi-step upload takes a URL out of a response body and then sends the credential to
+    /// it. A URL on another origin is refused rather than followed: a compromised or spoofed
+    /// response would otherwise be handed a working bot token.
+    #[error("Chat provider returned an upload URL on an unexpected origin")]
+    UntrustedUploadUrl,
+
+    /// The provider rejected the bytes at the upload URL, or never took them.
+    #[error("Chat provider did not accept the file contents")]
+    UploadRejected,
 }
 
 /// Why a provider refused a message, in vocabulary no single backend owns.
@@ -208,4 +373,62 @@ pub enum ChatErrorReason {
     /// Anything else, carrying the provider's own code verbatim.
     #[error("{0}")]
     Other(String),
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used, clippy::indexing_slicing)]
+mod tests {
+    use super::*;
+
+    /// The one type here whose `Debug` is hand-written, and the reason it is: `error-stack` prints
+    /// `Debug` for everything attached to a report, so a derive would put an entire alert report
+    /// into the log stream the first time an upload failed.
+    #[test]
+    fn debug_never_prints_a_file_or_its_comment() {
+        let file = ChatFile::new("sr-report.pdf", b"4201 of 5000 payments lost".to_vec())
+            .with_comment("merchant_1234 is not converting");
+
+        let rendered = format!("{file:?}");
+
+        assert!(!rendered.contains("payments lost"));
+        assert!(!rendered.contains("merchant_1234"));
+        // What diagnosis actually needs survives.
+        assert!(rendered.contains("26 bytes"));
+        assert!(rendered.contains("sr-report.pdf"));
+    }
+
+    /// A file id is not a message id, and the type system is what keeps a caller from threading
+    /// under an upload — which the current protocol cannot express.
+    #[test]
+    fn a_file_id_is_opaque_and_round_trips() {
+        assert_eq!(FileId::new("cmtmsn9c1").as_str(), "cmtmsn9c1");
+    }
+
+    #[test]
+    fn a_file_carries_only_what_was_set() {
+        let bare = ChatFile::new("report.png", vec![1, 2, 3]);
+        assert_eq!(bare.filename(), "report.png");
+        assert_eq!(bare.len(), 3);
+        assert!(!bare.is_empty());
+        assert!(bare.content_type().is_none());
+        assert!(bare.title().is_none());
+        assert!(bare.comment().is_none());
+        assert!(bare.reply_target().is_none());
+
+        let dressed = ChatFile::new("report.png", vec![1])
+            .with_content_type("image/png")
+            .with_title("SR drop chart")
+            .with_comment("detail attached")
+            .reply_under(MessageId::ts("1.2"));
+
+        assert_eq!(dressed.content_type(), Some("image/png"));
+        assert_eq!(dressed.title(), Some("SR drop chart"));
+        assert_eq!(dressed.comment(), Some("detail attached"));
+        assert_eq!(dressed.reply_target(), Some(&MessageId::ts("1.2")));
+    }
+
+    #[test]
+    fn an_empty_file_reports_itself_as_empty() {
+        assert!(ChatFile::new("empty.pdf", Vec::new()).is_empty());
+    }
 }

@@ -64,8 +64,20 @@ pub struct Settings<S: SecretState> {
     pub email: EmailSettings,
 }
 
+/// The largest upload this service will accept, in bytes.
+///
+/// Xyne's own ceiling is 1 GB. This is not that, because an upload is buffered in this process
+/// before it is anything else, so the number that matters is how much memory a caller can make us
+/// hold. The R alerts service's PNG and PDF reports are orders of magnitude under it; lower this
+/// once production says what they actually weigh.
+const DEFAULT_MAX_UPLOAD_BYTES: usize = 25 * 1024 * 1024;
+
+fn default_max_upload_bytes() -> usize {
+    DEFAULT_MAX_UPLOAD_BYTES
+}
+
 /// Chat destinations, keyed by the id a request names.
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
 pub struct ChatSettings {
     /// Every chat destination, by id.
@@ -78,6 +90,25 @@ pub struct ChatSettings {
     /// `sr__alerts`. [`ChatSettings::validate`] rejects an id that cannot survive the round trip,
     /// so this is a boot failure rather than a lookup that mysteriously misses.
     pub destinations: HashMap<String, ChatDestination>,
+
+    /// The largest file `/alerts/chat/upload/{destination}` will accept, in bytes.
+    ///
+    /// One value for every destination, because it protects this process rather than any
+    /// provider's limit.
+    #[serde(default = "default_max_upload_bytes")]
+    pub max_upload_bytes: usize,
+}
+
+/// Hand-written so that a missing `[chat]` section and a present one with no `max_upload_bytes`
+/// agree. `#[derive(Default)]` would make the cap zero for the first and 25 MB for the second,
+/// which is the kind of difference nobody finds until an upload is refused in one environment.
+impl Default for ChatSettings {
+    fn default() -> Self {
+        Self {
+            destinations: HashMap::new(),
+            max_upload_bytes: DEFAULT_MAX_UPLOAD_BYTES,
+        }
+    }
 }
 
 /// One chat destination, tagged by the kind of backend it talks to.
@@ -343,6 +374,7 @@ mod tests {
                 .iter()
                 .map(|id| ((*id).to_owned(), ChatDestination::Log))
                 .collect(),
+            ..Default::default()
         }
     }
 
