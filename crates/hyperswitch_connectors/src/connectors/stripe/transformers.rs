@@ -473,7 +473,7 @@ pub struct CustomerRequest {
 pub struct StripeCustomerResponse {
     pub id: String,
     pub description: Option<String>,
-    pub email: Option<String>,
+    pub email: Option<Secret<String>>,
     pub phone: Option<Secret<String>>,
     pub name: Option<Secret<String>>,
 }
@@ -5455,9 +5455,7 @@ impl TryFrom<&SubmitEvidenceRouterData> for Evidence {
             cancellation_rebuttal: submit_evidence_request_data.cancellation_rebuttal,
             customer_communication: submit_evidence_request_data
                 .customer_communication_provider_file_id,
-            customer_email_address: submit_evidence_request_data
-                .customer_email_address
-                .map(Secret::new),
+            customer_email_address: submit_evidence_request_data.customer_email_address,
             customer_name: submit_evidence_request_data.customer_name.map(Secret::new),
             customer_purchase_ip: submit_evidence_request_data
                 .customer_purchase_ip
