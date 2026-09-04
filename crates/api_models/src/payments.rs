@@ -4213,6 +4213,7 @@ pub struct AdditionalCardInfo {
 
     /// How the card is funded, as recorded against its BIN. More granular than
     /// `card_type`, which collapses deferred debit and charge cards.
+    #[schema(value_type = Option<FundingSource>, example = "CREDIT")]
     pub funding_source: Option<api_enums::FundingSource>,
 
     pub card_issuing_country: Option<String>,
