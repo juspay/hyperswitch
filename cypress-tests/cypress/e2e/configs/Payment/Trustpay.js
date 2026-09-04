@@ -877,10 +877,16 @@ export const connectorDetails = {
   bank_transfer_pm: {
     InstantBankTransferFinland: getCustomExchange(
       {
+        Configs: {
+          TRIGGER_SKIP: true,
+        },
         Response: {
           status: 200,
           body: {
-            status: "requires_customer_action",
+            status: "failed",
+            error_code: "1133001",
+            error_message:
+              "Paytrail payments are not enabled in Project 4107608031",
           },
         },
       },
@@ -888,10 +894,16 @@ export const connectorDetails = {
     ),
     InstantBankTransferPoland: getCustomExchange(
       {
+        Configs: {
+          TRIGGER_SKIP: true,
+        },
         Response: {
           status: 200,
           body: {
-            status: "requires_customer_action",
+            status: "failed",
+            error_code: "1133001",
+            error_message:
+              "Tpay payments are not enabled in Project 4107608031",
           },
         },
       },

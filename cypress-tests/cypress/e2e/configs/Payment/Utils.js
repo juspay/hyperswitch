@@ -798,7 +798,6 @@ export const CONNECTOR_LISTS = {
       "globalpay",
       "nexinets",
       "nmi",
-      "nuvei",
       "paypal",
       "powertranz",
       "shift4",
@@ -814,6 +813,7 @@ export const CONNECTOR_LISTS = {
     CLIENT_SESSION_VALIDATION: ["stripe"],
     WEBHOOK_CONFIG: ["stripe"],
     REQUIRES_CVV: ["bankofamerica"],
+    BLOCK_IMPLICIT_CUSTOMER_CREATION: ["adyen"],
     // Add more inclusion lists
   },
 };
