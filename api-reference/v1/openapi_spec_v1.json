@@ -6570,6 +6570,55 @@
         ]
       }
     },
+    "/offer_engine/offers/list": {
+      "post": {
+        "tags": [
+          "Offers"
+        ],
+        "summary": "Offers - Browse",
+        "description": "Lists the offers currently available to the merchant. Offers that are not eligible are\nexcluded, so the response contains only offers that can be used.",
+        "operationId": "Browse offers",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BrowseOffersRequest"
+              },
+              "examples": {
+                "Browse offers for a currency": {
+                  "value": {
+                    "offer_payment_info": {
+                      "currency": "USD"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Offers available to the merchant",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowseOffersResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Offer Engine is not enabled for this merchant"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/blocklist": {
       "delete": {
         "tags": [
@@ -16004,6 +16053,82 @@
           "merchant_config_currency": {
             "type": "string",
             "description": "Information about the merchant_config_currency that merchant wants to specify at connector level."
+          }
+        }
+      },
+      "BrowseOffer": {
+        "type": "object",
+        "description": "A single offer available to the merchant.",
+        "required": [
+          "code"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "Offer code, as configured in Offer Engine.",
+            "example": "TESTHS"
+          },
+          "title": {
+            "type": "string",
+            "description": "Full offer title.",
+            "example": "Test offer HS",
+            "nullable": true
+          },
+          "display_title": {
+            "type": "string",
+            "description": "Shortened title, for constrained layouts.",
+            "example": "TSH",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "description": "Offer description.",
+            "example": "Testing offers",
+            "nullable": true
+          },
+          "currency": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Currency"
+              }
+            ],
+            "nullable": true
+          },
+          "valid_till": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the offer stops being valid.",
+            "example": "2026-08-31T18:29:59.000Z",
+            "nullable": true
+          }
+        }
+      },
+      "BrowseOffersRequest": {
+        "type": "object",
+        "description": "Request to browse the offers available to a merchant.",
+        "properties": {
+          "offer_payment_info": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OfferPaymentInfo"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "BrowseOffersResponse": {
+        "type": "object",
+        "description": "The offers a merchant can currently use.",
+        "required": [
+          "offers"
+        ],
+        "properties": {
+          "offers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BrowseOffer"
+            }
           }
         }
       },
@@ -29032,6 +29157,18 @@
           "merchant_id": {
             "type": "string",
             "description": "The Offer Engine merchant id sent in Offer Engine request bodies"
+          }
+        }
+      },
+      "OfferPaymentInfo": {
+        "type": "object",
+        "description": "Order context supplied when browsing offers.",
+        "required": [
+          "currency"
+        ],
+        "properties": {
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
           }
         }
       },
