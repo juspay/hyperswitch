@@ -32,6 +32,7 @@ export const connectorDetails = {
           amount: 1000,
           currency: "ZAR",
           payout_type: "bank",
+          description: "Test Payout",
           payout_method_data: {
             bank_transfer: {
               payout_method_type: "payshap",
@@ -72,11 +73,8 @@ export const connectorDetails = {
         Response: {
           status: 500,
           body: {
-            error: {
-              type: "api",
-              message: "Something went wrong",
-              code: "HE_00",
-            },
+            status: "initiated",
+            amount: 1000,
           },
         },
       },
@@ -84,9 +82,7 @@ export const connectorDetails = {
         Response: {
           status: 200,
           body: {
-            status: "requires_fulfillment",
-            error_code: null,
-            error_message: null,
+            status: "initiated",
           },
         },
       },
@@ -137,11 +133,8 @@ export const connectorDetails = {
         Response: {
           status: 500,
           body: {
-            error: {
-              type: "api",
-              message: "Something went wrong",
-              code: "HE_00",
-            },
+            status: "initiated",
+            amount: 2000,
           },
         },
       },
@@ -149,9 +142,8 @@ export const connectorDetails = {
         Response: {
           status: 200,
           body: {
-            status: "requires_fulfillment",
-            error_code: null,
-            error_message: null,
+            status: "initiated",
+            amount: 2000,
           },
         },
       },
