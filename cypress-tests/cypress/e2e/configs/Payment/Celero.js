@@ -54,6 +54,9 @@ const payment_method_data_amex = {
   card: {
     last4: "0005",
     card_type: "CREDIT",
+    card_subtype: "CORPORATE",
+    card_segment_type: null,
+    funding_source: null,
     card_network: "AmericanExpress",
     card_issuer: null,
     card_issuing_country: null,
@@ -73,6 +76,9 @@ const payment_method_data_failed = {
   card: {
     last4: "0002",
     card_type: "CREDIT",
+    card_subtype: "VISA TRADITIONAL",
+    card_segment_type: "consumer",
+    funding_source: "CREDIT",
     card_network: "Visa",
     card_issuer: "Intl Hdqtrs Center Owned",
     card_issuing_country: "UNITED STATES OF AMERICA",
