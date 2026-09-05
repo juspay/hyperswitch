@@ -53,6 +53,9 @@ const payment_method_data_visa = {
   card: {
     last4: "5439",
     card_type: "DEBIT",
+    card_subtype: "CLASSIC",
+    card_segment_type: null,
+    funding_source: null,
     card_network: "Visa",
     card_issuer: "VISA PRODUCTION SUPPORT CLIENT BID 1",
     card_issuing_country: "UNITEDSTATES",

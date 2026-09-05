@@ -47,6 +47,9 @@ const paymentMethodData3Ds = {
   card: {
     last4: "1111",
     card_type: "DEBIT",
+    card_subtype: "VISA CLASSIC",
+    card_segment_type: "consumer",
+    funding_source: "DEBIT",
     card_network: "Visa",
     card_issuer: "CONOTOXIA SP Z OO",
     card_issuing_country: "POLAND",
@@ -66,6 +69,9 @@ const paymentMethodDataNo3Ds = {
   card: {
     last4: "0018",
     card_type: "CREDIT",
+    card_subtype: "VISA TRADITIONAL",
+    card_segment_type: "consumer",
+    funding_source: "CREDIT",
     card_network: "Visa",
     card_issuer: "INTL HDQTRS CENTER OWNED",
     card_issuing_country: "UNITED STATES OF AMERICA",
