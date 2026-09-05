@@ -5,6 +5,7 @@
 reports/
 screenshots/
 videos/
+failure-report/
 
 creds.json
 cypress.env.json
