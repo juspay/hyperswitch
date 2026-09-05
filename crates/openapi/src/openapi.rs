@@ -676,6 +676,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::FingerprintType,
         api_models::payments::PaymentsCreateResponseOpenApi,
         api_models::payments::EligibilityCard,
+        api_models::payments::EligibilityCardBin,
         api_models::payments::EligibilityPaymentMethodData,
         api_models::payments::EligibilityPaymentMethodDataRequest,
         api_models::payments::PaymentsEligibilityCheckRequest,
