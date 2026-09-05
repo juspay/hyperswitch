@@ -2214,7 +2214,7 @@ pub async fn list_payment_methods_for_payments_client(
     state: web::Data<AppState>,
     req: HttpRequest,
     path: web::Path<id_type::PaymentId>,
-    query_payload: web::Query<payment_methods::PaymentMethodListRequest>,
+    query_payload: web::Query<payment_methods::ClientPaymentMethodsListRequest>,
 ) -> HttpResponse {
     let flow = Flow::PaymentMethodsList;
     let payment_id = path.into_inner();
@@ -2254,4 +2254,46 @@ pub async fn list_payment_methods_for_payments_client(
         }
         Err(err) => api::log_and_return_error_response(err),
     }
+}
+
+#[cfg(feature = "v1")]
+/// List payment methods for a Payment (server-to-server endpoint)
+///
+/// Returns a unified response combining merchant-enabled payment methods and
+/// customer saved payment methods, filtered via Euclid constraint graph and
+/// session flow routing — identical to the client SDK endpoint, but
+/// authenticated with the merchant API key for server-to-server calls.
+#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsList))]
+pub async fn list_payment_methods_for_payments(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<id_type::PaymentId>,
+) -> HttpResponse {
+    let flow = Flow::PaymentMethodsList;
+    let payment_id = path.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        move |state, auth: auth::AuthenticationData, _, _| {
+            let payment_id = payment_id.clone();
+            async move {
+                Box::pin(payment_methods_routes::client::list_payment_methods_client(
+                    state,
+                    auth.platform,
+                    payment_id,
+                    None,
+                ))
+                .await
+            }
+        },
+        &auth::HeaderAuth(auth::ApiKeyAuth {
+            allow_connected_scope_operation: true,
+            allow_platform_self_operation: true,
+        }),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
 }

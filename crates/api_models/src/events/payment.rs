@@ -436,6 +436,19 @@ impl ApiEventMetric for payment_methods::PaymentMethodDeleteResponse {
 impl ApiEventMetric for payment_methods::CustomerPaymentMethodsListResponse {}
 
 #[cfg(feature = "v1")]
+impl ApiEventMetric for payment_methods::ClientPaymentMethodsListRequest {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::PaymentMethodList {
+            payment_id: self
+                .client_secret
+                .as_ref()
+                .and_then(|cs| cs.rsplit_once("_secret_"))
+                .map(|(pid, _)| pid.to_string()),
+        })
+    }
+}
+
+#[cfg(feature = "v1")]
 impl ApiEventMetric for PaymentMethodListRequest {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::PaymentMethodList {
