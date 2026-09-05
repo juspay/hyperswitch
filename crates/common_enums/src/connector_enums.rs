@@ -134,6 +134,7 @@ pub enum Connector {
     Imerchantsolutions,
     Itaubank,
     Jpmorgan,
+    JpmorganOrbital,
     Juspay,
     Juspaythreedsserver,
     Klarna,
@@ -474,6 +475,7 @@ impl Connector {
             | Self::Phonepe
             | Self::Imerchantsolutions
             | Self::Ilixium
+            | Self::JpmorganOrbital
             | Self::Givepayments => false,
             Self::Stripe | Self::Checkout | Self::Zift | Self::Nmi | Self::Braintree|
             Self::Cybersource | Self::Archipel | Self::Nuvei | Self::Adyen => true,

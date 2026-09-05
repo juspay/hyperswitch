@@ -92,6 +92,20 @@ impl SantanderPayoutMetadataCompat {
     }
 }
 
+/// JP Morgan Orbital merchant provisioning facts. Neither value is a secret: they
+/// travel in the request body, not in a header. `bin` selects the back-end
+/// authorization host ("000001" = Stratus/US, "000002" = Tandem/Canada) and
+/// `terminal_id` is the 3-digit merchant terminal. They cannot be derived by the
+/// connector, so they are read from the merchant connector account metadata and
+/// forwarded verbatim. If they are absent, UCS rejects the payment with an
+/// actionable error rather than guessing - guessing would silently route a Tandem
+/// (Canadian) merchant at the Stratus host.
+#[derive(Debug, serde::Deserialize)]
+pub struct JpmorganOrbitalMetadata {
+    bin: Option<String>,
+    terminal_id: Option<String>,
+}
+
 #[derive(Debug, serde::Deserialize)]
 pub struct MifinityMetadata {
     brand_id: Secret<String>,
@@ -666,6 +680,21 @@ pub enum ConnectorSpecificConfig {
         api_key: Secret<String>,
         key1: Secret<String>,
         api_secret: Secret<String>,
+    },
+    /// JP Morgan Orbital (Chase Paymentech Orbital Gateway JSON API v4).
+    /// NOT the `Jpmorgan` variant, which is the OAuth2-based Payments API v2.
+    /// Field names must match `ConnectorSpecificConfig::JpmorganOrbital` in the
+    /// connector-service repo (`crates/types-traits/domain_types/src/router_data.rs`).
+    /// `username`    = `orbitalConnectionUsername` header (from `api_key`)
+    /// `password`    = `orbitalConnectionPassword` header (from `api_secret`)
+    /// `merchant_id` = `merchantID` header, also echoed as body `merchant.merchantID` (from `key1`)
+    /// `bin` / `terminal_id` are non-secret provisioning values read from MCA metadata.
+    JpmorganOrbital {
+        username: Secret<String>,
+        password: Secret<String>,
+        merchant_id: Secret<String>,
+        bin: Option<String>,
+        terminal_id: Option<String>,
     },
     /// Finix connector configuration
     Finix {
@@ -1255,6 +1284,29 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     api_secret: api_secret.clone(),
                 }),
                 _ => Err(err("Ilixium requires SignatureKey auth type")),
+            },
+            Connector::JpmorganOrbital => match auth {
+                ConnectorAuthType::SignatureKey {
+                    api_key,
+                    key1,
+                    api_secret,
+                } => {
+                    let orbital_meta = metadata
+                        .map(|m| {
+                            serde_json::from_value::<JpmorganOrbitalMetadata>(m.clone())
+                                .map_err(|_| err("Invalid JP Morgan Orbital metadata format"))
+                        })
+                        .transpose()?;
+
+                    Ok(Self::JpmorganOrbital {
+                        username: api_key.clone(),
+                        password: api_secret.clone(),
+                        merchant_id: key1.clone(),
+                        bin: orbital_meta.as_ref().and_then(|m| m.bin.clone()),
+                        terminal_id: orbital_meta.as_ref().and_then(|m| m.terminal_id.clone()),
+                    })
+                }
+                _ => Err(err("JpmorganOrbital requires SignatureKey auth type")),
             },
             Connector::Checkout => match auth {
                 ConnectorAuthType::SignatureKey {

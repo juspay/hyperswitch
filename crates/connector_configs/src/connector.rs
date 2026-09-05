@@ -150,6 +150,9 @@ pub struct ConfigMetadata {
     pub account_name: Option<InputData>,
     pub account_type: Option<InputData>,
     pub terminal_id: Option<InputData>,
+    /// JP Morgan Orbital: back-end authorization host selector
+    /// ("000001" = Stratus/US, "000002" = Tandem/Canada).
+    pub bin: Option<InputData>,
     pub google_pay: Option<Vec<InputData>>,
     pub apple_pay: Option<Vec<InputData>>,
     pub paypal_sdk: Option<Vec<InputData>>,
@@ -303,6 +306,7 @@ pub struct ConnectorConfig {
     pub cybersource_payout: Option<ConnectorTomlConfig>,
     pub iatapay: Option<ConnectorTomlConfig>,
     pub ilixium: Option<ConnectorTomlConfig>,
+    pub jpmorgan_orbital: Option<ConnectorTomlConfig>,
     pub imerchantsolutions: Option<ConnectorTomlConfig>,
     pub itaubank: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
@@ -725,6 +729,7 @@ impl ConnectorConfig {
             Connector::Payjustnowinstore => Ok(connector_data.payjustnowinstore),
             Connector::Imerchantsolutions => Ok(connector_data.imerchantsolutions),
             Connector::Ilixium => Ok(connector_data.ilixium),
+            Connector::JpmorganOrbital => Ok(connector_data.jpmorgan_orbital),
             Connector::Givepayments => Ok(connector_data.givepayments),
         }
     }

@@ -31,7 +31,7 @@ pub use hyperswitch_connectors::connectors::{
     iatapay::Iatapay, ilixium, ilixium::Ilixium, imerchantsolutions,
     imerchantsolutions::Imerchantsolutions, inespay, inespay::Inespay, interpayments,
     interpayments::Interpayments, itaubank, itaubank::Itaubank, jpmorgan, jpmorgan::Jpmorgan,
-    juspaythreedsserver, juspaythreedsserver::Juspaythreedsserver, katapult, katapult::Katapult,
+    jpmorgan_orbital, jpmorgan_orbital::JpmorganOrbital, juspaythreedsserver, juspaythreedsserver::Juspaythreedsserver, katapult, katapult::Katapult,
     klarna, klarna::Klarna, loonio, loonio::Loonio, mifinity, mifinity::Mifinity, mollie,
     mollie::Mollie, moneris, moneris::Moneris, mpgs, mpgs::Mpgs, multisafepay,
     multisafepay::Multisafepay, netcetera, netcetera::Netcetera, nexinets, nexinets::Nexinets,

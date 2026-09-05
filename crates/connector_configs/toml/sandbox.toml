@@ -9230,3 +9230,49 @@ merchant_secret="Source verification key"
 [paynearme.connector_auth.BodyKey]
 api_key = "PayNearMe API Secret Key"
 key1 = "PayNearMe Site Identifier"
+
+[jpmorgan_orbital]
+[jpmorgan_orbital.connector_auth.SignatureKey]
+api_key="Orbital Connection Username"
+key1="Merchant ID"
+api_secret="Orbital Connection Password"
+[jpmorgan_orbital.metadata.bin]
+name="bin"
+label="BIN"
+placeholder="000001 for Stratus (US), 000002 for Tandem (Canada)"
+required=true
+type="Text"
+[jpmorgan_orbital.metadata.terminal_id]
+name="terminal_id"
+label="Terminal ID"
+placeholder="Enter Terminal ID (3 digits, e.g. 001)"
+required=true
+type="Text"
+[[jpmorgan_orbital.credit]]
+  payment_method_type = "Mastercard"
+[[jpmorgan_orbital.credit]]
+  payment_method_type = "Visa"
+[[jpmorgan_orbital.credit]]
+  payment_method_type = "AmericanExpress"
+[[jpmorgan_orbital.credit]]
+  payment_method_type = "JCB"
+[[jpmorgan_orbital.credit]]
+  payment_method_type = "Discover"
+[[jpmorgan_orbital.credit]]
+  payment_method_type = "DinersClub"
+[[jpmorgan_orbital.credit]]
+  payment_method_type = "UnionPay"
+[[jpmorgan_orbital.debit]]
+  payment_method_type = "Mastercard"
+[[jpmorgan_orbital.debit]]
+  payment_method_type = "Visa"
+[[jpmorgan_orbital.debit]]
+  payment_method_type = "AmericanExpress"
+[[jpmorgan_orbital.debit]]
+  payment_method_type = "JCB"
+[[jpmorgan_orbital.debit]]
+  payment_method_type = "Discover"
+[[jpmorgan_orbital.debit]]
+  payment_method_type = "DinersClub"
+[[jpmorgan_orbital.debit]]
+  payment_method_type = "UnionPay"
