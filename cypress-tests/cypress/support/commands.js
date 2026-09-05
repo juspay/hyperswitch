@@ -3261,6 +3261,16 @@ Cypress.Commands.add(
             ).to.not.be.empty;
           }
           globalState.set("paymentIntentStatus", response.body.status);
+          // Lets mitUsingPMId know whether the connector actually supports
+          // mandates, or was silently downgraded to on_session. Mirrors the
+          // same tracking done in citForMandatesCallTest, so MIT tests that
+          // follow a plain confirmCallTest CIT (e.g. zero-auth PMID flows)
+          // check the real response from this confirm instead of a stale or
+          // unset value.
+          globalState.set(
+            "mandateSetupFutureUsage",
+            response.body.setup_future_usage
+          );
           // Compare connector with backend connector name (handles stripeconnect -> stripe mapping)
           const expectedConnector = getOriginalConnectorName(
             globalState.get("connectorId")
