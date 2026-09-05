@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fmt::Debug};
 
-use common_utils::{errors, id_type, types::MinorUnit};
+use common_utils::{errors, id_type, pii::EmailStrategy, types::MinorUnit};
 pub use euclid::{
     dssa::types::EuclidAnalysable,
     frontend::{
@@ -8,6 +8,7 @@ pub use euclid::{
         dir::{DirKeyKind, EuclidDirFilter},
     },
 };
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -568,7 +569,7 @@ pub struct MerchantTokenRequest {
     /// Display only, so the dashboard can name the user rather than show a profile id.
     /// Authorization comes from the grant and permissions, never from this.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub email: Option<String>,
+    pub email: Option<Secret<String, EmailStrategy>>,
 }
 
 /// Account hierarchy pushed to the Decision Engine. A DE scope is a Hyperswitch profile; the
