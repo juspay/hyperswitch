@@ -2,7 +2,7 @@
 
 use hyperswitch_domain_models::{
     router_data_v2::flow_common_types::RefundFlowData,
-    router_flow_types::refunds::{Execute, RSync},
+    router_flow_types::refunds::{Execute, RSync, VoidPostRefund},
     router_request_types::RefundsData,
     router_response_types::RefundsResponseData,
 };
@@ -21,5 +21,14 @@ pub trait RefundSyncV2:
 {
 }
 
+/// trait RefundVoidPostRefundV2
+pub trait RefundVoidPostRefundV2:
+    ConnectorIntegrationV2<VoidPostRefund, RefundFlowData, RefundsData, RefundsResponseData>
+{
+}
+
 /// trait RefundV2
-pub trait RefundV2: ConnectorCommon + RefundExecuteV2 + RefundSyncV2 {}
+pub trait RefundV2:
+    ConnectorCommon + RefundExecuteV2 + RefundSyncV2 + RefundVoidPostRefundV2
+{
+}
