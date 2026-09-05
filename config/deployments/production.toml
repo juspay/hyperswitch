@@ -78,6 +78,9 @@ dummyconnector.base_url = "http://localhost:8080/dummy-connector"
 dwolla.base_url = "https://api.dwolla.com"
 ebanx.base_url = "https://api.ebanxpay.com/"
 elavon.base_url = "https://api.convergepay.com/VirtualMerchant/"
+# Elavon Payment Gateway (EPG), Elavon's JSON REST gateway. Distinct from the
+# `elavon` entry above, which is Elavon Converge (an XML API).
+elavon_pg.base_url = "https://api.eu.convergepay.com"
 envoy.base_url = "https://envoytx.com/"
 facilitapay.base_url = "https://api.facilitapay.com/api/v1"
 finix.base_url = "https://finix.live-payments-api.com"
@@ -1058,7 +1061,7 @@ click_to_pay = {connector_list = "adyen, cybersource, trustpay"}
 connector_list = "juspaythreedsserver, ctp_mastercard, ctp_visa"
 
 [grpc_client.unified_connector_service]
-ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, payconex, dlocal, barclaycard, jpmorgan, datatrans, tsys_transit, givepayments, citigate, ilixium, moneris, elavon, worldpayraft"    # Comma-separated list of connectors that use UCS only
+ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, payconex, dlocal, barclaycard, jpmorgan, datatrans, tsys_transit, givepayments, citigate, ilixium, moneris, elavon, worldpayraft, elavon_pg"    # Comma-separated list of connectors that use UCS only
 ucs_psync_disabled_connectors = "cashtocode, trustly"    # Comma-separated list of connectors to disable UCS PSync call
 
 # Merchant Advice Code Configuration
