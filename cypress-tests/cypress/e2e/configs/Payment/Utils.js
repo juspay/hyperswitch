@@ -589,6 +589,7 @@ export const CONNECTOR_LISTS = {
   INCLUDE: {
     // Tracking extension to other connectors: #13520
     SPLIT_PAYMENTS: ["stripeconnect", "payloadconnect"],
+    PROCESSING_METHOD_ID: ["payload"],
     MANDATES_USING_NTID_PROXY: ["cybersource", "checkout"],
     // Card and mandate flows of 54-TsysTransitMandates. The mandates need a
     // profile with connector agnostic MIT enabled, which keeps them out of the
@@ -797,7 +798,6 @@ export const CONNECTOR_LISTS = {
       "globalpay",
       "nexinets",
       "nmi",
-      "nuvei",
       "paypal",
       "powertranz",
       "shift4",
@@ -813,6 +813,7 @@ export const CONNECTOR_LISTS = {
     CLIENT_SESSION_VALIDATION: ["stripe"],
     WEBHOOK_CONFIG: ["stripe"],
     REQUIRES_CVV: ["bankofamerica"],
+    BLOCK_IMPLICIT_CUSTOMER_CREATION: ["adyen"],
     // Add more inclusion lists
   },
 };

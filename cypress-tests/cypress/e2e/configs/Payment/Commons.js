@@ -4081,6 +4081,9 @@ export const connectorDetails = {
             payment_statuses_enabled: ["succeeded", "failed"],
             refund_statuses_enabled: ["success", "failure"],
             payout_statuses_enabled: ["success", "failed"],
+            dispute_statuses_enabled: ["dispute_opened", "dispute_won"],
+            mandate_statuses_enabled: ["active"],
+            invoice_statuses_enabled: ["invoice_paid"],
           },
         },
         Response: {
@@ -4091,6 +4094,9 @@ export const connectorDetails = {
               payment_statuses_enabled: ["succeeded", "failed"],
               refund_statuses_enabled: ["success", "failure"],
               payout_statuses_enabled: ["success", "failed"],
+              dispute_statuses_enabled: ["dispute_opened", "dispute_won"],
+              mandate_statuses_enabled: ["active"],
+              invoice_statuses_enabled: ["invoice_paid"],
             },
           },
         },
@@ -4113,6 +4119,17 @@ export const connectorDetails = {
             ],
             refund_statuses_enabled: ["success", "failure"],
             payout_statuses_enabled: ["success", "failed", "initiated"],
+            dispute_statuses_enabled: [
+              "dispute_opened",
+              "dispute_expired",
+              "dispute_accepted",
+              "dispute_cancelled",
+              "dispute_challenged",
+              "dispute_won",
+              "dispute_lost",
+            ],
+            mandate_statuses_enabled: ["active", "revoked"],
+            invoice_statuses_enabled: ["invoice_paid"],
           },
         },
         Response: {
@@ -4128,11 +4145,52 @@ export const connectorDetails = {
               ],
               refund_statuses_enabled: ["success", "failure"],
               payout_statuses_enabled: ["success", "failed", "initiated"],
+              dispute_statuses_enabled: [
+                "dispute_opened",
+                "dispute_expired",
+                "dispute_accepted",
+                "dispute_cancelled",
+                "dispute_challenged",
+                "dispute_won",
+                "dispute_lost",
+              ],
+              mandate_statuses_enabled: ["active", "revoked"],
+              invoice_statuses_enabled: ["invoice_paid"],
             },
           },
         },
       }),
     },
+    BlockImplicitCustomerCreationAllowed: getCustomExchange({
+      Request: {
+        currency: "EUR",
+        amount: 6500,
+        email: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    BlockImplicitCustomerCreationBlocked: getCustomExchange({
+      Request: {
+        currency: "EUR",
+        amount: 6500,
+        email: null,
+      },
+      Response: {
+        status: 404,
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "HE_02",
+            message: "Customer does not exist in our records",
+          },
+        },
+      },
+    }),
   },
   upi_pm: {
     PaymentIntent: getCustomExchange({
