@@ -652,7 +652,13 @@ impl
             metadata,
             test_mode: router_data.test_mode,
             state,
-            connector_order_id: None,
+            // Forward the id minted by the UCS CreateOrder pre-call. It is stashed
+            // in `request.order_id` by
+            // `AuthorizeFlow::update_router_data_with_create_order_response`; leaving
+            // this `None` broke every UCS connector whose Authorize needs an order
+            // to already exist (e.g. paynearme's `/create_payment_method`, which
+            // requires `pnm_order_identifier`).
+            connector_order_id: router_data.request.order_id.clone(),
             description: router_data.description.clone(),
             setup_mandate_details: router_data
                 .request

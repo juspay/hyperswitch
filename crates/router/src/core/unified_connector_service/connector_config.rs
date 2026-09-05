@@ -279,6 +279,15 @@ pub enum ConnectorSpecificConfig {
         merchant_id: Secret<String>,
         base_url: Option<String>,
     },
+    /// PayNearMe connector configuration
+    Paynearme {
+        /// PayNearMe API Secret Key. Used only to compute the HMAC-SHA256
+        /// request signature; it is never transmitted to PayNearMe.
+        api_key: Secret<String>,
+        /// PayNearMe Site Identifier.
+        key1: Secret<String>,
+        base_url: Option<String>,
+    },
     /// Fiservcommercehub connector configuration
     Fiservcommercehub {
         api_key: Secret<String>,
@@ -1801,6 +1810,14 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     base_url: None,
                 }),
                 _ => Err(err("Worldpayraft requires BodyKey auth type")),
+            },
+            Connector::Paynearme => match auth {
+                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Paynearme {
+                    api_key: api_key.clone(),
+                    key1: key1.clone(),
+                    base_url: None,
+                }),
+                _ => Err(err("Paynearme requires BodyKey auth type")),
             },
             Connector::Interpayments => match auth {
                 ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Interpayments {
