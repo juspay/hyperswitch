@@ -324,6 +324,14 @@ impl PaymentMethodData {
         matches!(self, Self::NetworkToken(_))
     }
 
+    pub fn is_google_pay_pan_only(&self) -> bool {
+        if let Self::Wallet(WalletData::GooglePay(gpay_data)) = self {
+            gpay_data.is_pan_only()
+        } else {
+            false
+        }
+    }
+
     pub fn get_co_badged_card_data(&self) -> Option<&payment_methods::CoBadgedCardData> {
         match self {
             Self::Card(card) => card.co_badged_card_data.as_ref(),
@@ -1117,6 +1125,20 @@ pub struct GooglePayWalletData {
     pub info: GooglePayPaymentMethodInfo,
     /// The tokenization data of Google pay
     pub tokenization_data: common_types::payments::GpayTokenizationData,
+}
+
+impl GooglePayWalletData {
+    pub fn is_pan_only(&self) -> bool {
+        self.tokenization_data
+            .get_encrypted_auth_method()
+            .map(|auth_method| auth_method == common_enums::GooglePayAuthMethod::PanOnly)
+            .unwrap_or_else(|| {
+                self.info
+                    .assurance_details
+                    .as_ref()
+                    .is_some_and(|assurance_details| !assurance_details.card_holder_authenticated)
+            })
+    }
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]

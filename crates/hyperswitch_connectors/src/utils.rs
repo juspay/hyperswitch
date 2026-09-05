@@ -296,6 +296,7 @@ impl TryFrom<payment_method_data::GooglePayWalletData> for GooglePayWalletData {
                     common_types::payments::GpayEcryptedTokenizationData {
                         token_type: encrypted_data.token_type,
                         token: encrypted_data.token,
+                        auth_method: encrypted_data.auth_method,
                     },
                 )
             }
