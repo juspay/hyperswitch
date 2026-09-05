@@ -8964,7 +8964,7 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PayoutMethodData>
                     payments_grpc::payout_method::PayoutMethodData::OpenBanking(
                         payments_grpc::OpenBankingPayout::foreign_try_from(open_banking)?,
                     )
-                },
+                }
                 api_models::payouts::Bank::Payshap(payshap) => {
                     payments_grpc::payout_method::PayoutMethodData::Payshap(
                         payments_grpc::PayshapBankTransferPayout::foreign_try_from(payshap)?,
@@ -9028,7 +9028,9 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PayoutMethodData>
                     }
                     api_models::payouts::BankTransfer::PayshapProxy(payshap_proxy) => {
                         payments_grpc::payout_method::PayoutMethodData::PayshapProxy(
-                            payments_grpc::PayshapProxyBankTransferPayout::foreign_from(payshap_proxy),
+                            payments_grpc::PayshapProxyBankTransferPayout::foreign_from(
+                                payshap_proxy,
+                            ),
                         )
                     }
                 }
