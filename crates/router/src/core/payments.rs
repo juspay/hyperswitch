@@ -17,6 +17,8 @@ pub mod session_operation;
 pub mod tokenization;
 pub mod transformers;
 pub mod types;
+#[cfg(feature = "v1")]
+pub mod update_context;
 pub mod vault_session;
 #[cfg(feature = "olap")]
 use std::collections::HashMap;
@@ -8132,13 +8134,19 @@ where
                     ..
                 }) = connector_response.response.clone()
                 {
-                    // If session token is NoSessionTokenReceived, it is not pushed into the sessions_token as there is no response or there can be some error
-                    // In case of error, that error is already logged
-                    if !matches!(
-                        session_token,
-                        api_models::payments::SessionToken::NoSessionTokenReceived,
-                    ) {
-                        payment_data.push_sessions_token(session_token);
+                    // `NoSessionTokenReceived` means the connector answered but had no token to
+                    // give. Surface it as an error entry rather than dropping it, so the caller
+                    // can tell "not configured" apart from "failed just now".
+                    match session_token {
+                        api_models::payments::SessionToken::NoSessionTokenReceived => {
+                            payment_data.push_sessions_token(session_token_error(
+                                &connector_name,
+                                session_connector.payment_method_sub_type,
+                                None,
+                                "no session token received from the connector".to_string(),
+                            ));
+                        }
+                        session_token => payment_data.push_sessions_token(session_token),
                     }
                 }
                 if let Err(connector_error_response) = connector_response.response {
@@ -8147,10 +8155,22 @@ where
                         connector_name,
                         connector_error_response
                     );
+                    payment_data.push_sessions_token(session_token_error(
+                        &connector_name,
+                        session_connector.payment_method_sub_type,
+                        Some(connector_error_response.code.clone()),
+                        connector_error_response.message.clone(),
+                    ));
                 }
             }
             Err(api_error) => {
                 logger::error!("sessions_api_error {} {:?}", connector_name, api_error);
+                payment_data.push_sessions_token(session_token_error(
+                    &connector_name,
+                    session_connector.payment_method_sub_type,
+                    None,
+                    api_error.current_context().to_string(),
+                ));
             }
         }
     }
@@ -8258,13 +8278,19 @@ where
                     ..
                 }) = connector_response.response.clone()
                 {
-                    // If session token is NoSessionTokenReceived, it is not pushed into the sessions_token as there is no response or there can be some error
-                    // In case of error, that error is already logged
-                    if !matches!(
-                        session_token,
-                        api_models::payments::SessionToken::NoSessionTokenReceived,
-                    ) {
-                        payment_data.push_sessions_token(session_token);
+                    // `NoSessionTokenReceived` means the connector answered but had no token to
+                    // give. Surface it as an error entry rather than dropping it, so the caller
+                    // can tell "not configured" apart from "failed just now".
+                    match session_token {
+                        api_models::payments::SessionToken::NoSessionTokenReceived => {
+                            payment_data.push_sessions_token(session_token_error(
+                                &connector_name,
+                                session_connector.payment_method_sub_type,
+                                None,
+                                "no session token received from the connector".to_string(),
+                            ));
+                        }
+                        session_token => payment_data.push_sessions_token(session_token),
                     }
                 }
                 if let Err(connector_error_response) = connector_response.response {
@@ -8273,10 +8299,22 @@ where
                         connector_name,
                         connector_error_response
                     );
+                    payment_data.push_sessions_token(session_token_error(
+                        &connector_name,
+                        session_connector.payment_method_sub_type,
+                        Some(connector_error_response.code.clone()),
+                        connector_error_response.message.clone(),
+                    ));
                 }
             }
             Err(api_error) => {
                 logger::error!("sessions_api_error {} {:?}", connector_name, api_error);
+                payment_data.push_sessions_token(session_token_error(
+                    &connector_name,
+                    session_connector.payment_method_sub_type,
+                    None,
+                    api_error.current_context().to_string(),
+                ));
             }
         }
     }
@@ -8302,6 +8340,24 @@ where
     tracing::info!(duration = format!("Duration taken: {}", call_connectors_duration.as_millis()));
 
     Ok(payment_data)
+}
+
+/// Builds the entry that stands in for a wallet whose session token could not be minted.
+///
+/// These used to be logged and dropped, leaving an empty `session_token` array that looked
+/// identical to a merchant with no wallets enabled.
+fn session_token_error(
+    connector: &str,
+    payment_method_type: enums::PaymentMethodType,
+    code: Option<String>,
+    message: String,
+) -> api::SessionToken {
+    api::SessionToken::Failed(Box::new(api_models::payments::SessionTokenErrorResponse {
+        connector: connector.to_string(),
+        payment_method_type: Some(payment_method_type),
+        code,
+        message,
+    }))
 }
 
 #[cfg(feature = "v1")]

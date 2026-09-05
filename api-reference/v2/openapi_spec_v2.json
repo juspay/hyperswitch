@@ -33119,6 +33119,27 @@
             ]
           },
           {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SessionTokenErrorResponse"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "wallet_name"
+                ],
+                "properties": {
+                  "wallet_name": {
+                    "type": "string",
+                    "enum": [
+                      "failed"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
             "type": "object",
             "required": [
               "wallet_name"
@@ -33135,6 +33156,40 @@
         ],
         "discriminator": {
           "propertyName": "wallet_name"
+        }
+      },
+      "SessionTokenErrorResponse": {
+        "type": "object",
+        "description": "Why a single wallet's session token is missing from the response.",
+        "required": [
+          "connector",
+          "message"
+        ],
+        "properties": {
+          "connector": {
+            "type": "string",
+            "description": "The connector that was asked for the session token.",
+            "example": "stripe"
+          },
+          "payment_method_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              }
+            ],
+            "nullable": true
+          },
+          "code": {
+            "type": "string",
+            "description": "Connector-reported error code, when one was returned.",
+            "example": "card_declined",
+            "nullable": true
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable description of what went wrong.",
+            "example": "No API key provided"
+          }
         }
       },
       "SessionTokenInfo": {

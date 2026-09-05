@@ -28,6 +28,8 @@ use router_env::{env, instrument, logger, tracing, types, Flow};
 use super::app::ReqState;
 #[cfg(feature = "v2")]
 use crate::core::payment_method_balance;
+#[cfg(feature = "v1")]
+use crate::core::payments::update_context;
 #[cfg(feature = "v2")]
 use crate::core::revenue_recovery::api as recovery;
 #[cfg(feature = "v1")]
@@ -40,7 +42,7 @@ use crate::{
         payments::{self, transformers::ToResponse, OperationSessionGetters, PaymentRedirectFlow},
     },
     routes::lock_utils,
-    services::{api, authentication as auth},
+    services::{self, api, authentication as auth},
     types::{
         api::{
             self as api_types, enums as api_enums,
@@ -927,33 +929,88 @@ pub async fn payments_update(
         }
     };
 
+    let integration_type = update_context::IntegrationType::from_headers(req.headers());
+
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         payload,
-        |state, auth: auth::AuthenticationData, req, req_state| {
-            payments::payments_core::<
-                api_types::UpdatePostConfirm,
-                payment_types::PaymentsResponse,
-                _,
-                _,
-                _,
-                payments::PaymentData<api_types::UpdatePostConfirm>,
-            >(
-                state,
-                req_state,
-                auth.platform,
-                auth.profile.map(|profile| profile.get_id().clone()),
-                payments::PaymentUpdate,
-                req,
-                auth_flow,
-                payments::CallConnectorAction::Trigger,
-                None,
-                None,
-                header_payload.clone(),
-                None,
-            )
+        move |state, auth: auth::AuthenticationData, req, req_state| {
+            let header_payload = header_payload.clone();
+            async move {
+                let platform = auth.platform.clone();
+                let profile_id = auth.profile.map(|profile| profile.get_id().clone());
+
+                let response = Box::pin(payments::payments_core::<
+                    api_types::UpdatePostConfirm,
+                    payment_types::PaymentsResponse,
+                    _,
+                    _,
+                    _,
+                    payments::PaymentData<api_types::UpdatePostConfirm>,
+                >(
+                    state.clone(),
+                    req_state.clone(),
+                    auth.platform,
+                    profile_id.clone(),
+                    payments::PaymentUpdate,
+                    req,
+                    auth_flow,
+                    payments::CallConnectorAction::Trigger,
+                    None,
+                    None,
+                    header_payload.clone(),
+                    None,
+                ))
+                .await?;
+
+                // A server integration additionally receives the payment-method list and wallet
+                // session tokens on the same response; client integrations are untouched.
+                //
+                // Gated on merchant auth as well as the header. This route also accepts
+                // publishable-key + client-secret, and the enrichment runs the session core as
+                // `AuthFlow::Merchant` and skips client-secret validation on the list — so a
+                // client-authenticated caller must not be able to opt in with a header alone.
+                let enrich = integration_type.is_server() && auth_flow == api::AuthFlow::Merchant;
+
+                if integration_type.is_server() && !enrich {
+                    logger::warn!(
+                        "server integration type requested on a client-authenticated request; \
+                         returning the client response shape"
+                    );
+                }
+
+                // Payments responses come back as `JsonWithHeaders`; `Json` is handled too so the
+                // enrichment does not silently skip if that ever changes.
+                let enrich_payment = |mut payment: payment_types::PaymentsResponse| async {
+                    let id = payment.payment_id.clone();
+                    Box::pin(update_context::attach_server_context(
+                        &state,
+                        req_state,
+                        &platform,
+                        profile_id,
+                        &id,
+                        &header_payload,
+                        &mut payment,
+                    ))
+                    .await;
+                    payment
+                };
+
+                match (enrich, response) {
+                    (true, services::ApplicationResponse::JsonWithHeaders((payment, headers))) => {
+                        Ok(services::ApplicationResponse::JsonWithHeaders((
+                            enrich_payment(payment).await,
+                            headers,
+                        )))
+                    }
+                    (true, services::ApplicationResponse::Json(payment)) => Ok(
+                        services::ApplicationResponse::Json(enrich_payment(payment).await),
+                    ),
+                    (_, response) => Ok(response),
+                }
+            }
         },
         &*auth_type,
         locking_action,
@@ -1499,27 +1556,38 @@ pub async fn payments_connector_session(
             if let Some(client_secret) = auth.client_secret {
                 payload.client_secret = Some(client_secret);
             }
-            payments::payments_core::<
-                api_types::Session,
-                payment_types::PaymentsSessionResponse,
-                _,
-                _,
-                _,
-                payments::PaymentData<api_types::Session>,
-            >(
-                state,
-                req_state,
-                auth.platform,
-                auth.profile.map(|profile| profile.get_id().clone()),
-                payments::PaymentSession,
-                payload,
-                api::AuthFlow::Client,
-                payments::CallConnectorAction::Trigger,
-                None,
-                None,
-                header_payload.clone(),
-                None,
-            )
+            let header_payload = header_payload.clone();
+            async move {
+                let response = Box::pin(payments::payments_core::<
+                    api_types::Session,
+                    payment_types::PaymentsSessionResponse,
+                    _,
+                    _,
+                    _,
+                    payments::PaymentData<api_types::Session>,
+                >(
+                    state,
+                    req_state,
+                    auth.platform,
+                    auth.profile.map(|profile| profile.get_id().clone()),
+                    payments::PaymentSession,
+                    payload,
+                    api::AuthFlow::Client,
+                    payments::CallConnectorAction::Trigger,
+                    None,
+                    None,
+                    header_payload.clone(),
+                    None,
+                ))
+                .await?;
+
+                // The core now records a `Failed` entry for a wallet whose token could not be
+                // minted, so the combined server-integration response can report it. This
+                // endpoint predates that and its callers treat `session_token` as a list of
+                // usable wallets, so the failures are dropped here to keep the existing
+                // contract byte-for-byte.
+                Ok(update_context::without_failed_session_tokens(response))
+            }
         },
         &*auth,
         locking_action,

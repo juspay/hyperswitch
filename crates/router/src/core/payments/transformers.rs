@@ -4333,6 +4333,9 @@ where
             .attach_printable("Failed to parse recipient details")?
             .map(api_models::payments::MaskedRecipientDetails::from);
         let payments_response = api::PaymentsResponse {
+            // Populated only for server integrations, by the update-context enrichment.
+            payment_method_list: None,
+            session_tokens: None,
             payment_id: payment_intent.payment_id,
             merchant_id: payment_intent.merchant_id,
             status: payment_intent.status,
@@ -4745,6 +4748,9 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             .flatten()
             .map(api_models::payments::MaskedRecipientDetails::from);
         Self {
+            // Populated only for server integrations, by the update-context enrichment.
+            payment_method_list: None,
+            session_tokens: None,
             connector_response_metadata: pa.get_connector_response_metadata_from_attempt_metadata(),
             applied_offer: applied_offer_response(pa.applied_offer_details.clone()),
             payment_id: pi.payment_id,
