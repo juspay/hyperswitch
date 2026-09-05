@@ -175,7 +175,7 @@ pub struct ProfileNew {
 pub struct ProfileUpdateInternal {
     pub profile_name: Option<String>,
     pub modified_at: time::PrimitiveDateTime,
-    pub return_url: Option<String>,
+    pub return_url: Option<Option<String>>,
     pub enable_payment_response_hash: Option<bool>,
     pub payment_response_hash_key: Option<String>,
     pub redirect_to_merchant_with_http_post: Option<bool>,
@@ -417,7 +417,7 @@ pub struct ProfileNew {
 pub struct ProfileUpdateInternal {
     pub profile_name: Option<String>,
     pub modified_at: time::PrimitiveDateTime,
-    pub return_url: Option<common_utils::types::Url>,
+    pub return_url: Option<Option<common_utils::types::Url>>,
     pub enable_payment_response_hash: Option<bool>,
     pub payment_response_hash_key: Option<String>,
     pub redirect_to_merchant_with_http_post: Option<bool>,
