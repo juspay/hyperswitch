@@ -420,6 +420,9 @@ impl ConnectorData {
                 enums::Connector::Revolv3 => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Revolv3::new())))
                 }
+                enums::Connector::Saferpay => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Saferpay::new())))
+                }
                 enums::Connector::Santander => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Santander::new())))
                 }
