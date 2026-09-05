@@ -50,7 +50,7 @@ pub async fn do_gsm_actions<'a, F, ApiRequest, FData, D>(
     frm_suggestion: Option<storage_enums::FrmSuggestion>,
     business_profile: &domain::Profile,
     feature_config: &core_utils::FeatureConfig,
-    _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
 ) -> RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
 where
     F: Clone + Send + Sync + std::fmt::Debug + 'static,
@@ -92,12 +92,24 @@ where
     );
 
     let should_step_up = if step_up_possible && is_no_three_ds_payment {
-        is_step_up_enabled_for_merchant_connector(
-            state,
-            platform.get_processor().get_account().get_id(),
-            original_connector_data.connector_name,
-        )
-        .await
+        let step_up_dimensions = dimension_state::Dimensions::new()
+            .with_provider_merchant_id(dimension_state::ProviderMerchantId::new(
+                dimensions
+                    .get_provider_merchant_id()
+                    .cloned()
+                    .unwrap_or_else(|| platform.get_processor().get_account().get_id().clone()),
+            ))
+            .with_processor_merchant_id(dimension_state::ProcessorMerchantId::from(
+                platform.get_processor().get_account().get_id().clone(),
+            ))
+            .with_connector(original_connector_data.connector_name);
+        step_up_dimensions
+            .get_step_up_enabled(
+                state.store.as_ref(),
+                &state.superposition_service,
+                customer.as_ref().map(|c| c.get_id()),
+            )
+            .await
     } else {
         false
     };
@@ -239,30 +251,6 @@ where
         }
     }
     Ok(router_data)
-}
-
-#[instrument(skip_all)]
-pub async fn is_step_up_enabled_for_merchant_connector(
-    state: &app::SessionState,
-    merchant_id: &common_utils::id_type::MerchantId,
-    connector_name: types::Connector,
-) -> bool {
-    let key = merchant_id.get_step_up_enabled_key();
-    let db = &*state.store;
-    db.find_config_by_key_unwrap_or(key.as_str(), Some("[]".to_string()))
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .and_then(|step_up_config| {
-            serde_json::from_str::<Vec<types::Connector>>(&step_up_config.config)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Step-up config parsing failed")
-        })
-        .map_err(|err| {
-            logger::error!(step_up_config_error=?err);
-        })
-        .ok()
-        .map(|connectors_enabled| connectors_enabled.contains(&connector_name))
-        .unwrap_or(false)
 }
 
 #[cfg(feature = "v1")]

@@ -36,6 +36,16 @@ env:
   RUN_TESTS: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
   DEBUG: cypress:cli
   RUST_MIN_STACK: 16777216
+  # Superposition instance the Cypress jobs run against (service container
+  # published on port 8081). The helpers in cypress-tests/cypress/support/commands.js
+  # write per-merchant config overrides here, and skip silently when these are
+  # unset — which leaves every config that resolves from Superposition sitting on
+  # its seeded default. Values match `[superposition]` in config/development.toml,
+  # the config the server runs with in CI.
+  SUPERPOSITION_BASE_URL: "http://localhost:8081"
+  SUPERPOSITION_SECRET: "123456"
+  SUPERPOSITION_ORG_ID: "localorg"
+  SUPERPOSITION_WORKSPACE_ID: "dev"
 
 jobs:
   formatter:
