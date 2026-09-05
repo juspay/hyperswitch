@@ -63,9 +63,6 @@ pub struct CardDetail {
     pub card_network: Option<common_enums::CardNetwork>,
     pub card_issuer: Option<String>,
     pub card_type: Option<common_enums::CardType>,
-    pub card_subtype: Option<String>,
-    pub card_segment_type: Option<common_enums::CardSegmentType>,
-    pub funding_source: Option<common_enums::FundingSource>,
     pub card_cvc: Option<Secret<String>>,
 }
 
@@ -170,9 +167,6 @@ impl TryFrom<PaymentMethodData> for PaymentMethodCreateData {
                     card_network: card.card_network,
                     card_issuer: card.card_issuer,
                     card_type: None,
-                    card_subtype: card.card_subtype,
-                    card_segment_type: card.card_segment_type,
-                    funding_source: card.funding_source,
                     card_cvc: Some(card.card_cvc),
                 };
                 Ok(Self::Card(card_detail))

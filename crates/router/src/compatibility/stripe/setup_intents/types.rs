@@ -104,9 +104,6 @@ impl From<StripeCard> for payments::Card {
             card_issuing_country: None,
             card_issuing_country_code: None,
             card_type: None,
-            card_subtype: None,
-            card_segment_type: None,
-            funding_source: None,
             nick_name: None,
         }
     }
