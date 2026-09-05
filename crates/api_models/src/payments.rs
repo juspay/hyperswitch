@@ -7356,19 +7356,23 @@ pub struct PaymentsResponse {
     /// The combined payment-method list for this payment.
     ///
     /// Returned only when the request carries `X-Integration-Type: server`; absent from the
-    /// response for client integrations. Shape matches `ClientPaymentMethodsListResponse`.
+    /// response for client integrations. On success this is the body
+    /// `GET /payments/{payment_id}/payment-methods/client` would have returned; on failure it is
+    /// `{ "error": { ... } }`.
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[schema(value_type = Option<Object>)]
+    #[schema(value_type = Option<PaymentMethodListResult>)]
     #[smithy(value_type = "Option<Document>")]
-    pub payment_method_list: Option<crate::payment_methods::PaymentMethodListResult>,
+    pub payment_method_list: Option<payment_methods::PaymentMethodListResult>,
 
     /// Wallet session tokens minted for this payment.
     ///
     /// Returned only when the request carries `X-Integration-Type: server`; absent from the
-    /// response for client integrations. Shape matches the `session_token` array of
-    /// `PaymentsSessionResponse`.
+    /// response for client integrations. On success this is the whole body
+    /// `POST /payments/session_tokens` would have returned — including `vault_details`, which
+    /// carries the internal vault SDK authorization — and not just its `session_token` array.
+    /// On failure it is `{ "error": { ... } }`.
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[schema(value_type = Option<Object>)]
+    #[schema(value_type = Option<SessionTokensResult>)]
     #[smithy(value_type = "Option<Document>")]
     pub session_tokens: Option<SessionTokensResult>,
 
@@ -10431,7 +10435,8 @@ pub struct GooglePayTokenizationParameters {
 
 /// Wallet session tokens, or the error that prevented them being minted.
 ///
-/// Serialized untagged: a success is the token array, a failure is `{ "error": {...} }`.
+/// Serialized untagged: a success is the whole `PaymentsSessionResponse` object, a failure is
+/// `{ "error": {...} }`.
 #[cfg(feature = "v1")]
 #[derive(Debug, Clone, PartialEq, serde::Serialize, ToSchema)]
 #[serde(untagged)]
@@ -10439,7 +10444,8 @@ pub enum SessionTokensResult {
     /// The session response exactly as `POST /payments/session_tokens` returns it, including
     /// `vault_details` — which carries the internal vault SDK authorization.
     Success(Box<PaymentsSessionResponse>),
-    Failed(crate::payment_methods::SectionError),
+    #[schema(value_type = SectionError)]
+    Failed(payment_methods::SectionError),
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
@@ -10474,9 +10480,38 @@ pub enum SessionToken {
     /// The session response structure for Amazon Pay
     #[smithy(value_type = "AmazonPaySessionTokenResponse")]
     AmazonPay(Box<AmazonPaySessionTokenResponse>),
+    /// A wallet whose session token could not be minted.
+    ///
+    /// The connector call failed, or returned no usable token. Previously these were logged and
+    /// the entry dropped, which left the caller unable to tell "this wallet is not configured"
+    /// apart from "this wallet failed just now".
+    #[smithy(value_type = "SessionTokenErrorResponse")]
+    Failed(Box<SessionTokenErrorResponse>),
     /// Whenever there is no session token response or an error in session response
     #[smithy(value_type = "smithy.api#Unit")]
     NoSessionTokenReceived,
+}
+
+/// Why a single wallet's session token is missing from the response.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct SessionTokenErrorResponse {
+    /// The connector that was asked for the session token.
+    #[schema(example = "stripe")]
+    #[smithy(value_type = "String")]
+    pub connector: String,
+    /// The payment method type the token was requested for, when known.
+    #[schema(value_type = Option<PaymentMethodType>, example = "google_pay")]
+    #[smithy(value_type = "Option<String>")]
+    pub payment_method_type: Option<api_enums::PaymentMethodType>,
+    /// Connector-reported error code, when one was returned.
+    #[schema(example = "card_declined")]
+    #[smithy(value_type = "Option<String>")]
+    pub code: Option<String>,
+    /// Human-readable description of what went wrong.
+    #[schema(example = "No API key provided")]
+    #[smithy(value_type = "String")]
+    pub message: String,
 }
 
 /// Top-level vault details returned in the session-tokens response.

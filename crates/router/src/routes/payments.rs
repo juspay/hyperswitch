@@ -967,42 +967,47 @@ pub async fn payments_update(
 
                 // A server integration additionally receives the payment-method list and wallet
                 // session tokens on the same response; client integrations are untouched.
+                //
+                // Gated on merchant auth as well as the header. This route also accepts
+                // publishable-key + client-secret, and the enrichment runs the session core as
+                // `AuthFlow::Merchant` and skips client-secret validation on the list — so a
+                // client-authenticated caller must not be able to opt in with a header alone.
+                let enrich = integration_type.is_server() && auth_flow == api::AuthFlow::Merchant;
+
+                if integration_type.is_server() && !enrich {
+                    logger::warn!(
+                        "server integration type requested on a client-authenticated request; \
+                         returning the client response shape"
+                    );
+                }
+
                 // Payments responses come back as `JsonWithHeaders`; `Json` is handled too so the
                 // enrichment does not silently skip if that ever changes.
-                match (integration_type.is_server(), response) {
-                    (
-                        true,
-                        services::ApplicationResponse::JsonWithHeaders((mut payment, headers)),
-                    ) => {
-                        let id = payment.payment_id.clone();
-                        update_context::attach_server_context(
-                            &state,
-                            req_state,
-                            &platform,
-                            profile_id,
-                            &id,
-                            &header_payload,
-                            &mut payment,
-                        )
-                        .await;
+                let enrich_payment = |mut payment: payment_types::PaymentsResponse| async {
+                    let id = payment.payment_id.clone();
+                    Box::pin(update_context::attach_server_context(
+                        &state,
+                        req_state,
+                        &platform,
+                        profile_id,
+                        &id,
+                        &header_payload,
+                        &mut payment,
+                    ))
+                    .await;
+                    payment
+                };
+
+                match (enrich, response) {
+                    (true, services::ApplicationResponse::JsonWithHeaders((payment, headers))) => {
                         Ok(services::ApplicationResponse::JsonWithHeaders((
-                            payment, headers,
+                            enrich_payment(payment).await,
+                            headers,
                         )))
                     }
-                    (true, services::ApplicationResponse::Json(mut payment)) => {
-                        let id = payment.payment_id.clone();
-                        update_context::attach_server_context(
-                            &state,
-                            req_state,
-                            &platform,
-                            profile_id,
-                            &id,
-                            &header_payload,
-                            &mut payment,
-                        )
-                        .await;
-                        Ok(services::ApplicationResponse::Json(payment))
-                    }
+                    (true, services::ApplicationResponse::Json(payment)) => Ok(
+                        services::ApplicationResponse::Json(enrich_payment(payment).await),
+                    ),
                     (_, response) => Ok(response),
                 }
             }

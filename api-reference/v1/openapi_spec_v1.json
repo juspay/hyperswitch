@@ -31857,6 +31857,17 @@
           }
         }
       },
+      "PaymentMethodListResult": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ClientPaymentMethodsListResponse"
+          },
+          {
+            "$ref": "#/components/schemas/SectionError"
+          }
+        ],
+        "description": "The combined payment-method list, or the error that prevented it being built.\n\nSerialized untagged: a success is the listing object itself, a failure is `{ \"error\": {...} }`."
+      },
       "PaymentMethodMetaData": {
         "type": "object",
         "description": "Represents metadata about the payment method used in the 3DS decision rule.",
@@ -33793,13 +33804,19 @@
             "nullable": true
           },
           "payment_method_list": {
-            "type": "object",
-            "description": "The combined payment-method list for this payment.\n\nReturned only when the request carries `X-Integration-Type: server`; absent from the\nresponse for client integrations. Shape matches `ClientPaymentMethodsListResponse`.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodListResult"
+              }
+            ],
             "nullable": true
           },
           "session_tokens": {
-            "type": "object",
-            "description": "Wallet session tokens minted for this payment.\n\nReturned only when the request carries `X-Integration-Type: server`; absent from the\nresponse for client integrations. Shape matches the `session_token` array of\n`PaymentsSessionResponse`.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SessionTokensResult"
+              }
+            ],
             "nullable": true
           },
           "connector": {
@@ -35607,13 +35624,19 @@
             "nullable": true
           },
           "payment_method_list": {
-            "type": "object",
-            "description": "The combined payment-method list for this payment.\n\nReturned only when the request carries `X-Integration-Type: server`; absent from the\nresponse for client integrations. Shape matches `ClientPaymentMethodsListResponse`.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodListResult"
+              }
+            ],
             "nullable": true
           },
           "session_tokens": {
-            "type": "object",
-            "description": "Wallet session tokens minted for this payment.\n\nReturned only when the request carries `X-Integration-Type: server`; absent from the\nresponse for client integrations. Shape matches the `session_token` array of\n`PaymentsSessionResponse`.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SessionTokensResult"
+              }
+            ],
             "nullable": true
           },
           "connector": {
@@ -43898,6 +43921,44 @@
           }
         }
       },
+      "SectionError": {
+        "type": "object",
+        "description": "Wrapper carrying a section's error payload under an `error` key.",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/SectionErrorDetail"
+          }
+        }
+      },
+      "SectionErrorDetail": {
+        "type": "object",
+        "description": "The error payload a section carries when its underlying call failed.\n\nMirrors the body the standalone endpoint would have returned, so a caller parses the same\nshape whether it called that endpoint directly or received the section inline.",
+        "required": [
+          "type",
+          "message",
+          "code"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "The error category, e.g. `invalid_request`.",
+            "example": "invalid_request"
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable description of what went wrong.",
+            "example": "Payment method list could not be retrieved"
+          },
+          "code": {
+            "type": "string",
+            "description": "Machine-readable error code, e.g. `HE_00`.",
+            "example": "HE_00"
+          }
+        }
+      },
       "SepaAndBacsBillingDetails": {
         "type": "object",
         "properties": {
@@ -44277,6 +44338,27 @@
             ]
           },
           {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SessionTokenErrorResponse"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "wallet_name"
+                ],
+                "properties": {
+                  "wallet_name": {
+                    "type": "string",
+                    "enum": [
+                      "failed"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
             "type": "object",
             "required": [
               "wallet_name"
@@ -44293,6 +44375,40 @@
         ],
         "discriminator": {
           "propertyName": "wallet_name"
+        }
+      },
+      "SessionTokenErrorResponse": {
+        "type": "object",
+        "description": "Why a single wallet's session token is missing from the response.",
+        "required": [
+          "connector",
+          "message"
+        ],
+        "properties": {
+          "connector": {
+            "type": "string",
+            "description": "The connector that was asked for the session token.",
+            "example": "stripe"
+          },
+          "payment_method_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              }
+            ],
+            "nullable": true
+          },
+          "code": {
+            "type": "string",
+            "description": "Connector-reported error code, when one was returned.",
+            "example": "card_declined",
+            "nullable": true
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable description of what went wrong.",
+            "example": "No API key provided"
+          }
         }
       },
       "SessionTokenInfo": {
@@ -44345,6 +44461,17 @@
             }
           }
         ]
+      },
+      "SessionTokensResult": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/PaymentsSessionResponse"
+          },
+          {
+            "$ref": "#/components/schemas/SectionError"
+          }
+        ],
+        "description": "Wallet session tokens, or the error that prevented them being minted.\n\nSerialized untagged: a success is the whole `PaymentsSessionResponse` object, a failure is\n`{ \"error\": {...} }`."
       },
       "SizeVariants": {
         "type": "string",

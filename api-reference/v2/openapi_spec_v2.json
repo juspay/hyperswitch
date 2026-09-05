@@ -31979,6 +31979,27 @@
             ]
           },
           {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SessionTokenErrorResponse"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "wallet_name"
+                ],
+                "properties": {
+                  "wallet_name": {
+                    "type": "string",
+                    "enum": [
+                      "failed"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
             "type": "object",
             "required": [
               "wallet_name"

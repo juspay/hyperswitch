@@ -25,6 +25,15 @@ use crate::{
     types::{api as api_types, domain},
 };
 
+/// How long a single section may take before it is reported as degraded.
+///
+/// The session core runs with `CallConnectorAction::Trigger`, so it can make outbound connector
+/// calls, and the payment-method list is served by the modular service over HTTP. The payment has
+/// already committed by the time either runs, so a section that hangs would hold a response the
+/// caller is entitled to. Each section is bounded independently so a slow one cannot starve the
+/// other.
+const SECTION_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
+
 /// Which integration the caller is building, taken from `X-Integration-Type`.
 ///
 /// Defaults to `Client` when the header is absent or unrecognised, so an existing integration
@@ -40,10 +49,17 @@ impl IntegrationType {
         headers
             .get(consts::X_INTEGRATION_TYPE)
             .and_then(|value| value.to_str().ok())
-            .map(|value| {
-                if value.trim().eq_ignore_ascii_case("server") {
-                    Self::Server
-                } else {
+            .map(|value| match value.trim() {
+                value if value.eq_ignore_ascii_case("server") => Self::Server,
+                value if value.eq_ignore_ascii_case("client") => Self::Client,
+                // Falling back to `Client` keeps a malformed header from failing the payment, but
+                // a caller that meant `server` would otherwise just never see the extra sections.
+                unrecognised => {
+                    logger::warn!(
+                        header = consts::X_INTEGRATION_TYPE,
+                        value = unrecognised,
+                        "unrecognised integration type, defaulting to client"
+                    );
                     Self::Client
                 }
             })
@@ -57,17 +73,13 @@ impl IntegrationType {
 
 /// Wallets to mint session tokens for when the caller asks for the server shape.
 ///
-/// The payments request carries no wallet list of its own, so the enrichment offers every wallet
-/// we can mint a token for; the session core filters down to what the merchant actually has
-/// enabled and eligible.
+/// Empty on purpose. The session core reads an empty list as "every eligible type": it keeps a
+/// payment method type when `requested_payment_method_types.contains(..) || ..is_empty()`, so an
+/// empty list yields a token for every `InvokeSdkClient`-capable method the merchant has enabled.
+/// Naming wallets explicitly here would silently exclude anything not on the list — Klarna SDK
+/// sessions today, and every type added later.
 fn requested_wallets() -> Vec<api_models::enums::PaymentMethodType> {
-    use api_models::enums::PaymentMethodType;
-    vec![
-        PaymentMethodType::ApplePay,
-        PaymentMethodType::GooglePay,
-        PaymentMethodType::Paypal,
-        PaymentMethodType::SamsungPay,
-    ]
+    Vec::new()
 }
 
 /// Builds the error payload a degraded section carries, from the same error the standalone
@@ -84,6 +96,14 @@ fn section_error(error: &error_stack::Report<errors::ApiErrorResponse>) -> Secti
             code: rendered.code,
         },
     }
+}
+
+/// The error a section reports when it exceeds [`SECTION_TIMEOUT`].
+fn timed_out(section: &str) -> error_stack::Report<errors::ApiErrorResponse> {
+    error_stack::report!(errors::ApiErrorResponse::InternalServerError).attach_printable(format!(
+        "server-integration: {section} exceeded {}s and was reported as degraded",
+        SECTION_TIMEOUT.as_secs()
+    ))
 }
 
 /// Attaches the payment-method list and wallet session tokens to a payments response.
@@ -103,25 +123,36 @@ pub async fn attach_server_context(
 ) {
     tracing::Span::current().record("payment_id", payment_id.get_string_repr());
 
-    // Both reads observe the committed payment; neither reads the other's output.
-    let (session_result, payment_methods_result) = futures::future::join(
-        session_tokens(
-            state,
-            req_state,
-            platform,
-            profile_id,
-            payment_id,
-            header_payload,
+    // Both reads observe the committed payment; neither reads the other's output. Each is
+    // bounded separately so one slow section still lets the other through.
+    let (session_result, payment_methods_result) = Box::pin(futures::future::join(
+        tokio::time::timeout(
+            SECTION_TIMEOUT,
+            Box::pin(session_tokens(
+                state,
+                req_state,
+                platform,
+                profile_id,
+                payment_id,
+                header_payload,
+            )),
         ),
-        pm_client::list_payment_methods_client(
-            state.clone(),
-            platform.clone(),
-            payment_id.clone(),
-            // Merchant API key authenticated; there is no client secret to validate.
-            None,
+        tokio::time::timeout(
+            SECTION_TIMEOUT,
+            pm_client::list_payment_methods_client(
+                state.clone(),
+                platform.clone(),
+                payment_id.clone(),
+                // Merchant API key authenticated; there is no client secret to validate.
+                None,
+            ),
         ),
-    )
+    ))
     .await;
+
+    let session_result = session_result.unwrap_or_else(|_| Err(timed_out("session_tokens")));
+    let payment_methods_result =
+        payment_methods_result.unwrap_or_else(|_| Err(timed_out("payment_method_list")));
 
     response.session_tokens = Some(match session_result {
         Ok(session) => payment_types::SessionTokensResult::Success(Box::new(session)),
@@ -199,5 +230,79 @@ fn json_body<T>(response: ApplicationResponse<T>, section: &str) -> errors::Rout
         .attach_printable_lazy(|| {
             format!("server-integration: {section} core returned a non-JSON response")
         }),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use actix_web::http::header::{HeaderMap, HeaderName, HeaderValue};
+
+    use super::*;
+
+    fn headers(value: Option<&str>) -> HeaderMap {
+        let mut map = HeaderMap::new();
+        value.into_iter().for_each(|value| {
+            map.insert(
+                HeaderName::from_static(consts::X_INTEGRATION_TYPE),
+                HeaderValue::from_str(value).expect("header value"),
+            );
+        });
+        map
+    }
+
+    #[test]
+    fn absent_header_is_client() {
+        assert_eq!(
+            IntegrationType::from_headers(&headers(None)),
+            IntegrationType::Client
+        );
+    }
+
+    #[test]
+    fn server_opts_in() {
+        assert_eq!(
+            IntegrationType::from_headers(&headers(Some("server"))),
+            IntegrationType::Server
+        );
+    }
+
+    #[test]
+    fn server_is_case_and_whitespace_insensitive() {
+        ["SERVER", "Server", "  server  "]
+            .into_iter()
+            .for_each(|value| {
+                assert_eq!(
+                    IntegrationType::from_headers(&headers(Some(value))),
+                    IntegrationType::Server,
+                    "{value:?} should opt in"
+                );
+            });
+    }
+
+    #[test]
+    fn client_and_unrecognised_values_stay_client() {
+        // A typo must not fail the payment; it degrades to the existing response shape.
+        ["client", "CLIENT", "sever", "banana", ""]
+            .into_iter()
+            .for_each(|value| {
+                assert_eq!(
+                    IntegrationType::from_headers(&headers(Some(value))),
+                    IntegrationType::Client,
+                    "{value:?} should not opt in"
+                );
+            });
+    }
+
+    #[test]
+    fn only_server_is_server() {
+        assert!(IntegrationType::Server.is_server());
+        assert!(!IntegrationType::Client.is_server());
+    }
+
+    #[test]
+    fn every_eligible_wallet_is_requested() {
+        // Empty means "all eligible" to the session core; a non-empty list would silently
+        // exclude any type not named in it.
+        assert!(requested_wallets().is_empty());
     }
 }
