@@ -33,6 +33,7 @@ pub mod ctp_mastercard;
 pub mod custombilling;
 pub mod cybersource;
 pub mod cybersourcedecisionmanager;
+pub mod d24;
 pub mod datatrans;
 pub mod deutschebank;
 pub mod digitalvirgo;
@@ -165,7 +166,7 @@ pub use self::{
     chargebee::Chargebee, checkbook::Checkbook, checkout::Checkout, citigate::Citigate,
     coinbase::Coinbase, coingate::Coingate, cryptopay::Cryptopay, ctp_mastercard::CtpMastercard,
     custombilling::Custombilling, cybersource::Cybersource,
-    cybersourcedecisionmanager::Cybersourcedecisionmanager, datatrans::Datatrans,
+    cybersourcedecisionmanager::Cybersourcedecisionmanager, d24::D24, datatrans::Datatrans,
     deutschebank::Deutschebank, digitalvirgo::Digitalvirgo, dlocal::Dlocal, dwolla::Dwolla,
     ebanx::Ebanx, elavon::Elavon, envoy::Envoy, facilitapay::Facilitapay, finix::Finix,
     fiserv::Fiserv, fiservcommercehub::Fiservcommercehub, fiservemea::Fiservemea, fiuu::Fiuu,

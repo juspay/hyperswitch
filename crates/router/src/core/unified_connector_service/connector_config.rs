@@ -273,6 +273,13 @@ pub enum ConnectorSpecificConfig {
         key1: Secret<String>,
         base_url: Option<String>,
     },
+    /// D24 (Directa24) connector configuration
+    D24 {
+        api_key: Secret<String>,
+        key1: Secret<String>,
+        api_secret: Secret<String>,
+        base_url: Option<String>,
+    },
     /// Worldpay Native RAFT connector configuration
     Worldpayraft {
         license: Secret<String>,
@@ -1793,6 +1800,21 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     base_url: None,
                 }),
                 _ => Err(err("Citigate requires BodyKey auth type")),
+            },
+            // `key1` is D24's read-only API Key (the `X-Login` on PSync GETs);
+            // `api_secret` is the API Signature used as the HMAC-SHA256 key.
+            Connector::D24 => match auth {
+                ConnectorAuthType::SignatureKey {
+                    api_key,
+                    key1,
+                    api_secret,
+                } => Ok(Self::D24 {
+                    api_key: api_key.clone(),
+                    key1: key1.clone(),
+                    api_secret: api_secret.clone(),
+                    base_url: None,
+                }),
+                _ => Err(err("D24 requires SignatureKey auth type")),
             },
             Connector::Worldpayraft => match auth {
                 ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Worldpayraft {
