@@ -699,11 +699,16 @@ impl DisputeInterface for MockDb {
     ) -> CustomResult<storage::Dispute, errors::StorageError> {
         let mut locked_disputes = self.disputes.lock().await;
 
-        if locked_disputes
-            .iter()
-            .any(|d| d.dispute_id == dispute.dispute_id)
-        {
-            Err(errors::StorageError::MockDbError)?;
+        if locked_disputes.iter().any(|d| {
+            d.dispute_id == dispute.dispute_id
+                || (d.merchant_id == dispute.merchant_id
+                    && d.payment_id == dispute.payment_id
+                    && d.connector_dispute_id == dispute.connector_dispute_id)
+        }) {
+            Err(errors::StorageError::DuplicateValue {
+                entity: "dispute",
+                key: Some(dispute.dispute_id),
+            })?;
         }
 
         let new_dispute = storage::Dispute {
@@ -1155,6 +1160,57 @@ mod tests {
             assert!(found_dispute.is_some());
 
             assert_eq!(created_dispute, found_dispute.unwrap());
+        }
+
+        #[tokio::test]
+        async fn test_insert_duplicate_dispute_returns_duplicate_value() {
+            let merchant_id =
+                common_utils::id_type::MerchantId::try_from(Cow::from("merchant_1")).unwrap();
+
+            let mockdb = MockDb::new(&RedisSettings::default(), KeyManagerState::mock())
+                .await
+                .expect("Failed to create Mock store");
+
+            let dispute1 = create_dispute_new(DisputeNewIds {
+                dispute_id: "dispute_1".into(),
+                attempt_id: "attempt_1".into(),
+                merchant_id: merchant_id.clone(),
+                payment_id: common_utils::id_type::PaymentId::try_from(Cow::Borrowed(
+                    "payment_1",
+                ))
+                .unwrap(),
+                connector_dispute_id: "connector_dispute_1".into(),
+            });
+
+            let created_dispute = mockdb
+                .insert_dispute(
+                    dispute1,
+                    diesel_models::enums::MerchantStorageScheme::PostgresOnly,
+                )
+                .await;
+            assert!(created_dispute.is_ok());
+
+            // Concurrent or duplicate webhook with new dispute_id but same connector_dispute_id and payment_id
+            let duplicate_dispute = create_dispute_new(DisputeNewIds {
+                dispute_id: "dispute_2".into(),
+                attempt_id: "attempt_1".into(),
+                merchant_id: merchant_id.clone(),
+                payment_id: common_utils::id_type::PaymentId::try_from(Cow::Borrowed(
+                    "payment_1",
+                ))
+                .unwrap(),
+                connector_dispute_id: "connector_dispute_1".into(),
+            });
+
+            let err = mockdb
+                .insert_dispute(
+                    duplicate_dispute,
+                    diesel_models::enums::MerchantStorageScheme::PostgresOnly,
+                )
+                .await
+                .unwrap_err();
+
+            assert!(err.current_context().is_db_unique_violation());
         }
 
         #[tokio::test]
