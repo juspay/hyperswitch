@@ -642,6 +642,20 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 zsl::transformers::ZslAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Nsure => {
+                // Executed via UCS, so there is no in-process auth type to
+                // delegate to. nSure needs the authorization key plus the
+                // portal Application ID.
+                match self.auth_type {
+                    hyperswitch_domain_models::router_data::ConnectorAuthType::BodyKey {
+                        ..
+                    }
+                    | hyperswitch_domain_models::router_data::ConnectorAuthType::HeaderKey {
+                        ..
+                    } => Ok(()),
+                    _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
+                }
+            }
             api_enums::Connector::Signifyd => {
                 signifyd::transformers::SignifydAuthType::try_from(self.auth_type)?;
                 Ok(())

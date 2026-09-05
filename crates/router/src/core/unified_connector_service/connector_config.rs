@@ -722,8 +722,6 @@ pub enum ConnectorSpecificConfig {
         response_decryption_private_key: Secret<String>,
         card_sync_key_id: String,
     },
-    /// Netcetera authentication connector configuration (no connector-specific config needed)
-    Netcetera,
     /// Santander payout connector configuration
     Santander {
         certificates: Secret<String>,
@@ -1830,7 +1828,6 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 }
                 _ => Err(err("Juspay requires HeaderKey auth type")),
             },
-            Connector::Netcetera => Ok(Self::Netcetera),
             Connector::Santander => match auth {
                 ConnectorAuthType::CertificateAuth {
                     certificate,
@@ -1904,19 +1901,26 @@ pub fn build_connector_config_header(
     auth_type: &ConnectorAuthType,
     merchant_account_metadata: Option<&serde_json::Value>,
 ) -> RouterResult<Option<String>> {
+    // Nsure and Netcetera have no connector-specific config on the wire:
+    // - Nsure: the pinned `unified-connector-service-client` has no `nsure`
+    //   case in its `ConnectorSpecificConfig` oneof yet.
+    // - Netcetera: connector-service's `ConnectorSpecificConfig` oneof has no
+    //   `netcetera` case at all.
+    // Sending the header for either makes UCS hard-error on deserialization
+    // instead of falling back to the legacy auth header, so both are suppressed
+    // here before a config is even built. UCS then takes the legacy auth-header
+    // path (`x-auth` / `x-api-key` / `x-key1`), which maps BodyKey onto
+    // `ConnectorSpecificConfig::Nsure` connector-side, and needs no config at
+    // all for Netcetera.
+    if matches!(connector, Connector::Nsure | Connector::Netcetera) {
+        return Ok(None);
+    }
+
     let config = ConnectorSpecificConfig::foreign_try_from((
         connector,
         auth_type,
         merchant_account_metadata,
     ))?;
-
-    // Netcetera has no connector-specific config on the wire (connector-service's
-    // `ConnectorSpecificConfig` oneof has no `netcetera` case), so sending this header makes
-    // UCS hard-error on deserialization instead of falling back to the legacy auth header.
-    // Suppress it here so UCS takes the legacy-header path, which does work for Netcetera.
-    if matches!(config, ConnectorSpecificConfig::Netcetera) {
-        return Ok(None);
-    }
 
     let config_json = serde_json::to_value(&config)
         .change_context(errors::ApiErrorResponse::InternalServerError)

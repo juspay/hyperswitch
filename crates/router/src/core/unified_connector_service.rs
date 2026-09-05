@@ -70,6 +70,7 @@ use crate::{
 };
 
 pub mod connector_config;
+pub mod frm;
 pub mod kill_switch;
 pub mod transformers;
 
@@ -832,7 +833,7 @@ type UnifiedConnectorServiceCreateOrderResult = CustomResult<
 >;
 
 /// Checks if the Unified Connector Service (UCS) is available for use
-async fn check_ucs_availability(state: &SessionState) -> UcsAvailability {
+pub(crate) async fn check_ucs_availability(state: &SessionState) -> UcsAvailability {
     let is_client_available = state.grpc_client.unified_connector_service_client.is_some();
 
     let is_enabled = is_config_flag_enabled(state, consts::UCS_ENABLED).await;

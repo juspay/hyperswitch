@@ -152,6 +152,11 @@ impl ForeignTryFrom<api_enums::Connector> for euclid::enums::RoutableConnectors 
             api_enums::Connector::Shift4 => Self::Shift4,
             api_enums::Connector::Zift => Self::Zift,
             api_enums::Connector::Silverflow => Self::Silverflow,
+            api_enums::Connector::Nsure => {
+                Err(common_utils::errors::ValidationError::InvalidValue {
+                    message: "nsure is not a routable connector".to_string(),
+                })?
+            }
             api_enums::Connector::Signifyd => {
                 Err(common_utils::errors::ValidationError::InvalidValue {
                     message: "signifyd is not a routable connector".to_string(),
