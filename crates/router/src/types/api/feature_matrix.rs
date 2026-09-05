@@ -209,6 +209,9 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Globalpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Globalpay::new())))
                 }
+                enums::Connector::GlobalpaymentsRealex => Ok(ConnectorEnum::Old(Box::new(
+                    connector::GlobalpaymentsRealex::new(),
+                ))),
                 enums::Connector::Globepay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Globepay::new())))
                 }

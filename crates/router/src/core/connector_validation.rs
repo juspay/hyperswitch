@@ -301,6 +301,12 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 globalpay::transformers::GlobalPayMeta::try_from(self.connector_meta_data)?;
                 Ok(())
             }
+            api_enums::Connector::GlobalpaymentsRealex => {
+                globalpayments_realex::transformers::GlobalpaymentsRealexAuthType::try_from(
+                    self.auth_type,
+                )?;
+                Ok(())
+            }
             api_enums::Connector::Globepay => {
                 globepay::transformers::GlobepayAuthType::try_from(self.auth_type)?;
                 Ok(())

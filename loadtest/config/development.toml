@@ -175,6 +175,7 @@ getnet.base_url = "https://api-test.getneteurope.com/engine/rest"
 gigadat.base_url = "https://interac.express-connect.com/"
 givepayments.base_url = "https://api-sandbox.givepayments.com"
 globalpay.base_url = "https://apis.sandbox.globalpay.com/ucp/"
+globalpayments_realex.base_url = "https://api.sandbox.realexpayments.com/"
 globepay.base_url = "https://pay.globepay.co/"
 gocardless.base_url = "https://api-sandbox.gocardless.com"
 gotyme_sanlam.base_url = "dev"
@@ -959,6 +960,7 @@ sts_role_session_name = ""
 paybox = { payment_method = "card" }
 redsys = { payment_method = "card" }
 barclaycard = { payment_method = "card" }
+globalpayments_realex = { payment_method = "card" }
 worldpayxml = { payment_method = "card" }
 
 [billing_connectors_payment_sync]
