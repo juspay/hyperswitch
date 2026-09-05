@@ -1556,27 +1556,38 @@ pub async fn payments_connector_session(
             if let Some(client_secret) = auth.client_secret {
                 payload.client_secret = Some(client_secret);
             }
-            payments::payments_core::<
-                api_types::Session,
-                payment_types::PaymentsSessionResponse,
-                _,
-                _,
-                _,
-                payments::PaymentData<api_types::Session>,
-            >(
-                state,
-                req_state,
-                auth.platform,
-                auth.profile.map(|profile| profile.get_id().clone()),
-                payments::PaymentSession,
-                payload,
-                api::AuthFlow::Client,
-                payments::CallConnectorAction::Trigger,
-                None,
-                None,
-                header_payload.clone(),
-                None,
-            )
+            let header_payload = header_payload.clone();
+            async move {
+                let response = Box::pin(payments::payments_core::<
+                    api_types::Session,
+                    payment_types::PaymentsSessionResponse,
+                    _,
+                    _,
+                    _,
+                    payments::PaymentData<api_types::Session>,
+                >(
+                    state,
+                    req_state,
+                    auth.platform,
+                    auth.profile.map(|profile| profile.get_id().clone()),
+                    payments::PaymentSession,
+                    payload,
+                    api::AuthFlow::Client,
+                    payments::CallConnectorAction::Trigger,
+                    None,
+                    None,
+                    header_payload.clone(),
+                    None,
+                ))
+                .await?;
+
+                // The core now records a `Failed` entry for a wallet whose token could not be
+                // minted, so the combined server-integration response can report it. This
+                // endpoint predates that and its callers treat `session_token` as a list of
+                // usable wallets, so the failures are dropped here to keep the existing
+                // contract byte-for-byte.
+                Ok(update_context::without_failed_session_tokens(response))
+            }
         },
         &*auth,
         locking_action,

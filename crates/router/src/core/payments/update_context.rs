@@ -218,6 +218,31 @@ async fn session_tokens(
     json_body(response, "session_tokens")
 }
 
+/// Strips the `Failed` entries the session core now records, restoring the legacy
+/// `session_token` contract for callers that predate them.
+///
+/// The combined server-integration response keeps the failures — that is the whole point of
+/// recording them — but the standalone endpoint's callers treat this array as the list of wallets
+/// they can actually render, and at least one asserts on its exact length.
+pub fn without_failed_session_tokens(
+    response: ApplicationResponse<payment_types::PaymentsSessionResponse>,
+) -> ApplicationResponse<payment_types::PaymentsSessionResponse> {
+    let strip = |mut session: payment_types::PaymentsSessionResponse| {
+        session.session_token.retain(|token| {
+            !matches!(token, api_models::payments::SessionToken::Failed(_))
+        });
+        session
+    };
+
+    match response {
+        ApplicationResponse::Json(session) => ApplicationResponse::Json(strip(session)),
+        ApplicationResponse::JsonWithHeaders((session, headers)) => {
+            ApplicationResponse::JsonWithHeaders((strip(session), headers))
+        }
+        other => other,
+    }
+}
+
 /// A core response can only contribute when it is a plain JSON body.
 fn json_body<T>(response: ApplicationResponse<T>, section: &str) -> errors::RouterResult<T> {
     match response {
