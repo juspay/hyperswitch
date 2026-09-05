@@ -2755,6 +2755,7 @@ connector = { position = 1, schema = { enum = [
     "getnet",
     "gigadat",
     "globalpay",
+    "globalpayments_heartland",
     "globepay",
     "gocardless",
     "gpayments",
@@ -4041,6 +4042,13 @@ _context_ = { connector = "square", payment_method = "Card", payment_method_type
 "dynamic_fields.card.card_number._is_required" = true
 
 [[overrides]]
+_context_ = { connector = "globalpayments_heartland", payment_method = "Card", payment_method_type = "Credit" }
+"dynamic_fields.card.card_cvc._is_required" = true
+"dynamic_fields.card.card_exp_month._is_required" = true
+"dynamic_fields.card.card_exp_year._is_required" = true
+"dynamic_fields.card.card_number._is_required" = true
+
+[[overrides]]
 _context_ = { connector = "stripe", payment_method = "Card", payment_method_type = "Credit" }
 "dynamic_fields.card.card_cvc._is_required" = true
 "dynamic_fields.card.card_exp_month._is_required" = true
@@ -4394,6 +4402,13 @@ _context_ = { connector = "silverflow", payment_method = "Card", payment_method_
 
 [[overrides]]
 _context_ = { connector = "square", payment_method = "Card", payment_method_type = "Debit" }
+"dynamic_fields.card.card_cvc._is_required" = true
+"dynamic_fields.card.card_exp_month._is_required" = true
+"dynamic_fields.card.card_exp_year._is_required" = true
+"dynamic_fields.card.card_number._is_required" = true
+
+[[overrides]]
+_context_ = { connector = "globalpayments_heartland", payment_method = "Card", payment_method_type = "Debit" }
 "dynamic_fields.card.card_cvc._is_required" = true
 "dynamic_fields.card.card_exp_month._is_required" = true
 "dynamic_fields.card.card_exp_year._is_required" = true
