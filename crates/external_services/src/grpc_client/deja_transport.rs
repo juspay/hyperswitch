@@ -40,17 +40,100 @@ const OPERATION: &str = "unary";
 /// The transport wrapper. Generic over the inner tower service so the same
 /// type serves the shared hyper pool (dynamic routing / health / recovery)
 /// and the UCS `tonic::transport::Channel`s.
+///
+/// `inner` is `None` only for a boundary built by
+/// [`DejaGrpcTransport::substituted`] — see there and [`connect_or_substitute`].
 #[derive(Debug, Clone)]
 pub struct DejaGrpcTransport<S> {
-    inner: S,
+    inner: Option<S>,
 }
 
 impl<S> DejaGrpcTransport<S> {
-    /// Wraps a transport. Call at the construction site, never per request.
+    /// Wraps a live transport. Call at the construction site, never per request.
     pub fn new(inner: S) -> Self {
-        Self { inner }
+        Self { inner: Some(inner) }
+    }
+
+    /// A boundary with no transport beneath it.
+    ///
+    /// Valid ONLY under replay, where every call is served from the recording:
+    /// readiness is answered directly, and a call the recording cannot answer
+    /// fail-stops via [`fail_stop_absent_transport`] rather than connecting.
+    pub fn substituted() -> Self {
+        Self { inner: None }
     }
 }
+
+/// Wrap a transport the host builds eagerly, standing in for it under replay.
+///
+/// Under replay `connect` is never run: no rpc is issued live, so the transport
+/// is dead weight and could not have connected anyway. In every other mode it
+/// runs verbatim, and `None` propagates the host's own outcome unchanged.
+pub async fn connect_or_substitute<S, F, Fut>(connect: F) -> Option<DejaGrpcTransport<S>>
+where
+    F: FnOnce() -> Fut,
+    Fut: Future<Output = Option<S>>,
+{
+    if deja::__private::runtime_mode().is_replay() {
+        Some(DejaGrpcTransport::substituted())
+    } else {
+        connect().await.map(DejaGrpcTransport::new)
+    }
+}
+
+/// Replay fail-stop for a boundary that deliberately has no transport.
+///
+/// Distinct from `deja::__private::fail_stop_substitute_miss`, whose message
+/// offers `replay_strategy = Execute` as the remedy: with nothing beneath the
+/// boundary there is nothing to run, and the miss says nothing about the
+/// candidate either way.
+///
+/// Names the rpc path and authority because `BOUNDARY` and `COMPONENT` are
+/// module constants shared by every transport this wrapper is installed on.
+// Panicking IS deja's fail-stop mechanism, not an accident: `catch_fail_stop_async`
+// classifies the payload by `FAIL_STOP_SENTINEL` and renders the divergence. Returning
+// an error instead would erase the stop from the diff artifact.
+#[allow(clippy::panic)]
+#[cold]
+#[inline(never)]
+fn fail_stop_absent_transport(
+    boundary: &str,
+    component: &str,
+    rpc: &str,
+    authority: Option<&str>,
+) -> ! {
+    let target = match authority {
+        Some(authority) => format!("`{rpc}` at `{authority}`"),
+        None => format!("`{rpc}`"),
+    };
+    panic!(
+        "{} Substitute boundary `{boundary}` in `{component}` has no transport for \
+         {target}. It was constructed for substitution only: the host builds this \
+         transport eagerly, that connect did not succeed, and replay never issues \
+         this call live. The recording has no entry for these args, so there is \
+         nothing to substitute and nothing this boundary could have executed. This \
+         says nothing about the candidate — the call could not have been served \
+         here whatever the candidate did.",
+        deja::FAIL_STOP_SENTINEL
+    );
+}
+
+/// A boundary with no transport asked to issue a call live. Unreachable in
+/// practice — [`DejaGrpcTransport::substituted`] exists only under replay, where
+/// the `run` thunk is never invoked — but named so a broken invariant is legible.
+#[derive(Debug)]
+pub struct AbsentTransportError;
+
+impl std::fmt::Display for AbsentTransportError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(
+            "deja: gRPC boundary has no transport (constructed for substitution only) \
+             and cannot issue this call live",
+        )
+    }
+}
+
+impl std::error::Error for AbsentTransportError {}
 
 /// Envelope smuggled through `http::Extensions` from the buffering `run`
 /// closure to the recording `extract` closure — the same trick the HTTP
@@ -88,7 +171,19 @@ where
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, BoxError>> + Send>>;
 
     fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
-        self.inner.poll_ready(cx).map_err(Into::into)
+        match &mut self.inner {
+            // KNOWN FRAGILITY, deliberately left alone. This delegates ungated by
+            // `is_active()`, so the inner service answers readiness even on replay.
+            // Safe only because tonic's readiness is buffer-backed, not
+            // connection-backed: `Buffer::poll_ready` checks worker liveness and
+            // queue capacity, not a connection (tonic 0.14.5). An inner service
+            // that answered from a live connection would fail HERE, before `call`
+            // can substitute. Tracked deja-side, where the mode lifecycle a gate
+            // would have to depend on lives.
+            Some(inner) => inner.poll_ready(cx).map_err(Into::into),
+            // Nothing to drive: substitution answers every call.
+            None => Poll::Ready(Ok(())),
+        }
     }
 
     #[track_caller]
@@ -96,14 +191,23 @@ where
         // Standard tower clone-dance: `self.inner` was driven to readiness by
         // poll_ready, so hand THAT instance to the future and keep the fresh
         // clone (which will be polled to readiness before its own use).
-        let clone = self.inner.clone();
-        let inner = std::mem::replace(&mut self.inner, clone);
+        let inner = match self.inner.as_mut() {
+            Some(inner) => {
+                let clone = inner.clone();
+                Some(std::mem::replace(inner, clone))
+            }
+            None => None,
+        };
 
         // Boundary engaged only when a deja hook is live (record or replay);
         // otherwise pure passthrough — no buffering, no dispatch, streaming
         // untouched.
         if !is_active() {
-            return Box::pin(passthrough(inner, request));
+            return match inner {
+                Some(inner) => Box::pin(passthrough(inner, request)),
+                // A transport-less boundary outside replay cannot serve anything.
+                None => Box::pin(async { Err(BoxError::from(AbsentTransportError)) }),
+            };
         }
         let caller = Location::caller();
         Box::pin(boundary_call(inner, request, caller))
@@ -133,7 +237,7 @@ where
 
 /// One unary gRPC exchange as one deja boundary crossing.
 async fn boundary_call<S, RB>(
-    inner: S,
+    inner: Option<S>,
     request: http::Request<TonicBody>,
     caller: &'static Location<'static>,
 ) -> Result<http::Response<TonicBody>, BoxError>
@@ -218,14 +322,35 @@ where
         TonicBody::new(BufferedBody::new(request_bytes, None)),
     );
 
-    deja::__private::dispatch_async(
-        observation,
-        move || args_value,
-        move || run_and_capture(inner, rebuilt_request),
-        reconstruct_from_recorded,
-        extract_envelope,
-    )
-    .await
+    match inner {
+        // Transport present: a miss may be a genuine novel call, so this keeps
+        // `dispatch_async`'s default substitute-miss fail-stop.
+        Some(inner) => {
+            deja::__private::dispatch_async(
+                observation,
+                move || args_value,
+                move || run_and_capture(inner, rebuilt_request),
+                reconstruct_from_recorded,
+                extract_envelope,
+            )
+            .await
+        }
+        // Transport deliberately absent: a miss establishes nothing about the
+        // candidate, so it gets its own reason. The `run` thunk is never invoked
+        // here (replay + Substitute neither runs nor re-runs); an error rather
+        // than an `unreachable!` so a broken invariant stays legible.
+        None => {
+            deja::__private::dispatch_async_or_miss(
+                observation,
+                move || args_value,
+                move || async { Err(BoxError::from(AbsentTransportError)) },
+                reconstruct_from_recorded,
+                extract_envelope,
+                move || fail_stop_absent_transport(BOUNDARY, COMPONENT, &rpc, authority.as_deref()),
+            )
+            .await
+        }
+    }
 }
 
 /// The `run` thunk: forward to the real transport, buffer the response
