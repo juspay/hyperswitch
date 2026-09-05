@@ -53,6 +53,7 @@ use transformers as amazonpay;
 use crate::{
     constants::headers,
     types::ResponseRouterData,
+    utils as connector_utils,
     utils::{self, PaymentsSyncRequestData},
 };
 
@@ -451,12 +452,31 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             .response
             .parse_struct("Amazonpay PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        let response_integrity_object = if let Some(ref payment_details) = response.payment_details
+        {
+            Some(connector_utils::get_authorise_integrity_object(
+                self.amount_converter,
+                payment_details.charge_amount.amount.to_owned(),
+                payment_details.charge_amount.currency_code.to_string(),
+            )?)
+        } else {
+            None
+        };
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        .map(|mut router_data| {
+            if let Some(integrity_object) = response_integrity_object {
+                router_data.request.integrity_object = Some(integrity_object);
+            }
+            router_data
         })
     }
 
@@ -523,12 +543,23 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Ama
             .response
             .parse_struct("Amazonpay PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        let response_integrity_object = connector_utils::get_sync_integrity_object(
+            self.amount_converter,
+            response.charge_amount.amount.to_owned(),
+            response.charge_amount.currency_code.to_string(),
+        )?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        })
+        .map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 
@@ -627,6 +658,13 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Amazonp
             .response
             .parse_struct("amazonpay RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        let response_integrity_object = connector_utils::get_refund_integrity_object(
+            self.amount_converter,
+            response.refund_amount.amount.to_owned(),
+            response.refund_amount.currency_code.to_string(),
+        )?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
@@ -634,6 +672,11 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Amazonp
             data: data.clone(),
             http_code: res.status_code,
         })
+        .map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
@@ -702,6 +745,13 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Amazonpay
             .response
             .parse_struct("amazonpay RefundSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        let response_integrity_object = connector_utils::get_refund_integrity_object(
+            self.amount_converter,
+            response.refund_amount.amount.to_owned(),
+            response.refund_amount.currency_code.to_string().to_owned(),
+        )?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
@@ -709,6 +759,11 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Amazonpay
             data: data.clone(),
             http_code: res.status_code,
         })
+        .map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
