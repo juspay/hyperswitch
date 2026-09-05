@@ -478,4 +478,23 @@ pub struct WalletAdditionalDataForCard {
     /// Email address associated with the wallet (e.g. PayPal email)
     #[schema(value_type = Option<String>, example = "johntest@test.com")]
     pub email: Option<common_utils::pii::Email>,
+    /// Bin of the DPAN (device PAN) obtained from decrypting the wallet payment data.
+    /// Populated when the decrypted auth method indicates a tokenized (cryptogram) flow.
+    #[schema(value_type = Option<String>, example = "411111")]
+    pub device_pan_bin: Option<String>,
+    /// Bin of the underlying card
+    #[schema(value_type = Option<String>, example = "411111")]
+    pub card_bin: Option<String>,
+    /// The card's product/subtype, as returned by the connector
+    pub card_subtype: Option<String>,
+    /// The card's segment (e.g. consumer, commercial), as returned by the connector
+    #[schema(value_type = Option<CardSegmentType>)]
+    pub card_segment_type: Option<api_enums::CardSegmentType>,
+    /// The card's funding source (e.g. credit, debit), as returned by the connector
+    #[schema(value_type = Option<FundingSource>)]
+    pub funding_source: Option<api_enums::FundingSource>,
+    /// The name of the card issuer, as returned by the connector
+    pub issuer_name: Option<String>,
+    /// The country of the card issuer, as returned by the connector
+    pub issuer_country: Option<String>,
 }

@@ -806,6 +806,14 @@ impl ForeignTryFrom<payments_grpc::AdditionalPaymentMethodConnectorResponse>
                 ),
             ) => Ok(Self::GooglePay {
                 auth_code: google_pay_data.auth_code,
+                // UCS's GooglePayConnectorResponse proto does not carry bin/issuer data yet
+                device_pan_bin: None,
+                card_bin: None,
+                card_subtype: None,
+                card_segment_type: None,
+                funding_source: None,
+                issuer_name: None,
+                issuer_country: None,
             }),
             Some(
                 payments_grpc::additional_payment_method_connector_response::PaymentMethodData::ApplePay(
@@ -813,6 +821,14 @@ impl ForeignTryFrom<payments_grpc::AdditionalPaymentMethodConnectorResponse>
                 ),
             ) => Ok(Self::ApplePay {
                 auth_code: apple_pay_data.auth_code,
+                // UCS's ApplePayConnectorResponse proto does not carry bin/issuer data yet
+                device_pan_bin: None,
+                card_bin: None,
+                card_subtype: None,
+                card_segment_type: None,
+                funding_source: None,
+                issuer_name: None,
+                issuer_country: None,
             }),
             Some(payments_grpc::additional_payment_method_connector_response::PaymentMethodData::BankRedirect(bank_redirect_data)) => {
                 let interac = bank_redirect_data.interac.map(|proto_interac| {

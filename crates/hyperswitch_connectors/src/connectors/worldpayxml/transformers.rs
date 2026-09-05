@@ -4000,15 +4000,32 @@ fn get_connector_response_data(
         .and_then(|authorisation_id| authorisation_id.id.clone())
         .map(|id| id.expose())?;
 
+    let issuer_name = payment_data.issuer_name.clone();
+    let issuer_country = payment_data.issuer_country_code.clone();
+
     let additional_payment_method_data = match payment_method_type {
         Some(enums::PaymentMethodType::GooglePay) => {
             AdditionalPaymentMethodConnectorResponse::GooglePay {
                 auth_code: Some(auth_code),
+                device_pan_bin: None,
+                card_bin: None,
+                card_subtype: None,
+                card_segment_type: None,
+                funding_source: None,
+                issuer_name,
+                issuer_country,
             }
         }
         Some(enums::PaymentMethodType::ApplePay) => {
             AdditionalPaymentMethodConnectorResponse::ApplePay {
                 auth_code: Some(auth_code),
+                device_pan_bin: None,
+                card_bin: None,
+                card_subtype: None,
+                card_segment_type: None,
+                funding_source: None,
+                issuer_name,
+                issuer_country,
             }
         }
         _ => AdditionalPaymentMethodConnectorResponse::Card {
