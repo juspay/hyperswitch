@@ -33,6 +33,10 @@ pub enum MetaData {
     PaymentViews(Box<api::SavedViewOperation>),
     #[cfg(feature = "v1")]
     PaymentAdvancedViews(Box<api::PaymentAdvancedViewOperation>),
+    #[cfg(feature = "v1")]
+    RefundViews(Box<api::RefundViewOperation>),
+    #[cfg(feature = "v1")]
+    DisputeViews(Box<api::DisputeViewOperation>),
 }
 
 impl From<&MetaData> for DBEnum {
@@ -66,6 +70,10 @@ impl From<&MetaData> for DBEnum {
             MetaData::PaymentViews(_) => Self::PaymentViews,
             #[cfg(feature = "v1")]
             MetaData::PaymentAdvancedViews(_) => Self::PaymentAdvancedViews,
+            #[cfg(feature = "v1")]
+            MetaData::RefundViews(_) => Self::RefundViews,
+            #[cfg(feature = "v1")]
+            MetaData::DisputeViews(_) => Self::DisputeViews,
         }
     }
 }
@@ -95,41 +103,179 @@ pub struct PaymentViewsValue {
 
 #[cfg(feature = "v1")]
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
-#[serde(tag = "version", rename_all = "snake_case")]
-pub enum PaymentAdvancedViewFilters {
-    V1(api::PaymentAdvancedViewFilterConstraints),
-}
-
-#[cfg(feature = "v1")]
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub struct PaymentAdvancedView {
+pub struct VersionedView<T> {
     pub view_id: String,
     pub view_name: String,
-    pub filters: PaymentAdvancedViewFilters,
+    pub filters: T,
     pub created_at: String,
     pub updated_at: String,
 }
 
 #[cfg(feature = "v1")]
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub struct PaymentAdvancedViewsValue {
-    pub views: Vec<PaymentAdvancedView>,
+pub struct VersionedViewsValue<T> {
+    pub views: Vec<VersionedView<T>>,
+}
+
+#[cfg(feature = "v1")]
+pub trait IntoApiFilters {
+    type Api;
+    fn into_api(self) -> Self::Api;
+}
+
+#[cfg(feature = "v1")]
+pub trait IntoStoredFilters {
+    type Stored: serde::Serialize + serde::de::DeserializeOwned;
+    fn into_stored(self) -> Self::Stored;
+}
+
+#[cfg(feature = "v1")]
+impl<T: IntoApiFilters> VersionedView<T> {
+    pub fn into_response(self) -> api::ViewResponse<T::Api> {
+        api::ViewResponse {
+            view_id: self.view_id,
+            view_name: self.view_name,
+            data: self.filters.into_api(),
+            created_at: self.created_at,
+            updated_at: self.updated_at,
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[serde(tag = "version", rename_all = "snake_case")]
+pub enum PaymentAdvancedViewFilters {
+    V1(api::PaymentAdvancedViewFilterConstraints),
+}
+
+#[cfg(feature = "v1")]
+pub type PaymentAdvancedView = VersionedView<PaymentAdvancedViewFilters>;
+
+#[cfg(feature = "v1")]
+pub type PaymentAdvancedViewsValue = VersionedViewsValue<PaymentAdvancedViewFilters>;
+
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[serde(tag = "version", rename_all = "snake_case")]
+pub enum RefundViewFilters {
+    V1(api::RefundViewFilterConstraints),
+}
+
+#[cfg(feature = "v1")]
+pub type RefundView = VersionedView<RefundViewFilters>;
+
+#[cfg(feature = "v1")]
+pub type RefundViewsValue = VersionedViewsValue<RefundViewFilters>;
+
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[serde(tag = "version", rename_all = "snake_case")]
+pub enum DisputeViewFilters {
+    V1(api::DisputeViewFilterConstraints),
+}
+
+#[cfg(feature = "v1")]
+pub type DisputeView = VersionedView<DisputeViewFilters>;
+
+#[cfg(feature = "v1")]
+pub type DisputeViewsValue = VersionedViewsValue<DisputeViewFilters>;
+
+#[cfg(feature = "v1")]
+impl IntoApiFilters for PaymentAdvancedViewFilters {
+    type Api = api::PaymentAdvancedViewFilters;
+
+    fn into_api(self) -> Self::Api {
+        match self {
+            Self::V1(filters) => api::PaymentAdvancedViewFilters::V1(
+                api::PaymentAdvancedViewFiltersV1::PaymentViews(filters),
+            ),
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl IntoApiFilters for RefundViewFilters {
+    type Api = api::RefundViewFilters;
+
+    fn into_api(self) -> Self::Api {
+        match self {
+            Self::V1(filters) => {
+                api::RefundViewFilters::V1(api::RefundViewFiltersV1::RefundViews(filters))
+            }
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl IntoApiFilters for DisputeViewFilters {
+    type Api = api::DisputeViewFilters;
+
+    fn into_api(self) -> Self::Api {
+        match self {
+            Self::V1(filters) => {
+                api::DisputeViewFilters::V1(api::DisputeViewFiltersV1::DisputeViews(filters))
+            }
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl IntoStoredFilters for api::PaymentAdvancedViewFilters {
+    type Stored = PaymentAdvancedViewFilters;
+
+    fn into_stored(self) -> Self::Stored {
+        match self {
+            Self::V1(api::PaymentAdvancedViewFiltersV1::PaymentViews(filters)) => {
+                PaymentAdvancedViewFilters::V1(filters)
+            }
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl IntoStoredFilters for api::RefundViewFilters {
+    type Stored = RefundViewFilters;
+
+    fn into_stored(self) -> Self::Stored {
+        match self {
+            Self::V1(api::RefundViewFiltersV1::RefundViews(filters)) => {
+                RefundViewFilters::V1(filters)
+            }
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl IntoStoredFilters for api::DisputeViewFilters {
+    type Stored = DisputeViewFilters;
+
+    fn into_stored(self) -> Self::Stored {
+        match self {
+            Self::V1(api::DisputeViewFiltersV1::DisputeViews(filters)) => {
+                DisputeViewFilters::V1(filters)
+            }
+        }
+    }
 }
 
 #[cfg(feature = "v1")]
 impl From<PaymentAdvancedView> for api::PaymentAdvancedViewResponse {
     fn from(v: PaymentAdvancedView) -> Self {
-        let data = match v.filters {
-            PaymentAdvancedViewFilters::V1(filters) => api::PaymentAdvancedViewFilters::V1(
-                api::PaymentAdvancedViewFiltersV1::PaymentViews(filters),
-            ),
-        };
-        Self {
-            view_id: v.view_id,
-            view_name: v.view_name,
-            data,
-            created_at: v.created_at,
-            updated_at: v.updated_at,
-        }
+        v.into_response()
+    }
+}
+
+#[cfg(feature = "v1")]
+impl From<RefundView> for api::RefundViewResponse {
+    fn from(v: RefundView) -> Self {
+        v.into_response()
+    }
+}
+
+#[cfg(feature = "v1")]
+impl From<DisputeView> for api::DisputeViewResponse {
+    fn from(v: DisputeView) -> Self {
+        v.into_response()
     }
 }
