@@ -157,6 +157,7 @@ pub enum Connector {
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
     Payload,
     Payme,
+    Paynearme,
     Payone,
     Paypal,
     Paysafe,
@@ -406,6 +407,7 @@ impl Connector {
             | Self::Paybox
             | Self::Payload
             | Self::Payme
+            | Self::Paynearme
             | Self::Payone
             | Self::Paypal
             | Self::Paysafe

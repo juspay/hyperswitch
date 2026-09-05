@@ -8291,3 +8291,24 @@ payment_method_type = "payshap"
 payment_method_type = "payshap_proxy"
 [gotyme_sanlam_payout.connector_webhook_details]
 merchant_secret="Source verification key"
+
+[paynearme]
+[[paynearme.credit]]
+  payment_method_type = "Visa"
+[[paynearme.credit]]
+  payment_method_type = "Mastercard"
+[[paynearme.credit]]
+  payment_method_type = "AmericanExpress"
+[[paynearme.credit]]
+  payment_method_type = "Discover"
+[[paynearme.debit]]
+  payment_method_type = "Visa"
+[[paynearme.debit]]
+  payment_method_type = "Mastercard"
+[[paynearme.debit]]
+  payment_method_type = "AmericanExpress"
+[[paynearme.debit]]
+  payment_method_type = "Discover"
+[paynearme.connector_auth.BodyKey]
+api_key = "PayNearMe API Secret Key"
+key1 = "PayNearMe Site Identifier"
