@@ -40,6 +40,22 @@ const partialAuthCardDetails = {
   card_cvc: "152",
 };
 
+const parPositiveCardDetails = {
+  card_number: "4242424242424242",
+  card_exp_month: "01",
+  card_exp_year: "50",
+  card_holder_name: "joseph Doe",
+  card_cvc: "123",
+};
+
+const parNegativeCardDetails = {
+  card_number: "378282246310005",
+  card_exp_month: "12",
+  card_exp_year: "30",
+  card_holder_name: "joseph Doe",
+  card_cvc: "1000",
+};
+
 const singleUseMandateData = {
   customer_acceptance: customerAcceptance,
   mandate_type: {
@@ -217,6 +233,57 @@ export const connectorDetails = {
       },
     },
     No3DSAutoCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          payment_method_data: {},
+        },
+      },
+    },
+    PARPositiveNo3DSAutoCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: parPositiveCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          payment_account_reference: "dynamic_par",
+        },
+      },
+    },
+    PARNegativeNo3DSAutoCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: parNegativeCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          payment_account_reference: null,
+        },
+      },
+    },
+    AuthCodeNo3DSAutoCapture: {
       Request: {
         payment_method: "card",
         payment_method_data: {
