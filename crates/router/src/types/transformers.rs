@@ -20,6 +20,8 @@ use hyperswitch_domain_models::{mandates, payments::payment_intent::CustomerData
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 
 use super::domain;
+#[cfg(feature = "olap")]
+use crate::core::webhooks::utils::redact_header_values;
 #[cfg(feature = "v2")]
 use crate::db::storage::revenue_recovery_redis_operation;
 use crate::{
@@ -2241,12 +2243,20 @@ impl TryFrom<domain::EventWithDeliverySuccessSource>
 }
 
 #[cfg(feature = "olap")]
-impl TryFrom<domain::EventWithDeliverySuccessSource>
-    for api_models::webhook_events::EventRetrieveResponse
+impl
+    ForeignTryFrom<(
+        domain::EventWithDeliverySuccessSource,
+        Option<&std::collections::HashSet<String>>,
+    )> for api_models::webhook_events::EventRetrieveResponse
 {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
-    fn try_from(value: domain::EventWithDeliverySuccessSource) -> Result<Self, Self::Error> {
+    fn foreign_try_from(
+        (value, sensitive_header_names): (
+            domain::EventWithDeliverySuccessSource,
+            Option<&std::collections::HashSet<String>>,
+        ),
+    ) -> Result<Self, Self::Error> {
         use crate::utils::OptionExt;
 
         let item = value.event.clone();
@@ -2256,7 +2266,7 @@ impl TryFrom<domain::EventWithDeliverySuccessSource>
         // We cannot retrieve events with only some of these fields populated.
         let event_information = api_models::webhook_events::EventListItemResponse::try_from(value)?;
 
-        let request = item
+        let mut request: api_models::webhook_events::OutgoingWebhookRequestContent = item
             .request
             .get_required_value("request")
             .change_context(errors::ApiErrorResponse::InternalServerError)?
@@ -2264,7 +2274,7 @@ impl TryFrom<domain::EventWithDeliverySuccessSource>
             .parse_struct("OutgoingWebhookRequestContent")
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse webhook event request information")?;
-        let response = item
+        let mut response: api_models::webhook_events::OutgoingWebhookResponseContent = item
             .response
             .get_required_value("response")
             .change_context(errors::ApiErrorResponse::InternalServerError)?
@@ -2272,6 +2282,13 @@ impl TryFrom<domain::EventWithDeliverySuccessSource>
             .parse_struct("OutgoingWebhookResponseContent")
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse webhook event response information")?;
+
+        // The persisted event retains the original header values, which webhook retries reuse.
+        // The keys are masked only in the response
+        redact_header_values(&mut request.headers, sensitive_header_names);
+        if let Some(headers) = response.headers.as_mut() {
+            redact_header_values(headers, sensitive_header_names);
+        }
 
         Ok(Self {
             event_information,
