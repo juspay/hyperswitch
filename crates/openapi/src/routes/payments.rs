@@ -757,6 +757,29 @@ pub fn payments_capture() {}
 )]
 pub fn payments_connector_session() {}
 
+#[cfg(feature = "v1")]
+/// Payments - Session token (server-to-server)
+///
+/// Creates a session object or a session token for wallets like Apple Pay, Google Pay, etc.
+/// Same flow as `POST /payments/session_tokens`, but authenticated with the merchant API key
+/// rather than a client secret, for server-to-server callers.
+#[utoipa::path(
+  post,
+  path = "/payments/{payment_id}/session_tokens",
+  params(
+      ("payment_id" = String, Path, description = "The identifier for payment")
+  ),
+  request_body=PaymentsSessionServerRequest,
+  responses(
+      (status = 200, description = "Payment session object created or session token was retrieved from wallets", body = PaymentsSessionResponse),
+      (status = 400, description = "Missing mandatory fields", body = GenericErrorResponseOpenApi)
+  ),
+  tag = "Payments",
+  operation_id = "Create Session tokens for a Payment (server-to-server)",
+  security(("api_key" = []))
+)]
+pub fn payments_connector_session_server() {}
+
 #[cfg(feature = "v2")]
 /// Payments - Session token
 ///

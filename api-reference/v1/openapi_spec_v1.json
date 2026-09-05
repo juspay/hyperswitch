@@ -1022,6 +1022,64 @@
         ]
       }
     },
+    "/payments/{payment_id}/session_tokens": {
+      "post": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Payments - Session token (server-to-server)",
+        "description": "Creates a session object or a session token for wallets like Apple Pay, Google Pay, etc.\nSame flow as `POST /payments/session_tokens`, but authenticated with the merchant API key\nrather than a client secret, for server-to-server callers.",
+        "operationId": "Create Session tokens for a Payment (server-to-server)",
+        "parameters": [
+          {
+            "name": "payment_id",
+            "in": "path",
+            "description": "The identifier for payment",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentsSessionServerRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Payment session object created or session token was retrieved from wallets",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentsSessionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing mandatory fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/payments/{payment_id}/cancel": {
       "post": {
         "tags": [
@@ -37258,6 +37316,31 @@
             "nullable": true
           }
         }
+      },
+      "PaymentsSessionServerRequest": {
+        "type": "object",
+        "description": "Request body for the server-to-server session token endpoint.\n\nThe payment is identified by the path parameter and the caller is authenticated with the\nmerchant API key, so neither `payment_id` nor `client_secret` belongs in the body. Unknown\nfields are rejected so that a client secret sent here fails loudly rather than being ignored.",
+        "required": [
+          "wallets"
+        ],
+        "properties": {
+          "wallets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentMethodType"
+            },
+            "description": "The list of the supported wallets"
+          },
+          "merchant_connector_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantConnectorDetailsWrap"
+              }
+            ],
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
       },
       "PaymentsUpdateMetadataRequest": {
         "type": "object",
