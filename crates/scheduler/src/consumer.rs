@@ -176,7 +176,22 @@ pub async fn consumer_operations<T: SchedulerSessionState + 'static>(
             workflow_selector,
         )))
     }
-    future::join_all(handler).await;
+    let results = future::join_all(handler).await;
+
+    for result in results {
+        match result {
+            Ok(Ok(_)) => (),
+            Ok(Err(error)) => {
+                // start_workflow already logs the error, but we add a metric here for visibility
+                metrics::TASK_FAILED.add(1, &[]);
+                logger::error!(?error, "Workflow execution failed at consumer level");
+            }
+            Err(error) => {
+                metrics::TASK_PANICKED.add(1, &[]);
+                logger::error!(?error, "Workflow task panicked or was cancelled");
+            }
+        }
+    }
 
     Ok(())
 }
