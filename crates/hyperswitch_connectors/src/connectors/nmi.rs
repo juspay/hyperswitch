@@ -1222,6 +1222,7 @@ impl ConnectorSpecifications for Nmi {
             api::CurrentFlowInfo::Authorize {
                 auth_type,
                 request_data,
+                ..
             } => auth_type.is_three_ds() && request_data.is_card(),
             api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
             api::CurrentFlowInfo::SetupMandate {

@@ -1408,6 +1408,7 @@ impl ConnectorSpecifications for Nexixpay {
             api::CurrentFlowInfo::Authorize {
                 request_data,
                 auth_type,
+                ..
             } => {
                 // Mandate payments should skip pre-authentication and go directly to authorize
                 if request_data.is_mandate_payment() {
