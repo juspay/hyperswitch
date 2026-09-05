@@ -35,6 +35,19 @@ const forwardedEnv = [
 // Get timeout multiplier from shared utility
 const timeoutMultiplier = getTimeoutMultiplier();
 
+// Named ONLY_SPECS/SKIP_SPECS rather than SPEC_PATTERN/EXCLUDE_SPEC_PATTERN:
+// Cypress auto-maps any CYPRESS_<X> env var directly onto the matching
+// top-level config key (specPattern, excludeSpecPattern) before this file
+// even runs, with the raw unsplit string, bypassing the split(",") below
+// entirely — so the env var name must not collide with a real config key.
+const excludeSpecPattern = process.env.CYPRESS_SKIP_SPECS
+  ? process.env.CYPRESS_SKIP_SPECS.split(",")
+  : [];
+
+const specPattern = process.env.CYPRESS_ONLY_SPECS
+  ? process.env.CYPRESS_ONLY_SPECS.split(",")
+  : "cypress/e2e/**/*.cy.{js,jsx,ts,tsx}";
+
 export default defineConfig({
   env: forwardedEnv,
   e2e: {
@@ -105,7 +118,8 @@ export default defineConfig({
     },
     experimentalRunAllSpecs: true,
 
-    specPattern: "cypress/e2e/**/*.cy.{js,jsx,ts,tsx}",
+    specPattern,
+    excludeSpecPattern,
     supportFile: "cypress/support/e2e.js",
 
     reporter: "cypress-mochawesome-reporter",

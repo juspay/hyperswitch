@@ -5980,30 +5980,39 @@ Cypress.Commands.add(
   "handleRedirection",
   (globalState, expectedRedirection) => {
     const connectorId = globalState.get("connectorId");
-    // Cassettes recorded from a non-3DS scenario won't carry a next_action
-    // URL; fall back to example.com so replay can still burn the step-counter
-    // slot and reach later assertions.
     let nextActionUrl = globalState.get("nextActionUrl");
-    if (!nextActionUrl) {
-      cy.task(
-        "cli_log",
-        "handleRedirection: nextActionUrl missing — falling back to https://example.com"
-      );
-      nextActionUrl = "https://example.com";
-    }
 
-    if (isRecordMode()) {
-      mockRecord3ds(
-        globalState,
-        nextActionUrl,
-        expectedRedirection,
-        handleRedirection
-      );
+    if (isRecordMode() || isReplayMode()) {
+      // Cassettes recorded from a non-3DS scenario won't carry a next_action
+      // URL; fall back to example.com so replay can still burn the
+      // step-counter slot and reach later assertions.
+      if (!nextActionUrl) {
+        cy.task(
+          "cli_log",
+          "handleRedirection: nextActionUrl missing — falling back to https://example.com"
+        );
+        nextActionUrl = "https://example.com";
+      }
+
+      if (isRecordMode()) {
+        mockRecord3ds(
+          globalState,
+          nextActionUrl,
+          expectedRedirection,
+          handleRedirection
+        );
+        return;
+      }
+
+      mockReplay3ds(globalState, connectorId, nextActionUrl);
       return;
     }
 
-    if (isReplayMode()) {
-      mockReplay3ds(globalState, connectorId, nextActionUrl);
+    if (!nextActionUrl) {
+      cy.task(
+        "cli_log",
+        "handleRedirection: nextActionUrl missing — skipping (frictionless 3DS)"
+      );
       return;
     }
 
