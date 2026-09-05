@@ -1,7 +1,6 @@
 use std::{collections::HashMap, fmt::Debug};
 
 use common_utils::{errors, id_type, pii::EmailStrategy, types::MinorUnit};
-use hyperswitch_masking::Secret;
 pub use euclid::{
     dssa::types::EuclidAnalysable,
     frontend::{
@@ -9,6 +8,7 @@ pub use euclid::{
         dir::{DirKeyKind, EuclidDirFilter},
     },
 };
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
