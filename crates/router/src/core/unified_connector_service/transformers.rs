@@ -727,6 +727,7 @@ impl
                 .as_ref()
                 .map(payments_grpc::RecipientDetails::foreign_try_from)
                 .transpose()?,
+            additional_connector_details: None,
         })
     }
 }
@@ -978,6 +979,7 @@ impl
                 .as_ref()
                 .map(payments_grpc::RecipientDetails::foreign_try_from)
                 .transpose()?,
+            additional_connector_details: None,
         })
     }
 }
@@ -2200,6 +2202,7 @@ impl
                 .as_ref()
                 .map(payments_grpc::RecipientDetails::foreign_try_from)
                 .transpose()?,
+            additional_connector_details: None,
         })
     }
 }
@@ -2410,6 +2413,7 @@ impl
                 .as_ref()
                 .map(payments_grpc::RecipientDetails::foreign_try_from)
                 .transpose()?,
+            additional_connector_details: None,
         })
     }
 }
@@ -2593,6 +2597,7 @@ impl
             currency_conversion_data: None,
             is_account_funding_transaction: None,
             recipient_details: None,
+            additional_connector_details: None,
         })
     }
 }
@@ -2779,6 +2784,7 @@ impl
                 .as_ref()
                 .map(payments_grpc::RecipientDetails::foreign_try_from)
                 .transpose()?,
+            additional_connector_details: None,
         })
     }
 }
@@ -3087,6 +3093,7 @@ impl
                 .as_ref()
                 .map(payments_grpc::RecipientDetails::foreign_try_from)
                 .transpose()?,
+            additional_connector_details: None,
         })
     }
 }
@@ -8968,7 +8975,7 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PayoutMethodData>
                         payments_grpc::PayshapProxyBankTransferPayout::foreign_from(payshap_proxy),
                     )
                 }
-=======
+            },
             api_models::payouts::PayoutMethodData::BankTransfer(bank_transfer) => {
                 match bank_transfer {
                     api_models::payouts::BankTransfer::Ach(ach) => {
