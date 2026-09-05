@@ -88,33 +88,84 @@ execute_test() {
   local start_ts=$(date +%s)
   local start_fmt=$(date '+%H:%M:%S')
 
+  # CYPRESS_SPEC_SHARDS > 1 splits one connector's specs across that many
+  # concurrent Cypress processes (see `shardSpecs` in
+  # cypress/utils/specSelection/index.js). Only the `payments` service is
+  # wired for `--shard`; ignore the setting for anything else rather than
+  # passing an unsupported flag through.
+  local shards="${CYPRESS_SPEC_SHARDS:-1}"
+  if [[ "$service" != "payments" && "$shards" -gt 1 ]]; then
+    print_color yellow "WARNING: CYPRESS_SPEC_SHARDS is only supported for the 'payments' service; ignoring for '$service'"
+    shards=1
+  fi
+
   echo "----------------------------------------------------"
-  print_color blue "[START] $service:$connector (Slot: $job_slot) at $start_fmt"
+  if [[ "$shards" -gt 1 ]]; then
+    print_color blue "[START] $service:$connector (Slot: $job_slot, Shards: $shards) at $start_fmt"
+  else
+    print_color blue "[START] $service:$connector (Slot: $job_slot) at $start_fmt"
+  fi
   echo "----------------------------------------------------"
 
-  export REPORT_NAME="${service}_${connector}_report"
-
   # -----------------------------
-  # XVFB
+  # XVFB + EXECUTE TEST
   # -----------------------------
-  local unique_display=$((100 + job_slot))
-  export DISPLAY=":${unique_display}"
-
-  Xvfb "$DISPLAY" &
-  local xvfb_pid=$!
-  trap "kill $xvfb_pid 2>/dev/null || true" RETURN
-  sleep 1
-
-  # -----------------------------
-  # EXECUTE TEST
-  # -----------------------------
+  # Base display is offset by job_slot*10 so concurrent connectors (separate
+  # GNU parallel workers, separate job_slot values) never collide, leaving
+  # room for up to 9 shards per connector under the same slot.
+  local base_display=$((100 + job_slot * 10))
   local exit_code=0
-  if ! bash -c '
-        export CYPRESS_CONNECTOR="'"$connector"'"
-        npm run "cypress:'"$service"'"
-      '
-  then
-    exit_code=1
+
+  if [[ "$shards" -le 1 ]]; then
+    export REPORT_NAME="${service}_${connector}_report"
+    export DISPLAY=":${base_display}"
+
+    Xvfb "$DISPLAY" &
+    local xvfb_pid=$!
+    trap "kill $xvfb_pid 2>/dev/null || true" RETURN
+    sleep 1
+
+    if ! bash -c '
+          export CYPRESS_CONNECTOR="'"$connector"'"
+          npm run "cypress:'"$service"'"
+        '
+    then
+      exit_code=1
+    fi
+  else
+    # Each shard is its own Cypress/Node process — `globalState` in
+    # cypress.config.js lives per-process, so shards cannot share it — with
+    # its own Xvfb display and report file, run concurrently.
+    local shard_i
+    local shard_display
+    local -a xvfb_pids=()
+    local -a shard_pids=()
+
+    for ((shard_i = 1; shard_i <= shards; shard_i++)); do
+      shard_display=$((base_display + shard_i))
+      Xvfb ":${shard_display}" &
+      xvfb_pids+=("$!")
+    done
+    sleep 1
+
+    for ((shard_i = 1; shard_i <= shards; shard_i++)); do
+      shard_display=$((base_display + shard_i))
+      (
+        export CYPRESS_CONNECTOR="$connector"
+        export DISPLAY=":${shard_display}"
+        export REPORT_NAME="${service}_${connector}_shard${shard_i}_report"
+        npm run "cypress:${service}" -- --shard "${shard_i}/${shards}"
+      ) &
+      shard_pids+=("$!")
+    done
+
+    for pid in "${shard_pids[@]}"; do
+      wait "$pid" || exit_code=1
+    done
+
+    for pid in "${xvfb_pids[@]}"; do
+      kill "$pid" 2>/dev/null || true
+    done
   fi
 
   local end_ts=$(date +%s)

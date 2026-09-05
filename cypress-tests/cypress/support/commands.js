@@ -874,6 +874,7 @@ Cypress.Commands.add("merchantListCall", (globalState) => {
 Cypress.Commands.add(
   "merchantUpdateCall",
   (merchantUpdateBody, globalState) => {
+    merchantUpdateBody = JSON.parse(JSON.stringify(merchantUpdateBody));
     const merchant_id = globalState.get("merchantId");
     const organization_id = globalState.get("organizationId");
     const publishable_key = globalState.get("publishableKey");
@@ -1338,6 +1339,11 @@ Cypress.Commands.add("retrieveConnectorWebhooksTest", (data, globalState) => {
 
 // API Key API calls
 Cypress.Commands.add("apiKeyCreateTest", (apiKeyCreateBody, globalState) => {
+  // apiKeyCreateBody is a shared fixture object (imported once per process),
+  // mutated below — clone so those mutations don't leak into whatever spec
+  // runs next in the same shard.
+  apiKeyCreateBody = JSON.parse(JSON.stringify(apiKeyCreateBody));
+
   // Define the necessary variables and constant
 
   const apiKey = globalState.get("adminApiKey");
@@ -1392,6 +1398,7 @@ Cypress.Commands.add("apiKeyCreateTest", (apiKeyCreateBody, globalState) => {
 });
 
 Cypress.Commands.add("apiKeyUpdateCall", (apiKeyUpdateBody, globalState) => {
+  apiKeyUpdateBody = JSON.parse(JSON.stringify(apiKeyUpdateBody));
   const merchantId = globalState.get("merchantId");
   const apiKeyId = globalState.get("apiKeyId");
   // We do not want to keep API Key forever,
@@ -1528,6 +1535,7 @@ Cypress.Commands.add(
     profilePrefix = "profile",
     mcaPrefix = "merchantConnector"
   ) => {
+    createConnectorBody = JSON.parse(JSON.stringify(createConnectorBody));
     const merchantId = globalState.get("merchantId");
     const profileId = globalState.get(`${profilePrefix}Id`);
 
@@ -2224,6 +2232,7 @@ Cypress.Commands.add("deleteFrmConnector", (globalState) => {
 Cypress.Commands.add(
   "connectorUpdateCall",
   (connectorType, updateConnectorBody, globalState) => {
+    updateConnectorBody = JSON.parse(JSON.stringify(updateConnectorBody));
     const api_key = globalState.get("apiKey");
     const base_url = globalState.get("baseUrl");
     // Use originalConnectorId (preserved before API overwrites connectorId) with fallback
@@ -2689,6 +2698,7 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "sessionTokenCall",
   (sessionTokenBody, data, globalState) => {
+    sessionTokenBody = JSON.parse(JSON.stringify(sessionTokenBody));
     const { Request: reqData = {}, Response: resData } = data || {};
 
     sessionTokenBody.wallets = reqData.wallets || [];
@@ -3162,6 +3172,7 @@ Cypress.Commands.add("setDefaultPaymentMethodTest", (globalState) => {
 Cypress.Commands.add(
   "confirmCallTest",
   (confirmBody, data, confirm, globalState, connectedMerchantId) => {
+    confirmBody = JSON.parse(JSON.stringify(confirmBody));
     const {
       Configs: configs = {},
       Request: reqData,
@@ -3501,6 +3512,7 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "confirmCallAutoRetryTest",
   (confirmBody, data, confirm, globalState) => {
+    confirmBody = JSON.parse(JSON.stringify(confirmBody));
     const { Request: reqData = {}, Response: resData = {} } = data || {};
 
     const apiKey = globalState.get("publishableKey");
@@ -3565,6 +3577,7 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "confirmBankRedirectCallTest",
   (confirmBody, data, confirm, globalState) => {
+    confirmBody = JSON.parse(JSON.stringify(confirmBody));
     const {
       Configs: configs = {},
       Request: reqData,
@@ -3726,6 +3739,7 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "confirmPayLaterCallTest",
   (confirmBody, data, confirm, globalState) => {
+    confirmBody = JSON.parse(JSON.stringify(confirmBody));
     const {
       Configs: configs = {},
       Request: reqData,
@@ -3803,6 +3817,7 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "confirmBankTransferCallTest",
   (confirmBody, data, confirm, globalState) => {
+    confirmBody = JSON.parse(JSON.stringify(confirmBody));
     const {
       Configs: configs = {},
       Request: reqData,
@@ -3941,6 +3956,7 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "confirmUpiCall",
   (confirmBody, data, confirm, globalState) => {
+    confirmBody = JSON.parse(JSON.stringify(confirmBody));
     const {
       Configs: configs = {},
       Request: reqData,
@@ -4022,6 +4038,9 @@ Cypress.Commands.add(
     globalState,
     connectedMerchantId
   ) => {
+    createConfirmPaymentBody = JSON.parse(
+      JSON.stringify(createConfirmPaymentBody)
+    );
     const {
       Configs: configs = {},
       Request: reqData,
@@ -4266,6 +4285,7 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "saveCardConfirmCallTest",
   (saveCardConfirmBody, data, globalState) => {
+    saveCardConfirmBody = JSON.parse(JSON.stringify(saveCardConfirmBody));
     const {
       Configs: configs = {},
       Request: reqData,
@@ -4466,6 +4486,7 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "captureCallTest",
   (requestBody, data, globalState, connectedMerchantId) => {
+    requestBody = JSON.parse(JSON.stringify(requestBody));
     const {
       Configs: configs = {},
       Request: reqData,
@@ -4529,6 +4550,7 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "voidCallTest",
   (requestBody, data, globalState, connectedMerchantId) => {
+    requestBody = JSON.parse(JSON.stringify(requestBody));
     const {
       Configs: configs = {},
       Response: resData,
@@ -4951,6 +4973,7 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "refundCallTest",
   (requestBody, data, globalState, connectedMerchantId) => {
+    requestBody = JSON.parse(JSON.stringify(requestBody));
     const {
       Configs: configs = {},
       Request: reqData,
@@ -5374,6 +5397,7 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "mitForMandatesCallTest",
   (requestBody, data, amount, confirm, capture_method, globalState) => {
+    requestBody = JSON.parse(JSON.stringify(requestBody));
     // Skip if no mandate_id was created — the router only sets one when
     // the connector genuinely supports mandates (payment_response.rs).
     if (!globalState.get("mandateId")) {
@@ -5799,6 +5823,7 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "mitUsingNTID",
   (requestBody, data, amount, confirm, capture_method, globalState) => {
+    requestBody = JSON.parse(JSON.stringify(requestBody));
     const {
       Configs: configs = {},
       Request: reqData,
@@ -6335,6 +6360,7 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "confirmRealTimePaymentCallTest",
   (confirmBody, data, confirm, globalState) => {
+    confirmBody = JSON.parse(JSON.stringify(confirmBody));
     const {
       Configs: configs = {},
       Request: reqData,
@@ -6445,6 +6471,7 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "confirmRewardCallTest",
   (confirmBody, data, confirm, globalState) => {
+    confirmBody = JSON.parse(JSON.stringify(confirmBody));
     const {
       Configs: configs = {},
       Request: reqData,
@@ -6518,6 +6545,7 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "confirmVoucherCallTest",
   (confirmBody, data, confirm, globalState) => {
+    confirmBody = JSON.parse(JSON.stringify(confirmBody));
     const {
       Configs: configs = {},
       Request: reqData,
@@ -6865,6 +6893,9 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "createConfirmPayoutTest",
   (createConfirmPayoutBody, data, confirm, auto_fulfill, globalState) => {
+    createConfirmPayoutBody = JSON.parse(
+      JSON.stringify(createConfirmPayoutBody)
+    );
     const { Request: reqData, Response: resData } = data || {};
 
     for (const key in reqData) {
@@ -6914,6 +6945,9 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "createConfirmWithTokenPayoutTest",
   (createConfirmPayoutBody, data, confirm, auto_fulfill, globalState) => {
+    createConfirmPayoutBody = JSON.parse(
+      JSON.stringify(createConfirmPayoutBody)
+    );
     const { Request: reqData, Response: resData } = data || {};
 
     for (const key in reqData) {
@@ -6957,6 +6991,9 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "createConfirmWithPayoutMethodIdTest",
   (createConfirmPayoutBody, data, confirm, auto_fulfill, globalState) => {
+    createConfirmPayoutBody = JSON.parse(
+      JSON.stringify(createConfirmPayoutBody)
+    );
     const { Request: reqData, Response: resData } = data || {};
 
     for (const key in reqData) {
@@ -7001,6 +7038,7 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "fulfillPayoutCallTest",
   (payoutFulfillBody, data, globalState) => {
+    payoutFulfillBody = JSON.parse(JSON.stringify(payoutFulfillBody));
     const { Response: resData } = data || {};
 
     payoutFulfillBody.payout_id = globalState.get("payoutID");
@@ -7036,6 +7074,7 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "updatePayoutCallTest",
   (payoutConfirmBody, data, auto_fulfill, globalState) => {
+    payoutConfirmBody = JSON.parse(JSON.stringify(payoutConfirmBody));
     const { Response: resData } = data || {};
 
     payoutConfirmBody.confirm = true;
@@ -7656,6 +7695,7 @@ Cypress.Commands.add("deleteSurchargeDSLConfig", (data, globalState) => {
 Cypress.Commands.add(
   "updateGsmConfig",
   (gsmBody, globalState, step_up_possible) => {
+    gsmBody = JSON.parse(JSON.stringify(gsmBody));
     gsmBody.step_up_possible = step_up_possible;
     cy.request({
       method: "POST",
@@ -7782,6 +7822,7 @@ Cypress.Commands.add("incrementalAuth", (globalState, data) => {
 Cypress.Commands.add(
   "extendAuthorizationCallTest",
   (requestBody, data, globalState) => {
+    requestBody = JSON.parse(JSON.stringify(requestBody));
     const {
       Configs: configs = {},
       Response: resData,
@@ -9326,6 +9367,7 @@ Cypress.Commands.add("acceptDisputeCallTest", (data, globalState) => {
 Cypress.Commands.add(
   "submitEvidenceCallTest",
   (requestBody, data, globalState) => {
+    requestBody = JSON.parse(JSON.stringify(requestBody));
     const {
       Configs: configs = {},
       Request: reqData,
@@ -9586,6 +9628,7 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "submitDisputeEvidenceByIdCallTest",
   (requestBody, data, globalState) => {
+    requestBody = JSON.parse(JSON.stringify(requestBody));
     const {
       Configs: configs = {},
       Request: reqData,
@@ -9893,6 +9936,7 @@ Cypress.Commands.add("blocklistToggle", (status, globalState) => {
 Cypress.Commands.add(
   "mitUsingCardWithLimitedData",
   (requestBody, data, globalState) => {
+    requestBody = JSON.parse(JSON.stringify(requestBody));
     const {
       Configs: configs = {},
       Request: reqData,
@@ -9942,6 +9986,9 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "createPaymentAndCaptureConnector",
   (createConfirmPaymentBody, allowedConnectors, globalState) => {
+    createConfirmPaymentBody = JSON.parse(
+      JSON.stringify(createConfirmPaymentBody)
+    );
     const baseUrl = globalState.get("baseUrl");
     const apiKey = globalState.get("apiKey");
     const profileId = globalState.get("profileId");
@@ -10423,6 +10470,7 @@ Cypress.Commands.add("oidcTokenEndpointProbeCallTest", (globalState) => {
 Cypress.Commands.add(
   "relayCallTest",
   (requestBody, data, globalState, isErrorTest = false) => {
+    requestBody = JSON.parse(JSON.stringify(requestBody));
     const {
       Configs: configs = {},
       Request: reqData,
@@ -10692,6 +10740,7 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "confirmWithSdkAuthTest",
   (confirmBody, data, confirm, globalState, overrideSdkAuth) => {
+    confirmBody = JSON.parse(JSON.stringify(confirmBody));
     const {
       Configs: configs = {},
       Request: reqData,

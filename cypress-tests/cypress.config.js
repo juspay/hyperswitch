@@ -3,6 +3,8 @@ import mochawesome from "cypress-mochawesome-reporter/plugin.js";
 import crypto from "crypto";
 import fs from "fs";
 import { getTimeoutMultiplier } from "./cypress/utils/RequestBodyUtils.js";
+import { multiplexLifecycleEvents } from "./cypress/utils/pluginEvents.js";
+import { registerSpecTimings } from "./cypress/utils/specTimings.js";
 
 let globalState;
 
@@ -39,7 +41,18 @@ export default defineConfig({
   env: forwardedEnv,
   e2e: {
     setupNodeEvents(on, config) {
-      mochawesome(on);
+      // Cypress keeps one handler per event, so every lifecycle listener below
+      // — the reporter's, the timing report's and this file's own — has to be
+      // registered through the multiplexer or the last one silently wins.
+      const onEvent = multiplexLifecycleEvents(on);
+
+      // Timings register first so the breakdown still reaches the log/step
+      // summary if the reporter's own `after:run` throws while generating the
+      // report. `reportName` doubles as the shard label (it's already unique
+      // per shard via REPORT_NAME, see execute_cypress.sh) so concurrent
+      // shards' reports are distinguishable in $GITHUB_STEP_SUMMARY.
+      registerSpecTimings(onEvent, reportName);
+      mochawesome(onEvent);
 
       on("task", {
         setGlobalState: (val) => {
@@ -76,7 +89,7 @@ export default defineConfig({
           return signature;
         },
       });
-      on("after:spec", (spec, results) => {
+      onEvent("after:spec", (spec, results) => {
         // Clean up resources after each spec
         if (
           results &&
@@ -110,7 +123,15 @@ export default defineConfig({
 
     reporter: "cypress-mochawesome-reporter",
     reporterOptions: {
-      reportDir: `cypress/reports/${connectorId}`,
+      // Nested under reportName (unique per shard via REPORT_NAME, see
+      // execute_cypress.sh), not just connectorId. CYPRESS_SPEC_SHARDS runs
+      // several of these processes concurrently against the same connector,
+      // and mochawesome's overwrite:false numbering decides each file's name
+      // by counting what's already in reportDir — sharing that directory
+      // across shards races on that count, corrupting/overwriting each
+      // other's files (confirmed in CI: some shards' reports silently
+      // vanished, others ended up with another shard's specs merged in).
+      reportDir: `cypress/reports/${connectorId}/${reportName}`,
       reportFilename: reportName,
       reportPageTitle: `[${connectorId}] Cypress test report`,
       embeddedScreenshots: true,

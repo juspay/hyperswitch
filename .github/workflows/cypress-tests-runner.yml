@@ -185,7 +185,7 @@ jobs:
 
       - name: Build project
         if: ${{ env.RUN_TESTS == 'true' }}
-        run: cargo build --package router --bin router --jobs 2
+        run: cargo build --package router --bin router --jobs 12
 
       - name: Upload binary artifact
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -217,6 +217,7 @@ jobs:
                   "name": "batch-1",
                   "connectors": "'"${MANDATORY_PAYMENTS_CONNECTORS_BATCH_1}"'",
                   "parallel": 3,
+                  "spec_shards": 9,
                   "report_artifact_name": "cypress-mandatory-test-results-batch-1",
                   "server_logs_artifact": "mandatory-server-logs-batch-1"
                 },
@@ -406,6 +407,18 @@ jobs:
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_MERCHANT_CERT_KEY: ${{ secrets.APPLE_PAY_MERCHANT_CERTIFICATE_KEY }}
           # Apply seeded Superposition config quickly in CI (default is 300s).
           ROUTER__SUPERPOSITION__POLLING_INTERVAL: 10
+          # Default pool of 5 per DB section / 5 (Redis) starved under
+          # CYPRESS_SPEC_SHARDS=3 concurrent shards hitting this one server —
+          # the batch-1 sharded pilot failed mostly on "expected error object
+          # to have client_secret", consistent with requests queuing on
+          # exhausted connection pools rather than a real product/test bug.
+          # 4 sections x 20 = 80, under the postgres:alpine service's default
+          # max_connections=100. Scoped to this job only.
+          ROUTER__MASTER_DATABASE__MAX_POOL_SIZE: 20
+          ROUTER__REPLICA_DATABASE__MAX_POOL_SIZE: 20
+          ROUTER__ACCOUNTS_DATABASE__MAX_POOL_SIZE: 20
+          ROUTER__GLOBAL_DATABASE__MAX_POOL_SIZE: 20
+          ROUTER__REDIS__POOL_SIZE: 20
           SERVER_LOG_PATH: ${{ github.workspace }}/server-logs.txt
         run: |
           # Start the server in the background
@@ -434,6 +447,7 @@ jobs:
           ROUTER__SERVER__WORKERS: 4
           PAYMENTS_CONNECTORS: "${{ matrix.batch.connectors }}"
           PLATFORM_CONNECTORS: "${{ matrix.batch.platform_connectors }}"
+          CYPRESS_SPEC_SHARDS: "${{ matrix.batch.spec_shards }}"
         shell: bash -leuo pipefail {0}
         run: |
           scripts/execute_cypress.sh --parallel ${{ matrix.batch.parallel }}
