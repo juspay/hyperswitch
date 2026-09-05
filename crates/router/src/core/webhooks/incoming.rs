@@ -679,6 +679,7 @@ async fn process_webhook_business_logic(
                 source_verified,
                 request_details,
                 connector,
+                &content,
             ))
             .await
             .attach_printable("Incoming webhook flow for payouts failed"),
@@ -1069,6 +1070,7 @@ async fn payouts_incoming_webhook_flow(
     source_verified: bool,
     request_details: &IncomingWebhookRequestDetails<'_>,
     connector: &ConnectorEnum,
+    content: &super::gateway::WebhookContent,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
     let payout_id =
         get_payout_id_from_object_reference_id(&state, &platform, &webhook_details).await?;
@@ -1098,6 +1100,7 @@ async fn payouts_incoming_webhook_flow(
         source_verified,
         request_details,
         connector,
+        content,
     ))
     .await;
 
@@ -1192,6 +1195,7 @@ async fn process_payout_incoming_webhook(
     source_verified: bool,
     request_details: &IncomingWebhookRequestDetails<'_>,
     connector: &ConnectorEnum,
+    content: &super::gateway::WebhookContent,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
     metrics::INCOMING_PAYOUT_WEBHOOK_METRIC.add(1, &[]);
 
@@ -1226,6 +1230,7 @@ async fn process_payout_incoming_webhook(
                 event_type,
                 request_details,
                 connector,
+                content,
                 &mut payout_data,
             )
             .await
@@ -1246,6 +1251,78 @@ async fn process_payout_incoming_webhook(
     }
 }
 
+/// Status and failure details to apply to a payout from an incoming webhook.
+#[cfg(feature = "payouts")]
+struct PayoutWebhookOutcome {
+    status: common_enums::PayoutStatus,
+    error_code: Option<String>,
+    error_message: Option<String>,
+}
+
+/// Resolves the payout status and failure details for an incoming webhook.
+///
+/// On the UCS path the connector service has already produced a
+/// `PayoutServiceGetResponse` -- the same shape `PayoutService.Get` returns --
+/// so status and error are read straight off it, mirroring how
+/// `payments_incoming_webhook_flow` consumes `UCSConsumeResponse`. On the Direct
+/// path the status is derived from the event type and the failure details are
+/// read back off the connector, which is the pre-UCS behaviour.
+#[cfg(feature = "payouts")]
+fn resolve_payout_webhook_outcome(
+    event_type: webhooks::IncomingWebhookEvent,
+    request_details: &IncomingWebhookRequestDetails<'_>,
+    connector: &ConnectorEnum,
+    content: &super::gateway::WebhookContent,
+) -> CustomResult<PayoutWebhookOutcome, errors::ApiErrorResponse> {
+    match content {
+        super::gateway::WebhookContent::UnifiedConnectorService(bytes) => {
+            let event_content: unified_connector_service_client::payments::EventContent =
+                serde_json::from_slice(bytes)
+                    .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+                    .attach_printable("Failed to deserialize UCS payout webhook content")?;
+
+            let payouts_response =
+                hyperswitch_interfaces::unified_connector_service::get_payouts_response_from_ucs_webhook_content(
+                    event_content,
+                )
+                .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+                .attach_printable("Failed to extract payouts response from UCS webhook content")?;
+
+            let status =
+                common_enums::PayoutStatus::foreign_try_from(payouts_response.payout_status())
+                    .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+                    .attach_printable("Failed to map payout status from UCS webhook content")?;
+
+            let connector_details = payouts_response
+                .error
+                .as_ref()
+                .and_then(|error_info| error_info.connector_details.as_ref());
+
+            Ok(PayoutWebhookOutcome {
+                status,
+                error_code: connector_details.and_then(|details| details.code.clone()),
+                error_message: connector_details.and_then(|details| details.message.clone()),
+            })
+        }
+        super::gateway::WebhookContent::Direct(_) => {
+            let status = common_enums::PayoutStatus::foreign_try_from(event_type)
+                .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+                .attach_printable("failed payout status mapping from event type")?;
+
+            let payout_webhook_details = connector
+                .get_payout_webhook_details(request_details)
+                .switch()
+                .attach_printable("Failed to get error object for payouts")?;
+
+            Ok(PayoutWebhookOutcome {
+                status,
+                error_code: payout_webhook_details.error_code,
+                error_message: payout_webhook_details.error_message,
+            })
+        }
+    }
+}
+
 #[cfg(feature = "payouts")]
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
@@ -1256,18 +1333,16 @@ async fn payout_incoming_webhook_update_status(
     event_type: webhooks::IncomingWebhookEvent,
     request_details: &IncomingWebhookRequestDetails<'_>,
     connector: &ConnectorEnum,
+    content: &super::gateway::WebhookContent,
     payout_data: &mut payouts::PayoutData,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
     let payout_attempt = &payout_data.payout_attempt;
     let db = &*state.store;
-    let status = common_enums::PayoutStatus::foreign_try_from(event_type)
-        .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
-        .attach_printable("failed payout status mapping from event type")?;
-
-    let payout_webhook_details = connector
-        .get_payout_webhook_details(request_details)
-        .switch()
-        .attach_printable("Failed to get error object for payouts")?;
+    let PayoutWebhookOutcome {
+        status,
+        error_code,
+        error_message,
+    } = resolve_payout_webhook_outcome(event_type, request_details, connector, content)?;
 
     let payouts_update = PayoutsUpdate::StatusUpdate { status };
 
@@ -1294,8 +1369,8 @@ async fn payout_incoming_webhook_update_status(
             connector_eligibility_reference_id: None,
             connector_payout_id: payout_attempt.connector_payout_id.clone(),
             status,
-            error_message: payout_webhook_details.error_message,
-            error_code: payout_webhook_details.error_code,
+            error_message,
+            error_code,
             is_eligible: payout_attempt.is_eligible,
             unified_code: None,
             unified_message: None,

@@ -58,7 +58,48 @@ pub fn get_payments_response_from_ucs_webhook_content(
         ) => Err(UnifiedConnectorServiceError::WebhookProcessingFailure).attach_printable(
             "UCS webhook contains disputes response but payments response was expected",
         )?,
+        Some(
+            unified_connector_service_client::payments::event_content::Content::PayoutsResponse(_),
+        ) => Err(UnifiedConnectorServiceError::WebhookProcessingFailure).attach_printable(
+            "UCS webhook contains payouts response but payments response was expected",
+        )?,
         None => Err(UnifiedConnectorServiceError::WebhookProcessingFailure)
             .attach_printable("Missing payments response in UCS webhook content")?,
+    }
+}
+
+/// Extracts the payouts response from UCS webhook content.
+///
+/// Mirrors [`get_payments_response_from_ucs_webhook_content`]. UCS returns a
+/// `PayoutServiceGetResponse` for payout events -- the same shape a
+/// `PayoutService.Get` produces -- so the caller consumes the webhook directly
+/// instead of re-deriving the status from the event type.
+#[cfg(feature = "payouts")]
+pub fn get_payouts_response_from_ucs_webhook_content(
+    event_content: payments_grpc::EventContent,
+) -> CustomResult<payments_grpc::PayoutServiceGetResponse, UnifiedConnectorServiceError> {
+    match event_content.content {
+        Some(
+            unified_connector_service_client::payments::event_content::Content::PayoutsResponse(
+                payouts_response,
+            ),
+        ) => Ok(payouts_response),
+        Some(
+            unified_connector_service_client::payments::event_content::Content::PaymentsResponse(_),
+        ) => Err(UnifiedConnectorServiceError::WebhookProcessingFailure).attach_printable(
+            "UCS webhook contains payments response but payouts response was expected",
+        )?,
+        Some(
+            unified_connector_service_client::payments::event_content::Content::RefundsResponse(_),
+        ) => Err(UnifiedConnectorServiceError::WebhookProcessingFailure).attach_printable(
+            "UCS webhook contains refunds response but payouts response was expected",
+        )?,
+        Some(
+            unified_connector_service_client::payments::event_content::Content::DisputesResponse(_),
+        ) => Err(UnifiedConnectorServiceError::WebhookProcessingFailure).attach_printable(
+            "UCS webhook contains disputes response but payouts response was expected",
+        )?,
+        None => Err(UnifiedConnectorServiceError::WebhookProcessingFailure)
+            .attach_printable("Missing payouts response in UCS webhook content")?,
     }
 }
