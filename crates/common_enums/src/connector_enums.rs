@@ -98,6 +98,7 @@ pub enum Connector {
     CtpVisa,
     Cybersource,
     Cybersourcedecisionmanager,
+    D24,
     Datatrans,
     Deutschebank,
     Digitalvirgo,
@@ -471,6 +472,7 @@ impl Connector {
             | Self::Paytm
             | Self::Payconex
             | Self::Citigate
+            | Self::D24
             | Self::Worldpayraft
             | Self::Payjustnow
             | Self::Payjustnowinstore
