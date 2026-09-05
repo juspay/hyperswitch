@@ -9,7 +9,7 @@ use api_models::{
     webhooks::IncomingWebhookEvent,
 };
 use base64::Engine;
-use common_enums::{enums, CountryAlpha2};
+use common_enums::{connector_enums::Connector, enums, CountryAlpha2};
 use common_utils::{
     consts::{APPLEPAY_VALIDATION_URL, BASE64_ENGINE},
     errors::CustomResult,
@@ -581,7 +581,7 @@ impl
                         required_shipping_contact_fields: None,
                         recurring_payment_request: None,
                     }),
-                    connector: "bluesnap".to_string(),
+                    connector: Connector::Bluesnap,
                     delayed_session_token: false,
                     sdk_next_action: {
                         SdkNextAction {
