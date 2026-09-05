@@ -82,6 +82,12 @@ pub enum EmailBody {
         prefix: String,
     },
     WelcomeToCommunity,
+    PaymentReportReady {
+        report_link: String,
+        start_date: String,
+        end_date: String,
+        expires_in_days: u32,
+    },
     RoleDeleted {
         user_name: String,
         role_name: String,
@@ -253,6 +259,18 @@ Email         : {user_email}
             EmailBody::WelcomeToCommunity => {
                 include_str!("assets/welcome_to_community.html").to_string()
             }
+            EmailBody::PaymentReportReady {
+                report_link,
+                start_date,
+                end_date,
+                expires_in_days,
+            } => format!(
+                include_str!("assets/payment_report_ready.html"),
+                report_link = report_link,
+                start_date = start_date,
+                end_date = end_date,
+                expires_in_days = expires_in_days,
+            ),
             EmailBody::RoleDeleted {
                 user_name,
                 role_name,
@@ -703,6 +721,33 @@ impl EmailData for ApiKeyExpiryReminder {
             subject: self.subject.to_string(),
             body: external_services::email::IntermediateString::new(body),
             recipient,
+        })
+    }
+}
+
+pub struct PaymentReportReady {
+    pub recipient_email: domain::UserEmail,
+    pub subject: String,
+    pub report_link: String,
+    pub start_date: String,
+    pub end_date: String,
+    pub expires_in_days: u32,
+}
+
+#[async_trait::async_trait]
+impl EmailData for PaymentReportReady {
+    async fn get_email_data(&self, _base_url: &str) -> CustomResult<EmailContents, EmailError> {
+        let body = html::get_html_body(EmailBody::PaymentReportReady {
+            report_link: self.report_link.clone(),
+            start_date: self.start_date.clone(),
+            end_date: self.end_date.clone(),
+            expires_in_days: self.expires_in_days,
+        });
+
+        Ok(EmailContents {
+            subject: self.subject.clone(),
+            body: external_services::email::IntermediateString::new(body),
+            recipient: self.recipient_email.clone().into_inner(),
         })
     }
 }

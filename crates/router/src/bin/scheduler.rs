@@ -411,6 +411,19 @@ impl ProcessTrackerWorkflows<routes::SessionState> for WorkflowRunner {
                             )
                     }
                 }
+                storage::ProcessTrackerRunner::GenerateReportWorkflow => {
+                    #[cfg(all(feature = "olap", feature = "v1"))]
+                    {
+                        Ok(Box::new(workflows::generate_report::GenerateReportWorkflow))
+                    }
+                    #[cfg(not(all(feature = "olap", feature = "v1")))]
+                    {
+                        Err(error_stack::report!(ProcessTrackerError::UnexpectedFlow))
+                            .attach_printable(
+                                "Cannot run report generation workflow when the olap and v1 features are disabled",
+                            )
+                    }
+                }
             }
         };
 

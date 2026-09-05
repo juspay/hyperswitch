@@ -31,6 +31,8 @@ pub mod external_service_auth;
 pub mod files;
 #[cfg(feature = "frm")]
 pub mod fraud_check;
+#[cfg(feature = "olap")]
+pub mod generate_report;
 pub mod gsm;
 pub mod health_check;
 pub mod mandate;
