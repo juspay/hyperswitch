@@ -22033,6 +22033,20 @@
           }
         }
       },
+      "EligibilityCardBin": {
+        "type": "object",
+        "description": "BIN-only input for the eligibility check. Enables BIN-level blocklist and profile-config\nblocking without the client having to share the full card number; fingerprint-level\n(exact-card) blocking requires the full card number via the `card` variant instead.",
+        "required": [
+          "card_bin"
+        ],
+        "properties": {
+          "card_bin": {
+            "type": "string",
+            "description": "The card BIN: the leading 6 to 10 digits of the card number",
+            "example": "42424242"
+          }
+        }
+      },
       "EligibilityOfferDetails": {
         "type": "object",
         "description": "Offer Engine eligibility details returned to the client.",
@@ -22064,6 +22078,18 @@
             "properties": {
               "card": {
                 "$ref": "#/components/schemas/EligibilityCard"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "EligibilityCardBin",
+            "required": [
+              "card_bin"
+            ],
+            "properties": {
+              "card_bin": {
+                "$ref": "#/components/schemas/EligibilityCardBin"
               }
             }
           },

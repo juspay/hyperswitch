@@ -14121,23 +14121,7 @@ impl EligibilityCheck for BlockListCheck {
         platform: &domain::Platform,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         let merchant_id = platform.get_processor().get_account().get_id();
-        let blocklist_enabled_key = merchant_id.get_blocklist_guard_key();
-        let blocklist_guard_enabled = state
-            .store
-            .find_config_by_key_unwrap_or(&blocklist_enabled_key, Some("false".to_string()))
-            .await;
-
-        Ok(match blocklist_guard_enabled {
-            Ok(config) => serde_json::from_str(&config.config).unwrap_or(false),
-
-            // If it is not present in db we are defaulting it to false
-            Err(inner) => {
-                if !inner.current_context().is_db_not_found() {
-                    logger::error!("Error fetching guard blocklist enabled config {:?}", inner);
-                }
-                false
-            }
-        })
+        Ok(blocklist_utils::is_blocklist_guard_enabled(state, merchant_id).await)
     }
 
     async fn execute_check(
