@@ -77,6 +77,7 @@ import { connectorDetails as powertranzConnectorDetails } from "./PowerTranz.js"
 import { connectorDetails as prophetpayConnectorDetails } from "./Prophetpay.js";
 import { connectorDetails as rapydConnectorDetails } from "./Rapyd.js";
 import { connectorDetails as redsysConnectorDetails } from "./Redsys.js";
+import { connectorDetails as santanderConnectorDetails } from "./Santander.js";
 import { connectorDetails as shift4ConnectorDetails } from "./Shift4.js";
 import { connectorDetails as silverflowConnectorDetails } from "./Silverflow.js";
 import { connectorDetails as squareConnectorDetails } from "./Square.js";
@@ -168,6 +169,7 @@ const connectorDetails = {
   prophetpay: prophetpayConnectorDetails,
   rapyd: rapydConnectorDetails,
   redsys: redsysConnectorDetails,
+  santander: santanderConnectorDetails,
   shift4: shift4ConnectorDetails,
   signifyd: signifydConnectorDetails,
   silverflow: silverflowConnectorDetails,

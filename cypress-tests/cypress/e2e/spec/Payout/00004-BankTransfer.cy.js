@@ -332,3 +332,140 @@ describe("[Payout] [Bank Transfer - Open Banking]", () => {
     );
   }
 });
+
+describe("[Payout] [Bank Transfer - PIX]", () => {
+  let shouldContinue = true;
+
+  before("seed global state", function () {
+    cy.task("getGlobalState")
+      .then((state) => {
+        globalState = new State(state);
+
+        if (!globalState.get("payoutsExecution")) {
+          shouldContinue = false;
+        }
+
+        if (
+          !utils.CONNECTOR_LISTS.INCLUDE.BANK_TRANSFER_PIX.includes(
+            globalState.get("connectorId")
+          )
+        ) {
+          shouldContinue = false;
+        }
+      })
+      .then(() => {
+        if (!shouldContinue) {
+          this.skip();
+        }
+      });
+  });
+
+  after("flush global state", () => {
+    cy.task("setGlobalState", globalState.data);
+  });
+
+  beforeEach(function () {
+    if (!shouldContinue) {
+      this.skip();
+    }
+  });
+
+  context("[Payout] [Bank transfer - PIX] Auto Fulfill", () => {
+    let shouldContinue = true;
+
+    beforeEach(function () {
+      if (!shouldContinue) {
+        this.skip();
+      }
+    });
+
+    it("confirm-payout-call-with-auto-fulfill-test", () => {
+      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
+        "bank_transfer_pm"
+      ]["pix_key"]["Fulfill"];
+
+      cy.createConfirmPayoutTest(
+        fixtures.createPayoutBody,
+        data,
+        true,
+        true,
+        globalState
+      );
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
+
+    it("retrieve-payout-call-test", () => {
+      cy.retrievePayoutCallTest(globalState);
+    });
+  });
+
+  context("[Payout] [Bank transfer - PIX] Manual Fulfill", () => {
+    let shouldContinue = true;
+
+    beforeEach(function () {
+      if (!shouldContinue) {
+        this.skip();
+      }
+    });
+
+    it("create customer", () => {
+      cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
+    });
+
+    it("confirm-payout-call-with-manual-fulfill-test", () => {
+      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
+        "bank_transfer_pm"
+      ]["pix_key"]["Confirm"];
+
+      cy.createConfirmPayoutTest(
+        fixtures.createPayoutBody,
+        data,
+        true,
+        false,
+        globalState
+      );
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
+
+    it("fulfill-payout-call-test", () => {
+      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
+        "bank_transfer_pm"
+      ]["pix_key"]["Fulfill"];
+
+      cy.fulfillPayoutCallTest({}, data, globalState);
+    });
+
+    it("retrieve-payout-call-test", () => {
+      cy.retrievePayoutCallTest(globalState);
+    });
+  });
+
+  context("[Payout] [Bank transfer - PIX] Create without confirm", () => {
+    let shouldContinue = true;
+
+    beforeEach(function () {
+      if (!shouldContinue) {
+        this.skip();
+      }
+    });
+
+    it("create-payout-without-confirm-test", () => {
+      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
+        "bank_transfer_pm"
+      ]["pix_key"]["Create"];
+
+      cy.createConfirmPayoutTest(
+        fixtures.createPayoutBody,
+        data,
+        false,
+        false,
+        globalState
+      );
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
+
+    it("retrieve-payout-call-test", () => {
+      cy.retrievePayoutCallTest(globalState);
+    });
+  });
+});
