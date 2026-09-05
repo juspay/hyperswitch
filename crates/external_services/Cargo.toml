@@ -69,7 +69,7 @@ error-stack = "0.4.1"
 hex = "0.4.3"
 hyper = "0.14.32"
 hyper-proxy = "0.9.1"
-lettre = "0.11.16"
+lettre = { version = "0.11.16", features = ["tokio1", "tokio1-native-tls"] }
 once_cell = "1.21.3"
 serde = { version = "1.0.219", features = ["derive"] }
 thiserror = "1.0.69"
@@ -80,7 +80,8 @@ prost = { version = "0.14", optional = true }
 prost-reflect = { version = "0.16.5", features = ["serde"], optional = true }
 prost-types = { version = "0.14", optional = true }
 time = { version = "0.3.41", features = ["serde", "serde-well-known", "std"] }
-tokio = "1.48.0"
+tokio = { version = "1.48.0", features = ["net", "io-util", "time", "sync"] }
+tokio-socks = "0.5"
 tonic = "0.14"
 tonic-prost = { version = "0.14", optional = true }
 tonic-reflection = "0.14.0"
