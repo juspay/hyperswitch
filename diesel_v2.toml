@@ -6,6 +6,8 @@
 file = "crates/diesel_models/src/schema_v2.rs"
 import_types = ["diesel::sql_types::*", "crate::enums::diesel_exports::*"]
 generate_missing_sql_type_definitions = false
+patch_file = "crates/diesel_models/payment_methods_v2.patch"
 # blocklist has no primary key, which print-schema refuses. Nothing in v2 uses this table, so it is
 # simply left out. Anchored because the value is a regex and would otherwise match the sibling tables.
-filter = { except_tables = ["^blocklist$"] }
+# payment_methods has no primary key either, but v2 does use it, so its block comes from patch_file.
+filter = { except_tables = ["^blocklist$", "^payment_methods$"] }

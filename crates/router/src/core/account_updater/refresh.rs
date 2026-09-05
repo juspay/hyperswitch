@@ -1,11 +1,16 @@
-use common_enums::ExecutionMode;
+use common_enums::{connector_enums::Connector, ExecutionMode};
 use common_utils::errors::CustomResult;
 use error_stack::{report, ResultExt};
 use external_services::grpc_client::LineageIds;
 use router_env::{instrument, tracing};
-use unified_connector_service_client::payments as payments_grpc;
+use unified_connector_service_client::payments::{
+    self as payments_grpc, refresh_result, CardRefreshOutcome as Outcome,
+};
 
-use super::types::{AccountUpdaterError, ResolvedAccountUpdaterConfig};
+use super::types::{
+    AccountUpdaterError, CardOutcome, CardRefreshedData, RefreshResult,
+    ResolvedAccountUpdaterConfig,
+};
 use crate::{
     core::unified_connector_service::build_unified_connector_service_auth_metadata_without_mca,
     routes::SessionState, types::domain,
@@ -18,7 +23,7 @@ pub async fn request_account_updater_refresh(
     profile: &domain::Profile,
     config: &ResolvedAccountUpdaterConfig,
     refreshable_payment_method: payments_grpc::PaymentMethod,
-) -> CustomResult<payments_grpc::CardRefreshOutcome, AccountUpdaterError> {
+) -> CustomResult<RefreshResult, AccountUpdaterError> {
     let client = state
         .grpc_client
         .unified_connector_service_client
@@ -75,15 +80,39 @@ pub async fn request_account_updater_refresh(
         );
     }
 
-    response
+    let result = response
         .result
         .and_then(|result| result.result)
-        .map(|result| match result {
-            payments_grpc::refresh_result::Result::Card(card) => {
-                payments_grpc::CardRefreshOutcome::try_from(card.outcome)
-                    .unwrap_or(payments_grpc::CardRefreshOutcome::Unspecified)
-            }
-        })
         .ok_or_else(|| report!(AccountUpdaterError::RefreshReturnedError))
-        .attach_printable("UCS returned neither a result nor an error")
+        .attach_printable("UCS returned neither a result nor an error")?;
+
+    match result {
+        refresh_result::Result::Card(card) => Ok(RefreshResult::Card(build_card_refreshed_data(
+            card,
+            config.service(),
+        )?)),
+    }
+}
+
+fn build_card_refreshed_data(
+    card_result: payments_grpc::CardRefreshResult,
+    service: Connector,
+) -> CustomResult<CardRefreshedData, AccountUpdaterError> {
+    let reported_outcome = card_result.outcome();
+
+    let outcome = match (reported_outcome, card_result.card) {
+        (Outcome::CardRefreshAccountUpdated, Some(card)) => CardOutcome::AccountUpdated(card),
+        (Outcome::CardRefreshExpiryUpdated, Some(card)) => CardOutcome::ExpiryUpdated(card),
+        (Outcome::CardRefreshAccountUpdated | Outcome::CardRefreshExpiryUpdated, None) => {
+            return Err(report!(AccountUpdaterError::RefreshReturnedError)
+                .attach_printable("Account Updater reported a card change but returned no card"))
+        }
+        (Outcome::CardRefreshClosed, _) => CardOutcome::Closed,
+        (Outcome::CardRefreshNoChange, _) => CardOutcome::NoChange,
+        (Outcome::CardRefreshNotFound, _) => CardOutcome::NotFound,
+        (Outcome::CardRefreshContactIssuer, _) => CardOutcome::ContactIssuer,
+        (Outcome::Unspecified, _) => CardOutcome::Unspecified,
+    };
+
+    Ok(CardRefreshedData { outcome, service })
 }

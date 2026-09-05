@@ -655,10 +655,13 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
             .await
             .change_context(errors::StorageError::DecryptionError)?;
         let conn = pg_connection_write(self).await?;
-        let payment_method: DomainPaymentMethod = Box::pin(self.call_database_new(
-            key_store,
-            payment_method.update_with_id(&conn, payment_method_update.into()),
-        ))
+        let payment_method: DomainPaymentMethod = Box::pin(
+            self.call_database_new(
+                key_store,
+                payment_method
+                    .update_with_id_and_locker_fingerprint_id(&conn, payment_method_update.into()),
+            ),
+        )
         .await?;
 
         if let Some(compat_action) = compat_action {
@@ -840,10 +843,13 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
                 .and_then(|initiator| initiator.to_created_by())
                 .map(|last_modified_by| last_modified_by.to_string()),
         };
-        Box::pin(self.call_database_new(
-            key_store,
-            payment_method.update_with_id(&conn, payment_method_update.into()),
-        ))
+        Box::pin(
+            self.call_database_new(
+                key_store,
+                payment_method
+                    .update_with_id_and_locker_fingerprint_id(&conn, payment_method_update.into()),
+            ),
+        )
         .await
     }
 

@@ -1,4 +1,6 @@
 use async_bb8_diesel::AsyncRunQueryDsl;
+#[cfg(feature = "v2")]
+use diesel::PgExpressionMethods;
 #[cfg(feature = "v1")]
 use diesel::Table;
 use diesel::{
@@ -279,8 +281,18 @@ impl PaymentMethod {
         conn: &DatabaseConnectionWithContext<'_>,
         id: &common_utils::id_type::GlobalPaymentMethodId,
     ) -> StorageResult<Self> {
-        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(conn, pm_id.eq(id.to_owned()))
-            .await
+        generics::generic_filter::<<Self as HasTable>::Table, _, _, Self>(
+            conn,
+            pm_id.eq(id.to_owned()),
+            Some(1),
+            None,
+            Some(dsl::created_at.desc()),
+        )
+        .await?
+        .into_iter()
+        .next()
+        .ok_or_else(|| error_stack::report!(errors::DatabaseError::NotFound))
+        .attach_printable("Error finding payment method by id")
     }
 
     pub async fn find_by_global_customer_id_merchant_id_statuses(
@@ -338,17 +350,25 @@ impl PaymentMethod {
         .await
     }
 
-    pub async fn update_with_id(
+    pub async fn update_with_id_and_locker_fingerprint_id(
         self,
         conn: &DatabaseConnectionWithContext<'_>,
         payment_method: payment_method::PaymentMethodUpdateInternal,
     ) -> StorageResult<Self> {
+        let locker_fingerprint_id = self.locker_fingerprint_id.clone();
+
         match generics::generic_update_with_unique_predicate_get_result::<
             <Self as HasTable>::Table,
             _,
             _,
             _,
-        >(conn, pm_id.eq(self.id.to_owned()), payment_method)
+        >(
+            conn,
+            pm_id
+                .eq(self.id.to_owned())
+                .and(dsl::locker_fingerprint_id.is_not_distinct_from(locker_fingerprint_id)),
+            payment_method,
+        )
         .await
         {
             Err(error) => match error.current_context() {

@@ -1,0 +1,97 @@
+diff --git a/crates/diesel_models/src/schema_v2.rs b/crates/diesel_models/src/schema_v2.rs
+--- a/crates/diesel_models/src/schema_v2.rs
++++ b/crates/diesel_models/src/schema_v2.rs
+@@ -1349,14 +1349,79 @@
+         #[max_length = 64]
+         profile_id -> Nullable<Varchar>,
+         #[max_length = 255]
+         secure_link -> Nullable<Varchar>,
+         #[max_length = 64]
+         processor_merchant_id -> Nullable<Varchar>,
++        #[max_length = 255]
++        created_by -> Nullable<Varchar>,
++    }
++}
++
++diesel::table! {
++    use diesel::sql_types::*;
++    use crate::enums::diesel_exports::*;
++
++    payment_methods (id) {
++        #[max_length = 64]
++        customer_id -> Nullable<Varchar>,
++        #[max_length = 64]
++        merchant_id -> Varchar,
++        #[max_length = 64]
++        payment_method_id -> Nullable<Varchar>,
++        created_at -> Timestamp,
++        last_modified -> Timestamp,
++        payment_method -> Nullable<Varchar>,
++        #[max_length = 64]
++        payment_method_type -> Nullable<Varchar>,
++        payment_method_data -> Nullable<Bytea>,
++        #[max_length = 64]
++        locker_id -> Nullable<Varchar>,
++        last_used_at -> Timestamp,
++        connector_mandate_details -> Nullable<Jsonb>,
++        customer_acceptance -> Nullable<Jsonb>,
++        #[max_length = 64]
++        status -> Varchar,
++        #[max_length = 255]
++        network_transaction_id -> Nullable<Varchar>,
++        #[max_length = 128]
++        client_secret -> Nullable<Varchar>,
++        payment_method_billing_address -> Nullable<Bytea>,
++        #[max_length = 64]
++        updated_by -> Nullable<Varchar>,
++        version -> ApiVersion,
++        #[max_length = 128]
++        network_token_requestor_reference_id -> Nullable<Varchar>,
++        #[max_length = 64]
++        network_token_locker_id -> Nullable<Varchar>,
++        network_token_payment_method_data -> Nullable<Bytea>,
++        #[max_length = 64]
++        external_vault_source -> Nullable<Varchar>,
++        #[max_length = 64]
++        vault_type -> Nullable<Varchar>,
+         #[max_length = 255]
+         created_by -> Nullable<Varchar>,
++        #[max_length = 255]
++        last_modified_by -> Nullable<Varchar>,
++        customer_details -> Nullable<Bytea>,
++        #[max_length = 64]
++        locker_fingerprint_id -> Nullable<Varchar>,
++        network_tokenization_data -> Nullable<Bytea>,
++        #[max_length = 64]
++        id -> Varchar,
++        #[max_length = 64]
++        payment_method_type_v2 -> Nullable<Varchar>,
++        #[max_length = 64]
++        payment_method_subtype -> Nullable<Varchar>,
++        #[max_length = 255]
++        network_transaction_link_id -> Nullable<Varchar>,
++        compatibility_updated_at -> Nullable<Timestamp>,
++        #[max_length = 64]
++        auxiliary_fingerprint_id -> Nullable<Varchar>,
++        connector_payment_method_details -> Nullable<Jsonb>,
++        external_vault_token_data -> Nullable<Bytea>,
+     }
+ }
+ 
+ diesel::table! {
+     use diesel::sql_types::*;
+     use crate::enums::diesel_exports::*;
+@@ -1917,12 +1982,13 @@
+     merchant_connector_account,
+     merchant_key_store,
+     organization,
+     payment_attempt,
+     payment_intent,
+     payment_link,
++    payment_methods,
+     payout_attempt,
+     payouts,
+     process_tracker,
+     refund,
+     relay,
+     revenue_recovery_retry_stats,
