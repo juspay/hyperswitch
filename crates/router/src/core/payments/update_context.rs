@@ -228,9 +228,9 @@ pub fn without_failed_session_tokens(
     response: ApplicationResponse<payment_types::PaymentsSessionResponse>,
 ) -> ApplicationResponse<payment_types::PaymentsSessionResponse> {
     let strip = |mut session: payment_types::PaymentsSessionResponse| {
-        session.session_token.retain(|token| {
-            !matches!(token, api_models::payments::SessionToken::Failed(_))
-        });
+        session
+            .session_token
+            .retain(|token| !matches!(token, api_models::payments::SessionToken::Failed(_)));
         session
     };
 
