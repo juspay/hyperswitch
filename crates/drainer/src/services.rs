@@ -41,6 +41,8 @@ impl Store {
                 config.master_database.get_inner(),
                 test_transaction,
                 &tenant.schema,
+                storage_impl::database::pool_metrics::DbPool::Master,
+                &tenant.tenant_id,
             )
             .await,
             redis_conn: Arc::new(RedisConnectionPool::clone(

@@ -213,8 +213,10 @@ pub async fn generate_sample_data(
             created_at.saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY));
 
         // After some set of payments sample data will have a failed attempt
-        let is_failed_payment =
-            (random_array.get(num - 1).unwrap_or(&0) % failure_after_attempts) == 0;
+        let is_failed_payment = random_array
+            .get(num - 1)
+            .unwrap_or(&0)
+            .is_multiple_of(failure_after_attempts);
 
         let payment_intent = PaymentIntent {
             payment_id: payment_id.clone(),

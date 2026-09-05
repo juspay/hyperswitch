@@ -306,7 +306,7 @@ impl RouterDataPSync
                         });
                     },
                     Ok(types::PaymentsResponseData::MultipleCaptureResponse { capture_sync_response_list })=> {
-                        capture_sync_response_map.extend(capture_sync_response_list.into_iter());
+                        capture_sync_response_map.extend(capture_sync_response_list);
                     }
                     _ => Err(ApiErrorResponse::PreconditionFailed { message: "Response type must be PaymentsResponseData::MultipleCaptureResponse for payment sync".into() })?,
                 };

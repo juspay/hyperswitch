@@ -113,9 +113,16 @@ pub mod db_metrics {
 
         let table_name = std::any::type_name::<T>().rsplit("::").nth(1);
 
+        let outcome = if output.is_success() {
+            "success"
+        } else {
+            "error"
+        };
+
         let attributes = router_env::metric_attributes!(
             ("table", table_name.unwrap_or("undefined")),
-            ("operation", format!("{:?}", operation))
+            ("operation", format!("{:?}", operation)),
+            ("outcome", outcome)
         );
 
         crate::metrics::DATABASE_CALLS_COUNT.add(1, attributes);
