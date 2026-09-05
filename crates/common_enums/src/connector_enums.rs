@@ -178,6 +178,7 @@ pub enum Connector {
     Recurly,
     Redsys,
     Revolv3,
+    Saferpay,
     Santander,
     Shift4,
     Silverflow,
@@ -422,6 +423,7 @@ impl Connector {
             | Self::Recurly
             | Self::Redsys
             | Self::Revolv3
+            | Self::Saferpay
             | Self::Santander
             | Self::Shift4
             | Self::Silverflow

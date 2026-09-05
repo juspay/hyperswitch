@@ -8358,3 +8358,38 @@ type="Text"
   payment_method_type = "DinersClub"
 [[jpmorgan_orbital.debit]]
   payment_method_type = "UnionPay"
+
+[saferpay]
+[[saferpay.credit]]
+payment_method_type = "Mastercard"
+[[saferpay.credit]]
+payment_method_type = "Visa"
+[[saferpay.credit]]
+payment_method_type = "AmericanExpress"
+[[saferpay.credit]]
+payment_method_type = "JCB"
+[[saferpay.credit]]
+payment_method_type = "Discover"
+[[saferpay.credit]]
+payment_method_type = "DinersClub"
+[[saferpay.credit]]
+payment_method_type = "UnionPay"
+[[saferpay.debit]]
+payment_method_type = "Mastercard"
+[[saferpay.debit]]
+payment_method_type = "Visa"
+[[saferpay.debit]]
+payment_method_type = "AmericanExpress"
+[[saferpay.debit]]
+payment_method_type = "JCB"
+[[saferpay.debit]]
+payment_method_type = "Discover"
+[[saferpay.debit]]
+payment_method_type = "DinersClub"
+[[saferpay.debit]]
+payment_method_type = "UnionPay"
+[saferpay.connector_auth.MultiAuthKey]
+api_key = "API Username"
+key1 = "API Password"
+api_secret = "Customer Id"
+key2 = "Terminal Id"

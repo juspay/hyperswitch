@@ -402,6 +402,7 @@ recurly.base_url = "https://v3.recurly.com"
 redsys.base_url = "https://sis-t.redsys.es:25443"
 revolv3.base_url = "https://api-sandbox.revolv3.com"
 riskified.base_url = "https://sandbox.riskified.com/api"
+saferpay.base_url = "https://test.saferpay.com/api"
 santander.base_url = "https://trust-pix-h.santander.com.br/"
 santander.secondary_base_url = "https://trust-open-h.api.santander.com.br/"
 shift4.base_url = "https://api.shift4.com/"
@@ -637,6 +638,7 @@ supported_connectors = "adyen"                               # Supported connect
 adyen = "Star,Pulse,Accel,Nyce"                              # Debit networks supported by adyen connector
 
 [temp_locker_enable_config]
+saferpay = { payment_method = "card" }
 ilixium = { payment_method = "card" }
 stripe = { payment_method = "bank_transfer" }
 nuvei = { payment_method = "card" }
@@ -1477,7 +1479,7 @@ diff_count_threshold = 100 # Non-volume routing diffs per profile within the cou
 base_url = "http://localhost:8000"      # Unified Connector Service Base URL
 connection_timeout = 10                 # Connection Timeout Duration in Seconds
 request_timeout = 35                    # Per-RPC Request Timeout in Seconds
-ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, dlocal, barclaycard, tsys_transit, jpmorgan, datatrans, givepayments, tesouro, citigate, ilixium, moneris, elavon, worldpayraft, paynearme, jpmorgan_orbital"    # Comma-separated list of connectors that use UCS only
+ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, dlocal, barclaycard, tsys_transit, jpmorgan, datatrans, givepayments, tesouro, citigate, ilixium, moneris, elavon, worldpayraft, paynearme, jpmorgan_orbital, saferpay"    # Comma-separated list of connectors that use UCS only
 ucs_psync_disabled_connectors = "cashtocode, trustly"    # Comma-separated list of connectors to disable UCS PSync call
 
 [grpc_client.recovery_decider_client] # Revenue recovery client base url

@@ -46,7 +46,7 @@ pub use hyperswitch_connectors::connectors::{
     placetopay::Placetopay, plaid, plaid::Plaid, powertranz, powertranz::Powertranz, prophetpay,
     prophetpay::Prophetpay, rapyd, rapyd::Rapyd, razorpay, razorpay::Razorpay, recurly,
     recurly::Recurly, redsys, redsys::Redsys, revolv3, revolv3::Revolv3, riskified,
-    riskified::Riskified, santander, santander::Santander, shift4, shift4::Shift4, sift,
+    riskified::Riskified, saferpay, saferpay::Saferpay, santander, santander::Santander, shift4, shift4::Shift4, sift,
     sift::Sift, signifyd, signifyd::Signifyd, silverflow, silverflow::Silverflow, square,
     square::Square, stax, stax::Stax, stripe, stripe::Stripe, stripebilling,
     stripebilling::Stripebilling, taxjar, taxjar::Taxjar, tesouro, tesouro::Tesouro,

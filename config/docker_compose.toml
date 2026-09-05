@@ -325,6 +325,7 @@ recurly.base_url = "https://v3.recurly.com"
 redsys.base_url = "https://sis-t.redsys.es:25443"
 revolv3.base_url = "https://api-sandbox.revolv3.com"
 riskified.base_url = "https://sandbox.riskified.com/api"
+saferpay.base_url = "https://test.saferpay.com/api"
 santander.base_url = "https://trust-pix-h.santander.com.br/"
 santander.secondary_base_url = "https://trust-open-h.api.santander.com.br/"
 shift4.base_url = "https://api.shift4.com/"
@@ -535,6 +536,7 @@ finix= { long_lived_token = false, payment_method = "card,wallet" }
 paysafe= { long_lived_token = false, payment_method = "card,wallet" ,payment_method_type = { type = "enable_only", list = "apple_pay,google_pay,credit,debit"},allowed_card_authentication_type= "no_three_ds", apple_pay_pre_decrypt_flow = "connector_tokenization", google_pay_pre_decrypt_flow = "connector_tokenization"}
 
 [temp_locker_enable_config]
+saferpay = { payment_method = "card" }
 ilixium = { payment_method = "card" }
 stripe = { payment_method = "bank_transfer" }
 nuvei = { payment_method = "card" }
