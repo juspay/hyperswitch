@@ -472,6 +472,20 @@ pub struct WalletAdditionalDataForCard {
     /// The card's expiry year
     #[schema(value_type = Option<String>, example = "25")]
     pub card_exp_year: Option<Secret<String>>,
+    /// The BIN of the underlying funding card, present when the decrypted wallet token
+    /// carries the funding PAN (Google Pay `PAN_ONLY`)
+    #[schema(value_type = Option<String>, example = "424242")]
+    #[smithy(value_type = "Option<String>")]
+    pub card_isin: Option<String>,
+    /// The BIN of the device token, present when the decrypted wallet token carries a
+    /// device PAN rather than the funding PAN (Apple Pay, and Google Pay `CRYPTOGRAM_3DS`)
+    #[schema(value_type = Option<String>, example = "513331")]
+    #[smithy(value_type = "Option<String>")]
+    pub token_isin: Option<String>,
+    /// Whether Google Pay supplied a funding PAN or a tokenized device PAN
+    #[schema(value_type = Option<GooglePayAuthMethod>, example = "PAN_ONLY")]
+    #[smithy(value_type = "Option<GooglePayAuthMethod>")]
+    pub auth_method: Option<common_enums::GooglePayAuthMethod>,
     /// Unique authorisation code generated for the payment
     #[schema(value_type = Option<String>, example = "009825")]
     pub auth_code: Option<String>,

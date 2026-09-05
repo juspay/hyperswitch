@@ -11148,6 +11148,12 @@
             "example": "003925",
             "nullable": true
           },
+          "token_isin": {
+            "type": "string",
+            "description": "The BIN of the device token. Apple Pay always decrypts to a device PAN rather than\nthe funding PAN, so the BIN is reported here and never as `card_isin`.",
+            "example": "513331",
+            "nullable": true
+          },
           "auth_code": {
             "type": "string",
             "description": "Unique authorisation code generated for the payment",
@@ -47998,6 +48004,26 @@
             "type": "string",
             "description": "The card's expiry year",
             "example": "25",
+            "nullable": true
+          },
+          "card_isin": {
+            "type": "string",
+            "description": "The BIN of the underlying funding card, present when the decrypted wallet token\ncarries the funding PAN (Google Pay `PAN_ONLY`)",
+            "example": "424242",
+            "nullable": true
+          },
+          "token_isin": {
+            "type": "string",
+            "description": "The BIN of the device token, present when the decrypted wallet token carries a\ndevice PAN rather than the funding PAN (Apple Pay, and Google Pay `CRYPTOGRAM_3DS`)",
+            "example": "513331",
+            "nullable": true
+          },
+          "auth_method": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GooglePayAuthMethod"
+              }
+            ],
             "nullable": true
           },
           "auth_code": {
