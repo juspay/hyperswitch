@@ -45,6 +45,7 @@ export const CONNECTOR_PAYMENT_METHODS = Object.freeze({
   cryptopay: ["crypto"],
   datatrans: ["card"],
   facilitapay: ["bank_transfer"],
+  finix: ["card"],
   fiservcommercehub: ["card"],
   gigadat: ["bank_redirect"],
   givepayments: ["card"],

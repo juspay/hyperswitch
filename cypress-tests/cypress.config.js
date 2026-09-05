@@ -1,15 +1,15 @@
 import { defineConfig } from "cypress";
-import mochawesome from "cypress-mochawesome-reporter/plugin.js";
 import crypto from "crypto";
 import fs from "fs";
 import { getTimeoutMultiplier } from "./cypress/utils/RequestBodyUtils.js";
+import { multiplexLifecycleEvents } from "./cypress/utils/pluginEvents.js";
+import { registerSpecTimings } from "./cypress/utils/specTimings.js";
 
 let globalState;
 
 // Fetch from environment variable
 const connectorId = process.env.CYPRESS_CONNECTOR || "service";
 const screenshotsFolderName = `screenshots/${connectorId}`;
-const reportName = process.env.REPORT_NAME || `${connectorId}_report`;
 const retries = process.env.CYPRESS_MOCK_SERVER === "true" ? 0 : 2;
 
 // Cypress only auto-maps `CYPRESS_` prefixed variables onto `Cypress.env()`, so
@@ -39,7 +39,13 @@ export default defineConfig({
   env: forwardedEnv,
   e2e: {
     setupNodeEvents(on, config) {
-      mochawesome(on);
+      // Cypress keeps one handler per event, so the timing report's
+      // before:run/after:run/before:spec/after:spec listeners go through the
+      // multiplexer — anything else registered on those events later (e.g. by
+      // another plugin) fans out alongside it instead of silently replacing it.
+      const onEvent = multiplexLifecycleEvents(on);
+
+      registerSpecTimings(onEvent);
 
       on("task", {
         setGlobalState: (val) => {
@@ -76,31 +82,6 @@ export default defineConfig({
           return signature;
         },
       });
-      on("after:spec", (spec, results) => {
-        // Clean up resources after each spec
-        if (
-          results &&
-          results.video &&
-          !results.tests.some((test) =>
-            test.attempts.some((attempt) => attempt.state === "failed")
-          )
-        ) {
-          // Only try to delete if the video file exists
-          try {
-            if (fs.existsSync(results.video)) {
-              fs.unlinkSync(results.video);
-            }
-          } catch (error) {
-            // Log the error but don't fail the test
-            // eslint-disable-next-line no-console
-            console.warn(
-              `Warning: Could not delete video file: ${results.video}`
-            );
-            // eslint-disable-next-line no-console
-            console.warn(error);
-          }
-        }
-      });
       return config;
     },
     experimentalRunAllSpecs: true,
@@ -108,16 +89,6 @@ export default defineConfig({
     specPattern: "cypress/e2e/**/*.cy.{js,jsx,ts,tsx}",
     supportFile: "cypress/support/e2e.js",
 
-    reporter: "cypress-mochawesome-reporter",
-    reporterOptions: {
-      reportDir: `cypress/reports/${connectorId}`,
-      reportFilename: reportName,
-      reportPageTitle: `[${connectorId}] Cypress test report`,
-      embeddedScreenshots: true,
-      overwrite: false,
-      inlineAssets: true,
-      saveJson: true,
-    },
     defaultCommandTimeout: Math.round(30000 * timeoutMultiplier),
     pageLoadTimeout: Math.round(90000 * timeoutMultiplier), // 90s local, 135s (2.25min) CI
     responseTimeout: Math.round(60000 * timeoutMultiplier),
@@ -125,9 +96,7 @@ export default defineConfig({
     taskTimeout: Math.round(120000 * timeoutMultiplier),
     screenshotsFolder: screenshotsFolderName,
     retries: retries,
-    video: true,
-    videoCompression: 32,
-    videosFolder: `cypress/videos/${connectorId}`,
+    video: false,
     chromeWebSecurity: false,
   },
 });

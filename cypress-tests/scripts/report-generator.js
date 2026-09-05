@@ -24,6 +24,16 @@ class CypressReportGenerator {
 
   async generateReport() {
     try {
+      // cypress.config.js no longer runs a JSON-producing reporter
+      // (cypress-mochawesome-reporter was removed), so a run that never
+      // populated this directory is expected, not an error worth crashing on.
+      if (!fs.existsSync(this.reportsDir)) {
+        console.log(
+          `⚠️  No reports directory at ${this.reportsDir} — nothing to summarize (cypress-mochawesome-reporter was removed; no JSON reports are generated anymore).`
+        );
+        return;
+      }
+
       await this.collectTestResults();
       await this.calculateMetrics();
       await this.generateSummaryReport();
