@@ -1,7 +1,9 @@
 use std::str::FromStr;
 
 use error_stack::{report, ResultExt};
-use hyperswitch_connectors::connectors::{Citigate, Payconex, Paytm, Phonepe, Worldpayraft};
+use hyperswitch_connectors::connectors::{
+    Citigate, Payconex, Paynearme, Paytm, Phonepe, Worldpayraft,
+};
 
 use crate::{
     configs::settings::Connectors,
@@ -289,6 +291,9 @@ impl ConnectorData {
                 enums::Connector::Ilixium => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Ilixium::new())))
                 }
+                enums::Connector::JpmorganOrbital => Ok(ConnectorEnum::Old(Box::new(
+                    connector::JpmorganOrbital::new(),
+                ))),
                 enums::Connector::Givepayments => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Givepayments::new())))
                 }
@@ -420,6 +425,9 @@ impl ConnectorData {
                 enums::Connector::Revolv3 => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Revolv3::new())))
                 }
+                enums::Connector::Saferpay => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Saferpay::new())))
+                }
                 enums::Connector::Santander => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Santander::new())))
                 }
@@ -540,6 +548,7 @@ impl ConnectorData {
                 enums::Connector::Worldpayraft => {
                     Ok(ConnectorEnum::Old(Box::new(Worldpayraft::new())))
                 }
+                enums::Connector::Paynearme => Ok(ConnectorEnum::Old(Box::new(Paynearme::new()))),
             },
             Err(_) => Err(report!(errors::ConnectorError::InvalidConnectorName)
                 .attach_printable(format!("invalid connector name: {connector_name}")))

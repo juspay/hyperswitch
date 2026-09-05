@@ -292,6 +292,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 ilixium::transformers::IlixiumAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::JpmorganOrbital => {
+                jpmorgan_orbital::transformers::JpmorganOrbitalAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Givepayments => {
                 givepayments::transformers::GivepaymentsAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -517,6 +521,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 revolv3::transformers::Revolv3AuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Saferpay => {
+                saferpay::transformers::SaferpayAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Santander => {
                 santander::requests::SantanderAuthType::try_from(self.auth_type)?;
                 santander::requests::SantanderMetadataObject::try_from(self.connector_meta_data)?;
@@ -680,6 +688,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             }
             api_enums::Connector::Worldpayraft => {
                 worldpayraft::transformers::WorldpayraftAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
+            api_enums::Connector::Paynearme => {
+                paynearme::transformers::PaynearmeAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
             api_enums::Connector::Finix => {

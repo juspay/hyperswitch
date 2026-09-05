@@ -1716,6 +1716,7 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
         (Connector::Rapyd, fields(vec![], card_with_name(), vec![])),
         (Connector::Redsys, fields(vec![], card_basic(), vec![])),
         (Connector::Revolv3, fields(vec![], vec![], card_with_name())),
+        (Connector::Saferpay, fields(vec![], card_basic(), vec![])),
         (Connector::Shift4, fields(vec![], card_basic(), vec![])),
         (Connector::Silverflow, fields(vec![], vec![], card_basic())),
         (Connector::Square, fields(vec![], vec![], card_basic())),
@@ -1849,6 +1850,12 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
         ),
         (
             Connector::Imerchantsolutions,
+            fields(vec![], card_basic(), vec![]),
+        ),
+        // JP Morgan Orbital takes the bare card fields; billing data is optional on the
+        // Orbital Gateway and is only used for AVS when supplied.
+        (
+            Connector::JpmorganOrbital,
             fields(vec![], card_basic(), vec![]),
         ),
         (

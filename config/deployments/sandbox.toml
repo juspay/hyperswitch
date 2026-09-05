@@ -113,6 +113,9 @@ jpmorgan.base_url = "https://api-mock.payments.jpmorgan.com/api/v2"
 juspaythreedsserver.base_url = "http://localhost:8000"
 katapult.base_url = "https://sandbox.katapult.com/api/v3"
 jpmorgan.secondary_base_url="https://id.payments.jpmorgan.com"
+# JP Morgan Orbital (Chase Paymentech Orbital Gateway JSON API v4). Distinct from the
+# `jpmorgan` entry above, which is the JPMorgan Payments API v2.
+jpmorgan_orbital.base_url = "https://orbitalvar1.chasepaymentech.com/gwapi/v4/gateway"
 klarna.base_url = "https://api{{klarna_region}}.playground.klarna.com/"
 loonio.base_url = "https://integration.loonio.ca/"
 mifinity.base_url = "https://demo.mifinity.com/"
@@ -140,6 +143,7 @@ payjustnow.base_url = "https://sandbox-checkout.payjustnow.io/v2"
 payjustnowinstore.base_url = "https://sandbox.payjustnow.com/api"
 payload.base_url = "https://api.payload.com"
 payme.base_url = "https://sandbox.payme.io/"
+paynearme.base_url = "https://api.paynearme-sandbox.com/json-api"
 payone.base_url = "https://payment.preprod.payone.com/"
 paypal.base_url = "https://api-m.sandbox.paypal.com/"
 paysafe.base_url = "https://api.test.paysafe.com/paymenthub/"
@@ -158,6 +162,7 @@ recurly.base_url = "https://v3.recurly.com"
 redsys.base_url = "https://sis-t.redsys.es:25443"
 revolv3.base_url = "https://api-sandbox.revolv3.com"
 riskified.base_url = "https://sandbox.riskified.com/api"
+saferpay.base_url = "https://test.saferpay.com/api"
 santander.base_url = "https://trust-pix-h.santander.com.br/"
 santander.secondary_base_url = "https://trust-open-h.api.santander.com.br/"
 shift4.base_url = "https://api.shift4.com/"
@@ -1069,7 +1074,7 @@ connector_list = "juspaythreedsserver, ctp_mastercard, ctp_visa"
 connector_list = "worldpayvantiv"
 
 [grpc_client.unified_connector_service]
-ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, payconex, dlocal, barclaycard, jpmorgan, datatrans, tsys_transit, givepayments, citigate, ilixium, moneris, elavon, worldpayraft"    # Comma-separated list of connectors that use UCS only
+ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, payconex, dlocal, barclaycard, jpmorgan, datatrans, tsys_transit, givepayments, citigate, ilixium, moneris, elavon, worldpayraft, paynearme, jpmorgan_orbital, saferpay"    # Comma-separated list of connectors that use UCS only
 ucs_psync_disabled_connectors = "cashtocode, trustly"    # Comma-separated list of connectors to disable UCS PSync call
 
 # Merchant Advice Code Configuration
