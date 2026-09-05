@@ -352,6 +352,9 @@ jpmorgan.base_url = "https://api-mock.payments.jpmorgan.com/api/v2"
 juspaythreedsserver.base_url = "http://localhost:8000"
 katapult.base_url = "https://sandbox.katapult.com/api/v3"
 jpmorgan.secondary_base_url= "https://id.payments.jpmorgan.com"
+# JP Morgan Orbital (Chase Paymentech Orbital Gateway JSON API v4). Distinct from the
+# `jpmorgan` entry above, which is the JPMorgan Payments API v2.
+jpmorgan_orbital.base_url = "https://orbitalvar1.chasepaymentech.com/gwapi/v4/gateway"
 klarna.base_url = "https://api{{klarna_region}}.playground.klarna.com/"
 loonio.base_url = "https://integration.loonio.ca/"
 mifinity.base_url = "https://demo.mifinity.com/"
@@ -1473,7 +1476,7 @@ diff_count_threshold = 100 # Non-volume routing diffs per profile within the cou
 base_url = "http://localhost:8000"      # Unified Connector Service Base URL
 connection_timeout = 10                 # Connection Timeout Duration in Seconds
 request_timeout = 35                    # Per-RPC Request Timeout in Seconds
-ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, dlocal, barclaycard, tsys_transit, jpmorgan, datatrans, givepayments, tesouro, citigate, ilixium, moneris, elavon, worldpayraft"    # Comma-separated list of connectors that use UCS only
+ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, dlocal, barclaycard, tsys_transit, jpmorgan, datatrans, givepayments, tesouro, citigate, ilixium, moneris, elavon, worldpayraft, jpmorgan_orbital"    # Comma-separated list of connectors that use UCS only
 ucs_psync_disabled_connectors = "cashtocode, trustly"    # Comma-separated list of connectors to disable UCS PSync call
 
 [grpc_client.recovery_decider_client] # Revenue recovery client base url

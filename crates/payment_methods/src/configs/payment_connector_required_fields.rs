@@ -1851,6 +1851,12 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
             Connector::Imerchantsolutions,
             fields(vec![], card_basic(), vec![]),
         ),
+        // JP Morgan Orbital takes the bare card fields; billing data is optional on the
+        // Orbital Gateway and is only used for AVS when supplied.
+        (
+            Connector::JpmorganOrbital,
+            fields(vec![], card_basic(), vec![]),
+        ),
         (
             Connector::Ilixium,
             fields(
