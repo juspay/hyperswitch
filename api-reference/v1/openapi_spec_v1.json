@@ -6923,7 +6923,7 @@
           }
         ],
         "requestBody": {
-          "description": "A multipart/form-data request with a `file` field containing a UTF-8 CSV (max 5 MiB). The CSV must have a header row: `type,data,metadata`. `type`: one of `generic_card_bin` (6 to 10 digits), `fingerprint`. `metadata`: optional, `key=value` pairs separated by `;` (e.g. `reason=fraud;source=manual`). Maximum 100,000 data rows.",
+          "description": "A multipart/form-data request with a `file` field containing a UTF-8 CSV (max 5 MiB). The part's `filename` is recorded on the job and returned as `file_name`. The CSV must have a header row: `type,data,metadata`. `type`: one of `generic_card_bin` (6 to 10 digits), `fingerprint`. `metadata`: optional, `key=value` pairs separated by `;` (e.g. `reason=fraud;source=manual`). Maximum 100,000 data rows.",
           "content": {
             "multipart/form-data": {
               "schema": {
@@ -6983,11 +6983,35 @@
               "nullable": true,
               "minimum": 0
             }
+          },
+          {
+            "name": "job_type",
+            "in": "query",
+            "description": "Restricts the listing to `upload` or `export` jobs. Both kinds are returned when omitted, newest first.",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/BatchBlocklistJobType"
+                }
+              ],
+              "nullable": true
+            }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Restricts the listing to jobs run for this business profile, plus jobs that predate profile scoping. When no profile can be resolved, all of the merchant's jobs are returned, as before.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
           }
         ],
         "responses": {
           "200": {
-            "description": "List of batch blocklist jobs",
+            "description": "List of batch blocklist jobs. Rows report `downloadable`, but never `download_url` - fetch the link from `GET /blocklist/batch/{job_id}` when the merchant asks for that specific file.",
             "content": {
               "application/json": {
                 "schema": {
@@ -7014,7 +7038,7 @@
           {
             "name": "job_id",
             "in": "path",
-            "description": "The job ID returned by the batch upload endpoint",
+            "description": "The job ID returned by the batch upload endpoint, or the export ID returned by `POST /blocklist/export`",
             "required": true,
             "schema": {
               "type": "string"
@@ -7023,17 +7047,57 @@
         ],
         "responses": {
           "200": {
-            "description": "Batch blocklist job status",
+            "description": "Batch blocklist job status. For a completed export whose file is still stored, this is where the short-lived `download_url` is issued.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BatchBlocklistJobStatusResponse"
+                  "$ref": "#/components/schemas/BatchBlocklistJobDetailResponse"
                 }
               }
             }
           },
           "404": {
             "description": "Job not found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/blocklist/export": {
+      "post": {
+        "tags": [
+          "Blocklist"
+        ],
+        "operationId": "Start a blocklist CSV export",
+        "parameters": [
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "The business profile whose blocklist is exported. Resolution follows the same rules as blocking a single entry.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Blocklist export started",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BlocklistExportResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "No profile could be resolved"
           }
         },
         "security": [
@@ -15404,6 +15468,29 @@
           "subscription_share"
         ]
       },
+      "BatchBlocklistJobDetailResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/BatchBlocklistJobStatusResponse"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "download_url": {
+                "type": "string",
+                "description": "Exports only: short-lived signed link, generated per request and never stored.",
+                "nullable": true
+              },
+              "download_url_expires_at": {
+                "type": "string",
+                "format": "date-time",
+                "nullable": true
+              }
+            }
+          }
+        ],
+        "description": "Response for `GET /blocklist/batch/{job_id}`."
+      },
       "BatchBlocklistJobStatus": {
         "type": "string",
         "enum": [
@@ -15415,16 +15502,18 @@
       },
       "BatchBlocklistJobStatusResponse": {
         "type": "object",
-        "description": "Response for `GET /blocklist/batch/{job_id}`.",
+        "description": "One job in the batch blocklist job listing.",
         "required": [
           "job_id",
           "merchant_id",
+          "job_type",
           "status",
           "total_rows",
           "succeeded_rows",
           "failed_rows",
           "created_at",
-          "updated_at"
+          "updated_at",
+          "downloadable"
         ],
         "properties": {
           "job_id": {
@@ -15432,6 +15521,14 @@
           },
           "merchant_id": {
             "type": "string"
+          },
+          "job_type": {
+            "$ref": "#/components/schemas/BatchBlocklistJobType"
+          },
+          "file_name": {
+            "type": "string",
+            "description": "The file the merchant uploaded, or the name the export downloads as.",
+            "nullable": true
           },
           "status": {
             "$ref": "#/components/schemas/BatchBlocklistJobStatus"
@@ -15458,8 +15555,30 @@
           "updated_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Exports only: when the stored file is removed by the storage lifecycle rule.",
+            "nullable": true
+          },
+          "downloadable": {
+            "type": "boolean",
+            "description": "Whether this job's file can be fetched right now."
+          },
+          "error_message": {
+            "type": "string",
+            "nullable": true
           }
         }
+      },
+      "BatchBlocklistJobType": {
+        "type": "string",
+        "description": "Distinguishes a bulk upload job from a CSV export job in the `batch_blocklist_jobs` table.",
+        "enum": [
+          "upload",
+          "export"
+        ]
       },
       "BatchBlocklistUploadResponse": {
         "type": "object",
@@ -15654,6 +15773,28 @@
           "extended_card_bin",
           "generic_card_bin"
         ]
+      },
+      "BlocklistExportResponse": {
+        "type": "object",
+        "description": "Response for `POST /blocklist/export`.",
+        "required": [
+          "export_id",
+          "status",
+          "file_name"
+        ],
+        "properties": {
+          "export_id": {
+            "type": "string",
+            "description": "Present for support and log correlation."
+          },
+          "status": {
+            "$ref": "#/components/schemas/BatchBlocklistJobStatus"
+          },
+          "file_name": {
+            "type": "string",
+            "description": "The name this export will download as."
+          }
+        }
       },
       "BlocklistLookupQuery": {
         "type": "object",
