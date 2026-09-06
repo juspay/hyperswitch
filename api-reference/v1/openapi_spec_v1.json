@@ -31875,7 +31875,7 @@
             }
           }
         ],
-        "description": "The combined payment-method list, or the error that prevented it being built.\n\nSerialized untagged: a success is the listing object itself, a failure is `{ \"error\": {...} }`."
+        "description": "The combined payment-method list, or the error that prevented it being built.\n\nSerialized untagged: a success is the listing object itself, a failure is `{ \"error\": {...} }`.\nGated on `errors` as well as `v1`: it holds [`crate::errors::types::ErrorResponse`], which\nlives behind that feature because it pulls in `reqwest`. `euclid_wasm` builds\n`api_models/v1` without `errors`, and cannot take `actix-web` in via that feature on a\nwasm target, so the section types simply do not exist there."
       },
       "PaymentMethodMetaData": {
         "type": "object",
@@ -44396,7 +44396,7 @@
             }
           }
         ],
-        "description": "Wallet session tokens, or the error that prevented them being minted.\n\nSerialized untagged: a success is the whole `PaymentsSessionResponse` object, a failure is\n`{ \"error\": {...} }`."
+        "description": "Wallet session tokens, or the error that prevented them being minted.\n\nSerialized untagged: a success is the whole `PaymentsSessionResponse` object, a failure is\n`{ \"error\": {...} }`.\nGated on `errors` as well as `v1` — see [`crate::payment_methods::PaymentMethodListResult`]."
       },
       "SizeVariants": {
         "type": "string",
