@@ -758,7 +758,8 @@ impl DisputeInterface for MockDb {
             .await
             .iter()
             .find(|d| {
-                d.processor_merchant_id.as_ref() == Some(processor_merchant_id)
+                (d.processor_merchant_id.as_ref() == Some(processor_merchant_id)
+                    || d.merchant_id == *processor_merchant_id)
                     && d.payment_id == *payment_id
                     && d.connector_dispute_id == connector_dispute_id
             })
@@ -1211,6 +1212,52 @@ mod tests {
                 .unwrap_err();
 
             assert!(err.current_context().is_db_unique_violation());
+        }
+
+        #[tokio::test]
+        async fn test_find_by_processor_merchant_id_when_processor_and_provider_differ() {
+            let provider_merchant_id =
+                common_utils::id_type::MerchantId::try_from(Cow::from("provider_merchant")).unwrap();
+            let processor_merchant_id =
+                common_utils::id_type::MerchantId::try_from(Cow::from("processor_merchant")).unwrap();
+
+            let mockdb = MockDb::new(&RedisSettings::default(), KeyManagerState::mock())
+                .await
+                .expect("Failed to create Mock store");
+
+            let mut dispute1 = create_dispute_new(DisputeNewIds {
+                dispute_id: "dispute_platform_1".into(),
+                attempt_id: "attempt_1".into(),
+                merchant_id: provider_merchant_id.clone(),
+                payment_id: common_utils::id_type::PaymentId::try_from(Cow::Borrowed(
+                    "payment_1",
+                ))
+                .unwrap(),
+                connector_dispute_id: "connector_dispute_1".into(),
+            });
+            dispute1.processor_merchant_id = Some(processor_merchant_id);
+
+            let created_dispute = mockdb
+                .insert_dispute(
+                    dispute1,
+                    diesel_models::enums::MerchantStorageScheme::PostgresOnly,
+                )
+                .await
+                .unwrap();
+
+            // When duplicate recovery uses the provider merchant id (used by DisputeNew::merchant_id),
+            // it must successfully find the existing row even when provider and processor differ.
+            let found = mockdb
+                .find_by_processor_merchant_id_payment_id_connector_dispute_id(
+                    &provider_merchant_id,
+                    &common_utils::id_type::PaymentId::try_from(Cow::Borrowed("payment_1")).unwrap(),
+                    "connector_dispute_1",
+                    diesel_models::enums::MerchantStorageScheme::PostgresOnly,
+                )
+                .await
+                .unwrap();
+
+            assert_eq!(Some(created_dispute), found);
         }
 
         #[tokio::test]

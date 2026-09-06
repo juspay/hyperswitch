@@ -1819,6 +1819,7 @@ pub async fn get_or_update_dispute_object(
     match option_dispute {
         None => {
             let dispute_id = generate_id(consts::ID_LENGTH, "dp");
+            let dispute_merchant_id = platform.get_provider().get_account().get_id();
             let new_dispute = diesel_models::dispute::DisputeNew {
                 dispute_id,
                 amount: dispute_details.amount.clone(),
@@ -1828,7 +1829,7 @@ pub async fn get_or_update_dispute_object(
                 payment_id: payment_attempt.payment_id.to_owned(),
                 connector: connector_name.to_owned(),
                 attempt_id: payment_attempt.attempt_id.to_owned(),
-                merchant_id: platform.get_provider().get_account().get_id().to_owned(),
+                merchant_id: dispute_merchant_id.to_owned(),
                 connector_status: dispute_details.connector_status.clone(),
                 connector_dispute_id: dispute_details.connector_dispute_id.clone(),
                 connector_reason: dispute_details.connector_reason.clone(),
@@ -1882,7 +1883,7 @@ pub async fn get_or_update_dispute_object(
                     logger::info!("Dispute already exists in database due to concurrent insert, fetching existing record");
                     let existing_dispute = db
                         .find_by_processor_merchant_id_payment_id_connector_dispute_id(
-                            platform.get_processor().get_account().get_id(),
+                            dispute_merchant_id,
                             &payment_attempt.payment_id,
                             &dispute_details.connector_dispute_id,
                             platform.get_processor().get_account().storage_scheme,
