@@ -165,7 +165,7 @@ jobs:
 
       - name: Install Rust
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: dtolnay/rust-toolchain@master
+        uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88 # master
         with:
           toolchain: stable 2 weeks ago
           components: clippy
@@ -290,7 +290,7 @@ jobs:
 
       - name: Install Rust
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: dtolnay/rust-toolchain@master
+        uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88 # master
         with:
           toolchain: stable 2 weeks ago
           components: rustfmt
@@ -579,7 +579,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@master
+        uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88 # master
         with:
           toolchain: stable 2 weeks ago
           components: rustfmt
@@ -863,7 +863,7 @@ jobs:
 
       - name: Install Rust
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: dtolnay/rust-toolchain@master
+        uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88 # master
         with:
           toolchain: stable 2 weeks ago
           components: rustfmt
@@ -1302,7 +1302,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@master
+        uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88 # master
         with:
           toolchain: stable 2 weeks ago
           components: rustfmt
@@ -1529,7 +1529,7 @@ jobs:
 
       - name: Install Rust
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: dtolnay/rust-toolchain@master
+        uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88 # master
         with:
           toolchain: stable 2 weeks ago
           components: rustfmt
@@ -1771,7 +1771,7 @@ jobs:
 
       - name: Install Rust
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: dtolnay/rust-toolchain@master
+        uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88 # master
         with:
           toolchain: stable 2 weeks ago
           components: rustfmt
