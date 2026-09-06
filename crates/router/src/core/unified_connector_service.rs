@@ -839,17 +839,19 @@ type UnifiedConnectorServiceCreateOrderResult = CustomResult<
 /// Checks if the Unified Connector Service (UCS) is available for use.
 /// Reads from DB only (original behavior).
 async fn check_ucs_availability(state: &SessionState) -> UcsAvailability {
+    let request_id = state.request_id.as_ref().map(|r| r.to_string()).unwrap_or_default();
     let is_client_available = state.grpc_client.unified_connector_service_client.is_some();
 
     let is_enabled = is_config_flag_enabled(state, consts::UCS_ENABLED).await;
 
     match (is_client_available, is_enabled) {
         (true, true) => {
-            router_env::logger::debug!("UCS is available and enabled");
+            router_env::logger::debug!(request_id = %request_id, "UCS is available and enabled");
             UcsAvailability::Enabled
         }
         _ => {
             router_env::logger::debug!(
+                request_id = %request_id,
                 "UCS client is {} and UCS is {} in configuration",
                 if is_client_available {
                     "available"
@@ -866,21 +868,23 @@ async fn check_ucs_availability(state: &SessionState) -> UcsAvailability {
 /// Checks UCS availability reading purely from Superposition (no DB fallback).
 /// Supports three-value UcsAvailability: Enabled, Disabled, ShadowKilled.
 async fn check_ucs_availability_from_superposition(state: &SessionState) -> UcsAvailability {
+    let request_id = state.request_id.as_ref().map(|r| r.to_string()).unwrap_or_default();
     let is_client_available = state.grpc_client.unified_connector_service_client.is_some();
 
     let ucs_mode = get_ucs_enabled_mode_from_superposition(state).await;
 
     match (is_client_available, &ucs_mode) {
         (true, UcsAvailability::Enabled) => {
-            router_env::logger::debug!("UCS is available and enabled");
+            router_env::logger::debug!(request_id = %request_id, "UCS is available and enabled");
             UcsAvailability::Enabled
         }
         (true, UcsAvailability::ShadowKilled) => {
-            router_env::logger::debug!("UCS is available but shadow is killed");
+            router_env::logger::debug!(request_id = %request_id, "UCS is available but shadow is killed");
             UcsAvailability::ShadowKilled
         }
         _ => {
             router_env::logger::debug!(
+                request_id = %request_id,
                 "UCS client is {} and UCS mode is {:?} in configuration",
                 if is_client_available {
                     "available"
@@ -899,12 +903,14 @@ pub async fn determine_connector_integration_type(
     state: &SessionState,
     connector: Connector,
 ) -> RouterResult<ConnectorIntegrationType> {
+    let request_id = state.request_id.as_ref().map(|r| r.to_string()).unwrap_or_default();
     match state.conf.grpc_client.unified_connector_service.as_ref() {
         Some(ucs_config) => {
             let is_ucs_only = is_ucs_only_connector(&ucs_config.ucs_only_connectors, connector);
 
             if is_ucs_only {
                 router_env::logger::debug!(
+                    request_id = %request_id,
                     connector = ?connector,
                     ucs_only_list = is_ucs_only,
                     "Using UcsConnector"
@@ -912,6 +918,7 @@ pub async fn determine_connector_integration_type(
                 Ok(ConnectorIntegrationType::UcsConnector)
             } else {
                 router_env::logger::debug!(
+                    request_id = %request_id,
                     connector = ?connector,
                     "Using DirectandUCSConnector - not in ucs_only_list"
                 );
@@ -920,6 +927,7 @@ pub async fn determine_connector_integration_type(
         }
         None => {
             router_env::logger::debug!(
+                request_id = %request_id,
                 connector = ?connector,
                 "UCS config not present, using DirectandUCSConnector"
             );
@@ -1006,6 +1014,7 @@ where
     // Extract context information
     let merchant_id = processor.get_account().get_id().get_string_repr();
     let org_id = processor.get_account().get_org_id().get_string_repr();
+    let request_id = state.request_id.as_ref().map(|r| r.to_string()).unwrap_or_default();
 
     let connector_name = &router_data.connector;
     let connector_enum = parse_connector_name(connector_name)?;
@@ -1051,6 +1060,7 @@ where
     .await?;
 
     router_env::logger::info!(
+        request_id = %request_id,
         "Payment gateway decision: gateway={:?}, execution_path={:?} - merchant_id={}, connector={}, flow={}",
         gateway_system,
         execution_path,
@@ -1078,6 +1088,7 @@ where
 {
     let merchant_id = processor.get_account().get_id().get_string_repr();
     let org_id = processor.get_account().get_org_id().get_string_repr();
+    let request_id = state.request_id.as_ref().map(|r| r.to_string()).unwrap_or_default();
 
     let connector_name = &router_data.connector;
     let connector_enum = parse_connector_name(connector_name)?;
@@ -1122,6 +1133,7 @@ where
     .await?;
 
     router_env::logger::info!(
+        request_id = %request_id,
         "Payment gateway decision (Superposition): gateway={:?}, execution_path={:?} - merchant_id={}, connector={}, flow={}, rollout_keys={:?}",
         gateway_system,
         execution_path,
@@ -1185,6 +1197,7 @@ async fn resolve_ucs_execution_decision(
     payment_method: common_enums::PaymentMethod,
     payment_method_type: Option<PaymentMethodType>,
 ) -> RouterResult<(GatewaySystem, ExecutionPath, SessionState)> {
+    let request_id = state.request_id.as_ref().map(|r| r.to_string()).unwrap_or_default();
     let (mut gateway_system, mut execution_path) = if ucs_availability == UcsAvailability::Disabled
     {
         match call_connector_action {
@@ -1197,7 +1210,7 @@ async fn resolve_ucs_execution_decision(
             | CallConnectorAction::HandleResponse { .. }
             | CallConnectorAction::HandleResponseWithoutBuildRequest
             | CallConnectorAction::StatusUpdate { .. } => {
-                router_env::logger::debug!("UCS is disabled, using Direct gateway");
+                router_env::logger::debug!(request_id = %request_id, "UCS is disabled, using Direct gateway");
                 (GatewaySystem::Direct, ExecutionPath::Direct)
             }
         }
@@ -1205,6 +1218,7 @@ async fn resolve_ucs_execution_decision(
         match call_connector_action {
             CallConnectorAction::UCSConsumeResponse(_) => {
                 router_env::logger::info!(
+                    request_id = %request_id,
                     "CallConnectorAction UCSConsumeResponse received, using UCS gateway"
                 );
                 (
@@ -1214,6 +1228,7 @@ async fn resolve_ucs_execution_decision(
             }
             CallConnectorAction::HandleResponse { .. } => {
                 router_env::logger::info!(
+                    request_id = %request_id,
                     "CallConnectorAction HandleResponse received, using Direct gateway"
                 );
                 if shadow_ucs_call_connector_action.is_some() {
@@ -1259,6 +1274,7 @@ async fn resolve_ucs_execution_decision(
         .await
         {
             router_env::logger::warn!(
+                request_id = %request_id,
                 merchant_id = %merchant_id,
                 connector = %connector_name,
                 flow = %flow_name,
@@ -1273,6 +1289,7 @@ async fn resolve_ucs_execution_decision(
         ExecutionPath::ShadowUnifiedConnectorService => match &rollout_result.proxy_override {
             Some(proxy_override) => {
                 router_env::logger::debug!(
+                    request_id = %request_id,
                     proxy_override = ?proxy_override,
                     "Creating updated session state with proxy configuration for Shadow UCS"
                 );
@@ -1280,6 +1297,7 @@ async fn resolve_ucs_execution_decision(
             }
             None => {
                 router_env::logger::debug!(
+                    request_id = %request_id,
                     "No proxy override available for Shadow UCS, Using the Original State and Sending Request Directly"
                 );
                 execution_path = ExecutionPath::Direct;

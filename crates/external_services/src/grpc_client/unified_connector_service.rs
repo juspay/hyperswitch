@@ -83,11 +83,6 @@ pub struct UnifiedConnectorServiceClientConfig {
     #[serde(default, deserialize_with = "deserialize_hashset")]
     pub ucs_psync_disabled_connectors: HashSet<Connector>,
 
-    /// Set of connectors that are blacklisted from using UCS and must use the Direct path.
-    /// Used in the default (non-cutover) mode where UCS is the standard path.
-    #[serde(default, deserialize_with = "deserialize_hashset")]
-    pub ucs_blacklisted_connectors: HashSet<Connector>,
-
     /// Controls where UCS configuration (ucs_enabled, rollout config) is read from.
     /// Set to "database" to use the configs table, or "superposition" to use
     /// the Superposition service. Allows runtime switching without redeployment.
@@ -107,7 +102,7 @@ pub enum UcsConfigSource {
 }
 
 fn default_config_source() -> UcsConfigSource {
-    UcsConfigSource::Superposition
+    UcsConfigSource::Database
 }
 
 /// Connection timeout for the Unified Connector Service in seconds.
