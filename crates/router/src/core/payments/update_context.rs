@@ -48,8 +48,7 @@ pub fn integration_type_from_headers(
     let integration_type = IntegrationType::from_header_value(value);
 
     let unrecognised = value.filter(|value| {
-        integration_type == IntegrationType::Client
-            && !value.trim().eq_ignore_ascii_case("client")
+        integration_type == IntegrationType::Client && !value.trim().eq_ignore_ascii_case("client")
     });
 
     if let Some(value) = unrecognised {
@@ -223,4 +222,3 @@ fn json_body<T>(response: ApplicationResponse<T>, section: &str) -> errors::Rout
         }),
     }
 }
-
