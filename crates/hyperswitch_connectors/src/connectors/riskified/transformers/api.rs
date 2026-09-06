@@ -174,11 +174,11 @@ impl TryFrom<&RiskifiedRouterData<&FrmCheckoutRouterData>> for RiskifiedPayments
             .frm_metadata
             .clone()
             .ok_or(ConnectorError::MissingRequiredField {
-                field_name: "frm_metadata",
+                field_name: "frm_metadata".into(),
             })?
             .parse_value("Riskified Metadata")
             .change_context(ConnectorError::InvalidDataFormat {
-                field_name: "frm_metadata",
+                field_name: "frm_metadata".into(),
             })?;
         let billing_address = payment_data.get_billing()?;
         let shipping_address = payment_data.get_shipping_address_with_phone_number()?;
@@ -193,7 +193,7 @@ impl TryFrom<&RiskifiedRouterData<&FrmCheckoutRouterData>> for RiskifiedPayments
                     order_detail.amount,
                     payment_data.request.currency.ok_or_else(|| {
                         ConnectorError::MissingRequiredField {
-                            field_name: "currency",
+                            field_name: "currency".into(),
                         }
                     })?,
                 )?;
@@ -526,7 +526,7 @@ impl TryFrom<&FrmFulfillmentRouterData> for RiskifiedFulfillmentRequest {
             .as_ref()
             .and_then(|numbers| numbers.first().cloned())
             .ok_or(ConnectorError::MissingRequiredField {
-                field_name: "tracking_number",
+                field_name: "tracking_number".into(),
             })?;
         let tracking_url = item
             .request
@@ -552,7 +552,7 @@ impl TryFrom<&FrmFulfillmentRouterData> for RiskifiedFulfillmentRequest {
                         .tracking_company
                         .clone()
                         .ok_or(ConnectorError::MissingRequiredField {
-                            field_name: "tracking_company",
+                            field_name: "tracking_company".into(),
                         })?,
                     tracking_number,
                     tracking_url,
@@ -610,7 +610,7 @@ impl TryFrom<&hyperswitch_domain_models::address::Address> for OrderAddress {
             .clone()
             .address
             .ok_or(ConnectorError::MissingRequiredField {
-                field_name: "address",
+                field_name: "address".into(),
             })?;
         Ok(Self {
             first_name: address.first_name.clone(),

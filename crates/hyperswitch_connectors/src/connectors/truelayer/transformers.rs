@@ -390,7 +390,7 @@ impl TryFrom<&TruelayerRouterData<&PayoutsRouterData<PoFulfill>>> for TruelayerP
             .as_ref()
             .and_then(|descriptor| descriptor.reference.as_ref())
             .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "billing_descriptor.reference",
+                field_name: "billing_descriptor.reference".into(),
             })?;
 
         validate_fps_payout_reference(reference)?;
@@ -460,7 +460,7 @@ fn validate_fps_payout_reference(
         Ok(())
     } else {
         Err(errors::ConnectorError::InvalidDataFormat {
-            field_name: "billing_descriptor.reference , expected to be alphanumeric, hyphen, or period and length between 1 and 18 characters for truelayer",
+            field_name: "billing_descriptor.reference , expected to be alphanumeric, hyphen, or period and length between 1 and 18 characters for truelayer".into(),
         }
         .into())
     }

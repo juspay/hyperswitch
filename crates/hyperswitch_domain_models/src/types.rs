@@ -8,7 +8,7 @@ use crate::{
         merchant_connector_webhook_management::{
             ConnectorWebhookGenerateSecret, ConnectorWebhookRegister,
         },
-        revenue_recovery::InvoiceRecordBack,
+        revenue_recovery::{DisputeRecordBack, InvoiceRecordBack},
         subscriptions::{
             GetSubscriptionEstimate, GetSubscriptionItemPrices, GetSubscriptionItems,
             SubscriptionCancel, SubscriptionCreate, SubscriptionPause, SubscriptionResume,
@@ -30,7 +30,7 @@ use crate::{
         },
         revenue_recovery::{
             BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
-            InvoiceRecordBackRequest,
+            DisputeRecordBackRequest, InvoiceRecordBackRequest,
         },
         subscriptions::{
             GetSubscriptionEstimateRequest, GetSubscriptionItemPricesRequest,
@@ -63,7 +63,7 @@ use crate::{
         },
         revenue_recovery::{
             BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
-            InvoiceRecordBackResponse,
+            DisputeRecordBackResponse, InvoiceRecordBackResponse,
         },
         subscriptions::{
             GetSubscriptionEstimateResponse, GetSubscriptionItemPricesResponse,
@@ -191,6 +191,9 @@ pub type PayoutsRouterData<F> = RouterData<F, PayoutsData, PayoutsResponseData>;
 pub type InvoiceRecordBackRouterData =
     RouterData<InvoiceRecordBack, InvoiceRecordBackRequest, InvoiceRecordBackResponse>;
 
+pub type DisputeRecordBackRouterData =
+    RouterData<DisputeRecordBack, DisputeRecordBackRequest, DisputeRecordBackResponse>;
+
 pub type GetSubscriptionItemsRouterData =
     RouterData<GetSubscriptionItems, GetSubscriptionItemsRequest, GetSubscriptionItemsResponse>;
 
@@ -243,6 +246,13 @@ pub type InvoiceRecordBackRouterDataV2 = RouterDataV2<
     router_data_v2::flow_common_types::InvoiceRecordBackData,
     InvoiceRecordBackRequest,
     InvoiceRecordBackResponse,
+>;
+
+pub type DisputeRecordBackRouterDataV2 = RouterDataV2<
+    DisputeRecordBack,
+    router_data_v2::flow_common_types::DisputeRecordBackData,
+    DisputeRecordBackRequest,
+    DisputeRecordBackResponse,
 >;
 
 pub type GetSubscriptionPlanPricesRouterData = RouterData<

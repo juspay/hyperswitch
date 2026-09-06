@@ -354,7 +354,7 @@ fn get_authorize_response(
             .redirect_url
             .map(|url| RedirectForm::from((url, Method::Get)))),
         None => Err(errors::ConnectorError::MissingConnectorRedirectionPayload {
-            field_name: "redirect_url",
+            field_name: "redirect_url".into(),
         }),
     }?;
 

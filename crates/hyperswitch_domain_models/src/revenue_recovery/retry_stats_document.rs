@@ -59,6 +59,44 @@ impl StatsDocument {
             serde_json::json!({})
         })
     }
+
+    /// Verify the per-document invariants: every slot has `k <= n`, and both the
+    /// retries total (`Σn`) and the successes total (`Σk`) agree
+    /// across the three slot families, since each family is an independent marginal of the
+    /// same events. The merge path maintains these by construction; run this on any
+    /// externally-sourced document (e.g. a migration CSV) that bypasses it.
+    pub fn validate_invariants(&self) -> Result<(), String> {
+        let retries = |family: &[SlotCounter]| family.iter().map(|slot| slot.n).sum::<u64>();
+        let successes = |family: &[SlotCounter]| family.iter().map(|slot| slot.k).sum::<u64>();
+
+        let every_slot_valid = self
+            .dow
+            .iter()
+            .chain(self.dom.iter())
+            .chain(self.hod.iter())
+            .all(|slot| slot.k <= slot.n);
+
+        let (dow_n, dom_n, hod_n) = (retries(&self.dow), retries(&self.dom), retries(&self.hod));
+        let (dow_k, dom_k, hod_k) = (
+            successes(&self.dow),
+            successes(&self.dom),
+            successes(&self.hod),
+        );
+
+        if !every_slot_valid {
+            Err("slot counter has k>n".to_string())
+        } else if dow_n != dom_n || dom_n != hod_n {
+            Err(format!(
+                "n totals differ across slot families (dow={dow_n}, dom={dom_n}, hod={hod_n})"
+            ))
+        } else if dow_k != dom_k || dom_k != hod_k {
+            Err(format!(
+                "k totals differ across slot families (dow={dow_k}, dom={dom_k}, hod={hod_k})"
+            ))
+        } else {
+            Ok(())
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

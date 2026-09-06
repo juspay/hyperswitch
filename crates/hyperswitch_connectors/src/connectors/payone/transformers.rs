@@ -149,7 +149,7 @@ impl TryFrom<PayoneRouterData<&PayoutsRouterData<PoFulfill>>> for PayonePayoutFu
                                     .clone()
                                     .get_required_value("card_holder_name")
                                     .change_context(ConnectorError::MissingRequiredField {
-                                        field_name: "payout_method_data.card.holder_name",
+                                        field_name: "payout_method_data.card.holder_name".into(),
                                     })?,
                                 expiry_date: card_data
                                     .get_card_expiry_month_year_2_digit_with_delimiter(

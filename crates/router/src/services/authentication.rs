@@ -765,7 +765,7 @@ where
                 .map(id_type::ProfileId::from_str)
                 .transpose()
                 .change_context(errors::ValidationError::IncorrectValueProvided {
-                    field_name: "X-Profile-Id",
+                    field_name: "X-Profile-Id".into(),
                 })
                 .change_context(errors::ApiErrorResponse::Unauthorized)?;
 
@@ -1330,7 +1330,7 @@ where
         let profile_id = HeaderMapStruct::new(request_headers)
             .get_id_type_from_header_if_present::<id_type::ProfileId>(headers::X_PROFILE_ID)
             .change_context(errors::ValidationError::IncorrectValueProvided {
-                field_name: "X-Profile-Id",
+                field_name: "X-Profile-Id".into(),
             })
             .change_context(errors::ApiErrorResponse::Unauthorized)?;
 
@@ -2213,7 +2213,7 @@ impl<'a> HeaderMapStruct<'a> {
             .attach_printable(format!("Failed to find header key: {key}"))?
             .to_str()
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "`{key}` in headers",
+                field_name: "`{key}` in headers".into(),
             })
             .attach_printable(format!(
                 "Failed to convert header value to string for header key: {key}",
@@ -2264,7 +2264,7 @@ impl<'a> HeaderMapStruct<'a> {
             .get_required_value(headers::AUTHORIZATION)?
             .to_str()
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: headers::AUTHORIZATION,
+                field_name: headers::AUTHORIZATION.into(),
             })
             .attach_printable("Failed to convert authorization header to string")
     }
@@ -2281,7 +2281,7 @@ impl<'a> HeaderMapStruct<'a> {
             .map(|value| value.to_str())
             .transpose()
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "`{key}` in headers",
+                field_name: "`{key}` in headers".into(),
             })
             .attach_printable(format!(
                 "Failed to convert header value to string for header key: {key}",
@@ -5919,7 +5919,7 @@ where
             .get_client_secret()
             .check_value_present("client_secret")
             .map_err(|_| errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "client_secret",
+                field_name: "client_secret".into(),
             })?;
         return Ok((
             Box::new(HeaderAuth(PublishableKeyAuth {
@@ -6011,7 +6011,7 @@ where
                     api::AuthFlow::Client,
                 )),
                 (true, false) => Err(errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "client_secret",
+                    field_name: "client_secret".into(),
                 }
                 .into()),
                 (false, _) => Err(errors::ApiErrorResponse::Unauthorized.into()),
