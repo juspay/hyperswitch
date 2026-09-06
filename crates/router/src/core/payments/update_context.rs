@@ -11,8 +11,8 @@
 //! other, since neither reads the other's output.
 
 use api_models::{
-    payment_methods::{self as payment_methods_api, SectionError},
-    payments as payment_types,
+    payment_methods as payment_methods_api,
+    payments::{self as payment_types, IntegrationType},
 };
 use common_utils::{consts, errors::ErrorSwitch, id_type};
 use error_stack::ResultExt;
@@ -34,41 +34,33 @@ use crate::{
 /// other.
 const SECTION_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
 
-/// Which integration the caller is building, taken from `X-Integration-Type`.
+/// Reads [`IntegrationType`] from the request headers.
 ///
-/// Defaults to `Client` when the header is absent or unrecognised, so an existing integration
-/// that has never heard of the header keeps its current response shape.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum IntegrationType {
-    Client,
-    Server,
-}
+/// Falling back to `Client` keeps a malformed header from failing the payment, but a caller that
+/// meant `server` would otherwise silently never see the extra sections — so that case is logged.
+pub fn integration_type_from_headers(
+    headers: &actix_web::http::header::HeaderMap,
+) -> IntegrationType {
+    let value = headers
+        .get(consts::X_INTEGRATION_TYPE)
+        .and_then(|value| value.to_str().ok());
 
-impl IntegrationType {
-    pub fn from_headers(headers: &actix_web::http::header::HeaderMap) -> Self {
-        headers
-            .get(consts::X_INTEGRATION_TYPE)
-            .and_then(|value| value.to_str().ok())
-            .map(|value| match value.trim() {
-                value if value.eq_ignore_ascii_case("server") => Self::Server,
-                value if value.eq_ignore_ascii_case("client") => Self::Client,
-                // Falling back to `Client` keeps a malformed header from failing the payment, but
-                // a caller that meant `server` would otherwise just never see the extra sections.
-                unrecognised => {
-                    logger::warn!(
-                        header = consts::X_INTEGRATION_TYPE,
-                        value = unrecognised,
-                        "unrecognised integration type, defaulting to client"
-                    );
-                    Self::Client
-                }
-            })
-            .unwrap_or(Self::Client)
+    let integration_type = IntegrationType::from_header_value(value);
+
+    let unrecognised = value.filter(|value| {
+        integration_type == IntegrationType::Client
+            && !value.trim().eq_ignore_ascii_case("client")
+    });
+
+    if let Some(value) = unrecognised {
+        logger::warn!(
+            header = consts::X_INTEGRATION_TYPE,
+            value,
+            "unrecognised integration type, defaulting to client"
+        );
     }
 
-    pub fn is_server(self) -> bool {
-        matches!(self, Self::Server)
-    }
+    integration_type
 }
 
 /// Wallets to mint session tokens for when the caller asks for the server shape.
@@ -84,18 +76,13 @@ fn requested_wallets() -> Vec<api_models::enums::PaymentMethodType> {
 
 /// Builds the error payload a degraded section carries, from the same error the standalone
 /// endpoint would have surfaced.
-fn section_error(error: &error_stack::Report<errors::ApiErrorResponse>) -> SectionError {
+fn section_error(
+    error: &error_stack::Report<errors::ApiErrorResponse>,
+) -> Box<api_models::errors::types::ErrorResponse> {
     // Route through the same conversion the HTTP layer uses, so an inline section error reads
     // identically to the body the standalone endpoint would have returned.
     let switched: api_models::errors::types::ApiErrorResponse = error.current_context().switch();
-    let rendered = api_models::errors::types::ErrorResponse::from(&switched);
-    SectionError {
-        error: payment_methods_api::SectionErrorDetail {
-            error_type: rendered.error_type.to_string(),
-            message: rendered.message,
-            code: rendered.code,
-        },
-    }
+    Box::new(api_models::errors::types::ErrorResponse::from(&switched))
 }
 
 /// The error a section reports when it exceeds [`SECTION_TIMEOUT`].
@@ -113,12 +100,12 @@ fn timed_out(section: &str) -> error_stack::Report<errors::ApiErrorResponse> {
 /// section failure into a 5xx would hide a committed state change from the caller.
 #[instrument(skip_all, fields(payment_id))]
 pub async fn attach_server_context(
-    state: &SessionState,
+    state: SessionState,
     req_state: ReqState,
-    platform: &domain::Platform,
+    platform: domain::Platform,
     profile_id: Option<id_type::ProfileId>,
     payment_id: &id_type::PaymentId,
-    header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+    header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     response: &mut payment_types::PaymentsResponse,
 ) {
     tracing::Span::current().record("payment_id", payment_id.get_string_repr());
@@ -129,9 +116,9 @@ pub async fn attach_server_context(
         tokio::time::timeout(
             SECTION_TIMEOUT,
             Box::pin(session_tokens(
-                state,
+                state.clone(),
                 req_state,
-                platform,
+                platform.clone(),
                 profile_id,
                 payment_id,
                 header_payload,
@@ -140,8 +127,8 @@ pub async fn attach_server_context(
         tokio::time::timeout(
             SECTION_TIMEOUT,
             pm_client::list_payment_methods_client(
-                state.clone(),
-                platform.clone(),
+                state,
+                platform,
                 payment_id.clone(),
                 // Merchant API key authenticated; there is no client secret to validate.
                 None,
@@ -158,7 +145,9 @@ pub async fn attach_server_context(
         Ok(session) => payment_types::SessionTokensResult::Success(Box::new(session)),
         Err(error) => {
             logger::warn!(?error, "server-integration: session tokens unavailable");
-            payment_types::SessionTokensResult::Failed(section_error(&error))
+            payment_types::SessionTokensResult::Failed {
+                error: section_error(&error),
+            }
         }
     });
 
@@ -170,7 +159,9 @@ pub async fn attach_server_context(
                     ?error,
                     "server-integration: payment-method list unavailable"
                 );
-                payment_methods_api::PaymentMethodListResult::Failed(section_error(&error))
+                payment_methods_api::PaymentMethodListResult::Failed {
+                    error: section_error(&error),
+                }
             }
         },
     );
@@ -178,12 +169,12 @@ pub async fn attach_server_context(
 
 /// Runs the session-token core over every wallet we can mint for.
 async fn session_tokens(
-    state: &SessionState,
+    state: SessionState,
     req_state: ReqState,
-    platform: &domain::Platform,
+    platform: domain::Platform,
     profile_id: Option<id_type::ProfileId>,
     payment_id: &id_type::PaymentId,
-    header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+    header_payload: hyperswitch_domain_models::payments::HeaderPayload,
 ) -> errors::RouterResult<payment_types::PaymentsSessionResponse> {
     let response = Box::pin(payments::payments_core::<
         api_types::Session,
@@ -193,9 +184,9 @@ async fn session_tokens(
         _,
         payments::PaymentData<api_types::Session>,
     >(
-        state.clone(),
+        state,
         req_state,
-        platform.clone(),
+        platform,
         profile_id,
         payments::PaymentSession,
         payment_types::PaymentsSessionRequest {
@@ -208,7 +199,7 @@ async fn session_tokens(
         payments::CallConnectorAction::Trigger,
         None,
         None,
-        header_payload.clone(),
+        header_payload,
         None,
     ))
     .await?;
@@ -216,31 +207,6 @@ async fn session_tokens(
     // Returned whole: the caller gets `session_token` and `vault_details` (the internal vault
     // SDK authorization) exactly as the standalone endpoint would have returned them.
     json_body(response, "session_tokens")
-}
-
-/// Strips the `Failed` entries the session core now records, restoring the legacy
-/// `session_token` contract for callers that predate them.
-///
-/// The combined server-integration response keeps the failures — that is the whole point of
-/// recording them — but the standalone endpoint's callers treat this array as the list of wallets
-/// they can actually render, and at least one asserts on its exact length.
-pub fn without_failed_session_tokens(
-    response: ApplicationResponse<payment_types::PaymentsSessionResponse>,
-) -> ApplicationResponse<payment_types::PaymentsSessionResponse> {
-    let strip = |mut session: payment_types::PaymentsSessionResponse| {
-        session
-            .session_token
-            .retain(|token| !matches!(token, api_models::payments::SessionToken::Failed(_)));
-        session
-    };
-
-    match response {
-        ApplicationResponse::Json(session) => ApplicationResponse::Json(strip(session)),
-        ApplicationResponse::JsonWithHeaders((session, headers)) => {
-            ApplicationResponse::JsonWithHeaders((strip(session), headers))
-        }
-        other => other,
-    }
 }
 
 /// A core response can only contribute when it is a plain JSON body.
@@ -258,76 +224,3 @@ fn json_body<T>(response: ApplicationResponse<T>, section: &str) -> errors::Rout
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use actix_web::http::header::{HeaderMap, HeaderName, HeaderValue};
-
-    use super::*;
-
-    fn headers(value: Option<&str>) -> HeaderMap {
-        let mut map = HeaderMap::new();
-        value.into_iter().for_each(|value| {
-            map.insert(
-                HeaderName::from_static(consts::X_INTEGRATION_TYPE),
-                HeaderValue::from_str(value).expect("header value"),
-            );
-        });
-        map
-    }
-
-    #[test]
-    fn absent_header_is_client() {
-        assert_eq!(
-            IntegrationType::from_headers(&headers(None)),
-            IntegrationType::Client
-        );
-    }
-
-    #[test]
-    fn server_opts_in() {
-        assert_eq!(
-            IntegrationType::from_headers(&headers(Some("server"))),
-            IntegrationType::Server
-        );
-    }
-
-    #[test]
-    fn server_is_case_and_whitespace_insensitive() {
-        ["SERVER", "Server", "  server  "]
-            .into_iter()
-            .for_each(|value| {
-                assert_eq!(
-                    IntegrationType::from_headers(&headers(Some(value))),
-                    IntegrationType::Server,
-                    "{value:?} should opt in"
-                );
-            });
-    }
-
-    #[test]
-    fn client_and_unrecognised_values_stay_client() {
-        // A typo must not fail the payment; it degrades to the existing response shape.
-        ["client", "CLIENT", "sever", "banana", ""]
-            .into_iter()
-            .for_each(|value| {
-                assert_eq!(
-                    IntegrationType::from_headers(&headers(Some(value))),
-                    IntegrationType::Client,
-                    "{value:?} should not opt in"
-                );
-            });
-    }
-
-    #[test]
-    fn only_server_is_server() {
-        assert!(IntegrationType::Server.is_server());
-        assert!(!IntegrationType::Client.is_server());
-    }
-
-    #[test]
-    fn every_eligible_wallet_is_requested() {
-        // Empty means "all eligible" to the session core; a non-empty list would silently
-        // exclude any type not named in it.
-        assert!(requested_wallets().is_empty());
-    }
-}

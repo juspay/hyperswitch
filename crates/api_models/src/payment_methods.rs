@@ -3160,41 +3160,24 @@ pub struct ClientPaymentMethodsListResponse {
     pub intent_data: PaymentMethodListIntentData,
 }
 
-/// The error payload a section carries when its underlying call failed.
-///
-/// Mirrors the body the standalone endpoint would have returned, so a caller parses the same
-/// shape whether it called that endpoint directly or received the section inline.
-#[cfg(feature = "v1")]
-#[derive(Debug, Clone, PartialEq, serde::Serialize, ToSchema)]
-pub struct SectionErrorDetail {
-    /// The error category, e.g. `invalid_request`.
-    #[serde(rename = "type")]
-    #[schema(example = "invalid_request")]
-    pub error_type: String,
-    /// Human-readable description of what went wrong.
-    #[schema(example = "Payment method list could not be retrieved")]
-    pub message: String,
-    /// Machine-readable error code, e.g. `HE_00`.
-    #[schema(example = "HE_00")]
-    pub code: String,
-}
-
-/// Wrapper carrying a section's error payload under an `error` key.
-#[cfg(feature = "v1")]
-#[derive(Debug, Clone, PartialEq, serde::Serialize, ToSchema)]
-pub struct SectionError {
-    pub error: SectionErrorDetail,
-}
-
 /// The combined payment-method list, or the error that prevented it being built.
 ///
 /// Serialized untagged: a success is the listing object itself, a failure is `{ "error": {...} }`.
-#[cfg(feature = "v1")]
+/// Gated on `errors` as well as `v1`: it holds [`crate::errors::types::ErrorResponse`], which
+/// lives behind that feature because it pulls in `reqwest`. `euclid_wasm` builds
+/// `api_models/v1` without `errors`, and cannot take `actix-web` in via that feature on a
+/// wasm target, so the section types simply do not exist there.
+#[cfg(all(feature = "v1", feature = "errors"))]
 #[derive(Debug, Clone, PartialEq, serde::Serialize, ToSchema)]
 #[serde(untagged)]
 pub enum PaymentMethodListResult {
     Success(Box<ClientPaymentMethodsListResponse>),
-    Failed(SectionError),
+    /// Serializes as `{ "error": { ... } }` — the same envelope the HTTP layer puts around
+    /// `ErrorResponse`, so this reads identically to the standalone endpoint's error body.
+    Failed {
+        #[schema(value_type = GenericErrorResponseOpenApi)]
+        error: Box<crate::errors::types::ErrorResponse>,
+    },
 }
 
 /// Installment options for a payment method, as returned in the payment method list response

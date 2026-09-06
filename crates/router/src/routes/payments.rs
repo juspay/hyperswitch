@@ -929,7 +929,23 @@ pub async fn payments_update(
         }
     };
 
-    let integration_type = update_context::IntegrationType::from_headers(req.headers());
+    let integration_type = update_context::integration_type_from_headers(req.headers());
+
+    // Both inputs are known before the operation runs, so the decision — and therefore whether
+    // the enrichment inputs need cloning at all — is made once, here.
+    //
+    // Gated on merchant auth as well as the header: this route also accepts publishable-key +
+    // client-secret, and the enrichment runs the session core as `AuthFlow::Merchant` and skips
+    // client-secret validation on the list, so a client-authenticated caller must not be able to
+    // opt in with a header alone.
+    let enrich = integration_type.is_server() && auth_flow == api::AuthFlow::Merchant;
+
+    if integration_type.is_server() && !enrich {
+        logger::warn!(
+            "server integration type requested on a client-authenticated request; \
+             returning the client response shape"
+        );
+    }
 
     Box::pin(api::server_wrap(
         flow,
@@ -939,8 +955,19 @@ pub async fn payments_update(
         move |state, auth: auth::AuthenticationData, req, req_state| {
             let header_payload = header_payload.clone();
             async move {
-                let platform = auth.platform.clone();
                 let profile_id = auth.profile.map(|profile| profile.get_id().clone());
+
+                // Only the enrichment path needs these afterwards. A client update — the vast
+                // majority — clones nothing.
+                let enrichment_inputs = enrich.then(|| {
+                    (
+                        state.clone(),
+                        req_state.clone(),
+                        auth.platform.clone(),
+                        profile_id.clone(),
+                        header_payload.clone(),
+                    )
+                });
 
                 let response = Box::pin(payments::payments_core::<
                     api_types::UpdatePostConfirm,
@@ -950,65 +977,61 @@ pub async fn payments_update(
                     _,
                     payments::PaymentData<api_types::UpdatePostConfirm>,
                 >(
-                    state.clone(),
-                    req_state.clone(),
+                    state,
+                    req_state,
                     auth.platform,
-                    profile_id.clone(),
+                    profile_id,
                     payments::PaymentUpdate,
                     req,
                     auth_flow,
                     payments::CallConnectorAction::Trigger,
                     None,
                     None,
-                    header_payload.clone(),
+                    header_payload,
                     None,
                 ))
                 .await?;
 
-                // A server integration additionally receives the payment-method list and wallet
-                // session tokens on the same response; client integrations are untouched.
+                // The two enrichment cores are invoked directly rather than through `server_wrap`,
+                // so they take no lock of their own. That matters: `Flow::PaymentsUpdate` and
+                // `Flow::PaymentsSessionToken` both map to `ApiIdentifier::Payments`, so a nested
+                // `server_wrap` would ask for the very key this request already holds and
+                // deadlock until it gave up with `ResourceBusy`.
                 //
-                // Gated on merchant auth as well as the header. This route also accepts
-                // publishable-key + client-secret, and the enrichment runs the session core as
-                // `AuthFlow::Merchant` and skips client-secret validation on the list — so a
-                // client-authenticated caller must not be able to opt in with a header alone.
-                let enrich = integration_type.is_server() && auth_flow == api::AuthFlow::Merchant;
-
-                if integration_type.is_server() && !enrich {
-                    logger::warn!(
-                        "server integration type requested on a client-authenticated request; \
-                         returning the client response shape"
-                    );
-                }
-
                 // Payments responses come back as `JsonWithHeaders`; `Json` is handled too so the
                 // enrichment does not silently skip if that ever changes.
                 let enrich_payment = |mut payment: payment_types::PaymentsResponse| async {
-                    let id = payment.payment_id.clone();
-                    Box::pin(update_context::attach_server_context(
-                        &state,
-                        req_state,
-                        &platform,
-                        profile_id,
-                        &id,
-                        &header_payload,
-                        &mut payment,
-                    ))
-                    .await;
+                    if let Some((state, req_state, platform, profile_id, header_payload)) =
+                        enrichment_inputs
+                    {
+                        let id = payment.payment_id.clone();
+                        Box::pin(update_context::attach_server_context(
+                            state,
+                            req_state,
+                            platform,
+                            profile_id,
+                            &id,
+                            header_payload,
+                            &mut payment,
+                        ))
+                        .await;
+                    }
                     payment
                 };
 
-                match (enrich, response) {
-                    (true, services::ApplicationResponse::JsonWithHeaders((payment, headers))) => {
+                // `enrich_payment` is a no-op when `enrichment_inputs` is `None`, so the opt-in
+                // decision lives in exactly one place rather than being re-tested here.
+                match response {
+                    services::ApplicationResponse::JsonWithHeaders((payment, headers)) => {
                         Ok(services::ApplicationResponse::JsonWithHeaders((
                             enrich_payment(payment).await,
                             headers,
                         )))
                     }
-                    (true, services::ApplicationResponse::Json(payment)) => Ok(
+                    services::ApplicationResponse::Json(payment) => Ok(
                         services::ApplicationResponse::Json(enrich_payment(payment).await),
                     ),
-                    (_, response) => Ok(response),
+                    response => Ok(response),
                 }
             }
         },
@@ -1556,38 +1579,27 @@ pub async fn payments_connector_session(
             if let Some(client_secret) = auth.client_secret {
                 payload.client_secret = Some(client_secret);
             }
-            let header_payload = header_payload.clone();
-            async move {
-                let response = Box::pin(payments::payments_core::<
-                    api_types::Session,
-                    payment_types::PaymentsSessionResponse,
-                    _,
-                    _,
-                    _,
-                    payments::PaymentData<api_types::Session>,
-                >(
-                    state,
-                    req_state,
-                    auth.platform,
-                    auth.profile.map(|profile| profile.get_id().clone()),
-                    payments::PaymentSession,
-                    payload,
-                    api::AuthFlow::Client,
-                    payments::CallConnectorAction::Trigger,
-                    None,
-                    None,
-                    header_payload.clone(),
-                    None,
-                ))
-                .await?;
-
-                // The core now records a `Failed` entry for a wallet whose token could not be
-                // minted, so the combined server-integration response can report it. This
-                // endpoint predates that and its callers treat `session_token` as a list of
-                // usable wallets, so the failures are dropped here to keep the existing
-                // contract byte-for-byte.
-                Ok(update_context::without_failed_session_tokens(response))
-            }
+            payments::payments_core::<
+                api_types::Session,
+                payment_types::PaymentsSessionResponse,
+                _,
+                _,
+                _,
+                payments::PaymentData<api_types::Session>,
+            >(
+                state,
+                req_state,
+                auth.platform,
+                auth.profile.map(|profile| profile.get_id().clone()),
+                payments::PaymentSession,
+                payload,
+                api::AuthFlow::Client,
+                payments::CallConnectorAction::Trigger,
+                None,
+                None,
+                header_payload.clone(),
+                None,
+            )
         },
         &*auth,
         locking_action,
