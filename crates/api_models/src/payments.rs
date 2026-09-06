@@ -7,7 +7,7 @@ use std::{
 pub mod additional_info;
 pub mod recipient;
 pub mod trait_impls;
-use cards::{CardNumber, NetworkToken};
+use cards::{CardBin, CardNumber, NetworkToken};
 #[cfg(feature = "v2")]
 use common_enums::enums::PaymentConnectorTransmission;
 #[cfg(feature = "v1")]
@@ -13214,6 +13214,16 @@ pub struct EligibilityCard {
     pub nick_name: Option<Secret<String>>,
 }
 
+/// BIN-only input for the eligibility check. Enables BIN-level blocklist and profile-config
+/// blocking without the client having to share the full card number; fingerprint-level
+/// (exact-card) blocking requires the full card number via the `card` variant instead.
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, Eq, PartialEq)]
+pub struct EligibilityCardBin {
+    /// The card BIN: the leading 6 to 10 digits of the card number
+    #[schema(value_type = String, example = "42424242")]
+    pub card_bin: CardBin,
+}
+
 /// Payment method data for eligibility check
 #[derive(
     Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, Eq, PartialEq, SmithyModel,
@@ -13224,6 +13234,9 @@ pub enum EligibilityPaymentMethodData {
     #[schema(title = "EligibilityCard")]
     #[smithy(value_type = "EligibilityCard")]
     Card(EligibilityCard),
+    #[schema(title = "EligibilityCardBin")]
+    #[smithy(value_type = "EligibilityCardBin")]
+    CardBin(EligibilityCardBin),
     #[schema(title = "CardRedirect")]
     #[smithy(value_type = "CardRedirectData")]
     CardRedirect(CardRedirectData),
