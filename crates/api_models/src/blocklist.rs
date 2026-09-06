@@ -161,11 +161,16 @@ pub struct BatchBlocklistUploadResponse {
     pub status: enums::BatchBlocklistJobStatus,
 }
 
-/// Response for `GET /blocklist/batch/{job_id}`.
+/// One job in the batch blocklist job listing.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct BatchBlocklistJobStatusResponse {
     pub job_id: String,
     pub merchant_id: String,
+    /// Whether this job imported entries or exported them.
+    #[schema(value_type = BatchBlocklistJobType)]
+    pub job_type: enums::BatchBlocklistJobType,
+    /// The file the merchant uploaded, or the name the export downloads as.
+    pub file_name: Option<String>,
     #[schema(value_type = BatchBlocklistJobStatus)]
     pub status: enums::BatchBlocklistJobStatus,
     pub total_rows: u32,
@@ -175,6 +180,24 @@ pub struct BatchBlocklistJobStatusResponse {
     pub created_at: time::PrimitiveDateTime,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub updated_at: time::PrimitiveDateTime,
+    /// Exports only: when the stored file is removed by the storage lifecycle rule.
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub expires_at: Option<time::PrimitiveDateTime>,
+    /// Whether this job's file can be fetched right now.
+    pub downloadable: bool,
+    pub error_message: Option<String>,
+}
+
+/// Response for `GET /blocklist/batch/{job_id}`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct BatchBlocklistJobDetailResponse {
+    #[serde(flatten)]
+    pub job: BatchBlocklistJobStatusResponse,
+    /// Exports only: short-lived signed link, generated per request and never stored.
+    #[schema(value_type = Option<String>)]
+    pub download_url: Option<hyperswitch_masking::Secret<url::Url>>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub download_url_expires_at: Option<time::PrimitiveDateTime>,
 }
 
 /// Page size for listing batch blocklist jobs. Defaults to 10, capped at 100.
@@ -228,6 +251,9 @@ pub struct ListBatchBlocklistJobsQuery {
     pub limit: BatchListLimit,
     #[serde(default)]
     pub offset: BatchListOffset,
+    /// Restricts the listing to one kind of job. Both uploads and exports are returned when omitted.
+    #[schema(value_type = Option<BatchBlocklistJobType>)]
+    pub job_type: Option<enums::BatchBlocklistJobType>,
 }
 
 /// Response for `GET /blocklist/batch`.
@@ -238,7 +264,22 @@ pub struct ListBatchBlocklistJobsResponse {
     pub data: Vec<BatchBlocklistJobStatusResponse>,
 }
 
+// ---- Blocklist CSV export types ----
+
+/// Response for `POST /blocklist/export`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct BlocklistExportResponse {
+    /// Present for support and log correlation.
+    pub export_id: String,
+    #[schema(value_type = BatchBlocklistJobStatus)]
+    pub status: enums::BatchBlocklistJobStatus,
+    /// The name this export will download as.
+    pub file_name: String,
+}
+
 impl ApiEventMetric for BatchBlocklistUploadResponse {}
 impl ApiEventMetric for BatchBlocklistJobStatusResponse {}
+impl ApiEventMetric for BatchBlocklistJobDetailResponse {}
 impl ApiEventMetric for ListBatchBlocklistJobsQuery {}
 impl ApiEventMetric for ListBatchBlocklistJobsResponse {}
+impl ApiEventMetric for BlocklistExportResponse {}

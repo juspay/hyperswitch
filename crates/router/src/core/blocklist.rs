@@ -1,4 +1,5 @@
 pub mod batch;
+pub mod export;
 pub mod transformers;
 pub mod utils;
 
@@ -86,8 +87,9 @@ pub async fn upload_batch_blocklist(
     platform: domain::Platform,
     profile_id: Option<common_utils::id_type::ProfileId>,
     csv_bytes: bytes::Bytes,
+    file_name: Option<String>,
 ) -> RouterResponse<api_blocklist::BatchBlocklistUploadResponse> {
-    batch::initiate_batch_blocklist_upload(&state, &platform, profile_id, csv_bytes)
+    batch::initiate_batch_blocklist_upload(&state, &platform, profile_id, csv_bytes, file_name)
         .await
         .map(services::ApplicationResponse::Json)
 }
@@ -95,11 +97,13 @@ pub async fn upload_batch_blocklist(
 pub async fn get_batch_blocklist_job_status(
     state: SessionState,
     platform: domain::Platform,
+    profile_id: Option<common_utils::id_type::ProfileId>,
     job_id: String,
-) -> RouterResponse<api_blocklist::BatchBlocklistJobStatusResponse> {
+) -> RouterResponse<api_blocklist::BatchBlocklistJobDetailResponse> {
     batch::get_batch_blocklist_job_status(
         &state,
         platform.get_processor().get_account().get_id(),
+        profile_id.as_ref(),
         &job_id,
     )
     .await
@@ -109,13 +113,25 @@ pub async fn get_batch_blocklist_job_status(
 pub async fn list_batch_blocklist_jobs(
     state: SessionState,
     platform: domain::Platform,
+    profile_id: Option<common_utils::id_type::ProfileId>,
     query: api_blocklist::ListBatchBlocklistJobsQuery,
 ) -> RouterResponse<api_blocklist::ListBatchBlocklistJobsResponse> {
     batch::list_batch_blocklist_jobs(
         &state,
         platform.get_processor().get_account().get_id(),
+        profile_id.as_ref(),
         query,
     )
     .await
     .map(services::ApplicationResponse::Json)
+}
+
+pub async fn create_blocklist_export(
+    state: SessionState,
+    platform: domain::Platform,
+    profile_id: Option<common_utils::id_type::ProfileId>,
+) -> RouterResponse<api_blocklist::BlocklistExportResponse> {
+    export::initiate_blocklist_export(&state, &platform, profile_id)
+        .await
+        .map(services::ApplicationResponse::Json)
 }

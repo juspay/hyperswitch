@@ -8,6 +8,7 @@ use router_env::{instrument, tracing};
 use scheduler::utils as pt_utils;
 use serde::Deserialize;
 
+use super::export;
 use crate::{
     core::{
         errors::{self, RouterResult, StorageErrorExt},
@@ -197,38 +198,46 @@ fn parse_csv(csv_bytes: &[u8]) -> Result<Vec<BlocklistRow>, api_blocklist::Block
     Ok(rows)
 }
 
+/// The CSV token for a data kind. Not identity: `fingerprint` is stored as `PaymentMethod`.
+pub(crate) fn data_kind_to_csv_token(data_kind: common_enums::BlocklistDataKind) -> &'static str {
+    match data_kind {
+        common_enums::BlocklistDataKind::CardBin => "card_bin",
+        common_enums::BlocklistDataKind::ExtendedCardBin => "extended_card_bin",
+        common_enums::BlocklistDataKind::GenericCardBin => "generic_card_bin",
+        common_enums::BlocklistDataKind::PaymentMethod => "fingerprint",
+    }
+}
+
+/// Flattens metadata into `key=value;key=value`. Anything not a flat object renders empty.
+pub(crate) fn metadata_to_csv_field(metadata: Option<&serde_json::Value>) -> String {
+    metadata
+        .map(|m| {
+            if let serde_json::Value::Object(map) = m {
+                map.iter()
+                    .map(|(k, v)| {
+                        let val = match v {
+                            serde_json::Value::String(s) => s.clone(),
+                            other => other.to_string(),
+                        };
+                        format!("{k}={val}")
+                    })
+                    .collect::<Vec<_>>()
+                    .join(";")
+            } else {
+                String::new()
+            }
+        })
+        .unwrap_or_default()
+}
+
 /// Serializes a slice of blocklist rows into headerless CSV bytes for chunk storage.
 fn rows_to_csv_bytes(rows: &[BlocklistRow]) -> RouterResult<Vec<u8>> {
     let mut writer = WriterBuilder::new()
         .has_headers(false)
         .from_writer(Vec::new());
     for row in rows {
-        let metadata_str = row
-            .metadata
-            .as_ref()
-            .map(|m| {
-                if let serde_json::Value::Object(map) = m {
-                    map.iter()
-                        .map(|(k, v)| {
-                            let val = match v {
-                                serde_json::Value::String(s) => s.clone(),
-                                other => other.to_string(),
-                            };
-                            format!("{k}={val}")
-                        })
-                        .collect::<Vec<_>>()
-                        .join(";")
-                } else {
-                    String::new()
-                }
-            })
-            .unwrap_or_default();
-        let type_str = match row.data_kind {
-            common_enums::BlocklistDataKind::CardBin => "card_bin",
-            common_enums::BlocklistDataKind::ExtendedCardBin => "extended_card_bin",
-            common_enums::BlocklistDataKind::GenericCardBin => "generic_card_bin",
-            common_enums::BlocklistDataKind::PaymentMethod => "fingerprint",
-        };
+        let metadata_str = metadata_to_csv_field(row.metadata.as_ref());
+        let type_str = data_kind_to_csv_token(row.data_kind);
         writer
             .write_record([type_str, row.data.as_str(), metadata_str.as_str()])
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -308,6 +317,7 @@ pub async fn initiate_batch_blocklist_upload(
     platform: &domain::Platform,
     profile_id: Option<id_type::ProfileId>,
     csv_bytes: bytes::Bytes,
+    file_name: Option<String>,
 ) -> RouterResult<api_blocklist::BatchBlocklistUploadResponse> {
     let processor_merchant_id = platform.get_processor().get_account().get_id();
     let profile_id = core_utils::get_profile_id_from_business_details(
@@ -393,6 +403,8 @@ pub async fn initiate_batch_blocklist_upload(
         created_at: now,
         updated_at: now,
         profile_id: profile_id.clone(),
+        job_type: common_enums::BatchBlocklistJobType::Upload,
+        file_name,
     };
 
     state
@@ -495,13 +507,13 @@ pub(crate) async fn process_chunk(
     Ok(succeeded)
 }
 
-/// Fetches the status and row counters for a specific batch blocklist job.
 #[instrument(skip_all, fields(flow = ?router_env::Flow::GetBatchBlocklistJobStatus))]
 pub async fn get_batch_blocklist_job_status(
     state: &SessionState,
     merchant_id: &id_type::MerchantId,
+    profile_id: Option<&id_type::ProfileId>,
     job_id: &str,
-) -> RouterResult<api_blocklist::BatchBlocklistJobStatusResponse> {
+) -> RouterResult<api_blocklist::BatchBlocklistJobDetailResponse> {
     let job = state
         .store
         .find_batch_blocklist_job_by_id_merchant_id(job_id, merchant_id.get_string_repr())
@@ -510,9 +522,43 @@ pub async fn get_batch_blocklist_job_status(
             message: format!("Batch blocklist job `{job_id}` not found"),
         })?;
 
+    // Same scope as the listing: another profile's job is not visible from this one.
+    let job = Some(job)
+        .filter(|job| {
+            profile_id.is_none_or(|requested| {
+                job.profile_id
+                    .as_ref()
+                    .is_none_or(|owner| owner == requested)
+            })
+        })
+        .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
+            message: format!("Batch blocklist job `{job_id}` not found"),
+        })?;
+
+    // The one place a link is minted: the merchant asked for this specific job.
+    let (download_url, download_url_expires_at) =
+        export::presign_export_download(state, &job).await.unzip();
+
+    Ok(api_blocklist::BatchBlocklistJobDetailResponse {
+        job: to_job_status_response(job)?,
+        download_url,
+        download_url_expires_at,
+    })
+}
+
+/// Renders one job row, without a download link.
+fn to_job_status_response(
+    job: storage::BatchBlocklistJob,
+) -> RouterResult<api_blocklist::BatchBlocklistJobStatusResponse> {
+    let downloadable = export::is_export_downloadable(&job);
+
     Ok(api_blocklist::BatchBlocklistJobStatusResponse {
         job_id: job.id,
         merchant_id: job.merchant_id.get_string_repr().to_owned(),
+        job_type: job
+            .job_type
+            .unwrap_or(common_enums::BatchBlocklistJobType::Upload),
+        file_name: job.file_name,
         status: job.status,
         total_rows: u32::try_from(job.total_rows)
             .change_context(errors::ApiErrorResponse::InternalServerError)?,
@@ -522,6 +568,9 @@ pub async fn get_batch_blocklist_job_status(
             .change_context(errors::ApiErrorResponse::InternalServerError)?,
         created_at: job.created_at,
         updated_at: job.updated_at,
+        expires_at: job.expires_at,
+        downloadable,
+        error_message: job.error_message,
     })
 }
 
@@ -530,20 +579,35 @@ pub async fn get_batch_blocklist_job_status(
 pub async fn list_batch_blocklist_jobs(
     state: &SessionState,
     merchant_id: &id_type::MerchantId,
+    profile_id: Option<&id_type::ProfileId>,
     query: api_blocklist::ListBatchBlocklistJobsQuery,
 ) -> RouterResult<api_blocklist::ListBatchBlocklistJobsResponse> {
     let limit = i64::from(query.limit.get());
     let offset = i64::from(query.offset.get());
+    // The page and the total have to be counted over the same kinds or they contradict each other.
+    let job_types = query.job_type.map_or_else(
+        || {
+            vec![
+                common_enums::BatchBlocklistJobType::Upload,
+                common_enums::BatchBlocklistJobType::Export,
+            ]
+        },
+        |job_type| vec![job_type],
+    );
 
     let (jobs, total_count) = future::try_join(
         state.store.list_batch_blocklist_jobs_by_merchant_id(
             merchant_id.get_string_repr(),
+            profile_id,
+            job_types.clone(),
             limit,
             offset,
         ),
-        state
-            .store
-            .count_batch_blocklist_jobs_by_merchant_id(merchant_id.get_string_repr()),
+        state.store.count_batch_blocklist_jobs_by_merchant_id(
+            merchant_id.get_string_repr(),
+            profile_id,
+            job_types,
+        ),
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -552,21 +616,7 @@ pub async fn list_batch_blocklist_jobs(
     let count = jobs.len();
     let data = jobs
         .into_iter()
-        .map(|job| {
-            Ok(api_blocklist::BatchBlocklistJobStatusResponse {
-                job_id: job.id,
-                merchant_id: job.merchant_id.get_string_repr().to_owned(),
-                status: job.status,
-                total_rows: u32::try_from(job.total_rows)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?,
-                succeeded_rows: u32::try_from(job.succeeded_rows)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?,
-                failed_rows: u32::try_from(job.failed_rows)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?,
-                created_at: job.created_at,
-                updated_at: job.updated_at,
-            })
-        })
+        .map(to_job_status_response)
         .collect::<RouterResult<Vec<_>>>()?;
 
     Ok(api_blocklist::ListBatchBlocklistJobsResponse {
