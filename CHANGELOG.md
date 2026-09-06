@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.08.26.1-hotfix7
+
+### Refactors
+
+- Make email of Email type ([#14064](https://github.com/juspay/hyperswitch/pull/14064)) ([`bf956fa`](https://github.com/juspay/hyperswitch/commit/bf956faad8408c4df6214fb32fbc298747754902))
+
+**Full Changelog:** [`2026.08.26.1-hotfix6...2026.08.26.1-hotfix7`](https://github.com/juspay/hyperswitch/compare/2026.08.26.1-hotfix6...2026.08.26.1-hotfix7)
+
+- - -
+
 ## 2026.08.26.1-hotfix6
 
 ### Features
