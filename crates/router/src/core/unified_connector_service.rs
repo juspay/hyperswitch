@@ -1781,11 +1781,26 @@ pub fn build_unified_connector_service_payment_method(
     connector_meta_data: Option<&common_utils::pii::SecretSerdeValue>,
 ) -> CustomResult<payments_grpc::PaymentMethod, UnifiedConnectorServiceError> {
     // A connector tokenization token settles for any payment method, including wallets.
+    // The token message carries the payment method it was minted from.
     if let Some(PaymentMethodToken::Token(token)) = payment_method_token {
+        let token_payment_method_type = match &payment_method_data {
+            hyperswitch_domain_models::payment_method_data::PaymentMethodData::Wallet(
+                hyperswitch_domain_models::payment_method_data::WalletData::ApplePay(_),
+            ) => {
+                Some(payments_grpc::token_payment_method_type::TokenPaymentMethod::ApplePay.into())
+            }
+            hyperswitch_domain_models::payment_method_data::PaymentMethodData::Wallet(
+                hyperswitch_domain_models::payment_method_data::WalletData::GooglePay(_),
+            ) => {
+                Some(payments_grpc::token_payment_method_type::TokenPaymentMethod::GooglePay.into())
+            }
+            _ => None,
+        };
         return Ok(payments_grpc::PaymentMethod {
             payment_method: Some(PaymentMethod::Token(
                 payments_grpc::TokenPaymentMethodType {
                     token: Some(token.clone()),
+                    token_payment_method_type,
                 },
             )),
         });
@@ -1796,7 +1811,7 @@ pub fn build_unified_connector_service_payment_method(
                 .get_card_expiry_month_2_digit()
                 .attach_printable("Failed to extract 2-digit expiry month from card")
                 .change_context(UnifiedConnectorServiceError::InvalidDataFormat {
-                    field_name: "card_exp_month",
+                    field_name: "card_exp_month".into(),
                 })?
                 .peek()
                 .to_string();
@@ -1837,7 +1852,7 @@ pub fn build_unified_connector_service_payment_method(
                 .get_card_expiry_month_2_digit()
                 .attach_printable("Failed to extract 2-digit expiry month from card")
                 .change_context(UnifiedConnectorServiceError::InvalidDataFormat {
-                    field_name: "card_exp_month",
+                    field_name: "card_exp_month".into(),
                 })?
                 .peek()
                 .to_string();
@@ -1961,6 +1976,7 @@ pub fn build_unified_connector_service_payment_method(
                 bank_name: _,
             } => {
                 let open_banking = payments_grpc::OpenBanking {
+                    bank_name: None,
                     account_number: account_number.map(|v| v.expose().into()),
                     sort_code: sort_code.map(|v| v.expose().into()),
                     iban: iban.map(|v| v.expose().into()),
@@ -1968,7 +1984,6 @@ pub fn build_unified_connector_service_payment_method(
                     additional_details: additional_details
                         .and_then(|v| serde_json::to_string(v.peek()).ok())
                         .map(Secret::new),
-                    bank_name: None,
                 };
 
                 Ok(payments_grpc::PaymentMethod {
@@ -2376,6 +2391,10 @@ pub fn build_unified_connector_service_payment_method(
                     Some(PaymentMethodToken::Token(token)) => {
                         let token_payment_method = payments_grpc::TokenPaymentMethodType {
                             token: Some(token.clone()),
+                            token_payment_method_type: Some(
+                                payments_grpc::token_payment_method_type::TokenPaymentMethod::ApplePay
+                                    .into(),
+                            ),
                         };
                         Ok(payments_grpc::PaymentMethod {
                             payment_method: Some(PaymentMethod::Token(token_payment_method)),

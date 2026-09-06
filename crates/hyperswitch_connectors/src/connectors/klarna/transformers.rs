@@ -190,7 +190,7 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsSessionRouterData>> for KlarnaSes
                 intent: KlarnaSessionIntent::Buy,
                 purchase_country: request.country.ok_or(
                     errors::ConnectorError::MissingRequiredField {
-                        field_name: "billing.address.country",
+                        field_name: "billing.address.country".into(),
                     },
                 )?,
                 purchase_currency: request.currency,
@@ -210,7 +210,7 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsSessionRouterData>> for KlarnaSes
                     .transpose()?,
             }),
             None => Err(report!(errors::ConnectorError::MissingRequiredField {
-                field_name: "order_details",
+                field_name: "order_details".into(),
             })),
         }
     }
@@ -281,7 +281,7 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsAuthorizeRouterData>> for KlarnaP
                         payment_method_specifics: None,
                     }),
                     None => Err(report!(errors::ConnectorError::MissingRequiredField {
-                        field_name: "order_details"
+                        field_name: "order_details".into()
                     })),
                 }
             }
@@ -332,7 +332,7 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsAuthorizeRouterData>> for KlarnaP
                         auto_capture: None,
                     }),
                     None => Err(report!(errors::ConnectorError::MissingRequiredField {
-                        field_name: "order_details"
+                        field_name: "order_details".into()
                     })),
                 }
             }
@@ -396,6 +396,7 @@ impl TryFrom<PaymentsResponseRouterData<KlarnaAuthResponse>>
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     }),
                     status: get_fraud_status(
                         response.fraud_status.clone(),
@@ -419,6 +420,7 @@ impl TryFrom<PaymentsResponseRouterData<KlarnaAuthResponse>>
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 status: get_checkout_status(
                     response.status.clone(),
@@ -583,6 +585,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, KlarnaPsyncResponse, T, PaymentsRespons
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             }),
@@ -599,6 +602,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, KlarnaPsyncResponse, T, PaymentsRespons
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             }),
@@ -666,6 +670,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<KlarnaCaptureResponse>>
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             status,
             ..item.data

@@ -70,7 +70,7 @@ impl TryFrom<&PaymentsCompleteAuthorizeRouterData> for AffirmCompleteAuthorizeRe
         let payload_data = item.request.get_redirect_response_payload()?.expose();
         let redirection_response: AffirmRedirectResponse = serde_json::from_value(payload_data)
             .change_context(errors::ConnectorError::MissingConnectorRedirectionPayload {
-                field_name: "checkout_token",
+                field_name: "checkout_token".into(),
             })?;
         let transaction_id = redirection_response.checkout_token;
         let order_id = item.connector_request_reference_id.clone();
@@ -333,6 +333,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AffirmResponseWrapper, T, PaymentsRespo
                         authentication_data: None,
                         charges: None,
                         incremental_authorization_allowed: None,
+                        payment_account_reference: None,
                     }),
                     ..item.data
                 })
@@ -352,6 +353,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AffirmResponseWrapper, T, PaymentsRespo
                         authentication_data: None,
                         charges: None,
                         incremental_authorization_allowed: None,
+                        payment_account_reference: None,
                     }),
                     ..item.data
                 })
@@ -380,6 +382,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AffirmCompleteAuthorizeResponse, T, Pay
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -504,6 +507,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<AffirmCaptureResponse>>
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -537,6 +541,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<AffirmCancelResponse>> for Payment
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })

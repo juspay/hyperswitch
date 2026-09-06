@@ -109,7 +109,7 @@ pub async fn refund_create_core(
     //[#299]: Can we change the flow based on some workflow idea
     utils::when(amount <= MinorUnit::new(0), || {
         Err(report!(errors::ApiErrorResponse::InvalidDataFormat {
-            field_name: "amount".to_string(),
+            field_name: "amount".into(),
             expected_format: "positive integer".to_string(),
         })
         .attach_printable("amount less than or equal to zero"))
@@ -487,6 +487,11 @@ pub async fn trigger_refund_to_gateway(
         .await
         .map_err(|error| logger::warn!(refunds_outgoing_webhook_error=?error))
         .ok();
+    #[cfg(feature = "v1")]
+    if response.refund_status == diesel_models::enums::RefundStatus::Success {
+        crate::core::offer_engine::schedule_refund_notification(state, payment_attempt, &response)
+            .await;
+    }
     Ok((response, router_data_res.raw_connector_response))
 }
 
@@ -1115,6 +1120,11 @@ pub async fn sync_refund_with_gateway(
         .await
         .map_err(|error| logger::warn!(refunds_outgoing_webhook_error=?error))
         .ok();
+    #[cfg(feature = "v1")]
+    if response.refund_status == diesel_models::enums::RefundStatus::Success {
+        crate::core::offer_engine::schedule_refund_notification(state, payment_attempt, &response)
+            .await;
+    }
     Ok((response, router_data_res.raw_connector_response))
 }
 
@@ -1304,7 +1314,7 @@ pub async fn validate_and_create_refund(
 
     utils::when(predicate.unwrap_or(false), || {
         Err(report!(errors::ApiErrorResponse::InvalidDataFormat {
-            field_name: "merchant_id".to_string(),
+            field_name: "merchant_id".into(),
             expected_format: "merchant_id from merchant account".to_string(),
         })
         .attach_printable("invalid merchant_id in request"))
@@ -1332,7 +1342,7 @@ pub async fn validate_and_create_refund(
     //[#249]: Add Connector Based Validation here.
     validator::validate_payment_order_age(&payment_intent.created_at, state.conf.refund.max_age)
         .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-            field_name: "created_at".to_string(),
+            field_name: "created_at".into(),
             expected_format: format!(
                 "created_at not older than {} days",
                 state.conf.refund.max_age
