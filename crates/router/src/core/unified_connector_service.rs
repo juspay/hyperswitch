@@ -839,7 +839,11 @@ type UnifiedConnectorServiceCreateOrderResult = CustomResult<
 /// Checks if the Unified Connector Service (UCS) is available for use.
 /// Reads from DB only (original behavior).
 async fn check_ucs_availability(state: &SessionState) -> UcsAvailability {
-    let request_id = state.request_id.as_ref().map(|r| r.to_string()).unwrap_or_default();
+    let request_id = state
+        .request_id
+        .as_ref()
+        .map(|r| r.to_string())
+        .unwrap_or_default();
     let is_client_available = state.grpc_client.unified_connector_service_client.is_some();
 
     let is_enabled = is_config_flag_enabled(state, consts::UCS_ENABLED).await;
@@ -868,7 +872,11 @@ async fn check_ucs_availability(state: &SessionState) -> UcsAvailability {
 /// Checks UCS availability reading purely from Superposition (no DB fallback).
 /// Supports three-value UcsAvailability: Enabled, Disabled, ShadowKilled.
 async fn check_ucs_availability_from_superposition(state: &SessionState) -> UcsAvailability {
-    let request_id = state.request_id.as_ref().map(|r| r.to_string()).unwrap_or_default();
+    let request_id = state
+        .request_id
+        .as_ref()
+        .map(|r| r.to_string())
+        .unwrap_or_default();
     let is_client_available = state.grpc_client.unified_connector_service_client.is_some();
 
     let ucs_mode = get_ucs_enabled_mode_from_superposition(state).await;
@@ -903,7 +911,11 @@ pub async fn determine_connector_integration_type(
     state: &SessionState,
     connector: Connector,
 ) -> RouterResult<ConnectorIntegrationType> {
-    let request_id = state.request_id.as_ref().map(|r| r.to_string()).unwrap_or_default();
+    let request_id = state
+        .request_id
+        .as_ref()
+        .map(|r| r.to_string())
+        .unwrap_or_default();
     match state.conf.grpc_client.unified_connector_service.as_ref() {
         Some(ucs_config) => {
             let is_ucs_only = is_ucs_only_connector(&ucs_config.ucs_only_connectors, connector);
@@ -1014,7 +1026,11 @@ where
     // Extract context information
     let merchant_id = processor.get_account().get_id().get_string_repr();
     let org_id = processor.get_account().get_org_id().get_string_repr();
-    let request_id = state.request_id.as_ref().map(|r| r.to_string()).unwrap_or_default();
+    let request_id = state
+        .request_id
+        .as_ref()
+        .map(|r| r.to_string())
+        .unwrap_or_default();
 
     let connector_name = &router_data.connector;
     let connector_enum = parse_connector_name(connector_name)?;
@@ -1088,7 +1104,11 @@ where
 {
     let merchant_id = processor.get_account().get_id().get_string_repr();
     let org_id = processor.get_account().get_org_id().get_string_repr();
-    let request_id = state.request_id.as_ref().map(|r| r.to_string()).unwrap_or_default();
+    let request_id = state
+        .request_id
+        .as_ref()
+        .map(|r| r.to_string())
+        .unwrap_or_default();
 
     let connector_name = &router_data.connector;
     let connector_enum = parse_connector_name(connector_name)?;
@@ -1197,7 +1217,11 @@ async fn resolve_ucs_execution_decision(
     payment_method: common_enums::PaymentMethod,
     payment_method_type: Option<PaymentMethodType>,
 ) -> RouterResult<(GatewaySystem, ExecutionPath, SessionState)> {
-    let request_id = state.request_id.as_ref().map(|r| r.to_string()).unwrap_or_default();
+    let request_id = state
+        .request_id
+        .as_ref()
+        .map(|r| r.to_string())
+        .unwrap_or_default();
     let (mut gateway_system, mut execution_path) = if ucs_availability == UcsAvailability::Disabled
     {
         match call_connector_action {
