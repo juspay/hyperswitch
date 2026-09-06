@@ -1203,6 +1203,7 @@ fn build_rollout_context_for_transaction<F: Clone, T, R>(
 }
 
 /// Resolves the shared execution path + session state for UCS routing.
+#[allow(clippy::too_many_arguments)]
 async fn resolve_ucs_execution_decision(
     state: &SessionState,
     merchant_id: &str,
