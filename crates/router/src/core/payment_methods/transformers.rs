@@ -589,9 +589,6 @@ pub fn mk_add_card_response_hs(
         card_issuer: card.card_issuer,
         card_network: card.card_network,
         card_type: card.card_type,
-        card_subtype: card.card_subtype,
-        card_segment_type: card.card_segment_type,
-        funding_source: card.funding_source,
         saved_to_locker: true,
     };
     domain::PaymentMethodResponse {
@@ -641,9 +638,6 @@ pub fn generate_pm_vaulting_req_from_update_request(
             card_network: card_create.card_network,
             card_issuer: card_create.card_issuer,
             card_type: card_create.card_type,
-            card_subtype: card_create.card_subtype,
-            card_segment_type: card_create.card_segment_type,
-            funding_source: card_create.funding_source,
             card_holder_name: update_card
                 .card_holder_name
                 .or(card_create.card_holder_name),
@@ -892,9 +886,6 @@ pub fn get_card_detail(
         issuer_country_code: None,
         card_network: None,
         card_type: None,
-        card_subtype: None,
-        card_segment_type: None,
-        funding_source: None,
         saved_to_locker: true,
     };
     Ok(card_detail)
@@ -922,9 +913,6 @@ pub fn get_card_detail(
         card_issuer: None,
         card_network: None,
         card_type: None,
-        card_subtype: None,
-        card_segment_type: None,
-        funding_source: None,
         saved_to_locker: true,
     };
     Ok(card_detail)
@@ -1749,9 +1737,6 @@ impl
                         card_issuer: card_detail.card_issuer,
                         card_network: card_detail.card_network,
                         card_type: card_detail.card_type.map(|card_type| card_type.to_string()),
-                        card_subtype: card_detail.card_subtype,
-                        card_segment_type: card_detail.card_segment_type,
-                        funding_source: card_detail.funding_source,
                         card_issuing_country: card_detail.card_issuing_country,
                         card_issuing_country_code: None,
                         bank_code: None,
@@ -1784,9 +1769,6 @@ impl
                                     .card_details
                                     .card_type
                                     .map(|card_type| card_type.to_string()),
-                                card_subtype: card_with_nt.card_details.card_subtype,
-                                card_segment_type: card_with_nt.card_details.card_segment_type,
-                                funding_source: card_with_nt.card_details.funding_source,
                                 card_issuing_country: card_with_nt.card_details.card_issuing_country,
                                 card_issuing_country_code: None,
                                 bank_code: None,
@@ -1926,9 +1908,6 @@ impl<'a>
             card_issuer: card_data.card_issuer.clone(),
             card_network: card_data.card_network.clone(),
             card_type: card_data.card_type.clone(),
-            card_subtype: card_data.card_subtype.clone(),
-            card_segment_type: card_data.card_segment_type,
-            funding_source: card_data.funding_source,
             card_issuing_country: card_data.card_issuing_country.clone(),
             card_issuing_country_code: card_data.card_issuing_country_code.clone(),
             bank_code: card_data.bank_code.clone(),
@@ -1958,9 +1937,6 @@ impl<'a>
                 card_issuer: card_data.card_issuer.clone(),
                 card_network: card_data.card_network.clone(),
                 card_type: card_data.card_type.clone(),
-                card_subtype: card_data.card_subtype.clone(),
-                card_segment_type: card_data.card_segment_type,
-                funding_source: card_data.funding_source,
                 card_issuing_country: card_data.card_issuing_country.clone(),
                 card_issuing_country_code: card_data.card_issuing_country_code.clone(),
                 bank_code: card_data.bank_code.clone(),

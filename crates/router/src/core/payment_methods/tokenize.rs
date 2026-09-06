@@ -277,9 +277,6 @@ where
             card_issuer: card_details.card_issuer.clone(),
             card_network: card_details.card_network.clone(),
             card_type: card_details.card_type.clone(),
-            card_subtype: card_details.card_subtype.clone(),
-            card_segment_type: card_details.card_segment_type,
-            funding_source: card_details.funding_source,
             saved_to_locker,
             co_badged_card_data: card_details
                 .co_badged_card_data
@@ -316,9 +313,6 @@ where
             card_issuer: card_details.card_issuer.clone(),
             card_network: card_details.card_network.clone(),
             card_type: card_details.card_type.clone(),
-            card_subtype: card_details.card_subtype.clone(),
-            card_segment_type: card_details.card_segment_type,
-            funding_source: card_details.funding_source,
             saved_to_locker,
             co_badged_card_data: None,
         });
