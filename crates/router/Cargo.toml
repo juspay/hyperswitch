@@ -188,10 +188,10 @@ actix-multipart = "0.6.2"
 actix-rt = "2.10.0"
 actix-web = "4.11.0"
 argon2 = { version = "0.5.3", features = ["std"] }
-async-bb8-diesel = "0.2.1"
+async-bb8-diesel = "0.3.0"
 async-trait = "0.1.88"
 base64 = "0.22.1"
-bb8 = "0.8"
+bb8 = "0.9.1"
 open-feature = { version = "0.2.5" }
 blake3 = "1.8.2"
 bytes = "1.10.1"
@@ -205,7 +205,7 @@ config = { version = "0.14.1", features = ["toml"] }
 prost-types = { version = "0.14", optional = true }
 cookie = "0.18.1"
 csv = "1.3.1"
-diesel = { version = "2.2.10", features = ["postgres"] }
+diesel = { version = "2.3.12", features = ["postgres"] }
 dyn-clone = "1.0.19"
 error-stack = "0.4.1"
 futures = "0.3.31"
@@ -300,8 +300,8 @@ common_utils = { version = "0.1.0", path = "../common_utils", features = [
     "keymanager",
 ] }
 common_types = { version = "0.1.0", path = "../common_types" }
-deja = { git = "https://github.com/juspay/deja", rev = "337181ebfd74b7e571a63a9cce515ff3c9309db7", optional = true, default-features = false }
-deja-core = { git = "https://github.com/juspay/deja", rev = "337181ebfd74b7e571a63a9cce515ff3c9309db7", optional = true }
+deja = { git = "https://github.com/juspay/deja", rev = "f9909673331a8f00a32da26e40573c1b0000043a", optional = true, default-features = false }
+deja-core = { git = "https://github.com/juspay/deja", rev = "f9909673331a8f00a32da26e40573c1b0000043a", optional = true }
 connector_configs = { version = "0.1.0", path = "../connector_configs" }
 currency_conversion = { version = "0.1.0", path = "../currency_conversion" }
 diesel_models = { version = "0.1.0", path = "../diesel_models", features = [

@@ -6,11 +6,11 @@
 #[macro_export]
 macro_rules! global_meter {
     ($name:ident) => {
-        static $name: ::std::sync::LazyLock<$crate::opentelemetry::metrics::Meter> =
+        pub(crate) static $name: ::std::sync::LazyLock<$crate::opentelemetry::metrics::Meter> =
             ::std::sync::LazyLock::new(|| $crate::opentelemetry::global::meter(stringify!($name)));
     };
     ($meter:ident, $name:literal) => {
-        static $meter: ::std::sync::LazyLock<$crate::opentelemetry::metrics::Meter> =
+        pub(crate) static $meter: ::std::sync::LazyLock<$crate::opentelemetry::metrics::Meter> =
             ::std::sync::LazyLock::new(|| $crate::opentelemetry::global::meter(stringify!($name)));
     };
 }
