@@ -9609,13 +9609,16 @@ pub fn is_off_session_mit_for_payment_method(
 ) -> bool {
     req.confirm == Some(true)
         && req.off_session == Some(true)
-        && req.recurring_details.as_ref().is_some_and(|recurring_details| {
-            matches!(
-                recurring_details,
-                RecurringDetails::PaymentMethodId(recurring_payment_method_id)
-                    if recurring_payment_method_id.as_str() == payment_method_id
-            )
-        })
+        && req
+            .recurring_details
+            .as_ref()
+            .is_some_and(|recurring_details| {
+                matches!(
+                    recurring_details,
+                    RecurringDetails::PaymentMethodId(recurring_payment_method_id)
+                        if recurring_payment_method_id.as_str() == payment_method_id
+                )
+            })
 }
 
 pub fn is_stored_credential(
