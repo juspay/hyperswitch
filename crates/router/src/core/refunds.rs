@@ -1099,6 +1099,7 @@ pub async fn sync_refund_with_gateway(
                 );
             }
         }
+        .in_current_span()
     });
 
     let response = state
@@ -1470,6 +1471,7 @@ pub async fn validate_and_create_refund(
                         );
                         }
                     }
+                    .in_current_span()
                 });
             }
             (updated_refund, raw_response)
