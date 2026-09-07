@@ -265,7 +265,7 @@ jobs:
 
   check-v2:
     name: Check compilation for V2 features
-    runs-on: ubuntu-latest
+    runs-on: hyperswitch-runners-merge
 
     steps:
       - name: Checkout repository
