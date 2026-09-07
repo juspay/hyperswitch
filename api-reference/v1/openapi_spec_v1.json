@@ -11158,6 +11158,14 @@
             "description": "Bin of the underlying card, provided by the connector when it resolves the DPAN",
             "nullable": true
           },
+          "card_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardType"
+              }
+            ],
+            "nullable": true
+          },
           "auth_code": {
             "type": "string",
             "description": "Unique authorisation code generated for the payment",
@@ -48260,6 +48268,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/FundingSource"
+              }
+            ],
+            "nullable": true
+          },
+          "card_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardType"
               }
             ],
             "nullable": true
