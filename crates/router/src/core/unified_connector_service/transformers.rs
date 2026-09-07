@@ -4318,11 +4318,6 @@ impl transformers::ForeignTryFrom<common_enums::PaymentMethodType>
             common_enums::PaymentMethodType::PixQr => Ok(Self::PixQr),
             common_enums::PaymentMethodType::Qris => Ok(Self::Qris),
             common_enums::PaymentMethodType::SepaGuarenteedDebit => Ok(Self::SepaGuaranteedDebit),
-            _ => Err(
-                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                    "Payment Method Type not yet supported".to_string(),
-                ),
-            )?,
         }
     }
 }
