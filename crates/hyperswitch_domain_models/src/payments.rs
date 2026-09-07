@@ -1054,7 +1054,7 @@ impl PaymentIntent {
             })
             .ok_or(
                 common_utils::errors::ValidationError::MissingRequiredField {
-                    field_name: "connector_customer_id".to_string(),
+                    field_name: "connector_customer_id".into(),
                 },
             )
     }
@@ -1256,6 +1256,17 @@ impl PaymentIntent {
         self.feature_metadata
             .as_ref()
             .and_then(|feature_metadata| feature_metadata.payment_revenue_recovery_metadata.clone())
+    }
+
+    /// Retries already made against this invoice, by the billing connector and by recovery
+    /// together. Zero for an intent that has not entered recovery.
+    pub fn get_revenue_recovery_retry_count(&self) -> Option<u16> {
+        self.feature_metadata
+            .as_ref()
+            .and_then(|feature_metadata| {
+                feature_metadata.payment_revenue_recovery_metadata.as_ref()
+            })
+            .map(|revenue_recovery_metadata| revenue_recovery_metadata.total_retry_count)
     }
 
     pub fn get_feature_metadata(&self) -> Option<FeatureMetadata> {
@@ -1582,6 +1593,7 @@ pub struct RevenueRecoveryData {
     pub connector_customer_id: String,
     pub retry_count: Option<u16>,
     pub invoice_next_billing_time: Option<PrimitiveDateTime>,
+    pub invoice_billing_started_at_time: Option<PrimitiveDateTime>,
     pub triggered_by: storage_enums::enums::TriggeredBy,
     pub card_network: Option<common_enums::CardNetwork>,
     pub card_issuer: Option<String>,
@@ -1690,10 +1702,17 @@ where
                     router_env::logger::error!(?err, "Failed to parse connector string to enum");
                     errors::api_error_response::ApiErrorResponse::InternalServerError
                 })?,
-                invoice_next_billing_time: self.revenue_recovery_data.invoice_next_billing_time,
-                invoice_billing_started_at_time: self
-                    .revenue_recovery_data
-                    .invoice_next_billing_time,
+                // Both billing times belong to the invoice rather than to an individual attempt,
+                // so the value recorded first is retained and later webhooks only seed it when it
+                // is still unset.
+                invoice_next_billing_time: revenue_recovery
+                    .as_ref()
+                    .and_then(|data| data.invoice_next_billing_time)
+                    .or(self.revenue_recovery_data.invoice_next_billing_time),
+                invoice_billing_started_at_time: revenue_recovery
+                    .as_ref()
+                    .and_then(|data| data.invoice_billing_started_at_time)
+                    .or(self.revenue_recovery_data.invoice_billing_started_at_time),
                 billing_connector_payment_method_details,
                 first_payment_attempt_network_advice_code: first_network_advice_code,
                 first_payment_attempt_network_decline_code: first_network_decline_code,

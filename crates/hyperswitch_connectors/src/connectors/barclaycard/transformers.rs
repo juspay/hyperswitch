@@ -294,7 +294,7 @@ fn build_bill_to(
                 .map(|state| truncate_string(state, 20))
         })
         .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
-            field_name: "billing_address.state",
+            field_name: "billing_address.state".into(),
         })?;
 
     Ok(BillTo {
@@ -816,7 +816,7 @@ impl TryFrom<&BarclaycardRouterData<&PaymentsAuthenticateRouterData>>
         };
         let payment_method_data = item.router_data.request.payment_method_data.clone().ok_or(
             errors::ConnectorError::MissingConnectorRedirectionPayload {
-                field_name: "payment_method_data",
+                field_name: "payment_method_data".into(),
             },
         )?;
         let payment_information = match payment_method_data {
@@ -874,7 +874,7 @@ impl TryFrom<&BarclaycardRouterData<&PaymentsAuthenticateRouterData>>
 
         let redirect_response = item.router_data.request.redirect_response.clone().ok_or(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "redirect_response",
+                field_name: "redirect_response".into(),
             },
         )?;
 
@@ -882,20 +882,20 @@ impl TryFrom<&BarclaycardRouterData<&PaymentsAuthenticateRouterData>>
             total_amount: item.amount.clone(),
             currency: item.router_data.request.currency.ok_or(
                 errors::ConnectorError::MissingRequiredField {
-                    field_name: "currency",
+                    field_name: "currency".into(),
                 },
             )?,
         };
         let reference_id = redirect_response
             .params
             .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "redirect_response.params",
+                field_name: "redirect_response.params".into(),
             })?
             .clone()
             .peek()
             .split_once('=')
             .ok_or(errors::ConnectorError::MissingConnectorRedirectionPayload {
-                field_name: "request.redirect_response.params.reference_id",
+                field_name: "request.redirect_response.params.reference_id".into(),
             })?
             .1
             .to_string();
@@ -905,7 +905,7 @@ impl TryFrom<&BarclaycardRouterData<&PaymentsAuthenticateRouterData>>
             .ok()
             .or(item.router_data.request.email.clone())
             .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "email",
+                field_name: "email".into(),
             })?;
         let bill_to = build_bill_to(item.router_data.get_billing_address()?, email)?;
         let order_information = OrderInformationWithBill {
@@ -918,7 +918,7 @@ impl TryFrom<&BarclaycardRouterData<&PaymentsAuthenticateRouterData>>
             .complete_authorize_url
             .clone()
             .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "complete_authorize_url",
+                field_name: "complete_authorize_url".into(),
             })?;
         Ok(Self {
             payment_information,
@@ -944,7 +944,7 @@ impl TryFrom<&BarclaycardRouterData<&PaymentsPostAuthenticateRouterData>>
         };
         let payment_method_data = item.router_data.request.payment_method_data.clone().ok_or(
             errors::ConnectorError::MissingConnectorRedirectionPayload {
-                field_name: "payment_method_data",
+                field_name: "payment_method_data".into(),
             },
         )?;
         let payment_information = match payment_method_data {
@@ -1002,7 +1002,7 @@ impl TryFrom<&BarclaycardRouterData<&PaymentsPostAuthenticateRouterData>>
 
         let redirect_response = item.router_data.request.redirect_response.clone().ok_or(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "redirect_response",
+                field_name: "redirect_response".into(),
             },
         )?;
 
@@ -1010,14 +1010,14 @@ impl TryFrom<&BarclaycardRouterData<&PaymentsPostAuthenticateRouterData>>
             total_amount: item.amount.clone(),
             currency: item.router_data.request.currency.ok_or(
                 errors::ConnectorError::MissingRequiredField {
-                    field_name: "currency",
+                    field_name: "currency".into(),
                 },
             )?,
         };
         let redirect_payload: BarclaycardRedirectionAuthResponse = redirect_response
             .payload
             .ok_or(errors::ConnectorError::MissingConnectorRedirectionPayload {
-                field_name: "request.redirect_response.payload",
+                field_name: "request.redirect_response.payload".into(),
             })?
             .peek()
             .clone()
@@ -1048,7 +1048,7 @@ impl TryFrom<&BarclaycardRouterData<&PaymentsPreProcessingRouterData>>
         };
         let payment_method_data = item.router_data.request.payment_method_data.clone().ok_or(
             errors::ConnectorError::MissingConnectorRedirectionPayload {
-                field_name: "payment_method_data",
+                field_name: "payment_method_data".into(),
             },
         )?;
         let payment_information = match payment_method_data {
@@ -1106,7 +1106,7 @@ impl TryFrom<&BarclaycardRouterData<&PaymentsPreProcessingRouterData>>
 
         let redirect_response = item.router_data.request.redirect_response.clone().ok_or(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "redirect_response",
+                field_name: "redirect_response".into(),
             },
         )?;
 
@@ -1114,7 +1114,7 @@ impl TryFrom<&BarclaycardRouterData<&PaymentsPreProcessingRouterData>>
             total_amount: item.amount.clone(),
             currency: item.router_data.request.currency.ok_or(
                 errors::ConnectorError::MissingRequiredField {
-                    field_name: "currency",
+                    field_name: "currency".into(),
                 },
             )?,
         };
@@ -1126,7 +1126,7 @@ impl TryFrom<&BarclaycardRouterData<&PaymentsPreProcessingRouterData>>
                     .peek()
                     .split_once('=')
                     .ok_or(errors::ConnectorError::MissingConnectorRedirectionPayload {
-                        field_name: "request.redirect_response.params.reference_id",
+                        field_name: "request.redirect_response.params.reference_id".into(),
                     })?
                     .1
                     .to_string();
@@ -1159,7 +1159,7 @@ impl TryFrom<&BarclaycardRouterData<&PaymentsPreProcessingRouterData>>
                 let redirect_payload: BarclaycardRedirectionAuthResponse = redirect_response
                     .payload
                     .ok_or(errors::ConnectorError::MissingConnectorRedirectionPayload {
-                        field_name: "request.redirect_response.payload",
+                        field_name: "request.redirect_response.payload".into(),
                     })?
                     .peek()
                     .clone()
@@ -1990,7 +1990,7 @@ impl
             .connector_meta
             .clone()
             .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "connector_meta",
+                field_name: "connector_meta".into(),
             })?
             .parse_value("BarclaycardThreeDSMetadata")
             .change_context(errors::ConnectorError::InvalidConnectorConfig {
@@ -2097,7 +2097,7 @@ impl
         let client_reference_information = ClientReferenceInformation::from(item);
         let expiration_month = apple_pay_data.get_expiry_month().change_context(
             errors::ConnectorError::InvalidDataFormat {
-                field_name: "expiration_month",
+                field_name: "expiration_month".into(),
             },
         )?;
         let expiration_year = apple_pay_data.get_four_digit_expiry_year();
@@ -2204,7 +2204,7 @@ impl TryFrom<&BarclaycardRouterData<&PaymentsAuthorizeRouterData>> for Barclayca
                                 .payment_data
                                 .get_encrypted_apple_pay_payment_data_mandatory()
                                 .change_context(errors::ConnectorError::MissingRequiredField {
-                                    field_name: "Apple pay encrypted data",
+                                    field_name: "Apple pay encrypted data".into(),
                                 })?;
                             let payment_information = PaymentInformation::ApplePayToken(Box::new(
                                 ApplePayTokenPaymentInformation {
@@ -2507,7 +2507,7 @@ impl TryFrom<&BarclaycardRouterData<&PaymentsCompleteAuthorizeRouterData>>
     ) -> Result<Self, Self::Error> {
         let payment_method_data = item.router_data.request.payment_method_data.clone().ok_or(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "payment_method_data",
+                field_name: "payment_method_data".into(),
             },
         )?;
         match payment_method_data {
@@ -3311,7 +3311,7 @@ impl TryFrom<&BarclaycardRouterData<&PaymentsCancelRouterData>> for BarclaycardV
                     total_amount: value.amount.to_owned(),
                     currency: value.router_data.request.currency.ok_or(
                         errors::ConnectorError::MissingRequiredField {
-                            field_name: "Currency",
+                            field_name: "Currency".into(),
                         },
                     )?,
                 },
@@ -3321,7 +3321,7 @@ impl TryFrom<&BarclaycardRouterData<&PaymentsCancelRouterData>> for BarclaycardV
                     .cancellation_reason
                     .clone()
                     .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "Cancellation Reason",
+                        field_name: "Cancellation Reason".into(),
                     })?,
             },
             merchant_defined_information,
@@ -3693,7 +3693,7 @@ impl TryFrom<&GooglePayWalletData> for PaymentInformation {
                             .tokenization_data
                             .get_encrypted_google_pay_token()
                             .change_context(errors::ConnectorError::MissingRequiredField {
-                                field_name: "gpay wallet_token",
+                                field_name: "gpay wallet_token".into(),
                             })?
                             .clone(),
                     ),

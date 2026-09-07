@@ -832,7 +832,7 @@ pub trait ConnectorActions: Connector {
                 create_res
                     .connector_payout_id
                     .ok_or(ConnectorError::MissingRequiredField {
-                        field_name: "connector_payout_id",
+                        field_name: "connector_payout_id".into(),
                     })?,
                 payout_type,
                 payment_info.to_owned(),

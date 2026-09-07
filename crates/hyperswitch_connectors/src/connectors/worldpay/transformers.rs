@@ -136,7 +136,7 @@ fn fetch_payment_instrument(
             })
             .ok_or(
                 errors::ConnectorError::MissingRequiredField {
-                    field_name: "connector_mandate_id",
+                    field_name: "connector_mandate_id".into(),
                 }
                 .into(),
             ),
@@ -147,7 +147,7 @@ fn fetch_payment_instrument(
                     data.tokenization_data
                         .get_encrypted_google_pay_token()
                         .change_context(errors::ConnectorError::MissingRequiredField {
-                            field_name: "gpay wallet_token",
+                            field_name: "gpay wallet_token".into(),
                         })?,
                 ),
                 ..WalletPayment::default()
@@ -230,7 +230,7 @@ impl TryFrom<(enums::PaymentMethod, Option<enums::PaymentMethodType>)> for Payme
             (enums::PaymentMethod::Card, _) => Ok(Self::Card),
             (enums::PaymentMethod::Wallet, pmt) => {
                 let pm = pmt.ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "payment_method_type",
+                    field_name: "payment_method_type".into(),
                 })?;
                 match pm {
                     enums::PaymentMethodType::ApplePay => Ok(Self::ApplePay),
@@ -537,7 +537,7 @@ fn create_three_ds_request<T: WorldpayPaymentsRequestData>(
         (enums::AuthenticationType::ThreeDs, _) => {
             let browser_info = router_data.get_browser_info().ok_or(
                 errors::ConnectorError::MissingRequiredField {
-                    field_name: "browser_info",
+                    field_name: "browser_info".into(),
                 },
             )?;
 
@@ -546,7 +546,7 @@ fn create_three_ds_request<T: WorldpayPaymentsRequestData>(
                 .clone()
                 .get_required_value("accept_header")
                 .change_context(errors::ConnectorError::MissingRequiredField {
-                    field_name: "accept_header",
+                    field_name: "accept_header".into(),
                 })?;
 
             let user_agent_header = browser_info
@@ -554,7 +554,7 @@ fn create_three_ds_request<T: WorldpayPaymentsRequestData>(
                 .clone()
                 .get_required_value("user_agent")
                 .change_context(errors::ConnectorError::MissingRequiredField {
-                    field_name: "user_agent",
+                    field_name: "user_agent".into(),
                 })?;
 
             Ok(Some(ThreeDSRequest {
@@ -1052,11 +1052,14 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for WorldpayCompleteAu
             enums::AttemptStatus::DeviceDataCollectionPending => Ok(parsed_request),
             enums::AttemptStatus::AuthenticationPending => {
                 if parsed_request.collection_reference.is_some() {
-                    return Err(errors::ConnectorError::InvalidDataFormat {
-                        field_name:
-                            "collection_reference not allowed in AuthenticationPending state",
-                    }
-                    .into());
+                    return Err(
+                        errors::ConnectorError::InvalidDataFormat {
+                            field_name:
+                                "collection_reference not allowed in AuthenticationPending state"
+                                    .into(),
+                        }
+                        .into(),
+                    );
                 }
                 Ok(parsed_request)
             }
