@@ -178,7 +178,7 @@ impl BillingHandler {
     ) -> SubscriptionResult<subscription_response_types::SubscriptionCreateResponse> {
         let subscription_item = subscription_request_types::SubscriptionItem {
             item_price_id: item_price_id.ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "item_price_id",
+                field_name: "item_price_id".into(),
             })?,
             quantity: Some(1),
         };
@@ -188,7 +188,7 @@ impl BillingHandler {
             subscription_items: vec![subscription_item],
             billing_address: billing_address.ok_or(
                 errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "billing",
+                    field_name: "billing".into(),
                 },
             )?,
             auto_collection: subscription_request_types::SubscriptionAutoCollection::Off,
@@ -234,7 +234,7 @@ impl BillingHandler {
                 invoice_id.get_string_repr(),
             )
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "invoice_id",
+                field_name: "invoice_id".into(),
             })?,
             connector_params: self.connector_params.clone(),
             connector_transaction_id: Some(common_utils::types::ConnectorTransactionId::TxnId(

@@ -935,12 +935,34 @@ impl RedisTokenManager {
         Ok(all_hard_declined)
     }
 
+    // Get the token this invoice last used, by id
+    async fn get_invoice_token(
+        state: &SessionState,
+        connector_customer_id: &str,
+        last_token_used: Option<&str>,
+    ) -> CustomResult<Option<PaymentProcessorTokenStatus>, errors::StorageError> {
+        match last_token_used {
+            Some(token_id) => {
+                Self::get_payment_processor_token_using_token_id(
+                    state,
+                    connector_customer_id,
+                    token_id,
+                )
+                .await
+            }
+            None => Ok(None),
+        }
+    }
+
     // Get token based on retry type
+    // Adaptive smart decides against the invoice's own token, so it resolves by id rather than
+    // the `scheduled_at` marker, which only the decider writes and is shared across invoices.
     pub async fn get_token_based_on_retry_type(
         state: &SessionState,
         connector_customer_id: &str,
         retry_algorithm_type: RevenueRecoveryAlgorithmType,
         last_token_used: Option<&str>,
+        adaptive_retry_enabled: bool,
     ) -> CustomResult<Option<PaymentProcessorTokenStatus>, errors::StorageError> {
         let mut token = None;
         match retry_algorithm_type {
@@ -949,17 +971,13 @@ impl RedisTokenManager {
             }
 
             RevenueRecoveryAlgorithmType::Cascading => {
-                token = match last_token_used {
-                    Some(token_id) => {
-                        Self::get_payment_processor_token_using_token_id(
-                            state,
-                            connector_customer_id,
-                            token_id,
-                        )
-                        .await?
-                    }
-                    None => None,
-                };
+                token =
+                    Self::get_invoice_token(state, connector_customer_id, last_token_used).await?;
+            }
+
+            RevenueRecoveryAlgorithmType::Smart if adaptive_retry_enabled => {
+                token =
+                    Self::get_invoice_token(state, connector_customer_id, last_token_used).await?;
             }
 
             RevenueRecoveryAlgorithmType::Smart => {

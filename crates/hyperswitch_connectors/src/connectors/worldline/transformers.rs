@@ -440,7 +440,7 @@ fn build_customer_info(
 ) -> Result<Customer, error_stack::Report<errors::ConnectorError>> {
     let (billing, address) =
         get_address(billing_address).ok_or(errors::ConnectorError::MissingRequiredField {
-            field_name: "billing.address.country",
+            field_name: "billing.address.country".into(),
         })?;
 
     let number_with_country_code = billing.phone.as_ref().and_then(|phone| {
@@ -593,6 +593,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, Payment, T, PaymentsResponseData>>
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -646,6 +647,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PaymentResponse, T, PaymentsResponseDat
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
