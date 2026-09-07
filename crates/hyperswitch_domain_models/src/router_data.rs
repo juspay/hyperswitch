@@ -530,6 +530,22 @@ impl PaymentMethodToken {
         }
     }
 
+    pub fn get_google_pay_decrypt_data(&self) -> Option<common_payment_types::GPayPredecryptData> {
+        match self {
+            Self::GooglePayDecrypt(data) => Some((**data).clone()),
+            Self::ApplePayDecrypt(_) | Self::PazeDecrypt(_) | Self::Token(_) => None,
+        }
+    }
+
+    pub fn get_apple_pay_decrypt_data(
+        &self,
+    ) -> Option<common_payment_types::ApplePayPredecryptData> {
+        match self {
+            Self::ApplePayDecrypt(data) => Some((**data).clone()),
+            Self::GooglePayDecrypt(_) | Self::PazeDecrypt(_) | Self::Token(_) => None,
+        }
+    }
+
     pub fn is_apple_pay_decrypt(&self) -> bool {
         matches!(self, Self::ApplePayDecrypt(_))
     }
@@ -845,7 +861,7 @@ pub enum AdditionalPaymentMethodConnectorResponse {
         /// The name of the card issuer, as returned by the connector
         issuer_name: Option<String>,
         /// The country of the card issuer, as returned by the connector
-        issuer_country: Option<String>,
+        issuer_country: Option<common_enums::CountryAlpha2>,
     },
     ApplePay {
         auth_code: Option<String>,
@@ -862,7 +878,7 @@ pub enum AdditionalPaymentMethodConnectorResponse {
         /// The name of the card issuer, as returned by the connector
         issuer_name: Option<String>,
         /// The country of the card issuer, as returned by the connector
-        issuer_country: Option<String>,
+        issuer_country: Option<common_enums::CountryAlpha2>,
     },
     Paypal {
         /// Email address associated with the payer's PayPal account

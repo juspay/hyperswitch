@@ -5951,7 +5951,8 @@ pub struct ApplepayPaymentMethod {
     /// The name of the card issuer, as returned by the connector
     pub issuer_name: Option<String>,
     /// The country of the card issuer, as returned by the connector
-    pub issuer_country: Option<String>,
+    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    pub issuer_country: Option<api_enums::CountryAlpha2>,
 }
 
 #[derive(

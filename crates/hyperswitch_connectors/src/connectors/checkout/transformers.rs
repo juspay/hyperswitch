@@ -1517,7 +1517,7 @@ pub struct Source {
     /// The name of the card issuer
     issuer: Option<String>,
     /// The country of the card issuer
-    issuer_country: Option<String>,
+    issuer_country: Option<CountryAlpha2>,
     /// The card's product/subtype, e.g. "Visa Classic"
     product_type: Option<String>,
 }
@@ -2648,7 +2648,7 @@ impl TryFrom<&webhooks::IncomingWebhookRequestDetails<'_>> for PaymentsResponse 
                 card_type: src.card_type.clone(),
                 card_category: src.card_category.clone(),
                 issuer: src.issuer.clone(),
-                issuer_country: src.issuer_country.clone(),
+                issuer_country: src.issuer_country,
                 product_type: src.product_type.clone(),
             }),
             scheme_id: None,
@@ -2732,7 +2732,7 @@ fn convert_to_additional_payment_method_connector_response(
                     .and_then(|source| source.card_type.clone())
                     .map(common_enums::FundingSource::from),
                 issuer_name: source.and_then(|source| source.issuer.clone()),
-                issuer_country: source.and_then(|source| source.issuer_country.clone()),
+                issuer_country: source.and_then(|source| source.issuer_country),
             })
         }
         Some(enums::PaymentMethodType::ApplePay) => {
@@ -2748,7 +2748,7 @@ fn convert_to_additional_payment_method_connector_response(
                     .and_then(|source| source.card_type.clone())
                     .map(common_enums::FundingSource::from),
                 issuer_name: source.and_then(|source| source.issuer.clone()),
-                issuer_country: source.and_then(|source| source.issuer_country.clone()),
+                issuer_country: source.and_then(|source| source.issuer_country),
             })
         }
         _ => {

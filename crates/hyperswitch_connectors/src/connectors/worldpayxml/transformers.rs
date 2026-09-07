@@ -4001,7 +4001,11 @@ fn get_connector_response_data(
         .map(|id| id.expose())?;
 
     let issuer_name = payment_data.issuer_name.clone();
-    let issuer_country = payment_data.issuer_country_code.clone();
+    // Worldpay can return "N/A" here instead of an ISO alpha-2 code; parse leniently.
+    let issuer_country = payment_data
+        .issuer_country_code
+        .as_deref()
+        .and_then(|code| code.parse::<common_enums::CountryAlpha2>().ok());
 
     let additional_payment_method_data = match payment_method_type {
         Some(enums::PaymentMethodType::GooglePay) => {
