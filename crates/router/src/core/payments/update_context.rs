@@ -49,8 +49,12 @@ pub fn integration_type_from_headers(
 
     let integration_type = IntegrationType::from_header_value(value);
 
+    // Tested against the accepted spellings directly rather than inferred from `integration_type`
+    // being `Client`: that inference only holds while `Client` is the fallback, and would stop
+    // reporting anything the day the fallback changed.
     let unrecognised = value.filter(|value| {
-        integration_type == IntegrationType::Client && !value.trim().eq_ignore_ascii_case("client")
+        let value = value.trim();
+        !value.eq_ignore_ascii_case("server") && !value.eq_ignore_ascii_case("client")
     });
 
     if let Some(value) = unrecognised {
@@ -154,31 +158,39 @@ pub async fn attach_server_context(
         }
     });
 
-    response.payment_method_list = Some(
-        match payment_methods_result.and_then(|listing| json_body(listing, "payment_method_list")) {
-            Ok(listing) => {
-                logger::info!(
-                    payment_methods_enabled_count = listing.payment_methods_enabled.len(),
-                    customer_payment_methods_count = listing.customer_payment_methods.len(),
-                    "server-integration: payment-method list attached"
-                );
-                payment_methods_api::PaymentMethodListResult::Success(Box::new(listing))
+    response.payment_method_list = Some(match payment_methods_result {
+        Ok(listing) => {
+            logger::info!(
+                payment_methods_enabled_count = listing.payment_methods_enabled.len(),
+                customer_payment_methods_count = listing.customer_payment_methods.len(),
+                "server-integration: payment-method list attached"
+            );
+            payment_methods_api::PaymentMethodListResult::Success(Box::new(listing))
+        }
+        Err(error) => {
+            logger::warn!(
+                ?error,
+                "server-integration: payment-method list unavailable"
+            );
+            payment_methods_api::PaymentMethodListResult::Failed {
+                error: section_error(&error),
             }
-            Err(error) => {
-                logger::warn!(
-                    ?error,
-                    "server-integration: payment-method list unavailable"
-                );
-                payment_methods_api::PaymentMethodListResult::Failed {
-                    error: section_error(&error),
-                }
-            }
-        },
-    );
+        }
+    });
 
+    // Reports what each section actually produced. A blanket "complete" here would read as
+    // success on a response whose sections both carry errors.
     logger::info!(
         elapsed_ms,
-        "server-integration: enrichment complete, both sections attached"
+        session_tokens_ok = matches!(
+            response.session_tokens,
+            Some(payment_types::SessionTokensResult::Success(_))
+        ),
+        payment_method_list_ok = matches!(
+            response.payment_method_list,
+            Some(payment_methods_api::PaymentMethodListResult::Success(_))
+        ),
+        "server-integration: enrichment complete"
     );
 }
 
@@ -235,17 +247,19 @@ async fn payment_method_list(
     state: SessionState,
     platform: domain::Platform,
     payment_id: &id_type::PaymentId,
-) -> errors::RouterResponse<payment_methods_api::ClientPaymentMethodsListResponse> {
+) -> errors::RouterResult<payment_methods_api::ClientPaymentMethodsListResponse> {
     logger::info!("server-integration: calling payment-method-list core");
 
-    pm_client::list_payment_methods_client(
+    let response = pm_client::list_payment_methods_client(
         state,
         platform,
         payment_id.clone(),
         // Merchant API key authenticated; there is no client secret to validate.
         None,
     )
-    .await
+    .await?;
+
+    json_body(response, "payment_method_list")
 }
 
 /// A core response can only contribute when it is a plain JSON body.
