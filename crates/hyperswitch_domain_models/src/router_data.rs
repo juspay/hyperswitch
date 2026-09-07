@@ -124,6 +124,8 @@ pub struct RouterData<Flow, Request, Response> {
 
     // Document details of the customer consisting of document number and type
     pub customer_document_details: Option<CustomerDocumentDetails>,
+    /// The customer's date of birth.
+    pub customer_date_of_birth: Option<Secret<time::Date>>,
     // feature related data
     pub feature_data: Option<FeatureData>,
     /// A connector-specific identifier representing the stored payment instrument
@@ -819,6 +821,12 @@ pub enum AdditionalPaymentMethodConnectorResponse {
     },
     ApplePay {
         auth_code: Option<String>,
+    },
+    Paypal {
+        /// Email address associated with the payer's PayPal account
+        email: Option<common_utils::pii::Email>,
+        /// Unique identifier of the payer in PayPal
+        payer_id: Option<Secret<String>>,
     },
     SepaBankTransfer {
         debitor_iban: Option<Secret<String>>,

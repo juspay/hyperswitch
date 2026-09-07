@@ -426,6 +426,7 @@ impl TryFrom<PaymentsResponseRouterData<GetnetPaymentsResponse>> for PaymentsAut
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             }),
@@ -479,6 +480,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<GetnetPaymentsResponse>> for Payment
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             }),
@@ -503,6 +505,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<GetnetPaymentsResponse>> for Payment
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     }),
                     ..item.data
                 })
@@ -653,6 +656,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<GetnetCaptureResponse>>
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -985,6 +989,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<GetnetCancelResponse>> for Payment
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })

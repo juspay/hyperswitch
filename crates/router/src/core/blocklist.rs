@@ -49,6 +49,28 @@ pub async fn list_blocklist_entries(
     .map(services::ApplicationResponse::Json)
 }
 
+pub async fn get_blocklist_count(
+    state: SessionState,
+    processor: domain::Processor,
+    profile_id: Option<common_utils::id_type::ProfileId>,
+    query: api_blocklist::BlocklistCountQuery,
+) -> RouterResponse<api_blocklist::BlocklistCountResponse> {
+    utils::get_blocklist_count(&state, &processor, profile_id, query)
+        .await
+        .map(services::ApplicationResponse::Json)
+}
+
+pub async fn lookup_blocklist_entry(
+    state: SessionState,
+    processor: domain::Processor,
+    profile_id: Option<common_utils::id_type::ProfileId>,
+    query: api_blocklist::BlocklistLookupQuery,
+) -> RouterResponse<api_blocklist::BlocklistLookupResponse> {
+    utils::lookup_blocklist_entry(&state, &processor, profile_id, query)
+        .await
+        .map(services::ApplicationResponse::Json)
+}
+
 pub async fn toggle_blocklist_guard(
     state: SessionState,
     processor: domain::Processor,
