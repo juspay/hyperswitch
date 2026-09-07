@@ -1,0 +1,340 @@
+name: Publish stable release
+
+on:
+  workflow_run:
+    workflows: ["Release a stable version"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      new_tag:
+        description: "Stable tag to generate release notes for (e.g. v1.2.3). Required for manual runs."
+        required: false
+        type: string
+      previous_tag:
+        description: "Override the auto-detected previous stable tag (e.g. v1.2.2). Optional."
+        required: false
+        type: string
+
+jobs:
+  publish-stable-release:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate GitHub App token
+        id: generate_token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.HYPERSWITCH_BOT_APP_ID }}
+          private-key: ${{ secrets.HYPERSWITCH_BOT_APP_PRIVATE_KEY }}
+
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          token: ${{ steps.generate_token.outputs.token }}
+
+      - name: Resolve new_tag and previous_tag
+        id: resolve-tags
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.generate_token.outputs.token }}
+        run: |
+          set -euo pipefail
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            NEW_TAG="${{ inputs.new_tag }}"
+            if [ -z "$NEW_TAG" ]; then
+              echo "::error::new_tag input is required for manual (workflow_dispatch) runs"
+              exit 1
+            fi
+          else
+            RUN_ID="${{ github.event.workflow_run.id }}"
+            if ! gh run download "$RUN_ID" --name release-notes.md --dir /tmp/artifact-download \
+              --repo "${{ github.repository }}"; then
+              echo "::error::Failed to download release-notes.md artifact from run $RUN_ID (artifact may have expired, or the triggering run may not have uploaded it)"
+              exit 1
+            fi
+
+            PARSED_TAG=$(sed -nE 's/^## ([0-9]+\.[0-9]+\.[0-9]+) \([0-9-]+\)$/v\1/p' \
+              /tmp/artifact-download/release-notes.md | head -1)
+
+            if [ -z "$PARSED_TAG" ]; then
+              echo "::error::Could not parse a version heading out of release-notes.md"
+              exit 1
+            fi
+
+            HEAD_SHA="${{ github.event.workflow_run.head_sha }}"
+            CROSS_CHECK_TAG=$(git tag -l 'v*' --sort=-v:refname --points-at "$HEAD_SHA" | head -1)
+
+            if [ -z "$CROSS_CHECK_TAG" ]; then
+              echo "::error::No v* tag found pointing at head_sha $HEAD_SHA -- cannot cross-check parsed tag $PARSED_TAG"
+              exit 1
+            fi
+
+            if [ "$PARSED_TAG" != "$CROSS_CHECK_TAG" ]; then
+              echo "::error::Tag mismatch -- parsed '$PARSED_TAG' from artifact but newest v* tag at head_sha is '$CROSS_CHECK_TAG'"
+              exit 1
+            fi
+
+            NEW_TAG="$PARSED_TAG"
+          fi
+
+          if ! git rev-parse "$NEW_TAG" >/dev/null 2>&1; then
+            echo "::error::Resolved new_tag '$NEW_TAG' does not exist as a git tag"
+            exit 1
+          fi
+
+          PREVIOUS_TAG="${{ inputs.previous_tag }}"
+          if [ -z "$PREVIOUS_TAG" ]; then
+            PREVIOUS_TAG=$(git tag -l 'v*' --sort=-v:refname \
+              | awk -v new="$NEW_TAG" 'found{print; exit} $0==new{found=1}')
+          fi
+
+          if [ -z "$PREVIOUS_TAG" ]; then
+            echo "::error::Could not auto-derive previous_tag (no v* tag found before $NEW_TAG)"
+            exit 1
+          fi
+
+          if ! git rev-parse "$PREVIOUS_TAG" >/dev/null 2>&1; then
+            echo "::error::previous_tag '$PREVIOUS_TAG' does not exist as a git tag"
+            exit 1
+          fi
+
+          echo "new_tag=$NEW_TAG" >> "$GITHUB_OUTPUT"
+          echo "previous_tag=$PREVIOUS_TAG" >> "$GITHUB_OUTPUT"
+          echo "Resolved: previous_tag=$PREVIOUS_TAG -> new_tag=$NEW_TAG"
+
+      - name: Generate migration diff
+        id: migration-diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          NEW_TAG="${{ steps.resolve-tags.outputs.new_tag }}"
+          PREVIOUS_TAG="${{ steps.resolve-tags.outputs.previous_tag }}"
+
+          if ! DIFF_OUTPUT=$(git diff "$PREVIOUS_TAG" "$NEW_TAG" -- 'migrations/*/up.sql'); then
+            echo "::error::git diff failed for migrations/*/up.sql between $PREVIOUS_TAG and $NEW_TAG"
+            exit 1
+          fi
+
+          {
+            echo "## Migration Diff"
+            echo ""
+            if [ -z "$DIFF_OUTPUT" ]; then
+              echo "No new migrations in this release."
+            else
+              echo '```diff'
+              echo "$DIFF_OUTPUT"
+              echo '```'
+            fi
+            echo ""
+          } > /tmp/section-migration-diff.md
+
+          cat /tmp/section-migration-diff.md
+
+      - name: Generate config diffs
+        id: config-diffs
+        shell: bash
+        run: |
+          set -euo pipefail
+          NEW_TAG="${{ steps.resolve-tags.outputs.new_tag }}"
+          PREVIOUS_TAG="${{ steps.resolve-tags.outputs.previous_tag }}"
+
+          generate_config_diff_section() {
+            local file_path="$1"
+            local heading="$2"
+            local diff_output
+
+            if ! diff_output=$(git diff --unified=10 --ignore-space-change --ignore-space-at-eol \
+              "$PREVIOUS_TAG" "$NEW_TAG" -- "$file_path"); then
+              echo "::error::git diff failed for $file_path between $PREVIOUS_TAG and $NEW_TAG"
+              exit 1
+            fi
+
+            echo "## $heading"
+            echo ""
+            if [ -z "$diff_output" ]; then
+              echo "No changes to \`$file_path\` in this release."
+            else
+              echo '```diff'
+              echo "$diff_output"
+              echo '```'
+            fi
+            echo ""
+          }
+
+          {
+            generate_config_diff_section "config/deployments/sandbox.toml" "Config Diff — sandbox.toml"
+            generate_config_diff_section "config/deployments/env_specific.toml" "Config Diff — env_specific.toml"
+          } > /tmp/section-config-diffs.md
+
+          cat /tmp/section-config-diffs.md
+
+      - name: Generate Docker Images and Compatibility sections
+        id: static-sections
+        shell: bash
+        run: |
+          set -euo pipefail
+          NEW_TAG="${{ steps.resolve-tags.outputs.new_tag }}"
+          PREVIOUS_TAG="${{ steps.resolve-tags.outputs.previous_tag }}"
+
+          if [ -z "$NEW_TAG" ] || [ -z "$PREVIOUS_TAG" ]; then
+            echo "::error::NEW_TAG or PREVIOUS_TAG is empty (new_tag='$NEW_TAG', previous_tag='$PREVIOUS_TAG')"
+            exit 1
+          fi
+
+          {
+            echo "## Docker Images"
+            echo ""
+            echo "${NEW_TAG} (with AWS SES support): docker pull docker.juspay.io/juspaydotin/hyperswitch-router:${NEW_TAG}"
+            echo ""
+            echo "${NEW_TAG}-standalone (without AWS SES support): docker pull docker.juspay.io/juspaydotin/hyperswitch-router:${NEW_TAG}-standalone"
+            echo ""
+          } > /tmp/section-docker-images.md
+
+          {
+            echo "## Compatibility"
+            echo ""
+            echo "Comparing \`${PREVIOUS_TAG}\` → \`${NEW_TAG}\`."
+            echo ""
+            echo "<!-- TODO: describe breaking changes, config/API compatibility notes -->"
+            echo ""
+          } > /tmp/section-compatibility.md
+
+          cat /tmp/section-docker-images.md /tmp/section-compatibility.md
+
+      - name: Install git-cliff
+        uses: taiki-e/install-action@v2
+        with:
+          tool: git-cliff
+          checksum: true
+
+      - name: Generate PR list via git-cliff
+        id: pr-list
+        shell: bash
+        run: |
+          set -euo pipefail
+          NEW_TAG="${{ steps.resolve-tags.outputs.new_tag }}"
+          PREVIOUS_TAG="${{ steps.resolve-tags.outputs.previous_tag }}"
+
+          cp .github/git-cliff-changelog.toml /tmp/git-cliff-stable.toml
+          sed -i 's/## {{ version }}/## {{ version | trim_start_matches(pat="v") }} ({{ timestamp | date(format="%Y-%m-%d") }})/' \
+            /tmp/git-cliff-stable.toml
+
+          if ! GIT_CLIFF__GIT__TAG_PATTERN='v[0-9]*' git-cliff \
+            --config /tmp/git-cliff-stable.toml \
+            --strip header \
+            --tag "$NEW_TAG" \
+            "${PREVIOUS_TAG}..${NEW_TAG}" \
+            > /tmp/raw-pr-list.md; then
+            echo "::error::git-cliff failed generating PR list for ${PREVIOUS_TAG}..${NEW_TAG}"
+            exit 1
+          fi
+
+          awk '
+            BEGIN { drop_section = 0 }
+            /^### / {
+              heading = $0
+              gsub(/^### /, "", heading)
+              if (heading == "Testing" || heading == "Documentation") {
+                drop_section = 1
+                next
+              } else {
+                drop_section = 0
+              }
+            }
+            {
+              if (drop_section) next
+              line = $0
+              lower_line = tolower(line)
+              if (lower_line ~ /\*\*deps:\*\*|\*\*dependencies:\*\*|\*\*dependabot:\*\*/) next
+              if (lower_line ~ /multitenancy|unified auth|click-to-pay|click to pay/) next
+              print
+            }
+          ' /tmp/raw-pr-list.md > /tmp/filtered-pr-list.md
+
+          if [ ! -s /tmp/filtered-pr-list.md ] && [ -s /tmp/raw-pr-list.md ]; then
+            echo "::error::Tier-1 filter produced an empty filtered-pr-list.md from a non-empty raw-pr-list.md -- filter logic likely dropped everything unexpectedly"
+            exit 1
+          fi
+
+          echo "Raw size: $(wc -c < /tmp/raw-pr-list.md) chars"
+          echo "Filtered size: $(wc -c < /tmp/filtered-pr-list.md) chars"
+
+      - name: Assemble body
+        id: assemble
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          HARD_LIMIT=125000
+
+          cat /tmp/section-docker-images.md /tmp/section-compatibility.md \
+              /tmp/section-migration-diff.md /tmp/section-config-diffs.md \
+              /tmp/filtered-pr-list.md \
+              > /tmp/full-release-notes.md
+
+          FINAL_SIZE=$(wc -c < /tmp/full-release-notes.md)
+          echo "Assembled body size: $FINAL_SIZE"
+
+          if [ "$FINAL_SIZE" -lt "$HARD_LIMIT" ]; then
+            cp /tmp/full-release-notes.md /tmp/assembled-body.md
+            echo "trimmed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Body exceeds GitHub's release notes size limit -- truncating."
+            MARKER=$'\n\n---\n**Truncated: this release exceeds the GitHub release notes size limit. Download full-release-notes.md attached to this release and curate the notes manually.**'
+            MARKER_LEN=$(LC_ALL=C; echo -n "$MARKER" | wc -c)
+            KEEP=$((HARD_LIMIT - MARKER_LEN - 100))
+            head -c "$KEEP" /tmp/full-release-notes.md > /tmp/assembled-body-truncated.md
+
+            iconv -f UTF-8 -t UTF-8 -c /tmp/assembled-body-truncated.md \
+              > /tmp/assembled-body-truncated-utf8.md 2>/dev/null || true
+            if [ -s /tmp/assembled-body-truncated-utf8.md ]; then
+              mv /tmp/assembled-body-truncated-utf8.md /tmp/assembled-body-truncated.md
+            else
+              rm -f /tmp/assembled-body-truncated-utf8.md
+            fi
+
+            printf '%s' "$MARKER" >> /tmp/assembled-body-truncated.md
+            mv /tmp/assembled-body-truncated.md /tmp/assembled-body.md
+            echo "trimmed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+          if [ ! -s /tmp/assembled-body.md ]; then
+            echo "::error::assembled-body.md is empty -- refusing to proceed with an empty release body"
+            exit 1
+          fi
+
+      - name: Create draft release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.generate_token.outputs.token }}
+        run: |
+          set -euo pipefail
+          NEW_TAG="${{ steps.resolve-tags.outputs.new_tag }}"
+          REPO="${{ github.repository }}"
+
+          if gh release view "$NEW_TAG" --repo "$REPO" >/dev/null 2>&1; then
+            echo "::error::A release already exists for tag $NEW_TAG -- delete or publish it first, or this is an unintended re-run"
+            exit 1
+          fi
+
+          ARGS=(--draft --title "$NEW_TAG" --notes-file /tmp/assembled-body.md --repo "$REPO" "$NEW_TAG")
+          if [ "${{ steps.assemble.outputs.trimmed }}" = "true" ]; then
+            ARGS+=(/tmp/full-release-notes.md)
+          fi
+
+          if ! CREATE_ERR=$(gh release create "${ARGS[@]}" 2>&1); then
+            echo "$CREATE_ERR"
+            echo "::error::gh release create failed for tag $NEW_TAG: $(echo "$CREATE_ERR" | tail -1)"
+            exit 1
+          fi
+
+          echo "$CREATE_ERR"
+
+          RELEASE_URL=$(gh release view "$NEW_TAG" --repo "$REPO" --json url -q .url)
+          {
+            echo "### Draft release created"
+            echo ""
+            echo "[$NEW_TAG]($RELEASE_URL) -- review and publish manually."
+          } >> "$GITHUB_STEP_SUMMARY"
