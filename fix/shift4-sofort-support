@@ -1,0 +1,92 @@
+// File: src/main/java/com/payments/providers/shift4/Shift4Client.java
+package com.payments.providers.shift4;
+
+import com.payments.model.PaymentRequest;
+import com.payments.model.PaymentResponse;
+import com.payments.model.enums.PaymentMethodType;
+
+public class Shift4Client {
+
+    public PaymentResponse createPayment(PaymentRequest request) {
+        if (request.getPaymentMethodType() == PaymentMethodType.SOFORT) {
+            return createSofortPayment(request);
+        }
+        return createCardPayment(request);
+    }
+
+    private PaymentResponse createSofortPayment(PaymentRequest request) {
+        // Mock Shift4 specific Sofort integration payload
+        String payload = "{"
+                + "\"amount\":" + request.getAmount() + ","
+                + "\"currency\":\"" + request.getCurrency() + "\","
+                + "\"payment_method\":\"sofort\""
+                + "}";
+
+        // Send to Shift4 API (pseudo-http call)
+        String response = HttpClient.post("https://api.shift4.com/payments", payload);
+        return PaymentResponse.fromShift4(response);
+    }
+
+    private PaymentResponse createCardPayment(PaymentRequest request) {
+        // existing card logic unchanged...
+        String payload = "{"
+                + "\"amount\":" + request.getAmount() + ","
+                + "\"currency\":\"" + request.getCurrency() + "\","
+                + "\"payment_method\":\"card\""
+                + "}";
+        String response = HttpClient.post("https://api.shift4.com/payments", payload);
+        return PaymentResponse.fromShift4(response);
+    }
+}
+// File: src/main/java/com/payments/model/enums/PaymentMethodType.java
+package com.payments.model.enums;
+
+public enum PaymentMethodType {
+    CARD,
+    SOFORT // ✅ Newly added payment method
+}
+// File: src/main/java/com/payments/model/PaymentRequest.java
+package com.payments.model;
+
+import com.payments.model.enums.PaymentMethodType;
+
+public class PaymentRequest {
+
+    private Long amount;
+    private String currency;
+    private PaymentMethodType paymentMethodType;
+
+    // Getters & Setters
+
+    public PaymentMethodType getPaymentMethodType() {
+        return paymentMethodType;
+    }
+
+    public PaymentRequest setPaymentMethodType(PaymentMethodType paymentMethodType) {
+        this.paymentMethodType = paymentMethodType;
+        return this;
+    }
+}
+// File: src/test/java/com/payments/providers/shift4/Shift4SofortTest.java
+package com.payments.providers.shift4;
+
+import com.payments.model.PaymentRequest;
+import com.payments.model.enums.PaymentMethodType;
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+public class Shift4SofortTest {
+
+    @Test
+    public void testSofortPayment() {
+        Shift4Client client = new Shift4Client();
+
+        PaymentRequest request = new PaymentRequest()
+                .setAmount(1200L)
+                .setCurrency("EUR")
+                .setPaymentMethodType(PaymentMethodType.SOFORT);
+
+        assertDoesNotThrow(() -> client.createPayment(request));
+    }
+}
