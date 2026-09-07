@@ -1,0 +1,98 @@
+name: Deja ART Labeler
+
+on:
+  # This is a dangerous event trigger as it causes the workflow to run in the
+  # context of the target repository.
+  # Avoid checking out the head of the pull request or building code from the
+  # pull request whenever this trigger is used.
+  # Since we do not have a checkout step in this workflow, this is an
+  # acceptable use of this trigger.
+  pull_request_target:
+    types:
+      - opened
+      - reopened
+      - ready_for_review
+      - labeled
+
+permissions:
+  contents: read
+
+jobs:
+  add_deja_art_label:
+    name: Add 'deja-art' label when a PR is opened or marked ready for review
+    # Draft PRs are skipped; they get labeled once marked ready for review.
+    # Only label PRs raised from branches within this repository. The
+    # 'deja-art' label triggers a Jenkins pipeline that builds and replays
+    # traffic against the PR's code, which we do not want to do for forks.
+    if: >-
+      (github.event.action == 'opened' || github.event.action == 'reopened' || github.event.action == 'ready_for_review')
+      && !github.event.pull_request.draft
+      && github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name
+    runs-on: ubuntu-latest
+
+    steps:
+      # The GitHub App token is required (instead of `GITHUB_TOKEN`) so that the
+      # `labeled` event emitted by adding the label triggers other workflows.
+      - name: Generate GitHub app token
+        id: generate_app_token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.HYPERSWITCH_BOT_APP_ID }}
+          private-key: ${{ secrets.HYPERSWITCH_BOT_APP_PRIVATE_KEY }}
+          owner: ${{ github.event.repository.owner.login }}
+
+      - name: Add 'deja-art' label
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.generate_app_token.outputs.token }}
+          REPOSITORY: ${{ github.event.repository.full_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          echo "Adding 'deja-art' label to PR #${PR_NUMBER}..."
+          gh --repo "${REPOSITORY}" pr edit --add-label 'deja-art' "${PR_NUMBER}"
+
+  retrigger_deja_art_on_test_ready:
+    name: Re-trigger Deja ART when 'S-test-ready' is added
+    if: >-
+      github.event.action == 'labeled'
+      && github.event.label.name == 'S-test-ready'
+      && !github.event.pull_request.draft
+      && github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Generate GitHub app token
+        id: generate_app_token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.HYPERSWITCH_BOT_APP_ID }}
+          private-key: ${{ secrets.HYPERSWITCH_BOT_APP_PRIVATE_KEY }}
+          owner: ${{ github.event.repository.owner.login }}
+
+      - name: Remove and re-add 'deja-art' label
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.generate_app_token.outputs.token }}
+          REPOSITORY: ${{ github.event.repository.full_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          labels="$(
+            gh --repo "${REPOSITORY}" pr view "${PR_NUMBER}" \
+              --json labels \
+              --jq '.labels[].name'
+          )"
+
+          if echo "${labels}" | grep --quiet --line-regexp --fixed-strings 'deja-art'; then
+            echo "Removing 'deja-art' label from PR #${PR_NUMBER}..."
+            gh --repo "${REPOSITORY}" pr edit --remove-label 'deja-art' "${PR_NUMBER}"
+
+            # Give webhook consumers a moment to observe the 'unlabeled' event
+            # before the label is added back, so the re-add is seen as a fresh
+            # trigger rather than being coalesced with the removal.
+            sleep 10
+          else
+            echo "'deja-art' label is not present on PR #${PR_NUMBER}."
+          fi
+
+          echo "Adding 'deja-art' label to PR #${PR_NUMBER} to re-trigger the replay..."
+          gh --repo "${REPOSITORY}" pr edit --add-label 'deja-art' "${PR_NUMBER}"
