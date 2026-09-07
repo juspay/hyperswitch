@@ -91,9 +91,9 @@ where
 
 // In-process retry budget for the locker call below. Kept in memory only, so it's exempt from
 // the serialization/PCI concerns a persisted retry of the same call would carry.
-#[cfg(any(feature = "v1", all(test, feature = "deja")))]
+#[cfg(feature = "v1")]
 const SAVE_PAYMENT_METHOD_LOCKER_MAX_ATTEMPTS: u32 = 3;
-#[cfg(any(feature = "v1", all(test, feature = "deja")))]
+#[cfg(feature = "v1")]
 const SAVE_PAYMENT_METHOD_LOCKER_RETRY_DELAY: std::time::Duration =
     std::time::Duration::from_millis(500);
 
@@ -106,7 +106,6 @@ const SAVE_PAYMENT_METHOD_ATTEMPT_UPDATE_TAG: &str = "SAVE_PAYMENT_METHOD_ATTEMP
 /// follows a successful save-payment-method locker call. Called only once that write has failed
 /// inline (issue #12904) - by then the vault entry already exists, so tracking data is IDs only.
 #[cfg(feature = "v1")]
-#[allow(clippy::too_many_arguments)]
 async fn enqueue_save_payment_method_attempt_update_task(
     db: &dyn crate::db::StorageInterface,
     attempt_id: String,
@@ -1018,8 +1017,9 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
 
                         // Vault save already succeeded, only this DB write failed - hand it to
                         // ProcessTracker for a durable retry instead of dropping it (#12904).
+                        // Nothing to reconcile if the locker did not yield a payment_method_id.
                         #[cfg(feature = "v1")]
-                        {
+                        if payment_method_id.is_some() {
                             match enqueue_save_payment_method_attempt_update_task(
                                 state.store.as_ref(),
                                 attempt_id_for_retry,

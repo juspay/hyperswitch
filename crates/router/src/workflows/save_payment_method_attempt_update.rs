@@ -126,7 +126,10 @@ impl ProcessTrackerWorkflow<SessionState> for SavePaymentMethodAttemptUpdateWork
         _state: &'a SessionState,
         _process: storage::ProcessTracker,
     ) -> Result<(), errors::ProcessTrackerError> {
-        todo!()
+        // The save-payment-method locker flow that enqueues this task is v1-only
+        // (see `payment_response::save_pm_and_mandate`), so a v2 scheduler should
+        // never pick one up. Fail the task explicitly instead of panicking.
+        Err(errors::ProcessTrackerError::UnexpectedFlow)
     }
 
     async fn error_handler<'a>(
