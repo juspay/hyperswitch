@@ -1080,6 +1080,78 @@ export const connectorDetails = {
         currency: "BRL",
       },
     }),
+    PixAutomaticoQrSetupMandate: getCustomExchange({
+      Request: {
+        payment_method: "bank_transfer",
+        payment_method_type: "pix_automatico_qr",
+        payment_method_data: {
+          bank_transfer: {
+            pix_automatico_qr: {},
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "BR",
+            first_name: "john",
+            last_name: "doe",
+          },
+        },
+        currency: "BRL",
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "No eligible connector was found for the current payment method configuration",
+            code: "IR_39",
+          },
+        },
+      },
+    }),
+    PixAutomaticoQrAutomaticCapture: getCustomExchange({
+      Request: {
+        payment_method: "bank_transfer",
+        payment_method_type: "pix_automatico_qr",
+        payment_method_data: {
+          bank_transfer: {
+            pix_automatico_qr: {},
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "BR",
+            first_name: "john",
+            last_name: "doe",
+          },
+        },
+        currency: "BRL",
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "No eligible connector was found for the current payment method configuration",
+            code: "IR_39",
+          },
+        },
+      },
+    }),
     Ach: getCustomExchange({
       Request: {
         payment_method: "bank_transfer",
