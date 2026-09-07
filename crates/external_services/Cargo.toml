@@ -68,7 +68,7 @@ google-cloud-kms = { version = "0.6.0", optional = true }
 rsa = { version = "0.9.8", features = ["sha2"], optional = true }
 sha2 = { version = "0.10.9", optional = true }
 rand = { version = "0.8.5", optional = true }
-deja = { git = "https://github.com/juspay/deja", rev = "337181ebfd74b7e571a63a9cce515ff3c9309db7", optional = true, default-features = false }
+deja = { git = "https://github.com/juspay/deja", rev = "1838093c7f29938022ba0614d7b78fd2a2e92c4d", optional = true, default-features = false }
 error-stack = "0.4.1"
 hex = "0.4.3"
 hyper = "0.14.32"
