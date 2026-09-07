@@ -8,7 +8,6 @@ pub mod callback_mapper;
 pub mod card_issuer;
 pub mod card_testing_guard_data;
 pub mod cards_info;
-pub mod chat;
 pub mod configs;
 pub mod connector_endpoints;
 pub mod consts;

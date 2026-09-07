@@ -6,17 +6,17 @@ use diesel::ExpressionMethods;
 #[cfg(feature = "v2")]
 use crate::{
     errors, query::generics, schema_v2::tokenization, tokenization as tokenization_diesel,
-    PgPooledConn, StorageResult,
+    DatabaseConnectionWithContext, StorageResult,
 };
 
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 impl tokenization_diesel::Tokenization {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Self> {
+    pub async fn insert(self, conn: &DatabaseConnectionWithContext<'_>) -> StorageResult<Self> {
         generics::generic_insert(conn, self).await
     }
 
     pub async fn find_by_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         id: &common_utils::id_type::GlobalTokenId,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
@@ -28,7 +28,7 @@ impl tokenization_diesel::Tokenization {
 
     pub async fn update_with_id(
         self,
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         tokenization_record: tokenization_diesel::TokenizationUpdateInternal,
     ) -> StorageResult<Self> {
         match generics::generic_update_with_unique_predicate_get_result::<

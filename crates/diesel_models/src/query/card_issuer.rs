@@ -5,12 +5,12 @@ use super::generics;
 use crate::{
     card_issuer::{CardIssuer, NewCardIssuer, UpdateCardIssuer},
     schema::card_issuers::dsl,
-    PgPooledConn, StorageResult,
+    DatabaseConnectionWithContext, StorageResult,
 };
 
 impl CardIssuer {
     pub async fn list_filtered(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         query: Option<String>,
         limit: Option<i64>,
     ) -> StorageResult<Vec<Self>> {
@@ -26,7 +26,7 @@ impl CardIssuer {
     }
 
     pub async fn find_by_ids(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         ids: Vec<id_type::CardIssuerId>,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<
@@ -39,7 +39,7 @@ impl CardIssuer {
     }
 
     pub async fn update(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         id: id_type::CardIssuerId,
         data: UpdateCardIssuer,
     ) -> StorageResult<Self> {
@@ -47,7 +47,7 @@ impl CardIssuer {
     }
 
     pub async fn delete_by_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         id: id_type::CardIssuerId,
     ) -> StorageResult<bool> {
         generics::generic_delete::<<Self as HasTable>::Table, _>(conn, dsl::id.eq(id)).await
@@ -55,7 +55,10 @@ impl CardIssuer {
 }
 
 impl NewCardIssuer {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<CardIssuer> {
+    pub async fn insert(
+        self,
+        conn: &DatabaseConnectionWithContext<'_>,
+    ) -> StorageResult<CardIssuer> {
         generics::generic_insert(conn, self).await
     }
 }

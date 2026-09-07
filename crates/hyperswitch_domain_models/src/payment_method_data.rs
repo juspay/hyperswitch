@@ -374,10 +374,32 @@ pub struct EligibilityCard {
     pub co_badged_card_data: Option<payment_methods::CoBadgedCardData>,
 }
 
+/// BIN-only card data for eligibility/blocklist checks. Only BIN-level blocking (blocklist
+/// bin entries and profile-config rules) can run against this — fingerprint-level blocking
+/// needs the full card number.
+#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
+pub struct EligibilityCardBin {
+    pub card_bin: cards::CardBin,
+}
+
+impl EligibilityCardBin {
+    /// The 6-digit ISIN prefix of the BIN
+    pub fn get_card_isin(&self) -> String {
+        self.card_bin.get_card_isin()
+    }
+
+    /// Every blocklist-relevant prefix derivable from this BIN (lengths 6 up to the
+    /// number of digits provided)
+    pub fn get_blocklist_bin_prefixes(&self) -> Vec<String> {
+        self.card_bin.get_blocklist_bin_prefixes()
+    }
+}
+
 /// Payment method data for eligibility/blocklist checks — mirrors PaymentMethodData but uses EligibilityCard
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub enum EligibilityPaymentMethodData {
     Card(EligibilityCard),
+    CardBin(EligibilityCardBin),
     CardRedirect(CardRedirectData),
     Wallet(WalletData),
     PayLater(PayLaterData),
@@ -399,12 +421,13 @@ pub enum EligibilityPaymentMethodData {
 
 impl EligibilityPaymentMethodData {
     pub fn is_eligible_for_profile_config_blocklist(&self) -> bool {
-        matches!(self, Self::Card(_) | Self::Wallet(_))
+        matches!(self, Self::Card(_) | Self::CardBin(_) | Self::Wallet(_))
     }
 
     pub fn get_card_iin(&self) -> Option<String> {
         match self {
             Self::Card(card) => Some(card.card_number.get_card_isin()),
+            Self::CardBin(card_bin) => Some(card_bin.get_card_isin()),
             _ => None,
         }
     }
@@ -1325,6 +1348,7 @@ pub enum BankRedirectData {
         sort_code: Option<Secret<String>>,
         account_holder_name: Option<Secret<String>>,
         additional_details: Option<Secret<serde_json::Value>>,
+        bank_name: Option<common_enums::BankNames>,
     },
 }
 
@@ -1337,6 +1361,7 @@ impl BankRedirectData {
                 sort_code,
                 account_holder_name,
                 additional_details: _,
+                bank_name,
             } => Some(BankRedirectDetailsPaymentMethod::OpenBanking {
                 masked_iban: iban
                     .map(|iban| common_utils::new_type::mask_sensitive_field(iban.peek(), 4)),
@@ -1347,6 +1372,7 @@ impl BankRedirectData {
                     common_utils::new_type::mask_sensitive_field(sort_code.peek(), 4)
                 }),
                 account_holder_name,
+                bank_name,
             }),
             _ => None,
         }
@@ -1817,6 +1843,7 @@ impl From<payment_methods::BankRedirectData> for BankRedirectDetail {
                 account_number,
                 sort_code,
                 account_holder_name: _,
+                bank_name: _,
             } => Self::OpenBanking {
                 iban,
                 account_number,
@@ -1835,6 +1862,7 @@ impl From<BankRedirectDetailsPaymentMethod> for BankRedirectDetail {
                 masked_sort_code,
                 account_holder_name: _,
                 masked_iban,
+                bank_name: _,
             } => Self::OpenBanking {
                 account_number: masked_account_number.map(Secret::new),
                 iban: masked_iban.map(Secret::new),
@@ -2019,13 +2047,13 @@ impl TryFrom<payment_methods::PaymentMethodCreateData> for PaymentMethodData {
             })),
             payment_methods::PaymentMethodCreateData::ProxyCard(_) => Err(
                 common_utils::errors::ValidationError::IncorrectValueProvided {
-                    field_name: "Payment method data",
+                    field_name: "Payment method data".into(),
                 }
                 .into(),
             ),
             payment_methods::PaymentMethodCreateData::Wallet(_) => Err(
                 common_utils::errors::ValidationError::IncorrectValueProvided {
-                    field_name: "Payment method data",
+                    field_name: "Payment method data".into(),
                 }
                 .into(),
             ),
@@ -2328,6 +2356,11 @@ impl From<api_models::payments::EligibilityPaymentMethodData> for EligibilityPay
         match value {
             api_models::payments::EligibilityPaymentMethodData::Card(eligibility_card) => {
                 Self::Card(EligibilityCard::from((eligibility_card, None)))
+            }
+            api_models::payments::EligibilityPaymentMethodData::CardBin(card_bin) => {
+                Self::CardBin(EligibilityCardBin {
+                    card_bin: card_bin.card_bin,
+                })
             }
             api_models::payments::EligibilityPaymentMethodData::CardRedirect(card_redirect) => {
                 Self::CardRedirect(From::from(card_redirect))
@@ -2819,6 +2852,7 @@ impl From<api_models::payments::BankRedirectData> for BankRedirectData {
                 account_number: None,
                 sort_code: None,
                 additional_details: None,
+                bank_name: None,
             },
         }
     }
@@ -3485,6 +3519,7 @@ pub struct TokenizedCardValue1 {
     pub card_last_four: Option<String>,
     pub card_token: Option<String>,
     pub card_holder_name: Option<Secret<String>>,
+    pub card_network: Option<common_enums::CardNetwork>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -3946,6 +3981,7 @@ pub enum BankRedirectDetailsPaymentMethod {
         masked_sort_code: Option<String>,
         account_holder_name: Option<Secret<String>>,
         masked_iban: Option<String>,
+        bank_name: Option<common_enums::BankNames>,
     },
 }
 
