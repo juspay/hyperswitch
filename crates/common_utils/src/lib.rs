@@ -104,6 +104,21 @@ pub mod date_time {
         OffsetDateTime::now_utc().unix_timestamp()
     }
 
+    /// Return the UNIX timestamp in nanoseconds of the current date and time in UTC
+    ///
+    /// Reads the clock through `now()` rather than calling `now_utc()` again.
+    /// `now()` is already an instrumented seam, so this carries no seam and no
+    /// gate exception of its own, and it costs no event a caller of `now()`
+    /// would not already have paid. The value is unchanged: `now()` keeps the
+    /// full nanosecond, so this returns the same `i128` the direct read did.
+    ///
+    /// `track_caller` so that a future caller's own location, not this body,
+    /// is what `now()` records.
+    #[cfg_attr(feature = "deja", track_caller)]
+    pub fn now_unix_timestamp_nanos() -> i128 {
+        now().assume_utc().unix_timestamp_nanos()
+    }
+
     /// Return the UNIX timestamp in milliseconds of the current date and time in UTC.
     ///
     /// Several connectors sign a millisecond timestamp into an outbound request.
