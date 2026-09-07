@@ -40,7 +40,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
@@ -58,7 +58,7 @@ jobs:
 
     env:
       # Use `sccache` for caching compilation artifacts
-      # RUSTC_WRAPPER: sccache
+      RUSTC_WRAPPER: sccache
       RUSTFLAGS: "-D warnings"
 
     strategy:
@@ -69,7 +69,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Install mold linker
         uses: rui314/setup-mold@v1
@@ -99,9 +99,11 @@ jobs:
       #     tool: sccache
       #     checksum: true
 
-      - uses: Swatinem/rust-cache@v2.9.1
+      - name: Install sccache
+        uses: taiki-e/install-action@v2
         with:
-          save-if: ${{ github.event_name == 'push' }}
+          tool: sccache
+          checksum: true
 
       - name: Install cargo-hack
         uses: taiki-e/install-action@v2
@@ -143,7 +145,7 @@ jobs:
 
   #   steps:
   #     - name: Checkout repository
-  #       uses: actions/checkout@v6
+  #       uses: actions/checkout@v7
 
   #     - name: Run cargo-deny
   #       uses: EmbarkStudios/cargo-deny-action@v1.3.2
@@ -156,13 +158,13 @@ jobs:
 
     env:
       # Use `sccache` for caching compilation artifacts
-      # RUSTC_WRAPPER: sccache
+      RUSTC_WRAPPER: sccache
       RUSTFLAGS: "-D warnings"
       CARGO_BUILD_JOBS: 2
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Install mold linker
         uses: rui314/setup-mold@v1
@@ -209,9 +211,11 @@ jobs:
       #     tool: cargo-nextest
       #     checksum: true
 
-      - uses: Swatinem/rust-cache@v2.9.1
+      - name: Install sccache
+        uses: taiki-e/install-action@v2
         with:
-          save-if: ${{ github.event_name == 'push' }}
+          tool: sccache
+          checksum: true
 
       - name: Run clippy (redis-rs backend)
         shell: bash
@@ -236,7 +240,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Spell check
         uses: crate-ci/typos@master
@@ -246,7 +250,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Spell check specific directories
         uses: crate-ci/typos@v1.48.0
@@ -267,9 +271,13 @@ jobs:
     name: Check compilation for V2 features
     runs-on: hyperswitch-runners-merge
 
+    env:
+      # Use `sccache` for caching compilation artifacts
+      RUSTC_WRAPPER: sccache
+
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Install mold linker
         uses: rui314/setup-mold@v1
@@ -287,8 +295,11 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install rust cache
-        uses: Swatinem/rust-cache@v2.9.1
+      - name: Install sccache
+        uses: taiki-e/install-action@v2
+        with:
+          tool: sccache
+          checksum: true
 
       - name: Run cargo check enabling only the release and v2 features (redis-rs backend)
         shell: bash
