@@ -127,8 +127,6 @@ const PAYMENT_METHOD_MODULAR_BACKWARD_COMPAT_TASK: &str = "PM_MOD_BACK_COMPAT";
 const PAYMENT_METHOD_MODULAR_BACKWARD_COMPAT_TAG: &str = "PM_MOD_BACK_COMPAT";
 const PAYMENT_METHOD_MODULAR_COMPAT_PROCESS_TRACKER_ID_MAX_LENGTH: usize = 126;
 const PAYMENT_METHOD_MODULAR_COMPAT_PROCESS_TRACKER_ID_SUFFIX_LENGTH: usize = 8;
-#[cfg(feature = "v2")]
-const PAYMENT_METHOD_REDACTED_FINGERPRINT_ID: &str = "FINGERPRINT_ID_REDACTED";
 /// `process_tracker.id` is a `varchar(127)`; ids are built to stay within it.
 const NETWORK_TOKENIZATION_PROCESS_TRACKER_ID_MAX_LENGTH: usize = 126;
 const NETWORK_TOKENIZATION_PROCESS_TRACKER_ID_SUFFIX_LENGTH: usize = 8;
@@ -254,7 +252,7 @@ pub async fn initiate_pm_collect_link(
     .await?;
     let customer_id = id_type::CustomerId::try_from(Cow::from(pm_collect_link.primary_reference))
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
-        field_name: "customer_id",
+        field_name: "customer_id".into(),
     })?;
 
     // Return response
@@ -377,7 +375,7 @@ pub async fn render_pm_collect_link(
                     pm_collect_link.primary_reference.clone(),
                 ))
                 .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "customer_id",
+                    field_name: "customer_id".into(),
                 })?;
                 // Fetch customer
 
@@ -1135,13 +1133,13 @@ pub async fn retrieve_payment_method_with_token(
         storage::PaymentTokenData::BankDebit(bank_debit) => {
             let customer_id = payment_intent.customer_id.as_ref().ok_or(
                 errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "customer",
+                    field_name: "customer".into(),
                 },
             )?;
 
             let locker_id = bank_debit.locker_id.as_ref().ok_or(
                 errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "locker_id",
+                    field_name: "locker_id".into(),
                 },
             )?;
 
@@ -1224,13 +1222,13 @@ pub async fn retrieve_payment_method_with_token(
         storage::PaymentTokenData::BankRedirect(bank_redirect) => {
             let customer_id = payment_intent.customer_id.as_ref().ok_or(
                 errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "customer",
+                    field_name: "customer".into(),
                 },
             )?;
 
             let locker_id = bank_redirect.locker_id.as_ref().ok_or(
                 errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "locker_id",
+                    field_name: "locker_id".into(),
                 },
             )?;
 
@@ -1693,12 +1691,12 @@ pub(crate) async fn get_payment_method_create_request(
                 }
             }
             None => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "payment_method_type"
+                field_name: "payment_method_type".into()
             })
             .attach_printable("PaymentMethodType Required")),
         },
         None => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "payment_method_data"
+            field_name: "payment_method_data".into()
         })
         .attach_printable("PaymentMethodData required Or Card is already saved")),
     }
@@ -4895,12 +4893,12 @@ fn convert_from_saved_payment_method_data(
                     card_number: external_vault_token_data.tokenized_card_number,
                     card_exp_month: card_details.expiry_month.ok_or(
                         errors::ApiErrorResponse::MissingRequiredField {
-                            field_name: "card_details.expiry_month",
+                            field_name: "card_details.expiry_month".into(),
                         },
                     )?,
                     card_exp_year: card_details.expiry_year.ok_or(
                         errors::ApiErrorResponse::MissingRequiredField {
-                            field_name: "card_details.expiry_year",
+                            field_name: "card_details.expiry_year".into(),
                         },
                     )?,
                     card_holder_name: card_details.card_holder_name,
@@ -5029,7 +5027,7 @@ pub async fn create_pm_additional_data_update(
         network_token_locker_id: nt_data.clone().map(|data| data.network_token_locker_id),
         network_token_payment_method_data: nt_data.map(|data| data.network_token_pmd.into()),
         connector_mandate_details: Box::new(connector_mandate_details_update),
-        locker_fingerprint_id: vault_fingerprint_id,
+        locker_fingerprint_id: vault_fingerprint_id.map(Some),
         external_vault_source,
         network_transaction_id,
         network_transaction_link_id: None,
@@ -5978,24 +5976,70 @@ pub async fn retrieve_payment_method(
         (raw_payment_method_data, _) => raw_payment_method_data,
     };
 
-    if matches!(
-        raw_payment_method_access.account_updater,
-        RawPaymentMethodFetchAccess::Allowed
-    ) {
-        let account_updater_dimensions = dimensions
-            .with_organization_id(platform.get_provider().get_account().get_org_id().clone())
-            .with_profile_id(profile.get_id().clone());
+    let refresh_result = match raw_payment_method_access.account_updater {
+        RawPaymentMethodFetchAccess::Allowed => {
+            let account_updater_dimensions = dimensions
+                .with_organization_id(platform.get_provider().get_account().get_org_id().clone())
+                .with_profile_id(profile.get_id().clone());
 
-        Box::pin(account_updater::run_account_updater(
-            &state,
-            &platform,
-            &profile,
-            &payment_method,
-            raw_payment_method_data.as_ref(),
-            &account_updater_dimensions,
-        ))
-        .await;
-    }
+            Box::pin(account_updater::run_account_updater(
+                &state,
+                &platform,
+                &profile,
+                &payment_method,
+                raw_payment_method_data.as_ref(),
+                &account_updater_dimensions,
+            ))
+            .await
+            .ok()
+        }
+        RawPaymentMethodFetchAccess::Denied => None,
+    };
+
+    let updated_payment_method = match refresh_result {
+        Some(account_updater::types::RefreshResult::Card(card_result)) => {
+            Box::pin(account_updater::apply_card_refresh_result(
+                &state,
+                &platform,
+                &profile,
+                &payment_method,
+                card_result,
+            ))
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Account Updater failed while applying a card change")?
+        }
+        None => None,
+    };
+
+    let payment_method = match updated_payment_method {
+        Some(updated_payment_method) => {
+            let updated_raw_data = Box::pin(
+                raw_payment_method_access
+                    .retrieve_raw_card
+                    .get_raw_payment_method_data(
+                        &state,
+                        &platform,
+                        &profile,
+                        &updated_payment_method,
+                        storage_type,
+                    ),
+            )
+            .await
+            .attach_printable("Failed to get raw payment method data")?;
+
+            match (updated_raw_data, &mut raw_payment_method_data) {
+                (
+                    Some(payment_methods::RawPaymentMethodData::Card(updated_card)),
+                    Some(payment_methods::RawPaymentMethodData::CardWithNT(existing)),
+                ) => existing.card_details = updated_card,
+                (updated_raw_data, existing) => *existing = updated_raw_data,
+            }
+
+            updated_payment_method
+        }
+        None => payment_method,
+    };
 
     match raw_payment_method_access.response {
         RawPaymentMethodFetchAccess::Allowed => {
@@ -6401,12 +6445,12 @@ impl RawPaymentMethodFetchAccess {
                     .network_token_locker_id
                     .clone()
                     .ok_or(report!(errors::ApiErrorResponse::MissingRequiredField {
-                        field_name: "network_token_locker_id"
+                        field_name: "network_token_locker_id".into()
                     }))?;
 
                 let customer_id = payment_method.customer_id.clone().ok_or(report!(
                     errors::ApiErrorResponse::MissingRequiredField {
-                        field_name: "customer_id"
+                        field_name: "customer_id".into()
                     }
                 ))?;
 
@@ -6766,14 +6810,17 @@ pub async fn delete_payment_method_by_record(
     profile: &domain::Profile,
     payment_method: domain::PaymentMethod,
 ) -> RouterResult<()> {
+    let last_modified_by = platform
+        .get_initiator()
+        .and_then(|initiator| initiator.to_created_by())
+        .map(|last_modified_by| last_modified_by.to_string());
+
     // Soft delete - mark as Redacted (terminal state, no transitions allowed)
     let pm_update = storage::PaymentMethodUpdate::StatusAndFingerprintUpdate {
         status: Some(enums::PaymentMethodStatus::Redacted),
-        last_modified_by: platform
-            .get_initiator()
-            .and_then(|initiator| initiator.to_created_by())
-            .map(|last_modified_by| last_modified_by.to_string()),
-        locker_fingerprint_id: Some(PAYMENT_METHOD_REDACTED_FINGERPRINT_ID.to_string()),
+        last_modified_by,
+        // Some(None) sets the locker_fingerprint_id to null
+        locker_fingerprint_id: Some(None),
     };
 
     db.update_payment_method(
@@ -7358,7 +7405,7 @@ pub async fn payment_methods_session_update_payment_method(
         token_opt => {
             // Existing saved PM flow: token must be present
             let pm_token = token_opt.ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "payment_method_token",
+                field_name: "payment_method_token".into(),
             })?;
 
             // Validate token is associated with this session
@@ -7840,7 +7887,7 @@ pub async fn check_network_token_status(
                 .is_none(),
             || {
                 Err(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "payment_method_id",
+                    field_name: "payment_method_id".into(),
                 })
             },
         )?;
@@ -8078,7 +8125,7 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
                 message: "Payment method type not supported for update".to_string(),
             })?
             .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "payment_method_data",
+                field_name: "payment_method_data".into(),
             })?;
 
         let is_metadata_changed_for_same_fingerprint =

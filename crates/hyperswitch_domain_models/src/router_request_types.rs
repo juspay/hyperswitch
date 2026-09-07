@@ -660,7 +660,7 @@ impl TryFrom<CompleteAuthorizeData> for PaymentMethodTokenizationData {
                 .payment_method_data
                 .get_required_value("payment_method_data")
                 .change_context(ApiErrorResponse::MissingRequiredField {
-                    field_name: "payment_method_data",
+                    field_name: "payment_method_data".into(),
                 })?,
             browser_info: data.browser_info,
             currency: data.currency,
@@ -809,7 +809,7 @@ impl TryFrom<CompleteAuthorizeData> for GiftCardBalanceCheckRequestData {
                 .payment_method_data
                 .get_required_value("payment_method_data")
                 .change_context(ApiErrorResponse::MissingRequiredField {
-                    field_name: "payment_method_data",
+                    field_name: "payment_method_data".into(),
                 })?,
             currency: Some(data.currency),
             minor_amount: Some(data.minor_amount),
@@ -1320,7 +1320,7 @@ impl ResponseId {
         match self {
             Self::ConnectorTransactionId(txn_id) => Ok(txn_id.to_string()),
             _ => Err(errors::ValidationError::IncorrectValueProvided {
-                field_name: "connector_transaction_id",
+                field_name: "connector_transaction_id".into(),
             })
             .attach_printable("Expected connector transaction ID not found"),
         }
@@ -1635,7 +1635,7 @@ impl TryFrom<router_data::ConnectorAuthType> for AccessTokenRequestData {
             }),
 
             _ => Err(ApiErrorResponse::InvalidDataValue {
-                field_name: "connector_account_details",
+                field_name: "connector_account_details".into(),
             }),
         }
     }
@@ -1936,7 +1936,7 @@ impl TryFrom<PaymentsAuthorizeData> for SettlementSplitRequestData {
                 .split_payments
                 .get_required_value("split_payments")
                 .change_context(ApiErrorResponse::MissingRequiredField {
-                    field_name: "split_payments",
+                    field_name: "split_payments".into(),
                 })?,
             currency: item.currency,
         })

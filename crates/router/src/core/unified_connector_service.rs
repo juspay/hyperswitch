@@ -1052,8 +1052,9 @@ where
                     create_updated_session_state_with_proxy(state.clone(), proxy_override)
                 }
                 None => {
-                    router_env::logger::debug!(
-                        "No proxy override available for Shadow UCS, Using the Original State and Sending Request Directly"
+                    // info, not debug: this downgrade has to be visible at default log levels.
+                    router_env::logger::info!(
+                        "No proxy override available for Shadow UCS; falling back to Direct, so no shadow comparison will run for this request"
                     );
                     execution_path = ExecutionPath::Direct;
                     state.clone()
@@ -1471,7 +1472,7 @@ pub fn build_unified_connector_service_payment_method(
                 .get_card_expiry_month_2_digit()
                 .attach_printable("Failed to extract 2-digit expiry month from card")
                 .change_context(UnifiedConnectorServiceError::InvalidDataFormat {
-                    field_name: "card_exp_month",
+                    field_name: "card_exp_month".into(),
                 })?
                 .peek()
                 .to_string();
@@ -1512,7 +1513,7 @@ pub fn build_unified_connector_service_payment_method(
                 .get_card_expiry_month_2_digit()
                 .attach_printable("Failed to extract 2-digit expiry month from card")
                 .change_context(UnifiedConnectorServiceError::InvalidDataFormat {
-                    field_name: "card_exp_month",
+                    field_name: "card_exp_month".into(),
                 })?
                 .peek()
                 .to_string();

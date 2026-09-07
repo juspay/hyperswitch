@@ -19,7 +19,7 @@ use hyperswitch_domain_models::{
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::{subscriptions::SubscriptionAutoCollection, ResponseId},
     router_response_types::{
-        revenue_recovery::InvoiceRecordBackResponse,
+        revenue_recovery::{DisputeRecordBackResponse, InvoiceRecordBackResponse},
         subscriptions::{
             self, GetSubscriptionEstimateResponse, GetSubscriptionItemPricesResponse,
             GetSubscriptionItemsResponse, SubscriptionCancelResponse, SubscriptionCreateResponse,
@@ -29,9 +29,9 @@ use hyperswitch_domain_models::{
         ConnectorCustomerResponseData, PaymentsResponseData, RefundsResponseData,
     },
     types::{
-        GetSubscriptionEstimateRouterData, InvoiceRecordBackRouterData,
-        PaymentsAuthorizeRouterData, RefundsRouterData, SubscriptionCancelRouterData,
-        SubscriptionPauseRouterData, SubscriptionResumeRouterData,
+        DisputeRecordBackRouterData, GetSubscriptionEstimateRouterData,
+        InvoiceRecordBackRouterData, PaymentsAuthorizeRouterData, RefundsRouterData,
+        SubscriptionCancelRouterData, SubscriptionPauseRouterData, SubscriptionResumeRouterData,
     },
 };
 use hyperswitch_interfaces::errors;
@@ -96,7 +96,7 @@ impl TryFrom<&ChargebeeRouterData<&hyperswitch_domain_models::types::Subscriptio
             req.subscription_items
                 .first()
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "subscription_items",
+                    field_name: "subscription_items".into(),
                 })?;
 
         Ok(Self {
@@ -854,7 +854,7 @@ impl TryFrom<ChargebeeWebhookBody> for revenue_recovery::RevenueRecoveryAttemptD
             .map(|customer| customer.find_connector_ids())
             .transpose()?
             .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "connector_mandate_details",
+                field_name: "connector_mandate_details".into(),
             })?;
         let connector_account_reference_id = item.content.transaction.gateway_account_id.clone();
         let transaction_created_at = item.content.transaction.date;
@@ -1203,7 +1203,85 @@ impl TryFrom<enums::AttemptStatus> for ChargebeeRecordStatus {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ChargebeeRecordbackResponse {
     pub invoice: ChargebeeRecordbackInvoice,
+    /// Chargebee creates a transaction for the recorded payment and returns it alongside
+    /// the invoice. Its id is the only handle `record_refund` accepts.
+    pub transaction: Option<ChargebeeRecordbackTransaction>,
 }
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct ChargebeeRecordbackTransaction {
+    pub id: String,
+}
+
+/// Body for `POST v2/transactions/{id}/record_refund`.
+///
+/// Unlike `record_payment`, whose parameters Chargebee documents nested under
+/// `transaction[...]`, `record_refund` takes them flat.
+#[derive(Debug, Serialize, Clone)]
+pub struct ChargebeeRecordRefundRequest {
+    #[serde(rename = "transaction[amount]")]
+    pub amount: MinorUnit,
+    #[serde(rename = "transaction[payment_method]")]
+    pub payment_method: ChargebeeRefundPaymentMethod,
+    /// Chargebee expects a UTC unix timestamp in seconds.
+    #[serde(rename = "transaction[date]")]
+    pub date: i64,
+    /// The payment transaction this refund reverses, so the Chargebee record points back
+    /// at it. Chargebee caps this at 100 characters.
+    #[serde(
+        rename = "transaction[reference_number]",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub reference_number: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub comment: Option<String>,
+}
+
+#[derive(Debug, Serialize, Clone, Copy)]
+#[serde(rename_all = "snake_case")]
+pub enum ChargebeeRefundPaymentMethod {
+    /// A lost dispute is literally a chargeback, so Chargebee's own reporting attributes
+    /// the refund correctly rather than lumping it under "other".
+    Chargeback,
+}
+
+impl TryFrom<&DisputeRecordBackRouterData> for ChargebeeRecordRefundRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &DisputeRecordBackRouterData) -> Result<Self, Self::Error> {
+        let req = &item.request;
+        Ok(Self {
+            // Already in minor units, which is what Chargebee wants; no conversion needed.
+            amount: req.amount,
+            payment_method: ChargebeeRefundPaymentMethod::Chargeback,
+            date: req.refund_date.assume_utc().unix_timestamp(),
+            reference_number: Some(req.billing_connector_transaction_id.clone()),
+            comment: req.comment.clone(),
+        })
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct ChargebeeRecordRefundResponse {
+    pub transaction: ChargebeeRefundTransaction,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct ChargebeeRefundTransaction {
+    pub id: String,
+}
+
+convert_connector_response_to_domain_response!(
+    ChargebeeRecordRefundResponse,
+    DisputeRecordBackResponse,
+    |item: ResponseRouterData<_, ChargebeeRecordRefundResponse, _, _>| {
+        Ok(Self {
+            response: Ok(DisputeRecordBackResponse {
+                connector_refund_id: item.response.transaction.id,
+            }),
+            ..item.data
+        })
+    }
+);
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ChargebeeRecordbackInvoice {
@@ -1215,9 +1293,11 @@ convert_connector_response_to_domain_response!(
     InvoiceRecordBackResponse,
     |item: ResponseRouterData<_, ChargebeeRecordbackResponse, _, _>| {
         let merchant_reference_id = item.response.invoice.id;
+        let connector_transaction_id = item.response.transaction.map(|txn| txn.id);
         Ok(Self {
             response: Ok(InvoiceRecordBackResponse {
                 merchant_reference_id,
+                connector_transaction_id,
             }),
             ..item.data
         })
@@ -1343,7 +1423,7 @@ impl TryFrom<&ChargebeeRouterData<&hyperswitch_domain_models::types::ConnectorCu
                 .customer_id
                 .as_ref()
                 .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
-                    field_name: "customer_id",
+                    field_name: "customer_id".into(),
                 })?
                 .clone(),
             name: req.name.clone(),

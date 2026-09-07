@@ -1,18 +1,6 @@
 import { getCustomExchange } from "./Modifiers";
 
-// Verified against a live confirm call on integ.hyperswitch.io (capture_method:
-// "manual", authentication_type: "no_three_ds") — this is the only card/response
-// combination actually confirmed working for Ilixium; everything else in this file
-// is inferred from that single reference call and is UNVERIFIED. Ilixium is
-// UCS-only (routed entirely through the Unified Connector Service; see
-// crates/hyperswitch_connectors/src/connectors/ilixium/transformers.rs, whose local
-// TryFrom impl is a stub — it unconditionally returns NotImplemented for every
-// payment method, so it is never exercised for this connector) and its local
-// request-building/response-parsing code is not something this repo can be used to
-// verify decline behavior, 3DS support, or refund/void semantics against. Treat
-// anything not explicitly marked "verified" below as a starting point to confirm
-// against a live run, not as trusted data.
-const verifiedNo3DSCardDetails = {
+const verifiedCardDetails = {
   card_number: "9000100111111117",
   card_exp_month: "06",
   card_exp_year: "28",
@@ -20,12 +8,16 @@ const verifiedNo3DSCardDetails = {
   card_cvc: "111",
 };
 
-// Ilixium requires the cardholder's date of birth on every authorisation. It travels as
-// `customer.date_of_birth` (ISO-8601), which the router forwards to UCS on
-// `Customer.date_of_birth`; the Ilixium transformer reformats it to the `ddmmyyyy` the
-// processor wants. Absent it, Ilixium answers `VA8` and the payment is REJECTED.
-const ilixiumCustomer = {
-  date_of_birth: "1990-01-01",
+const threeDsCardDetails = {
+  card_number: "9001100511111112",
+  card_exp_month: "06",
+  card_exp_year: "28",
+  card_holder_name: "John Doe",
+  card_cvc: "111",
+};
+
+const ilixiumMetadata = {
+  ilixium_date_of_birth: "01011990",
 };
 
 export const connectorDetails = {
@@ -43,19 +35,23 @@ export const connectorDetails = {
         },
       },
     },
-    // Verified: matches the confirmed live request (capture_method: "manual",
-    // authentication_type: "no_three_ds") except for fields confirmCallTest
-    // supplies itself (client_secret, confirm, profile_id).
     No3DSManualCapture: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+      },
       Request: {
         payment_method: "card",
+        payment_method_type: "credit",
         amount: 1000,
         payment_method_data: {
-          card: verifiedNo3DSCardDetails,
+          card: verifiedCardDetails,
         },
         currency: "USD",
         customer_acceptance: null,
-        customer: ilixiumCustomer,
+        metadata: ilixiumMetadata,
       },
       Response: {
         status: 200,
@@ -64,27 +60,87 @@ export const connectorDetails = {
         },
       },
     },
-    // UNVERIFIED — inferred from No3DSManualCapture by only changing
-    // capture_method; not confirmed against a live run.
+    "3DSManualCapture": getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_type: "credit",
+        amount: 1000,
+        payment_method_data: {
+          card: threeDsCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        authentication_type: "three_ds",
+        metadata: ilixiumMetadata,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    }),
+    "3DSAutoCapture": getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_type: "credit",
+        amount: 1000,
+        payment_method_data: {
+          card: threeDsCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        authentication_type: "three_ds",
+        metadata: ilixiumMetadata,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_message: "4",
+          error_code: "4",
+        },
+      },
+    }),
     No3DSAutoCapture: getCustomExchange({
       Request: {
         payment_method: "card",
         amount: 1000,
         payment_method_data: {
-          card: verifiedNo3DSCardDetails,
+          card: verifiedCardDetails,
         },
         currency: "USD",
         customer_acceptance: null,
-        customer: ilixiumCustomer,
+        metadata: ilixiumMetadata,
+      },
+      // Creds we currently have only supports manual capture. Therefore mapped error code for auto capture.
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_message: "4",
+          error_code: "4",
+        },
+      },
+    }),
+    PaymentConfirmWithShippingCost: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: verifiedCardDetails,
+        },
+        customer_acceptance: null,
+        metadata: ilixiumMetadata,
       },
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "failed",
+          error_message: "4",
+          error_code: "4",
         },
       },
     }),
-    // UNVERIFIED — standard full-capture shape, not confirmed against a live run.
     Capture: getCustomExchange({
       Request: {
         amount_to_capture: 1000,
@@ -97,6 +153,260 @@ export const connectorDetails = {
           amount_capturable: 0,
           amount_received: 1000,
         },
+      },
+    }),
+    PartialCapture: getCustomExchange({
+      Request: {
+        amount_to_capture: 500,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "partially_captured",
+          amount: 1000,
+          amount_capturable: 0,
+          amount_received: 500,
+        },
+      },
+    }),
+    Void: {
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "cancelled",
+        },
+      },
+    },
+    No3DSFailPayment: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: verifiedCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        metadata: ilixiumMetadata,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_message: "4",
+          error_code: "4",
+        },
+      },
+    }),
+    SaveCardUseNo3DSAutoCapture: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: verifiedCardDetails,
+        },
+        currency: "USD",
+        setup_future_usage: "on_session",
+        metadata: ilixiumMetadata,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_message: "4",
+          error_code: "4",
+        },
+      },
+    }),
+    SaveCardUseNo3DSAutoCaptureOffSession: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: verifiedCardDetails,
+        },
+        setup_future_usage: "off_session",
+        metadata: ilixiumMetadata,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_message: "4",
+          error_code: "4",
+        },
+      },
+    }),
+    SaveCardUse3DSAutoCaptureOffSession: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: threeDsCardDetails,
+        },
+        setup_future_usage: "off_session",
+        metadata: ilixiumMetadata,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_message: "4",
+          error_code: "4",
+        },
+      },
+    }),
+    SaveCardUseNo3DSManualCapture: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: verifiedCardDetails,
+        },
+        currency: "USD",
+        setup_future_usage: "on_session",
+        metadata: ilixiumMetadata,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    }),
+    SaveCardUseNo3DSManualCaptureOffSession: getCustomExchange({
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: verifiedCardDetails,
+        },
+        amount: 1000,
+        setup_future_usage: "off_session",
+        metadata: ilixiumMetadata,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    }),
+    SaveCardConfirmManualCaptureOffSession: getCustomExchange({
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+      },
+      Request: {
+        setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            message:
+              "No eligible connector was found for the current payment method configuration",
+            type: "invalid_request",
+          },
+        },
+      },
+    }),
+    manualPaymentRefund: getCustomExchange({
+      Request: {
+        amount: 500,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
+    manualPaymentPartialRefund: getCustomExchange({
+      Request: {
+        amount: 200,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
+    SyncRefund: getCustomExchange({
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
+    PaymentMethodIdMandateNo3DSAutoCapture: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: verifiedCardDetails,
+        },
+        currency: "USD",
+        mandate_data: null,
+        metadata: ilixiumMetadata,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_message: "4",
+          error_code: "4",
+        },
+      },
+    }),
+    PaymentMethodIdMandateNo3DSManualCapture: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: verifiedCardDetails,
+        },
+        currency: "USD",
+        mandate_data: null,
+        metadata: ilixiumMetadata,
+      },
+    }),
+    PaymentMethodIdMandate3DSAutoCapture: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: threeDsCardDetails,
+        },
+        currency: "USD",
+        mandate_data: null,
+        metadata: ilixiumMetadata,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_message: "4",
+          error_code: "4",
+        },
+      },
+    }),
+    PaymentMethodIdMandate3DSManualCapture: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: threeDsCardDetails,
+        },
+        currency: "USD",
+        mandate_data: null,
+        metadata: ilixiumMetadata,
       },
     }),
   },

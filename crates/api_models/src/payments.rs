@@ -7,7 +7,7 @@ use std::{
 pub mod additional_info;
 pub mod recipient;
 pub mod trait_impls;
-use cards::{CardNumber, NetworkToken};
+use cards::{CardBin, CardNumber, NetworkToken};
 #[cfg(feature = "v2")]
 use common_enums::enums::PaymentConnectorTransmission;
 #[cfg(feature = "v1")]
@@ -89,8 +89,8 @@ use crate::{
     payment_methods,
     payments::additional_info::{
         BankDebitAdditionalData, BankRedirectDetails, BankTransferAdditionalData,
-        CardTokenAdditionalData, GiftCardAdditionalData, UpiAdditionalData,
-        WalletAdditionalDataForCard,
+        CardTokenAdditionalData, GiftCardAdditionalData, PaypalWalletAdditionalData,
+        UpiAdditionalData, WalletAdditionalDataForCard,
     },
     platform,
 };
@@ -4159,6 +4159,7 @@ pub struct AdditionalCardInfo {
     pub card_issuer: Option<String>,
 
     /// Card network of the card
+    #[schema(value_type = Option<CardNetwork>, example = "Visa")]
     pub card_network: Option<api_enums::CardNetwork>,
 
     /// Card type, can be either `credit` or `debit`
@@ -4177,10 +4178,13 @@ pub struct AdditionalCardInfo {
     /// Extended bin of card, contains the first 8 digits of card number
     pub card_extended_bin: Option<String>,
 
+    #[schema(value_type = Option<String>, example = "01")]
     pub card_exp_month: Option<Secret<String>>,
 
+    #[schema(value_type = Option<String>, example = "2026")]
     pub card_exp_year: Option<Secret<String>>,
 
+    #[schema(value_type = Option<String>, example = "John Doe")]
     pub card_holder_name: Option<Secret<String>>,
 
     /// Additional payment checks done on the cvv and billing address by the processors.
@@ -4198,6 +4202,7 @@ pub struct AdditionalCardInfo {
 
     /// The global signature network under which the card is issued.
     /// This represents the primary global card brand, even if the transaction uses a local network
+    #[schema(value_type = Option<CardNetwork>, example = "Visa")]
     pub signature_network: Option<api_enums::CardNetwork>,
     /// Unique authorisation code generated for the payment.
     pub auth_code: Option<String>,
@@ -4254,6 +4259,7 @@ pub enum AdditionalPaymentData {
         apple_pay: Option<Box<ApplepayPaymentMethod>>,
         google_pay: Option<Box<WalletAdditionalDataForCard>>,
         samsung_pay: Option<Box<WalletAdditionalDataForCard>>,
+        paypal: Option<Box<PaypalWalletAdditionalData>>,
     },
     PayLater {
         klarna_sdk: Option<KlarnaSdkPaymentMethod>,
@@ -6316,6 +6322,9 @@ pub enum WalletResponseData {
     #[schema(value_type = WalletAdditionalDataForCard)]
     #[smithy(value_type = "Option<WalletAdditionalDataForCard>")]
     SamsungPay(Box<WalletAdditionalDataForCard>),
+    #[schema(value_type = PaypalWalletAdditionalData)]
+    #[smithy(value_type = "Option<PaypalWalletAdditionalData>")]
+    Paypal(Box<PaypalWalletAdditionalData>),
 }
 
 #[derive(
@@ -6357,8 +6366,8 @@ pub struct CustomRecoveryPaymentMethodData {
     #[schema(value_type = String, example = "token_1234")]
     pub primary_processor_payment_method_token: Secret<String>,
 
-    /// AdditionalCardInfo for the primary token.
-    pub additional_payment_method_info: AdditionalCardInfo,
+    /// Card details associated with the primary payment method token.
+    pub payment_method_metadata: AdditionalCardInfo,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -9532,8 +9541,9 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
                 apple_pay,
                 google_pay,
                 samsung_pay,
-            } => match (apple_pay, google_pay, samsung_pay) {
-                (Some(apple_pay_pm), _, _) => Self::Wallet(Box::new(WalletResponse {
+                paypal,
+            } => match (apple_pay, google_pay, samsung_pay, paypal) {
+                (Some(apple_pay_pm), _, _, _) => Self::Wallet(Box::new(WalletResponse {
                     details: Some(WalletResponseData::ApplePay(Box::new(
                         WalletAdditionalDataForCard {
                             last4: Some(
@@ -9557,11 +9567,14 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
                         },
                     ))),
                 })),
-                (_, Some(google_pay_pm), _) => Self::Wallet(Box::new(WalletResponse {
+                (_, Some(google_pay_pm), _, _) => Self::Wallet(Box::new(WalletResponse {
                     details: Some(WalletResponseData::GooglePay(google_pay_pm)),
                 })),
-                (_, _, Some(samsung_pay_pm)) => Self::Wallet(Box::new(WalletResponse {
+                (_, _, Some(samsung_pay_pm), _) => Self::Wallet(Box::new(WalletResponse {
                     details: Some(WalletResponseData::SamsungPay(samsung_pay_pm)),
+                })),
+                (_, _, _, Some(paypal_pm)) => Self::Wallet(Box::new(WalletResponse {
+                    details: Some(WalletResponseData::Paypal(paypal_pm)),
                 })),
                 _ => Self::Wallet(Box::new(WalletResponse { details: None })),
             },
@@ -10376,7 +10389,7 @@ impl ApplePayCombinedWrapper {
         self.data
             .clone()
             .ok_or(ValidationError::IncorrectValueProvided {
-                field_name: "metadata.apple_pay_combined",
+                field_name: "metadata.apple_pay_combined".into(),
             })
     }
 }
@@ -13201,6 +13214,16 @@ pub struct EligibilityCard {
     pub nick_name: Option<Secret<String>>,
 }
 
+/// BIN-only input for the eligibility check. Enables BIN-level blocklist and profile-config
+/// blocking without the client having to share the full card number; fingerprint-level
+/// (exact-card) blocking requires the full card number via the `card` variant instead.
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, Eq, PartialEq)]
+pub struct EligibilityCardBin {
+    /// The card BIN: the leading 6 to 10 digits of the card number
+    #[schema(value_type = String, example = "42424242")]
+    pub card_bin: CardBin,
+}
+
 /// Payment method data for eligibility check
 #[derive(
     Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, Eq, PartialEq, SmithyModel,
@@ -13211,6 +13234,9 @@ pub enum EligibilityPaymentMethodData {
     #[schema(title = "EligibilityCard")]
     #[smithy(value_type = "EligibilityCard")]
     Card(EligibilityCard),
+    #[schema(title = "EligibilityCardBin")]
+    #[smithy(value_type = "EligibilityCardBin")]
+    CardBin(EligibilityCardBin),
     #[schema(title = "CardRedirect")]
     #[smithy(value_type = "CardRedirectData")]
     CardRedirect(CardRedirectData),
@@ -14040,13 +14066,14 @@ pub struct RecoveryPaymentsCreate {
     /// The amount details for the payment
     pub amount_details: AmountDetails,
 
-    /// Unique identifier for the payment. This ensures idempotency for multiple payments
-    /// that have been done by a single merchant.
+    /// The invoice identifier from the merchant's billing system that this payment attempt is
+    /// being recorded against. This ensures idempotency when the same invoice is reported
+    /// more than once.
     #[schema(
         value_type = Option<String>,
         min_length = 30,
         max_length = 30,
-        example = "pay_mbabizu24mvu3mela5njyhpit4"
+        example = "invoice_mbabizu24mvu3mela5njyh"
     )]
     pub merchant_reference_id: id_type::PaymentReferenceId,
 
@@ -14061,8 +14088,9 @@ pub struct RecoveryPaymentsCreate {
     #[schema(value_type = String, example = "mca_1234567890")]
     pub payment_merchant_connector_id: id_type::MerchantConnectorAccountId,
 
+    /// The status of the transaction at the payment connector.
     #[schema(value_type = AttemptStatus, example = "charged")]
-    pub attempt_status: enums::AttemptStatus,
+    pub transaction_status: enums::AttemptStatus,
 
     /// The billing details of the payment attempt.
     pub billing: Option<Address>,
@@ -14097,6 +14125,7 @@ pub struct RecoveryPaymentsCreate {
     pub payment_method_data: CustomRecoveryPaymentMethodData,
 
     /// Type of action that needs to be taken after consuming the recovery payload. For example: scheduling a failed payment or stopping the invoice.
+    #[schema(value_type = RecoveryAction, example = "schedule_failed_payment")]
     pub action: common_payments_types::RecoveryAction,
 
     /// Allow partial authorization for this payment

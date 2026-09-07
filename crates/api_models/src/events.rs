@@ -1,10 +1,10 @@
 pub mod apple_pay_certificates_migration;
-pub mod chat;
 pub mod connector_onboarding;
 pub mod customer;
 pub mod dispute;
 pub mod external_service_auth;
 pub mod gsm;
+pub mod offer_engine;
 pub mod payment;
 #[cfg(feature = "payouts")]
 pub mod payouts;

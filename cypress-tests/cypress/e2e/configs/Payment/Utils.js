@@ -39,6 +39,7 @@ import { connectorDetails as fiservcommercehubConnectorDetails } from "./Fiservc
 import { connectorDetails as fiuuConnectorDetails } from "./Fiuu.js";
 import { connectorDetails as forteConnectorDetails } from "./Forte.js";
 import { connectorDetails as getnetConnectorDetails } from "./Getnet.js";
+import { connectorDetails as givepaymentsConnectorDetails } from "./Givepayments.js";
 import { connectorDetails as gigadatConnectorDetails } from "./Gigadat.js";
 import { connectorDetails as globalpayConnectorDetails } from "./Globalpay.js";
 import { connectorDetails as globepayConnectorDetails } from "./Globepay.js";
@@ -132,6 +133,7 @@ const connectorDetails = {
   finix: finixConnectorDetails,
   forte: forteConnectorDetails,
   getnet: getnetConnectorDetails,
+  givepayments: givepaymentsConnectorDetails,
   gigadat: gigadatConnectorDetails,
   globalpay: globalpayConnectorDetails,
   globepay: globepayConnectorDetails,
@@ -534,6 +536,7 @@ export const CONNECTOR_LISTS = {
       "forte",
       "globalpay",
       "gigadat",
+      "ilixium",
       "jpmorgan",
       "loonio",
       "mifinity",
@@ -575,7 +578,7 @@ export const CONNECTOR_LISTS = {
     // asserted as an expected error either — skip these save-card-confirm
     // tests in 40-ExternalVault.cy.js until the connector-service side
     // adds a fallback.
-    EXTERNAL_VAULT: ["fiservcommercehub"],
+    EXTERNAL_VAULT: ["fiservcommercehub", "ilixium"],
     // Connectors that never return a `connector_mandate_id` on the payments
     // response. Recurring payments for them go through connector agnostic MIT,
     // so the "connector_mandate_id must not be null" assertion is skipped
@@ -589,6 +592,7 @@ export const CONNECTOR_LISTS = {
   INCLUDE: {
     // Tracking extension to other connectors: #13520
     SPLIT_PAYMENTS: ["stripeconnect", "payloadconnect"],
+    PROCESSING_METHOD_ID: ["payload"],
     MANDATES_USING_NTID_PROXY: ["cybersource", "checkout"],
     // Card and mandate flows of 54-TsysTransitMandates. The mandates need a
     // profile with connector agnostic MIT enabled, which keeps them out of the
@@ -603,7 +607,12 @@ export const CONNECTOR_LISTS = {
     DDC_RACE_CONDITION: ["worldpay"],
     CONNECTOR_TESTING_DATA: ["adyen", "airwallex", "braintree", "noon"],
     // ucs connectors
-    UCS_CONNECTORS: ["authorizedotnet", "fiservcommercehub"],
+    UCS_CONNECTORS: [
+      "authorizedotnet",
+      "fiservcommercehub",
+      "givepayments",
+      "ilixium",
+    ],
     OVERCAPTURE: ["adyen"],
     IFRAME_REDIRECTION: [
       "adyen",
@@ -780,7 +789,7 @@ export const CONNECTOR_LISTS = {
     CARD_TESTING_GUARD: ["bankofamerica"],
     CLEAR_PAN_RETRY: ["bankofamerica"],
     L2L3DATA: ["checkout", "nuvei", "stripe", "worldpayvantiv"],
-    REFUND_MANUAL_UPDATE: ["bankofamerica", "cybersource"],
+    REFUND_MANUAL_UPDATE: ["stripe"],
     REFUND_TYPE: ["stripe", "adyen", "checkout"],
     MANUAL_PAYMENT_UPDATE: ["stripe"],
     CRYPTO_PAYMENT: ["bitpay", "coingate", "cryptopay"],
@@ -797,7 +806,6 @@ export const CONNECTOR_LISTS = {
       "globalpay",
       "nexinets",
       "nmi",
-      "nuvei",
       "paypal",
       "powertranz",
       "shift4",
@@ -813,6 +821,7 @@ export const CONNECTOR_LISTS = {
     CLIENT_SESSION_VALIDATION: ["stripe"],
     WEBHOOK_CONFIG: ["stripe"],
     REQUIRES_CVV: ["bankofamerica"],
+    BLOCK_IMPLICIT_CUSTOMER_CREATION: ["adyen"],
     // Add more inclusion lists
   },
 };
