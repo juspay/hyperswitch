@@ -80,6 +80,7 @@ pub struct ConnectorAuthentication {
     pub interpayments: Option<HeaderKey>,
     pub itaubank: Option<MultiAuthKey>,
     pub jpmorgan: Option<BodyKey>,
+    pub jpmorgan_orbital: Option<SignatureKey>,
     pub juspaythreedsserver: Option<HeaderKey>,
     pub katapult: Option<HeaderKey>,
     pub loonio: Option<HeaderKey>,

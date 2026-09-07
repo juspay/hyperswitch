@@ -203,6 +203,9 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Ilixium => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Ilixium::new())))
                 }
+                enums::Connector::JpmorganOrbital => Ok(ConnectorEnum::Old(Box::new(
+                    connector::JpmorganOrbital::new(),
+                ))),
                 enums::Connector::Givepayments => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Givepayments::new())))
                 }

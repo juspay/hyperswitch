@@ -79,6 +79,7 @@ pub struct Connectors {
     pub hyperwallet: ConnectorParams,
     pub iatapay: ConnectorParams,
     pub ilixium: ConnectorParams,
+    pub jpmorgan_orbital: ConnectorParams,
     pub imerchantsolutions: ConnectorParams,
     pub inespay: ConnectorParams,
     pub interpayments: ConnectorParams,

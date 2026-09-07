@@ -292,6 +292,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 ilixium::transformers::IlixiumAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::JpmorganOrbital => {
+                jpmorgan_orbital::transformers::JpmorganOrbitalAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Givepayments => {
                 givepayments::transformers::GivepaymentsAuthType::try_from(self.auth_type)?;
                 Ok(())
