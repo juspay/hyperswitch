@@ -233,9 +233,6 @@ impl PaymentMethodVaultingData {
                     card_issuer: None,
                     card_network: None,
                     card_type: None,
-                    card_subtype: None,
-                    card_segment_type: None,
-                    funding_source: None,
                     saved_to_locker: false,
                     #[cfg(feature = "v1")]
                     co_badged_card_data: None,
@@ -636,9 +633,6 @@ impl From<payment_methods::Card> for PaymentMethodVaultingData {
             card_issuing_country: None,
             card_issuer: None,
             card_type: None,
-            card_subtype: None,
-            card_segment_type: None,
-            funding_source: None,
         })
     }
 }

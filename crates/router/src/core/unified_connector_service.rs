@@ -123,9 +123,6 @@ impl ForeignTryFrom<payments_grpc::PaymentMethod> for domain_pm::PaymentMethodDa
                 card_type: card.card_type,
                 card_issuing_country: card.card_issuing_country_alpha2,
                 card_issuing_country_code: None,
-                card_subtype: None,
-                card_segment_type: None,
-                funding_source: None,
                 bank_code: card.bank_code,
                 nick_name: card.nick_name.map(Secret::new),
                 co_badged_card_data: None,
@@ -1055,8 +1052,9 @@ where
                     create_updated_session_state_with_proxy(state.clone(), proxy_override)
                 }
                 None => {
-                    router_env::logger::debug!(
-                        "No proxy override available for Shadow UCS, Using the Original State and Sending Request Directly"
+                    // info, not debug: this downgrade has to be visible at default log levels.
+                    router_env::logger::info!(
+                        "No proxy override available for Shadow UCS; falling back to Direct, so no shadow comparison will run for this request"
                     );
                     execution_path = ExecutionPath::Direct;
                     state.clone()
