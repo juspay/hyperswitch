@@ -756,6 +756,7 @@ impl ConnectorResponseData {
                     card_subtype: None,
                     card_segment_type: None,
                     funding_source: None,
+                    card_type: None,
                     issuer_name: None,
                     issuer_country: None,
                 }
@@ -858,6 +859,8 @@ pub enum AdditionalPaymentMethodConnectorResponse {
         card_segment_type: Option<common_enums::CardSegmentType>,
         /// The card's funding source (e.g. credit, debit), as returned by the connector
         funding_source: Option<common_enums::FundingSource>,
+        /// The card's type (e.g. credit, debit), as returned by the connector
+        card_type: Option<common_enums::CardType>,
         /// The name of the card issuer, as returned by the connector
         issuer_name: Option<String>,
         /// The country of the card issuer, as returned by the connector

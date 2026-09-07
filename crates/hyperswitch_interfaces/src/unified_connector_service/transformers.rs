@@ -812,6 +812,7 @@ impl ForeignTryFrom<payments_grpc::AdditionalPaymentMethodConnectorResponse>
                 card_subtype: None,
                 card_segment_type: None,
                 funding_source: None,
+                card_type: None,
                 issuer_name: None,
                 issuer_country: None,
             }),

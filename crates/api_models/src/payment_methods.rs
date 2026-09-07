@@ -1891,7 +1891,7 @@ impl From<payments::additional_info::WalletAdditionalDataForCard> for PaymentMet
         Self {
             last4: item.last4,
             card_network: item.card_network,
-            card_type: item.card_type,
+            card_type: item.payment_method_data_type,
             card_exp_month: item.card_exp_month,
             card_exp_year: item.card_exp_year,
             auth_code: item.auth_code,
@@ -1905,7 +1905,7 @@ impl From<PaymentMethodDataWalletInfo> for payments::additional_info::WalletAddi
         Self {
             last4: item.last4,
             card_network: item.card_network,
-            card_type: item.card_type,
+            payment_method_data_type: item.card_type,
             card_exp_month: item.card_exp_month,
             card_exp_year: item.card_exp_year,
             auth_code: item.auth_code,
@@ -1915,6 +1915,7 @@ impl From<PaymentMethodDataWalletInfo> for payments::additional_info::WalletAddi
             card_subtype: None,
             card_segment_type: None,
             funding_source: None,
+            card_type: None,
             issuer_name: None,
             issuer_country: None,
         }
@@ -1950,7 +1951,12 @@ impl TryFrom<PaymentMethodDataWalletInfo> for Box<payments::ApplepayPaymentMetho
         Ok(Self::new(payments::ApplepayPaymentMethod {
             display_name: item.last4.get_required_value("last4")?,
             network: item.card_network.get_required_value("card_network")?,
-            pm_type: item.card_type.get_required_value("card_type")?,
+            pm_type: item.card_type.clone().get_required_value("card_type")?,
+            // If `card_type` doesn't parse into a known `CardType` variant, it is treated as
+            // `None` instead of erroring.
+            card_type: item
+                .card_type
+                .and_then(|card_type| card_type.to_uppercase().parse::<api_enums::CardType>().ok()),
             card_exp_month: item.card_exp_month,
             card_exp_year: item.card_exp_year,
             auth_code: item.auth_code,

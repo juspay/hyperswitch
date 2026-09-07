@@ -6395,6 +6395,17 @@ pub async fn get_additional_payment_data(
                         display_name: apple_pay_wallet_data.payment_method.display_name.clone(),
                         network: apple_pay_wallet_data.payment_method.network.clone(),
                         pm_type: apple_pay_wallet_data.payment_method.pm_type.clone(),
+                        // card_type for Apple Pay is the same as pm_type. pm_type is
+                        // retained for backward compatibility and is also used for Google Pay's payment_method_data_type.
+                        // We intentionally don't fail if pm_type cannot be deserialized into a valid CardType. We've covered
+                        // all values documented by Apple Pay, but if production sends an unexpected value, the payment
+                        // should not fail because this auxiliary field could not be deserialized.
+                        card_type: apple_pay_wallet_data
+                            .payment_method
+                            .pm_type
+                            .to_uppercase()
+                            .parse::<common_enums::CardType>()
+                            .ok(),
                         card_exp_month,
                         card_exp_year,
                         device_pan_bin,
@@ -6437,7 +6448,7 @@ pub async fn get_additional_payment_data(
                         payment_additional_types::WalletAdditionalDataForCard {
                             last4: Some(google_pay_pm_data.info.card_details.clone()),
                             card_network: Some(google_pay_pm_data.info.card_network.clone()),
-                            card_type: Some(google_pay_pm_data.pm_type.clone()),
+                            payment_method_data_type: Some(google_pay_pm_data.pm_type.clone()),
                             card_exp_month,
                             card_exp_year,
                             device_pan_bin,
@@ -6448,6 +6459,10 @@ pub async fn get_additional_payment_data(
                             card_subtype: None,
                             card_segment_type: None,
                             funding_source: None,
+                            // Google Pay's wallet token does not carry a credit/debit
+                            // indicator, so this is only populated once the connector's
+                            // authorization response reports it.
+                            card_type: None,
                             issuer_name: None,
                             issuer_country: None,
                         },
@@ -6474,6 +6489,7 @@ pub async fn get_additional_payment_data(
                                     .card_brand
                                     .to_string(),
                             ),
+                            payment_method_data_type: None,
                             card_type: None,
                             card_exp_month: None,
                             card_exp_year: None,
@@ -8525,6 +8541,7 @@ pub fn add_connector_response_to_additional_payment_data(
                 card_subtype,
                 card_segment_type,
                 funding_source,
+                card_type,
                 issuer_name,
                 issuer_country,
             },
@@ -8536,6 +8553,7 @@ pub fn add_connector_response_to_additional_payment_data(
                     card_subtype: card_subtype.clone(),
                     card_segment_type,
                     funding_source,
+                    card_type: card_type.clone(),
                     issuer_name: issuer_name.clone(),
                     issuer_country,
                     device_pan_bin: device_pan_bin

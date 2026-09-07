@@ -1545,6 +1545,18 @@ impl From<CheckoutCardType> for common_enums::FundingSource {
     }
 }
 
+impl From<CheckoutCardType> for common_enums::CardType {
+    fn from(card_type: CheckoutCardType) -> Self {
+        match card_type {
+            CheckoutCardType::Credit => Self::Credit,
+            CheckoutCardType::Debit => Self::Debit,
+            CheckoutCardType::Prepaid => Self::Prepaid,
+            CheckoutCardType::Charge => Self::ChargeCard,
+            CheckoutCardType::DeferredDebit => Self::DeferredDebit,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum CheckoutCardCategory {
@@ -2731,6 +2743,9 @@ fn convert_to_additional_payment_method_connector_response(
                 funding_source: source
                     .and_then(|source| source.card_type.clone())
                     .map(common_enums::FundingSource::from),
+                card_type: source
+                    .and_then(|source| source.card_type.as_ref())
+                    .map(|card_type| common_enums::CardType::from(card_type.clone())),
                 issuer_name: source.and_then(|source| source.issuer.clone()),
                 issuer_country: source.and_then(|source| source.issuer_country),
             })

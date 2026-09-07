@@ -5938,6 +5938,9 @@ pub struct ApplepayPaymentMethod {
     pub device_pan_bin: Option<String>,
     /// Bin of the underlying card, provided by the connector when it resolves the DPAN
     pub card_bin: Option<String>,
+    // The card's type (eg. Credit, Debit), as returned by the connector
+    #[schema(value_type = Option<CardType>)]
+    pub card_type: Option<api_enums::CardType>,
     /// Unique authorisation code generated for the payment
     pub auth_code: Option<String>,
     /// The card's product/subtype, as returned by the connector
@@ -9642,7 +9645,7 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
                                     .collect::<String>(),
                             ),
                             card_network: Some(apple_pay_pm.network.clone()),
-                            card_type: Some(apple_pay_pm.pm_type.clone()),
+                            payment_method_data_type: Some(apple_pay_pm.pm_type.clone()),
                             card_exp_month: apple_pay_pm.card_exp_month,
                             card_exp_year: apple_pay_pm.card_exp_year,
                             auth_code: apple_pay_pm.auth_code,
@@ -9652,6 +9655,7 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
                             card_subtype: apple_pay_pm.card_subtype,
                             card_segment_type: apple_pay_pm.card_segment_type,
                             funding_source: apple_pay_pm.funding_source,
+                            card_type: apple_pay_pm.card_type,
                             issuer_name: apple_pay_pm.issuer_name,
                             issuer_country: apple_pay_pm.issuer_country,
                         },

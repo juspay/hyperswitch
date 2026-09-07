@@ -465,7 +465,7 @@ pub struct WalletAdditionalDataForCard {
     /// The type of payment method
     #[serde(rename = "type")]
     #[smithy(value_type = "Option<String>")]
-    pub card_type: Option<String>,
+    pub payment_method_data_type: Option<String>,
     /// The card's expiry month
     #[schema(value_type = Option<String>, example = "03")]
     pub card_exp_month: Option<Secret<String>>,
@@ -493,6 +493,9 @@ pub struct WalletAdditionalDataForCard {
     /// The card's funding source (e.g. credit, debit), as returned by the connector
     #[schema(value_type = Option<FundingSource>)]
     pub funding_source: Option<api_enums::FundingSource>,
+    /// The card's type (e.g. credit, debit), as returned by the connector
+    #[schema(value_type = Option<CardType>)]
+    pub card_type: Option<api_enums::CardType>,
     /// The name of the card issuer, as returned by the connector
     pub issuer_name: Option<String>,
     /// The country of the card issuer, as returned by the connector
