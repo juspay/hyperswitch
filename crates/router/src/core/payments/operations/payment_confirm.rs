@@ -2546,7 +2546,7 @@ impl PaymentConfirm {
             payment_method_ref,
             card_token_data,
             true, // fetch raw card detail from the internal vault
-            req.is_off_session_mit_for_payment_method(payment_method_ref),
+            helpers::is_off_session_mit_for_payment_method(req, payment_method_ref),
         )
         .await?;
         logger::info!("Payment method fetched from PM Modular Service.");
