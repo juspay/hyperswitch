@@ -489,12 +489,35 @@ impl
 
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
 
+        let setup_future_usage = router_data
+            .request
+            .setup_future_usage
+            .map(payments_grpc::FutureUsage::foreign_try_from)
+            .transpose()?;
+
+        let customer_acceptance = router_data
+            .request
+            .customer_acceptance
+            .clone()
+            .map(payments_grpc::CustomerAcceptance::foreign_try_from)
+            .transpose()?;
+
+        let setup_mandate_details = router_data
+            .request
+            .setup_mandate_details
+            .as_ref()
+            .map(payments_grpc::SetupMandateDetails::foreign_try_from)
+            .transpose()?;
+
         Ok(Self {
             split_payments: router_data
                 .request
                 .split_payments
                 .as_ref()
                 .map(payments_grpc::SplitPaymentsDetails::foreign_from),
+            setup_future_usage: setup_future_usage.map(|s| s.into()),
+            customer_acceptance,
+            setup_mandate_details,
             merchant_payment_method_id: Some(router_data.connector_request_reference_id.clone()),
             amount: router_data
                 .request
@@ -2717,6 +2740,7 @@ impl
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
+            test_mode: router_data.test_mode,
             mit_category: None,
             merchant_recurring_payment_id: router_data.connector_request_reference_id.clone(),
             amount: Some(payments_grpc::Money {
@@ -3271,6 +3295,7 @@ impl
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
+            test_mode: router_data.test_mode,
             amount: Some(payments_grpc::Money {
                 minor_amount: router_data.request.total_amount,
                 currency: currency.into(),
