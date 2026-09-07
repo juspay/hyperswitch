@@ -6411,7 +6411,7 @@ pub async fn get_additional_payment_data(
                         device_pan_bin,
                         // These are filled after calling the processor / connector
                         auth_code: None,
-                        // Only populated if the connector resolves and returns the card's bin
+
                         card_bin: None,
                         card_subtype: None,
                         card_segment_type: None,
