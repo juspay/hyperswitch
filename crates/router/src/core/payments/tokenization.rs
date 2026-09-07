@@ -910,15 +910,6 @@ where
                                         .or(existing_pm_data.card_network),
                                     card_issuer: card.card_issuer.or(existing_pm_data.card_issuer),
                                     card_type: card.card_type.or(existing_pm_data.card_type),
-                                    card_subtype: card
-                                        .card_subtype
-                                        .or(existing_pm_data.card_subtype),
-                                    card_segment_type: card
-                                        .card_segment_type
-                                        .or(existing_pm_data.card_segment_type),
-                                    funding_source: card
-                                        .funding_source
-                                        .or(existing_pm_data.funding_source),
                                     saved_to_locker: true,
                                 });
 
@@ -1340,9 +1331,6 @@ async fn skip_saving_card_in_locker(
                 card_issuer: card.card_issuer.clone(),
                 card_network: card.card_network.clone(),
                 card_type: card.card_type.clone(),
-                card_subtype: card.card_subtype.clone(),
-                card_segment_type: card.card_segment_type,
-                funding_source: card.funding_source,
                 saved_to_locker: false,
             };
             let pm_resp = domain::PaymentMethodResponse {
@@ -1717,9 +1705,6 @@ pub async fn save_network_token_in_locker(
                             card_network: Some(token_response.card_brand.clone()),
                             card_issuer: None,
                             card_type: None,
-                            card_subtype: None,
-                            card_segment_type: None,
-                            funding_source: None,
                         };
 
                         let (res, dc) = Box::pin(PmCards { state, provider }.add_card_to_locker(
@@ -2441,9 +2426,6 @@ impl From<NetworkTokenizationCardData<'_>> for domain::Card {
             card_type: None,
             card_issuing_country: None,
             card_issuing_country_code: None,
-            card_subtype: None,
-            card_segment_type: None,
-            funding_source: None,
             bank_code: None,
             card_holder_name: tracking_data.billing_name.clone(),
             nick_name: locker_card.nick_name.clone().map(Secret::new),
