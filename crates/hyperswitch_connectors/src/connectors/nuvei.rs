@@ -1815,6 +1815,15 @@ impl ConnectorSpecifications for Nuvei {
         }
     }
 
+    /// Gate after the `PreAuthenticate` leg of the Authorize flow: Nuvei always continues
+    /// on to Authorize, whatever the PreAuthenticate leg returned.
+    fn should_continue_after_pre_authentication(
+        &self,
+        _ctx: api::AuthenticationLegContext,
+    ) -> bool {
+        true
+    }
+
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
         Some(&*NUVEI_SUPPORTED_PAYMENT_METHODS)
     }

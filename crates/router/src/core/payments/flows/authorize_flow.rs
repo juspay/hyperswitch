@@ -206,6 +206,44 @@ impl
     }
 }
 
+/// Read off an authentication leg's response the facts a connector needs to decide whether
+/// the 3DS chain continues on to `Authorize`.
+///
+/// The parsing lives here, in the router, so that connectors implementing
+/// [`ConnectorSpecifications::should_continue_after_pre_authentication`] and
+/// [`ConnectorSpecifications::should_continue_after_authentication`] never have to re-parse
+/// `connector_metadata` themselves.
+fn build_authentication_leg_context(
+    response: &Result<types::PaymentsResponseData, types::ErrorResponse>,
+    attempt_status: enums::AttemptStatus,
+) -> api_interface::AuthenticationLegContext {
+    let transaction_response = match response {
+        Ok(types::PaymentsResponseData::TransactionResponse {
+            connector_metadata,
+            redirection_data,
+            ..
+        }) => Some(api_interface::AuthenticationLegTransactionResponse {
+            has_redirection_data: redirection_data.is_some(),
+            has_three_ds_invoke_data: connector_metadata
+                .clone()
+                .and_then(|metadata| {
+                    metadata
+                        .parse_value::<api_models::payments::PaymentsConnectorThreeDsInvokeData>(
+                            "PaymentsConnectorThreeDsInvokeData",
+                        )
+                        .ok()
+                })
+                .is_some(),
+        }),
+        Ok(_) | Err(_) => None,
+    };
+
+    api_interface::AuthenticationLegContext {
+        transaction_response,
+        attempt_status,
+    }
+}
+
 #[async_trait]
 impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAuthorizeRouterData {
     fn current_flow_info(&self) -> Option<api_interface::CurrentFlowInfo> {
@@ -553,44 +591,16 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 authorize_router_data.request.related_transaction_id = related_transaction_id;
             }
 
-            let should_continue_after_preauthenticate = match connector.connector_name {
-                // connector specific handling to decide whether to continue with authorize or not should not be done here
-                // this is just a temporary fix for Redsys and Shift4 connectors
-                api_models::enums::Connector::Redsys => match &authorize_router_data.response {
-                    Ok(types::PaymentsResponseData::TransactionResponse {
-                        connector_metadata,
-                        redirection_data,
-                        ..
-                    }) => {
-                        let has_ucs_redirection = redirection_data.is_some();
-
-                        let has_hyperswitch_three_ds_invoke_data: bool =
-                            connector_metadata.clone().and_then(|metadata| {
-                                metadata
-                                    .parse_value::<api_models::payments::PaymentsConnectorThreeDsInvokeData>("PaymentsConnectorThreeDsInvokeData")
-                                    .ok()
-                            }).is_some();
-
-                        // Continue only if neither UCS nor hyperswitch indicates a redirect is needed
-                        !has_ucs_redirection && !has_hyperswitch_three_ds_invoke_data
-                    }
-                    _ => false,
-                },
-                api_models::enums::Connector::Shift4 => true,
-                api_models::enums::Connector::Nuvei => true,
-                // Paysafe card + 3DS: PreAuthenticate mints the handle. When Paysafe returns no ACS
-                // redirect (frictionless / no challenge), continue straight to the settle Authorize
-                // in this flow; when it returns a redirect, break so the shopper completes the
-                // challenge and the settle runs from CompleteAuthorize.
-                api_models::enums::Connector::Paysafe => match &authorize_router_data.response {
-                    Ok(types::PaymentsResponseData::TransactionResponse {
-                        redirection_data,
-                        ..
-                    }) => redirection_data.is_none(),
-                    _ => false,
-                },
-                _ => false,
-            };
+            // Whether the chain continues on to Authorize is the connector's decision, not
+            // the router's: the router only reads the facts off the PreAuthenticate response
+            // and hands them over. Connectors that do not implement the hook default to
+            // stopping here.
+            let should_continue_after_preauthenticate = connector
+                .connector
+                .should_continue_after_pre_authentication(build_authentication_leg_context(
+                    &authorize_router_data.response,
+                    authorize_router_data.status,
+                ));
             Ok((authorize_router_data, should_continue_after_preauthenticate))
         } else {
             Ok((self, true))
@@ -694,42 +704,14 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 }
             }
 
-            let should_continue_after_authenticate = match &authorize_router_data.response {
-                Ok(types::PaymentsResponseData::TransactionResponse {
-                    connector_metadata,
-                    redirection_data,
-                    ..
-                }) => match connector.connector_name {
-                    api_models::enums::Connector::Redsys => {
-                        // For UCS Redsys: if redirection_data is present (3DS challenge), don't continue
-                        // For hyperswitch native: check connector_metadata for PaymentsConnectorThreeDsInvokeData
-                        let has_ucs_redirection = redirection_data.is_some();
-
-                        let has_hyperswitch_three_ds_invoke_data: bool =
-                            connector_metadata.clone().and_then(|metadata| {
-                                metadata
-                                    .parse_value::<api_models::payments::PaymentsConnectorThreeDsInvokeData>("PaymentsConnectorThreeDsInvokeData")
-                                    .ok()
-                            }).is_some();
-
-                        let payment_status = !matches!(
-                            authorize_router_data.status,
-                            common_enums::AttemptStatus::AuthenticationFailed
-                                | common_enums::AttemptStatus::Failure
-                                | common_enums::AttemptStatus::Charged
-                                | common_enums::AttemptStatus::PartialCharged
-                                | common_enums::AttemptStatus::Authorized
-                        );
-
-                        // Continue only if neither UCS nor hyperswitch indicates a redirect is needed
-                        !has_ucs_redirection
-                            && !has_hyperswitch_three_ds_invoke_data
-                            && payment_status
-                    }
-                    _ => false,
-                },
-                _ => false,
-            };
+            // Same as after PreAuthenticate: the connector owns the decision, the router
+            // only supplies the facts read off the Authenticate response.
+            let should_continue_after_authenticate = connector
+                .connector
+                .should_continue_after_authentication(build_authentication_leg_context(
+                    &authorize_router_data.response,
+                    authorize_router_data.status,
+                ));
             Ok((authorize_router_data, should_continue_after_authenticate))
         } else {
             Ok((self, true))

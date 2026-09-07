@@ -1114,6 +1114,15 @@ impl ConnectorSpecifications for Shift4 {
         }
     }
 
+    /// Gate after the `PreAuthenticate` leg of the Authorize flow: Shift4 always continues
+    /// on to Authorize, whatever the PreAuthenticate leg returned.
+    fn should_continue_after_pre_authentication(
+        &self,
+        _ctx: api::AuthenticationLegContext,
+    ) -> bool {
+        true
+    }
+
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&SHIFT4_CONNECTOR_INFO)
     }

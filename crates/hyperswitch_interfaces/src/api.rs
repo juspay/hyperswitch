@@ -45,7 +45,9 @@ use common_utils::{
     request::{Method, Request, RequestContent},
 };
 use error_stack::ResultExt;
-pub use hyperswitch_domain_models::router_request_types::CurrentFlowInfo;
+pub use hyperswitch_domain_models::router_request_types::{
+    AuthenticationLegContext, AuthenticationLegTransactionResponse, CurrentFlowInfo,
+};
 use hyperswitch_domain_models::{
     connector_endpoints::Connectors,
     errors::api_error_response::ApiErrorResponse,
@@ -469,6 +471,28 @@ pub trait ConnectorSpecifications {
     }
     /// Check if post-authentication flow is required
     fn is_post_authentication_flow_required(&self, _current_flow: CurrentFlowInfo) -> bool {
+        false
+    }
+    /// Decide whether the payment chain continues on to `Authorize` after the
+    /// `PreAuthenticate` leg has run.
+    ///
+    /// Only consulted for connectors that declare
+    /// [`Self::is_pre_authentication_flow_required`]. Returning `false` — the default —
+    /// stops the chain after the `PreAuthenticate` leg, which is what a connector wants
+    /// when the leg produced a redirect the shopper still has to complete; the settle then
+    /// runs from `CompleteAuthorize` once the shopper is back.
+    fn should_continue_after_pre_authentication(&self, _ctx: AuthenticationLegContext) -> bool {
+        false
+    }
+
+    /// Decide whether the payment chain continues on to `Authorize` after the
+    /// `Authenticate` leg has run.
+    ///
+    /// Only consulted for connectors that declare
+    /// [`Self::is_authentication_flow_required`]. Returning `false` — the default — stops
+    /// the chain after the `Authenticate` leg, so the shopper can complete the 3DS
+    /// challenge and the settle runs from `CompleteAuthorize`.
+    fn should_continue_after_authentication(&self, _ctx: AuthenticationLegContext) -> bool {
         false
     }
     /// Check if pre-authenticate cancel flow is supported

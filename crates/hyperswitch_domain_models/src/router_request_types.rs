@@ -89,6 +89,35 @@ impl CurrentFlowInfo {
     }
 }
 
+/// Facts the router read off an authentication leg's response, handed to the connector so
+/// it can decide whether the 3DS chain continues to the next leg.
+///
+/// The router does the parsing — presence of redirection data, and whether
+/// `connector_metadata` parses as `api_models::payments::PaymentsConnectorThreeDsInvokeData`
+/// — so that connectors never have to re-parse `connector_metadata` themselves.
+#[derive(Clone, Copy, Debug)]
+pub struct AuthenticationLegContext {
+    /// Facts from the leg's response, populated only when it was a successful
+    /// `PaymentsResponseData::TransactionResponse`. `None` for an error response or for
+    /// any other `PaymentsResponseData` variant.
+    pub transaction_response: Option<AuthenticationLegTransactionResponse>,
+    /// The attempt status after the leg completed.
+    pub attempt_status: common_enums::AttemptStatus,
+}
+
+/// Facts read off a successful `PaymentsResponseData::TransactionResponse` returned by an
+/// authentication leg.
+#[derive(Clone, Copy, Debug)]
+pub struct AuthenticationLegTransactionResponse {
+    /// Whether the response carried redirection data, i.e. the shopper has to be sent to
+    /// the connector/ACS before the payment can be settled.
+    pub has_redirection_data: bool,
+    /// Whether `connector_metadata` parsed as
+    /// `api_models::payments::PaymentsConnectorThreeDsInvokeData`, i.e. hyperswitch itself
+    /// has to invoke the 3DS method before the payment can be settled.
+    pub has_three_ds_invoke_data: bool,
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct PaymentsAuthorizeData {
     pub payment_method_data: PaymentMethodData,

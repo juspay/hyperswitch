@@ -876,6 +876,12 @@ impl
             return_url: router_data.request.router_return_url.clone(),
             address: Some(address),
             auth_type: auth_type.into(),
+            // NOTE: hardcoded, not forwarded. The sibling builders that send
+            // `Some(router_data.request.enrolled_for_3ds)` are built from `PaymentsAuthorizeData`
+            // and `ExternalVaultProxyPaymentsData`, both of which carry that field.
+            // `CompleteAuthorizeData` does not carry it at all, so there is no real value to
+            // forward here. Synthesising one (from `auth_type`, say) would change what is sent
+            // to UCS on every CompleteAuthorize and is a product decision, not a refactor.
             enrolled_for_3ds: Some(true),
             request_incremental_authorization: Some(
                 router_data.request.request_incremental_authorization,
@@ -2036,6 +2042,21 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
     }
 }
 
+// NOTE: this impl is unreferenced — nothing in the tree calls it.
+//
+// Every `payments_grpc::PaymentServiceAuthorizeRequest` built in this crate is built by one of
+// the other impls in this file: `authorize_gateway.rs:208` and `complete_authorize_gateway.rs:79`
+// pass a `(&RouterData<..>, CallConnectorAction)` tuple, and `external_proxy_flow.rs:419,532`
+// pass an `&RouterData<ExternalVaultProxy, ..>`. There is no other call site — the type name
+// appears nowhere else in the crate, no `foreign_try_into()` here resolves to it, and no crate
+// depends on `router` as a library — so this single-argument `CompleteAuthorize` impl is
+// reachable from nothing. Confirmed by commenting it out and running `cargo check -p router`,
+// which still built the crate.
+//
+// It is also NOT a description of what CompleteAuthorize actually sends to UCS: the live impl
+// above forwards the router data's own `auth_type` and sends `enrolled_for_3ds: Some(true)`,
+// while this one forces `AuthenticationType::NoThreeDs` and `enrolled_for_3ds: Some(false)`.
+// Kept rather than deleted, but do not read it as the CompleteAuthorize contract.
 impl
     transformers::ForeignTryFrom<
         &RouterData<

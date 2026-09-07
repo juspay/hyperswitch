@@ -597,6 +597,18 @@ impl ConnectorSpecifications for ConnectorEnum {
             Self::New(connector) => connector.is_post_authentication_flow_required(current_flow),
         }
     }
+    fn should_continue_after_pre_authentication(&self, ctx: api::AuthenticationLegContext) -> bool {
+        match self {
+            Self::Old(connector) => connector.should_continue_after_pre_authentication(ctx),
+            Self::New(connector) => connector.should_continue_after_pre_authentication(ctx),
+        }
+    }
+    fn should_continue_after_authentication(&self, ctx: api::AuthenticationLegContext) -> bool {
+        match self {
+            Self::Old(connector) => connector.should_continue_after_authentication(ctx),
+            Self::New(connector) => connector.should_continue_after_authentication(ctx),
+        }
+    }
     fn is_settlement_split_call_required(&self, current_flow: CurrentFlowInfo) -> bool {
         match self {
             Self::Old(connector) => connector.is_settlement_split_call_required(current_flow),

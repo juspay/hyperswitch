@@ -1392,6 +1392,17 @@ impl ConnectorSpecifications for Paysafe {
         }
     }
 
+    /// Paysafe card + 3DS: PreAuthenticate mints the handle. When Paysafe returns no ACS
+    /// redirect (frictionless / no challenge), continue straight to the settle Authorize
+    /// in this flow; when it returns a redirect, break so the shopper completes the
+    /// challenge and the settle runs from CompleteAuthorize.
+    fn should_continue_after_pre_authentication(&self, ctx: api::AuthenticationLegContext) -> bool {
+        match ctx.transaction_response {
+            Some(transaction_response) => !transaction_response.has_redirection_data,
+            None => false,
+        }
+    }
+
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
         Some(&*PAYSAFE_SUPPORTED_PAYMENT_METHODS)
     }

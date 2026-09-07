@@ -1159,6 +1159,49 @@ impl ConnectorSpecifications for Redsys {
         }
     }
 
+    /// Gate after the `PreAuthenticate` leg of the Authorize flow.
+    fn should_continue_after_pre_authentication(&self, ctx: api::AuthenticationLegContext) -> bool {
+        match ctx.transaction_response {
+            Some(transaction_response) => {
+                let has_ucs_redirection = transaction_response.has_redirection_data;
+
+                let has_hyperswitch_three_ds_invoke_data =
+                    transaction_response.has_three_ds_invoke_data;
+
+                // Continue only if neither UCS nor hyperswitch indicates a redirect is needed
+                !has_ucs_redirection && !has_hyperswitch_three_ds_invoke_data
+            }
+            None => false,
+        }
+    }
+
+    /// Gate after the `Authenticate` leg of the Authorize flow.
+    fn should_continue_after_authentication(&self, ctx: api::AuthenticationLegContext) -> bool {
+        match ctx.transaction_response {
+            Some(transaction_response) => {
+                // For UCS Redsys: if redirection_data is present (3DS challenge), don't continue
+                // For hyperswitch native: check connector_metadata for PaymentsConnectorThreeDsInvokeData
+                let has_ucs_redirection = transaction_response.has_redirection_data;
+
+                let has_hyperswitch_three_ds_invoke_data =
+                    transaction_response.has_three_ds_invoke_data;
+
+                let payment_status = !matches!(
+                    ctx.attempt_status,
+                    common_enums::AttemptStatus::AuthenticationFailed
+                        | common_enums::AttemptStatus::Failure
+                        | common_enums::AttemptStatus::Charged
+                        | common_enums::AttemptStatus::PartialCharged
+                        | common_enums::AttemptStatus::Authorized
+                );
+
+                // Continue only if neither UCS nor hyperswitch indicates a redirect is needed
+                !has_ucs_redirection && !has_hyperswitch_three_ds_invoke_data && payment_status
+            }
+            None => false,
+        }
+    }
+
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&REDSYS_CONNECTOR_INFO)
     }
