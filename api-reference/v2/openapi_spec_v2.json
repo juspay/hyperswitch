@@ -4866,6 +4866,91 @@
         ]
       }
     },
+    "/v2/payments/recovery": {
+      "post": {
+        "tags": [
+          "Revenue Recovery"
+        ],
+        "summary": "Revenue Recovery - Create",
+        "description": "Record a payment attempt made outside of Hyperswitch against a billing connector invoice,\nand take the requested recovery action on it, such as scheduling a retry for a failed payment\nor cancelling the invoice.",
+        "operationId": "Create a Revenue Recovery Payment",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecoveryPaymentsCreate"
+              },
+              "examples": {
+                "Record a failed payment attempt and schedule a retry": {
+                  "value": {
+                    "action": "schedule_failed_payment",
+                    "amount_details": {
+                      "currency": "USD",
+                      "order_amount": 6540
+                    },
+                    "billing_merchant_connector_id": "mca_billing_1234567890",
+                    "connector_customer_id": "cust_12345",
+                    "connector_transaction_id": "993672945374576J",
+                    "error": {
+                      "code": "card_declined",
+                      "message": "The card was declined."
+                    },
+                    "merchant_reference_id": "invoice_mbabizu24mvu3mela5njyh",
+                    "payment_merchant_connector_id": "mca_payment_1234567890",
+                    "payment_method_data": {
+                      "payment_method_metadata": {
+                        "card_network": "Visa",
+                        "card_type": "credit",
+                        "last4": "4242"
+                      },
+                      "primary_processor_payment_method_token": "token_1234"
+                    },
+                    "payment_method_sub_type": "credit",
+                    "payment_method_type": "card",
+                    "transaction_created_at": "2022-09-10T10:11:12Z",
+                    "transaction_status": "failure"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Revenue Recovery Payment Recorded Successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecoveryPaymentsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing mandatory fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource missing"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/v2/proxy": {
       "post": {
         "tags": [
@@ -5482,6 +5567,97 @@
           "authenticated",
           "failed"
         ]
+      },
+      "AdditionalCardInfo": {
+        "type": "object",
+        "properties": {
+          "card_issuer": {
+            "type": "string",
+            "description": "The name of issuer of the card",
+            "nullable": true
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "card_type": {
+            "type": "string",
+            "description": "Card type, can be either `credit` or `debit`",
+            "nullable": true
+          },
+          "card_issuing_country": {
+            "type": "string",
+            "nullable": true
+          },
+          "card_issuing_country_code": {
+            "type": "string",
+            "nullable": true
+          },
+          "bank_code": {
+            "type": "string",
+            "nullable": true
+          },
+          "last4": {
+            "type": "string",
+            "description": "Last 4 digits of the card number",
+            "nullable": true
+          },
+          "card_isin": {
+            "type": "string",
+            "description": "The ISIN of the card",
+            "nullable": true
+          },
+          "card_extended_bin": {
+            "type": "string",
+            "description": "Extended bin of card, contains the first 8 digits of card number",
+            "nullable": true
+          },
+          "card_exp_month": {
+            "type": "string",
+            "example": "01",
+            "nullable": true
+          },
+          "card_exp_year": {
+            "type": "string",
+            "example": "2026",
+            "nullable": true
+          },
+          "card_holder_name": {
+            "type": "string",
+            "example": "John Doe",
+            "nullable": true
+          },
+          "payment_checks": {
+            "description": "Additional payment checks done on the cvv and billing address by the processors.\nThis is a free form field and the structure varies from processor to processor",
+            "nullable": true
+          },
+          "authentication_data": {
+            "description": "Details about the threeds environment.\nThis is a free form field and the structure varies from processor to processor",
+            "nullable": true
+          },
+          "is_regulated": {
+            "type": "boolean",
+            "description": "Indicates if the card issuer is regulated under government-imposed interchange fee caps.\nIn the United States, this includes debit cards that fall under the Durbin Amendment,\nwhich imposes capped interchange fees.",
+            "nullable": true
+          },
+          "signature_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "auth_code": {
+            "type": "string",
+            "description": "Unique authorisation code generated for the payment.",
+            "nullable": true
+          }
+        }
       },
       "AdditionalMerchantData": {
         "oneOf": [
@@ -13456,6 +13632,23 @@
           },
           "display_mode": {
             "$ref": "#/components/schemas/SdkDisplayMode"
+          }
+        }
+      },
+      "CustomRecoveryPaymentMethodData": {
+        "type": "object",
+        "required": [
+          "primary_processor_payment_method_token",
+          "payment_method_metadata"
+        ],
+        "properties": {
+          "primary_processor_payment_method_token": {
+            "type": "string",
+            "description": "Primary payment method token at payment processor end.",
+            "example": "token_1234"
+          },
+          "payment_method_metadata": {
+            "$ref": "#/components/schemas/AdditionalCardInfo"
           }
         }
       },
@@ -30287,6 +30480,159 @@
             "type": "string",
             "description": "A string indicating how to proceed with an network error if payment gateway provide one. This is used to understand the network error code better.",
             "nullable": true
+          }
+        }
+      },
+      "RecoveryAction": {
+        "type": "string",
+        "description": "type of action that needs to taken after consuming recovery payload",
+        "enum": [
+          "cancel_invoice",
+          "schedule_failed_payment",
+          "success_payment_external",
+          "pending_payment",
+          "no_action",
+          "invalid_action"
+        ]
+      },
+      "RecoveryPaymentsCreate": {
+        "type": "object",
+        "required": [
+          "amount_details",
+          "billing_merchant_connector_id",
+          "payment_merchant_connector_id",
+          "transaction_status",
+          "payment_method_sub_type",
+          "connector_customer_id",
+          "payment_method_data",
+          "action"
+        ],
+        "properties": {
+          "amount_details": {
+            "$ref": "#/components/schemas/AmountDetails"
+          },
+          "merchant_reference_id": {
+            "type": "string",
+            "description": "The invoice identifier from the merchant's billing system that this payment attempt is\nbeing recorded against. This ensures idempotency when the same invoice is reported\nmore than once.",
+            "example": "invoice_mbabizu24mvu3mela5njyh",
+            "nullable": true,
+            "maxLength": 30,
+            "minLength": 30
+          },
+          "error": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ErrorDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "billing_merchant_connector_id": {
+            "type": "string",
+            "description": "Billing connector id to update the invoices.",
+            "example": "mca_1234567890"
+          },
+          "payment_merchant_connector_id": {
+            "type": "string",
+            "description": "Payments connector id to update the invoices.",
+            "example": "mca_1234567890"
+          },
+          "transaction_status": {
+            "$ref": "#/components/schemas/AttemptStatus"
+          },
+          "billing": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_method_sub_type": {
+            "$ref": "#/components/schemas/PaymentMethodType"
+          },
+          "transaction_created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The time at which payment attempt was created.",
+            "example": "2022-09-10T10:11:12Z",
+            "nullable": true
+          },
+          "payment_method_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethod"
+              }
+            ],
+            "nullable": true
+          },
+          "connector_customer_id": {
+            "type": "string",
+            "description": "customer id at payment connector for which mandate is attached.",
+            "example": "cust_12345"
+          },
+          "billing_started_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Invoice billing started at billing connector end.",
+            "example": "2022-09-10T10:11:12Z",
+            "nullable": true
+          },
+          "connector_transaction_id": {
+            "type": "string",
+            "description": "A unique identifier for a payment provided by the payment connector",
+            "example": "993672945374576J",
+            "nullable": true
+          },
+          "payment_method_data": {
+            "$ref": "#/components/schemas/CustomRecoveryPaymentMethodData"
+          },
+          "action": {
+            "$ref": "#/components/schemas/RecoveryAction"
+          },
+          "enable_partial_authorization": {
+            "type": "boolean",
+            "description": "Allow partial authorization for this payment",
+            "default": false,
+            "nullable": true
+          },
+          "metadata": {
+            "type": "object",
+            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "RecoveryPaymentsResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "intent_status"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier for the payment.",
+            "example": "pay_mbabizu24mvu3mela5njyhpit4",
+            "maxLength": 30,
+            "minLength": 30
+          },
+          "intent_status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/IntentStatus"
+              }
+            ],
+            "default": "requires_confirmation"
+          },
+          "merchant_reference_id": {
+            "type": "string",
+            "description": "Unique identifier for the payment. This ensures idempotency for multiple payments\nthat have been done by a single merchant.",
+            "example": "pay_mbabizu24mvu3mela5njyhpit4",
+            "nullable": true,
+            "maxLength": 30,
+            "minLength": 30
           }
         }
       },

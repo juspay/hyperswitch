@@ -127,8 +127,6 @@ const PAYMENT_METHOD_MODULAR_BACKWARD_COMPAT_TASK: &str = "PM_MOD_BACK_COMPAT";
 const PAYMENT_METHOD_MODULAR_BACKWARD_COMPAT_TAG: &str = "PM_MOD_BACK_COMPAT";
 const PAYMENT_METHOD_MODULAR_COMPAT_PROCESS_TRACKER_ID_MAX_LENGTH: usize = 126;
 const PAYMENT_METHOD_MODULAR_COMPAT_PROCESS_TRACKER_ID_SUFFIX_LENGTH: usize = 8;
-#[cfg(feature = "v2")]
-const PAYMENT_METHOD_REDACTED_FINGERPRINT_ID: &str = "FINGERPRINT_ID_REDACTED";
 /// `process_tracker.id` is a `varchar(127)`; ids are built to stay within it.
 const NETWORK_TOKENIZATION_PROCESS_TRACKER_ID_MAX_LENGTH: usize = 126;
 const NETWORK_TOKENIZATION_PROCESS_TRACKER_ID_SUFFIX_LENGTH: usize = 8;
@@ -5029,7 +5027,7 @@ pub async fn create_pm_additional_data_update(
         network_token_locker_id: nt_data.clone().map(|data| data.network_token_locker_id),
         network_token_payment_method_data: nt_data.map(|data| data.network_token_pmd.into()),
         connector_mandate_details: Box::new(connector_mandate_details_update),
-        locker_fingerprint_id: vault_fingerprint_id,
+        locker_fingerprint_id: vault_fingerprint_id.map(Some),
         external_vault_source,
         network_transaction_id,
         network_transaction_link_id: None,
@@ -5978,24 +5976,70 @@ pub async fn retrieve_payment_method(
         (raw_payment_method_data, _) => raw_payment_method_data,
     };
 
-    if matches!(
-        raw_payment_method_access.account_updater,
-        RawPaymentMethodFetchAccess::Allowed
-    ) {
-        let account_updater_dimensions = dimensions
-            .with_organization_id(platform.get_provider().get_account().get_org_id().clone())
-            .with_profile_id(profile.get_id().clone());
+    let refresh_result = match raw_payment_method_access.account_updater {
+        RawPaymentMethodFetchAccess::Allowed => {
+            let account_updater_dimensions = dimensions
+                .with_organization_id(platform.get_provider().get_account().get_org_id().clone())
+                .with_profile_id(profile.get_id().clone());
 
-        Box::pin(account_updater::run_account_updater(
-            &state,
-            &platform,
-            &profile,
-            &payment_method,
-            raw_payment_method_data.as_ref(),
-            &account_updater_dimensions,
-        ))
-        .await;
-    }
+            Box::pin(account_updater::run_account_updater(
+                &state,
+                &platform,
+                &profile,
+                &payment_method,
+                raw_payment_method_data.as_ref(),
+                &account_updater_dimensions,
+            ))
+            .await
+            .ok()
+        }
+        RawPaymentMethodFetchAccess::Denied => None,
+    };
+
+    let updated_payment_method = match refresh_result {
+        Some(account_updater::types::RefreshResult::Card(card_result)) => {
+            Box::pin(account_updater::apply_card_refresh_result(
+                &state,
+                &platform,
+                &profile,
+                &payment_method,
+                card_result,
+            ))
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Account Updater failed while applying a card change")?
+        }
+        None => None,
+    };
+
+    let payment_method = match updated_payment_method {
+        Some(updated_payment_method) => {
+            let updated_raw_data = Box::pin(
+                raw_payment_method_access
+                    .retrieve_raw_card
+                    .get_raw_payment_method_data(
+                        &state,
+                        &platform,
+                        &profile,
+                        &updated_payment_method,
+                        storage_type,
+                    ),
+            )
+            .await
+            .attach_printable("Failed to get raw payment method data")?;
+
+            match (updated_raw_data, &mut raw_payment_method_data) {
+                (
+                    Some(payment_methods::RawPaymentMethodData::Card(updated_card)),
+                    Some(payment_methods::RawPaymentMethodData::CardWithNT(existing)),
+                ) => existing.card_details = updated_card,
+                (updated_raw_data, existing) => *existing = updated_raw_data,
+            }
+
+            updated_payment_method
+        }
+        None => payment_method,
+    };
 
     match raw_payment_method_access.response {
         RawPaymentMethodFetchAccess::Allowed => {
@@ -6766,14 +6810,17 @@ pub async fn delete_payment_method_by_record(
     profile: &domain::Profile,
     payment_method: domain::PaymentMethod,
 ) -> RouterResult<()> {
+    let last_modified_by = platform
+        .get_initiator()
+        .and_then(|initiator| initiator.to_created_by())
+        .map(|last_modified_by| last_modified_by.to_string());
+
     // Soft delete - mark as Redacted (terminal state, no transitions allowed)
     let pm_update = storage::PaymentMethodUpdate::StatusAndFingerprintUpdate {
         status: Some(enums::PaymentMethodStatus::Redacted),
-        last_modified_by: platform
-            .get_initiator()
-            .and_then(|initiator| initiator.to_created_by())
-            .map(|last_modified_by| last_modified_by.to_string()),
-        locker_fingerprint_id: Some(PAYMENT_METHOD_REDACTED_FINGERPRINT_ID.to_string()),
+        last_modified_by,
+        // Some(None) sets the locker_fingerprint_id to null
+        locker_fingerprint_id: Some(None),
     };
 
     db.update_payment_method(
