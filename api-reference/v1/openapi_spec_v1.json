@@ -11190,8 +11190,11 @@
             "nullable": true
           },
           "issuer_country": {
-            "type": "string",
-            "description": "The country of the card issuer, as returned by the connector",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              }
+            ],
             "nullable": true
           }
         }
@@ -48267,8 +48270,11 @@
             "nullable": true
           },
           "issuer_country": {
-            "type": "string",
-            "description": "The country of the card issuer, as returned by the connector",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              }
+            ],
             "nullable": true
           }
         }
