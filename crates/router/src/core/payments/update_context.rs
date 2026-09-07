@@ -250,13 +250,13 @@ async fn payment_method_list(
 ) -> errors::RouterResult<payment_methods_api::ClientPaymentMethodsListResponse> {
     logger::info!("server-integration: calling payment-method-list core");
 
-    let response = pm_client::list_payment_methods_client(
+    let response = Box::pin(pm_client::list_payment_methods_client(
         state,
         platform,
         payment_id.clone(),
         // Merchant API key authenticated; there is no client secret to validate.
         None,
-    )
+    ))
     .await?;
 
     json_body(response, "payment_method_list")
