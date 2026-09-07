@@ -10,12 +10,12 @@ use crate::{
     errors,
     payment_attempt::{PaymentAttempt, PaymentAttemptUpdate, PaymentAttemptUpdateInternal},
     schema::{connector_response::dsl, payment_attempt::dsl as pa_dsl},
-    PgPooledConn, StorageResult,
+    DatabaseConnectionWithContext, StorageResult,
 };
 
 impl ConnectorResponseNew {
     #[instrument(skip(conn))]
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<ConnectorResponse> {
+    pub async fn insert(self, conn: &DatabaseConnectionWithContext<'_>) -> StorageResult<ConnectorResponse> {
         let payment_attempt_update = PaymentAttemptUpdate::ConnectorResponse {
             authentication_data: self.authentication_data.clone(),
             encoded_data: self.encoded_data.clone(),
@@ -54,7 +54,7 @@ impl ConnectorResponse {
     #[instrument(skip(conn))]
     pub async fn update(
         self,
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         connector_response: ConnectorResponseUpdate,
     ) -> StorageResult<Self> {
         let payment_attempt_update = match connector_response.clone() {
@@ -135,7 +135,7 @@ impl ConnectorResponse {
 
     #[instrument(skip(conn))]
     pub async fn find_by_payment_id_merchant_id_attempt_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         payment_id: &common_utils::id_type::PaymentId,
         merchant_id: &common_utils::id_type::MerchantId,
         attempt_id: &str,

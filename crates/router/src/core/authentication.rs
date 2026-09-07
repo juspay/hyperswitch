@@ -865,7 +865,7 @@ async fn call_ucs_post_authenticate_proxy<F: Clone>(
         .map(|browser_information| browser_information.parse_value("BrowserInformation"))
         .transpose()
         .change_context(ApiErrorResponse::InvalidDataValue {
-            field_name: "browser_info",
+            field_name: "browser_info".into(),
         })?;
 
     let amount = payment_data.payment_attempt.get_total_amount();
@@ -1092,7 +1092,7 @@ pub async fn perform_post_authentication_proxy<F: Clone>(
         && is_pull_mechanism_enabled
     {
         // trigger in case of authenticate flow
-        let post_authenticate_response_data = call_ucs_post_authenticate_proxy(
+        let post_authenticate_response_data = Box::pin(call_ucs_post_authenticate_proxy(
             state,
             processor,
             initiator,
@@ -1102,7 +1102,7 @@ pub async fn perform_post_authentication_proxy<F: Clone>(
             auth_connector_enum,
             auth_merchant_connector_account.clone(),
             payment_method,
-        )
+        ))
         .await?;
 
         let mut post_authenticate_tracker_router_data: core_types::RouterData<
@@ -1318,7 +1318,7 @@ async fn call_ucs_authenticate_proxy(
         .map(|browser_information| browser_information.parse_value("BrowserInformation"))
         .transpose()
         .change_context(ApiErrorResponse::InvalidDataValue {
-            field_name: "browser_info",
+            field_name: "browser_info".into(),
         })?;
 
     let authenticate_request_data = core_types::PaymentsAuthenticateData {

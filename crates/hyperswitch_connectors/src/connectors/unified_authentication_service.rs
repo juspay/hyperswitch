@@ -321,7 +321,7 @@ impl
         let connector_req = if req.request.service_details.is_some() {
             let transaction_details = req.request.transaction_details.clone().ok_or(
                 errors::ConnectorError::MissingRequiredField {
-                    field_name: "transaction_details",
+                    field_name: "transaction_details".into(),
                 },
             )?;
             let amount = utils::convert_amount(
@@ -329,11 +329,11 @@ impl
                 transaction_details
                     .amount
                     .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "amount",
+                        field_name: "amount".into(),
                     })?,
                 transaction_details.currency.ok_or(
                     errors::ConnectorError::MissingRequiredField {
-                        field_name: "currency",
+                        field_name: "currency".into(),
                     },
                 )?,
             )?;
@@ -534,12 +534,12 @@ impl ConnectorIntegration<Authenticate, UasAuthenticationRequestData, UasAuthent
             transaction_details
                 .amount
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "amount",
+                    field_name: "amount".into(),
                 })?,
             transaction_details
                 .currency
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "currency",
+                    field_name: "currency".into(),
                 })?,
         )?;
 

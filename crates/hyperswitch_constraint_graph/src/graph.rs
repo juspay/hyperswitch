@@ -25,15 +25,62 @@ struct CheckNodeContext<'a, V: ValueNode, C: CheckingContext<Value = V>> {
     domains: Option<&'a [DomainId]>,
 }
 
-#[derive(Debug)]
+/// Serde carries the evaluation state of a finished graph. `value_map` is not
+/// on the wire but is rebuilt on deserialization (see [`ConstraintGraphWire`]);
+/// `node_info`/`node_metadata` are diagnostics and stay empty on the way in.
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[serde(bound(
+    serialize = "V: serde::Serialize, <V as ValueNode>::Key: serde::Serialize",
+    deserialize = "V: serde::de::DeserializeOwned, <V as ValueNode>::Key: serde::de::DeserializeOwned"
+))]
+#[serde(from = "ConstraintGraphWire<V>")]
 pub struct ConstraintGraph<V: ValueNode> {
     pub domain: DenseMap<DomainId, DomainInfo>,
     pub domain_identifier_map: FxHashMap<DomainIdentifier, DomainId>,
     pub nodes: DenseMap<NodeId, Node<V>>,
     pub edges: DenseMap<EdgeId, Edge>,
+    #[serde(skip)]
     pub value_map: FxHashMap<NodeValue<V>, NodeId>,
+    #[serde(skip)]
     pub node_info: DenseMap<NodeId, Option<&'static str>>,
+    #[serde(skip)]
     pub node_metadata: DenseMap<NodeId, Option<Arc<dyn Metadata>>>,
+}
+
+/// The deserialization shape of [`ConstraintGraph`]. `value_map` is rebuilt
+/// from `nodes` rather than serialized: its key is a structured enum no JSON
+/// map can key, and the builder inserts an entry iff it creates the value node.
+#[derive(serde::Deserialize)]
+#[serde(bound(
+    deserialize = "V: serde::de::DeserializeOwned, <V as ValueNode>::Key: serde::de::DeserializeOwned"
+))]
+struct ConstraintGraphWire<V: ValueNode> {
+    domain: DenseMap<DomainId, DomainInfo>,
+    domain_identifier_map: FxHashMap<DomainIdentifier, DomainId>,
+    nodes: DenseMap<NodeId, Node<V>>,
+    edges: DenseMap<EdgeId, Edge>,
+}
+
+impl<V: ValueNode> From<ConstraintGraphWire<V>> for ConstraintGraph<V> {
+    fn from(wire: ConstraintGraphWire<V>) -> Self {
+        let value_map = wire
+            .nodes
+            .iter()
+            .filter_map(|(node_id, node)| match &node.node_type {
+                NodeType::Value(value) => Some((value.clone(), node_id)),
+                _ => None,
+            })
+            .collect();
+        Self {
+            domain: wire.domain,
+            domain_identifier_map: wire.domain_identifier_map,
+            nodes: wire.nodes,
+            edges: wire.edges,
+            value_map,
+            node_info: DenseMap::new(),
+            node_metadata: DenseMap::new(),
+        }
+    }
 }
 
 impl<V> ConstraintGraph<V>

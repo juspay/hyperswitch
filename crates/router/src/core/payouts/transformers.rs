@@ -91,6 +91,7 @@ impl
             profile_id: payout.profile_id,
             created: Some(payout.created_at),
             connector_transaction_id: attempt.connector_transaction_id.clone(),
+            connector_eligibility_reference_id: payout_attempt.connector_eligibility_reference_id,
             priority: payout.priority,
             billing: address,
             payout_method_data: payout_attempt.additional_payout_method_data.map(From::from),

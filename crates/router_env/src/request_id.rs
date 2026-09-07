@@ -618,6 +618,22 @@ pub struct RequestRecordingFacts {
     pub path: String,
 }
 
+#[cfg(feature = "deja")]
+fn instrument_http_incoming<F>(
+    future: F,
+    request_facts: &RequestRecordingFacts,
+) -> impl Future<Output = F::Output>
+where
+    F: Future,
+{
+    future.instrument(tracing::info_span!(
+        "deja::http_incoming",
+        method = %request_facts.method,
+        path = %request_facts.path,
+        request_id = %request_facts.request_id,
+    ))
+}
+
 /// Future returned by a Deja request recording sampler.
 #[cfg(feature = "deja")]
 pub type RequestRecordingSamplerFuture<'a> = Pin<Box<dyn Future<Output = bool> + Send + 'a>>;
@@ -1035,7 +1051,20 @@ where
                 let should_record_http_incoming = if boundary::process_is_record_mode() {
                     let decision = match recording_sampler {
                         Some(sampler) => sampler.should_record(request_facts.clone()).await,
-                        None => true,
+                        // No sampler attached means no policy to consult:
+                        // record nothing, and warn once — this is a wiring
+                        // defect, not a per-request condition.
+                        None => {
+                            static MISSING_SAMPLER: std::sync::Once = std::sync::Once::new();
+                            MISSING_SAMPLER.call_once(|| {
+                                tracing::warn!(
+                                    "Deja is in record mode but no recording sampler is attached; \
+                                     skipping every request. Expect an empty tape until a sampler \
+                                     is wired into the application builder."
+                                );
+                            });
+                            false
+                        }
                     };
                     deja::set_recording_decision(request_id.to_string(), decision);
                     _decision_guard = Some(RecordingDecisionGuard(request_id.to_string()));
@@ -1048,22 +1077,35 @@ where
                     let (request, incoming_record) =
                         boundary::capture_incoming_request(request, request_id.as_str()).await;
                     let fut = service.call(request);
-                    let request_span = tracing::info_span!(
-                        "deja::http_incoming",
-                        method = %request_facts.method,
-                        path = %request_facts.path,
-                        request_id = %request_id,
-                    );
-                    // Correlation comes from the ingress root span (CustomRootSpanBuilder
-                    // stamps `request_id`) via DejaCorrelationLayer — no explicit scope needed.
-                    let recorded_result = boundary::recorded_incoming(fut, incoming_record)
-                        .instrument(request_span)
-                        .await;
+                    // Correlation rides the shared ingress span, which stamps
+                    // `request_id` for DejaCorrelationLayer.
+                    let recorded_result = instrument_http_incoming(
+                        boundary::recorded_incoming(fut, incoming_record),
+                        &request_facts,
+                    )
+                    .await;
                     let recorded = recorded_result?;
                     recorded.map_body(|_head, body| EitherBody::left(body))
                 } else {
-                    // Correlation rides the ingress root span via DejaCorrelationLayer.
-                    let response_result = service.call(request).await;
+                    // Correlation rides the shared ingress span via DejaCorrelationLayer.
+                    //
+                    // A Substitute boundary's fail-stop is a panic, and actix
+                    // has no per-request `catch_unwind` — uncontained it kills
+                    // the connection with no response. Catch only deja's own
+                    // fail-stop and turn it into a 5xx carrying its message;
+                    // any other panic is re-raised, and outside replay the
+                    // wrapper is a pure passthrough.
+                    let response_result = match instrument_http_incoming(
+                        deja::catch_fail_stop_async(service.call(request)),
+                        &request_facts,
+                    )
+                    .await
+                    {
+                        Ok(result) => result,
+                        Err(fail_stop) => Err(actix_web::error::ErrorInternalServerError(
+                            fail_stop.into_message(),
+                        )),
+                    };
                     let response = response_result?;
                     response.map_body(|_head, body| {
                         EitherBody::right(boundary::RecordingBody::passthrough(body))

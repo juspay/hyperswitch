@@ -203,7 +203,7 @@ impl TryFrom<StripeSetupIntentRequest> for payments::PaymentsRequest {
             .map(|ip| std::net::IpAddr::from_str(ip.as_str()))
             .transpose()
             .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-                field_name: "receipt_ipaddress".to_string(),
+                field_name: "receipt_ipaddress".into(),
                 expected_format: "127.0.0.1".to_string(),
             })?;
         let metadata_object = item
@@ -211,7 +211,7 @@ impl TryFrom<StripeSetupIntentRequest> for payments::PaymentsRequest {
             .clone()
             .parse_value("metadata")
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "metadata mapping failed",
+                field_name: "metadata mapping failed".into(),
             })?;
         let request = Ok(Self {
             amount: Some(api_types::Amount::Zero),
@@ -225,7 +225,7 @@ impl TryFrom<StripeSetupIntentRequest> for payments::PaymentsRequest {
                 .map(|c| c.to_uppercase().parse_enum("currency"))
                 .transpose()
                 .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "currency",
+                    field_name: "currency".into(),
                 })?,
             email: item.receipt_email,
             name: item.billing_details.as_ref().and_then(|b| {
@@ -618,7 +618,7 @@ impl TryFrom<StripePaymentListConstraints> for payments::PaymentListConstraints 
             customer_id: item.customer,
             starting_after: item.starting_after,
             ending_before: item.ending_before,
-            limit: item.limit,
+            limit: item.limit.into(),
             created: from_timestamp_to_datetime(item.created)?,
             created_lt: from_timestamp_to_datetime(item.created_lt)?,
             created_gt: from_timestamp_to_datetime(item.created_gt)?,

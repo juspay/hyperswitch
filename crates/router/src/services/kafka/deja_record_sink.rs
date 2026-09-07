@@ -392,6 +392,9 @@ mod tests {
             correlation_id: Some("c-123".to_string()),
             timestamp_ns: 1_000_000_000,
             recording_run_id: Some("run-abc".to_string()),
+            // Egress event, so no structural role. `role` skips serialization
+            // when `None`, which keeps the envelope shape this test asserts.
+            role: None,
             graph_node_id: None,
             tracing_span_id: None,
             task_id: None,
@@ -512,6 +515,7 @@ mod tests {
             parent_id: Some(3),
             causal_parent_ids: vec![1],
             sequence: 5,
+            correlation_id: Some("c-123".to_string()),
             recording_run_id: Some("run-abc".to_string()),
             span_name: "payment.request".to_string(),
             target: "router".to_string(),

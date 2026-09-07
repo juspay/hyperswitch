@@ -50,3 +50,12 @@ option_map_unit_fn = "allow"
 strip = true
 lto = true
 codegen-units = 1
+
+# Development-cycle build: optimized but without LTO, with parallel codegen and
+# symbols kept. Selected via the Dockerfile's CARGO_BUILD_PROFILE build arg;
+# never the default.
+[profile.release-fast]
+inherits = "release"
+lto = false
+codegen-units = 16
+strip = "none"

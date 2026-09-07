@@ -17,17 +17,17 @@ use crate::schema::customers::dsl;
 use crate::schema_v2::customers::dsl;
 use crate::{
     customers::{Customer, CustomerNew, CustomerUpdateInternal},
-    errors, kv, PgPooledConn, StorageResult,
+    errors, kv, DatabaseConnectionWithContext, StorageResult,
 };
 
 impl CustomerNew {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Customer> {
+    pub async fn insert(self, conn: &DatabaseConnectionWithContext<'_>) -> StorageResult<Customer> {
         generics::generic_insert(conn, self).await
     }
 
     pub async fn generate_drainer_insert_query(
         self,
-        conn: &mut PgPooledConn,
+        conn: &mut DatabaseConnectionWithContext<'_>,
     ) -> StorageResult<kv::SerializableQuery> {
         kv::generate_insert_query(conn, self)
             .await
@@ -45,7 +45,7 @@ pub struct CustomerListConstraints {
 impl Customer {
     #[cfg(feature = "v2")]
     pub async fn find_by_merchant_id_customer_id_for_global_id_migration(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         merchant_id: &id_type::MerchantId,
         customer_id: &id_type::CustomerId,
     ) -> StorageResult<CustomerGlobalIdMigrationRow> {
@@ -62,7 +62,7 @@ impl Customer {
             ));
 
         match query
-            .first_async::<CustomerGlobalIdMigrationRow>(conn)
+            .first_async::<CustomerGlobalIdMigrationRow>(conn.raw_connection())
             .await
         {
             Ok(row) => Ok(row),
@@ -76,7 +76,7 @@ impl Customer {
 
     #[cfg(feature = "v2")]
     pub async fn update_global_id_for_migration(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         merchant_id: &id_type::MerchantId,
         customer_id: &id_type::CustomerId,
         new_id: id_type::GlobalCustomerId,
@@ -98,7 +98,7 @@ impl Customer {
         ));
 
         match query
-            .get_result_async::<CustomerGlobalIdMigrationRow>(conn)
+            .get_result_async::<CustomerGlobalIdMigrationRow>(conn.raw_connection())
             .await
         {
             Ok(row) => Ok(row),
@@ -112,7 +112,7 @@ impl Customer {
 
     #[cfg(feature = "v2")]
     pub async fn update_by_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         id: id_type::GlobalCustomerId,
         customer: CustomerUpdateInternal,
     ) -> StorageResult<Self> {
@@ -135,7 +135,7 @@ impl Customer {
 
     #[cfg(feature = "v2")]
     pub async fn find_by_global_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         id: &id_type::GlobalCustomerId,
     ) -> StorageResult<Self> {
         generics::generic_find_by_id::<<Self as HasTable>::Table, _, _>(conn, id.to_owned()).await
@@ -143,7 +143,7 @@ impl Customer {
 
     #[cfg(feature = "v2")]
     pub async fn find_by_global_id_merchant_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         id: &id_type::GlobalCustomerId,
         merchant_id: &id_type::MerchantId,
     ) -> StorageResult<Self> {
@@ -158,7 +158,7 @@ impl Customer {
 
     #[cfg(feature = "v1")]
     pub async fn get_customer_count_by_merchant_id_and_constraints(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         merchant_id: &id_type::MerchantId,
         customer_list_constraints: CustomerListConstraints,
     ) -> StorageResult<usize> {
@@ -188,7 +188,7 @@ impl Customer {
 
     #[cfg(feature = "v2")]
     pub async fn get_customer_count_by_merchant_id_and_constraints(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         merchant_id: &id_type::MerchantId,
         customer_list_constraints: CustomerListConstraints,
     ) -> StorageResult<usize> {
@@ -218,7 +218,7 @@ impl Customer {
 
     #[cfg(feature = "v1")]
     pub async fn list_customers_by_merchant_id_and_constraints(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         merchant_id: &id_type::MerchantId,
         constraints: CustomerListConstraints,
     ) -> StorageResult<Vec<Self>> {
@@ -266,7 +266,7 @@ impl Customer {
 
     #[cfg(feature = "v2")]
     pub async fn list_customers_by_merchant_id_and_constraints(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         merchant_id: &id_type::MerchantId,
         constraints: CustomerListConstraints,
     ) -> StorageResult<Vec<Self>> {
@@ -314,7 +314,7 @@ impl Customer {
 
     #[cfg(feature = "v2")]
     pub async fn find_optional_by_merchant_id_merchant_reference_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         customer_id: &id_type::CustomerId,
         merchant_id: &id_type::MerchantId,
     ) -> StorageResult<Option<Self>> {
@@ -329,7 +329,7 @@ impl Customer {
 
     #[cfg(feature = "v1")]
     pub async fn find_optional_by_customer_id_merchant_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         customer_id: &id_type::CustomerId,
         merchant_id: &id_type::MerchantId,
     ) -> StorageResult<Option<Self>> {
@@ -342,7 +342,7 @@ impl Customer {
 
     #[cfg(feature = "v1")]
     pub async fn update_by_customer_id_merchant_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         customer_id: id_type::CustomerId,
         merchant_id: id_type::MerchantId,
         customer: CustomerUpdateInternal,
@@ -370,7 +370,7 @@ impl Customer {
 
     #[cfg(feature = "v1")]
     pub async fn delete_by_customer_id_merchant_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         customer_id: &id_type::CustomerId,
         merchant_id: &id_type::MerchantId,
     ) -> StorageResult<bool> {
@@ -385,7 +385,7 @@ impl Customer {
 
     #[cfg(feature = "v2")]
     pub async fn find_by_merchant_reference_id_merchant_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         merchant_reference_id: &id_type::CustomerId,
         merchant_id: &id_type::MerchantId,
     ) -> StorageResult<Self> {
@@ -400,7 +400,7 @@ impl Customer {
 
     #[cfg(feature = "v1")]
     pub async fn find_by_customer_id_merchant_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         customer_id: &id_type::CustomerId,
         merchant_id: &id_type::MerchantId,
     ) -> StorageResult<Self> {
@@ -416,7 +416,7 @@ impl CustomerUpdateInternal {
     #[cfg(feature = "v1")]
     pub async fn generate_drainer_update_query(
         self,
-        conn: &mut PgPooledConn,
+        conn: &mut DatabaseConnectionWithContext<'_>,
         customer_id: id_type::CustomerId,
         merchant_id: id_type::MerchantId,
     ) -> StorageResult<kv::SerializableQuery> {
@@ -432,7 +432,7 @@ impl CustomerUpdateInternal {
     #[cfg(feature = "v2")]
     pub async fn generate_drainer_update_query(
         self,
-        conn: &mut PgPooledConn,
+        conn: &mut DatabaseConnectionWithContext<'_>,
         id: id_type::GlobalCustomerId,
     ) -> StorageResult<kv::SerializableQuery> {
         kv::generate_update_query_by_id::<<Customer as HasTable>::Table, _, _>(conn, id, self)

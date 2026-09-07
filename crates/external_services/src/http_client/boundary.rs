@@ -147,7 +147,11 @@ pub(super) fn response_result(
     )
 }
 
-pub(super) struct HttpResponseCodec;
+/// Capture and rebuild a `send_request` outcome on the `http_outgoing`
+/// boundary. `reconstruct` returning `None` is what fail-stops a substituted
+/// egress call, so the tape-conformance gate calls it directly.
+#[derive(Debug)]
+pub struct HttpResponseCodec;
 
 impl deja::codec::ReplayCodec for HttpResponseCodec {
     type Value = CustomResult<reqwest::Response, HttpClientError>;
