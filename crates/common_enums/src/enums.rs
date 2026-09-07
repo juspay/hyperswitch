@@ -3020,7 +3020,7 @@ impl ExecutionPath {
 pub enum UcsAvailability {
     Enabled,
     Disabled,
-    ShadowKilled,
+    ShadowDisabled,
 }
 
 #[derive(

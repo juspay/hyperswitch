@@ -508,7 +508,7 @@ pub mod superposition {
     pub const SAVE_WALLET_DECRYPTED_DATA: &str = "vaulting.save_wallet_decrypted_data";
     /// UCS rollout configuration key (contains RolloutConfig with percentage, URLs, etc.)
     pub const UCS_ROLLOUT_CONFIG: &str = "ucs_rollout_config";
-    /// UCS enabled configuration key (controls UCS mode: disabled, enabled, shadow_killed)
+    /// UCS enabled configuration key (controls UCS mode: disabled, enabled, shadow_disabled)
     pub const UCS_ENABLED: &str = "ucs_enabled";
 }
 

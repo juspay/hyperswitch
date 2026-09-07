@@ -886,9 +886,9 @@ async fn check_ucs_availability_from_superposition(state: &SessionState) -> UcsA
             router_env::logger::debug!(request_id = %request_id, "UCS is available and enabled");
             UcsAvailability::Enabled
         }
-        (true, UcsAvailability::ShadowKilled) => {
-            router_env::logger::debug!(request_id = %request_id, "UCS is available but shadow is killed");
-            UcsAvailability::ShadowKilled
+        (true, UcsAvailability::ShadowDisabled) => {
+            router_env::logger::debug!(request_id = %request_id, "UCS is available but shadow is disabled");
+            UcsAvailability::ShadowDisabled
         }
         _ => {
             router_env::logger::debug!(
@@ -1362,16 +1362,16 @@ fn create_updated_session_state_with_proxy(
     updated_state
 }
 
-/// Resolves the effective execution mode by applying the shadow kill switch.
-/// If the resolved mode is Shadow and ucs_enabled is "shadow_killed",
+/// Resolves the effective execution mode by applying the shadow disabled switch.
+/// If the resolved mode is Shadow and ucs_enabled is "shadow_disabled",
 /// falls back to NotApplicable (Direct path).
 fn resolve_execution_mode(
     execution_mode: ExecutionMode,
     ucs_availability: UcsAvailability,
 ) -> ExecutionMode {
-    if execution_mode == ExecutionMode::Shadow && ucs_availability == UcsAvailability::ShadowKilled
+    if execution_mode == ExecutionMode::Shadow && ucs_availability == UcsAvailability::ShadowDisabled
     {
-        router_env::logger::info!("UCS shadow kill switch is enabled, falling back to Direct");
+        router_env::logger::info!("UCS shadow is disabled, falling back to Direct");
         ExecutionMode::NotApplicable
     } else {
         execution_mode

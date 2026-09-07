@@ -2537,9 +2537,14 @@ pub async fn get_ucs_enabled_mode_from_superposition(state: &SessionState) -> Uc
         .get_config_value::<String>(consts::superposition::UCS_ENABLED, None, None)
         .await
     {
-        Ok(value) => value
-            .parse::<UcsAvailability>()
-            .unwrap_or(UcsAvailability::Disabled),
+        Ok(value) => value.parse::<UcsAvailability>().unwrap_or_else(|err| {
+            logger::warn!(
+                error = ?err,
+                ucs_enabled_value = %value,
+                "Failed to parse ucs_enabled value from superposition. Defaulting to Disabled."
+            );
+            UcsAvailability::Disabled
+        }),
         Err(err) => {
             logger::error!(
                 error = ?err,
@@ -2859,7 +2864,8 @@ pub async fn should_execute_based_on_rollout_with_precedence_from_superposition(
         .get_config_value::<serde_json::Value>(superposition_key, context.as_ref(), None)
         .await
     {
-        Ok(json_value) => Ok(serde_json::from_value::<RolloutConfig>(json_value)
+        Ok(json_value) => Ok(json_value
+            .parse_value::<RolloutConfig>("RolloutConfig")
             .map(RolloutExecutionResult::from)
             .map_err(|err| {
                 logger::error!(
