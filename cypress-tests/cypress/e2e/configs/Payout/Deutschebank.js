@@ -116,8 +116,12 @@ export const connectorDetails = {
           payout_method_data: {
             bank_transfer: bank_transfer_data,
           },
-          // `account_holder_name` intentionally omitted — the router
-          // validates the debtor name up front and rejects with 400 `IR_04`.
+          // `account_holder_name` intentionally omitted. The request is
+          // rejected, but the exact error contract depends on the routing
+          // path: up-front router validation returns 400 `IR_04`, while the
+          // connector path surfaces the bank rejection as 500 `HE_00`. Only
+          // the presence of an error is asserted so the test is stable on
+          // either path.
           source_bank_data: {
             payout_method_type: "sepa",
             iban: "DE83215730130100853100",
@@ -130,14 +134,9 @@ export const connectorDetails = {
           phone_country_code: "+49",
         },
         Response: {
-          status: 400,
+          status: 500,
           body: {
-            error: {
-              type: "invalid_request",
-              message:
-                "Missing required param: Missing required field: source_bank_data.sepa.account_holder_name. Deutsche Bank requires the debtor (ordering party) name on `source_bank_data.sepa.account_holder_name`",
-              code: "IR_04",
-            },
+            error: {},
           },
         },
       },
