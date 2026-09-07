@@ -407,6 +407,10 @@ pub(crate) mod boundary {
                                 self.caller,
                                 args,
                             )
+                            // Self-describe the correlation root so replay tooling
+                            // reads a role rather than having to know this
+                            // boundary's name.
+                            .with_role(deja::ROLE_INGRESS)
                             .with_semantics(deja::BoundarySemantics {
                                 replay_strategy: deja::ReplayStrategy::Substitute,
                                 kind: None,
