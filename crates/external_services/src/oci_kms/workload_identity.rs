@@ -18,17 +18,19 @@
 
 use std::{
     sync::{Arc, RwLock},
-    time::{Duration, Instant, SystemTime},
+    time::SystemTime,
 };
 
+use base64::Engine;
 use common_utils::errors::CustomResult;
 use error_stack::{report, ResultExt};
 use rsa::pkcs8::DecodePrivateKey;
 
 use super::core::OciKmsError;
 
-/// How long a cached credential is trusted before re-checking its source file's mtime.
-const CACHE_TTL: Duration = Duration::from_secs(60);
+/// Mirrors `oci-go-sdk`'s `rpstValidForRatio` / `bufferTimeBeforeTokenExpiration` (`jwt.go`).
+const SOFT_EXPIRY_LIFETIME_RATIO: i64 = 2;
+const REFRESH_BUFFER_SECONDS: i64 = 5 * 60;
 
 const RPST_PATH_VAR: &str = "OCI_RESOURCE_PRINCIPAL_RPST";
 const PRIVATE_KEY_PATH_VAR: &str = "OCI_RESOURCE_PRINCIPAL_PRIVATE_PEM";
@@ -55,7 +57,7 @@ impl std::fmt::Debug for WorkloadIdentityCredentials {
 struct CachedCredentials {
     credentials: Arc<WorkloadIdentityCredentials>,
     source_modified: SystemTime,
-    cached_at: Instant,
+    soft_expires_at: Option<i64>,
 }
 
 /// Caches parsed credentials by the session-token file's mtime, avoiding a PEM
@@ -67,8 +69,8 @@ pub(crate) struct WorkloadIdentityCache {
 }
 
 impl WorkloadIdentityCache {
-    /// Returns current credentials, reloading only if the file's mtime changed or the
-    /// TTL elapsed.
+    /// Returns current credentials, reloading if the file's mtime changed or the
+    /// cached token is past its own soft-expiry.
     pub(crate) fn current(&self) -> CustomResult<Arc<WorkloadIdentityCredentials>, OciKmsError> {
         let rpst_path = env_var(RPST_PATH_VAR)?;
         let modified = std::fs::metadata(&rpst_path)
@@ -82,13 +84,14 @@ impl WorkloadIdentityCache {
                 .read()
                 .map_err(|_| report!(OciKmsError::CredentialsUnavailable))?;
             if let Some(cached) = cached.as_ref() {
-                if cached.source_modified == modified && cached.cached_at.elapsed() < CACHE_TTL {
+                if cached.source_modified == modified && !is_stale(cached.soft_expires_at) {
                     return Ok(cached.credentials.clone());
                 }
             }
         }
 
         let credentials = Arc::new(load(&rpst_path)?);
+        let soft_expires_at = soft_expiry(&credentials.session_token);
 
         let mut cached = self
             .cached
@@ -97,11 +100,40 @@ impl WorkloadIdentityCache {
         *cached = Some(CachedCredentials {
             credentials: credentials.clone(),
             source_modified: modified,
-            cached_at: Instant::now(),
+            soft_expires_at,
         });
 
         Ok(credentials)
     }
+}
+
+#[derive(serde::Deserialize)]
+struct RpstClaims {
+    iat: i64,
+    exp: i64,
+}
+
+/// Halfway point of the token's real lifetime, from its own `iat`/`exp` JWT claims.
+fn soft_expiry(session_token: &str) -> Option<i64> {
+    let payload_b64 = session_token.split('.').nth(1)?;
+    let payload = base64::engine::general_purpose::URL_SAFE_NO_PAD
+        .decode(payload_b64)
+        .ok()?;
+    let claims: RpstClaims = serde_json::from_slice(&payload).ok()?;
+    Some(claims.iat + (claims.exp - claims.iat) / SOFT_EXPIRY_LIFETIME_RATIO)
+}
+
+/// `None` means "couldn't compute a soft-expiry" — trust it until mtime says otherwise.
+fn is_stale(soft_expires_at: Option<i64>) -> bool {
+    let Some(soft_expires_at) = soft_expires_at else {
+        return false;
+    };
+    let now = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .ok()
+        .and_then(|elapsed| i64::try_from(elapsed.as_secs()).ok())
+        .unwrap_or(i64::MAX);
+    soft_expires_at <= now + REFRESH_BUFFER_SECONDS
 }
 
 fn load(rpst_path: &str) -> CustomResult<WorkloadIdentityCredentials, OciKmsError> {
