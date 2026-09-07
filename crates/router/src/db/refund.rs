@@ -47,6 +47,7 @@ pub trait RefundInterface {
         processor_merchant_id: &common_utils::id_type::MerchantId,
         connector_refund_id: &str,
         connector: &str,
+        merchant_connector_id: Option<&common_utils::id_type::MerchantConnectorAccountId>,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<diesel_refund::Refund, errors::StorageError>;
 
@@ -318,6 +319,7 @@ mod storage {
             processor_merchant_id: &common_utils::id_type::MerchantId,
             connector_refund_id: &str,
             connector: &str,
+            merchant_connector_id: Option<&common_utils::id_type::MerchantConnectorAccountId>,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<diesel_refund::Refund, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
@@ -329,6 +331,7 @@ mod storage {
                     processor_merchant_id,
                     connector_refund_id,
                     connector,
+                    merchant_connector_id,
                 )
                 .await;
 
@@ -344,6 +347,7 @@ mod storage {
                             processor_merchant_id,
                             connector_refund_id,
                             connector,
+                            merchant_connector_id,
                         )
                         .await
                         .map_err(|error| report!(errors::StorageError::from(error)))
@@ -1059,6 +1063,7 @@ mod storage {
             processor_merchant_id: &common_utils::id_type::MerchantId,
             connector_refund_id: &str,
             connector: &str,
+            merchant_connector_id: Option<&common_utils::id_type::MerchantConnectorAccountId>,
             storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<diesel_refund::Refund, errors::StorageError> {
             // Stagger release fallback: first try processor_merchant_id, if not found fallback to merchant_id
@@ -1071,6 +1076,7 @@ mod storage {
                         processor_merchant_id,
                         connector_refund_id,
                         connector,
+                        merchant_connector_id,
                     )
                     .await;
 
@@ -1086,6 +1092,7 @@ mod storage {
                                 processor_merchant_id,
                                 connector_refund_id,
                                 connector,
+                                merchant_connector_id,
                             )
                             .await
                             .map_err(|error| report!(errors::StorageError::from(error)))
@@ -1120,13 +1127,25 @@ mod storage {
                     };
                     Box::pin(db_utils::try_redis_get_else_try_database_get(
                         async {
-                            Box::pin(kv_wrapper(
+                            let refund = Box::pin(kv_wrapper::<diesel_refund::Refund, _, _>(
                                 self,
                                 KvOperation::<diesel_refund::Refund>::HGet(&lookup.sk_id),
                                 key,
                             ))
                             .await?
-                            .try_into_hget()
+                            .try_into_hget()?;
+                            if let Some(merchant_connector_id) = merchant_connector_id {
+                                if let Some(merchant_connector_id_in_kv) =
+                                    refund.merchant_connector_id.as_ref()
+                                {
+                                    if merchant_connector_id_in_kv != merchant_connector_id {
+                                        return Err(
+                                            redis_interface::errors::RedisError::NotFound.into()
+                                        );
+                                    }
+                                }
+                            }
+                            Ok(refund)
                         },
                         database_call,
                     ))
@@ -1560,6 +1579,7 @@ impl RefundInterface for MockDb {
         processor_merchant_id: &common_utils::id_type::MerchantId,
         connector_refund_id: &str,
         connector: &str,
+        _merchant_connector_id: Option<&common_utils::id_type::MerchantConnectorAccountId>,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<diesel_refund::Refund, errors::StorageError> {
         let refunds = self.refunds.lock().await;

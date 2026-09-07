@@ -749,6 +749,7 @@ async fn build_webhook_resource_data(
                 state,
                 reference.clone(),
                 platform.get_processor(),
+                None,
             )
             .await?;
             Ok(Some(WebhookResourceData::Payment { payment_attempt }))
@@ -984,6 +985,7 @@ async fn build_event_context(
                 &ctx.state,
                 reference.clone(),
                 ctx.platform.get_processor(),
+                None,
             )
             .await
             .ok()?

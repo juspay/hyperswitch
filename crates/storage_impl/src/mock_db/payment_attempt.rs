@@ -126,6 +126,7 @@ impl PaymentAttemptInterface for MockDb {
         &self,
         _processor_merchant_id: &common_utils::id_type::MerchantId,
         _connector_txn_id: &str,
+        _merchant_connector_id: Option<&common_utils::id_type::MerchantConnectorAccountId>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
         _merchant_key_store: &MerchantKeyStore,
     ) -> CustomResult<PaymentAttempt, StorageError> {
