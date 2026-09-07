@@ -1311,24 +1311,28 @@ async fn resolve_ucs_execution_decision(
     }
 
     let session_state = match execution_path {
-        ExecutionPath::ShadowUnifiedConnectorService => match &rollout_result.proxy_override {
-            Some(proxy_override) => {
-                router_env::logger::debug!(
-                    request_id = %request_id,
-                    proxy_override = ?proxy_override,
-                    "Creating updated session state with proxy configuration for Shadow UCS"
-                );
-                create_updated_session_state_with_proxy(state.clone(), proxy_override)
+        ExecutionPath::ShadowUnifiedConnectorService => {
+            // For shadow UCS, use rollout_result for proxy configuration since it takes priority
+            match &rollout_result.proxy_override {
+                Some(proxy_override) => {
+                    router_env::logger::debug!(
+                        request_id = %request_id,
+                        proxy_override = ?proxy_override,
+                        "Creating updated session state with proxy configuration for Shadow UCS"
+                    );
+                    create_updated_session_state_with_proxy(state.clone(), proxy_override)
+                }
+                None => {
+                    // info, not debug: this downgrade has to be visible at default log levels.
+                    router_env::logger::info!(
+                        request_id = %request_id,
+                        "No proxy override available for Shadow UCS; falling back to Direct, so no shadow comparison will run for this request"
+                    );
+                    execution_path = ExecutionPath::Direct;
+                    state.clone()
+                }
             }
-            None => {
-                router_env::logger::debug!(
-                    request_id = %request_id,
-                    "No proxy override available for Shadow UCS, Using the Original State and Sending Request Directly"
-                );
-                execution_path = ExecutionPath::Direct;
-                state.clone()
-            }
-        },
+        }
         ExecutionPath::Direct | ExecutionPath::UnifiedConnectorService => state.clone(),
     };
 
