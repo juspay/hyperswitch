@@ -8553,7 +8553,7 @@ pub fn add_connector_response_to_additional_payment_data(
                     card_subtype: card_subtype.clone(),
                     card_segment_type,
                     funding_source,
-                    card_type: card_type.clone(),
+                    card_type,
                     issuer_name: issuer_name.clone(),
                     issuer_country,
                     device_pan_bin: device_pan_bin
