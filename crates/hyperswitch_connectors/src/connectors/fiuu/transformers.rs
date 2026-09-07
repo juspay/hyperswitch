@@ -729,7 +729,7 @@ impl TryFrom<&GooglePayWalletData> for FiuuPaymentMethodData {
                 .tokenization_data
                 .get_encrypted_google_pay_token()
                 .change_context(errors::ConnectorError::MissingRequiredField {
-                    field_name: "gpay wallet_token",
+                    field_name: "gpay wallet_token".into(),
                 })?
                 .clone()
                 .into(),
@@ -737,7 +737,7 @@ impl TryFrom<&GooglePayWalletData> for FiuuPaymentMethodData {
                 .tokenization_data
                 .get_encrypted_token_type()
                 .change_context(errors::ConnectorError::MissingRequiredField {
-                    field_name: "gpay wallet token type",
+                    field_name: "gpay wallet token type".into(),
                 })?
                 .clone()
                 .into(),
@@ -757,7 +757,7 @@ impl TryFrom<Box<ApplePayPredecryptData>> for FiuuPaymentMethodData {
             txn_channel: TxnChannel::Creditan,
             cc_month: decrypt_data.get_expiry_month().change_context(
                 errors::ConnectorError::InvalidDataFormat {
-                    field_name: "expiration_month",
+                    field_name: "expiration_month".into(),
                 },
             )?,
             cc_year: decrypt_data.get_four_digit_expiry_year(),
@@ -896,6 +896,7 @@ impl TryFrom<PaymentsResponseRouterData<FiuuPaymentsResponse>> for PaymentsAutho
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             }),
@@ -939,6 +940,7 @@ impl TryFrom<PaymentsResponseRouterData<FiuuPaymentsResponse>> for PaymentsAutho
                             incremental_authorization_allowed: None,
                             authentication_data: None,
                             charges: None,
+                            payment_account_reference: None,
                         }),
                         ..item.data
                     })
@@ -1002,6 +1004,7 @@ impl TryFrom<PaymentsResponseRouterData<FiuuPaymentsResponse>> for PaymentsAutho
                             incremental_authorization_allowed: None,
                             authentication_data: None,
                             charges: None,
+                            payment_account_reference: None,
                         })
                     };
                     Ok(Self {
@@ -1057,6 +1060,7 @@ impl TryFrom<PaymentsResponseRouterData<FiuuPaymentsResponse>> for PaymentsAutho
                                 incremental_authorization_allowed: None,
                                 authentication_data: None,
                                 charges: None,
+                                payment_account_reference: None,
                             })
                         };
                         Self {
@@ -1078,6 +1082,7 @@ impl TryFrom<PaymentsResponseRouterData<FiuuPaymentsResponse>> for PaymentsAutho
                             incremental_authorization_allowed: None,
                             authentication_data: None,
                             charges: None,
+                            payment_account_reference: None,
                         });
                         Self {
                             response,
@@ -1448,6 +1453,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentResponse>> for PaymentsSy
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 };
                 Ok(Self {
                     status,
@@ -1520,6 +1526,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentResponse>> for PaymentsSy
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 };
                 Ok(Self {
                     status,
@@ -1717,6 +1724,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
             incremental_authorization_allowed: None,
             authentication_data: None,
             charges: None,
+            payment_account_reference: None,
         };
         Ok(Self {
             status,
@@ -1839,6 +1847,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<FiuuPaymentCancelResponse>>
             incremental_authorization_allowed: None,
             authentication_data: None,
             charges: None,
+            payment_account_reference: None,
         };
         Ok(Self {
             status,

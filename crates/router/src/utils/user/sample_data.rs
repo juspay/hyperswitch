@@ -91,7 +91,7 @@ pub async fn generate_sample_data(
         let profile_id = req
             .profile_id.clone()
             .ok_or(hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse::MissingRequiredField {
-                field_name: "profile_id",
+                field_name: "profile_id".into(),
             });
 
         (profile_id, None, None)
@@ -296,6 +296,8 @@ pub async fn generate_sample_data(
             enable_overcapture: None,
             mit_category: None,
             billing_descriptor: None,
+            is_account_funded_transaction: None,
+            recipient_details: None,
             tokenization: None,
             partner_merchant_identifier_details: None,
             state_metadata: None,

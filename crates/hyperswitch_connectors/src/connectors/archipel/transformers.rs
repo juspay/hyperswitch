@@ -280,11 +280,11 @@ impl TryFrom<(&WalletData, &Option<PaymentMethodToken>)> for TokenizedCardData {
         let expiry_year_2_digit = apple_pay_decrypt_data
             .get_two_digit_expiry_year()
             .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "Apple pay expiry year",
+                field_name: "Apple pay expiry year".into(),
             })?;
         let expiry_month = apple_pay_decrypt_data.get_expiry_month().change_context(
             errors::ConnectorError::InvalidDataFormat {
-                field_name: "expiration_month",
+                field_name: "expiration_month".into(),
             },
         )?;
 
@@ -944,6 +944,7 @@ impl TryFrom<PaymentsResponseRouterData<ArchipelPaymentsResponse>> for PaymentsA
                 network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: Some(is_incremental_allowed),
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -992,6 +993,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<ArchipelPaymentsResponse>> for Payme
                 network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -1058,6 +1060,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<ArchipelPaymentsResponse>>
                 network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -1182,6 +1185,7 @@ impl<F>
                 network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.transaction_id),
                 incremental_authorization_allowed: Some(false),
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -1241,6 +1245,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<ArchipelPaymentsResponse>>
                 network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })

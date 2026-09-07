@@ -251,6 +251,7 @@ mod tests {
             installment_data: Default::default(),
             external_surcharge_details: Default::default(),
             sender_payment_instrument_id: Default::default(),
+            payment_account_reference: Default::default(),
         };
 
         let store = state
@@ -377,6 +378,7 @@ mod tests {
             installment_data: Default::default(),
             external_surcharge_details: Default::default(),
             sender_payment_instrument_id: Default::default(),
+            payment_account_reference: Default::default(),
         };
         let store = state
             .stores
@@ -517,6 +519,7 @@ mod tests {
             installment_data: Default::default(),
             external_surcharge_details: Default::default(),
             sender_payment_instrument_id: Default::default(),
+            payment_account_reference: Default::default(),
         };
         let store = state
             .stores

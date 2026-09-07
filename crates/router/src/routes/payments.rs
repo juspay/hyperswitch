@@ -1066,7 +1066,7 @@ pub async fn payments_post_session_tokens(
                     .map(|client_secret| client_secret.peek())
                     .check_value_present("client_secret")
                     .map_err(|_| errors::ApiErrorResponse::MissingRequiredField {
-                        field_name: "client_secret",
+                        field_name: "client_secret".into(),
                     }) {
                     Ok(_) => {}
                     Err(err) => return api::log_and_return_error_response(report!(err)),
@@ -1383,7 +1383,7 @@ pub async fn payments_dynamic_tax_calculation(
                     .map(|client_secret| client_secret.peek())
                     .check_value_present("client_secret")
                     .map_err(|_| errors::ApiErrorResponse::MissingRequiredField {
-                        field_name: "client_secret",
+                        field_name: "client_secret".into(),
                     }) {
                     Ok(_) => {}
                     Err(err) => return api::log_and_return_error_response(report!(err)),
@@ -1539,7 +1539,7 @@ pub async fn payments_connector_session(
                     .client_secret
                     .check_value_present("client_secret")
                     .map_err(|_| errors::ApiErrorResponse::MissingRequiredField {
-                        field_name: "client_secret",
+                        field_name: "client_secret".into(),
                     }) {
                     Ok(_) => {}
                     Err(err) => return api::log_and_return_error_response(report!(err)),
@@ -3109,7 +3109,7 @@ pub async fn payments_external_authentication(
                     .map(|client_secret| client_secret.peek())
                     .check_value_present("client_secret")
                     .map_err(|_| errors::ApiErrorResponse::MissingRequiredField {
-                        field_name: "client_secret",
+                        field_name: "client_secret".into(),
                     }) {
                     Ok(_) => {}
                     Err(err) => return api::log_and_return_error_response(report!(err)),

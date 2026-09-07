@@ -83,7 +83,7 @@ pub async fn upsert_conditional_config(
                 .algorithm
                 .get_required_value("algorithm")
                 .change_context(errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "algorithm",
+                    field_name: "algorithm".into(),
                 })
                 .attach_printable("Algorithm for config not given")?;
             (name, prog)
@@ -95,7 +95,7 @@ pub async fn upsert_conditional_config(
                 .program
                 .get_required_value("program")
                 .change_context(errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "program",
+                    field_name: "program".into(),
                 })
                 .attach_printable("Program for config not given")?;
             (name, prog)
@@ -172,7 +172,7 @@ pub async fn upsert_conditional_config(
                 name: name
                     .get_required_value("name")
                     .change_context(errors::ApiErrorResponse::MissingRequiredField {
-                        field_name: "name",
+                        field_name: "name".into(),
                     })
                     .attach_printable("name of the config not found")?,
                 program: prog,

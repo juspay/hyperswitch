@@ -395,6 +395,7 @@ impl TryFrom<PaymentsResponseRouterData<HipayPaymentsResponse>> for PaymentsAuth
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             })
         };
         Ok(Self {
@@ -631,6 +632,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<HipayMaintenanceResponse<HipayPay
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -658,6 +660,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<HipayMaintenanceResponse<HipayPaym
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -775,6 +778,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<HipaySyncResponse>> for PaymentsSync
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     })
                 };
                 Ok(Self {
