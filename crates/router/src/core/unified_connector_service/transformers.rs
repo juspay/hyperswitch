@@ -1626,6 +1626,11 @@ impl
             .map(payments_grpc::CaptureMethod::foreign_try_from)
             .transpose()?;
 
+        let state = router_data
+            .access_token
+            .as_ref()
+            .map(ConnectorState::foreign_from);
+
         Ok(Self {
             merchant_order_id: Some(router_data.connector_request_reference_id.clone()),
             amount: router_data
@@ -1662,7 +1667,7 @@ impl
             metadata: None,
             return_url: None,
             continue_redirection_url: None,
-            state: None,
+            state,
             redirection_response: router_data
                 .request
                 .redirect_response
@@ -1678,7 +1683,7 @@ impl
                 .map(payments_grpc::BrowserInformation::foreign_try_from)
                 .transpose()?,
             connector_feature_data: None,
-            connector_order_reference_id: None,
+            connector_order_reference_id: router_data.request.connector_transaction_id.clone(),
             capture_method: capture_method.map(|capture_method| capture_method.into()),
         })
     }
