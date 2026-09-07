@@ -165,6 +165,7 @@ jobs:
       matrix:
         runner:
           - ubuntu-latest
+          - hyperswitch-runners
 
     steps:
       - name: Checkout repository
