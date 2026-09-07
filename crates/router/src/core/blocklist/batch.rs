@@ -584,29 +584,21 @@ pub async fn list_batch_blocklist_jobs(
 ) -> RouterResult<api_blocklist::ListBatchBlocklistJobsResponse> {
     let limit = i64::from(query.limit.get());
     let offset = i64::from(query.offset.get());
-    // The page and the total have to be counted over the same kinds or they contradict each other.
-    let job_types = query.job_type.map_or_else(
-        || {
-            vec![
-                common_enums::BatchBlocklistJobType::Upload,
-                common_enums::BatchBlocklistJobType::Export,
-            ]
-        },
-        |job_type| vec![job_type],
-    );
+    // The page and the total have to use the same filter or they contradict each other.
+    let job_type = query.job_type;
 
     let (jobs, total_count) = future::try_join(
         state.store.list_batch_blocklist_jobs_by_merchant_id(
             merchant_id.get_string_repr(),
             profile_id,
-            job_types.clone(),
+            job_type,
             limit,
             offset,
         ),
         state.store.count_batch_blocklist_jobs_by_merchant_id(
             merchant_id.get_string_repr(),
             profile_id,
-            job_types,
+            job_type,
         ),
     )
     .await

@@ -1,6 +1,11 @@
 use common_enums::BatchBlocklistJobType;
 use common_utils::id_type;
-use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
+use diesel::{
+    associations::HasTable,
+    pg::Pg,
+    sql_types::{Bool, Nullable},
+    BoolExpressionMethods, ExpressionMethods, NullableExpressionMethods,
+};
 
 use super::generics;
 use crate::{
@@ -19,6 +24,30 @@ impl BatchBlocklistJobNew {
 }
 
 impl BatchBlocklistJob {
+    fn merchant_job_type_filter(
+        merchant_id: &str,
+        job_type: Option<BatchBlocklistJobType>,
+    ) -> Box<
+        dyn diesel::BoxableExpression<<Self as HasTable>::Table, Pg, SqlType = Nullable<Bool>>
+            + 'static,
+    > {
+        let merchant_filter = dsl::merchant_id.eq(merchant_id.to_owned());
+
+        match job_type {
+            // Omitting the filter must include every job, including legacy rows with NULL job_type.
+            None => Box::new(merchant_filter.nullable()),
+            // Rows written before job types were introduced are uploads.
+            Some(BatchBlocklistJobType::Upload) => Box::new(
+                merchant_filter.and(
+                    dsl::job_type
+                        .eq(BatchBlocklistJobType::Upload)
+                        .or(dsl::job_type.is_null()),
+                ),
+            ),
+            Some(job_type) => Box::new(merchant_filter.and(dsl::job_type.eq(job_type))),
+        }
+    }
+
     pub async fn find_by_id_merchant_id(
         conn: &DatabaseConnectionWithContext<'_>,
         id: &str,
@@ -33,19 +62,17 @@ impl BatchBlocklistJob {
         .await
     }
 
-    // The listing and the count must be given the same kinds, or the page and the total disagree.
+    // The listing and the count must be given the same filter, or the page and the total disagree.
     pub async fn list_by_merchant_id(
         conn: &DatabaseConnectionWithContext<'_>,
         merchant_id: &str,
-        job_types: Vec<BatchBlocklistJobType>,
+        job_type: Option<BatchBlocklistJobType>,
         limit: i64,
         offset: i64,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
             conn,
-            dsl::merchant_id
-                .eq(merchant_id.to_owned())
-                .and(dsl::job_type.eq_any(job_types)),
+            Self::merchant_job_type_filter(merchant_id, job_type),
             Some(limit),
             Some(offset),
             Some(dsl::created_at.desc()),
@@ -56,13 +83,11 @@ impl BatchBlocklistJob {
     pub async fn count_by_merchant_id(
         conn: &DatabaseConnectionWithContext<'_>,
         merchant_id: &str,
-        job_types: Vec<BatchBlocklistJobType>,
+        job_type: Option<BatchBlocklistJobType>,
     ) -> StorageResult<usize> {
         generics::generic_count::<<Self as HasTable>::Table, _>(
             conn,
-            dsl::merchant_id
-                .eq(merchant_id.to_owned())
-                .and(dsl::job_type.eq_any(job_types)),
+            Self::merchant_job_type_filter(merchant_id, job_type),
         )
         .await
     }
@@ -72,20 +97,17 @@ impl BatchBlocklistJob {
         conn: &DatabaseConnectionWithContext<'_>,
         merchant_id: &str,
         profile_id: &id_type::ProfileId,
-        job_types: Vec<BatchBlocklistJobType>,
+        job_type: Option<BatchBlocklistJobType>,
         limit: i64,
         offset: i64,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
             conn,
-            dsl::merchant_id
-                .eq(merchant_id.to_owned())
-                .and(dsl::job_type.eq_any(job_types))
-                .and(
-                    dsl::profile_id
-                        .eq(profile_id.to_owned())
-                        .or(dsl::profile_id.is_null()),
-                ),
+            Self::merchant_job_type_filter(merchant_id, job_type).and(
+                dsl::profile_id
+                    .eq(profile_id.to_owned())
+                    .or(dsl::profile_id.is_null()),
+            ),
             Some(limit),
             Some(offset),
             Some(dsl::created_at.desc()),
@@ -97,18 +119,15 @@ impl BatchBlocklistJob {
         conn: &DatabaseConnectionWithContext<'_>,
         merchant_id: &str,
         profile_id: &id_type::ProfileId,
-        job_types: Vec<BatchBlocklistJobType>,
+        job_type: Option<BatchBlocklistJobType>,
     ) -> StorageResult<usize> {
         generics::generic_count::<<Self as HasTable>::Table, _>(
             conn,
-            dsl::merchant_id
-                .eq(merchant_id.to_owned())
-                .and(dsl::job_type.eq_any(job_types))
-                .and(
-                    dsl::profile_id
-                        .eq(profile_id.to_owned())
-                        .or(dsl::profile_id.is_null()),
-                ),
+            Self::merchant_job_type_filter(merchant_id, job_type).and(
+                dsl::profile_id
+                    .eq(profile_id.to_owned())
+                    .or(dsl::profile_id.is_null()),
+            ),
         )
         .await
     }
