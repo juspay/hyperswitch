@@ -75,6 +75,8 @@ use time::{Date, PrimitiveDateTime};
 use url::Url;
 use utoipa::ToSchema;
 
+#[cfg(all(feature = "v1", feature = "errors"))]
+use crate::errors::types::ErrorResponse;
 #[cfg(feature = "v2")]
 use crate::mandates;
 use crate::{
@@ -7353,29 +7355,18 @@ pub struct PaymentsResponse {
     #[smithy(value_type = "Option<String>")]
     pub sdk_authorization: Option<String>,
 
-    /// The combined payment-method list for this payment.
-    ///
-    /// Returned only when the request carries `X-Integration-Type: server`; absent from the
-    /// response for client integrations. On success this is the body
-    /// `GET /payments/{payment_id}/payment-methods/client` would have returned; on failure it is
-    /// `{ "error": { ... } }`.
+    /// The combined payment-method list, returned only for `X-Integration-Type: server`.
     #[cfg(feature = "errors")]
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schema(value_type = Option<PaymentMethodListResult>)]
-    #[smithy(value_type = "Option<Document>")]
+    #[smithy(value_type = "Option<Object>")]
     pub payment_method_list: Option<payment_methods::PaymentMethodListResult>,
 
-    /// Wallet session tokens minted for this payment.
-    ///
-    /// Returned only when the request carries `X-Integration-Type: server`; absent from the
-    /// response for client integrations. On success this is the whole body
-    /// `POST /payments/session_tokens` would have returned — including `vault_details`, which
-    /// carries the internal vault SDK authorization — and not just its `session_token` array.
-    /// On failure it is `{ "error": { ... } }`.
+    /// Wallet session tokens for this payment, returned only for `X-Integration-Type: server`.
     #[cfg(feature = "errors")]
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schema(value_type = Option<SessionTokensResult>)]
-    #[smithy(value_type = "Option<Document>")]
+    #[smithy(value_type = "Option<Object>")]
     pub session_tokens: Option<SessionTokensResult>,
 
     /// The name of the payment connector (e.g., 'stripe', 'adyen') that processed or is processing this payment.
@@ -10481,7 +10472,7 @@ pub enum SessionTokensResult {
     /// `ErrorResponse`, so this reads identically to the standalone endpoint's error body.
     Failed {
         #[schema(value_type = GenericErrorResponseOpenApi)]
-        error: Box<crate::errors::types::ErrorResponse>,
+        error: Box<ErrorResponse>,
     },
 }
 

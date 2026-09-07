@@ -931,21 +931,9 @@ pub async fn payments_update(
 
     let integration_type = update_context::integration_type_from_headers(req.headers());
 
-    // Both inputs are known before the operation runs, so the decision — and therefore whether
-    // the enrichment inputs need cloning at all — is made once, here.
-    //
-    // Gated on merchant auth as well as the header: this route also accepts publishable-key +
-    // client-secret, and the enrichment runs the session core as `AuthFlow::Merchant` and skips
-    // client-secret validation on the list, so a client-authenticated caller must not be able to
-    // opt in with a header alone.
+    // Gated on merchant auth too: this route also accepts publishable-key + client-secret, and
+    // the enrichment runs as `AuthFlow::Merchant`, so a client caller must not opt in by header.
     let enrich = integration_type.is_server() && auth_flow == api::AuthFlow::Merchant;
-
-    if integration_type.is_server() && !enrich {
-        logger::warn!(
-            "server integration type requested on a client-authenticated request; \
-             returning the client response shape"
-        );
-    }
 
     Box::pin(api::server_wrap(
         flow,
@@ -992,14 +980,9 @@ pub async fn payments_update(
                 ))
                 .await?;
 
-                // The two enrichment cores are invoked directly rather than through `server_wrap`,
-                // so they take no lock of their own. That matters: `Flow::PaymentsUpdate` and
-                // `Flow::PaymentsSessionToken` both map to `ApiIdentifier::Payments`, so a nested
-                // `server_wrap` would ask for the very key this request already holds and
-                // deadlock until it gave up with `ResourceBusy`.
-                //
-                // Payments responses come back as `JsonWithHeaders`; `Json` is handled too so the
-                // enrichment does not silently skip if that ever changes.
+                // Invoked directly, not through `server_wrap`: both flows map to
+                // `ApiIdentifier::Payments`, so a nested wrap would deadlock on the lock this
+                // request already holds.
                 let enrich_payment = |mut payment: payment_types::PaymentsResponse| async {
                     if let Some((state, req_state, platform, profile_id, header_payload)) =
                         enrichment_inputs

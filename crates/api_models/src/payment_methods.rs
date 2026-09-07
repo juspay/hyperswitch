@@ -27,6 +27,8 @@ use rust_decimal::{
 use serde::de;
 use utoipa::ToSchema;
 
+#[cfg(all(feature = "v1", feature = "errors"))]
+use crate::errors::types::ErrorResponse;
 #[cfg(feature = "v1")]
 use crate::payments::BankCodeResponse;
 #[cfg(feature = "payouts")]
@@ -3176,7 +3178,7 @@ pub enum PaymentMethodListResult {
     /// `ErrorResponse`, so this reads identically to the standalone endpoint's error body.
     Failed {
         #[schema(value_type = GenericErrorResponseOpenApi)]
-        error: Box<crate::errors::types::ErrorResponse>,
+        error: Box<ErrorResponse>,
     },
 }
 

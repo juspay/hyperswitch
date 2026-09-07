@@ -25,14 +25,16 @@ use crate::{
     types::{api as api_types, domain},
 };
 
-/// How long a single section may take before it is reported as degraded.
+/// How long a single section may run before it is reported as degraded.
 ///
-/// The session core runs with `CallConnectorAction::Trigger`, so it can make outbound connector
-/// calls, and the payment-method list is served by the modular service over HTTP. The payment has
-/// already committed by the time either runs, so a section that hangs would hold a response the
-/// caller is entitled to. Each section is bounded independently so a slow one cannot starve the
-/// other.
-const SECTION_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
+/// The same bound an outgoing connector call gets. The session core makes outbound calls of its
+/// own — the Apple Pay session call among them — and those already run under
+/// [`consts::REQUEST_TIME_OUT`], so a tighter bound here would cut short a call the standalone
+/// endpoint would have let finish. The payment has already committed by the time either section
+/// runs, so a section that hangs would hold back a response the caller is entitled to; each is
+/// bounded separately so a slow one cannot starve the other.
+const SECTION_TIMEOUT: std::time::Duration =
+    std::time::Duration::from_secs(consts::REQUEST_TIME_OUT);
 
 /// Reads [`IntegrationType`] from the request headers.
 ///
@@ -60,17 +62,6 @@ pub fn integration_type_from_headers(
     }
 
     integration_type
-}
-
-/// Wallets to mint session tokens for when the caller asks for the server shape.
-///
-/// Empty on purpose. The session core reads an empty list as "every eligible type": it keeps a
-/// payment method type when `requested_payment_method_types.contains(..) || ..is_empty()`, so an
-/// empty list yields a token for every `InvokeSdkClient`-capable method the merchant has enabled.
-/// Naming wallets explicitly here would silently exclude anything not on the list — Klarna SDK
-/// sessions today, and every type added later.
-fn requested_wallets() -> Vec<api_models::enums::PaymentMethodType> {
-    Vec::new()
 }
 
 /// Builds the error payload a degraded section carries, from the same error the standalone
@@ -109,6 +100,17 @@ pub async fn attach_server_context(
 ) {
     tracing::Span::current().record("payment_id", payment_id.get_string_repr());
 
+    // Logged unconditionally on entry. This function runs only for a caller that opted in with
+    // `X-Integration-Type: server`, so the presence of this line is what separates "the header
+    // arrived and enrichment ran" from "the request never reached this path" — the two cases a
+    // response missing both sections cannot otherwise distinguish.
+    logger::info!(
+        timeout_secs = SECTION_TIMEOUT.as_secs(),
+        "server-integration: enriching payments response with session tokens and payment-method list"
+    );
+
+    let started = std::time::Instant::now();
+
     // Both reads observe the committed payment; neither reads the other's output. Each is
     // bounded separately so one slow section still lets the other through.
     let (session_result, payment_methods_result) = Box::pin(futures::future::join(
@@ -125,23 +127,25 @@ pub async fn attach_server_context(
         ),
         tokio::time::timeout(
             SECTION_TIMEOUT,
-            pm_client::list_payment_methods_client(
-                state,
-                platform,
-                payment_id.clone(),
-                // Merchant API key authenticated; there is no client secret to validate.
-                None,
-            ),
+            Box::pin(payment_method_list(state, platform, payment_id)),
         ),
     ))
     .await;
+
+    let elapsed_ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
 
     let session_result = session_result.unwrap_or_else(|_| Err(timed_out("session_tokens")));
     let payment_methods_result =
         payment_methods_result.unwrap_or_else(|_| Err(timed_out("payment_method_list")));
 
     response.session_tokens = Some(match session_result {
-        Ok(session) => payment_types::SessionTokensResult::Success(Box::new(session)),
+        Ok(session) => {
+            logger::info!(
+                session_token_count = session.session_token.len(),
+                "server-integration: session tokens attached"
+            );
+            payment_types::SessionTokensResult::Success(Box::new(session))
+        }
         Err(error) => {
             logger::warn!(?error, "server-integration: session tokens unavailable");
             payment_types::SessionTokensResult::Failed {
@@ -152,7 +156,14 @@ pub async fn attach_server_context(
 
     response.payment_method_list = Some(
         match payment_methods_result.and_then(|listing| json_body(listing, "payment_method_list")) {
-            Ok(listing) => payment_methods_api::PaymentMethodListResult::Success(Box::new(listing)),
+            Ok(listing) => {
+                logger::info!(
+                    payment_methods_enabled_count = listing.payment_methods_enabled.len(),
+                    customer_payment_methods_count = listing.customer_payment_methods.len(),
+                    "server-integration: payment-method list attached"
+                );
+                payment_methods_api::PaymentMethodListResult::Success(Box::new(listing))
+            }
             Err(error) => {
                 logger::warn!(
                     ?error,
@@ -164,9 +175,14 @@ pub async fn attach_server_context(
             }
         },
     );
+
+    logger::info!(
+        elapsed_ms,
+        "server-integration: enrichment complete, both sections attached"
+    );
 }
 
-/// Runs the session-token core over every wallet we can mint for.
+/// Runs the session-token core for this payment.
 async fn session_tokens(
     state: SessionState,
     req_state: ReqState,
@@ -175,6 +191,8 @@ async fn session_tokens(
     payment_id: &id_type::PaymentId,
     header_payload: hyperswitch_domain_models::payments::HeaderPayload,
 ) -> errors::RouterResult<payment_types::PaymentsSessionResponse> {
+    logger::info!("server-integration: calling session-token core");
+
     let response = Box::pin(payments::payments_core::<
         api_types::Session,
         payment_types::PaymentsSessionResponse,
@@ -191,7 +209,7 @@ async fn session_tokens(
         payment_types::PaymentsSessionRequest {
             payment_id: payment_id.clone(),
             client_secret: None,
-            wallets: requested_wallets(),
+            wallets: Vec::new(),
             merchant_connector_details: None,
         },
         AuthFlow::Merchant,
@@ -206,6 +224,28 @@ async fn session_tokens(
     // Returned whole: the caller gets `session_token` and `vault_details` (the internal vault
     // SDK authorization) exactly as the standalone endpoint would have returned them.
     json_body(response, "session_tokens")
+}
+
+/// Runs the payment-method-list core the client endpoint is backed by.
+///
+/// A thin wrapper over the core call so this section announces itself before it starts, the same
+/// way [`session_tokens`] does — without it, a section that hangs until [`SECTION_TIMEOUT`] leaves
+/// no trace of having been entered.
+async fn payment_method_list(
+    state: SessionState,
+    platform: domain::Platform,
+    payment_id: &id_type::PaymentId,
+) -> errors::RouterResponse<payment_methods_api::ClientPaymentMethodsListResponse> {
+    logger::info!("server-integration: calling payment-method-list core");
+
+    pm_client::list_payment_methods_client(
+        state,
+        platform,
+        payment_id.clone(),
+        // Merchant API key authenticated; there is no client secret to validate.
+        None,
+    )
+    .await
 }
 
 /// A core response can only contribute when it is a plain JSON body.
