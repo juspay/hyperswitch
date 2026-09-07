@@ -87,8 +87,6 @@ jobs:
     if: ${{ ! startsWith(github.event.pull_request.base.ref, 'hotfix-') }}
 
     env:
-      # Use `sccache` for caching compilation artifacts
-      RUSTC_WRAPPER: sccache
       RUSTFLAGS: "-D warnings"
 
     strategy:
@@ -96,7 +94,6 @@ jobs:
       matrix:
         runner:
           - ubuntu-latest
-          - hyperswitch-runners
 
     steps:
       - name: Checkout repository
@@ -124,11 +121,10 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install sccache
-        uses: taiki-e/install-action@v2
+      - name: Install rust cache
+        uses: Swatinem/rust-cache@v2.9.1
         with:
-          tool: sccache
-          checksum: true
+          save-if: false
 
       - name: Run cargo check
         shell: bash

@@ -57,8 +57,6 @@ jobs:
     runs-on: ${{ matrix.runner }}
 
     env:
-      # Use `sccache` for caching compilation artifacts
-      RUSTC_WRAPPER: sccache
       RUSTFLAGS: "-D warnings"
 
     strategy:
@@ -93,17 +91,10 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-      # - name: Install sccache
-      #   uses: taiki-e/install-action@v2
-      #   with:
-      #     tool: sccache
-      #     checksum: true
-
-      - name: Install sccache
-        uses: taiki-e/install-action@v2
+      - name: Install rust cache
+        uses: Swatinem/rust-cache@v2.9.1
         with:
-          tool: sccache
-          checksum: true
+          save-if: ${{ github.event_name == 'push' }}
 
       - name: Install cargo-hack
         uses: taiki-e/install-action@v2
