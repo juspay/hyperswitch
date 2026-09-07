@@ -4198,7 +4198,7 @@ impl transformers::ForeignTryFrom<common_enums::PaymentMethodType>
             common_enums::PaymentMethodType::NetworkToken => Ok(Self::NetworkToken),
             common_enums::PaymentMethodType::OpenBanking => Ok(Self::OpenBanking),
             common_enums::PaymentMethodType::Skrill => Ok(Self::Skrill),
-            common_enums::PaymentMethodType::Klarna => Ok(Self::Klarna),
+            common_enums::PaymentMethodType::Klarna => Ok(Self::KlarnaPm),
             common_enums::PaymentMethodType::BhnCardNetwork => Ok(Self::BhnCardNetwork),
             common_enums::PaymentMethodType::Bluecode => Ok(Self::Bluecode),
             common_enums::PaymentMethodType::Breadpay => Ok(Self::Breadpay),
@@ -4207,7 +4207,7 @@ impl transformers::ForeignTryFrom<common_enums::PaymentMethodType>
             common_enums::PaymentMethodType::IndonesianBankTransfer => {
                 Ok(Self::IndonesianBankTransfer)
             }
-            common_enums::PaymentMethodType::Mifinity => Ok(Self::Mifinity),
+            common_enums::PaymentMethodType::Mifinity => Ok(Self::MifinityPm),
             common_enums::PaymentMethodType::Payjustnow => Ok(Self::Payjustnow),
             common_enums::PaymentMethodType::Paysera => Ok(Self::Paysera),
             common_enums::PaymentMethodType::Payshap => Ok(Self::Payshap),
@@ -4218,7 +4218,7 @@ impl transformers::ForeignTryFrom<common_enums::PaymentMethodType>
             common_enums::PaymentMethodType::PixKey => Ok(Self::PixKey),
             common_enums::PaymentMethodType::PixQr => Ok(Self::PixQr),
             common_enums::PaymentMethodType::Qris => Ok(Self::Qris),
-            common_enums::PaymentMethodType::SepaGuarenteedDebit => Ok(Self::SepaGuarenteedDebit),
+            common_enums::PaymentMethodType::SepaGuarenteedDebit => Ok(Self::SepaGuaranteedDebit),
             _ => Err(
                 UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
                     "Payment Method Type not yet supported".to_string(),
