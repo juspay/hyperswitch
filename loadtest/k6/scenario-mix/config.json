@@ -1,0 +1,121 @@
+{
+  "services": {
+    "router": "https://api.dev.use1.hyperswitch.net",
+    "modular_pm": "https://api.dev.use1.hyperswitch.net/v1"
+  },
+  "target_headers": {
+    "router": {},
+    "modular_pm": {}
+  },
+  "merchant": {
+    "api_key": "snd_r3NGZFrEKc95IjZYUHrcFxHeeCBPgRJnB4ZNB26rGB2MwQqwxuovJ6Lpoj6Mh0Cz",
+    "publishable_key": "pk_snd_5f80a5506531457386998b06a0d81844",
+    "profile_id": "pro_xcvpksJU4oNdws8atKKe"
+  },
+  "load": {
+    "phases": {
+      "starting_rps": 5,
+      "target_rps": 200,
+      "step_rps": 5,
+      "hold_seconds": 30,
+      "idle_seconds": 2
+    },
+    "request_timeout_ms": 30000
+  },
+  "payment": {
+    "amount": 1000,
+    "currency": "USD",
+    "session_expiry": 900,
+    "card": {
+      "card_number": "4242424242424242",
+      "card_exp_month": "10",
+      "card_exp_year": "35",
+      "card_holder_name": "Load Test",
+      "card_cvc": "123"
+    },
+    "metadata_update": {
+      "card_exp_month": "11",
+      "card_exp_year": "36",
+      "card_holder_name": "Updated Load Test"
+    }
+  },
+  "sdk": {
+    "wallets": []
+  },
+  "scenarios": [
+    {
+      "name": "nm_guest",
+      "merchant_path": "non_modular",
+      "scenario": "guest",
+      "weight": 20
+    },
+    {
+      "name": "nm_cit_on",
+      "merchant_path": "non_modular",
+      "scenario": "cit_on_session",
+      "weight": 30
+    },
+    {
+      "name": "nm_sdk",
+      "merchant_path": "non_modular",
+      "scenario": "sdk_checkout",
+      "weight": 30
+    },
+    {
+      "name": "mod_ptv_on",
+      "merchant_path": "modular",
+      "scenario": "ptv_on_session",
+      "weight": 20
+    }
+  ],
+  "thresholds": {
+    "scenario_failure_nm_guest": [
+      {
+        "threshold": "count<25",
+        "abortOnFail": true
+      }
+    ],
+    "scenario_failure_nm_cit_on": [
+      {
+        "threshold": "count<25",
+        "abortOnFail": true
+      }
+    ],
+    "scenario_failure_nm_sdk": [
+      {
+        "threshold": "count<25",
+        "abortOnFail": true
+      }
+    ],
+    "scenario_failure_mod_ptv_on": [
+      {
+        "threshold": "count<25",
+        "abortOnFail": true
+      }
+    ],
+    "payment_confirm_ms_nm_guest": [
+      {
+        "threshold": "p(90)<30000",
+        "abortOnFail": true
+      }
+    ],
+    "payment_confirm_ms_nm_cit_on": [
+      {
+        "threshold": "p(90)<30000",
+        "abortOnFail": true
+      }
+    ],
+    "payment_confirm_ms_nm_sdk": [
+      {
+        "threshold": "p(90)<30000",
+        "abortOnFail": true
+      }
+    ],
+    "payment_confirm_ms_mod_ptv_on": [
+      {
+        "threshold": "p(90)<30000",
+        "abortOnFail": true
+      }
+    ]
+  }
+}
