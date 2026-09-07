@@ -43,6 +43,7 @@ pub enum ApiIdentifier {
     CardNetworkTokenization,
     Hypersense,
     ExternalServiceAuth,
+    OfferEngine,
     PaymentMethodSession,
     ProcessTracker,
     Authentication,
@@ -137,6 +138,7 @@ impl From<Flow> for ApiIdentifier {
             Flow::EphemeralKeyCreate | Flow::EphemeralKeyDelete => Self::Ephemeral,
             Flow::DeepHealthCheck | Flow::HealthCheck => Self::Health,
             Flow::OfferEngineConnectivityCheck => Self::Health,
+            Flow::OfferEngineBrowseOffers => Self::OfferEngine,
             Flow::MandatesRetrieve | Flow::MandatesRevoke | Flow::MandatesList => Self::Mandates,
             Flow::PaymentMethodsCreate
             | Flow::PaymentMethodsMigrate

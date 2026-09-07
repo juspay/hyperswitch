@@ -2518,6 +2518,8 @@ impl
             .transpose()?;
 
         Ok(Self {
+            is_account_funding_transaction: None,
+            recipient_details: None,
             split_settlement: None,
             split_payments: router_data
                 .request
@@ -2634,8 +2636,6 @@ impl
             partner_merchant_identifier_details: None,
             // TODO: Populate currency_conversion_data when Dynamic Currency Conversion (DCC) is implemented
             currency_conversion_data: None,
-            is_account_funding_transaction: None,
-            recipient_details: None,
             additional_connector_details: None,
         })
     }

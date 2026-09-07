@@ -1871,6 +1871,7 @@ pub enum EventObjectType {
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
+    strum::EnumIter,
     strum::EnumString,
     ToSchema,
 )]
@@ -3363,6 +3364,7 @@ pub enum FrmTransactionType {
     Copy,
     Debug,
     Eq,
+    Hash,
     PartialEq,
     Default,
     serde::Deserialize,

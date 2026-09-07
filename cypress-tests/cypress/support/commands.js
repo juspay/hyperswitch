@@ -124,6 +124,34 @@ function getExpectedMerchantConnectorId(
   return merchantConnectorId;
 }
 
+// Assert set-backed API arrays without depending on serialization order.
+function expectSameMembers(actual, expected, fieldName) {
+  expect(actual, fieldName).to.be.an("array");
+  expect(actual, fieldName).to.have.members(expected);
+}
+
+const WEBHOOK_STATUS_FIELDS = [
+  "payment_statuses_enabled",
+  "refund_statuses_enabled",
+  "payout_statuses_enabled",
+  "dispute_statuses_enabled",
+  "mandate_statuses_enabled",
+  "invoice_statuses_enabled",
+];
+
+// Verify every configured webhook status collection returned by the API.
+function expectWebhookStatusMembers(actualWebhook, expectedWebhook) {
+  WEBHOOK_STATUS_FIELDS.forEach((fieldName) => {
+    if (expectedWebhook[fieldName]) {
+      expectSameMembers(
+        actualWebhook[fieldName],
+        expectedWebhook[fieldName],
+        fieldName
+      );
+    }
+  });
+}
+
 // Helper function for creating individual rollout config
 function createIndividualRolloutConfig(
   methodFlow,
@@ -881,7 +909,7 @@ Cypress.Commands.add(
  * @param {Object} createBusinessProfile - The business profile creation request body
  * @param {Object} globalState - The global state object
  * @param {string} [profilePrefix="profile"] - Prefix used to namespace the stored profile ID in globalState (e.g. "webhookConfigProfile" stores as globalState.set("webhookConfigProfileId", ...)). Defaults to "profile" for backward compatibility.
- * @param {number} [expectedStatus=200] - Expected HTTP status code. Use 400 for negative test cases that assert validation errors.
+ * @param {number} [expectedStatus=200] - Expected HTTP status code (400 for malformed values, 422 for semantic validation errors).
  */
 Cypress.Commands.add(
   "createBusinessProfileTest",
@@ -925,21 +953,7 @@ Cypress.Commands.add(
               const reqWebhook = createBusinessProfile.webhook_details;
               const respWebhook = response.body.webhook_details;
               expect(respWebhook).to.not.be.undefined;
-              if (reqWebhook.payment_statuses_enabled) {
-                expect(respWebhook.payment_statuses_enabled).to.deep.equal(
-                  reqWebhook.payment_statuses_enabled
-                );
-              }
-              if (reqWebhook.refund_statuses_enabled) {
-                expect(respWebhook.refund_statuses_enabled).to.deep.equal(
-                  reqWebhook.refund_statuses_enabled
-                );
-              }
-              if (reqWebhook.payout_statuses_enabled) {
-                expect(respWebhook.payout_statuses_enabled).to.deep.equal(
-                  reqWebhook.payout_statuses_enabled
-                );
-              }
+              expectWebhookStatusMembers(respWebhook, reqWebhook);
               if (reqWebhook.payment_failed_enabled !== undefined) {
                 expect(respWebhook.payment_failed_enabled).to.equal(
                   reqWebhook.payment_failed_enabled
@@ -1218,21 +1232,10 @@ Cypress.Commands.add(
         expect(response.status).to.equal(200);
         const webhookDetails = response.body.webhook_details;
         expect(webhookDetails).to.not.be.undefined;
-        if (webhookConfigBody.webhook_details.payment_statuses_enabled) {
-          expect(webhookDetails.payment_statuses_enabled).to.deep.equal(
-            webhookConfigBody.webhook_details.payment_statuses_enabled
-          );
-        }
-        if (webhookConfigBody.webhook_details.refund_statuses_enabled) {
-          expect(webhookDetails.refund_statuses_enabled).to.deep.equal(
-            webhookConfigBody.webhook_details.refund_statuses_enabled
-          );
-        }
-        if (webhookConfigBody.webhook_details.payout_statuses_enabled) {
-          expect(webhookDetails.payout_statuses_enabled).to.deep.equal(
-            webhookConfigBody.webhook_details.payout_statuses_enabled
-          );
-        }
+        expectWebhookStatusMembers(
+          webhookDetails,
+          webhookConfigBody.webhook_details
+        );
         if (
           webhookConfigBody.webhook_details.payment_failed_enabled !== undefined
         ) {
@@ -3899,14 +3902,27 @@ Cypress.Commands.add(
                 }
                 break;
               default:
-                expect(response.body)
-                  .to.have.property("next_action")
-                  .to.have.property("redirect_to_url");
-                globalState.set(
-                  "nextActionUrl",
-                  response.body.next_action.redirect_to_url
-                );
-                globalState.set("nextActionType", "redirect_to_url");
+                if (response.body.status === "requires_customer_action") {
+                  expect(response.body)
+                    .to.have.property("next_action")
+                    .to.have.property("redirect_to_url");
+                  globalState.set(
+                    "nextActionUrl",
+                    response.body.next_action.redirect_to_url
+                  );
+                  globalState.set("nextActionType", "redirect_to_url");
+                } else if (
+                  response.body.status === "failed" &&
+                  configs?.TRIGGER_SKIP
+                ) {
+                  // Known, connector-side failure explicitly opted into via
+                  // Configs.TRIGGER_SKIP (e.g. a payment method not enabled
+                  // on the connector's sandbox project) - nothing to assert.
+                } else {
+                  throw new Error(
+                    `Unexpected payment status "${response.body.status}" in bank transfer confirm response`
+                  );
+                }
                 break;
             }
           } else {
@@ -12000,6 +12016,57 @@ Cypress.Commands.add(
   "setSuperpositionConfigs",
   (globalState, overrides, context) => {
     cy.createSuperpositionOverrides(globalState, overrides, context);
+  }
+);
+
+// Wait for a superposition config change to propagate to the router.
+// Polls payment creation with throwaway customer_ids until the response status
+// matches `expectedStatus` (e.g. 404 while block_implicit_customer_creation is
+// propagating, 200 after it is reset). `label` prefixes the throwaway customer ids.
+Cypress.Commands.add(
+  "waitForConfigPropagation",
+  (globalState, expectedStatus, label) => {
+    const maxAttempts = 60;
+    const intervalMs = 5000;
+    const poll = (attempt) => {
+      if (attempt >= maxAttempts) {
+        throw new Error(
+          `Superposition config did not propagate within ${(maxAttempts * intervalMs) / 1000}s`
+        );
+      }
+      cy.request({
+        method: "POST",
+        url: `${globalState.get("baseUrl")}/payments`,
+        headers: {
+          "api-key": globalState.get("apiKey"),
+          "Content-Type": "application/json",
+        },
+        body: {
+          currency: "USD",
+          amount: 100,
+          customer_id: `config_poll_${label}_${Date.now()}_${attempt}`,
+          authentication_type: "no_three_ds",
+          capture_method: "automatic",
+          profile_id: globalState.get("profileId"),
+        },
+        failOnStatusCode: false,
+      }).then((response) => {
+        if (response.status === expectedStatus) {
+          cy.task(
+            "cli_log",
+            `Config propagated after ${attempt + 1} poll attempt(s)`
+          );
+        } else {
+          cy.task(
+            "cli_log",
+            `Poll attempt ${attempt + 1}: got ${response.status}, waiting ${intervalMs / 1000}s...`
+          );
+          // eslint-disable-next-line cypress/no-unnecessary-waiting
+          cy.wait(intervalMs).then(() => poll(attempt + 1));
+        }
+      });
+    };
+    poll(0);
   }
 );
 

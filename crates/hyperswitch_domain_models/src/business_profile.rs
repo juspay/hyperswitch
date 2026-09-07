@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use std::collections::HashSet;
 
 use common_enums::enums as api_enums;
 use common_types::{domain::AcquirerConfig, primitive_wrappers};
@@ -1127,32 +1127,56 @@ impl Profile {
 
     pub fn get_configured_payment_webhook_statuses(
         &self,
-    ) -> Option<Cow<'_, [common_enums::IntentStatus]>> {
+    ) -> Option<&HashSet<common_enums::IntentStatus>> {
         self.webhook_details
             .as_ref()
             .and_then(|details| details.payment_statuses_enabled.as_ref())
-            .filter(|statuses_vec| !statuses_vec.is_empty())
-            .map(|statuses_vec| Cow::Borrowed(statuses_vec.as_slice()))
+            .filter(|statuses| !statuses.is_empty())
     }
 
     pub fn get_configured_refund_webhook_statuses(
         &self,
-    ) -> Option<Cow<'_, [common_enums::RefundStatus]>> {
+    ) -> Option<&HashSet<common_enums::RefundStatus>> {
         self.webhook_details
             .as_ref()
             .and_then(|details| details.refund_statuses_enabled.as_ref())
-            .filter(|statuses_vec| !statuses_vec.is_empty())
-            .map(|statuses_vec| Cow::Borrowed(statuses_vec.as_slice()))
+            .filter(|statuses| !statuses.is_empty())
     }
 
     pub fn get_configured_payout_webhook_statuses(
         &self,
-    ) -> Option<Cow<'_, [common_enums::PayoutStatus]>> {
+    ) -> Option<&HashSet<common_enums::PayoutStatus>> {
         self.webhook_details
             .as_ref()
             .and_then(|details| details.payout_statuses_enabled.as_ref())
-            .filter(|statuses_vec| !statuses_vec.is_empty())
-            .map(|statuses_vec| Cow::Borrowed(statuses_vec.as_slice()))
+            .filter(|statuses| !statuses.is_empty())
+    }
+
+    pub fn get_configured_dispute_webhook_statuses(
+        &self,
+    ) -> Option<&HashSet<common_enums::DisputeStatus>> {
+        self.webhook_details
+            .as_ref()
+            .and_then(|details| details.dispute_statuses_enabled.as_ref())
+            .filter(|statuses| !statuses.is_empty())
+    }
+
+    pub fn get_configured_mandate_webhook_statuses(
+        &self,
+    ) -> Option<&HashSet<common_enums::MandateStatus>> {
+        self.webhook_details
+            .as_ref()
+            .and_then(|details| details.mandate_statuses_enabled.as_ref())
+            .filter(|statuses| !statuses.is_empty())
+    }
+
+    pub fn get_configured_invoice_webhook_statuses(
+        &self,
+    ) -> Option<&HashSet<common_enums::InvoiceStatus>> {
+        self.webhook_details
+            .as_ref()
+            .and_then(|details| details.invoice_statuses_enabled.as_ref())
+            .filter(|statuses| !statuses.is_empty())
     }
 
     pub fn get_billing_processor_id(
