@@ -7961,7 +7961,7 @@ Cypress.Commands.add(
 // Blocklist and Eligibility API Commands
 Cypress.Commands.add(
   "blocklistCreateRule",
-  (requestBody, cardBin, globalState) => {
+  (requestBody, cardBin, globalState, type = "card_bin") => {
     const apiKey = globalState.get("apiKey");
     const baseUrl = globalState.get("baseUrl");
     const profileId = globalState.get("profileId");
@@ -7969,7 +7969,7 @@ Cypress.Commands.add(
 
     const body = {
       ...requestBody,
-      type: "card_bin",
+      type: type,
       data: cardBin,
     };
 
@@ -7993,7 +7993,7 @@ Cypress.Commands.add(
             .to.equal(cardBin);
           expect(response.body)
             .to.have.property("data_kind")
-            .to.equal("card_bin");
+            .to.equal(type);
           expect(response.body).to.have.property("created_at").to.not.be.null;
           globalState.set("blocklistRuleId", response.body.fingerprint_id);
         } else {
@@ -8039,6 +8039,75 @@ Cypress.Commands.add("blocklistDeleteRule", (type, data, globalState) => {
         );
       }
     });
+  });
+});
+
+Cypress.Commands.add(
+  "getPaymentDetails",
+  (globalState, queryParams = "force_sync=true&expand_attempts=true") => {
+    const paymentId = globalState.get("paymentID");
+    return cy.request({
+      method: "GET",
+      url: `${globalState.get("baseUrl")}/payments/${paymentId}?${queryParams}`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": globalState.get("apiKey"),
+      },
+      failOnStatusCode: false,
+    });
+  }
+);
+
+Cypress.Commands.add("getPaymentMethodsList", (globalState) => {
+  const clientSecret = globalState.get("clientSecret");
+  return cy.request({
+    method: "GET",
+    url: `${globalState.get("baseUrl")}/account/payment_methods?client_secret=${clientSecret}`,
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      "api-key": globalState.get("publishableKey"),
+    },
+    failOnStatusCode: false,
+  });
+});
+
+// Unlike blocklistCreateRule/blocklistDeleteRule, these don't assert or
+// throw on non-200 - they just return the raw response, for callers that
+// need to assert both success and expected-rejection paths.
+Cypress.Commands.add("blocklistCreateRuleRaw", (type, data, globalState) => {
+  const apiKey = globalState.get("apiKey");
+  const baseUrl = globalState.get("baseUrl");
+  const profileId = globalState.get("profileId");
+
+  return cy.request({
+    method: "POST",
+    url: `${baseUrl}/blocklist`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": apiKey,
+      "X-Profile-Id": profileId,
+    },
+    body: { type, data },
+    failOnStatusCode: false,
+  });
+});
+
+Cypress.Commands.add("blocklistDeleteRuleRaw", (type, data, globalState) => {
+  const apiKey = globalState.get("apiKey");
+  const baseUrl = globalState.get("baseUrl");
+  const profileId = globalState.get("profileId");
+
+  return cy.request({
+    method: "DELETE",
+    url: `${baseUrl}/blocklist`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": apiKey,
+      "X-Profile-Id": profileId,
+    },
+    body: { type, data },
+    failOnStatusCode: false,
   });
 });
 
