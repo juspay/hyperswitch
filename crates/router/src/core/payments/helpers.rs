@@ -6380,11 +6380,15 @@ pub async fn get_additional_payment_data(
                     .as_ref()
                     .and_then(|token| token.get_apple_pay_decrypt_data());
 
-                let card_exp_month =
-                    apple_pay_decrypted.as_ref().map(|token| token.get_application_expiration_month());
-                let card_exp_year =
-                    apple_pay_decrypted.as_ref().map(|token| token.get_application_expiration_year());
-                let device_pan_bin = apple_pay_decrypted.as_ref().map(|token| token.get_device_pan_bin());
+                let card_exp_month = apple_pay_decrypted
+                    .as_ref()
+                    .map(|token| token.get_application_expiration_month());
+                let card_exp_year = apple_pay_decrypted
+                    .as_ref()
+                    .map(|token| token.get_application_expiration_year());
+                let device_pan_bin = apple_pay_decrypted
+                    .as_ref()
+                    .map(|token| token.get_device_pan_bin());
 
                 Ok(Some(api_models::payments::AdditionalPaymentData::Wallet {
                     apple_pay: Some(Box::new(api_models::payments::ApplepayPaymentMethod {
@@ -6414,11 +6418,18 @@ pub async fn get_additional_payment_data(
                     .as_ref()
                     .and_then(|token| token.get_google_pay_decrypt_data());
 
-                let card_exp_month = google_pay_decrypted.as_ref().map(|token| token.get_card_exp_month());
-                let card_exp_year = google_pay_decrypted.as_ref().map(|token| token.get_card_exp_year());
-                let device_pan_bin =
-                    google_pay_decrypted.as_ref().and_then(|token| token.get_device_pan_bin());
-                let card_bin = google_pay_decrypted.as_ref().and_then(|token| token.get_card_bin());
+                let card_exp_month = google_pay_decrypted
+                    .as_ref()
+                    .map(|token| token.get_card_exp_month());
+                let card_exp_year = google_pay_decrypted
+                    .as_ref()
+                    .map(|token| token.get_card_exp_year());
+                let device_pan_bin = google_pay_decrypted
+                    .as_ref()
+                    .and_then(|token| token.get_device_pan_bin());
+                let card_bin = google_pay_decrypted
+                    .as_ref()
+                    .and_then(|token| token.get_card_bin());
 
                 Ok(Some(api_models::payments::AdditionalPaymentData::Wallet {
                     apple_pay: None,
