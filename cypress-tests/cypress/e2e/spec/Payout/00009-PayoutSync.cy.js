@@ -96,19 +96,13 @@ describe("[Payout] Sync", () => {
         return;
       }
 
-      cy.createConfirmPayoutTest(
+      cy.createConfirmUcsPayoutTest(
         getPayoutBody(),
         data,
         true,
         true,
         globalState
-      ).then((response) => {
-        cy.assertUcsPayoutCreateResponse(globalState, response);
-        cy.assertPayoutBankDetailsMasked(
-          response,
-          data.Request.payout_method_data.bank_transfer
-        );
-      });
+      );
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
@@ -123,9 +117,7 @@ describe("[Payout] Sync", () => {
         return;
       }
 
-      cy.retrievePayoutForceSyncCallTest(globalState, data).then((response) => {
-        cy.assertUcsPayoutSyncResponse(globalState, response);
-      });
+      cy.retrievePayoutUcsForceSyncCallTest(globalState, data);
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
@@ -136,9 +128,7 @@ describe("[Payout] Sync", () => {
         ]["sepa_bank_transfer"]["SyncIdempotent"]
       );
 
-      cy.retrievePayoutForceSyncCallTest(globalState, data).then((response) => {
-        cy.assertUcsPayoutSyncResponse(globalState, response);
-      });
+      cy.retrievePayoutUcsForceSyncCallTest(globalState, data);
     });
   });
 

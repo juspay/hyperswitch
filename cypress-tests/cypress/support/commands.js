@@ -7178,55 +7178,70 @@ Cypress.Commands.add(
 );
 
 /**
- * Asserts a UCS-executed payout create response: routed via UCS, beneficiary
- * verification (VoP) matched at the bank, and a plain 32-hex connector
- * reference, which is kept for later sync-stability checks.
+ * Creates a payout with confirm + auto-fulfill and asserts the UCS-executed
+ * response. Within a UCS transaction, PoCreate+PoFulfill complete but leave
+ * the payout in `pending`; it reaches `success` only through PoSync.
+ * Expected masked beneficiary details are derived from the request: IBAN and
+ * BIC keep their first/last 5 and 3 characters respectively.
  */
 Cypress.Commands.add(
-  "assertUcsPayoutCreateResponse",
-  (globalState, response) => {
-    expect(response.body.metadata.gateway_system).to.equal(
-      "unified_connector_service"
-    );
-    expect(response.body.metadata.vop_status).to.equal("MTCH");
-    expect(response.body.connector_transaction_id).to.match(/^[0-9A-F]{32}$/);
-    globalState.set(
-      "payoutConnectorTransactionId",
-      response.body.connector_transaction_id
-    );
+  "createConfirmUcsPayoutTest",
+  (createConfirmPayoutBody, data, confirm, auto_fulfill, globalState) => {
+    return cy
+      .createConfirmPayoutTest(
+        createConfirmPayoutBody,
+        data,
+        confirm,
+        auto_fulfill,
+        globalState
+      )
+      .then((response) => {
+        expect(response.body.metadata.gateway_system).to.equal(
+          "unified_connector_service"
+        );
+        expect(response.body.metadata.vop_status).to.equal("MTCH");
+        const { iban, bic } = data.Request.payout_method_data.bank_transfer;
+        const mask = (value, head, tail) =>
+          value.slice(0, head) +
+          "*".repeat(value.length - head - tail) +
+          value.slice(-tail);
+        expect(response.body.payout_method_data.bank.iban).to.equal(
+          mask(iban, 5, 5)
+        );
+        expect(response.body.payout_method_data.bank.bic).to.equal(
+          mask(bic, 3, 3)
+        );
+        expect(response.body.connector_transaction_id).to.match(
+          /^[0-9A-F]{32}$/
+        );
+        globalState.set(
+          "payoutConnectorTransactionId",
+          response.body.connector_transaction_id
+        );
+      });
   }
 );
 
 /**
- * Asserts the response's beneficiary bank details are masked: IBAN keeps
- * its first/last 5 chars, BIC its first/last 3. `bankData` is the
- * `payout_method_data.bank_transfer` object sent in the create request.
+ * Retrieves a UCS-executed payout with force_sync=true (PoSync) and asserts
+ * the response: still routed via UCS and the connector reference is unchanged
+ * since the payout create (idempotency).
  */
-Cypress.Commands.add("assertPayoutBankDetailsMasked", (response, bankData) => {
-  const mask = (value, head, tail) =>
-    value.slice(0, head) +
-    "*".repeat(value.length - head - tail) +
-    value.slice(-tail);
-  expect(response.body.payout_method_data.bank.iban).to.equal(
-    mask(bankData.iban, 5, 5)
-  );
-  expect(response.body.payout_method_data.bank.bic).to.equal(
-    mask(bankData.bic, 3, 3)
-  );
-});
-
-/**
- * Asserts a UCS payout sync response: still routed via UCS and the connector
- * reference is unchanged since the payout create (idempotency).
- */
-Cypress.Commands.add("assertUcsPayoutSyncResponse", (globalState, response) => {
-  expect(response.body.metadata.gateway_system).to.equal(
-    "unified_connector_service"
-  );
-  expect(response.body.connector_transaction_id).to.equal(
-    globalState.get("payoutConnectorTransactionId")
-  );
-});
+Cypress.Commands.add(
+  "retrievePayoutUcsForceSyncCallTest",
+  (globalState, data, payoutId = null) => {
+    return cy
+      .retrievePayoutForceSyncCallTest(globalState, data, payoutId)
+      .then((response) => {
+        expect(response.body.metadata.gateway_system).to.equal(
+          "unified_connector_service"
+        );
+        expect(response.body.connector_transaction_id).to.equal(
+          globalState.get("payoutConnectorTransactionId")
+        );
+      });
+  }
+);
 
 // User API calls
 // Below 3 commands should be called in sequence to login a user
