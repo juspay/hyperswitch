@@ -1712,6 +1712,16 @@ impl PaymentsRequest {
         })
     }
 
+    pub fn is_off_session_mit_for_payment_method(&self, payment_method_id: &str) -> bool {
+        self.confirm == Some(true)
+            && self.off_session == Some(true)
+            && matches!(
+                self.recurring_details.as_ref(),
+                Some(RecurringDetails::PaymentMethodId(recurring_payment_method_id))
+                    if recurring_payment_method_id.as_str() == payment_method_id
+            )
+    }
+
     pub fn validate_and_get_request_extended_authorization(
         &self,
     ) -> common_utils::errors::CustomResult<Option<RequestExtendedAuthorizationBool>, ValidationError>

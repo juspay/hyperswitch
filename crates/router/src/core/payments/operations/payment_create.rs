@@ -1365,10 +1365,6 @@ impl PaymentCreate {
                 .clone())
             .get_required_value("profile_id")?;
 
-        let is_off_session_mit_confirmed = req.confirm == Some(true)
-            && req.off_session == Some(true)
-            && self.get_recurring_payment_method_id(req).is_some();
-
         let pm_info = pm_transformers::fetch_payment_method_from_modular_service(
             state,
             platform,
@@ -1376,7 +1372,7 @@ impl PaymentCreate {
             payment_method_ref,
             None, // CVC token data is not passed in create api
             true, // fetch raw card detail from the internal vault
-            is_off_session_mit_confirmed,
+            req.is_off_session_mit_for_payment_method(payment_method_ref),
         )
         .await?;
         logger::info!("Payment method fetched from PM Modular Service.");
