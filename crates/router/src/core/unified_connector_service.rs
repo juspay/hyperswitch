@@ -1369,7 +1369,8 @@ fn resolve_execution_mode(
     execution_mode: ExecutionMode,
     ucs_availability: UcsAvailability,
 ) -> ExecutionMode {
-    if execution_mode == ExecutionMode::Shadow && ucs_availability == UcsAvailability::ShadowDisabled
+    if execution_mode == ExecutionMode::Shadow
+        && ucs_availability == UcsAvailability::ShadowDisabled
     {
         router_env::logger::info!("UCS shadow is disabled, falling back to Direct");
         ExecutionMode::NotApplicable
