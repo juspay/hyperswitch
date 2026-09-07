@@ -567,17 +567,7 @@ This will redirect all Silverflow API calls from Hyperswitch to your local mock 
       "api_secret": "api_secret"
     }
   },
-  // Payout connector with runtime-injected payout bank transfer details.
-  // The `<connector_name>_payout` key is read by the payout connector create
-  // flow. The optional `payout_bank_transfer` block holds sensitive payout
-  // bank details (injected into payout create/confirm requests at runtime via
-  // `injectGotymePayoutBankTransfer` in `cypress/e2e/configs/Payout/Utils.js`)
-  // so they never appear in committed connector configs. Keys inside
-  // `payout_bank_transfer` must match the `payout_method_type` values used by
-  // the connector's payout configs. A payout method may either map flat
-  // request fields directly, or group multiple account variants (e.g. payshap
-  // `intrabank` / `interbank`); a variant group is flattened to a single
-  // variant (interbank preferred) before its fields are injected.
+  // Payout connector with runtime-injected payout bank transfer details; `<connector_name>_payout` is read by the payout create flow, and `payout_bank_transfer` holds sensitive bank info injected into payout requests at runtime via `injectGotymePayoutBankTransfer` in `cypress/e2e/configs/Payout/Utils.js` so it never appears in committed configs.
   "gotyme_sanlam_payout": {
     "connector_account_details": {
       "auth_type": "BodyKey",
