@@ -1,5 +1,8 @@
 name: Publish stable release
 
+permissions:
+  contents: read
+
 on:
   workflow_run:
     workflows: ["Release a stable version"]
