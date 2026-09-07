@@ -256,7 +256,7 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                     .map(common_utils::ext_traits::Encode::encode_to_value)
                     .transpose()
                     .change_context(ApiErrorResponse::InvalidDataValue {
-                        field_name: "browser_information",
+                        field_name: "browser_information".into(),
                     })?;
                 Ok(
                     hyperswitch_domain_models::authentication::AuthenticationUpdate::PreAuthenticationUpdate {
@@ -491,7 +491,7 @@ pub fn authenticate_authentication_client_secret_and_check_expiry(
         .clone()
         .get_required_value("authentication_client_secret")
         .change_context(ApiErrorResponse::MissingRequiredField {
-            field_name: "client_secret",
+            field_name: "client_secret".into(),
         })
         .attach_printable("client secret not found in db")?;
 
@@ -623,7 +623,7 @@ fn get_vault_details(
             )
         }
         (None, None) => Err(ApiErrorResponse::MissingRequiredField {
-            field_name: "Either Card or Network Token details",
+            field_name: "Either Card or Network Token details".into(),
         }
         .into()),
     }

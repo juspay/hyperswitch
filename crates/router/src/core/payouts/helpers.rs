@@ -1607,7 +1607,7 @@ pub async fn get_translated_unified_code_and_message(
         .await
         .transpose()
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "unified_message",
+            field_name: "unified_message".into(),
         })?
         .or_else(|| unified_message.cloned()))
 }

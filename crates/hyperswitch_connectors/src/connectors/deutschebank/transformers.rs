@@ -252,7 +252,7 @@ impl TryFrom<&DeutschebankRouterData<&PaymentsAuthorizeRouterData>>
                             }))
                         } else {
                             Err(errors::ConnectorError::MissingRequiredField {
-                                field_name: "customer_acceptance",
+                                field_name: "customer_acceptance".into(),
                             }
                             .into())
                         }
@@ -617,6 +617,7 @@ impl
                                     _ => Err(errors::ConnectorError::MissingRequiredField {
                                         field_name:
                                             "payment_method_data.bank_debit.sepa_bank_debit.iban"
+                                                .into()
                                     }),
                                 }?,
                                 reference: Secret::from(reference.clone()),
@@ -767,7 +768,9 @@ impl TryFrom<&DeutschebankRouterData<&PaymentsCompleteAuthorizeRouterData>>
                 .get("cres")
                 .and_then(|v| v.as_str())
                 .map(String::from)
-                .ok_or(errors::ConnectorError::MissingRequiredField { field_name: "cres" })?;
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "cres".into(),
+                })?;
 
             Ok(Self::DeutschebankThreeDSCompleteAuthorizeRequest(
                 DeutschebankThreeDSCompleteAuthorizeRequest { cres },
@@ -781,7 +784,7 @@ impl TryFrom<&DeutschebankRouterData<&PaymentsCompleteAuthorizeRouterData>>
                     let redirect_response =
                         item.router_data.request.redirect_response.clone().ok_or(
                             errors::ConnectorError::MissingRequiredField {
-                                field_name: "redirect_response",
+                                field_name: "redirect_response".into(),
                             },
                         )?;
                     let queries_params = redirect_response
@@ -812,14 +815,14 @@ impl TryFrom<&DeutschebankRouterData<&PaymentsCompleteAuthorizeRouterData>>
                         queries_params
                             .get("reference")
                             .ok_or(errors::ConnectorError::MissingRequiredField {
-                                field_name: "reference",
+                                field_name: "reference".into(),
                             })?
                             .to_owned(),
                     );
                     let signed_on = queries_params
                         .get("signed_on")
                         .ok_or(errors::ConnectorError::MissingRequiredField {
-                            field_name: "signed_on",
+                            field_name: "signed_on".into(),
                         })?
                         .to_owned();
                     Ok(Self::DeutschebankDirectDebitRequest(

@@ -33,7 +33,7 @@ pub struct RevenueRecoveryWorkflowTrackingData {
     /// been. Only meaningful on the CALCULATE row, which is reopened rather than recreated
     /// and so survives for the whole recovery lifecycle of an invoice.
     #[serde(default)]
-    pub static_ladder_progress: StaticLadderProgress,
+    pub static_ladder_progress: Option<StaticLadderProgress>,
 }
 
 #[derive(Debug, Clone)]
