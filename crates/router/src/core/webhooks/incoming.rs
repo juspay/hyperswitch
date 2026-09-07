@@ -647,17 +647,19 @@ async fn process_webhook_business_logic(
             .await
             .attach_printable("Incoming webhook flow for mandates failed"),
 
-            api::WebhookFlow::AssociatedDataUpdate => Box::pin(associated_data_incoming_webhook_flow(
-                state.clone(),
-                platform.clone(),
-                webhook_details,
-                source_verified,
-                connector,
-                request_details,
-                &content,
-            ))
-            .await
-            .attach_printable("Incoming webhook flow for associated data failed"),
+            api::WebhookFlow::AssociatedDataUpdate => {
+                Box::pin(associated_data_incoming_webhook_flow(
+                    state.clone(),
+                    platform.clone(),
+                    webhook_details,
+                    source_verified,
+                    connector,
+                    request_details,
+                    &content,
+                ))
+                .await
+                .attach_printable("Incoming webhook flow for associated data failed")
+            }
 
             api::WebhookFlow::ExternalAuthentication => {
                 Box::pin(external_authentication_incoming_webhook_flow(
