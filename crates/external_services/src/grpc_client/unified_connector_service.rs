@@ -193,39 +193,77 @@ pub struct HyperswitchVaultMetadata {
     pub vault_auth_data: VaultConnectorAuth,
 }
 
+/// Connects `endpoint` eagerly, bounded by `connection_timeout`, naming `client_name` on failure.
+///
+/// `None` means the caller must abandon the whole client: an unreachable service is reported here
+/// and nulls [`UnifiedConnectorServiceClient`], so the router serves from the direct connector
+/// path rather than routing live traffic at a service it cannot reach.
+pub async fn connect_ucs_endpoint(
+    endpoint: &tonic::transport::Endpoint,
+    connection_timeout: UcsConnectionTimeoutInSeconds,
+    client_name: &str,
+) -> Option<tonic::transport::Channel> {
+    match timeout(connection_timeout.as_duration(), endpoint.connect()).await {
+        Ok(Ok(channel)) => Some(channel),
+        Ok(Err(err)) => {
+            logger::error!(
+                "Failed to connect to Unified Connector Service for {}: {:?}",
+                client_name,
+                err
+            );
+            None
+        }
+        Err(err) => {
+            logger::error!(
+                "Connection to Unified Connector Service timed out for {}: {:?}",
+                client_name,
+                err
+            );
+            None
+        }
+    }
+}
+
 /// Builds a gRPC client. `$connection_timeout` bounds connect; `$request_timeout` bounds each RPC.
+///
+/// The connect is eager and gating: an unreachable service is logged and nulls the whole client,
+/// so the router serves from the direct connector path instead of routing live traffic at a
+/// service it cannot reach. That is the behaviour in every mode this router actually runs in,
+/// recording included, so a recording never diverges from the deployment it records.
+///
+/// Under the `deja` feature the connect is handed to `connect_or_substitute`, which runs it
+/// unchanged except under replay — where no rpc is ever issued live, so the transport is dead
+/// weight and the boundary stands in for it. This file expresses no opinion about deja's modes;
+/// that decision lives in the boundary adapter.
 #[macro_export]
 macro_rules! build_grpc_client {
     ($client:ty, $name:expr, $uri:expr, $connection_timeout:expr, $request_timeout:expr) => {{
         let endpoint = tonic::transport::Channel::builder($uri.clone())
             .timeout($request_timeout.as_duration());
-        match timeout($connection_timeout.as_duration(), endpoint.connect()).await {
-            Ok(Ok(channel)) => {
-                // deja: wrap the UCS channel in the gRPC egress boundary at its
-                // construction site so every unary rpc is recorded/substituted at
-                // the wire level (rank-2 identity). Feature-off passes the raw
-                // channel unchanged.
-                #[cfg(feature = "deja")]
-                let channel = $crate::grpc_client::deja_transport::DejaGrpcTransport::new(channel);
-                <$client>::new(channel)
-            }
-            Ok(Err(err)) => {
-                router_env::logger::error!(
-                    "Failed to connect to Unified Connector Service for {}: {:?}",
-                    $name,
-                    err
-                );
-                return None;
-            }
-            Err(err) => {
-                router_env::logger::error!(
-                    "Connection to Unified Connector Service timed out for {}: {:?}",
-                    $name,
-                    err
-                );
-                return None;
-            }
-        }
+
+        // deja: the same eager connect, handed to the gRPC egress boundary so every unary rpc is
+        // recorded/substituted at the wire level (rank-2 identity). The boundary runs the connect
+        // unchanged in every mode but replay, where it stands in for a transport nothing will
+        // use. Feature-off performs the connect directly and passes the raw channel through.
+        #[cfg(feature = "deja")]
+        let channel = $crate::grpc_client::deja_transport::connect_or_substitute(|| {
+            $crate::grpc_client::unified_connector_service::connect_ucs_endpoint(
+                &endpoint,
+                $connection_timeout,
+                $name,
+            )
+        })
+        .await?;
+
+        #[cfg(not(feature = "deja"))]
+        let channel = $crate::grpc_client::unified_connector_service::connect_ucs_endpoint(
+            &endpoint,
+            $connection_timeout,
+            $name,
+        )
+        .await?;
+
+        <$client>::new(channel)
     }};
 }
 
@@ -364,6 +402,19 @@ impl UnifiedConnectorServiceClient {
                     request_timeout
                 );
 
+                // Replay connected nothing — the boundary stands in for every channel — so the
+                // usual claim would be false there. Every other mode performed the same eager
+                // connect it always did.
+                #[cfg(feature = "deja")]
+                if deja::__private::runtime_mode().is_replay() {
+                    logger::info!(
+                        "Unified Connector Service clients substituted at the deja boundary; no transport connected"
+                    );
+                } else {
+                    logger::info!("Successfully connected to Unified Connector Service");
+                }
+
+                #[cfg(not(feature = "deja"))]
                 logger::info!("Successfully connected to Unified Connector Service");
 
                 Some(Self {
