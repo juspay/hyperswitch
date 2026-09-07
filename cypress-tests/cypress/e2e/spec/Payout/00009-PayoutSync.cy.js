@@ -171,6 +171,8 @@ describe("[Payout] Sync", () => {
       const merchantId = globalState.get("merchantId");
       const connector = globalState.get("connectorId");
 
+      cy.setConfigs(globalState, "ucs_enabled", "true", "DELETE");
+
       UCS_ROLLOUT_FLOWS.forEach((flow) => {
         cy.setConfigs(
           globalState,
