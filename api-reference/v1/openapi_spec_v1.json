@@ -32608,6 +32608,26 @@
           }
         }
       },
+      "PaymentMethodListResult": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ClientPaymentMethodsListResponse"
+          },
+          {
+            "type": "object",
+            "description": "Serializes as `{ \"error\": { ... } }` — the same envelope the HTTP layer puts around\n`ErrorResponse`, so this reads identically to the standalone endpoint's error body.",
+            "required": [
+              "error"
+            ],
+            "properties": {
+              "error": {
+                "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+              }
+            }
+          }
+        ],
+        "description": "The combined payment-method list, or the error that prevented it being built.\n\nSerialized untagged: a success is the listing object itself, a failure is `{ \"error\": {...} }`.\nGated on `errors` as well as `v1`: it holds [`crate::errors::types::ErrorResponse`], which\nlives behind that feature because it pulls in `reqwest`. `euclid_wasm` builds\n`api_models/v1` without `errors`, and cannot take `actix-web` in via that feature on a\nwasm target, so the section types simply do not exist there."
+      },
       "PaymentMethodMetaData": {
         "type": "object",
         "description": "Represents metadata about the payment method used in the 3DS decision rule.",
@@ -34557,6 +34577,22 @@
             "example": "cHJvZmlsZV9pZD1wcm9mXzEyMyxwdWJsaXNoYWJsZV9rZXk9cGtfbGl2ZV8xMjM=",
             "nullable": true
           },
+          "payment_method_list": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodListResult"
+              }
+            ],
+            "nullable": true
+          },
+          "session_tokens": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SessionTokensResult"
+              }
+            ],
+            "nullable": true
+          },
           "connector": {
             "type": "string",
             "description": "The name of the payment connector (e.g., 'stripe', 'adyen') that processed or is processing this payment.",
@@ -36393,6 +36429,22 @@
             "type": "string",
             "description": "Token containing encoded information for sdk authorization.",
             "example": "cHJvZmlsZV9pZD1wcm9mXzEyMyxwdWJsaXNoYWJsZV9rZXk9cGtfbGl2ZV8xMjM=",
+            "nullable": true
+          },
+          "payment_method_list": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodListResult"
+              }
+            ],
+            "nullable": true
+          },
+          "session_tokens": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SessionTokensResult"
+              }
+            ],
             "nullable": true
           },
           "connector": {
@@ -45477,6 +45529,26 @@
             }
           }
         ]
+      },
+      "SessionTokensResult": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/PaymentsSessionResponse"
+          },
+          {
+            "type": "object",
+            "description": "Serializes as `{ \"error\": { ... } }` — the same envelope the HTTP layer puts around\n`ErrorResponse`, so this reads identically to the standalone endpoint's error body.",
+            "required": [
+              "error"
+            ],
+            "properties": {
+              "error": {
+                "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+              }
+            }
+          }
+        ],
+        "description": "Wallet session tokens, or the error that prevented them being minted.\n\nSerialized untagged: a success is the whole `PaymentsSessionResponse` object, a failure is\n`{ \"error\": {...} }`.\nGated on `errors` as well as `v1` — see [`crate::payment_methods::PaymentMethodListResult`]."
       },
       "SizeVariants": {
         "type": "string",
