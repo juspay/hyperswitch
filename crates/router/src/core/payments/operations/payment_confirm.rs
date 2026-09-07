@@ -2539,6 +2539,13 @@ impl PaymentConfirm {
             }
         }
 
+        let is_off_session_mit_for_payment_method = req.off_session == Some(true)
+            && matches!(
+                req.recurring_details.as_ref(),
+                Some(RecurringDetails::PaymentMethodId(payment_method_id))
+                    if payment_method_id.as_str() == payment_method_ref
+            );
+
         let pm_info = pm_transformers::fetch_payment_method_from_modular_service(
             state,
             platform,
@@ -2546,13 +2553,7 @@ impl PaymentConfirm {
             payment_method_ref,
             card_token_data,
             true, // fetch raw card detail from the internal vault
-            // sync the stored card before authorizing a merchant-initiated payment against it
-            req.off_session == Some(true)
-                && matches!(
-                    req.recurring_details.as_ref(),
-                    Some(RecurringDetails::PaymentMethodId(payment_method_id))
-                        if payment_method_id.as_str() == payment_method_ref
-                ),
+            is_off_session_mit_for_payment_method,
         )
         .await?;
         logger::info!("Payment method fetched from PM Modular Service.");
