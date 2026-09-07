@@ -1,0 +1,145 @@
+name: License compliance
+
+# Blocks a pull request that pulls a strong-copyleft or source-available
+# dependency into the tree, and reports weak-copyleft or undeclared licenses
+# without blocking. Only the dependencies that the pull request adds or
+# version-bumps are evaluated, so the check is silent about everything that
+# already exists on the base branch.
+#
+# This workflow runs on the untrusted `pull_request` trigger and therefore has
+# no write permissions and no access to secrets. It only reads lockfiles and
+# public registry metadata: nothing from the pull request is installed, built
+# or executed. The sticky comment is posted by the companion
+# `license-compliance-comment.yml` workflow, which picks up the report artifact
+# produced here.
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+
+  merge_group:
+    types:
+      - checks_requested
+
+  workflow_dispatch:
+    inputs:
+      base_ref:
+        description: Revision to compare against
+        required: true
+        type: string
+      head_ref:
+        description: Revision to evaluate
+        required: false
+        default: HEAD
+        type: string
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test_license_checker:
+    name: Test the license checker
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run unit tests
+        shell: bash
+        run: python -m unittest discover --start-directory .github/scripts/tests
+
+  license_check:
+    name: Check licenses of newly introduced dependencies
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          # The merge base has to be reachable to diff the lockfiles against it.
+          fetch-depth: 0
+
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Determine the revisions to compare
+        id: revisions
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PULL_REQUEST_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PULL_REQUEST_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
+          MERGE_GROUP_BASE_SHA: ${{ github.event.merge_group.base_sha }}
+          MERGE_GROUP_HEAD_SHA: ${{ github.event.merge_group.head_sha }}
+          INPUT_BASE_REF: ${{ inputs.base_ref }}
+          INPUT_HEAD_REF: ${{ inputs.head_ref }}
+        run: |
+          case "${EVENT_NAME}" in
+            pull_request)
+              # `base.sha` is the base branch as it was when the pull request
+              # was last updated, which is not necessarily an ancestor of the
+              # head commit. The merge base is.
+              base="$(git merge-base "${PULL_REQUEST_BASE_SHA}" "${PULL_REQUEST_HEAD_SHA}")"
+              head="${PULL_REQUEST_HEAD_SHA}"
+              pr_number="${PULL_REQUEST_NUMBER}"
+              ;;
+            merge_group)
+              base="${MERGE_GROUP_BASE_SHA}"
+              head="${MERGE_GROUP_HEAD_SHA}"
+              pr_number=''
+              ;;
+            *)
+              base="${INPUT_BASE_REF}"
+              head="${INPUT_HEAD_REF:-HEAD}"
+              pr_number=''
+              ;;
+          esac
+
+          echo "base=${base}" >> "${GITHUB_OUTPUT}"
+          echo "head=${head}" >> "${GITHUB_OUTPUT}"
+          echo "pr_number=${pr_number}" >> "${GITHUB_OUTPUT}"
+          echo "Comparing ${base} against ${head}"
+
+      - name: Check the licenses of newly introduced dependencies
+        shell: bash
+        env:
+          BASE_REF: ${{ steps.revisions.outputs.base }}
+          HEAD_REF: ${{ steps.revisions.outputs.head }}
+          PR_NUMBER: ${{ steps.revisions.outputs.pr_number }}
+        run: |
+          mkdir --parents license-compliance-report
+
+          arguments=(
+            --base-ref "${BASE_REF}"
+            --head-ref "${HEAD_REF}"
+            --json-out license-compliance-report/report.json
+            --markdown-out license-compliance-report/report.md
+            --comment-flag-out license-compliance-report/should-comment
+          )
+
+          if [[ -n "${PR_NUMBER}" ]]; then
+            arguments+=(--pr-number "${PR_NUMBER}")
+          fi
+
+          python .github/scripts/license_check.py "${arguments[@]}"
+
+      - name: Upload the report for the commenting workflow
+        # The report is worth publishing precisely when the check failed, too.
+        if: ${{ always() && github.event_name == 'pull_request' && hashFiles('license-compliance-report/report.json') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: license-compliance-report
+          path: license-compliance-report/
+          retention-days: 7

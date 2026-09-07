@@ -1,0 +1,111 @@
+name: License compliance comment
+
+# Posts the report produced by the `License compliance` workflow as a single
+# sticky comment on the pull request.
+#
+# The check itself runs on the `pull_request` trigger, which gets a read-only
+# token and no secrets, so it cannot comment. This workflow runs on
+# `workflow_run` instead, where a write-capable token is available. The
+# separation is what keeps a fork's pull request from ever executing with
+# elevated permissions.
+#
+# Everything downloaded from the artifact is untrusted input. The report is
+# handed to the API as a single quoted argument and is never interpolated into
+# a command, and the pull request to comment on is resolved from the head
+# commit rather than read out of the report.
+#
+# Only `gh` is needed, using its built-in `--jq`, so the workflow runs on a
+# runner image that does not ship a standalone `jq`.
+#
+# Note that GitHub only runs `workflow_run` workflows from the default branch:
+# this file has no effect until it is merged.
+
+on:
+  workflow_run:
+    workflows:
+      - License compliance
+    types:
+      - completed
+
+permissions:
+  actions: read
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: >-
+    ${{ github.workflow }}-${{ github.event.workflow_run.head_repository.full_name }}-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: false
+
+jobs:
+  comment:
+    name: Post the license compliance report
+    if: ${{ github.event.workflow_run.event == 'pull_request' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download the report
+        id: download
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: license-compliance-report
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+          path: license-compliance-report
+
+      - name: Post or update the sticky comment
+        if: ${{ steps.download.outcome == 'success' }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          report_directory='license-compliance-report'
+          report="${report_directory}/report.md"
+
+          if [[ ! -s "${report}" || ! -s "${report_directory}/should-comment" ]]; then
+            echo '::warning::The license compliance report is missing or empty'
+            exit 0
+          fi
+
+          # Resolve the pull request from the commit that was checked, so that a
+          # report can never be steered onto an unrelated pull request.
+          pull_request="$(
+            gh api "/repos/${REPOSITORY}/commits/${HEAD_SHA}/pulls" \
+              --jq 'map(select(.state == "open")) | first | .number // empty'
+          )"
+
+          if [[ -z "${pull_request}" ]]; then
+            echo "::notice::No open pull request contains ${HEAD_SHA}; nothing to comment on"
+            exit 0
+          fi
+
+          # The marker is the hidden HTML comment that `license_check.py` puts at
+          # the top of every report, and is what makes the comment sticky.
+          # Avoid a pipeline here: `head` closing the pipe early would trip the
+          # runner's `pipefail`.
+          comment_ids="$(
+            gh api --paginate "/repos/${REPOSITORY}/issues/${pull_request}/comments" \
+              --jq '.[]
+                    | select(.user.type == "Bot")
+                    | select(.body | startswith("<!-- license-compliance-report -->"))
+                    | .id'
+          )"
+          comment_id="${comment_ids%%$'\n'*}"
+
+          if [[ "$(cat "${report_directory}/should-comment")" != 'true' && -z "${comment_id}" ]]; then
+            echo "Nothing to report on #${pull_request} and no comment to update"
+            exit 0
+          fi
+
+          if [[ -n "${comment_id}" ]]; then
+            gh api --silent --method PATCH \
+              "/repos/${REPOSITORY}/issues/comments/${comment_id}" \
+              --raw-field "body=$(cat "${report}")"
+            echo "Updated the license compliance comment on #${pull_request}"
+          else
+            gh pr comment "${pull_request}" --repo "${REPOSITORY}" --body-file "${report}"
+            echo "Commented the license compliance report on #${pull_request}"
+          fi

@@ -271,3 +271,6 @@ creds.json
 # Nix services data
 /data
 .pre-commit-config.yaml
+
+# Python bytecode cache
+__pycache__/
