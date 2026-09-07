@@ -100,7 +100,10 @@ impl OciKmsClient {
 
         Ok(Self {
             http_client: reqwest::Client::new(),
-            vault_crypto_endpoint: config.vault_crypto_endpoint.trim_end_matches('/').to_owned(),
+            vault_crypto_endpoint: config
+                .vault_crypto_endpoint
+                .trim_end_matches('/')
+                .to_owned(),
             host,
             key_id: config.key_id.clone(),
             credentials: Arc::new(WorkloadIdentityCache::default()),
@@ -238,13 +241,11 @@ pub enum OciKmsError {
     #[error("Failed to sign OCI KMS request")]
     SigningFailed,
 
-    /// The OKE Workload Identity resource-principal credentials could not be read
-    /// (missing environment variables, unreadable files, or malformed key material).
+    /// Resource-principal credentials couldn't be read (missing env vars, unreadable files, or malformed key material).
     #[error("OCI Workload Identity credentials unavailable")]
     CredentialsUnavailable,
 
-    /// The HTTP request to the OCI KMS crypto endpoint failed, or it returned a
-    /// non-success status, or its response body could not be parsed.
+    /// The crypto-endpoint request failed, returned a non-success status, or its response body couldn't be parsed.
     #[error("OCI KMS request failed")]
     RequestFailed,
 
