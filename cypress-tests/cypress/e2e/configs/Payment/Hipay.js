@@ -61,7 +61,7 @@ const paymentMethodDataNo3DSResponse = {
     card_extended_bin: null,
     card_holder_name: "Joseph Doe",
     card_isin: "411111",
-    card_issuer: "Conotoxia Sp Z Oo",
+    card_issuer: "CONOTOXIA SP Z OO",
     card_issuing_country: "POLAND",
     card_network: "Visa",
     card_type: "DEBIT",

@@ -9,7 +9,10 @@ use scheduler::utils as pt_utils;
 use serde::Deserialize;
 
 use crate::{
-    core::errors::{self, RouterResult, StorageErrorExt},
+    core::{
+        errors::{self, RouterResult, StorageErrorExt},
+        utils as core_utils,
+    },
     logger,
     routes::SessionState,
     types::{domain, storage},
@@ -85,6 +88,7 @@ impl BlocklistRow {
         match kind {
             "card_bin" => Some(common_enums::BlocklistDataKind::CardBin),
             "extended_card_bin" => Some(common_enums::BlocklistDataKind::ExtendedCardBin),
+            "generic_card_bin" => Some(common_enums::BlocklistDataKind::GenericCardBin),
             "fingerprint" => Some(common_enums::BlocklistDataKind::PaymentMethod),
             _ => None,
         }
@@ -103,7 +107,7 @@ impl BlocklistRow {
                 common_enums::BlocklistDataKind::CardBin,
                 data.clone(),
                 format!(
-                    "unknown type `{kind}`; expected card_bin, extended_card_bin, or fingerprint"
+                    "unknown type `{kind}`; expected generic_card_bin, card_bin, extended_card_bin, or fingerprint"
                 ),
             )
         })?;
@@ -117,20 +121,16 @@ impl BlocklistRow {
             ));
         }
 
+        let is_invalid = super::utils::validate_bin(&data, parsed_kind).is_err();
         let format_error = match parsed_kind {
             common_enums::BlocklistDataKind::CardBin => {
-                if data.len() == 6 && data.chars().all(|c| c.is_ascii_digit()) {
-                    None
-                } else {
-                    Some("card_bin must be exactly 6 digits")
-                }
+                is_invalid.then_some("card_bin must be exactly 6 digits")
             }
             common_enums::BlocklistDataKind::ExtendedCardBin => {
-                if data.len() == 8 && data.chars().all(|c| c.is_ascii_digit()) {
-                    None
-                } else {
-                    Some("extended_card_bin must be exactly 8 digits")
-                }
+                is_invalid.then_some("extended_card_bin must be exactly 8 digits")
+            }
+            common_enums::BlocklistDataKind::GenericCardBin => {
+                is_invalid.then_some("generic_card_bin must be a 6 to 10 digit number")
             }
             common_enums::BlocklistDataKind::PaymentMethod => None,
         };
@@ -226,6 +226,7 @@ fn rows_to_csv_bytes(rows: &[BlocklistRow]) -> RouterResult<Vec<u8>> {
         let type_str = match row.data_kind {
             common_enums::BlocklistDataKind::CardBin => "card_bin",
             common_enums::BlocklistDataKind::ExtendedCardBin => "extended_card_bin",
+            common_enums::BlocklistDataKind::GenericCardBin => "generic_card_bin",
             common_enums::BlocklistDataKind::PaymentMethod => "fingerprint",
         };
         writer
@@ -305,9 +306,19 @@ fn validate_csv(csv_bytes: &[u8]) -> RouterResult<Vec<BlocklistRow>> {
 pub async fn initiate_batch_blocklist_upload(
     state: &SessionState,
     platform: &domain::Platform,
+    profile_id: Option<id_type::ProfileId>,
     csv_bytes: bytes::Bytes,
 ) -> RouterResult<api_blocklist::BatchBlocklistUploadResponse> {
     let processor_merchant_id = platform.get_processor().get_account().get_id();
+    let profile_id = core_utils::get_profile_id_from_business_details(
+        None,
+        None,
+        platform.get_processor(),
+        profile_id.as_ref(),
+        &*state.store,
+        true,
+    )
+    .await?;
     let created_by = platform
         .get_initiator()
         .and_then(|initiator| initiator.to_created_by())
@@ -381,6 +392,7 @@ pub async fn initiate_batch_blocklist_upload(
         failed_rows: 0,
         created_at: now,
         updated_at: now,
+        profile_id: profile_id.clone(),
     };
 
     state
@@ -396,6 +408,7 @@ pub async fn initiate_batch_blocklist_upload(
         chunk_total_count,
         completed_chunks: Vec::new(),
         created_by: created_by.clone(),
+        profile_id: Some(profile_id),
     };
 
     let runner = storage::ProcessTrackerRunner::BatchBlocklistUpload;
@@ -447,6 +460,7 @@ pub(crate) async fn process_chunk(
     state: &SessionState,
     merchant_id: &id_type::MerchantId,
     processor_merchant_id: Option<&id_type::MerchantId>,
+    profile_id: Option<&id_type::ProfileId>,
     chunk_idx: u32,
     chunk_rows: Vec<BlocklistRow>,
     created_by: Option<String>,
@@ -462,6 +476,7 @@ pub(crate) async fn process_chunk(
             created_at: now,
             processor_merchant_id: processor_merchant_id.map(|id| id.to_owned()),
             created_by: created_by.clone(),
+            profile_id: profile_id.map(|id| id.to_owned()),
         })
         .collect();
 

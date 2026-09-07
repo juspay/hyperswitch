@@ -288,6 +288,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 )?;
                 Ok(())
             }
+            api_enums::Connector::Ilixium => {
+                ilixium::transformers::IlixiumAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Givepayments => {
                 givepayments::transformers::GivepaymentsAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -303,6 +307,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             }
             api_enums::Connector::Gocardless => {
                 gocardless::transformers::GocardlessAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
+            api_enums::Connector::GotymeSanlam => {
+                gotyme_sanlam::transformers::GotymeSanlamAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
             api_enums::Connector::Gpayments => {
@@ -670,6 +678,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 citigate::transformers::CitigateAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Worldpayraft => {
+                worldpayraft::transformers::WorldpayraftAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Finix => {
                 finix::transformers::FinixAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -734,7 +746,7 @@ impl ConnectorAuthTypeValidation<'_> {
             } => {
                 if auth_key_map.is_empty() {
                     Err(errors::ApiErrorResponse::InvalidDataFormat {
-                        field_name: "connector_account_details.auth_key_map".to_string(),
+                        field_name: "connector_account_details.auth_key_map".into(),
                         expected_format: "a non empty map".to_string(),
                     }
                     .into())

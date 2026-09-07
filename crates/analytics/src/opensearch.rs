@@ -919,7 +919,7 @@ impl OpenSearchQueryBuilder {
                                     "should": v.iter().map(|value| {
                                         json!({
                                             "term": {
-                                                format!("{}", key): {
+                                                key.to_string(): {
                                                     "value": value,
                                                     "case_insensitive": true
                                                 }
