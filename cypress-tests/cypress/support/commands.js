@@ -7077,52 +7077,61 @@ Cypress.Commands.add(
   }
 );
 
-Cypress.Commands.add("retrievePayoutCallTest", (globalState, data) => {
-  const payout_id = globalState.get("payoutID");
-  const resBody = data?.Response?.body || {};
-  cy.request({
-    method: "GET",
-    url: `${globalState.get("baseUrl")}/payouts/${payout_id}`,
-    headers: {
-      "Content-Type": "application/json",
-      "api-key": globalState.get("apiKey"),
-    },
-    failOnStatusCode: false,
-  }).then((response) => {
-    logRequestId(response.headers["x-request-id"]);
-
-    cy.wrap(response).then(() => {
-      expect(response.headers["content-type"]).to.include("application/json");
-      expect(response.body.payout_id).to.equal(payout_id);
-      expect(response.body.amount).to.equal(globalState.get("payoutAmount"));
-      for (const key in resBody) {
-        expect(response.body[key]).to.deep.equal(resBody[key]);
-      }
-    });
-  });
-});
-
 /**
- * Retrieves a payout with force_sync=true (PoSync) and asserts the response.
- * Transient statuses are retried while the transfer settles, and the
- * configured `Configs.DELAY` window is honored before the first attempt.
+ * Retrieves a payout and asserts the response. With `forceSync`, calls
+ * GET /payouts/{id}?force_sync=true (PoSync): the configured `Configs.DELAY`
+ * window is honored before the first attempt and transient statuses are
+ * retried while the transfer settles.
  *
  * @param {Object} globalState - Global state instance
  * @param {Object} data - Connector config entry ({ Configs, Response })
- * @param {string} [payoutId=null] - Payout id to sync; defaults to the
- *   payoutID stored in globalState
+ * @param {Object} [options]
+ * @param {boolean} [options.forceSync=false] - Force-sync the payout
+ * @param {string} [options.payoutId=null] - Payout id to retrieve; defaults
+ *   to the payoutID stored in globalState
  */
 Cypress.Commands.add(
-  "retrievePayoutForceSyncCallTest",
-  (globalState, data, payoutId = null) => {
+  "retrievePayoutCallTest",
+  (globalState, data, options = {}) => {
+    const { forceSync = false, payoutId = null } = options;
     const { Configs: configs = {}, Response: resData = {} } = data || {};
-    execConfig(validateConfig(configs));
+    const resBody = resData.body || {};
+
+    if (forceSync) {
+      execConfig(validateConfig(configs));
+    }
 
     const payout_id = payoutId || globalState.get("payoutID");
     const headers = {
       "Content-Type": "application/json",
       "api-key": globalState.get("apiKey"),
     };
+
+    const assertSuccessBody = (response) => {
+      expect(response.headers["content-type"]).to.include("application/json");
+      expect(response.body.payout_id).to.equal(payout_id);
+      expect(response.body.amount).to.equal(globalState.get("payoutAmount"));
+      for (const key in resBody) {
+        expect(response.body[key]).to.deep.equal(resBody[key]);
+      }
+    };
+
+    if (!forceSync) {
+      return cy
+        .request({
+          method: "GET",
+          url: `${globalState.get("baseUrl")}/payouts/${payout_id}`,
+          headers,
+          failOnStatusCode: false,
+        })
+        .then((response) => {
+          logRequestId(response.headers["x-request-id"]);
+          return cy.wrap(response).then(() => {
+            assertSuccessBody(response);
+          });
+        });
+    }
+
     const maxAttempts = 4;
     const retryIntervalMs = 15000;
     // Transient UCS upstream failures on the first sync after create
@@ -7142,16 +7151,7 @@ Cypress.Commands.add(
 
           return cy.wrap(response).then(() => {
             if (response.status === 200) {
-              expect(response.headers["content-type"]).to.include(
-                "application/json"
-              );
-              expect(response.body.payout_id).to.equal(payout_id);
-              expect(response.body.amount).to.equal(
-                globalState.get("payoutAmount")
-              );
-              for (const key in resData.body) {
-                expect(resData.body[key]).to.deep.equal(response.body[key]);
-              }
+              assertSuccessBody(response);
               return response;
             }
 
@@ -7231,7 +7231,7 @@ Cypress.Commands.add(
   "retrievePayoutUcsForceSyncCallTest",
   (globalState, data, payoutId = null) => {
     return cy
-      .retrievePayoutForceSyncCallTest(globalState, data, payoutId)
+      .retrievePayoutCallTest(globalState, data, { forceSync: true, payoutId })
       .then((response) => {
         expect(response.body.metadata.gateway_system).to.equal(
           "unified_connector_service"

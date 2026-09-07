@@ -158,11 +158,10 @@ describe("[Payout] Sync", () => {
         ]["sepa_bank_transfer"]["SyncNonExistentPayout"]
       );
 
-      cy.retrievePayoutForceSyncCallTest(
-        globalState,
-        data,
-        "payout_unknown123"
-      );
+      cy.retrievePayoutCallTest(globalState, data, {
+        forceSync: true,
+        payoutId: "payout_unknown123",
+      });
     });
   });
 
