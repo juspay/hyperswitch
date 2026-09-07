@@ -27,17 +27,12 @@ export const connectorDetails = {
           currency: "ZAR",
           payout_type: "bank",
           description: "Test Payout",
-          payout_method_data: {
-            bank_transfer: {
-              payout_method_type: "payshap",
-            },
-          },
           billing: billing,
         },
         Response: {
           status: 200,
           body: {
-            status: "requires_confirmation",
+            status: "requires_payout_method_data",
             payout_type: "bank",
           },
         },
@@ -87,11 +82,6 @@ export const connectorDetails = {
           amount: 2000,
           currency: "ZAR",
           payout_type: "bank",
-          payout_method_data: {
-            bank_transfer: {
-              payout_method_type: "payshap_proxy",
-            },
-          },
           billing: billing,
         },
         Response: {
