@@ -9603,6 +9603,7 @@ pub async fn get_merchant_connector_account_v2(
     }
 }
 
+#[cfg(feature = "v1")]
 pub fn is_off_session_mit_for_payment_method(
     req: &api::PaymentsRequest,
     payment_method_id: &str,
