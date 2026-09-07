@@ -385,6 +385,17 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         Ok(None)
     }
 
+    /// fn to get associated data about a payment from the webhook body, if any
+    fn get_associated_data(
+        &self,
+        _request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<
+        Option<hyperswitch_domain_models::router_flow_types::WebhookAssociatedData>,
+        errors::ConnectorError,
+    > {
+        Ok(None)
+    }
+
     /// fn to get additional payment method data from connector if any
     fn get_additional_payment_method_data(
         &self,
