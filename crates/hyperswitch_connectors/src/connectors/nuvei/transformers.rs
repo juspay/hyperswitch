@@ -353,7 +353,7 @@ where
 
         fp_utils::when(session_token.is_empty(), || {
             Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "session_token",
+                field_name: "session_token".into(),
             })
         })?;
 
@@ -1839,7 +1839,7 @@ impl TryFrom<api_models::payouts::PayoutMethodData> for NuveiPayoutMethodData {
                     card_number: card_data.card_number,
                     card_holder_name: card_data.card_holder_name.ok_or(
                         errors::ConnectorError::MissingRequiredField {
-                            field_name: "card_holder_name",
+                            field_name: "card_holder_name".into(),
                         },
                     )?,
                     expiration_month: card_data.expiry_month,
@@ -1919,7 +1919,7 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for NuveiPayoutRequest {
             currency: item.request.destination_currency.to_string(),
             user_token_id: customer_details.customer_id.clone().ok_or(
                 errors::ConnectorError::MissingRequiredField {
-                    field_name: "customer_id",
+                    field_name: "customer_id".into(),
                 },
             )?,
             time_stamp,
@@ -2343,12 +2343,12 @@ impl
             .browser_info
             .as_ref()
             .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
-                field_name: "browser_info",
+                field_name: "browser_info".into(),
             })?
             .ip_address
             .as_ref()
             .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
-                field_name: "browser_info.ip_address",
+                field_name: "browser_info.ip_address".into(),
             })?
             .to_string();
         let response = &item.response;
@@ -3084,13 +3084,13 @@ where
                             .as_ref()
                             .and_then(|r| r.mandate_metadata.as_ref())
                             .ok_or(errors::ConnectorError::MissingRequiredField {
-                                field_name: "browser_info.ip_address",
+                                field_name: "browser_info.ip_address".into(),
                             })?
                             .clone()
                             .expose()
                             .as_str()
                             .ok_or(errors::ConnectorError::MissingRequiredField {
-                                field_name: "browser_info.ip_address",
+                                field_name: "browser_info.ip_address".into(),
                             })?
                             .to_owned(),
                     ),

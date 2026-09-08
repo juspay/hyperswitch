@@ -3,15 +3,27 @@ import State from "../../../utils/State";
 import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 
 let globalState;
+let originalCustomerId;
 
 describe("Card - Mandates using Payment Method Id flow test", () => {
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
+      originalCustomerId = globalState.get("customerId");
     });
   });
 
   afterEach("flush global state", () => {
+    cy.task("setGlobalState", globalState.data);
+  });
+
+  after("restore customerId", () => {
+    // Most tests in this spec intentionally continue using a customer
+    // created by an earlier test in the same file, so customerId can't be
+    // restored after every test. Restore it only once, after the whole
+    // spec finishes, so later specs don't inherit a customer scoped to
+    // this spec's own tests.
+    globalState.set("customerId", originalCustomerId);
     cy.task("setGlobalState", globalState.data);
   });
 

@@ -19,6 +19,7 @@ use super::amount;
 pub enum OfferEngineCredentialSource {
     None,
     Application,
+    Merchant,
 }
 
 #[derive(Debug, Clone)]
@@ -32,6 +33,8 @@ pub struct ResolvedOfferEngineConfig {
 pub enum OfferEngineError {
     #[error("Offer Engine application config is missing or invalid: {0}")]
     MissingApplicationConfig(String),
+    #[error("Offer Engine merchant config is missing or invalid: {0}")]
+    MissingMerchantConfig(String),
     #[error("Offer Engine request failed")]
     RequestFailed,
     #[error("Failed to parse Offer Engine response")]
@@ -324,3 +327,47 @@ pub struct OfferNotifyRequest {
 
 /// Response marker for `/offers/notify`; a 2xx is treated as delivered.
 pub struct OfferNotifyResponse;
+
+/// Browse request to Offer Engine. Carries no `order`: Offer Engine requires an amount inside
+/// an `order` once one is present, and browse has no order. The merchant comes from the API key.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct BrowseOfferListRequest {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub currency: Option<common_enums::Currency>,
+}
+
+/// Browse response from Offer Engine
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct BrowseOfferListResponse {
+    #[serde(default)]
+    pub offers: Vec<BrowseOfferListEntry>,
+}
+
+/// A per-offer entry in a browse response.
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct BrowseOfferListEntry {
+    pub status: OfferStatus,
+    pub offer_code: String,
+    pub offer_description: Option<OfferDescription>,
+    pub display_title: Option<String>,
+    pub currency: Option<common_enums::Currency>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub valid_till: Option<time::PrimitiveDateTime>,
+}
+
+impl From<BrowseOfferListEntry> for api_models::offer_engine::BrowseOffer {
+    fn from(entry: BrowseOfferListEntry) -> Self {
+        let (title, description) = entry.offer_description.map_or((None, None), |description| {
+            (description.title, description.description)
+        });
+
+        Self {
+            code: entry.offer_code,
+            title,
+            display_title: entry.display_title,
+            description,
+            currency: entry.currency,
+            valid_till: entry.valid_till,
+        }
+    }
+}

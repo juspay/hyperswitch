@@ -315,7 +315,7 @@ impl EmvThreedsData {
                 "alava" => Ok("VI"),
                 "avila" | "esav" => Ok("AV"),
                 _ => Err(errors::ConnectorError::InvalidDataFormat {
-                    field_name: "address.state",
+                    field_name: "address.state".into(),
                 }),
             }?;
             addr_state.to_string()
@@ -1233,14 +1233,14 @@ impl TryFrom<&RedsysRouterData<&PaymentsAuthenticateRouterData>> for RedsysTrans
             .clone()
             .and_then(|auth| auth.threeds_server_transaction_id.clone())
             .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "authentication_data.threeds_server_transaction_id",
+                field_name: "authentication_data.threeds_server_transaction_id".into(),
             })?;
 
         let message_version = authentication_data
             .clone()
             .and_then(|auth| auth.message_version.as_ref().map(|v| v.to_string()))
             .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "authentication_data.message_version",
+                field_name: "authentication_data.message_version".into(),
             })?;
 
         let ds_merchant_order = item.router_data.connector_request_reference_id.clone();

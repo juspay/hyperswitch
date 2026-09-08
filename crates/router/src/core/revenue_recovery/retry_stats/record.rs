@@ -1,6 +1,9 @@
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
-use hyperswitch_domain_models::revenue_recovery::retry_stats::RevenueRecoveryRetryStats as DomainRevenueRecoveryRetryStats;
+use hyperswitch_domain_models::revenue_recovery::{
+    retry_stats::RevenueRecoveryRetryStats as DomainRevenueRecoveryRetryStats,
+    retry_stats_cluster_key::RetryStatsClusterKey, retry_stats_document::StatsDocument,
+};
 use redis_interface::SetnxReply;
 use router_env::{instrument, logger, tracing};
 use storage_impl::{
@@ -14,20 +17,25 @@ use crate::{
 };
 
 impl RetryOutcomeEvent {
-    /// Redis key of the per-cluster-key lock guarding this event's read-merge-write.
-    fn get_redis_locking_key(&self) -> String {
-        format!(
-            "revenue_recovery_retry_stats_lock:{}",
-            self.key.as_db_string()
-        )
-    }
-
     /// Record this outcome into `revenue_recovery_retry_stats` under a per-key
     /// Redis lock so concurrent writers don't lose updates in the read-merge-write.
     /// Recording is best-effort: any failure is logged and swallowed so it never
     /// affects the payment/recovery flow that invoked it.
     #[instrument(skip_all)]
     pub async fn record(&self, state: &SessionState) {
+        if let Err(error) = self.persist(state).await {
+            logger::error!(
+                cluster_key = %self.key.as_db_string(),
+                ?error,
+                "revenue_recovery_retry_stats: failed to persist retry outcome"
+            );
+        }
+    }
+
+    /// Fallible core of [`Self::record`]: skips silently when recording is disabled,
+    /// otherwise merges this outcome into the stats document under the per-key lock.
+    /// The recorded / lock-contended log lines are emitted by `persist_node`.
+    async fn persist(&self, state: &SessionState) -> CustomResult<(), StorageError> {
         let dimensions: dimension_state::DimensionsGlobal = dimension_state::Dimensions::new();
         let enabled = dimensions
             .get_revrec_retry_stats_enabled(
@@ -39,51 +47,98 @@ impl RetryOutcomeEvent {
 
         if !enabled {
             logger::info!("revenue_recovery_retry_stats: recording disabled via config");
-            return;
-        }
+            Ok(())
+        } else {
+            let redis_conn = state
+                .store
+                .get_redis_conn()
+                .change_context(StorageError::KVError)?;
+            let store = state.store.get_revenue_recovery_retry_stats_store();
 
-        let redis_conn = match state.store.get_redis_conn() {
-            Ok(conn) => conn,
-            Err(error) => {
-                logger::error!(
-                    ?error,
-                    "revenue_recovery_retry_stats: unable to acquire redis connection"
-                );
-                return;
-            }
-        };
-        let store = state.store.get_revenue_recovery_retry_stats_store();
-
-        let db_key = self.key.as_db_string();
-
-        let retry_stats_lock = state.conf().revenue_recovery.retry_stats_lock;
-        let lock_retries = retry_stats_lock.lock_retries();
-        let delay_between_retries_in_milliseconds =
-            retry_stats_lock.delay_between_retries_in_milliseconds;
-        let redis_lock_expiry_seconds = retry_stats_lock.redis_lock_expiry_seconds;
-
-        match persist_node(
-            store.as_ref(),
-            &redis_conn,
-            self,
-            lock_retries,
-            delay_between_retries_in_milliseconds,
-            redis_lock_expiry_seconds,
-        )
-        .await
-        {
-            Ok(()) => logger::info!(
-                cluster_key = %db_key,
-                success = self.success,
-                "revenue_recovery_retry_stats outcome recorded"
-            ),
-            Err(error) => logger::error!(
-                cluster_key = %db_key,
-                ?error,
-                "revenue_recovery_retry_stats: failed to persist retry outcome"
-            ),
+            let retry_stats_lock = state.conf().revenue_recovery.retry_stats_lock;
+            persist_node(
+                store.as_ref(),
+                &redis_conn,
+                self,
+                retry_stats_lock.lock_retries(),
+                retry_stats_lock.delay_between_retries_in_milliseconds,
+                retry_stats_lock.redis_lock_expiry_seconds,
+            )
+            .await
         }
     }
+}
+
+/// Replace the entire stats document for a cluster key with the given one —
+/// used by the admin retry-stats migration CSV upload
+///
+/// Returns `Ok(true)` when the document was written, `Ok(false)` when the per-key
+/// lock stayed contended for the whole retry budget (nothing was written — the
+/// caller must NOT report the row as loaded).
+#[instrument(skip_all)]
+pub async fn replace_retry_stats_document(
+    state: &SessionState,
+    key: &RetryStatsClusterKey,
+    stats: &StatsDocument,
+) -> CustomResult<bool, StorageError> {
+    let redis_conn = state
+        .store
+        .get_redis_conn()
+        .change_context(StorageError::KVError)?;
+    let store = state.store.get_revenue_recovery_retry_stats_store();
+
+    let retry_stats_lock = state.conf().revenue_recovery.retry_stats_lock;
+    let replaced = with_retry_stats_lock(
+        &redis_conn,
+        &key.redis_locking_key(),
+        retry_stats_lock.lock_retries(),
+        retry_stats_lock.delay_between_retries_in_milliseconds,
+        retry_stats_lock.redis_lock_expiry_seconds,
+        replace_document(store.as_ref(), key, stats),
+    )
+    .await?;
+
+    if replaced.is_none() {
+        logger::warn!(
+            cluster_key = %key.as_db_string(),
+            "revenue_recovery_retry_stats: lock contended after retries, skipping document replace"
+        );
+    }
+    Ok(replaced.is_some())
+}
+
+/// Insert (first sight) or overwrite (thereafter) the whole stats document for one
+/// cluster key; only safe while holding that key's Redis lock.
+async fn replace_document(
+    store: &dyn RevenueRecoveryRetryStatsInterface<Error = StorageError>,
+    key: &RetryStatsClusterKey,
+    stats: &StatsDocument,
+) -> CustomResult<(), StorageError> {
+    // A row whose stored document is unreadable still exists — a replace repairs it,
+    // so treat `DeserializationFailed` as row-present rather than failing the load.
+    let row_exists = match store
+        .find_revenue_recovery_retry_stats_by_cluster_key(key)
+        .await
+    {
+        Ok(maybe_row) => maybe_row.is_some(),
+        Err(error) if matches!(error.current_context(), StorageError::DeserializationFailed) => {
+            true
+        }
+        Err(error) => return Err(error),
+    };
+
+    let record = DomainRevenueRecoveryRetryStats {
+        cluster_key: key.clone(),
+        stats: stats.clone(),
+    };
+
+    if row_exists {
+        store.update_revenue_recovery_retry_stats(record).await?;
+    } else {
+        store.insert_revenue_recovery_retry_stats(record).await?;
+    }
+
+    Ok(())
 }
 
 /// Serialize the read-merge-write for a cluster key under a per-key Redis lock (SETNX
@@ -96,48 +151,30 @@ async fn persist_node(
     delay_between_retries_in_milliseconds: u32,
     redis_lock_expiry_seconds: u32,
 ) -> CustomResult<(), StorageError> {
-    let db_key = event.key.as_db_string();
-    let lock_key = event.get_redis_locking_key();
-    let lock_token = uuid::Uuid::new_v4().to_string();
+    let persisted = with_retry_stats_lock(
+        redis_conn,
+        &event.key.redis_locking_key(),
+        lock_retries,
+        delay_between_retries_in_milliseconds,
+        redis_lock_expiry_seconds,
+        merge_and_write(store, event),
+    )
+    .await?;
 
-    let wait_duration =
-        std::time::Duration::from_millis(u64::from(delay_between_retries_in_milliseconds));
-    let mut acquired = false;
-    for _retry in 0..lock_retries {
-        match redis_conn
-            .set_key_if_not_exists_with_expiry(
-                &lock_key.as_str().into(),
-                lock_token.clone(),
-                Some(i64::from(redis_lock_expiry_seconds)),
-            )
-            .await
-        {
-            Ok(SetnxReply::KeySet) => {
-                acquired = true;
-                break;
-            }
-            Ok(SetnxReply::KeyNotSet) => {
-                actix_web::rt::time::sleep(wait_duration).await;
-            }
-            Err(error) => {
-                Err(error).change_context(StorageError::KVError)?;
-            }
-        }
-    }
-
-    if acquired {
-        let result = merge_and_write(store, event).await;
-        release_lock(redis_conn, &lock_key, &lock_token).await;
-        result
-    } else {
+    match persisted {
+        Some(()) => logger::info!(
+            cluster_key = %event.key.as_db_string(),
+            success = event.success,
+            "revenue_recovery_retry_stats outcome recorded"
+        ),
         // Lock was still contended after the retry budget; dropping this update is
         // acceptable for best-effort stats.
-        logger::warn!(
-            cluster_key = %db_key,
+        None => logger::warn!(
+            cluster_key = %event.key.as_db_string(),
             "revenue_recovery_retry_stats: lock contended after retries, skipping this update"
-        );
-        Ok(())
+        ),
     }
+    Ok(())
 }
 
 async fn merge_and_write(
@@ -179,6 +216,53 @@ async fn merge_and_write(
     }
 
     Ok(())
+}
+
+/// Acquire the per-cluster-key Redis lock (SETNX with expiry, bounded retries), run
+/// `work` while holding it, then always release it. `Ok(Some(..))` = the lock was
+/// held and `work` produced its result; `Ok(None)` = the lock stayed contended for
+/// the whole retry budget and `work` never ran (the caller decides how to report
+/// that; no write happens in that case).
+async fn with_retry_stats_lock<T>(
+    redis_conn: &redis_interface::RedisConnectionWithContext,
+    lock_key: &str,
+    lock_retries: u32,
+    delay_between_retries_in_milliseconds: u32,
+    redis_lock_expiry_seconds: u32,
+    work: impl core::future::Future<Output = CustomResult<T, StorageError>>,
+) -> CustomResult<Option<T>, StorageError> {
+    let lock_token = uuid::Uuid::new_v4().to_string();
+    let wait_duration =
+        std::time::Duration::from_millis(u64::from(delay_between_retries_in_milliseconds));
+    let mut acquired = false;
+    for _retry in 0..lock_retries {
+        match redis_conn
+            .set_key_if_not_exists_with_expiry(
+                &lock_key.into(),
+                lock_token.clone(),
+                Some(i64::from(redis_lock_expiry_seconds)),
+            )
+            .await
+        {
+            Ok(SetnxReply::KeySet) => {
+                acquired = true;
+                break;
+            }
+            Ok(SetnxReply::KeyNotSet) => {
+                actix_web::rt::time::sleep(wait_duration).await;
+            }
+            Err(error) => {
+                Err(error).change_context(StorageError::KVError)?;
+            }
+        }
+    }
+
+    if !acquired {
+        return Ok(None);
+    }
+    let result = work.await;
+    release_lock(redis_conn, lock_key, &lock_token).await;
+    result.map(Some)
 }
 
 /// Release the lock only if we still own it, so we never delete a lock that has

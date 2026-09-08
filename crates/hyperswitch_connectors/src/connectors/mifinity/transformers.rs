@@ -137,7 +137,7 @@ impl TryFrom<&MifinityRouterData<&types::PaymentsAuthorizeRouterData>> for Mifin
                     );
                     let client_reference = item.router_data.customer_id.clone().ok_or(
                         errors::ConnectorError::MissingRequiredField {
-                            field_name: "client_reference",
+                            field_name: "client_reference".into(),
                         },
                     )?;
                     let destination_account_number = metadata.destination_account_number;

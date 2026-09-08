@@ -284,9 +284,9 @@ pub struct RiskData {
     #[serde(rename = "riskdata.deliveryMethod")]
     delivery_method: Option<String>,
     #[serde(rename = "riskdata.emailName")]
-    email_name: Option<String>,
+    email_name: Option<Secret<String>>,
     #[serde(rename = "riskdata.emailDomain")]
-    email_domain: Option<String>,
+    email_domain: Option<Secret<String>>,
     #[serde(rename = "riskdata.lastOrderDate")]
     last_order_date: Option<String>,
     #[serde(rename = "riskdata.merchantReference")]
@@ -2056,7 +2056,7 @@ fn get_additional_data(
                 if metadata_capture_delay.is_some() {
                     return Err(errors::ConnectorError::InvalidDataFormat {
                         field_name:
-                            "metadata.capture_delay_hours should be None for manual capture",
+                            "metadata.capture_delay_hours should be None for manual capture".into(),
                     }
                     .into());
                 }
@@ -2069,7 +2069,7 @@ fn get_additional_data(
                     Some(0) => Some(0),
                     Some(_) => {
                         return Err(errors::ConnectorError::InvalidDataFormat {
-                            field_name: "metadata.capture_delay_hours should be 0 or None for automatic capture",
+                            field_name: "metadata.capture_delay_hours should be 0 or None for automatic capture".into(),
                         }
                         .into());
                     }
@@ -2470,11 +2470,11 @@ impl TryFrom<(&WalletData, &PaymentsAuthorizeRouterData)> for AdyenPaymentMethod
                     let expiry_year_4_digit = google_pay_decrypt
                         .get_four_digit_expiry_year()
                         .change_context(errors::ConnectorError::InvalidDataFormat {
-                            field_name: "expiration_year",
+                            field_name: "expiration_year".into(),
                         })?;
                     let exp_month = google_pay_decrypt.get_expiry_month().change_context(
                         errors::ConnectorError::InvalidDataFormat {
-                            field_name: "expiration_month",
+                            field_name: "expiration_month".into(),
                         },
                     )?;
                     let google_pay_decrypted_data = AdyenGooglePayDecryptData {
@@ -2493,7 +2493,7 @@ impl TryFrom<(&WalletData, &PaymentsAuthorizeRouterData)> for AdyenPaymentMethod
                             data.tokenization_data
                                 .get_encrypted_google_pay_token()
                                 .change_context(errors::ConnectorError::MissingRequiredField {
-                                    field_name: "gpay wallet_token",
+                                    field_name: "gpay wallet_token".into(),
                                 })?
                                 .to_owned(),
                         ),
@@ -2508,7 +2508,7 @@ impl TryFrom<(&WalletData, &PaymentsAuthorizeRouterData)> for AdyenPaymentMethod
                     let expiry_year_4_digit = apple_pay_decrypte.get_four_digit_expiry_year();
                     let exp_month = apple_pay_decrypte.get_expiry_month().change_context(
                         errors::ConnectorError::InvalidDataFormat {
-                            field_name: "expiration_month",
+                            field_name: "expiration_month".into(),
                         },
                     )?;
                     let apple_pay_decrypted_data = AdyenApplePayDecryptData {
@@ -2526,7 +2526,7 @@ impl TryFrom<(&WalletData, &PaymentsAuthorizeRouterData)> for AdyenPaymentMethod
                         .payment_data
                         .get_encrypted_apple_pay_payment_data_mandatory()
                         .change_context(errors::ConnectorError::MissingRequiredField {
-                            field_name: "Apple pay encrypted data",
+                            field_name: "Apple pay encrypted data".into(),
                         })?;
                     let apple_pay_data = AdyenApplePay {
                         apple_pay_token: Secret::new(apple_pay_encrypted_data.to_string()),
@@ -2628,7 +2628,7 @@ pub fn check_required_field<'a, T>(
     field
         .as_ref()
         .ok_or(errors::ConnectorError::MissingRequiredField {
-            field_name: message,
+            field_name: message.into(),
         })
 }
 
@@ -2699,7 +2699,7 @@ impl
                     }
                 } else {
                     Err(errors::ConnectorError::MissingRequiredField {
-                        field_name: "country",
+                        field_name: "country".into(),
                     })?
                 }
             }
@@ -2766,19 +2766,19 @@ impl TryFrom<(&BankRedirectData, &PaymentsAuthorizeRouterData)> for AdyenPayment
                     number: card_number
                         .as_ref()
                         .ok_or(errors::ConnectorError::MissingRequiredField {
-                            field_name: "bancontact_card.card_number",
+                            field_name: "bancontact_card.card_number".into(),
                         })?
                         .clone(),
                     expiry_month: card_exp_month
                         .as_ref()
                         .ok_or(errors::ConnectorError::MissingRequiredField {
-                            field_name: "bancontact_card.card_exp_month",
+                            field_name: "bancontact_card.card_exp_month".into(),
                         })?
                         .clone(),
                     expiry_year: card_exp_year
                         .as_ref()
                         .ok_or(errors::ConnectorError::MissingRequiredField {
-                            field_name: "bancontact_card.card_exp_year",
+                            field_name: "bancontact_card.card_exp_year".into(),
                         })?
                         .clone(),
                     holder_name: test_holder_name.or(Some(item.get_billing_full_name()?)),
@@ -2791,7 +2791,7 @@ impl TryFrom<(&BankRedirectData, &PaymentsAuthorizeRouterData)> for AdyenPayment
                 Ok(AdyenPaymentMethod::Blik(Box::new(BlikRedirectionData {
                     blik_code: Secret::new(blik_code.clone().ok_or(
                         errors::ConnectorError::MissingRequiredField {
-                            field_name: "blik_code",
+                            field_name: "blik_code".into(),
                         },
                     )?),
                 })))
@@ -2801,7 +2801,7 @@ impl TryFrom<(&BankRedirectData, &PaymentsAuthorizeRouterData)> for AdyenPayment
                     issuer: Some(
                         AdyenTestBankNames::try_from(&bank_name.ok_or(
                             errors::ConnectorError::MissingRequiredField {
-                                field_name: "eps.bank_name",
+                                field_name: "eps.bank_name".into(),
                             },
                         )?)?
                         .0,
@@ -3007,8 +3007,8 @@ pub fn get_risk_data(metadata: serde_json::Value) -> Option<RiskData> {
         affiliate_channel,
         avg_order_value,
         delivery_method,
-        email_name,
-        email_domain,
+        email_name: email_name.map(Secret::new),
+        email_domain: email_domain.map(Secret::new),
         last_order_date,
         merchant_reference,
         payment_method,
@@ -3349,12 +3349,12 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AdyenP
                 Some(AdyenMpiData {
                     directory_response: auth_data.transaction_status.clone().ok_or(
                         errors::ConnectorError::MissingRequiredField {
-                            field_name: "three_ds_data.transaction_status",
+                            field_name: "three_ds_data.transaction_status".into(),
                         },
                     )?,
                     authentication_response: auth_data.transaction_status.clone().ok_or(
                         errors::ConnectorError::MissingRequiredField {
-                            field_name: "three_ds_data.transaction_status",
+                            field_name: "three_ds_data.transaction_status".into(),
                         },
                     )?,
                     cavv: Some(auth_data.cavv.clone()),
@@ -3647,7 +3647,7 @@ impl
 
                     if *expiry > max_expiry_primitive {
                         return Err(report!(errors::ConnectorError::InvalidDataFormat {
-                            field_name: "expiry_date cannot be more than 5 days from now",
+                            field_name: "expiry_date cannot be more than 5 days from now".into(),
                         }));
                     }
                 }
@@ -4186,7 +4186,7 @@ impl
             .router_data
             .get_billing_phone()
             .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "billing.phone",
+                field_name: "billing.phone".into(),
             })?
             .number
             .to_owned();
@@ -5588,7 +5588,7 @@ pub struct AdyenAdditionalDataWH {
     /// [only for cards] This is only available for Visa and Mastercard
     pub refusal_code_raw: Option<String>,
     #[serde(rename = "shopperEmail")]
-    pub shopper_email: Option<String>,
+    pub shopper_email: Option<Secret<String, common_utils::pii::EmailStrategy>>,
     #[serde(rename = "shopperReference")]
     pub shopper_reference: Option<String>,
     pub expiry_date: Option<Secret<String>>,
@@ -5616,7 +5616,7 @@ pub enum WebhookEventCode {
     Capture,
     CaptureFailed,
     RefundFailed,
-    RefundReversed,
+    RefundedReversed,
     NotificationOfChargeback,
     Chargeback,
     ChargebackReversed,
@@ -5675,7 +5675,7 @@ pub fn is_refund_event(event_code: &WebhookEventCode) -> bool {
         WebhookEventCode::Refund
             | WebhookEventCode::CancelOrRefund
             | WebhookEventCode::RefundFailed
-            | WebhookEventCode::RefundReversed
+            | WebhookEventCode::RefundedReversed
     )
 }
 
@@ -5751,8 +5751,9 @@ pub(crate) fn get_adyen_webhook_event(
                 api_models::webhooks::IncomingWebhookEvent::PaymentIntentExtendAuthorizationFailure
             }
         }
-        WebhookEventCode::RefundFailed | WebhookEventCode::RefundReversed => {
-            api_models::webhooks::IncomingWebhookEvent::RefundFailure
+        WebhookEventCode::RefundFailed => api_models::webhooks::IncomingWebhookEvent::RefundFailure,
+        WebhookEventCode::RefundedReversed => {
+            api_models::webhooks::IncomingWebhookEvent::RefundReview
         }
         WebhookEventCode::NotificationOfChargeback => {
             api_models::webhooks::IncomingWebhookEvent::DisputeOpened
@@ -6007,7 +6008,7 @@ impl From<AdyenNotificationRequestItemWH> for AdyenWebhookResponse {
                 WebhookEventCode::CancelOrRefund
                 | WebhookEventCode::Refund
                 | WebhookEventCode::RefundFailed
-                | WebhookEventCode::RefundReversed
+                | WebhookEventCode::RefundedReversed
                 | WebhookEventCode::NotificationOfChargeback
                 | WebhookEventCode::RequestForInformation
                 | WebhookEventCode::Chargeback
@@ -6273,11 +6274,11 @@ impl TryFrom<&PayoutMethodData> for PayoutCardDetails {
                     .clone()
                     .get_required_value("card_holder_name")
                     .change_context(errors::ConnectorError::MissingRequiredField {
-                        field_name: "payout_method_data.card.holder_name",
+                        field_name: "payout_method_data.card.holder_name".into(),
                     })?,
             }),
             _ => Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "payout_method_data.card",
+                field_name: "payout_method_data.card".into(),
             })?,
         }
     }
@@ -6319,7 +6320,7 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for AdyenPayoutCancelRequest {
             })
         } else {
             Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "connector_payout_id",
+                field_name: "connector_payout_id".into(),
             })?
         }
     }
@@ -6340,7 +6341,7 @@ impl<F> TryFrom<&AdyenRouterData<&PayoutsRouterData<F>>> for AdyenPayoutCreateRe
             .map_or((None, None), |c| (c.name, c.email));
         let owner_name = owner_name.get_required_value("owner_name").change_context(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "payout_method_data.bank.owner_name",
+                field_name: "payout_method_data.bank.owner_name".into(),
             },
         )?;
 
@@ -6427,7 +6428,7 @@ impl<F> TryFrom<&AdyenRouterData<&PayoutsRouterData<F>>> for AdyenPayoutCreateRe
                         token_data_type: PayoutTokenDataType::PayPal,
                         email_id: paypal_data.email.clone().ok_or(
                             errors::ConnectorError::MissingRequiredField {
-                                field_name: "email_address",
+                                field_name: "email_address".into(),
                             },
                         )?,
                     },
@@ -6512,7 +6513,7 @@ impl<F> TryFrom<&AdyenRouterData<&PayoutsRouterData<F>>> for AdyenPayoutFulfillR
                         .connector_payout_id
                         .clone()
                         .ok_or(errors::ConnectorError::MissingRequiredField {
-                            field_name: "connector_payout_id",
+                            field_name: "connector_payout_id".into(),
                         })?,
                 }))
             }
@@ -6687,7 +6688,7 @@ impl TryFrom<common_utils::pii::SecretSerdeValue> for AdyenTestingData {
             .expose()
             .parse_value::<Self>("AdyenTestingData")
             .change_context(errors::ConnectorError::InvalidDataFormat {
-                field_name: "connector_metadata.adyen.testing",
+                field_name: "connector_metadata.adyen.testing".into(),
             })?;
         Ok(testing_data)
     }
@@ -6701,7 +6702,7 @@ impl TryFrom<&SubmitEvidenceRouterData> for Evidence {
         Ok(Self {
             defense_documents: get_defence_documents(submit_evidence_request_data).ok_or(
                 errors::ConnectorError::MissingRequiredField {
-                    field_name: "Missing Defence Documents",
+                    field_name: "Missing Defence Documents".into(),
                 },
             )?,
             merchant_account_code,
@@ -6987,7 +6988,7 @@ impl
             token_authentication_verification_value: Some(
                 token_data.get_cryptogram().clone().ok_or(
                     errors::ConnectorError::MissingRequiredField {
-                        field_name: "network_token_data.token_cryptogram",
+                        field_name: "network_token_data.token_cryptogram".into(),
                     },
                 )?,
             ),

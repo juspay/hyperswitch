@@ -822,6 +822,12 @@ pub enum AdditionalPaymentMethodConnectorResponse {
     ApplePay {
         auth_code: Option<String>,
     },
+    Paypal {
+        /// Email address associated with the payer's PayPal account
+        email: Option<common_utils::pii::Email>,
+        /// Unique identifier of the payer in PayPal
+        payer_id: Option<Secret<String>>,
+    },
     SepaBankTransfer {
         debitor_iban: Option<Secret<String>>,
         debitor_bic: Option<Secret<String>>,

@@ -149,7 +149,7 @@ impl TryFrom<&RapydRouterData<&types::PaymentsAuthorizeRouterData>> for RapydPay
                             data.tokenization_data
                                 .get_encrypted_google_pay_token()
                                 .change_context(errors::ConnectorError::MissingRequiredField {
-                                    field_name: "gpay wallet_token",
+                                    field_name: "gpay wallet_token".into(),
                                 })?
                                 .to_owned(),
                         )),
@@ -159,7 +159,7 @@ impl TryFrom<&RapydRouterData<&types::PaymentsAuthorizeRouterData>> for RapydPay
                             .payment_data
                             .get_encrypted_apple_pay_payment_data_mandatory()
                             .change_context(errors::ConnectorError::MissingRequiredField {
-                                field_name: "Apple pay encrypted data",
+                                field_name: "Apple pay encrypted data".into(),
                             })?;
                         Some(RapydWallet {
                             payment_type: "apple_pay".to_string(),
