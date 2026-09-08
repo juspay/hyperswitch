@@ -38,9 +38,9 @@ use crate::{
     types::{self, api, domain},
 };
 
-fn to_error_response<E: std::fmt::Display>(err: E) -> types::ErrorResponse {
+fn to_error_response<E: std::fmt::Display>(err: E) -> Box<types::ErrorResponse> {
     router_env::logger::error!(error=%err, "Webhook access token error");
-    types::ErrorResponse {
+    Box::new(types::ErrorResponse {
         code: "WEBHOOK_ACCESS_TOKEN_ERROR".to_string(),
         message: "Failed to obtain access token for webhook registration".to_string(),
         status_code: 500,
@@ -52,7 +52,7 @@ fn to_error_response<E: std::fmt::Display>(err: E) -> types::ErrorResponse {
         network_decline_code: None,
         network_error_message: None,
         connector_metadata: None,
-    }
+    })
 }
 
 async fn fetch_access_token_for_webhook(
@@ -64,7 +64,7 @@ async fn fetch_access_token_for_webhook(
         ConnectorWebhookRegisterResponse,
     >,
     current_flow_info: Option<CurrentFlowInfo>,
-) -> Result<Option<types::AccessToken>, types::ErrorResponse> {
+) -> Result<Option<types::AccessToken>, Box<types::ErrorResponse>> {
     if !connector_data
         .connector_name
         .supports_access_token(router_data.payment_method)
@@ -145,7 +145,7 @@ async fn fetch_access_token_for_webhook(
                     connector=%connector_data.connector_name,
                     "Access token response contained an error"
                 );
-                err
+                Box::new(err)
             })?;
 
             let modified_token = types::AccessToken {

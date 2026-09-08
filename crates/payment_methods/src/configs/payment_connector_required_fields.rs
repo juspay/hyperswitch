@@ -1887,6 +1887,32 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
                 common: HashMap::new(),
             },
         ),
+        (
+            Connector::Citigate,
+            fields(
+                vec![],
+                vec![],
+                [
+                    card_basic(),
+                    // `billing_address()` is exactly Citigate's address set: StreetLine1, City,
+                    // PostalCode, Country and StateProvince. StateProvince is flagged `Y` in the
+                    // API Card field table and is additionally called out as mandatory for
+                    // `Country = "US"`, which the connector enforces at request-build time.
+                    billing_address(),
+                    vec![
+                        // Read from the top-level `email`, falling back to the billing address.
+                        RequiredField::Email,
+                        // Citigate sends `Firstname`/`Surname` as fields distinct from
+                        // `CardholderName`, so the cardholder name cannot stand in for them.
+                        RequiredField::BillingFirstName("first_name", FieldType::UserFullName),
+                        RequiredField::BillingLastName("last_name", FieldType::UserFullName),
+                        // `Telephone` is `R` in the field table but mandatory for `Country = "US"`.
+                        RequiredField::BillingPhone,
+                    ],
+                ]
+                .concat(),
+            ),
+        ),
     ])
 }
 
