@@ -51,7 +51,7 @@ pub(crate) fn csv_header() -> RouterResult<Vec<u8>> {
         .has_headers(false)
         .from_writer(Vec::new());
     writer
-        .write_record(["type", "data", "metadata"])
+        .write_record(batch::CSV_HEADER)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to write blocklist export CSV header")?;
     writer
@@ -63,25 +63,10 @@ pub(crate) fn csv_header() -> RouterResult<Vec<u8>> {
 
 /// Serializes one page of blocklist entries into CSV.
 pub(crate) fn rows_to_csv_bytes(rows: &[storage::Blocklist]) -> RouterResult<Vec<u8>> {
-    let mut writer = WriterBuilder::new()
-        .has_headers(false)
-        .from_writer(Vec::new());
-    for row in rows {
-        writer
-            .write_record([
-                batch::data_kind_to_csv_token(row.data_kind),
-                row.fingerprint_id.as_str(),
-                batch::metadata_to_csv_field(row.metadata.as_ref()).as_str(),
-            ])
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to serialize blocklist export row")?;
-    }
-
-    writer
-        .into_inner()
-        .map_err(|error| error.into_error())
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to finalize blocklist export page CSV")
+    batch::records_to_csv_bytes(
+        rows.iter()
+            .map(batch::BlocklistCsvRecord::from_stored_entry),
+    )
 }
 
 #[instrument(skip_all, fields(flow = ?router_env::Flow::CreateBlocklistExport))]

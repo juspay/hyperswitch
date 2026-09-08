@@ -153,7 +153,7 @@ pub async fn upload_batch_blocklist() {}
     responses(
         (status = 200, description = "Batch blocklist job status. For a completed export whose file \
          is still stored, this is where the short-lived `download_url` is issued.",
-         body = BatchBlocklistJobDetailResponse),
+         body = BatchBlocklistJobStatusResponse),
         (status = 404, description = "Job not found"),
     ),
     tag = "Blocklist",

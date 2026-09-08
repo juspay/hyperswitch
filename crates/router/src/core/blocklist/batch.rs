@@ -6,7 +6,7 @@ use error_stack::{report, ResultExt};
 use futures::future;
 use router_env::{instrument, tracing};
 use scheduler::utils as pt_utils;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use super::export;
 use crate::{
@@ -41,13 +41,37 @@ pub(crate) struct BlocklistRow {
     pub metadata: Option<serde_json::Value>,
 }
 
-#[derive(Debug, Deserialize)]
-struct BlocklistCsvRecord {
+/// Column order of the blocklist CSV, shared by import and export.
+pub(crate) const CSV_HEADER: [&str; 3] = ["type", "data", "metadata"];
+
+/// One row of the blocklist CSV, in both directions.
+#[derive(Debug, Serialize, Deserialize)]
+pub(crate) struct BlocklistCsvRecord {
     #[serde(rename = "type")]
     kind: String,
     data: String,
     #[serde(default)]
     metadata: Option<String>,
+}
+
+impl BlocklistCsvRecord {
+    fn from_parsed_row(row: &BlocklistRow) -> Self {
+        Self {
+            kind: data_kind_to_csv_token(row.data_kind).to_owned(),
+            data: row.data.clone(),
+            metadata: Some(metadata_to_csv_field(row.metadata.as_ref()))
+                .filter(|metadata| !metadata.is_empty()),
+        }
+    }
+
+    pub(crate) fn from_stored_entry(entry: &storage::Blocklist) -> Self {
+        Self {
+            kind: data_kind_to_csv_token(entry.data_kind).to_owned(),
+            data: entry.fingerprint_id.clone(),
+            metadata: Some(metadata_to_csv_field(entry.metadata.as_ref()))
+                .filter(|metadata| !metadata.is_empty()),
+        }
+    }
 }
 
 fn parse_metadata(s: &str) -> Option<serde_json::Value> {
@@ -199,7 +223,7 @@ fn parse_csv(csv_bytes: &[u8]) -> Result<Vec<BlocklistRow>, api_blocklist::Block
 }
 
 /// The CSV token for a data kind. Not identity: `fingerprint` is stored as `PaymentMethod`.
-pub(crate) fn data_kind_to_csv_token(data_kind: common_enums::BlocklistDataKind) -> &'static str {
+fn data_kind_to_csv_token(data_kind: common_enums::BlocklistDataKind) -> &'static str {
     match data_kind {
         common_enums::BlocklistDataKind::CardBin => "card_bin",
         common_enums::BlocklistDataKind::ExtendedCardBin => "extended_card_bin",
@@ -209,7 +233,7 @@ pub(crate) fn data_kind_to_csv_token(data_kind: common_enums::BlocklistDataKind)
 }
 
 /// Flattens metadata into `key=value;key=value`. Anything not a flat object renders empty.
-pub(crate) fn metadata_to_csv_field(metadata: Option<&serde_json::Value>) -> String {
+fn metadata_to_csv_field(metadata: Option<&serde_json::Value>) -> String {
     metadata
         .map(|m| {
             if let serde_json::Value::Object(map) = m {
@@ -230,25 +254,25 @@ pub(crate) fn metadata_to_csv_field(metadata: Option<&serde_json::Value>) -> Str
         .unwrap_or_default()
 }
 
-/// Serializes a slice of blocklist rows into headerless CSV bytes for chunk storage.
-fn rows_to_csv_bytes(rows: &[BlocklistRow]) -> RouterResult<Vec<u8>> {
+/// Serializes records into headerless CSV bytes. Shared by chunk storage and the export.
+pub(crate) fn records_to_csv_bytes(
+    records: impl IntoIterator<Item = BlocklistCsvRecord>,
+) -> RouterResult<Vec<u8>> {
     let mut writer = WriterBuilder::new()
         .has_headers(false)
         .from_writer(Vec::new());
-    for row in rows {
-        let metadata_str = metadata_to_csv_field(row.metadata.as_ref());
-        let type_str = data_kind_to_csv_token(row.data_kind);
+    for record in records {
         writer
-            .write_record([type_str, row.data.as_str(), metadata_str.as_str()])
+            .serialize(record)
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to serialize batch blocklist input chunk row")?;
+            .attach_printable("Failed to serialize blocklist CSV row")?;
     }
 
     writer
         .into_inner()
         .map_err(|error| error.into_error())
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to finalize batch blocklist input chunk CSV")
+        .attach_printable("Failed to finalize blocklist CSV")
 }
 
 /// Parses a stored input chunk CSV (no header) into blocklist rows.
@@ -368,7 +392,9 @@ pub async fn initiate_batch_blocklist_upload(
             let fs = state.file_storage_client.clone();
             async move {
                 let key = key?;
-                let chunk_bytes = rows_to_csv_bytes(chunk_rows)?;
+                let chunk_bytes = records_to_csv_bytes(
+                    chunk_rows.iter().map(BlocklistCsvRecord::from_parsed_row),
+                )?;
                 fs.upload_file(&key, chunk_bytes)
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -513,7 +539,7 @@ pub async fn get_batch_blocklist_job_status(
     merchant_id: &id_type::MerchantId,
     profile_id: Option<&id_type::ProfileId>,
     job_id: &str,
-) -> RouterResult<api_blocklist::BatchBlocklistJobDetailResponse> {
+) -> RouterResult<api_blocklist::BatchBlocklistJobStatusResponse> {
     let job = state
         .store
         .find_batch_blocklist_job_by_id_merchant_id(job_id, merchant_id.get_string_repr())
@@ -539,10 +565,10 @@ pub async fn get_batch_blocklist_job_status(
     let (download_url, download_url_expires_at) =
         export::presign_export_download(state, &job).await.unzip();
 
-    Ok(api_blocklist::BatchBlocklistJobDetailResponse {
-        job: to_job_status_response(job)?,
+    Ok(api_blocklist::BatchBlocklistJobStatusResponse {
         download_url,
         download_url_expires_at,
+        ..to_job_status_response(job)?
     })
 }
 
@@ -571,6 +597,8 @@ fn to_job_status_response(
         expires_at: job.expires_at,
         downloadable,
         error_message: job.error_message,
+        download_url: None,
+        download_url_expires_at: None,
     })
 }
 
@@ -582,8 +610,8 @@ pub async fn list_batch_blocklist_jobs(
     profile_id: Option<&id_type::ProfileId>,
     query: api_blocklist::ListBatchBlocklistJobsQuery,
 ) -> RouterResult<api_blocklist::ListBatchBlocklistJobsResponse> {
-    let limit = i64::from(query.limit.get());
-    let offset = i64::from(query.offset.get());
+    let limit = query.limit.as_i64();
+    let offset = query.offset.as_i64();
     // The page and the total have to use the same filter or they contradict each other.
     let job_type = query.job_type;
 

@@ -99,7 +99,7 @@ pub async fn get_batch_blocklist_job_status(
     platform: domain::Platform,
     profile_id: Option<common_utils::id_type::ProfileId>,
     job_id: String,
-) -> RouterResponse<api_blocklist::BatchBlocklistJobDetailResponse> {
+) -> RouterResponse<api_blocklist::BatchBlocklistJobStatusResponse> {
     batch::get_batch_blocklist_job_status(
         &state,
         platform.get_processor().get_account().get_id(),

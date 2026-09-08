@@ -18,13 +18,7 @@ fn matches_job_scope(
     job_type: Option<common_enums::BatchBlocklistJobType>,
 ) -> bool {
     job.merchant_id.get_string_repr() == merchant_id
-        && match job_type {
-            None => true,
-            Some(common_enums::BatchBlocklistJobType::Upload) => job
-                .job_type
-                .is_none_or(|job_type| job_type == common_enums::BatchBlocklistJobType::Upload),
-            Some(job_type) => job.job_type == Some(job_type),
-        }
+        && job_type.is_none_or(|job_type| job.job_type == Some(job_type))
         && profile_id.is_none_or(|profile_id| {
             job.profile_id
                 .as_ref()
@@ -105,27 +99,44 @@ impl BatchBlocklistJobInterface for Store {
         offset: i64,
     ) -> CustomResult<Vec<storage::BatchBlocklistJob>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        match profile_id {
-            Some(profile_id) => storage::BatchBlocklistJob::list_by_merchant_id_profile_id(
-                &conn,
-                merchant_id,
-                profile_id,
-                job_type,
-                limit,
-                offset,
-            )
-            .await
-            .map_err(|error| report!(errors::StorageError::from(error))),
-            None => storage::BatchBlocklistJob::list_by_merchant_id(
-                &conn,
-                merchant_id,
-                job_type,
-                limit,
-                offset,
-            )
-            .await
-            .map_err(|error| report!(errors::StorageError::from(error))),
+        match (profile_id, job_type) {
+            (Some(profile_id), Some(job_type)) => {
+                storage::BatchBlocklistJob::list_by_merchant_id_profile_id_job_type(
+                    &conn,
+                    merchant_id,
+                    profile_id,
+                    job_type,
+                    limit,
+                    offset,
+                )
+                .await
+            }
+            (Some(profile_id), None) => {
+                storage::BatchBlocklistJob::list_by_merchant_id_profile_id(
+                    &conn,
+                    merchant_id,
+                    profile_id,
+                    limit,
+                    offset,
+                )
+                .await
+            }
+            (None, Some(job_type)) => {
+                storage::BatchBlocklistJob::list_by_merchant_id_job_type(
+                    &conn,
+                    merchant_id,
+                    job_type,
+                    limit,
+                    offset,
+                )
+                .await
+            }
+            (None, None) => {
+                storage::BatchBlocklistJob::list_by_merchant_id(&conn, merchant_id, limit, offset)
+                    .await
+            }
         }
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -149,19 +160,37 @@ impl BatchBlocklistJobInterface for Store {
         job_type: Option<common_enums::BatchBlocklistJobType>,
     ) -> CustomResult<usize, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        match profile_id {
-            Some(profile_id) => storage::BatchBlocklistJob::count_by_merchant_id_profile_id(
-                &conn,
-                merchant_id,
-                profile_id,
-                job_type,
-            )
-            .await
-            .map_err(|error| report!(errors::StorageError::from(error))),
-            None => storage::BatchBlocklistJob::count_by_merchant_id(&conn, merchant_id, job_type)
+        match (profile_id, job_type) {
+            (Some(profile_id), Some(job_type)) => {
+                storage::BatchBlocklistJob::count_by_merchant_id_profile_id_job_type(
+                    &conn,
+                    merchant_id,
+                    profile_id,
+                    job_type,
+                )
                 .await
-                .map_err(|error| report!(errors::StorageError::from(error))),
+            }
+            (Some(profile_id), None) => {
+                storage::BatchBlocklistJob::count_by_merchant_id_profile_id(
+                    &conn,
+                    merchant_id,
+                    profile_id,
+                )
+                .await
+            }
+            (None, Some(job_type)) => {
+                storage::BatchBlocklistJob::count_by_merchant_id_job_type(
+                    &conn,
+                    merchant_id,
+                    job_type,
+                )
+                .await
+            }
+            (None, None) => {
+                storage::BatchBlocklistJob::count_by_merchant_id(&conn, merchant_id).await
+            }
         }
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 }
 

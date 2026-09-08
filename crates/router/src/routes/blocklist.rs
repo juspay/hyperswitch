@@ -430,7 +430,7 @@ pub async fn upload_batch_blocklist(
         ("job_id" = String, Path, description = "The job ID returned by the batch upload endpoint"),
     ),
     responses(
-        (status = 200, description = "Batch blocklist job status", body = BatchBlocklistJobDetailResponse),
+        (status = 200, description = "Batch blocklist job status", body = BatchBlocklistJobStatusResponse),
         (status = 404, description = "Job not found"),
     ),
     tag = "Blocklist",
