@@ -155,7 +155,8 @@ impl ForeignTryFrom<payments_grpc::PaymentMethod> for domain_pm::PaymentMethodDa
                     payments_grpc::card_redirect::CardRedirectType::CardRedirect => {
                         domain_pm::CardRedirectData::CardRedirect {}
                     }
-                    payments_grpc::card_redirect::CardRedirectType::Unspecified => {
+                    payments_grpc::card_redirect::CardRedirectType::Unspecified
+                    | payments_grpc::card_redirect::CardRedirectType::Webpay => {
                         return Err(
                             UnifiedConnectorServiceError::ResponseDeserializationFailed.into()
                         )
