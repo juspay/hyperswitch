@@ -733,6 +733,43 @@ impl GpayTokenizationData {
     }
 }
 impl GPayPredecryptData {
+    /// Bin of the decrypted PAN, when it is a tokenized DPAN (`auth_method` is `CRYPTOGRAM_3DS`)
+    pub fn get_device_pan_bin(&self) -> Option<String> {
+        match self.auth_method {
+            Some(enums::GooglePayAuthMethod::Cryptogram) => {
+                Some(self.application_primary_account_number.get_card_isin())
+            }
+            None if self.cryptogram.is_some() => {
+                Some(self.application_primary_account_number.get_card_isin())
+            }
+            Some(enums::GooglePayAuthMethod::PanOnly) | None => None,
+        }
+    }
+
+    /// Bin of the decrypted PAN, when it is the underlying card's real PAN (`auth_method` is
+    /// `PAN_ONLY`)
+    pub fn get_card_bin(&self) -> Option<String> {
+        match self.auth_method {
+            Some(enums::GooglePayAuthMethod::PanOnly) => {
+                Some(self.application_primary_account_number.get_card_isin())
+            }
+            None if self.cryptogram.is_none() => {
+                Some(self.application_primary_account_number.get_card_isin())
+            }
+            Some(enums::GooglePayAuthMethod::Cryptogram) | None => None,
+        }
+    }
+
+    /// The decrypted PAN's card expiry month
+    pub fn get_card_exp_month(&self) -> Secret<String> {
+        self.card_exp_month.clone()
+    }
+
+    /// The decrypted PAN's card expiry year
+    pub fn get_card_exp_year(&self) -> Secret<String> {
+        self.card_exp_year.clone()
+    }
+
     /// Get the four-digit expiration year from the Google Pay pre-decrypt data
     pub fn get_four_digit_expiry_year(&self) -> Result<Secret<String>, errors::ValidationError> {
         let mut year = self.card_exp_year.peek().clone();
@@ -827,6 +864,23 @@ pub struct ApplePayPredecryptData {
     #[schema(value_type = ApplePayCryptogramData)]
     #[smithy(value_type = "ApplePayCryptogramData")]
     pub payment_data: ApplePayCryptogramData,
+}
+
+impl ApplePayPredecryptData {
+    /// The decrypted PAN's card expiry month
+    pub fn get_application_expiration_month(&self) -> Secret<String> {
+        self.application_expiration_month.clone()
+    }
+
+    /// The decrypted PAN's card expiry year
+    pub fn get_application_expiration_year(&self) -> Secret<String> {
+        self.application_expiration_year.clone()
+    }
+
+    /// Bin of the decrypted PAN
+    pub fn get_device_pan_bin(&self) -> String {
+        self.application_primary_account_number.get_card_isin()
+    }
 }
 
 #[derive(
