@@ -457,12 +457,14 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         // If the business details are not passed in the request, populate them from the merchant
         // account so that the connector label can be generated for the payment
-        helpers::populate_business_details_in_payment_intent(
-            &mut payment_intent,
-            None,
-            platform.get_processor().get_account(),
-            &business_profile,
-        )?;
+        payment_intent
+            .populate_business_details(
+                None,
+                platform.get_processor().get_account(),
+                &business_profile,
+            )
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to populate business details in the payment intent")?;
 
         let surcharge_details = request.surcharge_details.map(|request_surcharge_details| {
             payments::types::SurchargeDetails::from((&request_surcharge_details, &payment_attempt))
