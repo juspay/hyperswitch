@@ -6405,6 +6405,13 @@ pub async fn get_additional_payment_data(
                             .pm_type
                             .to_uppercase()
                             .parse::<common_enums::CardType>()
+                            .inspect_err(|error| {
+                                logger::debug!(
+                                    ?error,
+                                    unparsed_card_type = %apple_pay_wallet_data.payment_method.pm_type,
+                                    "Received an unrecognized card_type value from Apple Pay, defaulting to None"
+                                );
+                            })
                             .ok(),
                         card_exp_month,
                         card_exp_year,
