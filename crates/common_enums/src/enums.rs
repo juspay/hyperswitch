@@ -9580,6 +9580,7 @@ pub enum ParentGroup {
 #[serde(rename_all = "snake_case")]
 pub enum Resource {
     Payment,
+    PaymentLink,
     Refund,
     ApiKey,
     Account,

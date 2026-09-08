@@ -556,15 +556,15 @@ pub async fn list_payment_link(
                 return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
                     message: "end_time must be after start_time".to_string(),
                 }));
-            }
-            if (end - tr.start_time) > time::Duration::days(90) {
+            } else if (end - tr.start_time) > time::Duration::days(90) {
                 return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
                     message: "time range cannot exceed 3 months".to_string(),
                 }));
-            }
-            common_utils::types::TimeRange {
-                start_time: tr.start_time,
-                end_time: Some(end),
+            } else {
+                common_utils::types::TimeRange {
+                    start_time: tr.start_time,
+                    end_time: Some(end),
+                }
             }
         }
     };

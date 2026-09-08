@@ -129,7 +129,7 @@ pub async fn initiate_secure_payment_link(
 pub async fn payments_link_list(
     state: web::Data<AppState>,
     req: actix_web::HttpRequest,
-    payload: web::Query<api_models::payments::PaymentLinkListConstraints>,
+    payload: web::Json<api_models::payments::PaymentLinkListConstraints>,
 ) -> impl Responder {
     let flow = Flow::PaymentLinkList;
     let payload = payload.into_inner();
@@ -170,7 +170,7 @@ pub async fn payments_link_list(
 pub async fn profile_payment_link_list(
     state: web::Data<AppState>,
     req: actix_web::HttpRequest,
-    payload: web::Query<api_models::payments::PaymentLinkListConstraints>,
+    payload: web::Json<api_models::payments::PaymentLinkListConstraints>,
 ) -> impl Responder {
     let flow = Flow::PaymentLinkList;
     let payload = payload.into_inner();
