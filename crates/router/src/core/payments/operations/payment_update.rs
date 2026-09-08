@@ -455,6 +455,15 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 id: profile_id.get_string_repr().to_owned(),
             })?;
 
+        // If the business details are not passed in the request, populate them from the merchant
+        // account so that the connector label can be generated for the payment
+        helpers::populate_business_details_in_payment_intent(
+            &mut payment_intent,
+            None,
+            platform.get_processor().get_account(),
+            &business_profile,
+        )?;
+
         let surcharge_details = request.surcharge_details.map(|request_surcharge_details| {
             payments::types::SurchargeDetails::from((&request_surcharge_details, &payment_attempt))
         });
@@ -1480,11 +1489,13 @@ impl PaymentUpdate {
             .clone()
             .map(|i| payment_intent.return_url.replace(i.to_string()));
 
-        payment_intent.business_country = request.business_country;
+        payment_intent.business_country =
+            request.business_country.or(payment_intent.business_country);
 
-        payment_intent
+        payment_intent.business_label = request
             .business_label
-            .clone_from(&request.business_label);
+            .clone()
+            .or(payment_intent.business_label.take());
 
         request
             .statement_descriptor_name

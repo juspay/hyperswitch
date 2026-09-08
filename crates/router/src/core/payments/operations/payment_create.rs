@@ -1931,7 +1931,7 @@ impl PaymentCreate {
             .force_3ds_challenge
             .unwrap_or(business_profile.force_3ds_challenge);
 
-        Ok(storage::PaymentIntent {
+        let mut payment_intent = storage::PaymentIntent {
             payment_id: payment_id.to_owned(),
             merchant_id: platform.get_provider().get_account().get_id().to_owned(),
             status,
@@ -2028,7 +2028,18 @@ impl PaymentCreate {
             profile_acquirer_id: request.profile_acquirer_id.clone(),
             external_surcharge_strategy: request.external_surcharge_strategy,
             external_surcharge_applicable: None,
-        })
+        };
+
+        // If the business details are not passed in the request, populate them from the merchant
+        // account so that the connector label can be generated for the payment
+        helpers::populate_business_details_in_payment_intent(
+            &mut payment_intent,
+            None,
+            platform.get_processor().get_account(),
+            business_profile,
+        )?;
+
+        Ok(payment_intent)
     }
 }
 
