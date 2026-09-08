@@ -2995,6 +2995,15 @@ impl ExecutionPath {
             Self::UnifiedConnectorService => false,
         }
     }
+
+    /// Returns the execution mode corresponding to this execution path.
+    pub fn get_execution_mode(&self) -> ExecutionMode {
+        match self {
+            Self::UnifiedConnectorService => ExecutionMode::Primary,
+            Self::ShadowUnifiedConnectorService => ExecutionMode::Shadow,
+            Self::Direct => ExecutionMode::NotApplicable,
+        }
+    }
 }
 
 #[derive(
@@ -3562,6 +3571,9 @@ pub enum CardSegmentType {
 pub enum CardType {
     Credit,
     Debit,
+    Prepaid,
+    Store,
+    ChargeCard,
 }
 
 impl CardType {
@@ -3569,6 +3581,9 @@ impl CardType {
         match self {
             Self::Credit => "Credit",
             Self::Debit => "Debit",
+            Self::Prepaid => "Prepaid",
+            Self::Store => "Store",
+            Self::ChargeCard => "Charge Card",
         }
     }
 }
