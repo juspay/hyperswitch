@@ -571,7 +571,11 @@ pub async fn list_payment_link(
     constraints.time_range = Some(time_range);
 
     let payment_links = db
-        .list_payment_link_by_processor_merchant_id(merchant.get_id(), &constraints, profile_id.clone())
+        .list_payment_link_by_processor_merchant_id(
+            merchant.get_id(),
+            &constraints,
+            profile_id.clone(),
+        )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
