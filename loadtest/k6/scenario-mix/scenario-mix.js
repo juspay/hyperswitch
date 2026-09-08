@@ -25,13 +25,28 @@ import { sleep } from "k6";
 import { Counter, Trend } from "k6/metrics";
 import exec from "k6/execution";
 import encoding from "k6/encoding";
-import { htmlReport } from "../helper/k6-reporter.js";
 
 // ---------------------------------------------------------------------------
 // Configuration loading and validation (fails fast, before any traffic)
 // ---------------------------------------------------------------------------
 
 const configPath = __ENV.SCENARIO_MIX_CONFIG || "./config.json";
+// Directory prefix for every file this script writes itself (SUMMARY_OUTPUT).
+// Defaults to "output" (checked into the repo alongside this script) rather
+// than cwd, so a plain `k6 run scenario-mix.js` doesn't scatter files loose
+// next to the source. k6 VU/init code can't create directories — the actual
+// file write happens in k6's Go runtime after handleSummary returns, and it
+// fails outright if the directory doesn't already exist — so a non-default
+// OUTPUT_DIR must be created ahead of time (`mkdir -p "$OUTPUT_DIR"`) before
+// running. Same constraint applies to any path passed to --console-output or
+// --out web-dashboard=export=..., which are k6 CLI flags this script has no
+// control over; see README "Collecting everything into one output directory".
+const outputDir = __ENV.OUTPUT_DIR || "output";
+
+function joinPath(dir, file) {
+  if (!dir) return file;
+  return dir.endsWith("/") ? `${dir}${file}` : `${dir}/${file}`;
+}
 
 function fail(message) {
   throw new Error(`scenario-mix: ${message}`);
@@ -447,10 +462,47 @@ function paymentCreateBody(plan, customerId, description) {
   };
 }
 
-function failIteration(plan, startedAt, reason, phaseInfo) {
+const FAILURE_LOG_BODY_MAX_CHARS = 500;
+
+function truncateBody(body) {
+  if (typeof body !== "string") return body;
+  return body.length > FAILURE_LOG_BODY_MAX_CHARS
+    ? `${body.slice(0, FAILURE_LOG_BODY_MAX_CHARS)}…(truncated)`
+    : body;
+}
+
+// One JSON record per failed iteration, via console.error. k6 VU code cannot
+// write files directly (open() is read-only, init-stage only), so the way to
+// get a durable failures file is k6's own console-output redirection: run
+// with `k6 run --console-output=failures.log` (or `K6_CONSOLE_OUTPUT=failures.log`)
+// and every console.error call below lands there as its own line instead of
+// the terminal — see README "Logging failures to a file".
+function logFailure(plan, phaseInfo, reason, response, errorMessage) {
+  const record = {
+    time: new Date().toISOString(),
+    scenario: plan.name,
+    merchant_path: plan.merchantPath,
+    scenario_type: plan.scenarioName,
+    phase: phaseInfo ? phaseInfo.index : undefined,
+    vu: __VU,
+    iteration: exec.scenario.iterationInTest,
+    reason,
+  };
+  if (response) {
+    record.status = response.status;
+    record.url = response.url;
+    record.error = response.error || undefined;
+    record.body = truncateBody(response.body);
+  }
+  if (errorMessage) record.error_message = errorMessage;
+  console.error(JSON.stringify(record));
+}
+
+function failIteration(plan, startedAt, reason, phaseInfo, response, errorMessage) {
   plan.failureCounter.add(1, { reason });
   if (phaseInfo) phaseInfo.failureCounter.add(1, { reason });
   plan.trends.total_flow.add(Date.now() - startedAt);
+  logFailure(plan, phaseInfo, reason, response, errorMessage);
 }
 
 // Card persistence can complete shortly after a successful confirm. Poll the
@@ -479,7 +531,7 @@ export function runScenario() {
   try {
     runFlow(plan, phaseInfo, startedAt);
   } catch (error) {
-    failIteration(plan, startedAt, `exception_${(error && error.name) || "error"}`, phaseInfo);
+    failIteration(plan, startedAt, `exception_${(error && error.name) || "error"}`, phaseInfo, null, error && error.message);
   }
 }
 
@@ -507,7 +559,7 @@ function runFlow(plan, phaseInfo, startedAt) {
     const body = json(response);
     customerId = body.id || body.customer_id;
     if (response.status < 200 || response.status >= 300 || !customerId) {
-      failIteration(plan, startedAt, `customer_create_${statusCode(response)}`, phaseInfo);
+      failIteration(plan, startedAt, `customer_create_${statusCode(response)}`, phaseInfo, response);
       return;
     }
   }
@@ -531,7 +583,7 @@ function runFlow(plan, phaseInfo, startedAt) {
     pmSessionId = body.id;
     pmSessionClientSecret = body.client_secret;
     if (response.status < 200 || response.status >= 300 || !pmSessionId || !pmSessionClientSecret) {
-      failIteration(plan, startedAt, `pm_session_create_${statusCode(response)}`, phaseInfo);
+      failIteration(plan, startedAt, `pm_session_create_${statusCode(response)}`, phaseInfo, response);
       return;
     }
   }
@@ -548,7 +600,7 @@ function runFlow(plan, phaseInfo, startedAt) {
     plan.trends.baseline_create.add(createResponse.timings.duration);
     const baseline = json(createResponse);
     if (createResponse.status < 200 || createResponse.status >= 300 || !baseline.payment_id) {
-      failIteration(plan, startedAt, `baseline_create_${statusCode(createResponse)}`, phaseInfo);
+      failIteration(plan, startedAt, `baseline_create_${statusCode(createResponse)}`, phaseInfo, createResponse);
       return;
     }
     const confirmResponse = post(
@@ -568,7 +620,7 @@ function runFlow(plan, phaseInfo, startedAt) {
     const savedPaymentMethodId = json(confirmResponse).payment_method_id
       || findSavedPaymentMethod(baseline.payment_id);
     if (confirmResponse.status < 200 || confirmResponse.status >= 300 || !savedPaymentMethodId) {
-      failIteration(plan, startedAt, `baseline_confirm_${statusCode(confirmResponse)}`, phaseInfo);
+      failIteration(plan, startedAt, `baseline_confirm_${statusCode(confirmResponse)}`, phaseInfo, confirmResponse);
       return;
     }
   }
@@ -586,7 +638,7 @@ function runFlow(plan, phaseInfo, startedAt) {
   plan.trends.payment_create.add(createResponse.timings.duration);
   const payment = json(createResponse);
   if (createResponse.status < 200 || createResponse.status >= 300 || !payment.payment_id) {
-    failIteration(plan, startedAt, `payment_create_${statusCode(createResponse)}`, phaseInfo);
+    failIteration(plan, startedAt, `payment_create_${statusCode(createResponse)}`, phaseInfo, createResponse);
     return;
   }
 
@@ -602,7 +654,7 @@ function runFlow(plan, phaseInfo, startedAt) {
     );
     plan.trends.payment_method_list.add(pmListResponse.timings.duration);
     if (pmListResponse.status < 200 || pmListResponse.status >= 300) {
-      failIteration(plan, startedAt, `payment_method_list_${statusCode(pmListResponse)}`, phaseInfo);
+      failIteration(plan, startedAt, `payment_method_list_${statusCode(pmListResponse)}`, phaseInfo, pmListResponse);
       return;
     }
 
@@ -614,7 +666,7 @@ function runFlow(plan, phaseInfo, startedAt) {
     );
     plan.trends.session.add(sessionResponse.timings.duration);
     if (sessionResponse.status < 200 || sessionResponse.status >= 300) {
-      failIteration(plan, startedAt, `session_${statusCode(sessionResponse)}`, phaseInfo);
+      failIteration(plan, startedAt, `session_${statusCode(sessionResponse)}`, phaseInfo, sessionResponse);
       return;
     }
 
@@ -630,7 +682,7 @@ function runFlow(plan, phaseInfo, startedAt) {
     );
     plan.trends.eligibility.add(eligibilityResponse.timings.duration);
     if (eligibilityResponse.status < 200 || eligibilityResponse.status >= 300) {
-      failIteration(plan, startedAt, `eligibility_${statusCode(eligibilityResponse)}`, phaseInfo);
+      failIteration(plan, startedAt, `eligibility_${statusCode(eligibilityResponse)}`, phaseInfo, eligibilityResponse);
       return;
     }
   }
@@ -658,7 +710,7 @@ function runFlow(plan, phaseInfo, startedAt) {
     token = pmBody.associated_payment_methods?.[0]?.payment_method_token;
     if (token && typeof token === "object") token = token.data;
     if (response.status < 200 || response.status >= 300 || !token) {
-      failIteration(plan, startedAt, `pm_session_confirm_${statusCode(response)}`, phaseInfo);
+      failIteration(plan, startedAt, `pm_session_confirm_${statusCode(response)}`, phaseInfo, response);
       return;
     }
   }
@@ -686,7 +738,7 @@ function runFlow(plan, phaseInfo, startedAt) {
     && confirmResponse.status < 300
     && SUCCESS_STATUSES.has(status);
   if (!succeeded) {
-    failIteration(plan, startedAt, `payment_confirm_${statusCode(confirmResponse)}_${status}`, phaseInfo);
+    failIteration(plan, startedAt, `payment_confirm_${statusCode(confirmResponse)}_${status}`, phaseInfo, confirmResponse);
     return;
   }
   plan.successCounter.add(1);
@@ -718,7 +770,37 @@ function globalSummaryRow(data) {
   const warning = droppedCount > 0
     ? "  WARNING: reports at the requested rate were NOT all achieved; raise VU multipliers and rerun"
     : "";
-  return `global | iterations=${countOf(metricValues(data, "iterations"))} | dropped_iterations=${droppedCount}${warning} | http_reqs=${countOf(metricValues(data, "http_reqs"))} | http_req_failed=${failedRate}%`;
+  const peak = peakIterationRateRaw(data);
+  const peakStr = peak === null ? "-" : `${peak.toFixed(2)}/s`;
+  return `global | iterations=${countOf(metricValues(data, "iterations"))} | peak_iteration_rate=${peakStr} | dropped_iterations=${droppedCount}${warning} | http_reqs=${countOf(metricValues(data, "http_reqs"))} | http_req_failed=${failedRate}%`;
+}
+
+// The highest iteration rate (all iterations, success or failure — same
+// thing k6's own "Iteration Rate" dashboard tile measures) sustained across
+// the run: in ramp mode, the max over phases of (that phase's total
+// iterations across every scenario / that phase's hold_seconds); in flat
+// mode, the single sustained rate across the whole run. This intentionally
+// counts every iteration, not just successes — it answers "how many
+// flows/sec did this actually push," distinct from achieved TPS above
+// (business-success throughput). It only reflects handleSummary's final
+// aggregate, not a live per-second trace — k6 doesn't expose a live-readable
+// iteration counter from VU code, and the web dashboard's live/exported
+// charts are a separate output plugin this script has no way to add panels
+// to (see README), so this can only ever show up in the stdout summary and
+// SUMMARY_OUTPUT below, never inside timeseries.html itself.
+function peakIterationRateRaw(data) {
+  const totalIterationsAt = (suffix) => enabledPlans.reduce((sum, plan) => sum
+    + countOf(metricValues(data, `scenario_success_${plan.name}${suffix}`))
+    + countOf(metricValues(data, `scenario_failure_${plan.name}${suffix}`)), 0);
+  if (!phaseSchedule) {
+    return achievedTpsRaw(totalIterationsAt(""), flatDurationSeconds);
+  }
+  let peak = null;
+  phaseSchedule.forEach((phase, index) => {
+    const rate = achievedTpsRaw(totalIterationsAt(`_p${index + 1}`), phase.holdSeconds);
+    if (rate !== null && (peak === null || rate > peak)) peak = rate;
+  });
+  return peak;
 }
 
 function fmt(values, key) {
@@ -743,14 +825,13 @@ function achievedTps(successCount, windowSeconds) {
   return raw === null ? "-" : raw.toFixed(2);
 }
 
-// k6-reporter (and SUMMARY_OUTPUT's JSON dump) only render whatever is in
-// data.metrics; achieved TPS is a value this script derives (success count /
-// window) rather than something k6 tracks natively, so it has no metric to
-// show without this. handleSummary's `data` is a plain, still-mutable JS
-// object at this point (not yet serialized), so adding entries here is
-// enough for both htmlReport(data) and JSON.stringify(data) below to pick
-// them up. Shape matches what k6-reporter expects for a gauge: values.value/
-// min/max (min/max just mirror value — there's only one sample).
+// SUMMARY_OUTPUT's JSON dump only contains whatever is in data.metrics;
+// achieved TPS is a value this script derives (success count / window)
+// rather than something k6 tracks natively, so it has no metric to show
+// without this. handleSummary's `data` is a plain, still-mutable JS object
+// at this point (not yet serialized), so adding entries here is enough for
+// JSON.stringify(data) below to pick them up. Shape is k6's gauge format:
+// values.value/min/max (min/max just mirror value — there's only one sample).
 function injectAchievedTpsMetrics(data) {
   const setGauge = (name, value) => {
     data.metrics[name] = { type: "gauge", contains: "default", values: { value, min: value, max: value } };
@@ -771,6 +852,8 @@ function injectAchievedTpsMetrics(data) {
       if (tps !== null) setGauge(`achieved_tps_${plan.name}`, tps);
     }
   }
+  const peak = peakIterationRateRaw(data);
+  if (peak !== null) setGauge("peak_iteration_rate", peak);
 }
 
 function flatSummaryRow(data, plan) {
@@ -840,14 +923,7 @@ export function handleSummary(data) {
   }
   const output = { stdout: `\n${rows.join("\n")}\n` };
   if (__ENV.SUMMARY_OUTPUT) {
-    output[__ENV.SUMMARY_OUTPUT] = JSON.stringify(data, null, 2);
-  }
-  // Standalone HTML report (charts, thresholds, per-metric breakdown) via the
-  // vendored k6-reporter (helper/k6-reporter.js). Written on every run;
-  // override the path with HTML_REPORT_OUTPUT or set it to an empty string to
-  // skip it.
-  if (__ENV.HTML_REPORT_OUTPUT !== "") {
-    output[__ENV.HTML_REPORT_OUTPUT || "report.html"] = htmlReport(data);
+    output[joinPath(outputDir, __ENV.SUMMARY_OUTPUT)] = JSON.stringify(data, null, 2);
   }
   return output;
 }

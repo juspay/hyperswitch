@@ -29,27 +29,39 @@ Options:
 # Use a config anywhere on disk:
 SCENARIO_MIX_CONFIG=/path/to/config.json k6 run scenario-mix.js
 
-# Also write the full k6 summary JSON to a file:
+# Also write the full k6 summary JSON to a file — lands in ./output/
+# (the default OUTPUT_DIR, already checked into the repo) unless overridden:
 SUMMARY_OUTPUT=summary.json k6 run scenario-mix.js
-
-# Change where the HTML report is written (default: report.html):
-HTML_REPORT_OUTPUT=out/report.html k6 run scenario-mix.js
-
-# Skip the HTML report:
-HTML_REPORT_OUTPUT= k6 run scenario-mix.js
 
 # Stream raw metrics for per-failure-reason analysis:
 k6 run --out json=metrics.json scenario-mix.js
+
+# Suppress the periodic progress output (see note below), keep only the
+# final summary table:
+k6 run -q scenario-mix.js
+
+# Route SUMMARY_OUTPUT somewhere other than ./output/ (create it first —
+# see "Collecting everything into one output directory"):
+mkdir -p out/run1 && OUTPUT_DIR=out/run1 SUMMARY_OUTPUT=summary.json k6 run scenario-mix.js
+
+# Live/exported time-series charts (throughput, latency over time) instead
+# of the end-of-run-only view above — see "Visualizing throughput/latency
+# over time":
+k6 run -q --out 'web-dashboard=export=timeseries.html' scenario-mix.js
 ```
 
 Config/validation errors are reported before any traffic is sent.
 
-Every run also writes a standalone HTML report (`report.html` by default) via
-the vendored [k6-reporter](https://github.com/benc-uk/k6-reporter)
-(`../helper/k6-reporter.js`) — open it in a browser for a chart/threshold view
-of the same summary data printed to stdout. It has no dependency on the
-`services.router`/`modular_pm` targets or network access at report-render
-time; all data comes from the completed run's `k6` summary object.
+**Progress output in ramp mode:** every phase of every scenario is its own
+k6 executor, and k6's terminal progress bar lists *all* of them each tick —
+including future phases shown as `waiting`. With more than a handful of
+phases this easily exceeds what a terminal can redraw in place, so instead
+of updating in place k6 falls back to reprinting the whole listing every
+tick, which looks like runaway scrolling. This is k6's own renderer, not
+something `scenario-mix.js` controls; use `-q`/`--quiet` above to turn it
+off, or pair it with the web dashboard (`--out web-dashboard`, see
+*Visualizing throughput/latency over time*) for a live view that isn't
+constrained by terminal height at all.
 
 ## How the traffic split works
 
@@ -513,12 +525,25 @@ Across all entries: `payment_confirm_latency_ms`, plus k6's built-ins
 (`http_req_duration`, `iterations`, `dropped_iterations`, ...).
 
 The end-of-run output prints a `global` row — total iterations,
-`dropped_iterations` (with a warning when non-zero, meaning the client
-could not sustain the requested rate), HTTP request count and HTTP failure
-rate — followed by a table per entry: target RPS, achieved TPS, confirm
-p50/p90/p99, total-flow p50/p90 (ramp mode omits total-flow — it's
-aggregated across phases so isn't phase-comparable), and success/failure
-counts.
+**peak iteration rate**, `dropped_iterations` (with a warning when non-zero,
+meaning the client could not sustain the requested rate), HTTP request
+count and HTTP failure rate — followed by a table per entry: target RPS,
+achieved TPS, confirm p50/p90/p99, total-flow p50/p90 (ramp mode omits
+total-flow — it's aggregated across phases so isn't phase-comparable), and
+success/failure counts.
+
+`peak_iteration_rate` is the highest iteration rate (every iteration,
+success or failure — same thing k6's own "Iteration Rate" web-dashboard
+tile measures) sustained across the run: in ramp mode, the max over phases
+of that phase's total iterations across every scenario ÷ its
+`hold_seconds`; in flat mode, the single sustained rate for the whole run.
+It's derived after the run completes from the final aggregate counts (same
+as `achieved tps` below), not from a live per-second trace, so — like
+everything else on this page — it can only appear in this stdout table and
+`SUMMARY_OUTPUT` (as the `peak_iteration_rate` gauge), never inside
+`timeseries.html`: the web dashboard is k6's own separate output plugin,
+with a fixed panel set this script has no way to add to (see *Visualizing
+throughput/latency over time*).
 
 `target rps` is the offered/requested iteration rate (`total_rps × weight /
 100`, or the phase's rate in ramp mode); `achieved tps` is
@@ -527,9 +552,133 @@ transactions per second. They diverge whenever confirms fail, time out, or
 iterations get dropped, which is exactly the signal that matters at
 saturation. Note that this custom output replaces k6's default end-of-test
 summary; `SUMMARY_OUTPUT=/path/summary.json` additionally exports the full
-summary (including all percentile stats) as JSON, and an HTML report
-(`report.html` by default, override with `HTML_REPORT_OUTPUT`) is written on
-every run — see *Quick start*.
+summary (including all percentile stats) as JSON — see *Quick start*.
+
+## Collecting everything into one output directory
+
+`scenario-mix.js`'s own output (`SUMMARY_OUTPUT`, if set) defaults to the
+`output/` directory checked into this repo alongside the script, rather than
+wherever you ran `k6 run` from:
+
+```bash
+SUMMARY_OUTPUT=summary.json SCENARIO_MIX_CONFIG=config.json k6 run scenario-mix.js
+# -> output/summary.json
+```
+
+Override where it goes with `OUTPUT_DIR`:
+
+```bash
+mkdir -p out/run1   # see note below — non-default dirs must exist before the run
+OUTPUT_DIR=out/run1 SUMMARY_OUTPUT=summary.json SCENARIO_MIX_CONFIG=config.json \
+  k6 run scenario-mix.js
+# -> out/run1/summary.json
+```
+
+`SUMMARY_OUTPUT`, if you set it, is treated as a filename *within*
+`OUTPUT_DIR`, not a full path — `OUTPUT_DIR=out/run1
+SUMMARY_OUTPUT=confirm-summary.json` writes `out/run1/confirm-summary.json`.
+
+**A non-default `OUTPUT_DIR` must already exist** (`output/` itself is
+already there, so this only matters when you override it). k6 VU/init code
+has no filesystem write access — the actual file write for
+`handleSummary`'s return value happens in k6's Go runtime afterward, and it
+fails outright (`could not open '.../summary.json': ... no such file or
+directory`) if the directory is missing. There's nothing `scenario-mix.js`
+can do about this from inside the script; always `mkdir -p "$OUTPUT_DIR"`
+first when using a custom one.
+
+The same constraint applies to outputs that aren't controlled by the script
+at all — `--console-output` (failure log, below) and
+`--out web-dashboard=export=...` (time-series export, below) are k6 CLI
+flags, not something `handleSummary` can redirect, so they don't
+automatically follow `OUTPUT_DIR`. Point them at `output/` explicitly (no
+`mkdir` needed, since it already exists) to get everything from one run in
+one place:
+
+```bash
+SUMMARY_OUTPUT=summary.json SCENARIO_MIX_CONFIG=config.json \
+  k6 run -q --console-output=output/failures.log \
+  --out 'web-dashboard=export=output/timeseries.html' \
+  scenario-mix.js
+# -> output/{summary.json,failures.log,timeseries.html}
+```
+
+Or point them (and `OUTPUT_DIR`) at a different, freshly created directory
+the same way as above if you want each run kept separate rather than
+overwriting `output/` every time.
+
+## Visualizing throughput/latency over time
+
+The stdout table and `SUMMARY_OUTPUT` above are an **end-of-run** view —
+aggregated percentiles for the whole run or, in ramp mode, per phase. To
+see how throughput and latency *evolved* second by second — and for a
+shareable HTML result of the run in general, since there's no other HTML
+report — use k6's built-in web dashboard output: a live, in-browser,
+auto-updating set of charts (RPS, latency percentiles, VUs, error rate,
+plus a panel per custom metric, including this script's per-scenario/
+per-step Trends) that can also be exported to a static file:
+
+```bash
+# Live view while the test runs — open http://127.0.0.1:5665 in a browser:
+k6 run -q --out web-dashboard -e SCENARIO_MIX_CONFIG=config.json scenario-mix.js
+
+# Save it as a static HTML file you can keep/share afterward — this is the
+# recommended way to run scenario-mix.js in general, not just for ramps:
+k6 run -q --out 'web-dashboard=export=timeseries.html&period=2s' \
+  -e SCENARIO_MIX_CONFIG=config.json scenario-mix.js
+```
+
+`period` sets the chart's time-bucket size (default `10s`); shorten it for
+short runs, lengthen it for long soaks. This is independent of
+`handleSummary`/`SUMMARY_OUTPUT` — the outputs don't conflict, so a single
+run can produce both a live/exported time-series view *and* the end-of-run
+summary. Note: very short runs (well under a minute) are skipped — `k6`
+logs `"the test run was short, report generation was skipped"` and no
+export file is written — this is meant for real runs, not smoke tests.
+
+If you already have Prometheus/Grafana running and would rather push metrics
+there (e.g. to compare runs over time, or correlate with Router's own
+metrics), k6 also supports `--out experimental-prometheus-rw=<remote-write-url>`
+directly — no extra provisioning needed on the k6 side. (The
+`loadtest/grafana/dashboards/k6-load-testing-results_rev3.json` dashboard in
+this repo was built for the older docker-compose `loadtest/loadtest.sh`
+flow, not for `scenario-mix.js` — see *Relationship to `loadtest/runner`*
+below.)
+
+## Logging failures to a file
+
+The `scenario_failure_X[_pN]` counters (and the summary's `failure` column)
+tell you *how many* iterations failed and *why* in aggregate (the `reason`
+tag), but not the detail behind any individual failure. For that,
+`scenario-mix.js` logs one JSON record per failed iteration via
+`console.error` — scenario name, merchant path, phase (ramp mode), VU,
+iteration number, the same `reason` string used in the counters, and, when
+the failure came from an HTTP call, that response's status, URL, connector/
+network error, and body (truncated to 500 characters).
+
+k6 VU code can't write files directly — `open()` is read-only and only
+usable during init — so getting these into a file means redirecting k6's own
+console output, via `--console-output` or `K6_CONSOLE_OUTPUT`:
+
+```bash
+k6 run --console-output=failures.log -e SCENARIO_MIX_CONFIG=config.json scenario-mix.js
+# or
+K6_CONSOLE_OUTPUT=failures.log SCENARIO_MIX_CONFIG=config.json k6 run scenario-mix.js
+```
+
+Only failures go to `failures.log` — the end-of-run table still prints to
+the terminal as usual. Each line looks like:
+
+```
+time="2026-09-08T13:29:10+05:30" level=error msg="{\"time\":\"2026-09-08T07:59:10.867Z\",\"scenario\":\"mod_cit_off\",\"merchant_path\":\"modular\",\"scenario_type\":\"cit_off_session\",\"phase\":2,\"vu\":6,\"iteration\":14,\"reason\":\"payment_confirm_400_failed\",\"status\":400,\"url\":\"http://127.0.0.1:8080/payments/pay_.../confirm\",\"body\":\"{...}\"}"
+```
+
+k6 wraps each record in its own log line (`time=... level=error msg="..."`)
+with the JSON escaped inside `msg`; pull it back out with `jq`, e.g.
+`grep -o 'msg="{.*}"' failures.log | sed 's/^msg="//; s/"$//' | sed 's/\\"/"/g' | jq .`,
+or just read it as-is — the escaped JSON is still human-readable inline.
+Without `--console-output`/`K6_CONSOLE_OUTPUT` set, these lines print to the
+terminal interleaved with k6's own progress output instead.
 
 ## Relationship to `loadtest/runner`
 
