@@ -104,10 +104,10 @@ impl ConnectorCommon for Etisalat {
     }
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
-        todo!()
-        //    TODO! Check connector documentation, on which unit they are processing the currency.
-        //    If the connector accepts amount in lower unit ( i.e cents for USD) then return api::CurrencyUnit::Minor,
-        //    if connector accepts amount in base unit (i.e dollars for USD) then return api::CurrencyUnit::Base
+        // Etisalat EPG expects `Amount` as a decimal-string in the base unit
+        // (e.g. "10.00" for USD $10, not "1000" cents). PDF §14.2:
+        //   "Amount ... in standard format with dot as a separator e.g. 12.34".
+        api::CurrencyUnit::Base
     }
 
     fn common_get_content_type(&self) -> &'static str {
