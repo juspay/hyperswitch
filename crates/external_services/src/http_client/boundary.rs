@@ -181,12 +181,15 @@ impl deja::codec::ReplayCodec for HttpResponseCodec {
 /// and body bytes, and all three come from the tape, so that call touches no
 /// network.
 ///
-/// A recorded ERROR carries no `status` field and reconstructs to `None`, which
-/// the boundary treats as a lookup miss and answers by executing LIVE. Replaying
-/// a request whose connector call failed therefore issues a real outbound request
-/// to the real endpoint. This is the current Ok-only replay policy: replay is
-/// egress-free only for as long as every recorded call succeeded, so it must not
-/// be relied on as an egress guarantee.
+/// Returning `None` does not fall through to a live call. deja maps it to
+/// `Reconstructed::Failed`, which fail-stops the request with a named reason —
+/// so a recorded value this build cannot read halts the replay rather than
+/// quietly reaching the real endpoint.
+///
+/// Headers are read as an array of values per name and no other shape is
+/// accepted. A recording written before that capture stored a single string per
+/// name and had already lost every repeat; reading one would replay a tape that
+/// still carries the defect this fixes, so it fail-stops instead.
 pub(super) fn replay_response(recorded: &serde_json::Value) -> Option<reqwest::Response> {
     let status_code = u16::try_from(recorded.get("status")?.as_u64()?).ok()?;
     let status = http::StatusCode::from_u16(status_code).ok()?;
@@ -200,20 +203,14 @@ pub(super) fn replay_response(recorded: &serde_json::Value) -> Option<reqwest::R
 
     let mut builder = http::Response::builder().status(status);
     if let Some(headers) = recorded.get("response_headers").and_then(|h| h.as_object()) {
-        for (name, value) in headers {
-            match value {
-                // A recording written before the capture kept repeats.
-                serde_json::Value::String(value) => {
-                    builder = builder.header(name.as_str(), value);
-                }
+        for (name, values) in headers {
+            // `?` rather than a skip: a name whose values are not an array is a
+            // pre-fix recording, and replaying it with its headers dropped would
+            // be worse than refusing it.
+            for value in values.as_array()?.iter().filter_map(|value| value.as_str()) {
                 // `Builder::header` is `try_append`, so a repeated name keeps
                 // every value rather than replacing the previous one.
-                serde_json::Value::Array(values) => {
-                    for value in values.iter().filter_map(|value| value.as_str()) {
-                        builder = builder.header(name.as_str(), value);
-                    }
-                }
-                _ => {}
+                builder = builder.header(name.as_str(), value);
             }
         }
     }
@@ -301,23 +298,21 @@ mod tests {
         );
     }
 
-    /// Recordings written before the capture kept repeats stored one string per
-    /// name. They must still reconstruct.
+    /// A recording written before the capture kept repeats stored one string per
+    /// name, having already lost every repeated value. Reconstructing it would
+    /// replay a tape that still carries the defect this fixes, so it refuses —
+    /// and deja turns that refusal into a fail-stop with a named reason rather
+    /// than a live call.
     #[test]
-    fn recordings_with_one_value_per_name_still_reconstruct() {
+    fn a_recording_with_one_value_per_name_is_refused() {
         let recorded = serde_json::json!({
             "status": 200,
             "response_headers": { "content-type": "application/json" },
-            "response_body": { "bytes": [] },
+            "response_body": { "raw_bytes": [] },
         });
-        let reconstructed =
-            replay_response(&recorded).expect("an older recording must still reconstruct");
-        assert_eq!(
-            reconstructed
-                .headers()
-                .get("content-type")
-                .and_then(|value| value.to_str().ok()),
-            Some("application/json")
+        assert!(
+            replay_response(&recorded).is_none(),
+            "a pre-fix recording must refuse rather than replay with its headers dropped"
         );
     }
 }
