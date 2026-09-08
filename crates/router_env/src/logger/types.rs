@@ -263,6 +263,8 @@ pub enum Flow {
     RefundsRetrieveForceSync,
     /// Refunds update flow.
     RefundsUpdate,
+    /// Refunds reverse flow.
+    RefundsReverse,
     /// Refunds list flow.
     RefundsList,
     /// Refunds filters flow
