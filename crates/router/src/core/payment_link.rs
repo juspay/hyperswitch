@@ -539,19 +539,59 @@ fn validate_sdk_requirements(
 pub async fn list_payment_link(
     state: SessionState,
     merchant: domain::MerchantAccount,
-    constraints: api_models::payments::PaymentLinkListConstraints,
-) -> RouterResponse<Vec<api_models::payments::RetrievePaymentLinkResponse>> {
+    mut constraints: api_models::payments::PaymentLinkListConstraints,
+    profile_id: Option<common_utils::id_type::ProfileId>,
+) -> RouterResponse<api_models::payments::PaymentLinkListResponse> {
     let db = state.store.as_ref();
-    let payment_link = db
-        .list_payment_link_by_processor_merchant_id(merchant.get_id(), constraints)
+    let now = common_utils::date_time::now();
+
+    let time_range = match constraints.time_range {
+        None => common_utils::types::TimeRange {
+            start_time: now.saturating_sub(time::Duration::days(30)),
+            end_time: Some(now),
+        },
+        Some(tr) => {
+            let end = tr.end_time.unwrap_or(now);
+            if end <= tr.start_time {
+                return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "end_time must be after start_time".to_string(),
+                }));
+            }
+            if (end - tr.start_time) > time::Duration::days(90) {
+                return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "time range cannot exceed 3 months".to_string(),
+                }));
+            }
+            common_utils::types::TimeRange {
+                start_time: tr.start_time,
+                end_time: Some(end),
+            }
+        }
+    };
+    constraints.time_range = Some(time_range);
+
+    let payment_links = db
+        .list_payment_link_by_processor_merchant_id(merchant.get_id(), &constraints, profile_id.clone())
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to retrieve payment link")?;
-    let payment_link_list = future::try_join_all(payment_link.into_iter().map(|payment_link| {
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+    let total_count = db
+        .get_total_count_of_payment_links(merchant.get_id(), &constraints, profile_id)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+    let data = future::try_join_all(payment_links.into_iter().map(|payment_link| {
         api_models::payments::RetrievePaymentLinkResponse::from_db_payment_link(payment_link)
     }))
     .await?;
-    Ok(services::ApplicationResponse::Json(payment_link_list))
+    let size = data.len();
+    Ok(services::ApplicationResponse::Json(
+        api_models::payments::PaymentLinkListResponse {
+            size,
+            total_count,
+            data,
+        },
+    ))
 }
 
 pub fn check_payment_link_status(
