@@ -35,7 +35,7 @@ fred = { version = "8.0.6", optional = true, features = [
 
 # First party crates
 common_utils = { version = "0.1.0", path = "../common_utils", features = ["async_ext"] }
-deja = { git = "https://github.com/juspay/deja", rev = "de0a42a42248fc22722bc5a385d9fa6a39449e91", optional = true, default-features = false, features = ["error-stack"] }
+deja = { git = "https://github.com/juspay/deja", rev = "bd850e22bcc5bc2b68726342053bc89da82fb61f", optional = true, default-features = false, features = ["error-stack"] }
 router_env = { version = "0.1.0", path = "../router_env", optional = true }
 
 [dev-dependencies]
