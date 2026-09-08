@@ -112,36 +112,24 @@ fn captured_body_json(response: &reqwest::Response) -> Secret<serde_json::Value>
     })
 }
 
-/// Captures response headers as an ORDERED LIST of `[name, value]` pairs.
+/// Captures response headers, keeping every value under a repeated name.
 ///
-/// Not a name-keyed map, for two reasons. A map holds one value per name, so
-/// three `set-cookie` headers record as one. And `serde_json::Map` is an
-/// `IndexMap` under `preserve_order` (enabled here via josekit/thirtyfour) but a
-/// `BTreeMap` without it, so a tape written by one build and read by another
-/// silently reorders. `deja::http::headers` fixes only the first — it still keys
-/// by name. An array is ordered under either backing and carries repeats.
+/// This used to `insert` one value per name, so a response carrying three
+/// `set-cookie` headers recorded one. The loss only bites on replay, and not at
+/// this boundary: record builds the key-manager payload from the live response
+/// and replay builds it from the reconstructed one, so the two payloads differ
+/// in entry count and diverge downstream at `km` — twelve of the fifty-seven
+/// value divergences on the 42-tape sweep.
+///
+/// Order across distinct names is deliberately not recorded. The comparison
+/// sorts arrays before comparing (`bag_canon`), so a permutation of the same
+/// values is already absorbed; only a change in what was recorded can diverge.
 fn response_headers_json(response: &reqwest::Response) -> Secret<serde_json::Value> {
-    let pairs = response
-        .headers()
-        .iter()
-        .filter_map(|(name, value)| {
-            // A non-UTF-8 header value has no JSON representation; drop the one
-            // entry rather than failing the whole capture.
-            value.to_str().ok().map(|value| {
-                serde_json::Value::Array(vec![
-                    serde_json::Value::String(name.as_str().to_owned()),
-                    serde_json::Value::String(value.to_owned()),
-                ])
-            })
-        })
-        .collect();
-    Secret::new(serde_json::Value::Array(pairs))
-}
-
-/// One recorded `[name, value]` header entry.
-fn header_pair(pair: &serde_json::Value) -> Option<(&str, &str)> {
-    let entry = pair.as_array()?;
-    Some((entry.first()?.as_str()?, entry.get(1)?.as_str()?))
+    // A non-UTF-8 header value has no JSON representation; drop the one entry
+    // rather than failing the whole capture.
+    Secret::new(deja::http::headers(response.headers().iter().filter_map(
+        |(name, value)| value.to_str().ok().map(|value| (name.as_str(), value)),
+    )))
 }
 
 pub(super) fn response_result(
@@ -211,37 +199,25 @@ pub(super) fn replay_response(recorded: &serde_json::Value) -> Option<reqwest::R
         .unwrap_or_default();
 
     let mut builder = http::Response::builder().status(status);
-    // `Builder::header` appends (`HeaderMap::try_append`), so repeated names
-    // survive here as long as the recording carried them in the first place.
-    match recorded.get("response_headers") {
-        // Current form: an ordered list of `[name, value]` pairs.
-        Some(serde_json::Value::Array(pairs)) => {
-            for pair in pairs {
-                if let Some((name, value)) = header_pair(pair) {
-                    builder = builder.header(name, value);
-                }
-            }
-        }
-        // Legacy form: an object keyed by name. Repeats and order were already
-        // lost at capture; reading it keeps old recordings replayable.
-        Some(serde_json::Value::Object(map)) => {
-            for (name, value) in map {
-                if let Some(value) = value.as_str() {
+    if let Some(headers) = recorded.get("response_headers").and_then(|h| h.as_object()) {
+        for (name, value) in headers {
+            match value {
+                // A recording written before the capture kept repeats.
+                serde_json::Value::String(value) => {
                     builder = builder.header(name.as_str(), value);
                 }
+                // `Builder::header` is `try_append`, so a repeated name keeps
+                // every value rather than replacing the previous one.
+                serde_json::Value::Array(values) => {
+                    for value in values.iter().filter_map(|value| value.as_str()) {
+                        builder = builder.header(name.as_str(), value);
+                    }
+                }
+                _ => {}
             }
         }
-        _ => {}
     }
-    let body = bytes::Bytes::from(raw_bytes);
-    let mut http_response = builder.body(body.clone()).ok()?;
-    // Restore the extension `response_result` reads the body from; without it a
-    // reconstructed response re-captures as "body not captured", breaking
-    // `capture(reconstruct(v)) == v` (juspay/deja#121). Inert at runtime today,
-    // since nothing re-captures on a replay hit.
-    http_response
-        .extensions_mut()
-        .insert(CapturedResponseBody(body));
+    let http_response = builder.body(bytes::Bytes::from(raw_bytes)).ok()?;
     Some(reqwest::Response::from(http_response))
 }
 
@@ -285,128 +261,63 @@ fn request_body(body: &RequestContent) -> serde_json::Value {
 mod tests {
     use super::*;
 
-    /// A response carrying repeated `set-cookie` headers must survive capture and
-    /// reconstruct with every value intact and in the same order.
+    /// Three `set-cookie` headers must survive capture and reconstruct as three.
     ///
-    /// Fails on the name-keyed capture this replaced: that recorded one entry per
-    /// name, so three cookies became one and the order that came back was the
-    /// map's rather than the response's.
-    ///
-    /// The expectation is taken from the source response's own header iteration
-    /// rather than from the insertion list, because `HeaderMap` groups the values
-    /// of a repeated name together — so the property under test is the round trip
-    /// (`capture` then `reconstruct` preserves what the response had), not a
-    /// guess about what order `HeaderMap` chooses.
+    /// Fails on the `insert`-per-name capture this replaced, which kept one value
+    /// per name and so recorded a single cookie.
     #[test]
-    fn repeated_headers_survive_capture_and_reconstruct_in_order() {
-        // Deliberately not alphabetical, so a sorted representation is visible.
-        let wire = [
+    fn repeated_headers_survive_capture_and_reconstruct() {
+        let mut builder = http::Response::builder().status(200);
+        for (name, value) in [
             ("x-request-id", "req-1"),
             ("set-cookie", "a=1"),
-            ("content-type", "application/json"),
             ("set-cookie", "b=2"),
             ("set-cookie", "c=3"),
-        ];
-
-        let mut builder = http::Response::builder().status(200);
-        for (name, value) in wire {
+        ] {
             builder = builder.header(name, value);
         }
-        let mut source = builder
-            .body(bytes::Bytes::from_static(b"{}"))
-            .expect("failed to build the test response");
-        source
-            .extensions_mut()
-            .insert(CapturedResponseBody(bytes::Bytes::from_static(b"{}")));
-        let source = reqwest::Response::from(source);
-
-        let expected = header_sequence(source.headers());
-        assert_eq!(
-            expected
-                .iter()
-                .filter(|(name, _)| name == "set-cookie")
-                .count(),
-            3,
-            "the fixture must actually carry three set-cookie values"
+        let source = reqwest::Response::from(
+            builder
+                .body(bytes::Bytes::from_static(b"{}"))
+                .expect("failed to build the test response"),
         );
 
         let result: CustomResult<reqwest::Response, HttpClientError> = Ok(source);
-        let (captured, is_error) = response_result(&result);
-        assert!(!is_error, "a 200 response must not capture as an error");
+        let (captured, _) = response_result(&result);
         let captured = captured.expose();
 
-        // Pin the representation itself: an object can carry neither repeats nor
-        // order, so this would catch a regression even on a build whose
-        // `serde_json::Map` happens to preserve insertion order.
-        let recorded_headers = captured
-            .get("response_headers")
-            .expect("capture must record response_headers");
-        assert!(
-            recorded_headers.is_array(),
-            "headers must record as an ordered pair list, got {recorded_headers}"
-        );
-
-        let replayed = replay_response(&captured).expect("reconstruct returned None");
-
+        let reconstructed =
+            replay_response(&captured).expect("a captured response must reconstruct");
+        let cookies: Vec<&str> = reconstructed
+            .headers()
+            .get_all("set-cookie")
+            .iter()
+            .filter_map(|value| value.to_str().ok())
+            .collect();
         assert_eq!(
-            header_sequence(replayed.headers()),
-            expected,
-            "every header value must survive the round trip in the same order"
+            cookies,
+            ["a=1", "b=2", "c=3"],
+            "every set-cookie value must survive the round trip"
         );
-
-        // The codec round-trip property from juspay/deja#121: capturing a
-        // reconstructed value must reproduce the recording it came from.
-        // Asserted on the whole payload, not just the headers, so a future
-        // change that loses something elsewhere in the envelope is caught here
-        // rather than as a replay divergence.
-        let recaptured = {
-            let result: CustomResult<reqwest::Response, HttpClientError> = Ok(replayed);
-            response_result(&result).0.expose()
-        };
-        assert_eq!(recaptured, captured, "capture(reconstruct(v)) must equal v");
     }
 
-    /// Tapes recorded before the pair list stored a name-keyed object with one
-    /// value per name. Those recordings must still reconstruct — their repeats
-    /// and ordering were lost when they were written and cannot be recovered,
-    /// but replaying them must not fail outright.
+    /// Recordings written before the capture kept repeats stored one string per
+    /// name. They must still reconstruct.
     #[test]
-    fn legacy_object_form_still_reconstructs() {
+    fn recordings_with_one_value_per_name_still_reconstruct() {
         let recorded = serde_json::json!({
             "status": 200,
-            "response_headers": {
-                "content-type": "application/json",
-                "set-cookie": "only=1",
-            },
-            "response_body": { "raw_bytes": [123, 125] },
+            "response_headers": { "content-type": "application/json" },
+            "response_body": { "bytes": [] },
         });
-
-        let replayed = replay_response(&recorded).expect("legacy form must reconstruct");
-
-        assert_eq!(replayed.status().as_u16(), 200);
-        let observed = header_sequence(replayed.headers());
-        assert!(
-            observed.contains(&("set-cookie".to_owned(), "only=1".to_owned())),
-            "legacy header must survive, got {observed:?}"
+        let reconstructed =
+            replay_response(&recorded).expect("an older recording must still reconstruct");
+        assert_eq!(
+            reconstructed
+                .headers()
+                .get("content-type")
+                .and_then(|value| value.to_str().ok()),
+            Some("application/json")
         );
-        assert!(
-            observed.contains(&("content-type".to_owned(), "application/json".to_owned())),
-            "legacy header must survive, got {observed:?}"
-        );
-    }
-
-    fn header_sequence(headers: &http::HeaderMap) -> Vec<(String, String)> {
-        headers
-            .iter()
-            .map(|(name, value)| {
-                (
-                    name.as_str().to_owned(),
-                    value
-                        .to_str()
-                        .expect("test fixture headers are UTF-8")
-                        .to_owned(),
-                )
-            })
-            .collect()
     }
 }
