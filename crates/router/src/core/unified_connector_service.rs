@@ -143,7 +143,8 @@ impl ForeignTryFrom<payments_grpc::PaymentMethod> for domain_pm::PaymentMethodDa
                     payments_grpc::card_redirect::CardRedirectType::CardRedirect => {
                         domain_pm::CardRedirectData::CardRedirect {}
                     }
-                    payments_grpc::card_redirect::CardRedirectType::Unspecified => {
+                    payments_grpc::card_redirect::CardRedirectType::Unspecified
+                    | payments_grpc::card_redirect::CardRedirectType::Webpay => {
                         return Err(
                             UnifiedConnectorServiceError::ResponseDeserializationFailed.into()
                         )
@@ -2221,6 +2222,13 @@ pub fn build_unified_connector_service_payment_method(
                     Ok(payments_grpc::PaymentMethod {
                         payment_method: Some(PaymentMethod::SkrillRedirect(
                             payments_grpc::SkrillRedirectWallet {},
+                        )),
+                    })
+                }
+                hyperswitch_domain_models::payment_method_data::WalletData::Neteller(_) => {
+                    Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::NetellerRedirect(
+                            payments_grpc::NetellerRedirectWallet {},
                         )),
                     })
                 }

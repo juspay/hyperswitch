@@ -316,6 +316,9 @@ impl
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
 
         Ok(Self {
+            customer_acceptance: None,
+            setup_future_usage: None,
+            setup_mandate_details: None,
             split_payments: router_data
                 .request
                 .split_payments
@@ -349,6 +352,7 @@ impl
                 phone_number: None,
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: None,
             }),
             state: router_data
                 .access_token
@@ -433,6 +437,10 @@ impl
         let order_details = build_ucs_order_details(router_data.request.order_details.as_deref());
         let l2_l3_data = build_ucs_l2_l3_data(router_data.l2_l3_data.as_deref());
         Ok(Self {
+            additional_connector_details: None,
+            business_country: None,
+            is_account_funding_transaction: None,
+            recipient_details: None,
             split_settlement: None,
             split_payments: router_data
                 .request
@@ -477,6 +485,7 @@ impl
                 phone_number: None,
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: None,
             }),
             browser_info,
             session_token: router_data.session_token.clone(),
@@ -710,6 +719,10 @@ impl
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
+            additional_connector_details: None,
+            business_country: None,
+            is_account_funding_transaction: None,
+            recipient_details: None,
             split_settlement: None,
             split_payments: None,
             domain_data: None,
@@ -742,6 +755,7 @@ impl
                 phone_number: None,
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: None,
             }),
             browser_info,
             session_token: router_data.session_token.clone(),
@@ -1130,6 +1144,7 @@ impl
                 phone_number: None,
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: None,
             }),
             address: Some(address),
         };
@@ -1221,6 +1236,7 @@ impl
                 phone_number: None,
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: None,
             }),
             address: Some(address),
             authentication_data,
@@ -1332,6 +1348,7 @@ impl
                 phone_number: None,
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: None,
             }),
             address: Some(address),
             authentication_data,
@@ -1436,6 +1453,7 @@ impl
                 phone_number: None,
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: None,
             }),
             address: Some(address),
             authentication_data: None,
@@ -1531,6 +1549,7 @@ impl
                 phone_number: None,
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: None,
             }),
             address: Some(address),
             authentication_data: None,
@@ -1634,6 +1653,7 @@ impl
                 phone_number: None,
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: None,
             }),
             address: Some(address),
             enrolled_for_3ds: router_data.request.enrolled_for_3ds,
@@ -1731,6 +1751,7 @@ impl
                 phone_number: None,
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: None,
             }),
             address: Some(address),
             enrolled_for_3ds: router_data.request.enrolled_for_3ds,
@@ -1904,6 +1925,10 @@ impl
             .transpose()?;
 
         Ok(Self {
+            additional_connector_details: None,
+            business_country: None,
+            is_account_funding_transaction: None,
+            recipient_details: None,
             split_settlement: None,
             split_payments: None,
             domain_data: None,
@@ -1935,6 +1960,7 @@ impl
                 phone_number: None,
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: None,
             }),
             browser_info,
             locale: None,
@@ -2063,6 +2089,10 @@ impl
         let order_details = build_ucs_order_details(router_data.request.order_details.as_deref());
         let l2_l3_data = build_ucs_l2_l3_data(router_data.l2_l3_data.as_deref());
         Ok(Self {
+            additional_connector_details: None,
+            business_country: None,
+            is_account_funding_transaction: None,
+            recipient_details: None,
             split_settlement: None,
             split_payments: router_data
                 .request
@@ -2113,6 +2143,7 @@ impl
                 phone_number: None,
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: None,
             }),
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             webhook_url: router_data.request.webhook_url.clone(),
@@ -2251,6 +2282,10 @@ impl
             .transpose()?;
 
         Ok(Self {
+            additional_connector_details: None,
+            business_country: None,
+            is_account_funding_transaction: None,
+            recipient_details: None,
             split_settlement: None,
             split_payments: router_data
                 .request
@@ -2296,6 +2331,7 @@ impl
                 phone_number: None,
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: None,
             }),
             browser_info,
             locale: None,
@@ -2422,6 +2458,10 @@ impl
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
+            additional_connector_details: None,
+            is_account_funding_transaction: None,
+            recipient_details: None,
+            test_mode: None,
             mit_category: None,
             merchant_recurring_payment_id: router_data.connector_request_reference_id.clone(),
             amount: Some(payments_grpc::Money {
@@ -2452,6 +2492,7 @@ impl
                 phone_number: None,
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: None,
             }),
             address: Some(address),
             auth_type: auth_type.into(),
@@ -2700,6 +2741,9 @@ impl
             .attach_printable("Failed to convert authentication type")?;
 
         Ok(Self {
+            additional_connector_details: None,
+            is_account_funding_transaction: None,
+            recipient_details: None,
             split_settlement: None,
             split_payments: router_data
                 .request
@@ -2800,6 +2844,7 @@ impl
                 phone_number: None,
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: None,
             }),
             additional_payment_data,
             partner_merchant_identifier_details: router_data
@@ -2894,6 +2939,7 @@ impl transformers::ForeignTryFrom<&RouterData<Session, PaymentsSessionData, Paym
                 phone_number: None,
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: None,
             }),
             return_url: None,
             metadata: None,
@@ -2937,6 +2983,7 @@ impl
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
+            test_mode: None,
             amount: Some(payments_grpc::Money {
                 minor_amount: router_data.request.total_amount,
                 currency: currency.into(),
@@ -3932,6 +3979,7 @@ impl transformers::ForeignTryFrom<common_enums::PaymentMethodType>
             common_enums::PaymentMethodType::NetworkToken => Ok(Self::NetworkToken),
             common_enums::PaymentMethodType::OpenBanking => Ok(Self::OpenBanking),
             common_enums::PaymentMethodType::Skrill => Ok(Self::Skrill),
+            common_enums::PaymentMethodType::Neteller => Ok(Self::Neteller),
             _ => Err(
                 UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
                     "Payment Method Type not yet supported".to_string(),
@@ -7887,6 +7935,7 @@ impl ForeignFrom<&router_request_types::CustomerDetails> for payments_grpc::Cust
             last_name: None,
             salutation: None,
             customer_document_details: None,
+            date_of_birth: None,
         }
     }
 }
@@ -8022,6 +8071,7 @@ impl
         let access_token = router_data.access_token.as_ref().map(|t| t.token.clone());
 
         Ok(Self {
+            merchant_request_id: None,
             merchant_payout_id: router_data.payout_id.clone(),
             address,
             connector_feature_data,
@@ -8074,6 +8124,7 @@ impl
             .map(|secret| Secret::new(secret.expose().to_string()));
 
         Ok(Self {
+            merchant_request_id: None,
             merchant_payout_id: router_data.payout_id.clone(),
             address: Some(address),
             connector_feature_data,
@@ -8143,6 +8194,7 @@ impl
             .map(|metadata| Secret::new(metadata.expose().to_string()));
 
         Ok(Self {
+            merchant_request_id: None,
             merchant_payout_id: router_data.payout_id.clone(),
             connector_feature_data,
             payout_method_data,
@@ -8211,6 +8263,7 @@ impl
             .transpose()?;
 
         Ok(Self {
+            merchant_request_id: None,
             merchant_payout_id: router_data.payout_id.clone(),
             address: Some(address),
             amount: Some(money),
@@ -8292,6 +8345,7 @@ impl
             .transpose()?;
 
         Ok(Self {
+            merchant_request_id: None,
             merchant_quote_id: router_data.quote_id.clone(),
             address,
             amount: Some(money),
@@ -8350,6 +8404,7 @@ impl
         };
 
         Ok(Self {
+            merchant_request_id: None,
             merchant_payout_id: router_data.payout_id.clone(),
             address,
             customer: Some(customer),
@@ -8415,6 +8470,7 @@ impl
             )?;
 
         Ok(Self {
+            merchant_request_id: None,
             merchant_payout_id: router_data.payout_id.clone(),
             address,
             payout_method_data,
@@ -8445,6 +8501,7 @@ impl
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
+            merchant_request_id: None,
             merchant_payout_id: router_data.payout_id.clone(),
             connector_payout_id: router_data.request.connector_payout_id.clone(),
             access_token: router_data.access_token.clone().map(|at| at.token),
