@@ -61,6 +61,7 @@ hyperswitch_masking = { version = "0.0.1", default-features = false, features = 
     "time",
 ] }
 router_derive = { version = "0.1.0", path = "../router_derive" }
+router_env = { version = "0.1.0", path = "../router_env" }
 smithy = { version = "0.1.0", path = "../smithy" }
 smithy-core = { version = "0.1.0", path = "../smithy-core" }
 
