@@ -113,6 +113,47 @@ macro_rules! config {
         }
     };
 
+    // Primitive config variant with an explicit legacy Superposition key.
+    // Use this when the first-degree key is not simply the final segment of
+    // the new foldered key.
+    (
+        superposition_key = $key:ident,
+        legacy_superposition_key = $legacy_key:literal,
+        output = $output:ty,
+        default = $default:expr,
+        requires = $requirement:ty,
+        targeting_key = $targeting_type:ty
+    ) => {
+        paste::paste! {
+            pub struct [<$key:camel>];
+
+            impl superposition::Config for [<$key:camel>] {
+                type Output = $output;
+                type TargetingKey = $targeting_type;
+                const SUPERPOSITION_KEY: &'static str = superposition_consts::$key;
+
+                fn legacy_superposition_key() -> Option<&'static str> {
+                    Some($legacy_key)
+                }
+
+                fn default_value() -> Self::Output {
+                    $default
+                }
+            }
+
+            impl $requirement {
+                pub async fn [<get_ $key:lower>](
+                    &self,
+                    storage: &dyn StorageInterface,
+                    superposition_client: &superposition::SuperpositionClient,
+                    targeting_key: Option<&$targeting_type>,
+                ) -> $output {
+                    fetch_db_config_for_dimensions::<[<$key:camel>]>(storage, superposition_client, self, targeting_key).await
+                }
+            }
+        }
+    };
+
     // Primitive config variant (no helper function - use get_{{key_name}}() directly on Dimensions)
     (
         superposition_key = $key:ident,
@@ -543,32 +584,68 @@ impl DatabaseBackedConfig for ClientSessionValidationEnabled {
 }
 
 config! {
-    superposition_key = MAX_AUTO_PAYOUT_RETRIES,
+    superposition_key = MAX_AUTO_SINGLE_CONNECTOR_PAYOUT_RETRIES_ENABLED,
+    legacy_superposition_key = "max_auto_single_connector_payout_retries",
     output = u32,
-    default = 0u32,
+    default = 3u32,
     requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndPayoutRetryType,
     targeting_key = id_type::CustomerId
 }
 
-impl DatabaseBackedConfig for MaxAutoPayoutRetries {
-    const KEY: &'static str = "max_auto_payout_retries";
+impl DatabaseBackedConfig for MaxAutoSingleConnectorPayoutRetriesEnabled {
+    const KEY: &'static str = "max_auto_single_connector_payout_retries_enabled";
+
     fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
         dimensions
             .get_processor_merchant_id()
-            .and_then(|merchant_id| {
-                dimensions
-                    .get_payout_retry_type()
-                    .map(|retry_type| match retry_type {
-                        common_enums::PayoutRetryType::SingleConnector => format!(
-                            "max_auto_single_connector_payout_retries_enabled_{}",
-                            merchant_id.get_string_repr()
-                        ),
-                        common_enums::PayoutRetryType::MultiConnector => format!(
-                            "max_auto_multiple_connector_payout_retries_enabled_{}",
-                            merchant_id.get_string_repr()
-                        ),
-                    })
-            })
+            .map(|merchant_id| format!("{}_{}", Self::KEY, merchant_id.get_string_repr()))
+    }
+}
+
+config! {
+    superposition_key = MAX_AUTO_MULTIPLE_CONNECTOR_PAYOUT_RETRIES_ENABLED,
+    legacy_superposition_key = "max_auto_payout_retries",
+    output = u32,
+    default = 2u32,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndPayoutRetryType,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for MaxAutoMultipleConnectorPayoutRetriesEnabled {
+    const KEY: &'static str = "max_auto_multiple_connector_payout_retries_enabled";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_processor_merchant_id()
+            .map(|merchant_id| format!("{}_{}", Self::KEY, merchant_id.get_string_repr()))
+    }
+}
+
+impl dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndPayoutRetryType {
+    pub async fn get_max_auto_payout_retries(
+        &self,
+        storage: &dyn StorageInterface,
+        superposition_client: &superposition::SuperpositionClient,
+        targeting_key: Option<&id_type::CustomerId>,
+    ) -> u32 {
+        match self.get_payout_retry_type() {
+            Some(common_enums::PayoutRetryType::SingleConnector) => {
+                self.get_max_auto_single_connector_payout_retries_enabled(
+                    storage,
+                    superposition_client,
+                    targeting_key,
+                )
+                .await
+            }
+            Some(common_enums::PayoutRetryType::MultiConnector) | None => {
+                self.get_max_auto_multiple_connector_payout_retries_enabled(
+                    storage,
+                    superposition_client,
+                    targeting_key,
+                )
+                .await
+            }
+        }
     }
 }
 
