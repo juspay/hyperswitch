@@ -352,6 +352,7 @@ pub struct ConnectorConfig {
     pub jpmorgan: Option<ConnectorTomlConfig>,
     pub klarna: Option<ConnectorTomlConfig>,
     pub loonio: Option<ConnectorTomlConfig>,
+    pub merchante: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
     pub loonio_payout: Option<ConnectorTomlConfig>,
     pub mifinity: Option<ConnectorTomlConfig>,
@@ -634,6 +635,7 @@ impl ConnectorConfig {
             Connector::Juspaythreedsserver => Ok(connector_data.juspaythreedsserver),
             Connector::Klarna => Ok(connector_data.klarna),
             Connector::Loonio => Ok(connector_data.loonio),
+            Connector::Merchante => Ok(connector_data.merchante),
             Connector::Mifinity => Ok(connector_data.mifinity),
             Connector::Mollie => Ok(connector_data.mollie),
             Connector::Moneris => Ok(connector_data.moneris),

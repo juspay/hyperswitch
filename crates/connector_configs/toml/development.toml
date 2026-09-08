@@ -9235,3 +9235,32 @@ payment_method_type = "payshap"
 payment_method_type = "payshap_proxy"
 [gotyme_sanlam_payout.connector_webhook_details]
 merchant_secret="Source verification key"
+
+[merchante]
+[[merchante.credit]]
+payment_method_type = "Visa"
+[[merchante.credit]]
+payment_method_type = "Mastercard"
+[[merchante.credit]]
+payment_method_type = "AmericanExpress"
+[[merchante.credit]]
+payment_method_type = "Discover"
+[[merchante.credit]]
+payment_method_type = "JCB"
+[[merchante.credit]]
+payment_method_type = "DinersClub"
+[[merchante.debit]]
+payment_method_type = "Visa"
+[[merchante.debit]]
+payment_method_type = "Mastercard"
+[[merchante.debit]]
+payment_method_type = "AmericanExpress"
+[[merchante.debit]]
+payment_method_type = "Discover"
+[[merchante.debit]]
+payment_method_type = "JCB"
+[[merchante.debit]]
+payment_method_type = "DinersClub"
+[merchante.connector_auth.BodyKey]
+api_key = "Profile Key"
+key1 = "Profile ID"

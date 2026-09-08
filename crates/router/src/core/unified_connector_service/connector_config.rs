@@ -393,6 +393,14 @@ pub enum ConnectorSpecificConfig {
         client_id: Secret<String>,
         merchant_id: Secret<String>,
     },
+    /// Merchante (MerchantE by Omise) — credentials are sent inside the
+    /// urlencoded request body (`profile_id` + `profile_key`), not headers.
+    /// Field order and names must mirror hyperswitch-prism's
+    /// `ConnectorSpecificConfig::Merchante` variant.
+    Merchante {
+        profile_id: Secret<String>,
+        profile_key: Secret<String>,
+    },
     /// Nuvei connector configuration
     Nuvei {
         merchant_id: Secret<String>,
@@ -1393,6 +1401,16 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     merchant_id: api_secret.clone(),
                 }),
                 _ => Err(err("Moneris requires SignatureKey auth type")),
+            },
+            Connector::Merchante => match auth {
+                // api_key -> Merchante Profile Key (32-char secret),
+                // key1    -> Merchante Profile ID  (20-digit merchant id).
+                // Mirrors the hyperswitch-prism `ConnectorEnum::Merchante` arm.
+                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Merchante {
+                    profile_key: api_key.clone(),
+                    profile_id: key1.clone(),
+                }),
+                _ => Err(err("Merchante requires BodyKey auth type")),
             },
             Connector::Noon => match auth {
                 ConnectorAuthType::SignatureKey {

@@ -113,6 +113,7 @@ impl ForeignTryFrom<api_enums::Connector> for euclid::enums::RoutableConnectors 
             api_enums::Connector::Mifinity => Self::Mifinity,
             api_enums::Connector::Mollie => Self::Mollie,
             api_enums::Connector::Moneris => Self::Moneris,
+            api_enums::Connector::Merchante => Self::Merchante,
             api_enums::Connector::Multisafepay => Self::Multisafepay,
             api_enums::Connector::Netcetera => {
                 Err(common_utils::errors::ValidationError::InvalidValue {

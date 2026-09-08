@@ -388,6 +388,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 moneris::transformers::MonerisAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Merchante => {
+                merchante::transformers::MerchanteAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Multisafepay => {
                 multisafepay::transformers::MultisafepayAuthType::try_from(self.auth_type)?;
                 Ok(())
