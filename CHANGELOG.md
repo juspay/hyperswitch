@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.09.07.1-hotfix1
+
+### Features
+
+- **payments:** Expose card subtype, segment type and funding source ([#14104](https://github.com/juspay/hyperswitch/pull/14104)) ([`0db7633`](https://github.com/juspay/hyperswitch/commit/0db7633bfe3bec1dddbd78882cd6db906393a4e1))
+- **router:** Add bin and issuer details for apple pay and google pay ([#14111](https://github.com/juspay/hyperswitch/pull/14111)) ([`0b7b4e7`](https://github.com/juspay/hyperswitch/commit/0b7b4e76f2669f34573c8d2d603979814dcb7a58))
+
+**Full Changelog:** [`2026.09.07.1...2026.09.07.1-hotfix1`](https://github.com/juspay/hyperswitch/compare/2026.09.07.1...2026.09.07.1-hotfix1)
+
+- - -
+
 ## 2026.09.07.1
 
 ### Features
