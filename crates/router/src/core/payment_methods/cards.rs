@@ -414,6 +414,9 @@ impl PaymentMethodsController for PmCards<'_> {
             card_network: network_token_data.card_network.clone(),
             card_issuer: network_token_data.card_issuer.clone(),
             card_type: network_token_data.card_type.clone(),
+            card_subtype: network_token_data.card_subtype.clone(),
+            card_segment_type: network_token_data.card_segment_type,
+            funding_source: network_token_data.funding_source,
             card_cvc: None,
         };
 
@@ -815,7 +818,7 @@ impl PaymentMethodsController for PmCards<'_> {
                 .locker_id
                 .clone()
                 .ok_or(errors::VaultError::MissingRequiredField {
-                    field_name: "locker_id",
+                    field_name: "locker_id".into(),
                 })
                 .attach_printable(
                     "Payment Method with the fingerprint already exists but is missing locker_id",
@@ -923,7 +926,7 @@ impl PaymentMethodsController for PmCards<'_> {
                 .locker_id
                 .clone()
                 .ok_or(errors::VaultError::MissingRequiredField {
-                    field_name: "locker_id",
+                    field_name: "locker_id".into(),
                 })
                 .attach_printable(
                     "Payment Method with the fingerprint already exists but is missing locker_id",
@@ -1030,7 +1033,7 @@ impl PaymentMethodsController for PmCards<'_> {
                 .locker_id
                 .clone()
                 .ok_or(errors::VaultError::MissingRequiredField {
-                    field_name: "locker_id",
+                    field_name: "locker_id".into(),
                 })
                 .attach_printable(
                     "Payment Method with the fingerprint already exists but is missing locker_id",
@@ -1575,7 +1578,7 @@ impl PaymentMethodsController for PmCards<'_> {
             .to_owned()
             .get_required_value("Customer key")
             .change_context(errors::VaultError::MissingRequiredField {
-                field_name: "Customer key",
+                field_name: "Customer key".into(),
             })
             .attach_printable("entity_id is required to get fingerprint id from vault")?;
 
@@ -2002,6 +2005,11 @@ impl PaymentMethodsController for PmCards<'_> {
                             card_network: card.card_network.or(existing_pm_data.card_network),
                             card_issuer: card.card_issuer.or(existing_pm_data.card_issuer),
                             card_type: card.card_type.or(existing_pm_data.card_type),
+                            card_subtype: card.card_subtype.or(existing_pm_data.card_subtype),
+                            card_segment_type: card
+                                .card_segment_type
+                                .or(existing_pm_data.card_segment_type),
+                            funding_source: card.funding_source.or(existing_pm_data.funding_source),
                             saved_to_locker: true,
                         });
 
@@ -2169,7 +2177,7 @@ pub fn encode_vault_fingerprint_request(
         let key = key
             .get_required_value("Customer key is required")
             .change_context(errors::VaultError::MissingRequiredField {
-                field_name: "Customer key",
+                field_name: "Customer key".into(),
             })?;
 
         let data = serde_json::to_string(&pmd.clone().to_fingerprint_data())
@@ -2452,7 +2460,7 @@ pub fn authenticate_pm_client_secret_and_check_expiry(
         .clone()
         .get_required_value("client_secret")
         .change_context(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "client_secret",
+            field_name: "client_secret".into(),
         })
         .attach_printable("client secret not found in db")?;
 
@@ -2609,6 +2617,15 @@ pub async fn add_payment_method_data(
                             card_isin: Some(card_isin),
                             card_issuer: card_info.as_ref().and_then(|ci| ci.card_issuer.clone()),
                             card_type: card_info.as_ref().and_then(|ci| ci.card_type.clone()),
+                            card_subtype: card_info
+                                .as_ref()
+                                .and_then(|ci| ci.card_subtype.clone()),
+                            card_segment_type: card_info.as_ref().and_then(|ci| {
+                                ci.card_segment_type
+                                    .as_deref()
+                                    .and_then(|segment_type| segment_type.parse().ok())
+                            }),
+                            funding_source: card_info.as_ref().and_then(|ci| ci.funding_source),
                             saved_to_locker: true,
                             co_badged_card_data: None,
                         };
@@ -2900,6 +2917,9 @@ pub async fn update_customer_payment_method(
                 card_isin: existing_card_data.card_isin,
                 card_issuer: card_update.card_issuer.or(existing_card_data.card_issuer),
                 card_type: existing_card_data.card_type,
+                card_subtype: existing_card_data.card_subtype,
+                card_segment_type: existing_card_data.card_segment_type,
+                funding_source: existing_card_data.funding_source,
                 saved_to_locker: true,
             });
 
@@ -4698,7 +4718,7 @@ pub async fn build_merchant_enabled_pms_context(
         let connector_variant = api_enums::Connector::from_str(connector.as_str())
             .change_context(errors::ConnectorError::InvalidConnectorName)
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "connector",
+                field_name: "connector".into(),
             })
             .attach_printable_lazy(|| format!("unable to parse connector name {connector:?}"))?;
         state.conf.required_fields.0.get(&payment_method).map(
@@ -4926,10 +4946,21 @@ pub async fn build_merchant_enabled_pms_context(
         None => false,
     };
 
-    let offers_enabled = matches!(
-        offer_engine::resolve_offer_engine_config(state, &dimensions).await,
-        Ok(Some(_))
-    );
+    let offers_enabled =
+        match offer_engine::resolve_offer_engine_credential_source(state, &dimensions).await {
+            offer_engine::OfferEngineCredentialSource::None => false,
+            offer_engine::OfferEngineCredentialSource::Application => {
+                offer_engine::OfferEngineCredentialSource::resolve_application_offer_config(state)
+                    .is_ok()
+            }
+            offer_engine::OfferEngineCredentialSource::Merchant => {
+                offer_engine::OfferEngineCredentialSource::resolve_merchant_offer_config(
+                    state,
+                    platform.get_processor().get_account(),
+                )
+                .is_ok()
+            }
+        };
 
     let sdk_next_action = payment_method_utils::get_sdk_next_action_for_payment_method_list(
         state,
@@ -5459,7 +5490,7 @@ async fn validate_payment_method_and_client_secret(
     let pm_id = pm_vec
         .first()
         .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "client_secret",
+            field_name: "client_secret".into(),
         })?;
 
     let payment_method = db
@@ -5665,7 +5696,7 @@ pub async fn filter_payment_methods(
                     let connector_variant = api_enums::Connector::from_str(connector.as_str())
                         .change_context(errors::ConnectorError::InvalidConnectorName)
                         .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                            field_name: "connector",
+                            field_name: "connector".into(),
                         })
                         .attach_printable_lazy(|| {
                             format!("unable to parse connector name {connector:?}")
@@ -7417,7 +7448,7 @@ pub async fn execute_card_tokenization(
             .id
             .as_ref()
             .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "customer_id",
+                field_name: "customer_id".into(),
             })?;
     let network_token_details = executor
         .tokenize_card(customer_id, &domain_card, optional_cvc)
@@ -7469,7 +7500,7 @@ pub async fn execute_payment_method_tokenization(
             .id
             .as_ref()
             .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "customer_id",
+                field_name: "customer_id".into(),
             })?;
 
     // Fetch card from locker

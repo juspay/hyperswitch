@@ -32,6 +32,11 @@ use hyperswitch_domain_models::{
     address::Address,
     routing::{PreRoutingConnectorChoice, PreRoutingFingerprint, RoutingData},
 };
+#[cfg(feature = "v1")]
+use hyperswitch_domain_models::{
+    router_flow_types::payments::is_external_three_ds_retry_eligible_flow,
+    routing::PaymentRoutingInfo,
+};
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use hyperswitch_interfaces::events::routing_api_logs::{ApiMethod, RoutingEngine};
 use hyperswitch_masking::{PeekInterface, Secret};
@@ -71,6 +76,7 @@ use crate::{
         api::{self, routing as routing_types},
         domain, storage as oss_storage,
         transformers::{ForeignFrom, ForeignInto, ForeignTryFrom},
+        Connector,
     },
     utils::{OptionExt, ValueExt},
     SessionState,
@@ -1204,10 +1210,38 @@ where
         }))
 }
 
+#[cfg(feature = "v1")]
 pub fn try_get_pre_determined_connector<F, D>(
     connectors: &hyperswitch_interfaces::configs::Connectors,
     payment_data: &D,
     routing_data: &mut RoutingData,
+    business_profile: &domain::Profile,
+) -> errors::RouterResult<Option<api::ConnectorCallType>>
+where
+    F: Send + Clone + 'static,
+    D: OperationSessionGetters<F>,
+{
+    match try_get_attempt_connector::<F, D>(connectors, payment_data, routing_data)? {
+        Some(api::ConnectorCallType::PreDetermined(predetermined)) => Ok(Some(
+            try_expand_predetermined_connector_for_external_three_ds_retry::<F, D>(
+                connectors,
+                payment_data,
+                &predetermined,
+                business_profile,
+            )
+            .unwrap_or(api::ConnectorCallType::PreDetermined(predetermined)),
+        )),
+        Some(connector) => Ok(Some(connector)),
+        None => try_get_mandate_connector::<F, D>(connectors, payment_data, routing_data),
+    }
+}
+
+#[cfg(feature = "v2")]
+pub fn try_get_pre_determined_connector<F, D>(
+    connectors: &hyperswitch_interfaces::configs::Connectors,
+    payment_data: &D,
+    routing_data: &mut RoutingData,
+    _business_profile: &domain::Profile,
 ) -> errors::RouterResult<Option<api::ConnectorCallType>>
 where
     F: Send + Clone,
@@ -1217,6 +1251,93 @@ where
         Some(connector) => Ok(Some(connector)),
         None => try_get_mandate_connector::<F, D>(connectors, payment_data, routing_data),
     }
+}
+
+/// Lets the external-3DS authorize continuation fail over to the next acquirer on a
+/// post-authentication decline, by expanding its single `PreDetermined` connector into
+/// `Retryable([current, ...remaining_from_stored_algorithm])` when eligible. Every other caller
+/// of `try_get_pre_determined_connector` is unaffected: the gates below only ever hold for that
+/// one re-entrant confirm.
+#[cfg(feature = "v1")]
+fn try_expand_predetermined_connector_for_external_three_ds_retry<F, D>(
+    connectors: &hyperswitch_interfaces::configs::Connectors,
+    payment_data: &D,
+    predetermined: &api::ConnectorRoutingData,
+    business_profile: &domain::Profile,
+) -> Option<api::ConnectorCallType>
+where
+    F: Send + Clone + 'static,
+    D: OperationSessionGetters<F>,
+{
+    let attempt = payment_data.get_payment_attempt();
+
+    let is_eligible = is_external_three_ds_retry_eligible_flow::<F>()
+        && business_profile.is_auto_retries_enabled
+        && attempt.external_three_ds_authentication_attempted == Some(true);
+
+    let candidates = is_eligible
+        .then(|| attempt.straight_through_algorithm.clone())
+        .flatten()
+        .and_then(|straight_through_algorithm| {
+            straight_through_algorithm
+                .parse_value::<PaymentRoutingInfo>("PaymentRoutingInfo")
+                .inspect_err(|err| {
+                    logger::warn!(
+                        error = ?err,
+                        "euclid: failed to parse persisted straight_through_algorithm, skipping external-3ds retry expansion"
+                    );
+                })
+                .ok()
+        })
+        .and_then(|routing_info| routing_info.algorithm)
+        .and_then(|algorithm| match algorithm {
+            routing_types::StraightThroughAlgorithm::Priority(list) => Some(list),
+            routing_types::StraightThroughAlgorithm::VolumeSplit(splits) => {
+                Some(splits.into_iter().map(|split| split.connector).collect())
+            }
+            // Nothing to fail over to.
+            routing_types::StraightThroughAlgorithm::Single(_) => None,
+        })
+        .unwrap_or_default();
+
+    let mut ordered = vec![predetermined.clone()];
+    for choice in candidates {
+        let is_current_connector = choice.connector.to_string()
+            == predetermined.connector_data.connector_name.to_string()
+            && choice.merchant_connector_id == predetermined.connector_data.merchant_connector_id;
+        if is_current_connector {
+            continue;
+        }
+
+        if !Connector::from(choice.connector).is_separate_authentication_supported() {
+            logger::warn!(
+                connector = %choice.connector,
+                "euclid: skipping retry candidate that does not support external 3ds authentication"
+            );
+            continue;
+        }
+
+        match api::ConnectorData::get_connector_by_name(
+            connectors,
+            &choice.connector.to_string(),
+            api::GetToken::Connector,
+            choice.merchant_connector_id,
+        ) {
+            Ok(connector_data) => ordered.push(connector_data.into()),
+            Err(err) => logger::warn!(
+                error = ?err,
+                connector = %choice.connector,
+                "euclid: skipping invalid retry candidate while expanding external-3ds retry list"
+            ),
+        }
+    }
+
+    (ordered.len() > 1).then(|| {
+        logger::debug!(
+            "euclid_routing: expanding predetermined connector into retryable list for external-3ds continuation"
+        );
+        api::ConnectorCallType::Retryable(ordered)
+    })
 }
 
 #[cfg(feature = "v1")]
@@ -1582,6 +1703,20 @@ impl RoutingStage for HybridRoutingStage {
     }
 }
 
+/// Whether the profile has an active routing algorithm for the Decision Engine to evaluate.
+#[cfg(feature = "v1")]
+fn profile_has_active_routing_algorithm(business_profile: &domain::Profile) -> bool {
+    business_profile
+        .routing_algorithm
+        .clone()
+        .and_then(|ra| {
+            ra.parse_value::<api::routing::RoutingAlgorithmRef>("RoutingAlgorithmRef")
+                .ok()
+        })
+        .and_then(|algorithm_ref| algorithm_ref.algorithm_id)
+        .is_some()
+}
+
 #[allow(clippy::too_many_arguments)]
 #[cfg(feature = "v1")]
 pub async fn perform_hybrid_routing_if_enabled(
@@ -1615,15 +1750,7 @@ pub async fn perform_hybrid_routing_if_enabled(
     // skipped on the premise that it only ever runs for cut-over profiles).
     let is_decision_engine_cutover_enabled =
         utils::is_decision_engine_routing_effective(state, dimensions).await;
-    let has_active_routing_algorithm = business_profile
-        .routing_algorithm
-        .clone()
-        .and_then(|ra| {
-            ra.parse_value::<api::routing::RoutingAlgorithmRef>("RoutingAlgorithmRef")
-                .ok()
-        })
-        .and_then(|algorithm_ref| algorithm_ref.algorithm_id)
-        .is_some();
+    let has_active_routing_algorithm = profile_has_active_routing_algorithm(business_profile);
 
     // A cut-over profile's rules live on the Decision Engine, so a missing Hyperswitch
     // algorithm is the normal state and must not skip evaluation; for every other profile
@@ -3285,10 +3412,12 @@ async fn evaluate_session_pre_routing(
         })
         .collect::<Vec<_>>();
 
-    // Not cut over, the evaluation is shadow-only and off the request path.
+    // Not cut over, the evaluation is shadow-only and off the request path. Also gated on
+    // an active HS routing algorithm, matching the confirm-path shadow gate.
     let collect_shadow_entries = !de_routing_effective
         && state.conf.open_router.static_routing_enabled
-        && state.conf.open_router.shadow_routing_enabled;
+        && state.conf.open_router.shadow_routing_enabled
+        && profile_has_active_routing_algorithm(business_profile);
 
     // Same list for every wallet type, so it is fetched once rather than per iteration.
     let de_fallback_config = if de_routing_effective || collect_shadow_entries {
@@ -3685,7 +3814,7 @@ pub fn make_dsl_input_for_surcharge(
             .currency
             .get_required_value("currency")
             .change_context(errors::RoutingError::DslMissingRequiredField {
-                field_name: "currency".to_string(),
+                field_name: "currency".into(),
             })?,
         authentication_type: payment_attempt.authentication_type,
         card_bin: None,

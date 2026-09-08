@@ -291,7 +291,7 @@ impl
             &apple_pay_wallet_data.payment_method.network,
         )
         .ok_or(errors::ConnectorError::MissingRequiredField {
-            field_name: "apple_pay.payment_method.network",
+            field_name: "apple_pay.payment_method.network".into(),
         })?;
 
         let aci_network_token_data = AciNetworkTokenData {
@@ -358,7 +358,7 @@ impl
 
         let payment_brand = parse_wallet_card_network(&google_pay_wallet_data.info.card_network)
             .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "google_pay.info.card_network",
+                field_name: "google_pay.info.card_network".into(),
             })?;
 
         let aci_network_token_data = AciNetworkTokenData {
@@ -369,7 +369,7 @@ impl
             token_expiry_month: google_pay_data.card_exp_month.clone(),
             token_expiry_year: google_pay_data.get_four_digit_expiry_year().map_err(|_| {
                 errors::ConnectorError::MissingRequiredField {
-                    field_name: "google_pay.card_exp_year",
+                    field_name: "google_pay.card_exp_year".into(),
                 }
             })?,
             token_cryptogram: google_pay_data.cryptogram.clone(),
@@ -455,7 +455,7 @@ impl
                     bank_account_country: Some(item.router_data.get_billing_country()?),
                     bank_account_bank_name: Some(bank_name.ok_or(
                         errors::ConnectorError::MissingRequiredField {
-                            field_name: "ideal.bank_name",
+                            field_name: "ideal.bank_name".into(),
                         },
                     )?),
                     bank_account_bic: None,
@@ -561,7 +561,7 @@ fn get_aci_payment_brand(
                 Ok(PaymentBrand::Visa)
             } else {
                 Err(errors::ConnectorError::MissingRequiredField {
-                    field_name: "card.card_network",
+                    field_name: "card.card_network".into(),
                 }
                 .into())
             }
@@ -593,7 +593,7 @@ fn parse_samsung_pay_card_brand(
         common_enums::SamsungPayCardBrand::Discover => Ok(PaymentBrand::Discover),
         common_enums::SamsungPayCardBrand::Unknown => {
             Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "samsung_pay.card_brand",
+                field_name: "samsung_pay.card_brand".into(),
             })?
         }
     }
@@ -613,7 +613,7 @@ fn get_apple_pay_data(
         }
         common_types::payments::ApplePayPaymentData::Encrypted(_) => {
             Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "decrypted apple pay data",
+                field_name: "decrypted apple pay data".into(),
             })?
         }
     }
@@ -633,7 +633,7 @@ fn get_google_pay_data(
         }
         common_types::payments::GpayTokenizationData::Encrypted(_) => {
             Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "decrypted google pay data",
+                field_name: "decrypted google pay data".into(),
             })?
         }
     }
@@ -651,7 +651,7 @@ impl TryFrom<(Card, Option<Secret<String>>)> for PaymentDetails {
         Ok(Self::AciCard(Box::new(CardDetails {
             card_number: card_data.card_number,
             card_holder: card_holder_name.ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "card_holder_name",
+                field_name: "card_holder_name".into(),
             })?,
             card_expiry_month: card_data.card_exp_month.clone(),
             card_expiry_year,
@@ -907,7 +907,7 @@ impl TryFrom<&AciRouterData<&PaymentsAuthorizeRouterData>> for AciPaymentsReques
             PaymentMethodData::MandatePayment => {
                 let mandate_id = item.router_data.request.mandate_id.clone().ok_or(
                     errors::ConnectorError::MissingRequiredField {
-                        field_name: "mandate_id",
+                        field_name: "mandate_id".into(),
                     },
                 )?;
                 Self::try_from((item, mandate_id))
@@ -1259,7 +1259,7 @@ impl TryFrom<&RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponse
                     card_cvv: card_data.card_cvc.clone(),
                     card_holder: card_data.card_holder_name.clone().ok_or(
                         errors::ConnectorError::MissingRequiredField {
-                            field_name: "card_holder_name",
+                            field_name: "card_holder_name".into(),
                         },
                     )?,
                     payment_brand: brand.clone(),

@@ -396,6 +396,9 @@ pub async fn save_payout_data_to_locker(
                 card_network: None,
                 card_issuer: None,
                 card_type: None,
+                card_subtype: None,
+                card_segment_type: None,
+                funding_source: None,
             };
             let payload = StoreLockerReq::LockerCard(StoreCardReq {
                 merchant_id: platform.get_processor().get_account().get_id().clone(),
@@ -653,6 +656,11 @@ pub async fn save_payout_data_to_locker(
                             card_issuer: card_info.card_issuer,
                             card_network: card_info.card_network,
                             card_type: card_info.card_type,
+                            card_subtype: card_info.card_subtype,
+                            card_segment_type: card_info
+                                .card_segment_type
+                                .and_then(|segment_type| segment_type.parse().ok()),
+                            funding_source: card_info.funding_source,
                             saved_to_locker: true,
                             co_badged_card_data: None,
                         },
@@ -675,6 +683,9 @@ pub async fn save_payout_data_to_locker(
                             card_issuer: None,
                             card_network: None,
                             card_type: None,
+                            card_subtype: None,
+                            card_segment_type: None,
+                            funding_source: None,
                             saved_to_locker: true,
                             co_badged_card_data: None,
                         },
@@ -1613,7 +1624,7 @@ pub async fn get_translated_unified_code_and_message(
         .await
         .transpose()
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "unified_message",
+            field_name: "unified_message".into(),
         })?
         .or_else(|| unified_message.cloned()))
 }

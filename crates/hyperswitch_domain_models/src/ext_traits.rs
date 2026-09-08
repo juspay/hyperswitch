@@ -32,7 +32,9 @@ impl<T> OptionExt<T> for Option<T> {
     fn check_value_present(&self, field_name: &'static str) -> DomainResult<()> {
         when(self.is_none(), || {
             Err(error_stack::Report::new(
-                api_error_response::ApiErrorResponse::MissingRequiredField { field_name },
+                api_error_response::ApiErrorResponse::MissingRequiredField {
+                    field_name: field_name.into(),
+                },
             )
             .attach_printable(format!("Missing required field {field_name}")))
         })
@@ -44,7 +46,9 @@ impl<T> OptionExt<T> for Option<T> {
         match self {
             Some(v) => Ok(v),
             None => Err(error_stack::Report::new(
-                api_error_response::ApiErrorResponse::MissingRequiredField { field_name },
+                api_error_response::ApiErrorResponse::MissingRequiredField {
+                    field_name: field_name.into(),
+                },
             )
             .attach_printable(format!("Missing required field {field_name}"))),
         }

@@ -190,7 +190,7 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsSessionRouterData>> for KlarnaSes
                 intent: KlarnaSessionIntent::Buy,
                 purchase_country: request.country.ok_or(
                     errors::ConnectorError::MissingRequiredField {
-                        field_name: "billing.address.country",
+                        field_name: "billing.address.country".into(),
                     },
                 )?,
                 purchase_currency: request.currency,
@@ -210,7 +210,7 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsSessionRouterData>> for KlarnaSes
                     .transpose()?,
             }),
             None => Err(report!(errors::ConnectorError::MissingRequiredField {
-                field_name: "order_details",
+                field_name: "order_details".into(),
             })),
         }
     }
@@ -281,7 +281,7 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsAuthorizeRouterData>> for KlarnaP
                         payment_method_specifics: None,
                     }),
                     None => Err(report!(errors::ConnectorError::MissingRequiredField {
-                        field_name: "order_details"
+                        field_name: "order_details".into()
                     })),
                 }
             }
@@ -332,7 +332,7 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsAuthorizeRouterData>> for KlarnaP
                         auto_capture: None,
                     }),
                     None => Err(report!(errors::ConnectorError::MissingRequiredField {
-                        field_name: "order_details"
+                        field_name: "order_details".into()
                     })),
                 }
             }
