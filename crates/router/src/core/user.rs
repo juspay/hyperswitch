@@ -397,7 +397,9 @@ pub async fn connect_account(
 
         logger::info!(?magic_link_result);
 
-        if state.tenant.tenant_id.get_string_repr() == common_utils::consts::DEFAULT_TENANT {
+        if state.tenant.tenant_id.get_string_repr() == common_utils::consts::DEFAULT_TENANT
+            && !matches!(env::which(), env::Env::Production)
+        {
             let welcome_to_community_email = email_types::WelcomeToCommunity {
                 recipient_email: domain::UserEmail::from_pii_email(user_from_db.get_email())?,
             };
