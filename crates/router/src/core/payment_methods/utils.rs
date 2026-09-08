@@ -829,6 +829,22 @@ pub async fn get_should_call_pm_modular_service(
         .await
 }
 
+/// Resolves when the payment method is written to durable storage: `VaultThenPay` (default) vaults
+/// at session confirm, `PayThenVault` keeps it volatile until the payment is acknowledged.
+pub async fn get_payment_method_integration_type(
+    state: &SessionState,
+    dimensions: &dimension_state::DimensionsWithProviderMerchantIdAndOrgId,
+    customer_id: Option<&common_utils::id_type::CustomerId>,
+) -> enums::PaymentMethodIntegrationType {
+    dimensions
+        .get_payment_method_integration_type(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            customer_id,
+        )
+        .await
+}
+
 pub async fn get_should_perform_sdk_vaulting(
     state: &SessionState,
     dimensions: &dimension_state::DimensionsWithOrgId,

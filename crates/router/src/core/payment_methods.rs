@@ -7182,6 +7182,26 @@ impl EncryptableData for payment_methods::PaymentMethodsSessionUpdateRequest {
     }
 }
 
+/// Resolves the merchant's payment-method integration type from Superposition, falling back to
+/// `VaultThenPay` when no override is configured.
+#[cfg(feature = "v2")]
+async fn resolve_payment_method_integration_type(
+    state: &SessionState,
+    platform: &domain::Platform,
+) -> common_enums::PaymentMethodIntegrationType {
+    let dimensions = dimension_state::Dimensions::new()
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_organization_id(
+            platform
+                .get_provider()
+                .get_account()
+                .organization_id
+                .clone(),
+        );
+
+    utils::get_payment_method_integration_type(state, &dimensions, None).await
+}
+
 #[cfg(feature = "v2")]
 pub async fn payment_methods_session_create(
     state: SessionState,
@@ -7253,6 +7273,16 @@ pub async fn payment_methods_session_create(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Unable to create client secret")?;
 
+    // `PayThenVault` keeps the card in volatile storage until the payment is acknowledged, so it
+    // overrides whatever storage type the caller asked for. `VaultThenPay` (the default) leaves the
+    // request untouched.
+    let storage_type = match resolve_payment_method_integration_type(&state, &platform).await {
+        common_enums::PaymentMethodIntegrationType::PayThenVault => {
+            common_enums::StorageType::Volatile
+        }
+        common_enums::PaymentMethodIntegrationType::VaultThenPay => request.storage_type,
+    };
+
     let payment_method_session_domain_model =
         hyperswitch_domain_models::payment_methods::PaymentMethodSession {
             id: payment_methods_session_id,
@@ -7266,7 +7296,7 @@ pub async fn payment_methods_session_create(
             associated_payment_methods: None,
             associated_payment: None,
             associated_token_id: None,
-            storage_type: request.storage_type,
+            storage_type,
             keep_alive: request.keep_alive.unwrap_or_default(),
         };
 
@@ -7548,6 +7578,105 @@ fn reorder_token_to_front(
     })
 }
 
+/// Promotes a `PayThenVault` payment method out of volatile storage once the payment has been
+/// authorized: the card is written to the real vault and the record is inserted into the database,
+/// after which both redis entries are dropped.
+///
+/// Idempotent — a record that is no longer in redis has already been promoted, so this is a no-op.
+#[cfg(feature = "v2")]
+async fn promote_volatile_payment_method(
+    state: &SessionState,
+    platform: &domain::Platform,
+    profile: &domain::Profile,
+    payment_method_id: &id_type::GlobalPaymentMethodId,
+) -> RouterResult<()> {
+    let key_store = platform.get_provider().get_key_store();
+
+    let volatile_payment_method = match fetch_volatile_payment_method_record(
+        state,
+        key_store,
+        payment_method_id.get_string_repr(),
+    )
+    .await
+    {
+        Ok(payment_method) => payment_method,
+        Err(error) => {
+            logger::info!(
+                ?error,
+                "No volatile payment method found to promote, assuming it is already persisted"
+            );
+            return Ok(());
+        }
+    };
+
+    let customer_id = volatile_payment_method
+        .customer_id
+        .clone()
+        .get_required_value("GlobalCustomerId")?;
+
+    let volatile_vault_id = volatile_payment_method.locker_id.clone();
+
+    let vaulting_data = vault::retrieve_volatile_payment_method_from_redis(
+        state,
+        key_store,
+        &volatile_payment_method,
+    )
+    .await
+    .attach_printable("Failed to retrieve volatile vaulting data from redis")?
+    .data;
+
+    let (vault_response, _external_vault_source) = Box::pin(vault_payment_method(
+        state,
+        &vaulting_data,
+        platform,
+        profile,
+        None,
+        None,
+        &customer_id,
+        Some(pm_types::WriteMode::Insert),
+    ))
+    .await
+    .attach_printable("Failed to vault payment method while promoting from volatile storage")?;
+
+    let payment_method_to_persist = domain::PaymentMethod {
+        locker_id: Some(vault_response.vault_id),
+        status: enums::PaymentMethodStatus::Active,
+        ..volatile_payment_method
+    };
+
+    state
+        .store
+        .insert_payment_method(
+            key_store,
+            payment_method_to_persist,
+            platform.get_processor().get_account().storage_scheme,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to persist promoted payment method in db")?;
+
+    let redis_connection = state
+        .store
+        .get_redis_conn()
+        .map_err(Into::<errors::StorageError>::into)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get redis connection")?;
+
+    // The card is durable now; a failure to drop the redis copies is not worth failing the call
+    // for, they expire on their own.
+    for key in volatile_vault_id
+        .iter()
+        .map(|vault_id| vault_id.get_string_repr().as_str())
+        .chain(std::iter::once(payment_method_id.get_string_repr()))
+    {
+        if let Err(error) = redis_connection.delete_key(&key.into()).await {
+            logger::warn!(?error, "Failed to delete promoted payment method from redis");
+        }
+    }
+
+    Ok(())
+}
+
 #[cfg(feature = "v2")]
 pub async fn payment_methods_session_update_payment_method(
     state: SessionState,
@@ -7686,6 +7815,24 @@ pub async fn payment_methods_session_update_payment_method(
                 tokens,
             )
             .await?;
+
+            // `PayThenVault` defers vaulting to this point: the payment has been authorized, so the
+            // card is moved out of redis into the vault and the database before the update runs
+            // against it.
+            if request.acknowledgement_status
+                == Some(common_enums::AcknowledgementStatus::Authenticated)
+                && resolve_payment_method_integration_type(&state, &platform).await
+                    == common_enums::PaymentMethodIntegrationType::PayThenVault
+            {
+                Box::pin(promote_volatile_payment_method(
+                    &state,
+                    &platform,
+                    &profile,
+                    &payment_method_id,
+                ))
+                .await
+                .attach_printable("Failed to promote volatile payment method")?;
+            }
 
             let update_request =
                 DomainPaymentMethodUpdate::from(request.payment_method_update_request);

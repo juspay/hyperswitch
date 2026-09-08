@@ -401,6 +401,25 @@ impl DatabaseBackedConfig for ShouldCallPmModularService {
 }
 
 config! {
+    superposition_key = PAYMENT_METHOD_INTEGRATION_TYPE,
+    output = common_enums::PaymentMethodIntegrationType,
+    default = common_enums::PaymentMethodIntegrationType::VaultThenPay,
+    string_enum = true,
+    requires = dimension_state::DimensionsWithProviderMerchantIdAndOrgId,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for PaymentMethodIntegrationType {
+    const KEY: &'static str = "payment_method_integration_type";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_organization_id()
+            .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
+    }
+}
+
+config! {
     superposition_key = SHOULD_SCHEDULE_MODULAR_FORWARD_COMPAT,
     output = bool,
     default = false,
