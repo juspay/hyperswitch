@@ -100,6 +100,9 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
                     connector_eligibility_reference_id: new_payout_attempt
                         .connector_eligibility_reference_id
                         .clone(),
+                    connector_request_reference_id: new_payout_attempt
+                        .connector_request_reference_id
+                        .clone(),
                 };
 
                 let field = format!("poa_{}", created_attempt.payout_attempt_id);
@@ -702,6 +705,7 @@ impl DataModelExt for PayoutAttempt {
             source_bank_data_token: self.source_bank_data_token,
             additional_source_bank_data: self.additional_source_bank_data,
             connector_eligibility_reference_id: self.connector_eligibility_reference_id,
+            connector_request_reference_id: self.connector_request_reference_id,
         }
     }
 
@@ -738,6 +742,7 @@ impl DataModelExt for PayoutAttempt {
             source_bank_data_token: storage_model.source_bank_data_token,
             additional_source_bank_data: storage_model.additional_source_bank_data,
             connector_eligibility_reference_id: storage_model.connector_eligibility_reference_id,
+            connector_request_reference_id: storage_model.connector_request_reference_id,
         }
     }
 }
@@ -775,6 +780,7 @@ impl DataModelExt for PayoutAttemptNew {
             source_bank_data_token: self.source_bank_data_token,
             additional_source_bank_data: self.additional_source_bank_data,
             connector_eligibility_reference_id: self.connector_eligibility_reference_id,
+            connector_request_reference_id: self.connector_request_reference_id,
         }
     }
 
@@ -811,6 +817,7 @@ impl DataModelExt for PayoutAttemptNew {
             source_bank_data_token: storage_model.source_bank_data_token,
             additional_source_bank_data: storage_model.additional_source_bank_data,
             connector_eligibility_reference_id: storage_model.connector_eligibility_reference_id,
+            connector_request_reference_id: storage_model.connector_request_reference_id,
         }
     }
 }
@@ -857,10 +864,12 @@ impl DataModelExt for PayoutAttemptUpdate {
                 connector,
                 routing_info,
                 merchant_connector_id,
+                connector_request_reference_id,
             } => DieselPayoutAttemptUpdate::UpdateRouting {
                 connector,
                 routing_info,
                 merchant_connector_id,
+                connector_request_reference_id,
             },
             Self::AdditionalPayoutDataUpdate {
                 additional_payout_method_data,

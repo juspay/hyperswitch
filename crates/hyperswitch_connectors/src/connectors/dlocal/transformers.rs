@@ -108,7 +108,7 @@ impl TryFrom<&DlocalRouterData<&types::PaymentsAuthorizeRouterData>> for DlocalP
                 .get_customer_document_details()?
                 .map(|details| details.document_number)
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "customer.document_details.document_number",
+                    field_name: "customer.document_details.document_number".into(),
                 })?,
         };
         let order_id = item.router_data.connector_request_reference_id.clone();
@@ -343,6 +343,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, DlocalPaymentsResponse, T, PaymentsResp
             incremental_authorization_allowed: None,
             authentication_data: None,
             charges: None,
+            payment_account_reference: None,
         };
         let status =
             map_dlocal_status_to_attempt_status(item.response.status, redirection_data.is_some());
@@ -381,6 +382,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, DlocalPaymentsSyncResponse, T, Payments
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -414,6 +416,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, DlocalPaymentsCaptureResponse, T, Payme
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -445,6 +448,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, DlocalPaymentsCancelResponse, T, Paymen
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })

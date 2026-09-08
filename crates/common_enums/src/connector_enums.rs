@@ -120,6 +120,7 @@ pub enum Connector {
     Globalpay,
     Globepay,
     Gocardless,
+    GotymeSanlam,
     Gpayments,
     Hipay,
     Helcim,
@@ -229,6 +230,7 @@ impl Connector {
                 | (Self::Loonio, _)
                 | (Self::Truelayer, _)
                 | (Self::Trustly, _)
+                | (Self::GotymeSanlam, _)
                 | (Self::Worldpay, Some(PayoutType::Wallet))
                 | (Self::Worldpayxml, Some(PayoutType::Wallet))
                 | (Self::Itaubank, Some(PayoutType::Bank))
@@ -368,7 +370,6 @@ impl Connector {
             | Self::Finix
             | Self::Fiserv
             | Self::Fiservemea
-            | Self::Fiservcommercehub
             | Self::Fiuu
             | Self::Flexiti
             | Self::Forte
@@ -377,6 +378,7 @@ impl Connector {
             | Self::Globalpay
             | Self::Globepay
             | Self::Gocardless
+            | Self::GotymeSanlam
             | Self::Gpayments
             | Self::Hipay
             | Self::Helcim
@@ -443,7 +445,6 @@ impl Connector {
             | Self::Worldpay
             | Self::Worldpaymodular
             | Self::Worldpayvantiv
-            | Self::Worldpayxml
             | Self::Xendit
             | Self::Zen
             | Self::Zsl
@@ -471,7 +472,7 @@ impl Connector {
             | Self::Ilixium
             | Self::Givepayments => false,
             Self::Stripe | Self::Checkout | Self::Zift | Self::Nmi | Self::Braintree|
-            Self::Cybersource | Self::Archipel | Self::Nuvei | Self::Adyen => true,
+            Self::Cybersource | Self::Archipel | Self::Nuvei | Self::Adyen | Self::Fiservcommercehub | Self::Worldpayxml => true,
         }
     }
 
@@ -513,11 +514,14 @@ impl Connector {
 #[derive(
     Debug,
     Clone,
+    Copy,
     PartialEq,
     Eq,
+    Hash,
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
+    strum::EnumIter,
     strum::EnumString,
     ToSchema,
 )]

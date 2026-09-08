@@ -259,6 +259,7 @@ pub async fn profile_update(
         &req,
         payload,
         |state, auth_data, req, _| {
+            let provider_merchant_id = auth_data.platform.get_provider().get_provider_merchant_id();
             update_profile(
                 state,
                 &profile_id,
@@ -270,6 +271,7 @@ pub async fn profile_update(
                     .clone(),
                 auth_data.platform.get_processor().get_key_store().clone(),
                 req,
+                Some(provider_merchant_id),
             )
         },
         auth::auth_type(
@@ -330,6 +332,7 @@ pub async fn profile_update(
                 merchant_account.get_id().clone(),
                 key_store,
                 req,
+                None,
             )
         },
         auth::auth_type(

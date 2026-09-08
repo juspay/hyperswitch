@@ -706,7 +706,7 @@ pub async fn payouts_cancel_core(
                 "Connector not found in payout_attempt - should not reach here".to_string(),
             ))
             .change_context(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "connector",
+                field_name: "connector".into(),
             })
             .attach_printable("Connector not found for payout cancellation")?,
         };
@@ -773,7 +773,7 @@ pub async fn payouts_fulfill_core(
             "Connector not found in payout_attempt - should not reach here.".to_string(),
         ))
         .change_context(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "connector",
+            field_name: "connector".into(),
         })
         .attach_printable("Connector not found for payout fulfillment")?,
     };
@@ -1220,15 +1220,25 @@ pub async fn call_connector_payout(
         payout_data.merchant_connector_account = Some(merchant_connector_account);
     }
 
-    // update connector_name
+    let connector_request_reference_id = core_utils::get_payout_connector_request_reference_id(
+        connector_data,
+        &payout_data.payout_attempt,
+    );
+
+    // Update routing and persist the request reference ID before calling the connector.
     if payout_data.payout_attempt.connector.is_none()
         || payout_data.payout_attempt.connector != Some(connector_data.connector_name.to_string())
+        || payout_data
+            .payout_attempt
+            .connector_request_reference_id
+            .is_none()
     {
         payout_data.payout_attempt.connector = Some(connector_data.connector_name.to_string());
         let updated_payout_attempt = storage::PayoutAttemptUpdate::UpdateRouting {
             connector: connector_data.connector_name.to_string(),
             routing_info: payout_data.payout_attempt.routing_info.clone(),
             merchant_connector_id: payout_data.payout_attempt.merchant_connector_id.clone(),
+            connector_request_reference_id,
         };
         let db = &*state.store;
         payout_data.payout_attempt = db
@@ -1590,13 +1600,13 @@ pub async fn create_recipient(
                         .map(UnifiedCode::try_from)
                         .transpose()
                         .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                            field_name: "unified_code",
+                            field_name: "unified_code".into(),
                         })?,
                     unified_message: unified_message
                         .map(UnifiedMessage::try_from)
                         .transpose()
                         .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                            field_name: "unified_message",
+                            field_name: "unified_message".into(),
                         })?,
                     payout_connector_metadata: payout_data
                         .payout_attempt
@@ -1801,13 +1811,13 @@ pub async fn check_payout_eligibility(
                     .map(UnifiedCode::try_from)
                     .transpose()
                     .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "unified_code",
+                        field_name: "unified_code".into(),
                     })?,
                 unified_message: unified_message
                     .map(UnifiedMessage::try_from)
                     .transpose()
                     .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "unified_message",
+                        field_name: "unified_message".into(),
                     })?,
                 payout_connector_metadata: payout_data
                     .payout_attempt
@@ -2049,13 +2059,13 @@ pub async fn create_payout(
                     .map(UnifiedCode::try_from)
                     .transpose()
                     .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "unified_code",
+                        field_name: "unified_code".into(),
                     })?,
                 unified_message: unified_message
                     .map(UnifiedMessage::try_from)
                     .transpose()
                     .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "unified_message",
+                        field_name: "unified_message".into(),
                     })?,
                 payout_connector_metadata: connector_meta_data,
             };
@@ -2274,13 +2284,13 @@ pub async fn update_retrieve_payout_tracker<F, T>(
                         .map(UnifiedCode::try_from)
                         .transpose()
                         .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                            field_name: "unified_code",
+                            field_name: "unified_code".into(),
                         })?,
                     unified_message: unified_message
                         .map(UnifiedMessage::try_from)
                         .transpose()
                         .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                            field_name: "unified_message",
+                            field_name: "unified_message".into(),
                         })?,
                     payout_connector_metadata: payout_response_data
                         .payout_connector_metadata
@@ -2553,13 +2563,13 @@ pub async fn create_recipient_disburse_account(
                     .map(UnifiedCode::try_from)
                     .transpose()
                     .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "unified_code",
+                        field_name: "unified_code".into(),
                     })?,
                 unified_message: unified_message
                     .map(UnifiedMessage::try_from)
                     .transpose()
                     .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "unified_message",
+                        field_name: "unified_message".into(),
                     })?,
                 payout_connector_metadata: payout_data
                     .payout_attempt
@@ -2693,13 +2703,13 @@ pub async fn cancel_payout(
                     .map(UnifiedCode::try_from)
                     .transpose()
                     .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "unified_code",
+                        field_name: "unified_code".into(),
                     })?,
                 unified_message: unified_message
                     .map(UnifiedMessage::try_from)
                     .transpose()
                     .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "unified_message",
+                        field_name: "unified_message".into(),
                     })?,
                 payout_connector_metadata: payout_data
                     .payout_attempt
@@ -2893,13 +2903,13 @@ pub async fn fulfill_payout(
                     .map(UnifiedCode::try_from)
                     .transpose()
                     .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "unified_code",
+                        field_name: "unified_code".into(),
                     })?,
                 unified_message: unified_message
                     .map(UnifiedMessage::try_from)
                     .transpose()
                     .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "unified_message",
+                        field_name: "unified_message".into(),
                     })?,
                 payout_connector_metadata: payout_data
                     .payout_attempt
@@ -3296,6 +3306,7 @@ pub async fn payout_create_db_entries(
             .and_then(|initiator| initiator.to_created_by()),
         source_bank_data_token,
         additional_source_bank_data,
+        connector_request_reference_id: None,
     };
     let payout_attempt = db
         .insert_payout_attempt(

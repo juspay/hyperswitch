@@ -300,6 +300,7 @@ pub async fn modify_trackers(
             .payout_attempt
             .additional_source_bank_data
             .clone(),
+        connector_request_reference_id: None,
     };
     payout_data.payout_attempt = db
         .insert_payout_attempt(
