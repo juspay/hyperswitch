@@ -24,6 +24,7 @@ import * as utils from "../../configs/Payment/Utils";
 
 let connector;
 let globalState;
+let originalCustomerId;
 
 describe("[Payment] DDC Race Condition", () => {
   before(function () {
@@ -32,6 +33,7 @@ describe("[Payment] DDC Race Condition", () => {
     cy.task("getGlobalState")
       .then((state) => {
         globalState = new State(state);
+        originalCustomerId = globalState.get("customerId");
         connector = globalState.get("connectorId");
 
         if (
@@ -75,6 +77,11 @@ describe("[Payment] DDC Race Condition", () => {
   });
 
   afterEach("comprehensive cleanup", () => {
+    // This spec creates its own customer for local DDC testing, overwriting
+    // globalState.customerId. Restore the original customer before
+    // flushing so later specs don't inherit one scoped to this spec's own
+    // tests.
+    globalState.set("customerId", originalCustomerId);
     cy.task("setGlobalState", globalState.data);
   });
 
