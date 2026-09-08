@@ -1549,10 +1549,9 @@ impl From<CheckoutCardType> for common_enums::CardType {
     fn from(card_type: CheckoutCardType) -> Self {
         match card_type {
             CheckoutCardType::Credit => Self::Credit,
-            CheckoutCardType::Debit
-            | CheckoutCardType::DeferredDebit => Self::Debit,
+            CheckoutCardType::Debit | CheckoutCardType::DeferredDebit => Self::Debit,
             CheckoutCardType::Prepaid => Self::Prepaid,
-            CheckoutCardType::Charge => Self::ChargeCard, 
+            CheckoutCardType::Charge => Self::ChargeCard,
         }
     }
 }

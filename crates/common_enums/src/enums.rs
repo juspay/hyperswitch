@@ -3583,7 +3583,7 @@ impl CardType {
             Self::Debit => "Debit",
             Self::Prepaid => "Prepaid",
             Self::Store => "Store",
-            Self::ChargeCard => "Charge Card"
+            Self::ChargeCard => "Charge Card",
         }
     }
 }
