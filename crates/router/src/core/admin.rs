@@ -817,12 +817,12 @@ impl CreateProfile {
         merchant_account: domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<domain::Profile> {
-        let business_profile = create_and_insert_business_profile(
+        let business_profile = Box::pin(create_and_insert_business_profile(
             state,
             api_models::admin::ProfileCreate::default(),
             merchant_account.clone(),
             key_store,
-        )
+        ))
         .await?;
 
         Ok(business_profile)
@@ -851,12 +851,12 @@ impl CreateProfile {
                 ..Default::default()
             };
 
-            create_and_insert_business_profile(
+            Box::pin(create_and_insert_business_profile(
                 state,
                 profile_create_request,
                 merchant_account.clone(),
                 key_store,
-            )
+            ))
             .await
             .map_err(|profile_insert_error| {
                 logger::warn!("Profile already exists {profile_insert_error:?}");
@@ -1084,12 +1084,12 @@ pub async fn create_profile_from_business_labels(
             ..Default::default()
         };
 
-        let profile_create_result = create_and_insert_business_profile(
+        let profile_create_result = Box::pin(create_and_insert_business_profile(
             state,
             profile_create_request,
             merchant_account.clone(),
             key_store,
-        )
+        ))
         .await
         .map_err(|profile_insert_error| {
             // If there is any duplicate error, we need not take any action

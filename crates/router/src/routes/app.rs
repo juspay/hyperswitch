@@ -747,6 +747,8 @@ impl Health {
 
 pub struct OfferEngine;
 
+/// Offers are only supported on v1.
+#[cfg(feature = "v1")]
 impl OfferEngine {
     pub fn server(state: AppState) -> Scope {
         web::scope("/offer_engine")
@@ -754,6 +756,10 @@ impl OfferEngine {
             .service(
                 web::resource("/connectivity")
                     .route(web::post().to(offer_engine::offer_engine_connectivity_check)),
+            )
+            .service(
+                web::resource("/offers/list")
+                    .route(web::post().to(offer_engine::offer_engine_browse_offers)),
             )
     }
 }
@@ -1585,7 +1591,8 @@ impl Refunds {
                     web::resource("/{id}")
                         .route(web::get().to(refunds_retrieve))
                         .route(web::post().to(refunds_update)),
-                );
+                )
+                .service(web::resource("/{id}/reverse").route(web::post().to(refunds_reverse)));
         }
         route
     }

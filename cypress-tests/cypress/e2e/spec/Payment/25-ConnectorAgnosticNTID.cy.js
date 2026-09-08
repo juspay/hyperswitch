@@ -5,6 +5,7 @@ import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 
 let globalState;
 let connector;
+let originalCustomerId;
 
 /*
 Flow:
@@ -64,6 +65,7 @@ describe("Connector Agnostic Tests", () => {
     cy.task("getGlobalState")
       .then((state) => {
         globalState = new State(state);
+        originalCustomerId = globalState.get("customerId");
         connector = globalState.get("connectorId");
 
         if (
@@ -83,6 +85,11 @@ describe("Connector Agnostic Tests", () => {
   });
 
   after("flush global state", () => {
+    // This spec's contexts create their own customers for local NTID
+    // testing, overwriting globalState.customerId. Restore the original
+    // customer before flushing so later specs don't inherit one scoped to
+    // this spec's own tests.
+    globalState.set("customerId", originalCustomerId);
     cy.task("setGlobalState", globalState.data);
   });
 

@@ -4,6 +4,7 @@ pub mod customer;
 pub mod dispute;
 pub mod external_service_auth;
 pub mod gsm;
+pub mod offer_engine;
 pub mod payment;
 #[cfg(feature = "payouts")]
 pub mod payouts;

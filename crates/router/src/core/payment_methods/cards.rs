@@ -414,6 +414,9 @@ impl PaymentMethodsController for PmCards<'_> {
             card_network: network_token_data.card_network.clone(),
             card_issuer: network_token_data.card_issuer.clone(),
             card_type: network_token_data.card_type.clone(),
+            card_subtype: network_token_data.card_subtype.clone(),
+            card_segment_type: network_token_data.card_segment_type,
+            funding_source: network_token_data.funding_source,
             card_cvc: None,
         };
 
@@ -2002,6 +2005,11 @@ impl PaymentMethodsController for PmCards<'_> {
                             card_network: card.card_network.or(existing_pm_data.card_network),
                             card_issuer: card.card_issuer.or(existing_pm_data.card_issuer),
                             card_type: card.card_type.or(existing_pm_data.card_type),
+                            card_subtype: card.card_subtype.or(existing_pm_data.card_subtype),
+                            card_segment_type: card
+                                .card_segment_type
+                                .or(existing_pm_data.card_segment_type),
+                            funding_source: card.funding_source.or(existing_pm_data.funding_source),
                             saved_to_locker: true,
                         });
 
@@ -2609,6 +2617,15 @@ pub async fn add_payment_method_data(
                             card_isin: Some(card_isin),
                             card_issuer: card_info.as_ref().and_then(|ci| ci.card_issuer.clone()),
                             card_type: card_info.as_ref().and_then(|ci| ci.card_type.clone()),
+                            card_subtype: card_info
+                                .as_ref()
+                                .and_then(|ci| ci.card_subtype.clone()),
+                            card_segment_type: card_info.as_ref().and_then(|ci| {
+                                ci.card_segment_type
+                                    .as_deref()
+                                    .and_then(|segment_type| segment_type.parse().ok())
+                            }),
+                            funding_source: card_info.as_ref().and_then(|ci| ci.funding_source),
                             saved_to_locker: true,
                             co_badged_card_data: None,
                         };
@@ -2900,6 +2917,9 @@ pub async fn update_customer_payment_method(
                 card_isin: existing_card_data.card_isin,
                 card_issuer: card_update.card_issuer.or(existing_card_data.card_issuer),
                 card_type: existing_card_data.card_type,
+                card_subtype: existing_card_data.card_subtype,
+                card_segment_type: existing_card_data.card_segment_type,
+                funding_source: existing_card_data.funding_source,
                 saved_to_locker: true,
             });
 
