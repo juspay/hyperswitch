@@ -367,21 +367,8 @@ async fn get_tracker_for_sync<
         None
     };
 
-    let refunds = db
-        .find_refund_by_payment_id_processor_merchant_id(
-            &payment_id,
-            platform.get_processor().get_account().get_id(),
-            storage_scheme,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::PaymentNotFound)
-        .attach_printable_lazy(|| {
-            format!(
-                "Failed while getting refund list for, payment_id: {:?}, merchant_id: {:?}",
-                payment_id,
-                platform.get_processor().get_account().get_id()
-            )
-        })?;
+    // Refund list fetch is intentionally skipped in the payments retrieve/sync flow.
+    let refunds = vec![];
 
     let authorizations = db
         .find_all_authorizations_by_processor_merchant_id_payment_id(
@@ -398,17 +385,8 @@ async fn get_tracker_for_sync<
             )
         })?;
 
-    let disputes = db
-        .find_disputes_by_processor_merchant_id_payment_id(
-            platform.get_processor().get_account().get_id(),
-            &payment_id,
-            platform.get_processor().get_account().storage_scheme,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::PaymentNotFound)
-        .attach_printable_lazy(|| {
-            format!("Error while retrieving dispute list for, merchant_id: {:?}, payment_id: {payment_id:?}", platform.get_processor().get_account().get_id())
-        })?;
+    // Dispute list fetch is intentionally skipped in the payments retrieve/sync flow.
+    let disputes = vec![];
 
     let frm_response = if cfg!(feature = "frm") {
         db.find_fraud_check_by_payment_id(payment_id.to_owned(), platform.get_processor().get_account().get_id().clone())
