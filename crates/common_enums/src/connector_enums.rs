@@ -106,6 +106,7 @@ pub enum Connector {
     Ebanx,
     Envoy,
     Elavon,
+    ElavonPg,
     Facilitapay,
     Finix,
     Fiserv,
@@ -366,6 +367,7 @@ impl Connector {
             | Self::Envoy
             | Self::Ebanx
             | Self::Elavon
+            | Self::ElavonPg
             | Self::Facilitapay
             | Self::Finix
             | Self::Fiserv

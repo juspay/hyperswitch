@@ -319,6 +319,7 @@ pub struct ConnectorConfig {
     pub dwolla: Option<ConnectorTomlConfig>,
     pub ebanx_payout: Option<ConnectorTomlConfig>,
     pub elavon: Option<ConnectorTomlConfig>,
+    pub elavon_pg: Option<ConnectorTomlConfig>,
     pub envoy: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
     pub envoy_payout: Option<ConnectorTomlConfig>,
@@ -609,6 +610,7 @@ impl ConnectorConfig {
             Connector::Envoy => Ok(connector_data.envoy),
             Connector::Ebanx => Ok(connector_data.ebanx_payout),
             Connector::Elavon => Ok(connector_data.elavon),
+            Connector::ElavonPg => Ok(connector_data.elavon_pg),
             Connector::Facilitapay => Ok(connector_data.facilitapay),
             Connector::Finix => Ok(connector_data.finix),
             Connector::Fiserv => Ok(connector_data.fiserv),

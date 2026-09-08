@@ -1502,6 +1502,9 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
             Connector::Elavon,
             fields(vec![], [card_basic(), billing_email()].concat(), vec![]),
         ),
+        // Elavon Payment Gateway takes the bare card fields; billing data is optional
+        // on the gateway and is only used for AVS when supplied.
+        (Connector::ElavonPg, fields(vec![], card_basic(), vec![])),
         (Connector::Finix, fields(vec![], vec![], card_basic())),
         (Connector::Fiserv, fields(vec![], card_basic(), vec![])),
         (

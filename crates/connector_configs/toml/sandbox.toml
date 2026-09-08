@@ -9209,3 +9209,36 @@ payment_method_type = "payshap"
 payment_method_type = "payshap_proxy"
 [gotyme_sanlam_payout.connector_webhook_details]
 merchant_secret="Source verification key"
+
+[elavon_pg]
+[elavon_pg.connector_auth.BodyKey]
+api_key="Merchant Alias"
+key1="Secret API Key"
+[[elavon_pg.credit]]
+  payment_method_type = "Mastercard"
+[[elavon_pg.credit]]
+  payment_method_type = "Visa"
+[[elavon_pg.credit]]
+  payment_method_type = "AmericanExpress"
+[[elavon_pg.credit]]
+  payment_method_type = "JCB"
+[[elavon_pg.credit]]
+  payment_method_type = "Discover"
+[[elavon_pg.credit]]
+  payment_method_type = "DinersClub"
+[[elavon_pg.credit]]
+  payment_method_type = "UnionPay"
+[[elavon_pg.debit]]
+  payment_method_type = "Mastercard"
+[[elavon_pg.debit]]
+  payment_method_type = "Visa"
+[[elavon_pg.debit]]
+  payment_method_type = "AmericanExpress"
+[[elavon_pg.debit]]
+  payment_method_type = "JCB"
+[[elavon_pg.debit]]
+  payment_method_type = "Discover"
+[[elavon_pg.debit]]
+  payment_method_type = "DinersClub"
+[[elavon_pg.debit]]
+  payment_method_type = "UnionPay"

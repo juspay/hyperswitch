@@ -42,6 +42,7 @@ pub mod dummyconnector;
 pub mod dwolla;
 pub mod ebanx;
 pub mod elavon;
+pub mod elavon_pg;
 pub mod envoy;
 pub mod facilitapay;
 pub mod finix;
@@ -167,13 +168,13 @@ pub use self::{
     custombilling::Custombilling, cybersource::Cybersource,
     cybersourcedecisionmanager::Cybersourcedecisionmanager, datatrans::Datatrans,
     deutschebank::Deutschebank, digitalvirgo::Digitalvirgo, dlocal::Dlocal, dwolla::Dwolla,
-    ebanx::Ebanx, elavon::Elavon, envoy::Envoy, facilitapay::Facilitapay, finix::Finix,
-    fiserv::Fiserv, fiservcommercehub::Fiservcommercehub, fiservemea::Fiservemea, fiuu::Fiuu,
-    flexiti::Flexiti, forte::Forte, getnet::Getnet, gigadat::Gigadat, givepayments::Givepayments,
-    globalpay::Globalpay, globepay::Globepay, gocardless::Gocardless, gotyme_sanlam::GotymeSanlam,
-    gpayments::Gpayments, helcim::Helcim, hipay::Hipay, hyperpg::Hyperpg,
-    hyperswitch_vault::HyperswitchVault, hyperwallet::Hyperwallet, iatapay::Iatapay,
-    ilixium::Ilixium, imerchantsolutions::Imerchantsolutions, inespay::Inespay,
+    ebanx::Ebanx, elavon::Elavon, elavon_pg::ElavonPg, envoy::Envoy, facilitapay::Facilitapay,
+    finix::Finix, fiserv::Fiserv, fiservcommercehub::Fiservcommercehub, fiservemea::Fiservemea,
+    fiuu::Fiuu, flexiti::Flexiti, forte::Forte, getnet::Getnet, gigadat::Gigadat,
+    givepayments::Givepayments, globalpay::Globalpay, globepay::Globepay, gocardless::Gocardless,
+    gotyme_sanlam::GotymeSanlam, gpayments::Gpayments, helcim::Helcim, hipay::Hipay,
+    hyperpg::Hyperpg, hyperswitch_vault::HyperswitchVault, hyperwallet::Hyperwallet,
+    iatapay::Iatapay, ilixium::Ilixium, imerchantsolutions::Imerchantsolutions, inespay::Inespay,
     interpayments::Interpayments, itaubank::Itaubank, jpmorgan::Jpmorgan,
     juspaythreedsserver::Juspaythreedsserver, katapult::Katapult, klarna::Klarna, loonio::Loonio,
     mifinity::Mifinity, mollie::Mollie, moneris::Moneris, mpgs::Mpgs, multisafepay::Multisafepay,
