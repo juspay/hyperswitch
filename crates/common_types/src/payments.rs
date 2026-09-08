@@ -958,7 +958,7 @@ impl ApplePayPredecryptData {
 }
 
 /// type of action that needs to taken after consuming recovery payload
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum RecoveryAction {
     /// Stops the process tracker and update the payment intent.
@@ -1126,7 +1126,7 @@ impl PaymentIntentStateMetadata {
 
     /// Check if post capture void is issued for the payment intent
     pub fn is_post_capture_void_issued(&self) -> bool {
-        self.post_capture_void.is_some()
+        self.is_post_capture_void_pending() || self.is_post_capture_void_successful()
     }
 
     /// Check if post capture void is applied for the payment intent
