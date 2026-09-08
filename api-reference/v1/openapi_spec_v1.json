@@ -7051,7 +7051,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BatchBlocklistJobDetailResponse"
+                  "$ref": "#/components/schemas/BatchBlocklistJobStatusResponse"
                 }
               }
             }
@@ -15468,29 +15468,6 @@
           "subscription_share"
         ]
       },
-      "BatchBlocklistJobDetailResponse": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/BatchBlocklistJobStatusResponse"
-          },
-          {
-            "type": "object",
-            "properties": {
-              "download_url": {
-                "type": "string",
-                "description": "Exports only: short-lived signed link, generated per request and never stored.",
-                "nullable": true
-              },
-              "download_url_expires_at": {
-                "type": "string",
-                "format": "date-time",
-                "nullable": true
-              }
-            }
-          }
-        ],
-        "description": "Response for `GET /blocklist/batch/{job_id}`."
-      },
       "BatchBlocklistJobStatus": {
         "type": "string",
         "enum": [
@@ -15502,7 +15479,7 @@
       },
       "BatchBlocklistJobStatusResponse": {
         "type": "object",
-        "description": "One job in the batch blocklist job listing.",
+        "description": "One batch blocklist job, as returned by the listing and by `GET /blocklist/batch/{job_id}`.",
         "required": [
           "job_id",
           "merchant_id",
@@ -15568,6 +15545,16 @@
           },
           "error_message": {
             "type": "string",
+            "nullable": true
+          },
+          "download_url": {
+            "type": "string",
+            "description": "Exports only: short-lived signed link, generated per request and never stored. Null in the\nlisting, which does not mint a link per row.",
+            "nullable": true
+          },
+          "download_url_expires_at": {
+            "type": "string",
+            "format": "date-time",
             "nullable": true
           }
         }
