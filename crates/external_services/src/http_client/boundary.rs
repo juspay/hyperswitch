@@ -114,21 +114,12 @@ fn captured_body_json(response: &reqwest::Response) -> Secret<serde_json::Value>
 
 /// Captures response headers as an ORDERED LIST of `[name, value]` pairs.
 ///
-/// Deliberately not a map keyed by header name, and the distinction is
-/// load-bearing twice over.
-///
-/// A name-keyed map holds one value per name, so a response carrying three
-/// `set-cookie` headers records one and the other two are gone. And
-/// `serde_json::Map` is an `IndexMap` under serde_json's `preserve_order`
-/// feature but a `BTreeMap` without it — this build enables it transitively
-/// (josekit, thirtyfour, ucs_common_utils), so the same code records wire order
-/// here and sorted order in a build that does not, and a tape written by one and
-/// read by the other silently reorders.
-///
-/// `deja::http::headers` fixes the duplicate half by accumulating values into
-/// arrays, but it still returns an object keyed by name, so it cannot fix the
-/// ordering half. A JSON array is ordered under either backing and carries
-/// repeats by construction, so the pair list is what crosses the boundary.
+/// Not a name-keyed map, for two reasons. A map holds one value per name, so
+/// three `set-cookie` headers record as one. And `serde_json::Map` is an
+/// `IndexMap` under `preserve_order` (enabled here via josekit/thirtyfour) but a
+/// `BTreeMap` without it, so a tape written by one build and read by another
+/// silently reorders. `deja::http::headers` fixes only the first — it still keys
+/// by name. An array is ordered under either backing and carries repeats.
 fn response_headers_json(response: &reqwest::Response) -> Secret<serde_json::Value> {
     let pairs = response
         .headers()
@@ -231,10 +222,8 @@ pub(super) fn replay_response(recorded: &serde_json::Value) -> Option<reqwest::R
                 }
             }
         }
-        // Legacy form: an object keyed by name, one value each, written before
-        // the pair list. Their repeats and wire order were already lost at
-        // capture and cannot be recovered here; reading the shape keeps those
-        // recordings replayable rather than failing them.
+        // Legacy form: an object keyed by name. Repeats and order were already
+        // lost at capture; reading it keeps old recordings replayable.
         Some(serde_json::Value::Object(map)) => {
             for (name, value) in map {
                 if let Some(value) = value.as_str() {
@@ -246,12 +235,10 @@ pub(super) fn replay_response(recorded: &serde_json::Value) -> Option<reqwest::R
     }
     let body = bytes::Bytes::from(raw_bytes);
     let mut http_response = builder.body(body.clone()).ok()?;
-    // Restore the extension `response_result` reads the body from. Without it a
-    // reconstructed response re-captures as "body not captured (missing
-    // extension)", so `capture(reconstruct(v))` would not equal `v` — the codec
-    // round-trip property in juspay/deja#121. Nothing re-captures on a replay
-    // hit today, so this is inert at runtime; the codec should not rely on that
-    // staying true.
+    // Restore the extension `response_result` reads the body from; without it a
+    // reconstructed response re-captures as "body not captured", breaking
+    // `capture(reconstruct(v)) == v` (juspay/deja#121). Inert at runtime today,
+    // since nothing re-captures on a replay hit.
     http_response
         .extensions_mut()
         .insert(CapturedResponseBody(body));

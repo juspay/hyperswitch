@@ -911,11 +911,9 @@ pub fn extract_rsa_public_key_components(
 /// Random bytes for a cryptographic operation whose output has to be reproducible
 /// on replay.
 ///
-/// deja: this is the seam for entropy that a crypto primitive consumes internally.
-/// Recording the bytes the primitive draws substitutes the *input*: the candidate
-/// still runs the real algorithm over its own plaintext, so a changed algorithm or
-/// a changed message still diverges. Same shape as `GcmAes256::nonce`, which does
-/// this for the AEAD nonce.
+/// deja: seams the entropy a crypto primitive consumes internally. Substituting the
+/// input leaves the candidate running the real algorithm over its own plaintext, so
+/// a changed algorithm or message still diverges. Same shape as `GcmAes256::nonce`.
 #[cfg_attr(feature = "deja", track_caller)]
 #[cfg_attr(
     feature = "deja",
@@ -998,27 +996,14 @@ pub fn encrypt_rsa_oaep_sha256(
 
 /// Represents the RSA-PSS-SHA256 signing algorithm
 //
-// deja: NOT seamed, and this is the one nondeterminism source in this PR that is
-// left open rather than closed. PSS is randomised through its salt, so amazonpay's
-// outbound signature (`connectors/amazonpay.rs:175`) differs on every run and a
-// replay of it diverges.
-//
-// The right fix is the one used everywhere else here — substitute the input, not
-// the output: seam the RNG that produces the salt, so the candidate still computes
-// its own signature and a changed algorithm or message layout still diverges. That
-// is impossible with `ring`: `ring::rand::SecureRandom` is a sealed trait
-// (`rand.rs:31`, `pub trait SecureRandom: sealed::SecureRandom` with `sealed`
-// `pub(crate)`, in both 0.16.20 and 0.17), so no RNG can be injected into
-// `RsaKeyPair::sign` from outside the crate.
-//
-// The remaining option is to seam `sign_message` itself, and that is refused: its
-// first argument is the PEM private key, and a recorded tape is read by many
-// people. Recording key material to make a replay match is not a trade worth making.
-//
-// The way to close it is to move this one impl onto the `rsa` crate — already a
-// dependency of this crate for RSA-OAEP — whose `pss::SigningKey::sign_with_rng`
-// takes the RNG as an argument. That replaces a live signing implementation, so it
-// belongs in its own change with its own verification, not in a determinism refactor.
+// deja: NOT seamed — the one nondeterminism source left open here. PSS randomises
+// its salt, so amazonpay's signature (`connectors/amazonpay.rs:175`) differs every
+// run. Seaming the salt RNG is impossible: `ring::rand::SecureRandom` is sealed
+// (`rand.rs:31`, `pub(crate) sealed`, in both 0.16.20 and 0.17), so nothing can be
+// injected into `RsaKeyPair::sign`. Seaming `sign_message` instead is refused — its
+// first argument is the PEM private key and tapes are widely read. The fix is to
+// move this impl onto `rsa`, whose `pss::SigningKey::sign_with_rng` takes the RNG;
+// that replaces a live signing implementation, so it needs its own change.
 #[derive(Debug)]
 pub struct RsaPssSha256;
 

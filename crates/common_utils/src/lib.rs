@@ -106,14 +106,10 @@ pub mod date_time {
 
     /// Return the UNIX timestamp in nanoseconds of the current date and time in UTC
     ///
-    /// Reads the clock through `now()` rather than calling `now_utc()` again.
-    /// `now()` is already an instrumented seam, so this carries no seam and no
-    /// gate exception of its own, and it costs no event a caller of `now()`
-    /// would not already have paid. The value is unchanged: `now()` keeps the
-    /// full nanosecond, so this returns the same `i128` the direct read did.
-    ///
-    /// `track_caller` so that a future caller's own location, not this body,
-    /// is what `now()` records.
+    /// Reads through `now()`, which is already a seam, so this needs no seam and
+    /// no gate exception of its own and costs no extra event. `now()` keeps the
+    /// full nanosecond, so the value is unchanged. `track_caller` so a caller's
+    /// own location is what `now()` records.
     #[cfg_attr(feature = "deja", track_caller)]
     pub fn now_unix_timestamp_nanos() -> i128 {
         now().assume_utc().unix_timestamp_nanos()
@@ -121,9 +117,8 @@ pub mod date_time {
 
     /// Return the UNIX timestamp in milliseconds of the current date and time in UTC.
     ///
-    /// Several connectors sign a millisecond timestamp into an outbound request.
-    /// They open-coded `now_utc().unix_timestamp_nanos() / 1_000_000`, which
-    /// reads the clock outside any seam and so cannot be reproduced on replay.
+    /// The seam for the millisecond timestamp several connectors sign into an
+    /// outbound request, previously open-coded as `now_utc()…nanos() / 1_000_000`.
     #[cfg_attr(feature = "deja", track_caller)]
     #[cfg_attr(
         feature = "deja",
@@ -301,15 +296,11 @@ pub mod date_time {
 
 /// Generate a version 4 (random) UUID.
 ///
-/// A v4 UUID is drawn entirely from the operating system's entropy, so nothing in
-/// the request determines it and a replay cannot reproduce one that was read
-/// raw. Connectors put this value in an idempotency key, a request reference and
-/// — for deutschebank, payeezy, authipay, fiserv, fiservemea and
-/// fiservcommercehub — inside the string they sign, so an unseamed read changes
-/// the outbound bytes and the substitute boundary misses.
-///
-/// Returns the `Uuid` rather than a formatted string so that callers keep their
-/// own `to_string`, `simple` or `hyphenated` rendering unchanged.
+/// Nothing in the request determines a v4 UUID, so an unseamed read cannot be
+/// replayed. Connectors put it in idempotency keys, request references, and — for
+/// deutschebank, payeezy, authipay and the fiserv family — inside the signed
+/// string, so a raw read moves the outbound bytes. Returns the `Uuid` rather than
+/// a string so callers keep their own rendering.
 #[inline]
 #[cfg_attr(feature = "deja", track_caller)]
 #[cfg_attr(
@@ -326,12 +317,10 @@ pub fn generate_uuid_v4() -> uuid::Uuid {
 /// This is the seam for the nonce-and-salt shape that connectors open-coded as
 /// `Alphanumeric.sample_string(&mut rand::thread_rng(), n)`.
 ///
-/// It deliberately keeps the thread-local RNG rather than routing through
-/// [`crypto::generate_cryptographically_secure_random_string`], which draws from
-/// `OsRng`: several of these values are signed into an outbound request, and
-/// swapping the generator underneath them would be a security change riding on a
-/// determinism refactor. Use the `crypto` one for anything that must be
-/// unpredictable to an attacker.
+/// Keeps the thread-local RNG deliberately: several of these are signed into
+/// outbound requests, and swapping the generator would be a security change riding
+/// on a determinism refactor. Use the `crypto` variant where unpredictability
+/// matters.
 #[inline]
 #[cfg_attr(feature = "deja", track_caller)]
 #[cfg_attr(

@@ -1064,16 +1064,13 @@ impl OidcSettings {
         self.client.values().find(|c| c.client_id == client_id)
     }
 
-    // deja: extracted out of get_signing_key so the property the sort exists
-    // for -- that the candidate order is a function of the key set's content,
-    // not of which `HashMap` instance (and therefore which hasher seed)
-    // `self.key` happens to be -- is directly testable, without needing to
-    // pin the random draw itself. See the signing-key tests below.
+    // deja: split out of get_signing_key so the sort's property — candidate
+    // order follows the key set's content, not which `HashMap` instance holds
+    // it — is testable without pinning the draw. See the tests below.
     fn sorted_key_ids(&self) -> Vec<&String> {
-        // Order the candidates before drawing. `HashMap`'s iteration order is
-        // seeded per process, so seaming the draw alone would not make this
-        // reproducible: the recorded index would select a different key on a
-        // replay. Sorting by the config key gives the index a stable meaning.
+        // `HashMap` iteration is seeded per process, so seaming the draw alone
+        // is not enough — a recorded index would select a different key on
+        // replay. Sorting gives the index a stable meaning.
         let mut key_ids: Vec<&String> = self.key.keys().collect();
         key_ids.sort_unstable();
         key_ids
