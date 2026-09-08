@@ -403,4 +403,183 @@ describe("Bank Transfers", () => {
       }
     });
   });
+
+  context("Bank transfer - Boleto forward flow", () => {
+    before(function () {
+      let skip = false;
+
+      cy.task("getGlobalState")
+        .then((state) => {
+          globalState = new State(state);
+          if (
+            utils.shouldIncludeConnector(
+              globalState.get("connectorId"),
+              utils.CONNECTOR_LISTS.INCLUDE.BOLETO
+            )
+          ) {
+            skip = true;
+          }
+        })
+        .then(() => {
+          if (skip) {
+            this.skip();
+          }
+        });
+    });
+
+    it("Create Payment Intent for Boleto -> List Merchant Payment Methods -> Confirm Bank Transfer for Boleto -> Handle Bank Transfer Redirection for Boleto", () => {
+      let shouldContinue = true;
+
+      cy.step("Create Payment Intent for Boleto", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_transfer_pm"
+        ]["PaymentIntent"]("Boleto");
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "three_ds",
+          "automatic",
+          globalState
+        );
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("List Merchant Payment Methods", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
+          return;
+        }
+        cy.paymentMethodsCallTest(globalState);
+      });
+
+      cy.step("Confirm Bank Transfer for Boleto", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Confirm Bank Transfer for Boleto");
+          return;
+        }
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_transfer_pm"
+        ]["Boleto"];
+        cy.confirmBankTransferCallTest(
+          fixtures.confirmBody,
+          confirmData,
+          true,
+          globalState
+        );
+        if (!utils.should_continue_further(confirmData)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Handle Bank Transfer Redirection for Boleto", () => {
+        if (!shouldContinue) {
+          cy.task(
+            "cli_log",
+            "Skipping step: Handle Bank Transfer Redirection for Boleto"
+          );
+          return;
+        }
+        const expected_redirection = fixtures.confirmBody["return_url"];
+        const payment_method_type = globalState.get("paymentMethodType");
+        cy.handleBankTransferRedirection(
+          globalState,
+          payment_method_type,
+          expected_redirection
+        );
+      });
+    });
+  });
+
+  context("Bank transfer - PixAutomatico forward flow", () => {
+    before(function () {
+      let skip = false;
+
+      cy.task("getGlobalState")
+        .then((state) => {
+          globalState = new State(state);
+          if (
+            utils.shouldIncludeConnector(
+              globalState.get("connectorId"),
+              utils.CONNECTOR_LISTS.INCLUDE.PIX_AUTOMATICO
+            )
+          ) {
+            skip = true;
+          }
+        })
+        .then(() => {
+          if (skip) {
+            this.skip();
+          }
+        });
+    });
+
+    it("Create Payment Intent for PixAutomatico -> List Merchant Payment Methods -> Confirm Bank Transfer for PixAutomatico -> Handle Bank Transfer Redirection for PixAutomatico", () => {
+      let shouldContinue = true;
+
+      cy.step("Create Payment Intent for PixAutomatico", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_transfer_pm"
+        ]["PaymentIntent"]("PixAutomatico");
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "three_ds",
+          "automatic",
+          globalState
+        );
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("List Merchant Payment Methods", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
+          return;
+        }
+        cy.paymentMethodsCallTest(globalState);
+      });
+
+      cy.step("Confirm Bank Transfer for PixAutomatico", () => {
+        if (!shouldContinue) {
+          cy.task(
+            "cli_log",
+            "Skipping step: Confirm Bank Transfer for PixAutomatico"
+          );
+          return;
+        }
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_transfer_pm"
+        ]["PixAutomatico"];
+        cy.confirmBankTransferCallTest(
+          fixtures.confirmBody,
+          confirmData,
+          true,
+          globalState
+        );
+        if (!utils.should_continue_further(confirmData)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Handle Bank Transfer Redirection for PixAutomatico", () => {
+        if (!shouldContinue) {
+          cy.task(
+            "cli_log",
+            "Skipping step: Handle Bank Transfer Redirection for PixAutomatico"
+          );
+          return;
+        }
+        const expected_redirection = fixtures.confirmBody["return_url"];
+        const payment_method_type = globalState.get("paymentMethodType");
+        cy.handleBankTransferRedirection(
+          globalState,
+          payment_method_type,
+          expected_redirection
+        );
+      });
+    });
+  });
 });
