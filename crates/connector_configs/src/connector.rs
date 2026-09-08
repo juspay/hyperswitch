@@ -172,6 +172,7 @@ pub struct ConfigMetadata {
     pub three_ds_requestor_name: Option<InputData>,
     pub three_ds_requestor_id: Option<InputData>,
     pub pull_mechanism_for_external_3ds_enabled: Option<InputData>,
+    pub enable_stc: Option<InputData>,
     pub klarna_region: Option<InputData>,
     pub region: Option<InputData>,
     pub pricing_type: Option<InputData>,
