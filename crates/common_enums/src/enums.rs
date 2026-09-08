@@ -3574,7 +3574,6 @@ pub enum CardType {
     Prepaid,
     Store,
     ChargeCard,
-    DeferredDebit,
 }
 
 impl CardType {
@@ -3584,8 +3583,7 @@ impl CardType {
             Self::Debit => "Debit",
             Self::Prepaid => "Prepaid",
             Self::Store => "Store",
-            Self::ChargeCard => "Charge Card",
-            Self::DeferredDebit => "Deferred Debit",
+            Self::ChargeCard => "Charge Card"
         }
     }
 }
