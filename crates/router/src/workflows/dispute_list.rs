@@ -94,6 +94,7 @@ impl ProcessTrackerWorkflow<SessionState> for DisputeListWorkflow {
                 .unwrap_or_default()
                 .deref();
             let application_source = state.conf.application_source;
+            let scheduler_settings = state.conf.scheduler_settings();
 
             tokio::spawn(
                 async move {
@@ -102,6 +103,7 @@ impl ProcessTrackerWorkflow<SessionState> for DisputeListWorkflow {
                         &m_tracking_data,
                         dispute_polling_interval,
                         application_source,
+                        &scheduler_settings,
                     )
                     .await
                     .map_err(|error| {
@@ -212,6 +214,7 @@ pub async fn schedule_next_dispute_list_task(
     tracking_data: &api::DisputeListPTData,
     dispute_polling_interval: i32,
     application_source: common_enums::ApplicationSource,
+    scheduler_settings: &scheduler::SchedulerSettings,
 ) -> Result<(), errors::ProcessTrackerError> {
     let new_created_till = tracking_data
         .created_till
@@ -237,6 +240,7 @@ pub async fn schedule_next_dispute_list_task(
         tracking_data.profile_id.clone(),
         fetch_request,
         application_source,
+        scheduler_settings,
     )
     .await?;
     Ok(())

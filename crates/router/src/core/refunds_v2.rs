@@ -1400,7 +1400,7 @@ pub async fn schedule_refund_execution(
                     // Execute the refund task based on refund_type
                     match refund_type {
                         api_models::refunds::RefundType::Scheduled => {
-                            add_refund_execute_task(db, &refund, runner, state.conf.application_source)
+                            add_refund_execute_task(db, &refund, runner, state.conf.application_source, &state.conf.scheduler_settings())
                                 .await
                                 .change_context(errors::ApiErrorResponse::InternalServerError)
                                 .attach_printable_lazy(|| format!("Failed while pushing refund execute task to scheduler, refund_id: {}", refund.id.get_string_repr()))?;
@@ -1445,7 +1445,7 @@ pub async fn schedule_refund_execution(
 
                             match update_refund {
                                 Ok((updated_refund_data, raw_connector_response)) => {
-                                    add_refund_sync_task(db, &updated_refund_data, runner, state.conf.application_source)
+                                    add_refund_sync_task(db, &updated_refund_data, runner, state.conf.application_source, &state.conf.scheduler_settings())
                                         .await
                                         .change_context(errors::ApiErrorResponse::InternalServerError)
                                         .attach_printable_lazy(|| format!(
@@ -1464,7 +1464,7 @@ pub async fn schedule_refund_execution(
                     //[#300]: return refund status response
                     match refund_type {
                         api_models::refunds::RefundType::Scheduled => {
-                            add_refund_sync_task(db, &refund, runner, state.conf.application_source)
+                            add_refund_sync_task(db, &refund, runner, state.conf.application_source, &state.conf.scheduler_settings())
                                 .await
                                 .change_context(errors::ApiErrorResponse::InternalServerError)
                                 .attach_printable_lazy(|| format!("Failed while pushing refund sync task in scheduler: refund_id: {}", refund.id.get_string_repr()))?;
@@ -1504,6 +1504,7 @@ pub async fn add_refund_execute_task(
     refund: &diesel_refund::Refund,
     runner: storage::ProcessTrackerRunner,
     application_source: common_enums::ApplicationSource,
+    scheduler_settings: &scheduler::SchedulerSettings,
 ) -> errors::RouterResult<storage::ProcessTracker> {
     let task = "EXECUTE_REFUND";
     let process_tracker_id = format!("{runner}_{task}_{}", refund.id.get_string_repr());
@@ -1524,16 +1525,20 @@ pub async fn add_refund_execute_task(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to construct refund execute process tracker task")?;
 
-    let response = db
-        .insert_process(process_tracker_entry)
-        .await
-        .to_duplicate_response(errors::ApiErrorResponse::DuplicateRefundRequest)
-        .attach_printable_lazy(|| {
-            format!(
-                "Failed while inserting task in process_tracker: refund_id: {}",
-                refund.id.get_string_repr()
-            )
-        })?;
+    let response = db::process_tracker::insert_process_if_task_creation_enabled(
+        db,
+        process_tracker_entry,
+        scheduler_settings,
+        None,
+    )
+    .await
+    .to_duplicate_response(errors::ApiErrorResponse::DuplicateRefundRequest)
+    .attach_printable_lazy(|| {
+        format!(
+            "Failed while pushing refund execute task in scheduler: refund_id: {}",
+            refund.id.get_string_repr()
+        )
+    })?;
     Ok(response)
 }
 
@@ -1543,6 +1548,7 @@ pub async fn add_refund_sync_task(
     refund: &diesel_refund::Refund,
     runner: storage::ProcessTrackerRunner,
     application_source: common_enums::ApplicationSource,
+    scheduler_settings: &scheduler::SchedulerSettings,
 ) -> errors::RouterResult<storage::ProcessTracker> {
     let task = "SYNC_REFUND";
     let process_tracker_id = format!("{runner}_{task}_{}", refund.id.get_string_repr());
@@ -1563,17 +1569,19 @@ pub async fn add_refund_sync_task(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to construct refund sync process tracker task")?;
 
-    let response = db
-        .insert_process(process_tracker_entry)
-        .await
-        .to_duplicate_response(errors::ApiErrorResponse::DuplicateRefundRequest)
-        .attach_printable_lazy(|| {
-            format!(
-                "Failed while inserting task in process_tracker: refund_id: {}",
-                refund.id.get_string_repr()
-            )
-        })?;
-    metrics::TASKS_ADDED_COUNT.add(1, router_env::metric_attributes!(("flow", "Refund")));
-
+    let response = db::process_tracker::insert_process_if_task_creation_enabled(
+        db,
+        process_tracker_entry,
+        scheduler_settings,
+        Some(router_env::metric_attributes!(("flow", "Refund"))),
+    )
+    .await
+    .to_duplicate_response(errors::ApiErrorResponse::DuplicateRefundRequest)
+    .attach_printable_lazy(|| {
+        format!(
+            "Failed while inserting task in process_tracker: refund_id: {}",
+            refund.id.get_string_repr()
+        )
+    })?;
     Ok(response)
 }

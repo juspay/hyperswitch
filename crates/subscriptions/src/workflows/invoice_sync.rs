@@ -416,6 +416,13 @@ pub async fn create_invoice_sync_job(
     .change_context(router_errors::ApiErrorResponse::InternalServerError)
     .attach_printable("subscriptions: unable to form process_tracker type")?;
 
+    if !state.conf.scheduler.task_creation_enabled {
+        logger::info!(
+            "subscriptions: skipping invoice sync task creation as scheduler task creation is disabled"
+        );
+        return Ok(());
+    }
+
     state
         .store
         .insert_process(process_tracker_entry)

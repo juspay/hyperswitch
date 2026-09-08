@@ -62,6 +62,7 @@ pub struct SubscriptionConfig {
     pub internal_services: configs::InternalServicesConfig,
     pub connectors: configs::Connectors,
     pub application_source: common_enums::ApplicationSource,
+    pub scheduler: scheduler::SchedulerSettings,
 }
 
 impl From<&SubscriptionState> for keymanager::KeyManagerState {

@@ -1548,16 +1548,16 @@ where
         match schedule_time {
             Some(stime) => {
                 if !requeue {
-                    // Here, increment the count of added tasks every time a payment has been confirmed or PSync has been called
-                    metrics::TASKS_ADDED_COUNT.add(
-                        1,
-                        router_env::metric_attributes!(("flow", format!("{:#?}", operation))),
-                    );
                     super::add_process_sync_task(
                         &*state.store,
                         payment_attempt,
                         stime,
                         state.conf.application_source,
+                        &state.conf.scheduler_settings(),
+                        Some(router_env::metric_attributes!((
+                            "flow",
+                            format!("{:#?}", operation)
+                        ))),
                     )
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)

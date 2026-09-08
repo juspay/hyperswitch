@@ -48,6 +48,7 @@ async fn schedule_payment_method_modular_backward_compat_task_best_effort(
         organization_id.clone(),
         state.conf.application_source,
         last_modified_by,
+        &state.conf.scheduler_settings(),
     )
     .await
     .change_context(router_errors::ApiErrorResponse::InternalServerError)

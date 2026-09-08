@@ -474,6 +474,9 @@ zsl.base_url = "https://api.sitoffalb.net/"
 [scheduler]
 stream = "SCHEDULER_STREAM"
 cug_stream = "CUG_SCHEDULER_STREAM"
+# When false, the app stops creating new process_tracker tasks (no inserts into the process_tracker table).
+# Re-enabling does not backfill the tasks that were skipped while it was disabled.
+task_creation_enabled = true
 
 [scheduler.consumer]
 disabled = false

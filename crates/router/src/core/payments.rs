@@ -11116,6 +11116,8 @@ pub async fn add_process_sync_task(
     payment_attempt: &storage::PaymentAttempt,
     schedule_time: time::PrimitiveDateTime,
     application_source: enums::ApplicationSource,
+    scheduler_settings: &scheduler::SchedulerSettings,
+    flow_attributes: Option<&[router_env::opentelemetry::KeyValue]>,
 ) -> CustomResult<(), errors::StorageError> {
     let tracking_data = api::PaymentsRetrieveRequest {
         force_sync: true,
@@ -11145,7 +11147,13 @@ pub async fn add_process_sync_task(
     )
     .map_err(errors::StorageError::from)?;
 
-    db.insert_process(process_tracker_entry).await?;
+    crate::db::process_tracker::insert_process_if_task_creation_enabled(
+        db,
+        process_tracker_entry,
+        scheduler_settings,
+        flow_attributes,
+    )
+    .await?;
     Ok(())
 }
 
@@ -11155,6 +11163,8 @@ pub async fn add_process_post_capture_void_sync_task(
     payment_attempt: &storage::PaymentAttempt,
     schedule_time: time::PrimitiveDateTime,
     application_source: enums::ApplicationSource,
+    scheduler_settings: &scheduler::SchedulerSettings,
+    flow_attributes: Option<&[router_env::opentelemetry::KeyValue]>,
 ) -> CustomResult<(), errors::StorageError> {
     let tracking_data = api::PaymentsPostCaptureVoidSyncTrackingData {
         payment_id: payment_attempt.payment_id.clone(),
@@ -11182,7 +11192,13 @@ pub async fn add_process_post_capture_void_sync_task(
     )
     .map_err(errors::StorageError::from)?;
 
-    db.insert_process(process_tracker_entry).await?;
+    crate::db::process_tracker::insert_process_if_task_creation_enabled(
+        db,
+        process_tracker_entry,
+        scheduler_settings,
+        flow_attributes,
+    )
+    .await?;
     Ok(())
 }
 

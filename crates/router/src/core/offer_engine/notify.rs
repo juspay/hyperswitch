@@ -143,7 +143,14 @@ async fn insert_notification_task(
             logger::error!(?err, %task_id, "Failed to construct offer engine notify task");
             metrics::OFFER_ENGINE_NOTIFY_SCHEDULE_FAILURES.add(1, &notify_attributes());
         }
-        Ok(entry) => match state.store.insert_process(entry).await {
+        Ok(entry) => match crate::db::process_tracker::insert_process_if_task_creation_enabled(
+            &*state.store,
+            entry,
+            &state.conf.scheduler_settings(),
+            None,
+        )
+        .await
+        {
             Ok(_) => {
                 logger::info!(%task_id, "Scheduled offer engine notify task");
                 metrics::OFFER_ENGINE_NOTIFY_TASKS_SCHEDULED.add(1, &notify_attributes());

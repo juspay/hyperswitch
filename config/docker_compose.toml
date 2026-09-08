@@ -503,6 +503,9 @@ billing_connectors_which_requires_dispute_record_back_call = "chargebee"
 
 [scheduler]
 stream = "SCHEDULER_STREAM"
+# When false, the app stops creating new process_tracker tasks (no inserts into the process_tracker table).
+# Re-enabling does not backfill the tasks that were skipped while it was disabled.
+task_creation_enabled = true
 
 [scheduler.consumer]
 disabled = false

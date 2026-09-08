@@ -1455,6 +1455,7 @@ impl PaymentMethodsController for PmCards<'_> {
             merchant_id,
             self.state.conf.application_source,
             initiator,
+            &self.state.conf.scheduler_settings(),
         )
         .await
     }
@@ -2428,6 +2429,7 @@ pub async fn get_client_secret_or_add_payment_method(
                 merchant_id,
                 state.conf.application_source,
                 initiator,
+                &state.conf.scheduler_settings(),
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -7275,6 +7277,7 @@ impl TempLockerCardSupport {
             &lookup_key,
             enums::PaymentMethod::Card,
             state.conf.application_source,
+            &state.conf.scheduler_settings(),
         )
         .await?;
         metrics::TOKENIZED_DATA_COUNT.add(1, &[]);

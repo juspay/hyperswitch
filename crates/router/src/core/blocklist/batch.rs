@@ -433,12 +433,15 @@ pub async fn initiate_batch_blocklist_upload(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to create ProcessTrackerNew for batch blocklist job")?;
 
-    state
-        .store
-        .insert_process(process_tracker_entry)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to enqueue batch blocklist ProcessTracker task")?;
+    crate::db::process_tracker::insert_process_if_task_creation_enabled(
+        state.store.as_ref(),
+        process_tracker_entry,
+        &state.conf.scheduler_settings(),
+        None,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to enqueue batch blocklist ProcessTracker task")?;
 
     logger::info!(
         job_id = %job_id,

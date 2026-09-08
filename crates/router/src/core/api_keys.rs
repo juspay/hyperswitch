@@ -176,6 +176,7 @@ pub async fn create_api_key(
                 &api_key,
                 expiry_reminder_days,
                 state.conf.application_source,
+                &state.conf.scheduler_settings(),
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -199,6 +200,7 @@ pub async fn add_api_key_expiry_task(
     api_key: &ApiKey,
     expiry_reminder_days: Vec<u8>,
     application_source: common_enums::ApplicationSource,
+    scheduler_settings: &scheduler::SchedulerSettings,
 ) -> Result<(), errors::ProcessTrackerError> {
     let current_time = date_time::now();
 
@@ -242,17 +244,20 @@ pub async fn add_api_key_expiry_task(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to construct API key expiry process tracker task")?;
 
-    store
-        .insert_process(process_tracker_entry)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable_lazy(|| {
-            format!(
-                "Failed while inserting API key expiry reminder to process_tracker: {:?}",
-                api_key.key_id
-            )
-        })?;
-    metrics::TASKS_ADDED_COUNT.add(1, router_env::metric_attributes!(("flow", "ApiKeyExpiry")));
+    crate::db::process_tracker::insert_process_if_task_creation_enabled(
+        store,
+        process_tracker_entry,
+        scheduler_settings,
+        Some(router_env::metric_attributes!(("flow", "ApiKeyExpiry"))),
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable_lazy(|| {
+        format!(
+            "Failed while inserting API key expiry reminder to process_tracker: {:?}",
+            api_key.key_id
+        )
+    })?;
 
     Ok(())
 }
@@ -358,6 +363,7 @@ pub async fn update_api_key(
                 &api_key,
                 expiry_reminder_days,
                 state.conf.application_source,
+                &state.conf.scheduler_settings(),
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)

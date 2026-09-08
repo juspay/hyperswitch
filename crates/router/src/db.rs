@@ -32,6 +32,7 @@ pub mod merchant_key_store;
 pub mod organization;
 pub mod payment_link;
 pub mod payment_method_session;
+pub mod process_tracker;
 pub mod refund;
 pub mod relay;
 pub mod reverse_lookup;

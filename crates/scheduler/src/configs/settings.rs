@@ -6,6 +6,11 @@ use serde::Deserialize;
 pub struct SchedulerSettings {
     pub stream: String,
     pub cug_stream: String,
+    /// Controls whether new tasks may be inserted into the `process_tracker`
+    /// table at all. When `false`, every task creation is skipped: no row is
+    /// written and tasks for objects created while disabled are never
+    /// scheduled, not even after the toggle is re-enabled.
+    pub task_creation_enabled: bool,
     pub producer: ProducerSettings,
     pub consumer: ConsumerSettings,
     pub loop_interval: u64,

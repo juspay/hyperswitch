@@ -320,11 +320,3 @@ pub async fn consumer_error_handler(
         .change_context(errors::ProcessTrackerError::ProcessUpdateFailed)?;
     Ok(())
 }
-
-pub async fn create_task(
-    db: &dyn ProcessTrackerInterface,
-    process_tracker_entry: storage::ProcessTrackerNew,
-) -> CustomResult<(), storage_impl::errors::StorageError> {
-    db.insert_process(process_tracker_entry).await?;
-    Ok(())
-}

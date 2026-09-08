@@ -568,6 +568,7 @@ pub async fn payment_method_modular_forward_compat_action(
                     organization_id,
                     state.conf.application_source,
                     payment_method_compat_modifier(payment_method),
+                    &state.conf.scheduler_settings(),
                 )
                 .await;
 
@@ -640,6 +641,7 @@ pub async fn payment_method_modular_compat_action(
 }
 
 #[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
 pub async fn add_payment_method_status_update_task(
     db: &dyn StorageInterface,
     payment_method: &domain::PaymentMethod,
@@ -648,6 +650,7 @@ pub async fn add_payment_method_status_update_task(
     merchant_id: &id_type::MerchantId,
     application_source: common_enums::ApplicationSource,
     initiator: Option<&hyperswitch_domain_models::platform::Initiator>,
+    scheduler_settings: &scheduler::SchedulerSettings,
 ) -> Result<(), ProcessTrackerError> {
     let created_at = payment_method.created_at;
     let schedule_time =
@@ -686,16 +689,20 @@ pub async fn add_payment_method_status_update_task(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to construct PAYMENT_METHOD_STATUS_UPDATE process tracker task")?;
 
-    db
-        .insert_process(process_tracker_entry)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable_lazy(|| {
-            format!(
-                "Failed while inserting PAYMENT_METHOD_STATUS_UPDATE reminder to process_tracker for payment_method_id: {}",
-                payment_method.get_id().clone()
-            )
-        })?;
+    crate::db::process_tracker::insert_process_if_task_creation_enabled(
+        db,
+        process_tracker_entry,
+        scheduler_settings,
+        None,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable_lazy(|| {
+        format!(
+            "Failed while inserting PAYMENT_METHOD_STATUS_UPDATE reminder to process_tracker for payment_method_id: {}",
+            payment_method.get_id().clone()
+        )
+    })?;
 
     Ok(())
 }
@@ -708,6 +715,7 @@ pub async fn add_payment_method_modular_forward_compat_task(
     organization_id: id_type::OrganizationId,
     application_source: common_enums::ApplicationSource,
     last_modified_by: Option<String>,
+    scheduler_settings: &scheduler::SchedulerSettings,
 ) -> Result<(), ProcessTrackerError> {
     let tracking_data = storage::PaymentMethodModularCompatTrackingData {
         payment_method_id: payment_method.payment_method_id.clone(),
@@ -741,15 +749,20 @@ pub async fn add_payment_method_modular_forward_compat_task(
         "Failed to construct PAYMENT_METHOD_MODULAR_FORWARD_COMPAT process tracker task",
     )?;
 
-    db.insert_process(process_tracker_entry)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable_lazy(|| {
-            format!(
-                "Failed while inserting PAYMENT_METHOD_MODULAR_FORWARD_COMPAT task to process_tracker for payment_method_id: {}",
-                payment_method.payment_method_id
-            )
-        })?;
+    crate::db::process_tracker::insert_process_if_task_creation_enabled(
+        db,
+        process_tracker_entry,
+        scheduler_settings,
+        None,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable_lazy(|| {
+        format!(
+            "Failed while inserting PAYMENT_METHOD_MODULAR_FORWARD_COMPAT task to process_tracker for payment_method_id: {}",
+            payment_method.payment_method_id
+        )
+    })?;
 
     Ok(())
 }
@@ -759,6 +772,7 @@ pub async fn add_network_tokenization_task(
     db: &dyn StorageInterface,
     tracking_data: storage::NetworkTokenizationTrackingData,
     application_source: common_enums::ApplicationSource,
+    scheduler_settings: &scheduler::SchedulerSettings,
 ) -> Result<(), ProcessTrackerError> {
     let payment_method_id = tracking_data.payment_method_id.clone();
 
@@ -785,15 +799,20 @@ pub async fn add_network_tokenization_task(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to construct NETWORK_TOKENIZATION process tracker task")?;
 
-    db.insert_process(process_tracker_entry)
-        .await
-        .map(|_| ())
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable_lazy(|| {
-            format!(
-                "Failed while inserting NETWORK_TOKENIZATION task to process_tracker for payment_method_id: {payment_method_id}"
-            )
-        })?;
+    crate::db::process_tracker::insert_process_if_task_creation_enabled(
+        db,
+        process_tracker_entry,
+        scheduler_settings,
+        None,
+    )
+    .await
+    .map(|_| ())
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable_lazy(|| {
+        format!(
+            "Failed while inserting NETWORK_TOKENIZATION task to process_tracker for payment_method_id: {payment_method_id}"
+        )
+    })?;
 
     Ok(())
 }
@@ -803,6 +822,7 @@ pub async fn add_network_tokenization_task(
     db: &dyn StorageInterface,
     tracking_data: storage::NetworkTokenizationTrackingData,
     application_source: common_enums::ApplicationSource,
+    scheduler_settings: &scheduler::SchedulerSettings,
 ) -> Result<(), ProcessTrackerError> {
     let payment_method_id = tracking_data.payment_method_id.get_string_repr().to_owned();
 
@@ -829,15 +849,20 @@ pub async fn add_network_tokenization_task(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to construct NETWORK_TOKENIZATION process tracker task")?;
 
-    db.insert_process(process_tracker_entry)
-        .await
-        .map(|_| ())
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable_lazy(|| {
-            format!(
-                "Failed while inserting NETWORK_TOKENIZATION task to process_tracker for payment_method_id: {payment_method_id}"
-            )
-        })?;
+    crate::db::process_tracker::insert_process_if_task_creation_enabled(
+        db,
+        process_tracker_entry,
+        scheduler_settings,
+        None,
+    )
+    .await
+    .map(|_| ())
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable_lazy(|| {
+        format!(
+            "Failed while inserting NETWORK_TOKENIZATION task to process_tracker for payment_method_id: {payment_method_id}"
+        )
+    })?;
 
     Ok(())
 }
@@ -863,8 +888,13 @@ async fn schedule_network_tokenization_task(
         customer_id,
     };
 
-    match add_network_tokenization_task(&*state.store, tracking_data, state.conf.application_source)
-        .await
+    match add_network_tokenization_task(
+        &*state.store,
+        tracking_data,
+        state.conf.application_source,
+        &state.conf.scheduler_settings(),
+    )
+    .await
     {
         Ok(()) => logger::info!(
             payment_method_id=%payment_method_id.get_string_repr(),
@@ -905,6 +935,7 @@ pub async fn add_payment_method_modular_backward_compat_task(
     organization_id: id_type::OrganizationId,
     application_source: common_enums::ApplicationSource,
     last_modified_by: Option<String>,
+    scheduler_settings: &scheduler::SchedulerSettings,
 ) -> Result<(), ProcessTrackerError> {
     let payment_method_id = payment_method.get_id().get_string_repr().to_owned();
 
@@ -940,15 +971,20 @@ pub async fn add_payment_method_modular_backward_compat_task(
         "Failed to construct PAYMENT_METHOD_MODULAR_BACKWARD_COMPAT process tracker task",
     )?;
 
-    db.insert_process(process_tracker_entry)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable_lazy(|| {
-            format!(
-                "Failed while inserting PAYMENT_METHOD_MODULAR_BACKWARD_COMPAT task to process_tracker for payment_method_id: {}",
-                payment_method_id
-            )
-        })?;
+    crate::db::process_tracker::insert_process_if_task_creation_enabled(
+        db,
+        process_tracker_entry,
+        scheduler_settings,
+        None,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable_lazy(|| {
+        format!(
+            "Failed while inserting PAYMENT_METHOD_MODULAR_BACKWARD_COMPAT task to process_tracker for payment_method_id: {}",
+            payment_method_id
+        )
+    })?;
 
     Ok(())
 }

@@ -208,6 +208,16 @@ pub struct Settings<S: SecretState> {
     pub account_updater: Option<SecretStateContainer<AccountUpdaterConfig, S>>,
 }
 
+impl<S: SecretState> Settings<S> {
+    /// Scheduler configuration with defaults resolved.
+    ///
+    /// The `[scheduler]` section is optional in the configuration file; the
+    /// default keeps task creation enabled.
+    pub fn scheduler_settings(&self) -> SchedulerSettings {
+        self.scheduler.clone().unwrap_or_default()
+    }
+}
+
 #[cfg(feature = "deja")]
 #[derive(Debug, Deserialize, Clone, PartialEq, Eq, Default)]
 #[serde(rename_all = "snake_case")]

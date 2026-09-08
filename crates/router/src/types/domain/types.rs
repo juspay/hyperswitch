@@ -104,6 +104,7 @@ impl From<app::SessionState> for subscriptions::state::SubscriptionState {
                 internal_services: state.conf.internal_services.clone(),
                 connectors: state.conf.connectors.clone(),
                 application_source: state.conf.application_source,
+                scheduler: state.conf.scheduler_settings(),
             },
             tenant: state.tenant.clone(),
             event_handler: Box::new(state.event_handler.clone()),

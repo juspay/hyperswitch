@@ -163,22 +163,22 @@ pub async fn upsert_calculate_pcr_task(
             .attach_printable("Failed to construct calculate workflow process tracker entry")?;
 
             // Insert into process tracker with status New
-            db.as_scheduler()
-                .insert_process(process_tracker_entry)
-                .await
-                .change_context(errors::RevenueRecoveryError::ProcessTrackerResponseError)
-                .attach_printable(
-                    "Failed to enter calculate workflow process_tracker_entry in DB",
-                )?;
+            crate::db::process_tracker::insert_process_if_task_creation_enabled(
+                db,
+                process_tracker_entry,
+                &state.conf.scheduler_settings(),
+                Some(router_env::metric_attributes!((
+                    "flow",
+                    "CalculateWorkflow"
+                ))),
+            )
+            .await
+            .change_context(errors::RevenueRecoveryError::ProcessTrackerResponseError)
+            .attach_printable("Failed to enter calculate workflow process_tracker_entry in DB")?;
 
             router_env::logger::info!(
                 "Successfully created new CALCULATE_WORKFLOW task for payment_intent_id: {}",
                 payment_id.get_string_repr()
-            );
-
-            metrics::TASKS_ADDED_COUNT.add(
-                1,
-                router_env::metric_attributes!(("flow", "CalculateWorkflow")),
             );
         }
     }
@@ -414,6 +414,8 @@ pub async fn perform_execute_payment(
                         storage::ProcessTrackerRunner::PassiveRecoveryWorkflow,
                         tracking_data.revenue_recovery_retry,
                         state.conf.application_source,
+                        tracking_data.static_ladder_progress.clone(),
+                        &state.conf.scheduler_settings(),
                     )
                     .await?;
 
@@ -487,6 +489,8 @@ async fn insert_psync_pcr_task_to_pt(
     runner: storage::ProcessTrackerRunner,
     revenue_recovery_retry: diesel_enum::RevenueRecoveryAlgorithmType,
     application_source: common_enums::ApplicationSource,
+    static_ladder_progress: Option<schedule::StaticLadderProgress>,
+    scheduler_settings: &scheduler::SchedulerSettings,
 ) -> RouterResult<storage::ProcessTracker> {
     let task = PSYNC_WORKFLOW;
     let process_tracker_id = payment_attempt_id.get_psync_revenue_recovery_id(task, runner);
@@ -518,15 +522,18 @@ async fn insert_psync_pcr_task_to_pt(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to construct delete tokenized data process tracker task")?;
 
-    let response = db
-        .insert_process(process_tracker_entry)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to construct delete tokenized data process tracker task")?;
-    metrics::TASKS_ADDED_COUNT.add(
-        1,
-        router_env::metric_attributes!(("flow", "RevenueRecoveryPsync")),
-    );
+    let response = crate::db::process_tracker::insert_process_if_task_creation_enabled(
+        db,
+        process_tracker_entry,
+        scheduler_settings,
+        Some(router_env::metric_attributes!((
+            "flow",
+            "RevenueRecoveryPsync"
+        ))),
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to construct delete tokenized data process tracker task")?;
 
     Ok(response)
 }
@@ -1145,23 +1152,24 @@ async fn insert_execute_pcr_task_to_pt(
                 sch_errors::ProcessTrackerError::ProcessUpdateFailed
             })?;
 
-            let response = state
-                .store
-                .insert_process(process_tracker_entry)
-                .await
-                .map_err(|e| {
-                    logger::error!(
-                        payment_id = %payment_id.get_string_repr(),
-                        error = ?e,
-                        "Failed to insert execute workflow process tracker entry"
-                    );
-                    sch_errors::ProcessTrackerError::ProcessUpdateFailed
-                })?;
-
-            metrics::TASKS_ADDED_COUNT.add(
-                1,
-                router_env::metric_attributes!(("flow", "RevenueRecoveryExecute")),
-            );
+            let response = crate::db::process_tracker::insert_process_if_task_creation_enabled(
+                state.store.as_ref(),
+                process_tracker_entry,
+                &state.conf.scheduler_settings(),
+                Some(router_env::metric_attributes!((
+                    "flow",
+                    "RevenueRecoveryExecute"
+                ))),
+            )
+            .await
+            .map_err(|e| {
+                logger::error!(
+                    payment_id = %payment_id.get_string_repr(),
+                    error = ?e,
+                    "Failed to insert execute workflow process tracker entry"
+                );
+                sch_errors::ProcessTrackerError::ProcessUpdateFailed
+            })?;
 
             logger::info!(
                 payment_id = %payment_id.get_string_repr(),
@@ -1401,6 +1409,8 @@ pub async fn resume_revenue_recovery_process_tracker(
                         runner,
                         tracking_data.revenue_recovery_retry,
                         state.conf.application_source,
+                        tracking_data.static_ladder_progress.clone(),
+                        &state.conf.scheduler_settings(),
                     )
                     .await?
                 }

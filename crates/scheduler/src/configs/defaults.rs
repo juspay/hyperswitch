@@ -3,6 +3,7 @@ impl Default for super::settings::SchedulerSettings {
         Self {
             stream: "SCHEDULER_STREAM".into(),
             cug_stream: "CUG_SCHEDULER_STREAM".into(),
+            task_creation_enabled: true,
             producer: super::settings::ProducerSettings::default(),
             consumer: super::settings::ConsumerSettings::default(),
             graceful_shutdown_interval: 60000,

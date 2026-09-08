@@ -316,16 +316,16 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsCancelPostCaptureRequest, Pa
         match schedule_time {
             Some(stime) => {
                 if !requeue {
-                    // Here, increment the count of added tasks every time a post capture void is requested
-                    metrics::TASKS_ADDED_COUNT.add(
-                        1,
-                        router_env::metric_attributes!(("flow", format!("{:#?}", self))),
-                    );
                     payments::add_process_post_capture_void_sync_task(
                         &*state.store,
                         payment_attempt,
                         stime,
                         state.conf.application_source,
+                        &state.conf.scheduler_settings(),
+                        Some(router_env::metric_attributes!((
+                            "flow",
+                            format!("{:#?}", self)
+                        ))),
                     )
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)

@@ -1903,7 +1903,8 @@ pub async fn schedule_refund_execution(
                                 db,
                                 &refund,
                                 runner,
-                                state.conf.application_source
+                                state.conf.application_source,
+                                &state.conf.scheduler_settings(),
                             ).await
                                 .change_context(errors::ApiErrorResponse::InternalServerError)
                                 .attach_printable_lazy(||
@@ -1935,7 +1936,8 @@ pub async fn schedule_refund_execution(
                                         state.superposition_service.as_ref(),
                                         &updated_refund_data,
                                         runner,
-                                        state.conf.application_source
+                                        state.conf.application_source,
+                                        &state.conf.scheduler_settings(),
                                     ).await
                                         .change_context(
                                             errors::ApiErrorResponse::InternalServerError
@@ -1963,7 +1965,8 @@ pub async fn schedule_refund_execution(
                                 state.superposition_service.as_ref(),
                                 &refund,
                                 runner,
-                                state.conf.application_source
+                                state.conf.application_source,
+                                &state.conf.scheduler_settings(),
                             ).await
                                 .change_context(errors::ApiErrorResponse::InternalServerError)
                                 .attach_printable_lazy(||
@@ -2228,6 +2231,7 @@ pub async fn trigger_refund_execute_workflow(
                 &updated_refund,
                 storage::ProcessTrackerRunner::RefundWorkflowRouter,
                 state.conf.application_source,
+                &state.conf.scheduler_settings(),
             )
             .await?;
         }
@@ -2239,6 +2243,7 @@ pub async fn trigger_refund_execute_workflow(
                 &refund,
                 storage::ProcessTrackerRunner::RefundWorkflowRouter,
                 state.conf.application_source,
+                &state.conf.scheduler_settings(),
             )
             .await?;
         }
@@ -2276,6 +2281,7 @@ pub async fn add_refund_sync_task(
     refund: &diesel_refund::Refund,
     runner: storage::ProcessTrackerRunner,
     application_source: common_enums::ApplicationSource,
+    scheduler_settings: &scheduler::SchedulerSettings,
 ) -> RouterResult<storage::ProcessTracker> {
     let task = "SYNC_REFUND";
     let process_tracker_id = format!("{runner}_{task}_{}", refund.internal_reference_id);
@@ -2318,17 +2324,20 @@ pub async fn add_refund_sync_task(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to construct refund sync process tracker task")?;
 
-    let response = db
-        .insert_process(process_tracker_entry)
-        .await
-        .to_duplicate_response(errors::ApiErrorResponse::DuplicateRefundRequest)
-        .attach_printable_lazy(|| {
-            format!(
-                "Failed while inserting task in process_tracker: refund_id: {}",
-                refund.refund_id
-            )
-        })?;
-    metrics::TASKS_ADDED_COUNT.add(1, router_env::metric_attributes!(("flow", "Refund")));
+    let response = db::process_tracker::insert_process_if_task_creation_enabled(
+        db,
+        process_tracker_entry,
+        scheduler_settings,
+        Some(router_env::metric_attributes!(("flow", "Refund"))),
+    )
+    .await
+    .to_duplicate_response(errors::ApiErrorResponse::DuplicateRefundRequest)
+    .attach_printable_lazy(|| {
+        format!(
+            "Failed while inserting task in process_tracker: refund_id: {}",
+            refund.refund_id
+        )
+    })?;
 
     Ok(response)
 }
@@ -2339,6 +2348,7 @@ pub async fn add_refund_execute_task(
     refund: &diesel_refund::Refund,
     runner: storage::ProcessTrackerRunner,
     application_source: common_enums::ApplicationSource,
+    scheduler_settings: &scheduler::SchedulerSettings,
 ) -> RouterResult<storage::ProcessTracker> {
     let task = "EXECUTE_REFUND";
     let process_tracker_id = format!("{runner}_{task}_{}", refund.internal_reference_id);
@@ -2359,16 +2369,20 @@ pub async fn add_refund_execute_task(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to construct refund execute process tracker task")?;
 
-    let response = db
-        .insert_process(process_tracker_entry)
-        .await
-        .to_duplicate_response(errors::ApiErrorResponse::DuplicateRefundRequest)
-        .attach_printable_lazy(|| {
-            format!(
-                "Failed while inserting task in process_tracker: refund_id: {}",
-                refund.refund_id
-            )
-        })?;
+    let response = db::process_tracker::insert_process_if_task_creation_enabled(
+        db,
+        process_tracker_entry,
+        scheduler_settings,
+        None,
+    )
+    .await
+    .to_duplicate_response(errors::ApiErrorResponse::DuplicateRefundRequest)
+    .attach_printable_lazy(|| {
+        format!(
+            "Failed while inserting task in process_tracker: refund_id: {}",
+            refund.refund_id
+        )
+    })?;
     Ok(response)
 }
 

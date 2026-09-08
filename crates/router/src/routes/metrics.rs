@@ -233,6 +233,7 @@ counter_metric!(AUTO_RETRY_PAYOUT_COUNT, GLOBAL_METER);
 counter_metric!(TASKS_ADDED_COUNT, GLOBAL_METER); // Tasks added to process tracker
 counter_metric!(TASK_ADDITION_FAILURES_COUNT, GLOBAL_METER); // Failures in task addition to process tracker
 counter_metric!(TASKS_RESET_COUNT, GLOBAL_METER); // Tasks reset in process tracker for requeue flow
+counter_metric!(PROCESS_TRACKER_TASK_CREATION_SKIPPED_COUNT, GLOBAL_METER); // Tasks skipped from being added to process tracker because `[scheduler] task_creation_enabled` is false
 
 // Offer Engine notification (Process Tracker) metrics
 counter_metric!(OFFER_ENGINE_NOTIFY_TASKS_SCHEDULED, GLOBAL_METER);

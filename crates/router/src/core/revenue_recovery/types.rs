@@ -833,6 +833,8 @@ impl Action {
                     storage::ProcessTrackerRunner::PassiveRecoveryWorkflow,
                     revenue_recovery_payment_data.retry_algorithm,
                     state.conf.application_source,
+                    static_ladder_progress,
+                    &state.conf.scheduler_settings(),
                 )
                 .await
                 .change_context(errors::RecoveryError::ProcessTrackerFailure)
@@ -1519,13 +1521,15 @@ pub async fn reopen_calculate_workflow_on_payment_failure(
             .attach_printable("Failed to construct calculate workflow process tracker entry")?;
 
             // Insert into process tracker with status New
-            db.as_scheduler()
-                .insert_process(process_tracker_entry)
-                .await
-                .change_context(errors::RecoveryError::ProcessTrackerFailure)
-                .attach_printable(
-                    "Failed to enter calculate workflow process_tracker_entry in DB",
-                )?;
+            crate::db::process_tracker::insert_process_if_task_creation_enabled(
+                db,
+                process_tracker_entry,
+                &state.conf.scheduler_settings(),
+                None,
+            )
+            .await
+            .change_context(errors::RecoveryError::ProcessTrackerFailure)
+            .attach_printable("Failed to enter calculate workflow process_tracker_entry in DB")?;
 
             router_env::logger::info!(
                 "Successfully created new CALCULATE_WORKFLOW task for payment_intent_id: {}",

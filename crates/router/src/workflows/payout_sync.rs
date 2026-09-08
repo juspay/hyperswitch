@@ -188,10 +188,15 @@ impl PayoutSyncWorkFlow {
                 .change_context(core_errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed while getting process schedule time")?;
 
-                db.insert_process(process_tracker_entry)
-                    .await
-                    .change_context(core_errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to insert the process tracker entry")?;
+                crate::db::process_tracker::insert_process_if_task_creation_enabled(
+                    db,
+                    process_tracker_entry,
+                    &state.conf.scheduler_settings(),
+                    None,
+                )
+                .await
+                .change_context(core_errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to insert the process tracker entry")?;
                 Ok(())
             }
             None => Ok(()),

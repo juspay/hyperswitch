@@ -113,6 +113,28 @@ impl ProcessTrackerNew {
     }
 }
 
+impl From<ProcessTrackerNew> for ProcessTracker {
+    fn from(new_process: ProcessTrackerNew) -> Self {
+        Self {
+            id: new_process.id,
+            name: new_process.name,
+            tag: new_process.tag,
+            runner: new_process.runner,
+            retry_count: new_process.retry_count,
+            schedule_time: new_process.schedule_time,
+            rule: new_process.rule,
+            tracking_data: new_process.tracking_data,
+            business_status: new_process.business_status,
+            status: new_process.status,
+            event: new_process.event,
+            created_at: new_process.created_at,
+            updated_at: new_process.updated_at,
+            version: new_process.version,
+            application_source: new_process.application_source,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum ProcessTrackerUpdate {
     Update {

@@ -1136,6 +1136,7 @@ where
                             card_network: card_network_for_network_tokenization,
                         },
                         state.conf.application_source,
+                        &state.conf.scheduler_settings(),
                     )
                     .await;
 

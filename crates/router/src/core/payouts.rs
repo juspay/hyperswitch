@@ -1481,6 +1481,7 @@ pub async fn create_recipient(
                         payout_data,
                         common_utils::date_time::now().saturating_add(Duration::seconds(consts::STRIPE_ACCOUNT_ONBOARDING_DELAY_IN_SECONDS)),
                         updated_state.conf.application_source,
+                        &updated_state.conf.scheduler_settings(),
                     )
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -3694,6 +3695,7 @@ pub async fn add_external_account_addition_task(
     payout_data: &PayoutData,
     schedule_time: time::PrimitiveDateTime,
     application_source: common_enums::ApplicationSource,
+    scheduler_settings: &scheduler::SchedulerSettings,
 ) -> CustomResult<(), errors::StorageError> {
     let runner = storage::ProcessTrackerRunner::AttachPayoutAccountWorkflow;
     let task = "STRPE_ATTACH_EXTERNAL_ACCOUNT";
@@ -3723,7 +3725,13 @@ pub async fn add_external_account_addition_task(
     )
     .map_err(errors::StorageError::from)?;
 
-    db.insert_process(process_tracker_entry).await?;
+    crate::db::process_tracker::insert_process_if_task_creation_enabled(
+        db,
+        process_tracker_entry,
+        scheduler_settings,
+        None,
+    )
+    .await?;
     Ok(())
 }
 

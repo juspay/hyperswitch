@@ -1836,6 +1836,7 @@ impl Vault {
             &lookup_key,
             pm,
             state.conf.application_source,
+            &state.conf.scheduler_settings(),
         )
         .await?;
         metrics::TOKENIZED_DATA_COUNT.add(1, &[]);
@@ -1891,8 +1892,6 @@ impl Vault {
             intent_fulfillment_time,
         )
         .await?;
-        // add_delete_tokenized_data_task(&*state.store, &lookup_key, pm).await?;
-        // scheduler_metrics::TOKENIZED_DATA_COUNT.add(1, &[]);
         Ok(lookup_key)
     }
 
@@ -3217,6 +3216,7 @@ pub async fn add_delete_tokenized_data_task(
     lookup_key: &str,
     pm: enums::PaymentMethod,
     application_source: common_enums::ApplicationSource,
+    scheduler_settings: &scheduler::SchedulerSettings,
 ) -> RouterResult<()> {
     let runner = storage::ProcessTrackerRunner::DeleteTokenizeDataWorkflow;
     let process_tracker_id = format!("{runner}_{lookup_key}");
@@ -3245,7 +3245,13 @@ pub async fn add_delete_tokenized_data_task(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to construct delete tokenized data process tracker task")?;
 
-    let response = db.insert_process(process_tracker_entry).await;
+    let response = db::process_tracker::insert_process_if_task_creation_enabled(
+        db,
+        process_tracker_entry,
+        scheduler_settings,
+        None,
+    )
+    .await;
     response.map(|_| ()).or_else(|err| {
         if err.current_context().is_db_unique_violation() {
             Ok(())

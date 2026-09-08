@@ -254,23 +254,7 @@ impl ProcessTrackerInterface for MockDb {
         new: storage::ProcessTrackerNew,
     ) -> CustomResult<storage::ProcessTracker, errors::StorageError> {
         let mut processes = self.processes.lock().await;
-        let process = storage::ProcessTracker {
-            id: new.id,
-            name: new.name,
-            tag: new.tag,
-            runner: new.runner,
-            retry_count: new.retry_count,
-            schedule_time: new.schedule_time,
-            rule: new.rule,
-            tracking_data: new.tracking_data,
-            business_status: new.business_status,
-            status: new.status,
-            event: new.event,
-            created_at: new.created_at,
-            updated_at: new.updated_at,
-            version: new.version,
-            application_source: new.application_source,
-        };
+        let process: storage::ProcessTracker = new.into();
         processes.push(process.clone());
         Ok(process)
     }

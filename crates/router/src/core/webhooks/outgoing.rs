@@ -394,6 +394,7 @@ async fn insert_event_and_spawn_webhook_delivery(
         &event,
         state.conf.application_source,
         event_data.recipient_data.clone(),
+        &state.conf.scheduler_settings(),
     )
     .await
     .inspect_err(|error| {
@@ -971,6 +972,7 @@ async fn raise_webhooks_analytics_event(
     state.event_handler().log_event(&webhook_event);
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn add_outgoing_webhook_retry_task_to_process_tracker(
     db: &dyn StorageInterface,
     superposition_client: &external_services::superposition::SuperpositionClient,
@@ -979,6 +981,7 @@ pub(crate) async fn add_outgoing_webhook_retry_task_to_process_tracker(
     event: &domain::Event,
     application_source: common_enums::ApplicationSource,
     webhook_recipient_data: types::WebhookRecipientData,
+    scheduler_settings: &scheduler::SchedulerSettings,
 ) -> CustomResult<storage::ProcessTracker, errors::StorageError> {
     let processor_merchant_id = platform.get_processor().get_account().get_id().clone();
     let provider_merchant_id = platform.get_provider().get_account().get_id().clone();
@@ -1032,16 +1035,19 @@ pub(crate) async fn add_outgoing_webhook_retry_task_to_process_tracker(
     .map_err(errors::StorageError::from)?;
 
     let attributes = router_env::metric_attributes!(("flow", "OutgoingWebhookRetry"));
-    match db.insert_process(process_tracker_entry).await {
-        Ok(process_tracker) => {
-            crate::routes::metrics::TASKS_ADDED_COUNT.add(1, attributes);
-            Ok(process_tracker)
-        }
-        Err(error) => {
-            crate::routes::metrics::TASK_ADDITION_FAILURES_COUNT.add(1, attributes);
-            Err(error)
-        }
-    }
+    crate::db::process_tracker::insert_process_if_task_creation_enabled(
+        db,
+        process_tracker_entry,
+        scheduler_settings,
+        Some(attributes),
+    )
+    .await
+    .inspect_err(|_| {
+        crate::routes::metrics::TASK_ADDITION_FAILURES_COUNT.add(
+            1,
+            router_env::metric_attributes!(("flow", "OutgoingWebhookRetry")),
+        );
+    })
 }
 
 fn get_webhook_url_from_business_profile(

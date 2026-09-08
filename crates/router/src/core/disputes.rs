@@ -21,7 +21,7 @@ use super::{
 };
 use crate::{
     core::{files, payments, utils as core_utils, webhooks},
-    routes::{app::StorageInterface, metrics::TASKS_ADDED_COUNT, SessionState},
+    routes::{app::StorageInterface, SessionState},
     services,
     types::{
         api::{self, disputes},
@@ -913,6 +913,7 @@ pub async fn fetch_disputes_from_connector(
                 platform.get_processor().get_account().get_id().clone(),
                 schedule_time,
                 state.conf.application_source,
+                &state.conf.scheduler_settings(),
             )
             .await;
 
@@ -990,6 +991,7 @@ pub async fn update_dispute_data(
 }
 
 #[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
 pub async fn add_process_dispute_task_to_pt(
     db: &dyn StorageInterface,
     connector_name: &str,
@@ -998,13 +1000,10 @@ pub async fn add_process_dispute_task_to_pt(
     processor_merchant_id: common_utils::id_type::MerchantId,
     schedule_time: Option<time::PrimitiveDateTime>,
     application_source: common_enums::ApplicationSource,
+    scheduler_settings: &scheduler::SchedulerSettings,
 ) -> common_utils::errors::CustomResult<(), errors::StorageError> {
     match schedule_time {
         Some(time) => {
-            TASKS_ADDED_COUNT.add(
-                1,
-                router_env::metric_attributes!(("flow", "dispute_process")),
-            );
             let tracking_data = disputes::ProcessDisputePTData {
                 connector_name: connector_name.to_string(),
                 dispute_payload: dispute_payload.clone(),
@@ -1032,7 +1031,13 @@ pub async fn add_process_dispute_task_to_pt(
                 application_source,
             )
             .map_err(errors::StorageError::from)?;
-            db.insert_process(process_tracker_entry).await?;
+            crate::db::process_tracker::insert_process_if_task_creation_enabled(
+                db,
+                process_tracker_entry,
+                scheduler_settings,
+                Some(router_env::metric_attributes!(("flow", "dispute_process"))),
+            )
+            .await?;
             Ok(())
         }
         None => Ok(()),
@@ -1050,8 +1055,8 @@ pub async fn add_dispute_list_task_to_pt(
     profile_id: common_utils::id_type::ProfileId,
     fetch_request: FetchDisputesRequestData,
     application_source: common_enums::ApplicationSource,
+    scheduler_settings: &scheduler::SchedulerSettings,
 ) -> common_utils::errors::CustomResult<(), errors::StorageError> {
-    TASKS_ADDED_COUNT.add(1, router_env::metric_attributes!(("flow", "dispute_list")));
     let tracking_data = disputes::DisputeListPTData {
         connector_name: connector_name.to_string(),
         processor_merchant_id: Some(processor_merchant_id.clone()),
@@ -1082,7 +1087,13 @@ pub async fn add_dispute_list_task_to_pt(
         application_source,
     )
     .map_err(errors::StorageError::from)?;
-    db.insert_process(process_tracker_entry).await?;
+    crate::db::process_tracker::insert_process_if_task_creation_enabled(
+        db,
+        process_tracker_entry,
+        scheduler_settings,
+        Some(router_env::metric_attributes!(("flow", "dispute_list"))),
+    )
+    .await?;
     Ok(())
 }
 
@@ -1146,6 +1157,7 @@ pub async fn schedule_dispute_sync_task(
         let merchant_connector_id = mca.merchant_connector_id.clone();
         let business_profile_id = business_profile.get_id().clone();
         let application_source = state.conf.application_source;
+        let scheduler_settings = state.conf.scheduler_settings();
 
         tokio::spawn(
             async move {
@@ -1161,6 +1173,7 @@ pub async fn schedule_dispute_sync_task(
                         created_till,
                     },
                     application_source,
+                    &scheduler_settings,
                 )
                 .await
                 .map_err(|error| {
