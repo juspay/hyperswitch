@@ -9472,7 +9472,10 @@ pub fn validate_platform_request_for_marketplace(
 
 /// Returns `true` if either the org or merchant config is set to "true"
 ///
-/// Priority logic:
+/// Resolved from Superposition (`SHOULD_ENABLE_AUTHENTICATION_SERVICE`), falling back to the
+/// legacy DB config (`authentication_service_eligible_<id>`) when Superposition has no value.
+///
+/// Priority logic (DB fallback order, see `ShouldEnableAuthenticationService::db_keys`):
 /// 1. If org-level config exists (either "true" or "false"), that decision is final
 ///    - Org = "true" → returns true (authentication enabled)
 ///    - Org = "false" → returns false (authentication disabled, merchant config ignored)
@@ -9485,35 +9488,19 @@ pub async fn is_merchant_eligible_authentication_service(
     processor: &domain::Processor,
     state: &SessionState,
 ) -> RouterResult<bool> {
-    let db = &*state.store;
-    let org_key = processor
-        .get_account()
-        .get_org_id()
-        .get_authentication_service_eligible_key();
-    let org_eligible = db
-        .find_config_by_key(&org_key)
-        .await
-        .inspect_err(|error| {
-            logger::error!(?error, "Failed to fetch `{org_key}` config from DB");
-        })
-        .ok()
-        .map(|c| c.config.to_lowercase() == "true");
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(processor.get_processor_merchant_id())
+        .with_provider_merchant_id(dimension_state::ProviderMerchantId::new(
+            processor.get_account().get_id().clone(),
+        ))
+        .with_organization_id(processor.get_account().get_org_id().clone());
 
-    Ok(org_eligible
-        .async_unwrap_or_else(|| async {
-            let merchant_key = processor
-                .get_account()
-                .get_id()
-                .get_authentication_service_eligible_key();
-            db.find_config_by_key(&merchant_key)
-                .await
-                .inspect_err(|error| {
-                    logger::error!(?error, "Failed to fetch `{merchant_key}` config from DB");
-                })
-                .ok()
-                .map(|c| c.config.to_lowercase() == "true")
-                .unwrap_or(false)
-        })
+    Ok(dimensions
+        .get_should_enable_authentication_service(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            None,
+        )
         .await)
 }
 

@@ -467,6 +467,9 @@ pub mod superposition {
     /// Disable vault tokenization configuration key
     pub const SHOULD_DISABLE_VAULT_TOKENIZATION: &str =
         "vaulting.should_disable_vault_tokenization";
+    /// Authentication service eligibility configuration key (org and merchant scoped, org takes precedence)
+    pub const SHOULD_ENABLE_AUTHENTICATION_SERVICE: &str =
+        "system.should_enable_authentication_service";
     /// Return raw payment method details configuration key
     pub const SHOULD_RETURN_RAW_PAYMENT_METHOD_DETAILS: &str =
         "payments.should_return_raw_payment_method_details";

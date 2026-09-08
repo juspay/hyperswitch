@@ -362,6 +362,29 @@ impl DatabaseBackedConfig for ShouldDisableVaultTokenization {
     }
 }
 
+config! {
+    superposition_key = SHOULD_ENABLE_AUTHENTICATION_SERVICE,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgId,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for ShouldEnableAuthenticationService {
+    const KEY: &'static str = "should_enable_authentication_service";
+
+    fn db_keys(dimensions: &impl dimension_state::DimensionsBase) -> Vec<Option<String>> {
+        vec![
+            dimensions
+                .get_organization_id()
+                .map(|id| id.get_authentication_service_eligible_key()),
+            dimensions
+                .get_processor_merchant_id()
+                .map(|id| id.get_authentication_service_eligible_key()),
+        ]
+    }
+}
+
 #[cfg(feature = "v2")]
 config! {
     superposition_key = SHOULD_RETURN_RAW_PAYMENT_METHOD_DETAILS,
