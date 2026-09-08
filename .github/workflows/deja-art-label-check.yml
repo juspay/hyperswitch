@@ -1,23 +1,20 @@
 name: Deja ART Label Check
 
 on:
+  # Runs on `opened`, `synchronize` and `reopened` (the default types).
+  # `synchronize` is required so that a result is reported for every head
+  # commit, since required status checks are evaluated per commit.
   pull_request:
-    types:
-      - opened
-      - reopened
-      # Required status checks are evaluated per head commit, so the check
-      # must run on every push to report a result for the new commit.
-      - synchronize
-      - ready_for_review
-      - labeled
-      - unlabeled
 
+  # Required status checks must report a result in the merge queue as well,
+  # otherwise the queue entry stalls waiting for this check.
   merge_group:
     types:
       - checks_requested
 
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
   deja_art_label_check:
@@ -25,20 +22,28 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Skip check for merge queue
-        if: ${{ github.event_name == 'merge_group' }}
-        shell: bash
-        run: echo "Skipping deja-art label check for merge queue"
-
+      # Labels are read via the API rather than from the event payload so
+      # that re-running this job after adding the label sees the current
+      # labels. A re-run reuses the original event payload, which would
+      # otherwise still report the label as missing.
       - name: Verify PR has the deja-art label
         if: ${{ github.event_name == 'pull_request' }}
         shell: bash
         env:
-          LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          if jq --exit-status 'index("deja-art")' <<< "${LABELS}" > /dev/null; then
+          labels="$(
+            gh pr view "${PR_NUMBER}" \
+              --repo "${REPOSITORY}" \
+              --json labels \
+              --jq '.labels[].name'
+          )"
+
+          if echo "${labels}" | grep --quiet --line-regexp --fixed-strings 'deja-art'; then
             echo "'deja-art' label is present."
           else
-            echo "::error::Add the 'deja-art' label to this pull request to run the Deja ART replay."
+            echo "::error::Add the 'deja-art' label to this pull request to run the Deja ART replay, then re-run this check."
             exit 1
           fi
