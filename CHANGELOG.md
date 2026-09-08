@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.09.07.1-hotfix2
+
+### Bug Fixes
+
+- **pm_filters:** Add missing billing countries for Checkout connector ([#14096](https://github.com/juspay/hyperswitch/pull/14096)) ([`b4c0629`](https://github.com/juspay/hyperswitch/commit/b4c0629a6997f2b66946053fecfee93ec0b68044))
+
+**Full Changelog:** [`2026.09.07.1-hotfix1...2026.09.07.1-hotfix2`](https://github.com/juspay/hyperswitch/compare/2026.09.07.1-hotfix1...2026.09.07.1-hotfix2)
+
+- - -
+
 ## 2026.09.07.1-hotfix1
 
 ### Features
