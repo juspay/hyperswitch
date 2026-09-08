@@ -20045,6 +20045,9 @@
           }
         }
       },
+      "NetellerData": {
+        "type": "object"
+      },
       "NetworkParams": {
         "type": "object",
         "description": "Represents additional network-level parameters for 3DS processing.",
@@ -24817,6 +24820,7 @@
           "momo",
           "momo_atm",
           "multibanco",
+          "neteller",
           "online_banking_thailand",
           "online_banking_czech_republic",
           "online_banking_finland",
@@ -35777,6 +35781,18 @@
             "properties": {
               "skrill": {
                 "$ref": "#/components/schemas/SkrillData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "Neteller",
+            "required": [
+              "neteller"
+            ],
+            "properties": {
+              "neteller": {
+                "$ref": "#/components/schemas/NetellerData"
               }
             }
           },
