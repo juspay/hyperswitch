@@ -193,7 +193,7 @@ async fn generate_id_token(
     auth_code_data: &AuthCodeData,
 ) -> OidcResult<String> {
     let now = u64::try_from(common_utils::date_time::now_unix_timestamp())
-        .map_err(|_| report!(OidcErrors::ServerError))?;
+        .change_context(OidcErrors::ServerError)?;
     let exp_duration = Duration::from_secs(ID_TOKEN_TTL_IN_SECS);
     let exp = jwt::generate_exp(exp_duration)
         .change_context(OidcErrors::ServerError)?
@@ -225,7 +225,7 @@ async fn generate_access_token(
     auth_code_data: &AuthCodeData,
 ) -> OidcResult<String> {
     let now = u64::try_from(common_utils::date_time::now_unix_timestamp())
-        .map_err(|_| report!(OidcErrors::ServerError))?;
+        .change_context(OidcErrors::ServerError)?;
     let exp_duration = Duration::from_secs(ACCESS_TOKEN_TTL_IN_SECS);
     let exp = jwt::generate_exp(exp_duration)
         .change_context(OidcErrors::ServerError)?
