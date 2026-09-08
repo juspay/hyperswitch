@@ -7,7 +7,7 @@ on:
   # pull request whenever this trigger is used.
   # Since we do not have a checkout step in this workflow, this is an
   # acceptable use of this trigger.
-  pull_request:  # TEMP: smoke test only, revert to pull_request_target before merge
+  pull_request_target:
     types:
       - opened
       - reopened
