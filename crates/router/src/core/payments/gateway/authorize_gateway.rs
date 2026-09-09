@@ -279,6 +279,9 @@ where
                     router_data.minor_amount_captured = payment_authorize_response
                         .captured_amount
                         .map(MinorUnit::new);
+                    router_data.sender_payment_instrument_id = payment_authorize_response
+                        .sender_payment_instrument_id
+                        .clone();
                     router_data.minor_amount_capturable = payment_authorize_response
                         .capturable_amount
                         .map(MinorUnit::new);
