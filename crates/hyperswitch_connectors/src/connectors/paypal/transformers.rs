@@ -2257,10 +2257,30 @@ fn validate_liability_response(
                 .unwrap_or(AuthenticationStatus::Null),
         );
 
+        // The connector refuses to authorize for three distinct reasons; keep them apart so a
+        // failed challenge is never reported as an unavailable one, or as a liability-shift
+        // denial on an authentication that actually succeeded.
+        let (code, message) = match three_ds.authentication_status {
+            Some(AuthenticationStatus::Failed) | Some(AuthenticationStatus::Rejected) => (
+                constants::THREE_DS_AUTHENTICATION_FAILED_CODE,
+                constants::THREE_DS_AUTHENTICATION_FAILED_MESSAGE,
+            ),
+            Some(AuthenticationStatus::Success) | Some(AuthenticationStatus::Attempted) => (
+                constants::THREE_DS_LIABILITY_SHIFT_NOT_POSSIBLE_CODE,
+                constants::THREE_DS_LIABILITY_SHIFT_NOT_POSSIBLE_MESSAGE,
+            ),
+            // Unable, ChallengeRequired, InfoOnly, Decoupled, Null, Unknown or absent: the
+            // authentication never reached a verdict.
+            _ => (
+                constants::THREE_DS_AUTHENTICATION_UNAVAILABLE_CODE,
+                constants::THREE_DS_AUTHENTICATION_UNAVAILABLE_MESSAGE,
+            ),
+        };
+
         Err(Box::new(ErrorResponse {
             attempt_status: Some(enums::AttemptStatus::Failure),
-            code: constants::THREE_DS_AUTHENTICATION_FAILED_CODE.to_string(),
-            message: constants::THREE_DS_AUTHENTICATION_FAILED_MESSAGE.to_string(),
+            code: code.to_string(),
+            message: message.to_string(),
             connector_transaction_id: None,
             connector_response_reference_id: None,
             reason: Some(reason),
@@ -4562,14 +4582,27 @@ mod liability_shift_tests {
         }
     }
 
+    fn refusal(
+        liability_shift: LiabilityShift,
+        enrollment_status: Option<EnrollmentStatus>,
+        authentication_status: Option<AuthenticationStatus>,
+    ) -> ErrorResponse {
+        *validate_liability_response(liability_response(
+            liability_shift,
+            enrollment_status,
+            authentication_status,
+        ))
+        .expect_err("a denied liability shift must not authorize")
+    }
+
     #[test]
-    fn failed_authentication_is_reported_as_three_ds_failure() {
-        let error = *validate_liability_response(liability_response(
+    fn failed_challenge_is_reported_as_authentication_failure() {
+        // The combination seen in production: the shopper failed the issuer's challenge.
+        let error = refusal(
             LiabilityShift::No,
             Some(EnrollmentStatus::Ready),
             Some(AuthenticationStatus::Failed),
-        ))
-        .expect_err("a denied liability shift must not authorize");
+        );
 
         assert_eq!(error.code, constants::THREE_DS_AUTHENTICATION_FAILED_CODE);
         assert_eq!(
@@ -4584,6 +4617,46 @@ mod liability_shift_tests {
             .expect("reason must carry the connector detail");
         assert!(reason.contains(constants::CANNOT_CONTINUE_AUTH));
         assert!(reason.contains("AuthenticationStatus: Failed"));
+    }
+
+    #[test]
+    fn rejected_authentication_is_also_a_failure() {
+        assert_eq!(
+            refusal(
+                LiabilityShift::No,
+                Some(EnrollmentStatus::Ready),
+                Some(AuthenticationStatus::Rejected),
+            )
+            .code,
+            constants::THREE_DS_AUTHENTICATION_FAILED_CODE
+        );
+    }
+
+    #[test]
+    fn inconclusive_authentication_is_not_reported_as_a_failure() {
+        // `Unable` and a missing status mean the authentication never reached a verdict; calling
+        // that a failed challenge would be wrong.
+        for status in [Some(AuthenticationStatus::Unable), None] {
+            assert_eq!(
+                refusal(LiabilityShift::No, Some(EnrollmentStatus::Ready), status).code,
+                constants::THREE_DS_AUTHENTICATION_UNAVAILABLE_CODE
+            );
+        }
+    }
+
+    #[test]
+    fn successful_authentication_without_liability_shift_is_labelled_separately() {
+        // Authentication succeeded, the issuer just did not grant liability shift. Reporting this
+        // as an authentication failure would blame the shopper for the issuer's decision.
+        assert_eq!(
+            refusal(
+                LiabilityShift::No,
+                Some(EnrollmentStatus::Ready),
+                Some(AuthenticationStatus::Success),
+            )
+            .code,
+            constants::THREE_DS_LIABILITY_SHIFT_NOT_POSSIBLE_CODE
+        );
     }
 
     #[test]
