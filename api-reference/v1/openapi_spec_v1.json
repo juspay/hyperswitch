@@ -49029,10 +49029,6 @@
       },
       "WebhookDetails": {
         "type": "object",
-        "required": [
-          "payment_statuses_enabled",
-          "refund_statuses_enabled"
-        ],
         "properties": {
           "webhook_version": {
             "type": "string",

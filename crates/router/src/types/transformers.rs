@@ -2534,19 +2534,19 @@ impl ForeignFrom<api_models::admin::WebhookDetails>
 {
     fn foreign_from(item: api_models::admin::WebhookDetails) -> Self {
         Self {
-            webhook_version: item.webhook_version,
-            webhook_username: item.webhook_username,
-            webhook_password: item.webhook_password,
-            webhook_url: item.webhook_url,
-            payment_created_enabled: item.payment_created_enabled,
-            payment_failed_enabled: item.payment_failed_enabled,
-            payment_succeeded_enabled: item.payment_succeeded_enabled,
-            payment_statuses_enabled: item.payment_statuses_enabled,
-            refund_statuses_enabled: item.refund_statuses_enabled,
-            payout_statuses_enabled: item.payout_statuses_enabled,
-            dispute_statuses_enabled: item.dispute_statuses_enabled,
-            mandate_statuses_enabled: item.mandate_statuses_enabled,
-            invoice_statuses_enabled: item.invoice_statuses_enabled,
+            webhook_version: item.webhook_version.flatten(),
+            webhook_username: item.webhook_username.flatten(),
+            webhook_password: item.webhook_password.flatten(),
+            webhook_url: item.webhook_url.flatten(),
+            payment_created_enabled: item.payment_created_enabled.flatten(),
+            payment_failed_enabled: item.payment_failed_enabled.flatten(),
+            payment_succeeded_enabled: item.payment_succeeded_enabled.flatten(),
+            payment_statuses_enabled: item.payment_statuses_enabled.flatten(),
+            refund_statuses_enabled: item.refund_statuses_enabled.flatten(),
+            payout_statuses_enabled: item.payout_statuses_enabled.flatten(),
+            dispute_statuses_enabled: item.dispute_statuses_enabled.flatten(),
+            mandate_statuses_enabled: item.mandate_statuses_enabled.flatten(),
+            invoice_statuses_enabled: item.invoice_statuses_enabled.flatten(),
             multiple_webhooks_list: None,
         }
     }
@@ -2557,19 +2557,19 @@ impl ForeignFrom<diesel_models::business_profile::WebhookDetails>
 {
     fn foreign_from(item: diesel_models::business_profile::WebhookDetails) -> Self {
         Self {
-            webhook_version: item.webhook_version,
-            webhook_username: item.webhook_username,
-            webhook_password: item.webhook_password,
-            webhook_url: item.webhook_url,
-            payment_created_enabled: item.payment_created_enabled,
-            payment_failed_enabled: item.payment_failed_enabled,
-            payment_succeeded_enabled: item.payment_succeeded_enabled,
-            payment_statuses_enabled: item.payment_statuses_enabled,
-            refund_statuses_enabled: item.refund_statuses_enabled,
-            payout_statuses_enabled: item.payout_statuses_enabled,
-            dispute_statuses_enabled: item.dispute_statuses_enabled,
-            mandate_statuses_enabled: item.mandate_statuses_enabled,
-            invoice_statuses_enabled: item.invoice_statuses_enabled,
+            webhook_version: item.webhook_version.map(Some),
+            webhook_username: item.webhook_username.map(Some),
+            webhook_password: item.webhook_password.map(Some),
+            webhook_url: item.webhook_url.map(Some),
+            payment_created_enabled: item.payment_created_enabled.map(Some),
+            payment_failed_enabled: item.payment_failed_enabled.map(Some),
+            payment_succeeded_enabled: item.payment_succeeded_enabled.map(Some),
+            payment_statuses_enabled: item.payment_statuses_enabled.map(Some),
+            refund_statuses_enabled: item.refund_statuses_enabled.map(Some),
+            payout_statuses_enabled: item.payout_statuses_enabled.map(Some),
+            dispute_statuses_enabled: item.dispute_statuses_enabled.map(Some),
+            mandate_statuses_enabled: item.mandate_statuses_enabled.map(Some),
+            invoice_statuses_enabled: item.invoice_statuses_enabled.map(Some),
         }
     }
 }
