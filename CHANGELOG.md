@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.09.02.0-hotfix3
+
+### Refactors
+
+- **connector:** [Stripe] Fix PII issuer for stripe ([#14124](https://github.com/juspay/hyperswitch/pull/14124)) ([`b07cbcb`](https://github.com/juspay/hyperswitch/commit/b07cbcb721ab0f85c575af1ccf74d53e84c20ab5))
+
+**Full Changelog:** [`2026.09.02.0-hotfix2...2026.09.02.0-hotfix3`](https://github.com/juspay/hyperswitch/compare/2026.09.02.0-hotfix2...2026.09.02.0-hotfix3)
+
+- - -
+
 ## 2026.09.02.0-hotfix2
 
 ### Features
