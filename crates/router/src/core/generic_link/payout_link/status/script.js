@@ -34,7 +34,7 @@ function boot() {
       }
     }
     url.search = params.toString();
-    redirectToEndUrl(url);
+    redirectToEndUrl(url, payoutDetails.redirect_delay_seconds);
   }
 }
 boot();
@@ -154,11 +154,21 @@ function renderStatusDetails(payoutDetails) {
  *  - Redirect to end url
  * @param {URL} returnUrl
  */
-function redirectToEndUrl(returnUrl) {
+function redirectToEndUrl(returnUrl, redirectDelaySeconds) {
   // Form redirect text
   var statusRedirectTextNode = document.getElementById("redirect-text");
-  var timeout = 5,
+  var timeout =
+    redirectDelaySeconds !== undefined && redirectDelaySeconds !== null
+      ? redirectDelaySeconds
+      : 5,
     j = 0;
+  if (timeout === 0) {
+    // Auto-redirect disabled by merchant config
+    if (statusRedirectTextNode instanceof HTMLDivElement) {
+      statusRedirectTextNode.innerText = "";
+    }
+    return;
+  }
   for (var i = 0; i <= timeout; i++) {
     setTimeout(function () {
       var secondsLeft = timeout - j++;

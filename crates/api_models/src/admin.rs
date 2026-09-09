@@ -3699,6 +3699,10 @@ pub struct PaymentLinkConfigRequest {
     /// Custom text for the separator shown between wallet and card payment method sections
     #[schema(value_type = Option<String>, max_length = 64, example = "Or pay with")]
     pub payment_methods_separator_text: Option<String>,
+    /// Duration in seconds before the status page auto-redirects to the return URL.
+    /// Set to 0 to disable auto-redirect. Maximum value is 90 seconds. Defaults to 5 seconds.
+    #[schema(value_type = Option<u32>, example = 10, minimum = 0, maximum = 90)]
+    pub redirect_delay_seconds: Option<u32>,
 }
 
 impl PaymentLinkConfigRequest {
@@ -3708,9 +3712,18 @@ impl PaymentLinkConfigRequest {
         if let Some(custom_message) = self.custom_message_for_payment_method_types.as_ref() {
             custom_message.validate().map_err(|e| e.to_string())?;
         }
+        if let Some(delay) = self.redirect_delay_seconds {
+            if delay > MAX_PAYMENT_LINK_REDIRECT_DELAY_SECONDS {
+                return Err(format!(
+                    "redirect_delay_seconds must not exceed {MAX_PAYMENT_LINK_REDIRECT_DELAY_SECONDS} seconds"
+                ));
+            }
+        }
         Ok(())
     }
 }
+
+pub const MAX_PAYMENT_LINK_REDIRECT_DELAY_SECONDS: u32 = 90;
 
 #[derive(
     Clone,
@@ -3834,6 +3847,9 @@ pub struct PaymentLinkConfig {
     pub show_merchant_name: Option<bool>,
     /// Custom text for the separator shown between wallet and card payment method sections
     pub payment_methods_separator_text: Option<String>,
+    /// Duration in seconds before the status page auto-redirects to the return URL.
+    /// Set to 0 to disable auto-redirect. Maximum value is 90 seconds. Defaults to 5 seconds.
+    pub redirect_delay_seconds: Option<u32>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]

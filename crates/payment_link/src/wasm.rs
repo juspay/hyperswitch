@@ -52,6 +52,7 @@ pub fn generate_payment_link_preview_impl(config_json: &str) -> Result<String, S
             .clone(),
         show_merchant_name: payment_link_details.show_merchant_name,
         payment_methods_separator_text: payment_link_details.payment_methods_separator_text.clone(),
+        redirect_delay_seconds: None,
     };
 
     if let Ok(config_from_json) = serde_json::from_str::<PaymentLinkConfig>(config_json) {

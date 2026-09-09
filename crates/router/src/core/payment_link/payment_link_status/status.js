@@ -332,8 +332,16 @@ function renderStatusDetails(paymentDetails) {
       statusRedirectTextNode instanceof HTMLDivElement &&
       typeof paymentDetails.return_url === "string"
     ) {
-      var timeout = 5,
+      var timeout =
+        paymentDetails.redirect_delay_seconds !== undefined &&
+        paymentDetails.redirect_delay_seconds !== null
+          ? paymentDetails.redirect_delay_seconds
+          : 5,
         j = 0;
+      if (timeout === 0) {
+        // Auto-redirect disabled by merchant config
+        statusRedirectTextNode.innerText = "";
+      } else {
       for (var i = 0; i <= timeout; i++) {
         setTimeout(function () {
           var secondsLeft = timeout - j++;
@@ -365,6 +373,7 @@ function renderStatusDetails(paymentDetails) {
           }
         }, i * 1000);
       }
+      } // end else (timeout !== 0)
     }
   }
 }

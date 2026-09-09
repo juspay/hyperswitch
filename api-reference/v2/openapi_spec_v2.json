@@ -22881,6 +22881,14 @@
             "type": "string",
             "description": "Custom text for the separator shown between wallet and card payment method sections",
             "nullable": true
+          },
+          "redirect_delay_seconds": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Duration in seconds before the status page auto-redirects to the return URL. Set to 0 to disable auto-redirect. Maximum value is 90 seconds. Defaults to 5 seconds.",
+            "minimum": 0,
+            "maximum": 90,
+            "nullable": true
           }
         }
       },
@@ -23076,6 +23084,15 @@
             "example": "Or pay with",
             "nullable": true,
             "maxLength": 64
+          },
+          "redirect_delay_seconds": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Duration in seconds before the status page auto-redirects to the return URL. Set to 0 to disable auto-redirect. Maximum value is 90 seconds. Defaults to 5 seconds.",
+            "example": 10,
+            "minimum": 0,
+            "maximum": 90,
+            "nullable": true
           }
         }
       },

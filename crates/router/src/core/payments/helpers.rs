@@ -8137,6 +8137,22 @@ pub fn validate_payment_link_request(
             message: "return_url must be sent while creating a payment link".to_string(),
         });
     }
+
+    if let Some(delay) = request
+        .payment_link_config
+        .as_ref()
+        .and_then(|c| c.theme_config.redirect_delay_seconds)
+    {
+        if delay > api_models::admin::MAX_PAYMENT_LINK_REDIRECT_DELAY_SECONDS {
+            return Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: format!(
+                    "redirect_delay_seconds must not exceed {} seconds",
+                    api_models::admin::MAX_PAYMENT_LINK_REDIRECT_DELAY_SECONDS
+                ),
+            });
+        }
+    }
+
     Ok(())
 }
 
