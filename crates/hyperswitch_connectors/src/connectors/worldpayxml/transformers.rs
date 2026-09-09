@@ -328,8 +328,9 @@ struct AuthorisationId {
     id: Option<Secret<String>>,
 }
 
-#[derive(Debug, Clone, Copy, Deserialize, Serialize)]
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, strum::IntoStaticStr)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
 pub enum LastEvent {
     Authorised,
     Refused,
@@ -362,32 +363,7 @@ impl LastEvent {
     /// Renders the event as the raw Worldpay status string (SCREAMING_SNAKE_CASE),
     /// mirroring how it arrives on the wire, for use as a connector status.
     fn as_str(&self) -> &'static str {
-        match self {
-            Self::Authorised => "AUTHORISED",
-            Self::Refused => "REFUSED",
-            Self::Cancelled => "CANCELLED",
-            Self::Captured => "CAPTURED",
-            Self::Settled => "SETTLED",
-            Self::SentForAuthorisation => "SENT_FOR_AUTHORISATION",
-            Self::SentForRefund => "SENT_FOR_REFUND",
-            Self::SentForFastRefund => "SENT_FOR_FAST_REFUND",
-            Self::Refunded => "REFUNDED",
-            Self::RefundRequested => "REFUND_REQUESTED",
-            Self::RefundFailed => "REFUND_FAILED",
-            Self::RefundedByMerchant => "REFUNDED_BY_MERCHANT",
-            Self::Error => "ERROR",
-            Self::QueryRequired => "QUERY_REQUIRED",
-            Self::CancelReceived => "CANCEL_RECEIVED",
-            Self::RefundReceived => "REFUND_RECEIVED",
-            Self::PushApproved => "PUSH_APPROVED",
-            Self::PushPending => "PUSH_PENDING",
-            Self::PushRequested => "PUSH_REQUESTED",
-            Self::PushRefused => "PUSH_REFUSED",
-            Self::SettledByMerchant => "SETTLED_BY_MERCHANT",
-            Self::ChargedBack => "CHARGED_BACK",
-            Self::ChargebackReversed => "CHARGEBACK_REVERSED",
-            Self::Unknown => "UNKNOWN",
-        }
+        self.into()
     }
 }
 
