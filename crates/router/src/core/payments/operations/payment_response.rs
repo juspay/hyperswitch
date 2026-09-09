@@ -213,9 +213,8 @@ where
     );
 
     if is_eligible_pm {
-        // A volatile record with no customer is a guest flow: it is never promoted out of
-        // redis, so there is nothing for the modular update to acknowledge. Every other case —
-        // persistent, or volatile against a known customer — gets the update.
+        // A volatile record with no customer is a guest flow: it is never promoted out of redis,
+        // so there is nothing for the modular update to acknowledge.
         let is_guest_volatile_payment_method = payment_data
             .get_payment_method_info()
             .is_some_and(|pm| pm.is_pm_volatile() && pm.customer_id.is_none());

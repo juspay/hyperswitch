@@ -402,8 +402,8 @@ impl DatabaseBackedConfig for ShouldCallPmModularService {
 
 config! {
     superposition_key = PAYMENT_METHOD_INTEGRATION_TYPE,
-    output = common_enums::PaymentMethodIntegrationType,
-    default = common_enums::PaymentMethodIntegrationType::VaultThenPay,
+    output = crate::types::payment_methods::PaymentMethodIntegrationType,
+    default = crate::types::payment_methods::PaymentMethodIntegrationType::VaultThenPay,
     string_enum = true,
     requires = dimension_state::DimensionsWithProviderMerchantIdAndOrgId,
     targeting_key = id_type::CustomerId

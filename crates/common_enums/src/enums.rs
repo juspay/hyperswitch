@@ -11720,33 +11720,6 @@ pub enum StorageType {
     Persistent,
 }
 
-/// Determines when a payment method is written to durable storage relative to the payment.
-#[derive(
-    Clone,
-    Debug,
-    Copy,
-    Default,
-    Eq,
-    Hash,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-    ToSchema,
-)]
-#[router_derive::diesel_enum(storage_type = "text")]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum PaymentMethodIntegrationType {
-    /// Vault the card at session confirm, before the payment is attempted.
-    #[default]
-    VaultThenPay,
-    /// Keep the card in volatile storage at confirm and vault it only once the payment has been
-    /// authorized and acknowledged.
-    PayThenVault,
-}
-
 #[derive(
     Clone,
     Debug,
