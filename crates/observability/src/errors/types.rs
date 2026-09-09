@@ -79,6 +79,10 @@ pub enum ApiErrorResponse {
     /// 502 — the provider could not be reached, or answered outside its documented envelope, so
     /// whether the message was delivered is unknown.
     BadGateway(ApiError),
+    /// 503 — a dependency this service owns is away, and the condition is expected to clear
+    /// without intervention. Separate from [`Self::InternalServerError`] so that a database blip
+    /// does not page whoever is alerting on 500s.
+    ServiceUnavailable(ApiError),
 }
 
 impl ApiErrorResponse {
@@ -92,7 +96,8 @@ impl ApiErrorResponse {
             | Self::Unauthorized(error)
             | Self::NotFound(error)
             | Self::InternalServerError(error)
-            | Self::BadGateway(error) => error,
+            | Self::BadGateway(error)
+            | Self::ServiceUnavailable(error) => error,
         }
     }
 
@@ -104,7 +109,7 @@ impl ApiErrorResponse {
             Self::BadRequest(_) | Self::Unauthorized(_) | Self::NotFound(_) => {
                 ErrorType::InvalidRequestError.as_str()
             }
-            Self::InternalServerError(_) | Self::BadGateway(_) => {
+            Self::InternalServerError(_) | Self::BadGateway(_) | Self::ServiceUnavailable(_) => {
                 ErrorType::ObservabilityError.as_str()
             }
         }

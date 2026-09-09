@@ -20,6 +20,7 @@ impl actix_web::ResponseError for ApiErrorResponse {
             Self::NotFound(_) => StatusCode::NOT_FOUND,
             Self::InternalServerError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             Self::BadGateway(_) => StatusCode::BAD_GATEWAY,
+            Self::ServiceUnavailable(_) => StatusCode::SERVICE_UNAVAILABLE,
         }
     }
 

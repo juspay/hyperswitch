@@ -2,6 +2,7 @@
 //! module per area holds the handlers.
 
 pub mod app;
+pub mod config;
 pub mod health_check;
 pub mod notify;
 

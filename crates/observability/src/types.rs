@@ -46,6 +46,14 @@
 //! `text`, `subject` and `body` are delivered exactly as they arrive. The caller decides what its
 //! message looks like, in whatever markup its destination reads. `body` is HTML, because both email
 //! backends in `external_services` hardcode an HTML body and there is no plain-text path to reach.
+//!
+//! ## The configuration resources are next door
+//!
+//! Everything above describes the notify routes, whose whole contract is one message going out.
+//! The alert *configuration* resources have a different shape and their own reasons, and live in
+//! [`config`].
+
+pub mod config;
 
 use actix_multipart::form::{bytes::Bytes, text::Text, MultipartForm};
 use hyperswitch_masking::Secret;

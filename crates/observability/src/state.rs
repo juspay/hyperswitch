@@ -1,6 +1,8 @@
 use std::{collections::HashMap, sync::Arc};
 
-use diesel_models::DejaPgConnection;
+use common_utils::external_service::NoOpEventEmitter;
+use diesel_models::{DatabaseConnectionWithContext, DejaPgConnection};
+use error_stack::report;
 use external_services::{
     chat_service::{slack::SlackClient, xyne::XyneClient},
     email::{
@@ -77,6 +79,35 @@ impl AppState {
             email: Arc::new(email),
             database,
         }
+    }
+
+    /// Lease a connection from the pool, ready for the query helpers in `diesel_models`.
+    ///
+    /// Every failure to *get* a connection is [`ObservabilityError::StorageUnavailable`], which is
+    /// a `503`. The reason — pool exhausted, dial refused, credentials rejected — reaches the log
+    /// and never the caller: a connection error names the host, the database and the role, and
+    /// this service's routes are reachable by anything that can reach the port.
+    ///
+    /// The emitter is [`NoOpEventEmitter`], so no external-service event is published for a query
+    /// on this pool. The router publishes those to Kafka through a topic this plane is not
+    /// configured for, and emitting into a topic that does not exist would fail on every query.
+    /// The request id is `None` for the same reason and no other: it exists only to label those
+    /// events, so threading it through [`crate::services::server_wrap`] would carry it to a
+    /// discard. That changes the day a real emitter is configured, and the argument is here rather
+    /// than hidden so it is one line to change.
+    pub async fn database_connection(
+        &self,
+    ) -> error_stack::Result<DatabaseConnectionWithContext<'_>, ObservabilityError> {
+        let connection = self.database.get().await.map_err(|error| {
+            report!(ObservabilityError::StorageUnavailable)
+                .attach_printable(format!("Failed to lease a database connection: {error}"))
+        })?;
+
+        Ok(DatabaseConnectionWithContext::new(
+            connection,
+            None,
+            Arc::new(NoOpEventEmitter),
+        ))
     }
 }
 

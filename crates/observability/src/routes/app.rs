@@ -4,7 +4,7 @@ use actix_web::{web, Scope};
 use crate::{
     errors::types::{ApiError, ApiErrorResponse},
     logger,
-    routes::{health_check, notify},
+    routes::{config, health_check, notify},
     state::AppState,
 };
 
@@ -31,7 +31,34 @@ impl Alerts {
             .service(web::scope("/email").service(
                 web::resource("/notify/{destination}").route(web::post().to(notify::email)),
             ))
+            .service(config_scope())
     }
+}
+
+fn config_scope() -> Scope {
+    web::scope("/config")
+        .service(
+            web::scope("/definitions")
+                .service(
+                    web::resource("")
+                        .route(web::get().to(config::list_definitions))
+                        .route(web::post().to(config::create_definition)),
+                )
+                .service(
+                    web::resource("/{id}")
+                        .route(web::get().to(config::read_definition))
+                        .route(web::post().to(config::update_definition)),
+                ),
+        )
+        .service(
+            web::scope("/enablement")
+                .service(web::resource("").route(web::get().to(config::list_enablements)))
+                .service(
+                    web::resource("/{name}/{product}")
+                        .route(web::get().to(config::read_enablement))
+                        .route(web::post().to(config::upsert_enablement)),
+                ),
+        )
 }
 
 fn json_config() -> web::JsonConfig {

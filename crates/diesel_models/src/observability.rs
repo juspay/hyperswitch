@@ -4,4 +4,6 @@
 //! owns, with its own migration lineage under `crates/observability/migrations` and its own diesel
 //! configuration in `diesel_observability.toml`.
 
+pub mod alerts_info;
+pub mod merchants_alert_external_config;
 pub mod schema;

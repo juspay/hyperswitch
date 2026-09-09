@@ -1,4 +1,4 @@
-use crate::{schema, schema_v2};
+use crate::{observability::schema as observability_schema, schema, schema_v2};
 
 /// This trait will return a single column as primary key even in case of composite primary key.
 ///
@@ -19,7 +19,18 @@ pub(super) trait CompositeKey {
 
 /// implementation of `CompositeKey` trait for all the composite keys must be done here.
 mod composite_key {
-    use super::{schema, schema_v2, CompositeKey};
+    use super::{observability_schema, schema, schema_v2, CompositeKey};
+
+    // The enablement table is keyed on (name, product). `name` is the local unique key: a product
+    // is a family many alerts belong to, so it identifies nothing on its own.
+    impl CompositeKey
+        for <observability_schema::merchants_alert_external_config::table as diesel::Table>::PrimaryKey
+    {
+        type UK = observability_schema::merchants_alert_external_config::dsl::name;
+        fn get_local_unique_key(&self) -> Self::UK {
+            self.0
+        }
+    }
     impl CompositeKey for <schema::payment_attempt::table as diesel::Table>::PrimaryKey {
         type UK = schema::payment_attempt::dsl::attempt_id;
         fn get_local_unique_key(&self) -> Self::UK {
@@ -129,7 +140,10 @@ impl_get_primary_key!(
     schema_v2::process_tracker::table,
     schema_v2::refund::table,
     schema_v2::customers::table,
-    schema_v2::payment_attempt::table
+    schema_v2::payment_attempt::table,
+    // observability tables, which are version-agnostic: they live in their own database and have
+    // no v1/v2 flavour
+    observability_schema::alerts_info::table
 );
 
 /// This macro will implement the `GetPrimaryKey` trait for all the tables with composite key.
@@ -148,6 +162,9 @@ macro_rules! impl_get_primary_key_for_composite {
 }
 
 impl_get_primary_key_for_composite!(
+    // observability tables, which are version-agnostic: they live in their own database and have
+    // no v1/v2 flavour
+    observability_schema::merchants_alert_external_config::table,
     schema::payment_attempt::table,
     schema::refund::table,
     schema::customers::table,

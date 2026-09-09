@@ -79,6 +79,53 @@ pub enum ObservabilityError {
     #[error("The request body is invalid")]
     InvalidRequest,
 
+    /// The observability database could not be reached, or a query against it failed.
+    ///
+    /// Distinct from an empty result on purpose. The alert manager's own outage rule reads "no
+    /// alerts" as "nothing is wrong", so a list route that answered `200 []` when its database was
+    /// down would report all-clear during exactly the incident it exists to catch.
+    #[error("The observability database is unavailable")]
+    StorageUnavailable,
+
+    /// No alert definition exists with the requested id.
+    #[error("No alert definition exists with id `{id}`")]
+    DefinitionNotFound {
+        /// The id the request asked for.
+        id: String,
+    },
+
+    /// A definition already exists for this name and product.
+    #[error("An alert definition already exists for `{name}` / `{product}`")]
+    DuplicateDefinition {
+        /// The name that collided.
+        name: String,
+        /// The product it collided within.
+        product: String,
+    },
+
+    /// No enablement row exists for this name and product.
+    #[error("No alert enablement exists for `{name}` / `{product}`")]
+    EnablementNotFound {
+        /// The name the request asked for.
+        name: String,
+        /// The product the request asked for.
+        product: String,
+    },
+
+    /// The name and product do not identify an alert that can be switched on or off.
+    ///
+    /// Either no definition exists for the pair, or it names the reserved `all` definition, which
+    /// carries suppression for every detector and is not itself a detector. r-apps enforces the
+    /// first half with a database trigger we do not have; the check lives here instead, so that an
+    /// enablement row cannot name an alert that does not exist.
+    #[error("No alert is defined as `{name}` / `{product}`")]
+    NotAnAlert {
+        /// The name the request asked for.
+        name: String,
+        /// The product the request asked for.
+        product: String,
+    },
+
     /// The path named a destination that is not configured.
     #[error("No destination is configured under `{destination}`")]
     UnknownDestination {
@@ -123,6 +170,37 @@ impl ErrorSwitch<ApiErrorResponse> for ObservabilityError {
             Self::UnknownDestination { .. } => {
                 ApiErrorResponse::NotFound(ApiError::new("IR", 2, "Unknown destination"))
             }
+            // 503 rather than 500: this service is fine, and the condition is expected to clear
+            // without anyone touching it — the same reading `/health/ready` takes. The failing
+            // host, database and role stay in the log.
+            Self::StorageUnavailable => ApiErrorResponse::ServiceUnavailable(ApiError::new(
+                "HE",
+                1,
+                "The observability database is unavailable",
+            )),
+            // The id is already in the path the caller sent, so there is nothing to echo back.
+            Self::DefinitionNotFound { .. } => {
+                ApiErrorResponse::NotFound(ApiError::new("IR", 3, "Unknown alert definition"))
+            }
+            // A name identifies a definition to the alert manager and to the enablement table, so
+            // a second one under the same name is refused rather than silently shadowing the
+            // first.
+            Self::DuplicateDefinition { .. } => ApiErrorResponse::BadRequest(ApiError::new(
+                "IR",
+                5,
+                "An alert definition already exists for this name and product",
+            )),
+            Self::EnablementNotFound { .. } => {
+                ApiErrorResponse::NotFound(ApiError::new("IR", 6, "Unknown alert enablement"))
+            }
+            // 400 rather than 404: the missing thing is the definition the body named, not the
+            // enablement row the path addresses, and answering 404 would read as "this switch does
+            // not exist" when the problem is that the alert does not.
+            Self::NotAnAlert { .. } => ApiErrorResponse::BadRequest(ApiError::new(
+                "IR",
+                7,
+                "No alert is defined for this name and product",
+            )),
             // 502 rather than 500: the failure is on the far side of a hop we made. Note this is
             // the *only* provider-shaped error left, because every answer the provider gives is a
             // 200 outcome instead.
@@ -161,6 +239,14 @@ mod tests {
         assert_eq!(status_of(&ObservabilityError::InternalServerError), 500);
     }
 
+    /// A database that is away is not this service being broken, and must not be alerted on as if
+    /// it were. It is also not an empty list — the distinction the alert manager's outage rule
+    /// depends on.
+    #[test]
+    fn an_unreachable_database_is_503_and_not_500() {
+        assert_eq!(status_of(&ObservabilityError::StorageUnavailable), 503);
+    }
+
     #[test]
     fn a_request_we_cannot_act_on_is_4xx() {
         assert_eq!(
@@ -171,6 +257,82 @@ mod tests {
         );
         assert_eq!(status_of(&ObservabilityError::Unauthorized), 401);
         assert_eq!(status_of(&ObservabilityError::InvalidRequest), 400);
+        assert_eq!(
+            status_of(&ObservabilityError::DefinitionNotFound {
+                id: "0189d0a0-0000-7000-8000-000000000000".to_owned(),
+            }),
+            404
+        );
+        assert_eq!(
+            status_of(&ObservabilityError::EnablementNotFound {
+                name: "sr_drop".to_owned(),
+                product: "payments".to_owned(),
+            }),
+            404
+        );
+        assert_eq!(
+            status_of(&ObservabilityError::DuplicateDefinition {
+                name: "sr_drop".to_owned(),
+                product: "payments".to_owned(),
+            }),
+            400
+        );
+    }
+
+    /// Every condition a caller can provoke has to be told apart from every other one by the code
+    /// alone, because the messages are free to be reworded and the codes are not.
+    #[test]
+    fn no_two_conditions_share_a_code() {
+        let codes = [
+            ObservabilityError::InternalServerError,
+            ObservabilityError::Unauthorized,
+            ObservabilityError::InvalidRequest,
+            ObservabilityError::StorageUnavailable,
+            ObservabilityError::DefinitionNotFound { id: String::new() },
+            ObservabilityError::DuplicateDefinition {
+                name: String::new(),
+                product: String::new(),
+            },
+            ObservabilityError::EnablementNotFound {
+                name: String::new(),
+                product: String::new(),
+            },
+            ObservabilityError::NotAnAlert {
+                name: String::new(),
+                product: String::new(),
+            },
+            ObservabilityError::UnknownDestination {
+                destination: String::new(),
+            },
+            ObservabilityError::ProviderUnavailable {
+                destination: String::new(),
+            },
+        ]
+        .iter()
+        .map(|error| {
+            let payload = ErrorSwitch::<ApiErrorResponse>::switch(error);
+            format!(
+                "{}_{:02}",
+                payload.payload().sub_code,
+                payload.payload().error_identifier
+            )
+        })
+        .collect::<std::collections::HashSet<_>>();
+
+        assert_eq!(codes.len(), 10);
+    }
+
+    /// The names a caller guessed are theirs already; the ones that exist are not.
+    #[test]
+    fn a_missing_definition_does_not_echo_the_key_back() {
+        let body = ErrorSwitch::<ApiErrorResponse>::switch(&ObservabilityError::NotAnAlert {
+            name: "typo".to_owned(),
+            product: "payments".to_owned(),
+        })
+        .to_string();
+
+        assert!(body.contains("IR_07"));
+        assert!(!body.contains("typo"));
     }
 
     /// A caller that guessed an id should not be handed the registry.
