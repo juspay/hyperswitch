@@ -1404,7 +1404,9 @@ impl webhooks::IncomingWebhook for Worldpayxml {
                 api_models::webhooks::RefundIdType::ConnectorRefundId(order_code),
             ));
         }
-        if worldpayxml::is_transaction_event(body.notify.order_status_event.payment.last_event) {
+        if worldpayxml::is_transaction_event(body.notify.order_status_event.payment.last_event)
+            || worldpayxml::is_dispute_event(body.notify.order_status_event.payment.last_event)
+        {
             return Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
                 api_models::payments::PaymentIdType::ConnectorTransactionId(order_code),
             ));
@@ -1439,6 +1441,12 @@ impl webhooks::IncomingWebhook for Worldpayxml {
             }
         }
 
+        if worldpayxml::is_dispute_event(body.notify.order_status_event.payment.last_event) {
+            return Ok(worldpayxml::get_dispute_webhook_event(
+                body.notify.order_status_event.payment.last_event,
+            ));
+        }
+
         Ok(worldpayxml::get_payment_webhook_event(
             body.notify.order_status_event.payment.last_event,
         ))
@@ -1453,6 +1461,17 @@ impl webhooks::IncomingWebhook for Worldpayxml {
             utils::deserialize_xml_to_struct(request.body)?;
 
         Ok(Box::new(body))
+    }
+
+    fn get_dispute_details(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
+    ) -> CustomResult<hyperswitch_interfaces::disputes::DisputePayload, errors::ConnectorError> {
+        let body: worldpayxml::WorldpayXmlWebhookBody =
+            utils::deserialize_xml_to_struct(request.body)?;
+
+        hyperswitch_interfaces::disputes::DisputePayload::try_from(&body)
     }
 }
 

@@ -38,7 +38,7 @@ use hyperswitch_domain_models::{
         PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
     },
 };
-use hyperswitch_interfaces::{consts, errors};
+use hyperswitch_interfaces::{consts, disputes::DisputePayload, errors};
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use josekit;
 use serde::{Deserialize, Serialize};
@@ -352,8 +352,21 @@ pub enum LastEvent {
     PushRequested,
     PushRefused,
     SettledByMerchant,
+    ChargedBack,
+    ChargebackReversed,
     #[serde(other)]
     Unknown,
+}
+
+impl LastEvent {
+    /// Renders the event as the raw Worldpay status string (SCREAMING_SNAKE_CASE),
+    /// mirroring how it arrives on the wire, for use as a connector status.
+    fn to_connector_status_string(self) -> String {
+        serde_json::to_value(self)
+            .ok()
+            .and_then(|value| value.as_str().map(String::from))
+            .unwrap_or_else(|| "UNKNOWN".to_string())
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -4258,6 +4271,49 @@ pub fn is_transaction_event(event_code: LastEvent) -> bool {
             | LastEvent::Cancelled
             | LastEvent::Refused
     )
+}
+
+pub fn is_dispute_event(event_code: LastEvent) -> bool {
+    matches!(
+        event_code,
+        LastEvent::ChargedBack | LastEvent::ChargebackReversed
+    )
+}
+
+pub fn get_dispute_webhook_event(status: LastEvent) -> api_models::webhooks::IncomingWebhookEvent {
+    match status {
+        // A chargeback has been raised against the payment.
+        LastEvent::ChargedBack => api_models::webhooks::IncomingWebhookEvent::DisputeOpened,
+        // The chargeback was reversed in the merchant's favour.
+        LastEvent::ChargebackReversed => api_models::webhooks::IncomingWebhookEvent::DisputeWon,
+        _ => api_models::webhooks::IncomingWebhookEvent::EventNotSupported,
+    }
+}
+
+impl TryFrom<&WorldpayXmlWebhookBody> for DisputePayload {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(body: &WorldpayXmlWebhookBody) -> Result<Self, Self::Error> {
+        let order_status_event = &body.notify.order_status_event;
+        let payment = &order_status_event.payment;
+        let amount = payment
+            .amount
+            .as_ref()
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "notify.orderStatusEvent.payment.amount".into(),
+            })?;
+        Ok(Self {
+            amount: amount.value.clone(),
+            currency: amount.currency_code,
+            dispute_stage: enums::DisputeStage::Dispute,
+            connector_dispute_id: order_status_event.order_code.clone(),
+            connector_status: payment.last_event.to_connector_status_string(),
+            connector_reason: None,
+            connector_reason_code: None,
+            challenge_required_by: None,
+            created_at: None,
+            updated_at: None,
+        })
+    }
 }
 
 fn get_mandate_type(mit_category: Option<common_enums::MitCategory>) -> MandateType {
