@@ -577,12 +577,14 @@ pub async fn list_payment_link(
             profile_id.clone(),
         )
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to retrieve payment link")?;
 
     let total_count = db
         .get_total_count_of_payment_links(merchant.get_id(), &constraints, profile_id)
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to retrieve total count of payment links")?;
 
     let data = future::try_join_all(payment_links.into_iter().map(|payment_link| {
         api_models::payments::RetrievePaymentLinkResponse::from_db_payment_link(payment_link)

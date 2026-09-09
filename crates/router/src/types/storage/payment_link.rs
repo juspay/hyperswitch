@@ -23,7 +23,7 @@ pub trait PaymentLinkDbExt: Sized {
     ) -> CustomResult<Vec<Self>, errors::DatabaseError>;
 
     async fn get_total_count_of_payment_links(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         payment_link_list_constraints: &api_models::payments::PaymentLinkListConstraints,
         profile_id: Option<common_utils::id_type::ProfileId>,
@@ -75,8 +75,10 @@ impl PaymentLinkDbExt for PaymentLink {
         logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());
 
         db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            filter.get_results_async(conn.raw_connection()),
+            conn.request_id(),
+            conn.event_emitter(),
             db_metrics::DatabaseOperation::Filter,
+            filter.get_results_async(conn.raw_connection()),
         )
         .await
         .change_context(errors::DatabaseError::Others)
@@ -84,7 +86,7 @@ impl PaymentLinkDbExt for PaymentLink {
     }
 
     async fn get_total_count_of_payment_links(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         payment_link_list_constraints: &api_models::payments::PaymentLinkListConstraints,
         profile_id: Option<common_utils::id_type::ProfileId>,
@@ -116,8 +118,10 @@ impl PaymentLinkDbExt for PaymentLink {
         };
 
         db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            filter.get_result_async(conn.raw_connection()),
+            conn.request_id(),
+            conn.event_emitter(),
             db_metrics::DatabaseOperation::Count,
+            filter.get_result_async(conn.raw_connection()),
         )
         .await
         .change_context(errors::DatabaseError::Others)
