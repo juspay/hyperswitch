@@ -3712,14 +3712,16 @@ impl PaymentLinkConfigRequest {
         if let Some(custom_message) = self.custom_message_for_payment_method_types.as_ref() {
             custom_message.validate().map_err(|e| e.to_string())?;
         }
-        if let Some(delay) = self.redirect_delay_seconds {
-            if delay > MAX_PAYMENT_LINK_REDIRECT_DELAY_SECONDS {
-                return Err(format!(
-                    "redirect_delay_seconds must not exceed {MAX_PAYMENT_LINK_REDIRECT_DELAY_SECONDS} seconds"
-                ));
-            }
-        }
-        Ok(())
+
+        self.redirect_delay_seconds
+            .filter(|&delay| delay > MAX_PAYMENT_LINK_REDIRECT_DELAY_SECONDS)
+            .map(|_| {
+                Err(format!(
+                    "redirect_delay_seconds must not exceed {} seconds",
+                    MAX_PAYMENT_LINK_REDIRECT_DELAY_SECONDS
+                ))
+            })
+            .unwrap_or(Ok(()))
     }
 }
 

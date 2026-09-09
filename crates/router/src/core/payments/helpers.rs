@@ -8138,22 +8138,20 @@ pub fn validate_payment_link_request(
         });
     }
 
-    if let Some(delay) = request
+    request
         .payment_link_config
         .as_ref()
-        .and_then(|c| c.theme_config.redirect_delay_seconds)
-    {
-        if delay > api_models::admin::MAX_PAYMENT_LINK_REDIRECT_DELAY_SECONDS {
-            return Err(errors::ApiErrorResponse::InvalidRequestData {
+        .and_then(|config| config.theme_config.redirect_delay_seconds)
+        .filter(|&delay| delay > api_models::admin::MAX_PAYMENT_LINK_REDIRECT_DELAY_SECONDS)
+        .map(|_| {
+            Err(errors::ApiErrorResponse::InvalidRequestData {
                 message: format!(
                     "redirect_delay_seconds must not exceed {} seconds",
                     api_models::admin::MAX_PAYMENT_LINK_REDIRECT_DELAY_SECONDS
                 ),
-            });
-        }
-    }
-
-    Ok(())
+            })
+        })
+        .unwrap_or(Ok(()))
 }
 
 /// Creates a lookup key for issuer error codes with network and code
