@@ -2,6 +2,7 @@ use common_utils::id_type;
 use time::PrimitiveDateTime;
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, utoipa::ToSchema)]
+#[serde(deny_unknown_fields)]
 pub struct GenerateResourceRequest {
     #[serde(rename = "type")]
     pub resource_type: common_enums::ResourceType,
@@ -16,6 +17,7 @@ pub struct GenerateResourceResponse {
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, utoipa::ToSchema)]
+#[serde(deny_unknown_fields)]
 pub struct UploadCertificateRequest {
     pub certificate: String,
 }
@@ -40,6 +42,7 @@ pub struct ResourceSummary {
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, utoipa::ToSchema)]
+#[serde(deny_unknown_fields)]
 pub struct ListResourcesRequest {
     #[serde(rename = "type")]
     pub resource_type: common_enums::ResourceType,
@@ -53,6 +56,7 @@ pub struct ListResourcesResponse {
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, utoipa::ToSchema)]
+#[serde(deny_unknown_fields)]
 pub struct LinkResourceRequest {
     pub requestor_type: common_enums::ResourceRequestorType,
     pub requestor_id: String,
