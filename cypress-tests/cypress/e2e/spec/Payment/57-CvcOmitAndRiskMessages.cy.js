@@ -11,12 +11,14 @@ describe("Card - CVC Omit and Risk Messages flow test", () => {
     cy.task("getGlobalState")
       .then((state) => {
         globalState = new State(state);
-        if (
-          utils.shouldIncludeConnector(
-            globalState.get("connectorId"),
-            utils.CONNECTOR_LISTS.INCLUDE.CVC_OMIT
-          )
-        ) {
+        // `shouldIncludeConnector` follows the existing suite convention: a
+        // true result means the connector is outside the allowlist and should
+        // be skipped. Cybersource is listed, so its cases run.
+        const shouldSkipConnector = utils.shouldIncludeConnector(
+          globalState.get("connectorId"),
+          utils.CONNECTOR_LISTS.INCLUDE.CVC_OMIT
+        );
+        if (shouldSkipConnector) {
           skip = true;
         }
       })
