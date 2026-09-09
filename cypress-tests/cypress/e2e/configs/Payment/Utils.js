@@ -612,6 +612,7 @@ export const CONNECTOR_LISTS = {
       "fiservcommercehub",
       "givepayments",
       "ilixium",
+      "stripe",
     ],
     OVERCAPTURE: ["adyen"],
     IFRAME_REDIRECTION: [

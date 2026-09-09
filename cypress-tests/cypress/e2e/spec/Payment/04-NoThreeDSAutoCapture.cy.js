@@ -76,6 +76,22 @@ describe("Card - NoThreeDS payment flow test", () => {
         ]["No3DSAutoCapture"];
 
         cy.retrievePaymentCallTest({ globalState, data: confirmData });
+
+        if (globalState.get("ucsEnabled")) {
+          cy.getPaymentDetails(globalState, "force_sync=true").then(
+            (response) => {
+              const cardNetwork =
+                response.body.payment_method_data?.card?.card_network;
+              if (cardNetwork === "Visa" || cardNetwork === "Mastercard") {
+                expect(response.body.payment_account_reference).to.be.a(
+                  "string"
+                ).and.not.be.empty;
+              } else if (cardNetwork === "AmericanExpress") {
+                expect(response.body.payment_account_reference).to.be.null;
+              }
+            }
+          );
+        }
       });
     });
   });
