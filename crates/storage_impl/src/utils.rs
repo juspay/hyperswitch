@@ -1,10 +1,13 @@
+#[cfg(feature = "deja")]
 use bb8::PooledConnection;
+#[cfg(feature = "deja")]
 use diesel_models::DejaPgConnection;
 use error_stack::ResultExt;
 
 use crate::{
+    database::store::DatabaseConnectionWithContext,
     errors::{RedisErrorExt, StorageError},
-    metrics, DatabaseStore,
+    metrics, DatabaseStore, RequestContext,
 };
 
 // Deja replay (R1): the per-correlation DB routing hook, at the ACTUAL storage
@@ -126,12 +129,9 @@ fn deja_replay_route_warn_no_correlation() {
     }
 }
 
-pub async fn pg_connection_read<T: DatabaseStore>(
-    store: &T,
-) -> error_stack::Result<
-    PooledConnection<'_, async_bb8_diesel::ConnectionManager<DejaPgConnection>>,
-    StorageError,
-> {
+pub async fn pg_connection_read<'a, T: DatabaseStore + RequestContext>(
+    store: &'a T,
+) -> error_stack::Result<DatabaseConnectionWithContext<'a>, StorageError> {
     // If only OLAP is enabled get replica pool.
     #[cfg(all(feature = "olap", not(feature = "oltp")))]
     let pool = store.get_replica_pool();
@@ -148,40 +148,77 @@ pub async fn pg_connection_read<T: DatabaseStore>(
     let pool = store.get_master_pool();
 
     #[cfg_attr(not(feature = "deja"), allow(unused_mut))]
-    let mut conn = pool
+    let mut connection = pool
+        .pg_pool
         .get()
         .await
         .change_context(StorageError::DatabaseConnectionError)?;
+
     #[cfg(feature = "deja")]
-    deja_route_replay_schema(&mut conn, store).await;
-    Ok(conn)
+    deja_route_replay_schema(&mut connection, store).await;
+
+    Ok(DatabaseConnectionWithContext::new(
+        connection,
+        store.request_id().map(str::to_owned),
+        pool.event_emitter.clone(),
+    ))
 }
 
-pub async fn pg_connection_write<T: DatabaseStore>(
-    store: &T,
-) -> error_stack::Result<
-    PooledConnection<'_, async_bb8_diesel::ConnectionManager<DejaPgConnection>>,
-    StorageError,
-> {
+/// Always leases from the replica pool, irrespective of the `olap`/`oltp` features.
+///
+/// `pg_connection_read` falls back to the master pool whenever `oltp` is enabled
+/// (including the default build, where both `olap` and `oltp` are on), so analytics
+/// style queries that must never touch master should use this instead. For stores
+/// without a configured replica (`Store`), `get_replica_pool` returns the master
+/// pool, so this stays correct in single-pool deployments.
+pub async fn pg_connection_read_replica<'a, T: DatabaseStore + RequestContext>(
+    store: &'a T,
+) -> error_stack::Result<DatabaseConnectionWithContext<'a>, StorageError> {
+    let pool = store.get_replica_pool();
+
+    #[cfg_attr(not(feature = "deja"), allow(unused_mut))]
+    let mut connection = pool
+        .pg_pool
+        .get()
+        .await
+        .change_context(StorageError::DatabaseConnectionError)?;
+
+    #[cfg(feature = "deja")]
+    deja_route_replay_schema(&mut connection, store).await;
+
+    Ok(DatabaseConnectionWithContext::new(
+        connection,
+        store.request_id().map(str::to_owned),
+        pool.event_emitter.clone(),
+    ))
+}
+
+pub async fn pg_connection_write<'a, T: DatabaseStore + RequestContext>(
+    store: &'a T,
+) -> error_stack::Result<DatabaseConnectionWithContext<'a>, StorageError> {
     // Since all writes should happen to master DB only choose master DB.
     let pool = store.get_master_pool();
 
     #[cfg_attr(not(feature = "deja"), allow(unused_mut))]
-    let mut conn = pool
+    let mut connection = pool
+        .pg_pool
         .get()
         .await
         .change_context(StorageError::DatabaseConnectionError)?;
+
     #[cfg(feature = "deja")]
-    deja_route_replay_schema(&mut conn, store).await;
-    Ok(conn)
+    deja_route_replay_schema(&mut connection, store).await;
+
+    Ok(DatabaseConnectionWithContext::new(
+        connection,
+        store.request_id().map(str::to_owned),
+        pool.event_emitter.clone(),
+    ))
 }
 
-pub async fn pg_accounts_connection_read<T: DatabaseStore>(
-    store: &T,
-) -> error_stack::Result<
-    PooledConnection<'_, async_bb8_diesel::ConnectionManager<DejaPgConnection>>,
-    StorageError,
-> {
+pub async fn pg_accounts_connection_read<'a, T: DatabaseStore + RequestContext>(
+    store: &'a T,
+) -> error_stack::Result<DatabaseConnectionWithContext<'a>, StorageError> {
     // If only OLAP is enabled get replica pool.
     #[cfg(all(feature = "olap", not(feature = "oltp")))]
     let pool = store.get_accounts_replica_pool();
@@ -198,32 +235,43 @@ pub async fn pg_accounts_connection_read<T: DatabaseStore>(
     let pool = store.get_accounts_master_pool();
 
     #[cfg_attr(not(feature = "deja"), allow(unused_mut))]
-    let mut conn = pool
+    let mut connection = pool
+        .pg_pool
         .get()
         .await
         .change_context(StorageError::DatabaseConnectionError)?;
+
     #[cfg(feature = "deja")]
-    deja_route_replay_schema(&mut conn, store).await;
-    Ok(conn)
+    deja_route_replay_schema(&mut connection, store).await;
+
+    Ok(DatabaseConnectionWithContext::new(
+        connection,
+        store.request_id().map(str::to_owned),
+        pool.event_emitter.clone(),
+    ))
 }
 
-pub async fn pg_accounts_connection_write<T: DatabaseStore>(
-    store: &T,
-) -> error_stack::Result<
-    PooledConnection<'_, async_bb8_diesel::ConnectionManager<DejaPgConnection>>,
-    StorageError,
-> {
+pub async fn pg_accounts_connection_write<'a, T: DatabaseStore + RequestContext>(
+    store: &'a T,
+) -> error_stack::Result<DatabaseConnectionWithContext<'a>, StorageError> {
     // Since all writes should happen to master DB only choose master DB.
     let pool = store.get_accounts_master_pool();
 
     #[cfg_attr(not(feature = "deja"), allow(unused_mut))]
-    let mut conn = pool
+    let mut connection = pool
+        .pg_pool
         .get()
         .await
         .change_context(StorageError::DatabaseConnectionError)?;
+
     #[cfg(feature = "deja")]
-    deja_route_replay_schema(&mut conn, store).await;
-    Ok(conn)
+    deja_route_replay_schema(&mut connection, store).await;
+
+    Ok(DatabaseConnectionWithContext::new(
+        connection,
+        store.request_id().map(str::to_owned),
+        pool.event_emitter.clone(),
+    ))
 }
 
 pub async fn try_redis_get_else_try_database_get<F, RFut, DFut, T>(

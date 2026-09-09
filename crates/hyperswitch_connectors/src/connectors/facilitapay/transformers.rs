@@ -145,7 +145,7 @@ impl TryFrom<&FacilitapayRouterData<&types::PaymentsAuthorizeRouterData>>
                             subject_id: item.router_data.get_connector_customer_id()?.into(),
                             from_bank_account_id: source_bank_account_id.clone().ok_or(
                                 errors::ConnectorError::MissingRequiredField {
-                                    field_name: "source bank account id",
+                                    field_name: "source bank account id".into(),
                                 },
                             )?,
 
@@ -474,6 +474,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, FacilitapayPaymentsResponse, T, Payment
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 })
             },
             ..item.data
@@ -511,7 +512,7 @@ fn get_qr_code_data(
 
     let dynamic_pix_code = response.data.dynamic_pix_code.as_ref().ok_or_else(|| {
         errors::ConnectorError::MissingRequiredField {
-            field_name: "dynamic_pix_code",
+            field_name: "dynamic_pix_code".into(),
         }
     })?;
 
@@ -583,6 +584,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<FacilitapayVoidResponse>>
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 })
             },
             ..item.data

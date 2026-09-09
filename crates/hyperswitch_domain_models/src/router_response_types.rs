@@ -31,7 +31,7 @@ pub struct RefundsResponseData {
 pub struct ConnectorCustomerResponseData {
     pub connector_customer_id: String,
     pub name: Option<String>,
-    pub email: Option<String>,
+    pub email: Option<pii::Email>,
     pub billing_address: Option<AddressDetails>,
 }
 
@@ -42,7 +42,7 @@ impl ConnectorCustomerResponseData {
     pub fn new(
         connector_customer_id: String,
         name: Option<String>,
-        email: Option<String>,
+        email: Option<pii::Email>,
         billing_address: Option<AddressDetails>,
     ) -> Self {
         Self {
@@ -64,6 +64,7 @@ pub enum PaymentsResponseData {
         network_txn_id: Option<String>,
         network_txn_link_id: Option<String>,
         connector_response_reference_id: Option<String>,
+        payment_account_reference: Option<String>,
         incremental_authorization_allowed: Option<bool>,
         authentication_data: Option<Box<UcsAuthenticationData>>,
         charges: Option<common_types::payments::ConnectorChargeResponseData>,
@@ -248,6 +249,16 @@ impl PaymentsResponseData {
         }
     }
 
+    pub fn get_payment_account_reference(&self) -> Option<String> {
+        match self {
+            Self::TransactionResponse {
+                payment_account_reference,
+                ..
+            } => payment_account_reference.clone(),
+            _ => None,
+        }
+    }
+
     pub fn get_connector_transaction_id(
         &self,
     ) -> Result<String, error_stack::Report<ApiErrorResponse>> {
@@ -257,7 +268,7 @@ impl PaymentsResponseData {
                 ..
             } => Ok(txn_id.to_string()),
             _ => Err(ApiErrorResponse::MissingRequiredField {
-                field_name: "ConnectorTransactionId",
+                field_name: "ConnectorTransactionId".into(),
             }
             .into()),
         }
@@ -277,6 +288,7 @@ impl PaymentsResponseData {
                     network_txn_id: auth_network_txn_id,
                     network_txn_link_id: auth_network_txn_link_id,
                     connector_response_reference_id: auth_connector_response_reference_id,
+                    payment_account_reference: auth_payment_account_reference,
                     incremental_authorization_allowed: auth_incremental_auth_allowed,
                     authentication_data: auth_authentication_data,
                     charges: auth_charges,
@@ -289,6 +301,7 @@ impl PaymentsResponseData {
                     network_txn_id: capture_network_txn_id,
                     network_txn_link_id: capture_network_txn_link_id,
                     connector_response_reference_id: capture_connector_response_reference_id,
+                    payment_account_reference: capture_payment_account_reference,
                     incremental_authorization_allowed: capture_incremental_auth_allowed,
                     authentication_data: capture_authentication_data,
                     charges: capture_charges,
@@ -317,6 +330,9 @@ impl PaymentsResponseData {
                 connector_response_reference_id: capture_connector_response_reference_id
                     .clone()
                     .or(auth_connector_response_reference_id.clone()),
+                payment_account_reference: capture_payment_account_reference
+                    .clone()
+                    .or(auth_payment_account_reference.clone()),
                 incremental_authorization_allowed: (*capture_incremental_auth_allowed)
                     .or(*auth_incremental_auth_allowed),
                 authentication_data: capture_authentication_data
@@ -694,6 +710,7 @@ pub struct PayoutsResponseData {
     pub error_code: Option<String>,
     pub error_message: Option<String>,
     pub payout_connector_metadata: Option<pii::SecretSerdeValue>,
+    pub connector_eligibility_reference_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -881,7 +898,7 @@ impl VaultIdType {
         match self {
             Self::SingleVaultId(vault_id) => Ok(vault_id.to_string()),
             Self::MultiVauldIds(_) => Err(ApiErrorResponse::MissingRequiredField {
-                field_name: "SingleVaultId",
+                field_name: "SingleVaultId".into(),
             }
             .into()),
         }
@@ -935,5 +952,38 @@ impl Default for VaultResponseData {
             connector_vault_id: VaultIdType::SingleVaultId(String::new()),
             fingerprint_id: String::new(),
         }
+    }
+}
+
+#[cfg(test)]
+mod pii_masking_tests {
+    use super::ConnectorCustomerResponseData;
+
+    /// Connectors parse the customer email into a masked `Email`; this domain
+    /// type used to strip it back to a plain `String`, so the address reached
+    /// any log that serializes the struct via `masked_serialize`.
+    #[test]
+    fn connector_customer_email_is_masked_for_logging() {
+        let email = common_utils::pii::Email::try_from("jane.doe@example.com".to_string())
+            .expect("valid email");
+        let data = ConnectorCustomerResponseData::new(
+            "cus_1".to_string(),
+            Some("Jane Doe".to_string()),
+            Some(email),
+            None,
+        );
+
+        let masked = hyperswitch_masking::masked_serialize(&data)
+            .expect("masked serialization")
+            .to_string();
+
+        assert!(
+            !masked.contains("jane.doe@example.com"),
+            "email leaked into the log view: {masked}"
+        );
+        assert!(
+            masked.contains("@example.com"),
+            "EmailStrategy should retain the domain, got: {masked}"
+        );
     }
 }

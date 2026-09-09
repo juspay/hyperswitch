@@ -1668,7 +1668,9 @@ pub async fn tokenize_card_using_pm_api(
         pm_data.payment_method_id = pm_id;
     } else {
         return api::log_and_return_error_response(error_stack::report!(
-            errors::ApiErrorResponse::InvalidDataValue { field_name: "card" }
+            errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "card".into()
+            }
         ));
     }
 
@@ -2060,7 +2062,7 @@ pub async fn payment_method_session_update_saved_payment_method(
 }
 
 #[cfg(feature = "v2")]
-#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodSessionUpdateSavedPaymentMethod))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodSessionDeleteSavedPaymentMethod))]
 pub async fn payment_method_session_delete_saved_payment_method(
     state: web::Data<AppState>,
     req: HttpRequest,
