@@ -181,10 +181,45 @@ const PAYMENT_SPEC_METHODS = Object.freeze({
  *
  * Only `payments` is wired today; the remaining `cypress:*` scripts keep their
  * plain spec globs. Register a service here to filter it too.
+ *
+ * `prerequisiteSpecs` are specs every shard must run before its own slice when
+ * `--shard` splits the service (see `shardSpecs` in `index.js`): `01`-`03`
+ * create the merchant/customer/connector and seed `globalState` with
+ * `merchantId`/`customerId`/`publishableKey`/`organizationId`/`profileId`/
+ * `merchantConnectorId`, which every later spec's `before` hook reads. `00`
+ * is self-contained (creates its own merchant) but kept first since specs run
+ * in sorted-filename order and nothing depends on it running before `01`-`03`
+ * specifically — it just has nothing to gain from being sharded out on its
+ * own.
+ *
+ * `sensitiveSpecs` mutate the shared, session-wide resources `globalState`
+ * points at — not through a `globalState.set()` another spec's `.get()`
+ * would surface, but via an irreversible backend side effect. E.g.
+ * `27-DeletedCustomerPsyncFlow.cy.js` calls `customerDeleteCall`, which
+ * DELETEs `globalState.get("customerId")` outright. Sequentially this is
+ * fine — nothing later in the fixed run order needs that customer again
+ * without first going through a spec that re-establishes one. Round-robin
+ * sharding breaks that: it can put the delete in one shard while whatever
+ * normally follows it lands in another, leaving that shard using an
+ * already-redacted customer for the rest of its run (traced in CI as
+ * `IR_11: Customer has already been redacted` on later payment-creation
+ * calls in the same shard). Pinning a sensitive spec to some shard isn't
+ * enough on its own — that shard would still run other, unrelated specs
+ * after it and inherit the same problem. `shardSpecs` instead reserves the
+ * *last* shard exclusively for prerequisites + sensitive specs: nothing
+ * else is round-robined into it, so nothing in that shard ever runs after
+ * a redaction expecting the customer it deleted to still exist.
  */
 export const SERVICES = Object.freeze({
   payments: {
     specDir: "cypress/e2e/spec/Payment",
     specMethods: PAYMENT_SPEC_METHODS,
+    prerequisiteSpecs: [
+      "00-CoreFlows.cy.js",
+      "01-AccountCreate.cy.js",
+      "02-CustomerCreate.cy.js",
+      "03-ConnectorCreate.cy.js",
+    ],
+    sensitiveSpecs: ["27-DeletedCustomerPsyncFlow.cy.js"],
   },
 });

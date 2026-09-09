@@ -35,6 +35,30 @@ class CypressReportGenerator {
     }
   }
 
+  /**
+   * Recursively finds every mochawesome JSON report under `dir`, returning
+   * paths relative to `dir`.
+   *
+   * A plain (unsharded) run's reports sit directly in the connector
+   * directory, but CYPRESS_SPEC_SHARDS nests each shard's reports one level
+   * deeper (cypress.config.js's reportDir includes reportName precisely so
+   * concurrent shards never share a directory — see the comment there).
+   * Recursing here means this script doesn't need to know which layout
+   * produced a given connector's reports.
+   */
+  findJsonReports(dir) {
+    const results = [];
+    for (const entry of fs.readdirSync(dir)) {
+      const entryPath = path.join(dir, entry);
+      if (fs.statSync(entryPath).isDirectory()) {
+        results.push(...this.findJsonReports(entryPath));
+      } else if (entry.endsWith(".json") && entry !== "mochawesome.json") {
+        results.push(entryPath);
+      }
+    }
+    return results;
+  }
+
   async collectTestResults() {
     const connectorDirs = fs
       .readdirSync(this.reportsDir)
@@ -44,11 +68,9 @@ class CypressReportGenerator {
 
     for (const connector of connectorDirs) {
       const connectorPath = path.join(this.reportsDir, connector);
-      const jsonFiles = fs
-        .readdirSync(connectorPath)
-        .filter(
-          (file) => file.endsWith(".json") && file !== "mochawesome.json"
-        );
+      const jsonFiles = this.findJsonReports(connectorPath).map((p) =>
+        path.relative(connectorPath, p)
+      );
 
       this.summaryData.connectors[connector] = {
         tests: [],
