@@ -2533,8 +2533,6 @@ pub async fn is_config_flag_enabled(state: &SessionState, config_key: &str) -> b
 #[derive(Debug, Clone, Deserialize)]
 pub struct RolloutConfig {
     pub rollout_percent: f64,
-    pub http_url: Option<String>,
-    pub https_url: Option<String>,
     pub execution_mode: ExecutionMode,
     #[serde(default = "default_kill_switch_enabled")]
     pub kill_switch_enabled: bool,
@@ -2564,8 +2562,6 @@ impl Default for RolloutConfig {
     fn default() -> Self {
         Self {
             rollout_percent: 0.0,
-            http_url: None,
-            https_url: None,
             execution_mode: ExecutionMode::NotApplicable,
             kill_switch_enabled: false,
             kill_switch_threshold: 1,
@@ -2579,7 +2575,6 @@ pub use hyperswitch_interfaces::types::ProxyOverride;
 #[derive(Debug, Clone)]
 pub struct RolloutExecutionResult {
     pub should_execute: bool,
-    pub proxy_override: Option<ProxyOverride>,
     pub execution_mode: ExecutionMode,
     pub kill_switch_enabled: bool,
     pub kill_switch_threshold: u64,
@@ -2589,7 +2584,6 @@ impl Default for RolloutExecutionResult {
     fn default() -> Self {
         Self {
             should_execute: false,
-            proxy_override: None,
             execution_mode: ExecutionMode::NotApplicable,
             kill_switch_enabled: false,
             kill_switch_threshold: 1,
@@ -2604,36 +2598,40 @@ pub struct WebhookRolloutExecutionResult {
 }
 
 /// Validates a proxy URL, filtering out invalid ones and logging warnings
-fn validate_proxy_url(url: Option<String>, url_type: &str) -> Option<String> {
+fn validate_proxy_url(url: Option<&String>, url_type: &str) -> Option<String> {
     url.and_then(|url_str| {
-        if url_str.trim().is_empty() || url::Url::parse(&url_str).is_err() {
+        if url_str.trim().is_empty() {
+            None
+        } else if url::Url::parse(url_str).is_err() {
             logger::warn!(
                 invalid_url = %url_str,
                 url_type = url_type,
-                "Invalid proxy URL in rollout config, ignoring"
+                "Invalid UCS shadow proxy URL in config, ignoring"
             );
             None
         } else {
-            Some(url_str)
+            Some(url_str.clone())
         }
     })
 }
 
-/// Creates proxy override with validated URLs and logging
-fn create_proxy_override(
-    http_url: Option<String>,
-    https_url: Option<String>,
-) -> Option<ProxyOverride> {
-    let validated_http = validate_proxy_url(http_url, "HTTP");
-    let validated_https = validate_proxy_url(https_url, "HTTPS");
+/// Returns the proxy override for UCS shadow mode from the static application config
+/// (`grpc_client.unified_connector_service.shadow_proxy`).
+///
+/// Returns `None` when no valid proxy URL is configured, in which case the caller
+/// should fall back to the direct execution path instead of shadowing.
+pub fn get_ucs_shadow_proxy_override(state: &SessionState) -> Option<ProxyOverride> {
+    let shadow_proxy = &state
+        .conf
+        .grpc_client
+        .unified_connector_service
+        .as_ref()?
+        .shadow_proxy;
+
+    let validated_http = validate_proxy_url(shadow_proxy.http_url.as_ref(), "HTTP");
+    let validated_https = validate_proxy_url(shadow_proxy.https_url.as_ref(), "HTTPS");
 
     if validated_http.is_some() || validated_https.is_some() {
-        if let Some(ref http_url) = validated_http {
-            logger::info!(http_url = %http_url, "Using validated HTTP proxy URL from rollout config");
-        }
-        if let Some(ref https_url) = validated_https {
-            logger::info!(https_url = %https_url, "Using validated HTTPS proxy URL from rollout config");
-        }
         Some(ProxyOverride {
             http_url: validated_http,
             https_url: validated_https,
@@ -2670,15 +2668,12 @@ impl From<RolloutConfig> for RolloutExecutionResult {
 
                 match should_execute {
                     true => {
-                        let proxy_override =
-                            create_proxy_override(config.http_url, config.https_url);
                         logger::info!(
                             execution_mode = ?config.execution_mode,
-                            "Rollout will be executed with proxy override"
+                            "Rollout will be executed"
                         );
                         Self {
                             should_execute: true,
-                            proxy_override,
                             execution_mode: config.execution_mode,
                             kill_switch_enabled: config.kill_switch_enabled,
                             kill_switch_threshold: config.kill_switch_threshold,
