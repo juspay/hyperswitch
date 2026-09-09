@@ -11771,6 +11771,8 @@ pub struct PaymentsManualUpdateRequest {
     /// Whether to update amount_captured using amount_to_capture from the attempt.
     /// When true, amount_captured will be set to amount_to_capture
     pub update_amount_captured: Option<bool>,
+    /// The amount that has been captured for the payment.
+    pub amount_captured: Option<MinorUnit>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]

@@ -13753,6 +13753,7 @@ pub async fn payments_manual_update(
         connector_transaction_id,
         amount_capturable,
         update_amount_captured,
+        amount_captured,
     } = req;
     let key_store = state
         .store
@@ -13790,6 +13791,23 @@ pub async fn payments_manual_update(
             || {
                 Err(errors::ApiErrorResponse::InvalidRequestData {
                     message: "amount_capturable should be less than or equal to amount".to_string(),
+                })
+            },
+        )?;
+    }
+
+    if let Some(amount_captured) = amount_captured {
+        utils::when(update_amount_captured == Some(true), || {
+            Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: "amount_captured cannot be provided when update_amount_captured is true"
+                    .to_string(),
+            })
+        })?;
+        utils::when(
+            amount_captured > payment_attempt.net_amount.get_total_amount(),
+            || {
+                Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "amount_captured should be less than or equal to amount".to_string(),
                 })
             },
         )?;
@@ -13845,7 +13863,7 @@ pub async fn payments_manual_update(
             .unwrap_or(payment_attempt.net_amount.get_total_amount());
         Some(new_captured_amount)
     } else {
-        None
+        amount_captured
     };
 
     let option_gsm = if let Some(((code, message), connector_name)) = error_code
