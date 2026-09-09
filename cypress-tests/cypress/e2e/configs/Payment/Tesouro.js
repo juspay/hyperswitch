@@ -71,38 +71,6 @@ const multiUseMandateData = {
   },
 };
 
-const mandateBrowserInfo = {
-  user_agent:
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36",
-  accept_header:
-    "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
-  language: "nl-NL",
-  color_depth: 24,
-  screen_height: 723,
-  screen_width: 1536,
-  time_zone: 0,
-  java_enabled: true,
-  java_script_enabled: true,
-  ip_address: "127.0.0.1",
-};
-
-const getMandateData = (currency) => ({
-  customer_acceptance: {
-    acceptance_type: "online",
-    accepted_at: "2025-01-01T00:00:00.000Z",
-    online: {
-      ip_address: "127.0.0.1",
-      user_agent: "Mozilla/5.0",
-    },
-  },
-  mandate_type: {
-    multi_use: {
-      amount: 6540,
-      currency,
-    },
-  },
-});
-
 export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
