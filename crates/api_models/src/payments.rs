@@ -29,7 +29,7 @@ use common_utils::{
     id_type,
     new_type::MaskedBankAccount,
     pii::{self, Email},
-    types::{AmountConvertor, MinorUnit, Percentage, SemanticVersion, StringMajorUnit},
+    types::{AmountConvertor, MinorUnit, Percentage, SemanticVersion, StringMajorUnit, TimeRange},
 };
 use error_stack::ResultExt;
 
@@ -9333,7 +9333,7 @@ pub struct PaymentListFilterConstraints {
     pub amount_filter: Option<AmountFilter>,
     /// The time range for which objects are needed. TimeRange has two fields start_time and end_time from which objects can be filtered as per required scenarios (created_at, time less than, greater than etc).
     #[serde(flatten)]
-    pub time_range: Option<common_utils::types::TimeRange>,
+    pub time_range: Option<TimeRange>,
     /// The list of connectors to filter payments list
     pub connector: Option<Vec<api_enums::Connector>>,
     /// The list of currencies to filter payments list
@@ -13150,7 +13150,7 @@ pub struct PaymentLinkListConstraints {
 
     /// Time range filter with start_time (mandatory) and optional end_time
     #[serde(flatten)]
-    pub time_range: Option<common_utils::types::TimeRange>,
+    pub time_range: Option<TimeRange>,
 }
 
 #[derive(Clone, Debug, serde::Serialize, ToSchema)]
