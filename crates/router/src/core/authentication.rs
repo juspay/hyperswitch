@@ -890,8 +890,6 @@ async fn call_ucs_post_authenticate_proxy<F: Clone>(
             }),
         metadata: None,
         complete_authorize_url: None,
-        // Standalone 3DS authentication has no CreateOrder leg; `connector_transaction_id` above
-        // is the 3DS server transaction id, not a connector order id.
         order_id: None,
     };
 

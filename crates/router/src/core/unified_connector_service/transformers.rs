@@ -1032,10 +1032,6 @@ impl
                 .map(payments_grpc::Tokenization::foreign_from)
                 .map(Into::into),
             l2_l3_data: None,
-            // UCS has no CompleteAuthorize RPC — this is a second Authorize call, so the connector
-            // still has to be told which order to act on. Prefer the id from the connector's
-            // CreateOrder leg; connectors with no CreateOrder flow (PayPal, for one) return their
-            // order id as the Authorize `resource_id`, which lands in `connector_transaction_id`.
             connector_order_id: router_data
                 .request
                 .order_id
@@ -1707,9 +1703,6 @@ impl
             metadata: None,
             return_url: None,
             continue_redirection_url: None,
-            // PayPal's PostAuthenticate get_headers requires the OAuth access token; leaving
-            // this None makes UCS fail with FAILED_TO_OBTAIN_AUTH_TYPE. Same source the
-            // Authorize builder uses.
             state: router_data
                 .access_token
                 .as_ref()
@@ -1729,10 +1722,6 @@ impl
                 .map(payments_grpc::BrowserInformation::foreign_try_from)
                 .transpose()?,
             connector_feature_data: None,
-            // Same reasoning as the CompleteAuthorize builders above: PayPal's PostAuthenticate
-            // addresses the order (`v2/checkout/orders/{id}`), so it hard-fails with
-            // MISSING_REQUIRED_FIELD when this is None. Prefer the CreateOrder id; connectors
-            // without a CreateOrder flow carry the order id in `connector_transaction_id`.
             connector_order_reference_id: router_data
                 .request
                 .order_id
@@ -1821,9 +1810,6 @@ impl
             metadata: None,
             return_url: None,
             continue_redirection_url: None,
-            // PayPal's PostAuthenticate get_headers requires the OAuth access token; leaving
-            // this None makes UCS fail with FAILED_TO_OBTAIN_AUTH_TYPE. Same source the
-            // Authorize builder uses.
             state: router_data
                 .access_token
                 .as_ref()
@@ -1843,10 +1829,6 @@ impl
                 .map(payments_grpc::BrowserInformation::foreign_try_from)
                 .transpose()?,
             connector_feature_data: None,
-            // Same reasoning as the CompleteAuthorize builders above: PayPal's PostAuthenticate
-            // addresses the order (`v2/checkout/orders/{id}`), so it hard-fails with
-            // MISSING_REQUIRED_FIELD when this is None. Prefer the CreateOrder id; connectors
-            // without a CreateOrder flow carry the order id in `connector_transaction_id`.
             connector_order_reference_id: router_data
                 .request
                 .order_id
@@ -2295,7 +2277,6 @@ impl
             threeds_completion_indicator: None,
             redirection_response: None,
             continue_redirection_url: None,
-            // Same reasoning as the tuple-based CompleteAuthorize builder above.
             connector_order_id: router_data
                 .request
                 .order_id

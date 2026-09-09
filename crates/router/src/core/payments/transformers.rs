@@ -7374,15 +7374,18 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             .get_connector_metadata_from_intent()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse connector metadata")?;
-        // The connector's order id survives the redirect in `connector_response_reference_id` only
-        // for connectors whose Authorize leg is preceded by a CreateOrder. Every other connector
-        // puts its own reference there (PayPal, for one, echoes back our
-        // `connector_request_reference_id`), so leave `order_id` unset for them rather than hand
-        // the connector an id that does not address an order.
-        let connector_creates_order = api_models::enums::Connector::from_str(connector_name)
-            .ok()
-            .zip(payment_data.payment_attempt.payment_method)
-            .is_some_and(|(connector, payment_method)| {
+        let connector = api_models::enums::Connector::from_str(connector_name)
+            .change_context(errors::ConnectorError::InvalidConnectorName)
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "connector".into(),
+            })
+            .attach_printable_lazy(|| {
+                format!("unable to parse connector name {connector_name:?}")
+            })?;
+        let connector_creates_order = payment_data
+            .payment_attempt
+            .payment_method
+            .is_some_and(|payment_method| {
                 connector.requires_order_creation_before_payment(payment_method)
             });
         let order_id = connector_creates_order

@@ -1007,8 +1007,6 @@ pub struct PaymentsPostAuthenticateData {
     pub minor_amount: Option<MinorUnit>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub complete_authorize_url: Option<String>,
-    /// Connector-side order id from a `CreateOrder` leg that preceded this payment. Only populated
-    /// for connectors that create an order before payment; `None` for every other connector.
     pub order_id: Option<String>,
 }
 
@@ -1142,8 +1140,6 @@ pub struct CompleteAuthorizeData {
     pub recipient_details: Option<api_models::payments::RecipientDetails>,
     pub business_country: Option<common_enums::CountryAlpha2>,
     pub connector_intent_metadata: Option<ConnectorMetadata>,
-    /// Connector-side order id from a `CreateOrder` leg that preceded this payment. Only populated
-    /// for connectors that create an order before payment; `None` for every other connector.
     pub order_id: Option<String>,
 }
 
