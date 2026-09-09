@@ -12,4 +12,17 @@ if [[ -z "${DATABASE_URL:-}" ]]; then
 fi
 
 # Run diesel migrations
-diesel migration run
+#
+# Both variables are unset for the router's lineage, so diesel falls back to its own defaults and
+# that image behaves exactly as before.
+migration_args=()
+
+if [[ -n "${MIGRATION_DIR:-}" ]]; then
+    migration_args+=(--migration-dir "${MIGRATION_DIR}")
+fi
+
+if [[ -n "${DIESEL_CONFIG_FILE:-}" ]]; then
+    migration_args+=(--config-file "${DIESEL_CONFIG_FILE}")
+fi
+
+diesel migration run "${migration_args[@]}"
