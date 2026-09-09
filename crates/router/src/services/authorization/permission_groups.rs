@@ -273,8 +273,9 @@ impl ParentGroupExt for ParentGroup {
     }
 }
 
-pub static OPERATIONS: [Resource; 8] = [
+pub static OPERATIONS: [Resource; 9] = [
     Resource::Payment,
+    Resource::PaymentLink,
     Resource::Refund,
     Resource::Mandate,
     Resource::Dispute,

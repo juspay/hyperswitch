@@ -8,7 +8,7 @@ generate_permissions! {
             entities: [Profile, Merchant]
         },
         PaymentLink: {
-            scopes: [Read, Write],
+            scopes: [Read],
             entities: [Profile, Merchant]
         },
         Refund: {
