@@ -15,7 +15,25 @@ use hyperswitch_interfaces::secrets_interface::{
     SecretManagementInterface, SecretsManagementError,
 };
 
-use crate::settings::{AuthSettings, ChatDestination, ChatSettings, Settings};
+use crate::settings::{AuthSettings, ChatDestination, ChatSettings, DatabaseSettings, Settings};
+
+#[async_trait::async_trait]
+impl SecretsHandler for DatabaseSettings {
+    async fn convert_to_raw_secret(
+        value: SecretStateContainer<Self, SecuredSecret>,
+        secret_management_client: &dyn SecretManagementInterface,
+    ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
+        let secured_database_config = value.get_inner();
+        let raw_password = secret_management_client
+            .get_secret(secured_database_config.password.clone())
+            .await?;
+
+        Ok(value.transition_state(|database| Self {
+            password: raw_password,
+            ..database
+        }))
+    }
+}
 
 #[async_trait::async_trait]
 impl SecretsHandler for AuthSettings {
@@ -108,10 +126,26 @@ pub async fn fetch_raw_secrets(
         .await
         .expect("Failed to decrypt a chat destination credential");
 
+    #[allow(clippy::expect_used)]
+    let database = DatabaseSettings::convert_to_raw_secret(conf.database, secret_management_client)
+        .await
+        .expect("Failed to decrypt the database password");
+
+    // Re-validate after decryption, for the reason given above: a well-formed handle can resolve
+    // to an empty string. An empty password would not fail here but at connection time, as an
+    // authentication error against the cluster — which reads as a wrong credential rather than an
+    // absent one.
+    #[allow(clippy::expect_used)]
+    database
+        .get_inner()
+        .validate()
+        .expect("Decrypted database password is unusable");
+
     Settings {
         server: conf.server,
         log: conf.log,
         auth,
+        database,
         secrets_management: conf.secrets_management,
         proxy: conf.proxy,
         chat,

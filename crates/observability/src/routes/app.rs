@@ -108,7 +108,10 @@ impl Health {
     /// scope makes "unauthenticated" a structural property visible right here in the route tree,
     /// rather than a condition buried in a guard — so it stays true when someone adds `/healthz`,
     /// a trailing slash, or a route next to this one.
-    pub fn server() -> Scope {
-        web::scope("health").service(web::resource("").route(web::get().to(health_check::health)))
+    pub fn server(state: AppState) -> Scope {
+        web::scope("health")
+            .app_data(web::Data::new(state))
+            .service(web::resource("").route(web::get().to(health_check::health)))
+            .service(web::resource("/ready").route(web::get().to(health_check::deep_health_check)))
     }
 }

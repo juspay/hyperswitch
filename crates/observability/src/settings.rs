@@ -53,6 +53,8 @@ pub struct Settings<S: SecretState> {
     pub log: Log,
     /// Credentials guarding this service's routes.
     pub auth: SecretStateContainer<AuthSettings, S>,
+    /// The observability database. Its schema lives in `diesel_models::observability`.
+    pub database: SecretStateContainer<DatabaseSettings, S>,
     /// How secret values in this file are resolved at boot.
     pub secrets_management: SecretsManagementConfig,
     /// Outbound HTTP proxy. A deployment fact rather than a property of any destination, which is
@@ -262,6 +264,155 @@ impl AuthSettings {
     }
 }
 
+/// Default pool size. Small on purpose: the service issues a handful of queries per alert run, and
+/// the role it connects as carries a connection limit that the pool has to fit inside — alongside
+/// the migration job, which needs connections of its own at deploy time.
+const DEFAULT_POOL_SIZE: u32 = 5;
+
+/// Default seconds to wait for a connection before giving up.
+const DEFAULT_CONNECTION_TIMEOUT: u64 = 10;
+
+fn default_pool_size() -> u32 {
+    DEFAULT_POOL_SIZE
+}
+
+fn default_connection_timeout() -> u64 {
+    DEFAULT_CONNECTION_TIMEOUT
+}
+
+/// The observability database.
+///
+/// Not `hyperswitch_db`: these tables live in their own database, so that alert state is not
+/// written into a store the application owns.
+#[derive(Debug, Deserialize, Clone)]
+#[serde(default)]
+pub struct DatabaseSettings {
+    /// Hostname of the cluster.
+    pub host: String,
+    /// Port the cluster listens on.
+    pub port: u16,
+    /// The database within the cluster. Not the schema — everything lives in `public`.
+    pub dbname: String,
+    /// The role this service connects as. Deliberately not the migration role: this one holds no
+    /// DDL rights, so a running service cannot alter the schema it reads.
+    pub username: String,
+    /// The role's password. Under a KMS backend this is ciphertext until [`crate::secrets_transformers`]
+    /// resolves it.
+    pub password: Secret<String>,
+    /// Connections held open.
+    #[serde(default = "default_pool_size")]
+    pub pool_size: u32,
+    /// Seconds to wait for a connection from the pool before giving up.
+    #[serde(default = "default_connection_timeout")]
+    pub connection_timeout: u64,
+}
+
+/// Percent-encode a connection-string component.
+///
+/// A generated password routinely contains `/`, `@`, `?` or `#`, and each of those ends a field in
+/// a URI: libpq would read the host, the database and the query parameters from the wrong side of
+/// the character. Encoding is what makes a correct password a correct URL.
+fn encode(value: &str) -> String {
+    value
+        .bytes()
+        .map(|byte| match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' => {
+                char::from(byte).to_string()
+            }
+            other => format!("%{other:02X}"),
+        })
+        .collect()
+}
+
+/// Hand-written so that `Default` and the `#[serde(default = ...)]` attributes agree.
+///
+/// Deriving it would set `pool_size` and `connection_timeout` to zero, which the serde defaults
+/// exist to prevent and which bb8 asserts against — the same reason `ChatSettings` writes its own.
+impl Default for DatabaseSettings {
+    fn default() -> Self {
+        Self {
+            host: String::default(),
+            port: u16::default(),
+            dbname: String::default(),
+            username: String::default(),
+            password: Secret::default(),
+            pool_size: default_pool_size(),
+            connection_timeout: default_connection_timeout(),
+        }
+    }
+}
+
+impl DatabaseSettings {
+    /// The connection string.
+    ///
+    /// Not [`common_utils::DbConnectionParams::get_database_url`], which sets `application_name` to
+    /// the schema for the router's per-tenant `search_path`. Naming the application is what lets
+    /// `pg_stat_activity` attribute connections on a shared cluster.
+    pub fn database_url(&self) -> String {
+        format!(
+            "postgres://{}:{}@{}:{}/{}?application_name=observability",
+            encode(&self.username),
+            encode(self.password.peek()),
+            self.host,
+            self.port,
+            self.dbname,
+        )
+    }
+
+    /// Reject a configuration that cannot connect.
+    ///
+    /// Checked before anything is dialled, so a missing value fails the boot rather than the first
+    /// query. Pool size is deliberately not checked against the role's connection limit: this
+    /// service cannot see that limit, and guessing would turn a database-side change into a
+    /// mystery boot failure.
+    pub fn validate(&self) -> Result<(), errors::ConfigurationError> {
+        common_utils::fp_utils::when(self.host.is_default_or_empty(), || {
+            Err(errors::ConfigurationError::ConfigParsingError(
+                "database host must not be empty".into(),
+            ))
+        })?;
+
+        common_utils::fp_utils::when(self.dbname.is_default_or_empty(), || {
+            Err(errors::ConfigurationError::ConfigParsingError(
+                "database dbname must not be empty".into(),
+            ))
+        })?;
+
+        common_utils::fp_utils::when(self.username.is_default_or_empty(), || {
+            Err(errors::ConfigurationError::ConfigParsingError(
+                "database username must not be empty".into(),
+            ))
+        })?;
+
+        common_utils::fp_utils::when(self.password.peek().is_default_or_empty(), || {
+            Err(errors::ConfigurationError::ConfigParsingError(
+                "database password must not be empty".into(),
+            ))
+        })?;
+
+        common_utils::fp_utils::when(self.port == 0, || {
+            Err(errors::ConfigurationError::ConfigParsingError(
+                "database port must be set".into(),
+            ))
+        })?;
+
+        common_utils::fp_utils::when(self.pool_size == 0, || {
+            Err(errors::ConfigurationError::ConfigParsingError(
+                "database pool_size must be greater than zero".into(),
+            ))
+        })?;
+
+        // bb8 asserts both of these are non-zero when the pool is built, and an assert names
+        // neither the key nor the file it came from. Rejecting them here turns a panic at boot
+        // into a message that says which setting is wrong.
+        common_utils::fp_utils::when(self.connection_timeout == 0, || {
+            Err(errors::ConfigurationError::ConfigParsingError(
+                "database connection_timeout must be greater than zero".into(),
+            ))
+        })
+    }
+}
+
 /// Listener configuration for the standalone binary.
 #[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
@@ -347,6 +498,7 @@ impl Settings<SecuredSecret> {
     pub fn validate(&self) -> Result<(), errors::ConfigurationError> {
         self.server.validate()?;
         self.auth.get_inner().validate()?;
+        self.database.get_inner().validate()?;
         self.chat.get_inner().validate()?;
         self.email.validate()?;
         self.secrets_management
@@ -423,5 +575,106 @@ mod tests {
             destinations.get("smoke"),
             Some(ChatDestination::Log)
         ));
+    }
+
+    fn database() -> DatabaseSettings {
+        DatabaseSettings {
+            host: "localhost".to_string(),
+            port: 5432,
+            dbname: "observability".to_string(),
+            username: "alerts_app".to_string(),
+            password: Secret::new("secret".to_string()),
+            pool_size: 5,
+            connection_timeout: 10,
+        }
+    }
+
+    /// Every one of these fails at connection time rather than at boot, and a connection failure
+    /// names a host and a role — so it reads as a wrong credential rather than an absent one, at
+    /// whatever hour the first alert run happens to be.
+    #[test]
+    fn an_incomplete_database_configuration_fails_the_boot() {
+        let cases: [(&str, DatabaseSettings); 5] = [
+            (
+                "host",
+                DatabaseSettings {
+                    host: String::new(),
+                    ..database()
+                },
+            ),
+            (
+                "dbname",
+                DatabaseSettings {
+                    dbname: String::new(),
+                    ..database()
+                },
+            ),
+            (
+                "username",
+                DatabaseSettings {
+                    username: String::new(),
+                    ..database()
+                },
+            ),
+            (
+                "password",
+                DatabaseSettings {
+                    password: Secret::new(String::new()),
+                    ..database()
+                },
+            ),
+            (
+                "port",
+                DatabaseSettings {
+                    port: 0,
+                    ..database()
+                },
+            ),
+        ];
+
+        for (field, settings) in cases {
+            assert!(
+                settings.validate().is_err(),
+                "an absent `{field}` should be rejected"
+            );
+        }
+    }
+
+    /// A pool of zero connections never serves a query and never errors either: every caller waits
+    /// for the connection timeout and gets a timeout, which looks like a slow database.
+    #[test]
+    fn a_zero_pool_size_fails_the_boot() {
+        assert!(DatabaseSettings {
+            pool_size: 0,
+            ..database()
+        }
+        .validate()
+        .is_err());
+    }
+
+    #[test]
+    fn a_complete_database_configuration_is_accepted() {
+        assert!(database().validate().is_ok());
+    }
+
+    /// On a shared cluster `pg_stat_activity` has to be able to answer whose connections are
+    /// whose. Without this the answer is the schema name, which is `public` for every tenant.
+    #[test]
+    fn the_connection_string_names_the_application() {
+        assert!(database()
+            .database_url()
+            .contains("application_name=observability"));
+    }
+
+    /// The password reaches the log the moment someone debugs the configuration, unless the type
+    /// prevents it. A hand-written `Debug` would do the same job until a field is added and
+    /// somebody forgets.
+    #[test]
+    fn the_database_password_is_not_in_the_debug_output() {
+        let rendered = format!("{:?}", database());
+        assert!(
+            !rendered.contains("secret"),
+            "password leaked into Debug: {rendered}"
+        );
     }
 }

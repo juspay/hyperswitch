@@ -2,6 +2,7 @@
 
 use std::{collections::HashMap, sync::Arc};
 
+use diesel_models::DejaPgConnection;
 use external_services::{
     chat_service::{slack::SlackClient, xyne::XyneClient},
     email::{
@@ -22,8 +23,19 @@ use crate::{
     },
     errors::ConfigurationError,
     logger, secrets_transformers,
-    settings::{ChatDestination, ChatSettings, EmailSettings, Settings},
+    settings::{ChatDestination, ChatSettings, DatabaseSettings, EmailSettings, Settings},
 };
+
+/// The observability database's connection pool.
+///
+/// Built directly rather than through `storage_impl`, whose pool types are shaped around the
+/// router's configuration and its per-tenant `search_path`. `drainer` builds its own for the same
+/// reason. Nothing here is multi-tenant: one database, one schema.
+///
+/// The connection is [`DejaPgConnection`] rather than `diesel::PgConnection` so the query helpers
+/// in `diesel_models` accept it. Without the `deja` feature the two are the same type; with it they
+/// are not, and naming the alias means this does not quietly stop compiling when it is turned on.
+pub type DatabasePool = bb8::Pool<async_bb8_diesel::ConnectionManager<DejaPgConnection>>;
 
 /// Everything a request handler needs, cloned per worker.
 ///
@@ -39,6 +51,8 @@ pub struct AppState {
     pub chat: Arc<Registry<dyn ChatNotifier>>,
     /// Email destinations, by the id a request names.
     pub email: Arc<Registry<dyn EmailNotifier>>,
+    /// Connections to the observability database.
+    pub database: DatabasePool,
 }
 
 impl AppState {
@@ -72,6 +86,10 @@ impl AppState {
             .await
             .expect("Failed to build the email destinations");
 
+        #[allow(clippy::expect_used)]
+        let database = build_database_pool(raw_conf.database.get_inner())
+            .expect("Failed to build the database connection pool");
+
         if chat.is_empty() && email.is_empty() {
             logger::warn!(
                 "No chat or email destinations are configured; every notify request will be \
@@ -89,6 +107,7 @@ impl AppState {
             conf: Arc::new(raw_conf),
             chat: Arc::new(chat),
             email: Arc::new(email),
+            database,
         }
     }
 }
@@ -169,6 +188,43 @@ async fn build_email_registry(
             })
             .collect(),
     ))
+}
+
+/// Send connection failures to the log.
+///
+/// bb8's default sink discards them, and it never constructs `RunError::User` — every failure to
+/// connect, authenticate or resolve leaves `Pool::get` as a bare `TimedOut`. Without this, a wrong
+/// password, a bad host and a firewalled port are indistinguishable in the only place anyone looks.
+#[derive(Debug, Clone, Copy)]
+struct LogConnectionErrors;
+
+impl<E: std::fmt::Display> bb8::ErrorSink<E> for LogConnectionErrors {
+    fn sink(&self, error: E) {
+        logger::error!(%error, "Observability database connection failed");
+    }
+
+    fn boxed_clone(&self) -> Box<dyn bb8::ErrorSink<E>> {
+        Box::new(*self)
+    }
+}
+
+/// Build the pool for the observability database.
+///
+/// **Deliberately does not connect.** `bb8`'s checked builder dials on construction, which would
+/// make a brief database blip a failed boot and, under Kubernetes, a crash loop. `/health/ready`
+/// proves the connection instead, so a pod that cannot reach its database reports unready and
+/// stops taking traffic rather than dying.
+pub fn build_database_pool(
+    database: &DatabaseSettings,
+) -> Result<DatabasePool, ConfigurationError> {
+    let manager =
+        async_bb8_diesel::ConnectionManager::<DejaPgConnection>::new(database.database_url());
+
+    Ok(bb8::Pool::builder()
+        .max_size(database.pool_size)
+        .connection_timeout(std::time::Duration::from_secs(database.connection_timeout))
+        .error_sink(Box::new(LogConnectionErrors))
+        .build_unchecked(manager))
 }
 
 /// Build the email transport named in configuration.

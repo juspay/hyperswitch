@@ -24,7 +24,7 @@ use observability::{
         Registry,
     },
     routes::Alerts,
-    state::AppState,
+    state::{build_database_pool, AppState},
 };
 use serde_json::{json, Value};
 
@@ -53,10 +53,27 @@ async fn state_with_max(max_upload_bytes: usize) -> AppState {
         None,
     ));
 
+    // Nothing under `/alerts` touches the database, and the pool is built without dialling, so
+    // these tests need no server. A pool pointing at an address nothing answers on is therefore
+    // both sufficient and honest: if a notify route ever grows a query, this stops compiling
+    // quietly and starts failing loudly.
+    let database = build_database_pool(
+        &serde_json::from_value(json!({
+            "host": "127.0.0.1",
+            "port": 1,
+            "dbname": "unused",
+            "username": "unused",
+            "password": "unused"
+        }))
+        .expect("the test database configuration should deserialize"),
+    )
+    .expect("an unchecked pool should build without connecting");
+
     AppState {
         conf: Arc::new(conf),
         chat: Arc::new(Registry::new(HashMap::from([(CHAT.to_owned(), chat)]))),
         email: Arc::new(Registry::new(HashMap::from([(EMAIL.to_owned(), email)]))),
+        database,
     }
 }
 

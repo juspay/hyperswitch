@@ -46,7 +46,7 @@ pub async fn start_server(state: AppState) -> errors::ObservabilityResult<Server
 
     let web_server = actix_web::HttpServer::new(move || {
         actix_web::App::new()
-            .service(routes::Health::server())
+            .service(routes::Health::server(state.clone()))
             .service(routes::Alerts::server(state.clone()))
             // Order matters and is the reverse of what it reads like: actix runs the *last*
             // registered wrap first, so `RequestIdentifier` must be registered last to run first.
