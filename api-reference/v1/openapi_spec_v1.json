@@ -31177,10 +31177,9 @@
           "redirect_delay_seconds": {
             "type": "integer",
             "format": "int32",
-            "description": "Duration in seconds before the status page auto-redirects to the return URL. Set to 0 to disable auto-redirect. Maximum value is 90 seconds. Defaults to 5 seconds.",
-            "minimum": 0,
-            "maximum": 90,
-            "nullable": true
+            "description": "Duration in seconds before the status page auto-redirects to the return URL.\nSet to 0 to disable auto-redirect. Maximum value is 90 seconds. Defaults to 5 seconds.",
+            "nullable": true,
+            "minimum": 0
           }
         }
       },
@@ -31380,11 +31379,11 @@
           "redirect_delay_seconds": {
             "type": "integer",
             "format": "int32",
-            "description": "Duration in seconds before the status page auto-redirects to the return URL. Set to 0 to disable auto-redirect. Maximum value is 90 seconds. Defaults to 5 seconds.",
+            "description": "Duration in seconds before the status page auto-redirects to the return URL.\nSet to 0 to disable auto-redirect. Maximum value is 90 seconds. Defaults to 5 seconds.",
             "example": 10,
-            "minimum": 0,
+            "nullable": true,
             "maximum": 90,
-            "nullable": true
+            "minimum": 0
           }
         }
       },
