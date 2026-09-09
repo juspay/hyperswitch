@@ -210,6 +210,8 @@ pub struct MerchantConnectorAccountUpdateInternal {
     pub connector_wallets_details: Option<Encryption>,
     pub additional_merchant_data: Option<Encryption>,
     pub connector_webhook_registration_details: Option<serde_json::Value>,
+    pub apple_pay_certificates: Option<serde_json::Value>,
+    pub apple_pay_certificates_encrypted: Option<Encryption>,
 }
 
 #[cfg(feature = "v2")]
@@ -234,6 +236,8 @@ pub struct MerchantConnectorAccountUpdateInternal {
     pub connector_wallets_details: Option<Encryption>,
     pub additional_merchant_data: Option<Encryption>,
     pub feature_metadata: Option<MerchantConnectorAccountFeatureMetadata>,
+    pub apple_pay_certificates: Option<serde_json::Value>,
+    pub apple_pay_certificates_encrypted: Option<Encryption>,
 }
 
 #[cfg(feature = "v1")]

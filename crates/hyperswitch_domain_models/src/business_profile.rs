@@ -592,6 +592,10 @@ pub enum ProfileUpdate {
     DefaultRoutingFallbackUpdate {
         default_fallback_routing: Option<pii::SecretSerdeValue>,
     },
+    ApplePayCertificateCacheUpdate {
+        apple_pay_certificates: Option<serde_json::Value>,
+        apple_pay_certificates_encrypted: Option<common_utils::encryption::Encryption>,
+    },
 }
 
 #[cfg(feature = "v2")]
@@ -1280,6 +1284,10 @@ pub enum ProfileUpdate {
     RevenueRecoveryAlgorithmUpdate {
         revenue_recovery_retry_algorithm_type: common_enums::RevenueRecoveryAlgorithmType,
         revenue_recovery_retry_algorithm_data: Option<RevenueRecoveryAlgorithmData>,
+    },
+    ApplePayCertificateCacheUpdate {
+        apple_pay_certificates: Option<serde_json::Value>,
+        apple_pay_certificates_encrypted: Option<common_utils::encryption::Encryption>,
     },
 }
 

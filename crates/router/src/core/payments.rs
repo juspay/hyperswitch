@@ -9213,28 +9213,33 @@ async fn resolve_managed_apple_pay_certificate(
     let db = state.store.as_ref();
     let merchant_connector_id = mca.get_mca_id()?;
 
-    let cache = db
-        .resolve_apple_pay_certificate_cache(
-            common_enums::ResourceRequestorType::MerchantConnectorAccount,
-            merchant_connector_id.get_string_repr().to_string(),
-        )
-        .await
-        .inspect_err(|error| {
-            logger::warn!(
-                ?error,
-                "Failed to resolve linked Apple Pay certificate cache"
-            )
-        })
-        .ok()
-        .flatten()?;
+    let (data, encrypted_data) = match mca.get_apple_pay_certificate_cache() {
+        Some(cache) => cache,
+        None => {
+            let cache = db
+                .resolve_apple_pay_certificate_cache(
+                    common_enums::ResourceRequestorType::MerchantConnectorAccount,
+                    merchant_connector_id.get_string_repr().to_string(),
+                )
+                .await
+                .inspect_err(|error| {
+                    logger::warn!(
+                        ?error,
+                        "Failed to resolve linked Apple Pay certificate cache"
+                    )
+                })
+                .ok()
+                .flatten()?;
+            (cache.data, cache.encrypted_data)
+        }
+    };
 
-    let certificate = cache
-        .data
+    let certificate = data
         .get("data")
         .and_then(|data| data.get("payment_processing_certificate"))
         .and_then(|value| value.as_str())?
         .to_string();
-    let encrypted_data = cache.encrypted_data?;
+    let encrypted_data = encrypted_data?;
 
     let organization_id_str = db
         .find_requestor_organization_id(

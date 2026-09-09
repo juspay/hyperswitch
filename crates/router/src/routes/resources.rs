@@ -73,7 +73,7 @@ pub async fn generate_resource(
 }
 
 #[instrument(skip_all, fields(flow = ?Flow::ResourcesUpload))]
-pub async fn upload_apple_pay_certificate(
+pub async fn upload_resource(
     state: web::Data<AppState>,
     req: HttpRequest,
     path: web::Path<common_utils::id_type::ResourceId>,
@@ -91,7 +91,7 @@ pub async fn upload_apple_pay_certificate(
         &req,
         payload,
         move |state, auth_data: auth::AuthenticationData, req, _| {
-            resources_core::upload_apple_pay_certificate(
+            resources_core::upload_resource(
                 state,
                 auth_data.platform.get_processor().clone(),
                 resource_id.clone(),

@@ -319,6 +319,8 @@ pub struct MerchantAccountUpdateInternal {
     pub recon_status: Option<storage_enums::ReconStatus>,
     pub is_platform_account: Option<bool>,
     pub product_type: Option<common_enums::MerchantProductType>,
+    pub apple_pay_certificates: Option<serde_json::Value>,
+    pub apple_pay_certificates_encrypted: Option<Encryption>,
 }
 
 #[cfg(feature = "v1")]
@@ -355,4 +357,6 @@ pub struct MerchantAccountUpdateInternal {
     pub product_type: Option<common_enums::MerchantProductType>,
     pub network_tokenization_credentials: Option<Encryption>,
     pub offer_engine_config: Option<Encryption>,
+    pub apple_pay_certificates: Option<serde_json::Value>,
+    pub apple_pay_certificates_encrypted: Option<Encryption>,
 }

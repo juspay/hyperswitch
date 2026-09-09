@@ -3398,15 +3398,13 @@ impl ResourceInterface for KafkaStore {
             .await
     }
 
-    async fn set_apple_pay_certificate_cache(
+    async fn resolve_requestor_merchant_id(
         &self,
         requestor_type: common_enums::ResourceRequestorType,
         requestor_id: String,
-        data: serde_json::Value,
-        encrypted_data: common_utils::encryption::Encryption,
-    ) -> CustomResult<(), errors::StorageError> {
+    ) -> CustomResult<Option<id_type::MerchantId>, errors::StorageError> {
         self.diesel_store
-            .set_apple_pay_certificate_cache(requestor_type, requestor_id, data, encrypted_data)
+            .resolve_requestor_merchant_id(requestor_type, requestor_id)
             .await
     }
 }

@@ -103,15 +103,13 @@ impl<T: DatabaseStore> ResourceInterface for kv_router_store::KVRouterStore<T> {
     }
 
     #[instrument(skip_all)]
-    async fn set_apple_pay_certificate_cache(
+    async fn resolve_requestor_merchant_id(
         &self,
         requestor_type: common_enums::ResourceRequestorType,
         requestor_id: String,
-        data: serde_json::Value,
-        encrypted_data: common_utils::encryption::Encryption,
-    ) -> CustomResult<(), Self::Error> {
+    ) -> CustomResult<Option<common_utils::id_type::MerchantId>, Self::Error> {
         self.router_store
-            .set_apple_pay_certificate_cache(requestor_type, requestor_id, data, encrypted_data)
+            .resolve_requestor_merchant_id(requestor_type, requestor_id)
             .await
     }
 }
@@ -295,20 +293,16 @@ impl<T: DatabaseStore> ResourceInterface for RouterStore<T> {
     }
 
     #[instrument(skip_all)]
-    async fn set_apple_pay_certificate_cache(
+    async fn resolve_requestor_merchant_id(
         &self,
         requestor_type: common_enums::ResourceRequestorType,
         requestor_id: String,
-        data: serde_json::Value,
-        encrypted_data: common_utils::encryption::Encryption,
-    ) -> CustomResult<(), Self::Error> {
-        let conn = pg_accounts_connection_write(self).await?;
-        diesel_models::query::resource_link::set_apple_pay_certificate_cache(
+    ) -> CustomResult<Option<common_utils::id_type::MerchantId>, Self::Error> {
+        let conn = pg_accounts_connection_read(self).await?;
+        diesel_models::query::resource_link::resolve_requestor_merchant_id(
             &conn,
             requestor_type,
             &requestor_id,
-            data,
-            encrypted_data,
         )
         .await
         .map_err(|error| report!(Self::Error::from(error)))
@@ -545,17 +539,15 @@ impl ResourceInterface for MockDb {
 
         if let Some(profile_id) = profile_id {
             let profiles = self.business_profiles.lock().await;
-            if let Some(data) = profiles
-                .iter()
-                .find(|profile| {
-                    profile.merchant_id == merchant_id && profile.get_id() == &profile_id
-                })
-                .and_then(|profile| profile.apple_pay_certificates.clone())
-            {
-                return Ok(Some(domain::ApplePayCertificateCache {
-                    data,
-                    encrypted_data: None,
-                }));
+            if let Some(profile) = profiles.iter().find(|profile| {
+                profile.merchant_id == merchant_id && profile.get_id() == &profile_id
+            }) {
+                if let Some(data) = profile.apple_pay_certificates.clone() {
+                    return Ok(Some(domain::ApplePayCertificateCache {
+                        data,
+                        encrypted_data: profile.apple_pay_certificates_encrypted.clone(),
+                    }));
+                }
             }
         }
 
@@ -575,52 +567,13 @@ impl ResourceInterface for MockDb {
             }))
     }
 
-    async fn set_apple_pay_certificate_cache(
+    async fn resolve_requestor_merchant_id(
         &self,
         requestor_type: common_enums::ResourceRequestorType,
         requestor_id: String,
-        data: serde_json::Value,
-        encrypted_data: common_utils::encryption::Encryption,
-    ) -> CustomResult<(), Self::Error> {
-        match requestor_type {
-            common_enums::ResourceRequestorType::MerchantConnectorAccount => {
-                let mca_id = parse_id(&requestor_id)?;
-                let mut accounts = self.merchant_connector_accounts.lock().await;
-                let mca = accounts
-                    .iter_mut()
-                    .find(|mca| mca.get_id() == mca_id)
-                    .ok_or(StorageError::ValueNotFound(String::from(
-                        "merchant_connector_account",
-                    )))?;
-                mca.apple_pay_certificates = Some(data);
-                mca.apple_pay_certificates_encrypted = Some(encrypted_data);
-            }
-            common_enums::ResourceRequestorType::Profile => {
-                let profile_id = parse_id(&requestor_id)?;
-                let mut profiles = self.business_profiles.lock().await;
-                let profile = profiles
-                    .iter_mut()
-                    .find(|profile| profile.get_id() == &profile_id)
-                    .ok_or(StorageError::ValueNotFound(String::from(
-                        "business_profile",
-                    )))?;
-                profile.apple_pay_certificates = Some(data);
-                profile.apple_pay_certificates_encrypted = Some(encrypted_data);
-            }
-            common_enums::ResourceRequestorType::MerchantAccount => {
-                let merchant_id = parse_id(&requestor_id)?;
-                let mut accounts = self.merchant_accounts.lock().await;
-                let account = accounts
-                    .iter_mut()
-                    .find(|account| account.get_id() == &merchant_id)
-                    .ok_or(StorageError::ValueNotFound(String::from(
-                        "merchant_account",
-                    )))?;
-                account.apple_pay_certificates = Some(data);
-                account.apple_pay_certificates_encrypted = Some(encrypted_data);
-            }
-        }
-        Ok(())
+    ) -> CustomResult<Option<common_utils::id_type::MerchantId>, Self::Error> {
+        self.resolve_owning_merchant_id(requestor_type, &requestor_id)
+            .await
     }
 }
 

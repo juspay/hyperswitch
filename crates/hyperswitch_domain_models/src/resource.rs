@@ -187,13 +187,11 @@ pub trait ResourceInterface {
         requestor_id: String,
     ) -> CustomResult<Option<ApplePayCertificateCache>, Self::Error>;
 
-    async fn set_apple_pay_certificate_cache(
+    async fn resolve_requestor_merchant_id(
         &self,
         requestor_type: common_enums::ResourceRequestorType,
         requestor_id: String,
-        data: serde_json::Value,
-        encrypted_data: Encryption,
-    ) -> CustomResult<(), Self::Error>;
+    ) -> CustomResult<Option<id_type::MerchantId>, Self::Error>;
 }
 
 pub struct ApplePayCertificateCache {

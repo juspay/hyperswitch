@@ -5,7 +5,7 @@ pub struct ApplePayCertificateCache {
 
 #[cfg(feature = "v1")]
 mod v1 {
-    use diesel::{associations::HasTable, AsChangeset, ExpressionMethods};
+    use diesel::{associations::HasTable, ExpressionMethods};
 
     use super::ApplePayCertificateCache;
     use crate::{
@@ -13,7 +13,7 @@ mod v1 {
         merchant_account::MerchantAccount,
         merchant_connector_account::MerchantConnectorAccount,
         query::generics,
-        schema::{business_profile, merchant_account, merchant_connector_account},
+        schema::merchant_connector_account,
         DatabaseConnectionWithContext, StorageResult,
     };
 
@@ -28,12 +28,12 @@ mod v1 {
         .await
     }
 
-    pub async fn find_requestor_organization_id(
+    pub async fn resolve_requestor_merchant_id(
         conn: &DatabaseConnectionWithContext<'_>,
         requestor_type: common_enums::ResourceRequestorType,
         requestor_id: &str,
-    ) -> StorageResult<Option<String>> {
-        let merchant_id = match requestor_type {
+    ) -> StorageResult<Option<common_utils::id_type::MerchantId>> {
+        match requestor_type {
             common_enums::ResourceRequestorType::MerchantConnectorAccount => {
                 let mca_id = match parse_id::<common_utils::id_type::MerchantConnectorAccountId>(
                     requestor_id,
@@ -42,9 +42,9 @@ mod v1 {
                     Err(_) => return Ok(None),
                 };
                 match find_mca_by_id(conn, &mca_id).await {
-                    Ok(mca) => mca.merchant_id,
-                    Err(error) if is_not_found(&error) => return Ok(None),
-                    Err(error) => return Err(error),
+                    Ok(mca) => Ok(Some(mca.merchant_id)),
+                    Err(error) if is_not_found(&error) => Ok(None),
+                    Err(error) => Err(error),
                 }
             }
             common_enums::ResourceRequestorType::Profile => {
@@ -53,17 +53,29 @@ mod v1 {
                     Err(_) => return Ok(None),
                 };
                 match Profile::find_by_profile_id(conn, &profile_id).await {
-                    Ok(profile) => profile.merchant_id,
-                    Err(error) if is_not_found(&error) => return Ok(None),
-                    Err(error) => return Err(error),
+                    Ok(profile) => Ok(Some(profile.merchant_id)),
+                    Err(error) if is_not_found(&error) => Ok(None),
+                    Err(error) => Err(error),
                 }
             }
             common_enums::ResourceRequestorType::MerchantAccount => {
                 match parse_id::<common_utils::id_type::MerchantId>(requestor_id) {
-                    Ok(id) => id,
-                    Err(_) => return Ok(None),
+                    Ok(id) => Ok(Some(id)),
+                    Err(_) => Ok(None),
                 }
             }
+        }
+    }
+
+    pub async fn find_requestor_organization_id(
+        conn: &DatabaseConnectionWithContext<'_>,
+        requestor_type: common_enums::ResourceRequestorType,
+        requestor_id: &str,
+    ) -> StorageResult<Option<String>> {
+        let Some(merchant_id) =
+            resolve_requestor_merchant_id(conn, requestor_type, requestor_id).await?
+        else {
+            return Ok(None);
         };
 
         match MerchantAccount::find_by_merchant_id(conn, &merchant_id).await {
@@ -178,107 +190,6 @@ mod v1 {
         parse_id(resource_id).map(Some)
     }
 
-    #[derive(Debug, AsChangeset)]
-    #[diesel(table_name = merchant_connector_account)]
-    struct McaApplePayCertificateCacheUpdate {
-        apple_pay_certificates: Option<serde_json::Value>,
-        apple_pay_certificates_encrypted: Option<common_utils::encryption::Encryption>,
-    }
-
-    #[derive(Debug, AsChangeset)]
-    #[diesel(table_name = business_profile)]
-    struct ProfileApplePayCertificateCacheUpdate {
-        apple_pay_certificates: Option<serde_json::Value>,
-        apple_pay_certificates_encrypted: Option<common_utils::encryption::Encryption>,
-    }
-
-    #[derive(Debug, AsChangeset)]
-    #[diesel(table_name = merchant_account)]
-    struct MerchantAccountApplePayCertificateCacheUpdate {
-        apple_pay_certificates: Option<serde_json::Value>,
-        apple_pay_certificates_encrypted: Option<common_utils::encryption::Encryption>,
-    }
-
-    pub async fn set_apple_pay_certificate_cache(
-        conn: &DatabaseConnectionWithContext<'_>,
-        requestor_type: common_enums::ResourceRequestorType,
-        requestor_id: &str,
-        data: serde_json::Value,
-        encrypted_data: common_utils::encryption::Encryption,
-    ) -> StorageResult<()> {
-        match requestor_type {
-            common_enums::ResourceRequestorType::MerchantConnectorAccount => {
-                let mca_id = match parse_id::<common_utils::id_type::MerchantConnectorAccountId>(
-                    requestor_id,
-                ) {
-                    Ok(id) => id,
-                    Err(_) => {
-                        return Err(error_stack::report!(crate::errors::DatabaseError::NotFound))
-                    }
-                };
-                generics::generic_update_with_unique_predicate_get_result::<
-                    <MerchantConnectorAccount as HasTable>::Table,
-                    _,
-                    _,
-                    MerchantConnectorAccount,
-                >(
-                    conn,
-                    merchant_connector_account::dsl::merchant_connector_id.eq(mca_id),
-                    McaApplePayCertificateCacheUpdate {
-                        apple_pay_certificates: Some(data),
-                        apple_pay_certificates_encrypted: Some(encrypted_data),
-                    },
-                )
-                .await?;
-            }
-            common_enums::ResourceRequestorType::Profile => {
-                let profile_id = match parse_id::<common_utils::id_type::ProfileId>(requestor_id) {
-                    Ok(id) => id,
-                    Err(_) => {
-                        return Err(error_stack::report!(crate::errors::DatabaseError::NotFound))
-                    }
-                };
-                generics::generic_update_with_unique_predicate_get_result::<
-                    <Profile as HasTable>::Table,
-                    _,
-                    _,
-                    Profile,
-                >(
-                    conn,
-                    business_profile::dsl::profile_id.eq(profile_id),
-                    ProfileApplePayCertificateCacheUpdate {
-                        apple_pay_certificates: Some(data),
-                        apple_pay_certificates_encrypted: Some(encrypted_data),
-                    },
-                )
-                .await?;
-            }
-            common_enums::ResourceRequestorType::MerchantAccount => {
-                let merchant_id: common_utils::id_type::MerchantId = match parse_id(requestor_id) {
-                    Ok(id) => id,
-                    Err(_) => {
-                        return Err(error_stack::report!(crate::errors::DatabaseError::NotFound))
-                    }
-                };
-                generics::generic_update_with_unique_predicate_get_result::<
-                    <MerchantAccount as HasTable>::Table,
-                    _,
-                    _,
-                    MerchantAccount,
-                >(
-                    conn,
-                    merchant_account::dsl::merchant_id.eq(merchant_id),
-                    MerchantAccountApplePayCertificateCacheUpdate {
-                        apple_pay_certificates: Some(data),
-                        apple_pay_certificates_encrypted: Some(encrypted_data),
-                    },
-                )
-                .await?;
-            }
-        }
-        Ok(())
-    }
-
     fn parse_id<T>(value: &str) -> StorageResult<T>
     where
         T: TryFrom<
@@ -296,7 +207,7 @@ mod v1 {
 #[cfg(feature = "v1")]
 pub use v1::{
     find_requestor_organization_id, resolve_apple_pay_certificate_cache,
-    resolve_effective_resource_id, set_apple_pay_certificate_cache,
+    resolve_effective_resource_id, resolve_requestor_merchant_id,
 };
 
 #[cfg(feature = "v2")]
@@ -336,19 +247,18 @@ mod v2 {
         Ok(None)
     }
 
-    pub async fn set_apple_pay_certificate_cache(
+    pub async fn resolve_requestor_merchant_id(
         _conn: &DatabaseConnectionWithContext<'_>,
         _requestor_type: common_enums::ResourceRequestorType,
         _requestor_id: &str,
-        _data: serde_json::Value,
-        _encrypted_data: common_utils::encryption::Encryption,
-    ) -> StorageResult<()> {
-        not_supported()
+    ) -> StorageResult<Option<common_utils::id_type::MerchantId>> {
+        not_supported()?;
+        Ok(None)
     }
 }
 
 #[cfg(feature = "v2")]
 pub use v2::{
     find_requestor_organization_id, resolve_apple_pay_certificate_cache,
-    resolve_effective_resource_id, set_apple_pay_certificate_cache,
+    resolve_effective_resource_id, resolve_requestor_merchant_id,
 };

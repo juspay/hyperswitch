@@ -2190,7 +2190,7 @@ impl Resources {
             .service(web::resource("/list").route(web::post().to(super::resources::list_resources)))
             .service(
                 web::resource("/{resource_id}")
-                    .route(web::put().to(super::resources::upload_apple_pay_certificate)),
+                    .route(web::put().to(super::resources::upload_resource)),
             )
             .service(
                 web::resource("/{resource_id}/link")
