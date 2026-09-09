@@ -67,7 +67,7 @@ use openssl::{
 use rand::Rng;
 #[cfg(feature = "v2")]
 use redis_interface::errors::RedisError;
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, logger};
 use rust_decimal::Decimal;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_with::{serde_as, VecSkipError};

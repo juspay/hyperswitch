@@ -6,7 +6,7 @@ use futures::FutureExt;
 use hyperswitch_domain_models::{mandates, payments::PaymentConfirmData};
 use hyperswitch_interfaces::api::ConnectorSpecifications;
 use hyperswitch_masking::{ExposeOptionInterface, PeekInterface};
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 use super::{Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{

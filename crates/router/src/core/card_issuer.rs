@@ -1,7 +1,7 @@
 use api_models::card_issuer as api_types;
 use common_utils::{date_time, id_type};
 use diesel_models::card_issuer::{NewCardIssuer, UpdateCardIssuer};
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 use crate::{
     core::errors::{self, RouterResponse, StorageErrorExt},

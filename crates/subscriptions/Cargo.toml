@@ -6,6 +6,7 @@ rust-version.workspace = true
 license.workspace = true
 
 [dependencies]
+tracing = { workspace = true }
 async-trait = "0.1.88"
 dyn-clone = "1.0.19"
 error-stack = "0.4.1"

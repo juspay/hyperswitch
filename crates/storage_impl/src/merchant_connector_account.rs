@@ -7,7 +7,7 @@ use hyperswitch_domain_models::{
     merchant_connector_account::{self as domain, MerchantConnectorAccountInterface},
     merchant_key_store::MerchantKeyStore,
 };
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 #[cfg(feature = "accounts_cache")]
 use crate::redis::cache;

@@ -78,7 +78,7 @@ use hyperswitch_interfaces::{
 };
 use hyperswitch_masking::{ExposeInterface, Mask, Maskable, PeekInterface, Secret};
 #[cfg(feature = "payouts")]
-use router_env::{instrument, tracing};
+use router_env::instrument;
 use transformers::{
     self as paypal, auth_headers, PaypalAuthResponse, PaypalIncrementalAuthResponse, PaypalMeta,
     PaypalWebhookEventType,

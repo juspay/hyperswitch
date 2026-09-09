@@ -4,7 +4,7 @@ use common_utils::{date_time, id_type};
 use csv::{ReaderBuilder, Trim, WriterBuilder};
 use error_stack::{report, ResultExt};
 use futures::future;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 use scheduler::utils as pt_utils;
 use serde::Deserialize;
 

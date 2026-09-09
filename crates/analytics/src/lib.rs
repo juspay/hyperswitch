@@ -66,7 +66,7 @@ pub use clickhouse::ClickhouseConfig;
 use error_stack::report;
 use router_env::{
     logger,
-    tracing::{self, instrument},
+    tracing::instrument,
     types::FlowMetric,
 };
 use storage_impl::config::Database;

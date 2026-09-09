@@ -7,7 +7,7 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::{api, platform};
 use hyperswitch_masking::PeekInterface;
 use rdkafka::message::ToBytes;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 use crate::core::errors;
 #[cfg(feature = "v1")]

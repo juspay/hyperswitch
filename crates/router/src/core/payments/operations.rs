@@ -79,7 +79,7 @@ use async_trait::async_trait;
 #[cfg(feature = "v1")]
 use common_utils::ext_traits::AsyncExt;
 use error_stack::{report, ResultExt};
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 #[cfg(feature = "v2")]
 pub use self::payment_attempt_list::PaymentGetListAttempts;

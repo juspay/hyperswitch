@@ -11,7 +11,7 @@ use diesel_models::enums::UserStatus;
 use error_stack::ResultExt;
 use external_services::http_client;
 use hyperswitch_masking::PeekInterface;
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, logger};
 
 use crate::{
     core::errors::launch_sage::LaunchSageErrors,

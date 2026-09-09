@@ -16,7 +16,7 @@ use hyperswitch_interfaces::{
     relay::{ConnectorRelayIntegration, UnreferencedRefundRouterData},
 };
 use hyperswitch_masking::Secret;
-use router_env::tracing::{self, instrument};
+use router_env::tracing::instrument;
 
 use super::errors::{self, ConnectorErrorExt, RouterResponse, RouterResult, StorageErrorExt};
 use crate::{

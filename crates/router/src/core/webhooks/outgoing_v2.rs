@@ -8,7 +8,7 @@ use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperati
 use hyperswitch_interfaces::consts;
 use router_env::{
     instrument,
-    tracing::{self, Instrument},
+    tracing::Instrument,
 };
 
 use super::{

@@ -61,7 +61,7 @@ use josekit::{
     Map, Value,
 };
 #[cfg(feature = "payouts")]
-use router_env::{instrument, tracing};
+use router_env::instrument;
 use serde_json::json;
 use transformers as nomupay;
 

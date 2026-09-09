@@ -8,7 +8,7 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::api::ConnectorSpecifications;
 use hyperswitch_masking::PeekInterface;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 use super::{Domain, GetTracker, Operation, PostUpdateTracker, UpdateTracker, ValidateRequest};
 use crate::{

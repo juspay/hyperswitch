@@ -89,7 +89,7 @@ impl Worldline {
     }
 
     pub fn get_current_date_time() -> CustomResult<String, errors::ConnectorError> {
-        let format = format_description::parse(
+        let format = format_description::parse_borrowed::<1>(
             "[weekday repr:short], [day] [month repr:short] [year] [hour]:[minute]:[second] GMT",
         )
         .change_context(errors::ConnectorError::InvalidDateFormat)?;

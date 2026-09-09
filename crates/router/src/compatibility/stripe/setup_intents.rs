@@ -6,7 +6,7 @@ use api_models::payments as payment_types;
 #[cfg(feature = "v1")]
 use error_stack::report;
 #[cfg(feature = "v1")]
-use router_env::{instrument, tracing, Flow};
+use router_env::{instrument, Flow};
 
 #[cfg(feature = "v1")]
 use crate::{

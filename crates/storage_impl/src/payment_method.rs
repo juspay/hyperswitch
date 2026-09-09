@@ -16,7 +16,7 @@ use hyperswitch_domain_models::{
         PaymentMethod as DomainPaymentMethod, PaymentMethodCompatAction, PaymentMethodInterface,
     },
 };
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 use super::MockDb;
 use crate::{

@@ -1,6 +1,6 @@
 use diesel_models::user_authentication_method as storage;
 use error_stack::report;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 use super::MockDb;
 use crate::{

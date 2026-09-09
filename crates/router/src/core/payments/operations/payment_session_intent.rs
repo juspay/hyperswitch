@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use common_utils::{errors::CustomResult, ext_traits::Encode};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::customer;
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, logger};
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{

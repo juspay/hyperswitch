@@ -17,7 +17,7 @@ use router::{
 };
 use router_env::{
     instrument,
-    tracing::{self, Instrument},
+    tracing::Instrument,
 };
 use scheduler::{
     consumer::workflows::ProcessTrackerWorkflow, errors::ProcessTrackerError,

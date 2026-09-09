@@ -52,7 +52,7 @@ use hyperswitch_interfaces::{
 use hyperswitch_masking::PeekInterface;
 use hyperswitch_masking::{Mask as _, Maskable};
 #[cfg(feature = "payouts")]
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 use self::transformers as wise;
 use crate::constants::headers;

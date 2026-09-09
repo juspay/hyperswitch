@@ -19,7 +19,7 @@ use hyperswitch_interfaces::{consts, webhooks::WebhookResourceData};
 use hyperswitch_masking::{ExposeInterface, Mask, PeekInterface, Secret};
 use router_env::{
     instrument,
-    tracing::{self, Instrument},
+    tracing::Instrument,
 };
 
 use super::{types, utils, MERCHANT_CONNECTOR_ACCOUNT_ID, MERCHANT_ID};

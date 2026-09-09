@@ -42,7 +42,7 @@ use hyperswitch_masking::Secret;
 use hyperswitch_masking::{ExposeInterface, PeekInterface};
 use maud::{html, PreEscaped};
 use regex::Regex;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 use storage_impl::StorageError;
 
 use super::payments::helpers;

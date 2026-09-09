@@ -47,7 +47,7 @@ use hyperswitch_domain_models::{
 use redis_interface::HsetnxReply;
 #[cfg(feature = "olap")]
 use router_env::logger;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 #[cfg(feature = "olap")]
 use crate::connection;

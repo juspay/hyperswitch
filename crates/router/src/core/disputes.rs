@@ -7,7 +7,7 @@ use common_utils::ext_traits::{Encode, ValueExt};
 use error_stack::ResultExt;
 use router_env::{
     instrument, logger,
-    tracing::{self, Instrument},
+    tracing::Instrument,
 };
 use strum::IntoEnumIterator;
 pub mod transformers;
@@ -789,9 +789,11 @@ pub async fn connector_sync_disputes(
         common_utils::id_type::MerchantConnectorAccountId::wrap(merchant_connector_id)
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse merchant connector account id format")?;
-    let format = time::format_description::parse("[year]-[month]-[day]T[hour]:[minute]:[second]")
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to parse the date-time format")?;
+    let format = time::format_description::parse_borrowed::<1>(
+        "[year]-[month]-[day]T[hour]:[minute]:[second]",
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to parse the date-time format")?;
     let created_from = time::PrimitiveDateTime::parse(&payload.fetch_from, &format)
         .change_context(errors::ApiErrorResponse::InvalidDataFormat {
             field_name: "fetch_from".into(),

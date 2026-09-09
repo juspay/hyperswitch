@@ -4,7 +4,7 @@ use api_models::revenue_recovery_data_backfill::{
     BackfillQuery, GetRedisDataQuery, RetryStatsMigrationForm, RevenueRecoveryDataBackfillForm,
     UnlockStatusRequest, UnlockStatusResponse, UpdateTokenStatusRequest,
 };
-use router_env::{instrument, tracing, Flow};
+use router_env::{instrument, Flow};
 
 use crate::{
     core::{

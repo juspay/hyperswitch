@@ -10,7 +10,7 @@ use api_models::subscription as subscription_types;
 use error_stack::report;
 use hyperswitch_domain_models::errors;
 use router_env::{
-    tracing::{self, instrument},
+    tracing::instrument,
     Flow,
 };
 

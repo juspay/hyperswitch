@@ -6,7 +6,7 @@ use error_stack::ResultExt;
 use hyperswitch_masking::PeekInterface;
 use router_env::{
     logger,
-    tracing::{self, instrument},
+    tracing::instrument,
 };
 
 use self::{

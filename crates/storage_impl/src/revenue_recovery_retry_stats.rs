@@ -12,7 +12,7 @@ use hyperswitch_domain_models::revenue_recovery::{
     retry_stats_cluster_key::RetryStatsClusterKey, retry_stats_document::StatsDocument,
 };
 use hyperswitch_masking::{PeekInterface, Secret};
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 use crate::{
     behaviour::Conversion, connection, errors::StorageError, kv_router_store::KVRouterStore,

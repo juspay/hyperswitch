@@ -21,6 +21,7 @@ revenue_recovery= []
 deja = ["diesel_models/deja"]
 
 [dependencies]
+tracing = { workspace = true }
 # First party deps
 api_models = { version = "0.1.0", path = "../api_models", features = ["errors"] }
 cards = { version = "0.1.0", path = "../cards" }

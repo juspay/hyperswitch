@@ -28,7 +28,7 @@ use external_services::grpc_client::dynamic_routing::{
 use hyperswitch_domain_models::api::ApplicationResponse;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use hyperswitch_interfaces::events::routing_api_logs as routing_events;
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, logger};
 use rustc_hash::FxHashSet;
 use storage_impl::redis::cache;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]

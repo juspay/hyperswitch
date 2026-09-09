@@ -16,6 +16,7 @@ tokenization_v2 = []
 deja = ["dep:deja", "deja/diesel-pg"]
 
 [dependencies]
+tracing = { workspace = true }
 async-bb8-diesel = "0.2.1"
 base64 = "0.22.1"
 bb8 = "0.8.6"

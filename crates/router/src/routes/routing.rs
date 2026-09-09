@@ -16,7 +16,7 @@ use api_models::{
 use error_stack::ResultExt;
 use payment_methods::core::errors::ApiErrorResponse;
 use router_env::{
-    tracing::{self, instrument},
+    tracing::instrument,
     Flow,
 };
 

@@ -78,7 +78,7 @@ where
 mod storage {
     use common_utils::{ext_traits::AsyncExt, id_type, types::keymanager::KeyManagerState};
     use error_stack::{report, ResultExt};
-    use router_env::{instrument, tracing};
+    use router_env::instrument;
 
     use super::AddressInterface;
     use crate::{
@@ -300,7 +300,7 @@ mod storage {
     use diesel_models::{enums::MerchantStorageScheme, AddressUpdateInternal};
     use error_stack::{report, ResultExt};
     use redis_interface::HsetnxReply;
-    use router_env::{instrument, tracing};
+    use router_env::instrument;
     use storage_impl::redis::kv_store::{
         decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey,
     };

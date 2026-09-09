@@ -6,7 +6,7 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::{ext_traits::OptionExt, mandates};
 use router_env::{
     logger,
-    tracing::{self, instrument},
+    tracing::instrument,
 };
 
 use crate::{

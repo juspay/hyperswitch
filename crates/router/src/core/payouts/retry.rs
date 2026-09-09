@@ -5,7 +5,7 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::payments::HeaderPayload;
 use router_env::{
     logger,
-    tracing::{self, instrument},
+    tracing::instrument,
 };
 
 use super::{call_connector_payout, PayoutData};

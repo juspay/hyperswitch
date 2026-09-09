@@ -94,7 +94,7 @@ use hyperswitch_interfaces::{
 };
 use hyperswitch_masking::{ExposeInterface, Mask, Maskable, Secret};
 use ring::hmac;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 use transformers as adyen;
 
 #[cfg(feature = "payouts")]

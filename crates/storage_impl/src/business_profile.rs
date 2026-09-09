@@ -9,7 +9,7 @@ use hyperswitch_domain_models::{
 };
 #[cfg(feature = "accounts_cache")]
 use router_env::logger;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 #[cfg(feature = "accounts_cache")]
 use crate::redis::{

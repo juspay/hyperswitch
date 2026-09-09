@@ -15,7 +15,7 @@ use moka::future::Cache as MokaCache;
 use redis_interface::{errors::RedisError, RedisConnectionWithContext, RedisValue};
 use router_env::{
     logger,
-    tracing::{self, instrument},
+    tracing::instrument,
 };
 
 use crate::{

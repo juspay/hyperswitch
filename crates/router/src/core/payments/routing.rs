@@ -53,7 +53,7 @@ use rand::distributions::{self, Distribution};
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use rand::SeedableRng;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-use router_env::{instrument, tracing};
+use router_env::instrument;
 use rustc_hash::FxHashMap;
 use storage_impl::redis::cache::{CacheKey, CGRAPH_CACHE, ROUTING_CACHE};
 

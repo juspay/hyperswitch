@@ -5,7 +5,7 @@ use diesel_models::enums::{self, ProcessTrackerStatus};
 pub use diesel_models::process_tracker as storage;
 use error_stack::{report, ResultExt};
 use redis_interface::{RedisConnectionWithContext, RedisEntryId};
-use router_env::{instrument, tracing};
+use router_env::instrument;
 use uuid::Uuid;
 
 use super::{

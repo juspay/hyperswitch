@@ -9,7 +9,7 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::payment_method_data::CardDetailsPaymentMethod;
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, logger};
 use unified_connector_service_client::payments as payments_grpc;
 
 use super::types::{AccountUpdaterError, CardRefreshedData, RefreshedCard};

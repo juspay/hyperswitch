@@ -1,7 +1,7 @@
 use actix_web::{web, Responder};
 use common_utils::ext_traits::OptionExt;
 use error_stack::ResultExt;
-use router_env::{instrument, tracing, Flow};
+use router_env::{instrument, Flow};
 
 use crate::{
     self as app,

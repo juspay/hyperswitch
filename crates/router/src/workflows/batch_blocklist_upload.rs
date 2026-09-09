@@ -1,6 +1,6 @@
 use common_utils::{ext_traits::ValueExt, id_type};
 use error_stack::ResultExt;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 use scheduler::{
     consumer::{self, types::process_data},
     utils as pt_utils,

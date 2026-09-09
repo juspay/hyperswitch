@@ -13,7 +13,7 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::api::ConnectorSpecifications;
 use hyperswitch_masking::{ExposeInterface, Secret};
-use router_env::tracing::{self, instrument};
+use router_env::tracing::instrument;
 
 use crate::{
     consts,

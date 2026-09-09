@@ -41,7 +41,7 @@ use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use rand::Rng;
 use router_env::{
     logger,
-    tracing::{self, instrument},
+    tracing::instrument,
 };
 use scheduler::{
     consumer::{self, workflows::ProcessTrackerWorkflow},

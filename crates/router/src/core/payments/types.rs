@@ -12,7 +12,7 @@ pub use hyperswitch_domain_models::router_request_types::{
     self, AuthenticationData, SplitRefundsRequest, StripeSplitRefund, SurchargeDetails,
 };
 use redis_interface::errors::RedisError;
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, logger};
 
 use crate::{
     consts as router_consts,

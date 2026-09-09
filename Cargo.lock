@@ -376,6 +376,7 @@ dependencies = [
  "thiserror 1.0.69",
  "time 0.3.41",
  "tokio 1.48.0",
+ "tracing",
 ]
 
 [[package]]
@@ -2239,6 +2240,7 @@ dependencies = [
  "thiserror 1.0.69",
  "time 0.3.41",
  "tokio 1.48.0",
+ "tracing",
  "url 2.5.4",
  "urlencoding",
  "utoipa",
@@ -3136,6 +3138,7 @@ dependencies = [
  "strum 0.26.3",
  "thiserror 1.0.69",
  "time 0.3.41",
+ "tracing",
 ]
 
 [[package]]
@@ -3233,6 +3236,7 @@ dependencies = [
  "storage_impl",
  "thiserror 1.0.69",
  "tokio 1.48.0",
+ "tracing",
 ]
 
 [[package]]
@@ -3609,6 +3613,7 @@ dependencies = [
  "tonic-prost-build",
  "tonic-reflection",
  "tonic-types",
+ "tracing",
  "typed-builder 0.21.2",
  "url 2.5.4",
  "vaultrs",
@@ -4834,6 +4839,7 @@ dependencies = [
  "sha2",
  "strum 0.26.3",
  "time 0.3.41",
+ "tracing",
  "unicode-normalization",
  "unidecode",
  "url 2.5.4",
@@ -4881,6 +4887,7 @@ dependencies = [
  "serde_json",
  "serde_with",
  "time 0.3.41",
+ "tracing",
  "url 2.5.4",
  "utoipa",
 ]
@@ -4914,6 +4921,7 @@ dependencies = [
  "time 0.3.41",
  "tokio 1.48.0",
  "tonic 0.14.5",
+ "tracing",
  "url 2.5.4",
 ]
 
@@ -6971,6 +6979,7 @@ dependencies = [
  "storage_impl",
  "thiserror 1.0.69",
  "time 0.3.41",
+ "tracing",
  "url 2.5.4",
 ]
 
@@ -7216,7 +7225,7 @@ dependencies = [
  "regex-cache",
  "serde",
  "serde_derive",
- "strum 0.25.0",
+ "strum 0.26.3",
  "thiserror 1.0.69",
 ]
 
@@ -8488,6 +8497,7 @@ dependencies = [
  "time 0.3.41",
  "tokio 1.48.0",
  "totp-rs",
+ "tracing",
  "tracing-futures",
  "tracing-subscriber",
  "ucs_cards",
@@ -8962,6 +8972,7 @@ dependencies = [
  "thiserror 1.0.69",
  "time 0.3.41",
  "tokio 1.48.0",
+ "tracing",
  "uuid",
 ]
 
@@ -9856,6 +9867,7 @@ dependencies = [
  "serde_json",
  "thiserror 1.0.69",
  "tokio 1.48.0",
+ "tracing",
 ]
 
 [[package]]
@@ -9979,6 +9991,7 @@ dependencies = [
  "serde_json",
  "storage_impl",
  "time 0.3.41",
+ "tracing",
 ]
 
 [[package]]
@@ -11185,9 +11198,9 @@ checksum = "8df9b6e13f2d32c91b9bd719c00d1958837bc7dec474d94952798cc8e69eeec3"
 
 [[package]]
 name = "tracing"
-version = "0.1.41"
+version = "0.1.44"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "784e0ac535deb450455cbfa28a6f0df145ea1bb7ae51b821cf5e7927fdcfbdd0"
+checksum = "63e71662fa4b2a2c3a26f570f037eb95bb1f85397f3cd8076caed2f026a6d100"
 dependencies = [
  "log 0.4.27",
  "pin-project-lite",
@@ -11225,9 +11238,9 @@ dependencies = [
 
 [[package]]
 name = "tracing-attributes"
-version = "0.1.28"
+version = "0.1.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "395ae124c09f9e6918a2310af6038fba074bcf474ac352496d5910dd59a2226d"
+checksum = "7490cfa5ec963746568740651ac6781f701c9c5ea257c58e057f3ba8cf69e8da"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -11236,9 +11249,9 @@ dependencies = [
 
 [[package]]
 name = "tracing-core"
-version = "0.1.33"
+version = "0.1.36"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e672c95779cf947c5311f83787af4fa8fffd12fb27e4993211a84bdfd9610f9c"
+checksum = "db97caf9d906fbde555dd62fa95ddba9eecfd14cb388e4f491a66d74cd5fb79a"
 dependencies = [
  "once_cell",
  "valuable",

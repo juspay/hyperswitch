@@ -7,7 +7,7 @@ use api_models::authentication::{
     AuthenticationSyncPostUpdateRequest, AuthenticationSyncRequest,
 };
 use hyperswitch_masking::Secret;
-use router_env::{instrument, tracing, Flow};
+use router_env::{instrument, Flow};
 
 use crate::{
     core::{api_locking, unified_authentication_service},

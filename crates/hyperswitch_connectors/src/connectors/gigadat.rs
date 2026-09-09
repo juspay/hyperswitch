@@ -57,7 +57,7 @@ use hyperswitch_masking::ExposeInterface;
 use hyperswitch_masking::{Mask, PeekInterface};
 use lazy_static::lazy_static;
 #[cfg(feature = "payouts")]
-use router_env::{instrument, tracing};
+use router_env::instrument;
 use transformers as gigadat;
 use uuid::Uuid;
 

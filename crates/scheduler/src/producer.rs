@@ -5,7 +5,7 @@ use diesel_models::enums::ProcessTrackerStatus;
 use error_stack::{report, ResultExt};
 use router_env::{
     instrument,
-    tracing::{self, Instrument},
+    tracing::Instrument,
 };
 use time::Duration;
 use tokio::sync::mpsc;

@@ -1,6 +1,6 @@
 use actix_web::{web, HttpRequest, HttpResponse, Responder};
 use common_utils::id_type;
-use router_env::{instrument, tracing, Flow};
+use router_env::{instrument, Flow};
 
 #[cfg(feature = "v2")]
 pub mod migrate;

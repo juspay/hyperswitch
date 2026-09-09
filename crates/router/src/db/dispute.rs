@@ -65,7 +65,7 @@ pub trait DisputeInterface {
 mod storage_impl {
     use error_stack::report;
     use hyperswitch_domain_models::disputes;
-    use router_env::{instrument, tracing};
+    use router_env::instrument;
 
     use super::DisputeInterface;
     use crate::{
@@ -234,7 +234,7 @@ mod storage_impl {
     use error_stack::{report, ResultExt};
     use hyperswitch_domain_models::disputes;
     use redis_interface::HsetnxReply;
-    use router_env::{instrument, tracing};
+    use router_env::instrument;
     use storage_impl::{
         redis::kv_store::{decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey},
         utils as storage_impl_utils, KvSupportedEntity,

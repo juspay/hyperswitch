@@ -17,6 +17,7 @@ fred     = ["redis_interface/fred",     "redis_interface/metrics", "storage_impl
 redis-rs = ["redis_interface/redis-rs", "redis_interface/metrics", "storage_impl/redis-rs"]
 
 [dependencies]
+tracing = { workspace = true }
 actix-web = "4.11.0"
 async-bb8-diesel = "0.2.1"
 async-trait = "0.1.88"
