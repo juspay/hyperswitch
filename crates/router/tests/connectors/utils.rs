@@ -832,7 +832,7 @@ pub trait ConnectorActions: Connector {
                 create_res
                     .connector_payout_id
                     .ok_or(ConnectorError::MissingRequiredField {
-                        field_name: "connector_payout_id",
+                        field_name: "connector_payout_id".into(),
                     })?,
                 payout_type,
                 payment_info.to_owned(),
@@ -972,6 +972,9 @@ impl Default for CCardType {
             card_issuer: None,
             card_network: None,
             card_type: None,
+            card_subtype: None,
+            card_segment_type: None,
+            funding_source: None,
             card_issuing_country: None,
             card_issuing_country_code: None,
             bank_code: None,

@@ -1871,6 +1871,7 @@ pub enum EventObjectType {
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
+    strum::EnumIter,
     strum::EnumString,
     ToSchema,
 )]
@@ -1907,6 +1908,7 @@ impl EventClass {
                 EventType::RefundSucceeded,
                 EventType::RefundFailed,
                 EventType::SurchargeRefundSucceeded,
+                EventType::RefundReview,
             ]),
             Self::Disputes => HashSet::from([
                 EventType::DisputeOpened,
@@ -1966,6 +1968,7 @@ pub enum EventType {
     ActionRequired,
     RefundSucceeded,
     RefundFailed,
+    RefundReview,
     DisputeOpened,
     DisputeExpired,
     DisputeAccepted,
@@ -2992,6 +2995,15 @@ impl ExecutionPath {
             Self::UnifiedConnectorService => false,
         }
     }
+
+    /// Returns the execution mode corresponding to this execution path.
+    pub fn get_execution_mode(&self) -> ExecutionMode {
+        match self {
+            Self::UnifiedConnectorService => ExecutionMode::Primary,
+            Self::ShadowUnifiedConnectorService => ExecutionMode::Shadow,
+            Self::Direct => ExecutionMode::NotApplicable,
+        }
+    }
 }
 
 #[derive(
@@ -3361,6 +3373,7 @@ pub enum FrmTransactionType {
     Copy,
     Debug,
     Eq,
+    Hash,
     PartialEq,
     Default,
     serde::Deserialize,
@@ -3558,6 +3571,9 @@ pub enum CardSegmentType {
 pub enum CardType {
     Credit,
     Debit,
+    Prepaid,
+    Store,
+    ChargeCard,
 }
 
 impl CardType {
@@ -3565,6 +3581,9 @@ impl CardType {
         match self {
             Self::Credit => "Credit",
             Self::Debit => "Debit",
+            Self::Prepaid => "Prepaid",
+            Self::Store => "Store",
+            Self::ChargeCard => "Charge Card",
         }
     }
 }

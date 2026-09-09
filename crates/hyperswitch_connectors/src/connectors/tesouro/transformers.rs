@@ -415,12 +415,12 @@ impl TesouroPaymentMethodDetails {
                     ))
                 } else {
                     Err(errors::ConnectorError::MissingRequiredField {
-                        field_name: "expiration date and expiration year",
+                        field_name: "expiration date and expiration year".into(),
                     })
                 }
             }
             _ => Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "expiration date and expiration year",
+                field_name: "expiration date and expiration year".into(),
             }),
         }?;
         Ok(Self::AcquirerTokenDetails(
@@ -616,7 +616,7 @@ fn get_apple_pay_data(
         }
         common_types::payments::ApplePayPaymentData::Encrypted(_) => {
             Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "decrypted apple pay data",
+                field_name: "decrypted apple pay data".into(),
             })?
         }
     }
@@ -636,7 +636,7 @@ fn get_google_pay_data(
         }
         common_types::payments::GpayTokenizationData::Encrypted(_) => {
             Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "decrypted google pay data",
+                field_name: "decrypted google pay data".into(),
             })?
         }
     }
@@ -782,7 +782,7 @@ impl TryFrom<&TesouroRouterData<&PaymentsAuthorizeRouterData>> for TesouroAuthor
             PaymentMethodData::MandatePayment => {
                 let connector_mandate_id = item.router_data.request.connector_mandate_id().ok_or(
                     errors::ConnectorError::MissingRequiredField {
-                        field_name: "connector_mandate_id",
+                        field_name: "connector_mandate_id".into(),
                     },
                 )?;
                 cit_reference = {
@@ -791,7 +791,7 @@ impl TryFrom<&TesouroRouterData<&PaymentsAuthorizeRouterData>> for TesouroAuthor
                         .request
                         .get_connector_mandate_request_reference_id()
                         .change_context(errors::ConnectorError::MissingRequiredField {
-                            field_name: "connector_mandate_id",
+                            field_name: "connector_mandate_id".into(),
                         })?;
 
                     Some(CitReference {
@@ -804,7 +804,7 @@ impl TryFrom<&TesouroRouterData<&PaymentsAuthorizeRouterData>> for TesouroAuthor
                     .additional_payment_method_data
                     .clone()
                     .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "additional_payment_method_data",
+                        field_name: "additional_payment_method_data".into(),
                     })?;
                 original_purchase_date = {
                     if let Some(metadata) = item

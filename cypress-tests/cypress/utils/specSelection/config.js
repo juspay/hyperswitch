@@ -145,7 +145,6 @@ const PAYMENT_SPEC_METHODS = Object.freeze({
   "46-StepUpRetries.cy.js": ["card"],
   "47-ManualPaymentUpdate.cy.js": ["card"],
   "47-PollConfig.cy.js": ["card"],
-  "47-RefundManualUpdate.cy.js": ["card"],
   "47-StepUpAuth.cy.js": ["card"],
   "47-WalletMandates.cy.js": ["wallet"],
   "48-CardTestingGuard.cy.js": ["card"],

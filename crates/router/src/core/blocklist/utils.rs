@@ -178,6 +178,124 @@ pub(super) fn validate_bin(
     })
 }
 
+pub async fn get_blocklist_count(
+    state: &SessionState,
+    processor: &domain::Processor,
+    profile_id: Option<common_utils::id_type::ProfileId>,
+    query: api_blocklist::BlocklistCountQuery,
+) -> RouterResult<api_blocklist::BlocklistCountResponse> {
+    let processor_merchant_id = processor.get_account().get_id();
+    let profile_id = core_utils::get_profile_id_from_business_details(
+        None,
+        None,
+        processor,
+        profile_id.as_ref(),
+        &*state.store,
+        true,
+    )
+    .await?;
+
+    let (total_count, counts_by_length) = match query.data_kind {
+        // Fingerprints are fixed-width hashes, so there is no breakdown worth grouping for.
+        common_enums::BlocklistDataKind::PaymentMethod => {
+            let total_count = state
+                .store
+                .get_blocklist_entries_count_by_processor_merchant_id_profile_id_data_kind(
+                    processor_merchant_id,
+                    Some(&profile_id),
+                    query.data_kind,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("failed to count blocklist entries")?;
+
+            (total_count, None)
+        }
+
+        common_enums::BlocklistDataKind::CardBin
+        | common_enums::BlocklistDataKind::ExtendedCardBin
+        | common_enums::BlocklistDataKind::GenericCardBin => {
+            let length_counts = state
+                .store
+                .count_blocklist_entries_by_fingerprint_length_processor_merchant_id_profile_id_data_kind(
+                    processor_merchant_id,
+                    &profile_id,
+                    query.data_kind,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("failed to count blocklist entries by fingerprint length")?;
+
+            let counts_by_length = length_counts
+                .into_iter()
+                .map(|(length, count)| {
+                    let length = usize::try_from(length)
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable(
+                            "fingerprint length returned by the database did not fit in usize",
+                        )?;
+                    let count = usize::try_from(count)
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable(
+                            "blocklist entry count returned by the database did not fit in usize",
+                        )?;
+                    Ok((length, count))
+                })
+                .collect::<RouterResult<std::collections::BTreeMap<_, _>>>()?;
+
+            (counts_by_length.values().sum(), Some(counts_by_length))
+        }
+    };
+
+    Ok(api_blocklist::BlocklistCountResponse {
+        data_kind: query.data_kind,
+        total_count,
+        counts_by_length,
+    })
+}
+
+pub async fn lookup_blocklist_entry(
+    state: &SessionState,
+    processor: &domain::Processor,
+    profile_id: Option<common_utils::id_type::ProfileId>,
+    query: api_blocklist::BlocklistLookupQuery,
+) -> RouterResult<api_blocklist::BlocklistLookupResponse> {
+    let processor_merchant_id = processor.get_account().get_id();
+    let profile_id = core_utils::get_profile_id_from_business_details(
+        None,
+        None,
+        processor,
+        profile_id.as_ref(),
+        &*state.store,
+        true,
+    )
+    .await?;
+
+    let result = state
+        .store
+        .find_blocklist_entry_by_processor_merchant_id_profile_id_fingerprint_id(
+            processor_merchant_id,
+            &profile_id,
+            query.data.get_string_repr(),
+        )
+        .await;
+
+    let blocked = match result {
+        Ok(_) => true,
+        Err(error) if error.current_context().is_db_not_found() => false,
+        Err(error) => {
+            return Err(error
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("failed to look up blocklist entry"));
+        }
+    };
+
+    Ok(api_blocklist::BlocklistLookupResponse {
+        data: query.data.get_string_repr().to_string(),
+        blocked,
+    })
+}
+
 pub async fn insert_entry_into_blocklist(
     state: &SessionState,
     platform: &domain::Platform,
@@ -441,10 +559,15 @@ pub async fn should_payment_be_blocked(
     let card_bin_prefixes = payment_method_data
         .as_ref()
         .and_then(|pm_data| match pm_data {
-            domain::EligibilityPaymentMethodData::Card(card) => Some(&card.card_number),
+            domain::EligibilityPaymentMethodData::Card(card) => {
+                Some(card.card_number.get_blocklist_bin_prefixes())
+            }
+            // BIN-only eligibility input: probe every prefix derivable from the provided BIN
+            domain::EligibilityPaymentMethodData::CardBin(card_bin) => {
+                Some(card_bin.get_blocklist_bin_prefixes())
+            }
             _ => None,
         })
-        .map(cards::CardNumber::get_blocklist_bin_prefixes)
         .unwrap_or_default();
 
     // Extended bin of the wallet's decrypted token, to check whether or not this payment should be blocked.
@@ -493,6 +616,60 @@ pub async fn should_payment_be_blocked(
     }
 
     Ok(block_reason)
+}
+
+/// Whether the merchant has enabled the blocklist guard (the same config key that gates
+/// confirm-time and eligibility-time blocklist checks). Defaults to `false` when unset.
+pub async fn is_blocklist_guard_enabled(
+    state: &SessionState,
+    processor_merchant_id: &common_utils::id_type::MerchantId,
+) -> bool {
+    let blocklist_enabled_key = processor_merchant_id.get_blocklist_guard_key();
+    match state
+        .store
+        .find_config_by_key_unwrap_or(&blocklist_enabled_key, Some("false".to_string()))
+        .await
+    {
+        Ok(config) => serde_json::from_str(&config.config).unwrap_or(false),
+        Err(error) => {
+            if !error.current_context().is_db_not_found() {
+                logger::error!(?error, "Error fetching blocklist guard enabled config");
+            }
+            false
+        }
+    }
+}
+
+/// Returns the subset of `bins` (card ISINs / extended BINs) that have an active BIN
+/// blocklist entry (BIN kinds only — PAN-fingerprint entries cannot be matched from a
+/// BIN) for this merchant/profile, resolved with a single batched query. Merchant-wide
+/// entries (NULL `profile_id`) match every profile. DB errors are logged and treated as
+/// not blocked, mirroring [`should_payment_be_blocked`].
+pub async fn get_blocked_bins(
+    state: &SessionState,
+    processor: &domain::Processor,
+    profile_id: &common_utils::id_type::ProfileId,
+    bins: HashSet<String>,
+) -> HashSet<String> {
+    let lookup_result = state
+        .store
+        .list_blocklist_entries_by_processor_merchant_id_profile_id_card_bins(
+            processor.get_account().get_id(),
+            profile_id,
+            bins.into_iter().collect(),
+        )
+        .await;
+
+    match lookup_result {
+        Ok(blocklist_entries) => blocklist_entries
+            .into_iter()
+            .map(|blocklist_entry| blocklist_entry.fingerprint_id)
+            .collect(),
+        Err(error) => {
+            logger::error!(blocklist_db_error=?error, "failed db operations for blocklist");
+            HashSet::new()
+        }
+    }
 }
 
 pub async fn validate_data_for_blocklist<F>(
@@ -585,6 +762,11 @@ fn resolve_blocking_config_and_bin<'a>(
             .card
             .as_ref()
             .map(|card_config| (card_config, card.card_number.get_card_isin())),
+
+        domain::EligibilityPaymentMethodData::CardBin(card_bin) => blocking_config
+            .card
+            .as_ref()
+            .map(|card_config| (card_config, card_bin.get_card_isin())),
 
         domain::EligibilityPaymentMethodData::Wallet(domain::WalletData::ApplePay(_)) => {
             blocking_config

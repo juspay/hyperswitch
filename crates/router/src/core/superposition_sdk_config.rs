@@ -139,7 +139,7 @@ pub async fn get_profile_superposition_sdk_config(
     let profile_id_typed =
         common_utils::id_type::ProfileId::try_from(std::borrow::Cow::from(profile_id.clone()))
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "profile_id",
+                field_name: "profile_id".into(),
             })?;
 
     let business_profile = db

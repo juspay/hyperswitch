@@ -634,7 +634,7 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                                     .tokenization_data
                                     .get_encrypted_google_pay_token()
                                     .change_context(errors::ConnectorError::MissingRequiredField {
-                                        field_name: "google_pay_token",
+                                        field_name: "google_pay_token".into(),
                                     })?
                                     .clone(),
                             )),
@@ -711,7 +711,7 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                     BankRedirectInfo::Ideal(IdealInfo {
                         issuer_id: MultisafepayBankNames::try_from(&bank_name.ok_or(
                             errors::ConnectorError::MissingRequiredField {
-                                field_name: "ideal.bank_name",
+                                field_name: "ideal.bank_name".into(),
                             },
                         )?)?,
                     }),

@@ -222,6 +222,26 @@ struct OrderStatus {
 struct Token {
     authenticated_shopper_i_d: Option<String>,
     token_details: TokenDetails,
+    payment_instrument: Option<TokenPaymentInstrument>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct TokenPaymentInstrument {
+    emvco_token_details: Option<EmvcoTokenDetailsResponse>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct EmvcoTokenDetailsResponse {
+    derived: Option<EmvcoTokenDetailsDerived>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct EmvcoTokenDetailsDerived {
+    card_brand: Option<String>,
+    card_sub_brand: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -608,6 +628,27 @@ struct WorldpayXmlAmount {
     currency_code: api_models::enums::Currency,
     #[serde(rename = "@exponent")]
     exponent: String,
+    #[serde(
+        rename = "@debitCreditIndicator",
+        skip_serializing_if = "Option::is_none"
+    )]
+    debit_credit_indicator: Option<DebitCreditIndicator>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+enum DebitCreditIndicator {
+    Credit,
+    Debit,
+}
+
+impl DebitCreditIndicator {
+    fn as_card_type(self) -> common_enums::CardType {
+        match self {
+            Self::Credit => common_enums::CardType::Credit,
+            Self::Debit => common_enums::CardType::Debit,
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -917,24 +958,24 @@ impl TryFrom<PaymentsPreAuthenticateResponseRouterData<bytes::Bytes>>
                 .description
                 .clone()
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "description",
+                    field_name: "description".into(),
                 })?;
 
         let browser_info = item.data.request.browser_info.clone().ok_or(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "browser_info",
+                field_name: "browser_info".into(),
             },
         )?;
 
         let _accept_header = browser_info.accept_header.clone().ok_or(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "browser_info.accept_header",
+                field_name: "browser_info.accept_header".into(),
             },
         )?;
 
         let _user_agent_header = browser_info.user_agent.clone().ok_or(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "browser_info.user_agent",
+                field_name: "browser_info.user_agent".into(),
             },
         )?;
 
@@ -1073,7 +1114,7 @@ fn build_google_pay_payment_details(
                             year: gpay_decrypt_data
                                 .get_four_digit_expiry_year()
                                 .change_context(errors::ConnectorError::MissingRequiredField {
-                                    field_name: "gpay expiry year",
+                                    field_name: "gpay expiry year".into(),
                                 })?,
                         },
                     },
@@ -1091,7 +1132,7 @@ fn build_google_pay_payment_details(
                             year: gpay_decrypt_data
                                 .get_four_digit_expiry_year()
                                 .change_context(errors::ConnectorError::MissingRequiredField {
-                                    field_name: "gpay expiry year",
+                                    field_name: "gpay expiry year".into(),
                                 })?,
                         },
                     },
@@ -1238,18 +1279,18 @@ impl
                     .payment_data
                     .get_encrypted_apple_pay_payment_data_mandatory()
                     .change_context(errors::ConnectorError::MissingRequiredField {
-                        field_name: "Apple pay encrypted data",
+                        field_name: "Apple pay encrypted data".into(),
                     })?;
 
                 let decoded_data = base64::prelude::BASE64_STANDARD
                     .decode(applepay_encrypt_data)
                     .change_context(errors::ConnectorError::InvalidDataFormat {
-                        field_name: "apple_pay_encrypted_data",
+                        field_name: "apple_pay_encrypted_data".into(),
                     })?;
 
                 let apple_pay_token: ApplePayData = serde_json::from_slice(&decoded_data)
                     .change_context(errors::ConnectorError::InvalidDataFormat {
-                        field_name: "apple_pay_token_json",
+                        field_name: "apple_pay_token_json".into(),
                     })?;
 
                 PaymentMethod::PayWithAppleSSL(apple_pay_token)
@@ -1352,7 +1393,7 @@ fn get_shopper_details(
             || item.request.is_cit_mandate_payment() =>
         {
             Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "connector_customer_id",
+                field_name: "connector_customer_id".into(),
             })?
         }
         None => None,
@@ -1399,7 +1440,7 @@ fn get_shopper_details_cauth(
             || item.request.is_cit_mandate_payment() =>
         {
             Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "connector_customer_id",
+                field_name: "connector_customer_id".into(),
             })?
         }
         None => None,
@@ -1712,7 +1753,7 @@ impl TryFrom<&WorldpayxmlRouterData<&PaymentsAuthorizeRouterData>> for PaymentSe
         };
         let description = item.router_data.description.clone().ok_or(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "description",
+                field_name: "description".into(),
             },
         )?;
 
@@ -1732,12 +1773,12 @@ impl TryFrom<&WorldpayxmlRouterData<&PaymentsAuthorizeRouterData>> for PaymentSe
                 let browser_info = item.router_data.request.get_browser_info()?;
                 let accept_header = browser_info.accept_header.ok_or(
                     errors::ConnectorError::MissingRequiredField {
-                        field_name: "browser_info.accept_header",
+                        field_name: "browser_info.accept_header".into(),
                     },
                 )?;
                 let user_agent_header = browser_info.user_agent.ok_or(
                     errors::ConnectorError::MissingRequiredField {
-                        field_name: "browser_info.user_agent",
+                        field_name: "browser_info.user_agent".into(),
                     },
                 )?;
 
@@ -1779,6 +1820,7 @@ impl TryFrom<&WorldpayxmlRouterData<&PaymentsAuthorizeRouterData>> for PaymentSe
             currency_code: item.router_data.request.currency.to_owned(),
             exponent,
             value: item.amount.to_owned(),
+            debit_credit_indicator: None,
         };
         let shopper = get_shopper_details(item.router_data, accept_header, user_agent_header)?;
         let billing_address = item
@@ -1906,6 +1948,7 @@ impl TryFrom<&WorldpayxmlRouterData<&PaymentsCaptureRouterData>> for PaymentServ
                             .number_of_digits_after_decimal_point()
                             .to_string(),
                         value: item.amount.to_owned(),
+                        debit_credit_indicator: None,
                     },
                 }),
                 cancel_refund: None,
@@ -1973,6 +2016,7 @@ impl<F> TryFrom<&WorldpayxmlRouterData<&RefundsRouterData<F>>> for PaymentServic
                             .number_of_digits_after_decimal_point()
                             .to_string(),
                         value: item.amount.to_owned(),
+                        debit_credit_indicator: None,
                     },
                 }),
             },
@@ -2197,6 +2241,7 @@ impl<F>
                         )?;
                         let connector_response = get_connector_response_data(
                             &payment_data,
+                            order_status.token.as_ref(),
                             item.data.request.payment_method_type,
                         );
                         let response = process_payment_response(
@@ -2363,14 +2408,14 @@ pub fn get_cookie_from_metadata(metadata: Option<Value>) -> Result<String, error
     let value = metadata
         .as_ref()
         .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
-            field_name: "metadata",
+            field_name: "metadata".into(),
         })?;
 
     let cookie = value
         .get("cookie")
         .and_then(|v| v.as_str())
         .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
-            field_name: "metadata.cookie",
+            field_name: "metadata.cookie".into(),
         })?;
 
     Ok(cookie.to_string())
@@ -2405,18 +2450,18 @@ fn generate_jwt_for_ddc(
     let iss = metadata_for_jwt
         .issuer_id
         .ok_or(errors::ConnectorError::MissingRequiredField {
-            field_name: "connector_metadata.issuer_id",
+            field_name: "connector_metadata.issuer_id".into(),
         })?;
 
     let org_unit_id = metadata_for_jwt.organizational_unit_id.ok_or(
         errors::ConnectorError::MissingRequiredField {
-            field_name: "connector_metadata.organizational_unit_id",
+            field_name: "connector_metadata.organizational_unit_id".into(),
         },
     )?;
 
     let secret = metadata_for_jwt.jwt_mac_key.as_deref().ok_or(
         errors::ConnectorError::MissingRequiredField {
-            field_name: "connector_metadata.jwt_mac_key",
+            field_name: "connector_metadata.jwt_mac_key".into(),
         },
     )?;
 
@@ -2458,18 +2503,18 @@ fn generate_challenge_jwt(
     let iss = metadata_for_jwt
         .issuer_id
         .ok_or(errors::ConnectorError::MissingRequiredField {
-            field_name: "connector_metadata.issuer_id",
+            field_name: "connector_metadata.issuer_id".into(),
         })?;
 
     let org_unit_id = metadata_for_jwt.organizational_unit_id.ok_or(
         errors::ConnectorError::MissingRequiredField {
-            field_name: "connector_metadata.organizational_unit_id",
+            field_name: "connector_metadata.organizational_unit_id".into(),
         },
     )?;
 
     let secret = metadata_for_jwt.jwt_mac_key.as_deref().ok_or(
         errors::ConnectorError::MissingRequiredField {
-            field_name: "connector_metadata.jwt_mac_key",
+            field_name: "connector_metadata.jwt_mac_key".into(),
         },
     )?;
 
@@ -2534,6 +2579,7 @@ impl<F>
 
                 let connector_response = get_connector_response_data(
                     &payment_data,
+                    order_status.token.as_ref(),
                     item.data.request.payment_method_type,
                 );
                 let response = process_payment_response(
@@ -2576,7 +2622,7 @@ impl<F>
                     ))?;
                 let return_url = item.data.request.complete_authorize_url.clone().ok_or(
                     errors::ConnectorError::MissingRequiredField {
-                        field_name: "return_url",
+                        field_name: "return_url".into(),
                     },
                 )?;
 
@@ -2717,7 +2763,7 @@ impl TryFrom<WorldpayxmlRouterData<&PaymentsCompleteAuthorizeRouterData>> for Pa
                 .connector_transaction_id
                 .clone()
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "connector_transaction_id",
+                    field_name: "connector_transaction_id".into(),
                 })?;
 
             let session = Some(CompleteAuthSession {
@@ -2768,7 +2814,7 @@ impl TryFrom<WorldpayxmlRouterData<&PaymentsCompleteAuthorizeRouterData>> for Pa
             };
             let description = item.router_data.description.clone().ok_or(
                 errors::ConnectorError::MissingRequiredField {
-                    field_name: "description",
+                    field_name: "description".into(),
                 },
             )?;
 
@@ -2781,12 +2827,12 @@ impl TryFrom<WorldpayxmlRouterData<&PaymentsCompleteAuthorizeRouterData>> for Pa
             let browser_info = item.router_data.request.get_browser_info()?;
             let accept_header = browser_info.accept_header.clone().ok_or(
                 errors::ConnectorError::MissingRequiredField {
-                    field_name: "browser_info.accept_header",
+                    field_name: "browser_info.accept_header".into(),
                 },
             )?;
             let user_agent_header = browser_info.user_agent.clone().ok_or(
                 errors::ConnectorError::MissingRequiredField {
-                    field_name: "browser_info.user_agent",
+                    field_name: "browser_info.user_agent".into(),
                 },
             )?;
 
@@ -2805,6 +2851,7 @@ impl TryFrom<WorldpayxmlRouterData<&PaymentsCompleteAuthorizeRouterData>> for Pa
                 currency_code: item.router_data.request.currency.to_owned(),
                 exponent,
                 value: item.amount.to_owned(),
+                debit_credit_indicator: None,
             };
             let shopper = get_shopper_details_cauth(
                 item.router_data,
@@ -2932,6 +2979,7 @@ impl<F>
                 )?;
                 let connector_response = get_connector_response_data(
                     &payment_data,
+                    order_status.token.as_ref(),
                     item.data.request.payment_method_type,
                 );
                 let response = process_payment_response(
@@ -3031,6 +3079,7 @@ impl<F>
 
                 let connector_response = get_connector_response_data(
                     &payment_data,
+                    order_status.token.as_ref(),
                     item.data.request.payment_method_type,
                 );
                 let response = process_payment_response(
@@ -3073,7 +3122,7 @@ impl<F>
                     ))?;
                 let return_url = item.data.request.complete_authorize_url.clone().ok_or(
                     errors::ConnectorError::MissingRequiredField {
-                        field_name: "return_url",
+                        field_name: "return_url".into(),
                     },
                 )?;
 
@@ -3627,7 +3676,7 @@ impl TryFrom<&WorldpayxmlRouterData<&PayoutsRouterData<PoFulfill>>> for PaymentS
 
         let description = item.router_data.description.clone().ok_or(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "description",
+                field_name: "description".into(),
             },
         )?;
 
@@ -3642,6 +3691,7 @@ impl TryFrom<&WorldpayxmlRouterData<&PayoutsRouterData<PoFulfill>>> for PaymentS
             currency_code: item.router_data.request.destination_currency.to_owned(),
             exponent,
             value: item.amount.to_owned(),
+            debit_credit_indicator: None,
         };
 
         let auth = WorldpayxmlAuthType::try_from(&item.router_data.connector_auth_type)
@@ -3757,7 +3807,7 @@ impl TryFrom<&PayoutsRouterData<PoSync>> for PaymentService {
     fn try_from(item: &PayoutsRouterData<PoSync>) -> Result<Self, Self::Error> {
         let order_code = item.request.connector_payout_id.to_owned().ok_or(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "order_code",
+                field_name: "order_code".into(),
             },
         )?;
 
@@ -3868,7 +3918,7 @@ impl TryFrom<&PayoutsRouterData<PoCancel>> for PaymentService {
             order_modification: OrderModification {
                 order_code: item.request.connector_payout_id.to_owned().ok_or(
                     errors::ConnectorError::MissingRequiredField {
-                        field_name: "order_code",
+                        field_name: "order_code".into(),
                     },
                 )?,
                 capture: None,
@@ -3992,6 +4042,7 @@ fn get_mandate_reference(
 /// to the auth code exposed in the connector response.
 fn get_connector_response_data(
     payment_data: &Payment,
+    token: Option<&Token>,
     payment_method_type: Option<enums::PaymentMethodType>,
 ) -> Option<ConnectorResponseData> {
     let auth_code = payment_data
@@ -4000,15 +4051,50 @@ fn get_connector_response_data(
         .and_then(|authorisation_id| authorisation_id.id.clone())
         .map(|id| id.expose())?;
 
+    let issuer_name = payment_data.issuer_name.clone();
+    // Worldpay can return "N/A" here instead of an ISO alpha-2 code; parse leniently.
+    let issuer_country = payment_data
+        .issuer_country_code
+        .as_deref()
+        .and_then(|code| code.parse::<common_enums::CountryAlpha2>().ok());
+    let card_subtype = token
+        .and_then(|token| token.payment_instrument.as_ref())
+        .and_then(|payment_instrument| {
+            payment_instrument
+                .emvco_token_details
+                .as_ref()
+                .and_then(|emvco_token_details| emvco_token_details.derived.as_ref())
+                .and_then(|derived| derived.card_sub_brand.clone())
+        });
+
     let additional_payment_method_data = match payment_method_type {
         Some(enums::PaymentMethodType::GooglePay) => {
             AdditionalPaymentMethodConnectorResponse::GooglePay {
                 auth_code: Some(auth_code),
+                device_pan_bin: None,
+                card_bin: None,
+                card_subtype,
+                card_segment_type: None,
+                funding_source: None,
+                card_type: payment_data
+                    .amount
+                    .as_ref()
+                    .and_then(|amount| amount.debit_credit_indicator)
+                    .map(DebitCreditIndicator::as_card_type),
+                issuer_name,
+                issuer_country,
             }
         }
         Some(enums::PaymentMethodType::ApplePay) => {
             AdditionalPaymentMethodConnectorResponse::ApplePay {
                 auth_code: Some(auth_code),
+                device_pan_bin: None,
+                card_bin: None,
+                card_subtype,
+                card_segment_type: None,
+                funding_source: None,
+                issuer_name,
+                issuer_country,
             }
         }
         _ => AdditionalPaymentMethodConnectorResponse::Card {

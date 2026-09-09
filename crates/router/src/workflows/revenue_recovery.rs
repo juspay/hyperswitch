@@ -254,6 +254,23 @@ pub(crate) async fn get_schedule_time_to_retry_mit_payments(
     scheduler_utils::get_time_from_delta(time_delta)
 }
 
+/// Static ladder time for the adaptive retry algorithm.
+#[cfg(feature = "v2")]
+pub(crate) async fn get_schedule_time_to_retry_adaptive_payments(
+    db: &dyn StorageInterface,
+    superposition_client: &external_services::superposition::SuperpositionClient,
+    dimensions: &crate::core::configs::dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
+    retry_count: i32,
+) -> Option<time::PrimitiveDateTime> {
+    let mapping = dimensions
+        .get_pt_mapping_adaptive_retries(db, superposition_client, None)
+        .await;
+
+    let time_delta = scheduler_utils::get_pcr_payments_retry_schedule_time(mapping, retry_count);
+
+    scheduler_utils::get_time_from_delta(time_delta)
+}
+
 #[derive(Debug, Clone)]
 pub struct RetryDecision {
     pub retry_time: time::PrimitiveDateTime,
@@ -637,7 +654,85 @@ pub enum PaymentProcessorTokenResponse {
     None,
 }
 
+/// The two allowances the math model needs: how much of the invoice's grace window is left, and
+/// how many retries remain of the merchant's budget. The grace window comes from Superposition,
+/// the budget from the billing connector's account.
 #[cfg(feature = "v2")]
+async fn get_adaptive_retry_allowances(
+    state: &SessionState,
+    dimensions: &crate::core::configs::dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
+    payment_intent: &PaymentIntent,
+    max_retry_count: u16,
+    retry_count: i32,
+    now: time::PrimitiveDateTime,
+) -> Result<(u32, u32), errors::ProcessTrackerError> {
+    let grace_period_days = dimensions
+        .get_recovery_grace_period_days(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            None,
+        )
+        .await;
+
+    let grace_window_start = payment_intent
+        .feature_metadata
+        .as_ref()
+        .and_then(|feature_metadata| feature_metadata.payment_revenue_recovery_metadata.as_ref())
+        .and_then(|revenue_recovery_metadata| {
+            revenue_recovery_metadata.invoice_billing_started_at_time
+        })
+        .ok_or_else(|| {
+            logger::error!(
+                payment_id = %payment_intent.id.get_string_repr(),
+                "adaptive retry: the invoice has no billing start time, so its grace window \
+                 cannot be established"
+            );
+            errors::ProcessTrackerError::EApiErrorResponse
+        })?;
+
+    let grace_window_end = grace_window_start
+        .checked_add(time::Duration::days(grace_period_days))
+        .ok_or_else(|| {
+            logger::error!(
+                payment_id = %payment_intent.id.get_string_repr(),
+                grace_period_days,
+                %grace_window_start,
+                "adaptive retry: failed to calculate the grace window end time"
+            );
+            errors::ProcessTrackerError::EApiErrorResponse
+        })?;
+
+    let days_left_in_grace_window = (grace_window_end - now).whole_days().max(0);
+
+    let remaining_grace_days: u32 = days_left_in_grace_window.try_into().map_err(|error| {
+        logger::error!(
+            ?error,
+            payment_id = %payment_intent.id.get_string_repr(),
+            days_left_in_grace_window,
+            "adaptive retry: the days left in the grace window do not fit the model's day count"
+        );
+        errors::ProcessTrackerError::EApiErrorResponse
+    })?;
+
+    let retries_already_made: u32 = retry_count.try_into().map_err(|error| {
+        logger::error!(
+            ?error,
+            payment_id = %payment_intent.id.get_string_repr(),
+            retry_count,
+            "adaptive retry: failed to read how many retries have already been made"
+        );
+        errors::ProcessTrackerError::EApiErrorResponse
+    })?;
+
+    // Saturating so an invoice already past its ceiling reads as no budget left rather than
+    // wrapping to an enormous one.
+    let remaining_budget = u32::from(max_retry_count).saturating_sub(retries_already_made);
+
+    Ok((remaining_grace_days, remaining_budget))
+}
+
+#[cfg(feature = "v2")]
+#[allow(clippy::too_many_arguments)]
 pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
     state: &SessionState,
     connector_customer_id: &str,
@@ -645,7 +740,9 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
     billing_connector: common_enums::connector_enums::Connector,
     retry_algorithm_type: RevenueRecoveryAlgorithmType,
     retry_count: i32,
+    tracking_data: &pcr_storage_types::RevenueRecoveryWorkflowTrackingData,
     static_ladder_progress: &pcr::schedule::StaticLadderProgress,
+    max_retry_count: u16,
 ) -> CustomResult<
     (
         PaymentProcessorTokenResponse,
@@ -656,7 +753,7 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
     let mut payment_processor_token_response = PaymentProcessorTokenResponse::None;
     // Updated scheduling state, set only when a retry is actually scheduled by the adaptive
     // path. The other responses reschedule the CALCULATE job without making an attempt, so
-    // persisting there would consume a pinned static time for a retry that never happened.
+    // persisting there would consume a ladder position for a retry that never happened.
     let mut next_static_ladder_progress = None;
     match retry_algorithm_type {
         RevenueRecoveryAlgorithmType::Monitoring => {
@@ -708,31 +805,83 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                 // Same shape as the cascading arm — compute the schedule time, then gate on
                 // the token. The only additions are the adaptive candidate and the choice
                 // between the two.
+                let now = common_utils::date_time::now();
                 let queried_rung = static_ladder_progress.next_rung();
-                let static_time = get_schedule_time_to_retry_mit_payments(
+
+                let static_time = get_schedule_time_to_retry_adaptive_payments(
                     state.store.as_ref(),
                     state.superposition_service.as_ref(),
                     &dimensions,
                     queried_rung,
                 )
-                .await
-                .ok_or(errors::ProcessTrackerError::EApiErrorResponse)?;
+                .await;
 
-                // The one extra call. `None` whenever the algorithm has no opinion, in which
-                // case the decision resolves to the static time exactly as cascading would.
-                let adaptive_time: Option<time::PrimitiveDateTime> = None;
+                let (remaining_grace_days, remaining_budget) = get_adaptive_retry_allowances(
+                    state,
+                    &dimensions,
+                    payment_intent,
+                    max_retry_count,
+                    retry_count,
+                    now,
+                )
+                .await?;
+
+                let adaptive_time = match tracking_data.prev_attempt_error_code {
+                    Some(error_code) => compute_adaptive_retry_time(
+                        state,
+                        error_code,
+                        remaining_grace_days,
+                        remaining_budget,
+                    )
+                    .await
+                    .map(common_utils::date_time::convert_to_pdt),
+                    None => None,
+                };
+
+                // Neither algorithm has a time to offer: the adaptive ladder is spent and the
+                // model declined. Only then is the MIT cascading ladder consulted, so the
+                // lookup costs nothing on the paths that never reach it.
+                let fallback_time = match (static_time, adaptive_time) {
+                    (None, None) => {
+                        get_schedule_time_to_retry_mit_payments(
+                            state.store.as_ref(),
+                            state.superposition_service.as_ref(),
+                            &dimensions,
+                            retry_count,
+                        )
+                        .await
+                    }
+                    _ => None,
+                };
 
                 let decision = pcr::schedule::decide_next_retry(
                     static_ladder_progress,
                     queried_rung,
                     static_time,
                     adaptive_time,
-                );
+                    fallback_time,
+                )
+                .ok_or_else(|| {
+                    logger::error!(
+                        queried_rung = queried_rung,
+                        error_code = ?tracking_data.prev_attempt_error_code,
+                        remaining_grace_days = remaining_grace_days,
+                        remaining_budget = remaining_budget,
+                        "No retry time available — the static ladder is exhausted, the adaptive \
+                         algorithm declined and the MIT ladder had nothing left"
+                    );
+                    errors::ProcessTrackerError::EApiErrorResponse
+                })?;
 
                 logger::info!(
                     source = ?decision.source,
                     queried_rung = queried_rung,
                     static_time = ?static_time,
+                    adaptive_time = ?adaptive_time,
+                    fallback_time = ?fallback_time,
+                    error_code = ?tracking_data.prev_attempt_error_code,
+                    remaining_grace_days = remaining_grace_days,
+                    remaining_budget = remaining_budget,
                     schedule_time = ?decision.schedule_time,
                     "Adaptive retry decision"
                 );

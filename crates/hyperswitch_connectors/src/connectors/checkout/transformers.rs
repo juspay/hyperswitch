@@ -832,13 +832,13 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                             let expiry_month = google_pay_decrypted_data
                                 .get_expiry_month()
                                 .change_context(errors::ConnectorError::InvalidDataFormat {
-                                    field_name: "payment_method_data.card.card_exp_month",
+                                    field_name: "payment_method_data.card.card_exp_month".into(),
                                 })?;
 
                             let expiry_year = google_pay_decrypted_data
                                 .get_four_digit_expiry_year()
                                 .change_context(errors::ConnectorError::InvalidDataFormat {
-                                    field_name: "payment_method_data.card.card_exp_year",
+                                    field_name: "payment_method_data.card.card_exp_year".into(),
                                 })?;
 
                             match (
@@ -899,7 +899,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                         PaymentMethodToken::ApplePayDecrypt(decrypt_data) => {
                             let exp_month = decrypt_data.get_expiry_month().change_context(
                                 errors::ConnectorError::InvalidDataFormat {
-                                    field_name: "expiration_month",
+                                    field_name: "expiration_month".into(),
                                 },
                             )?;
                             let expiry_year_4_digit = decrypt_data.get_four_digit_expiry_year();
@@ -1006,7 +1006,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                     Some(common_types::payments::TokenSource::ApplePay) => "applepay".to_string(),
                     Some(common_types::payments::TokenSource::GooglePay) => "googlepay".to_string(),
                     None => Err(errors::ConnectorError::MissingRequiredField {
-                        field_name: "token_source",
+                        field_name: "token_source".into(),
                     })?,
                 };
 
@@ -1510,6 +1510,66 @@ pub struct Source {
     avs_check: Option<String>,
     cvv_check: Option<String>,
     payment_account_reference: Option<String>,
+    /// The card's funding type
+    card_type: Option<CheckoutCardType>,
+    /// The card's category
+    card_category: Option<CheckoutCardCategory>,
+    /// The name of the card issuer
+    issuer: Option<String>,
+    /// The country of the card issuer
+    issuer_country: Option<CountryAlpha2>,
+    /// The card's product/subtype, e.g. "Visa Classic"
+    product_type: Option<String>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum CheckoutCardType {
+    Credit,
+    Debit,
+    Prepaid,
+    Charge,
+    #[serde(rename = "DEFERRED DEBIT")]
+    DeferredDebit,
+}
+
+impl From<CheckoutCardType> for common_enums::FundingSource {
+    fn from(card_type: CheckoutCardType) -> Self {
+        match card_type {
+            CheckoutCardType::Credit => Self::Credit,
+            CheckoutCardType::Debit => Self::Debit,
+            CheckoutCardType::Prepaid => Self::Prepaid,
+            CheckoutCardType::Charge => Self::ChargeCard,
+            CheckoutCardType::DeferredDebit => Self::DeferredDebit,
+        }
+    }
+}
+
+impl From<CheckoutCardType> for common_enums::CardType {
+    fn from(card_type: CheckoutCardType) -> Self {
+        match card_type {
+            CheckoutCardType::Credit => Self::Credit,
+            CheckoutCardType::Debit | CheckoutCardType::DeferredDebit => Self::Debit,
+            CheckoutCardType::Prepaid => Self::Prepaid,
+            CheckoutCardType::Charge => Self::ChargeCard,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum CheckoutCardCategory {
+    Consumer,
+    Commercial,
+}
+
+impl From<CheckoutCardCategory> for common_enums::CardSegmentType {
+    fn from(card_category: CheckoutCardCategory) -> Self {
+        match card_category {
+            CheckoutCardCategory::Consumer => Self::Consumer,
+            CheckoutCardCategory::Commercial => Self::Commercial,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
@@ -2596,6 +2656,11 @@ impl TryFrom<&webhooks::IncomingWebhookRequestDetails<'_>> for PaymentsResponse 
                 avs_check: src.avs_check.clone(),
                 cvv_check: src.cvv_check.clone(),
                 payment_account_reference: src.payment_account_reference.clone(),
+                card_type: src.card_type.clone(),
+                card_category: src.card_category.clone(),
+                issuer: src.issuer.clone(),
+                issuer_country: src.issuer_country,
+                product_type: src.product_type.clone(),
             }),
             scheme_id: None,
             processing: None,
@@ -2666,10 +2731,39 @@ fn convert_to_additional_payment_method_connector_response(
 ) -> Option<AdditionalPaymentMethodConnectorResponse> {
     match payment_method_type {
         Some(enums::PaymentMethodType::GooglePay) => {
-            Some(AdditionalPaymentMethodConnectorResponse::GooglePay { auth_code })
+            Some(AdditionalPaymentMethodConnectorResponse::GooglePay {
+                auth_code,
+                device_pan_bin: None,
+                card_bin: None,
+                card_subtype: source.and_then(|source| source.product_type.clone()),
+                card_segment_type: source
+                    .and_then(|source| source.card_category.clone())
+                    .map(common_enums::CardSegmentType::from),
+                funding_source: source
+                    .and_then(|source| source.card_type.clone())
+                    .map(common_enums::FundingSource::from),
+                card_type: source
+                    .and_then(|source| source.card_type.as_ref())
+                    .map(|card_type| common_enums::CardType::from(card_type.clone())),
+                issuer_name: source.and_then(|source| source.issuer.clone()),
+                issuer_country: source.and_then(|source| source.issuer_country),
+            })
         }
         Some(enums::PaymentMethodType::ApplePay) => {
-            Some(AdditionalPaymentMethodConnectorResponse::ApplePay { auth_code })
+            Some(AdditionalPaymentMethodConnectorResponse::ApplePay {
+                auth_code,
+                device_pan_bin: None,
+                card_bin: None,
+                card_subtype: source.and_then(|source| source.product_type.clone()),
+                card_segment_type: source
+                    .and_then(|source| source.card_category.clone())
+                    .map(common_enums::CardSegmentType::from),
+                funding_source: source
+                    .and_then(|source| source.card_type.clone())
+                    .map(common_enums::FundingSource::from),
+                issuer_name: source.and_then(|source| source.issuer.clone()),
+                issuer_country: source.and_then(|source| source.issuer_country),
+            })
         }
         _ => {
             let payment_checks = source.map(|code| {

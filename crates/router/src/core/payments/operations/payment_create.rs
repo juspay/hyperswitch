@@ -256,7 +256,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .map(Encode::encode_to_value)
             .transpose()
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "browser_info",
+                field_name: "browser_info".into(),
             })?;
 
         let attempt_id = if core_utils::is_merchant_enabled_for_payment_id_as_connector_request_id(
@@ -1244,7 +1244,7 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
             request.surcharge_details,
         )
         .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-            field_name: "amount_to_capture".to_string(),
+            field_name: "amount_to_capture".into(),
             expected_format: "amount_to_capture lesser than amount".to_string(),
         })?;
 
@@ -2079,7 +2079,7 @@ async fn create_payment_link(
 
     let payment_link_config_encoded_value = payment_link_config.encode_to_value().change_context(
         errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "payment_link_config",
+            field_name: "payment_link_config".into(),
         },
     )?;
 

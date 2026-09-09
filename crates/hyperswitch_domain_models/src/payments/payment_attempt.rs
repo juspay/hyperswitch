@@ -350,7 +350,7 @@ impl AttemptAmountDetails {
     ) -> Result<(), ValidationError> {
         common_utils::fp_utils::when(request_amount_to_capture > self.get_net_amount(), || {
             Err(ValidationError::IncorrectValueProvided {
-                field_name: "amount_to_capture",
+                field_name: "amount_to_capture".into(),
             })
         })
     }
@@ -1233,6 +1233,9 @@ impl PaymentAttempt {
                             .as_ref()
                             .and_then(|data| data.charge_id.clone())
                     }),
+                    // Populated later, when the payment is recorded back to the
+                    // billing connector.
+                    billing_connector_transaction_id: None,
                 }
             }),
         };
@@ -2939,6 +2942,12 @@ pub enum PaymentAttemptUpdate {
         amount_to_capture: Option<MinorUnit>,
         updated_by: String,
     },
+    /// Update the attempt's feature metadata after recording the payment back to the
+    /// billing connector. Touches nothing else.
+    RecordBackUpdate {
+        feature_metadata: Option<PaymentAttemptFeatureMetadata>,
+        updated_by: String,
+    },
     /// Update the payment after attempting capture with the connector
     CaptureUpdate {
         status: storage_enums::AttemptStatus,
@@ -3565,6 +3574,40 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 amount_captured: None,
                 payment_method_data: None,
             },
+            PaymentAttemptUpdate::RecordBackUpdate {
+                feature_metadata,
+                updated_by,
+            } => Self {
+                feature_metadata: feature_metadata.as_ref().map(From::from),
+                updated_by,
+                modified_at: common_utils::date_time::now(),
+                amount_to_capture: None,
+                payment_method_id: None,
+                error_message: None,
+                browser_info: None,
+                error_code: None,
+                error_reason: None,
+                merchant_connector_id: None,
+                unified_code: None,
+                unified_message: None,
+                connector_payment_id: None,
+                connector_payment_data: None,
+                connector: None,
+                redirection_data: None,
+                status: None,
+                connector_metadata: None,
+                amount_capturable: None,
+                connector_token_details: None,
+                authentication_type: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                connector_request_reference_id: None,
+                connector_response_reference_id: None,
+                cancellation_reason: None,
+                amount_captured: None,
+                payment_method_data: None,
+            },
             PaymentAttemptUpdate::PreCaptureUpdate {
                 amount_to_capture,
                 updated_by,
@@ -3688,6 +3731,8 @@ pub struct PaymentAttemptRevenueRecoveryData {
     pub attempt_triggered_by: common_enums::TriggeredBy,
     // stripe specific field used to identify duplicate attempts.
     pub charge_id: Option<String>,
+    /// Transaction id returned by the billing connector at record-back time.
+    pub billing_connector_transaction_id: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -3699,6 +3744,9 @@ impl From<&PaymentAttemptFeatureMetadata> for DieselPaymentAttemptFeatureMetadat
                 .map(|recovery_data| DieselPassiveChurnRecoveryData {
                     attempt_triggered_by: recovery_data.attempt_triggered_by,
                     charge_id: recovery_data.charge_id.clone(),
+                    billing_connector_transaction_id: recovery_data
+                        .billing_connector_transaction_id
+                        .clone(),
                 });
         Self { revenue_recovery }
     }
@@ -3712,6 +3760,8 @@ impl From<DieselPaymentAttemptFeatureMetadata> for PaymentAttemptFeatureMetadata
                 .map(|recovery_data| PaymentAttemptRevenueRecoveryData {
                     attempt_triggered_by: recovery_data.attempt_triggered_by,
                     charge_id: recovery_data.charge_id,
+                    billing_connector_transaction_id: recovery_data
+                        .billing_connector_transaction_id,
                 });
         Self { revenue_recovery }
     }

@@ -966,10 +966,9 @@ billing_connectors_which_require_payment_sync = "stripebilling, recurly"
 [billing_connectors_invoice_sync]
 billing_connectors_which_requires_invoice_sync_call = "recurly"
 
-[chat]
-enabled = false
-hyperswitch_ai_host = "http://0.0.0.0:8000"
-encryption_key = ""
+[billing_connectors_dispute_record_back]
+billing_connectors_which_requires_dispute_record_back_call = "chargebee"
+
 
 [revenue_recovery.card_config.amex]
 max_retries_per_day = 20
