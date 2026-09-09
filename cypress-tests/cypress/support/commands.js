@@ -3293,6 +3293,16 @@ Cypress.Commands.add(
             ).to.not.be.empty;
           }
           globalState.set("paymentIntentStatus", response.body.status);
+          // Lets mitUsingPMId know whether the connector actually supports
+          // mandates, or was silently downgraded to on_session. Mirrors the
+          // same tracking done in citForMandatesCallTest, so MIT tests that
+          // follow a plain confirmCallTest CIT (e.g. zero-auth PMID flows)
+          // check the real response from this confirm instead of a stale or
+          // unset value.
+          globalState.set(
+            "mandateSetupFutureUsage",
+            response.body.setup_future_usage
+          );
           // Compare connector with backend connector name (handles stripeconnect -> stripe mapping)
           const expectedConnector = getOriginalConnectorName(
             globalState.get("connectorId")
@@ -3934,14 +3944,27 @@ Cypress.Commands.add(
                 }
                 break;
               default:
-                expect(response.body)
-                  .to.have.property("next_action")
-                  .to.have.property("redirect_to_url");
-                globalState.set(
-                  "nextActionUrl",
-                  response.body.next_action.redirect_to_url
-                );
-                globalState.set("nextActionType", "redirect_to_url");
+                if (response.body.status === "requires_customer_action") {
+                  expect(response.body)
+                    .to.have.property("next_action")
+                    .to.have.property("redirect_to_url");
+                  globalState.set(
+                    "nextActionUrl",
+                    response.body.next_action.redirect_to_url
+                  );
+                  globalState.set("nextActionType", "redirect_to_url");
+                } else if (
+                  response.body.status === "failed" &&
+                  configs?.TRIGGER_SKIP
+                ) {
+                  // Known, connector-side failure explicitly opted into via
+                  // Configs.TRIGGER_SKIP (e.g. a payment method not enabled
+                  // on the connector's sandbox project) - nothing to assert.
+                } else {
+                  throw new Error(
+                    `Unexpected payment status "${response.body.status}" in bank transfer confirm response`
+                  );
+                }
                 break;
             }
           } else {
@@ -5999,30 +6022,39 @@ Cypress.Commands.add(
   "handleRedirection",
   (globalState, expectedRedirection) => {
     const connectorId = globalState.get("connectorId");
-    // Cassettes recorded from a non-3DS scenario won't carry a next_action
-    // URL; fall back to example.com so replay can still burn the step-counter
-    // slot and reach later assertions.
     let nextActionUrl = globalState.get("nextActionUrl");
-    if (!nextActionUrl) {
-      cy.task(
-        "cli_log",
-        "handleRedirection: nextActionUrl missing — falling back to https://example.com"
-      );
-      nextActionUrl = "https://example.com";
-    }
 
-    if (isRecordMode()) {
-      mockRecord3ds(
-        globalState,
-        nextActionUrl,
-        expectedRedirection,
-        handleRedirection
-      );
+    if (isRecordMode() || isReplayMode()) {
+      // Cassettes recorded from a non-3DS scenario won't carry a next_action
+      // URL; fall back to example.com so replay can still burn the
+      // step-counter slot and reach later assertions.
+      if (!nextActionUrl) {
+        cy.task(
+          "cli_log",
+          "handleRedirection: nextActionUrl missing — falling back to https://example.com"
+        );
+        nextActionUrl = "https://example.com";
+      }
+
+      if (isRecordMode()) {
+        mockRecord3ds(
+          globalState,
+          nextActionUrl,
+          expectedRedirection,
+          handleRedirection
+        );
+        return;
+      }
+
+      mockReplay3ds(globalState, connectorId, nextActionUrl);
       return;
     }
 
-    if (isReplayMode()) {
-      mockReplay3ds(globalState, connectorId, nextActionUrl);
+    if (!nextActionUrl) {
+      cy.task(
+        "cli_log",
+        "handleRedirection: nextActionUrl missing — skipping (frictionless 3DS)"
+      );
       return;
     }
 
@@ -12035,6 +12067,57 @@ Cypress.Commands.add(
   "setSuperpositionConfigs",
   (globalState, overrides, context) => {
     cy.createSuperpositionOverrides(globalState, overrides, context);
+  }
+);
+
+// Wait for a superposition config change to propagate to the router.
+// Polls payment creation with throwaway customer_ids until the response status
+// matches `expectedStatus` (e.g. 404 while block_implicit_customer_creation is
+// propagating, 200 after it is reset). `label` prefixes the throwaway customer ids.
+Cypress.Commands.add(
+  "waitForConfigPropagation",
+  (globalState, expectedStatus, label) => {
+    const maxAttempts = 60;
+    const intervalMs = 5000;
+    const poll = (attempt) => {
+      if (attempt >= maxAttempts) {
+        throw new Error(
+          `Superposition config did not propagate within ${(maxAttempts * intervalMs) / 1000}s`
+        );
+      }
+      cy.request({
+        method: "POST",
+        url: `${globalState.get("baseUrl")}/payments`,
+        headers: {
+          "api-key": globalState.get("apiKey"),
+          "Content-Type": "application/json",
+        },
+        body: {
+          currency: "USD",
+          amount: 100,
+          customer_id: `config_poll_${label}_${Date.now()}_${attempt}`,
+          authentication_type: "no_three_ds",
+          capture_method: "automatic",
+          profile_id: globalState.get("profileId"),
+        },
+        failOnStatusCode: false,
+      }).then((response) => {
+        if (response.status === expectedStatus) {
+          cy.task(
+            "cli_log",
+            `Config propagated after ${attempt + 1} poll attempt(s)`
+          );
+        } else {
+          cy.task(
+            "cli_log",
+            `Poll attempt ${attempt + 1}: got ${response.status}, waiting ${intervalMs / 1000}s...`
+          );
+          // eslint-disable-next-line cypress/no-unnecessary-waiting
+          cy.wait(intervalMs).then(() => poll(attempt + 1));
+        }
+      });
+    };
+    poll(0);
   }
 );
 
