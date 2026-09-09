@@ -68,6 +68,7 @@ release = [
     "external_services/aws_kms",
     "gcp_kms",
     "external_services/aws_s3",
+    "external_services/gcp_storage",
     "keymanager_mtls",
     "keymanager_create",
     "encryption_service",

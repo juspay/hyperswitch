@@ -6,10 +6,16 @@ use std::{
 };
 
 use common_utils::errors::CustomResult;
+#[cfg(feature = "gcp_storage")]
+use error_stack::ResultExt;
 
 /// Includes functionality for AWS S3 storage operations.
 #[cfg(feature = "aws_s3")]
 mod aws_s3;
+
+/// Includes functionality for GCP Cloud Storage operations.
+#[cfg(feature = "gcp_storage")]
+mod gcs;
 
 mod file_system;
 
@@ -24,6 +30,12 @@ pub enum FileStorageConfig {
         /// Configuration for AWS S3 file storage.
         aws_s3: aws_s3::AwsFileStorageConfig,
     },
+    /// GCP Cloud Storage configuration.
+    #[cfg(feature = "gcp_storage")]
+    GcpStorage {
+        /// Configuration for GCP Cloud Storage file storage.
+        gcp_storage: gcs::GcsFileStorageConfig,
+    },
     /// Local file system storage configuration.
     #[default]
     FileSystem,
@@ -35,17 +47,27 @@ impl FileStorageConfig {
         match self {
             #[cfg(feature = "aws_s3")]
             Self::AwsS3 { aws_s3 } => aws_s3.validate(),
+            #[cfg(feature = "gcp_storage")]
+            Self::GcpStorage { gcp_storage } => gcp_storage.validate(),
             Self::FileSystem => Ok(()),
         }
     }
 
     /// Retrieves the appropriate file storage client based on the file storage configuration.
-    pub async fn get_file_storage_client(&self) -> Arc<dyn FileStorageInterface> {
-        match self {
+    pub async fn get_file_storage_client(
+        &self,
+    ) -> CustomResult<Arc<dyn FileStorageInterface>, FileStorageError> {
+        Ok(match self {
             #[cfg(feature = "aws_s3")]
             Self::AwsS3 { aws_s3 } => Arc::new(aws_s3::AwsFileStorageClient::new(aws_s3).await),
+            #[cfg(feature = "gcp_storage")]
+            Self::GcpStorage { gcp_storage } => Arc::new(
+                gcs::GcsFileStorageClient::new(gcp_storage)
+                    .await
+                    .change_context(FileStorageError::ClientCreationFailed)?,
+            ),
             Self::FileSystem => Arc::new(file_system::FileSystem),
-        }
+        })
     }
 }
 
@@ -94,4 +116,8 @@ pub enum FileStorageError {
     /// Indicates that the file deletion operation failed.
     #[error("Failed to delete file")]
     DeleteFailed,
+
+    /// Indicates that the file storage client could not be created.
+    #[error("Failed to create file storage client")]
+    ClientCreationFailed,
 }
