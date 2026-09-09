@@ -7382,12 +7382,13 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             .attach_printable_lazy(|| {
                 format!("unable to parse connector name {connector_name:?}")
             })?;
-        let connector_creates_order = payment_data
-            .payment_attempt
-            .payment_method
-            .is_some_and(|payment_method| {
-                connector.requires_order_creation_before_payment(payment_method)
-            });
+        let connector_creates_order =
+            payment_data
+                .payment_attempt
+                .payment_method
+                .is_some_and(|payment_method| {
+                    connector.requires_order_creation_before_payment(payment_method)
+                });
         let order_id = connector_creates_order
             .then(|| {
                 payment_data
