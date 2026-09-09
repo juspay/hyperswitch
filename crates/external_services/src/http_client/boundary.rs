@@ -174,22 +174,13 @@ impl deja::codec::ReplayCodec for HttpResponseCodec {
     }
 }
 
-/// Replay: reconstruct a `reqwest::Response` from a recorded `response_result`
-/// payload (`{status, response_headers, response_body: {raw_bytes: [...]}}`).
+/// Rebuilds a `reqwest::Response` from a recorded `response_result` payload, so
+/// a replayed connector call is served from the tape and touches no network.
 ///
-/// A recorded SUCCESS reconstructs verbatim: connectors read status, headers
-/// and body bytes, and all three come from the tape, so that call touches no
-/// network.
-///
-/// Returning `None` does not fall through to a live call. deja maps it to
-/// `Reconstructed::Failed`, which fail-stops the request with a named reason —
-/// so a recorded value this build cannot read halts the replay rather than
-/// quietly reaching the real endpoint.
-///
-/// Headers are read as an array of values per name and no other shape is
-/// accepted. A recording written before that capture stored a single string per
-/// name and had already lost every repeat; reading one would replay a tape that
-/// still carries the defect this fixes, so it fail-stops instead.
+/// Headers are read as an array of values per name; any other shape is a
+/// recording that predates that capture and had already lost its repeats, so it
+/// is refused rather than replayed. Refusing means returning `None`, which deja
+/// fail-stops with a named reason — it is not a fallback to a live call.
 pub(super) fn replay_response(recorded: &serde_json::Value) -> Option<reqwest::Response> {
     let status_code = u16::try_from(recorded.get("status")?.as_u64()?).ok()?;
     let status = http::StatusCode::from_u16(status_code).ok()?;
@@ -204,9 +195,6 @@ pub(super) fn replay_response(recorded: &serde_json::Value) -> Option<reqwest::R
     let mut builder = http::Response::builder().status(status);
     if let Some(headers) = recorded.get("response_headers").and_then(|h| h.as_object()) {
         for (name, values) in headers {
-            // `?` rather than a skip: a name whose values are not an array is a
-            // pre-fix recording, and replaying it with its headers dropped would
-            // be worse than refusing it.
             for value in values.as_array()?.iter().filter_map(|value| value.as_str()) {
                 // `Builder::header` is `try_append`, so a repeated name keeps
                 // every value rather than replacing the previous one.
