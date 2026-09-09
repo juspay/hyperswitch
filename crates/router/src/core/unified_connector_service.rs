@@ -132,6 +132,9 @@ impl ForeignTryFrom<payments_grpc::PaymentMethod> for domain_pm::PaymentMethodDa
                 card_type: card.card_type,
                 card_issuing_country: card.card_issuing_country_alpha2,
                 card_issuing_country_code: None,
+                card_subtype: None,
+                card_segment_type: None,
+                funding_source: None,
                 bank_code: card.bank_code,
                 nick_name: card.nick_name.map(Secret::new),
                 co_badged_card_data: None,
@@ -152,7 +155,8 @@ impl ForeignTryFrom<payments_grpc::PaymentMethod> for domain_pm::PaymentMethodDa
                     payments_grpc::card_redirect::CardRedirectType::CardRedirect => {
                         domain_pm::CardRedirectData::CardRedirect {}
                     }
-                    payments_grpc::card_redirect::CardRedirectType::Unspecified => {
+                    payments_grpc::card_redirect::CardRedirectType::Unspecified
+                    | payments_grpc::card_redirect::CardRedirectType::Webpay => {
                         return Err(
                             UnifiedConnectorServiceError::ResponseDeserializationFailed.into()
                         )

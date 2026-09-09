@@ -87,15 +87,9 @@ async fn decision_engine_token_request(
     // a failure here costs a name in the dashboard and nothing else.
     let email = match state.global_store.find_user_by_user_id(&user.user_id).await {
         Ok(found) => {
-            // `Email` wraps a `Secret`, so it takes both traits to reach the string.
-            use hyperswitch_masking::{ExposeInterface, PeekInterface};
-            Some(
-                domain::UserFromStorage::from(found)
-                    .get_email()
-                    .expose()
-                    .peek()
-                    .to_string(),
-            )
+            // `Email` wraps the masked secret we want, so one unwrap reaches it.
+            use hyperswitch_masking::ExposeInterface;
+            Some(domain::UserFromStorage::from(found).get_email().expose())
         }
         Err(error) => {
             router_env::logger::warn!(
