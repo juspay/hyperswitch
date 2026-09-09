@@ -9,12 +9,9 @@ mod v1 {
 
     use super::ApplePayCertificateCache;
     use crate::{
-        business_profile::Profile,
-        merchant_account::MerchantAccount,
-        merchant_connector_account::MerchantConnectorAccount,
-        query::generics,
-        schema::merchant_connector_account,
-        DatabaseConnectionWithContext, StorageResult,
+        business_profile::Profile, merchant_account::MerchantAccount,
+        merchant_connector_account::MerchantConnectorAccount, query::generics,
+        schema::merchant_connector_account, DatabaseConnectionWithContext, StorageResult,
     };
 
     async fn find_mca_by_id(

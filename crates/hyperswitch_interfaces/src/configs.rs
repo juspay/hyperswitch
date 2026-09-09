@@ -152,7 +152,10 @@ impl MerchantConnectorAccountType {
     #[cfg(feature = "v1")]
     pub fn get_apple_pay_certificate_cache(
         &self,
-    ) -> Option<(serde_json::Value, Option<common_utils::encryption::Encryption>)> {
+    ) -> Option<(
+        serde_json::Value,
+        Option<common_utils::encryption::Encryption>,
+    )> {
         match self {
             Self::DbVal(val) => val
                 .apple_pay_certificates
@@ -165,7 +168,10 @@ impl MerchantConnectorAccountType {
     #[cfg(feature = "v2")]
     pub fn get_apple_pay_certificate_cache(
         &self,
-    ) -> Option<(serde_json::Value, Option<common_utils::encryption::Encryption>)> {
+    ) -> Option<(
+        serde_json::Value,
+        Option<common_utils::encryption::Encryption>,
+    )> {
         None
     }
 

@@ -232,9 +232,9 @@ impl ResourceHandler for ApplePayCertificateResource {
             &certificate,
             private_key_pem.payment_processing_certificate_key.peek(),
         )
-            .change_context(errors::ApiErrorResponse::InvalidRequestData {
-                message: "Failed to verify uploaded certificate".to_string(),
-            })?;
+        .change_context(errors::ApiErrorResponse::InvalidRequestData {
+            message: "Failed to verify uploaded certificate".to_string(),
+        })?;
         if !keys_match {
             return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
                 message: "Uploaded certificate does not match the generated key".to_string(),
