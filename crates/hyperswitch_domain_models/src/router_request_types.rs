@@ -1007,6 +1007,9 @@ pub struct PaymentsPostAuthenticateData {
     pub minor_amount: Option<MinorUnit>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub complete_authorize_url: Option<String>,
+    /// Connector-side order id from a `CreateOrder` leg that preceded this payment. Only populated
+    /// for connectors that create an order before payment; `None` for every other connector.
+    pub order_id: Option<String>,
 }
 
 impl TryFrom<CompleteAuthorizeData> for PaymentsPostAuthenticateData {
@@ -1026,6 +1029,7 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsPostAuthenticateData {
             redirect_response: data.redirect_response,
             metadata: data.connector_meta.map(Secret::new),
             complete_authorize_url: data.complete_authorize_url,
+            order_id: data.order_id,
         })
     }
 }
@@ -1138,6 +1142,9 @@ pub struct CompleteAuthorizeData {
     pub recipient_details: Option<api_models::payments::RecipientDetails>,
     pub business_country: Option<common_enums::CountryAlpha2>,
     pub connector_intent_metadata: Option<ConnectorMetadata>,
+    /// Connector-side order id from a `CreateOrder` leg that preceded this payment. Only populated
+    /// for connectors that create an order before payment; `None` for every other connector.
+    pub order_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
