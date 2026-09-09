@@ -578,7 +578,7 @@ export const CONNECTOR_LISTS = {
     // asserted as an expected error either — skip these save-card-confirm
     // tests in 40-ExternalVault.cy.js until the connector-service side
     // adds a fallback.
-    EXTERNAL_VAULT: ["fiservcommercehub", "ilixium"],
+    EXTERNAL_VAULT: ["fiservcommercehub", "ilixium", "finix"],
     // Connectors that never return a `connector_mandate_id` on the payments
     // response. Recurring payments for them go through connector agnostic MIT,
     // so the "connector_mandate_id must not be null" assertion is skipped
