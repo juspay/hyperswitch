@@ -1,6 +1,7 @@
 import "cypress-mochawesome-reporter/register";
 import "./commands";
 import "./redirectionHandler";
+import { resetSessionFixtures } from "../fixtures/imports";
 
 Cypress.on("window:before:load", (win) => {
   win.headers = {
@@ -119,11 +120,13 @@ function notifyProxyTestEnded() {
   });
 }
 
-if (IS_PROXY_ENABLED) {
-  Cypress._getStepCounter = () => stepCounter;
-  Cypress._buildRequestId = buildRequestId;
+beforeEach(() => {
+  cy.task("resetCustomerId");
+  cy.then(() => {
+    resetSessionFixtures();
+  });
 
-  beforeEach(() => {
+  if (IS_PROXY_ENABLED) {
     const { titlePath } = Cypress.currentTest;
     const title = titlePath.join(" > ");
     const connector = Cypress.env("CONNECTOR") || "";
@@ -147,13 +150,25 @@ if (IS_PROXY_ENABLED) {
         timeout: PROXY_ADMIN_TIMEOUT_MS,
       });
     }
+  }
+});
+
+afterEach(() => {
+  cy.task("resetCustomerId");
+  cy.then(() => {
+    resetSessionFixtures();
   });
 
-  afterEach(() => {
+  if (IS_PROXY_ENABLED) {
     if (PROXY_ADMIN_URL) {
       notifyProxyTestEnded();
     }
-  });
+  }
+});
+
+if (IS_PROXY_ENABLED) {
+  Cypress._getStepCounter = () => stepCounter;
+  Cypress._buildRequestId = buildRequestId;
 
   // Tag every cy.request with a deterministic X-Request-ID for cassette matching.
   Cypress.Commands.overwrite("request", (originalFn, ...args) => {
