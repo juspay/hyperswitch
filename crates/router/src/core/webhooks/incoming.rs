@@ -28,7 +28,7 @@ use hyperswitch_interfaces::webhooks::{
     IncomingWebhookFlowError, IncomingWebhookRequestDetails, WebhookContext, WebhookResourceData,
 };
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
-use router_env::{instrument, tracing};
+use router_env::{instrument, tracing, tracing::Instrument};
 
 use super::{types, MERCHANT_ID};
 use crate::{
@@ -1637,7 +1637,7 @@ async fn refunds_incoming_webhook_flow(
     let state_task = state.clone();
     let processor_task = platform.get_processor().clone();
     let payment_intent_task = payment_intent.clone();
-    tokio::spawn(async move {
+    let state_metadata_update = async move {
         if let Err(err) = PaymentIntentStateMetadataExt::from(
             payment_intent_task
                 .state_metadata
@@ -1649,7 +1649,8 @@ async fn refunds_incoming_webhook_flow(
         {
             tracing::error!(?err, "Failed to update intent state metadata for refund");
         }
-    });
+    };
+    tokio::spawn(state_metadata_update.in_current_span());
 
     let event_type: Option<enums::EventType> = updated_refund.refund_status.into();
 
@@ -2521,6 +2522,7 @@ async fn disputes_incoming_webhook_flow(
                         );
                     }
                 }
+                .in_current_span()
             });
         }
 

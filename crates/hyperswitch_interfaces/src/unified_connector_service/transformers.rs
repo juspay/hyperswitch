@@ -806,6 +806,15 @@ impl ForeignTryFrom<payments_grpc::AdditionalPaymentMethodConnectorResponse>
                 ),
             ) => Ok(Self::GooglePay {
                 auth_code: google_pay_data.auth_code,
+                // UCS's GooglePayConnectorResponse proto does not carry bin/issuer data yet
+                device_pan_bin: None,
+                card_bin: None,
+                card_subtype: None,
+                card_segment_type: None,
+                funding_source: None,
+                card_type: None,
+                issuer_name: None,
+                issuer_country: None,
             }),
             Some(
                 payments_grpc::additional_payment_method_connector_response::PaymentMethodData::ApplePay(
@@ -813,6 +822,14 @@ impl ForeignTryFrom<payments_grpc::AdditionalPaymentMethodConnectorResponse>
                 ),
             ) => Ok(Self::ApplePay {
                 auth_code: apple_pay_data.auth_code,
+                // UCS's ApplePayConnectorResponse proto does not carry bin/issuer data yet
+                device_pan_bin: None,
+                card_bin: None,
+                card_subtype: None,
+                card_segment_type: None,
+                funding_source: None,
+                issuer_name: None,
+                issuer_country: None,
             }),
             Some(payments_grpc::additional_payment_method_connector_response::PaymentMethodData::BankRedirect(bank_redirect_data)) => {
                 let interac = bank_redirect_data.interac.map(|proto_interac| {
@@ -1847,6 +1864,27 @@ impl ForeignTryFrom<payments_grpc::RedirectForm> for RedirectForm {
                     ),
                     customer_vault_id: nmi.customer_vault_id,
                     order_id: nmi.order_id,
+                })
+            }
+            Some(payments_grpc::redirect_form::FormType::WorldpayxmlDdc(ddc)) => {
+                Ok(Self::WorldpayxmlDDCForm {
+                    bin: ddc.bin,
+                    jwt: ddc
+                        .jwt
+                        .ok_or(UnifiedConnectorServiceError::MissingRequiredField {
+                            field_name: "jwt".into(),
+                        })?
+                        .expose(),
+                })
+            }
+            Some(payments_grpc::redirect_form::FormType::WorldpayxmlChallenge(challenge)) => {
+                Ok(Self::WorldpayxmlRedirectForm {
+                    jwt: challenge
+                        .jwt
+                        .ok_or(UnifiedConnectorServiceError::MissingRequiredField {
+                            field_name: "jwt".into(),
+                        })?
+                        .expose(),
                 })
             }
             Some(payments_grpc::redirect_form::FormType::Script(_)) => Err(

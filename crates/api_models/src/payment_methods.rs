@@ -20,6 +20,7 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_masking::PeekInterface;
+use router_env::logger;
 use rust_decimal::{
     prelude::{FromPrimitive, ToPrimitive},
     Decimal,
@@ -27,6 +28,8 @@ use rust_decimal::{
 use serde::de;
 use utoipa::ToSchema;
 
+#[cfg(all(feature = "v1", feature = "errors"))]
+use crate::errors::types::ErrorResponse;
 #[cfg(feature = "v1")]
 use crate::payments::BankCodeResponse;
 #[cfg(feature = "payouts")]
@@ -1891,7 +1894,7 @@ impl From<payments::additional_info::WalletAdditionalDataForCard> for PaymentMet
         Self {
             last4: item.last4,
             card_network: item.card_network,
-            card_type: item.card_type,
+            card_type: item.payment_method_data_type,
             card_exp_month: item.card_exp_month,
             card_exp_year: item.card_exp_year,
             auth_code: item.auth_code,
@@ -1905,11 +1908,19 @@ impl From<PaymentMethodDataWalletInfo> for payments::additional_info::WalletAddi
         Self {
             last4: item.last4,
             card_network: item.card_network,
-            card_type: item.card_type,
+            payment_method_data_type: item.card_type,
             card_exp_month: item.card_exp_month,
             card_exp_year: item.card_exp_year,
             auth_code: item.auth_code,
             email: item.email,
+            device_pan_bin: None,
+            card_bin: None,
+            card_subtype: None,
+            card_segment_type: None,
+            funding_source: None,
+            card_type: None,
+            issuer_name: None,
+            issuer_country: None,
         }
     }
 }
@@ -1940,13 +1951,34 @@ impl From<payments::ApplepayPaymentMethod> for PaymentMethodDataWalletInfo {
 impl TryFrom<PaymentMethodDataWalletInfo> for Box<payments::ApplepayPaymentMethod> {
     type Error = error_stack::Report<errors::ValidationError>;
     fn try_from(item: PaymentMethodDataWalletInfo) -> Result<Self, Self::Error> {
+        let card_type = item.card_type.clone().get_required_value("card_type")?;
         Ok(Self::new(payments::ApplepayPaymentMethod {
             display_name: item.last4.get_required_value("last4")?,
             network: item.card_network.get_required_value("card_network")?,
-            pm_type: item.card_type.get_required_value("card_type")?,
+            pm_type: card_type.clone(),
+            // If `card_type` doesn't parse into a known `CardType` variant, it is treated as
+            // `None` instead of erroring.
+            card_type: card_type
+                .to_uppercase()
+                .parse::<api_enums::CardType>()
+                .inspect_err(|error| {
+                    logger::error!(
+                        ?error,
+                        unparsed_card_type = %card_type,
+                        "Received an unrecognized card_type value from Apple Pay; defaulting to None"
+                    )
+                })
+                .ok(),
             card_exp_month: item.card_exp_month,
             card_exp_year: item.card_exp_year,
             auth_code: item.auth_code,
+            device_pan_bin: None,
+            card_bin: None,
+            card_subtype: None,
+            card_segment_type: None,
+            funding_source: None,
+            issuer_name: None,
+            issuer_country: None,
         }))
     }
 }
@@ -2025,7 +2057,7 @@ impl From<(Card, Option<common_enums::CardNetwork>)> for CardDetail {
 }
 
 #[cfg(feature = "v1")]
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq, ToSchema)]
 pub struct CardDetailFromLocker {
     pub scheme: Option<String>,
     pub issuer_country: Option<String>,
@@ -2985,7 +3017,7 @@ pub struct PaymentMethodListIntentDataInput {
 }
 
 /// Intent-only payment details returned as part of the Payment Method List response
-#[derive(Debug, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, ToSchema)]
 pub struct PaymentMethodListIntentData {
     /// Unique identifier for the payment
     #[schema(value_type = String)]
@@ -3147,7 +3179,7 @@ pub struct ResponsePaymentMethodsEnabledForClient {
 /// `CustomerPaymentMethodForClient` is `None`.
 /// Wallet payment method data returned in the client-facing PM list.
 #[cfg(feature = "v1")]
-#[derive(Debug, Clone, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum WalletPaymentMethodDataForClient {
     ApplePay(Box<PaymentMethodDataWalletInfo>),
@@ -3159,7 +3191,7 @@ pub enum WalletPaymentMethodDataForClient {
 /// Bank debit payment method data returned in the client-facing PM list.
 /// Field names use `_last4_digits` to match the modular service response.
 #[cfg(feature = "v1")]
-#[derive(Debug, Clone, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum BankDebitDataForClient {
     AchBankDebit {
@@ -3177,7 +3209,7 @@ pub enum BankDebitDataForClient {
 }
 
 #[cfg(feature = "v1")]
-#[derive(Debug, Clone, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, serde::Serialize, ToSchema, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum CustomerPaymentMethodDataForClient {
     /// Masked card details from the card locker.
@@ -3197,7 +3229,7 @@ pub enum CustomerPaymentMethodDataForClient {
 /// Only the fields needed by the SDK are included; server-side fields
 /// (e.g. `surcharge_details`, `metadata`) are omitted.
 #[cfg(feature = "v1")]
-#[derive(Debug, Clone, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, ToSchema)]
 pub struct CustomerPaymentMethodForClient {
     /// Token for payment method in temporary card locker which gets refreshed often.
     /// The SDK passes this back when submitting the payment.
@@ -3241,7 +3273,7 @@ pub struct CustomerPaymentMethodForClient {
 
 /// Response for the GET /payments/{payment_id}/payment-methods/client endpoint
 #[cfg(feature = "v1")]
-#[derive(Debug, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, ToSchema)]
 pub struct ClientPaymentMethodsListResponse {
     /// Flat list of enabled payment methods — one entry per (payment_method_type × payment_method_subtype)
     pub payment_methods_enabled: Vec<ResponsePaymentMethodsEnabledForClient>,
@@ -3257,8 +3289,28 @@ pub struct ClientPaymentMethodsListResponse {
     pub intent_data: PaymentMethodListIntentData,
 }
 
+/// The combined payment-method list, or the error that prevented it being built.
+///
+/// Serialized untagged: a success is the listing object itself, a failure is `{ "error": {...} }`.
+/// Gated on `errors` as well as `v1`: it holds [`crate::errors::types::ErrorResponse`], which
+/// lives behind that feature because it pulls in `reqwest`. `euclid_wasm` builds
+/// `api_models/v1` without `errors`, and cannot take `actix-web` in via that feature on a
+/// wasm target, so the section types simply do not exist there.
+#[cfg(all(feature = "v1", feature = "errors"))]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, ToSchema)]
+#[serde(untagged)]
+pub enum PaymentMethodListResult {
+    Success(Box<ClientPaymentMethodsListResponse>),
+    /// Serializes as `{ "error": { ... } }` — the same envelope the HTTP layer puts around
+    /// `ErrorResponse`, so this reads identically to the standalone endpoint's error body.
+    Failed {
+        #[schema(value_type = GenericErrorResponseOpenApi)]
+        error: Box<ErrorResponse>,
+    },
+}
+
 /// Installment options for a payment method, as returned in the payment method list response
-#[derive(Debug, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, ToSchema)]
 pub struct PaymentMethodListInstallmentOption {
     /// The payment method these plans apply to
     #[schema(value_type = PaymentMethod)]
@@ -3268,7 +3320,7 @@ pub struct PaymentMethodListInstallmentOption {
 }
 
 /// A single installment plan with pre-computed amount breakdown
-#[derive(Debug, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, ToSchema)]
 pub struct PaymentMethodListInstallmentPlan {
     /// Number of installments for this plan
     #[schema(value_type = u8)]
@@ -3284,7 +3336,7 @@ pub struct PaymentMethodListInstallmentPlan {
 }
 
 /// Amount breakdown for a single installment plan
-#[derive(Debug, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, ToSchema)]
 pub struct PaymentMethodListInstallmentAmountDetails {
     /// Amount charged per installment in major units
     #[schema(value_type = f64)]
@@ -3884,7 +3936,7 @@ pub struct PaymentMethodCollectLinkStatusDetails {
     pub ui_config: link_utils::GenericLinkUiConfigFormData,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct MaskedBankDetails {
     pub mask: String,
     pub account_holder_name: Option<String>,
