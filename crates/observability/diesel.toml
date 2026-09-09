@@ -1,0 +1,15 @@
+# The observability plane's migration lineage.
+#
+# Separate from diesel.toml and diesel_v2.toml, which describe hyperswitch_db. This one targets the
+# observability database: the two lineages share no tables and no version table.
+#
+#   diesel migration run \
+#     --config-file diesel_observability.toml \
+#     --migration-dir crates/observability/migrations \
+#     --database-url "$OBSERVABILITY_DATABASE_URL"
+
+[print_schema]
+file = "crates/diesel_models/src/observability/schema.rs"
+
+[migrations_directory]
+dir = "crates/observability/migrations"

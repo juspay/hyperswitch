@@ -1,0 +1,11 @@
+DROP TABLE IF EXISTS notification_reads;
+DROP TABLE IF EXISTS merchants_alert_external_config;
+DROP TABLE IF EXISTS merchants_alert_external_dimension;
+DROP TABLE IF EXISTS merchants_alert_external_xyne;
+DROP TABLE IF EXISTS merchants_alert_external;
+DROP TABLE IF EXISTS alerts_dicts;
+DROP TABLE IF EXISTS alerts_intermediate_xyne;
+DROP TABLE IF EXISTS alerts_intermediate;
+DROP TABLE IF EXISTS alerts_main_xyne;
+DROP TABLE IF EXISTS alerts_main;
+DROP TABLE IF EXISTS alerts_info;
