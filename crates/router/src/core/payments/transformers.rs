@@ -1053,11 +1053,9 @@ pub async fn construct_payment_router_data_for_capture<'a>(
 ) -> RouterResult<types::PaymentsCaptureRouterData> {
     use hyperswitch_masking::ExposeOptionInterface;
 
-    fp_utils::when(
-        merchant_connector_account.is_disabled()
-            && !payment_data.payment_attempt.is_authorized_at_connector(),
-        || Err(errors::ApiErrorResponse::MerchantConnectorAccountDisabled),
-    )?;
+    fp_utils::when(merchant_connector_account.is_disabled(), || {
+        Err(errors::ApiErrorResponse::MerchantConnectorAccountDisabled)
+    })?;
 
     let auth_type = merchant_connector_account
         .get_connector_account_details()
@@ -1228,11 +1226,9 @@ pub async fn construct_router_data_for_psync<'a>(
 ) -> RouterResult<types::PaymentsSyncRouterData> {
     use hyperswitch_masking::ExposeOptionInterface;
 
-    fp_utils::when(
-        merchant_connector_account.is_disabled()
-            && !payment_data.payment_attempt.is_authorized_at_connector(),
-        || Err(errors::ApiErrorResponse::MerchantConnectorAccountDisabled),
-    )?;
+    fp_utils::when(merchant_connector_account.is_disabled(), || {
+        Err(errors::ApiErrorResponse::MerchantConnectorAccountDisabled)
+    })?;
 
     // TODO: Take Globalid / CustomerReferenceId and convert to connector reference id
     let customer_id = None;
@@ -1454,11 +1450,9 @@ pub async fn construct_router_data_for_cancel<'a>(
     _merchant_recipient_data: Option<types::MerchantRecipientData>,
     header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
 ) -> RouterResult<types::PaymentsCancelRouterData> {
-    fp_utils::when(
-        merchant_connector_account.is_disabled()
-            && !payment_data.payment_attempt.is_authorized_at_connector(),
-        || Err(errors::ApiErrorResponse::MerchantConnectorAccountDisabled),
-    )?;
+    fp_utils::when(merchant_connector_account.is_disabled(), || {
+        Err(errors::ApiErrorResponse::MerchantConnectorAccountDisabled)
+    })?;
 
     // TODO: Take Globalid and convert to connector reference id
     let customer_id = get_customer_id_from_global_customer_id(customer)?;
@@ -1977,12 +1971,6 @@ where
     error_stack::Report<errors::ApiErrorResponse>:
         From<<T as TryFrom<PaymentAdditionalData<'a, F>>>::Error>,
 {
-    fp_utils::when(
-        merchant_connector_account.is_disabled()
-            && !payment_data.payment_attempt.is_authorized_at_connector(),
-        || Err(errors::ApiErrorResponse::MerchantConnectorAccountDisabled),
-    )?;
-
     let test_mode = merchant_connector_account.is_test_mode_on();
 
     let auth_type: types::ConnectorAuthType = merchant_connector_account
