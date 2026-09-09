@@ -2792,6 +2792,7 @@ connector = { position = 1, schema = { enum = [
     "paystack",
     "paytm",
     "payu",
+    "payzum",
     "peachpayments",
     "payjustnow",
     "payjustnowinstore",

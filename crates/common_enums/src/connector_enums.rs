@@ -164,6 +164,7 @@ pub enum Connector {
     Paytm,
     Payconex,
     Payu,
+    Payzum,
     Peachpayments,
     Payjustnow,
     Payjustnowinstore,
@@ -332,6 +333,7 @@ impl Connector {
             | Self::DummyConnector7 => false,
             Self::Aci
             // Add Separate authentication support for connectors
+            | Self::Payzum
             | Self::AbsaSanlam
 			| Self::Authipay
             | Self::Affirm

@@ -119,6 +119,7 @@ pub struct Connectors {
     pub paystack: ConnectorParams,
     pub paytm: ConnectorParams,
     pub payu: ConnectorParams,
+    pub payzum: ConnectorParams,
     pub peachpayments: ConnectorParams,
     pub phonepe: ConnectorParams,
     pub placetopay: ConnectorParams,
