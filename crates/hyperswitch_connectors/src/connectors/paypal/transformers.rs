@@ -4579,7 +4579,9 @@ mod liability_shift_tests {
         assert_ne!(error.code, NO_ERROR_CODE);
         assert_ne!(error.message, NO_ERROR_MESSAGE);
 
-        let reason = error.reason.expect("reason must carry the connector detail");
+        let reason = error
+            .reason
+            .expect("reason must carry the connector detail");
         assert!(reason.contains(constants::CANNOT_CONTINUE_AUTH));
         assert!(reason.contains("AuthenticationStatus: Failed"));
     }
