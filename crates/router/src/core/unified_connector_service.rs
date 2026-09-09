@@ -1074,8 +1074,8 @@ where
                     create_updated_session_state_with_proxy(state.clone(), proxy_override)
                 }
                 None => {
-                    // info, not debug: this downgrade has to be visible at default log levels.
-                    router_env::logger::info!(
+                    metrics::UCS_SHADOW_MISSING_PROXY.add(1, &[]);
+                    router_env::logger::debug!(
                         "No proxy override available for Shadow UCS; falling back to Direct, so no shadow comparison will run for this request"
                     );
                     execution_path = ExecutionPath::Direct;
