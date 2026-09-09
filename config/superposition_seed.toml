@@ -4649,6 +4649,12 @@ _context_ = { connector = "cybersource", payment_method = "Wallet", payment_meth
 "dynamic_fields.billing.email._is_required" = true
 
 [[overrides]]
+_context_ = { connector = "datatrans", payment_method = "Wallet", payment_method_type = "GooglePay" }
+"dynamic_fields.billing.address.first_name._is_required" = true
+"dynamic_fields.billing.address.last_name._is_required" = true
+"dynamic_fields.billing.email._is_required" = true
+
+[[overrides]]
 _context_ = { connector = "multisafepay", payment_method = "Wallet", payment_method_type = "GooglePay" }
 "dynamic_fields.billing.address.city._is_required" = true
 "dynamic_fields.billing.address.country._is_required" = true
