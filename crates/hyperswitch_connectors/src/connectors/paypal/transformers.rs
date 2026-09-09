@@ -2259,8 +2259,8 @@ fn validate_liability_response(
 
         Err(Box::new(ErrorResponse {
             attempt_status: Some(enums::AttemptStatus::Failure),
-            code: NO_ERROR_CODE.to_string(),
-            message: NO_ERROR_MESSAGE.to_string(),
+            code: constants::THREE_DS_AUTHENTICATION_FAILED_CODE.to_string(),
+            message: constants::THREE_DS_AUTHENTICATION_FAILED_MESSAGE.to_string(),
             connector_transaction_id: None,
             connector_response_reference_id: None,
             reason: Some(reason),
@@ -4535,5 +4535,62 @@ fn get_paypal_error_message(error_code: &str) -> Option<&str> {
         "PPVE" | "RESPONSE_PPVE" => Some("VALIDATION_ERROR."),
         "PPVT" | "RESPONSE_PPVT" => Some("VIRTUAL_TERMINAL_UNSUPPORTED."),
         _ => None,
+    }
+}
+
+#[cfg(test)]
+mod liability_shift_tests {
+    use super::*;
+
+    fn liability_response(
+        liability_shift: LiabilityShift,
+        enrollment_status: Option<EnrollmentStatus>,
+        authentication_status: Option<AuthenticationStatus>,
+    ) -> PaypalLiabilityResponse {
+        PaypalLiabilityResponse {
+            payment_source: CardParams {
+                card: AuthResult {
+                    authentication_result: PaypalThreeDsParams {
+                        liability_shift,
+                        three_d_secure: ThreeDsCheck {
+                            enrollment_status,
+                            authentication_status,
+                        },
+                    },
+                },
+            },
+        }
+    }
+
+    #[test]
+    fn failed_authentication_is_reported_as_three_ds_failure() {
+        let error = *validate_liability_response(liability_response(
+            LiabilityShift::No,
+            Some(EnrollmentStatus::Ready),
+            Some(AuthenticationStatus::Failed),
+        ))
+        .expect_err("a denied liability shift must not authorize");
+
+        assert_eq!(error.code, constants::THREE_DS_AUTHENTICATION_FAILED_CODE);
+        assert_eq!(
+            error.message,
+            constants::THREE_DS_AUTHENTICATION_FAILED_MESSAGE
+        );
+        assert_ne!(error.code, NO_ERROR_CODE);
+        assert_ne!(error.message, NO_ERROR_MESSAGE);
+
+        let reason = error.reason.expect("reason must carry the connector detail");
+        assert!(reason.contains(constants::CANNOT_CONTINUE_AUTH));
+        assert!(reason.contains("AuthenticationStatus: Failed"));
+    }
+
+    #[test]
+    fn successful_authentication_still_authorizes() {
+        assert!(validate_liability_response(liability_response(
+            LiabilityShift::Possible,
+            Some(EnrollmentStatus::Ready),
+            Some(AuthenticationStatus::Success),
+        ))
+        .is_ok());
     }
 }
