@@ -5257,7 +5257,7 @@ pub async fn get_merchant_connector_account(
             };
 
             let db_fetch = || async {
-                let maybe_config = db
+                let config_optional = db
                     .find_config_by_key_optional(cloned_key.as_str())
                     .await
                     .to_not_found_response(
@@ -5265,7 +5265,7 @@ pub async fn get_merchant_connector_account(
                             id: cloned_key.to_owned(),
                         },
                     )?;
-                maybe_config.ok_or_else(|| {
+                config_optional.ok_or_else(|| {
                     error_stack::Report::from(
                         errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
                             id: cloned_key.to_owned(),
@@ -9607,8 +9607,8 @@ pub async fn is_merchant_eligible_authentication_service(
     let org_eligible = db
         .find_config_by_key_optional(&org_key)
         .await
-        .and_then(|maybe_config| {
-            maybe_config.ok_or_else(|| {
+        .and_then(|config_optional| {
+            config_optional.ok_or_else(|| {
                 error_stack::Report::new(errors::StorageError::ValueNotFound(org_key.clone()))
             })
         })
@@ -9626,8 +9626,8 @@ pub async fn is_merchant_eligible_authentication_service(
                 .get_authentication_service_eligible_key();
             db.find_config_by_key_optional(&merchant_key)
                 .await
-                .and_then(|maybe_config| {
-                    maybe_config.ok_or_else(|| {
+                .and_then(|config_optional| {
+                    config_optional.ok_or_else(|| {
                         error_stack::Report::new(errors::StorageError::ValueNotFound(
                             merchant_key.clone(),
                         ))
@@ -9737,8 +9737,8 @@ async fn get_payment_update_enabled_for_client_auth(
     let update_enabled =
         db.find_config_by_key_optional(key.as_str())
             .await
-            .and_then(|maybe_config| {
-                maybe_config.ok_or_else(|| {
+            .and_then(|config_optional| {
+                config_optional.ok_or_else(|| {
                     error_stack::Report::new(errors::StorageError::ValueNotFound(key.clone()))
                 })
             });

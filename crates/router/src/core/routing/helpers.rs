@@ -84,9 +84,9 @@ pub async fn get_merchant_default_config(
     transaction_type: &storage::enums::TransactionType,
 ) -> RouterResult<Vec<routing_types::RoutableConnectorChoice>> {
     let key = get_default_config_key(merchant_id, transaction_type);
-    let maybe_config = db.find_config_by_key_optional(&key).await;
+    let config_optional = db.find_config_by_key_optional(&key).await;
 
-    match maybe_config {
+    match config_optional {
         Ok(Some(config)) => config
             .config
             .parse_struct("Vec<RoutableConnectors>")
