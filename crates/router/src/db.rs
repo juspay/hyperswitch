@@ -33,6 +33,7 @@ pub mod payment_link;
 pub mod payment_method_session;
 pub mod refund;
 pub mod relay;
+pub mod resource;
 pub mod reverse_lookup;
 pub mod role;
 pub mod routing_algorithm;
@@ -132,6 +133,7 @@ pub trait StorageInterface:
     + reverse_lookup::ReverseLookupInterface
     + CardsInfoInterface<Error = StorageError>
     + merchant_key_store::MerchantKeyStoreInterface<Error = StorageError>
+    + resource::ResourceInterface<Error = StorageError>
     + MasterKeyInterface
     + payment_link::PaymentLinkInterface
     + RedisConnInterface
@@ -214,6 +216,7 @@ pub trait AccountsStorageInterface:
     + business_profile::ProfileInterface<Error = StorageError>
     + merchant_connector_account::MerchantConnectorAccountInterface<Error = StorageError>
     + merchant_key_store::MerchantKeyStoreInterface<Error = StorageError>
+    + resource::ResourceInterface<Error = StorageError>
     + dashboard_metadata::DashboardMetadataInterface
     + RequestIdStore
     + 'static
@@ -231,6 +234,7 @@ pub trait AccountsStorageInterface:
     + business_profile::ProfileInterface<Error = StorageError>
     + merchant_connector_account::MerchantConnectorAccountInterface<Error = StorageError>
     + merchant_key_store::MerchantKeyStoreInterface<Error = StorageError>
+    + resource::ResourceInterface<Error = StorageError>
     + dashboard_metadata::DashboardMetadataInterface
     + 'static
 {

@@ -49,6 +49,11 @@ mod merchant_connector_account;
 mod merchant_key_store {
     pub use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
 }
+mod resource {
+    pub use hyperswitch_domain_models::resource::{
+        ApplePayCertificateCache, Resource, ResourceDataUpdate,
+    };
+}
 pub use hyperswitch_domain_models::bulk_tokenization::*;
 pub mod payment_methods {
     pub use hyperswitch_domain_models::payment_methods::*;
@@ -99,6 +104,7 @@ pub use merchant_connector_webhook_management::*;
 pub use merchant_key_store::*;
 pub use payment_attempt::*;
 pub use payment_method_data::*;
+pub use resource::*;
 pub use payment_methods::*;
 pub use platform::*;
 pub use routing::*;

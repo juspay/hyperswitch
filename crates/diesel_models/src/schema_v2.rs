@@ -320,6 +320,8 @@ diesel::table! {
         revenue_recovery_retry_algorithm_data -> Nullable<Jsonb>,
         #[max_length = 16]
         split_txns_enabled -> Nullable<Varchar>,
+        apple_pay_certificates -> Nullable<Jsonb>,
+        apple_pay_certificates_encrypted -> Nullable<Bytea>,
     }
 }
 
@@ -950,6 +952,8 @@ diesel::table! {
         #[max_length = 128]
         fingerprint_secret -> Nullable<Varchar>,
         offer_engine_config -> Nullable<Bytea>,
+        apple_pay_certificates -> Nullable<Jsonb>,
+        apple_pay_certificates_encrypted -> Nullable<Bytea>,
     }
 }
 
@@ -985,6 +989,8 @@ diesel::table! {
         id -> Varchar,
         connector_webhook_registration_details -> Nullable<Jsonb>,
         feature_metadata -> Nullable<Jsonb>,
+        apple_pay_certificates -> Nullable<Jsonb>,
+        apple_pay_certificates_encrypted -> Nullable<Bytea>,
     }
 }
 

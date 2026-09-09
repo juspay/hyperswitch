@@ -54,6 +54,7 @@ pub enum ApiIdentifier {
     RecoveryRecovery,
     Superposition,
     CardIssuers,
+    Resources,
 }
 
 impl From<Flow> for ApiIdentifier {
@@ -70,6 +71,10 @@ impl From<Flow> for ApiIdentifier {
             | Flow::OrganizationRetrieve
             | Flow::OrganizationUpdate
             | Flow::ConvertOrganizationToPlatform => Self::Organization,
+            Flow::ResourcesGenerate
+            | Flow::ResourcesUpload
+            | Flow::ResourcesList
+            | Flow::ResourcesLink => Self::Resources,
             Flow::RoutingCreateConfig
             | Flow::RoutingLinkConfig
             | Flow::RoutingUnlinkConfig

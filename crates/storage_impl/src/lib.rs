@@ -44,6 +44,7 @@ pub mod payouts;
 pub mod platform_wrapper;
 pub mod redis;
 pub mod refund;
+pub mod resource;
 #[cfg(feature = "v2")]
 pub mod revenue_recovery_retry_stats;
 mod reverse_lookup;

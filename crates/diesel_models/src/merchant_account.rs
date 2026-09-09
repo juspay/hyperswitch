@@ -59,6 +59,8 @@ pub struct MerchantAccount {
     pub network_tokenization_credentials: Option<Encryption>,
     pub fingerprint_secret: Option<Secret<String>>,
     pub offer_engine_config: Option<Encryption>,
+    pub apple_pay_certificates: Option<serde_json::Value>,
+    pub apple_pay_certificates_encrypted: Option<Encryption>,
 }
 
 #[cfg(feature = "v1")]
@@ -138,6 +140,8 @@ impl From<MerchantAccountSetter> for MerchantAccount {
             network_tokenization_credentials: item.network_tokenization_credentials,
             fingerprint_secret: item.fingerprint_secret,
             offer_engine_config: item.offer_engine_config,
+            apple_pay_certificates: None,
+            apple_pay_certificates_encrypted: None,
         }
     }
 }
@@ -175,6 +179,8 @@ pub struct MerchantAccount {
     pub network_tokenization_credentials: Option<Encryption>,
     pub fingerprint_secret: Option<Secret<String>>,
     pub offer_engine_config: Option<Encryption>,
+    pub apple_pay_certificates: Option<serde_json::Value>,
+    pub apple_pay_certificates_encrypted: Option<Encryption>,
 }
 
 #[cfg(feature = "v2")]
@@ -198,6 +204,8 @@ impl From<MerchantAccountSetter> for MerchantAccount {
             network_tokenization_credentials: None, // need to check if we can have this column in v2
             fingerprint_secret: item.fingerprint_secret,
             offer_engine_config: None,
+            apple_pay_certificates: None,
+            apple_pay_certificates_encrypted: None,
         }
     }
 }

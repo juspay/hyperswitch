@@ -42,6 +42,11 @@ use crate::{
     },
     payment_methods::*,
     payments::*,
+    resources::{
+        GenerateResourceRequest, GenerateResourceResponse, LinkResourceRequest,
+        LinkResourceResponse, ListResourcesRequest, ListResourcesResponse, ResourceSummary,
+        UploadCertificateRequest, UploadCertificateResponse,
+    },
     user::{UserKeyTransferRequest, UserTransferKeyResponse},
     verifications::*,
 };
@@ -149,7 +154,16 @@ impl_api_event_type!(
         OrganizationUpdateRequest,
         OrganizationId,
         CustomerListRequest,
-        RoutingEventsRequest
+        RoutingEventsRequest,
+        GenerateResourceRequest,
+        GenerateResourceResponse,
+        UploadCertificateRequest,
+        UploadCertificateResponse,
+        ResourceSummary,
+        ListResourcesRequest,
+        ListResourcesResponse,
+        LinkResourceRequest,
+        LinkResourceResponse
     )
 );
 

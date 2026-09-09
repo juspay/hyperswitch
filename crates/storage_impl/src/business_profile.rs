@@ -1335,6 +1335,8 @@ impl Conversion for domain::Profile {
                 .map(|name| name.into()),
             payment_method_blocking: self.payment_method_blocking,
             default_fallback_routing: self.default_fallback_routing,
+            apple_pay_certificates: None,
+            apple_pay_certificates_encrypted: None,
         })
     }
 
@@ -2283,6 +2285,8 @@ impl Conversion for domain::Profile {
             surcharge_connector_details: self.surcharge_connector_details,
             network_tokenization_credentials: None,
             payment_method_blocking: None,
+            apple_pay_certificates: None,
+            apple_pay_certificates_encrypted: None,
         })
     }
 

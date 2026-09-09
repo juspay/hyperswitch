@@ -2071,7 +2071,8 @@ where
         state,
         payment_data.payment_attempt.payment_method_type,
         Some(merchant_connector_account),
-    );
+    )
+    .await;
 
     let unified_address = if let Some(payment_method_info) =
         payment_data.payment_method_info.clone()
@@ -2398,7 +2399,8 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
         state,
         payment_data.payment_attempt.payment_method_type,
         Some(merchant_connector_account),
-    );
+    )
+    .await;
 
     let unified_address = if let Some(payment_method_info) =
         payment_data.payment_method_info.clone()

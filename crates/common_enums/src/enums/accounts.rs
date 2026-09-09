@@ -101,3 +101,23 @@ impl From<MerchantAccountRequestType> for MerchantAccountType {
         }
     }
 }
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum ResourceRequestorType {
+    MerchantConnectorAccount,
+    Profile,
+    MerchantAccount,
+}

@@ -588,6 +588,8 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             additional_merchant_data: self.additional_merchant_data.map(|data| data.into()),
             version: self.version,
             connector_webhook_registration_details: self.connector_webhook_registration_details,
+            apple_pay_certificates: None,
+            apple_pay_certificates_encrypted: None,
         })
     }
 
@@ -719,6 +721,8 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             version: self.version,
             feature_metadata: self.feature_metadata.map(From::from),
             connector_webhook_registration_details: None,
+            apple_pay_certificates: None,
+            apple_pay_certificates_encrypted: None,
         })
     }
 

@@ -88,6 +88,7 @@ use crate::{
         merchant_key_store::MerchantKeyStoreInterface,
         payment_link::PaymentLinkInterface,
         refund::RefundInterface,
+        resource::{ApplePayCertificateCache, ResourceInterface},
         reverse_lookup::ReverseLookupInterface,
         routing_algorithm::RoutingAlgorithmInterface,
         tokenization::TokenizationInterface,
@@ -3313,6 +3314,98 @@ impl MerchantKeyStoreInterface for KafkaStore {
         to: u32,
     ) -> CustomResult<Vec<domain::MerchantKeyStore>, errors::StorageError> {
         self.diesel_store.get_all_key_stores(key, from, to).await
+    }
+}
+
+#[async_trait::async_trait]
+impl ResourceInterface for KafkaStore {
+    type Error = errors::StorageError;
+
+    async fn insert_linked_resource(
+        &self,
+        resource: domain::Resource,
+        key: &Secret<Vec<u8>>,
+    ) -> CustomResult<domain::Resource, errors::StorageError> {
+        self.diesel_store.insert_linked_resource(resource, key).await
+    }
+
+    async fn find_linked_resource_by_id(
+        &self,
+        id: id_type::ResourceId,
+        key: &Secret<Vec<u8>>,
+    ) -> CustomResult<domain::Resource, errors::StorageError> {
+        self.diesel_store.find_linked_resource_by_id(id, key).await
+    }
+
+    async fn find_resource_scope_id(
+        &self,
+        id: id_type::ResourceId,
+    ) -> CustomResult<String, errors::StorageError> {
+        self.diesel_store.find_resource_scope_id(id).await
+    }
+
+    async fn list_linked_resources_by_scope_id_and_resource_type(
+        &self,
+        scope_id: String,
+        resource_type: String,
+        key: &Secret<Vec<u8>>,
+    ) -> CustomResult<Vec<domain::Resource>, errors::StorageError> {
+        self.diesel_store
+            .list_linked_resources_by_scope_id_and_resource_type(scope_id, resource_type, key)
+            .await
+    }
+
+    async fn update_linked_resource_data(
+        &self,
+        id: id_type::ResourceId,
+        update: domain::ResourceDataUpdate,
+        key: &Secret<Vec<u8>>,
+    ) -> CustomResult<domain::Resource, errors::StorageError> {
+        self.diesel_store
+            .update_linked_resource_data(id, update, key)
+            .await
+    }
+
+    async fn find_requestor_organization_id(
+        &self,
+        requestor_type: common_enums::ResourceRequestorType,
+        requestor_id: String,
+    ) -> CustomResult<Option<String>, errors::StorageError> {
+        self.diesel_store
+            .find_requestor_organization_id(requestor_type, requestor_id)
+            .await
+    }
+
+    async fn resolve_effective_resource_id(
+        &self,
+        requestor_type: common_enums::ResourceRequestorType,
+        requestor_id: String,
+    ) -> CustomResult<Option<id_type::ResourceId>, errors::StorageError> {
+        self.diesel_store
+            .resolve_effective_resource_id(requestor_type, requestor_id)
+            .await
+    }
+
+    async fn resolve_apple_pay_certificate_cache(
+        &self,
+        requestor_type: common_enums::ResourceRequestorType,
+        requestor_id: String,
+    ) -> CustomResult<Option<ApplePayCertificateCache>, errors::StorageError> {
+        self.diesel_store
+            .resolve_apple_pay_certificate_cache(requestor_type, requestor_id)
+            .await
+    }
+
+    async fn set_apple_pay_certificate_cache(
+        &self,
+        requestor_type: common_enums::ResourceRequestorType,
+        requestor_id: String,
+        data: serde_json::Value,
+        encrypted_data: common_utils::encryption::Encryption,
+    ) -> CustomResult<(), errors::StorageError> {
+        self.diesel_store
+            .set_apple_pay_certificate_cache(requestor_type, requestor_id, data, encrypted_data)
+            .await
     }
 }
 

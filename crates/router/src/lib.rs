@@ -266,6 +266,10 @@ pub fn mk_app(
 
             server_app = server_app.service(routes::Profile::server(state.clone()));
         }
+        #[cfg(all(feature = "olap", feature = "v1"))]
+        {
+            server_app = server_app.service(routes::Resources::server(state.clone()));
+        }
         server_app = server_app
             .service(routes::Payments::server(state.clone()))
             .service(routes::Customers::server(state.clone()))

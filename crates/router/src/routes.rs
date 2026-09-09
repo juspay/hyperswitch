@@ -79,6 +79,9 @@ pub mod recovery_webhooks;
 
 pub mod relay;
 
+#[cfg(all(feature = "olap", feature = "v1"))]
+pub mod resources;
+
 #[cfg(feature = "olap")]
 pub mod process_tracker;
 
@@ -102,7 +105,8 @@ pub use self::app::{
 };
 #[cfg(feature = "olap")]
 pub use self::app::{
-    Blocklist, Organization, Routing, Subscription, UnifiedConnectorService, Verify, WebhookEvents,
+    Blocklist, Organization, Resources, Routing, Subscription, UnifiedConnectorService, Verify,
+    WebhookEvents,
 };
 #[cfg(feature = "payouts")]
 pub use self::app::{PayoutLink, Payouts};
