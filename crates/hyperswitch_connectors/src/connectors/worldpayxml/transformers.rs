@@ -361,11 +361,33 @@ pub enum LastEvent {
 impl LastEvent {
     /// Renders the event as the raw Worldpay status string (SCREAMING_SNAKE_CASE),
     /// mirroring how it arrives on the wire, for use as a connector status.
-    fn to_connector_status_string(self) -> String {
-        serde_json::to_value(self)
-            .ok()
-            .and_then(|value| value.as_str().map(String::from))
-            .unwrap_or_else(|| "UNKNOWN".to_string())
+    fn as_str(&self) -> &'static str {
+        match self {
+            Self::Authorised => "AUTHORISED",
+            Self::Refused => "REFUSED",
+            Self::Cancelled => "CANCELLED",
+            Self::Captured => "CAPTURED",
+            Self::Settled => "SETTLED",
+            Self::SentForAuthorisation => "SENT_FOR_AUTHORISATION",
+            Self::SentForRefund => "SENT_FOR_REFUND",
+            Self::SentForFastRefund => "SENT_FOR_FAST_REFUND",
+            Self::Refunded => "REFUNDED",
+            Self::RefundRequested => "REFUND_REQUESTED",
+            Self::RefundFailed => "REFUND_FAILED",
+            Self::RefundedByMerchant => "REFUNDED_BY_MERCHANT",
+            Self::Error => "ERROR",
+            Self::QueryRequired => "QUERY_REQUIRED",
+            Self::CancelReceived => "CANCEL_RECEIVED",
+            Self::RefundReceived => "REFUND_RECEIVED",
+            Self::PushApproved => "PUSH_APPROVED",
+            Self::PushPending => "PUSH_PENDING",
+            Self::PushRequested => "PUSH_REQUESTED",
+            Self::PushRefused => "PUSH_REFUSED",
+            Self::SettledByMerchant => "SETTLED_BY_MERCHANT",
+            Self::ChargedBack => "CHARGED_BACK",
+            Self::ChargebackReversed => "CHARGEBACK_REVERSED",
+            Self::Unknown => "UNKNOWN",
+        }
     }
 }
 
@@ -4307,7 +4329,7 @@ impl TryFrom<&WorldpayXmlWebhookBody> for DisputePayload {
             currency: amount.currency_code,
             dispute_stage: enums::DisputeStage::Dispute,
             connector_dispute_id: order_status_event.order_code.clone(),
-            connector_status: payment.last_event.to_connector_status_string(),
+            connector_status: payment.last_event.as_str().to_string(),
             connector_reason: None,
             connector_reason_code: None,
             challenge_required_by: None,
