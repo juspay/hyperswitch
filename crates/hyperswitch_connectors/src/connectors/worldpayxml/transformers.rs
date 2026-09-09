@@ -4295,12 +4295,13 @@ impl TryFrom<&WorldpayXmlWebhookBody> for DisputePayload {
     fn try_from(body: &WorldpayXmlWebhookBody) -> Result<Self, Self::Error> {
         let order_status_event = &body.notify.order_status_event;
         let payment = &order_status_event.payment;
-        let amount = payment
-            .amount
-            .as_ref()
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "notify.orderStatusEvent.payment.amount".into(),
-            })?;
+        let amount =
+            payment
+                .amount
+                .as_ref()
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "notify.orderStatusEvent.payment.amount".into(),
+                })?;
         Ok(Self {
             amount: amount.value.clone(),
             currency: amount.currency_code,

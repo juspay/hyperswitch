@@ -1467,7 +1467,8 @@ impl webhooks::IncomingWebhook for Worldpayxml {
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
         _context: Option<&webhooks::WebhookContext>,
-    ) -> CustomResult<hyperswitch_interfaces::disputes::DisputePayload, errors::ConnectorError> {
+    ) -> CustomResult<hyperswitch_interfaces::disputes::DisputePayload, errors::ConnectorError>
+    {
         let body: worldpayxml::WorldpayXmlWebhookBody =
             utils::deserialize_xml_to_struct(request.body)?;
 
