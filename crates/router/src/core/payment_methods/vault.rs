@@ -2220,8 +2220,7 @@ pub async fn call_to_vault<V: pm_types::VaultingInterface>(
     };
 
     #[cfg(feature = "v2")]
-    let additional_headers = if V::supports_plain_response() && locker.plain_fingerprint_response
-    {
+    let additional_headers = if V::supports_plain_response() && locker.plain_fingerprint_response {
         let mut additional_headers = additional_headers;
         additional_headers.insert(
             consts::V2_VAULT_RESPONSE_ENCODING_HEADER.to_string(),
