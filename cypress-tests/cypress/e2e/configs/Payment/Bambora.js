@@ -22,6 +22,9 @@ const payment_method_data_no3ds = {
   card: {
     last4: "3312",
     card_type: "CREDIT",
+    card_subtype: null,
+    card_segment_type: null,
+    funding_source: null,
     card_network: "Visa",
     card_issuer: "INTL HDQTRS CENTER OWNED",
     card_issuing_country: "TURKEY",
