@@ -872,6 +872,21 @@ impl PaymentAttempt {
         self.connector_payment_id.as_deref()
     }
 
+    /// Whether the connector is already holding, or has held, an authorization for this
+    /// attempt. Both conditions are required: a status alone can be reached on paths that
+    /// never called a connector, and a reference alone does not prove the auth survived.
+    pub fn is_authorized_at_connector(&self) -> bool {
+        self.get_connector_payment_id().is_some()
+            && matches!(
+                self.status,
+                common_enums::AttemptStatus::Authorized
+                    | common_enums::AttemptStatus::PartiallyAuthorized
+                    | common_enums::AttemptStatus::PartialChargedAndChargeable
+                    | common_enums::AttemptStatus::Charged
+                    | common_enums::AttemptStatus::PartialCharged
+            )
+    }
+
     /// Extract and encode additional_payment_method_data (only non-sensitive data like upi_source, masked vpa_id)
     /// We should NOT store raw payment_method_data as it may contain sensitive info
     #[cfg(feature = "v2")]
