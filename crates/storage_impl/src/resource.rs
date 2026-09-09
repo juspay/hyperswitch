@@ -23,7 +23,9 @@ impl<T: DatabaseStore> ResourceInterface for kv_router_store::KVRouterStore<T> {
         resource: domain::Resource,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<domain::Resource, Self::Error> {
-        self.router_store.insert_linked_resource(resource, key).await
+        self.router_store
+            .insert_linked_resource(resource, key)
+            .await
     }
 
     #[instrument(skip_all)]
@@ -324,7 +326,10 @@ impl ResourceInterface for MockDb {
     ) -> CustomResult<domain::Resource, Self::Error> {
         let mut locked_resources = self.resources.lock().await;
 
-        if locked_resources.iter().any(|stored| stored.id == resource.id) {
+        if locked_resources
+            .iter()
+            .any(|stored| stored.id == resource.id)
+        {
             Err(StorageError::DuplicateValue {
                 entity: "resources",
                 key: Some(resource.id.get_string_repr().to_owned()),
@@ -401,7 +406,9 @@ impl ResourceInterface for MockDb {
         futures::future::try_join_all(
             resources
                 .iter()
-                .filter(|stored| stored.scope_id == scope_id && stored.resource_type == resource_type)
+                .filter(|stored| {
+                    stored.scope_id == scope_id && stored.resource_type == resource_type
+                })
                 .map(|stored| async {
                     let identifier = domain::Resource::identifier_for_diesel(stored)
                         .change_context(StorageError::DecryptionError)?;
@@ -459,7 +466,10 @@ impl ResourceInterface for MockDb {
         requestor_type: common_enums::ResourceRequestorType,
         requestor_id: String,
     ) -> CustomResult<Option<String>, Self::Error> {
-        let merchant_id = match self.resolve_owning_merchant_id(requestor_type, &requestor_id).await? {
+        let merchant_id = match self
+            .resolve_owning_merchant_id(requestor_type, &requestor_id)
+            .await?
+        {
             Some(merchant_id) => merchant_id,
             None => return Ok(None),
         };
@@ -481,7 +491,10 @@ impl ResourceInterface for MockDb {
         else {
             return Ok(None);
         };
-        let Some(resource_id) = cache.data.get("resource_id").and_then(|value| value.as_str())
+        let Some(resource_id) = cache
+            .data
+            .get("resource_id")
+            .and_then(|value| value.as_str())
         else {
             return Ok(None);
         };
@@ -497,12 +510,9 @@ impl ResourceInterface for MockDb {
             common_enums::ResourceRequestorType::MerchantConnectorAccount => {
                 let mca_id = parse_id(&requestor_id)?;
                 let accounts = self.merchant_connector_accounts.lock().await;
-                let mca = accounts
-                    .iter()
-                    .find(|mca| mca.get_id() == mca_id)
-                    .ok_or(StorageError::ValueNotFound(String::from(
-                        "merchant_connector_account",
-                    )))?;
+                let mca = accounts.iter().find(|mca| mca.get_id() == mca_id).ok_or(
+                    StorageError::ValueNotFound(String::from("merchant_connector_account")),
+                )?;
                 if let Some(data) = mca.apple_pay_certificates.clone() {
                     return Ok(Some(domain::ApplePayCertificateCache {
                         data,
@@ -517,7 +527,9 @@ impl ResourceInterface for MockDb {
                 let profile = profiles
                     .iter()
                     .find(|profile| profile.get_id() == &profile_id)
-                    .ok_or(StorageError::ValueNotFound(String::from("business_profile")))?;
+                    .ok_or(StorageError::ValueNotFound(String::from(
+                        "business_profile",
+                    )))?;
                 if let Some(data) = profile.apple_pay_certificates.clone() {
                     return Ok(Some(domain::ApplePayCertificateCache {
                         data,
@@ -551,13 +563,16 @@ impl ResourceInterface for MockDb {
         let account = accounts
             .iter()
             .find(|account| account.get_id() == &merchant_id)
-            .ok_or(StorageError::ValueNotFound(String::from("merchant_account")))?;
-        Ok(account.apple_pay_certificates.clone().map(|data| {
-            domain::ApplePayCertificateCache {
+            .ok_or(StorageError::ValueNotFound(String::from(
+                "merchant_account",
+            )))?;
+        Ok(account
+            .apple_pay_certificates
+            .clone()
+            .map(|data| domain::ApplePayCertificateCache {
                 data,
                 encrypted_data: account.apple_pay_certificates_encrypted.clone(),
-            }
-        }))
+            }))
     }
 
     async fn set_apple_pay_certificate_cache(
@@ -586,7 +601,9 @@ impl ResourceInterface for MockDb {
                 let profile = profiles
                     .iter_mut()
                     .find(|profile| profile.get_id() == &profile_id)
-                    .ok_or(StorageError::ValueNotFound(String::from("business_profile")))?;
+                    .ok_or(StorageError::ValueNotFound(String::from(
+                        "business_profile",
+                    )))?;
                 profile.apple_pay_certificates = Some(data);
                 profile.apple_pay_certificates_encrypted = Some(encrypted_data);
             }
@@ -596,7 +613,9 @@ impl ResourceInterface for MockDb {
                 let account = accounts
                     .iter_mut()
                     .find(|account| account.get_id() == &merchant_id)
-                    .ok_or(StorageError::ValueNotFound(String::from("merchant_account")))?;
+                    .ok_or(StorageError::ValueNotFound(String::from(
+                        "merchant_account",
+                    )))?;
                 account.apple_pay_certificates = Some(data);
                 account.apple_pay_certificates_encrypted = Some(encrypted_data);
             }
@@ -660,6 +679,5 @@ where
         Error = error_stack::Report<common_utils::errors::ValidationError>,
     >,
 {
-    T::try_from(std::borrow::Cow::Owned(value.to_owned()))
-        .change_context(StorageError::MockDbError)
+    T::try_from(std::borrow::Cow::Owned(value.to_owned())).change_context(StorageError::MockDbError)
 }

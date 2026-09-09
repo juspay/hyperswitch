@@ -2186,12 +2186,8 @@ impl Resources {
     pub fn server(state: AppState) -> Scope {
         web::scope("/resources")
             .app_data(web::Data::new(state))
-            .service(
-                web::resource("").route(web::post().to(super::resources::generate_resource)),
-            )
-            .service(
-                web::resource("/list").route(web::post().to(super::resources::list_resources)),
-            )
+            .service(web::resource("").route(web::post().to(super::resources::generate_resource)))
+            .service(web::resource("/list").route(web::post().to(super::resources::list_resources)))
             .service(
                 web::resource("/{resource_id}")
                     .route(web::put().to(super::resources::upload_apple_pay_certificate)),

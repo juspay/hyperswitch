@@ -179,15 +179,17 @@ pub async fn upload_apple_pay_certificate(
 
     let certificate = parse_certificate_from_base64_der(&req.certificate)?;
 
-    verify_certificate_matches_private_key(&certificate, &private_key_pem)
-        .change_context(errors::ApiErrorResponse::InvalidRequestData {
+    verify_certificate_matches_private_key(&certificate, &private_key_pem).change_context(
+        errors::ApiErrorResponse::InvalidRequestData {
             message: "Uploaded certificate does not match the generated key".to_string(),
-        })?;
+        },
+    )?;
 
-    let apple_merchant_identifier = parse_apple_merchant_identifier(&certificate)
-        .change_context(errors::ApiErrorResponse::InvalidRequestData {
+    let apple_merchant_identifier = parse_apple_merchant_identifier(&certificate).change_context(
+        errors::ApiErrorResponse::InvalidRequestData {
             message: "Could not parse Apple merchant identifier from certificate".to_string(),
-        })?;
+        },
+    )?;
 
     let mut data = match resource.data {
         serde_json::Value::Object(map) => map,
@@ -521,13 +523,8 @@ pub(crate) async fn ensure_organization_key_store(
     {
         Ok(key_store) => Ok(key_store),
         Err(error) if error.current_context().is_db_not_found() => {
-            create_organization_key_store(
-                db,
-                key_manager_state,
-                &org_key_identifier,
-                master_key,
-            )
-            .await
+            create_organization_key_store(db, key_manager_state, &org_key_identifier, master_key)
+                .await
         }
         Err(error) => Err(error).change_context(errors::ApiErrorResponse::InternalServerError),
     }
@@ -549,9 +546,7 @@ async fn create_organization_key_store(
         key_manager_state,
         EncryptionTransferRequest {
             identifier: identifier.clone(),
-            key: hyperswitch_masking::StrongSecret::new(
-                crate::consts::BASE64_ENGINE.encode(key),
-            ),
+            key: hyperswitch_masking::StrongSecret::new(crate::consts::BASE64_ENGINE.encode(key)),
         },
     )
     .await

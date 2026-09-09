@@ -9,7 +9,8 @@ mod v1 {
 
     use super::ApplePayCertificateCache;
     use crate::{
-        business_profile::Profile, merchant_account::MerchantAccount,
+        business_profile::Profile,
+        merchant_account::MerchantAccount,
         merchant_connector_account::MerchantConnectorAccount,
         query::generics,
         schema::{business_profile, merchant_account, merchant_connector_account},
@@ -47,8 +48,7 @@ mod v1 {
                 }
             }
             common_enums::ResourceRequestorType::Profile => {
-                let profile_id = match parse_id::<common_utils::id_type::ProfileId>(requestor_id)
-                {
+                let profile_id = match parse_id::<common_utils::id_type::ProfileId>(requestor_id) {
                     Ok(id) => id,
                     Err(_) => return Ok(None),
                 };
@@ -74,7 +74,10 @@ mod v1 {
     }
 
     fn is_not_found(error: &error_stack::Report<crate::errors::DatabaseError>) -> bool {
-        matches!(error.current_context(), crate::errors::DatabaseError::NotFound)
+        matches!(
+            error.current_context(),
+            crate::errors::DatabaseError::NotFound
+        )
     }
 
     pub async fn resolve_apple_pay_certificate_cache(
@@ -117,8 +120,7 @@ mod v1 {
                     }))
             }
             common_enums::ResourceRequestorType::Profile => {
-                let profile_id = match parse_id::<common_utils::id_type::ProfileId>(requestor_id)
-                {
+                let profile_id = match parse_id::<common_utils::id_type::ProfileId>(requestor_id) {
                     Ok(id) => id,
                     Err(_) => return Ok(None),
                 };
@@ -139,9 +141,8 @@ mod v1 {
                     }))
             }
             common_enums::ResourceRequestorType::MerchantAccount => {
-                let merchant_id = match parse_id::<common_utils::id_type::MerchantId>(
-                    requestor_id,
-                ) {
+                let merchant_id = match parse_id::<common_utils::id_type::MerchantId>(requestor_id)
+                {
                     Ok(id) => id,
                     Err(_) => return Ok(None),
                 };
@@ -167,7 +168,10 @@ mod v1 {
         else {
             return Ok(None);
         };
-        let Some(resource_id) = cache.data.get("resource_id").and_then(|value| value.as_str())
+        let Some(resource_id) = cache
+            .data
+            .get("resource_id")
+            .and_then(|value| value.as_str())
         else {
             return Ok(None);
         };
@@ -228,8 +232,7 @@ mod v1 {
                 .await?;
             }
             common_enums::ResourceRequestorType::Profile => {
-                let profile_id = match parse_id::<common_utils::id_type::ProfileId>(requestor_id)
-                {
+                let profile_id = match parse_id::<common_utils::id_type::ProfileId>(requestor_id) {
                     Ok(id) => id,
                     Err(_) => {
                         return Err(error_stack::report!(crate::errors::DatabaseError::NotFound))
@@ -251,8 +254,7 @@ mod v1 {
                 .await?;
             }
             common_enums::ResourceRequestorType::MerchantAccount => {
-                let merchant_id: common_utils::id_type::MerchantId = match parse_id(requestor_id)
-                {
+                let merchant_id: common_utils::id_type::MerchantId = match parse_id(requestor_id) {
                     Ok(id) => id,
                     Err(_) => {
                         return Err(error_stack::report!(crate::errors::DatabaseError::NotFound))

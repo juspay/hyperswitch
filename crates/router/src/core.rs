@@ -60,11 +60,11 @@ pub mod refunds;
 #[cfg(feature = "v2")]
 pub mod refunds_v2;
 pub mod relay;
+pub mod resources;
 #[cfg(feature = "v2")]
 pub mod revenue_recovery;
 #[cfg(feature = "v2")]
 pub mod revenue_recovery_data_backfill;
-pub mod resources;
 pub mod routing;
 pub mod superposition_proxy;
 #[cfg(feature = "v1")]

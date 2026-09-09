@@ -8,10 +8,7 @@ use crate::{
 };
 
 impl ResourceNew {
-    pub async fn insert(
-        self,
-        conn: &DatabaseConnectionWithContext<'_>,
-    ) -> StorageResult<Resource> {
+    pub async fn insert(self, conn: &DatabaseConnectionWithContext<'_>) -> StorageResult<Resource> {
         generics::generic_insert(conn, self).await
     }
 }

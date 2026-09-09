@@ -148,8 +148,7 @@ use crate::{
             get_applepay_metadata, is_applepay_predecrypted_flow_supported,
             is_googlepay_predecrypted_flow_supported,
         },
-        payouts,
-        resources as resources_core,
+        payouts, resources as resources_core,
         routing::{self as core_routing},
         unified_authentication_service::types::{ClickToPay, UnifiedAuthenticationService},
         utils as core_utils,
@@ -9221,7 +9220,10 @@ async fn resolve_managed_apple_pay_certificate(
         )
         .await
         .inspect_err(|error| {
-            logger::warn!(?error, "Failed to resolve linked Apple Pay certificate cache")
+            logger::warn!(
+                ?error,
+                "Failed to resolve linked Apple Pay certificate cache"
+            )
         })
         .ok()
         .flatten()?;
@@ -9241,27 +9243,33 @@ async fn resolve_managed_apple_pay_certificate(
         )
         .await
         .inspect_err(|error| {
-            logger::warn!(?error, "Failed to resolve organization for Apple Pay certificate cache")
+            logger::warn!(
+                ?error,
+                "Failed to resolve organization for Apple Pay certificate cache"
+            )
         })
         .ok()
         .flatten()?;
     let organization_id = id_type::OrganizationId::try_from_string(organization_id_str)
         .inspect_err(|error| {
-            logger::warn!(?error, "Invalid organization id while resolving Apple Pay certificate cache")
+            logger::warn!(
+                ?error,
+                "Invalid organization id while resolving Apple Pay certificate cache"
+            )
         })
         .ok()?;
 
     let key_manager_state: &common_utils::types::keymanager::KeyManagerState = &state.into();
-    let org_key_store = resources_core::ensure_organization_key_store(
-        db,
-        key_manager_state,
-        &organization_id,
-    )
-    .await
-    .inspect_err(|error| {
-        logger::warn!(?error, "Failed to fetch organization key store for Apple Pay certificate cache")
-    })
-    .ok()?;
+    let org_key_store =
+        resources_core::ensure_organization_key_store(db, key_manager_state, &organization_id)
+            .await
+            .inspect_err(|error| {
+                logger::warn!(
+                    ?error,
+                    "Failed to fetch organization key store for Apple Pay certificate cache"
+                )
+            })
+            .ok()?;
 
     let identifier = common_utils::types::keymanager::Identifier::Merchant(
         organization_id.as_merchant_key_identifier().ok()?,
@@ -9276,18 +9284,18 @@ async fn resolve_managed_apple_pay_certificate(
     )
     .await
     .and_then(|value| value.try_into_operation())
-    .inspect_err(|error| {
-        logger::warn!(?error, "Failed to decrypt Apple Pay certificate cache")
-    })
+    .inspect_err(|error| logger::warn!(?error, "Failed to decrypt Apple Pay certificate cache"))
     .ok()?
     .into_inner();
 
-    let certificate_key_json: serde_json::Value =
-        serde_json::from_str(decrypted_wrapper.peek())
-            .inspect_err(|error| {
-                logger::warn!(?error, "Failed to parse decrypted Apple Pay certificate cache")
-            })
-            .ok()?;
+    let certificate_key_json: serde_json::Value = serde_json::from_str(decrypted_wrapper.peek())
+        .inspect_err(|error| {
+            logger::warn!(
+                ?error,
+                "Failed to parse decrypted Apple Pay certificate cache"
+            )
+        })
+        .ok()?;
     let certificate_key = certificate_key_json
         .get("data")
         .and_then(|data| data.get("payment_processing_certificate_key"))

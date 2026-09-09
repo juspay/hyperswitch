@@ -3326,7 +3326,9 @@ impl ResourceInterface for KafkaStore {
         resource: domain::Resource,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<domain::Resource, errors::StorageError> {
-        self.diesel_store.insert_linked_resource(resource, key).await
+        self.diesel_store
+            .insert_linked_resource(resource, key)
+            .await
     }
 
     async fn find_linked_resource_by_id(
