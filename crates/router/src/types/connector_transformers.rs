@@ -133,6 +133,7 @@ impl ForeignTryFrom<api_enums::Connector> for euclid::enums::RoutableConnectors 
             api_enums::Connector::Payjustnowinstore => Self::Payjustnowinstore,
             api_enums::Connector::Payload => Self::Payload,
             api_enums::Connector::Payme => Self::Payme,
+            api_enums::Connector::Paynearme => Self::Paynearme,
             api_enums::Connector::Payone => Self::Payone,
             api_enums::Connector::Paypal => Self::Paypal,
             api_enums::Connector::Paysafe => Self::Paysafe,

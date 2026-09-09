@@ -682,6 +682,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 worldpayraft::transformers::WorldpayraftAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Paynearme => {
+                paynearme::transformers::PaynearmeAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Finix => {
                 finix::transformers::FinixAuthType::try_from(self.auth_type)?;
                 Ok(())

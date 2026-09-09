@@ -380,6 +380,7 @@ payjustnow.base_url = "https://sandbox-checkout.payjustnow.io/v2"
 payjustnowinstore.base_url = "https://sandbox.payjustnow.com/api"
 payload.base_url = "https://api.payload.com"
 payme.base_url = "https://sandbox.payme.io/"
+paynearme.base_url = "https://api.paynearme-sandbox.com/json-api"
 payone.base_url = "https://payment.preprod.payone.com/"
 paypal.base_url = "https://api-m.sandbox.paypal.com/"
 paysafe.base_url = "https://api.test.paysafe.com/paymenthub/"
@@ -1473,7 +1474,7 @@ diff_count_threshold = 100 # Non-volume routing diffs per profile within the cou
 base_url = "http://localhost:8000"      # Unified Connector Service Base URL
 connection_timeout = 10                 # Connection Timeout Duration in Seconds
 request_timeout = 35                    # Per-RPC Request Timeout in Seconds
-ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, dlocal, barclaycard, tsys_transit, jpmorgan, datatrans, givepayments, tesouro, citigate, ilixium, moneris, elavon, worldpayraft"    # Comma-separated list of connectors that use UCS only
+ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, dlocal, barclaycard, tsys_transit, jpmorgan, datatrans, givepayments, tesouro, citigate, ilixium, moneris, elavon, worldpayraft, paynearme"    # Comma-separated list of connectors that use UCS only
 ucs_psync_disabled_connectors = "cashtocode, trustly"    # Comma-separated list of connectors to disable UCS PSync call
 
 [grpc_client.recovery_decider_client] # Revenue recovery client base url

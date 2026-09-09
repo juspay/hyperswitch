@@ -373,6 +373,7 @@ pub struct ConnectorConfig {
     pub paybox: Option<ConnectorTomlConfig>,
     pub payload: Option<ConnectorTomlConfig>,
     pub payme: Option<ConnectorTomlConfig>,
+    pub paynearme: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
     pub payone_payout: Option<ConnectorTomlConfig>,
     pub paypal: Option<ConnectorTomlConfig>,
@@ -650,6 +651,7 @@ impl ConnectorConfig {
             Connector::Paybox => Ok(connector_data.paybox),
             Connector::Payload => Ok(connector_data.payload),
             Connector::Payme => Ok(connector_data.payme),
+            Connector::Paynearme => Ok(connector_data.paynearme),
             Connector::Payone => Err("Use get_payout_connector_config".to_string()),
             Connector::Paypal => Ok(connector_data.paypal),
             Connector::Paysafe => Ok(connector_data.paysafe),
