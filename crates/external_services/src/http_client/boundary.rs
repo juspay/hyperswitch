@@ -202,7 +202,16 @@ pub(super) fn replay_response(recorded: &serde_json::Value) -> Option<reqwest::R
             }
         }
     }
-    let http_response = builder.body(bytes::Bytes::from(raw_bytes)).ok()?;
+    let body = bytes::Bytes::from(raw_bytes);
+    let mut http_response = builder.body(body.clone()).ok()?;
+    // Restore the extension the body is captured from. Without it, capturing a
+    // reconstructed response reports "body not captured (missing extension)"
+    // instead of the body just rebuilt, so `capture(reconstruct(v))` does not
+    // equal `v`. Nothing re-captures on a replay hit today, so this is inert at
+    // runtime; the codec should not depend on that staying true.
+    http_response
+        .extensions_mut()
+        .insert(CapturedResponseBody(body));
     Some(reqwest::Response::from(http_response))
 }
 
@@ -302,5 +311,41 @@ mod tests {
             replay_response(&recorded).is_none(),
             "a pre-fix recording must refuse rather than replay with its headers dropped"
         );
+    }
+
+    /// Capturing a reconstructed response must reproduce the recording it came
+    /// from.
+    ///
+    /// Fails without the extension restore in `replay_response`: the rebuilt
+    /// response carried the body but not the extension the capture reads it
+    /// from, so the second capture reported "body not captured" where the first
+    /// had reported the bytes. Stated over the whole payload rather than over
+    /// the body alone, because asserting only on the field under suspicion is
+    /// how this stayed hidden.
+    #[test]
+    fn capturing_a_reconstructed_response_reproduces_the_recording() {
+        const BODY: &[u8] = b"{\"ok\":true}";
+
+        let mut builder = http::Response::builder().status(200);
+        for (name, value) in [("content-type", "application/json"), ("set-cookie", "a=1")] {
+            builder = builder.header(name, value);
+        }
+        let mut source = builder
+            .body(bytes::Bytes::from_static(BODY))
+            .expect("failed to build the test response");
+        source
+            .extensions_mut()
+            .insert(CapturedResponseBody(bytes::Bytes::from_static(BODY)));
+
+        let first: CustomResult<reqwest::Response, HttpClientError> =
+            Ok(reqwest::Response::from(source));
+        let captured = response_result(&first).0.expose();
+
+        let reconstructed =
+            replay_response(&captured).expect("a captured response must reconstruct");
+        let second: CustomResult<reqwest::Response, HttpClientError> = Ok(reconstructed);
+        let recaptured = response_result(&second).0.expose();
+
+        assert_eq!(recaptured, captured, "capture(reconstruct(v)) must equal v");
     }
 }
