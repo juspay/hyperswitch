@@ -568,7 +568,6 @@ impl From<WriteMode> for VaultQueryParam {
     }
 }
 
-#[cfg(feature = "v2")]
 /// Determines when a payment method is written to durable storage relative to the payment.
 #[derive(
     Clone, Copy, Debug, Eq, PartialEq, Deserialize, Serialize, strum::Display, strum::EnumString,
