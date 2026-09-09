@@ -432,9 +432,15 @@ pub async fn get_subscription_invoice_sync_process_schedule_time(
     merchant_id: &common_utils::id_type::MerchantId,
     retry_count: i32,
 ) -> Result<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
+    let config_key = format!("invoice_sync_pt_mapping_{connector}");
     let mapping: CustomResult<process_data::SubscriptionInvoiceSyncPTMapping, StorageError> = db
-        .find_config_by_key(&format!("invoice_sync_pt_mapping_{connector}"))
+        .find_config_by_key_optional(&config_key)
         .await
+        .and_then(|maybe_config| {
+            maybe_config.ok_or_else(|| {
+                error_stack::Report::new(StorageError::ValueNotFound(config_key.clone()))
+            })
+        })
         .map(|value| value.config)
         .and_then(|config| {
             config

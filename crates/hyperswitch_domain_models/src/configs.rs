@@ -9,7 +9,10 @@ pub trait ConfigInterface {
         config: storage::ConfigNew,
     ) -> CustomResult<storage::Config, Self::Error>;
 
-    async fn find_config_by_key(&self, key: &str) -> CustomResult<storage::Config, Self::Error>;
+    async fn find_config_by_key_optional(
+        &self,
+        key: &str,
+    ) -> CustomResult<Option<storage::Config>, Self::Error>;
 
     async fn find_config_by_key_unwrap_or(
         &self,
