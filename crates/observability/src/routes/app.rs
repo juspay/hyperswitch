@@ -2,7 +2,7 @@ use actix_multipart::form::MultipartFormConfig;
 use actix_web::{web, Scope};
 
 use crate::{
-    alert_manager::routes::config,
+    alert_manager::routes::{config, dictionary, notifications},
     errors::types::{ApiError, ApiErrorResponse},
     logger,
     routes::{health_check, notify},
@@ -52,6 +52,19 @@ fn config_scope() -> Scope {
                 ),
         )
         .service(
+            web::scope("/dictionary")
+                .service(
+                    web::resource("")
+                        .route(web::get().to(dictionary::list))
+                        .route(web::post().to(dictionary::upsert)),
+                )
+                .service(
+                    web::resource("/{name}/{key}")
+                        .route(web::get().to(dictionary::read))
+                        .route(web::delete().to(dictionary::retire)),
+                ),
+        )
+        .service(
             web::scope("/enablement")
                 .service(web::resource("").route(web::get().to(config::list_enablements)))
                 .service(
@@ -59,6 +72,13 @@ fn config_scope() -> Scope {
                         .route(web::get().to(config::read_enablement))
                         .route(web::post().to(config::upsert_enablement)),
                 ),
+        )
+        .service(
+            web::scope("/notifications").service(
+                web::resource("/read")
+                    .route(web::get().to(notifications::read))
+                    .route(web::post().to(notifications::mark_read)),
+            ),
         )
 }
 

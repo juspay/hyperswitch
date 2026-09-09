@@ -2,13 +2,14 @@
 
 The observability plane for Hyperswitch.
 
-`observability` is the home for alert *delivery*. Deciding what is alert-worthy — thresholds,
-detectors, suppression — is **not** done here; alerts arrive already decided and this crate routes
-them to a destination.
+`observability` is the home for alert *delivery* and for the alert manager's own *state*. Deciding
+what is alert-worthy — thresholds, detectors, suppression — is **not** done here; alerts arrive
+already decided, and storing a threshold is not applying it.
 
-Its first and currently only concern is the [`notifier`](src/domain/notifier.rs): the component that
-receives alert data over a webhook and delivers it to a channel. Further alerting concerns are
-expected to live alongside it rather than inside it.
+Two concerns live here today. The [`notifier`](src/domain/notifier.rs) receives alert data over a
+webhook and delivers it to a channel. The configuration routes own the rows the alert manager reads:
+what an alert is and whether it runs, together with what it used to write into the application's
+ClickHouse — the mappers dictionary and the notification bell's read watermark.
 
 ## Shape
 
@@ -37,10 +38,12 @@ The binary keeps the crate's name, so the Dockerfile takes `BINARY=observability
 
 ## Versioning
 
-`observability` has **no `v1`/`v2` feature flags**. The API version duality is the router's
-concern, and this crate stays out of it by not depending on any version-flavoured type. Keep it
-that way: adding a dependency on `diesel_models` or `hyperswitch_domain_models` would drag the
-feature matrix in with it.
+`observability` has **no `v1`/`v2` API semantics of its own** and uses no version-flavoured type.
+It carries the two features anyway, because the crates it reaches through — `hyperswitch_interfaces`
+for secrets management, `diesel_models` for its schema — do not build unless one is selected. The
+default is `v1`, matching the router, so nobody has to think about a choice this crate does not
+make. Keep it that way: a version-flavoured type in a signature here would drag the matrix in for
+real.
 
 ## Configuration
 
@@ -79,15 +82,9 @@ reach the logs from the client, which emits `chars` per request.
 ## The API
 
 Two surfaces under one scope. **Delivery** sends a message; **configuration** reads and writes the
-rows that say what an alert is and whether it runs. A route under `/alerts/config` touches the
-database and nothing else does.
-
-### Delivery
-
-Three delivery routes across two channels. **The path says where, the body says what** — the URL names the
-channel and the destination, the body carries only content. Channel ids, recipient addresses and
-credentials live in configuration, so a caller cannot address a channel that was not set up for it
-and no credential travels on the wire.
+rows this plane owns — what an alert is, whether it runs, the mappers the dashboard reads, and how
+far a user has read their notifications. A route under `/alerts/config` touches the database and
+nothing else does.
 
 The whole surface, guarded and not:
 
@@ -96,10 +93,30 @@ The whole surface, guarded and not:
 | `POST` | `/alerts/chat/notify/{destination}` | `X-Internal-Api-Key` |
 | `POST` | `/alerts/chat/upload/{destination}` | `X-Internal-Api-Key` |
 | `POST` | `/alerts/email/notify/{destination}` | `X-Internal-Api-Key` |
+| `GET` | `/alerts/config/definitions` | `X-Internal-Api-Key` |
+| `POST` | `/alerts/config/definitions` | `X-Internal-Api-Key` |
+| `GET` | `/alerts/config/definitions/{id}` | `X-Internal-Api-Key` |
+| `POST` | `/alerts/config/definitions/{id}` | `X-Internal-Api-Key` |
+| `GET` | `/alerts/config/dictionary` | `X-Internal-Api-Key` |
+| `POST` | `/alerts/config/dictionary` | `X-Internal-Api-Key` |
+| `GET` | `/alerts/config/dictionary/{name}/{key}` | `X-Internal-Api-Key` |
+| `DELETE` | `/alerts/config/dictionary/{name}/{key}` | `X-Internal-Api-Key` |
+| `GET` | `/alerts/config/enablement` | `X-Internal-Api-Key` |
+| `GET` | `/alerts/config/enablement/{name}/{product}` | `X-Internal-Api-Key` |
+| `POST` | `/alerts/config/enablement/{name}/{product}` | `X-Internal-Api-Key` |
+| `GET` | `/alerts/config/notifications/read` | `X-Internal-Api-Key` |
+| `POST` | `/alerts/config/notifications/read` | `X-Internal-Api-Key` |
 | `GET` | `/health` | none — liveness |
 
 The scope is `/alerts` rather than `/observability`: it names the resource being posted, not the
 service, so it stays correct as the crate widens past delivery.
+
+### Delivery
+
+Three delivery routes across two channels. **The path says where, the body says what** — the URL names the
+channel and the destination, the body carries only content. Channel ids, recipient addresses and
+credentials live in configuration, so a caller cannot address a channel that was not set up for it
+and no credential travels on the wire.
 
 ```http
 POST /alerts/chat/notify/{destination}
@@ -193,17 +210,13 @@ thread under it was lost — reporting a failure there would invite a retry that
 
 ### Configuration
 
-Two resources, backed by the observability database.
+Four resources, backed by the observability plane's own Postgres: the **definition** of an alert,
+the **enablement** switch that says whether it runs, the **mappers dictionary** the portal reads,
+and the **notification watermark** the bell reads. All four answer in the envelope the delivery
+routes use, and `status` carries the same weight on a state read as it does on a notification: a
+caller cannot read a `200` and assume there was something there.
 
-| Method | Path | |
-|---|---|---|
-| `GET` | `/alerts/config/definitions` | every definition |
-| `POST` | `/alerts/config/definitions` | create one |
-| `GET` | `/alerts/config/definitions/{id}` | read one |
-| `POST` | `/alerts/config/definitions/{id}` | change part of one |
-| `GET` | `/alerts/config/enablement` | every enablement row |
-| `GET` | `/alerts/config/enablement/{name}/{product}` | read one |
-| `POST` | `/alerts/config/enablement/{name}/{product}` | upsert one |
+#### Definitions
 
 **A definition is one row, not four resources.** Suppression, snooze and thresholds are `json`
 columns of `alerts_info` rather than side tables, so they are fields of this resource. All three are
@@ -245,8 +258,8 @@ a column rather than a table. It is read, listed and edited like any other defin
 one thing that cannot have an enablement row — it is not a detector, so there is nothing for a
 switch on it to turn on or off.
 
-**There is no delete route.** `is_enabled` is how an alert is turned off; unlike a delete it is
-reversible, and deleting an `alerts_info` row cascades to every `alerts_main` row referencing it,
+**A definition has no delete route.** `is_enabled` is how an alert is turned off; unlike a delete it
+is reversible, and deleting an `alerts_info` row cascades to every `alerts_main` row referencing it,
 destroying the record of what was announced in order to stop announcing it.
 
 #### Two switches, and which wins
@@ -282,6 +295,92 @@ first. r-apps leaves this table keyless and permits exactly that. It also valida
 exists**; without the check a switch can be wired to an alert nobody defined and looks on the screen
 exactly like one that works.
 
+#### The mappers dictionary
+
+The option lists and labels behind the portal's mappers screen, keyed on `(name, key_)`.
+
+```http
+POST /alerts/config/dictionary
+X-Internal-Api-Key: <key>
+X-User-Name: ops@example.com
+
+{ "name": "dashboard", "key_": "slack_users", "values_": "[]", "metadata": {"category": "dashboard"} }
+→ 200 { "status": "saved", "entry": { "name": "dashboard", "key_": "slack_users", … } }
+
+GET    /alerts/config/dictionary                    → 200 { "status": "found",  "entries": [ … ] }
+GET    /alerts/config/dictionary/dashboard/unknown  → 200 { "status": "absent", "entry": null }
+DELETE /alerts/config/dictionary/dashboard/unknown  → 200 { "status": "absent" }
+```
+
+**`alerts_dicts` keeps history.** A delete retires the live row rather than removing it, and the
+table's unique index is *partial* — one enabled row per `(name, key_)`, superseded rows kept. A save
+is therefore a single `INSERT … ON CONFLICT (name, key_) WHERE is_enabled IS TRUE DO UPDATE`, which
+names the index's own predicate so Postgres can infer it. Both halves of that matter: an upsert
+assuming a plain unique constraint fails outright, and one matching on `(name, key_)` without the
+predicate finds a retired row and brings it back with its old value.
+
+**`product`, `values_` and `metadata` are `json`, not `jsonb`, and are never re-encoded.** The
+dashboard serializes them itself and the mappers screen parses some of them twice, so they cross
+this service as raw bytes in both directions — see `diesel_models::observability::raw_json`.
+Parsing into a `serde_json::Value` and serializing it again would hand the screen back a document it
+did not save. A definition takes the opposite trade for the opposite reason: its `json` columns are
+typed because the alert manager reads them, and nothing reads a dictionary entry but the screen that
+wrote it.
+
+An entry's JSON is capped by `dictionary.max_entry_bytes` (1 MiB by default). The dashboard decides
+how large an entry is, and one oversized save becomes a row nothing can read back — a broken page
+long after the save that caused it, rather than a rejected request naming the entry.
+
+#### The notification watermark
+
+The bell shows what happened after the watermark and hides what happened before it.
+
+```http
+POST /alerts/config/notifications/read
+X-Internal-Api-Key: <key>
+X-User-Name: ops@example.com
+
+→ 200 { "status": "found", "last_read_at": "2026-09-09T12:34:56.789Z" }
+
+GET /alerts/config/notifications/read  → 200 { "status": "absent", "last_read_at": null }
+```
+
+The write takes no body: the instant is this service's clock, not the caller's, so a skewed
+dashboard cannot hide alerts nobody was shown — a watermark never moves backwards.
+
+#### Who a request is for
+
+The internal API key authenticates the **service**, not a person, so the two routes that need a user
+— a dictionary save and the watermark — read `X-User-Name`. **Nothing authenticates it**; it is an
+assertion by a caller that has already decided who it is acting for. The definition resource asks
+instead for `author` in the body, because a definition records who wrote it rather than who is
+looking at it.
+
+That is the honest shape of the deployment. Local accounts are disabled in sandbox and production
+alike (`localUsers: false`), so every request arrives with no name, the watermark table holds one
+shared row, and dictionary saves are attributed to the `username` column's default. Keeping the name
+on the request anyway is what makes that a data fact rather than a schema one: the day the portal
+authenticates, the alert manager forwards the name and rows appear per person with no route and no
+migration to change.
+
+A header rather than a path segment, which is where this crate otherwise puts what a request is
+about. The empty name every caller sends today has no spelling as a path segment, so the path form
+could not express the state that actually exists, and a user name is an email address wherever there
+is one, which a path would write into every access log. An absent header is the empty name; a header
+that is not UTF-8 is a `400`, because falling back would file one person's watermark under the
+shared row.
+
+#### Nothing stored is an answer, not a `404`
+
+A dictionary read or a watermark read that finds nothing is `200` with `status: "absent"`. Both
+screens have a defined behaviour for "nothing saved yet" — offer the built-in options, treat
+everything as unread — and making that an HTTP error would mean the caller has to treat an error
+response as normal, which is the habit that hides a real one.
+
+`404` keeps its meaning: a path naming something this service does not have. An unconfigured
+destination, an unknown definition id and an unknown enablement key are all `404`, and none of them
+is a state a screen expects — a caller that sent an id got it from a list this service returned.
+
 #### An empty answer is never an outage
 
 A store that answered nothing and a store that could not be asked must not look the same: the alert
@@ -295,6 +394,7 @@ The configuration errors, added to the table above:
 |---|---|---|
 | Definition already exists for this name and product | 400 | `IR_05` |
 | Name and product do not identify an alert (or name the reserved `all` row) | 400 | `IR_07` |
+| Dictionary entry over `dictionary.max_entry_bytes` | 400 | `IR_08` |
 | Unknown definition id | 404 | `IR_03` |
 | Unknown enablement key | 404 | `IR_06` |
 | Observability database unreachable | 503 | `HE_01` |
@@ -302,6 +402,10 @@ The configuration errors, added to the table above:
 `503` rather than `500`, for the reason `/health/ready` uses it: the service is fine, and the
 condition is expected to clear without anyone touching it. The failing host, database and role
 reach the log and never the response.
+
+An empty `name` or `key_`, one wider than its column, and an unreadable `X-User-Name` are `IR_04`
+alongside a body that did not parse. The column widths are checked here rather than left to
+Postgres, which rejects the same values as an opaque failure with a `500` attached.
 
 ## Destinations
 
@@ -356,9 +460,14 @@ configuration row and sends nothing. They share the HTTP server and the database
 else. The one deliberate exception is `routes/app.rs`, which holds *every* route this service
 serves — both concerns' — so the tree and its guards are one file rather than a search.
 
-Rows and their queries are not here at all: `alerts_info` and `merchants_alert_external_config` are
-modelled in `diesel_models::observability`, alongside every other table this database owns, so the
-alert manager and this service read one definition of them rather than two.
+Rows and their queries are not here at all: `alerts_info`, `merchants_alert_external_config`,
+`alerts_dicts` and `notification_reads` are modelled in `diesel_models::observability`, alongside
+every other table this database owns, so the alert manager and this service read one definition of
+them rather than two.
+
+`alert_manager` has no `domain/`: a row is a row, and its types are `diesel_models::observability`
+on one side and `alert_manager/types/` on the other. A trait between them would abstract over one
+implementation.
 
 `domain` holds no HTTP. `core` holds no traits. A handler that grows logic belongs in `core`; a
 concept that a background job would also need belongs in `domain`.

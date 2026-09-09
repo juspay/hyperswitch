@@ -43,26 +43,47 @@ pub enum ObservabilityError {
     #[error("The request body is invalid")]
     InvalidRequest,
 
+    #[error("The dictionary entry is {bytes} bytes, over the {limit} byte limit")]
+    EntryTooLarge {
+        bytes: usize,
+        limit: usize,
+    },
+
     #[error("The observability database is unavailable")]
     StorageUnavailable,
 
     #[error("No alert definition exists with id `{id}`")]
-    DefinitionNotFound { id: String },
+    DefinitionNotFound {
+        id: String,
+    },
 
     #[error("An alert definition already exists for `{name}` / `{product}`")]
-    DuplicateDefinition { name: String, product: String },
+    DuplicateDefinition {
+        name: String,
+        product: String,
+    },
 
     #[error("No alert enablement exists for `{name}` / `{product}`")]
-    EnablementNotFound { name: String, product: String },
+    EnablementNotFound {
+        name: String,
+        product: String,
+    },
 
     #[error("No alert is defined as `{name}` / `{product}`")]
-    NotAnAlert { name: String, product: String },
+    NotAnAlert {
+        name: String,
+        product: String,
+    },
 
     #[error("No destination is configured under `{destination}`")]
-    UnknownDestination { destination: String },
+    UnknownDestination {
+        destination: String,
+    },
 
     #[error("The destination `{destination}` could not be reached")]
-    ProviderUnavailable { destination: String },
+    ProviderUnavailable {
+        destination: String,
+    },
 }
 
 pub type ObservabilityApiResult<T> = error_stack::Result<T, ObservabilityError>;
@@ -84,6 +105,11 @@ impl ErrorSwitch<ApiErrorResponse> for ObservabilityError {
                 "IR",
                 4,
                 "The request body could not be parsed",
+            )),
+            Self::EntryTooLarge { .. } => ApiErrorResponse::BadRequest(ApiError::new(
+                "IR",
+                8,
+                "The dictionary entry is larger than this service stores",
             )),
             Self::UnknownDestination { .. } => {
                 ApiErrorResponse::NotFound(ApiError::new("IR", 2, "Unknown destination"))
@@ -158,6 +184,10 @@ mod tests {
         assert_eq!(status_of(&ObservabilityError::Unauthorized), 401);
         assert_eq!(status_of(&ObservabilityError::InvalidRequest), 400);
         assert_eq!(
+            status_of(&ObservabilityError::EntryTooLarge { bytes: 1, limit: 0 }),
+            400
+        );
+        assert_eq!(
             status_of(&ObservabilityError::DefinitionNotFound {
                 id: "0189d0a0-0000-7000-8000-000000000000".to_owned(),
             }),
@@ -185,6 +215,7 @@ mod tests {
             ObservabilityError::InternalServerError,
             ObservabilityError::Unauthorized,
             ObservabilityError::InvalidRequest,
+            ObservabilityError::EntryTooLarge { bytes: 0, limit: 0 },
             ObservabilityError::StorageUnavailable,
             ObservabilityError::DefinitionNotFound { id: String::new() },
             ObservabilityError::DuplicateDefinition {
@@ -217,7 +248,7 @@ mod tests {
         })
         .collect::<std::collections::HashSet<_>>();
 
-        assert_eq!(codes.len(), 10);
+        assert_eq!(codes.len(), 11);
     }
 
     #[test]
