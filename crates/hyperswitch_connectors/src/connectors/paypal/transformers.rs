@@ -3960,7 +3960,7 @@ pub struct PaypalWebooksEventType {
     pub event_type: PaypalWebhookEventType,
 }
 
-pub(crate) fn get_payapl_webhooks_event(
+pub(crate) fn get_paypal_webhooks_event(
     event: PaypalWebhookEventType,
     outcome: Option<OutcomeCode>,
 ) -> IncomingWebhookEvent {

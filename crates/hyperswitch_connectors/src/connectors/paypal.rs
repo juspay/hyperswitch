@@ -2449,7 +2449,7 @@ impl IncomingWebhook for Paypal {
             | PaypalWebhookEventType::PayoutsItemUnclaimed => None,
         };
 
-        Ok(transformers::get_payapl_webhooks_event(
+        Ok(transformers::get_paypal_webhooks_event(
             payload.event_type,
             outcome,
         ))
