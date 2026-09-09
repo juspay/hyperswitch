@@ -3573,6 +3573,9 @@ pub enum CardSegmentType {
 pub enum CardType {
     Credit,
     Debit,
+    Prepaid,
+    Store,
+    ChargeCard,
 }
 
 impl CardType {
@@ -3580,6 +3583,9 @@ impl CardType {
         match self {
             Self::Credit => "Credit",
             Self::Debit => "Debit",
+            Self::Prepaid => "Prepaid",
+            Self::Store => "Store",
+            Self::ChargeCard => "Charge Card",
         }
     }
 }

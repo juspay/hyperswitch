@@ -81,14 +81,27 @@ impl ForeignFrom<&api_models::payments::ConnectorMetadata>
             adyen: _,
             peachpayments: _,
             santander: _,
-            worldpayxml: _,
+            worldpayxml,
         } = metadata;
+        fn to_snake_case_string<T: serde::Serialize>(value: T) -> Option<String> {
+            serde_json::to_value(value)
+                .ok()
+                .and_then(|value| value.as_str().map(ToString::to_string))
+        }
         Self {
             checkout: checkout
                 .as_ref()
                 .map(|data| payments_grpc::CheckoutAdditionalInformation {
                     purpose_of_payment: data.purpose_of_payment.clone(),
                 }),
+            worldpayxml: worldpayxml.as_ref().map(|data| {
+                payments_grpc::WorldpayxmlAdditionalInformation {
+                    funding_transaction_type: data
+                        .funding_transaction_type
+                        .and_then(to_snake_case_string),
+                    payment_purpose: data.payment_purpose.and_then(to_snake_case_string),
+                }
+            }),
         }
     }
 }
@@ -476,15 +489,35 @@ impl
 
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
 
+        let setup_future_usage = router_data
+            .request
+            .setup_future_usage
+            .map(payments_grpc::FutureUsage::foreign_try_from)
+            .transpose()?;
+
+        let customer_acceptance = router_data
+            .request
+            .customer_acceptance
+            .clone()
+            .map(payments_grpc::CustomerAcceptance::foreign_try_from)
+            .transpose()?;
+
+        let setup_mandate_details = router_data
+            .request
+            .setup_mandate_details
+            .as_ref()
+            .map(payments_grpc::SetupMandateDetails::foreign_try_from)
+            .transpose()?;
+
         Ok(Self {
-            customer_acceptance: None,
-            setup_future_usage: None,
-            setup_mandate_details: None,
             split_payments: router_data
                 .request
                 .split_payments
                 .as_ref()
                 .map(payments_grpc::SplitPaymentsDetails::foreign_from),
+            setup_future_usage: setup_future_usage.map(|s| s.into()),
+            customer_acceptance,
+            setup_mandate_details,
             merchant_payment_method_id: Some(router_data.connector_request_reference_id.clone()),
             amount: router_data
                 .request
@@ -602,10 +635,6 @@ impl
         let order_details = build_ucs_order_details(router_data.request.order_details.as_deref());
         let l2_l3_data = build_ucs_l2_l3_data(router_data.l2_l3_data.as_deref());
         Ok(Self {
-            additional_connector_details: None,
-            business_country: None,
-            is_account_funding_transaction: None,
-            recipient_details: None,
             split_settlement: None,
             split_payments: router_data
                 .request
@@ -764,6 +793,7 @@ impl
                 .connector_intent_metadata
                 .as_ref()
                 .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
+            business_country: router_data.request.business_country.map(|c| c.to_string()),
         })
     }
 }
@@ -900,10 +930,6 @@ impl
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
-            additional_connector_details: None,
-            business_country: None,
-            is_account_funding_transaction: None,
-            recipient_details: None,
             split_settlement: None,
             split_payments: None,
             domain_data: None,
@@ -1024,6 +1050,7 @@ impl
                 .connector_intent_metadata
                 .as_ref()
                 .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
+            business_country: router_data.request.business_country.map(|c| c.to_string()),
         })
     }
 }
@@ -2150,10 +2177,6 @@ impl
             .transpose()?;
 
         Ok(Self {
-            additional_connector_details: None,
-            business_country: None,
-            is_account_funding_transaction: None,
-            recipient_details: None,
             split_settlement: None,
             split_payments: None,
             domain_data: None,
@@ -2255,6 +2278,7 @@ impl
                 .connector_intent_metadata
                 .as_ref()
                 .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
+            business_country: router_data.request.business_country.map(|c| c.to_string()),
         })
     }
 }
@@ -2330,10 +2354,6 @@ impl
         let order_details = build_ucs_order_details(router_data.request.order_details.as_deref());
         let l2_l3_data = build_ucs_l2_l3_data(router_data.l2_l3_data.as_deref());
         Ok(Self {
-            additional_connector_details: None,
-            business_country: None,
-            is_account_funding_transaction: None,
-            recipient_details: None,
             split_settlement: None,
             split_payments: router_data
                 .request
@@ -2474,6 +2494,7 @@ impl
                 .connector_intent_metadata
                 .as_ref()
                 .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
+            business_country: router_data.request.business_country.map(|c| c.to_string()),
         })
     }
 }
@@ -2541,6 +2562,7 @@ impl
         Ok(Self {
             is_account_funding_transaction: None,
             recipient_details: None,
+            business_country: None,
             split_settlement: None,
             split_payments: router_data
                 .request
@@ -2718,10 +2740,7 @@ impl
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
-            additional_connector_details: None,
-            is_account_funding_transaction: None,
-            recipient_details: None,
-            test_mode: None,
+            test_mode: router_data.test_mode,
             mit_category: None,
             merchant_recurring_payment_id: router_data.connector_request_reference_id.clone(),
             amount: Some(payments_grpc::Money {
@@ -3017,9 +3036,6 @@ impl
             .attach_printable("Failed to convert authentication type")?;
 
         Ok(Self {
-            additional_connector_details: None,
-            is_account_funding_transaction: None,
-            recipient_details: None,
             split_settlement: None,
             split_payments: router_data
                 .request
@@ -3279,7 +3295,7 @@ impl
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
-            test_mode: None,
+            test_mode: router_data.test_mode,
             amount: Some(payments_grpc::Money {
                 minor_amount: router_data.request.total_amount,
                 currency: currency.into(),
@@ -4187,6 +4203,8 @@ impl transformers::ForeignTryFrom<common_enums::PaymentMethodType>
             common_enums::PaymentMethodType::BcaBankTransfer => Ok(Self::BcaBankTransfer),
             common_enums::PaymentMethodType::BniVa => Ok(Self::BniVa),
             common_enums::PaymentMethodType::BriVa => Ok(Self::BriVa),
+            #[cfg(feature = "v2")]
+            common_enums::PaymentMethodType::Card => Ok(Self::Credit),
             common_enums::PaymentMethodType::CardRedirect => Ok(Self::CardRedirect),
             common_enums::PaymentMethodType::CimbVa => Ok(Self::CimbVa),
             common_enums::PaymentMethodType::ClassicReward => Ok(Self::ClassicReward),
@@ -4270,17 +4288,39 @@ impl transformers::ForeignTryFrom<common_enums::PaymentMethodType>
             common_enums::PaymentMethodType::OpenBankingPIS => Ok(Self::OpenBankingPis),
             common_enums::PaymentMethodType::DirectCarrierBilling => Ok(Self::DirectCarrierBilling),
             common_enums::PaymentMethodType::InstantBankTransfer => Ok(Self::InstantBankTransfer),
+            common_enums::PaymentMethodType::InstantBankTransferFinland => {
+                Ok(Self::InstantBankTransferFinland)
+            }
+            common_enums::PaymentMethodType::InstantBankTransferPoland => {
+                Ok(Self::InstantBankTransferPoland)
+            }
             common_enums::PaymentMethodType::Paypal => Ok(Self::PayPal),
             common_enums::PaymentMethodType::RevolutPay => Ok(Self::RevolutPay),
             common_enums::PaymentMethodType::NetworkToken => Ok(Self::NetworkToken),
             common_enums::PaymentMethodType::OpenBanking => Ok(Self::OpenBanking),
             common_enums::PaymentMethodType::Skrill => Ok(Self::Skrill),
+            common_enums::PaymentMethodType::Klarna => Ok(Self::Klarna),
+            common_enums::PaymentMethodType::BhnCardNetwork => Ok(Self::BhnCardNetwork),
+            common_enums::PaymentMethodType::Bluecode => Ok(Self::Bluecode),
+            common_enums::PaymentMethodType::Breadpay => Ok(Self::Breadpay),
+            common_enums::PaymentMethodType::EftDebitOrder => Ok(Self::EftDebitOrder),
+            common_enums::PaymentMethodType::Flexiti => Ok(Self::Flexiti),
+            common_enums::PaymentMethodType::IndonesianBankTransfer => {
+                Ok(Self::IndonesianBankTransfer)
+            }
+            common_enums::PaymentMethodType::Mifinity => Ok(Self::Mifinity),
+            common_enums::PaymentMethodType::Payjustnow => Ok(Self::Payjustnow),
+            common_enums::PaymentMethodType::Paysera => Ok(Self::Paysera),
+            common_enums::PaymentMethodType::Payshap => Ok(Self::Payshap),
+            common_enums::PaymentMethodType::PayshapProxy => Ok(Self::PayshapProxy),
+            common_enums::PaymentMethodType::PixAutomaticoPush => Ok(Self::PixAutomaticoPush),
+            common_enums::PaymentMethodType::PixAutomaticoQr => Ok(Self::PixAutomaticoQr),
+            common_enums::PaymentMethodType::PixEmv => Ok(Self::PixEmv),
+            common_enums::PaymentMethodType::PixKey => Ok(Self::PixKey),
+            common_enums::PaymentMethodType::PixQr => Ok(Self::PixQr),
+            common_enums::PaymentMethodType::Qris => Ok(Self::Qris),
+            common_enums::PaymentMethodType::SepaGuarenteedDebit => Ok(Self::SepaGuaranteedDebit),
             common_enums::PaymentMethodType::Neteller => Ok(Self::Neteller),
-            _ => Err(
-                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                    "Payment Method Type not yet supported".to_string(),
-                ),
-            )?,
         }
     }
 }
@@ -8478,7 +8518,6 @@ impl
         let access_token = router_data.access_token.as_ref().map(|t| t.token.clone());
 
         Ok(Self {
-            merchant_request_id: None,
             merchant_payout_id: router_data.payout_id.clone(),
             address,
             connector_feature_data,
@@ -8532,7 +8571,6 @@ impl
             .map(|secret| Secret::new(secret.expose().to_string()));
 
         Ok(Self {
-            merchant_request_id: None,
             merchant_payout_id: router_data.payout_id.clone(),
             address: Some(address),
             connector_feature_data,
@@ -8604,7 +8642,6 @@ impl
             .map(|metadata| Secret::new(metadata.expose().to_string()));
 
         Ok(Self {
-            merchant_request_id: None,
             merchant_payout_id: router_data.payout_id.clone(),
             connector_feature_data,
             payout_method_data,
@@ -8675,7 +8712,6 @@ impl
             .transpose()?;
 
         Ok(Self {
-            merchant_request_id: None,
             merchant_payout_id: router_data.payout_id.clone(),
             address: Some(address),
             amount: Some(money),
@@ -8759,7 +8795,6 @@ impl
             .transpose()?;
 
         Ok(Self {
-            merchant_request_id: None,
             merchant_quote_id: router_data.quote_id.clone(),
             address,
             amount: Some(money),
@@ -8820,7 +8855,6 @@ impl
         };
 
         Ok(Self {
-            merchant_request_id: None,
             merchant_payout_id: router_data.payout_id.clone(),
             address,
             customer: Some(customer),
@@ -8888,7 +8922,6 @@ impl
             )?;
 
         Ok(Self {
-            merchant_request_id: None,
             merchant_payout_id: router_data.payout_id.clone(),
             address,
             payout_method_data,
@@ -8920,7 +8953,6 @@ impl
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            merchant_request_id: None,
             merchant_payout_id: router_data.payout_id.clone(),
             connector_payout_id: router_data.request.connector_payout_id.clone(),
             access_token: router_data.access_token.clone().map(|at| at.token),

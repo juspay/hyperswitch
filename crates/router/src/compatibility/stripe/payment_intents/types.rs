@@ -117,7 +117,7 @@ pub struct StripePaymentMethodData {
 #[serde(rename_all = "snake_case")]
 pub enum StripePaymentMethodDetails {
     Card(StripeCard),
-    Wallet(StripeWallet),
+    Wallet(Box<StripeWallet>),
     Upi(StripeUpi),
 }
 
@@ -165,7 +165,7 @@ impl From<StripePaymentMethodDetails> for payments::PaymentMethodData {
         match item {
             StripePaymentMethodDetails::Card(card) => Self::Card(payments::Card::from(card)),
             StripePaymentMethodDetails::Wallet(wallet) => {
-                Self::Wallet(payments::WalletData::from(wallet))
+                Self::Wallet(payments::WalletData::from(*wallet))
             }
             StripePaymentMethodDetails::Upi(upi) => Self::Upi(payments::UpiData::from(upi)),
         }

@@ -60,9 +60,9 @@ pub fn get_payments_response_from_ucs_webhook_content(
         )?,
         Some(
             unified_connector_service_client::payments::event_content::Content::PayoutsResponse(_),
-        ) => Err(UnifiedConnectorServiceError::WebhookProcessingFailure).attach_printable(
-            "UCS webhook contains payouts response but payments response was expected",
-        )?,
+        ) => Err(UnifiedConnectorServiceError::NotImplemented(
+            "UCS payouts webhook response handling".to_string(),
+        ))?,
         None => Err(UnifiedConnectorServiceError::WebhookProcessingFailure)
             .attach_printable("Missing payments response in UCS webhook content")?,
     }
