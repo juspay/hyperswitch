@@ -3,10 +3,7 @@ use std::vec::IntoIter;
 use common_enums::PayoutRetryType;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payments::HeaderPayload;
-use router_env::{
-    logger,
-    tracing::instrument,
-};
+use router_env::{logger, tracing::instrument};
 
 use super::{call_connector_payout, PayoutData};
 use crate::{

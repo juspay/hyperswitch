@@ -64,11 +64,7 @@ use api_models::analytics::{
 use clickhouse::ClickhouseClient;
 pub use clickhouse::ClickhouseConfig;
 use error_stack::report;
-use router_env::{
-    logger,
-    tracing::instrument,
-    types::FlowMetric,
-};
+use router_env::{logger, tracing::instrument, types::FlowMetric};
 use storage_impl::config::Database;
 use strum::Display;
 

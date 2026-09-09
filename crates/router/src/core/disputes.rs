@@ -5,10 +5,7 @@ use api_models::{
 };
 use common_utils::ext_traits::{Encode, ValueExt};
 use error_stack::ResultExt;
-use router_env::{
-    instrument, logger,
-    tracing::Instrument,
-};
+use router_env::{instrument, logger, tracing::Instrument};
 use strum::IntoEnumIterator;
 pub mod transformers;
 

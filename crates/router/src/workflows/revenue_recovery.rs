@@ -39,10 +39,7 @@ use hyperswitch_domain_models::{
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "v2")]
 use rand::Rng;
-use router_env::{
-    logger,
-    tracing::instrument,
-};
+use router_env::{logger, tracing::instrument};
 use scheduler::{
     consumer::{self, workflows::ProcessTrackerWorkflow},
     errors,
