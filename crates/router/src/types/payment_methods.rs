@@ -13,25 +13,17 @@ use hyperswitch_masking::Secret;
 use router_env::logger;
 use serde::{Deserialize, Serialize};
 
-#[cfg(feature = "v2")]
-use crate::routes::app::SessionState;
-#[cfg(feature = "v2")]
-use crate::types::storage;
 use crate::{
     consts,
     types::{api, domain},
 };
+#[cfg(feature = "v2")]
+use crate::{routes::app::SessionState, types::storage};
 
 pub trait VaultingInterface {
     fn get_vaulting_request_url() -> &'static str;
 
     fn get_vaulting_flow_name() -> &'static str;
-
-    /// Whether this flow may accept a plain (unencrypted) response from the vault. Only flows
-    /// whose response carries no sensitive data should opt in.
-    fn supports_plain_response() -> bool {
-        false
-    }
 }
 
 #[cfg(feature = "v1")]
@@ -152,11 +144,6 @@ impl VaultingInterface for GetVaultFingerprint {
 
     fn get_vaulting_flow_name() -> &'static str {
         consts::V2_VAULT_GET_FINGERPRINT_FLOW_TYPE
-    }
-
-    // The response is only a fingerprint id.
-    fn supports_plain_response() -> bool {
-        true
     }
 }
 

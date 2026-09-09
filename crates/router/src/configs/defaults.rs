@@ -63,8 +63,6 @@ impl Default for super::settings::Locker {
             ttl_for_storage_in_secs: 60 * 60 * 24 * 365 * 7,
             decryption_scheme: Default::default(),
             create_entity_on_merchant_create: false,
-            #[cfg(feature = "v2")]
-            plain_fingerprint_response: true,
         }
     }
 }
