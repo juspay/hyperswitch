@@ -1545,6 +1545,9 @@ pub async fn decision_engine_routing_batch_with_fallback(
     algorithm_for: TransactionType,
     routing_flow: RoutingFlow,
 ) -> Vec<Vec<RoutableConnectorChoice>> {
+    if backend_inputs.is_empty() {
+        return Vec::new();
+    }
     match decision_engine_routing_batch(
         state,
         backend_inputs.clone(),

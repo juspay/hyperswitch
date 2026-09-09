@@ -134,6 +134,20 @@ pub const AUTHENTICATION_ELIGIBILITY_CHECK_DATA_TTL: i64 = 900;
 // TTL for external surcharge details stored in Redis (15 minutes)
 pub const EXTERNAL_SURCHARGE_TTL: i64 = 900;
 
+// TTL for the shared pre-routing decision stored in Redis (15 minutes, matching the
+// sibling browse-scoped keys). The stored fingerprint, not this TTL, is what protects
+// correctness — a stale entry is ignored when amount/currency no longer match.
+pub const PRE_ROUTING_REDIS_TTL: i64 = 900;
+
+// TTL for the pre-routing single-flight lock. Long enough for one evaluation
+// (a Decision Engine batch round trip), short enough that a crashed holder
+// cannot block the payment's other flows for long.
+pub const PRE_ROUTING_LOCK_TTL: i64 = 5;
+
+// How the pre-routing single-flight losers wait for the winner: attempts x delay.
+pub const PRE_ROUTING_LOCK_POLL_ATTEMPTS: u8 = 6;
+pub const PRE_ROUTING_LOCK_POLL_DELAY_MS: u64 = 75;
+
 // Prefix key for storing authentication eligibility check data in redis
 pub const AUTHENTICATION_ELIGIBILITY_CHECK_DATA_KEY: &str = "AUTH_ELIGIBILITY_CHECK_DATA_";
 
