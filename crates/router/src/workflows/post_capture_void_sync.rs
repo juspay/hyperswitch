@@ -151,8 +151,8 @@ pub async fn get_post_capture_void_sync_process_schedule_time(
     > = db
         .find_config_by_key_optional(&config_key)
         .await
-        .and_then(|maybe_config| {
-            maybe_config.ok_or_else(|| {
+        .and_then(|config_optional| {
+            config_optional.ok_or_else(|| {
                 error_stack::Report::new(errors::StorageError::ValueNotFound(config_key.clone()))
             })
         })

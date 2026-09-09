@@ -436,8 +436,8 @@ pub async fn get_subscription_invoice_sync_process_schedule_time(
     let mapping: CustomResult<process_data::SubscriptionInvoiceSyncPTMapping, StorageError> = db
         .find_config_by_key_optional(&config_key)
         .await
-        .and_then(|maybe_config| {
-            maybe_config.ok_or_else(|| {
+        .and_then(|config_optional| {
+            config_optional.ok_or_else(|| {
                 error_stack::Report::new(StorageError::ValueNotFound(config_key.clone()))
             })
         })
