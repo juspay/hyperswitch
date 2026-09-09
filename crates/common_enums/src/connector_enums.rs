@@ -176,6 +176,7 @@ pub enum Connector {
     Recurly,
     Redsys,
     Revolv3,
+    Saferpay,
     Santander,
     Shift4,
     Silverflow,
@@ -464,6 +465,7 @@ impl Connector {
             | Self::Paytm
             | Self::Payconex
             | Self::Citigate
+            | Self::Saferpay
             | Self::Worldpayraft
             | Self::Payjustnow
             | Self::Payjustnowinstore

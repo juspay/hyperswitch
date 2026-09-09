@@ -281,6 +281,19 @@ pub enum ConnectorSpecificConfig {
         key1: Secret<String>,
         base_url: Option<String>,
     },
+    /// Saferpay (SIX Payment Services) Transaction interface configuration.
+    ///
+    /// Field mapping expected by connector-service's `ConnectorSpecificConfig::Saferpay`:
+    /// `api_key` = API username (HTTP Basic username), `key1` = API password
+    /// (HTTP Basic password), `api_secret` = `CustomerId`
+    /// (`RequestHeader.CustomerId`), `key2` = `TerminalId` (request body `TerminalId`).
+    Saferpay {
+        api_key: Secret<String>,
+        key1: Secret<String>,
+        api_secret: Secret<String>,
+        key2: Secret<String>,
+        base_url: Option<String>,
+    },
     /// Worldpay Native RAFT connector configuration
     Worldpayraft {
         license: Secret<String>,
@@ -1818,6 +1831,21 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     base_url: None,
                 }),
                 _ => Err(err("Citigate requires BodyKey auth type")),
+            },
+            Connector::Saferpay => match auth {
+                ConnectorAuthType::MultiAuthKey {
+                    api_key,
+                    key1,
+                    api_secret,
+                    key2,
+                } => Ok(Self::Saferpay {
+                    api_key: api_key.clone(),
+                    key1: key1.clone(),
+                    api_secret: api_secret.clone(),
+                    key2: key2.clone(),
+                    base_url: None,
+                }),
+                _ => Err(err("Saferpay requires MultiAuthKey auth type")),
             },
             Connector::Worldpayraft => match auth {
                 ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Worldpayraft {

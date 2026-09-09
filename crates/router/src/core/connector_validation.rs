@@ -678,6 +678,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 citigate::transformers::CitigateAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Saferpay => {
+                saferpay::transformers::SaferpayAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Worldpayraft => {
                 worldpayraft::transformers::WorldpayraftAuthType::try_from(self.auth_type)?;
                 Ok(())

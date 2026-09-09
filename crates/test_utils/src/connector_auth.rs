@@ -112,6 +112,7 @@ pub struct ConnectorAuthentication {
     pub paytm: Option<HeaderKey>,
     pub payconex: Option<BodyKey>,
     pub citigate: Option<BodyKey>,
+    pub saferpay: Option<MultiAuthKey>,
     pub payu: Option<BodyKey>,
     pub peachpayments: Option<HeaderKey>,
     pub phonepe: Option<HeaderKey>,
