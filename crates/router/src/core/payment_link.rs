@@ -156,6 +156,7 @@ pub async fn form_payment_link_data(
                 color_icon_card_cvc_error: None,
                 show_merchant_name: Some(DEFAULT_SHOW_MERCHANT_NAME),
                 payment_methods_separator_text: None,
+                redirect_delay_seconds: None,
             }
         };
 
