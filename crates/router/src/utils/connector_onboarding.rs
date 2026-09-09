@@ -84,10 +84,12 @@ pub async fn set_tracking_id_in_configs(
     let timestamp = common_utils::date_time::now_unix_timestamp().to_string();
     let find_config = state
         .store
-        .find_config_by_key(&build_key(connector_id, connector))
-        .await;
+        .find_config_by_key_optional(&build_key(connector_id, connector))
+        .await
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("Error fetching data from configs table")?;
 
-    if find_config.is_ok() {
+    if find_config.is_some() {
         state
             .store
             .update_config_by_key(
@@ -99,12 +101,7 @@ pub async fn set_tracking_id_in_configs(
             .await
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Error updating data in configs table")?;
-    } else if find_config
-        .as_ref()
-        .map_err(|e| e.current_context().is_db_not_found())
-        .err()
-        .unwrap_or(false)
-    {
+    } else {
         state
             .store
             .insert_config(ConfigNew {
@@ -114,8 +111,6 @@ pub async fn set_tracking_id_in_configs(
             .await
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Error inserting data in configs table")?;
-    } else {
-        find_config.change_context(ApiErrorResponse::InternalServerError)?;
     }
 
     Ok(())

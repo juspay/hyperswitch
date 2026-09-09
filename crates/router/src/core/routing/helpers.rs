@@ -84,16 +84,16 @@ pub async fn get_merchant_default_config(
     transaction_type: &storage::enums::TransactionType,
 ) -> RouterResult<Vec<routing_types::RoutableConnectorChoice>> {
     let key = get_default_config_key(merchant_id, transaction_type);
-    let maybe_config = db.find_config_by_key(&key).await;
+    let maybe_config = db.find_config_by_key_optional(&key).await;
 
     match maybe_config {
-        Ok(config) => config
+        Ok(Some(config)) => config
             .config
             .parse_struct("Vec<RoutableConnectors>")
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Merchant default config has invalid structure"),
 
-        Err(e) if e.current_context().is_db_not_found() => {
+        Ok(None) => {
             let new_config_conns = Vec::<routing_types::RoutableConnectorChoice>::new();
             let serialized = new_config_conns
                 .encode_to_string_of_json()

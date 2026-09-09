@@ -272,8 +272,13 @@ pub async fn get_merchant_max_auto_retries_enabled(
 ) -> Option<i32> {
     let key = merchant_id.get_max_auto_retries_enabled();
 
-    db.find_config_by_key(key.as_str())
+    db.find_config_by_key_optional(key.as_str())
         .await
+        .and_then(|maybe_config| {
+            maybe_config.ok_or_else(|| {
+                error_stack::Report::new(errors::StorageError::ValueNotFound(key.clone()))
+            })
+        })
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .and_then(|retries_config| {
             retries_config

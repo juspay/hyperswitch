@@ -35,9 +35,10 @@ pub async fn set_config(state: SessionState, config: api::Config) -> RouterRespo
 pub async fn read_config(state: SessionState, key: &str) -> RouterResponse<api::Config> {
     let store = state.store.as_ref();
     let config = store
-        .find_config_by_key(key)
+        .find_config_by_key_optional(key)
         .await
-        .to_not_found_response(errors::ApiErrorResponse::ConfigNotFound)?;
+        .to_not_found_response(errors::ApiErrorResponse::ConfigNotFound)?
+        .ok_or(errors::ApiErrorResponse::ConfigNotFound)?;
     Ok(ApplicationResponse::Json(config.foreign_into()))
 }
 
@@ -232,10 +233,11 @@ where
             for db_key in db_keys.into_iter().flatten() {
                 attempted = true;
                 if resolved_value.is_none() {
-                    let config_result = storage.find_config_by_key(db_key).await;
+                    let config_result = storage.find_config_by_key_optional(db_key).await;
 
                     if let Some(value) = config_result
                         .ok()
+                        .flatten()
                         .and_then(|config| C::parse_db_config(&config.config, context.as_ref()))
                     {
                         router_env::logger::info!(
