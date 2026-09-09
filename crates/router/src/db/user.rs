@@ -217,6 +217,7 @@ impl UserInterface for MockDb {
             last_password_modified_at: user_data.last_password_modified_at,
             lineage_context: user_data.lineage_context,
             is_active: Some(user_data.is_active),
+            password_history: user_data.password_history,
         };
         users.push(user.clone());
         Ok(user)
@@ -335,9 +336,13 @@ impl UserInterface for MockDb {
                 ..user.to_owned()
             },
 
-            storage::UserUpdate::PasswordUpdate { password } => storage::User {
+            storage::UserUpdate::PasswordUpdate {
+                password,
+                password_history,
+            } => storage::User {
                 password: Some(password.clone()),
                 last_password_modified_at: Some(common_utils::date_time::now()),
+                password_history: Some(password_history.clone()),
                 ..user.to_owned()
             },
 
@@ -409,9 +414,13 @@ impl UserInterface for MockDb {
                 ..user.to_owned()
             },
 
-            storage::UserUpdate::PasswordUpdate { password } => storage::User {
+            storage::UserUpdate::PasswordUpdate {
+                password,
+                password_history,
+            } => storage::User {
                 password: Some(password),
                 last_password_modified_at: Some(common_utils::date_time::now()),
+                password_history: Some(password_history),
                 ..user.to_owned()
             },
 
@@ -481,6 +490,7 @@ impl UserInterface for MockDb {
                     last_password_modified_at: Some(last_modified_at),
                     lineage_context: None,
                     is_active: Some(true),
+                    password_history: user_update.password_history,
                 };
                 user.to_owned()
             })

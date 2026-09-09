@@ -485,8 +485,24 @@ pub async fn change_password(
     }
     let new_password = domain::UserPassword::new(request.new_password)?;
 
+    // Password history is read here and written back below, without a lock. Two concurrent
+    // password changes for the same user can therefore both check against the same snapshot,
+    // and the later write wins - costing one entry of history (3 passwords protected instead
+    // of 4). Accepted: it needs two authenticated changes for one user inside the same ~100ms
+    // window, and it degrades a deterrent rather than weakening authentication. Closing it
+    // properly means a transaction holding SELECT ... FOR UPDATE across the read, check and
+    // write - not an atomic array splice in SQL, which would leave the check racing.
+    let mut password_history = user.get_password_history().unwrap_or_default();
+
+    if utils::user::password::is_password_reused(&new_password.get_secret(), &password_history)? {
+        return Err(UserErrors::PasswordReuseError.into());
+    }
+
     let new_password_hash =
         utils::user::password::generate_password_hash(new_password.get_secret())?;
+
+    password_history.insert(0, new_password_hash.clone());
+    password_history.truncate(consts::user::PASSWORD_HISTORY_LIMIT);
 
     let _ = state
         .global_store
@@ -494,6 +510,7 @@ pub async fn change_password(
             user.get_user_id(),
             diesel_models::user::UserUpdate::PasswordUpdate {
                 password: new_password_hash,
+                password_history,
             },
         )
         .await
@@ -590,11 +607,21 @@ pub async fn rotate_password(
         .into();
 
     let password = domain::UserPassword::new(request.password.to_owned())?;
-    let hash_password = utils::user::password::generate_password_hash(password.get_secret())?;
 
     if user.compare_password(&request.password).is_ok() {
         return Err(UserErrors::ChangePasswordError.into());
     }
+
+    let mut password_history = user.get_password_history().unwrap_or_default();
+
+    if utils::user::password::is_password_reused(&password.get_secret(), &password_history)? {
+        return Err(UserErrors::PasswordReuseError.into());
+    }
+
+    let hash_password = utils::user::password::generate_password_hash(password.get_secret())?;
+
+    password_history.insert(0, hash_password.clone());
+    password_history.truncate(consts::user::PASSWORD_HISTORY_LIMIT);
 
     let user = state
         .global_store
@@ -602,6 +629,7 @@ pub async fn rotate_password(
             &user_token.user_id,
             storage_user::UserUpdate::PasswordUpdate {
                 password: hash_password,
+                password_history,
             },
         )
         .await
@@ -639,7 +667,17 @@ pub async fn reset_password_token_only_flow(
     }
 
     let password = domain::UserPassword::new(request.password)?;
+
+    let mut password_history = user_from_db.get_password_history().unwrap_or_default();
+
+    if utils::user::password::is_password_reused(&password.get_secret(), &password_history)? {
+        return Err(UserErrors::PasswordReuseError.into());
+    }
+
     let hash_password = utils::user::password::generate_password_hash(password.get_secret())?;
+
+    password_history.insert(0, hash_password.clone());
+    password_history.truncate(consts::user::PASSWORD_HISTORY_LIMIT);
 
     let user = state
         .global_store
@@ -647,6 +685,7 @@ pub async fn reset_password_token_only_flow(
             user_from_db.get_user_id(),
             storage_user::UserUpdate::PasswordUpdate {
                 password: hash_password,
+                password_history,
             },
         )
         .await

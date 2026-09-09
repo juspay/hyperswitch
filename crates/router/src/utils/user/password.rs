@@ -74,6 +74,19 @@ pub fn get_index_for_correct_recovery_code(
     Ok(None)
 }
 
+pub fn is_password_reused(
+    candidate: &Secret<String>,
+    password_history: &[Secret<String>],
+) -> CustomResult<bool, UserErrors> {
+    for old_password in password_history {
+        let is_match = is_correct_password(candidate, old_password)?;
+        if is_match {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
 pub fn get_temp_password() -> Secret<String> {
     let uuid_pass = uuid::Uuid::new_v4().to_string();
     let mut rng = rand::thread_rng();

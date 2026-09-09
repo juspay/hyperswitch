@@ -27,6 +27,8 @@ pub struct User {
     pub last_password_modified_at: Option<PrimitiveDateTime>,
     pub lineage_context: Option<LineageContext>,
     pub is_active: Option<bool>,
+    #[diesel(deserialize_as = OptionalDieselArray<Secret<String>>)]
+    pub password_history: Option<Vec<Secret<String>>>,
 }
 
 #[derive(
@@ -47,6 +49,7 @@ pub struct UserNew {
     pub last_password_modified_at: Option<PrimitiveDateTime>,
     pub lineage_context: Option<LineageContext>,
     pub is_active: bool,
+    pub password_history: Option<Vec<Secret<String>>>,
 }
 
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
@@ -62,6 +65,7 @@ pub struct UserUpdateInternal {
     last_password_modified_at: Option<Option<PrimitiveDateTime>>,
     lineage_context: Option<Option<LineageContext>>,
     is_active: Option<bool>,
+    password_history: Option<Option<Vec<Secret<String>>>>,
 }
 
 #[derive(Debug)]
@@ -78,6 +82,7 @@ pub enum UserUpdate {
     },
     PasswordUpdate {
         password: Secret<String>,
+        password_history: Vec<Secret<String>>,
     },
     LineageContextUpdate {
         lineage_context: LineageContext,
@@ -90,6 +95,7 @@ pub struct ReactivateUserUpdate {
     pub new_name: Option<String>,
     pub new_password: Option<Secret<String>>,
     pub last_password_modified_at: Option<PrimitiveDateTime>,
+    pub password_history: Option<Vec<Secret<String>>>,
 }
 
 impl From<UserUpdate> for UserUpdateInternal {
@@ -107,6 +113,7 @@ impl From<UserUpdate> for UserUpdateInternal {
                 last_password_modified_at: None,
                 lineage_context: None,
                 is_active: None,
+                password_history: None,
             },
             UserUpdate::AccountUpdate { name, is_verified } => Self {
                 name,
@@ -119,6 +126,7 @@ impl From<UserUpdate> for UserUpdateInternal {
                 last_password_modified_at: None,
                 lineage_context: None,
                 is_active: None,
+                password_history: None,
             },
             UserUpdate::TotpUpdate {
                 totp_status,
@@ -135,8 +143,12 @@ impl From<UserUpdate> for UserUpdateInternal {
                 last_password_modified_at: None,
                 lineage_context: None,
                 is_active: None,
+                password_history: None,
             },
-            UserUpdate::PasswordUpdate { password } => Self {
+            UserUpdate::PasswordUpdate {
+                password,
+                password_history,
+            } => Self {
                 name: None,
                 password: Some(Some(password)),
                 is_verified: None,
@@ -147,6 +159,7 @@ impl From<UserUpdate> for UserUpdateInternal {
                 totp_recovery_codes: None,
                 lineage_context: None,
                 is_active: None,
+                password_history: Some(Some(password_history)),
             },
             UserUpdate::LineageContextUpdate { lineage_context } => Self {
                 name: None,
@@ -159,6 +172,7 @@ impl From<UserUpdate> for UserUpdateInternal {
                 totp_recovery_codes: None,
                 lineage_context: Some(Some(lineage_context)),
                 is_active: None,
+                password_history: None,
             },
             UserUpdate::DeactivateUpdate => Self {
                 name: None,
@@ -171,6 +185,10 @@ impl From<UserUpdate> for UserUpdateInternal {
                 totp_recovery_codes: Some(None),
                 lineage_context: Some(None),
                 is_active: Some(false),
+                // Intentionally left untouched while every other credential on this arm is
+                // cleared: preserving history stops a reactivated user from cycling back to a
+                // pre-deactivation password.
+                password_history: None,
             },
         }
     }
@@ -190,6 +208,7 @@ impl From<ReactivateUserUpdate> for UserUpdateInternal {
             totp_recovery_codes: Some(None),
             lineage_context: Some(None),
             is_active: Some(true),
+            password_history: Some(user_update.password_history),
         }
     }
 }

@@ -24,6 +24,8 @@ pub const ORG_LIST_LIMIT_FOR_TENANT: u32 = 20;
 
 pub const MAX_PASSWORD_LENGTH: usize = 70;
 pub const MIN_PASSWORD_LENGTH: usize = 12;
+/// Number of most recent passwords, including the current one, that a user may not reuse
+pub const PASSWORD_HISTORY_LIMIT: usize = 4;
 
 pub const REDIS_TOTP_PREFIX: &str = "TOTP_";
 pub const REDIS_RECOVERY_CODE_PREFIX: &str = "RC_";
