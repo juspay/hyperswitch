@@ -1,6 +1,8 @@
 // This file is the default. To override, add to connector.js
 import { getCurrency, getCustomExchange } from "./Modifiers";
 
+export const OFFER_QUOTE_ID_PLACEHOLDER = "OFFER_QUOTE_ID_FROM_STATE";
+
 export const blockedPaymentErrorBodyForIssuingCountry = {
   status: 200,
   expectBlockedPayment: true,
@@ -4463,6 +4465,106 @@ export const connectorDetails = {
         status: 200,
         body: {
           // Should not have deny action for non-blocklisted cards
+        },
+      },
+    }),
+  },
+  offer_engine: {
+    PaymentIntentForOffer: getCustomExchange({
+      Request: {
+        currency: "USD",
+        amount: 100000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    OfferEligibilityCheck: getCustomExchange({
+      Request: {
+        payment_method_type: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+          billing: standardBillingAddress,
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          amount_details: {
+            total_amount: 100000,
+            net_amount: 98000,
+            currency: "USD",
+          },
+          offer_details: {
+            uplifted_offer_quote_ids: [""],
+            eligible_offers: [
+              {
+                offer_amount: 2000,
+                currency: "USD",
+                code: "TESTHS",
+              },
+            ],
+          },
+        },
+      },
+    }),
+    ConfirmWithOfferApplied: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+          billing: standardBillingAddress,
+        },
+        offer_details: {
+          offer_quote_ids: [OFFER_QUOTE_ID_PLACEHOLDER],
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          amount: 100000,
+          net_amount: 98000,
+          amount_received: 98000,
+          currency: "USD",
+        },
+      },
+    }),
+    AppliedOfferOnRetrieve: getCustomExchange({
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          net_amount: 98000,
+          amount_received: 98000,
+          applied_offer: {
+            offer_amount: 2000,
+            currency: "USD",
+          },
+        },
+      },
+    }),
+    ConfirmWithoutOffer: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+          billing: standardBillingAddress,
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          amount: 100000,
+          net_amount: 100000,
+          amount_received: 100000,
+          currency: "USD",
+          applied_offer: null,
         },
       },
     }),
