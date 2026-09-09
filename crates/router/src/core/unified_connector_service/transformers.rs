@@ -1707,7 +1707,13 @@ impl
             metadata: None,
             return_url: None,
             continue_redirection_url: None,
-            state: None,
+            // PayPal's PostAuthenticate get_headers requires the OAuth access token; leaving
+            // this None makes UCS fail with FAILED_TO_OBTAIN_AUTH_TYPE. Same source the
+            // Authorize builder uses.
+            state: router_data
+                .access_token
+                .as_ref()
+                .map(ConnectorState::foreign_from),
             redirection_response: router_data
                 .request
                 .redirect_response
@@ -1815,7 +1821,13 @@ impl
             metadata: None,
             return_url: None,
             continue_redirection_url: None,
-            state: None,
+            // PayPal's PostAuthenticate get_headers requires the OAuth access token; leaving
+            // this None makes UCS fail with FAILED_TO_OBTAIN_AUTH_TYPE. Same source the
+            // Authorize builder uses.
+            state: router_data
+                .access_token
+                .as_ref()
+                .map(ConnectorState::foreign_from),
             redirection_response: router_data
                 .request
                 .redirect_response
