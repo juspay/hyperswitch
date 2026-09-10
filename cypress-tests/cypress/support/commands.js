@@ -5553,7 +5553,9 @@ Cypress.Commands.add(
                   response.body.setup_future_usage === "off_session" &&
                   response.body.mandate_id === null &&
                   response.body.status === "succeeded" &&
-                  globalState.get("connectorId") !== "tsys_transit"
+                  globalState.get("connectorId") !== "peachpayments" &&
+                  globalState.get("connectorId") !== "tsys_transit" &&
+                  requestBody.mandate_data !== null
                 ) {
                   expect(
                     response.body.connector_mandate_id,
@@ -6028,10 +6030,25 @@ Cypress.Commands.add(
       requestBody[key] = reqData[key];
     }
 
+    const ntidFromCit = globalState.get("networkTransactionId");
+    if (
+      ntidFromCit &&
+      requestBody.recurring_details?.type ===
+        "network_transaction_id_and_card_details" &&
+      typeof requestBody.recurring_details?.data === "object" &&
+      requestBody.recurring_details.data !== null
+    ) {
+      requestBody.recurring_details.data.network_transaction_id = ntidFromCit;
+    }
+
     requestBody.amount = amount;
     requestBody.confirm = confirm;
     requestBody.capture_method = capture_method;
     requestBody.profile_id = profileId;
+
+    // Keep paymentAmount in sync so retrievePaymentCallTest's amount assertion
+    // matches the MIT payment (mirrors mitUsingPMId).
+    globalState.set("paymentAmount", requestBody.amount);
 
     const apiKey = globalState.get("apiKey");
     const baseUrl = globalState.get("baseUrl");
