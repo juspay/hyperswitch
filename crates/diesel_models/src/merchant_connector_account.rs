@@ -109,9 +109,9 @@ pub struct MerchantConnectorAccount {
     pub id: id_type::MerchantConnectorAccountId,
     #[serde(default)]
     pub connector_webhook_registration_details: Option<serde_json::Value>,
-    pub feature_metadata: Option<MerchantConnectorAccountFeatureMetadata>,
     pub apple_pay_certificates: Option<serde_json::Value>,
     pub apple_pay_certificates_encrypted: Option<Encryption>,
+    pub feature_metadata: Option<MerchantConnectorAccountFeatureMetadata>,
 }
 
 #[cfg(feature = "v2")]

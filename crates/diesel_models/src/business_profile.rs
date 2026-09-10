@@ -322,6 +322,8 @@ pub struct Profile {
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
     pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
     pub order_fulfillment_time: Option<i64>,
+    pub apple_pay_certificates: Option<serde_json::Value>,
+    pub apple_pay_certificates_encrypted: Option<Encryption>,
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
     pub frm_routing_algorithm_id: Option<String>,
@@ -332,8 +334,6 @@ pub struct Profile {
     pub revenue_recovery_retry_algorithm_type: Option<common_enums::RevenueRecoveryAlgorithmType>,
     pub revenue_recovery_retry_algorithm_data: Option<RevenueRecoveryAlgorithmData>,
     pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
-    pub apple_pay_certificates: Option<serde_json::Value>,
-    pub apple_pay_certificates_encrypted: Option<Encryption>,
 }
 
 impl Profile {

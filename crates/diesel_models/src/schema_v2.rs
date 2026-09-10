@@ -307,6 +307,8 @@ diesel::table! {
         default_fallback_routing -> Nullable<Jsonb>,
         surcharge_connector_details -> Nullable<Jsonb>,
         order_fulfillment_time -> Nullable<Int8>,
+        apple_pay_certificates -> Nullable<Jsonb>,
+        apple_pay_certificates_encrypted -> Nullable<Bytea>,
         #[max_length = 64]
         routing_algorithm_id -> Nullable<Varchar>,
         order_fulfillment_time_origin -> Nullable<OrderFulfillmentTimeOrigin>,
@@ -320,8 +322,6 @@ diesel::table! {
         revenue_recovery_retry_algorithm_data -> Nullable<Jsonb>,
         #[max_length = 16]
         split_txns_enabled -> Nullable<Varchar>,
-        apple_pay_certificates -> Nullable<Jsonb>,
-        apple_pay_certificates_encrypted -> Nullable<Bytea>,
     }
 }
 
@@ -988,9 +988,9 @@ diesel::table! {
         #[max_length = 64]
         id -> Varchar,
         connector_webhook_registration_details -> Nullable<Jsonb>,
-        feature_metadata -> Nullable<Jsonb>,
         apple_pay_certificates -> Nullable<Jsonb>,
         apple_pay_certificates_encrypted -> Nullable<Bytea>,
+        feature_metadata -> Nullable<Jsonb>,
     }
 }
 
@@ -1610,6 +1610,27 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
+    resources (id) {
+        #[max_length = 64]
+        id -> Varchar,
+        #[max_length = 64]
+        resource_type -> Varchar,
+        #[max_length = 32]
+        scope -> Varchar,
+        #[max_length = 64]
+        scope_id -> Varchar,
+        data -> Jsonb,
+        encrypted_data -> Nullable<Bytea>,
+        created_by -> Text,
+        created_at -> Timestamp,
+        modified_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
     revenue_recovery_retry_stats (cluster_key) {
         cluster_key -> Text,
         stats -> Jsonb,
@@ -1939,6 +1960,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     process_tracker,
     refund,
     relay,
+    resources,
     revenue_recovery_retry_stats,
     reverse_lookup,
     roles,

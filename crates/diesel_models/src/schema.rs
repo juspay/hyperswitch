@@ -1075,27 +1075,6 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    resources (id) {
-        #[max_length = 64]
-        id -> Varchar,
-        #[max_length = 64]
-        resource_type -> Varchar,
-        #[max_length = 32]
-        scope -> Varchar,
-        #[max_length = 64]
-        scope_id -> Varchar,
-        data -> Jsonb,
-        encrypted_data -> Nullable<Bytea>,
-        created_by -> Text,
-        created_at -> Timestamp,
-        modified_at -> Timestamp,
-    }
-}
-
-diesel::table! {
-    use diesel::sql_types::*;
-    use crate::enums::diesel_exports::*;
-
     payment_attempt (attempt_id, merchant_id) {
         #[max_length = 64]
         payment_id -> Varchar,
@@ -1712,6 +1691,27 @@ diesel::table! {
         processor_merchant_id -> Nullable<Varchar>,
         #[max_length = 255]
         created_by -> Nullable<Varchar>,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
+    resources (id) {
+        #[max_length = 64]
+        id -> Varchar,
+        #[max_length = 64]
+        resource_type -> Varchar,
+        #[max_length = 32]
+        scope -> Varchar,
+        #[max_length = 64]
+        scope_id -> Varchar,
+        data -> Jsonb,
+        encrypted_data -> Nullable<Bytea>,
+        created_by -> Text,
+        created_at -> Timestamp,
+        modified_at -> Timestamp,
     }
 }
 
