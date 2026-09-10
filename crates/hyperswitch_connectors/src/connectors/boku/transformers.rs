@@ -189,6 +189,7 @@ fn get_wallet_type(wallet_data: &WalletData) -> Result<String, errors::Connector
         | WalletData::AmazonPayRedirect(_)
         | WalletData::Paysera(_)
         | WalletData::Skrill(_)
+        | WalletData::Neteller(_)
         | WalletData::BluecodeRedirect {}
         | WalletData::ApplePay(_)
         | WalletData::ApplePayRedirect(_)
