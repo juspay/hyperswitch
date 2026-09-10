@@ -134,6 +134,9 @@ impl_get_primary_key!(
     observability_schema::alerts_intermediate_xyne::table,
     observability_schema::alerts_main::table,
     observability_schema::alerts_main_xyne::table,
+    observability_schema::merchants_alert_external::table,
+    observability_schema::merchants_alert_external_dimension::table,
+    observability_schema::merchants_alert_external_xyne::table,
     observability_schema::notification_reads::table
 );
 

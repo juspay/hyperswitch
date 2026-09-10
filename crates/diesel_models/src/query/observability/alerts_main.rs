@@ -26,6 +26,17 @@ macro_rules! announcement_queries {
                     .map(AnnouncementRow::from)
                 }
 
+                pub async fn find_by_id(
+                    conn: &DatabaseConnectionWithContext<'_>,
+                    id: uuid::Uuid,
+                ) -> StorageResult<Option<AnnouncementRow>> {
+                    generics::generic_find_by_id_optional::<<Self as HasTable>::Table, _, Self>(
+                        conn, id,
+                    )
+                    .await
+                    .map(|found| found.map(AnnouncementRow::from))
+                }
+
                 pub async fn existing_ids(
                     conn: &DatabaseConnectionWithContext<'_>,
                     ids: Vec<uuid::Uuid>,

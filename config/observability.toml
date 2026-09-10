@@ -139,3 +139,17 @@ max_entry_bytes = 1048576
 # recorded would re-announce them on the next run, which is the failure the cap exists to prevent.
 [lifecycle]
 max_alerts = 5000
+
+# Per-merchant alert instances and the per-dimension breakdown behind them.
+#
+# `max_merchants` and `max_dimensions` cap the rows one announcement may hold. Over the cap the
+# write is cut down to it and stored rather than refused: a broad outage is when these rows matter
+# most, and losing the whole write then would lose the record of who was affected. What survives is
+# the most impacted rows, and the cut is recorded on every row it kept as well as in the response,
+# so a shortened breakdown never reads as a narrower outage.
+#
+# Neither may exceed 2000. These tables are 25 and 26 columns wide and Postgres accepts 65535 bind
+# parameters in one statement, so a batch insert stops working above roughly 2500 rows.
+[instances]
+max_merchants = 500
+max_dimensions = 500

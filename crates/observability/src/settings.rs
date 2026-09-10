@@ -40,6 +40,7 @@ pub struct Settings<S: SecretState> {
     pub email: EmailSettings,
     pub dictionary: DictionarySettings,
     pub lifecycle: LifecycleSettings,
+    pub instances: InstanceSettings,
 }
 
 const DEFAULT_MAX_UPLOAD_BYTES: usize = 25 * 1024 * 1024;
@@ -210,6 +211,50 @@ impl LifecycleSettings {
                 "lifecycle max_alerts must be greater than zero".into(),
             ))
         })
+    }
+}
+
+const DEFAULT_MAX_INSTANCE_ROWS: usize = 500;
+
+const MAX_INSTANCE_ROWS: usize = 2_000;
+
+fn default_max_instance_rows() -> usize {
+    DEFAULT_MAX_INSTANCE_ROWS
+}
+
+#[derive(Debug, Deserialize, Clone)]
+#[serde(default)]
+pub struct InstanceSettings {
+    #[serde(default = "default_max_instance_rows")]
+    pub max_merchants: usize,
+
+    #[serde(default = "default_max_instance_rows")]
+    pub max_dimensions: usize,
+}
+
+impl Default for InstanceSettings {
+    fn default() -> Self {
+        Self {
+            max_merchants: default_max_instance_rows(),
+            max_dimensions: default_max_instance_rows(),
+        }
+    }
+}
+
+impl InstanceSettings {
+    pub fn validate(&self) -> Result<(), errors::ConfigurationError> {
+        for (name, limit) in [
+            ("max_merchants", self.max_merchants),
+            ("max_dimensions", self.max_dimensions),
+        ] {
+            common_utils::fp_utils::when(limit == 0 || limit > MAX_INSTANCE_ROWS, || {
+                Err(errors::ConfigurationError::ConfigParsingError(format!(
+                    "instances {name} must be between 1 and {MAX_INSTANCE_ROWS}"
+                )))
+            })?;
+        }
+
+        Ok(())
     }
 }
 
@@ -411,6 +456,7 @@ impl Settings<SecuredSecret> {
         self.email.validate()?;
         self.dictionary.validate()?;
         self.lifecycle.validate()?;
+        self.instances.validate()?;
         self.secrets_management
             .validate()
             .map_err(|error| errors::ConfigurationError::ConfigParsingError(error.into()))?;

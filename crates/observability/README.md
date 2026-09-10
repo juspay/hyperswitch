@@ -81,11 +81,12 @@ reach the logs from the client, which emits `chars` per request.
 
 ## The API
 
-Three surfaces under one scope. **Delivery** sends a message; **configuration** reads and writes
+Four surfaces under one scope. **Delivery** sends a message; **configuration** reads and writes
 the rows somebody edits — what an alert is, whether it runs, the mappers the dashboard reads, and
 how far a user has read their notifications; **lifecycle** is the alert manager's own working
-state, which nobody edits and which it rewrites every run. A route under `/alerts/config` or
-`/alerts/lifecycle` touches the database and nothing else does.
+state, which nobody edits and which it rewrites every run; **instances** are the record of who
+each announcement was about. A route under `/alerts/config`, `/alerts/lifecycle`,
+`/alerts/instances` or `/alerts/dimensions` touches the database and nothing else does.
 
 The whole surface, guarded and not:
 
@@ -110,6 +111,10 @@ The whole surface, guarded and not:
 | `GET` | `/alerts/lifecycle/{channel}/state` | `X-Internal-Api-Key` |
 | `POST` | `/alerts/lifecycle/{channel}/state` | `X-Internal-Api-Key` |
 | `POST` | `/alerts/lifecycle/{channel}/announcements` | `X-Internal-Api-Key` |
+| `GET` | `/alerts/instances/{channel}/{announcement_id}` | `X-Internal-Api-Key` |
+| `POST` | `/alerts/instances/{channel}/{announcement_id}` | `X-Internal-Api-Key` |
+| `GET` | `/alerts/dimensions/{announcement_id}` | `X-Internal-Api-Key` |
+| `POST` | `/alerts/dimensions/{announcement_id}` | `X-Internal-Api-Key` |
 | `GET` | `/health` | none — liveness |
 
 The scope is `/alerts` rather than `/observability`: it names the resource being posted, not the
@@ -479,6 +484,90 @@ A value wider than its column — `name`, `product`, `group_id` and `priority` a
 alongside a body that did not parse. Both are checked before the query runs: Postgres rejects the
 first as an opaque `22001` and refuses the second with a message about the statement rather than
 about the request, and either would fail the whole batch.
+
+### Instances
+
+Who an announcement was about. `merchants_alert_external` holds one row per affected merchant and
+`merchants_alert_external_dimension` holds the breakdown behind it — one row per connector, payment
+method, or whatever the detector split on.
+
+**The announcement is a path segment and is the only way to address these rows.** Both tables
+reference `alerts_main` `ON DELETE CASCADE`, so a caller records an announcement, gets an id back,
+and posts to that id. There is no route that takes the reference in a body, so a row pointing at an
+announcement that does not exist — or at none at all — is not expressible. An id that names no
+announcement is `IR_12`, the same code the lifecycle write answers for the same condition, checked
+before anything is written rather than left to arrive as an opaque constraint failure.
+
+Removing an announcement takes its instances and its breakdown with it. Nothing this service
+exposes removes one.
+
+`{channel}` is `slack` or `xyne`, exactly as it is under `/lifecycle`. **The breakdown has no
+channel**: `merchants_alert_external_dimension` exists once and references `alerts_main`, unlike
+the instance table which comes once per delivery channel. Putting a channel in its path would
+promise a `_xyne` breakdown table that does not exist, and answering "none" for it would read as an
+alert that had no breakdown.
+
+**A write replaces what its announcement carries.** A rerun of the same alert manager pass records
+the same merchants once rather than twice, and an empty write clears them. The response reports
+`removed` for the same reason the lifecycle write does: a replacement that removed far more than
+expected is the shape of a caller that lost its own copy.
+
+#### What is wrong, generically
+
+`current_metric` against `expected_metric` is the generic form of "what is wrong", which holds for
+success rate, volume, refunds and anything later where `sr`/`failed`/`total` did not.
+
+**Absent is not zero.** The absolutes — zero volume, zero success — have no expected value and send
+none. Storing `0` for them would read as "observed 0, expected 0", which is a healthy row. Both
+columns are nullable and both are stored exactly as they arrive.
+
+`ts_slack` is the other value that may honestly be absent. A caller that sends none takes the
+announcement's thread, so nobody carries it around by hand; an instance recorded before its
+announcement reached a channel has no thread anywhere and stores `null`. The column was `NOT NULL`
+in the schema this model came from, which is what made that unrepresentable.
+
+#### The size of a write
+
+`instances.max_merchants` and `instances.max_dimensions` (500 each by default) cap the rows one
+announcement may hold.
+
+**Over the cap the write is cut down to it and stored, not refused** — the opposite of
+`lifecycle.max_alerts`, and deliberately so. One alert across many connectors becomes many rows, so
+the cap is reached during a *broad* outage, which is exactly when the record of who was affected
+matters most; losing the whole write then is the wrong failure.
+
+Two things make the cut safe to reason about:
+
+* **What survives is the worst of it.** Rows are ordered by impact before the cut: an absolute
+  first, since it expected nothing and everything is gone, then by distance from what was expected,
+  and a row that reported no metrics at all last. Scoring the absolute as `expected - current` with
+  both defaulted to `0` would rank a total outage as *no impact* and drop it first.
+* **The cut is recorded on every row it kept**, under `truncated_by_impact` in
+  `metadata_alert_details`, as well as in the response's `truncated`. A row found on its own says
+  both that the breakdown is partial and by how much, so a shortened breakdown never reads as a
+  narrower outage. The caller's own document is added to, never replaced.
+
+Neither cap may exceed 2000: these tables are 25 and 26 columns wide and Postgres accepts 65535
+bind parameters in one statement, so a batch insert stops working above roughly 2500 rows whatever
+anyone configures. A cap outside the range fails the boot.
+
+The instance errors, added to the tables above:
+
+| | Status | Code |
+|---|---|---|
+| The announcement in the path does not exist | 400 | `IR_12` |
+| Unknown channel | 404 | `IR_09` |
+| Instances unreadable | 503 | `HE_01` |
+
+A value wider than its column — `name`, `product`, `merchant_id`, `dimension_key`, `priority` and
+`tenant_id` are `VARCHAR(64)`, `attribution`, `dimension_value` and `ts_slack` are `VARCHAR(255)` —
+is `IR_04`, alongside a body that did not parse, and is checked over every row the request carried
+including ones the cap will drop.
+
+**The defaults these columns lost, supplied here instead:** `id_merchant_table` had
+`gen_random_uuid()` and is minted with `uuid::Uuid::now_v7()`; `is_visible` had `DEFAULT TRUE` and
+is set explicitly, so a caller that said nothing does not store a row nobody can see; `ts_alert`
+had `CURRENT_TIMESTAMP` and is this service's clock, as `last_updated_at` is.
 
 ## Destinations
 

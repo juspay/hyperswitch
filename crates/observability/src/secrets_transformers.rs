@@ -123,5 +123,6 @@ pub async fn fetch_raw_secrets(
         email: conf.email,
         dictionary: conf.dictionary,
         lifecycle: conf.lifecycle,
+        instances: conf.instances,
     }
 }
