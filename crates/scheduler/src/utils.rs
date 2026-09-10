@@ -304,12 +304,13 @@ pub async fn consumer_operation_handler<E, T>(
     settings: sync::Arc<SchedulerSettings>,
     error_handler_fun: E,
     workflow_selector: impl workflows::ProcessTrackerWorkflows<T> + 'static + Copy + std::fmt::Debug,
+    consumer_name: &str,
 ) where
     // Error handler function
     E: FnOnce(error_stack::Report<errors::ProcessTrackerError>),
     T: SchedulerSessionState + Send + Sync + 'static,
 {
-    match consumer::consumer_operations(&state, &settings, workflow_selector).await {
+    match consumer::consumer_operations(&state, &settings, workflow_selector, consumer_name).await {
         Ok(_) => (),
         Err(err) => error_handler_fun(err),
     }
