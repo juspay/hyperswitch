@@ -382,7 +382,7 @@ pub enum LastEvent {
 impl LastEvent {
     /// Renders the event as the raw Worldpay status string (SCREAMING_SNAKE_CASE),
     /// mirroring how it arrives on the wire, for use as a connector status.
-    fn as_str(&self) -> &'static str {
+    fn as_str(self) -> &'static str {
         self.into()
     }
 }
