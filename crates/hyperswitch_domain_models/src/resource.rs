@@ -167,6 +167,4 @@ pub trait ResourceInterface {
         update: ResourceDataUpdate,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<Resource, Self::Error>;
-
 }
-

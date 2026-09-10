@@ -68,7 +68,6 @@ impl<T: DatabaseStore> ResourceInterface for kv_router_store::KVRouterStore<T> {
             .update_linked_resource_data(id, update, key)
             .await
     }
-
 }
 
 #[async_trait::async_trait]
@@ -194,7 +193,6 @@ impl<T: DatabaseStore> ResourceInterface for RouterStore<T> {
             .await
             .change_context(Self::Error::DecryptionError)
     }
-
 }
 
 #[async_trait::async_trait]
@@ -342,5 +340,4 @@ impl ResourceInterface for MockDb {
             .await
             .change_context(StorageError::DecryptionError)
     }
-
 }

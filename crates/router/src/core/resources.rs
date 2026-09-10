@@ -320,8 +320,7 @@ impl ResourceHandler for ApplePayCertificateResource {
             .attach_printable("Failed to serialize Apple Pay certificate cache key wrapper")?;
             let key_wrapper: Secret<serde_json::Value> = Secret::new(key_wrapper);
 
-            let identifier =
-                km_types::Identifier::Merchant(account_key_store.merchant_id.clone());
+            let identifier = km_types::Identifier::Merchant(account_key_store.merchant_id.clone());
 
             let encrypted_cache = domain::types::crypto_operation(
                 key_manager_state,
@@ -420,9 +419,11 @@ async fn fetch_requestor_account(
                     processor.get_key_store(),
                 )
                 .await
-                .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                    id: mca_id.get_string_repr().to_string(),
-                })?;
+                .to_not_found_response(
+                    errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                        id: mca_id.get_string_repr().to_string(),
+                    },
+                )?;
             Ok(RequestorAccount::MerchantConnectorAccount(Box::new(mca)))
         }
         common_enums::ResourceRequestorType::Profile => {

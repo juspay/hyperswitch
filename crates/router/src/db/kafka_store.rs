@@ -3367,7 +3367,6 @@ impl ResourceInterface for KafkaStore {
             .update_linked_resource_data(id, update, key)
             .await
     }
-
 }
 
 #[async_trait::async_trait]
