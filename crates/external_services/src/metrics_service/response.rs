@@ -9,6 +9,12 @@
 //! the window that was asked for, `None` where there was no datapoint. Providers do that placement
 //! themselves, using the range and period from the request rather than asking the caller to repeat
 //! them.
+//!
+//! The constructors are public rather than crate-private, because
+//! [`MetricsProvider`](super::MetricsProvider) is object-safe and provider-neutral on purpose — a
+//! trait no other crate can produce a value for is one no other crate can implement, which would
+//! quietly make "provider-neutral" mean "the providers in this module". It is also what lets a
+//! caller stand a stub provider up in its own tests instead of reaching for a live account.
 
 /// A provider's opaque marker for "there is more after this page".
 ///
@@ -19,7 +25,7 @@ pub struct Cursor(String);
 
 impl Cursor {
     /// Wrap a provider's continuation marker.
-    pub(crate) fn new(token: impl Into<String>) -> Self {
+    pub fn new(token: impl Into<String>) -> Self {
         Self(token.into())
     }
 
@@ -53,7 +59,7 @@ pub struct MetricSeries {
 
 impl MetricSeries {
     /// Build a series, for providers translating a response.
-    pub(crate) fn new(index: usize, status: SeriesStatus, values: Vec<Option<f64>>) -> Self {
+    pub fn new(index: usize, status: SeriesStatus, values: Vec<Option<f64>>) -> Self {
         Self {
             index,
             status,
@@ -97,7 +103,7 @@ pub struct MetricPage {
 
 impl MetricPage {
     /// Build a page, for providers translating a response.
-    pub(crate) fn new(series: Vec<MetricSeries>, cursor: Option<Cursor>) -> Self {
+    pub fn new(series: Vec<MetricSeries>, cursor: Option<Cursor>) -> Self {
         Self { series, cursor }
     }
 
