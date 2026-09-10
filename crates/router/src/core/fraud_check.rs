@@ -625,7 +625,7 @@ where
             *frm_info = Some(updated_frm_info);
         }
     }
-
+    logger::debug!("frm_configs: {:?} {:?}", frm_configs, is_frm_enabled);
     Ok(frm_configs)
 }
 
