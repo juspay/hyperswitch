@@ -427,6 +427,20 @@ pub enum UpiAdditionalData {
     Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
 )]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct PaypalWalletAdditionalData {
+    /// Email address associated with the payer's PayPal account
+    #[schema(value_type = Option<String>, example = "johntest@test.com")]
+    pub email: Option<common_utils::pii::Email>,
+    /// Unique identifier of the payer in PayPal
+    #[schema(value_type = Option<String>, example = "7DY7FRMPQ8CT6")]
+    #[smithy(value_type = "Option<String>")]
+    pub payer_id: Option<String>,
+}
+
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct UpiCollectAdditionalData {
     /// Masked VPA ID
     #[schema(value_type = Option<String>, example = "ab********@okhdfcbank")]
@@ -442,22 +456,44 @@ pub struct UpiCollectAdditionalData {
 )]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct WalletAdditionalDataForCard {
-    /// Last 4 digits of the card number
-    #[smithy(value_type = "Option<String>")]
-    pub last4: Option<String>,
-    /// The information of the payment method
-    #[smithy(value_type = "Option<String>")]
-    pub card_network: Option<String>,
     /// The type of payment method
     #[serde(rename = "type")]
     #[smithy(value_type = "Option<String>")]
-    pub card_type: Option<String>,
+    pub payment_method_data_type: Option<String>,
+    /// The information of the payment method
+    #[smithy(value_type = "Option<String>")]
+    pub card_network: Option<String>,
+    /// The card's type (e.g. credit, debit), as returned by the connector
+    #[schema(value_type = Option<CardType>)]
+    pub card_type: Option<api_enums::CardType>,
+    /// The card's product/subtype, as returned by the connector
+    pub card_subtype: Option<String>,
+    /// The card's segment (e.g. consumer, commercial), as returned by the connector
+    #[schema(value_type = Option<CardSegmentType>)]
+    pub card_segment_type: Option<api_enums::CardSegmentType>,
+    /// The card's funding source (e.g. credit, debit), as returned by the connector
+    #[schema(value_type = Option<FundingSource>)]
+    pub funding_source: Option<api_enums::FundingSource>,
+    /// Last 4 digits of the card number
+    #[smithy(value_type = "Option<String>")]
+    pub last4: Option<String>,
+    /// Bin of the underlying card
+    #[schema(value_type = Option<String>, example = "411111")]
+    pub card_bin: Option<String>,
+    /// Bin of the DPAN (device PAN) obtained from decrypting the wallet payment data.
+    #[schema(value_type = Option<String>, example = "411111")]
+    pub device_pan_bin: Option<String>,
     /// The card's expiry month
     #[schema(value_type = Option<String>, example = "03")]
     pub card_exp_month: Option<Secret<String>>,
     /// The card's expiry year
     #[schema(value_type = Option<String>, example = "25")]
     pub card_exp_year: Option<Secret<String>>,
+    /// The name of the card issuer, as returned by the connector
+    pub issuer_name: Option<String>,
+    /// The country of the card issuer, as returned by the connector
+    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    pub issuer_country: Option<api_enums::CountryAlpha2>,
     /// Unique authorisation code generated for the payment
     #[schema(value_type = Option<String>, example = "009825")]
     pub auth_code: Option<String>,

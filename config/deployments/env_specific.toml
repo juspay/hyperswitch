@@ -508,10 +508,6 @@ redis_ttl_buffer_in_seconds=300 # buffer time in seconds to be added to redis tt
 redis_lock_expiry_seconds = 10              # Seconds before redis lock expires
 delay_between_retries_in_milliseconds = 100 # Wait between attempts to acquire a contended lock
 
-[chat]
-enabled = false                                # Enable or disable chat features
-hyperswitch_ai_host = "http://0.0.0.0:8000"    # Hyperswitch ai workflow host
-encryption_key = ""                            # Key to encrypt and decrypt chats
 
 [sage]
 enabled = false                                # Master switch for sage sessions

@@ -399,7 +399,7 @@ impl TryFrom<&DatatransRouterData<&types::PaymentsAuthorizeRouterData>>
                     .additional_payment_method_data
                     .clone()
                     .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "additional_payment_method_data",
+                        field_name: "additional_payment_method_data".into(),
                     })? {
                     AdditionalPaymentData::Card(card) => *card,
                     _ => Err(errors::ConnectorError::NotSupported {
@@ -535,7 +535,7 @@ fn create_mandate_details(
         alias,
         expiry_month: additional_card_details.card_exp_month.clone().ok_or(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "card_exp_month",
+                field_name: "card_exp_month".into(),
             },
         )?,
         expiry_year: additional_card_details.get_card_expiry_year_2_digit()?,

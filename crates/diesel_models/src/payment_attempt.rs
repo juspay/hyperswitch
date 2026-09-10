@@ -4665,6 +4665,9 @@ pub struct PaymentAttemptRecoveryData {
     pub attempt_triggered_by: common_enums::TriggeredBy,
     // stripe specific field used to identify duplicate attempts.
     pub charge_id: Option<String>,
+    /// Transaction id returned by the billing connector when the payment was recorded
+    /// back to it. Used to issue an offline refund if a dispute is later lost.
+    pub billing_connector_transaction_id: Option<String>,
 }
 #[cfg(feature = "v2")]
 common_utils::impl_to_sql_from_sql_json!(PaymentAttemptFeatureMetadata);

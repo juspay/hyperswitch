@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use common_enums::enums;
 use common_utils::events::ApiEventMetric;
 use hyperswitch_masking::StrongSecret;
@@ -86,6 +88,46 @@ pub struct ToggleBlocklistQuery {
     #[schema(value_type = BlocklistDataKind)]
     pub status: bool,
 }
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct BlocklistCountQuery {
+    #[schema(value_type = BlocklistDataKind)]
+    pub data_kind: enums::BlocklistDataKind,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct BlocklistCountResponse {
+    #[schema(value_type = BlocklistDataKind)]
+    pub data_kind: enums::BlocklistDataKind,
+    /// The total number of blocked entries for the given data_kind
+    pub total_count: usize,
+    /// The number of blocked entries for each BIN length, keyed by the BIN length.
+    ///
+    /// For `generic_card_bin`, this also includes entries blocked as `card_bin` or
+    /// `extended_card_bin`. Omitted for `payment_method`, since fingerprints have a fixed length.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub counts_by_length: Option<BTreeMap<usize, usize>>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct BlocklistLookupQuery {
+    /// The raw value to check against the blocklist, e.g. a card BIN. Limited to 20 characters,
+    /// the longest value a `fingerprint_id` can hold.
+    #[schema(value_type = String, max_length = 20)]
+    pub data: common_utils::types::BlocklistLookupData,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct BlocklistLookupResponse {
+    pub data: String,
+    /// Whether an entry matching `data` exists in the blocklist, under any data_kind
+    pub blocked: bool,
+}
+
+impl ApiEventMetric for BlocklistCountQuery {}
+impl ApiEventMetric for BlocklistCountResponse {}
+impl ApiEventMetric for BlocklistLookupQuery {}
+impl ApiEventMetric for BlocklistLookupResponse {}
 
 impl ApiEventMetric for BlocklistRequest {}
 impl ApiEventMetric for BlocklistResponse {}

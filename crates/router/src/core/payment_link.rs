@@ -179,7 +179,7 @@ pub async fn form_payment_link_data(
         business_profile
             .return_url
             .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "return_url",
+                field_name: "return_url".into(),
             })?
     };
 
@@ -527,11 +527,11 @@ fn validate_sdk_requirements(
     client_secret: Option<String>,
 ) -> Result<(api_models::enums::Currency, String), errors::ApiErrorResponse> {
     let currency = currency.ok_or(errors::ApiErrorResponse::MissingRequiredField {
-        field_name: "currency",
+        field_name: "currency".into(),
     })?;
 
     let client_secret = client_secret.ok_or(errors::ApiErrorResponse::MissingRequiredField {
-        field_name: "client_secret",
+        field_name: "client_secret".into(),
     })?;
     Ok((currency, client_secret))
 }
@@ -582,7 +582,7 @@ fn validate_order_details(
                     data.to_owned()
                         .parse_value("OrderDetailsWithAmount")
                         .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                            field_name: "OrderDetailsWithAmount",
+                            field_name: "OrderDetailsWithAmount".into(),
                         })
                         .attach_printable("Unable to parse OrderDetailsWithAmount")
                 })
@@ -627,7 +627,7 @@ pub fn extract_payment_link_config(
 ) -> Result<PaymentLinkConfig, error_stack::Report<errors::ApiErrorResponse>> {
     serde_json::from_value::<PaymentLinkConfig>(pl_config).change_context(
         errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "payment_link_config",
+            field_name: "payment_link_config".into(),
         },
     )
 }
@@ -783,7 +783,7 @@ pub fn get_payment_link_config_based_on_priority(
     common_utils::validation::ValidateXSSOrSQLi::validate_xss_or_sqli(&payment_link_config)
         .map_err(|err| {
             error_stack::report!(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "payment_link_config",
+                field_name: "payment_link_config".into(),
             })
             .attach_printable(err)
         })?;
@@ -910,7 +910,7 @@ pub async fn get_payment_link_status(
         payment_intent
             .currency
             .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "currency",
+                field_name: "currency".into(),
             })?;
 
     let required_conversion_type = StringMajorUnitForCore;
@@ -944,7 +944,7 @@ pub async fn get_payment_link_status(
         business_profile
             .return_url
             .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "return_url",
+                field_name: "return_url".into(),
             })?
     };
     let (unified_code, unified_message) = if let Some((code, message)) = payment_attempt

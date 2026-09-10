@@ -817,7 +817,7 @@ impl ConnectorIntegration<PoSync, PayoutsData, PayoutsResponseData> for Paypal {
     ) -> CustomResult<String, errors::ConnectorError> {
         let batch_id = req.request.connector_payout_id.clone().ok_or(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "connector_payout_id",
+                field_name: "connector_payout_id".into(),
             },
         )?;
         Ok(format!(
@@ -1097,7 +1097,7 @@ impl ConnectorIntegration<SdkSessionUpdate, SdkPaymentsSessionUpdateData, Paymen
                 .session_id
                 .clone()
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "session_id",
+                    field_name: "session_id".into(),
                 })?;
         Ok(format!(
             "{}v2/checkout/orders/{}",

@@ -88,7 +88,7 @@ impl TryFrom<&PayjustnowinstoreRouterData<&PaymentsAuthorizeRouterData>>
                         let product_name = order.product_name.trim();
                         if product_name.is_empty() {
                             return Err(errors::ConnectorError::MissingRequiredField {
-                                field_name: "order_details[].product_name",
+                                field_name: "order_details[].product_name".into(),
                             });
                         }
                         let sku = order.product_id.as_ref().and_then(|id| {
