@@ -8138,10 +8138,19 @@ pub fn validate_payment_link_request(
         });
     }
 
-    request
+    #[cfg(feature = "v1")]
+    let redirect_delay = request
         .payment_link_config
         .as_ref()
-        .and_then(|config| config.redirect_delay_seconds)
+        .and_then(|config| config.theme_config.redirect_delay_seconds);
+
+    #[cfg(feature = "v2")]
+    let redirect_delay = request
+        .payment_link_config
+        .as_ref()
+        .and_then(|config| config.redirect_delay_seconds);
+
+    redirect_delay
         .filter(|&delay| delay > common_utils::consts::MAX_PAYMENT_LINK_REDIRECT_DELAY_SECONDS)
         .map(|_| {
             Err(errors::ApiErrorResponse::InvalidRequestData {
