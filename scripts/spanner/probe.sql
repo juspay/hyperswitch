@@ -64,8 +64,32 @@ DROP TABLE probe_types;
 --   partial indexes             -> only `col IS NOT NULL` conjunctions.
 --
 -- And the trap that is NOT an error: `integer` and `serial` are ACCEPTED at DDL
--- time but silently stored as int64 and reported as OID 20 on the wire. That is
--- why HsInt4/HsInt2 exist in crates/diesel_models/src/spanner_types.rs.
+-- time but silently stored as int64 and reported as OID 20 on the wire. A
+-- diesel column typed Int4/Int2 therefore decodes garbage from a column the
+-- DDL claimed was `integer`. That is why the narrow columns are widened to
+-- bigint on both sides instead of shimmed -- see the migration in
+-- migrations_manual/ and the Int8 columns in diesel_models/src/schema.rs.
+--
+-- Why `diesel migration run` cannot be pointed at Spanner at all. Verified
+-- 2026-09-10: it fails before migration 0001, on diesel's own ledger table.
+--
+--   CREATE TABLE IF NOT EXISTS __diesel_schema_migrations (
+--       version VARCHAR(50) PRIMARY KEY NOT NULL,
+--       run_on TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP)
+--     -> ERROR: Type <timestamp> is not supported.
+--
+-- and with run_on repaired to timestamptz, the name itself is rejected:
+--
+--     -> ERROR: Table name not valid: __diesel_schema_migrations.
+--
+-- Diesel has nowhere to record which migrations ran, so the runner cannot work
+-- here no matter what the migrations contain. For the record, the first two
+-- would fail anyway:
+--
+--   CREATE FUNCTION ... LANGUAGE plpgsql  (0000_diesel_initial_setup)
+--     -> ERROR: Unsupported option value 'plpgsql' for 'language'.
+--   CREATE TYPE "AuthenticationType" AS ENUM (2022-09-29_create_initial_tables)
+--     -> ERROR: Statement is not supported.
 CREATE TABLE probe_reject (id varchar(8) PRIMARY KEY, a timestamp without time zone);
 CREATE TABLE probe_reject2 (id varchar(8) PRIMARY KEY, a smallint);
 CREATE TABLE probe_reject3 (id varchar(8) PRIMARY KEY, a json);
