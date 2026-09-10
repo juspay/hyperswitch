@@ -142,14 +142,9 @@ fn validate(request: &MetricRequest) -> MetricsResult<()> {
 
 /// `GetMetricData` takes between one and [`MAX_QUERIES_PER_CALL`] queries.
 fn validate_batch_size(queries: usize) -> MetricsResult<()> {
-    when(queries == 0, || {
-        Err(report!(MetricsError::InvalidRequest))
-            .attach_printable("A GetMetricData call needs at least one query")
-    })?;
-
-    when(queries > MAX_QUERIES_PER_CALL, || {
+    when(!(1..=MAX_QUERIES_PER_CALL).contains(&queries), || {
         Err(report!(MetricsError::InvalidRequest)).attach_printable_lazy(|| {
-            format!("GetMetricData takes at most {MAX_QUERIES_PER_CALL} queries, got {queries}")
+            format!("GetMetricData takes 1 to {MAX_QUERIES_PER_CALL} queries, got {queries}")
         })
     })
 }
@@ -235,53 +230,52 @@ fn metric_series(
     result: &MetricDataResult,
     request: &MetricRequest,
 ) -> MetricsResult<MetricSeries> {
-    let index = result
-        .id()
-        .and_then(query_index)
-        .ok_or_else(|| report!(MetricsError::MalformedResponse))
-        .attach_printable_lazy(|| {
-            format!(
-                "CloudWatch reported a series under an id we never sent: {:?}",
-                result.id()
-            )
-        })?;
-
-    let query = request
-        .queries
-        .get(index)
-        .ok_or_else(|| report!(MetricsError::MalformedResponse))
-        .attach_printable_lazy(|| {
-            format!("CloudWatch reported a series for query {index}, which was never sent")
-        })?;
+    let (index, query) = query_for(result.id(), &request.queries)?;
 
     let timestamps = result.timestamps();
     let values = result.values();
 
     validate_pairing(timestamps.len(), values.len())?;
 
-    let mut slots = vec![None; slot_count(request.range, query.period)];
+    let slots = timestamps.iter().zip(values).try_fold(
+        vec![None; slot_count(request.range, query.period)],
+        |mut slots, (timestamp, value)| -> MetricsResult<_> {
+            let slot = slot_of(
+                from_aws_timestamp(timestamp)?,
+                request.range.start,
+                query.period,
+            );
 
-    timestamps
-        .iter()
-        .zip(values)
-        .map(|(timestamp, value)| Ok((from_aws_timestamp(timestamp)?, *value)))
-        .collect::<MetricsResult<Vec<_>>>()?
-        .into_iter()
-        .filter_map(|(timestamp, value)| {
-            slot_of(timestamp, request.range.start, query.period).map(|slot| (slot, value))
-        })
-        .for_each(|(slot, value)| {
             // A later datapoint sharing a slot wins, since they arrive oldest-first.
-            if let Some(bucket) = slots.get_mut(slot) {
-                *bucket = Some(value);
+            if let Some(bucket) = slot.and_then(|slot| slots.get_mut(slot)) {
+                *bucket = Some(*value);
             }
-        });
+
+            Ok(slots)
+        },
+    )?;
 
     Ok(MetricSeries::new(
         index,
         series_status(result.status_code()),
         slots,
     ))
+}
+
+/// The query a reported series answers, by the position its id encodes.
+///
+/// An id we cannot parse and an id naming a query outside the request mean the same thing — we did
+/// not ask for this — so they share an error rather than being told apart for nobody's benefit.
+fn query_for<'a>(
+    id: Option<&str>,
+    queries: &'a [MetricQuery],
+) -> MetricsResult<(usize, &'a MetricQuery)> {
+    id.and_then(query_index)
+        .and_then(|index| queries.get(index).map(|query| (index, query)))
+        .ok_or_else(|| report!(MetricsError::MalformedResponse))
+        .attach_printable_lazy(|| {
+            format!("CloudWatch reported a series under an id we did not send: {id:?}")
+        })
 }
 
 /// CloudWatch documents a series' timestamps and values as always the same length.
@@ -306,10 +300,10 @@ fn slot_of(
     period: Period,
 ) -> Option<usize> {
     let offset = timestamp.unix_timestamp() - start.unix_timestamp();
+    let seconds = period.seconds_i64();
 
-    Some(period.seconds_i64())
-        .filter(|seconds| *seconds > 0 && offset >= 0)
-        .map(|seconds| offset / seconds)
+    (seconds > 0 && offset >= 0)
+        .then(|| offset / seconds)
         .and_then(|slot| usize::try_from(slot).ok())
 }
 
@@ -320,10 +314,10 @@ fn slot_of(
 /// only matters for a hand-built range.
 fn slot_count(range: TimeRange, period: Period) -> usize {
     let span = range.end.unix_timestamp() - range.start.unix_timestamp();
+    let seconds = period.seconds_i64();
 
-    Some(period.seconds_i64())
-        .filter(|seconds| *seconds > 0)
-        .map(|seconds| span.div_euclid(seconds) + i64::from(span.rem_euclid(seconds) > 0))
+    (seconds > 0)
+        .then(|| span.div_euclid(seconds) + i64::from(span.rem_euclid(seconds) > 0))
         .and_then(|slots| usize::try_from(slots).ok())
         .unwrap_or_default()
 }
