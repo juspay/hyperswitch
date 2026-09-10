@@ -42,8 +42,7 @@ use hyperswitch_interfaces::{
     api::{
         ConnectorAccessToken, ConnectorCommon, ConnectorIntegration, ConnectorSpecifications,
         ConnectorValidation, MandateSetup, Payment, PaymentAuthorize, PaymentCapture,
-        PaymentSession, PaymentSync, PaymentToken, PaymentVoid, Refund, RefundExecute,
-        RefundSync,
+        PaymentSession, PaymentSync, PaymentToken, PaymentVoid, Refund, RefundExecute, RefundSync,
     },
     configs::Connectors,
     errors::ConnectorError,
@@ -161,7 +160,8 @@ impl webhooks::IncomingWebhook for Nsure {
 
 static NSURE_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "nSure",
-    description: "nSure.ai fraud and risk management provider. Executed via the Unified Connector Service.",
+    description:
+        "nSure.ai fraud and risk management provider. Executed via the Unified Connector Service.",
     connector_type: common_enums::HyperswitchConnectorCategory::FraudAndRiskManagementProvider,
     integration_status: common_enums::ConnectorIntegrationStatus::Sandbox,
 };

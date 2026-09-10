@@ -19,9 +19,7 @@ use common_utils::{id_type, types::MinorUnit};
 use error_stack::ResultExt;
 use external_services::grpc_client::LineageIds;
 use hyperswitch_domain_models::{
-    platform::Processor,
-    router_data::RouterData,
-    router_flow_types::fraud_check as frm_api,
+    platform::Processor, router_data::RouterData, router_flow_types::fraud_check as frm_api,
     router_request_types::fraud_check::FraudCheckCheckoutData,
     router_response_types::fraud_check::FraudCheckResponseData,
 };
@@ -47,10 +45,8 @@ use crate::{
 /// Everything the risk provider needs is already on the router data: the
 /// request carries the instrument and buyer details, and the top-level fields
 /// carry address, token, access token and `frm_metadata`.
-impl
-    ForeignTryFrom<
-        &RouterData<frm_api::Checkout, FraudCheckCheckoutData, FraudCheckResponseData>,
-    > for payments_grpc::FrmServicePreRiskCheckRequest
+impl ForeignTryFrom<&RouterData<frm_api::Checkout, FraudCheckCheckoutData, FraudCheckResponseData>>
+    for payments_grpc::FrmServicePreRiskCheckRequest
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
@@ -109,25 +105,26 @@ impl
         // than failing: the FRM pre-check propagates its error with `?` in
         // `pre_payment_frm_core`, so returning `Err` here would fail the payment
         // outright over a risk-signal encoding problem.
-        let payment_method = request
-            .payment_method_data_full
-            .as_ref()
-            .and_then(|payment_method_data| {
-                build_unified_connector_service_payment_method(
-                    payment_method_data.clone(),
-                    router_data.payment_method_type,
-                    router_data.payment_method_token.as_ref(),
-                    None,
-                )
-                .inspect_err(|error| {
-                    router_env::logger::warn!(
-                        ?error,
-                        "Failed to encode the payment method for the FRM pre risk check; \
-                         the provider will score this transaction without instrument details"
+        let payment_method =
+            request
+                .payment_method_data_full
+                .as_ref()
+                .and_then(|payment_method_data| {
+                    build_unified_connector_service_payment_method(
+                        payment_method_data.clone(),
+                        router_data.payment_method_type,
+                        router_data.payment_method_token.as_ref(),
+                        None,
                     )
-                })
-                .ok()
-            });
+                    .inspect_err(|error| {
+                        router_env::logger::warn!(
+                            ?error,
+                            "Failed to encode the payment method for the FRM pre risk check; \
+                         the provider will score this transaction without instrument details"
+                        )
+                    })
+                    .ok()
+                });
 
         // Merchant identity for risk scoring. The MCC lives on the business
         // profile, which this path does not load, so it is left unset rather
@@ -137,16 +134,17 @@ impl
             merchant_category_code: None,
         });
 
-        let browser_info = request
-            .browser_info
-            .as_ref()
-            .map(|info| payments_grpc::BrowserInformation {
-                user_agent: info.user_agent.clone(),
-                ip_address: info.ip_address.map(|ip| ip.to_string()),
-                language: info.language.clone(),
-                accept_header: info.accept_header.clone(),
-                ..Default::default()
-            });
+        let browser_info =
+            request
+                .browser_info
+                .as_ref()
+                .map(|info| payments_grpc::BrowserInformation {
+                    user_agent: info.user_agent.clone(),
+                    ip_address: info.ip_address.map(|ip| ip.to_string()),
+                    language: info.language.clone(),
+                    accept_header: info.accept_header.clone(),
+                    ..Default::default()
+                });
 
         let order_details =
             super::transformers::build_ucs_order_details(request.order_details.as_deref());
