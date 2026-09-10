@@ -234,7 +234,9 @@ async fn session_tokens(
     .await?;
 
     // Returned whole: the caller gets `session_token` and `vault_details` (the internal vault
-    // SDK authorization) exactly as the standalone endpoint would have returned them.
+    // SDK authorization) exactly as the standalone endpoint would have returned them. The vault
+    // session is the per-payment one shared with `/session_tokens`, so a server integration sees
+    // the same SDK authorization on every call for this payment.
     json_body(response, "session_tokens")
 }
 

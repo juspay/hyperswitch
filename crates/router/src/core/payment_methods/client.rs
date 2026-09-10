@@ -27,6 +27,7 @@ use crate::{
             cards, transformers::list_customer_payment_methods_from_modular_service,
         },
         payments::helpers,
+        utils as core_utils,
     },
     pii::PeekInterface,
     routes::{self, payment_methods::ParentPaymentMethodToken},
@@ -632,51 +633,67 @@ async fn fetch_customer_payment_methods(
 // list_payment_methods_client  — top-level orchestrator
 // ---------------------------------------------------------------------------
 
-#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsList))]
-pub async fn list_payment_methods_client(
-    state: routes::SessionState,
-    platform: domain::Platform,
-    payment_id: id_type::PaymentId,
-    client_secret: Option<String>,
-) -> errors::RouterResponse<ClientPaymentMethodsListResponse> {
-    // 1. Load payment intent + related context
-    let payment_intent_context =
-        load_payment_intent_context(&state, &platform, &payment_id).await?;
+/// The combined list cached per payment.
+///
+/// Every route that lists payment methods for a payment — the SDK's own list call and the
+/// server-integration enrichment of an intent update — comes through here, so all of them hand
+/// out the list, and the saved-payment-method tokens in it, that whichever ran first produced.
+/// The intent's `modified_at` travels with it so a payment update rebuilds the list instead of
+/// serving one computed for the previous state. The attempt's `modified_at` is deliberately not
+/// part of this: building the list itself writes routing results to the attempt, so keying on it
+/// would invalidate the entry on every build.
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+struct CachedClientPaymentMethodsList {
+    intent_modified_at: time::PrimitiveDateTime,
+    response: ClientPaymentMethodsListResponse,
+}
 
-    if let Some(client_secret) = client_secret.as_ref() {
-        helpers::authenticate_client_secret(
-            Some(client_secret),
-            &payment_intent_context.payment_intent,
-        )?;
+impl CachedClientPaymentMethodsList {
+    const TYPE_NAME: &'static str = "CachedClientPaymentMethodsList";
+
+    fn is_for(&self, payment_intent_context: &PaymentIntentContext) -> bool {
+        self.intent_modified_at == payment_intent_context.payment_intent.modified_at
     }
+}
 
-    // 2. Fetch enabled payment methods (Gate 1 + Gate 2 + consolidation)
+/// Builds the combined list for the payment: enabled methods, the customer's saved methods
+/// (filtered to the enabled ones and past the blocklist) and the intent data.
+///
+/// The saved-method entries carry freshly minted payment tokens, valid for the profile's order
+/// fulfillment time; that is what makes two builds for the same payment differ, and why the
+/// result is cached by the caller for the same window.
+async fn build_client_payment_methods_list(
+    state: &routes::SessionState,
+    platform: &domain::Platform,
+    payment_intent_context: &PaymentIntentContext,
+) -> errors::RouterResult<ClientPaymentMethodsListResponse> {
+    // 1. Fetch enabled payment methods (Gate 1 + Gate 2 + consolidation)
     let EnabledPmsResult {
         payment_methods_enabled,
         sdk_next_action,
         connector_supports_installments,
-    } = fetch_enabled_payment_methods(&state, &platform, &payment_intent_context).await?;
+    } = fetch_enabled_payment_methods(state, platform, payment_intent_context).await?;
 
-    // 3. Fetch saved customer payment methods
+    // 2. Fetch saved customer payment methods
     let customer_payment_methods =
-        fetch_customer_payment_methods(&state, &platform, &payment_intent_context).await?;
+        fetch_customer_payment_methods(state, platform, payment_intent_context).await?;
 
-    // 4. Filter customer PMs to only those whose (payment_method, payment_method_type)
+    // 3. Filter customer PMs to only those whose (payment_method, payment_method_type)
     //    combination is present in the merchant-enabled list.
     let customer_payment_methods_filtered =
         filter_customer_pms_by_enabled(customer_payment_methods, &payment_methods_enabled);
 
-    // 5. Drop saved cards whose BIN is blocklisted for this merchant/profile (no-op unless
+    // 4. Drop saved cards whose BIN is blocklisted for this merchant/profile (no-op unless
     //    the merchant has the blocklist guard enabled).
     let customer_payment_methods_filtered = filter_customer_pms_by_blocklist(
-        &state,
-        &platform,
+        state,
+        platform,
         payment_intent_context.business_profile.get_id(),
         customer_payment_methods_filtered,
     )
     .await;
 
-    // 6. Build intent_data
+    // 5. Build intent_data
     let net_amount = payment_intent_context
         .payment_attempt
         .net_amount
@@ -716,12 +733,100 @@ pub async fn list_payment_methods_client(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to build intent_data")?;
 
-    Ok(services::ApplicationResponse::Json(
-        ClientPaymentMethodsListResponse {
-            payment_methods_enabled,
-            customer_payment_methods: customer_payment_methods_filtered,
-            sdk_next_action,
-            intent_data,
-        },
-    ))
+    Ok(ClientPaymentMethodsListResponse {
+        payment_methods_enabled,
+        customer_payment_methods: customer_payment_methods_filtered,
+        sdk_next_action,
+        intent_data,
+    })
+}
+
+/// Returns the combined list for this payment, building it on first use.
+///
+/// The cache lives no longer than the payment tokens inside the list: those expire after the
+/// profile's order fulfillment time from the moment they were minted, so the entry gets that
+/// window less however long the build took. A cache miss or a cache write failure is never
+/// fatal; the worst case is a fresh list, which is what every call used to get.
+async fn get_or_build_client_payment_methods_list(
+    state: &routes::SessionState,
+    platform: &domain::Platform,
+    payment_intent_context: &PaymentIntentContext,
+) -> errors::RouterResult<ClientPaymentMethodsListResponse> {
+    let payment_intent = &payment_intent_context.payment_intent;
+    let redis_key = payment_intent
+        .payment_id
+        .get_combined_pm_list_redis_key(&payment_intent.merchant_id);
+
+    let cached = core_utils::read_cached_value::<CachedClientPaymentMethodsList>(
+        state,
+        &redis_key,
+        CachedClientPaymentMethodsList::TYPE_NAME,
+    )
+    .await
+    .filter(|cached| cached.is_for(payment_intent_context));
+
+    match cached {
+        Some(cached) => {
+            logger::info!(
+                payment_id = %payment_intent.payment_id.get_string_repr(),
+                "Reusing the cached combined payment-method list for this payment"
+            );
+            Ok(cached.response)
+        }
+        None => {
+            let started = std::time::Instant::now();
+            let response =
+                build_client_payment_methods_list(state, platform, payment_intent_context).await?;
+
+            let build_seconds = i64::try_from(started.elapsed().as_secs()).unwrap_or(i64::MAX);
+            let ttl_seconds = payment_intent_context
+                .business_profile
+                .get_order_fulfillment_time()
+                .unwrap_or(consts::DEFAULT_INTENT_FULFILLMENT_TIME)
+                .saturating_sub(build_seconds.saturating_add(1));
+
+            if ttl_seconds > 0 {
+                let entry = CachedClientPaymentMethodsList {
+                    intent_modified_at: payment_intent.modified_at,
+                    response,
+                };
+                core_utils::cache_value_with_expiry(
+                    state,
+                    &redis_key,
+                    CachedClientPaymentMethodsList::TYPE_NAME,
+                    &entry,
+                    ttl_seconds,
+                )
+                .await;
+                Ok(entry.response)
+            } else {
+                Ok(response)
+            }
+        }
+    }
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsList))]
+pub async fn list_payment_methods_client(
+    state: routes::SessionState,
+    platform: domain::Platform,
+    payment_id: id_type::PaymentId,
+    client_secret: Option<String>,
+) -> errors::RouterResponse<ClientPaymentMethodsListResponse> {
+    // Load payment intent + related context
+    let payment_intent_context =
+        load_payment_intent_context(&state, &platform, &payment_id).await?;
+
+    if let Some(client_secret) = client_secret.as_ref() {
+        helpers::authenticate_client_secret(
+            Some(client_secret),
+            &payment_intent_context.payment_intent,
+        )?;
+    }
+
+    let response =
+        get_or_build_client_payment_methods_list(&state, &platform, &payment_intent_context)
+            .await?;
+
+    Ok(services::ApplicationResponse::Json(response))
 }

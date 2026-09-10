@@ -3017,7 +3017,7 @@ pub struct PaymentMethodListIntentDataInput {
 }
 
 /// Intent-only payment details returned as part of the Payment Method List response
-#[derive(Debug, Clone, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct PaymentMethodListIntentData {
     /// Unique identifier for the payment
     #[schema(value_type = String)]
@@ -3119,7 +3119,7 @@ pub struct PaymentMethodListIntentData {
 /// Payment experience entry in the client PM list.
 /// Subtype-specific data for each payment method entry in the client list
 #[cfg(feature = "v1")]
-#[derive(Debug, Clone, serde::Serialize, ToSchema, PartialEq)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq)]
 #[serde(untagged)]
 pub enum PaymentMethodSubtypeSpecificDataForClient {
     /// Card payment method — contains card network info
@@ -3136,7 +3136,7 @@ pub enum PaymentMethodSubtypeSpecificDataForClient {
 
 /// A single flat entry in the client payment method list — one per (payment_method_type × payment_method_subtype)
 #[cfg(feature = "v1")]
-#[derive(Debug, Clone, serde::Serialize, ToSchema, PartialEq)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq)]
 pub struct ResponsePaymentMethodsEnabledForClient {
     /// The top-level payment method type (e.g. "card", "wallet")
     #[schema(value_type = PaymentMethod)]
@@ -3179,7 +3179,7 @@ pub struct ResponsePaymentMethodsEnabledForClient {
 /// `CustomerPaymentMethodForClient` is `None`.
 /// Wallet payment method data returned in the client-facing PM list.
 #[cfg(feature = "v1")]
-#[derive(Debug, Clone, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum WalletPaymentMethodDataForClient {
     ApplePay(Box<PaymentMethodDataWalletInfo>),
@@ -3191,7 +3191,7 @@ pub enum WalletPaymentMethodDataForClient {
 /// Bank debit payment method data returned in the client-facing PM list.
 /// Field names use `_last4_digits` to match the modular service response.
 #[cfg(feature = "v1")]
-#[derive(Debug, Clone, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum BankDebitDataForClient {
     AchBankDebit {
@@ -3209,7 +3209,7 @@ pub enum BankDebitDataForClient {
 }
 
 #[cfg(feature = "v1")]
-#[derive(Debug, Clone, serde::Serialize, ToSchema, PartialEq)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum CustomerPaymentMethodDataForClient {
     /// Masked card details from the card locker.
@@ -3229,7 +3229,7 @@ pub enum CustomerPaymentMethodDataForClient {
 /// Only the fields needed by the SDK are included; server-side fields
 /// (e.g. `surcharge_details`, `metadata`) are omitted.
 #[cfg(feature = "v1")]
-#[derive(Debug, Clone, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct CustomerPaymentMethodForClient {
     /// Token for payment method in temporary card locker which gets refreshed often.
     /// The SDK passes this back when submitting the payment.
@@ -3273,7 +3273,7 @@ pub struct CustomerPaymentMethodForClient {
 
 /// Response for the GET /payments/{payment_id}/payment-methods/client endpoint
 #[cfg(feature = "v1")]
-#[derive(Debug, Clone, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct ClientPaymentMethodsListResponse {
     /// Flat list of enabled payment methods — one entry per (payment_method_type × payment_method_subtype)
     pub payment_methods_enabled: Vec<ResponsePaymentMethodsEnabledForClient>,
@@ -3310,7 +3310,7 @@ pub enum PaymentMethodListResult {
 }
 
 /// Installment options for a payment method, as returned in the payment method list response
-#[derive(Debug, Clone, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct PaymentMethodListInstallmentOption {
     /// The payment method these plans apply to
     #[schema(value_type = PaymentMethod)]
@@ -3320,7 +3320,7 @@ pub struct PaymentMethodListInstallmentOption {
 }
 
 /// A single installment plan with pre-computed amount breakdown
-#[derive(Debug, Clone, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct PaymentMethodListInstallmentPlan {
     /// Number of installments for this plan
     #[schema(value_type = u8)]
@@ -3336,7 +3336,7 @@ pub struct PaymentMethodListInstallmentPlan {
 }
 
 /// Amount breakdown for a single installment plan
-#[derive(Debug, Clone, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct PaymentMethodListInstallmentAmountDetails {
     /// Amount charged per installment in major units
     #[schema(value_type = f64)]
