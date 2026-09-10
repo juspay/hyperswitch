@@ -116,6 +116,14 @@ pub struct CalidaMetadata {
     shop_name: Secret<String>,
 }
 
+/// Cardinal 3DS JWT credentials from the Worldpayxml merchant connector account metadata.
+#[derive(Debug, serde::Deserialize)]
+pub struct WorldpayxmlMetadata {
+    issuer_id: Option<Secret<String>>,
+    organizational_unit_id: Option<Secret<String>>,
+    jwt_mac_key: Option<Secret<String>>,
+}
+
 /// Paysafe payment method details for account_id configuration.
 /// Contains per-currency account IDs for card, ACH, Apple Pay, Interac,
 /// Skrill and paysafecard.
@@ -555,6 +563,9 @@ pub enum ConnectorSpecificConfig {
         api_username: Secret<String>,
         api_password: Secret<String>,
         merchant_code: Secret<String>,
+        issuer_id: Option<Secret<String>>,
+        organizational_unit_id: Option<Secret<String>>,
+        jwt_mac_key: Option<Secret<String>>,
     },
     /// Datatrans connector configuration
     Datatrans {
@@ -1554,11 +1565,25 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     api_key,
                     key1,
                     api_secret,
-                } => Ok(Self::Worldpayxml {
-                    api_username: api_key.clone(),
-                    api_password: key1.clone(),
-                    merchant_code: api_secret.clone(),
-                }),
+                } => {
+                    let worldpayxml_meta = metadata
+                        .map(|m| {
+                            serde_json::from_value::<WorldpayxmlMetadata>(m.clone())
+                                .map_err(|_| err("Invalid Worldpayxml metadata format"))
+                        })
+                        .transpose()?;
+
+                    Ok(Self::Worldpayxml {
+                        api_username: api_key.clone(),
+                        api_password: key1.clone(),
+                        merchant_code: api_secret.clone(),
+                        issuer_id: worldpayxml_meta.as_ref().and_then(|m| m.issuer_id.clone()),
+                        organizational_unit_id: worldpayxml_meta
+                            .as_ref()
+                            .and_then(|m| m.organizational_unit_id.clone()),
+                        jwt_mac_key: worldpayxml_meta.as_ref().and_then(|m| m.jwt_mac_key.clone()),
+                    })
+                }
                 _ => Err(err("Worldpayxml requires SignatureKey auth type")),
             },
             Connector::Zift => match auth {

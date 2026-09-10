@@ -46,6 +46,9 @@ const paymentMethodDataNo3DSResponse = {
   card: {
     last4: "1881",
     card_type: "CREDIT",
+    card_subtype: "CORPORATET&E",
+    card_segment_type: null,
+    funding_source: null,
     card_network: "Visa",
     card_issuer: "PT BANK HSBC INDONESIA",
     card_issuing_country: "INDONESIA",
@@ -65,6 +68,9 @@ const paymentMethodData3DSResponse = {
   card: {
     last4: "7777",
     card_type: "DEBIT",
+    card_subtype: "CLASSIC",
+    card_segment_type: null,
+    funding_source: null,
     card_network: "Visa",
     card_issuer: "VISA PRODUCTION SUPPORT CLIENT BID 1",
     card_issuing_country: "UNITEDSTATES",
