@@ -63,6 +63,17 @@ impl MerchantConnectorAccount {
     pub fn get_id(&self) -> id_type::MerchantConnectorAccountId {
         self.merchant_connector_id.clone()
     }
+
+    /// Whether this account counts as enabled, mirroring the SQL `disabled = false` that
+    /// the merchant connector account list queries filter on.
+    ///
+    /// Deliberately `== Some(false)` rather than `!= Some(true)`: `disabled` is nullable,
+    /// and a SQL equality comparison never matches NULL, so a row with no `disabled` value
+    /// is not one those queries return. Callers filtering in memory rather than in SQL
+    /// must not start including it.
+    pub fn is_enabled(&self) -> bool {
+        self.disabled == Some(false)
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -114,6 +125,17 @@ pub struct MerchantConnectorAccount {
 impl MerchantConnectorAccount {
     pub fn get_id(&self) -> id_type::MerchantConnectorAccountId {
         self.id.clone()
+    }
+
+    /// Whether this account counts as enabled, mirroring the SQL `disabled = false` that
+    /// the merchant connector account list queries filter on.
+    ///
+    /// Deliberately `== Some(false)` rather than `!= Some(true)`: `disabled` is nullable,
+    /// and a SQL equality comparison never matches NULL, so a row with no `disabled` value
+    /// is not one those queries return. Callers filtering in memory rather than in SQL
+    /// must not start including it.
+    pub fn is_enabled(&self) -> bool {
+        self.disabled == Some(false)
     }
 }
 
