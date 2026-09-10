@@ -655,6 +655,11 @@ pub struct GpayEcryptedTokenizationData {
     /// Token generated for the wallet
     #[smithy(value_type = "String")]
     pub token: String,
+    /// The authentication method used by Google Pay (PAN_ONLY or CRYPTOGRAM_3DS)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schema(value_type = Option<GooglePayAuthMethod>)]
+    #[smithy(value_type = "Option<GooglePayAuthMethod>")]
+    pub auth_method: Option<common_enums::GooglePayAuthMethod>,
 }
 
 #[derive(
@@ -730,6 +735,14 @@ impl GpayTokenizationData {
             .get_encrypted_google_pay_payment_data_mandatory()?
             .token_type
             .clone())
+    }
+
+    /// Get the Google Pay auth method (PAN_ONLY or CRYPTOGRAM_3DS)
+    pub fn get_encrypted_auth_method(&self) -> Option<common_enums::GooglePayAuthMethod> {
+        match self {
+            Self::Encrypted(encrypted) => encrypted.auth_method,
+            Self::Decrypted(_) => None,
+        }
     }
 }
 impl GPayPredecryptData {

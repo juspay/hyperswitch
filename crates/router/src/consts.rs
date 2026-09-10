@@ -508,6 +508,9 @@ pub mod superposition {
     pub const SAVE_WALLET_DECRYPTED_DATA: &str = "vaulting.save_wallet_decrypted_data";
 }
 
+/// The value substituted for sensitive webhook header values in event retrieval responses.
+pub const REDACTED_HEADER_VALUE: &str = "*** ***";
+
 #[cfg(test)]
 mod tests {
     #[test]

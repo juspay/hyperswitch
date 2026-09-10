@@ -2,7 +2,6 @@ use common_enums::enums;
 use common_types::primitive_wrappers;
 use common_utils::{
     errors::ParsingError,
-    ext_traits::ValueExt,
     id_type,
     pii::{Email, IpAddress},
     request::Method,
@@ -14,8 +13,8 @@ use hyperswitch_domain_models::{
         BankRedirectData, BankTransferData, PayLaterData, PaymentMethodData, WalletData,
     },
     router_data::{
-        AccessToken, ConnectorAuthType, ConnectorResponseData, ExtendedAuthorizationResponseData,
-        RouterData,
+        AccessToken, ConnectorAuthType, ConnectorResponseData, ErrorResponse,
+        ExtendedAuthorizationResponseData, RouterData,
     },
     router_flow_types::{
         refunds::{Execute, RSync},
@@ -28,7 +27,7 @@ use hyperswitch_domain_models::{
     },
     types,
 };
-use hyperswitch_interfaces::errors;
+use hyperswitch_interfaces::{consts, errors};
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -42,6 +41,8 @@ use crate::{
         PaymentsAuthorizeRequestData, PhoneDetailsData, RouterData as _,
     },
 };
+
+pub const AIRWALLEX_API_VERSION: &str = "2026-08-21";
 
 pub struct AirwallexAuthType {
     pub x_api_key: Secret<String>,
@@ -185,14 +186,13 @@ impl<T> TryFrom<(StringMajorUnit, T)> for AirwallexRouterData<T> {
 pub struct AirwallexPaymentsRequest {
     // Unique ID to be sent for each transaction/operation request to the connector
     request_id: String,
-    payment_method: AirwallexPaymentMethod,
+    payment_method: Option<AirwallexPaymentMethod>,
     payment_method_options: Option<AirwallexPaymentOptions>,
     return_url: Option<String>,
     device_data: Option<DeviceData>,
     payment_consent: Option<PaymentConsentData>,
     customer_id: Option<String>,
     payment_consent_id: Option<String>,
-    triggered_by: Option<TriggeredBy>,
 }
 
 #[derive(Debug, Serialize)]
@@ -520,108 +520,92 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
     ) -> Result<Self, Self::Error> {
         let mut payment_method_options = None;
         let request = &item.router_data.request;
-        let payment_method = match request.payment_method_data.clone() {
-            PaymentMethodData::Card(ccard) => {
-                payment_method_options =
-                    Some(AirwallexPaymentOptions::Card(AirwallexCardPaymentOptions {
-                        auto_capture: matches!(
-                            request.capture_method,
-                            Some(enums::CaptureMethod::Automatic)
-                                | Some(enums::CaptureMethod::SequentialAutomatic)
-                                | None
-                        ),
-                        authorization_type: item
-                            .router_data
-                            .request
-                            .request_extended_authorization
-                            .and_then(|extended_authorization| {
-                                extended_authorization
-                                    .is_true()
-                                    .then_some(AirwallexCardAuthorizationType::PreAuth)
-                            }),
-                    }));
-                Ok(AirwallexPaymentMethod::Card(AirwallexCard {
-                    card: AirwallexCardDetails {
-                        number: ccard.card_number.clone(),
-                        expiry_month: ccard.card_exp_month.clone(),
-                        expiry_year: ccard.get_expiry_year_4_digit(),
-                        cvc: ccard.card_cvc,
-                    },
-                    payment_method_type: AirwallexPaymentType::Card,
-                }))
-            }
-            PaymentMethodData::Wallet(ref wallet_data) => get_wallet_details(wallet_data, item),
-            PaymentMethodData::PayLater(ref paylater_data) => {
-                let paylater_options = AirwallexPayLaterPaymentOptions {
-                    auto_capture: item.router_data.request.is_auto_capture()?,
-                };
+        let is_mit_payment = request.is_mit_payment();
+        // Mandate/MIT payments only need payment_consent_id; payment_method is omitted.
+        let payment_method = if is_mit_payment {
+            None
+        } else {
+            Some(match request.payment_method_data.clone() {
+                PaymentMethodData::Card(ccard) => {
+                    payment_method_options =
+                        Some(AirwallexPaymentOptions::Card(AirwallexCardPaymentOptions {
+                            auto_capture: matches!(
+                                request.capture_method,
+                                Some(enums::CaptureMethod::Automatic)
+                                    | Some(enums::CaptureMethod::SequentialAutomatic)
+                                    | None
+                            ),
+                            authorization_type: item
+                                .router_data
+                                .request
+                                .request_extended_authorization
+                                .and_then(|extended_authorization| {
+                                    extended_authorization
+                                        .is_true()
+                                        .then_some(AirwallexCardAuthorizationType::PreAuth)
+                                }),
+                        }));
+                    Ok(AirwallexPaymentMethod::Card(AirwallexCard {
+                        card: AirwallexCardDetails {
+                            number: ccard.card_number.clone(),
+                            expiry_month: ccard.card_exp_month.clone(),
+                            expiry_year: ccard.get_expiry_year_4_digit(),
+                            cvc: ccard.card_cvc,
+                        },
+                        payment_method_type: AirwallexPaymentType::Card,
+                    }))
+                }
+                PaymentMethodData::Wallet(ref wallet_data) => get_wallet_details(wallet_data, item),
+                PaymentMethodData::PayLater(ref paylater_data) => {
+                    let paylater_options = AirwallexPayLaterPaymentOptions {
+                        auto_capture: item.router_data.request.is_auto_capture()?,
+                    };
 
-                payment_method_options = match paylater_data {
-                    PayLaterData::KlarnaRedirect { .. } => {
-                        Some(AirwallexPaymentOptions::Klarna(paylater_options))
-                    }
-                    PayLaterData::AtomeRedirect { .. } => {
-                        Some(AirwallexPaymentOptions::Atome(paylater_options))
-                    }
-                    _ => None,
-                };
+                    payment_method_options = match paylater_data {
+                        PayLaterData::KlarnaRedirect { .. } => {
+                            Some(AirwallexPaymentOptions::Klarna(paylater_options))
+                        }
+                        PayLaterData::AtomeRedirect { .. } => {
+                            Some(AirwallexPaymentOptions::Atome(paylater_options))
+                        }
+                        _ => None,
+                    };
 
-                get_paylater_details(paylater_data, item)
-            }
-            PaymentMethodData::BankTransfer(ref banktransfer_data) => {
-                get_banktransfer_details(banktransfer_data, item)
-            }
-            PaymentMethodData::BankRedirect(ref bankredirect_data) => {
-                get_bankredirect_details(bankredirect_data, item)
-            }
-            PaymentMethodData::MandatePayment => {
-                let mandate_data = item
-                    .router_data
-                    .request
-                    .get_connector_mandate_data()
-                    .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "connector_mandate_data".into(),
-                    })?;
-                let mandate_metadata: AirwallexMandateMetadata = mandate_data
-                    .get_mandate_metadata()
-                    .ok_or(errors::ConnectorError::MissingConnectorMandateMetadata)?
-                    .clone()
-                    .parse_value("AirwallexMandateMetadata")
-                    .change_context(errors::ConnectorError::ParsingFailed)?;
-
-                Ok(AirwallexPaymentMethod::PaymentMethodId(
-                    AirwallexPaymentMethodId {
-                        id: mandate_metadata.id.ok_or(
-                            errors::ConnectorError::MissingRequiredField {
-                                field_name: "mandate_metadata.id".into(),
-                            },
-                        )?,
-                    },
-                ))
-            }
-            PaymentMethodData::BankDebit(_)
-            | PaymentMethodData::CardRedirect(_)
-            | PaymentMethodData::Crypto(_)
-            | PaymentMethodData::Reward
-            | PaymentMethodData::RealTimePayment(_)
-            | PaymentMethodData::MobilePayment(_)
-            | PaymentMethodData::Upi(_)
-            | PaymentMethodData::Voucher(_)
-            | PaymentMethodData::GiftCard(_)
-            | PaymentMethodData::OpenBanking(_)
-            | PaymentMethodData::CardToken(_)
-            | PaymentMethodData::NetworkToken(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
-            | PaymentMethodData::CardWithOptionalCVC(_)
-            | PaymentMethodData::CardWithNetworkTokenDetails(_)
-            | PaymentMethodData::CardWithLimitedDetails(_)
-            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
-            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("airwallex"),
-                ))
-            }
-        }?;
+                    get_paylater_details(paylater_data, item)
+                }
+                PaymentMethodData::BankTransfer(ref banktransfer_data) => {
+                    get_banktransfer_details(banktransfer_data, item)
+                }
+                PaymentMethodData::BankRedirect(ref bankredirect_data) => {
+                    get_bankredirect_details(bankredirect_data, item)
+                }
+                // Mandate/MIT payments do not build a payment_method here; only
+                // payment_consent_id is sent, so this arm is unreachable in this branch.
+                PaymentMethodData::MandatePayment
+                | PaymentMethodData::BankDebit(_)
+                | PaymentMethodData::CardRedirect(_)
+                | PaymentMethodData::Crypto(_)
+                | PaymentMethodData::Reward
+                | PaymentMethodData::RealTimePayment(_)
+                | PaymentMethodData::MobilePayment(_)
+                | PaymentMethodData::Upi(_)
+                | PaymentMethodData::Voucher(_)
+                | PaymentMethodData::GiftCard(_)
+                | PaymentMethodData::OpenBanking(_)
+                | PaymentMethodData::CardToken(_)
+                | PaymentMethodData::NetworkToken(_)
+                | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+                | PaymentMethodData::CardWithOptionalCVC(_)
+                | PaymentMethodData::CardWithNetworkTokenDetails(_)
+                | PaymentMethodData::CardWithLimitedDetails(_)
+                | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
+                | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
+                    Err(errors::ConnectorError::NotImplemented(
+                        utils::get_unimplemented_payment_method_error_message("airwallex"),
+                    ))
+                }
+            }?)
+        };
 
         let payment_consent = if item
             .router_data
@@ -650,10 +634,10 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
             PaymentMethodData::PayLater(_paylater_data) => {
                 item.router_data.request.router_return_url.clone()
             }
-            _ => request.complete_authorize_url.clone(),
+            _ => request.router_return_url.clone(),
         };
 
-        let is_mandate_payment = item.router_data.request.is_mit_payment()
+        let is_mandate_payment = is_mit_payment
             || item
                 .router_data
                 .request
@@ -667,16 +651,16 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
             (device_data, None)
         };
 
-        let (payment_consent_id, triggered_by) = if item.router_data.request.is_mit_payment() {
+        let payment_consent_id = if is_mit_payment {
             let mandate_id = item.router_data.request.connector_mandate_id().ok_or(
                 errors::ConnectorError::MissingRequiredField {
                     field_name: "connector_mandate_id".into(),
                 },
             )?;
 
-            (Some(mandate_id), Some(TriggeredBy::Merchant))
+            Some(mandate_id)
         } else {
-            (None, None)
+            None
         };
 
         Ok(Self {
@@ -688,7 +672,6 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
             payment_consent,
             customer_id,
             payment_consent_id,
-            triggered_by,
         })
     }
 }
@@ -1115,18 +1098,19 @@ fn get_payment_status(
 ) -> enums::AttemptStatus {
     match status.clone() {
         AirwallexPaymentStatus::Succeeded => enums::AttemptStatus::Charged,
-        AirwallexPaymentStatus::Failed => enums::AttemptStatus::Failure,
+        AirwallexPaymentStatus::Failed | AirwallexPaymentStatus::RequiresPaymentMethod => {
+            enums::AttemptStatus::Failure
+        }
         AirwallexPaymentStatus::Pending => enums::AttemptStatus::Pending,
-        AirwallexPaymentStatus::RequiresPaymentMethod => enums::AttemptStatus::PaymentMethodAwaited,
         AirwallexPaymentStatus::RequiresCustomerAction => next_action.as_ref().map_or(
             enums::AttemptStatus::AuthenticationPending,
             |next_action| match next_action {
                 AirwallexNextAction::Payments(payments_next_action) => {
                     match payments_next_action.stage {
-                        AirwallexNextActionStage::WaitingDeviceDataCollection => {
+                        Some(AirwallexNextActionStage::WaitingDeviceDataCollection) => {
                             enums::AttemptStatus::DeviceDataCollectionPending
                         }
-                        AirwallexNextActionStage::WaitingUserInfoInput => {
+                        Some(AirwallexNextActionStage::WaitingUserInfoInput) | None => {
                             enums::AttemptStatus::AuthenticationPending
                         }
                     }
@@ -1161,8 +1145,8 @@ pub struct AirwallexRedirectFormData {
 pub struct AirwallexPaymentsNextAction {
     url: Url,
     method: Method,
-    data: AirwallexRedirectFormData,
-    stage: AirwallexNextActionStage,
+    data: Option<AirwallexRedirectFormData>,
+    stage: Option<AirwallexNextActionStage>,
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
@@ -1186,6 +1170,14 @@ pub struct AirwallexPaymentsResponse {
 #[derive(Default, Debug, Clone, Deserialize, PartialEq, Serialize)]
 pub struct AirwallexPaymentAttemptResponse {
     payment_method: Option<AirwallexPaymentMethodResponse>,
+    failure_details: Option<AirwallexPaymentFailureDetails>,
+}
+
+#[derive(Default, Debug, Clone, Deserialize, PartialEq, Serialize)]
+pub struct AirwallexPaymentFailureDetails {
+    code: Option<String>,
+    message: Option<String>,
+    provider_original_response_description: Option<String>,
 }
 
 #[derive(Default, Debug, Clone, Deserialize, PartialEq, Serialize)]
@@ -1216,12 +1208,13 @@ pub struct AirwallexPaymentsSyncResponse {
     //ID of the PaymentConsent related to this PaymentIntent
     payment_consent_id: Option<Secret<String>>,
     next_action: Option<AirwallexPaymentsNextAction>,
+    latest_payment_attempt: Option<AirwallexPaymentAttemptResponse>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum AirwallexAuthorizeResponse {
-    AirwallexPaymentsResponse(AirwallexPaymentsResponse),
+    AirwallexPaymentsResponse(Box<AirwallexPaymentsResponse>),
     AirwallexRedirectResponse(AirwallexRedirectResponse),
 }
 
@@ -1229,41 +1222,32 @@ fn get_redirection_form(response_url_data: AirwallexPaymentsNextAction) -> Optio
     Some(RedirectForm::Form {
         endpoint: response_url_data.url.to_string(),
         method: response_url_data.method,
-        form_fields: std::collections::HashMap::from([
-            //Some form fields might be empty based on the authentication type by the connector
-            (
-                "JWT".to_string(),
-                response_url_data
-                    .data
-                    .jwt
-                    .map(|jwt| jwt.expose())
-                    .unwrap_or_default(),
-            ),
-            (
-                "threeDSMethodData".to_string(),
-                response_url_data
-                    .data
-                    .three_ds_method_data
-                    .map(|three_ds_method_data| three_ds_method_data.expose())
-                    .unwrap_or_default(),
-            ),
-            (
-                "token".to_string(),
-                response_url_data
-                    .data
-                    .token
-                    .map(|token: Secret<String>| token.expose())
-                    .unwrap_or_default(),
-            ),
-            (
-                "provider".to_string(),
-                response_url_data.data.provider.unwrap_or_default(),
-            ),
-            (
-                "version".to_string(),
-                response_url_data.data.version.unwrap_or_default(),
-            ),
-        ]),
+        form_fields: response_url_data
+            .data
+            .map(|data| {
+                std::collections::HashMap::from([
+                    //Some form fields might be empty based on the authentication type by the connector
+                    (
+                        "JWT".to_string(),
+                        data.jwt.map(|jwt| jwt.expose()).unwrap_or_default(),
+                    ),
+                    (
+                        "threeDSMethodData".to_string(),
+                        data.three_ds_method_data
+                            .map(|three_ds_method_data| three_ds_method_data.expose())
+                            .unwrap_or_default(),
+                    ),
+                    (
+                        "token".to_string(),
+                        data.token
+                            .map(|token: Secret<String>| token.expose())
+                            .unwrap_or_default(),
+                    ),
+                    ("provider".to_string(), data.provider.unwrap_or_default()),
+                    ("version".to_string(), data.version.unwrap_or_default()),
+                ])
+            })
+            .unwrap_or_default(),
     })
 }
 
@@ -1291,7 +1275,7 @@ where
                     T,
                     PaymentsResponseData,
                 > {
-                    response: res,
+                    response: *res,
                     data,
                     http_code,
                 })
@@ -1348,7 +1332,7 @@ where
                     // If the connector sends waiting for DDC and our status is already DDC Pending
                     // that means we initiated the call to collect the data and now we expect a different response
                     (
-                            AirwallexNextActionStage::WaitingDeviceDataCollection,
+                            Some(AirwallexNextActionStage::WaitingDeviceDataCollection),
                             enums::AttemptStatus::DeviceDataCollectionPending,
                             _
                         )
@@ -1387,12 +1371,7 @@ where
                 .clone()
                 .map(|id| id.expose()),
             payment_method_id: None,
-            mandate_metadata: item
-                .response
-                .latest_payment_attempt
-                .clone()
-                .and_then(|attempt| attempt.payment_method)
-                .map(|pm| Secret::new(serde_json::json!(AirwallexMandateMetadata { id: pm.id }))),
+            mandate_metadata: None,
             connector_mandate_request_reference_id: None,
         }));
 
@@ -1407,22 +1386,52 @@ where
                 )
             });
 
-        Ok(Self {
-            status,
-            reference_id: Some(item.response.id.clone()),
-            response: Ok(PaymentsResponseData::TransactionResponse {
+        let response = if status.is_payment_terminal_failure() {
+            let failure_details = item
+                .response
+                .latest_payment_attempt
+                .as_ref()
+                .and_then(|attempt| attempt.failure_details.clone());
+            Err(ErrorResponse {
+                code: failure_details
+                    .as_ref()
+                    .and_then(|details| details.code.clone())
+                    .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                message: failure_details
+                    .as_ref()
+                    .and_then(|details| details.message.clone())
+                    .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+                reason: failure_details
+                    .and_then(|details| details.provider_original_response_description),
+                status_code: item.http_code,
+                attempt_status: Some(status),
+                connector_transaction_id: Some(item.response.id.clone()),
+                connector_response_reference_id: Some(item.response.id.clone()),
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            })
+        } else {
+            Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: Box::new(redirection_data),
                 mandate_reference,
                 connector_metadata: None,
                 network_txn_id: None,
                 network_txn_link_id: None,
-                connector_response_reference_id: Some(item.response.id),
+                connector_response_reference_id: Some(item.response.id.clone()),
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
                 payment_account_reference: None,
-            }),
+            })
+        };
+
+        Ok(Self {
+            status,
+            reference_id: Some(item.response.id.clone()),
+            response,
             connector_response,
             ..item.data
         })
@@ -1465,23 +1474,53 @@ impl<F, T> TryFrom<ResponseRouterData<F, AirwallexRedirectResponse, T, PaymentsR
                 )
             },
         );
+        let mandate_reference =
+            Box::new(
+                item.response
+                    .payment_consent_id
+                    .clone()
+                    .map(|id| MandateReference {
+                        connector_mandate_id: Some(id.expose()),
+                        payment_method_id: None,
+                        mandate_metadata: None,
+                        connector_mandate_request_reference_id: None,
+                    }),
+            );
 
-        Ok(Self {
-            status,
-            reference_id: Some(item.response.id.clone()),
-            response: Ok(PaymentsResponseData::TransactionResponse {
+        let response = if status.is_payment_terminal_failure() {
+            Err(ErrorResponse {
+                code: consts::NO_ERROR_CODE.to_string(),
+                message: consts::NO_ERROR_MESSAGE.to_string(),
+                reason: None,
+                status_code: item.http_code,
+                attempt_status: Some(status),
+                connector_transaction_id: Some(item.response.id.clone()),
+                connector_response_reference_id: Some(item.response.id.clone()),
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            })
+        } else {
+            Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: Box::new(redirection_data),
-                mandate_reference: Box::new(None),
+                mandate_reference,
                 connector_metadata: None,
                 network_txn_id: None,
                 network_txn_link_id: None,
-                connector_response_reference_id: Some(item.response.id),
+                connector_response_reference_id: Some(item.response.id.clone()),
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
                 payment_account_reference: None,
-            }),
+            })
+        };
+
+        Ok(Self {
+            status,
+            reference_id: Some(item.response.id.clone()),
+            response,
             ..item.data
         })
     }
@@ -1520,22 +1559,65 @@ impl
         } else {
             None
         };
-        Ok(Self {
-            status,
-            reference_id: Some(item.response.id.clone()),
-            response: Ok(PaymentsResponseData::TransactionResponse {
+        let mandate_reference =
+            Box::new(
+                item.response
+                    .payment_consent_id
+                    .clone()
+                    .map(|id| MandateReference {
+                        connector_mandate_id: Some(id.expose()),
+                        payment_method_id: None,
+                        mandate_metadata: None,
+                        connector_mandate_request_reference_id: None,
+                    }),
+            );
+
+        let response = if status.is_payment_terminal_failure() {
+            let failure_details = item
+                .response
+                .latest_payment_attempt
+                .as_ref()
+                .and_then(|attempt| attempt.failure_details.clone());
+            Err(ErrorResponse {
+                code: failure_details
+                    .as_ref()
+                    .and_then(|details| details.code.clone())
+                    .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                message: failure_details
+                    .as_ref()
+                    .and_then(|details| details.message.clone())
+                    .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+                reason: failure_details
+                    .and_then(|details| details.provider_original_response_description),
+                status_code: item.http_code,
+                attempt_status: Some(status),
+                connector_transaction_id: Some(item.response.id.clone()),
+                connector_response_reference_id: Some(item.response.id.clone()),
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            })
+        } else {
+            Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: Box::new(redirection_data),
-                mandate_reference: Box::new(None),
+                mandate_reference,
                 connector_metadata: None,
                 network_txn_id: None,
                 network_txn_link_id: None,
-                connector_response_reference_id: Some(item.response.id),
+                connector_response_reference_id: Some(item.response.id.clone()),
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
                 payment_account_reference: None,
-            }),
+            })
+        };
+
+        Ok(Self {
+            status,
+            reference_id: Some(item.response.id.clone()),
+            response,
             ..item.data
         })
     }
