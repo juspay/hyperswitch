@@ -161,7 +161,7 @@ export const connectorDetails = {
     },
     No3DSFailPayment: {
       Request: {
-        amount:6000,
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -172,7 +172,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",  // There is no failure test cards for moneris.
+          status: "succeeded", // There is no failure test cards for moneris.
         },
       },
     },
@@ -280,7 +280,7 @@ export const connectorDetails = {
     },
     MandateSingleUse3DSManualCapture: {
       Request: {
-         amount: 5000,
+        amount: 5000,
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,

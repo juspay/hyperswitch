@@ -438,10 +438,6 @@ describe("Card - Refund flow - No 3DS", () => {
           const syncRefundData = getConnectorDetails(
             globalState.get("connectorId")
           )["card_pm"]["SyncRefund"];
-          const newData = {
-            ...syncRefundData,
-            Response: syncRefundData.ResponseCustom || syncRefundData.Response,
-          };
           cy.syncRefundCallTest(syncRefundData, globalState);
         });
       });
