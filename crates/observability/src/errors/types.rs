@@ -41,6 +41,7 @@ pub enum ApiErrorResponse {
     BadRequest(ApiError),
     Unauthorized(ApiError),
     NotFound(ApiError),
+    Conflict(ApiError),
     InternalServerError(ApiError),
     BadGateway(ApiError),
     ServiceUnavailable(ApiError),
@@ -52,6 +53,7 @@ impl ApiErrorResponse {
             Self::BadRequest(error)
             | Self::Unauthorized(error)
             | Self::NotFound(error)
+            | Self::Conflict(error)
             | Self::InternalServerError(error)
             | Self::BadGateway(error)
             | Self::ServiceUnavailable(error) => error,
@@ -60,7 +62,7 @@ impl ApiErrorResponse {
 
     fn error_type(&self) -> &'static str {
         match self {
-            Self::BadRequest(_) | Self::Unauthorized(_) | Self::NotFound(_) => {
+            Self::BadRequest(_) | Self::Unauthorized(_) | Self::NotFound(_) | Self::Conflict(_) => {
                 ErrorType::InvalidRequestError.as_str()
             }
             Self::InternalServerError(_) | Self::BadGateway(_) | Self::ServiceUnavailable(_) => {

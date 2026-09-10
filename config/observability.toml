@@ -130,3 +130,12 @@ to = "alerts@example.com"
 # rejected request instead.
 [dictionary]
 max_entry_bytes = 1048576
+
+# Alert lifecycle state, the alert manager's own record of what is firing and what was announced.
+#
+# `max_alerts` caps the alerts one whole-state write may carry. A whole-state write replaces
+# everything, so the same number bounds the stored state and the read that returns all of it. Over
+# the cap the whole write is refused rather than truncated: dropping alerts the caller believes are
+# recorded would re-announce them on the next run, which is the failure the cap exists to prevent.
+[lifecycle]
+max_alerts = 5000

@@ -130,6 +130,10 @@ impl_get_primary_key!(
     schema_v2::payment_attempt::table,
     observability_schema::alerts_dicts::table,
     observability_schema::alerts_info::table,
+    observability_schema::alerts_intermediate::table,
+    observability_schema::alerts_intermediate_xyne::table,
+    observability_schema::alerts_main::table,
+    observability_schema::alerts_main_xyne::table,
     observability_schema::notification_reads::table
 );
 

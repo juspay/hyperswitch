@@ -2,7 +2,7 @@ use actix_multipart::form::MultipartFormConfig;
 use actix_web::{web, Scope};
 
 use crate::{
-    alert_manager::routes::{config, dictionary, notifications},
+    alert_manager::routes::{config, dictionary, lifecycle, notifications},
     errors::types::{ApiError, ApiErrorResponse},
     logger,
     routes::{health_check, notify},
@@ -33,6 +33,7 @@ impl Alerts {
                 web::resource("/notify/{destination}").route(web::post().to(notify::email)),
             ))
             .service(config_scope())
+            .service(lifecycle_scope())
     }
 }
 
@@ -80,6 +81,21 @@ fn config_scope() -> Scope {
                     .route(web::post().to(notifications::mark_read)),
             ),
         )
+}
+
+fn lifecycle_scope() -> Scope {
+    web::scope("/lifecycle").service(
+        web::scope("/{channel}")
+            .service(
+                web::resource("/state")
+                    .route(web::get().to(lifecycle::read_state))
+                    .route(web::post().to(lifecycle::write_state)),
+            )
+            .service(
+                web::resource("/announcements")
+                    .route(web::post().to(lifecycle::record_announcement)),
+            ),
+    )
 }
 
 fn json_config() -> web::JsonConfig {

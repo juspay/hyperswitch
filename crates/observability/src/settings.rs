@@ -39,6 +39,7 @@ pub struct Settings<S: SecretState> {
     pub chat: SecretStateContainer<ChatSettings, S>,
     pub email: EmailSettings,
     pub dictionary: DictionarySettings,
+    pub lifecycle: LifecycleSettings,
 }
 
 const DEFAULT_MAX_UPLOAD_BYTES: usize = 25 * 1024 * 1024;
@@ -176,6 +177,37 @@ impl DictionarySettings {
         common_utils::fp_utils::when(self.max_entry_bytes == 0, || {
             Err(errors::ConfigurationError::ConfigParsingError(
                 "dictionary max_entry_bytes must be greater than zero".into(),
+            ))
+        })
+    }
+}
+
+const DEFAULT_MAX_ALERTS: usize = 5_000;
+
+fn default_max_alerts() -> usize {
+    DEFAULT_MAX_ALERTS
+}
+
+#[derive(Debug, Deserialize, Clone)]
+#[serde(default)]
+pub struct LifecycleSettings {
+    #[serde(default = "default_max_alerts")]
+    pub max_alerts: usize,
+}
+
+impl Default for LifecycleSettings {
+    fn default() -> Self {
+        Self {
+            max_alerts: default_max_alerts(),
+        }
+    }
+}
+
+impl LifecycleSettings {
+    pub fn validate(&self) -> Result<(), errors::ConfigurationError> {
+        common_utils::fp_utils::when(self.max_alerts == 0, || {
+            Err(errors::ConfigurationError::ConfigParsingError(
+                "lifecycle max_alerts must be greater than zero".into(),
             ))
         })
     }
@@ -378,6 +410,7 @@ impl Settings<SecuredSecret> {
         self.chat.get_inner().validate()?;
         self.email.validate()?;
         self.dictionary.validate()?;
+        self.lifecycle.validate()?;
         self.secrets_management
             .validate()
             .map_err(|error| errors::ConfigurationError::ConfigParsingError(error.into()))?;

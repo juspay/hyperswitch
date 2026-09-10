@@ -1,5 +1,6 @@
 pub mod config;
 pub mod dictionary;
+pub mod lifecycle;
 pub mod notifications;
 
 use actix_web::http::header::HeaderMap;

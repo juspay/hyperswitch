@@ -81,10 +81,11 @@ reach the logs from the client, which emits `chars` per request.
 
 ## The API
 
-Two surfaces under one scope. **Delivery** sends a message; **configuration** reads and writes the
-rows this plane owns — what an alert is, whether it runs, the mappers the dashboard reads, and how
-far a user has read their notifications. A route under `/alerts/config` touches the database and
-nothing else does.
+Three surfaces under one scope. **Delivery** sends a message; **configuration** reads and writes
+the rows somebody edits — what an alert is, whether it runs, the mappers the dashboard reads, and
+how far a user has read their notifications; **lifecycle** is the alert manager's own working
+state, which nobody edits and which it rewrites every run. A route under `/alerts/config` or
+`/alerts/lifecycle` touches the database and nothing else does.
 
 The whole surface, guarded and not:
 
@@ -106,6 +107,9 @@ The whole surface, guarded and not:
 | `POST` | `/alerts/config/enablement/{name}/{product}` | `X-Internal-Api-Key` |
 | `GET` | `/alerts/config/notifications/read` | `X-Internal-Api-Key` |
 | `POST` | `/alerts/config/notifications/read` | `X-Internal-Api-Key` |
+| `GET` | `/alerts/lifecycle/{channel}/state` | `X-Internal-Api-Key` |
+| `POST` | `/alerts/lifecycle/{channel}/state` | `X-Internal-Api-Key` |
+| `POST` | `/alerts/lifecycle/{channel}/announcements` | `X-Internal-Api-Key` |
 | `GET` | `/health` | none — liveness |
 
 The scope is `/alerts` rather than `/observability`: it names the resource being posted, not the
@@ -407,6 +411,75 @@ An empty `name` or `key_`, one wider than its column, and an unreadable `X-User-
 alongside a body that did not parse. The column widths are checked here rather than left to
 Postgres, which rejects the same values as an opaque failure with a `500` attached.
 
+### Lifecycle
+
+Two resources, and the split between them is the point. `alerts_intermediate` holds **what is
+firing now**; `alerts_main` records **what was actually said**, one row per announcement, with its
+`sent` flag and the thread it opened. Collapsing them is why the service this replaces cannot say
+whether an alert was delivered.
+
+`{channel}` is `slack` or `xyne`. The tables come once per delivery channel — `alerts_main` and
+`alerts_main_xyne`, and their `alerts_intermediate` twins — so the channel is a path segment. A
+segment that is neither is a `404` rather than a fallback to one of them.
+
+**Two write shapes, deliberately not alike.** A state write is a replacement: what it does not
+carry is removed. An announcement write is an append: it adds a row and takes nothing away. There
+is no `DELETE` on either, and a state write never touches `alerts_main` — a state row references an
+announcement `ON DELETE CASCADE`, so a replace that reached the announcement table would delete
+state rows pointing at it, including ones the same request is writing.
+
+**Rows are addressed by `id_intermediate`, and a caller echoes back the ids it read.** A row whose
+id is not echoed back is removed and, if it is still firing, written again as a new row — which
+loses the episode's start and its thread. An alert the caller has just detected has no id to send,
+and the handler mints one; the response and the next read carry it.
+
+**Every stored timestamp is this service's clock.** The columns carry no `DEFAULT`, so somebody has
+to choose, and durations here are computed by subtracting these timestamps from each other — a
+caller minutes out of step would report an episode as older than it is and then write that back.
+The one timestamp a caller sends is `expected_last_updated_at`, which is not stored.
+
+#### Two overlapping runs
+
+The cron fires every fifteen minutes, so a slow run means two whole-state writes in flight. A write
+carries `expected_last_updated_at` — the value the read handed out — and is applied only if the
+stored state still matches it; a mismatch is `409` and nothing is written. Absent or `null` asserts
+that the state was empty at read time, so a forgotten precondition fails closed rather than
+overwriting whatever is there.
+
+The precondition alone is not enough when the two writes genuinely overlap: both would read the
+same value before either wrote. Each write takes a Postgres advisory lock on its channel first, so
+the check happens against state nothing else is changing. The loser waits, then is refused.
+
+A `409` is not a `400`: the body was fine and would have been accepted a moment earlier. The
+caller's move is to read the state again — never to retry the write it just sent, which is the
+stale one.
+
+#### The size of a write
+
+`lifecycle.max_alerts` (5000 by default) caps the alerts one whole-state write may carry. Because a
+write replaces everything, the same number bounds the stored state and the read that returns all of
+it.
+
+**Over the cap the whole write is refused and nothing is applied.** Truncating it would drop alerts
+the caller believes are recorded and re-announce them on the next run, which is the failure the cap
+exists to prevent rather than one it should cause.
+
+The lifecycle errors, added to the tables above:
+
+| | Status | Code |
+|---|---|---|
+| Whole-state write over `lifecycle.max_alerts` | 400 | `IR_10` |
+| A state row references an announcement that does not exist | 400 | `IR_12` |
+| Unknown channel | 404 | `IR_09` |
+| The state changed after it was read | 409 | `IR_11` |
+| Lifecycle state unreadable | 503 | `HE_01` |
+
+A value wider than its column — `name`, `product`, `group_id` and `priority` are `VARCHAR(64)`,
+`ts_slack` is `VARCHAR(255)` — and the same `id_intermediate` sent twice in one write are `IR_04`,
+alongside a body that did not parse. Both are checked before the query runs: Postgres rejects the
+first as an opaque `22001` and refuses the second with a message about the statement rather than
+about the request, and either would fail the whole batch.
+
 ## Destinations
 
 Configured under `chat.destinations.<id>` and `email.destinations.<id>`, resolved once at boot.
@@ -461,9 +534,11 @@ else. The one deliberate exception is `routes/app.rs`, which holds *every* route
 serves — both concerns' — so the tree and its guards are one file rather than a search.
 
 Rows and their queries are not here at all: `alerts_info`, `merchants_alert_external_config`,
-`alerts_dicts` and `notification_reads` are modelled in `diesel_models::observability`, alongside
-every other table this database owns, so the alert manager and this service read one definition of
-them rather than two.
+`alerts_dicts`, `notification_reads`, `alerts_main` and `alerts_intermediate` are modelled in
+`diesel_models::observability`, alongside every other table this database owns, so the alert
+manager and this service read one definition of them rather than two. The two lifecycle tables come
+once per delivery channel, so their models are generated per table and hand back a
+channel-agnostic row — the handlers take the channel as an argument and are written once.
 
 `alert_manager` has no `domain/`: a row is a row, and its types are `diesel_models::observability`
 on one side and `alert_manager/types/` on the other. A trait between them would abstract over one
