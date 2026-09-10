@@ -79,14 +79,28 @@ wildcard_origin = false                 # If true, allows any origin to make req
 sender_email = "example@example.com" # Sender email
 aws_region = ""                      # AWS region used by AWS SES
 allowed_unverified_days = 1          # Number of days the api calls ( with jwt token ) can be made without verifying the email
-active_email_client = "SES"          # The currently active email client
+active_email_client = "SES"          # The currently active email client (NO_EMAIL_CLIENT | SES | SMTP)
 recon_recipient_email = "recon@example.com"          # Recipient email for recon request email
 prod_intent_recipient_email = "business@example.com" # Recipient email for prod intent email
 
-# Configuration for aws ses, applicable when the active email client is SES
+# Required only if `active_email_client` above is set to "SES"
 [email.aws_ses]
 email_role_arn = ""        # The amazon resource name ( arn ) of the role which has permission to send emails
 sts_role_session_name = "" # An identifier for the assumed role session, used to uniquely identify a session.
+
+# Required only if `active_email_client` above is set to "SMTP"
+[email.smtp]
+host = "mailhog"         # SMTP host
+port = 1025               # SMTP port
+timeout = 10               # Timeout for SMTP connection in seconds
+connection = "plaintext" # currently plaintext and starttls are supported
+
+# Optional, only if [email.smtp] above needs to be reached through a SOCKS5 proxy
+[email.smtp.socks5]
+host = "127.0.0.1"    # SOCKS5 proxy hostname or IP
+port = 1080           # SOCKS5 proxy port
+username = "testuser" # SOCKS5 username, if the proxy requires auth
+password = "testpass" # SOCKS5 password, if the proxy requires auth
 
 [events]
 source = "logs" # The event sink to push events supports kafka or logs (stdout)
