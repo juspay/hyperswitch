@@ -83,6 +83,7 @@ pub struct ConnectorAuthentication {
     pub juspaythreedsserver: Option<HeaderKey>,
     pub katapult: Option<HeaderKey>,
     pub loonio: Option<HeaderKey>,
+    pub merchante: Option<BodyKey>,
     pub mifinity: Option<HeaderKey>,
     pub mollie: Option<BodyKey>,
     pub moneris: Option<SignatureKey>,
