@@ -776,8 +776,7 @@ async fn disputes_incoming_webhook_flow(
         .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
         .attach_printable("event type to dispute status mapping failed")?;
 
-    // Captured before the update, because the guard below must see the row as it was.
-    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+    // Captured before the update, because the guards below must see the row as it was.
     let was_not_already_lost =
         diesel_models::dispute::Dispute::is_not_lost_or_none(&option_dispute);
 
