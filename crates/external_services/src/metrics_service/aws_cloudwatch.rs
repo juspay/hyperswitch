@@ -1,26 +1,24 @@
 //! Reading metric datapoints from Amazon CloudWatch.
 //!
-//! Everything that knows about `aws_sdk_cloudwatch` lives here, so
-//! [`crate::metrics_service`] stays readable without the SDK in view. The entry point is
-//! `GetMetricData`, not `DescribeAlarms`: we own the thresholds, so CloudWatch is a source of
-//! numbers rather than an alarm estate to subscribe to.
+//! Everything that knows about `aws_sdk_cloudwatch` lives here, including the rules CloudWatch
+//! imposes that no other provider shares. The entry point is `GetMetricData`, not `DescribeAlarms`:
+//! we own the thresholds, so CloudWatch is a source of numbers rather than an alarm estate.
 //!
-//! # Query ids are ours, not the caller's
+//! **Labels select, they do not aggregate.** A dimension combination *identifies* a CloudWatch
+//! metric, so a query carrying no labels asks for the stream published with no dimensions at all —
+//! not the sum or average of the dimensioned streams. A metric published per DB instance or per
+//! target group therefore comes back empty when asked for without labels. Callers name the stream
+//! they mean; Terraform publishes the dimension values for that purpose.
 //!
-//! `GetMetricData` requires each query to carry a caller-supplied id matching
-//! `[a-z][a-zA-Z0-9_]*`, and it rejects the **whole batch** if any one of them is malformed. That
-//! is CloudWatch's constraint rather than a property of reading metrics, so it does not appear in
-//! [`MetricsProvider`](super::MetricsProvider): ids are minted here from each query's position in
-//! [`MetricRequest::queries`](super::MetricRequest::queries), and results are handed back keyed by
-//! that same position. No caller can fail a batch by naming a metric `rds-primary`.
+//! **Query ids are ours.** `GetMetricData` requires ids matching `[a-z][a-zA-Z0-9_]*` and rejects
+//! the whole batch if one is malformed, so ids are minted here from each query's position and
+//! series come back keyed by that position. No caller can fail a batch by naming a metric
+//! `rds-primary`.
 //!
-//! # Credentials
-//!
-//! The default provider chain, exactly as [`crate::aws_kms`] and [`crate::file_storage::aws_s3`]
-//! use it — in the cluster that resolves to the pod's IRSA role. Deliberately *not* the
-//! [`crate::email::ses`] approach of assuming a role explicitly on every call: that pattern is a
-//! known problem rather than a model to copy, and the sandbox VPC reaches CloudWatch through a
-//! `monitoring` interface endpoint, so there is no proxy to route around either.
+//! **Credentials** come from the default provider chain, as [`crate::aws_kms`] and
+//! [`crate::file_storage::aws_s3`] use it; in the cluster that is the pod's IRSA role. Deliberately
+//! not [`crate::email::ses`]'s assume-role-per-call. No proxy: the sandbox VPC reaches CloudWatch
+//! through a `monitoring` interface endpoint.
 
 use aws_config::meta::region::RegionProviderChain;
 use aws_sdk_cloudwatch::{
@@ -33,13 +31,14 @@ use error_stack::{report, ResultExt};
 
 use super::{
     Aggregation, Cursor, Datapoint, MetricPage, MetricQuery, MetricRequest, MetricSeries,
-    MetricsError, MetricsProvider, MetricsResult, SeriesStatus,
+    MetricsError, MetricsProvider, MetricsResult, Period, SeriesStatus,
 };
 
-/// The prefix every minted query id carries.
-///
-/// CloudWatch requires an id to start with a lowercase letter, which a bare index does not.
+/// The prefix every minted query id carries, since CloudWatch requires a leading lowercase letter.
 const QUERY_ID_PREFIX: &str = "m";
+
+/// The most queries `GetMetricData` accepts in one call.
+const MAX_QUERIES_PER_CALL: usize = 500;
 
 /// How to reach CloudWatch.
 #[derive(Debug, Clone, Default, serde::Deserialize)]
@@ -62,8 +61,7 @@ impl CloudWatchConfig {
 
 /// Reads metric datapoints from Amazon CloudWatch.
 ///
-/// The SDK client is built once and held. Credentials refresh themselves inside the provider
-/// chain, so there is no reason to rebuild it per call.
+/// The SDK client is built once and held; credentials refresh inside the provider chain.
 #[derive(Debug, Clone)]
 pub struct CloudWatchMetrics {
     client: Client,
@@ -92,8 +90,10 @@ impl MetricsProvider for CloudWatchMetrics {
         request: &MetricRequest,
         cursor: Option<&Cursor>,
     ) -> MetricsResult<MetricPage> {
+        validate(request)?;
+
         let queries = request
-            .queries()
+            .queries
             .iter()
             .enumerate()
             .map(|(index, query)| metric_data_query(index, query))
@@ -103,20 +103,16 @@ impl MetricsProvider for CloudWatchMetrics {
             .client
             .get_metric_data()
             .set_metric_data_queries(Some(queries))
-            .start_time(to_aws_timestamp(request.range().start()))
-            .end_time(to_aws_timestamp(request.range().end()))
-            // Ascending so datapoints arrive oldest-first, which is the order every caller reads
-            // them in and the order `MetricSeries::datapoints` promises.
+            .start_time(to_aws_timestamp(request.range.start))
+            .end_time(to_aws_timestamp(request.range.end))
+            // Ascending so datapoints arrive oldest-first, the order `datapoints` promises.
             .scan_by(ScanBy::TimestampAscending)
             .set_next_token(cursor.map(|cursor| cursor.as_str().to_owned()))
             .send()
             .await
             .change_context(MetricsError::Transport)
             .attach_printable_lazy(|| {
-                format!(
-                    "Fetching {} metrics from CloudWatch",
-                    request.queries().len()
-                )
+                format!("Fetching {} metrics from CloudWatch", request.queries.len())
             })?;
 
         let series = response
@@ -132,6 +128,51 @@ impl MetricsProvider for CloudWatchMetrics {
     }
 }
 
+/// Reject a request CloudWatch would refuse, before spending a round trip on it.
+///
+/// A rejected batch takes every metric in it down, so one bad period would blind a whole tick.
+fn validate(request: &MetricRequest) -> MetricsResult<()> {
+    if request.queries.is_empty() {
+        return Err(report!(MetricsError::InvalidRequest))
+            .attach_printable("A GetMetricData call needs at least one query");
+    }
+
+    if request.queries.len() > MAX_QUERIES_PER_CALL {
+        return Err(report!(MetricsError::InvalidRequest)).attach_printable_lazy(|| {
+            format!(
+                "GetMetricData takes at most {MAX_QUERIES_PER_CALL} queries, got {}",
+                request.queries.len()
+            )
+        });
+    }
+
+    if request.range.start >= request.range.end {
+        return Err(report!(MetricsError::InvalidRequest))
+            .attach_printable("A GetMetricData time range must start before it ends");
+    }
+
+    for query in &request.queries {
+        if !is_usable_period(query.period) {
+            return Err(report!(MetricsError::InvalidRequest)).attach_printable_lazy(|| {
+                format!(
+                    "{} is not a CloudWatch period: use 1, 5, 10, 20, 30, or a multiple of 60",
+                    query.period.seconds()
+                )
+            });
+        }
+    }
+
+    Ok(())
+}
+
+/// CloudWatch takes high-resolution periods of 1, 5, 10, 20 or 30 seconds, or any positive
+/// multiple of 60.
+fn is_usable_period(period: Period) -> bool {
+    let seconds = period.seconds();
+
+    matches!(seconds, 1 | 5 | 10 | 20 | 30) || (seconds > 0 && seconds % 60 == 0)
+}
+
 /// The id a query at `index` is sent and reported under.
 fn query_id(index: usize) -> String {
     format!("{QUERY_ID_PREFIX}{index}")
@@ -145,14 +186,16 @@ fn query_index(id: &str) -> Option<usize> {
 /// Translate one query into the SDK's request shape.
 fn metric_data_query(index: usize, query: &MetricQuery) -> MetricDataQuery {
     let dimensions = query
-        .labels()
+        .labels
         .iter()
         .map(|(name, value)| Dimension::builder().name(name).value(value).build())
         .collect::<Vec<_>>();
 
     let metric = Metric::builder()
-        .set_namespace(query.namespace().map(ToOwned::to_owned))
-        .metric_name(query.name())
+        .set_namespace(query.namespace.clone())
+        .metric_name(&query.name)
+        // `None` and `Some(vec![])` serialise differently, and an empty dimension list is not the
+        // same request as an unqualified metric.
         .set_dimensions((!dimensions.is_empty()).then_some(dimensions))
         .build();
 
@@ -161,8 +204,8 @@ fn metric_data_query(index: usize, query: &MetricQuery) -> MetricDataQuery {
         .metric_stat(
             MetricStat::builder()
                 .metric(metric)
-                .period(query.period().seconds())
-                .stat(stat(query.aggregation()))
+                .period(query.period.seconds())
+                .stat(stat(query.aggregation))
                 .build(),
         )
         .build()
@@ -194,8 +237,8 @@ fn metric_series(result: &MetricDataResult) -> MetricsResult<MetricSeries> {
     let timestamps = result.timestamps();
     let values = result.values();
 
-    // CloudWatch documents these as always the same length. If they are not, pairing them off
-    // would invent datapoints or silently drop them, and either is worse than refusing.
+    // CloudWatch documents these as always the same length. Pairing them off when they are not
+    // would invent datapoints or drop them, and either is worse than refusing.
     if timestamps.len() != values.len() {
         return Err(report!(MetricsError::MalformedResponse)).attach_printable_lazy(|| {
             format!(
@@ -209,7 +252,12 @@ fn metric_series(result: &MetricDataResult) -> MetricsResult<MetricSeries> {
     let datapoints = timestamps
         .iter()
         .zip(values)
-        .map(|(timestamp, value)| Ok(Datapoint::new(from_aws_timestamp(timestamp)?, *value)))
+        .map(|(timestamp, value)| {
+            Ok(Datapoint {
+                timestamp: from_aws_timestamp(timestamp)?,
+                value: *value,
+            })
+        })
         .collect::<MetricsResult<Vec<_>>>()?;
 
     Ok(MetricSeries::new(
@@ -221,8 +269,8 @@ fn metric_series(result: &MetricDataResult) -> MetricsResult<MetricSeries> {
 
 /// Map CloudWatch's per-series status onto the provider-neutral one.
 ///
-/// `Forbidden` and `InternalError` both become [`SeriesStatus::Failed`]: they differ in whose
-/// fault it is, not in what the caller holds, and the interface does not carry blame.
+/// `Forbidden` and `InternalError` both become [`SeriesStatus::Failed`]: they differ in whose fault
+/// it is, not in what the caller holds.
 fn series_status(status: Option<&StatusCode>) -> SeriesStatus {
     match status {
         Some(StatusCode::Complete) => SeriesStatus::Complete,
@@ -257,7 +305,7 @@ mod tests {
     use time::macros::datetime;
 
     use super::*;
-    use crate::metrics_service::{Labels, Period};
+    use crate::metrics_service::{Labels, TimeRange};
 
     fn timestamp(datetime: time::OffsetDateTime) -> aws_smithy_types::DateTime {
         aws_smithy_types::DateTime::from_secs(datetime.unix_timestamp())
@@ -277,11 +325,34 @@ mod tests {
             .build()
     }
 
+    fn query(period: Period) -> MetricQuery {
+        MetricQuery {
+            namespace: Some("AWS/RDS".to_owned()),
+            name: "CPUUtilization".to_owned(),
+            labels: Labels::default(),
+            period,
+            aggregation: Aggregation::Average,
+        }
+    }
+
+    fn request(queries: Vec<MetricQuery>) -> MetricRequest {
+        MetricRequest {
+            range: TimeRange::ending_at(datetime!(2026-09-09 12:00:00 UTC), Period::ONE_MINUTE, 3),
+            queries,
+        }
+    }
+
     #[test]
     fn a_query_becomes_a_metric_stat_carrying_its_labels() {
-        let query = MetricQuery::new("CPUUtilization", Period::FIVE_MINUTES, Aggregation::Average)
-            .in_namespace("AWS/RDS")
-            .with_labels(Labels::none().with("DBInstanceIdentifier", "sbx-hyp-rds-1"));
+        let query = MetricQuery {
+            namespace: Some("AWS/RDS".to_owned()),
+            name: "CPUUtilization".to_owned(),
+            labels: [("DBInstanceIdentifier", "sbx-hyp-rds-1")]
+                .into_iter()
+                .collect(),
+            period: Period::FIVE_MINUTES,
+            aggregation: Aggregation::Average,
+        };
 
         let wire = metric_data_query(3, &query);
 
@@ -300,13 +371,9 @@ mod tests {
 
     #[test]
     fn a_query_with_no_labels_sends_no_dimensions_rather_than_an_empty_list() {
-        let query = MetricQuery::new("RequestCount", Period::ONE_MINUTE, Aggregation::Sum);
-
-        let wire = metric_data_query(0, &query);
+        let wire = metric_data_query(0, &query(Period::ONE_MINUTE));
         let metric = wire.metric_stat().unwrap().metric().unwrap();
 
-        // `set_dimensions(None)` and `set_dimensions(Some(vec![]))` serialise differently, and an
-        // empty dimension list is not the same request as an unqualified metric.
         assert!(metric.dimensions.is_none());
     }
 
@@ -316,6 +383,41 @@ mod tests {
         assert_eq!(stat(Aggregation::Maximum), "Maximum");
         assert_eq!(stat(Aggregation::Minimum), "Minimum");
         assert_eq!(stat(Aggregation::Sum), "Sum");
+    }
+
+    #[test]
+    fn only_periods_cloudwatch_accepts_get_past_validation() {
+        for seconds in [1, 5, 10, 20, 30, 60, 300, 3600, 86400] {
+            assert!(
+                validate(&request(vec![query(Period::from_seconds(seconds))])).is_ok(),
+                "{seconds} should be accepted"
+            );
+        }
+
+        for seconds in [0, -60, 2, 45, 61, 359] {
+            assert!(
+                validate(&request(vec![query(Period::from_seconds(seconds))])).is_err(),
+                "{seconds} should be rejected"
+            );
+        }
+    }
+
+    #[test]
+    fn a_batch_that_cloudwatch_would_refuse_never_reaches_the_network() {
+        assert!(validate(&request(Vec::new())).is_err());
+
+        let too_many = vec![query(Period::ONE_MINUTE); MAX_QUERIES_PER_CALL + 1];
+        assert!(validate(&request(too_many)).is_err());
+
+        let instant = datetime!(2026-09-09 12:00:00 UTC);
+        let backwards = MetricRequest {
+            range: TimeRange {
+                start: instant,
+                end: instant,
+            },
+            queries: vec![query(Period::ONE_MINUTE)],
+        };
+        assert!(validate(&backwards).is_err());
     }
 
     #[test]
@@ -347,7 +449,6 @@ mod tests {
         let series = metric_series(&result).unwrap();
 
         assert_eq!(series.index(), 0);
-        assert_eq!(series.datapoints().len(), 3);
         assert_eq!(
             series.window(datetime!(2026-09-09 12:04:00 UTC), Period::ONE_MINUTE, 4),
             vec![Some(4.0), Some(0.0), None, Some(7.0)]
@@ -356,9 +457,13 @@ mod tests {
 
     #[test]
     fn a_series_with_no_datapoints_reads_as_empty_rather_than_failing() {
-        let result = result_of("m2", Vec::new(), Vec::new(), StatusCode::Complete);
-
-        let series = metric_series(&result).unwrap();
+        let series = metric_series(&result_of(
+            "m2",
+            Vec::new(),
+            Vec::new(),
+            StatusCode::Complete,
+        ))
+        .unwrap();
 
         assert_eq!(series.index(), 2);
         assert!(series.datapoints().is_empty());
