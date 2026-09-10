@@ -161,15 +161,22 @@ macro_rules! metric_attributes {
 pub use helpers::f64_histogram_buckets;
 
 mod helpers {
-    /// Returns the buckets to be used for a f64 histogram
+    /// Returns the buckets to be used for a f64 histogram, in seconds.
+    ///
+    /// Seven buckets per doubling rather than one, so each is ~10% wider than the last and a
+    /// percentile resolves to within ~10% of its true value instead of ~100%. The range starts at
+    /// 100us — anything faster is instant for these purposes — and runs to ~52s, past the slowest
+    /// connector timeout.
     #[inline(always)]
     pub fn f64_histogram_buckets() -> Vec<f64> {
-        let mut init = 0.000_001;
-        let mut buckets: [f64; 30] = [0.0; 30];
+        let growth_factor = 2_f64.powf(1.0 / 7.0);
+
+        let mut init = 0.000_1;
+        let mut buckets: [f64; 134] = [0.0; 134];
 
         for bucket in &mut buckets {
             *bucket = init;
-            init *= 2.0;
+            init *= growth_factor;
         }
 
         Vec::from(buckets)
