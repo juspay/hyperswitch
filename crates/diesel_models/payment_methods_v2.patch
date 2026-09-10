@@ -1,7 +1,10 @@
 diff --git a/crates/diesel_models/src/schema_v2.rs b/crates/diesel_models/src/schema_v2.rs
 --- a/crates/diesel_models/src/schema_v2.rs
 +++ b/crates/diesel_models/src/schema_v2.rs
-@@ -1302,8 +1302,73 @@
+@@ -1349,14 +1349,79 @@
+         #[max_length = 64]
+         profile_id -> Nullable<Varchar>,
+         #[max_length = 255]
          secure_link -> Nullable<Varchar>,
          #[max_length = 64]
          processor_merchant_id -> Nullable<Varchar>,
@@ -75,7 +78,13 @@ diff --git a/crates/diesel_models/src/schema_v2.rs b/crates/diesel_models/src/sc
      }
  }
  
-@@ -1889,6 +1954,7 @@
+ diesel::table! {
+     use diesel::sql_types::*;
+     use crate::enums::diesel_exports::*;
+@@ -1917,12 +1982,13 @@
+     merchant_connector_account,
+     merchant_key_store,
+     organization,
      payment_attempt,
      payment_intent,
      payment_link,
@@ -83,3 +92,6 @@ diff --git a/crates/diesel_models/src/schema_v2.rs b/crates/diesel_models/src/sc
      payout_attempt,
      payouts,
      process_tracker,
+     refund,
+     relay,
+     revenue_recovery_retry_stats,
