@@ -1,6 +1,11 @@
 FROM public.ecr.aws/docker/library/rust:trixie as builder
 
-ARG EXTRA_FEATURES=""
+# NOTE (spanner branch only — must not be merged to main as-is):
+# Jenkins never passes --build-arg EXTRA_FEATURES, so this default is what
+# every image built from this branch picks up. It enables the Spanner
+# compatibility feature (enum-as-text, timestamptz, widened integers).
+# Set back to "" to produce a stock PostgreSQL image.
+ARG EXTRA_FEATURES="--features spanner"
 ARG VERSION_FEATURE_SET="v1"
 
 # Which cargo profile compiles the binaries: `release` (default, production),
