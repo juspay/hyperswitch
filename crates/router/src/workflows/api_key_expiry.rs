@@ -116,7 +116,7 @@ impl ProcessTrackerWorkflow<SessionState> for ApiKeyExpiryWorkflow {
 
         // If all the mails have been sent, then retry_count would be equal to length of the expiry_reminder_days vector
         if retry_count
-            == i32::try_from(tracking_data.expiry_reminder_days.len() - 1)
+            == i64::try_from(tracking_data.expiry_reminder_days.len() - 1)
                 .map_err(|_| errors::ProcessTrackerError::TypeConversionError)?
         {
             state
