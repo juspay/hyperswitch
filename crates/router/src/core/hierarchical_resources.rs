@@ -30,11 +30,16 @@ trait HierarchicalResourceHandler {
         state: &SessionState,
         processor: &domain::Processor,
         org_key_store: &domain::MerchantKeyStore,
-    ) -> RouterResult<(domain::HierarchicalResource, api_resources::GenerateHierarchicalResourceResponse)>;
+    ) -> RouterResult<(
+        domain::HierarchicalResource,
+        api_resources::GenerateHierarchicalResourceResponse,
+    )>;
 
     fn display_schema() -> Secret<serde_json::Value>;
 
-    fn display_data(resource: &domain::HierarchicalResource) -> RouterResult<Secret<serde_json::Value>>;
+    fn display_data(
+        resource: &domain::HierarchicalResource,
+    ) -> RouterResult<Secret<serde_json::Value>>;
 
     fn is_linkable(resource: &domain::HierarchicalResource) -> RouterResult<bool>;
 
@@ -126,7 +131,10 @@ impl HierarchicalResourceHandler for ApplePayCertificateResource {
         state: &SessionState,
         processor: &domain::Processor,
         org_key_store: &domain::MerchantKeyStore,
-    ) -> RouterResult<(domain::HierarchicalResource, api_resources::GenerateHierarchicalResourceResponse)> {
+    ) -> RouterResult<(
+        domain::HierarchicalResource,
+        api_resources::GenerateHierarchicalResourceResponse,
+    )> {
         let key_manager_state: &KeyManagerState = &state.into();
         let merchant_account = processor.get_account();
         let created_by = format!("merchant:{}", merchant_account.get_id().get_string_repr());
@@ -209,7 +217,9 @@ impl HierarchicalResourceHandler for ApplePayCertificateResource {
         )
     }
 
-    fn display_data(resource: &domain::HierarchicalResource) -> RouterResult<Secret<serde_json::Value>> {
+    fn display_data(
+        resource: &domain::HierarchicalResource,
+    ) -> RouterResult<Secret<serde_json::Value>> {
         let data = parse_apple_pay_certificate_data(&resource.data)?;
         serde_json::to_value(ApplePayCertificateDisplayData {
             apple_pay_merchant_identifier: data.apple_pay_merchant_identifier,
@@ -279,7 +289,8 @@ impl HierarchicalResourceHandler for ApplePayCertificateResource {
                     apple_pay_certificates: Some(Secret::new(plain_data)),
                     apple_pay_certificates_encrypted: Some(encrypted_cache.into()),
                 };
-                link_hierarchical_resource_data_to_scope(db, account_key_store, account, &update).await
+                link_hierarchical_resource_data_to_scope(db, account_key_store, account, &update)
+                    .await
             }
             None => Ok(()),
         }
@@ -656,7 +667,9 @@ pub async fn upload_hierarchical_resource(
     Ok(ApplicationResponse::Json(response))
 }
 
-fn parse_resource_type(resource: &domain::HierarchicalResource) -> RouterResult<common_enums::ResourceType> {
+fn parse_resource_type(
+    resource: &domain::HierarchicalResource,
+) -> RouterResult<common_enums::ResourceType> {
     resource
         .resource_type
         .parse::<common_enums::ResourceType>()
@@ -761,7 +774,9 @@ pub async fn list_hierarchical_resources(
     ))
 }
 
-fn hierarchical_resource_is_linkable(resource: &domain::HierarchicalResource) -> RouterResult<bool> {
+fn hierarchical_resource_is_linkable(
+    resource: &domain::HierarchicalResource,
+) -> RouterResult<bool> {
     let resource_type = parse_resource_type(resource)?;
 
     match resource_type {

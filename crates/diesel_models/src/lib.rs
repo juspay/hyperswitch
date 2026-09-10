@@ -27,6 +27,7 @@ pub mod file;
 pub mod fraud_check;
 pub mod generic_link;
 pub mod gsm;
+pub mod hierarchical_resource;
 pub mod invoice;
 #[cfg(feature = "kv_store")]
 pub mod kv;
@@ -47,7 +48,6 @@ pub mod process_tracker;
 pub mod query;
 pub mod refund;
 pub mod relay;
-pub mod hierarchical_resource;
 pub mod reverse_lookup;
 pub mod role;
 pub mod routing_algorithm;

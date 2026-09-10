@@ -106,17 +106,19 @@ impl super::behaviour::Conversion for HierarchicalResource {
     }
 
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
-        Ok(diesel_models::hierarchical_resource::HierarchicalResourceNew {
-            id: self.id,
-            resource_type: self.resource_type,
-            scope: self.scope,
-            scope_id: self.scope_id,
-            data: self.data,
-            encrypted_data: self.encrypted_data.map(Encryptable::into),
-            created_by: self.created_by,
-            created_at: date_time::now(),
-            modified_at: date_time::now(),
-        })
+        Ok(
+            diesel_models::hierarchical_resource::HierarchicalResourceNew {
+                id: self.id,
+                resource_type: self.resource_type,
+                scope: self.scope,
+                scope_id: self.scope_id,
+                data: self.data,
+                encrypted_data: self.encrypted_data.map(Encryptable::into),
+                created_by: self.created_by,
+                created_at: date_time::now(),
+                modified_at: date_time::now(),
+            },
+        )
     }
 }
 

@@ -1,7 +1,9 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
 
 use crate::{
-    hierarchical_resource::{HierarchicalResource, HierarchicalResourceNew, HierarchicalResourceUpdateInternal},
+    hierarchical_resource::{
+        HierarchicalResource, HierarchicalResourceNew, HierarchicalResourceUpdateInternal,
+    },
     query::generics,
     schema::hierarchical_resources::dsl,
     DatabaseConnectionWithContext, StorageResult,

@@ -23,6 +23,7 @@ pub mod feature_matrix;
 pub mod files;
 pub mod gsm;
 pub mod health_check;
+pub mod hierarchical_resources;
 pub mod launch_sage;
 pub mod mandates;
 pub mod merchant_connector_webhook_management;
@@ -43,7 +44,6 @@ pub mod profile_acquirer;
 pub mod proxy;
 pub mod refunds;
 pub mod relay;
-pub mod hierarchical_resources;
 #[cfg(feature = "v2")]
 pub mod revenue_recovery_data_backfill;
 pub mod routing;

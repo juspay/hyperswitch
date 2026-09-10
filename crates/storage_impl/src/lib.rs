@@ -28,6 +28,7 @@ pub mod customers;
 pub mod database;
 pub mod dispute;
 pub mod errors;
+pub mod hierarchical_resource;
 pub mod invoice;
 pub mod kv_router_store;
 pub mod lookup;
@@ -44,7 +45,6 @@ pub mod payouts;
 pub mod platform_wrapper;
 pub mod redis;
 pub mod refund;
-pub mod hierarchical_resource;
 #[cfg(feature = "v2")]
 pub mod revenue_recovery_retry_stats;
 mod reverse_lookup;

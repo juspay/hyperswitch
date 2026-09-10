@@ -40,7 +40,9 @@ async fn resolve_profile_from_header(
         )
         .await
         .change_context(errors::ApiErrorResponse::Unauthorized)
-        .attach_printable("X-Profile-Id does not name a profile belonging to this session's merchant")
+        .attach_printable(
+            "X-Profile-Id does not name a profile belonging to this session's merchant",
+        )
 }
 
 fn parse_upload_certificate_body(

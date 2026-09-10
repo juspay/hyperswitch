@@ -99,6 +99,7 @@ pub use business_profile::*;
 pub use callback_mapper::*;
 pub use consts::*;
 pub use event::*;
+pub use hierarchical_resource::*;
 pub use merchant_connector_account::*;
 pub use merchant_connector_webhook_management::*;
 pub use merchant_key_store::*;
@@ -106,7 +107,6 @@ pub use payment_attempt::*;
 pub use payment_method_data::*;
 pub use payment_methods::*;
 pub use platform::*;
-pub use hierarchical_resource::*;
 pub use routing::*;
 #[cfg(feature = "v2")]
 pub use split_payments::*;
