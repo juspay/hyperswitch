@@ -1687,6 +1687,49 @@ fn get_worldpayxml_payment_purpose_code(
     }
 }
 
+fn get_worldpayxml_sender_account_number(
+    payment_method_data: Option<&PaymentMethodData>,
+    payment_method_token: Option<&PaymentMethodToken>,
+) -> Result<Secret<String>, error_stack::Report<errors::ConnectorError>> {
+    let unsupported_payment_method = || errors::ConnectorError::NotSupported {
+        message: "account funded transactions for the given payment method".to_string(),
+        connector: "worldpayxml",
+    };
+
+    let decrypted_token_pan = match payment_method_token {
+        Some(PaymentMethodToken::ApplePayDecrypt(apple_pay_decrypt_data)) => {
+            Some(&apple_pay_decrypt_data.application_primary_account_number)
+        }
+        Some(PaymentMethodToken::GooglePayDecrypt(google_pay_decrypt_data)) => {
+            Some(&google_pay_decrypt_data.application_primary_account_number)
+        }
+        Some(PaymentMethodToken::Token(_)) | Some(PaymentMethodToken::PazeDecrypt(_)) | None => {
+            None
+        }
+    };
+
+    let account_number = match payment_method_data {
+        Some(PaymentMethodData::Card(card)) => &card.card_number,
+        Some(PaymentMethodData::Wallet(WalletData::GooglePay(google_pay_data))) => google_pay_data
+            .tokenization_data
+            .get_decrypted_google_pay_payment_data_optional()
+            .map(|gpay_decrypt_data| &gpay_decrypt_data.application_primary_account_number)
+            .or(decrypted_token_pan)
+            .ok_or_else(unsupported_payment_method)?,
+        Some(PaymentMethodData::Wallet(WalletData::ApplePay(apple_pay_data))) => apple_pay_data
+            .payment_data
+            .get_decrypted_apple_pay_payment_data_optional()
+            .map(|apple_pay_decrypt_data| {
+                &apple_pay_decrypt_data.application_primary_account_number
+            })
+            .or(decrypted_token_pan)
+            .ok_or_else(unsupported_payment_method)?,
+        _ => Err(unsupported_payment_method())?,
+    };
+
+    Ok(Secret::new(account_number.get_card_no()))
+}
+
 fn build_worldpayxml_funding_transfer<F, Req, Res>(
     router_data: &RouterData<F, Req, Res>,
     card_number: Secret<String>,
@@ -1877,16 +1920,10 @@ impl TryFrom<&WorldpayxmlRouterData<&PaymentsAuthorizeRouterData>> for PaymentSe
             .is_account_funded_transaction
             .unwrap_or(false)
             .then(|| {
-                let card_number = match &item.router_data.request.payment_method_data {
-                    PaymentMethodData::Card(card) => {
-                        Ok(Secret::new(card.card_number.get_card_no()))
-                    }
-                    _ => Err(errors::ConnectorError::NotSupported {
-                        message: "account funded transactions for non-card payment methods"
-                            .to_string(),
-                        connector: "worldpayxml",
-                    }),
-                }?;
+                let card_number = get_worldpayxml_sender_account_number(
+                    Some(&item.router_data.request.payment_method_data),
+                    item.router_data.payment_method_token.as_ref(),
+                )?;
 
                 build_worldpayxml_funding_transfer(
                     item.router_data,
@@ -2901,16 +2938,10 @@ impl TryFrom<WorldpayxmlRouterData<&PaymentsCompleteAuthorizeRouterData>> for Pa
                 .is_account_funded_transaction
                 .unwrap_or(false)
                 .then(|| {
-                    let card_number = match &item.router_data.request.payment_method_data {
-                        Some(PaymentMethodData::Card(card)) => {
-                            Ok(Secret::new(card.card_number.get_card_no()))
-                        }
-                        _ => Err(errors::ConnectorError::NotSupported {
-                            message: "account funded transactions for non-card payment methods"
-                                .to_string(),
-                            connector: "worldpayxml",
-                        }),
-                    }?;
+                    let card_number = get_worldpayxml_sender_account_number(
+                        item.router_data.request.payment_method_data.as_ref(),
+                        item.router_data.payment_method_token.as_ref(),
+                    )?;
 
                     build_worldpayxml_funding_transfer(
                         item.router_data,

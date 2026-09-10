@@ -4,6 +4,28 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.09.10.1
+
+### Bug Fixes
+
+- **payouts:** Remove duplicate private_key headers for CertificateAuth connectors in UCS ([#14132](https://github.com/juspay/hyperswitch/pull/14132)) ([`cb10f58`](https://github.com/juspay/hyperswitch/commit/cb10f5810f0fcc6e45d8eab6a804f241ff8ab1f3))
+
+**Full Changelog:** [`2026.09.10.0...2026.09.10.1`](https://github.com/juspay/hyperswitch/compare/2026.09.10.0...2026.09.10.1)
+
+- - -
+
+
+## 2026.09.09.1
+
+### Features
+
+- **connector:** [WORLDPAYXML] support AFT for Google Pay and Apple Pay - HS decryption flows ([#14100](https://github.com/juspay/hyperswitch/pull/14100)) ([`b49e300`](https://github.com/juspay/hyperswitch/commit/b49e300b927d17edd2cba11342c497b986ed7ad2))
+- **core:** Send customer date of birth to UCS as a typed field ([#13973](https://github.com/juspay/hyperswitch/pull/13973)) ([`2cd28ca`](https://github.com/juspay/hyperswitch/commit/2cd28cabc3ff1dafe53a7941e772d293668e1167))
+
+**Full Changelog:** [`2026.09.09.0...2026.09.09.1`](https://github.com/juspay/hyperswitch/compare/2026.09.09.0...2026.09.09.1)
+
+- - -
+
 ## 2026.09.09.0
 
 ### Features
