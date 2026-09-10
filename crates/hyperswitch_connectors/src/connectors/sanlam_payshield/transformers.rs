@@ -84,21 +84,21 @@ impl TryFrom<&FrmCheckoutRouterData> for SanlamPayshieldCheckoutRequest {
             .gateway_metadata
             .clone()
             .ok_or(ConnectorError::MissingRequiredField {
-                field_name: "gateway_metadata",
+                field_name: "gateway_metadata".into(),
             })?
             .parse_value("SanlamPayshieldFrmMetadata")
             .change_context(ConnectorError::RequestEncodingFailed)
             .attach_printable("Failed to parse SanlamPayshieldFrmMetadata")?;
 
         let connector_id = connector_id.ok_or(ConnectorError::MissingRequiredField {
-            field_name: "connector_id",
+            field_name: "connector_id".into(),
         })?;
 
         let currency = data
             .request
             .currency
             .ok_or(ConnectorError::MissingRequiredField {
-                field_name: "currency",
+                field_name: "currency".into(),
             })?;
 
         let payment_method_type = match data.request.payment_method_data.as_ref() {

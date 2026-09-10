@@ -13014,6 +13014,7 @@ default_imp_for_refund_void_post_refund!(
     connectors::Redsys,
     connectors::Revolv3,
     connectors::Riskified,
+    connectors::SanlamPayshield,
     connectors::Santander,
     connectors::Shift4,
     connectors::Sift,
