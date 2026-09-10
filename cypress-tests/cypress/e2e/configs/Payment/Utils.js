@@ -34,13 +34,13 @@ import { connectorDetails as elavonConnectorDetails } from "./Elavon.js";
 import { connectorDetails as facilitapayConnectorDetails } from "./Facilitapay.js";
 import { connectorDetails as finixConnectorDetails } from "./Finix.js";
 import { connectorDetails as fiservConnectorDetails } from "./Fiserv.js";
-import { connectorDetails as fiservemeaConnectorDetails } from "./Fiservemea.js";
 import { connectorDetails as fiservcommercehubConnectorDetails } from "./Fiservcommercehub.js";
+import { connectorDetails as fiservemeaConnectorDetails } from "./Fiservemea.js";
 import { connectorDetails as fiuuConnectorDetails } from "./Fiuu.js";
 import { connectorDetails as forteConnectorDetails } from "./Forte.js";
 import { connectorDetails as getnetConnectorDetails } from "./Getnet.js";
-import { connectorDetails as givepaymentsConnectorDetails } from "./Givepayments.js";
 import { connectorDetails as gigadatConnectorDetails } from "./Gigadat.js";
+import { connectorDetails as givepaymentsConnectorDetails } from "./Givepayments.js";
 import { connectorDetails as globalpayConnectorDetails } from "./Globalpay.js";
 import { connectorDetails as globepayConnectorDetails } from "./Globepay.js";
 import { connectorDetails as helcimConnectorDetails } from "./Helcim.js";
@@ -540,6 +540,7 @@ export const CONNECTOR_LISTS = {
       "jpmorgan",
       "loonio",
       "mifinity",
+      "moneris",
       "nexinets",
       "nexixpay",
       "nmi",

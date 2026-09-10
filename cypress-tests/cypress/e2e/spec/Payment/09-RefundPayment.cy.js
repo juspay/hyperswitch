@@ -1,7 +1,7 @@
 import * as fixtures from "../../../fixtures/imports";
+import { isMockServer } from "../../../support/mitmProxy";
 import State from "../../../utils/State";
 import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
-import { isMockServer } from "../../../support/mitmProxy";
 
 let globalState;
 
@@ -442,7 +442,7 @@ describe("Card - Refund flow - No 3DS", () => {
             ...syncRefundData,
             Response: syncRefundData.ResponseCustom || syncRefundData.Response,
           };
-          cy.refundCallTest(fixtures.refundBody, newData, globalState);
+          cy.syncRefundCallTest(syncRefundData, globalState);
         });
       });
     }
