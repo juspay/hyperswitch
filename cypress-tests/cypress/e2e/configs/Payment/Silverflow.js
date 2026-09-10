@@ -439,6 +439,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true, // Mandates not supported
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -465,6 +466,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true, // Mandates not supported
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -492,6 +494,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true, // Mandates not supported
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -518,6 +521,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true, // Mandates not supported
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -764,6 +768,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true, // Zero auth not supported
       },
       Request: {
+        amount: 0,
         payment_type: "setup_mandate",
         payment_method: "card",
         payment_method_data: {
@@ -785,6 +790,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true, // Zero auth not supported
       },
       Request: {
+        amount: 0,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -810,7 +816,7 @@ export const connectorDetails = {
       Configs: {
         TRIGGER_SKIP: true, // Skip if Silverflow doesn't support MIT
       },
-      Request: {},
+      Request: { amount: 6000 },
       Response: {
         status: 200,
         body: {
@@ -823,6 +829,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true, // Skip if Silverflow doesn't support MIT
       },
       Request: {
+        amount: 6000,
         customer_acceptance: {
           acceptance_type: "offline",
           accepted_at: "1963-05-03T04:07:52.723Z",
@@ -845,6 +852,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true, // Skip if Silverflow doesn't support MIT
       },
       Request: {
+        amount: 6000,
         billing: null,
       },
       Response: {
@@ -980,6 +988,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true, // Skip if Silverflow doesn't support payment method ID mandates
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -1001,6 +1010,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true, // Skip if Silverflow doesn't support payment method ID mandates
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,

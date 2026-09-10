@@ -114,7 +114,6 @@ describe("Card - Processing Method ID payment flow test", () => {
         cy.citForMandatesCallTest(
           fixtures.citConfirmBody,
           data,
-          6000,
           true,
           "automatic",
           "new_mandate",

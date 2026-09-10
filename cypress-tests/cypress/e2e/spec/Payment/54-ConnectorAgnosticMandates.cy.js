@@ -511,7 +511,6 @@ describe("TSYS TransIT", () => {
       cy.citForMandatesCallTest(
         fixtures.citConfirmBody,
         data,
-        6000,
         true,
         "automatic",
         "new_mandate",
@@ -539,7 +538,6 @@ describe("TSYS TransIT", () => {
       cy.mitUsingPMId(
         fixtures.pmIdConfirmBody,
         data,
-        6000,
         true /* confirm */,
         "automatic",
         globalState,
@@ -582,7 +580,6 @@ describe("TSYS TransIT", () => {
       cy.citForMandatesCallTest(
         fixtures.citConfirmBody,
         data,
-        0 /* amount */,
         true /* confirm */,
         "automatic",
         "setup_mandate",
@@ -614,7 +611,6 @@ describe("TSYS TransIT", () => {
       cy.mitUsingPMId(
         fixtures.pmIdConfirmBody,
         data,
-        6000,
         true /* confirm */,
         "automatic",
         globalState,
@@ -964,7 +960,6 @@ describe("TSYS TransIT", () => {
       cy.mitUsingPMId(
         fixtures.pmIdConfirmBody,
         data,
-        6000,
         true /* confirm */,
         "automatic",
         globalState,

@@ -515,6 +515,7 @@ export const connectorDetails = {
     },
     MandateSingleUseNo3DSAutoCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -531,6 +532,7 @@ export const connectorDetails = {
     },
     MandateSingleUseNo3DSManualCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -547,6 +549,7 @@ export const connectorDetails = {
     },
     MandateMultiUseNo3DSAutoCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -563,6 +566,7 @@ export const connectorDetails = {
     },
     MandateMultiUseNo3DSManualCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -610,7 +614,7 @@ export const connectorDetails = {
       },
     },
     MITAutoCapture: {
-      Request: {},
+      Request: { amount: 6000 },
       Response: {
         status: 200,
         body: {
@@ -620,6 +624,7 @@ export const connectorDetails = {
     },
     MITAutoCaptureWithCustomerAcceptance: {
       Request: {
+        amount: 6000,
         customer_acceptance: {
           acceptance_type: "offline",
           accepted_at: "1963-05-03T04:07:52.723Z",
@@ -637,7 +642,7 @@ export const connectorDetails = {
       },
     },
     MITManualCapture: {
-      Request: {},
+      Request: { amount: 6000 },
       Response: {
         status: 200,
         body: {
@@ -647,6 +652,7 @@ export const connectorDetails = {
     },
     ZeroAuthMandate: {
       Request: {
+        amount: 0,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -677,6 +683,7 @@ export const connectorDetails = {
     },
     ZeroAuthConfirmPayment: {
       Request: {
+        amount: 0,
         payment_type: "setup_mandate",
         payment_method: "card",
         payment_method_type: "credit",
@@ -803,6 +810,7 @@ export const connectorDetails = {
     },
     PaymentMethodIdMandateNo3DSAutoCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -820,6 +828,7 @@ export const connectorDetails = {
     },
     PaymentMethodIdMandateNo3DSManualCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -837,6 +846,7 @@ export const connectorDetails = {
     },
     PaymentMethodIdMandate3DSAutoCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
@@ -855,6 +865,7 @@ export const connectorDetails = {
     },
     PaymentMethodIdMandate3DSManualCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
@@ -1257,6 +1268,7 @@ export const connectorDetails = {
       },
       MandateSingleUseAutoCapture: {
         Request: {
+          amount: 6540,
           payment_method: "bank_redirect",
           payment_method_type: "ideal",
           payment_method_data: {
@@ -1336,6 +1348,7 @@ export const connectorDetails = {
       },
       MandateSingleUseAutoCapture: {
         Request: {
+          amount: 6540,
           payment_method: "bank_redirect",
           payment_method_type: "bancontact_card",
           payment_method_data: {
@@ -1413,6 +1426,7 @@ export const connectorDetails = {
       },
       MandateSingleUseAutoCapture: {
         Request: {
+          amount: 6540,
           payment_method: "bank_redirect",
           payment_method_type: "open_banking_uk",
           payment_method_data: {
@@ -1490,6 +1504,7 @@ export const connectorDetails = {
       },
       MandateSingleUseAutoCapture: {
         Request: {
+          amount: 6540,
           payment_method: "bank_redirect",
           payment_method_type: "trustly",
           payment_method_data: {
@@ -1711,6 +1726,7 @@ export const connectorDetails = {
     }),
     PaypalWalletMandateCIT: getCustomExchange({
       Request: {
+        amount: 6000,
         payment_method: "wallet",
         payment_method_type: "paypal",
         payment_method_data: {
@@ -1741,6 +1757,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "wallet",
         payment_method_type: "kakao_pay",
         payment_method_data: {
@@ -1767,6 +1784,7 @@ export const connectorDetails = {
     }),
     GcashWalletMandateCIT: getCustomExchange({
       Request: {
+        amount: 6000,
         payment_method: "wallet",
         payment_method_type: "gcash",
         payment_method_data: {
@@ -1797,6 +1815,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "wallet",
         payment_method_type: "twint",
         payment_method_data: {
@@ -1823,6 +1842,7 @@ export const connectorDetails = {
     }),
     DanaWalletMandateCIT: getCustomExchange({
       Request: {
+        amount: 6000,
         payment_method: "wallet",
         payment_method_type: "dana",
         payment_method_data: {
@@ -1849,6 +1869,7 @@ export const connectorDetails = {
     }),
     GoPayWalletMandateCIT: getCustomExchange({
       Request: {
+        amount: 6000,
         payment_method: "wallet",
         payment_method_type: "go_pay",
         payment_method_data: {

@@ -55,6 +55,7 @@ export const CONNECTOR_PAYMENT_METHODS = Object.freeze({
   klarna: ["pay_later"],
   loonio: ["bank_redirect"],
   mifinity: ["wallet"],
+  moneris: ["card"],
   payjustnow: ["pay_later"],
   payjustnowinstore: ["pay_later"],
   paystack: ["bank_redirect"],
