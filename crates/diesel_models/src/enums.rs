@@ -241,6 +241,10 @@ pub enum DashboardMetadata {
     PaymentViews,
     #[cfg(feature = "v1")]
     PaymentAdvancedViews,
+    #[cfg(feature = "v1")]
+    RefundViews,
+    #[cfg(feature = "v1")]
+    DisputeViews,
 }
 
 #[derive(
