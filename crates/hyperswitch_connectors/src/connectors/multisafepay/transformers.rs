@@ -11,7 +11,7 @@ use hyperswitch_domain_models::{
     payment_method_data::{BankRedirectData, PayLaterData, PaymentMethodData, WalletData},
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::refunds::{Execute, RSync},
-    router_request_types::ResponseId,
+    router_request_types::{BrowserInformation, ResponseId},
     router_response_types::{
         MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
     },
@@ -132,6 +132,27 @@ pub struct Browser {
     pub time_zone: Option<i32>,
     pub user_agent: Option<String>,
     pub platform: Option<String>,
+}
+
+impl From<BrowserInformation> for Browser {
+    fn from(browser_info: BrowserInformation) -> Self {
+        Self {
+            javascript_enabled: browser_info.java_script_enabled,
+            java_enabled: browser_info.java_enabled,
+            cookies_enabled: None,
+            language: browser_info.language,
+            screen_color_depth: browser_info.color_depth.map(i32::from),
+            screen_height: browser_info
+                .screen_height
+                .and_then(|height| i32::try_from(height).ok()),
+            screen_width: browser_info
+                .screen_width
+                .and_then(|width| i32::try_from(width).ok()),
+            time_zone: browser_info.time_zone,
+            user_agent: browser_info.user_agent,
+            platform: browser_info.os_type,
+        }
+    }
 }
 
 #[serde_with::skip_serializing_none]
@@ -386,6 +407,12 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
     fn try_from(
         item: &MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
+        if utils::is_manual_capture(item.router_data.request.capture_method) {
+            Err(errors::ConnectorError::NotSupported {
+                message: String::from("manual"),
+                connector: "multisafepay",
+            })?
+        }
         let payment_type = match item.router_data.request.payment_method_data {
             PaymentMethodData::Card(ref _ccard) => Type::Direct,
             PaymentMethodData::MandatePayment => Type::Direct,
@@ -564,10 +591,15 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
             allowed_countries: None,
         };
 
+        let browser_info = item.router_data.request.browser_info.clone();
+
         let customer = Customer {
-            browser: None,
+            browser: browser_info.clone().map(Browser::from),
             locale: None,
-            ip_address: None,
+            ip_address: browser_info
+                .as_ref()
+                .and_then(|info| info.ip_address)
+                .map(|ip_address| Secret::new(ip_address.to_string())),
             forward_ip: None,
             first_name: None,
             last_name: None,
@@ -582,7 +614,9 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
             country: None,
             phone: None,
             email: item.router_data.request.email.clone(),
-            user_agent: None,
+            user_agent: browser_info
+                .as_ref()
+                .and_then(|info| info.user_agent.clone()),
             referrer: None,
             reference: Some(item.router_data.connector_request_reference_id.clone()),
         };

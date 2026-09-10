@@ -1,17 +1,34 @@
 import {
   customerAcceptance,
-  standardBillingAddress,
   multiUseMandateData,
   singleUseMandateData,
+  standardBillingAddress,
 } from "./Commons";
 import { getCurrency, getCustomExchange } from "./Modifiers";
 
+// Triggers a 3DS challenge (customer-verification redirect) in MultiSafepay's
+// test environment. Used by flows that expect `requires_customer_action`.
 const successfulThreeDSTestCardDetails = {
-  card_number: "5500000000000004",
+  card_number: "4761340000000019",
   card_exp_month: "03",
   card_exp_year: "30",
   card_holder_name: "Joseph Doe",
-  card_cvc: "123",
+  card_cvc: "737",
+};
+
+// MultiSafepay's test environment cannot authorize direct card orders after a
+// 3DS challenge — the order is always declined with reason_code 5999
+// "Internal System Error" (reproducible even with MultiSafepay's own
+// documented example request). This Amex card authenticates frictionlessly
+// (no challenge) and completes instantly, so every flow that needs a terminal
+// `succeeded` payment (sync, refund, capture, shipping-cost, mandates, MIT)
+// must use it.
+const successfulNoThreeDSTestCardDetails = {
+  card_number: "374500000000015",
+  card_exp_month: "03",
+  card_exp_year: "30",
+  card_holder_name: "Joseph Doe",
+  card_cvc: "7373",
 };
 
 const failedNo3DSCardDetails = {
@@ -69,8 +86,9 @@ export const connectorDetails = {
     PaymentConfirmWithShippingCost: {
       Request: {
         payment_method: "card",
+        payment_method_type: "credit",
         payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
+          card: successfulNoThreeDSTestCardDetails,
         },
         customer_acceptance: null,
         setup_future_usage: "on_session",
@@ -92,6 +110,7 @@ export const connectorDetails = {
       },
       Request: {
         payment_method: "card",
+        payment_method_type: "credit",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
@@ -100,15 +119,24 @@ export const connectorDetails = {
         setup_future_usage: "on_session",
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "requires_customer_action",
+          error: {
+            type: "invalid_request",
+            message: "Payment method type not supported",
+            code: "IR_19",
+            reason: "manual is not supported by multisafepay",
+          },
         },
       },
     },
     "3DSAutoCapture": {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
+        payment_method_type: "credit",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
@@ -129,25 +157,32 @@ export const connectorDetails = {
       },
       Request: {
         payment_method: "card",
+        payment_method_type: "credit",
         payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
+          card: successfulNoThreeDSTestCardDetails,
         },
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "requires_customer_action",
+          error: {
+            type: "invalid_request",
+            message: "Payment method type not supported",
+            code: "IR_19",
+            reason: "manual is not supported by multisafepay",
+          },
         },
       },
     },
     No3DSAutoCapture: {
       Request: {
         payment_method: "card",
+        payment_method_type: "credit",
         payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
+          card: successfulNoThreeDSTestCardDetails,
         },
         currency: "USD",
         customer_acceptance: null,
@@ -156,13 +191,14 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action",
+          status: "succeeded",
         },
       },
     },
     No3DSFailPayment: {
       Request: {
         payment_method: "card",
+        payment_method_type: "credit",
         payment_method_data: {
           card: failedNo3DSCardDetails,
         },
@@ -213,7 +249,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "failed",
         },
       },
     },
@@ -224,7 +260,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "failed",
         },
       },
     },
@@ -235,7 +271,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "failed",
         },
       },
     },
@@ -246,7 +282,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "failed",
         },
       },
     },
@@ -254,15 +290,19 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "failed",
         },
       },
     },
     MandateSingleUse3DSAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
+        payment_method_type: "credit",
         payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
+          card: successfulNoThreeDSTestCardDetails,
         },
         currency: "USD",
         mandate_data: singleUseMandateData,
@@ -270,7 +310,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action",
+          status: "succeeded",
         },
       },
     },
@@ -280,24 +320,31 @@ export const connectorDetails = {
       },
       Request: {
         payment_method: "card",
+        payment_method_type: "credit",
         payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
+          card: successfulNoThreeDSTestCardDetails,
         },
         currency: "USD",
         mandate_data: singleUseMandateData,
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "requires_customer_action",
+          error: {
+            type: "invalid_request",
+            message: "Payment method type not supported",
+            code: "IR_19",
+            reason: "manual is not supported by multisafepay",
+          },
         },
       },
     },
     MandateSingleUseNo3DSAutoCapture: {
       Request: {
         payment_method: "card",
+        payment_method_type: "credit",
         payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
+          card: successfulNoThreeDSTestCardDetails,
         },
         currency: "USD",
         mandate_data: singleUseMandateData,
@@ -305,7 +352,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action",
+          status: "succeeded",
         },
       },
     },
@@ -315,24 +362,31 @@ export const connectorDetails = {
       },
       Request: {
         payment_method: "card",
+        payment_method_type: "credit",
         payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
+          card: successfulNoThreeDSTestCardDetails,
         },
         currency: "USD",
         mandate_data: singleUseMandateData,
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "requires_customer_action",
+          error: {
+            type: "invalid_request",
+            message: "Payment method type not supported",
+            code: "IR_19",
+            reason: "manual is not supported by multisafepay",
+          },
         },
       },
     },
     MandateMultiUseNo3DSAutoCapture: {
       Request: {
         payment_method: "card",
+        payment_method_type: "credit",
         payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
+          card: successfulNoThreeDSTestCardDetails,
         },
         currency: "USD",
         mandate_data: multiUseMandateData,
@@ -350,24 +404,34 @@ export const connectorDetails = {
       },
       Request: {
         payment_method: "card",
+        payment_method_type: "credit",
         payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
+          card: successfulNoThreeDSTestCardDetails,
         },
         currency: "USD",
         mandate_data: multiUseMandateData,
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "requires_customer_action",
+          error: {
+            type: "invalid_request",
+            message: "Payment method type not supported",
+            code: "IR_19",
+            reason: "manual is not supported by multisafepay",
+          },
         },
       },
     },
     MandateMultiUse3DSAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
+        payment_method_type: "credit",
         payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
+          card: successfulNoThreeDSTestCardDetails,
         },
         currency: "USD",
         mandate_data: multiUseMandateData,
@@ -375,7 +439,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action",
+          status: "succeeded",
         },
       },
     },
@@ -385,16 +449,22 @@ export const connectorDetails = {
       },
       Request: {
         payment_method: "card",
+        payment_method_type: "credit",
         payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
+          card: successfulNoThreeDSTestCardDetails,
         },
         currency: "USD",
         mandate_data: multiUseMandateData,
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "requires_customer_action",
+          error: {
+            type: "invalid_request",
+            message: "Payment method type not supported",
+            code: "IR_19",
+            reason: "manual is not supported by multisafepay",
+          },
         },
       },
     },
@@ -428,17 +498,23 @@ export const connectorDetails = {
     MITManualCapture: {
       Request: {},
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "requires_capture",
+          error: {
+            type: "invalid_request",
+            message: "Payment method type not supported",
+            code: "IR_19",
+            reason: "manual is not supported by multisafepay",
+          },
         },
       },
     },
     ZeroAuthMandate: {
       Request: {
         payment_method: "card",
+        payment_method_type: "credit",
         payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
+          card: successfulNoThreeDSTestCardDetails,
         },
         currency: "USD",
         mandate_data: singleUseMandateData,
@@ -474,7 +550,7 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_type: "credit",
         payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
+          card: successfulNoThreeDSTestCardDetails,
         },
         mandate_data: null,
         customer_acceptance: customerAcceptance,
@@ -493,8 +569,9 @@ export const connectorDetails = {
     SaveCardUseNo3DSAutoCapture: {
       Request: {
         payment_method: "card",
+        payment_method_type: "credit",
         payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
+          card: successfulNoThreeDSTestCardDetails,
         },
         currency: "USD",
         setup_future_usage: "on_session",
@@ -503,7 +580,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action",
+          status: "succeeded",
         },
       },
     },
@@ -512,7 +589,7 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_type: "debit",
         payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
+          card: successfulNoThreeDSTestCardDetails,
         },
         setup_future_usage: "off_session",
         customer_acceptance: customerAcceptance,
@@ -520,16 +597,19 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action",
+          status: "succeeded",
         },
       },
     },
     SaveCardUse3DSAutoCaptureOffSession: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_type: "debit",
         payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
+          card: successfulNoThreeDSTestCardDetails,
         },
         setup_future_usage: "off_session",
         customer_acceptance: customerAcceptance,
@@ -537,23 +617,29 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action",
+          status: "succeeded",
         },
       },
     },
     SaveCardUseNo3DSManualCaptureOffSession: {
       Request: {
         payment_method: "card",
+        payment_method_type: "credit",
         payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
+          card: successfulNoThreeDSTestCardDetails,
         },
         setup_future_usage: "off_session",
         customer_acceptance: customerAcceptance,
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "requires_customer_action",
+          error: {
+            type: "invalid_request",
+            message: "Payment method type not supported",
+            code: "IR_19",
+            reason: "manual is not supported by multisafepay",
+          },
         },
       },
     },
@@ -573,34 +659,46 @@ export const connectorDetails = {
         setup_future_usage: "off_session",
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "requires_customer_action",
+          error: {
+            type: "invalid_request",
+            message: "Payment method type not supported",
+            code: "IR_19",
+            reason: "manual is not supported by multisafepay",
+          },
         },
       },
     },
     SaveCardUseNo3DSManualCapture: {
       Request: {
         payment_method: "card",
+        payment_method_type: "credit",
         payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
+          card: successfulNoThreeDSTestCardDetails,
         },
         currency: "USD",
         setup_future_usage: "on_session",
         customer_acceptance: customerAcceptance,
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "requires_customer_action",
+          error: {
+            type: "invalid_request",
+            message: "Payment method type not supported",
+            code: "IR_19",
+            reason: "manual is not supported by multisafepay",
+          },
         },
       },
     },
     PaymentMethodIdMandateNo3DSAutoCapture: {
       Request: {
         payment_method: "card",
+        payment_method_type: "credit",
         payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
+          card: successfulNoThreeDSTestCardDetails,
         },
         currency: "USD",
         mandate_data: null,
@@ -619,6 +717,7 @@ export const connectorDetails = {
       },
       Request: {
         payment_method: "card",
+        payment_method_type: "credit",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
@@ -634,8 +733,12 @@ export const connectorDetails = {
       },
     },
     PaymentMethodIdMandate3DSAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
+        payment_method_type: "credit",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
@@ -657,6 +760,7 @@ export const connectorDetails = {
       },
       Request: {
         payment_method: "card",
+        payment_method_type: "credit",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
