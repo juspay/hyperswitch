@@ -3088,7 +3088,6 @@ dependencies = [
  "r2d2",
  "serde_json",
  "time 0.3.41",
- "uuid",
 ]
 
 [[package]]
@@ -3136,7 +3135,6 @@ dependencies = [
  "strum 0.26.3",
  "thiserror 1.0.69",
  "time 0.3.41",
- "uuid",
 ]
 
 [[package]]
