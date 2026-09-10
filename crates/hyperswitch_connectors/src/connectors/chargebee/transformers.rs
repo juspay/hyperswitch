@@ -1488,10 +1488,7 @@ convert_connector_response_to_domain_response!(
                         .name
                         .as_ref()
                         .map(|name| name.clone().expose()),
-                    customer_response
-                        .email
-                        .as_ref()
-                        .map(|email| email.clone().expose().expose()),
+                    customer_response.email.clone(),
                     customer_response.billing_address.clone(),
                 ),
             )),

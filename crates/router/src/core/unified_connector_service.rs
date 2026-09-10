@@ -155,7 +155,8 @@ impl ForeignTryFrom<payments_grpc::PaymentMethod> for domain_pm::PaymentMethodDa
                     payments_grpc::card_redirect::CardRedirectType::CardRedirect => {
                         domain_pm::CardRedirectData::CardRedirect {}
                     }
-                    payments_grpc::card_redirect::CardRedirectType::Unspecified => {
+                    payments_grpc::card_redirect::CardRedirectType::Unspecified
+                    | payments_grpc::card_redirect::CardRedirectType::Webpay => {
                         return Err(
                             UnifiedConnectorServiceError::ResponseDeserializationFailed.into()
                         )
@@ -2792,13 +2793,8 @@ fn build_connector_auth_metadata(
                     auth_type: consts::UCS_AUTH_MULTI_KEY.to_string(),
                     api_key: Some(certificate.clone()),
                     key1: Some(private_key.clone()),
-                    // UCS's "multi-auth-key" header parsing unconditionally requires x-key2
-                    // and x-api-secret to be present. Connectors reaching this branch (e.g.
-                    // Santander) only supply certificate/private_key, so duplicate
-                    // private_key here purely to satisfy UCS's presence check; the connector
-                    // implementation itself never reads key2/api_secret.
-                    key2: Some(private_key.clone()),
-                    api_secret: Some(private_key.clone()),
+                    key2: None,
+                    api_secret: None,
                     auth_key_map: None,
                     merchant_id: Secret::new(merchant_id.to_string()),
                     connector_config,

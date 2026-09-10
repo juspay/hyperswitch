@@ -20,6 +20,7 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_masking::PeekInterface;
+use router_env::logger;
 use rust_decimal::{
     prelude::{FromPrimitive, ToPrimitive},
     Decimal,
@@ -1893,7 +1894,7 @@ impl From<payments::additional_info::WalletAdditionalDataForCard> for PaymentMet
         Self {
             last4: item.last4,
             card_network: item.card_network,
-            card_type: item.card_type,
+            card_type: item.payment_method_data_type,
             card_exp_month: item.card_exp_month,
             card_exp_year: item.card_exp_year,
             auth_code: item.auth_code,
@@ -1907,11 +1908,19 @@ impl From<PaymentMethodDataWalletInfo> for payments::additional_info::WalletAddi
         Self {
             last4: item.last4,
             card_network: item.card_network,
-            card_type: item.card_type,
+            payment_method_data_type: item.card_type,
             card_exp_month: item.card_exp_month,
             card_exp_year: item.card_exp_year,
             auth_code: item.auth_code,
             email: item.email,
+            device_pan_bin: None,
+            card_bin: None,
+            card_subtype: None,
+            card_segment_type: None,
+            funding_source: None,
+            card_type: None,
+            issuer_name: None,
+            issuer_country: None,
         }
     }
 }
@@ -1942,13 +1951,34 @@ impl From<payments::ApplepayPaymentMethod> for PaymentMethodDataWalletInfo {
 impl TryFrom<PaymentMethodDataWalletInfo> for Box<payments::ApplepayPaymentMethod> {
     type Error = error_stack::Report<errors::ValidationError>;
     fn try_from(item: PaymentMethodDataWalletInfo) -> Result<Self, Self::Error> {
+        let card_type = item.card_type.clone().get_required_value("card_type")?;
         Ok(Self::new(payments::ApplepayPaymentMethod {
             display_name: item.last4.get_required_value("last4")?,
             network: item.card_network.get_required_value("card_network")?,
-            pm_type: item.card_type.get_required_value("card_type")?,
+            pm_type: card_type.clone(),
+            // If `card_type` doesn't parse into a known `CardType` variant, it is treated as
+            // `None` instead of erroring.
+            card_type: card_type
+                .to_uppercase()
+                .parse::<api_enums::CardType>()
+                .inspect_err(|error| {
+                    logger::error!(
+                        ?error,
+                        unparsed_card_type = %card_type,
+                        "Received an unrecognized card_type value from Apple Pay; defaulting to None"
+                    )
+                })
+                .ok(),
             card_exp_month: item.card_exp_month,
             card_exp_year: item.card_exp_year,
             auth_code: item.auth_code,
+            device_pan_bin: None,
+            card_bin: None,
+            card_subtype: None,
+            card_segment_type: None,
+            funding_source: None,
+            issuer_name: None,
+            issuer_country: None,
         }))
     }
 }

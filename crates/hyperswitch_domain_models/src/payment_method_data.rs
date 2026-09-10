@@ -3941,13 +3941,14 @@ pub fn get_googlepay_wallet_info(
     item: GooglePayWalletData,
     payment_method_token: Option<PaymentMethodToken>,
 ) -> payment_methods::PaymentMethodDataWalletInfo {
-    let (card_exp_month, card_exp_year) = match payment_method_token {
-        Some(PaymentMethodToken::GooglePayDecrypt(token)) => (
-            Some(token.card_exp_month.clone()),
-            Some(token.card_exp_year.clone()),
-        ),
-        _ => (None, None),
-    };
+    let googlepay_decrypt_data =
+        payment_method_token.and_then(|token| token.get_google_pay_decrypt_data());
+    let card_exp_month = googlepay_decrypt_data
+        .as_ref()
+        .map(|data| data.card_exp_month.clone());
+    let card_exp_year = googlepay_decrypt_data
+        .as_ref()
+        .map(|data| data.card_exp_year.clone());
     payment_methods::PaymentMethodDataWalletInfo {
         last4: Some(item.info.card_details),
         card_network: Some(item.info.card_network),
