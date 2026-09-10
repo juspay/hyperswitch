@@ -4067,40 +4067,11 @@ where
                     "error": error.to_string(),
                     "error_type": "ucs_call_failed"
                 });
-                match error.current_context() {
-                    // Record deterministic integration errors as a failed attempt on the
-                    // primary UCS path; otherwise the intent stays in `processing`.
-                    UnifiedConnectorServiceError::NotImplemented(message)
-                        if execution_mode == ExecutionMode::Primary =>
-                    {
-                        let status_code = error.current_context().http_status();
-                        let mut router_data = router_data_clone;
-                        router_data.response = Err(ErrorResponse {
-                            code: "IR_00".to_string(),
-                            message: message.clone(),
-                            reason: None,
-                            status_code,
-                            attempt_status: Some(AttemptStatus::Failure),
-                            connector_transaction_id: None,
-                            connector_response_reference_id: None,
-                            network_decline_code: None,
-                            network_advice_code: None,
-                            network_error_message: None,
-                            connector_metadata: None,
-                        });
-                        router_data.connector_http_status_code = Some(status_code);
-                        (
-                            status_code,
-                            Some(error_body),
-                            Ok((router_data, FlowOutput::default())),
-                        )
-                    }
-                    _ => (
-                        error.current_context().http_status(),
-                        Some(error_body),
-                        Err(error),
-                    ),
-                }
+                (
+                    error.current_context().http_status(),
+                    Some(error_body),
+                    Err(error),
+                )
             }
         }
     };
