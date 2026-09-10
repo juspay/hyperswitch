@@ -9067,6 +9067,7 @@ default_imp_for_revenue_recovery_dispute_record_back!(
     connectors::Revolv3,
     connectors::TsysTransit,
     connectors::Riskified,
+    connectors::SanlamPayshield,
     connectors::Santander,
     connectors::Shift4,
     connectors::Sift,
