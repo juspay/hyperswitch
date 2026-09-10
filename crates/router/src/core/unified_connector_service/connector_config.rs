@@ -94,8 +94,8 @@ impl SantanderPayoutMetadataCompat {
 
 #[derive(Debug, serde::Deserialize)]
 pub struct MifinityMetadata {
-    brand_id: Secret<String>,
-    destination_account_number: Secret<String>,
+    brand_id: Option<Secret<String>>,
+    destination_account_number: Option<Secret<String>>,
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -1890,10 +1890,10 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
 
                     Ok(Self::Mifinity {
                         key: api_key.clone(),
-                        brand_id: mifinity_meta.as_ref().map(|m| m.brand_id.clone()),
+                        brand_id: mifinity_meta.as_ref().and_then(|m| m.brand_id.clone()),
                         destination_account_number: mifinity_meta
                             .as_ref()
-                            .map(|m| m.destination_account_number.clone()),
+                            .and_then(|m| m.destination_account_number.clone()),
                     })
                 }
                 _ => Err(err("Mifinity requires HeaderKey auth type")),

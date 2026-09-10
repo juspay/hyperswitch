@@ -310,6 +310,19 @@ pub enum WalletAdditionalData {
     Paypal(Box<PaypalAdditionalData>),
     /// Additional data for venmo wallet payout method
     Venmo(Box<VenmoAdditionalData>),
+    /// Additional data for MiFinity wallet payout method
+    Mifinity(Box<MifinityAdditionalData>),
+}
+
+/// Masked payout method details for a MiFinity wallet payout.
+#[derive(
+    Eq, PartialEq, Clone, Debug, Deserialize, Serialize, FromSqlRow, AsExpression, ToSchema,
+)]
+#[diesel(sql_type = Jsonb)]
+pub struct MifinityAdditionalData {
+    /// Recipient email address or MiFinity account number.
+    #[schema(value_type = String, example = "john.doe@example.com")]
+    pub destination_account: MaskedBankAccount,
 }
 
 /// Masked payout method details for paypal wallet payout method
@@ -475,6 +488,7 @@ impl From<&AdditionalPayoutMethodData> for common_enums::PaymentMethodType {
                 WalletAdditionalData::Paypal(_) => Self::Paypal,
                 WalletAdditionalData::Venmo(_) => Self::Venmo,
                 WalletAdditionalData::GooglePayDecrypt(_) => Self::GooglePay,
+                WalletAdditionalData::Mifinity(_) => Self::Mifinity,
             },
             AdditionalPayoutMethodData::BankRedirect(bank_redirect) => match **bank_redirect {
                 BankRedirectAdditionalData::Interac(_) => Self::Interac,

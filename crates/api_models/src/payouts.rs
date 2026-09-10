@@ -635,6 +635,15 @@ pub enum Wallet {
     GooglePayDecrypt(GooglePayDecrypt),
     Paypal(Paypal),
     Venmo(Venmo),
+    Mifinity(Mifinity),
+}
+
+#[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+pub struct Mifinity {
+    /// The recipient's MiFinity wallet identifier. This can be an email address
+    /// or a MiFinity account number.
+    #[schema(value_type = String, example = "john.doe@example.com")]
+    pub destination_account: Secret<String>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -1631,6 +1640,11 @@ impl From<Wallet> for payout_method_utils::WalletAdditionalData {
                     telephone_number: telephone_number.map(From::from),
                 }))
             }
+            Wallet::Mifinity(Mifinity {
+                destination_account,
+            }) => Self::Mifinity(Box::new(payout_method_utils::MifinityAdditionalData {
+                destination_account: destination_account.into(),
+            })),
             Wallet::GooglePayDecrypt(GooglePayDecrypt {
                 expiry_month,
                 expiry_year,
@@ -1798,6 +1812,7 @@ impl From<&PayoutMethodData> for api_enums::PaymentMethodType {
                 Wallet::Paypal(_) => Self::Paypal,
                 Wallet::Venmo(_) => Self::Venmo,
                 Wallet::GooglePayDecrypt(_) => Self::GooglePay,
+                Wallet::Mifinity(_) => Self::Mifinity,
             },
             PayoutMethodData::BankRedirect(bank_redirect) => match bank_redirect {
                 BankRedirect::Interac(_) => Self::Interac,

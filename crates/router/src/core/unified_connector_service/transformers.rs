@@ -9169,6 +9169,11 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PayoutMethodData>
                         payments_grpc::Venmo::foreign_try_from(venmo)?,
                     )
                 }
+                api_models::payouts::Wallet::Mifinity(mifinity) => {
+                    payments_grpc::payout_method::PayoutMethodData::Mifinity(
+                        payments_grpc::Mifinity::foreign_from(mifinity),
+                    )
+                }
 
             },
             api_models::payouts::PayoutMethodData::BankRedirect(bank_redirect) => {
@@ -9399,6 +9404,15 @@ impl transformers::ForeignTryFrom<&api_models::payouts::Venmo> for payments_grpc
         Ok(Self {
             telephone_number: item.telephone_number.clone(),
         })
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl ForeignFrom<&api_models::payouts::Mifinity> for payments_grpc::Mifinity {
+    fn foreign_from(item: &api_models::payouts::Mifinity) -> Self {
+        Self {
+            destination_account: Some(item.destination_account.clone()),
+        }
     }
 }
 
@@ -9908,5 +9922,67 @@ impl transformers::ForeignTryFrom<payments_grpc::NotifyConnectorResponse>
                     .and_then(|cd| cd.message.clone())
             }),
         })
+    }
+}
+
+#[cfg(all(test, feature = "payouts"))]
+mod payout_method_tests {
+    use super::*;
+    use crate::types::transformers::ForeignTryFrom as _;
+
+    #[test]
+    fn maps_mifinity_wallet_to_ucs() {
+        let payout_method: api_models::payouts::PayoutMethodData =
+            serde_json::from_value(serde_json::json!({
+                "wallet": {
+                    "mifinity": {
+                        "destination_account": "recipient@example.com"
+                    }
+                }
+            }))
+            .expect("MiFinity wallet payout method should deserialize");
+
+        let ucs_method = payments_grpc::PayoutMethod::foreign_try_from(&payout_method)
+            .expect("MiFinity wallet payout method should map to UCS");
+
+        match ucs_method.payout_method_data {
+            Some(payments_grpc::payout_method::PayoutMethodData::Mifinity(mifinity)) => {
+                assert_eq!(
+                    mifinity
+                        .destination_account
+                        .expect("destination account should be present")
+                        .peek(),
+                    "recipient@example.com"
+                );
+            }
+            other => panic!("expected MiFinity UCS payout method, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn maps_sepa_bank_transfer_to_ucs() {
+        let payout_method: api_models::payouts::PayoutMethodData =
+            serde_json::from_value(serde_json::json!({
+                "bank_transfer": {
+                    "payout_method_type": "sepa",
+                    "iban": "DE89370400440532013000",
+                    "bic": "COBADEFFXXX",
+                    "account_holder_name": "Jane Doe"
+                }
+            }))
+            .expect("SEPA payout method should deserialize");
+
+        let ucs_method = payments_grpc::PayoutMethod::foreign_try_from(&payout_method)
+            .expect("SEPA payout method should map to UCS");
+
+        match ucs_method.payout_method_data {
+            Some(payments_grpc::payout_method::PayoutMethodData::Sepa(sepa)) => {
+                assert_eq!(
+                    sepa.iban.expect("IBAN should be present").peek(),
+                    "DE89370400440532013000"
+                );
+            }
+            other => panic!("expected SEPA UCS payout method, got {other:?}"),
+        }
     }
 }

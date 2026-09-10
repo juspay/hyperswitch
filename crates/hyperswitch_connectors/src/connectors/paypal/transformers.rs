@@ -3214,6 +3214,10 @@ impl TryFrom<&PaypalRouterData<&PayoutsRouterData<PoFulfill>>> for PaypalPayoutI
                     message: "GooglePayDecrypt PayoutMethodType is not supported".to_string(),
                     connector: "Paypal",
                 })?,
+                WalletPayout::Mifinity(_) => Err(errors::ConnectorError::NotSupported {
+                    message: "MiFinity PayoutMethodType is not supported".to_string(),
+                    connector: "Paypal",
+                })?,
             },
             _ => Err(errors::ConnectorError::NotSupported {
                 message: "PayoutMethodType is not supported".to_string(),
