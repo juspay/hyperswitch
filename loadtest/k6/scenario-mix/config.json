@@ -50,12 +50,6 @@
       "weight": 20
     },
     {
-      "name": "nm_cit_on",
-      "merchant_path": "non_modular",
-      "scenario": "cit_on_session",
-      "weight": 30
-    },
-    {
       "name": "nm_sdk",
       "merchant_path": "non_modular",
       "scenario": "sdk_checkout",
@@ -65,17 +59,11 @@
       "name": "mod_ptv_on",
       "merchant_path": "modular",
       "scenario": "ptv_on_session",
-      "weight": 20
+      "weight": 50
     }
   ],
   "thresholds": {
     "scenario_failure_nm_guest": [
-      {
-        "threshold": "count<25",
-        "abortOnFail": true
-      }
-    ],
-    "scenario_failure_nm_cit_on": [
       {
         "threshold": "count<25",
         "abortOnFail": true
@@ -94,12 +82,6 @@
       }
     ],
     "payment_confirm_ms_nm_guest": [
-      {
-        "threshold": "p(90)<30000",
-        "abortOnFail": true
-      }
-    ],
-    "payment_confirm_ms_nm_cit_on": [
       {
         "threshold": "p(90)<30000",
         "abortOnFail": true
