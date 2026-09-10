@@ -146,6 +146,8 @@ impl GetTracker<PaymentToFrmData> for FraudCheckPre {
                     order_details: payment_data.order_details,
                     refund: None,
                     frm_metadata: payment_data.frm_metadata,
+                    payment_method_data: payment_data.payment_method_data,
+                    payment_method_token: payment_data.payment_method_token,
                 };
                 Ok(Some(frm_data))
             }
@@ -259,6 +261,8 @@ where
                 email: router_data.request.email,
                 phone: router_data.request.phone,
                 phone_country_code: router_data.request.phone_country_code,
+                customer_name: router_data.request.customer_name,
+                payment_method_data_full: router_data.request.payment_method_data_full,
             })),
             response: FrmResponse::Checkout(router_data.response),
         })

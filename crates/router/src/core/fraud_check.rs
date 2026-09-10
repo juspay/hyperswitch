@@ -44,6 +44,7 @@ use crate::{
     utils::ValueExt,
 };
 pub mod flows;
+pub mod gateway;
 pub mod operation;
 pub mod types;
 
@@ -150,118 +151,43 @@ where
         frm_data.fraud_check.last_step,
         FraudCheckLastStep::Processing
     ) {
-        use common_utils::ext_traits::ValueExt;
-        use hyperswitch_masking::ExposeInterface;
+        // Same routing decision every UCS flow makes. A UCS-only FRM provider is
+        // a `ConnectorIntegrationType::UcsConnector` (listed in
+        // `ucs_only_connectors`), for which `decide_execution_path` returns UCS
+        // unconditionally and the kill switch is skipped — there is no direct
+        // integration to divert to. Everything else resolves to Direct.
+        let (execution_path, _) =
+            crate::core::unified_connector_service::should_call_unified_connector_service(
+                state,
+                platform.get_processor(),
+                &router_data,
+                None,
+                payments::CallConnectorAction::Trigger,
+                None,
+                common_enums::TransactionType::Payment,
+            )
+            .await?;
 
-        // Routed to UCS only when configuration says so (`ucs_frm_connectors`)
-        // and UCS is actually available — see
-        // `should_call_unified_connector_service_for_frm`.
-        if crate::core::unified_connector_service::frm::should_call_unified_connector_service_for_frm(
-            state,
-            &frm_data.connector_details.connector_name,
-        )
-        .await
-        {
-            let currency = frm_data.payment_attempt.currency.ok_or(
-                errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "currency".into(),
-                },
-            )?;
-
-            // `browser_info` is stored as raw JSON on the attempt; user agent and
-            // IP are what the risk provider needs for device context.
-            let browser_info = frm_data
-                .payment_attempt
-                .browser_info
-                .clone()
-                .and_then(|value| {
-                    value
-                        .parse_value::<hyperswitch_domain_models::router_request_types::BrowserInformation>(
-                            "BrowserInformation",
-                        )
-                        .ok()
-                });
-
-            // Bearer-authenticated providers (Kount) need an OAuth token in
-            // `state.access_token`; static-key providers (nSure) get `None` and
-            // ignore it. Failure here is non-fatal — the connector surfaces a
-            // clear auth error rather than us guessing.
-            let access_token =
-                crate::core::unified_connector_service::frm::get_frm_access_token(
-                    state,
-                    platform.get_processor(),
-                    &frm_data.connector_details.connector_name,
-                    &merchant_connector_account,
-                    &frm_data.connector_details.profile_id,
-                )
-                .await
-                .unwrap_or_else(|err| {
-                    router_env::logger::warn!(
-                        error = ?err,
-                        "Failed to obtain an FRM access token; continuing without one"
-                    );
-                    None
-                });
-
-            // Buyer contact details are encrypted on the intent. Decrypted the
-            // same way the native FRM flows do (see `checkout_flow.rs`), so a
-            // UCS-backed provider sees exactly what Signifyd would.
-            let customer_details = frm_data
-                .payment_intent
-                .customer_details
-                .clone()
-                .map(|customer_details_encrypted| {
-                    customer_details_encrypted
-                        .into_inner()
-                        .expose()
-                        .parse_value::<hyperswitch_domain_models::payments::payment_intent::CustomerData>(
-                            "CustomerData",
-                        )
-                })
-                .transpose()
-                .inspect_err(|error| {
-                    router_env::logger::warn!(
-                        ?error,
-                        "Failed to parse customer details for the FRM pre risk check; \
-                         continuing without buyer contact details"
-                    )
-                })
-                .ok()
-                .flatten();
-
-            let context = crate::core::unified_connector_service::frm::FrmPreRiskCheckContext {
-                amount: frm_data.payment_attempt.net_amount.get_total_amount(),
-                currency,
-                customer_id: frm_data.payment_intent.customer_id.as_ref(),
-                customer_details: customer_details.as_ref(),
-                // Taken from `payment_data` rather than the attempt: the attempt
-                // stores only the redacted additional data, while the pre-auth
-                // FRM check runs while the real instrument is still in hand.
-                payment_method_data: payment_data.get_payment_method_data(),
-                payment_method_type: frm_data.payment_attempt.payment_method_type,
-                payment_method_token: payment_data.get_payment_method_token(),
-                browser_info: browser_info.as_ref(),
-                address: &frm_data.address,
-                order_details: frm_data.order_details.as_ref(),
-                merchant_transaction_id: frm_data.payment_attempt.attempt_id.clone(),
-                merchant_id: platform.get_processor().get_account().get_id(),
-                frm_metadata: frm_data.frm_metadata.as_ref(),
-                access_token: access_token.as_ref(),
+        if matches!(
+            execution_path,
+            common_enums::ExecutionPath::UnifiedConnectorService
+        ) {
+            let gateway_context = payments::gateway::context::RouterGatewayContext {
+                creds_identifier: None,
+                processor: platform.get_processor().clone(),
+                header_payload: hyperswitch_domain_models::payments::HeaderPayload::default(),
+                lineage_ids: external_services::grpc_client::LineageIds::new(
+                    platform.get_processor().get_account().get_id().clone(),
+                    frm_data.connector_details.profile_id.clone(),
+                ),
+                merchant_connector_account,
+                execution_path,
+                execution_mode: common_enums::ExecutionMode::Primary,
             };
 
-            let response =
-                crate::core::unified_connector_service::frm::call_unified_connector_service_for_frm_pre_risk_check(
-                    state,
-                    platform.get_processor(),
-                    merchant_connector_account.clone(),
-                    frm_data.connector_details.connector_name.clone(),
-                    &frm_data.connector_details.profile_id,
-                    context,
-                )
-                .await?;
-
-            router_data.response = Ok(response);
-            return Ok(router_data);
+            return router_data
+                .decide_frm_flows_via_ucs(state, gateway_context)
+                .await;
         }
     }
 
@@ -593,6 +519,8 @@ where
         connector_details: frm_connector_details.clone(),
         order_details,
         frm_metadata: payment_data.get_payment_intent().frm_metadata.clone(),
+        payment_method_data: payment_data.get_payment_method_data().cloned(),
+        payment_method_token: payment_data.get_payment_method_token().cloned(),
     };
 
     let fraud_check_operation: operation::BoxedFraudCheckOperation<F, D> =
@@ -1042,7 +970,9 @@ pub async fn notify_frm_of_chargeback(
     merchant_dispute_id: Option<String>,
     chargeback_reason: Option<String>,
 ) {
-    use crate::core::unified_connector_service::frm as ucs_frm;
+    use std::str::FromStr;
+
+    use crate::core::unified_connector_service::{self, frm as ucs_frm};
 
     let processor = platform.get_processor();
 
@@ -1071,10 +1001,24 @@ pub async fn notify_frm_of_chargeback(
 
     let connector_name = fraud_check.frm_name.clone();
 
-    if !ucs_frm::should_call_unified_connector_service_for_frm(state, &connector_name).await {
+    // No router data on this path, so ask the two framework pieces the shared
+    // decision is built from: is the connector UCS-only, and is UCS up.
+    let is_ucs_backed = match common_enums::connector_enums::Connector::from_str(&connector_name) {
+        Ok(connector) => matches!(
+            unified_connector_service::determine_connector_integration_type(state, connector).await,
+            Ok(common_enums::ConnectorIntegrationType::UcsConnector)
+        ),
+        Err(_) => false,
+    };
+    if !is_ucs_backed
+        || !matches!(
+            unified_connector_service::check_ucs_availability(state).await,
+            common_enums::UcsAvailability::Enabled
+        )
+    {
         logger::debug!(
             connector = %connector_name,
-            "FRM provider is not UCS-backed or not configured; skipping chargeback notification"
+            "FRM provider is not UCS-backed or UCS is unavailable; skipping chargeback notification"
         );
         return;
     }

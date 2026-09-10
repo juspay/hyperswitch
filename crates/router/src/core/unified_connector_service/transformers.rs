@@ -128,7 +128,41 @@ impl ForeignFrom<common_enums::TaxStatus> for payments_grpc::TaxStatus {
     }
 }
 
-fn build_ucs_order_details(
+/// Map a UCS FRM verdict onto Hyperswitch's fraud-check status.
+///
+/// Deliberately conservative: anything that is not an explicit approval leaves
+/// the transaction short of `Legit`, so an unrecognised or missing verdict never
+/// silently approves a payment. The status code is folded in here because a
+/// non-2xx from the connector-service means the provider never produced a
+/// verdict at all, which must not read as an implicit approval.
+pub(super) fn frm_status_from_ucs_decision(
+    status_code: u16,
+    decision: Option<payments_grpc::FrmDecision>,
+) -> storage_enums::FraudCheckStatus {
+    match (status_code, decision) {
+        (200..=299, Some(payments_grpc::FrmDecision::Approve)) => {
+            storage_enums::FraudCheckStatus::Legit
+        }
+        (200..=299, Some(payments_grpc::FrmDecision::Reject)) => {
+            storage_enums::FraudCheckStatus::Fraud
+        }
+        (200..=299, Some(payments_grpc::FrmDecision::Review)) => {
+            storage_enums::FraudCheckStatus::ManualReview
+        }
+        // `Error`/`Unspecified`/absent verdict: the provider gave us nothing
+        // usable. Hold for review rather than approve.
+        (200..=299, _) => storage_enums::FraudCheckStatus::ManualReview,
+        (code, _) => {
+            router_env::logger::warn!(
+                status_code = code,
+                "FRM pre risk check returned a non-success status; treating as manual review"
+            );
+            storage_enums::FraudCheckStatus::ManualReview
+        }
+    }
+}
+
+pub(super) fn build_ucs_order_details(
     order_details: Option<&[OrderDetailsWithAmount]>,
 ) -> Vec<payments_grpc::OrderDetailsWithAmount> {
     order_details

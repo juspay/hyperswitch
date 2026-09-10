@@ -104,6 +104,7 @@ pub struct Connectors {
     pub noon: ConnectorParamsWithModeType,
     pub nordea: ConnectorParams,
     pub novalnet: ConnectorParams,
+    pub nsure: ConnectorParams,
     pub nuvei: ConnectorParams,
     pub opayo: ConnectorParams,
     pub opennode: ConnectorParams,

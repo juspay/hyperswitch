@@ -33,4 +33,26 @@ pub trait FeatureFrm<F, T> {
         Self: Sized,
         F: Clone,
         dyn Connector: services::ConnectorIntegration<F, T, FraudCheckResponseData>;
+
+    /// Execute this flow on the Unified Connector Service.
+    ///
+    /// Only flows with a UCS equivalent override this; the default keeps the
+    /// notify-style flows on the direct path. A UCS-backed provider has no
+    /// in-process connector, so there is nothing to fall back to — the caller
+    /// must already have decided the flow is routable to UCS.
+    async fn decide_frm_flows_via_ucs<'a>(
+        self,
+        _state: &SessionState,
+        _gateway_context: payments::gateway::context::RouterGatewayContext,
+    ) -> RouterResult<Self>
+    where
+        Self: Sized,
+    {
+        Err(crate::core::errors::ApiErrorResponse::NotImplemented {
+            message: crate::core::errors::NotImplementedMessage::Reason(
+                "this FRM flow has no Unified Connector Service equivalent".to_string(),
+            ),
+        }
+        .into())
+    }
 }
