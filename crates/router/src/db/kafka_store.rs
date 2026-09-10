@@ -309,11 +309,11 @@ impl ConfigInterface for KafkaStore {
         self.diesel_store.insert_config(config).await
     }
 
-    async fn find_config_by_key(
+    async fn find_config_by_key_optional(
         &self,
         key: &str,
-    ) -> CustomResult<storage::Config, errors::StorageError> {
-        self.diesel_store.find_config_by_key(key).await
+    ) -> CustomResult<Option<storage::Config>, errors::StorageError> {
+        self.diesel_store.find_config_by_key_optional(key).await
     }
 
     async fn find_config_by_key_from_db(

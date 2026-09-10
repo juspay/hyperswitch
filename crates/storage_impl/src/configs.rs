@@ -59,8 +59,11 @@ impl<T: DatabaseStore> ConfigInterface for kv_router_store::KVRouterStore<T> {
 
     //check in cache, then redis then finally DB, and on the way back populate redis and cache
     #[instrument(skip_all)]
-    async fn find_config_by_key(&self, key: &str) -> CustomResult<storage::Config, StorageError> {
-        self.router_store.find_config_by_key(key).await
+    async fn find_config_by_key_optional(
+        &self,
+        key: &str,
+    ) -> CustomResult<Option<storage::Config>, StorageError> {
+        self.router_store.find_config_by_key_optional(key).await
     }
 
     #[instrument(skip_all)]
@@ -139,12 +142,25 @@ impl<T: DatabaseStore> ConfigInterface for RouterStore<T> {
 
     //check in cache, then redis then finally DB, and on the way back populate redis and cache
     #[instrument(skip_all)]
-    async fn find_config_by_key(&self, key: &str) -> CustomResult<storage::Config, StorageError> {
+    async fn find_config_by_key_optional(
+        &self,
+        key: &str,
+    ) -> CustomResult<Option<storage::Config>, StorageError> {
         let find_config_by_key_from_db = || async {
             let conn = connection::pg_connection_write(self).await?;
-            storage::Config::find_by_key(&conn, key)
+            match storage::Config::find_by_key(&conn, key)
                 .await
                 .map_err(|error| report!(StorageError::from(error)))
+            {
+                Ok(config) => Ok(Some(config)),
+                Err(err) => {
+                    if err.current_context().is_db_not_found() {
+                        Ok(None)
+                    } else {
+                        Err(err)
+                    }
+                }
+            }
         };
         cache::get_or_populate_in_memory(self, key, find_config_by_key_from_db, &CONFIG_CACHE).await
     }
@@ -261,11 +277,12 @@ impl ConfigInterface for MockDb {
         result
     }
 
-    async fn find_config_by_key(&self, key: &str) -> CustomResult<storage::Config, Self::Error> {
+    async fn find_config_by_key_optional(
+        &self,
+        key: &str,
+    ) -> CustomResult<Option<storage::Config>, Self::Error> {
         let configs = self.configs.lock().await;
-        let config = configs.iter().find(|c| c.key == key).cloned();
-
-        config.ok_or_else(|| StorageError::ValueNotFound("cannot find config".to_string()).into())
+        Ok(configs.iter().find(|c| c.key == key).cloned())
     }
 
     async fn find_config_by_key_unwrap_or(
@@ -273,13 +290,17 @@ impl ConfigInterface for MockDb {
         key: &str,
         _default_config: Option<String>,
     ) -> CustomResult<storage::Config, Self::Error> {
-        self.find_config_by_key(key).await
+        self.find_config_by_key_optional(key)
+            .await?
+            .ok_or_else(|| StorageError::ValueNotFound("cannot find config".to_string()).into())
     }
 
     async fn find_config_by_key_from_db(
         &self,
         key: &str,
     ) -> CustomResult<storage::Config, Self::Error> {
-        self.find_config_by_key(key).await
+        self.find_config_by_key_optional(key)
+            .await?
+            .ok_or_else(|| StorageError::ValueNotFound("cannot find config".to_string()).into())
     }
 }
