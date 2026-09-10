@@ -1357,7 +1357,8 @@ fn resolve_google_pay_tokenization_specification(
         payment_types::GooglePayTokenizationType::InternalGateway => {
             // A missing gateway id is a hard error rather than a silent skip: the SDK would
             // otherwise raise a payment sheet whose token nothing can decrypt.
-            let gateway = google_pay_gateway_id(state)
+            let gateway = state
+                .google_pay_gateway_id()
                 .ok_or(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable(
                     "google_pay_decrypt_keys.google_pay_gateway_id is not configured, cannot \
@@ -1365,8 +1366,10 @@ fn resolve_google_pay_tokenization_specification(
                 )?;
 
             Ok(payment_types::GpayTokenizationSpecification {
-                token_specification_type: payment_types::GooglePayTokenizationType::PaymentGateway
-                    .to_string(),
+                token_specification_type:
+                    payment_types::GooglePayTokenizationSpecificationType::from(
+                        gpay_token_specific_data.tokenization_type,
+                    ),
                 parameters: payment_types::GpayTokenParameters {
                     gateway: Some(gateway),
                     // The Hyperswitch merchant id keeps each merchant individually identifiable
@@ -1383,6 +1386,11 @@ fn resolve_google_pay_tokenization_specification(
         }
         payment_types::GooglePayTokenizationType::Direct
         | payment_types::GooglePayTokenizationType::PaymentGateway => {
+            let token_specification_type =
+                payment_types::GooglePayTokenizationSpecificationType::from(
+                    gpay_token_specific_data.tokenization_type,
+                );
+
             let protocol_version: Option<String> = gpay_token_specific_data
                 .parameters
                 .public_key
@@ -1390,7 +1398,7 @@ fn resolve_google_pay_tokenization_specification(
                 .map(|_| PROTOCOL.to_string());
 
             Ok(payment_types::GpayTokenizationSpecification {
-                token_specification_type: gpay_token_specific_data.tokenization_type.to_string(),
+                token_specification_type,
                 parameters: payment_types::GpayTokenParameters {
                     protocol_version,
                     public_key: gpay_token_specific_data.parameters.public_key.clone(),
@@ -1428,44 +1436,40 @@ fn resolve_google_pay_merchant_id(
     state: &routes::SessionState,
     merchant_info: &payment_types::GooglePayMerchantInfo,
 ) -> Option<String> {
-    merchant_info.merchant_id.clone().or_else(|| {
-        if matches!(
-            merchant_info.tokenization_specification.tokenization_type,
-            payment_types::GooglePayTokenizationType::InternalGateway
-        ) {
-            let common_merchant_id = state
-                .conf
-                .google_pay_decrypt_keys
-                .as_ref()
-                .and_then(|google_pay_keys| {
-                    google_pay_keys
-                        .get_inner()
-                        .google_pay_common_merchant_id
-                        .clone()
-                })
-                .map(|merchant_id| merchant_id.expose());
-
-            if common_merchant_id.is_none() {
-                logger::warn!(
-                    "google_pay_common_merchant_id is not configured and the merchant did not \
-                     supply a merchant_id, the google pay sheet will be raised without one"
-                );
+    match merchant_info.merchant_id.clone() {
+        Some(merchant_id) => Some(merchant_id),
+        None => match merchant_info
+            .tokenization_specification
+            .tokenization_type
+        {
+            payment_types::GooglePayTokenizationType::InternalGateway => {
+                match state
+                    .conf
+                    .google_pay_decrypt_keys
+                    .as_ref()
+                    .and_then(|google_pay_keys| {
+                        google_pay_keys
+                            .get_inner()
+                            .google_pay_common_merchant_id
+                            .clone()
+                    })
+                    .map(|merchant_id| merchant_id.expose())
+                {
+                    Some(common_merchant_id) => Some(common_merchant_id),
+                    None => {
+                        logger::warn!(
+                            "google_pay_common_merchant_id is not configured and the merchant \
+                             did not supply a merchant_id, the google pay sheet will be raised \
+                             without one"
+                        );
+                        None
+                    }
+                }
             }
-
-            common_merchant_id
-        } else {
-            None
-        }
-    })
-}
-
-/// Gateway identifier of Hyperswitch's own Google Pay gateway registration.
-fn google_pay_gateway_id(state: &routes::SessionState) -> Option<String> {
-    state
-        .conf
-        .google_pay_decrypt_keys
-        .as_ref()
-        .and_then(|google_pay_keys| google_pay_keys.get_inner().google_pay_gateway_id.clone())
+            payment_types::GooglePayTokenizationType::Direct
+            | payment_types::GooglePayTokenizationType::PaymentGateway => None,
+        },
+    }
 }
 
 fn construct_stripe_publishable_key(
