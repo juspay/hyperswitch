@@ -182,6 +182,7 @@ redis-rs = [
 ]
 
 [dependencies]
+tracing = { workspace = true }
 actix-cors = "0.6.5"
 actix-http = "3.11.0"
 actix-multipart = "0.6.2"

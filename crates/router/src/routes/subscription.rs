@@ -9,10 +9,7 @@ use actix_web::{web, HttpRequest, HttpResponse, Responder};
 use api_models::subscription as subscription_types;
 use error_stack::report;
 use hyperswitch_domain_models::errors;
-use router_env::{
-    tracing::{self, instrument},
-    Flow,
-};
+use router_env::{tracing::instrument, Flow};
 
 use crate::{
     core::api_locking,

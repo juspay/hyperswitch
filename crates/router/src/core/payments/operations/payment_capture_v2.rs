@@ -2,7 +2,7 @@ use api_models::{enums::FrmSuggestion, payments::PaymentsCaptureRequest};
 use async_trait::async_trait;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payments::PaymentCaptureData;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 use super::{Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{

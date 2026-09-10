@@ -6,7 +6,7 @@ use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};
 use futures::future;
 use hyperswitch_domain_models::mandates::{MandateData, MandateIds};
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, logger};
 
 use super::payments::helpers as payment_helper;
 use crate::{

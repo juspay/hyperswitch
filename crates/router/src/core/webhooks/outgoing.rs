@@ -17,10 +17,7 @@ use error_stack::{report, Report, ResultExt};
 use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperation};
 use hyperswitch_interfaces::{consts, webhooks::WebhookResourceData};
 use hyperswitch_masking::{ExposeInterface, Mask, PeekInterface, Secret};
-use router_env::{
-    instrument,
-    tracing::{self, Instrument},
-};
+use router_env::{instrument, tracing::Instrument};
 
 use super::{types, utils, MERCHANT_CONNECTOR_ACCOUNT_ID, MERCHANT_ID};
 #[cfg(feature = "stripe")]

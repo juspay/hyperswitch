@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use common_enums::FrmSuggestion;
 use common_utils::ext_traits::Encode;
 use diesel_models::enums::FraudCheckLastStep;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 use uuid::Uuid;
 
 use super::{Domain, FraudCheckOperation, GetTracker, UpdateTracker};

@@ -6,10 +6,7 @@ use diesel_models::process_tracker::business_status;
 use error_stack::{report, Report, ResultExt};
 use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperation};
 use hyperswitch_interfaces::consts;
-use router_env::{
-    instrument,
-    tracing::{self, Instrument},
-};
+use router_env::{instrument, tracing::Instrument};
 
 use super::{
     types,

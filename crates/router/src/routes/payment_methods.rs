@@ -19,7 +19,7 @@ use hyperswitch_domain_models::{
 };
 #[cfg(feature = "v1")]
 pub use migrate::modular_migrate_payment_methods;
-use router_env::{instrument, logger, tracing, Flow};
+use router_env::{instrument, logger, Flow};
 
 use super::app::{AppState, SessionState};
 #[cfg(feature = "v2")]

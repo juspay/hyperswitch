@@ -31,7 +31,7 @@ use hyperswitch_masking::ExposeInterface;
 #[cfg(feature = "v2")]
 use hyperswitch_masking::PeekInterface;
 use router_derive;
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, logger};
 #[cfg(feature = "v1")]
 use tracing_futures::Instrument;
 

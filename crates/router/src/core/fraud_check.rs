@@ -4,10 +4,7 @@ use api_models::{self, enums as api_enums};
 use common_enums::CaptureMethod;
 use error_stack::ResultExt;
 use hyperswitch_masking::PeekInterface;
-use router_env::{
-    logger,
-    tracing::{self, instrument},
-};
+use router_env::{logger, tracing::instrument};
 
 use self::{
     flows::{self as frm_flows, FeatureFrm},

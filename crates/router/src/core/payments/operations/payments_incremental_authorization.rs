@@ -6,7 +6,7 @@ use common_utils::errors::CustomResult;
 use diesel_models::authorization::AuthorizationNew;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::mandates::MandateTransactionType;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{

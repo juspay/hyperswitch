@@ -1,5 +1,5 @@
 use error_stack::{report, ResultExt};
-use router_env::{instrument, tracing};
+use router_env::instrument;
 use storage_impl::MockDb;
 
 use super::Store;

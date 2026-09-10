@@ -6,7 +6,7 @@ use common_utils::ext_traits::{AsyncExt, ValueExt};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::mandates;
 use router_derive::PaymentOperation;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{

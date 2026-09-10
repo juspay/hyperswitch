@@ -50,6 +50,7 @@ dynamic_routing = [
 ]
 
 [dependencies]
+tracing = { workspace = true }
 async-trait = "0.1.88"
 aws-config = { version = "1.5.10", optional = true, features = [
     "behavior-version-latest",

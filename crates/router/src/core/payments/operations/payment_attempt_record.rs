@@ -10,7 +10,7 @@ use common_utils::{
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payments::PaymentAttemptRecordData;
 use hyperswitch_masking::PeekInterface;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{

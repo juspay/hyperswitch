@@ -7,7 +7,7 @@ use common_utils::{
     id_type::{self, GenerateId, MerchantId, PaymentId},
 };
 use error_stack::ResultExt;
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, logger};
 use serde::{Deserialize, Serialize};
 use time::{Duration, PrimitiveDateTime};
 

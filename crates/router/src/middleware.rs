@@ -84,10 +84,10 @@ where
         Box::pin(
             async move {
                 if let Some(tenant) = tenant_id_clone {
-                    router_env::tracing::Span::current().record("tenant_id", tenant);
+                    tracing::Span::current().record("tenant_id", tenant);
                 }
                 let response = response_fut.await;
-                router_env::tracing::Span::current().record("golden_log_line", true);
+                tracing::Span::current().record("golden_log_line", true);
                 response
             }
             .instrument(

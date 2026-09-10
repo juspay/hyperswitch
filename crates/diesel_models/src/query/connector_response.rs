@@ -1,7 +1,7 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, logger};
 
-use super::generics;
+use super::generics;  
 use crate::{
     connector_response::{
         ConnectorResponse, ConnectorResponseNew, ConnectorResponseUpdate,

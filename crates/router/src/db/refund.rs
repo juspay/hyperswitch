@@ -135,7 +135,7 @@ pub trait RefundInterface {
 mod storage {
     use error_stack::report;
     use hyperswitch_domain_models::refunds;
-    use router_env::{instrument, tracing};
+    use router_env::instrument;
 
     use super::RefundInterface;
     use crate::{
@@ -494,7 +494,7 @@ mod storage {
     use error_stack::{report, ResultExt};
     use hyperswitch_domain_models::refunds;
     use redis_interface::HsetnxReply;
-    use router_env::{instrument, tracing};
+    use router_env::instrument;
     use storage_impl::redis::kv_store::{
         decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey,
     };

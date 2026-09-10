@@ -17,7 +17,7 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::api::ConnectorSpecifications;
 use router_derive::PaymentOperation;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{

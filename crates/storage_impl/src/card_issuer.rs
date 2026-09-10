@@ -2,7 +2,7 @@ use common_utils::id_type;
 pub use diesel_models::card_issuer::{CardIssuer, NewCardIssuer, UpdateCardIssuer};
 use error_stack::report;
 use hyperswitch_domain_models::card_issuer::CardIssuersInterface;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 use crate::{
     errors::StorageError,

@@ -13,7 +13,7 @@ use error_stack::ResultExt;
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use hyperswitch_masking::Secret;
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
-use router_env::{instrument, logger, tracing, Flow};
+use router_env::{instrument, logger, Flow};
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use serde::Serialize;
 

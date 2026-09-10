@@ -15,7 +15,7 @@ use euclid::{
     backend,
     backend::{inputs as dsl_inputs, EuclidBackend},
 };
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, logger};
 use serde::{Deserialize, Serialize};
 use storage_impl::redis::cache::{self, SURCHARGE_CACHE};
 
