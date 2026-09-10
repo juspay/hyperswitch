@@ -16,8 +16,8 @@
     "phases": {
       "starting_rps": 10,
       "target_rps": 1000,
-      "step_rps": 20,
-      "hold_seconds": 30,
+      "step_rps": 40,
+      "hold_seconds": 10,
       "idle_seconds": 5
     },
     "request_timeout_ms": 30000
