@@ -779,6 +779,27 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
+    hierarchical_resources (id) {
+        #[max_length = 64]
+        id -> Varchar,
+        #[max_length = 64]
+        resource_type -> Varchar,
+        #[max_length = 32]
+        scope -> Varchar,
+        #[max_length = 64]
+        scope_id -> Varchar,
+        data -> Jsonb,
+        encrypted_data -> Nullable<Bytea>,
+        created_by -> Text,
+        created_at -> Timestamp,
+        modified_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
     incremental_authorization (authorization_id, merchant_id) {
         #[max_length = 64]
         authorization_id -> Varchar,
@@ -1610,27 +1631,6 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    resources (id) {
-        #[max_length = 64]
-        id -> Varchar,
-        #[max_length = 64]
-        resource_type -> Varchar,
-        #[max_length = 32]
-        scope -> Varchar,
-        #[max_length = 64]
-        scope_id -> Varchar,
-        data -> Jsonb,
-        encrypted_data -> Nullable<Bytea>,
-        created_by -> Text,
-        created_at -> Timestamp,
-        modified_at -> Timestamp,
-    }
-}
-
-diesel::table! {
-    use diesel::sql_types::*;
-    use crate::enums::diesel_exports::*;
-
     revenue_recovery_retry_stats (cluster_key) {
         cluster_key -> Text,
         stats -> Jsonb,
@@ -1943,6 +1943,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     fraud_check,
     gateway_status_map,
     generic_link,
+    hierarchical_resources,
     incremental_authorization,
     invoice,
     locker_mock_up,
@@ -1960,7 +1961,6 @@ diesel::allow_tables_to_appear_in_same_query!(
     process_tracker,
     refund,
     relay,
-    resources,
     revenue_recovery_retry_stats,
     reverse_lookup,
     roles,

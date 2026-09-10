@@ -49,8 +49,10 @@ mod merchant_connector_account;
 mod merchant_key_store {
     pub use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
 }
-mod resource {
-    pub use hyperswitch_domain_models::resource::{Resource, ResourceDataUpdate};
+mod hierarchical_resource {
+    pub use hyperswitch_domain_models::hierarchical_resource::{
+        HierarchicalResource, HierarchicalResourceDataUpdate,
+    };
 }
 pub use hyperswitch_domain_models::bulk_tokenization::*;
 pub mod payment_methods {
@@ -104,7 +106,7 @@ pub use payment_attempt::*;
 pub use payment_method_data::*;
 pub use payment_methods::*;
 pub use platform::*;
-pub use resource::*;
+pub use hierarchical_resource::*;
 pub use routing::*;
 #[cfg(feature = "v2")]
 pub use split_payments::*;

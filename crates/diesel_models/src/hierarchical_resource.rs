@@ -1,7 +1,8 @@
 use common_utils::{encryption::Encryption, id_type};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
+use hyperswitch_masking::Secret;
 
-use crate::schema::resources;
+use crate::schema::hierarchical_resources;
 
 #[derive(
     Clone,
@@ -13,13 +14,13 @@ use crate::schema::resources;
     serde::Serialize,
     serde::Deserialize,
 )]
-#[diesel(table_name = resources, primary_key(id), check_for_backend(diesel::pg::Pg))]
-pub struct Resource {
+#[diesel(table_name = hierarchical_resources, primary_key(id), check_for_backend(diesel::pg::Pg))]
+pub struct HierarchicalResource {
     pub id: id_type::ResourceId,
     pub resource_type: String,
     pub scope: String,
     pub scope_id: String,
-    pub data: serde_json::Value,
+    pub data: Secret<serde_json::Value>,
     pub encrypted_data: Option<Encryption>,
     pub created_by: String,
     pub created_at: time::PrimitiveDateTime,
@@ -27,13 +28,13 @@ pub struct Resource {
 }
 
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
-#[diesel(table_name = resources)]
-pub struct ResourceNew {
+#[diesel(table_name = hierarchical_resources)]
+pub struct HierarchicalResourceNew {
     pub id: id_type::ResourceId,
     pub resource_type: String,
     pub scope: String,
     pub scope_id: String,
-    pub data: serde_json::Value,
+    pub data: Secret<serde_json::Value>,
     pub encrypted_data: Option<Encryption>,
     pub created_by: String,
     pub created_at: time::PrimitiveDateTime,
@@ -41,8 +42,8 @@ pub struct ResourceNew {
 }
 
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
-#[diesel(table_name = resources)]
-pub struct ResourceUpdateInternal {
-    pub data: Option<serde_json::Value>,
+#[diesel(table_name = hierarchical_resources)]
+pub struct HierarchicalResourceUpdateInternal {
+    pub data: Option<Secret<serde_json::Value>>,
     pub modified_at: time::PrimitiveDateTime,
 }

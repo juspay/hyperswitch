@@ -1,8 +1,8 @@
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     behaviour::{Conversion, ReverseConversion},
-    resource as domain,
-    resource::ResourceInterface,
+    hierarchical_resource as domain,
+    hierarchical_resource::HierarchicalResourceInterface,
 };
 use hyperswitch_masking::Secret;
 use router_env::{instrument, tracing};
@@ -14,15 +14,15 @@ use crate::{
 };
 
 #[async_trait::async_trait]
-impl<T: DatabaseStore> ResourceInterface for kv_router_store::KVRouterStore<T> {
+impl<T: DatabaseStore> HierarchicalResourceInterface for kv_router_store::KVRouterStore<T> {
     type Error = StorageError;
 
     #[instrument(skip_all)]
     async fn insert_linked_resource(
         &self,
-        resource: domain::Resource,
+        resource: domain::HierarchicalResource,
         key: &Secret<Vec<u8>>,
-    ) -> CustomResult<domain::Resource, Self::Error> {
+    ) -> CustomResult<domain::HierarchicalResource, Self::Error> {
         self.router_store
             .insert_linked_resource(resource, key)
             .await
@@ -33,7 +33,7 @@ impl<T: DatabaseStore> ResourceInterface for kv_router_store::KVRouterStore<T> {
         &self,
         id: common_utils::id_type::ResourceId,
         key: &Secret<Vec<u8>>,
-    ) -> CustomResult<domain::Resource, Self::Error> {
+    ) -> CustomResult<domain::HierarchicalResource, Self::Error> {
         self.router_store.find_linked_resource_by_id(id, key).await
     }
 
@@ -51,7 +51,7 @@ impl<T: DatabaseStore> ResourceInterface for kv_router_store::KVRouterStore<T> {
         scope_id: String,
         resource_type: String,
         key: &Secret<Vec<u8>>,
-    ) -> CustomResult<Vec<domain::Resource>, Self::Error> {
+    ) -> CustomResult<Vec<domain::HierarchicalResource>, Self::Error> {
         self.router_store
             .list_linked_resources_by_scope_id_and_resource_type(scope_id, resource_type, key)
             .await
@@ -61,9 +61,9 @@ impl<T: DatabaseStore> ResourceInterface for kv_router_store::KVRouterStore<T> {
     async fn update_linked_resource_data(
         &self,
         id: common_utils::id_type::ResourceId,
-        update: domain::ResourceDataUpdate,
+        update: domain::HierarchicalResourceDataUpdate,
         key: &Secret<Vec<u8>>,
-    ) -> CustomResult<domain::Resource, Self::Error> {
+    ) -> CustomResult<domain::HierarchicalResource, Self::Error> {
         self.router_store
             .update_linked_resource_data(id, update, key)
             .await
@@ -71,15 +71,15 @@ impl<T: DatabaseStore> ResourceInterface for kv_router_store::KVRouterStore<T> {
 }
 
 #[async_trait::async_trait]
-impl<T: DatabaseStore> ResourceInterface for RouterStore<T> {
+impl<T: DatabaseStore> HierarchicalResourceInterface for RouterStore<T> {
     type Error = StorageError;
 
     #[instrument(skip_all)]
     async fn insert_linked_resource(
         &self,
-        resource: domain::Resource,
+        resource: domain::HierarchicalResource,
         key: &Secret<Vec<u8>>,
-    ) -> CustomResult<domain::Resource, Self::Error> {
+    ) -> CustomResult<domain::HierarchicalResource, Self::Error> {
         let conn = pg_accounts_connection_write(self).await?;
         let identifier = resource
             .key_identifier()
@@ -106,12 +106,12 @@ impl<T: DatabaseStore> ResourceInterface for RouterStore<T> {
         &self,
         id: common_utils::id_type::ResourceId,
         key: &Secret<Vec<u8>>,
-    ) -> CustomResult<domain::Resource, Self::Error> {
+    ) -> CustomResult<domain::HierarchicalResource, Self::Error> {
         let conn = pg_accounts_connection_read(self).await?;
-        let resource = diesel_models::resource::Resource::find_by_id(&conn, id)
+        let resource = diesel_models::hierarchical_resource::HierarchicalResource::find_by_id(&conn, id)
             .await
             .map_err(|error| report!(Self::Error::from(error)))?;
-        let identifier = domain::Resource::identifier_for_diesel(&resource)
+        let identifier = domain::HierarchicalResource::identifier_for_diesel(&resource)
             .change_context(Self::Error::DecryptionError)?;
 
         resource
@@ -131,7 +131,7 @@ impl<T: DatabaseStore> ResourceInterface for RouterStore<T> {
         id: common_utils::id_type::ResourceId,
     ) -> CustomResult<String, Self::Error> {
         let conn = pg_accounts_connection_read(self).await?;
-        diesel_models::resource::Resource::find_by_id(&conn, id)
+        diesel_models::hierarchical_resource::HierarchicalResource::find_by_id(&conn, id)
             .await
             .map(|resource| resource.scope_id)
             .map_err(|error| report!(Self::Error::from(error)))
@@ -143,9 +143,9 @@ impl<T: DatabaseStore> ResourceInterface for RouterStore<T> {
         scope_id: String,
         resource_type: String,
         key: &Secret<Vec<u8>>,
-    ) -> CustomResult<Vec<domain::Resource>, Self::Error> {
+    ) -> CustomResult<Vec<domain::HierarchicalResource>, Self::Error> {
         let conn = pg_accounts_connection_read(self).await?;
-        let resources = diesel_models::resource::Resource::list_by_scope_id_and_resource_type(
+        let resources = diesel_models::hierarchical_resource::HierarchicalResource::list_by_scope_id_and_resource_type(
             &conn,
             scope_id,
             resource_type,
@@ -154,7 +154,7 @@ impl<T: DatabaseStore> ResourceInterface for RouterStore<T> {
         .map_err(|error| report!(Self::Error::from(error)))?;
 
         futures::future::try_join_all(resources.into_iter().map(|resource| async {
-            let identifier = domain::Resource::identifier_for_diesel(&resource)
+            let identifier = domain::HierarchicalResource::identifier_for_diesel(&resource)
                 .change_context(Self::Error::DecryptionError)?;
             resource
                 .convert(
@@ -173,14 +173,14 @@ impl<T: DatabaseStore> ResourceInterface for RouterStore<T> {
     async fn update_linked_resource_data(
         &self,
         id: common_utils::id_type::ResourceId,
-        update: domain::ResourceDataUpdate,
+        update: domain::HierarchicalResourceDataUpdate,
         key: &Secret<Vec<u8>>,
-    ) -> CustomResult<domain::Resource, Self::Error> {
+    ) -> CustomResult<domain::HierarchicalResource, Self::Error> {
         let conn = pg_accounts_connection_write(self).await?;
-        let resource = diesel_models::resource::Resource::update_by_id(&conn, id, update.into())
+        let resource = diesel_models::hierarchical_resource::HierarchicalResource::update_by_id(&conn, id, update.into())
             .await
             .map_err(|error| report!(Self::Error::from(error)))?;
-        let identifier = domain::Resource::identifier_for_diesel(&resource)
+        let identifier = domain::HierarchicalResource::identifier_for_diesel(&resource)
             .change_context(Self::Error::DecryptionError)?;
 
         resource
@@ -196,15 +196,15 @@ impl<T: DatabaseStore> ResourceInterface for RouterStore<T> {
 }
 
 #[async_trait::async_trait]
-impl ResourceInterface for MockDb {
+impl HierarchicalResourceInterface for MockDb {
     type Error = StorageError;
 
     async fn insert_linked_resource(
         &self,
-        resource: domain::Resource,
+        resource: domain::HierarchicalResource,
         key: &Secret<Vec<u8>>,
-    ) -> CustomResult<domain::Resource, Self::Error> {
-        let mut locked_resources = self.resources.lock().await;
+    ) -> CustomResult<domain::HierarchicalResource, Self::Error> {
+        let mut locked_resources = self.hierarchical_resources.lock().await;
 
         if locked_resources
             .iter()
@@ -238,16 +238,16 @@ impl ResourceInterface for MockDb {
         &self,
         id: common_utils::id_type::ResourceId,
         key: &Secret<Vec<u8>>,
-    ) -> CustomResult<domain::Resource, Self::Error> {
+    ) -> CustomResult<domain::HierarchicalResource, Self::Error> {
         let resource = self
-            .resources
+            .hierarchical_resources
             .lock()
             .await
             .iter()
             .find(|stored| stored.id == id)
             .cloned()
             .ok_or(StorageError::ValueNotFound(String::from("resources")))?;
-        let identifier = domain::Resource::identifier_for_diesel(&resource)
+        let identifier = domain::HierarchicalResource::identifier_for_diesel(&resource)
             .change_context(StorageError::DecryptionError)?;
 
         resource
@@ -266,7 +266,7 @@ impl ResourceInterface for MockDb {
         id: common_utils::id_type::ResourceId,
     ) -> CustomResult<String, Self::Error> {
         let scope_id = self
-            .resources
+            .hierarchical_resources
             .lock()
             .await
             .iter()
@@ -281,8 +281,8 @@ impl ResourceInterface for MockDb {
         scope_id: String,
         resource_type: String,
         key: &Secret<Vec<u8>>,
-    ) -> CustomResult<Vec<domain::Resource>, Self::Error> {
-        let resources = self.resources.lock().await;
+    ) -> CustomResult<Vec<domain::HierarchicalResource>, Self::Error> {
+        let resources = self.hierarchical_resources.lock().await;
         futures::future::try_join_all(
             resources
                 .iter()
@@ -290,7 +290,7 @@ impl ResourceInterface for MockDb {
                     stored.scope_id == scope_id && stored.resource_type == resource_type
                 })
                 .map(|stored| async {
-                    let identifier = domain::Resource::identifier_for_diesel(stored)
+                    let identifier = domain::HierarchicalResource::identifier_for_diesel(stored)
                         .change_context(StorageError::DecryptionError)?;
                     stored
                         .to_owned()
@@ -310,15 +310,15 @@ impl ResourceInterface for MockDb {
     async fn update_linked_resource_data(
         &self,
         id: common_utils::id_type::ResourceId,
-        update: domain::ResourceDataUpdate,
+        update: domain::HierarchicalResourceDataUpdate,
         key: &Secret<Vec<u8>>,
-    ) -> CustomResult<domain::Resource, Self::Error> {
-        let mut locked_resources = self.resources.lock().await;
+    ) -> CustomResult<domain::HierarchicalResource, Self::Error> {
+        let mut locked_resources = self.hierarchical_resources.lock().await;
         let index = locked_resources
             .iter()
             .position(|stored| stored.id == id)
             .ok_or(StorageError::ValueNotFound(String::from("resources")))?;
-        let update_internal: diesel_models::resource::ResourceUpdateInternal = update.into();
+        let update_internal: diesel_models::hierarchical_resource::HierarchicalResourceUpdateInternal = update.into();
         let entry = locked_resources
             .get_mut(index)
             .ok_or(StorageError::ValueNotFound(String::from("resources")))?;
@@ -327,7 +327,7 @@ impl ResourceInterface for MockDb {
         }
         entry.modified_at = update_internal.modified_at;
         let resource = entry.clone();
-        let identifier = domain::Resource::identifier_for_diesel(&resource)
+        let identifier = domain::HierarchicalResource::identifier_for_diesel(&resource)
             .change_context(StorageError::DecryptionError)?;
 
         resource

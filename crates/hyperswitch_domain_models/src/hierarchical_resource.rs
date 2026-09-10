@@ -12,12 +12,12 @@ use time::PrimitiveDateTime;
 use crate::type_encryption::{crypto_operation, CryptoOperation};
 
 #[derive(Clone, Debug, serde::Serialize)]
-pub struct Resource {
+pub struct HierarchicalResource {
     pub id: id_type::ResourceId,
     pub resource_type: String,
     pub scope: String,
     pub scope_id: String,
-    pub data: serde_json::Value,
+    pub data: Secret<serde_json::Value>,
     pub encrypted_data: Option<Encryptable<Secret<String>>>,
     pub created_by: String,
     #[serde(with = "custom_serde::iso8601")]
@@ -35,25 +35,25 @@ fn key_identifier_from_scope_id(
     ))
 }
 
-impl Resource {
+impl HierarchicalResource {
     pub fn key_identifier(&self) -> CustomResult<keymanager::Identifier, ValidationError> {
         key_identifier_from_scope_id(&self.scope_id)
     }
 
     pub fn identifier_for_diesel(
-        item: &diesel_models::resource::Resource,
+        item: &diesel_models::hierarchical_resource::HierarchicalResource,
     ) -> CustomResult<keymanager::Identifier, ValidationError> {
         key_identifier_from_scope_id(&item.scope_id)
     }
 }
 
 #[async_trait::async_trait]
-impl super::behaviour::Conversion for Resource {
-    type DstType = diesel_models::resource::Resource;
-    type NewDstType = diesel_models::resource::ResourceNew;
+impl super::behaviour::Conversion for HierarchicalResource {
+    type DstType = diesel_models::hierarchical_resource::HierarchicalResource;
+    type NewDstType = diesel_models::hierarchical_resource::HierarchicalResourceNew;
 
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
-        Ok(diesel_models::resource::Resource {
+        Ok(diesel_models::hierarchical_resource::HierarchicalResource {
             id: self.id,
             resource_type: self.resource_type,
             scope: self.scope,
@@ -106,7 +106,7 @@ impl super::behaviour::Conversion for Resource {
     }
 
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
-        Ok(diesel_models::resource::ResourceNew {
+        Ok(diesel_models::hierarchical_resource::HierarchicalResourceNew {
             id: self.id,
             resource_type: self.resource_type,
             scope: self.scope,
@@ -120,12 +120,14 @@ impl super::behaviour::Conversion for Resource {
     }
 }
 
-pub struct ResourceDataUpdate {
-    pub data: serde_json::Value,
+pub struct HierarchicalResourceDataUpdate {
+    pub data: Secret<serde_json::Value>,
 }
 
-impl From<ResourceDataUpdate> for diesel_models::resource::ResourceUpdateInternal {
-    fn from(value: ResourceDataUpdate) -> Self {
+impl From<HierarchicalResourceDataUpdate>
+    for diesel_models::hierarchical_resource::HierarchicalResourceUpdateInternal
+{
+    fn from(value: HierarchicalResourceDataUpdate) -> Self {
         Self {
             data: Some(value.data),
             modified_at: date_time::now(),
@@ -134,20 +136,20 @@ impl From<ResourceDataUpdate> for diesel_models::resource::ResourceUpdateInterna
 }
 
 #[async_trait::async_trait]
-pub trait ResourceInterface {
+pub trait HierarchicalResourceInterface {
     type Error;
 
     async fn insert_linked_resource(
         &self,
-        resource: Resource,
+        resource: HierarchicalResource,
         key: &Secret<Vec<u8>>,
-    ) -> CustomResult<Resource, Self::Error>;
+    ) -> CustomResult<HierarchicalResource, Self::Error>;
 
     async fn find_linked_resource_by_id(
         &self,
         id: id_type::ResourceId,
         key: &Secret<Vec<u8>>,
-    ) -> CustomResult<Resource, Self::Error>;
+    ) -> CustomResult<HierarchicalResource, Self::Error>;
 
     async fn find_resource_scope_id(
         &self,
@@ -159,12 +161,12 @@ pub trait ResourceInterface {
         scope_id: String,
         resource_type: String,
         key: &Secret<Vec<u8>>,
-    ) -> CustomResult<Vec<Resource>, Self::Error>;
+    ) -> CustomResult<Vec<HierarchicalResource>, Self::Error>;
 
     async fn update_linked_resource_data(
         &self,
         id: id_type::ResourceId,
-        update: ResourceDataUpdate,
+        update: HierarchicalResourceDataUpdate,
         key: &Secret<Vec<u8>>,
-    ) -> CustomResult<Resource, Self::Error>;
+    ) -> CustomResult<HierarchicalResource, Self::Error>;
 }

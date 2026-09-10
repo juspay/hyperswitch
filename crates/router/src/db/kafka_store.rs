@@ -88,7 +88,7 @@ use crate::{
         merchant_key_store::MerchantKeyStoreInterface,
         payment_link::PaymentLinkInterface,
         refund::RefundInterface,
-        resource::ResourceInterface,
+        hierarchical_resource::HierarchicalResourceInterface,
         reverse_lookup::ReverseLookupInterface,
         routing_algorithm::RoutingAlgorithmInterface,
         tokenization::TokenizationInterface,
@@ -3318,14 +3318,14 @@ impl MerchantKeyStoreInterface for KafkaStore {
 }
 
 #[async_trait::async_trait]
-impl ResourceInterface for KafkaStore {
+impl HierarchicalResourceInterface for KafkaStore {
     type Error = errors::StorageError;
 
     async fn insert_linked_resource(
         &self,
-        resource: domain::Resource,
+        resource: domain::HierarchicalResource,
         key: &Secret<Vec<u8>>,
-    ) -> CustomResult<domain::Resource, errors::StorageError> {
+    ) -> CustomResult<domain::HierarchicalResource, errors::StorageError> {
         self.diesel_store
             .insert_linked_resource(resource, key)
             .await
@@ -3335,7 +3335,7 @@ impl ResourceInterface for KafkaStore {
         &self,
         id: id_type::ResourceId,
         key: &Secret<Vec<u8>>,
-    ) -> CustomResult<domain::Resource, errors::StorageError> {
+    ) -> CustomResult<domain::HierarchicalResource, errors::StorageError> {
         self.diesel_store.find_linked_resource_by_id(id, key).await
     }
 
@@ -3351,7 +3351,7 @@ impl ResourceInterface for KafkaStore {
         scope_id: String,
         resource_type: String,
         key: &Secret<Vec<u8>>,
-    ) -> CustomResult<Vec<domain::Resource>, errors::StorageError> {
+    ) -> CustomResult<Vec<domain::HierarchicalResource>, errors::StorageError> {
         self.diesel_store
             .list_linked_resources_by_scope_id_and_resource_type(scope_id, resource_type, key)
             .await
@@ -3360,9 +3360,9 @@ impl ResourceInterface for KafkaStore {
     async fn update_linked_resource_data(
         &self,
         id: id_type::ResourceId,
-        update: domain::ResourceDataUpdate,
+        update: domain::HierarchicalResourceDataUpdate,
         key: &Secret<Vec<u8>>,
-    ) -> CustomResult<domain::Resource, errors::StorageError> {
+    ) -> CustomResult<domain::HierarchicalResource, errors::StorageError> {
         self.diesel_store
             .update_linked_resource_data(id, update, key)
             .await

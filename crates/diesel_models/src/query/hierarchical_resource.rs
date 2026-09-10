@@ -1,19 +1,22 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
 
 use crate::{
+    hierarchical_resource::{HierarchicalResource, HierarchicalResourceNew, HierarchicalResourceUpdateInternal},
     query::generics,
-    resource::{Resource, ResourceNew, ResourceUpdateInternal},
-    schema::resources::dsl,
+    schema::hierarchical_resources::dsl,
     DatabaseConnectionWithContext, StorageResult,
 };
 
-impl ResourceNew {
-    pub async fn insert(self, conn: &DatabaseConnectionWithContext<'_>) -> StorageResult<Resource> {
+impl HierarchicalResourceNew {
+    pub async fn insert(
+        self,
+        conn: &DatabaseConnectionWithContext<'_>,
+    ) -> StorageResult<HierarchicalResource> {
         generics::generic_insert(conn, self).await
     }
 }
 
-impl Resource {
+impl HierarchicalResource {
     pub async fn find_by_id(
         conn: &DatabaseConnectionWithContext<'_>,
         id: common_utils::id_type::ResourceId,
@@ -41,7 +44,7 @@ impl Resource {
     pub async fn update_by_id(
         conn: &DatabaseConnectionWithContext<'_>,
         id: common_utils::id_type::ResourceId,
-        update: ResourceUpdateInternal,
+        update: HierarchicalResourceUpdateInternal,
     ) -> StorageResult<Self> {
         generics::generic_update_with_unique_predicate_get_result::<
             <Self as HasTable>::Table,

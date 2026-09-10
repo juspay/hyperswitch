@@ -1,4 +1,4 @@
-use api_models::resources as api_resources;
+use api_models::hierarchical_resources as api_resources;
 use async_trait::async_trait;
 use base64::Engine;
 use common_utils::{
@@ -25,37 +25,40 @@ use crate::{
 const RESOURCE_SCOPE_ORGANIZATION: &str = "organization";
 
 #[async_trait]
-trait ResourceHandler {
+trait HierarchicalResourceHandler {
     async fn generate(
         state: &SessionState,
         processor: &domain::Processor,
-        req: &api_resources::GenerateResourceRequest,
-    ) -> RouterResult<api_resources::GenerateResourceResponse>;
+        org_key_store: &domain::MerchantKeyStore,
+    ) -> RouterResult<(domain::HierarchicalResource, api_resources::GenerateHierarchicalResourceResponse)>;
 
-    async fn upload(
-        state: &SessionState,
-        resource: domain::Resource,
-        org_key: &Secret<Vec<u8>>,
-        req: api_resources::UploadCertificateRequest,
-    ) -> RouterResult<api_resources::UploadCertificateResponse>;
+    fn display_schema() -> Secret<serde_json::Value>;
 
-    fn display_schema() -> serde_json::Value;
+    fn display_data(resource: &domain::HierarchicalResource) -> RouterResult<Secret<serde_json::Value>>;
 
-    fn display_data(resource: &domain::Resource) -> RouterResult<serde_json::Value>;
+    fn is_linkable(resource: &domain::HierarchicalResource) -> RouterResult<bool>;
 
     async fn on_link(
         state: &SessionState,
         key_manager_state: &KeyManagerState,
-        resource: &domain::Resource,
+        resource: &domain::HierarchicalResource,
         resource_id: &id_type::ResourceId,
         account: RequestorAccount,
         account_key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<()>;
 }
 
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+enum ApplePayCertificateStatus {
+    CsrGenerated,
+    Active,
+    Failed,
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 struct ApplePayCertificateData {
-    status: common_enums::ResourceStatus,
+    status: ApplePayCertificateStatus,
     #[serde(skip_serializing_if = "Option::is_none")]
     apple_pay_merchant_identifier: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -108,9 +111,9 @@ struct ApplePayCertificateDisplayData {
 }
 
 fn parse_apple_pay_certificate_data(
-    resource_data: &serde_json::Value,
+    resource_data: &Secret<serde_json::Value>,
 ) -> RouterResult<ApplePayCertificateData> {
-    serde_json::from_value(resource_data.clone())
+    serde_json::from_value(resource_data.peek().clone())
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to parse Apple Pay certificate resource data")
 }
@@ -118,20 +121,16 @@ fn parse_apple_pay_certificate_data(
 struct ApplePayCertificateResource;
 
 #[async_trait]
-impl ResourceHandler for ApplePayCertificateResource {
+impl HierarchicalResourceHandler for ApplePayCertificateResource {
     async fn generate(
         state: &SessionState,
         processor: &domain::Processor,
-        req: &api_resources::GenerateResourceRequest,
-    ) -> RouterResult<api_resources::GenerateResourceResponse> {
-        let db = state.store.as_ref();
+        org_key_store: &domain::MerchantKeyStore,
+    ) -> RouterResult<(domain::HierarchicalResource, api_resources::GenerateHierarchicalResourceResponse)> {
         let key_manager_state: &KeyManagerState = &state.into();
         let merchant_account = processor.get_account();
         let created_by = format!("merchant:{}", merchant_account.get_id().get_string_repr());
         let organization_id = merchant_account.organization_id.clone();
-
-        let org_key_store =
-            ensure_organization_key_store(db, key_manager_state, &organization_id).await?;
 
         let (private_key_pem, csr_pem) = generate_ec_keypair_and_csr()
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -152,7 +151,7 @@ impl ResourceHandler for ApplePayCertificateResource {
 
         let encrypted_private_key = domain::types::crypto_operation(
             key_manager_state,
-            common_utils::type_name!(domain::Resource),
+            common_utils::type_name!(domain::HierarchicalResource),
             domain::types::CryptoOperation::Encrypt(Secret::new(private_key_payload)),
             identifier,
             org_key_store.key.peek(),
@@ -163,49 +162,134 @@ impl ResourceHandler for ApplePayCertificateResource {
         .attach_printable("Failed to encrypt generated Apple Pay private key")?;
 
         let data = ApplePayCertificateData {
-            status: common_enums::ResourceStatus::CsrGenerated,
-            apple_pay_merchant_identifier: req.apple_merchant_identifier.clone(),
+            status: ApplePayCertificateStatus::CsrGenerated,
+            apple_pay_merchant_identifier: None,
             payment_processing_certificate: None,
         };
 
         let resource_id = id_type::ResourceId::default();
-        let resource = domain::Resource {
+        let resource = domain::HierarchicalResource {
             id: resource_id.clone(),
             resource_type: common_enums::ResourceType::ApplePayCertificate.to_string(),
             scope: RESOURCE_SCOPE_ORGANIZATION.to_string(),
             scope_id: organization_id.get_string_repr().to_string(),
-            data: serde_json::to_value(&data)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to serialize Apple Pay certificate resource data")?,
+            data: Secret::new(
+                serde_json::to_value(&data)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to serialize Apple Pay certificate resource data")?,
+            ),
             encrypted_data: Some(encrypted_private_key),
             created_by,
             created_at: date_time::now(),
             modified_at: date_time::now(),
         };
 
-        db.insert_linked_resource(resource, &org_key_store.key)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to persist generated Apple Pay certificate resource")?;
-
         let csr_data = serde_json::to_value(ApplePayCertificateCsrData { csr: csr_pem })
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to serialize Apple Pay CSR response data")?;
 
-        let data = serde_json::Map::from_iter([(
+        let response_data = serde_json::Map::from_iter([(
             common_enums::ResourceType::ApplePayCertificate.to_string(),
             csr_data,
         )]);
 
-        Ok(api_resources::GenerateResourceResponse {
-            id: resource_id,
-            data: serde_json::Value::Object(data),
-        })
+        Ok((
+            resource,
+            api_resources::GenerateHierarchicalResourceResponse {
+                id: resource_id,
+                data: Secret::new(serde_json::Value::Object(response_data)),
+            },
+        ))
     }
 
+    fn display_schema() -> Secret<serde_json::Value> {
+        Secret::new(
+            serde_json::to_value(ApplePayCertificateDisplaySchema::default())
+                .unwrap_or(serde_json::Value::Null),
+        )
+    }
+
+    fn display_data(resource: &domain::HierarchicalResource) -> RouterResult<Secret<serde_json::Value>> {
+        let data = parse_apple_pay_certificate_data(&resource.data)?;
+        serde_json::to_value(ApplePayCertificateDisplayData {
+            apple_pay_merchant_identifier: data.apple_pay_merchant_identifier,
+        })
+        .map(Secret::new)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to serialize Apple Pay certificate display data")
+    }
+
+    fn is_linkable(resource: &domain::HierarchicalResource) -> RouterResult<bool> {
+        let data = parse_apple_pay_certificate_data(&resource.data)?;
+        Ok(data.status == ApplePayCertificateStatus::Active)
+    }
+
+    async fn on_link(
+        state: &SessionState,
+        key_manager_state: &KeyManagerState,
+        resource: &domain::HierarchicalResource,
+        resource_id: &id_type::ResourceId,
+        account: RequestorAccount,
+        account_key_store: &domain::MerchantKeyStore,
+    ) -> RouterResult<()> {
+        let db = state.store.as_ref();
+
+        match resource.encrypted_data.as_ref() {
+            Some(private_key) => {
+                let data = parse_apple_pay_certificate_data(&resource.data)?;
+
+                let plain_data = serde_json::to_value(ApplePayCertificateCachePayload {
+                    resource_id: resource_id.clone(),
+                    data: ApplePayCertificateCacheData {
+                        merchant_identifier: data.apple_pay_merchant_identifier,
+                        payment_processing_certificate: data.payment_processing_certificate,
+                    },
+                })
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to serialize Apple Pay certificate cache payload")?;
+
+                let private_key_payload: ApplePayCertificateKeyWrapperData =
+                    serde_json::from_str(private_key.peek())
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to parse stored Apple Pay private key payload")?;
+
+                let key_wrapper = serde_json::to_value(ApplePayCertificateKeyWrapper {
+                    data: private_key_payload,
+                })
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to serialize Apple Pay certificate cache key wrapper")?;
+                let key_wrapper: Secret<serde_json::Value> = Secret::new(key_wrapper);
+
+                let identifier =
+                    km_types::Identifier::Merchant(account_key_store.merchant_id.clone());
+
+                let encrypted_cache = domain::types::crypto_operation(
+                    key_manager_state,
+                    common_utils::type_name!(domain::HierarchicalResource),
+                    domain::types::CryptoOperation::Encrypt(key_wrapper),
+                    identifier,
+                    account_key_store.key.peek(),
+                )
+                .await
+                .and_then(|value| value.try_into_operation())
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to encrypt decrypt-time certificate cache")?;
+
+                let update = ApplePayCertificateResourceUpdate {
+                    apple_pay_certificates: Some(Secret::new(plain_data)),
+                    apple_pay_certificates_encrypted: Some(encrypted_cache.into()),
+                };
+                link_hierarchical_resource_data_to_scope(db, account_key_store, account, &update).await
+            }
+            None => Ok(()),
+        }
+    }
+}
+
+impl ApplePayCertificateResource {
     async fn upload(
         state: &SessionState,
-        resource: domain::Resource,
+        resource: domain::HierarchicalResource,
         org_key: &Secret<Vec<u8>>,
         req: api_resources::UploadCertificateRequest,
     ) -> RouterResult<api_resources::UploadCertificateResponse> {
@@ -244,7 +328,7 @@ impl ResourceHandler for ApplePayCertificateResource {
             })?;
 
         let data = ApplePayCertificateData {
-            status: common_enums::ResourceStatus::Active,
+            status: ApplePayCertificateStatus::Active,
             apple_pay_merchant_identifier: Some(apple_merchant_identifier),
             payment_processing_certificate: Some(req.certificate),
         };
@@ -252,12 +336,14 @@ impl ResourceHandler for ApplePayCertificateResource {
         let updated = db
             .update_linked_resource_data(
                 resource.id.clone(),
-                domain::ResourceDataUpdate {
-                    data: serde_json::to_value(&data)
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable(
-                            "Failed to serialize Apple Pay certificate resource data",
-                        )?,
+                domain::HierarchicalResourceDataUpdate {
+                    data: Secret::new(
+                        serde_json::to_value(&data)
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable(
+                                "Failed to serialize Apple Pay certificate resource data",
+                            )?,
+                    ),
                 },
                 org_key,
             )
@@ -270,110 +356,45 @@ impl ResourceHandler for ApplePayCertificateResource {
             created_at: updated.created_at,
         })
     }
-
-    fn display_schema() -> serde_json::Value {
-        serde_json::to_value(ApplePayCertificateDisplaySchema::default())
-            .unwrap_or(serde_json::Value::Null)
-    }
-
-    fn display_data(resource: &domain::Resource) -> RouterResult<serde_json::Value> {
-        let data = parse_apple_pay_certificate_data(&resource.data)?;
-        serde_json::to_value(ApplePayCertificateDisplayData {
-            apple_pay_merchant_identifier: data.apple_pay_merchant_identifier,
-        })
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to serialize Apple Pay certificate display data")
-    }
-
-    async fn on_link(
-        state: &SessionState,
-        key_manager_state: &KeyManagerState,
-        resource: &domain::Resource,
-        resource_id: &id_type::ResourceId,
-        account: RequestorAccount,
-        account_key_store: &domain::MerchantKeyStore,
-    ) -> RouterResult<()> {
-        let db = state.store.as_ref();
-
-        if let Some(private_key) = resource.encrypted_data.as_ref() {
-            let data = parse_apple_pay_certificate_data(&resource.data)?;
-
-            let plain_data = serde_json::to_value(ApplePayCertificateCachePayload {
-                resource_id: resource_id.clone(),
-                data: ApplePayCertificateCacheData {
-                    merchant_identifier: data.apple_pay_merchant_identifier,
-                    payment_processing_certificate: data.payment_processing_certificate,
-                },
-            })
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to serialize Apple Pay certificate cache payload")?;
-
-            let private_key_payload: ApplePayCertificateKeyWrapperData =
-                serde_json::from_str(private_key.peek())
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to parse stored Apple Pay private key payload")?;
-
-            let key_wrapper = serde_json::to_value(ApplePayCertificateKeyWrapper {
-                data: private_key_payload,
-            })
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to serialize Apple Pay certificate cache key wrapper")?;
-            let key_wrapper: Secret<serde_json::Value> = Secret::new(key_wrapper);
-
-            let identifier = km_types::Identifier::Merchant(account_key_store.merchant_id.clone());
-
-            let encrypted_cache = domain::types::crypto_operation(
-                key_manager_state,
-                common_utils::type_name!(domain::Resource),
-                domain::types::CryptoOperation::Encrypt(key_wrapper),
-                identifier,
-                account_key_store.key.peek(),
-            )
-            .await
-            .and_then(|value| value.try_into_operation())
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to encrypt decrypt-time certificate cache")?;
-
-            let update = ApplePayCertificateResourceUpdate {
-                apple_pay_certificates: Some(plain_data),
-                apple_pay_certificates_encrypted: Some(encrypted_cache.into()),
-            };
-            link_resource_data_to_scope(db, account_key_store, account, &update).await?;
-        }
-
-        Ok(())
-    }
 }
 
-trait RequestorResourceUpdate {
+trait RequestorHierarchicalResourceUpdate {
     fn for_merchant_connector_account(&self) -> domain::MerchantConnectorAccountUpdate;
     fn for_profile(&self) -> domain::ProfileUpdate;
     fn for_merchant_account(&self) -> domain::MerchantAccountUpdate;
 }
 
 struct ApplePayCertificateResourceUpdate {
-    apple_pay_certificates: Option<serde_json::Value>,
+    apple_pay_certificates: Option<Secret<serde_json::Value>>,
     apple_pay_certificates_encrypted: Option<common_utils::encryption::Encryption>,
 }
 
-impl RequestorResourceUpdate for ApplePayCertificateResourceUpdate {
+impl ApplePayCertificateResourceUpdate {
+    fn apple_pay_certificates(&self) -> Option<serde_json::Value> {
+        self.apple_pay_certificates
+            .as_ref()
+            .map(|data| data.peek().clone())
+    }
+}
+
+impl RequestorHierarchicalResourceUpdate for ApplePayCertificateResourceUpdate {
     fn for_merchant_connector_account(&self) -> domain::MerchantConnectorAccountUpdate {
         domain::MerchantConnectorAccountUpdate::ApplePayCertificateCacheUpdate {
-            apple_pay_certificates: self.apple_pay_certificates.clone(),
+            apple_pay_certificates: self.apple_pay_certificates(),
             apple_pay_certificates_encrypted: self.apple_pay_certificates_encrypted.clone(),
         }
     }
 
     fn for_profile(&self) -> domain::ProfileUpdate {
         domain::ProfileUpdate::ApplePayCertificateCacheUpdate {
-            apple_pay_certificates: self.apple_pay_certificates.clone(),
+            apple_pay_certificates: self.apple_pay_certificates(),
             apple_pay_certificates_encrypted: self.apple_pay_certificates_encrypted.clone(),
         }
     }
 
     fn for_merchant_account(&self) -> domain::MerchantAccountUpdate {
         domain::MerchantAccountUpdate::ApplePayCertificateCacheUpdate {
-            apple_pay_certificates: self.apple_pay_certificates.clone(),
+            apple_pay_certificates: self.apple_pay_certificates(),
             apple_pay_certificates_encrypted: self.apple_pay_certificates_encrypted.clone(),
         }
     }
@@ -511,11 +532,11 @@ async fn resolve_apple_pay_certificate_data(
     None
 }
 
-async fn link_resource_data_to_scope(
+async fn link_hierarchical_resource_data_to_scope(
     db: &dyn StorageInterface,
     key_store: &domain::MerchantKeyStore,
     account: RequestorAccount,
-    update: &impl RequestorResourceUpdate,
+    update: &impl RequestorHierarchicalResourceUpdate,
 ) -> RouterResult<()> {
     match account {
         RequestorAccount::MerchantConnectorAccount(mca) => {
@@ -545,16 +566,29 @@ async fn link_resource_data_to_scope(
     Ok(())
 }
 
-pub async fn generate_resource(
+pub async fn generate_hierarchical_resource(
     state: SessionState,
     processor: domain::Processor,
-    req: api_resources::GenerateResourceRequest,
-) -> RouterResponse<api_resources::GenerateResourceResponse> {
-    let response = match req.resource_type {
+    req: api_resources::GenerateHierarchicalResourceRequest,
+) -> RouterResponse<api_resources::GenerateHierarchicalResourceResponse> {
+    let db = state.store.as_ref();
+    let key_manager_state: &KeyManagerState = &(&state).into();
+    let organization_id = processor.get_account().organization_id.clone();
+
+    let org_key_store =
+        ensure_organization_key_store(db, key_manager_state, &organization_id).await?;
+
+    let (resource, response) = match req.resource_type {
         common_enums::ResourceType::ApplePayCertificate => {
-            ApplePayCertificateResource::generate(&state, &processor, &req).await?
+            ApplePayCertificateResource::generate(&state, &processor, &org_key_store).await?
         }
     };
+
+    db.insert_linked_resource(resource, &org_key_store.key)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to persist generated resource")?;
+
     Ok(ApplicationResponse::Json(response))
 }
 
@@ -583,7 +617,7 @@ fn generate_ec_keypair_and_csr(
     ))
 }
 
-pub async fn upload_resource(
+pub async fn upload_hierarchical_resource(
     state: SessionState,
     processor: domain::Processor,
     resource_id: id_type::ResourceId,
@@ -622,7 +656,7 @@ pub async fn upload_resource(
     Ok(ApplicationResponse::Json(response))
 }
 
-fn parse_resource_type(resource: &domain::Resource) -> RouterResult<common_enums::ResourceType> {
+fn parse_resource_type(resource: &domain::HierarchicalResource) -> RouterResult<common_enums::ResourceType> {
     resource
         .resource_type
         .parse::<common_enums::ResourceType>()
@@ -679,11 +713,11 @@ fn parse_apple_merchant_identifier(
         .to_string())
 }
 
-pub async fn list_resources(
+pub async fn list_hierarchical_resources(
     state: SessionState,
     processor: domain::Processor,
-    req: api_resources::ListResourcesRequest,
-) -> RouterResponse<api_resources::ListResourcesResponse> {
+    req: api_resources::ListHierarchicalResourcesRequest,
+) -> RouterResponse<api_resources::ListHierarchicalResourcesResponse> {
     let db = state.store.as_ref();
     let key_manager_state: &KeyManagerState = &(&state).into();
     let organization_id = processor.get_account().organization_id.clone();
@@ -718,18 +752,29 @@ pub async fn list_resources(
 
     let resources = resources
         .iter()
-        .map(|resource| resource_summary(resource, effective_resource_id.as_ref()))
+        .filter(|resource| hierarchical_resource_is_linkable(resource).unwrap_or(false))
+        .map(|resource| hierarchical_resource_summary(resource, effective_resource_id.as_ref()))
         .collect::<RouterResult<Vec<_>>>()?;
 
     Ok(ApplicationResponse::Json(
-        api_resources::ListResourcesResponse { resources },
+        api_resources::ListHierarchicalResourcesResponse { resources },
     ))
 }
 
-fn resource_summary(
-    resource: &domain::Resource,
+fn hierarchical_resource_is_linkable(resource: &domain::HierarchicalResource) -> RouterResult<bool> {
+    let resource_type = parse_resource_type(resource)?;
+
+    match resource_type {
+        common_enums::ResourceType::ApplePayCertificate => {
+            ApplePayCertificateResource::is_linkable(resource)
+        }
+    }
+}
+
+fn hierarchical_resource_summary(
+    resource: &domain::HierarchicalResource,
     effective_resource_id: Option<&id_type::ResourceId>,
-) -> RouterResult<api_resources::ResourceSummary> {
+) -> RouterResult<api_resources::HierarchicalResourceSummary> {
     let resource_type = parse_resource_type(resource)?;
 
     let (display_schema, display_data) = match resource_type {
@@ -739,7 +784,7 @@ fn resource_summary(
         ),
     };
 
-    Ok(api_resources::ResourceSummary {
+    Ok(api_resources::HierarchicalResourceSummary {
         id: resource.id.clone(),
         display_schema,
         display_data,
@@ -748,12 +793,12 @@ fn resource_summary(
     })
 }
 
-pub async fn link_resource(
+pub async fn link_hierarchical_resource(
     state: SessionState,
     processor: domain::Processor,
     resource_id: id_type::ResourceId,
-    req: api_resources::LinkResourceRequest,
-) -> RouterResponse<api_resources::LinkResourceResponse> {
+    req: api_resources::LinkHierarchicalResourceRequest,
+) -> RouterResponse<api_resources::LinkHierarchicalResourceResponse> {
     let db = state.store.as_ref();
     let key_manager_state: &KeyManagerState = &(&state).into();
     let merchant_account = processor.get_account();
@@ -796,7 +841,7 @@ pub async fn link_resource(
     }
 
     Ok(ApplicationResponse::Json(
-        api_resources::LinkResourceResponse { id: resource_id },
+        api_resources::LinkHierarchicalResourceResponse { id: resource_id },
     ))
 }
 

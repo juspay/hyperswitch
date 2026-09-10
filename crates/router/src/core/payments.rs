@@ -1172,6 +1172,7 @@ where
                         complete_postprocessing_steps_if_required(
                             state,
                             platform.get_processor(),
+                            &business_profile,
                             &mca,
                             &connector.connector_data,
                             &mut payment_data,
@@ -1398,6 +1399,7 @@ where
                         complete_postprocessing_steps_if_required(
                             state,
                             platform.get_processor(),
+                            &business_profile,
                             &mca,
                             &connector_data,
                             &mut payment_data,
@@ -1827,6 +1829,7 @@ where
         complete_postprocessing_steps_if_required(
             state,
             platform.get_processor(),
+            &business_profile,
             &mca,
             &connector,
             &mut payment_data,
@@ -3341,6 +3344,7 @@ where
                 complete_postprocessing_steps_if_required(
                     state,
                     platform.get_processor(),
+                    &business_profile,
                     &merchant_connector_account,
                     &connector,
                     &mut payment_data,
@@ -3481,6 +3485,7 @@ where
             state,
             connector.connector.id(),
             platform.get_processor(),
+            business_profile,
             &merchant_connector_account,
             None,
             Some(header_payload),
@@ -5809,6 +5814,7 @@ pub async fn call_connector_service<F, RouterDReq, ApiRequest, D>(
     state: &SessionState,
     processor: &domain::Processor,
     initiator: Option<&domain::Initiator>,
+    business_profile: &domain::Profile,
     connector: api::ConnectorData,
     operation: &BoxedOperation<'_, F, ApiRequest, D>,
     payment_data: &mut D,
@@ -5904,6 +5910,7 @@ where
         connector_customer_map,
         processor,
         initiator,
+        business_profile,
         &merchant_connector_account,
         payment_data,
         router_data.access_token.as_ref(),
@@ -6303,6 +6310,7 @@ where
             state,
             connector.connector.id(),
             platform.get_processor(),
+            business_profile,
             &merchant_connector_account,
             merchant_recipient_data,
             None,
@@ -6404,6 +6412,7 @@ where
         &updated_state,
         processor,
         initiator,
+        business_profile,
         connector,
         operation,
         payment_data,
@@ -7270,6 +7279,7 @@ where
             state,
             connector.connector.id(),
             platform.get_processor(),
+            business_profile,
             &merchant_connector_account,
             merchant_recipient_data,
             Some(header_payload.clone()),
@@ -7713,7 +7723,7 @@ where
         let apple_pay_metadata = check_apple_pay_metadata(
             state,
             Some(merchant_connector_account),
-            Some(business_profile),
+            business_profile,
             processor,
         )
         .await;
@@ -8248,6 +8258,7 @@ where
                 state,
                 connector_id,
                 processor,
+                business_profile,
                 &merchant_connector_account,
                 None,
                 Some(header_payload.clone()),
@@ -8570,6 +8581,7 @@ pub async fn call_create_connector_customer_if_required<F, Req, D>(
     connector_customer_map: Option<&pii::SecretSerdeValue>,
     processor: &domain::Processor,
     initiator: Option<&domain::Initiator>,
+    business_profile: &domain::Profile,
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
     payment_data: &mut D,
     access_token: Option<&AccessToken>,
@@ -8642,6 +8654,7 @@ where
                             state,
                             connector.connector.id(),
                             processor,
+                            business_profile,
                             merchant_connector_account,
                             None,
                             None,
@@ -8864,6 +8877,7 @@ where
 async fn complete_postprocessing_steps_if_required<F, Q, RouterDReq, D>(
     state: &SessionState,
     processor: &domain::Processor,
+    business_profile: &domain::Profile,
     merchant_conn_account: &helpers::MerchantConnectorAccountType,
     connector: &api::ConnectorData,
     payment_data: &mut D,
@@ -8885,6 +8899,7 @@ where
             state,
             connector.connector.id(),
             processor,
+            business_profile,
             merchant_conn_account,
             None,
             header_payload,
@@ -9217,7 +9232,7 @@ async fn decide_apple_pay_flow(
     state: &SessionState,
     payment_method_type: Option<enums::PaymentMethodType>,
     merchant_connector_account: Option<&helpers::MerchantConnectorAccountType>,
-    business_profile: Option<&domain::Profile>,
+    business_profile: &domain::Profile,
     processor: &domain::Processor,
 ) -> Option<domain::ApplePayFlow> {
     match payment_method_type {
@@ -9296,26 +9311,25 @@ async fn resolve_managed_apple_pay_certificate(
 async fn check_apple_pay_metadata(
     state: &SessionState,
     merchant_connector_account: Option<&helpers::MerchantConnectorAccountType>,
-    _business_profile: Option<&domain::Profile>,
+    _business_profile: &domain::Profile,
     _processor: &domain::Processor,
 ) -> Option<domain::ApplePayFlow> {
     let mca = merchant_connector_account?;
 
     #[cfg(feature = "v1")]
-    if let Some(payment_processing_details) =
-        resolve_managed_apple_pay_certificate(&ApplePayCertificateAccounts {
-            processor: _processor,
-            business_profile: _business_profile,
-            merchant_connector_account: mca,
-        })
-        .await
-    {
-        return Some(domain::ApplePayFlow::DecryptAtApplication(
-            payment_processing_details,
-        ));
-    }
+    let managed_certificate = resolve_managed_apple_pay_certificate(&ApplePayCertificateAccounts {
+        processor: _processor,
+        business_profile: Some(_business_profile),
+        merchant_connector_account: mca,
+    })
+    .await
+    .map(domain::ApplePayFlow::DecryptAtApplication);
+    #[cfg(not(feature = "v1"))]
+    let managed_certificate: Option<domain::ApplePayFlow> = None;
 
-    {
+    match managed_certificate {
+        Some(managed_certificate) => Some(managed_certificate),
+        None => {
         let metadata = mca.get_metadata();
         metadata.and_then(|apple_pay_metadata| {
             let parsed_metadata = get_applepay_metadata(Some(apple_pay_metadata.clone()));
@@ -9377,6 +9391,7 @@ async fn check_apple_pay_metadata(
                 }
             })
         })
+        }
     }
 }
 
@@ -10013,7 +10028,7 @@ async fn decrypt_apple_pay_wallet_for_eligibility(
             match check_apple_pay_metadata(
                 state,
                 Some(&merchant_connector_account),
-                Some(business_profile),
+                business_profile,
                 processor,
             )
             .await

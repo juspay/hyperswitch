@@ -92,14 +92,14 @@ pub enum Flow {
     MerchantConnectorsUpdate,
     /// Merchant Connectors delete flow.
     MerchantConnectorsDelete,
-    /// Generate a resource (e.g. Apple Pay certificate CSR) flow.
-    ResourcesGenerate,
-    /// Upload a resource's signed certificate flow.
-    ResourcesUpload,
-    /// List resources / get effective linked value flow.
-    ResourcesList,
-    /// Link a resource to an entity (MCA/profile/merchant_account) flow.
-    ResourcesLink,
+    /// Generate a hierarchical resource (e.g. Apple Pay certificate CSR) flow.
+    HierarchicalResourcesGenerate,
+    /// Upload a hierarchical resource's signed certificate flow.
+    HierarchicalResourcesUpload,
+    /// List hierarchical resources / get effective linked value flow.
+    HierarchicalResourcesList,
+    /// Link a hierarchical resource to an entity (MCA/profile/merchant_account) flow.
+    HierarchicalResourcesLink,
     /// Merchant Connectors list flow.
     MerchantConnectorsList,
     /// Merchant Transfer Keys

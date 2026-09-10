@@ -268,7 +268,7 @@ pub fn mk_app(
         }
         #[cfg(all(feature = "olap", feature = "v1"))]
         {
-            server_app = server_app.service(routes::Resources::server(state.clone()));
+            server_app = server_app.service(routes::HierarchicalResources::server(state.clone()));
         }
         server_app = server_app
             .service(routes::Payments::server(state.clone()))

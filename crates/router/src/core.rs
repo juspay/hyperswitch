@@ -60,7 +60,7 @@ pub mod refunds;
 #[cfg(feature = "v2")]
 pub mod refunds_v2;
 pub mod relay;
-pub mod resources;
+pub mod hierarchical_resources;
 #[cfg(feature = "v2")]
 pub mod revenue_recovery;
 #[cfg(feature = "v2")]

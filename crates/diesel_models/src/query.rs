@@ -41,7 +41,7 @@ pub mod payouts;
 pub mod process_tracker;
 pub mod refund;
 pub mod relay;
-pub mod resource;
+pub mod hierarchical_resource;
 pub mod reverse_lookup;
 pub mod role;
 pub mod routing_algorithm;

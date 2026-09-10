@@ -43,7 +43,7 @@ pub mod profile_acquirer;
 pub mod proxy;
 pub mod refunds;
 pub mod relay;
-pub mod resources;
+pub mod hierarchical_resources;
 #[cfg(feature = "v2")]
 pub mod revenue_recovery_data_backfill;
 pub mod routing;

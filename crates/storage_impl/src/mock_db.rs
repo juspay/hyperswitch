@@ -45,7 +45,7 @@ pub struct MockDb {
     pub mandates: Arc<Mutex<Vec<store::Mandate>>>,
     pub captures: Arc<Mutex<Vec<store::capture::Capture>>>,
     pub merchant_key_store: Arc<Mutex<Vec<store::merchant_key_store::MerchantKeyStore>>>,
-    pub resources: Arc<Mutex<Vec<store::resource::Resource>>>,
+    pub hierarchical_resources: Arc<Mutex<Vec<store::hierarchical_resource::HierarchicalResource>>>,
     #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
     pub tokenizations: Arc<Mutex<Vec<store::tokenization::Tokenization>>>,
     pub business_profiles: Arc<Mutex<Vec<store::business_profile::Profile>>>,
@@ -107,7 +107,7 @@ impl MockDb {
             mandates: Default::default(),
             captures: Default::default(),
             merchant_key_store: Default::default(),
-            resources: Default::default(),
+            hierarchical_resources: Default::default(),
             #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
             tokenizations: Default::default(),
             business_profiles: Default::default(),
