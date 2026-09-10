@@ -520,8 +520,19 @@ impl AppState {
             #[cfg(feature = "email")]
             let email_client = Arc::new(create_email_client(&conf).await);
 
-            let file_storage_client = conf.file_storage.get_file_storage_client().await;
-            let theme_storage_client = conf.theme.storage.get_file_storage_client().await;
+            #[allow(clippy::expect_used)]
+            let file_storage_client = conf
+                .file_storage
+                .get_file_storage_client()
+                .await
+                .expect("Failed to initialize file storage client");
+            #[allow(clippy::expect_used)]
+            let theme_storage_client = conf
+                .theme
+                .storage
+                .get_file_storage_client()
+                .await
+                .expect("Failed to initialize theme storage client");
             let crm_client = conf.crm.get_crm_client().await;
 
             let grpc_client = conf.grpc_client.get_grpc_client_interface().await;

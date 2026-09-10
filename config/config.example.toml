@@ -1317,11 +1317,14 @@ account_updater_topic = "topic"         # Kafka topic to be used for account upd
 
 # File storage configuration
 [file_storage]
-file_storage_backend = "aws_s3" # File storage backend to be used
+file_storage_backend = "aws_s3" # File storage backend to be used (file_system | aws_s3 | gcp_storage)
 
 [file_storage.aws_s3]
 region = "us-east-1"    # The AWS region used by the AWS S3 for file storage
 bucket_name = "bucket1" # The AWS S3 bucket name for file storage
+
+# [file_storage.gcp_storage]
+# bucket_name = "bucket1" # The GCP Cloud Storage bucket name for file storage
 
 [secrets_management]
 secrets_manager = "aws_kms" # Secrets manager client to be used (no_encryption | aws_kms | hashicorp_vault | gcp_kms)
