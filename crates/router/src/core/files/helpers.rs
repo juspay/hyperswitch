@@ -63,7 +63,9 @@ pub async fn validate_file_upload(
 
             let validation = connector_data.connector.validate_file_upload(
                 create_file_request.purpose,
-                create_file_request.file_size,
+                i32::try_from(create_file_request.file_size)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("file size does not fit the connector interface")?,
                 create_file_request.file_type.clone(),
             );
             match validation {

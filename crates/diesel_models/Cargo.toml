@@ -8,6 +8,7 @@ readme = "README.md"
 license.workspace = true
 
 [features]
+spanner = ["router_derive/spanner", "common_enums/spanner"]
 default = ["kv_store"]
 kv_store = []
 v1 = ["common_utils/v1", "common_types/v1"]
@@ -35,6 +36,9 @@ hyperswitch_masking = "0.0.1"
 router_derive = { version = "0.1.0", path = "../router_derive" }
 router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"] }
 deja = { git = "https://github.com/juspay/deja", rev = "1838093c7f29938022ba0614d7b78fd2a2e92c4d", optional = true, default-features = false, features = ["error-stack"] }
+
+[dev-dependencies]
+tokio = { version = "1.48.0", features = ["macros", "rt-multi-thread"] }
 
 [lints]
 workspace = true

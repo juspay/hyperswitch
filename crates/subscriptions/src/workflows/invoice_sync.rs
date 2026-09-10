@@ -430,7 +430,7 @@ pub async fn get_subscription_invoice_sync_process_schedule_time(
     db: &dyn StorageInterface,
     connector: &str,
     merchant_id: &common_utils::id_type::MerchantId,
-    retry_count: i32,
+    retry_count: i64,
 ) -> Result<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
     let mapping: CustomResult<process_data::SubscriptionInvoiceSyncPTMapping, StorageError> = db
         .find_config_by_key(&format!("invoice_sync_pt_mapping_{connector}"))

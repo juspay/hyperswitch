@@ -27,7 +27,7 @@ pub struct Capture {
     pub modified_at: PrimitiveDateTime,
     pub authorized_attempt_id: String,
     pub connector_capture_id: Option<ConnectorTransactionId>,
-    pub capture_sequence: i16,
+    pub capture_sequence: i64,
     // reference to the capture at connector side
     pub connector_response_reference_id: Option<String>,
     /// INFO: This field is deprecated and replaced by processor_capture_data
@@ -55,7 +55,7 @@ pub struct CaptureNew {
     pub modified_at: PrimitiveDateTime,
     pub authorized_attempt_id: String,
     pub connector_capture_id: Option<ConnectorTransactionId>,
-    pub capture_sequence: i16,
+    pub capture_sequence: i64,
     pub connector_response_reference_id: Option<String>,
     /// INFO: This field is deprecated and replaced by processor_capture_data
     pub connector_capture_data: Option<String>,

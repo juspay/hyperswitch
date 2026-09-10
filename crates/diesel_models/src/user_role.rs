@@ -11,7 +11,7 @@ use crate::{enums, schema::user_roles};
 #[cfg_attr(feature = "deja", derive(serde::Serialize, serde::Deserialize))]
 #[diesel(table_name = user_roles, check_for_backend(diesel::pg::Pg))]
 pub struct UserRole {
-    pub id: i32,
+    pub id: i64,
     pub user_id: String,
     pub merchant_id: Option<id_type::MerchantId>,
     pub role_id: String,

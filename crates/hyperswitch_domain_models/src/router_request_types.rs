@@ -373,7 +373,7 @@ pub struct PaymentsIncrementalAuthorizationData {
 
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct MultipleCaptureRequestData {
-    pub capture_sequence: i16,
+    pub capture_sequence: i64,
     pub capture_reference: String,
 }
 
@@ -1760,7 +1760,7 @@ pub struct UploadFileRequestData {
     pub file: Vec<u8>,
     #[serde_as(as = "serde_with::DisplayFromStr")]
     pub file_type: mime::Mime,
-    pub file_size: i32,
+    pub file_size: i64,
     pub dispute_id: String,
     pub connector_dispute_id: String,
 }

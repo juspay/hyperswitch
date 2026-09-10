@@ -291,7 +291,7 @@ impl UserRoleInterface for MockDb {
             })?
         }
         let user_role = storage::UserRole {
-            id: i32::try_from(db_user_roles.len())
+            id: i64::try_from(db_user_roles.len())
                 .change_context(errors::StorageError::MockDbError)?,
             user_id: user_role.user_id,
             merchant_id: user_role.merchant_id,

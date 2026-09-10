@@ -3,6 +3,8 @@
 diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
+    use crate::spanner_types::HsTimestamp as Timestamp;
+    use crate::spanner_types::HsJson as Json;
 
     address (address_id) {
         #[max_length = 64]
@@ -38,6 +40,8 @@ diesel::table! {
 diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
+    use crate::spanner_types::HsTimestamp as Timestamp;
+    use crate::spanner_types::HsJson as Json;
 
     api_keys (key_id) {
         #[max_length = 64]
@@ -61,6 +65,8 @@ diesel::table! {
 diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
+    use crate::spanner_types::HsTimestamp as Timestamp;
+    use crate::spanner_types::HsJson as Json;
 
     authentication (authentication_id) {
         #[max_length = 64]
@@ -189,6 +195,8 @@ diesel::table! {
 diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
+    use crate::spanner_types::HsTimestamp as Timestamp;
+    use crate::spanner_types::HsJson as Json;
 
     batch_blocklist_jobs (id) {
         #[max_length = 64]
@@ -197,9 +205,9 @@ diesel::table! {
         merchant_id -> Varchar,
         #[max_length = 32]
         status -> Varchar,
-        total_rows -> Int4,
-        succeeded_rows -> Int4,
-        failed_rows -> Int4,
+        total_rows -> Int8,
+        succeeded_rows -> Int8,
+        failed_rows -> Int8,
         created_at -> Timestamp,
         updated_at -> Timestamp,
         #[max_length = 64]
@@ -210,6 +218,8 @@ diesel::table! {
 diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
+    use crate::spanner_types::HsTimestamp as Timestamp;
+    use crate::spanner_types::HsJson as Json;
 
     blocklist (merchant_id, fingerprint_id) {
         #[max_length = 64]
@@ -231,6 +241,8 @@ diesel::table! {
 diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
+    use crate::spanner_types::HsTimestamp as Timestamp;
+    use crate::spanner_types::HsJson as Json;
 
     blocklist_fingerprint (merchant_id, fingerprint_id) {
         #[max_length = 64]
@@ -246,6 +258,8 @@ diesel::table! {
 diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
+    use crate::spanner_types::HsTimestamp as Timestamp;
+    use crate::spanner_types::HsJson as Json;
 
     blocklist_lookup (merchant_id, fingerprint) {
         #[max_length = 64]
@@ -257,6 +271,8 @@ diesel::table! {
 diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
+    use crate::spanner_types::HsTimestamp as Timestamp;
+    use crate::spanner_types::HsJson as Json;
 
     business_profile (profile_id) {
         #[max_length = 64]
@@ -300,7 +316,7 @@ diesel::table! {
         dynamic_routing_algorithm -> Nullable<Json>,
         is_network_tokenization_enabled -> Bool,
         is_auto_retries_enabled -> Nullable<Bool>,
-        max_auto_retries_enabled -> Nullable<Int2>,
+        max_auto_retries_enabled -> Nullable<Int8>,
         always_request_extended_authorization -> Nullable<Bool>,
         is_click_to_pay_enabled -> Bool,
         authentication_product_ids -> Nullable<Jsonb>,
@@ -320,7 +336,7 @@ diesel::table! {
         merchant_category_code -> Nullable<Varchar>,
         #[max_length = 32]
         merchant_country_code -> Nullable<Varchar>,
-        dispute_polling_interval -> Nullable<Int4>,
+        dispute_polling_interval -> Nullable<Int8>,
         is_manual_retry_enabled -> Nullable<Bool>,
         always_enable_overcapture -> Nullable<Bool>,
         #[max_length = 64]
@@ -339,6 +355,8 @@ diesel::table! {
 diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
+    use crate::spanner_types::HsTimestamp as Timestamp;
+    use crate::spanner_types::HsJson as Json;
 
     callback_mapper (id, type_) {
         #[max_length = 128]
@@ -355,6 +373,8 @@ diesel::table! {
 diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
+    use crate::spanner_types::HsTimestamp as Timestamp;
+    use crate::spanner_types::HsJson as Json;
 
     captures (capture_id) {
         #[max_length = 64]
@@ -381,7 +401,7 @@ diesel::table! {
         authorized_attempt_id -> Varchar,
         #[max_length = 128]
         connector_capture_id -> Nullable<Varchar>,
-        capture_sequence -> Int2,
+        capture_sequence -> Int8,
         #[max_length = 128]
         connector_response_reference_id -> Nullable<Varchar>,
         #[max_length = 512]
@@ -393,6 +413,8 @@ diesel::table! {
 diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
+    use crate::spanner_types::HsTimestamp as Timestamp;
+    use crate::spanner_types::HsJson as Json;
 
     card_issuers (id) {
         #[max_length = 64]
@@ -406,6 +428,8 @@ diesel::table! {
 diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
+    use crate::spanner_types::HsTimestamp as Timestamp;
+    use crate::spanner_types::HsJson as Json;
 
     cards_info (card_iin) {
         #[max_length = 16]
@@ -458,6 +482,8 @@ diesel::table! {
 diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
+    use crate::spanner_types::HsTimestamp as Timestamp;
+    use crate::spanner_types::HsJson as Json;
 
     configs (key) {
         #[max_length = 255]
@@ -469,6 +495,8 @@ diesel::table! {
 diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
+    use crate::spanner_types::HsTimestamp as Timestamp;
+    use crate::spanner_types::HsJson as Json;
 
     customers (customer_id, merchant_id) {
         #[max_length = 64]
@@ -507,9 +535,11 @@ diesel::table! {
 diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
+    use crate::spanner_types::HsTimestamp as Timestamp;
+    use crate::spanner_types::HsJson as Json;
 
     dashboard_metadata (id) {
-        id -> Int4,
+        id -> Int8,
         #[max_length = 64]
         user_id -> Nullable<Varchar>,
         #[max_length = 64]
@@ -532,6 +562,8 @@ diesel::table! {
 diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
+    use crate::spanner_types::HsTimestamp as Timestamp;
+    use crate::spanner_types::HsJson as Json;
 
     dispute (dispute_id) {
         #[max_length = 64]
@@ -582,6 +614,8 @@ diesel::table! {
 diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
+    use crate::spanner_types::HsTimestamp as Timestamp;
+    use crate::spanner_types::HsJson as Json;
 
     dynamic_routing_stats (attempt_id, merchant_id) {
         #[max_length = 64]
@@ -615,6 +649,8 @@ diesel::table! {
 diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
+    use crate::spanner_types::HsTimestamp as Timestamp;
+    use crate::spanner_types::HsJson as Json;
 
     events (event_id) {
         #[max_length = 64]
@@ -652,6 +688,8 @@ diesel::table! {
 diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
+    use crate::spanner_types::HsTimestamp as Timestamp;
+    use crate::spanner_types::HsJson as Json;
 
     file_metadata (file_id, merchant_id) {
         #[max_length = 64]
@@ -660,7 +698,7 @@ diesel::table! {
         merchant_id -> Varchar,
         #[max_length = 255]
         file_name -> Nullable<Varchar>,
-        file_size -> Int4,
+        file_size -> Int8,
         #[max_length = 255]
         file_type -> Varchar,
         #[max_length = 255]
@@ -685,6 +723,8 @@ diesel::table! {
 diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
+    use crate::spanner_types::HsTimestamp as Timestamp;
+    use crate::spanner_types::HsJson as Json;
 
     fraud_check (frm_id, attempt_id, payment_id, merchant_id) {
         #[max_length = 64]
@@ -702,7 +742,7 @@ diesel::table! {
         frm_transaction_id -> Nullable<Varchar>,
         frm_transaction_type -> FraudCheckType,
         frm_status -> FraudCheckStatus,
-        frm_score -> Nullable<Int4>,
+        frm_score -> Nullable<Int8>,
         frm_reason -> Nullable<Jsonb>,
         #[max_length = 255]
         frm_error -> Nullable<Varchar>,
@@ -722,6 +762,8 @@ diesel::table! {
 diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
+    use crate::spanner_types::HsTimestamp as Timestamp;
+    use crate::spanner_types::HsJson as Json;
 
     gateway_status_map (connector, flow, sub_flow, code, message) {
         #[max_length = 64]
@@ -765,6 +807,8 @@ diesel::table! {
 diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
+    use crate::spanner_types::HsTimestamp as Timestamp;
+    use crate::spanner_types::HsJson as Json;
 
     generic_link (link_id) {
         #[max_length = 64]
@@ -787,6 +831,8 @@ diesel::table! {
 diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
+    use crate::spanner_types::HsTimestamp as Timestamp;
+    use crate::spanner_types::HsJson as Json;
 
     incremental_authorization (authorization_id, merchant_id) {
         #[max_length = 64]
@@ -814,6 +860,8 @@ diesel::table! {
 diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
+    use crate::spanner_types::HsTimestamp as Timestamp;
+    use crate::spanner_types::HsJson as Json;
 
     invoice (id) {
         #[max_length = 64]
@@ -850,6 +898,8 @@ diesel::table! {
 diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
+    use crate::spanner_types::HsTimestamp as Timestamp;
+    use crate::spanner_types::HsJson as Json;
 
     locker_mock_up (card_id) {
         #[max_length = 255]
@@ -886,6 +936,8 @@ diesel::table! {
 diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
+    use crate::spanner_types::HsTimestamp as Timestamp;
+    use crate::spanner_types::HsJson as Json;
 
     mandate (mandate_id) {
         #[max_length = 64]
@@ -935,6 +987,8 @@ diesel::table! {
 diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
+    use crate::spanner_types::HsTimestamp as Timestamp;
+    use crate::spanner_types::HsJson as Json;
 
     merchant_account (merchant_id) {
         #[max_length = 64]
@@ -990,6 +1044,8 @@ diesel::table! {
 diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
+    use crate::spanner_types::HsTimestamp as Timestamp;
+    use crate::spanner_types::HsJson as Json;
 
     merchant_connector_account (merchant_connector_id) {
         #[max_length = 64]
@@ -1033,6 +1089,8 @@ diesel::table! {
 diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
+    use crate::spanner_types::HsTimestamp as Timestamp;
+    use crate::spanner_types::HsJson as Json;
 
     merchant_key_store (merchant_id) {
         #[max_length = 64]
@@ -1045,6 +1103,8 @@ diesel::table! {
 diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
+    use crate::spanner_types::HsTimestamp as Timestamp;
+    use crate::spanner_types::HsJson as Json;
 
     organization (org_id) {
         #[max_length = 32]
@@ -1068,6 +1128,8 @@ diesel::table! {
 diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
+    use crate::spanner_types::HsTimestamp as Timestamp;
+    use crate::spanner_types::HsJson as Json;
 
     payment_attempt (attempt_id, merchant_id) {
         #[max_length = 64]
@@ -1120,7 +1182,7 @@ diesel::table! {
         preprocessing_step_id -> Nullable<Varchar>,
         mandate_details -> Nullable<Jsonb>,
         error_reason -> Nullable<Text>,
-        multiple_capture_count -> Nullable<Int2>,
+        multiple_capture_count -> Nullable<Int8>,
         #[max_length = 128]
         connector_response_reference_id -> Nullable<Varchar>,
         amount_capturable -> Int8,
@@ -1212,6 +1274,8 @@ diesel::table! {
 diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
+    use crate::spanner_types::HsTimestamp as Timestamp;
+    use crate::spanner_types::HsJson as Json;
 
     payment_intent (payment_id, merchant_id) {
         #[max_length = 64]
@@ -1255,7 +1319,7 @@ diesel::table! {
         allowed_payment_method_types -> Nullable<Json>,
         connector_metadata -> Nullable<Json>,
         feature_metadata -> Nullable<Json>,
-        attempt_count -> Int2,
+        attempt_count -> Int8,
         #[max_length = 64]
         profile_id -> Nullable<Varchar>,
         #[max_length = 64]
@@ -1268,7 +1332,7 @@ diesel::table! {
         surcharge_applicable -> Nullable<Bool>,
         request_incremental_authorization -> Nullable<RequestIncrementalAuthorization>,
         incremental_authorization_allowed -> Nullable<Bool>,
-        authorization_count -> Nullable<Int4>,
+        authorization_count -> Nullable<Int8>,
         session_expiry -> Nullable<Timestamp>,
         #[max_length = 64]
         fingerprint_id -> Nullable<Varchar>,
@@ -1331,6 +1395,8 @@ diesel::table! {
 diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
+    use crate::spanner_types::HsTimestamp as Timestamp;
+    use crate::spanner_types::HsJson as Json;
 
     payment_link (payment_link_id) {
         #[max_length = 255]
@@ -1365,6 +1431,8 @@ diesel::table! {
 diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
+    use crate::spanner_types::HsTimestamp as Timestamp;
+    use crate::spanner_types::HsJson as Json;
 
     payment_methods (payment_method_id) {
         #[max_length = 64]
@@ -1450,6 +1518,8 @@ diesel::table! {
 diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
+    use crate::spanner_types::HsTimestamp as Timestamp;
+    use crate::spanner_types::HsJson as Json;
 
     payout_attempt (merchant_id, payout_attempt_id) {
         #[max_length = 64]
@@ -1508,6 +1578,8 @@ diesel::table! {
 diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
+    use crate::spanner_types::HsTimestamp as Timestamp;
+    use crate::spanner_types::HsJson as Json;
 
     payouts (merchant_id, payout_id) {
         #[max_length = 64]
@@ -1535,7 +1607,7 @@ diesel::table! {
         metadata -> Nullable<Jsonb>,
         created_at -> Timestamp,
         last_modified_at -> Timestamp,
-        attempt_count -> Int2,
+        attempt_count -> Int8,
         #[max_length = 64]
         profile_id -> Varchar,
         status -> PayoutStatus,
@@ -1559,6 +1631,8 @@ diesel::table! {
 diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
+    use crate::spanner_types::HsTimestamp as Timestamp;
+    use crate::spanner_types::HsJson as Json;
 
     process_tracker (id) {
         #[max_length = 127]
@@ -1568,7 +1642,7 @@ diesel::table! {
         tag -> Array<Nullable<Text>>,
         #[max_length = 64]
         runner -> Nullable<Varchar>,
-        retry_count -> Int4,
+        retry_count -> Int8,
         schedule_time -> Nullable<Timestamp>,
         #[max_length = 255]
         rule -> Varchar,
@@ -1588,6 +1662,8 @@ diesel::table! {
 diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
+    use crate::spanner_types::HsTimestamp as Timestamp;
+    use crate::spanner_types::HsJson as Json;
 
     refund (merchant_id, refund_id) {
         #[max_length = 64]
@@ -1658,6 +1734,8 @@ diesel::table! {
 diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
+    use crate::spanner_types::HsTimestamp as Timestamp;
+    use crate::spanner_types::HsJson as Json;
 
     relay (id) {
         #[max_length = 64]
@@ -1691,6 +1769,8 @@ diesel::table! {
 diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
+    use crate::spanner_types::HsTimestamp as Timestamp;
+    use crate::spanner_types::HsJson as Json;
 
     reverse_lookup (lookup_id) {
         #[max_length = 128]
@@ -1709,6 +1789,8 @@ diesel::table! {
 diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
+    use crate::spanner_types::HsTimestamp as Timestamp;
+    use crate::spanner_types::HsJson as Json;
 
     roles (role_id) {
         #[max_length = 64]
@@ -1741,6 +1823,8 @@ diesel::table! {
 diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
+    use crate::spanner_types::HsTimestamp as Timestamp;
+    use crate::spanner_types::HsJson as Json;
 
     routing_algorithm (algorithm_id) {
         #[max_length = 64]
@@ -1770,6 +1854,8 @@ diesel::table! {
 diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
+    use crate::spanner_types::HsTimestamp as Timestamp;
+    use crate::spanner_types::HsJson as Json;
 
     subscription (id) {
         #[max_length = 128]
@@ -1807,6 +1893,8 @@ diesel::table! {
 diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
+    use crate::spanner_types::HsTimestamp as Timestamp;
+    use crate::spanner_types::HsJson as Json;
 
     themes (theme_id) {
         #[max_length = 64]
@@ -1842,6 +1930,8 @@ diesel::table! {
 diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
+    use crate::spanner_types::HsTimestamp as Timestamp;
+    use crate::spanner_types::HsJson as Json;
 
     unified_translations (unified_code, unified_message, locale) {
         #[max_length = 255]
@@ -1860,6 +1950,8 @@ diesel::table! {
 diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
+    use crate::spanner_types::HsTimestamp as Timestamp;
+    use crate::spanner_types::HsJson as Json;
 
     user_authentication_methods (id) {
         #[max_length = 64]
@@ -1885,6 +1977,8 @@ diesel::table! {
 diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
+    use crate::spanner_types::HsTimestamp as Timestamp;
+    use crate::spanner_types::HsJson as Json;
 
     user_key_store (user_id) {
         #[max_length = 64]
@@ -1897,9 +1991,11 @@ diesel::table! {
 diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
+    use crate::spanner_types::HsTimestamp as Timestamp;
+    use crate::spanner_types::HsJson as Json;
 
     user_roles (id) {
-        id -> Int4,
+        id -> Int8,
         #[max_length = 64]
         user_id -> Varchar,
         #[max_length = 64]
@@ -1930,6 +2026,8 @@ diesel::table! {
 diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
+    use crate::spanner_types::HsTimestamp as Timestamp;
+    use crate::spanner_types::HsJson as Json;
 
     users (user_id) {
         #[max_length = 64]

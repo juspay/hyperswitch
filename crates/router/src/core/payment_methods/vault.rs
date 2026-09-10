@@ -3304,7 +3304,7 @@ pub async fn start_tokenize_data_workflow(
 pub async fn get_delete_tokenize_schedule_time(
     db: &dyn db::StorageInterface,
     pm: enums::PaymentMethod,
-    retry_count: i32,
+    retry_count: i64,
 ) -> Option<time::PrimitiveDateTime> {
     let redis_mapping = db::get_and_deserialize_key(
         db,

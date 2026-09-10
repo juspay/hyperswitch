@@ -1461,7 +1461,7 @@ impl RecoveryPaymentTuple {
     pub async fn publish_revenue_recovery_event_to_kafka(
         state: &SessionState,
         recovery_payment_tuple: &Self,
-        retry_count: Option<i32>,
+        retry_count: Option<i64>,
     ) -> CustomResult<(), errors::RevenueRecoveryError> {
         let recovery_payment_intent = &recovery_payment_tuple.0;
         let recovery_payment_attempt = &recovery_payment_tuple.1;

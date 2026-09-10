@@ -219,7 +219,7 @@ impl PayoutSyncWorkFlow {
     pub async fn get_payout_sync_process_schedule_time(
         state: &SessionState,
         payout_id: common_utils::id_type::PayoutId,
-        retry_count: i32,
+        retry_count: i64,
         dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndConnector,
     ) -> Result<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
         let value = dimensions
@@ -236,7 +236,7 @@ impl PayoutSyncWorkFlow {
     }
 
     /// get the schedule time for next process
-    pub fn get_schedule_time(mapping: process_data::RetryMapping, retry_count: i32) -> Option<i32> {
+    pub fn get_schedule_time(mapping: process_data::RetryMapping, retry_count: i64) -> Option<i32> {
         // For first try, get the `start_after` time
         if retry_count == 0 {
             Some(mapping.start_after)

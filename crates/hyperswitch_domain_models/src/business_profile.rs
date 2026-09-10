@@ -61,7 +61,7 @@ pub struct Profile {
     pub dynamic_routing_algorithm: Option<serde_json::Value>,
     pub is_network_tokenization_enabled: bool,
     pub is_auto_retries_enabled: bool,
-    pub max_auto_retries_enabled: Option<i16>,
+    pub max_auto_retries_enabled: Option<i64>,
     pub always_request_extended_authorization:
         Option<primitive_wrappers::AlwaysRequestExtendedAuthorization>,
     pub is_click_to_pay_enabled: bool,
@@ -246,7 +246,7 @@ pub struct ProfileSetter {
     pub dynamic_routing_algorithm: Option<serde_json::Value>,
     pub is_network_tokenization_enabled: bool,
     pub is_auto_retries_enabled: bool,
-    pub max_auto_retries_enabled: Option<i16>,
+    pub max_auto_retries_enabled: Option<i64>,
     pub always_request_extended_authorization:
         Option<primitive_wrappers::AlwaysRequestExtendedAuthorization>,
     pub is_click_to_pay_enabled: bool,
@@ -386,7 +386,7 @@ pub struct ProfileDbBuilder {
     pub dynamic_routing_algorithm: Option<serde_json::Value>,
     pub is_network_tokenization_enabled: bool,
     pub is_auto_retries_enabled: bool,
-    pub max_auto_retries_enabled: Option<i16>,
+    pub max_auto_retries_enabled: Option<i64>,
     pub always_request_extended_authorization:
         Option<primitive_wrappers::AlwaysRequestExtendedAuthorization>,
     pub is_click_to_pay_enabled: bool,
@@ -536,7 +536,7 @@ pub struct ProfileGeneralUpdate {
     pub dynamic_routing_algorithm: Option<serde_json::Value>,
     pub is_network_tokenization_enabled: Option<bool>,
     pub is_auto_retries_enabled: Option<bool>,
-    pub max_auto_retries_enabled: Option<i16>,
+    pub max_auto_retries_enabled: Option<i64>,
     pub is_click_to_pay_enabled: Option<bool>,
     pub authentication_product_ids:
         Option<common_types::payments::AuthenticationConnectorAccountMap>,

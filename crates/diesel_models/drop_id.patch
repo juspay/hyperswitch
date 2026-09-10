@@ -2,15 +2,12 @@ diff --git a/crates/diesel_models/src/schema.rs b/crates/diesel_models/src/schem
 index b35e809a0..749a5dd47 100644
 --- a/crates/diesel_models/src/schema.rs
 +++ b/crates/diesel_models/src/schema.rs
-@@ -142,14 +142,34 @@ diesel::table! {
- }
- 
- diesel::table! {
-     use diesel::sql_types::*;
-     use crate::enums::diesel_exports::*;
+@@ -221,8 +221,30 @@
+     use crate::spanner_types::HsTimestamp as Timestamp;
+     use crate::spanner_types::HsJson as Json;
  
 -    blocklist_fingerprint (id) {
--        id -> Int4,
+-        id -> Int8,
 +    blocklist (merchant_id, fingerprint_id) {
 +        #[max_length = 64]
 +        merchant_id -> Varchar,
@@ -31,61 +28,42 @@ index b35e809a0..749a5dd47 100644
 +diesel::table! {
 +    use diesel::sql_types::*;
 +    use crate::enums::diesel_exports::*;
++    use crate::spanner_types::HsTimestamp as Timestamp;
++    use crate::spanner_types::HsJson as Json;
 +
 +    blocklist_fingerprint (merchant_id, fingerprint_id) {
          #[max_length = 64]
          merchant_id -> Varchar,
          #[max_length = 64]
-         fingerprint_id -> Varchar,
-         data_kind -> BlocklistDataKind,
-         encrypted_fingerprint -> Text,
-@@ -158,14 +178,13 @@ diesel::table! {
- }
- 
- diesel::table! {
-     use diesel::sql_types::*;
-     use crate::enums::diesel_exports::*;
+@@ -239,8 +261,7 @@
+     use crate::spanner_types::HsTimestamp as Timestamp;
+     use crate::spanner_types::HsJson as Json;
  
 -    blocklist_lookup (id) {
--        id -> Int4,
+-        id -> Int8,
 +    blocklist_lookup (merchant_id, fingerprint) {
          #[max_length = 64]
          merchant_id -> Varchar,
          fingerprint -> Text,
-     }
- }
- 
-@@ -300,13 +319,12 @@ diesel::table! {
- 
- diesel::table! {
-     use diesel::sql_types::*;
-     use crate::enums::diesel_exports::*;
+@@ -465,7 +486,6 @@
+     use crate::spanner_types::HsJson as Json;
  
      configs (key) {
--        id -> Int4,
+-        id -> Int8,
          #[max_length = 255]
          key -> Varchar,
          config -> Text,
-     }
- }
- 
-@@ -615,14 +633,13 @@ diesel::table! {
- }
- 
- diesel::table! {
-     use diesel::sql_types::*;
-     use crate::enums::diesel_exports::*;
+@@ -881,8 +901,7 @@
+     use crate::spanner_types::HsTimestamp as Timestamp;
+     use crate::spanner_types::HsJson as Json;
  
 -    locker_mock_up (id) {
--        id -> Int4,
+-        id -> Int8,
 +    locker_mock_up (card_id) {
          #[max_length = 255]
          card_id -> Varchar,
          #[max_length = 255]
-         external_id -> Varchar,
-         #[max_length = 255]
-         card_fingerprint -> Varchar,
-@@ -1982,6 +1999,7 @@
+@@ -2036,6 +2055,7 @@
      api_keys,
      authentication,
      batch_blocklist_jobs,

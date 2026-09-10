@@ -9,7 +9,7 @@ use common_utils::{
     types::{MinorUnit, Percentage, StringMajorUnit},
 };
 use diesel::{
-    sql_types::{Json, Jsonb},
+    sql_types::Jsonb,
     AsExpression, FromSqlRow,
 };
 use hyperswitch_masking::{Secret, WithType};
@@ -72,7 +72,7 @@ common_utils::impl_to_sql_from_sql_json!(OrderDetailsWithAmount);
 
 #[cfg(feature = "v2")]
 #[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
-#[diesel(sql_type = Json)]
+#[diesel(sql_type = crate::spanner_types::HsJson)]
 pub struct FeatureMetadata {
     /// Redirection response coming in request as metadata field only for redirection scenarios
     pub redirect_response: Option<RedirectResponse>,
@@ -93,7 +93,7 @@ pub struct FeatureMetadata {
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
-#[diesel(sql_type = Json)]
+#[diesel(sql_type = crate::spanner_types::HsJson)]
 pub struct BoletoAdditionalDetails {
     /// Due Date for the Boleto
     #[serde(with = "common_utils::custom_serde::date_only_optional")]
@@ -252,7 +252,7 @@ pub struct BeneficiaryDetails {
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
-#[diesel(sql_type = Json)]
+#[diesel(sql_type = crate::spanner_types::HsJson)]
 pub struct FinixAdditionalDetails {
     /// The fraud session ID used for Finix fraud detection
     pub fraud_session_id: Option<String>,
@@ -287,7 +287,7 @@ impl FeatureMetadata {
 
 #[cfg(feature = "v1")]
 #[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
-#[diesel(sql_type = Json)]
+#[diesel(sql_type = crate::spanner_types::HsJson)]
 pub struct FeatureMetadata {
     /// Redirection response coming in request as metadata field only for redirection scenarios
     pub redirect_response: Option<RedirectResponse>,
@@ -308,7 +308,7 @@ pub struct FeatureMetadata {
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
-#[diesel(sql_type = Json)]
+#[diesel(sql_type = crate::spanner_types::HsJson)]
 pub enum PixAdditionalDetails {
     #[serde(rename = "immediate")]
     Immediate(ImmediateExpirationTime),
@@ -317,7 +317,7 @@ pub enum PixAdditionalDetails {
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
-#[diesel(sql_type = Json)]
+#[diesel(sql_type = crate::spanner_types::HsJson)]
 pub struct ImmediateExpirationTime {
     /// Expiration time in seconds
     pub time: u32,
@@ -326,7 +326,7 @@ pub struct ImmediateExpirationTime {
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
-#[diesel(sql_type = Json)]
+#[diesel(sql_type = crate::spanner_types::HsJson)]
 pub struct ScheduledExpirationTime {
     /// Expiration time in terms of date, format: YYYY-MM-DD
     #[serde(with = "common_utils::custom_serde::date_only")]
@@ -338,7 +338,7 @@ pub struct ScheduledExpirationTime {
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
-#[diesel(sql_type = Json)]
+#[diesel(sql_type = crate::spanner_types::HsJson)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum PixAutomaticoAdditionalDetails {
     PixAutomaticoPush(PixAutomaticoPushData),
@@ -347,7 +347,7 @@ pub enum PixAutomaticoAdditionalDetails {
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
-#[diesel(sql_type = Json)]
+#[diesel(sql_type = crate::spanner_types::HsJson)]
 pub struct PixAutomaticoPushData {
     pub time: u32,
     pub retry_policy: Option<bool>,
@@ -355,14 +355,14 @@ pub struct PixAutomaticoPushData {
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
-#[diesel(sql_type = Json)]
+#[diesel(sql_type = crate::spanner_types::HsJson)]
 pub struct PixAutomaticoQrData {
     pub retry_policy: Option<bool>,
     pub mandate_details: Option<SantanderMandateDetails>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
-#[diesel(sql_type = Json)]
+#[diesel(sql_type = crate::spanner_types::HsJson)]
 pub struct PixAutomaticoMitData {
     pub receiver_details: Option<SantanderPixAutomaticoReceiverDetails>,
     #[serde(default, with = "common_utils::custom_serde::date_only_optional")]
@@ -371,7 +371,7 @@ pub struct PixAutomaticoMitData {
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
-#[diesel(sql_type = Json)]
+#[diesel(sql_type = crate::spanner_types::HsJson)]
 pub struct SantanderMandateDetails {
     pub fixed_recurring_amount: Option<MinorUnit>,
     pub min_recurring_amount: Option<MinorUnit>,
@@ -383,7 +383,7 @@ pub struct SantanderMandateDetails {
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
-#[diesel(sql_type = Json)]
+#[diesel(sql_type = crate::spanner_types::HsJson)]
 #[serde(rename_all = "snake_case")]
 pub enum SantanderMandatePeriodicity {
     Weekly,
@@ -395,7 +395,7 @@ pub enum SantanderMandatePeriodicity {
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
-#[diesel(sql_type = Json)]
+#[diesel(sql_type = crate::spanner_types::HsJson)]
 #[serde(rename_all = "snake_case")]
 pub enum AccountType {
     Current,
@@ -404,7 +404,7 @@ pub enum AccountType {
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
-#[diesel(sql_type = Json)]
+#[diesel(sql_type = crate::spanner_types::HsJson)]
 pub struct SantanderPixAutomaticoReceiverDetails {
     pub branch_code: Option<Secret<String>>,
     pub account_number: Option<Secret<String>>,
@@ -412,7 +412,7 @@ pub struct SantanderPixAutomaticoReceiverDetails {
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
-#[diesel(sql_type = Json)]
+#[diesel(sql_type = crate::spanner_types::HsJson)]
 pub struct ApplePayRecurringDetails {
     /// A description of the recurring payment that Apple Pay displays to the user in the payment sheet
     pub payment_description: String,
@@ -425,7 +425,7 @@ pub struct ApplePayRecurringDetails {
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
-#[diesel(sql_type = Json)]
+#[diesel(sql_type = crate::spanner_types::HsJson)]
 pub struct ApplePayRegularBillingDetails {
     /// The label that Apple Pay displays to the user in the payment sheet with the recurring details
     pub label: String,
@@ -442,7 +442,7 @@ pub struct ApplePayRegularBillingDetails {
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
-#[diesel(sql_type = Json)]
+#[diesel(sql_type = crate::spanner_types::HsJson)]
 #[serde(rename_all = "snake_case")]
 pub enum RecurringPaymentIntervalUnit {
     Year,

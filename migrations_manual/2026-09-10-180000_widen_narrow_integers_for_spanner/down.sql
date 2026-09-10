@@ -1,0 +1,21 @@
+-- Revert the widening. Same locking warning applies.
+
+ALTER TABLE batch_blocklist_jobs ALTER COLUMN total_rows TYPE integer;
+ALTER TABLE batch_blocklist_jobs ALTER COLUMN succeeded_rows TYPE integer;
+ALTER TABLE batch_blocklist_jobs ALTER COLUMN failed_rows TYPE integer;
+ALTER TABLE blocklist_fingerprint ALTER COLUMN id TYPE integer;
+ALTER TABLE blocklist_lookup ALTER COLUMN id TYPE integer;
+ALTER TABLE business_profile ALTER COLUMN max_auto_retries_enabled TYPE smallint;
+ALTER TABLE business_profile ALTER COLUMN dispute_polling_interval TYPE integer;
+ALTER TABLE captures ALTER COLUMN capture_sequence TYPE smallint;
+ALTER TABLE configs ALTER COLUMN id TYPE integer;
+ALTER TABLE dashboard_metadata ALTER COLUMN id TYPE integer;
+ALTER TABLE file_metadata ALTER COLUMN file_size TYPE integer;
+ALTER TABLE fraud_check ALTER COLUMN frm_score TYPE integer;
+ALTER TABLE locker_mock_up ALTER COLUMN id TYPE integer;
+ALTER TABLE payment_attempt ALTER COLUMN multiple_capture_count TYPE smallint;
+ALTER TABLE payment_intent ALTER COLUMN attempt_count TYPE smallint;
+ALTER TABLE payment_intent ALTER COLUMN authorization_count TYPE integer;
+ALTER TABLE payouts ALTER COLUMN attempt_count TYPE smallint;
+ALTER TABLE process_tracker ALTER COLUMN retry_count TYPE integer;
+ALTER TABLE user_roles ALTER COLUMN id TYPE integer;

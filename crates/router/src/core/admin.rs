@@ -3674,7 +3674,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
             dynamic_routing_algorithm: Some(dynamic_routing_algorithm),
             is_network_tokenization_enabled: self.is_network_tokenization_enabled,
             is_auto_retries_enabled: self.is_auto_retries_enabled.unwrap_or_default(),
-            max_auto_retries_enabled: self.max_auto_retries_enabled.map(i16::from),
+            max_auto_retries_enabled: self.max_auto_retries_enabled.map(i64::from),
             always_request_extended_authorization: self.always_request_extended_authorization,
             is_click_to_pay_enabled: self.is_click_to_pay_enabled,
             authentication_product_ids: self.authentication_product_ids,
@@ -4278,7 +4278,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 dynamic_routing_algorithm: dynamic_routing_algo_ref,
                 is_network_tokenization_enabled: self.is_network_tokenization_enabled,
                 is_auto_retries_enabled: self.is_auto_retries_enabled,
-                max_auto_retries_enabled: self.max_auto_retries_enabled.map(i16::from),
+                max_auto_retries_enabled: self.max_auto_retries_enabled.map(i64::from),
                 is_click_to_pay_enabled: self.is_click_to_pay_enabled,
                 authentication_product_ids: self.authentication_product_ids,
                 card_testing_guard_config: self

@@ -379,7 +379,7 @@ pub async fn initiate_batch_blocklist_upload(
     );
     let now = date_time::now();
 
-    let total_rows_i32 = i32::try_from(total_rows)
+    let total_rows_i64 = i64::try_from(total_rows)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Row count exceeds i32::MAX")?;
 
@@ -387,7 +387,7 @@ pub async fn initiate_batch_blocklist_upload(
         id: job_id.clone(),
         merchant_id: processor_merchant_id.clone(),
         status: common_enums::BatchBlocklistJobStatus::Initiated,
-        total_rows: total_rows_i32,
+        total_rows: total_rows_i64,
         succeeded_rows: 0,
         failed_rows: 0,
         created_at: now,
@@ -464,7 +464,7 @@ pub(crate) async fn process_chunk(
     chunk_idx: u32,
     chunk_rows: Vec<BlocklistRow>,
     created_by: Option<String>,
-) -> RouterResult<i32> {
+) -> RouterResult<i64> {
     let now = date_time::now();
     let entries: Vec<storage::BlocklistNew> = chunk_rows
         .iter()
@@ -480,7 +480,7 @@ pub(crate) async fn process_chunk(
         })
         .collect();
 
-    let succeeded = i32::try_from(entries.len())
+    let succeeded = i64::try_from(entries.len())
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     state

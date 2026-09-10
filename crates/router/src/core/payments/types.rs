@@ -108,8 +108,8 @@ impl MultipleCaptureData {
                     }
             })
     }
-    pub fn get_captures_count(&self) -> RouterResult<i16> {
-        i16::try_from(self.all_captures.len())
+    pub fn get_captures_count(&self) -> RouterResult<i64> {
+        i64::try_from(self.all_captures.len())
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Error while converting from usize to i16")
     }

@@ -5619,7 +5619,7 @@ impl AttemptType {
     fn make_new_manual_retry_payment_attempt(
         request: &api_models::payments::PaymentsRequest,
         old_payment_attempt: PaymentAttempt,
-        new_attempt_count: i16,
+        new_attempt_count: i64,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> PaymentAttempt {
         let created_at @ modified_at @ last_synced = common_utils::date_time::now();

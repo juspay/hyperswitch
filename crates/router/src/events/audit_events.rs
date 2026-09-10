@@ -26,7 +26,7 @@ pub enum AuditEventType {
     },
     PaymentCapture {
         capture_amount: Option<MinorUnit>,
-        multiple_capture_count: Option<i16>,
+        multiple_capture_count: Option<i64>,
     },
     PaymentUpdate {
         amount: Amount,

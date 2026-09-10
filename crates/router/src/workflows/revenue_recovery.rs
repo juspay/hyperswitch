@@ -243,7 +243,7 @@ pub(crate) async fn get_schedule_time_to_retry_mit_payments(
     db: &dyn StorageInterface,
     superposition_client: &external_services::superposition::SuperpositionClient,
     dimensions: &crate::core::configs::dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
-    retry_count: i32,
+    retry_count: i64,
 ) -> Option<time::PrimitiveDateTime> {
     let mapping = dimensions
         .get_pt_mapping_pcr_retries(db, superposition_client, None)
@@ -260,7 +260,7 @@ pub(crate) async fn get_schedule_time_to_retry_adaptive_payments(
     db: &dyn StorageInterface,
     superposition_client: &external_services::superposition::SuperpositionClient,
     dimensions: &crate::core::configs::dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
-    retry_count: i32,
+    retry_count: i64,
 ) -> Option<time::PrimitiveDateTime> {
     let mapping = dimensions
         .get_pt_mapping_adaptive_retries(db, superposition_client, None)
@@ -663,7 +663,7 @@ async fn get_adaptive_retry_allowances(
     dimensions: &crate::core::configs::dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
     payment_intent: &PaymentIntent,
     max_retry_count: u16,
-    retry_count: i32,
+    retry_count: i64,
     now: time::PrimitiveDateTime,
 ) -> Result<(u32, u32), errors::ProcessTrackerError> {
     let grace_period_days = dimensions
@@ -739,7 +739,7 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
     payment_intent: &PaymentIntent,
     billing_connector: common_enums::connector_enums::Connector,
     retry_algorithm_type: RevenueRecoveryAlgorithmType,
-    retry_count: i32,
+    retry_count: i64,
     tracking_data: &pcr_storage_types::RevenueRecoveryWorkflowTrackingData,
     static_ladder_progress: &pcr::schedule::StaticLadderProgress,
     max_retry_count: u16,

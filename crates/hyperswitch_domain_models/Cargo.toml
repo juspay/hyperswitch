@@ -8,6 +8,7 @@ readme = "README.md"
 license.workspace = true
 
 [features]
+spanner = ["diesel_models/spanner", "common_enums/spanner"]
 default = ["olap", "frm"]
 encryption_service = ["common_utils/encryption_service"]
 olap = []

@@ -35,7 +35,7 @@ impl PaymentId {
     }
 
     /// Get the attempt id for the payment id based on the attempt count
-    pub fn get_attempt_id(&self, attempt_count: i16) -> String {
+    pub fn get_attempt_id(&self, attempt_count: i64) -> String {
         format!("{}_{attempt_count}", self.get_string_repr())
     }
 

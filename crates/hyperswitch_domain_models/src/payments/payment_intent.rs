@@ -320,13 +320,13 @@ pub enum PaymentIntentUpdate {
     },
     PaymentAttemptAndAttemptCountUpdate {
         active_attempt_id: String,
-        attempt_count: i16,
+        attempt_count: i64,
         updated_by: String,
     },
     StatusAndAttemptUpdate {
         status: common_enums::IntentStatus,
         active_attempt_id: String,
-        attempt_count: i16,
+        attempt_count: i64,
         updated_by: String,
     },
     ApproveUpdate {
@@ -351,7 +351,7 @@ pub enum PaymentIntentUpdate {
         amount: MinorUnit,
     },
     AuthorizationCountUpdate {
-        authorization_count: i32,
+        authorization_count: i64,
     },
     CompleteAuthorizeUpdate {
         shipping_address_id: Option<String>,
@@ -475,7 +475,7 @@ pub struct PaymentIntentUpdateInternal {
     pub statement_descriptor_suffix: Option<String>,
     pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
     pub order_details: Option<Vec<pii::SecretSerdeValue>>,
-    pub attempt_count: Option<i16>,
+    pub attempt_count: Option<i64>,
     // Denotes the action(approve or reject) taken by merchant in case of manual review.
     // Manual review can occur when the transaction is marked as risky by the frm_processor, payment processor or when there is underpayment/over payment incase of crypto payment
     pub merchant_decision: Option<String>,
@@ -484,7 +484,7 @@ pub struct PaymentIntentUpdateInternal {
     pub updated_by: String,
     pub surcharge_applicable: Option<bool>,
     pub incremental_authorization_allowed: Option<bool>,
-    pub authorization_count: Option<i32>,
+    pub authorization_count: Option<i64>,
     pub fingerprint_id: Option<String>,
     pub session_expiry: Option<PrimitiveDateTime>,
     pub request_external_three_ds_authentication: Option<bool>,

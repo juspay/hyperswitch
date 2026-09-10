@@ -3,7 +3,15 @@
 
 [print_schema]
 file = "crates/diesel_models/src/schema.rs"
-import_types = ["diesel::sql_types::*", "crate::enums::diesel_exports::*"]
+import_types = [
+    "diesel::sql_types::*",
+    "crate::enums::diesel_exports::*",
+    # Spanner shims. These alias back to the plain diesel types unless the
+    # `spanner` feature is on, so the Postgres build is unaffected.
+    # See crates/diesel_models/src/spanner_types.rs.
+    "crate::spanner_types::HsTimestamp as Timestamp",
+    "crate::spanner_types::HsJson as Json",
+]
 generate_missing_sql_type_definitions = false
 patch_file="crates/diesel_models/drop_id.patch"
 # blocklist has no primary key, which print-schema refuses; the patch file restores its block.

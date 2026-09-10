@@ -13,7 +13,7 @@ pub struct FileMetadataResponse {
     /// Name of the file
     pub file_name: Option<String>,
     /// Size of the file
-    pub file_size: i32,
+    pub file_size: i64,
     /// Type of the file
     pub file_type: String,
     /// File availability

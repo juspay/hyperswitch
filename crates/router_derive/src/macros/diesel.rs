@@ -53,10 +53,25 @@ pub(crate) fn diesel_enum_db_enum_derive_inner(ast: &DeriveInput) -> syn::Result
     let struct_name = format_ident!("Db{name}");
     let type_name = format!("{name}");
 
+    // How the marker struct resolves its Postgres OID is the *only* difference
+    // between this arm and `diesel_enum_text_derive_inner` below — the ToSql
+    // and FromSql bodies are identical, both writing the variant as UTF-8 and
+    // reading it back through FromStr.
+    //
+    // Spanner's PostgreSQL dialect has no user-defined enum types, so under the
+    // `spanner` feature the marker points at `text` (OID 25, array OID 1009)
+    // instead of looking up a type by name. That flips every enum column to
+    // text on the wire without touching schema.rs, the models, or any call site.
+    let postgres_type = if cfg!(feature = "spanner") {
+        quote! { #[diesel(postgres_type(oid = 25, array_oid = 1009))] }
+    } else {
+        quote! { #[diesel(postgres_type(name = #type_name))] }
+    };
+
     Ok(quote! {
 
         #[derive(::core::clone::Clone, ::core::marker::Copy, ::core::fmt::Debug, ::diesel::QueryId, ::diesel::SqlType)]
-        #[diesel(postgres_type(name = #type_name))]
+        #postgres_type
         pub struct #struct_name;
 
         #[automatically_derived]

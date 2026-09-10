@@ -24,6 +24,7 @@ router_derive = { version = "0.1.0", path = "../router_derive" }
 hyperswitch_constraint_graph = { version = "0.1.0", path = "../hyperswitch_constraint_graph", features = ["viz"] }
 
 [features]
+spanner = ["router_derive/spanner", "common_enums/spanner"]
 default = []
 ast_parser = ["dep:nom"]
 valued_jit = []

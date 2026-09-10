@@ -67,7 +67,7 @@ pub struct Profile {
     pub dynamic_routing_algorithm: Option<serde_json::Value>,
     pub is_network_tokenization_enabled: bool,
     pub is_auto_retries_enabled: Option<bool>,
-    pub max_auto_retries_enabled: Option<i16>,
+    pub max_auto_retries_enabled: Option<i64>,
     pub always_request_extended_authorization:
         Option<primitive_wrappers::AlwaysRequestExtendedAuthorization>,
     pub is_click_to_pay_enabled: bool,
@@ -140,7 +140,7 @@ pub struct ProfileNew {
     pub version: common_enums::ApiVersion,
     pub is_network_tokenization_enabled: bool,
     pub is_auto_retries_enabled: Option<bool>,
-    pub max_auto_retries_enabled: Option<i16>,
+    pub max_auto_retries_enabled: Option<i64>,
     pub is_click_to_pay_enabled: bool,
     pub authentication_product_ids:
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
@@ -207,7 +207,7 @@ pub struct ProfileUpdateInternal {
     pub dynamic_routing_algorithm: Option<serde_json::Value>,
     pub is_network_tokenization_enabled: Option<bool>,
     pub is_auto_retries_enabled: Option<bool>,
-    pub max_auto_retries_enabled: Option<i16>,
+    pub max_auto_retries_enabled: Option<i64>,
     pub always_request_extended_authorization:
         Option<primitive_wrappers::AlwaysRequestExtendedAuthorization>,
     pub is_click_to_pay_enabled: Option<bool>,
@@ -288,7 +288,7 @@ pub struct Profile {
     pub dynamic_routing_algorithm: Option<serde_json::Value>,
     pub is_network_tokenization_enabled: bool,
     pub is_auto_retries_enabled: Option<bool>,
-    pub max_auto_retries_enabled: Option<i16>,
+    pub max_auto_retries_enabled: Option<i64>,
     pub always_request_extended_authorization:
         Option<primitive_wrappers::AlwaysRequestExtendedAuthorization>,
     pub is_click_to_pay_enabled: bool,
@@ -377,7 +377,7 @@ pub struct ProfileNew {
     pub version: common_enums::ApiVersion,
     pub is_network_tokenization_enabled: bool,
     pub is_auto_retries_enabled: Option<bool>,
-    pub max_auto_retries_enabled: Option<i16>,
+    pub max_auto_retries_enabled: Option<i64>,
     pub is_click_to_pay_enabled: bool,
     pub authentication_product_ids:
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
@@ -443,7 +443,7 @@ pub struct ProfileUpdateInternal {
     pub is_tax_connector_enabled: Option<bool>,
     pub is_network_tokenization_enabled: Option<bool>,
     pub is_auto_retries_enabled: Option<bool>,
-    pub max_auto_retries_enabled: Option<i16>,
+    pub max_auto_retries_enabled: Option<i64>,
     pub is_click_to_pay_enabled: Option<bool>,
     pub authentication_product_ids:
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
@@ -564,7 +564,9 @@ pub struct MultipleWebhookDetail {
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
-#[diesel(sql_type = diesel::sql_types::Json)]
+#[cfg_attr(not(feature = "spanner"), diesel(sql_type = diesel::sql_types::Json))]
+// Spanner has no `json` type, only `jsonb`.
+#[cfg_attr(feature = "spanner", diesel(sql_type = diesel::sql_types::Jsonb))]
 pub struct WebhookDetails {
     pub webhook_version: Option<String>,
     pub webhook_username: Option<String>,

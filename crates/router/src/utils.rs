@@ -172,7 +172,7 @@ impl<E> ConnectorResponseExt
 }
 
 #[inline]
-pub fn get_payout_attempt_id(payout_id: &str, attempt_count: i16) -> String {
+pub fn get_payout_attempt_id(payout_id: &str, attempt_count: i64) -> String {
     format!("{payout_id}_{attempt_count}")
 }
 

@@ -62,7 +62,7 @@ impl ForeignTryFrom<&types::Connector> for FileUploadProvider {
 pub struct CreateFileRequest {
     pub file: Vec<u8>,
     pub file_name: Option<String>,
-    pub file_size: i32,
+    pub file_size: i64,
     #[serde_as(as = "serde_with::DisplayFromStr")]
     pub file_type: mime::Mime,
     pub purpose: FilePurpose,

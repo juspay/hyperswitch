@@ -29,7 +29,7 @@ pub struct ProcessTracker {
     #[diesel(deserialize_as = super::DieselArray<String>)]
     pub tag: Vec<String>,
     pub runner: Option<String>,
-    pub retry_count: i32,
+    pub retry_count: i64,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub schedule_time: Option<PrimitiveDateTime>,
     pub rule: String,
@@ -60,7 +60,7 @@ pub struct ProcessTrackerNew {
     pub name: Option<String>,
     pub tag: Vec<String>,
     pub runner: Option<String>,
-    pub retry_count: i32,
+    pub retry_count: i64,
     pub schedule_time: Option<PrimitiveDateTime>,
     pub rule: String,
     pub tracking_data: serde_json::Value,
@@ -81,7 +81,7 @@ impl ProcessTrackerNew {
         runner: ProcessTrackerRunner,
         tag: impl IntoIterator<Item = impl Into<String>>,
         tracking_data: T,
-        retry_count: Option<i32>,
+        retry_count: Option<i64>,
         schedule_time: PrimitiveDateTime,
         api_version: ApiVersion,
         application_source: ApplicationSource,
@@ -117,7 +117,7 @@ impl ProcessTrackerNew {
 pub enum ProcessTrackerUpdate {
     Update {
         name: Option<String>,
-        retry_count: Option<i32>,
+        retry_count: Option<i64>,
         schedule_time: Option<PrimitiveDateTime>,
         tracking_data: Option<serde_json::Value>,
         business_status: Option<String>,
@@ -130,7 +130,7 @@ pub enum ProcessTrackerUpdate {
     },
     StatusRetryUpdate {
         status: storage_enums::ProcessTrackerStatus,
-        retry_count: i32,
+        retry_count: i64,
         schedule_time: PrimitiveDateTime,
     },
 }
@@ -139,7 +139,7 @@ pub enum ProcessTrackerUpdate {
 #[diesel(table_name = process_tracker)]
 pub struct ProcessTrackerUpdateInternal {
     name: Option<String>,
-    retry_count: Option<i32>,
+    retry_count: Option<i64>,
     schedule_time: Option<PrimitiveDateTime>,
     tracking_data: Option<serde_json::Value>,
     business_status: Option<String>,

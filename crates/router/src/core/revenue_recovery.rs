@@ -1671,7 +1671,7 @@ pub fn map_recovery_status(
     intent_status: IntentStatus,
     calculate_workflow: Option<&ProcessTrackerStorage>,
     execute_workflow: Option<&ProcessTrackerStorage>,
-    attempt_count: i16,
+    attempt_count: i64,
     max_retry_threshold: i16,
 ) -> RecoveryStatus {
     let (calculate_business_status, calculate_process_tracker_status) = calculate_workflow
