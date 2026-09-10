@@ -48,6 +48,7 @@
 //! backends in `external_services` hardcode an HTML body and there is no plain-text path to reach.
 
 use actix_multipart::form::{bytes::Bytes, text::Text, MultipartForm};
+use external_services::chat_service::ChatSeverity;
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
@@ -68,6 +69,43 @@ pub struct ChatNotifyRequest {
     /// that message's response returned.
     #[serde(default)]
     pub reply_to: Option<String>,
+
+    /// A title to show above the message, larger than the body and free of markup.
+    ///
+    /// Sent with [`severity`](Self::severity) or not at all: the two make one banner, and a
+    /// destination that cannot draw one delivers the message without it.
+    #[serde(default)]
+    pub heading: Option<String>,
+
+    /// How urgent the message is, which decides the banner's colour.
+    #[serde(default)]
+    pub severity: Option<NotifySeverity>,
+}
+
+/// How urgent a chat message is.
+///
+/// Deliberately not a colour. Callers describe the alert, and each destination decides how to paint
+/// it — a caller that had to send `danger` would be encoding one backend's palette into every
+/// service that posts an alert.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum NotifySeverity {
+    /// Something is broken now.
+    Critical,
+    /// Still broken, said again.
+    Warning,
+    /// Over.
+    Resolved,
+}
+
+impl From<NotifySeverity> for ChatSeverity {
+    fn from(severity: NotifySeverity) -> Self {
+        match severity {
+            NotifySeverity::Critical => Self::Critical,
+            NotifySeverity::Warning => Self::Warning,
+            NotifySeverity::Resolved => Self::Resolved,
+        }
+    }
 }
 
 /// Multipart fields accepted by `POST /alerts/chat/upload/{destination}`.
@@ -309,6 +347,46 @@ mod tests {
         assert_eq!(request.reply_to.as_deref(), Some("cmtk931s1"));
     }
 
+    /// The body a bannered alert sends.
+    ///
+    /// Worth pinning because `deny_unknown_fields` is what rejected this shape before the fields
+    /// existed, and it rejects with the same "could not be parsed" as a typo — so a caller gets no
+    /// hint that the field is merely unsupported.
+    #[test]
+    fn chat_request_reads_a_banner() {
+        let request: ChatNotifyRequest = serde_json::from_value(serde_json::json!({
+            "text": "45 of 45 payments failed",
+            "heading": "🔴 SEV1 · Zero SR",
+            "severity": "critical",
+        }))
+        .unwrap();
+
+        assert_eq!(request.heading.as_deref(), Some("🔴 SEV1 · Zero SR"));
+        assert_eq!(request.severity, Some(NotifySeverity::Critical));
+    }
+
+    #[test]
+    fn every_severity_has_a_wire_spelling() {
+        for (wire, expected) in [
+            ("critical", NotifySeverity::Critical),
+            ("warning", NotifySeverity::Warning),
+            ("resolved", NotifySeverity::Resolved),
+        ] {
+            let severity: NotifySeverity = serde_json::from_value(serde_json::json!(wire)).unwrap();
+            assert_eq!(severity, expected);
+        }
+    }
+
+    /// A message with no banner is still the ordinary case and must stay a two-field body.
+    #[test]
+    fn chat_request_needs_no_banner() {
+        let request: ChatNotifyRequest =
+            serde_json::from_value(serde_json::json!({ "text": "hi" })).unwrap();
+
+        assert!(request.heading.is_none());
+        assert!(request.severity.is_none());
+    }
+
     /// Threading against a mailing list is a caller bug. `deny_unknown_fields` makes it a rejection
     /// rather than a field that quietly goes nowhere.
     #[test]
@@ -330,6 +408,8 @@ mod tests {
         let chat = ChatNotifyRequest {
             text: "acquirer_declined for merchant_1234".to_owned().into(),
             reply_to: None,
+            heading: None,
+            severity: None,
         };
         assert!(!format!("{chat:?}").contains("merchant_1234"));
 

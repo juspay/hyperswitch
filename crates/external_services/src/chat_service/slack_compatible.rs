@@ -18,7 +18,9 @@ use router_env::logger;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
-use super::{ChatError, ChatErrorReason, ChatFile, ChatMessage, ChatResult, FileId, MessageId};
+use super::{
+    ChatError, ChatErrorReason, ChatFile, ChatMessage, ChatResult, ChatSeverity, FileId, MessageId,
+};
 use crate::http_client;
 
 /// The method that posts a message. The only one this crate calls; `files.upload` is out of v1.
@@ -38,6 +40,13 @@ const BODY_SNIPPET_CHARS: usize = 512;
 
 /// Stands in when a refusal names no error code at all.
 const UNSPECIFIED_ERROR_CODE: &str = "unspecified";
+
+/// The cap a `header` block puts on its text.
+///
+/// Separate from the message cap, and far smaller. Slack rejects an oversized header outright
+/// rather than trimming it, and a rejected message is a *lost alert* — so the heading is cut to fit
+/// here even though nothing else in a banner needs cutting.
+const HEADER_MAX_CHARS: usize = 150;
 
 /// Request headers selected by the concrete backend.
 #[derive(Clone, Debug)]
@@ -145,7 +154,8 @@ impl Endpoint {
             url = %url,
             channel = %payload.channel,
             threaded = payload.thread_ts.is_some(),
-            chars = payload.text.chars().count(),
+            bannered = payload.attachments.is_some(),
+            chars = payload.body_chars(),
         );
 
         let body = self
@@ -324,12 +334,45 @@ impl Endpoint {
             })
             .transpose()?;
 
+        let body = truncate(message.text(), self.max_message_chars);
+
+        // A banner moves the body inside the attachment, because that is the only place a
+        // Slack-compatible backend draws the coloured rail: text left at the top level renders
+        // above the rail as a second, unframed copy of the same message.
+        let (text, attachments) = match message.banner() {
+            None => (body, None),
+            Some(banner) => (
+                String::new(),
+                Some(vec![Attachment {
+                    color: attachment_color(banner.severity()),
+                    blocks: vec![
+                        Block::header(truncate(banner.heading(), HEADER_MAX_CHARS)),
+                        Block::section(body),
+                    ],
+                }]),
+            ),
+        };
+
         Ok(PostMessagePayload {
             channel: self.channel.clone(),
-            text: truncate(message.text(), self.max_message_chars),
+            text,
             thread_ts,
-            mrkdwn: true,
+            // See the field: setting it alongside `attachments` costs the banner entirely.
+            mrkdwn: attachments.is_none().then_some(true),
+            attachments,
         })
+    }
+}
+
+/// The rail colour a backend draws for each severity.
+///
+/// These three names are Slack's whole documented vocabulary for `color`; anything else is read as
+/// a hex literal. Keeping the mapping here is what lets [`ChatSeverity`] stay in the reader's terms.
+fn attachment_color(severity: ChatSeverity) -> &'static str {
+    match severity {
+        ChatSeverity::Critical => "danger",
+        ChatSeverity::Warning => "warning",
+        ChatSeverity::Resolved => "good",
     }
 }
 
@@ -403,14 +446,104 @@ struct PostMessagePayload {
     #[serde(skip_serializing_if = "Option::is_none")]
     thread_ts: Option<String>,
 
-    /// Always sent, and never omitted.
+    /// Sent for a plain message, omitted for a bannered one.
     ///
-    /// Slack treats markup as enabled by default, so this is redundant there. Xyne does not:
-    /// its adapter takes the markup path only on `mrkdwn === true`, so an omitted flag delivers
+    /// Slack treats markup as enabled by default, so this is redundant there. Xyne does not: its
+    /// adapter takes the markup path only on `mrkdwn === true`, so an omitted flag delivers
     /// `*bold*` and backticks as literal characters. Since the whole point of
-    /// [`ChatMessage::text`](super::ChatMessage::text) is markup, sending it explicitly is the
-    /// only spelling that behaves the same on both.
-    mrkdwn: bool,
+    /// [`ChatMessage::text`](super::ChatMessage::text) is markup, sending it explicitly is the only
+    /// spelling that behaves the same on both.
+    ///
+    /// **Except alongside `attachments`.** That same adapter branch is text-only: with the flag set
+    /// it renders `text` and never looks at the attachments, so the coloured rail and the heading
+    /// silently vanish and the alert arrives as an ordinary message. Nothing is lost by omitting it
+    /// there — a bannered message carries its body in a block that declares `"type": "mrkdwn"` for
+    /// itself, so the markup is already accounted for.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    mrkdwn: Option<bool>,
+
+    /// The coloured frame, when the message asked for one.
+    ///
+    /// Omitted rather than sent empty: an empty array is a legal value that some backends render as
+    /// a stray divider.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    attachments: Option<Vec<Attachment>>,
+}
+
+impl PostMessagePayload {
+    /// How much text is actually being sent, wherever it sits.
+    ///
+    /// A bannered message carries its body inside the attachment and leaves `text` empty, so
+    /// counting `text` alone would log every alert as zero characters.
+    fn body_chars(&self) -> usize {
+        self.text.chars().count()
+            + self
+                .attachments
+                .iter()
+                .flatten()
+                .flat_map(|attachment| attachment.blocks.iter())
+                .map(|block| block.text.text.chars().count())
+                .sum::<usize>()
+    }
+}
+
+/// One coloured frame around a message.
+#[derive(Debug, Serialize)]
+struct Attachment {
+    color: &'static str,
+    blocks: Vec<Block>,
+}
+
+/// A block within an attachment.
+///
+/// Flat rather than an enum per block type: the two shapes this crate sends differ only in the two
+/// `type` strings, and an enum for that would be three declarations describing one object.
+#[derive(Debug, Serialize)]
+struct Block {
+    #[serde(rename = "type")]
+    kind: &'static str,
+    text: BlockText,
+}
+
+impl Block {
+    /// The large title at the top of the frame.
+    ///
+    /// `plain_text`, so a heading built from an error reason cannot open markup and swallow the
+    /// rest of the line — the reason `text` below is `mrkdwn` and this is not.
+    fn header(text: String) -> Self {
+        Self {
+            kind: "header",
+            text: BlockText {
+                kind: "plain_text",
+                text,
+                emoji: Some(true),
+            },
+        }
+    }
+
+    /// The message body, in markup.
+    fn section(text: String) -> Self {
+        Self {
+            kind: "section",
+            text: BlockText {
+                kind: "mrkdwn",
+                text,
+                emoji: None,
+            },
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+struct BlockText {
+    #[serde(rename = "type")]
+    kind: &'static str,
+    text: String,
+
+    /// Whether `:shortcode:` sequences become emoji. Meaningful only on `plain_text`, and rejected
+    /// outright on `mrkdwn` by some backends, so it is omitted there rather than sent as `false`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    emoji: Option<bool>,
 }
 
 /// The `chat.postMessage` response, exactly as it arrives.
@@ -559,6 +692,7 @@ mod tests {
     use serde_json::json;
 
     use super::*;
+    use crate::chat_service::ChatBanner;
 
     /// Any cap generous enough not to interfere; the per-backend defaults live with their
     /// clients, since Slack and Xyne do not agree on one.
@@ -785,5 +919,156 @@ mod tests {
 
         assert_eq!(payload.thread_ts.as_deref(), Some("1.2"));
         assert_eq!(payload.channel, "C1");
+    }
+
+    #[test]
+    fn an_unbannered_message_sends_no_attachments_key_at_all() {
+        let endpoint = endpoint("https://example.com", "/", "token").unwrap();
+
+        let payload = endpoint.build_payload(&ChatMessage::new("hi")).unwrap();
+        let wire = serde_json::to_value(&payload).unwrap();
+
+        assert_eq!(wire["text"], "hi");
+        assert!(
+            wire.get("attachments").is_none(),
+            "an empty attachments array renders as a stray divider on some backends"
+        );
+    }
+
+    /// The exact body a bannered alert puts on the wire.
+    ///
+    /// Pinned against a payload confirmed to render on Xyne — coloured rail plus large title — so
+    /// that a later refactor cannot quietly reshape it back into something that only looks right in
+    /// a struct. The parts that matter are all here: the body moved inside the attachment, `text`
+    /// emptied, `plain_text` on the header and `mrkdwn` on the section.
+    #[test]
+    fn a_banner_moves_the_body_into_a_coloured_attachment() {
+        let endpoint = endpoint("https://example.com", "/", "token").unwrap();
+
+        let payload = endpoint
+            .build_payload(
+                &ChatMessage::new("*Merchant:* `flowbird`")
+                    .with_banner(ChatBanner::new("🔴 SEV1 · Zero SR", ChatSeverity::Critical)),
+            )
+            .unwrap();
+
+        assert_eq!(
+            serde_json::to_value(&payload).unwrap(),
+            json!({
+                "channel": "C1",
+                "text": "",
+                "attachments": [{
+                    "color": "danger",
+                    "blocks": [
+                        {
+                            "type": "header",
+                            "text": {
+                                "type": "plain_text",
+                                "text": "🔴 SEV1 · Zero SR",
+                                "emoji": true,
+                            },
+                        },
+                        {
+                            "type": "section",
+                            "text": {
+                                "type": "mrkdwn",
+                                "text": "*Merchant:* `flowbird`",
+                            },
+                        },
+                    ],
+                }],
+            })
+        );
+    }
+
+    /// Setting `mrkdwn` alongside `attachments` costs the banner entirely.
+    ///
+    /// Xyne's adapter branches on the flag into a text-only path that never reads `attachments`, so
+    /// the message is delivered — `ok: true`, an id returned, nothing in the logs — and simply
+    /// arrives with no rail and no heading. Nothing downstream can detect it, which is why it is
+    /// pinned here rather than left to the payload test above.
+    #[test]
+    fn a_bannered_message_does_not_set_mrkdwn() {
+        let endpoint = endpoint("https://example.com", "/", "token").unwrap();
+
+        let payload = endpoint
+            .build_payload(
+                &ChatMessage::new("*bold*")
+                    .with_banner(ChatBanner::new("head", ChatSeverity::Critical)),
+            )
+            .unwrap();
+
+        assert!(payload.mrkdwn.is_none());
+        assert!(serde_json::to_value(&payload)
+            .unwrap()
+            .get("mrkdwn")
+            .is_none());
+    }
+
+    /// The other half: without a banner the flag is still required, or Xyne delivers `*bold*` and
+    /// backticks as literal characters.
+    #[test]
+    fn a_plain_message_still_sets_mrkdwn() {
+        let endpoint = endpoint("https://example.com", "/", "token").unwrap();
+
+        let payload = endpoint.build_payload(&ChatMessage::new("*bold*")).unwrap();
+
+        assert_eq!(payload.mrkdwn, Some(true));
+        assert_eq!(serde_json::to_value(&payload).unwrap()["mrkdwn"], true);
+    }
+
+    /// An oversized header is rejected outright rather than trimmed by the provider, so a long
+    /// heading would cost the whole alert rather than just its tail.
+    #[test]
+    fn an_oversized_heading_is_cut_to_the_header_limit() {
+        let endpoint = endpoint("https://example.com", "/", "token").unwrap();
+
+        let payload = endpoint
+            .build_payload(
+                &ChatMessage::new("body")
+                    .with_banner(ChatBanner::new("x".repeat(400), ChatSeverity::Critical)),
+            )
+            .unwrap();
+
+        let heading = &payload.attachments.as_ref().unwrap()[0].blocks[0].text.text;
+        assert!(heading.chars().count() <= HEADER_MAX_CHARS);
+        assert!(heading.ends_with(TRUNCATION_MARKER));
+    }
+
+    #[test]
+    fn severity_picks_the_rail_colour() {
+        assert_eq!(attachment_color(ChatSeverity::Critical), "danger");
+        assert_eq!(attachment_color(ChatSeverity::Warning), "warning");
+        assert_eq!(attachment_color(ChatSeverity::Resolved), "good");
+    }
+
+    #[test]
+    fn a_banner_can_still_be_threaded() {
+        let endpoint = endpoint("https://example.com", "/", "token").unwrap();
+
+        let payload = endpoint
+            .build_payload(
+                &ChatMessage::reply("resolved", MessageId::ts("1.2"))
+                    .with_banner(ChatBanner::new("🟢 RESOLVED", ChatSeverity::Resolved)),
+            )
+            .unwrap();
+
+        assert_eq!(payload.thread_ts.as_deref(), Some("1.2"));
+        assert_eq!(payload.attachments.as_ref().unwrap()[0].color, "good");
+    }
+
+    /// A bannered alert leaves `text` empty, so counting it alone logged every alert as zero.
+    #[test]
+    fn the_logged_length_counts_the_body_wherever_it_sits() {
+        let endpoint = endpoint("https://example.com", "/", "token").unwrap();
+
+        let payload = endpoint
+            .build_payload(
+                &ChatMessage::new("body")
+                    .with_banner(ChatBanner::new("head", ChatSeverity::Warning)),
+            )
+            .unwrap();
+
+        assert_eq!(payload.body_chars(), "body".len() + "head".len());
     }
 }

@@ -6,7 +6,7 @@ use std::sync::{
 };
 
 use external_services::chat_service::{
-    ChatClient, ChatError, ChatErrorReason, ChatFile, ChatMessage, MessageId,
+    ChatBanner, ChatClient, ChatError, ChatErrorReason, ChatFile, ChatMessage, MessageId,
 };
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 
@@ -33,6 +33,9 @@ pub struct ChatNotification {
 
     /// Post as a reply under this message, if given.
     pub reply_to: Option<String>,
+
+    /// Frame the message in a titled, colour-coded banner.
+    pub banner: Option<ChatBanner>,
 }
 
 /// One file to upload to a chat destination.
@@ -110,6 +113,10 @@ impl ChatNotifier for ChatClientNotifier {
                 ChatMessage::reply(notification.text.expose(), MessageId::ts(reply_to))
             }
             None => ChatMessage::new(notification.text.expose()),
+        };
+        let message = match notification.banner {
+            Some(banner) => message.with_banner(banner),
+            None => message,
         };
 
         match self.client.post_message(message).await {
@@ -438,6 +445,7 @@ mod tests {
             .notify(ChatNotification {
                 text: "first".to_owned().into(),
                 reply_to: None,
+                banner: None,
             })
             .await
             .unwrap();
@@ -445,6 +453,7 @@ mod tests {
             .notify(ChatNotification {
                 text: "second".to_owned().into(),
                 reply_to: None,
+                banner: None,
             })
             .await
             .unwrap();

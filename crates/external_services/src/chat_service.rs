@@ -173,6 +173,51 @@ impl MessageId {
 pub struct ChatMessage {
     text: String,
     reply_to: Option<MessageId>,
+    banner: Option<ChatBanner>,
+}
+
+/// How urgent a message is, in the vocabulary of the reader rather than of any one backend.
+///
+/// Named states rather than a colour, because the colour is a rendering detail each backend spells
+/// differently, and because a caller that has to know `danger` means "critical" has to know Slack.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ChatSeverity {
+    /// Something is broken now.
+    Critical,
+    /// Still broken, said again.
+    Warning,
+    /// Over.
+    Resolved,
+}
+
+/// A titled, colour-coded frame around a message.
+///
+/// Heading and severity travel together because neither is useful alone: a coloured bar with no
+/// title says only that something happened, and a title with no colour is what `text` already does.
+#[derive(Debug, Clone)]
+pub struct ChatBanner {
+    heading: String,
+    severity: ChatSeverity,
+}
+
+impl ChatBanner {
+    /// A banner reading `heading`, weighted by `severity`.
+    pub fn new(heading: impl Into<String>, severity: ChatSeverity) -> Self {
+        Self {
+            heading: heading.into(),
+            severity,
+        }
+    }
+
+    /// The heading, rendered as plain text: markup in it is shown literally, not interpreted.
+    pub fn heading(&self) -> &str {
+        &self.heading
+    }
+
+    /// How urgent the message is.
+    pub fn severity(&self) -> ChatSeverity {
+        self.severity
+    }
 }
 
 impl ChatMessage {
@@ -185,6 +230,7 @@ impl ChatMessage {
         Self {
             text: text.into(),
             reply_to: None,
+            banner: None,
         }
     }
 
@@ -199,7 +245,20 @@ impl ChatMessage {
         Self {
             text: text.into(),
             reply_to: Some(message_id),
+            banner: None,
         }
+    }
+
+    /// Frame this message in a titled, colour-coded banner.
+    ///
+    /// A builder here rather than a fourth constructor: unlike threading, a banner is orthogonal to
+    /// how the message was made, so both constructors would otherwise need a bannered twin.
+    ///
+    /// A backend that cannot draw one still delivers the message — the banner is presentation, and
+    /// dropping it must never cost the alert.
+    pub fn with_banner(mut self, banner: ChatBanner) -> Self {
+        self.banner = Some(banner);
+        self
     }
 
     /// The message body.
@@ -210,6 +269,11 @@ impl ChatMessage {
     /// The message this one replies to, if any.
     pub fn reply_target(&self) -> Option<&MessageId> {
         self.reply_to.as_ref()
+    }
+
+    /// The banner to frame this message in, if any.
+    pub fn banner(&self) -> Option<&ChatBanner> {
+        self.banner.as_ref()
     }
 }
 

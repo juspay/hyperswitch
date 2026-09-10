@@ -7,6 +7,7 @@
 //! destination" is turned into an error rather than repeated per route.
 
 use error_stack::report;
+use external_services::chat_service::ChatBanner;
 use hyperswitch_masking::PeekInterface;
 
 use crate::{
@@ -36,6 +37,12 @@ pub async fn notify_chat(
         .notify(ChatNotification {
             text: request.text,
             reply_to: request.reply_to,
+            // Both halves or neither: a colour with no title says only that something happened, and
+            // a title with no colour is what the message body already is.
+            banner: request
+                .heading
+                .zip(request.severity)
+                .map(|(heading, severity)| ChatBanner::new(heading, severity.into())),
         })
         .await
 }
