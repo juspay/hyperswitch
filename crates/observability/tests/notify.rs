@@ -18,10 +18,13 @@ use actix_web::{
 use external_services::email::no_email::NoEmailClient;
 use observability::{
     auth::X_INTERNAL_API_KEY,
-    domain::notifier::{
-        chat::{ChatNotifier, LogChatNotifier},
-        email::{EmailNotifier, EmailServiceNotifier},
-        Registry,
+    domain::{
+        alarm::catalogue::Catalogue,
+        notifier::{
+            chat::{ChatNotifier, LogChatNotifier},
+            email::{EmailNotifier, EmailServiceNotifier},
+            Registry,
+        },
     },
     routes::Alerts,
     state::AppState,
@@ -57,6 +60,10 @@ async fn state_with_max(max_upload_bytes: usize) -> AppState {
         conf: Arc::new(conf),
         chat: Arc::new(Registry::new(HashMap::from([(CHAT.to_owned(), chat)]))),
         email: Arc::new(Registry::new(HashMap::from([(EMAIL.to_owned(), email)]))),
+        // No alarms, and therefore no metrics provider — these tests exercise the notify routes,
+        // which forward alerts somebody else decided. The evaluator has its own tests.
+        alarms: Arc::new(Catalogue::default()),
+        metrics: None,
     }
 }
 

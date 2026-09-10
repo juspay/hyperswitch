@@ -9,6 +9,8 @@
 //! configuration can be used to serve requests, so "did we remember to decrypt this?" is answered
 //! by the type checker rather than by review.
 
+pub mod cloudwatch;
+
 use std::{collections::HashMap, path::PathBuf};
 
 use common_utils::{ext_traits::ConfigExt, pii};
@@ -62,6 +64,9 @@ pub struct Settings<S: SecretState> {
     pub chat: SecretStateContainer<ChatSettings, S>,
     /// Email destinations this service can deliver to.
     pub email: EmailSettings,
+    /// The CloudWatch metric alarms this service evaluates. Empty means it evaluates nothing and
+    /// only forwards what it is sent.
+    pub cloudwatch: cloudwatch::CloudWatchSettings,
 }
 
 const DEFAULT_MAX_UPLOAD_BYTES: usize = 25 * 1024 * 1024;
@@ -349,11 +354,50 @@ impl Settings<SecuredSecret> {
         self.auth.get_inner().validate()?;
         self.chat.get_inner().validate()?;
         self.email.validate()?;
+        self.cloudwatch.validate()?;
+        validate_alarm_destinations(&self.cloudwatch, self.chat.get_inner())?;
         self.secrets_management
             .validate()
             .map_err(|error| errors::ConfigurationError::ConfigParsingError(error.into()))?;
         Ok(())
     }
+}
+
+/// Every destination the alarm catalogue announces to has to be a chat destination that exists.
+///
+/// Checked here rather than inside [`cloudwatch::CloudWatchSettings::validate`] because it is the
+/// only rule that spans two sections, and it is worth spanning them: an alarm pointed at a
+/// destination id nobody configured would evaluate perfectly and deliver nothing, which is
+/// indistinguishable from an estate that is healthy.
+fn validate_alarm_destinations(
+    alarms: &cloudwatch::CloudWatchSettings,
+    chat: &ChatSettings,
+) -> Result<(), errors::ConfigurationError> {
+    if !alarms.is_enabled() {
+        return Ok(());
+    }
+
+    let referenced = alarms
+        .severity_destinations
+        .iter()
+        .map(|(severity, destination)| (format!("severity `{severity}`"), destination))
+        .chain(
+            alarms
+                .failure_destination
+                .iter()
+                .map(|destination| ("failure_destination".to_owned(), destination)),
+        );
+
+    for (what, destination) in referenced {
+        if !chat.destinations.contains_key(destination) {
+            Err(errors::ConfigurationError::ConfigParsingError(format!(
+                "cloudwatch {what} names chat destination `{destination}`, which is not in \
+                 chat.destinations"
+            )))?
+        }
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]

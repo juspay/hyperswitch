@@ -116,5 +116,9 @@ pub async fn fetch_raw_secrets(
         proxy: conf.proxy,
         chat,
         email: conf.email,
+        // Carried across unchanged: the alarm catalogue holds thresholds, metric names and
+        // resource identifiers, and no credential. What it needs to reach CloudWatch comes from
+        // the pod's role, not from a secret in this file.
+        cloudwatch: conf.cloudwatch,
     }
 }

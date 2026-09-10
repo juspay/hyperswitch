@@ -8,6 +8,7 @@ use external_services::{
         no_email::NoEmailClient, ses::AwsSes, smtp::SmtpServer, EmailClientConfigs, EmailService,
         EmailSettings as EmailClientSettings,
     },
+    metrics_service::{aws_cloudwatch::CloudWatchMetrics, MetricsProvider},
 };
 use hyperswitch_interfaces::{
     secrets_interface::secret_state::{RawSecret, SecuredSecret},
@@ -15,14 +16,19 @@ use hyperswitch_interfaces::{
 };
 
 use crate::{
-    domain::notifier::{
-        chat::{ChatClientNotifier, ChatNotifier, LogChatNotifier},
-        email::{EmailNotifier, EmailServiceNotifier},
-        Registry,
+    domain::{
+        alarm::catalogue::Catalogue,
+        notifier::{
+            chat::{ChatClientNotifier, ChatNotifier, LogChatNotifier},
+            email::{EmailNotifier, EmailServiceNotifier},
+            Registry,
+        },
     },
     errors::ConfigurationError,
     logger, secrets_transformers,
-    settings::{ChatDestination, ChatSettings, EmailSettings, Settings},
+    settings::{
+        cloudwatch::CloudWatchSettings, ChatDestination, ChatSettings, EmailSettings, Settings,
+    },
 };
 
 /// Everything a request handler needs, cloned per worker.
@@ -39,6 +45,11 @@ pub struct AppState {
     pub chat: Arc<Registry<dyn ChatNotifier>>,
     /// Email destinations, by the id a request names.
     pub email: Arc<Registry<dyn EmailNotifier>>,
+    /// The alarm catalogue, resolved once. Empty when nothing is configured to evaluate.
+    pub alarms: Arc<Catalogue>,
+    /// Where metric readings come from. `Some` exactly when [`Self::alarms`] has something in it,
+    /// so a deployment that only forwards alerts never builds an AWS client it will not use.
+    pub metrics: Option<Arc<dyn MetricsProvider>>,
 }
 
 impl AppState {
@@ -85,12 +96,66 @@ impl AppState {
             );
         }
 
+        #[allow(clippy::expect_used)]
+        let alarms = Catalogue::resolve(&raw_conf.cloudwatch)
+            .expect("Failed to resolve the alarm catalogue");
+        let metrics = build_metrics_provider(&raw_conf.cloudwatch).await;
+
+        if alarms.is_empty() {
+            logger::info!("No CloudWatch alarms are configured; the evaluator will find nothing");
+        } else {
+            let source = &raw_conf.cloudwatch.source;
+
+            logger::info!(
+                definitions = alarms.definitions(),
+                severities = alarms.targets.len(),
+                readings = alarms.readings.len(),
+                origin = %source.origin,
+                revision = %source.revision,
+                "Alarm catalogue resolved"
+            );
+
+            // Loud, and on every boot. A hand-checked copy of somebody else's source of truth is
+            // fine to develop against and dangerous to forget about; a comment in the config file
+            // would say the same thing right up until someone deleted it.
+            if source.temporary {
+                logger::warn!(
+                    origin = %source.origin,
+                    revision = %source.revision,
+                    "The alarm catalogue is a temporary snapshot rather than rendered output; it \
+                     does not follow changes to the infrastructure it was copied from"
+                );
+            }
+        }
+
         Self {
             conf: Arc::new(raw_conf),
             chat: Arc::new(chat),
             email: Arc::new(email),
+            alarms: Arc::new(alarms),
+            metrics,
         }
     }
+}
+
+/// Build the metrics client, but only for a deployment that has alarms to evaluate.
+///
+/// # Panics
+///
+/// Panics if the client cannot be built. Same reasoning as the destinations above: a service that
+/// starts without a usable metrics client would answer every evaluation with a failure summary,
+/// and discovering that from a chat message is worse than discovering it from a boot log.
+async fn build_metrics_provider(settings: &CloudWatchSettings) -> Option<Arc<dyn MetricsProvider>> {
+    if !settings.is_enabled() {
+        return None;
+    }
+
+    #[allow(clippy::expect_used)]
+    let client = CloudWatchMetrics::create(&settings.client)
+        .await
+        .expect("Failed to build the CloudWatch metrics client");
+
+    Some(Arc::new(client))
 }
 
 /// Turn configured chat destinations into the notifiers that serve them.

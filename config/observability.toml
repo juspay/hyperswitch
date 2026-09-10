@@ -109,3 +109,556 @@ aws_region = ""
 # nowhere.
 [email.destinations.smoke]
 to = "alerts@example.com"
+
+# ---------------------------------------------------------------------------------------------
+# CloudWatch metric alarms.
+#
+# This service evaluates these against CloudWatch every time `POST /alerts/cloudwatch/evaluate` is
+# called, and announces each state transition to the destination its severity maps to. An empty
+# `[cloudwatch.alarms]` turns the whole thing off, and a deployment that only forwards alerts needs
+# no `[cloudwatch]` section at all.
+#
+# **The infrastructure repository owns this catalogue.** Terraform knows the resource identifiers
+# and expands the templated classifications; it renders these definitions and Helm delivers them.
+# Nothing here is discovered, parsed or expanded at runtime — a definition arrives with its
+# dimensions already resolved, and this service's job is to check that what arrived is usable and
+# then evaluate it.
+[cloudwatch]
+region = "ap-south-1"
+
+# Where a failed *evaluation* is reported. Separate from the severity destinations below, because
+# "CloudWatch did not answer" is a fact about this service, not an alert about the database.
+failure_destination = "smoke"
+
+# Where these definitions came from. `temporary = true` makes the service log a warning at every
+# boot, so a hand-checked snapshot announces itself for as long as it is one. The renderer that
+# replaces it fills in the same three fields.
+[cloudwatch.source]
+origin = "hyperswitch-infra.git observability-plane/terraform/aws/live/sandbox/ap-south-1/cloudwatch-alarms/terragrunt.hcl (classification `rds-alerts`)"
+revision = "2851b3d6e6dc2fb09c8bd97caf209d3470f7c273"
+temporary = true
+
+# Three severity ids, all naming one sandbox destination. Routing lives here so that splitting
+# them later is a configuration change rather than a code change.
+#
+# `smoke` accepts messages and delivers nothing (`type = "log"` above), which is what a developer
+# machine should be pointed at. A deployment overrides these with a real destination id:
+#
+#   OBSERVABILITY__CLOUDWATCH__SEVERITY_DESTINATIONS__SEV1=infra_alerts
+[cloudwatch.severity_destinations]
+sev1 = "smoke"
+sev2 = "smoke"
+sev3 = "smoke"
+
+# --- The catalogue -----------------------------------------------------------------------------
+#
+# Twenty definitions, fifty-three severities, twenty distinct CloudWatch queries — severities of
+# one definition differ only by threshold, and a threshold is not part of a query.
+#
+# Field names and defaults are `classified_metric_alarms`' own, so an entry can be checked against
+# its source by eye. What is omitted means what the Terraform module fills in: `statistic` is
+# `Average`, `comparison_operator` is `GreaterThanThreshold`, `treat_missing_data` is
+# `notBreaching`, and `datapoints_to_alarm` defaults to `evaluation_periods`. Note that the
+# module's missing-data default is *not* AWS's (`missing`); it is the module's value that the
+# deployed alarms actually carry.
+#
+# Dimensions come from `dimension_map` in the same source file, resolved:
+#   rds          -> DBClusterIdentifier  = hyperswitchdb-cluster  (database module output)
+#   rds-primary  -> DBInstanceIdentifier = hyperswitchdb-primary  (literal)
+#   rds-failover -> DBInstanceIdentifier = failover-replica-1     (literal)
+#   rds-writer   -> DBClusterIdentifier + Role = WRITER
+#   rds-reader   -> DBClusterIdentifier + Role = READER
+
+[cloudwatch.alarms.rds-primary-cpu]
+classification = "rds-alerts"
+metric_name = "CPUUtilization"
+namespace = "AWS/RDS"
+period = 60
+statistic = "Average"
+dimensions = [{ name = "DBInstanceIdentifier", value = "hyperswitchdb-primary" }]
+
+[cloudwatch.alarms.rds-primary-cpu.severities.sev1]
+threshold = 90.0
+comparison_operator = "GreaterThanOrEqualToThreshold"
+evaluation_periods = 1
+treat_missing_data = "breaching"
+description = "SEV1: RDS primary database CPU utilization is above 90% (Sev0 limit) for 5 minutes. Immediate scaling or database resource optimization is required."
+
+[cloudwatch.alarms.rds-primary-cpu.severities.sev2]
+threshold = 85.0
+comparison_operator = "GreaterThanOrEqualToThreshold"
+evaluation_periods = 1
+description = "SEV2: RDS primary database CPU utilization is above 85% (Critical limit) for 5 minutes. Review slow queries and active database metrics."
+
+[cloudwatch.alarms.rds-primary-cpu.severities.sev3]
+threshold = 65.0
+comparison_operator = "GreaterThanOrEqualToThreshold"
+evaluation_periods = 1
+description = "SEV3: RDS primary database CPU utilization is above 65% (Warning limit) for 5 minutes. Monitor connection patterns and slow queries."
+
+[cloudwatch.alarms.rds-failover-cpu]
+classification = "rds-alerts"
+metric_name = "CPUUtilization"
+namespace = "AWS/RDS"
+period = 60
+statistic = "Average"
+dimensions = [{ name = "DBInstanceIdentifier", value = "failover-replica-1" }]
+
+[cloudwatch.alarms.rds-failover-cpu.severities.sev1]
+threshold = 90.0
+comparison_operator = "GreaterThanOrEqualToThreshold"
+evaluation_periods = 1
+treat_missing_data = "breaching"
+description = "SEV1: RDS failover database CPU utilization is above 90% (Sev0 limit) for 5 minutes. Review replica performance."
+
+[cloudwatch.alarms.rds-failover-cpu.severities.sev2]
+threshold = 85.0
+comparison_operator = "GreaterThanOrEqualToThreshold"
+evaluation_periods = 1
+description = "SEV2: RDS failover database CPU utilization is above 85% (Critical limit) for 5 minutes. High read traffic load detected."
+
+[cloudwatch.alarms.rds-failover-cpu.severities.sev3]
+threshold = 65.0
+comparison_operator = "GreaterThanOrEqualToThreshold"
+evaluation_periods = 1
+description = "SEV3: RDS failover database CPU utilization is above 65% (Warning limit) for 5 minutes. Monitor read query load."
+
+[cloudwatch.alarms.rds-primary-connections]
+classification = "rds-alerts"
+metric_name = "DatabaseConnections"
+namespace = "AWS/RDS"
+period = 60
+statistic = "Average"
+dimensions = [{ name = "DBInstanceIdentifier", value = "hyperswitchdb-primary" }]
+
+[cloudwatch.alarms.rds-primary-connections.severities.sev1]
+threshold = 1620.0
+comparison_operator = "GreaterThanThreshold"
+evaluation_periods = 3
+description = "SEV1: RDS primary database has reached 90% (Sev0 limit) of max backend connections (1,800). Active connections are dangerously high - immediate connection pool review required."
+
+[cloudwatch.alarms.rds-primary-connections.severities.sev2]
+threshold = 1530.0
+comparison_operator = "GreaterThanThreshold"
+evaluation_periods = 3
+description = "SEV2: RDS primary database has reached 85% (Critical limit) of max backend connections (1,800). Check for query locks or connection leaks."
+
+[cloudwatch.alarms.rds-primary-connections.severities.sev3]
+threshold = 1170.0
+comparison_operator = "GreaterThanThreshold"
+evaluation_periods = 3
+description = "SEV3: RDS primary database has reached 65% (Warning limit) of max backend connections (1,800). Monitor connection trends."
+
+[cloudwatch.alarms.rds-failover-connections]
+classification = "rds-alerts"
+metric_name = "DatabaseConnections"
+namespace = "AWS/RDS"
+period = 60
+statistic = "Average"
+dimensions = [{ name = "DBInstanceIdentifier", value = "failover-replica-1" }]
+
+[cloudwatch.alarms.rds-failover-connections.severities.sev1]
+threshold = 3240.0
+comparison_operator = "GreaterThanThreshold"
+evaluation_periods = 3
+description = "SEV1: RDS failover database has reached 90% (Sev0 limit) of max backend connections (3,600). Active connections are dangerously high."
+
+[cloudwatch.alarms.rds-failover-connections.severities.sev2]
+threshold = 3060.0
+comparison_operator = "GreaterThanThreshold"
+evaluation_periods = 3
+description = "SEV2: RDS failover database has reached 85% (Critical limit) of max backend connections (3,600). High connection workload."
+
+[cloudwatch.alarms.rds-failover-connections.severities.sev3]
+threshold = 2340.0
+comparison_operator = "GreaterThanThreshold"
+evaluation_periods = 3
+description = "SEV3: RDS failover database has reached 65% (Warning limit) of max backend connections (3,600). Monitor read scaling performance."
+
+[cloudwatch.alarms.rds-replica-lag]
+classification = "rds-alerts"
+metric_name = "AuroraReplicaLag"
+namespace = "AWS/RDS"
+period = 60
+statistic = "Average"
+dimensions = [{ name = "DBClusterIdentifier", value = "hyperswitchdb-cluster" }]
+
+[cloudwatch.alarms.rds-replica-lag.severities.sev1]
+threshold = 10000.0
+comparison_operator = "GreaterThanThreshold"
+evaluation_periods = 3
+description = "SEV1: Aurora replica lag is above 10 seconds (Sev0 limit). Critical lag detected on read replicas - major read consistency issue."
+
+[cloudwatch.alarms.rds-replica-lag.severities.sev2]
+threshold = 5000.0
+comparison_operator = "GreaterThanThreshold"
+evaluation_periods = 3
+description = "SEV2: Aurora replica lag is above 5 seconds (Critical limit). Read replica lag is growing significantly."
+
+[cloudwatch.alarms.rds-replica-lag.severities.sev3]
+threshold = 1000.0
+comparison_operator = "GreaterThanThreshold"
+evaluation_periods = 3
+description = "SEV3: Aurora replica lag is above 1 second (Warning limit). Replica sync delay detected."
+
+[cloudwatch.alarms.rds-write-latency]
+classification = "rds-alerts"
+metric_name = "WriteLatency"
+namespace = "AWS/RDS"
+period = 60
+statistic = "Average"
+dimensions = [{ name = "DBClusterIdentifier", value = "hyperswitchdb-cluster" }]
+
+[cloudwatch.alarms.rds-write-latency.severities.sev1]
+threshold = 0.2
+comparison_operator = "GreaterThanThreshold"
+evaluation_periods = 3
+description = "SEV1: RDS write latency is above 200ms. Critical IOPS issues detected."
+
+[cloudwatch.alarms.rds-write-latency.severities.sev2]
+threshold = 0.1
+comparison_operator = "GreaterThanThreshold"
+evaluation_periods = 3
+description = "SEV2: RDS write latency is above 100ms. Storage bottlenecks detected."
+
+[cloudwatch.alarms.rds-read-latency]
+classification = "rds-alerts"
+metric_name = "ReadLatency"
+namespace = "AWS/RDS"
+period = 60
+statistic = "Average"
+dimensions = [{ name = "DBClusterIdentifier", value = "hyperswitchdb-cluster" }]
+
+[cloudwatch.alarms.rds-read-latency.severities.sev1]
+threshold = 0.2
+comparison_operator = "GreaterThanThreshold"
+evaluation_periods = 3
+description = "SEV1: RDS read latency is above 200ms. Critical IOPS issues detected."
+
+[cloudwatch.alarms.rds-read-latency.severities.sev2]
+threshold = 0.1
+comparison_operator = "GreaterThanThreshold"
+evaluation_periods = 3
+description = "SEV2: RDS read latency is above 100ms. Query optimization required."
+
+[cloudwatch.alarms.rds-deadlocks]
+classification = "rds-alerts"
+metric_name = "Deadlocks"
+namespace = "AWS/RDS"
+period = 60
+statistic = "Sum"
+dimensions = [{ name = "DBClusterIdentifier", value = "hyperswitchdb-cluster" }]
+
+[cloudwatch.alarms.rds-deadlocks.severities.sev1]
+threshold = 50.0
+comparison_operator = "GreaterThanThreshold"
+evaluation_periods = 2
+description = "SEV1: RDS cluster has critical deadlock rate. Immediate investigation required."
+
+[cloudwatch.alarms.rds-deadlocks.severities.sev2]
+threshold = 20.0
+comparison_operator = "GreaterThanThreshold"
+evaluation_periods = 2
+description = "SEV2: RDS cluster is experiencing high deadlock rate. Review transaction patterns."
+
+[cloudwatch.alarms.rds-primary-freeable-memory]
+classification = "rds-alerts"
+metric_name = "FreeableMemory"
+namespace = "AWS/RDS"
+period = 60
+statistic = "Average"
+dimensions = [{ name = "DBInstanceIdentifier", value = "hyperswitchdb-primary" }]
+
+[cloudwatch.alarms.rds-primary-freeable-memory.severities.sev1]
+threshold = 858993459.0
+comparison_operator = "LessThanOrEqualToThreshold"
+evaluation_periods = 1
+description = "SEV1: RDS primary database freeable memory is below 5% (Sev0 limit) of total memory (16GB). Critical OOM risk."
+
+[cloudwatch.alarms.rds-primary-freeable-memory.severities.sev2]
+threshold = 1717986918.0
+comparison_operator = "LessThanOrEqualToThreshold"
+evaluation_periods = 1
+description = "SEV2: RDS primary database freeable memory is below 10% (Critical limit) of total memory (16GB). Severe memory pressure."
+
+[cloudwatch.alarms.rds-primary-freeable-memory.severities.sev3]
+threshold = 2576980377.0
+comparison_operator = "LessThanOrEqualToThreshold"
+evaluation_periods = 1
+description = "SEV3: RDS primary database freeable memory is below 15% (Warning limit) of total memory (16GB). Monitor memory usage."
+
+[cloudwatch.alarms.rds-failover-freeable-memory]
+classification = "rds-alerts"
+metric_name = "FreeableMemory"
+namespace = "AWS/RDS"
+period = 60
+statistic = "Average"
+dimensions = [{ name = "DBInstanceIdentifier", value = "failover-replica-1" }]
+
+[cloudwatch.alarms.rds-failover-freeable-memory.severities.sev1]
+threshold = 1717986918.0
+comparison_operator = "LessThanOrEqualToThreshold"
+evaluation_periods = 5
+description = "SEV1: RDS failover database freeable memory is below 5% (Sev0 limit) of total memory (32GB). Critical OOM risk."
+
+[cloudwatch.alarms.rds-failover-freeable-memory.severities.sev2]
+threshold = 3435973836.0
+comparison_operator = "LessThanOrEqualToThreshold"
+evaluation_periods = 5
+description = "SEV2: RDS failover database freeable memory is below 10% (Critical limit) of total memory (32GB). Severe memory pressure."
+
+[cloudwatch.alarms.rds-failover-freeable-memory.severities.sev3]
+threshold = 5153960755.0
+comparison_operator = "LessThanOrEqualToThreshold"
+evaluation_periods = 5
+description = "SEV3: RDS failover database freeable memory is below 15% (Warning limit) of total memory (32GB). Monitor memory usage."
+
+[cloudwatch.alarms.rds-primary-read-iops]
+classification = "rds-alerts"
+metric_name = "ReadIOPS"
+namespace = "AWS/RDS"
+period = 300
+statistic = "Average"
+dimensions = [{ name = "DBInstanceIdentifier", value = "hyperswitchdb-primary" }]
+
+[cloudwatch.alarms.rds-primary-read-iops.severities.sev1]
+threshold = 18000.0
+comparison_operator = "GreaterThanThreshold"
+evaluation_periods = 3
+description = "SEV1: RDS primary database Read IOPS is above 18,000 (Sev0 limit). Disk read capacity is saturated."
+
+[cloudwatch.alarms.rds-primary-read-iops.severities.sev2]
+threshold = 17000.0
+comparison_operator = "GreaterThanThreshold"
+evaluation_periods = 3
+description = "SEV2: RDS primary database Read IOPS is above 17,000 (Critical limit). Heavy read I/O pressure."
+
+[cloudwatch.alarms.rds-primary-read-iops.severities.sev3]
+threshold = 15000.0
+comparison_operator = "GreaterThanThreshold"
+evaluation_periods = 3
+description = "SEV3: RDS primary database Read IOPS is above 15,000 (Warning limit). Elevated read IOPS."
+
+[cloudwatch.alarms.rds-failover-read-iops]
+classification = "rds-alerts"
+metric_name = "ReadIOPS"
+namespace = "AWS/RDS"
+period = 300
+statistic = "Average"
+dimensions = [{ name = "DBInstanceIdentifier", value = "failover-replica-1" }]
+
+[cloudwatch.alarms.rds-failover-read-iops.severities.sev1]
+threshold = 18000.0
+comparison_operator = "GreaterThanThreshold"
+evaluation_periods = 3
+description = "SEV1: RDS failover database Read IOPS is above 18,000 (Sev0 limit). Disk read capacity is saturated."
+
+[cloudwatch.alarms.rds-failover-read-iops.severities.sev2]
+threshold = 17000.0
+comparison_operator = "GreaterThanThreshold"
+evaluation_periods = 3
+description = "SEV2: RDS failover database Read IOPS is above 17,000 (Critical limit). Heavy read I/O pressure."
+
+[cloudwatch.alarms.rds-failover-read-iops.severities.sev3]
+threshold = 15000.0
+comparison_operator = "GreaterThanThreshold"
+evaluation_periods = 3
+description = "SEV3: RDS failover database Read IOPS is above 15,000 (Warning limit). Elevated read IOPS."
+
+[cloudwatch.alarms.rds-primary-write-iops]
+classification = "rds-alerts"
+metric_name = "WriteIOPS"
+namespace = "AWS/RDS"
+period = 300
+statistic = "Average"
+dimensions = [{ name = "DBInstanceIdentifier", value = "hyperswitchdb-primary" }]
+
+[cloudwatch.alarms.rds-primary-write-iops.severities.sev1]
+threshold = 18000.0
+comparison_operator = "GreaterThanThreshold"
+evaluation_periods = 3
+description = "SEV1: RDS primary database Write IOPS is above 18,000 (Sev0 limit). Disk write capacity is saturated."
+
+[cloudwatch.alarms.rds-primary-write-iops.severities.sev2]
+threshold = 17000.0
+comparison_operator = "GreaterThanThreshold"
+evaluation_periods = 3
+description = "SEV2: RDS primary database Write IOPS is above 17,000 (Critical limit). Heavy write I/O pressure."
+
+[cloudwatch.alarms.rds-primary-write-iops.severities.sev3]
+threshold = 15000.0
+comparison_operator = "GreaterThanThreshold"
+evaluation_periods = 3
+description = "SEV3: RDS primary database Write IOPS is above 15,000 (Warning limit). Elevated write IOPS."
+
+[cloudwatch.alarms.rds-failover-write-iops]
+classification = "rds-alerts"
+metric_name = "WriteIOPS"
+namespace = "AWS/RDS"
+period = 300
+statistic = "Average"
+dimensions = [{ name = "DBInstanceIdentifier", value = "failover-replica-1" }]
+
+[cloudwatch.alarms.rds-failover-write-iops.severities.sev1]
+threshold = 18000.0
+comparison_operator = "GreaterThanThreshold"
+evaluation_periods = 3
+description = "SEV1: RDS failover database Write IOPS is above 18,000 (Sev0 limit). Disk write capacity is saturated."
+
+[cloudwatch.alarms.rds-failover-write-iops.severities.sev2]
+threshold = 17000.0
+comparison_operator = "GreaterThanThreshold"
+evaluation_periods = 3
+description = "SEV2: RDS failover database Write IOPS is above 17,000 (Critical limit). Heavy write I/O pressure."
+
+[cloudwatch.alarms.rds-failover-write-iops.severities.sev3]
+threshold = 15000.0
+comparison_operator = "GreaterThanThreshold"
+evaluation_periods = 3
+description = "SEV3: RDS failover database Write IOPS is above 15,000 (Warning limit). Elevated write IOPS."
+
+[cloudwatch.alarms.rds-primary-network-receive]
+classification = "rds-alerts"
+metric_name = "NetworkReceiveThroughput"
+namespace = "AWS/RDS"
+period = 300
+statistic = "Average"
+dimensions = [{ name = "DBInstanceIdentifier", value = "hyperswitchdb-primary" }]
+
+[cloudwatch.alarms.rds-primary-network-receive.severities.sev1]
+threshold = 140625000.0
+comparison_operator = "GreaterThanThreshold"
+evaluation_periods = 3
+description = "SEV1: RDS primary database Network Receive is above 90% (Sev0 limit) of baseline limit (1.25 Gbps). Network RX is saturated."
+
+[cloudwatch.alarms.rds-primary-network-receive.severities.sev2]
+threshold = 132812500.0
+comparison_operator = "GreaterThanThreshold"
+evaluation_periods = 3
+description = "SEV2: RDS primary database Network Receive is above 85% (Critical limit) of baseline limit (1.25 Gbps). High RX network utilization."
+
+[cloudwatch.alarms.rds-primary-network-receive.severities.sev3]
+threshold = 101562500.0
+comparison_operator = "GreaterThanThreshold"
+evaluation_periods = 3
+description = "SEV3: RDS primary database Network Receive is above 65% (Warning limit) of baseline limit (1.25 Gbps). Network RX is elevated."
+
+[cloudwatch.alarms.rds-failover-network-receive]
+classification = "rds-alerts"
+metric_name = "NetworkReceiveThroughput"
+namespace = "AWS/RDS"
+period = 300
+statistic = "Average"
+dimensions = [{ name = "DBInstanceIdentifier", value = "failover-replica-1" }]
+
+[cloudwatch.alarms.rds-failover-network-receive.severities.sev1]
+threshold = 281250000.0
+comparison_operator = "GreaterThanThreshold"
+evaluation_periods = 3
+description = "SEV1: RDS failover database Network Receive is above 90% (Sev0 limit) of baseline limit (2.5 Gbps). Network RX is saturated."
+
+[cloudwatch.alarms.rds-failover-network-receive.severities.sev2]
+threshold = 265625000.0
+comparison_operator = "GreaterThanThreshold"
+evaluation_periods = 3
+description = "SEV2: RDS failover database Network Receive is above 85% (Critical limit) of baseline limit (2.5 Gbps). High RX network utilization."
+
+[cloudwatch.alarms.rds-failover-network-receive.severities.sev3]
+threshold = 203125000.0
+comparison_operator = "GreaterThanThreshold"
+evaluation_periods = 3
+description = "SEV3: RDS failover database Network Receive is above 65% (Warning limit) of baseline limit (2.5 Gbps). Network RX is elevated."
+
+[cloudwatch.alarms.rds-primary-network-transmit]
+classification = "rds-alerts"
+metric_name = "NetworkTransmitThroughput"
+namespace = "AWS/RDS"
+period = 300
+statistic = "Average"
+dimensions = [{ name = "DBInstanceIdentifier", value = "hyperswitchdb-primary" }]
+
+[cloudwatch.alarms.rds-primary-network-transmit.severities.sev1]
+threshold = 140625000.0
+comparison_operator = "GreaterThanThreshold"
+evaluation_periods = 3
+description = "SEV1: RDS primary database Network Transmit is above 90% (Sev0 limit) of baseline limit (1.25 Gbps). Network TX is saturated."
+
+[cloudwatch.alarms.rds-primary-network-transmit.severities.sev2]
+threshold = 132812500.0
+comparison_operator = "GreaterThanThreshold"
+evaluation_periods = 3
+description = "SEV2: RDS primary database Network Transmit is above 85% (Critical limit) of baseline limit (1.25 Gbps). High TX network utilization."
+
+[cloudwatch.alarms.rds-primary-network-transmit.severities.sev3]
+threshold = 101562500.0
+comparison_operator = "GreaterThanThreshold"
+evaluation_periods = 3
+description = "SEV3: RDS primary database Network Transmit is above 65% (Warning limit) of baseline limit (1.25 Gbps). Network TX is elevated."
+
+[cloudwatch.alarms.rds-failover-network-transmit]
+classification = "rds-alerts"
+metric_name = "NetworkTransmitThroughput"
+namespace = "AWS/RDS"
+period = 300
+statistic = "Average"
+dimensions = [{ name = "DBInstanceIdentifier", value = "failover-replica-1" }]
+
+[cloudwatch.alarms.rds-failover-network-transmit.severities.sev1]
+threshold = 281250000.0
+comparison_operator = "GreaterThanThreshold"
+evaluation_periods = 3
+description = "SEV1: RDS failover database Network Transmit is above 90% (Sev0 limit) of baseline limit (2.5 Gbps). Network TX is saturated."
+
+[cloudwatch.alarms.rds-failover-network-transmit.severities.sev2]
+threshold = 265625000.0
+comparison_operator = "GreaterThanThreshold"
+evaluation_periods = 3
+description = "SEV2: RDS failover database Network Transmit is above 85% (Critical limit) of baseline limit (2.5 Gbps). High TX network utilization."
+
+[cloudwatch.alarms.rds-failover-network-transmit.severities.sev3]
+threshold = 203125000.0
+comparison_operator = "GreaterThanThreshold"
+evaluation_periods = 3
+description = "SEV3: RDS failover database Network Transmit is above 65% (Warning limit) of baseline limit (2.5 Gbps). Network TX is elevated."
+
+# Failover detection: Aurora restarts the promoted instance during failover, so EngineUptime on the
+# WRITER role drops to ~0 whenever a failover (or writer restart) occurs. Fires within a minute and
+# auto-resolves once the new writer has been up for 2 minutes, re-arming quickly so back-to-back
+# failovers each produce a fresh alert.
+[cloudwatch.alarms.rds-writer-failover]
+classification = "rds-alerts"
+metric_name = "EngineUptime"
+namespace = "AWS/RDS"
+period = 60
+statistic = "Minimum"
+dimensions = [
+  { name = "DBClusterIdentifier", value = "hyperswitchdb-cluster" },
+  { name = "Role", value = "WRITER" },
+]
+
+[cloudwatch.alarms.rds-writer-failover.severities.sev1]
+threshold = 120.0
+comparison_operator = "LessThanThreshold"
+evaluation_periods = 1
+treat_missing_data = "notBreaching"
+description = "SEV1: RDS writer engine uptime is below 2 minutes - a failover or writer restart just occurred. Verify application connectivity and investigate the cause of the failover."
+
+# Reader counterpart: also fires when the old writer restarts as a reader after a failover, or when
+# a reader instance is restarted or newly added.
+[cloudwatch.alarms.rds-reader-failover]
+classification = "rds-alerts"
+metric_name = "EngineUptime"
+namespace = "AWS/RDS"
+period = 60
+statistic = "Minimum"
+dimensions = [
+  { name = "DBClusterIdentifier", value = "hyperswitchdb-cluster" },
+  { name = "Role", value = "READER" },
+]
+
+[cloudwatch.alarms.rds-reader-failover.severities.sev1]
+threshold = 120.0
+comparison_operator = "LessThanThreshold"
+evaluation_periods = 1
+treat_missing_data = "notBreaching"
+description = "SEV1: RDS reader engine uptime is below 2 minutes - a reader restart or failover just occurred. Verify read traffic health and investigate the cause."

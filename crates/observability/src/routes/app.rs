@@ -14,7 +14,7 @@ use actix_web::{web, Scope};
 use crate::{
     errors::types::{ApiError, ApiErrorResponse},
     logger,
-    routes::{health_check, notify},
+    routes::{alarm, health_check, notify},
     state::AppState,
 };
 
@@ -51,6 +51,13 @@ impl Alerts {
             .service(web::scope("/email").service(
                 web::resource("/notify/{destination}").route(web::post().to(notify::email)),
             ))
+            // The one route that decides rather than forwards. It names no destination, because
+            // the catalogue's severities already map to them — a caller cannot redirect an
+            // infrastructure alert by asking.
+            .service(
+                web::scope("/cloudwatch")
+                    .service(web::resource("/evaluate").route(web::post().to(alarm::evaluate))),
+            )
     }
 }
 

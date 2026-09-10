@@ -47,14 +47,22 @@
 //! message looks like, in whatever markup its destination reads. `body` is HTML, because both email
 //! backends in `external_services` hardcode an HTML body and there is no plain-text path to reach.
 
+use std::collections::BTreeMap;
+
 use actix_multipart::form::{bytes::Bytes, text::Text, MultipartForm};
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
-use crate::domain::notifier::{
-    chat::{ChatFileOutcome, ChatFileReceipt, ChatOutcome, ChatReceipt},
-    email::EmailOutcome,
-    Outcome, Refusal,
+use crate::{
+    core::alarm as run,
+    domain::{
+        alarm::AlarmState,
+        notifier::{
+            chat::{ChatFileOutcome, ChatFileReceipt, ChatOutcome, ChatReceipt},
+            email::EmailOutcome,
+            Outcome, Refusal,
+        },
+    },
 };
 
 /// The body of `POST /alerts/chat/notify/{destination}`.
@@ -227,6 +235,279 @@ impl From<EmailOutcome> for EmailNotifyResponse {
                 error_code: Some(code),
                 retry_after_seconds,
             },
+        }
+    }
+}
+
+/// The body of `POST /alerts/cloudwatch/evaluate`.
+///
+/// Every field is optional, so an empty body is a normal evaluation — the shape a cron trigger or
+/// a bare `curl -XPOST` sends.
+#[derive(Debug, Default, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct EvaluateAlarmsRequest {
+    /// Evaluate and render, but send nothing at all.
+    ///
+    /// Nothing, including the failure summary: a dry run that announced a CloudWatch outage would
+    /// not be a dry run. The messages a real run would have sent come back in the response, built
+    /// by the same code that would have sent them.
+    pub dry_run: bool,
+}
+
+/// What `POST /alerts/cloudwatch/evaluate` returns.
+///
+/// Verbose on purpose. For a while the only caller is a person with `curl` asking why an alert did
+/// or did not fire, and the questions they will have — what did CloudWatch say, what state did
+/// that put each severity in, what changed, what was sent, what could not be read — are all
+/// answered here rather than only in the logs.
+///
+/// The rendered messages are included in full. They carry metric names, thresholds and instance
+/// identifiers, which are infrastructure facts rather than the merchant data the notify routes
+/// treat as [`hyperswitch_masking::Secret`].
+#[derive(Debug, Serialize)]
+pub struct EvaluateAlarmsResponse {
+    /// The instant this evaluation ends at: the latest completed minute, less any configured
+    /// delay.
+    ///
+    /// Rendered by `common_utils`' ISO 8601 serializer, so it reads the same as every other
+    /// timestamp this repository puts on the wire.
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub evaluated_at: time::PrimitiveDateTime,
+
+    /// The instant the evaluation it was compared against ends at. One minute earlier, whatever
+    /// the metrics' periods — that is CloudWatch's own evaluation cadence.
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub compared_with: time::PrimitiveDateTime,
+
+    /// Whether every send was skipped.
+    pub dry_run: bool,
+
+    /// How many catalogue entries the run covered.
+    pub definitions: usize,
+
+    /// How many distinct CloudWatch queries those entries needed. Fewer than the severities,
+    /// because a threshold is not part of a query.
+    pub readings: usize,
+
+    /// The counts worth reading before the list.
+    pub summary: AlarmRunSummary,
+
+    /// One entry per severity, in catalogue order.
+    pub evaluations: Vec<AlarmEvaluation>,
+
+    /// The operational summary, present only when something could not be read.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub failure: Option<AlarmRunFailure>,
+}
+
+/// The headline counts of one run.
+#[derive(Debug, Serialize)]
+pub struct AlarmRunSummary {
+    /// Severities that produced a state.
+    pub evaluated: usize,
+    /// Severities whose metric could not be read.
+    pub unevaluated: usize,
+    /// Severities whose state moved.
+    pub transitions: usize,
+    /// Announcements the provider accepted.
+    pub delivered: usize,
+    /// Announcements that were refused or could not be sent. Non-zero here with a `200` overall is
+    /// the case the delivery-hardening work exists for.
+    pub undelivered: usize,
+}
+
+/// What one severity's evaluation found.
+#[derive(Debug, Serialize)]
+pub struct AlarmEvaluation {
+    /// The catalogue entry's name.
+    pub definition: String,
+    /// The group it belongs to.
+    pub classification: String,
+    /// The severity id.
+    pub severity: String,
+    /// Namespace and metric name.
+    pub metric: String,
+    /// The dimensions it read. What actually identifies the CloudWatch metric, so this is the
+    /// field to compare against the AWS console when an alarm disagrees with its counterpart.
+    pub dimensions: BTreeMap<String, String>,
+
+    /// The state the current window puts it in. `null` when it could not be evaluated, which is
+    /// deliberately different from any of the three states.
+    pub state: Option<&'static str>,
+    /// The state the previous window puts it in.
+    pub previous_state: Option<&'static str>,
+    /// Whether the two differ. The only thing that causes an announcement.
+    pub transitioned: bool,
+
+    /// The most recent real reading in the current window. `null` when the window held none, in
+    /// which case the state came from the missing-data policy alone.
+    pub observed: Option<f64>,
+    /// What readings were compared against.
+    pub threshold: f64,
+    /// How many of the window's readings breached.
+    pub breaching_datapoints: usize,
+    /// How many periods the missing-data policy had to stand in for.
+    pub missing_datapoints: usize,
+    /// N.
+    pub evaluation_periods: u32,
+    /// M.
+    pub datapoints_to_alarm: u32,
+
+    /// Why it could not be evaluated. Present exactly when `state` is `null`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+
+    /// The message that was sent, or that a dry run would have sent.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
+
+    /// What came of sending it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub delivery: Option<AlarmDelivery>,
+}
+
+/// The run's own failure, when CloudWatch did not answer for some or all of it.
+#[derive(Debug, Serialize)]
+pub struct AlarmRunFailure {
+    /// The definitions that went unevaluated.
+    pub definitions: Vec<String>,
+    /// The one reason behind all of them, when there was only one.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+    /// The summary that was sent, or that a dry run would have sent.
+    pub message: String,
+    /// What came of sending it.
+    pub delivery: AlarmDelivery,
+}
+
+/// What came of one attempt to send a message.
+///
+/// Tagged, and the tag is required, for the reason [`NotifyStatus`] is: a caller cannot read this
+/// without confronting whether the message actually arrived.
+#[derive(Debug, Serialize)]
+#[serde(tag = "status", rename_all = "snake_case")]
+pub enum AlarmDelivery {
+    /// The provider accepted it.
+    Delivered {
+        /// The destination it went to.
+        destination: String,
+        /// The provider's id for the message, when it named one.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        message_id: Option<String>,
+    },
+    /// The provider was reached and refused it.
+    Refused {
+        /// The destination that refused.
+        destination: String,
+        /// The stable snake_case code it refused with.
+        code: String,
+    },
+    /// The provider could not be reached, so whether it arrived is unknown.
+    Failed {
+        /// The destination that could not be reached.
+        destination: String,
+        /// What went wrong.
+        error: String,
+    },
+    /// Nothing was sent, because this was a dry run.
+    SkippedDryRun {
+        /// Where it would have gone.
+        destination: String,
+    },
+}
+
+impl From<run::RunReport> for EvaluateAlarmsResponse {
+    fn from(report: run::RunReport) -> Self {
+        let evaluated = report
+            .targets
+            .iter()
+            .filter(|target| target.state.is_some())
+            .count();
+        let transitions = report
+            .targets
+            .iter()
+            .filter(|target| target.transition.is_some())
+            .count();
+        let delivered = report
+            .targets
+            .iter()
+            .filter(|target| matches!(target.delivery, Some(run::DeliveryReport::Delivered { .. })))
+            .count();
+
+        Self {
+            evaluated_at: report.evaluated_at,
+            compared_with: report.previous_evaluated_at,
+            dry_run: report.dry_run,
+            definitions: report.definitions,
+            readings: report.readings,
+            summary: AlarmRunSummary {
+                evaluated,
+                unevaluated: report.targets.len().saturating_sub(evaluated),
+                transitions,
+                delivered,
+                undelivered: transitions.saturating_sub(delivered),
+            },
+            failure: report.failure.map(|failure| AlarmRunFailure {
+                definitions: failure.definitions,
+                reason: failure.reason,
+                message: failure.message,
+                delivery: failure.delivery.into(),
+            }),
+            evaluations: report
+                .targets
+                .into_iter()
+                .map(AlarmEvaluation::from)
+                .collect(),
+        }
+    }
+}
+
+impl From<run::TargetReport> for AlarmEvaluation {
+    fn from(target: run::TargetReport) -> Self {
+        Self {
+            definition: target.definition,
+            classification: target.classification,
+            severity: target.severity,
+            metric: target.metric,
+            dimensions: target.dimensions,
+            state: target.state.map(AlarmState::label),
+            previous_state: target.previous_state.map(AlarmState::label),
+            transitioned: target.transition.is_some(),
+            observed: target.observed,
+            threshold: target.threshold,
+            breaching_datapoints: target.breaching_datapoints,
+            missing_datapoints: target
+                .evaluation
+                .map(|evaluation| evaluation.filled)
+                .unwrap_or_default(),
+            evaluation_periods: target.evaluation_periods,
+            datapoints_to_alarm: target.datapoints_to_alarm,
+            error: target.error,
+            message: target.message,
+            delivery: target.delivery.map(AlarmDelivery::from),
+        }
+    }
+}
+
+impl From<run::DeliveryReport> for AlarmDelivery {
+    fn from(delivery: run::DeliveryReport) -> Self {
+        match delivery {
+            run::DeliveryReport::Delivered {
+                destination,
+                message_id,
+            } => Self::Delivered {
+                destination,
+                message_id,
+            },
+            run::DeliveryReport::Refused { destination, code } => {
+                Self::Refused { destination, code }
+            }
+            run::DeliveryReport::Failed { destination, error } => {
+                Self::Failed { destination, error }
+            }
+            run::DeliveryReport::SkippedDryRun { destination } => {
+                Self::SkippedDryRun { destination }
+            }
         }
     }
 }

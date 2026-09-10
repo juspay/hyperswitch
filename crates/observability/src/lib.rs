@@ -1,8 +1,17 @@
 //! The observability plane for Hyperswitch.
 //!
-//! `observability` delivers alerts. Deciding what is alert-worthy happens elsewhere; alerts
-//! arrive here already decided. Its first concern is [`core::notifier`], and further alerting
-//! concerns are expected to live alongside it.
+//! `observability` decides what is alert-worthy and delivers the result. Both, now — the crate
+//! began as delivery only, with alerts arriving already decided, and [`core::alarm`] added the
+//! other half by evaluating CloudWatch metric alarms in this process and handing them to
+//! [`core::notifier`] without a hop.
+//!
+//! The two halves stay distinguishable. An alert that arrives on a notify route was decided by its
+//! caller and is forwarded unchanged; one that leaves the evaluate route was decided here, from
+//! thresholds in [`settings::cloudwatch`] and readings from a metrics provider. What the crate
+//! deliberately does **not** do is remember anything about an alert after it has been sent — no
+//! mute, no acknowledgement, no history. Deciding from a source is generation and belongs here;
+//! remembering things about an alert is management and belongs to a separate effort, source
+//! agnostic, or it ends up covering infrastructure alerts and nothing else.
 //!
 //! Laid out on the router's lines: [`core`] decides, [`routes`] exposes, and the whole route tree
 //! is visible in [`routes::app`].

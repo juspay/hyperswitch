@@ -5,4 +5,5 @@
 //! into `core`, and serializes what comes back; `core` resolves a destination and asks the domain
 //! to deliver. Nothing here knows that HTTP exists.
 
+pub mod alarm;
 pub mod notifier;
