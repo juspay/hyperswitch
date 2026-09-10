@@ -7288,30 +7288,171 @@ Cypress.Commands.add(
   }
 );
 
-Cypress.Commands.add("retrievePayoutCallTest", (globalState, data) => {
-  const payout_id = globalState.get("payoutID");
-  const resBody = data?.Response?.body || {};
-  cy.request({
-    method: "GET",
-    url: `${globalState.get("baseUrl")}/payouts/${payout_id}`,
-    headers: {
+/**
+ * Retrieves a payout and asserts the response. With `forceSync`, calls
+ * GET /payouts/{id}?force_sync=true (PoSync): the configured `Configs.DELAY`
+ * window is honored before the first attempt and transient statuses are
+ * retried while the transfer settles.
+ *
+ * @param {Object} globalState - Global state instance
+ * @param {Object} data - Connector config entry ({ Configs, Response })
+ * @param {Object} [options]
+ * @param {boolean} [options.forceSync=false] - Force-sync the payout
+ * @param {string} [options.payoutId=null] - Payout id to retrieve; defaults
+ *   to the payoutID stored in globalState
+ */
+Cypress.Commands.add(
+  "retrievePayoutCallTest",
+  (globalState, data, options = {}) => {
+    const { forceSync = false, payoutId = null } = options;
+    const { Configs: configs = {}, Response: resData = {} } = data || {};
+    const resBody = resData.body || {};
+
+    if (forceSync) {
+      execConfig(validateConfig(configs));
+    }
+
+    const payout_id = payoutId || globalState.get("payoutID");
+    const headers = {
       "Content-Type": "application/json",
       "api-key": globalState.get("apiKey"),
-    },
-    failOnStatusCode: false,
-  }).then((response) => {
-    logRequestId(response.headers["x-request-id"]);
+    };
 
-    cy.wrap(response).then(() => {
+    const assertSuccessBody = (response) => {
       expect(response.headers["content-type"]).to.include("application/json");
       expect(response.body.payout_id).to.equal(payout_id);
       expect(response.body.amount).to.equal(globalState.get("payoutAmount"));
       for (const key in resBody) {
         expect(response.body[key]).to.deep.equal(resBody[key]);
       }
-    });
-  });
-});
+    };
+
+    if (!forceSync) {
+      return cy
+        .request({
+          method: "GET",
+          url: `${globalState.get("baseUrl")}/payouts/${payout_id}`,
+          headers,
+          failOnStatusCode: false,
+        })
+        .then((response) => {
+          logRequestId(response.headers["x-request-id"]);
+          return cy.wrap(response).then(() => {
+            assertSuccessBody(response);
+          });
+        });
+    }
+
+    const maxAttempts = 4;
+    const retryIntervalMs = 15000;
+    // Transient UCS upstream failures on the first sync after create
+    // surface as HTTP 500 from the router.
+    const retryableStatuses = [408, 500, 502, 503, 504];
+
+    const syncAttempt = (attempt) =>
+      cy
+        .request({
+          method: "GET",
+          url: `${globalState.get("baseUrl")}/payouts/${payout_id}?force_sync=true`,
+          headers,
+          failOnStatusCode: false,
+        })
+        .then((response) => {
+          logRequestId(response.headers["x-request-id"]);
+
+          return cy.wrap(response).then(() => {
+            if (response.status === 200) {
+              assertSuccessBody(response);
+              return response;
+            }
+
+            if (
+              attempt < maxAttempts &&
+              retryableStatuses.includes(response.status)
+            ) {
+              cy.task(
+                "cli_log",
+                `payout force_sync attempt ${attempt}/${maxAttempts} got status ${response.status}; retrying in ${retryIntervalMs}ms`
+              );
+              // eslint-disable-next-line cypress/no-unnecessary-waiting
+              cy.wait(retryIntervalMs);
+              return syncAttempt(attempt + 1);
+            }
+
+            defaultErrorHandler(response, resData);
+            return response;
+          });
+        });
+
+    return syncAttempt(1);
+  }
+);
+
+/**
+ * Creates a payout with confirm + auto-fulfill and asserts the UCS-executed
+ * response. Within a UCS transaction, PoCreate+PoFulfill complete but leave
+ * the payout in `pending`; it reaches `success` only through PoSync.
+ * Expected masked beneficiary details are derived from the request: IBAN and
+ * BIC keep their first/last 5 and 3 characters respectively.
+ */
+Cypress.Commands.add(
+  "createConfirmUcsPayoutTest",
+  (createConfirmPayoutBody, data, confirm, auto_fulfill, globalState) => {
+    return cy
+      .createConfirmPayoutTest(
+        createConfirmPayoutBody,
+        data,
+        confirm,
+        auto_fulfill,
+        globalState
+      )
+      .then((response) => {
+        expect(response.body.metadata.gateway_system).to.equal(
+          "unified_connector_service"
+        );
+        expect(response.body.metadata.vop_status).to.equal("MTCH");
+        const { iban, bic } = data.Request.payout_method_data.bank_transfer;
+        const mask = (value, head, tail) =>
+          value.slice(0, head) +
+          "*".repeat(value.length - head - tail) +
+          value.slice(-tail);
+        expect(response.body.payout_method_data.bank.iban).to.equal(
+          mask(iban, 5, 5)
+        );
+        expect(response.body.payout_method_data.bank.bic).to.equal(
+          mask(bic, 3, 3)
+        );
+        expect(response.body.connector_transaction_id).to.match(
+          /^[0-9A-F]{32}$/
+        );
+        globalState.set(
+          "payoutConnectorTransactionId",
+          response.body.connector_transaction_id
+        );
+      });
+  }
+);
+
+/**
+ * Retrieves a UCS-executed payout with force_sync=true (PoSync) and asserts
+ * the response: still routed via UCS and the connector reference is unchanged
+ * since the payout create (idempotency).
+ */
+Cypress.Commands.add(
+  "retrievePayoutUcsForceSyncCallTest",
+  (globalState, data, payoutId = null) => {
+    return cy
+      .retrievePayoutCallTest(globalState, data, { forceSync: true, payoutId })
+      .then((response) => {
+        expect(response.body.metadata.gateway_system).to.equal(
+          "unified_connector_service"
+        );
+        expect(response.body.connector_transaction_id).to.equal(
+          globalState.get("payoutConnectorTransactionId")
+        );
+      });
+  }
+);
 
 // User API calls
 // Below 3 commands should be called in sequence to login a user

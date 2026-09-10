@@ -3,6 +3,7 @@ import { validateConfig } from "../../../utils/featureFlags.js";
 import { connectorDetails as adyenConnectorDetails } from "./Adyen.js";
 import { connectorDetails as adyenPlatformConnectorDetails } from "./AdyenPlatform.js";
 import { connectorDetails as CommonConnectorDetails } from "./Commons.js";
+import { connectorDetails as deutschebankConnectorDetails } from "./Deutschebank.js";
 import { connectorDetails as wiseConnectorDetails } from "./Wise.js";
 import { connectorDetails as nomupayConnectorDetails } from "./Nomupay.js";
 import { connectorDetails as truelayerConnectorDetails } from "./Truelayer.js";
@@ -11,6 +12,7 @@ const connectorDetails = {
   adyen: adyenConnectorDetails,
   adyenplatform: adyenPlatformConnectorDetails,
   commons: CommonConnectorDetails,
+  deutschebank: deutschebankConnectorDetails,
   nomupay: nomupayConnectorDetails,
   truelayer: truelayerConnectorDetails,
   wise: wiseConnectorDetails,
@@ -97,6 +99,8 @@ export const CONNECTOR_LISTS = {
     // Payout recurring feature - only verified connectors
     PAYOUT_RECURRING: ["adyenplatform"],
     PAYOUT_LINK: ["wise"],
+    // Payout sync (force_sync / PoSync) feature - only verified connectors
+    PAYOUT_SYNC: ["deutschebank"],
     BANK_TRANSFER_OPEN_BANKING: ["truelayer"],
     BANK_TRANSFER_OPEN_BANKING_INVALID_REFERENCE_FULFILL: [],
     BANK_TRANSFER_SEPA: ["adyen", "adyenplatform", "nomupay", "wise"],
