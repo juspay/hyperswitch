@@ -582,38 +582,13 @@ pub enum PaymentMethodIntegrationType {
 }
 
 #[cfg(feature = "v2")]
-/// What an acknowledgement has to do with a payment method waiting in redis. Resolved at session
-/// confirm, alongside the fingerprint lookup, and stored beside the record.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub enum VolatileResolution {
-    /// The customer already has this card saved and active.
-    Get,
-    /// The customer has this card in an update-eligible state.
-    Update,
-    /// A card the customer has not saved before.
-    Create,
-}
-
-#[cfg(feature = "v2")]
-impl VolatileResolution {
-    /// Redis key holding the resolution for a volatile payment method.
-    pub fn redis_key(payment_method_id: &id_type::GlobalPaymentMethodId) -> String {
-        format!("{}_resolution", payment_method_id.get_string_repr())
-    }
-
-    /// A card with no row to update: this update writes it.
-    pub fn is_insert(&self) -> bool {
-        matches!(self, Self::Create)
-    }
-}
-
-#[cfg(feature = "v2")]
 pub struct PaymentMethodUpdateHandler<'a> {
     pub platform: &'a hyperswitch_domain_models::platform::Platform,
     pub profile: &'a hyperswitch_domain_models::business_profile::Profile,
     pub request: hyperswitch_domain_models::payment_methods::PaymentMethodUpdate,
     pub payment_method: hyperswitch_domain_models::payment_methods::PaymentMethod,
-    /// Set when this update is promoting a payment method out of volatile storage.
-    pub promotion: Option<VolatileResolution>,
+    /// Set when the payment method being promoted out of volatile storage has no row yet: this
+    /// update writes it instead of updating one.
+    pub insert_promoted_record: bool,
     pub state: &'a SessionState,
 }

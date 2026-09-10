@@ -2300,9 +2300,6 @@ impl LockerOperations for GenericLocker {
                     )
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable(
-                        "Failed to get auxiliary fingerprint_id from vault using generic strategy",
-                    )
                 }
                 .in_current_span(),
             )
@@ -2370,7 +2367,9 @@ impl LockerOperations for GenericLocker {
                 let auxiliary_fingerprint_id = auxiliary_fingerprint_task
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Auxiliary fingerprint task did not complete")??;
+                    .attach_printable(
+                        "Failed to get auxiliary fingerprint_id from vault using generic strategy",
+                    )??;
 
                 let locker_resolver = LockerTypeResolver {
                     locker_type: LockerType::Generic,
@@ -3303,10 +3302,9 @@ pub async fn create_generic_volatile_payment_method(
         .or(req.payment_method_subtype);
     let payment_method_data = bin_enriched_payment_method_data.data;
 
-    // An acceptance is only forwarded for a record that is to be promoted, so fingerprint such a
-    // card here to write it against the payment method the customer already has. A guest flow has
-    // no customer to key the fingerprint by and is never promoted.
-    let (payment_method_id, resolution, fingerprint_details) = match customer_id
+    // Fingerprint only for a `PayThenVault` flow with a customer present and customer acceptance:
+    // the acceptance reaches this workflow from session confirm under `PayThenVault` alone.
+    let (payment_method_id, fingerprint_details) = match customer_id
         .as_ref()
         .filter(|_| customer_acceptance.is_some())
     {
@@ -3324,7 +3322,6 @@ pub async fn create_generic_volatile_payment_method(
             match resolution.0 {
                 PaymentMethodResolution::Get(existing_payment_method) => (
                     existing_payment_method.id.clone(),
-                    Some(pm_types::VolatileResolution::Get),
                     Some(FingerprintDetails {
                         fingerprint_id: existing_payment_method.locker_fingerprint_id.clone(),
                         auxiliary_fingerprint_id: existing_payment_method
@@ -3339,7 +3336,6 @@ pub async fn create_generic_volatile_payment_method(
                     ..
                 } => (
                     existing_payment_method_id,
-                    Some(pm_types::VolatileResolution::Update),
                     Some(FingerprintDetails {
                         fingerprint_id,
                         auxiliary_fingerprint_id: existing_payment_method
@@ -3350,14 +3346,10 @@ pub async fn create_generic_volatile_payment_method(
                 PaymentMethodResolution::Create {
                     fingerprint_details,
                     ..
-                } => (
-                    payment_method_id,
-                    Some(pm_types::VolatileResolution::Create),
-                    fingerprint_details,
-                ),
+                } => (payment_method_id, fingerprint_details),
             }
         }
-        None => (payment_method_id, None, None),
+        None => (payment_method_id, None),
     };
 
     let vaulting_result = vault_payment_method_in_volatile_storage(
@@ -3437,20 +3429,6 @@ pub async fn create_generic_volatile_payment_method(
                 .map_err(Into::<errors::StorageError>::into)
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to insert payment method id in redis")?;
-
-            // Stored beside the record so the promotion does not resolve it again.
-            if let Some(resolution) = resolution {
-                redis_connection
-                    .serialize_and_set_key_with_expiry(
-                        &pm_types::VolatileResolution::redis_key(payment_method.get_id()).into(),
-                        resolution,
-                        consts::DEFAULT_PAYMENT_METHOD_STORE_TTL,
-                    )
-                    .await
-                    .map_err(Into::<errors::StorageError>::into)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to insert payment method resolution in redis")?;
-            }
 
             let domain_payment_method = domain::PaymentMethod::convert_back(
                 keymanager_state,
@@ -6813,32 +6791,37 @@ pub async fn update_payment_method_core(
 ) -> RouterResult<(api::PaymentMethodResponse, domain::PaymentMethod)> {
     // `PayThenVault` defers vaulting to the acknowledgement, so this update is what writes the
     // card to the vault and the database. Both update endpoints reach this point.
-    let promotion = if request.status == Some(enums::PaymentMethodStatus::Active)
+    let volatile_payment_method = if request.status == Some(enums::PaymentMethodStatus::Active)
         && resolve_payment_method_integration_type(state, platform).await
             == pm_types::PaymentMethodIntegrationType::PayThenVault
     {
-        fetch_volatile_promotion(state, platform, payment_method_id).await
+        fetch_volatile_payment_method_record(
+            state,
+            platform.get_provider().get_key_store(),
+            payment_method_id.get_string_repr(),
+        )
+        .await
+        .inspect_err(|error| {
+            logger::info!(?error, "No volatile payment method found to promote");
+        })
+        .ok()
+        // The acceptance the record was written with is what marks it for promotion; without one
+        // the card was only ever meant to last for this payment.
+        .filter(|volatile_payment_method| volatile_payment_method.customer_acceptance.is_some())
     } else {
         None
     };
 
-    // A card the customer has not saved before has no row yet, so the redis copy is what this
-    // update works against, and writes.
-    let (volatile_payment_method, promotion) = promotion.unzip();
+    let is_promotion = volatile_payment_method.is_some();
 
-    let payment_method_record = existing_payment_method.or_else(|| {
-        volatile_payment_method
-            .filter(|_| promotion.is_some_and(|resolution| resolution.is_insert()))
-    });
-
-    let mut handler = match payment_method_record {
+    let mut handler = match existing_payment_method {
         Some(payment_method) => {
             let handler = pm_types::PaymentMethodUpdateHandler {
                 platform,
                 profile,
                 request,
                 payment_method,
-                promotion,
+                insert_promoted_record: false,
                 state,
             };
             handler.validate()?;
@@ -6850,17 +6833,39 @@ pub async fn update_payment_method_core(
             profile,
             request,
             payment_method_id,
-            promotion,
+            volatile_payment_method,
         )
         .await
         .attach_printable("Failed to generate PaymentMethodUpdateHandler")?,
     };
 
-    Box::pin(execute_payment_method_update_handler(
+    let (response, payment_method) = Box::pin(execute_payment_method_update_handler(
         &mut handler,
         network_tokenization_resp,
     ))
-    .await
+    .await?;
+
+    // The record is persisted now, and the redis copy left behind would shadow it on the next
+    // retrieval. A failed delete is not worth failing the call for.
+    if is_promotion {
+        let deleted = state
+            .store
+            .get_redis_conn()
+            .map_err(Into::<errors::StorageError>::into)
+            .async_and_then(|redis_connection| async move {
+                redis_connection
+                    .delete_key(&payment_method_id.get_string_repr().into())
+                    .await
+                    .map_err(Into::<errors::StorageError>::into)
+            })
+            .await;
+
+        if let Err(error) = deleted {
+            logger::warn!(?error, "Failed to delete the volatile payment method copy");
+        }
+    }
+
+    Ok((response, payment_method))
 }
 
 #[cfg(feature = "v2")]
@@ -6874,26 +6879,15 @@ async fn execute_payment_method_update_handler(
         .await
         .attach_printable("Failed to update card cvc")?;
 
-    let (promotion_data, promotion_resp) =
-        Box::pin(handler.vault_promoted_payment_method_if_required())
-            .await
-            .attach_printable("Failed to vault the payment method being promoted")?;
-
     let (vaulting_data, vaulting_resp) =
         Box::pin(handler.perform_vaulting_operations_if_required())
             .await
             .attach_printable("Failed to perform vaulting operations for payment method update")?;
 
     handler
-        .update_payment_method_if_required(
-            vaulting_data.or(promotion_data),
-            vaulting_resp.or(promotion_resp),
-            network_tokenization_resp,
-        )
+        .update_payment_method_if_required(vaulting_data, vaulting_resp, network_tokenization_resp)
         .await
         .attach_printable("Failed to update payment method in db")?;
-
-    handler.drop_promoted_volatile_copy().await;
 
     let response = handler
         .generate_response(card_cvc_details)
@@ -7512,51 +7506,6 @@ fn reorder_token_to_front(
         );
         tokens
     })
-}
-
-/// Reads the volatile copy of a payment method and its resolution from redis. A missing record has
-/// already been promoted, and a missing resolution was never fingerprinted — neither is an error.
-#[cfg(feature = "v2")]
-async fn fetch_volatile_promotion(
-    state: &SessionState,
-    platform: &domain::Platform,
-    payment_method_id: &id_type::GlobalPaymentMethodId,
-) -> Option<(domain::PaymentMethod, pm_types::VolatileResolution)> {
-    let payment_method = fetch_volatile_payment_method_record(
-        state,
-        platform.get_provider().get_key_store(),
-        payment_method_id.get_string_repr(),
-    )
-    .await
-    .inspect_err(|error| {
-        logger::info!(
-            ?error,
-            "No volatile payment method found to promote, assuming it is already persisted"
-        );
-    })
-    .ok();
-
-    let resolution = match state.store.get_redis_conn() {
-        Ok(redis_connection) => redis_connection
-            .get_and_deserialize_key::<pm_types::VolatileResolution>(
-                &pm_types::VolatileResolution::redis_key(payment_method_id).into(),
-                "VolatileResolution",
-            )
-            .await
-            .inspect_err(|error| {
-                logger::info!(
-                    ?error,
-                    "No stored resolution for the volatile payment method, nothing to promote"
-                );
-            })
-            .ok(),
-        Err(error) => {
-            logger::warn!(?error, "Failed to get redis connection");
-            None
-        }
-    };
-
-    payment_method.zip(resolution)
 }
 
 #[cfg(feature = "v2")]
@@ -8243,7 +8192,7 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
         profile: &'a domain::Profile,
         request: DomainPaymentMethodUpdate,
         payment_method_id: &'a id_type::GlobalPaymentMethodId,
-        promotion: Option<pm_types::VolatileResolution>,
+        volatile_payment_method: Option<domain::PaymentMethod>,
     ) -> RouterResult<Self> {
         let payment_method = state
             .store
@@ -8252,15 +8201,30 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
                 payment_method_id,
                 platform.get_provider().get_account().storage_scheme,
             )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+            .await;
+
+        // A promoted card that was never persisted has no row to find: this update writes it.
+        let (payment_method, insert_promoted_record) =
+            match (payment_method, volatile_payment_method) {
+                (Ok(payment_method), _) => (payment_method, false),
+                (Err(error), Some(volatile_payment_method))
+                    if error.current_context().is_db_not_found() =>
+                {
+                    (volatile_payment_method, true)
+                }
+                (Err(error), _) => (
+                    Err(error)
+                        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?,
+                    false,
+                ),
+            };
 
         let handler = Self {
             platform,
             profile,
             request,
             payment_method,
-            promotion,
+            insert_promoted_record,
             state,
         };
         handler.validate()?;
@@ -8348,77 +8312,6 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
         Ok(card_cvc_token_details)
     }
 
-    /// Vaults a promoted card, now that the payment it backed has been acknowledged. Only a
-    /// `Create` reaches the vault: `Get` and `Update` matched a record whose card is vaulted
-    /// already. The vault response feeds the single write below, so nothing is written twice.
-    pub async fn vault_promoted_payment_method_if_required(
-        &self,
-    ) -> RouterResult<(
-        Option<domain::PaymentMethodVaultingData>,
-        Option<pm_types::AddVaultResponse>,
-    )> {
-        match self.promotion.filter(|resolution| resolution.is_insert()) {
-            Some(_) => {
-                let key_store = self.platform.get_provider().get_key_store();
-                let customer_id = self
-                    .payment_method
-                    .customer_id
-                    .clone()
-                    .get_required_value("GlobalCustomerId")?;
-
-                let vaulting_data = vault::retrieve_volatile_payment_method_from_redis(
-                    self.state,
-                    key_store,
-                    &self.payment_method,
-                )
-                .await
-                .attach_printable("Failed to retrieve the volatile card from redis")?
-                .data;
-
-                let (vault_response, _external_vault_source) = Box::pin(vault_payment_method(
-                    self.state,
-                    &vaulting_data,
-                    self.platform,
-                    self.profile,
-                    None,
-                    self.payment_method.locker_fingerprint_id.clone(),
-                    &customer_id,
-                    Some(pm_types::WriteMode::Insert),
-                ))
-                .await
-                .attach_printable("Failed to vault the payment method being promoted")?;
-
-                Ok((Some(vaulting_data), Some(vault_response)))
-            }
-            None => Ok((None, None)),
-        }
-    }
-
-    /// Drops the redis copy of a promoted payment method, which would otherwise shadow the
-    /// persisted record on the next retrieval. A failed delete is not worth failing the call for.
-    pub async fn drop_promoted_volatile_copy(&self) {
-        if self.promotion.is_some() {
-            match self.state.store.get_redis_conn() {
-                Ok(redis_connection) => {
-                    let payment_method_id = self.payment_method.get_id();
-                    let resolution_key = pm_types::VolatileResolution::redis_key(payment_method_id);
-
-                    for key in [payment_method_id.get_string_repr(), resolution_key.as_str()] {
-                        if let Err(error) = redis_connection.delete_key(&key.into()).await {
-                            logger::warn!(
-                                ?error,
-                                "Failed to delete promoted payment method from redis"
-                            );
-                        }
-                    }
-                }
-                Err(error) => {
-                    logger::warn!(?error, "Failed to get redis connection");
-                }
-            }
-        }
-    }
-
     pub async fn perform_vaulting_operations_if_required(
         &self,
     ) -> RouterResult<(
@@ -8499,94 +8392,130 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
 
         let db = self.state.store.as_ref();
 
-        let updated_payment_method =
-            match self.promotion.filter(|resolution| resolution.is_insert()) {
-                // The record has only ever lived in redis, and already carries the card, the
-                // fingerprints and the acceptance. Writing the vault id and the connector
-                // artefacts with it is what avoids an insert followed by an update. Network
-                // tokenization is scheduled separately and never arrives here.
-                Some(_) => {
-                    let payment_method = domain::PaymentMethod {
-                        locker_id: vault_resp
-                            .as_ref()
-                            .map(|vault_resp| vault_resp.vault_id.clone()),
-                        locker_fingerprint_id: vault_resp
-                            .as_ref()
-                            .and_then(|vault_resp| vault_resp.fingerprint_id.clone())
-                            .or_else(|| self.payment_method.locker_fingerprint_id.clone()),
-                        status: pm_status.unwrap_or(self.payment_method.status),
-                        connector_mandate_details: self
-                            .request
-                            .connector_token_details
-                            .clone()
-                            .map(|connector_token_details| {
-                                create_connector_token_details_update(
-                                    connector_token_details,
-                                    &self.payment_method,
-                                )
-                            })
-                            .or_else(|| self.payment_method.connector_mandate_details.clone()),
-                        network_transaction_id: self
-                            .request
-                            .network_transaction_id
-                            .clone()
-                            .map(|network_transaction_id| network_transaction_id.expose())
-                            .or_else(|| self.payment_method.network_transaction_id.clone()),
-                        ..self.payment_method.clone()
-                    };
+        // A promoted card has only ever been in redis: this is where it reaches the vault, and its
+        // response is written with the row below rather than by a second pass over it.
+        let (vault_request_data, vault_resp) = match self.insert_promoted_record {
+            true => {
+                let customer_id = self
+                    .payment_method
+                    .customer_id
+                    .clone()
+                    .get_required_value("GlobalCustomerId")?;
 
-                    db.insert_payment_method(
-                        self.platform.get_provider().get_key_store(),
-                        payment_method,
-                        self.platform.get_provider().get_account().storage_scheme,
-                        Some(payment_method_modular_backward_compat_action(
-                            self.state,
-                            &self.platform.get_provider().get_account().organization_id,
-                        )),
-                    )
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to persist the promoted payment method in db")?
-                }
-                None => {
-                    let pm_update = create_pm_additional_data_update(
-                        vault_request_data.as_ref(),
+                let vaulting_data = vault::retrieve_volatile_payment_method_from_redis(
+                    self.state,
+                    self.platform.get_provider().get_key_store(),
+                    &self.payment_method,
+                )
+                .await
+                .attach_printable("Failed to retrieve the volatile card from redis")?
+                .data;
+
+                let (vault_response, _external_vault_source) = Box::pin(vault_payment_method(
+                    self.state,
+                    &vaulting_data,
+                    self.platform,
+                    self.profile,
+                    None,
+                    self.payment_method.locker_fingerprint_id.clone(),
+                    &customer_id,
+                    Some(pm_types::WriteMode::Insert),
+                ))
+                .await
+                .attach_printable("Failed to vault the payment method being promoted")?;
+
+                (Some(vaulting_data), Some(vault_response))
+            }
+            false => (vault_request_data, vault_resp),
+        };
+
+        let updated_payment_method = match self.insert_promoted_record {
+            // The record has only ever lived in redis, and already carries the card, the
+            // fingerprints and the acceptance. Writing the vault id and the connector
+            // artefacts with it is what avoids an insert followed by an update. Network
+            // tokenization is scheduled separately and never arrives here.
+            true => {
+                let payment_method = domain::PaymentMethod {
+                    locker_id: vault_resp
+                        .as_ref()
+                        .map(|vault_resp| vault_resp.vault_id.clone()),
+                    locker_fingerprint_id: vault_resp
+                        .as_ref()
+                        .and_then(|vault_resp| vault_resp.fingerprint_id.clone())
+                        .or_else(|| self.payment_method.locker_fingerprint_id.clone()),
+                    status: pm_status.unwrap_or(self.payment_method.status),
+                    connector_mandate_details: self
+                        .request
+                        .connector_token_details
+                        .clone()
+                        .map(|connector_token_details| {
+                            create_connector_token_details_update(
+                                connector_token_details,
+                                &self.payment_method,
+                            )
+                        })
+                        .or_else(|| self.payment_method.connector_mandate_details.clone()),
+                    network_transaction_id: self
+                        .request
+                        .network_transaction_id
+                        .clone()
+                        .map(|network_transaction_id| network_transaction_id.expose())
+                        .or_else(|| self.payment_method.network_transaction_id.clone()),
+                    ..self.payment_method.clone()
+                };
+
+                db.insert_payment_method(
+                    self.platform.get_provider().get_key_store(),
+                    payment_method,
+                    self.platform.get_provider().get_account().storage_scheme,
+                    Some(payment_method_modular_backward_compat_action(
                         self.state,
-                        self.platform.get_provider().get_key_store(),
-                        vault_resp
-                            .as_ref()
-                            .map(|resp| resp.vault_id.get_string_repr().to_owned()),
-                        vault_resp
-                            .as_ref()
-                            .and_then(|resp| resp.fingerprint_id.clone()),
-                        &self.payment_method,
-                        self.request.connector_token_details.clone(),
-                        self.request.network_transaction_id.clone(),
-                        network_tokenization_resp,
-                        None,
-                        None,
-                        None,
-                        pm_status,
-                        self.platform.get_initiator(),
-                    )
-                    .await
-                    .attach_printable("Unable to create Payment method data")?;
+                        &self.platform.get_provider().get_account().organization_id,
+                    )),
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to persist the promoted payment method in db")?
+            }
+            false => {
+                let pm_update = create_pm_additional_data_update(
+                    vault_request_data.as_ref(),
+                    self.state,
+                    self.platform.get_provider().get_key_store(),
+                    vault_resp
+                        .as_ref()
+                        .map(|resp| resp.vault_id.get_string_repr().to_owned()),
+                    vault_resp
+                        .as_ref()
+                        .and_then(|resp| resp.fingerprint_id.clone()),
+                    &self.payment_method,
+                    self.request.connector_token_details.clone(),
+                    self.request.network_transaction_id.clone(),
+                    network_tokenization_resp,
+                    None,
+                    None,
+                    None,
+                    pm_status,
+                    self.platform.get_initiator(),
+                )
+                .await
+                .attach_printable("Unable to create Payment method data")?;
 
-                    db.update_payment_method(
-                        self.platform.get_provider().get_key_store(),
-                        self.payment_method.clone(),
-                        pm_update,
-                        self.platform.get_provider().get_account().storage_scheme,
-                        Some(payment_method_modular_backward_compat_action(
-                            self.state,
-                            &self.platform.get_provider().get_account().organization_id,
-                        )),
-                    )
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to update payment method in db")?
-                }
-            };
+                db.update_payment_method(
+                    self.platform.get_provider().get_key_store(),
+                    self.payment_method.clone(),
+                    pm_update,
+                    self.platform.get_provider().get_account().storage_scheme,
+                    Some(payment_method_modular_backward_compat_action(
+                        self.state,
+                        &self.platform.get_provider().get_account().organization_id,
+                    )),
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to update payment method in db")?
+            }
+        };
 
         self.payment_method = updated_payment_method;
         Ok(())

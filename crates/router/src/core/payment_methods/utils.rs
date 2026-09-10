@@ -19,7 +19,10 @@ use kgraph_utils::{error::KgraphError, transformers::IntoDirValue};
 use router_env::logger;
 use storage_impl::redis::cache::{CacheKey, PM_FILTERS_CGRAPH_CACHE};
 
-use crate::{configs::settings, core::configs::dimension_state, routes::SessionState};
+use crate::{
+    configs::settings, core::configs::dimension_state, routes::SessionState,
+    types::payment_methods as pm_types,
+};
 #[cfg(feature = "v2")]
 use crate::{
     db::{
@@ -834,7 +837,7 @@ pub async fn get_payment_method_integration_type(
     state: &SessionState,
     dimensions: &dimension_state::DimensionsWithProviderMerchantIdAndOrgId,
     customer_id: Option<&common_utils::id_type::CustomerId>,
-) -> crate::types::payment_methods::PaymentMethodIntegrationType {
+) -> pm_types::PaymentMethodIntegrationType {
     dimensions
         .get_payment_method_integration_type(
             state.store.as_ref(),
