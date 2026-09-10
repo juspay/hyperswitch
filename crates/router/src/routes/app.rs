@@ -2184,7 +2184,7 @@ pub struct HierarchicalResources;
 #[cfg(all(feature = "olap", feature = "v1"))]
 impl HierarchicalResources {
     pub fn server(state: AppState) -> Scope {
-        web::scope("/hierarchical-resources")
+        web::scope("/hierarchical_resources")
             .app_data(web::Data::new(state))
             .service(web::resource("").route(
                 web::post().to(super::hierarchical_resources::generate_hierarchical_resource),
