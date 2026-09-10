@@ -52,6 +52,9 @@ const payment_method_data_no3ds = {
   card: {
     last4: "1111",
     card_type: "CREDIT",
+    card_subtype: "VISA CLASSIC",
+    card_segment_type: "consumer",
+    funding_source: "DEBIT",
     card_network: "Visa",
     card_issuer: "JP Morgan",
     card_issuing_country: "INDIA",
@@ -390,6 +393,9 @@ export const connectorDetails = {
     },
     MITAutoCapture: getCustomExchange({
       ...commonConnectorDetails.card_pm.MITAutoCapture,
+    }),
+    MITAutoCaptureWithCustomerAcceptance: getCustomExchange({
+      ...commonConnectorDetails.card_pm.MITAutoCaptureWithCustomerAcceptance,
     }),
     MITManualCapture: {
       Request: {},

@@ -33,8 +33,11 @@ const payment_method_data_no3ds = {
   card: {
     last4: "1111",
     card_type: "DEBIT",
+    card_subtype: "VISA CLASSIC",
+    card_segment_type: "consumer",
+    funding_source: "DEBIT",
     card_network: "Visa",
-    card_issuer: "Conotoxia Sp Z Oo",
+    card_issuer: "CONOTOXIA SP Z OO",
     card_issuing_country: "POLAND",
     card_isin: "411111",
     card_extended_bin: null,
@@ -760,6 +763,25 @@ export const connectorDetails = {
     },
     MITAutoCapture: {
       Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+          setup_future_usage: "on_session",
+        },
+      },
+    },
+    MITAutoCaptureWithCustomerAcceptance: {
+      Request: {
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "127.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
+      },
       Response: {
         status: 200,
         body: {

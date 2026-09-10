@@ -5,6 +5,7 @@ use time::PrimitiveDateTime;
 use crate::{enums, schema::roles};
 
 #[derive(Clone, Debug, Identifiable, Queryable, Selectable)]
+#[cfg_attr(feature = "deja", derive(serde::Serialize, serde::Deserialize))]
 #[diesel(table_name = roles, primary_key(role_id), check_for_backend(diesel::pg::Pg))]
 pub struct Role {
     pub role_name: String,

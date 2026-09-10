@@ -117,7 +117,7 @@ fn deserialization_test_ok() -> Result<(), Box<dyn std::error::Error + Send + Sy
             assert_eq!(
                 percentage.get_percentage(),
                 format!("{integer}.{decimal}")
-                    .parse::<f32>()
+                    .parse::<f64>()
                     .unwrap_or_default()
             )
         }

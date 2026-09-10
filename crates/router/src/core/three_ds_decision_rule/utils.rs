@@ -2,37 +2,50 @@ use api_models::three_ds_decision_rule as api_threedsecure;
 use common_types::three_ds_decision_rule_engine::ThreeDSDecision;
 use euclid::backend::inputs as dsl_inputs;
 
-use crate::{consts::PSD2_COUNTRIES, types::transformers::ForeignFrom};
+use crate::{consts::SCA_MANDATED_COUNTRIES, types::transformers::ForeignFrom};
 
-// function to apply PSD2 validations to the decision
-pub fn apply_psd2_validations_during_execute(
+// Apply SCA validations to the decision for regulated issuer/acquirer combinations.
+pub fn apply_sca_validations_during_execute(
     decision: ThreeDSDecision,
     request: &api_models::three_ds_decision_rule::ThreeDsDecisionRuleExecuteRequest,
 ) -> ThreeDSDecision {
-    let issuer_in_psd2 = request
+    let issuer_in_sca_mandated_country = request
         .issuer
         .as_ref()
         .and_then(|issuer| issuer.country)
-        .map(|country| PSD2_COUNTRIES.contains(&country))
+        .map(|country| SCA_MANDATED_COUNTRIES.contains(&country))
         .unwrap_or(false);
-    let acquirer_in_psd2 = request
+    let acquirer_in_sca_mandated_country = request
         .acquirer
         .as_ref()
         .and_then(|acquirer| acquirer.country)
-        .map(|country| PSD2_COUNTRIES.contains(&country))
+        .map(|country| SCA_MANDATED_COUNTRIES.contains(&country))
         .unwrap_or(false);
-    if issuer_in_psd2 && acquirer_in_psd2 {
-        // If both issuer and acquirer are in PSD2 region
+    apply_sca_validations_to_decision(
+        decision,
+        issuer_in_sca_mandated_country && acquirer_in_sca_mandated_country,
+    )
+}
+
+fn apply_sca_validations_to_decision(
+    decision: ThreeDSDecision,
+    sca_mandate_applies: bool,
+) -> ThreeDSDecision {
+    if sca_mandate_applies {
+        // NoThreeDs is not allowed when both PSPs are in an SCA-mandated region.
         match decision {
-            // If the decision is to enforce no 3DS, override it to enforce 3DS
-            ThreeDSDecision::NoThreeDs => ThreeDSDecision::ChallengeRequested,
+            // NoPreference requests 3DS without inventing an exemption preference.
+            ThreeDSDecision::NoThreeDs => ThreeDSDecision::NoPreference,
             _ => decision,
         }
     } else {
-        // If PSD2 doesn't apply, exemptions cannot be applied
+        // PSD2/UK SCA exemptions are not applicable outside regulated regions, but
+        // merchants may explicitly choose no 3DS there.
         match decision {
             ThreeDSDecision::NoThreeDs => ThreeDSDecision::NoThreeDs,
-            // For all other decisions (including exemptions), enforce challenge as exemptions are only valid in PSD2 regions
+            ThreeDSDecision::NoPreference => ThreeDSDecision::NoPreference,
+            // Exemption and challenge-preference decisions are forced to a challenge outside
+            // PSD2. NoPreference is preserved because it does not request an exemption.
             _ => ThreeDSDecision::ChallengeRequested,
         }
     }
@@ -50,8 +63,8 @@ impl ForeignFrom<api_threedsecure::PaymentData> for dsl_inputs::PaymentInput {
             billing_country: None,
             business_label: None,
             setup_future_usage: None,
-            card_bin: None,
-            extended_card_bin: None,
+            card_bin: request_payment_data.card_bin,
+            extended_card_bin: request_payment_data.extended_card_bin,
             surcharge_amount: None,
         }
     }

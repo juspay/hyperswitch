@@ -67,16 +67,18 @@ impl<T: DatabaseStore> AuthenticationInterface for RouterStore<T> {
         _storage_scheme: common_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Authentication, errors::StorageError> {
         let conn = pg_connection_write(self).await?;
-        let inserted_authentication = authentication
-            .construct_new()
-            .await
-            .change_context(errors::StorageError::EncryptionError)?
-            .insert(&conn)
-            .await
-            .map_err(|error| {
-                let new_err = diesel_error_to_data_error(*error.current_context());
-                error.change_context(new_err)
-            })?;
+        let inserted_authentication = Box::pin(
+            authentication
+                .construct_new()
+                .await
+                .change_context(errors::StorageError::EncryptionError)?
+                .insert(&conn),
+        )
+        .await
+        .map_err(|error| {
+            let new_err = diesel_error_to_data_error(*error.current_context());
+            error.change_context(new_err)
+        })?;
         Authentication::convert_back(
             state,
             inserted_authentication,
@@ -208,11 +210,13 @@ impl<T: DatabaseStore> AuthenticationInterface for RouterStore<T> {
             .processor_merchant_id
             .clone()
             .unwrap_or_else(|| previous_state.merchant_id.clone());
-        let result = diesel_authentication::update_by_processor_merchant_id_authentication_id(
-            &conn,
-            &processor_merchant_id,
-            &previous_state.authentication_id,
-            authentication_update_internal.clone(),
+        let result = Box::pin(
+            diesel_authentication::update_by_processor_merchant_id_authentication_id(
+                &conn,
+                &processor_merchant_id,
+                &previous_state.authentication_id,
+                authentication_update_internal.clone(),
+            ),
         )
         .await;
         let result = match result {
@@ -222,11 +226,13 @@ impl<T: DatabaseStore> AuthenticationInterface for RouterStore<T> {
                     diesel_models::errors::DatabaseError::NotFound
                 ) =>
             {
-                diesel_authentication::update_by_merchant_id_authentication_id(
-                    &conn,
-                    &processor_merchant_id,
-                    &previous_state.authentication_id,
-                    authentication_update_internal,
+                Box::pin(
+                    diesel_authentication::update_by_merchant_id_authentication_id(
+                        &conn,
+                        &processor_merchant_id,
+                        &previous_state.authentication_id,
+                        authentication_update_internal,
+                    ),
                 )
                 .await
             }

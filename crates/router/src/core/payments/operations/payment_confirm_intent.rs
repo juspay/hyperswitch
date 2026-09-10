@@ -2,6 +2,7 @@ use api_models::{enums::FrmSuggestion, payments::PaymentsConfirmIntentRequest};
 use async_trait::async_trait;
 use common_utils::{ext_traits::Encode, fp_utils::when, id_type, types::keymanager::ToEncryptable};
 use error_stack::ResultExt;
+use futures::FutureExt;
 use hyperswitch_domain_models::{mandates, payments::PaymentConfirmData};
 use hyperswitch_interfaces::api::ConnectorSpecifications;
 use hyperswitch_masking::{ExposeOptionInterface, PeekInterface};
@@ -62,7 +63,7 @@ impl ValidateStatusForOperation for PaymentIntentConfirm {
             | common_enums::IntentStatus::Review => {
                 Err(errors::ApiErrorResponse::PaymentUnexpectedState {
                     current_flow: format!("{self:?}"),
-                    field_name: "status".to_string(),
+                    field_name: "status".into(),
                     current_value: intent_status.to_string(),
                     states: ["requires_payment_method".to_string()].join(", "),
                 })
@@ -241,7 +242,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
                 ),
                 || {
                     Err(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "payment_method_data",
+                        field_name: "payment_method_data".into(),
                     })
                     .attach_printable(
                         "payment_method_data should be card_token when a token is passed",
@@ -561,18 +562,18 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
                 Some(domain::payment_method_data::PaymentMethodData::CardToken(card_token)),
                 None,
             ) => {
-                let (payment_method, vault_data) = Box::pin(
+                let (payment_method, vault_data) =
                     payment_methods::vault::retrieve_payment_method_from_vault_using_payment_token(
                         state,
                         platform,
                         business_profile,
                         payment_token,
                         &payment_data.payment_attempt.payment_method_type,
-                    ),
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to retrieve payment method from vault")?;
+                    )
+                    .boxed()
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to retrieve payment method from vault")?;
 
                 let (card_cvc, card_holder_name) = {
                     (
@@ -580,16 +581,16 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
                             .card_cvc
                             .clone()
                             .ok_or(errors::ApiErrorResponse::InvalidDataValue {
-                                field_name: "card_cvc",
+                                field_name: "card_cvc".into(),
                             })
-                            .or(
-                                payment_methods::vault::retrieve_and_delete_cvc_from_payment_token(
-                                    state,
-                                    &payment_method.get_id().get_string_repr().to_string(),
-                                    platform.get_processor().get_key_store(),
-                                )
-                                .await,
+                            .or(payment_methods::vault::retrieve_cvc_from_payment_token(
+                                state,
+                                &payment_method.get_id().get_string_repr().to_string(),
+                                platform.get_processor().get_key_store(),
+                                payment_methods::vault::CvcReadMode::ReadAndDelete,
                             )
+                            .boxed()
+                            .await)
                             .attach_printable("card_cvc not provided")?,
                         card_token.card_holder_name.clone(),
                     )
@@ -617,7 +618,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
             }
 
             (Some(_payment_token), _, _) => Err(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "payment_method_data",
+                field_name: "payment_method_data".into(),
             })
             .attach_printable("payment_method_data should be card_token when a token is passed")?,
 
@@ -626,7 +627,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
                     Some(customer_id) => customer_id.clone(),
                     None => {
                         return Err(errors::ApiErrorResponse::InvalidDataValue {
-                            field_name: "customer_id",
+                            field_name: "customer_id".into(),
                         })
                         .attach_printable("customer_id not provided");
                     }
@@ -646,15 +647,15 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
                     storage_type: common_enums::StorageType::Persistent, //since customer acceptance is present, we always store it persistently
                 };
 
-                let (_pm_response, payment_method) =
-                    Box::pin(payment_methods::create_payment_method_core(
-                        state,
-                        &state.get_req_state(),
-                        req,
-                        platform,
-                        business_profile,
-                    ))
-                    .await?;
+                let (_pm_response, payment_method) = payment_methods::create_payment_method_core(
+                    state,
+                    &state.get_req_state(),
+                    req,
+                    platform,
+                    business_profile,
+                )
+                .boxed()
+                .await?;
 
                 // Don't modify payment_method_data in this case, only the payment_method and payment_method_id
                 (Some(payment_method), None)

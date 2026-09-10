@@ -1,4 +1,3 @@
-pub mod chat;
 #[cfg(feature = "olap")]
 pub mod connector_onboarding;
 pub mod currency;
@@ -116,7 +115,15 @@ pub mod error_parser {
     }
 }
 
+// deja: a nanoid-based random id distinct from common_utils::generate_id. Used
+// for merchant fingerprint secrets and other persisted ids, so it must replay to
+// the recorded value or the substituted INSERT args diverge (and a live insert
+// collides with the record-phase row).
 #[inline]
+#[cfg_attr(
+    feature = "deja",
+    deja::id(component = "router::utils", operation = "generate_id", codec = SerdeCodec,)
+)]
 pub fn generate_id(length: usize, prefix: &str) -> String {
     format!("{}_{}", prefix, nanoid!(length, &consts::ALPHABETS))
 }
@@ -1494,7 +1501,7 @@ pub async fn trigger_subscriptions_outgoing_webhook(
     let created_at = subscription.created_at;
     let business_profile = profile.clone();
 
-    tokio::spawn(async move {
+    let outgoing_webhook = async move {
         Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
             cloned_state,
             platform,
@@ -1509,7 +1516,8 @@ pub async fn trigger_subscriptions_outgoing_webhook(
             business_profile,
         ))
         .await
-    });
+    };
+    tokio::spawn(outgoing_webhook.in_current_span());
 
     Ok(())
 }

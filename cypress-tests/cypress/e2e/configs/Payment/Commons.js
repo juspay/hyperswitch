@@ -50,7 +50,7 @@ export const blockedPaymentErrorBodyForBinUnavailable = {
     error: {
       type: "blocked",
       message:
-        "We're unable to accept this card, please try another card or a different payment method",
+        "We couldn't verify this card's information, please try a different card",
       code: "HE_03",
       reason: "Blocked",
     },
@@ -255,6 +255,17 @@ export const payment_methods_enabled = [
         installment_payment_enabled: true,
       },
       {
+        payment_method_type: "trustly",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+      {
         payment_method_type: "eps",
         payment_experience: null,
         card_networks: null,
@@ -321,6 +332,17 @@ export const payment_methods_enabled = [
         installment_payment_enabled: true,
       },
       {
+        payment_method_type: "open_banking",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+      {
         payment_method_type: "online_banking_fpx",
         payment_experience: null,
         card_networks: null,
@@ -343,6 +365,17 @@ export const payment_methods_enabled = [
         installment_payment_enabled: true,
       },
       {
+        payment_method_type: "trustly",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+      {
         payment_method_type: "interac",
         payment_experience: null,
         card_networks: null,
@@ -355,6 +388,17 @@ export const payment_methods_enabled = [
       },
       {
         payment_method_type: "bancontact_card",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+      {
+        payment_method_type: "eft",
         payment_experience: null,
         card_networks: null,
         accepted_currencies: null,
@@ -517,6 +561,14 @@ export const payment_methods_enabled = [
         maximum_amount: 68607706,
         recurring_enabled: true,
         installment_payment_enabled: true,
+        payment_experience: "redirect_to_url",
+      },
+      {
+        payment_method_type: "qris",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: false,
         payment_experience: "redirect_to_url",
       },
     ],
@@ -981,6 +1033,22 @@ export const payment_methods_enabled = [
     ],
   },
   {
+    payment_method: "card_redirect",
+    payment_method_types: [
+      {
+        payment_method_type: "card_redirect",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+    ],
+  },
+  {
     payment_method: "open_banking",
     payment_method_types: [
       {
@@ -1410,6 +1478,19 @@ export const connectorDetails = {
         },
       }),
     },
+    Eft: getCustomExchange({
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "eft",
+        payment_method_data: {
+          bank_redirect: {
+            eft: {
+              provider: "ozow",
+            },
+          },
+        },
+      },
+    }),
   },
   bank_debit_pm: {
     PaymentIntent: (paymentMethodType) => {
@@ -2171,6 +2252,41 @@ export const connectorDetails = {
         billing: standardBillingAddress,
       },
     }),
+    Qris: getCustomExchange({
+      Request: {
+        payment_method: "real_time_payment",
+        payment_method_type: "qris",
+        payment_method_data: {
+          real_time_payment: {
+            qris: {},
+          },
+        },
+        billing: standardBillingAddress,
+      },
+    }),
+    QrisMandate: getCustomExchange({
+      Request: {
+        payment_method: "real_time_payment",
+        payment_method_type: "qris",
+        payment_method_data: {
+          real_time_payment: {
+            qris: {},
+          },
+        },
+        billing: standardBillingAddress,
+        setup_future_usage: "off_session",
+        mandate_data: {
+          customer_acceptance: {
+            acceptance_type: "online",
+            accepted_at: "2026-07-13T18:09:53Z",
+            online: {
+              ip_address: "127.0.0.1",
+              user_agent: "test-agent",
+            },
+          },
+        },
+      },
+    }),
   },
   card_pm: {
     PaymentIntent: getCustomExchange({
@@ -2529,7 +2645,7 @@ export const connectorDetails = {
     }),
     ManualRefundUpdate: getCustomExchange({
       Request: {
-        status: "failed",
+        status: "succeeded",
       },
       Response: {
         status: 200,
@@ -2538,7 +2654,7 @@ export const connectorDetails = {
     }),
     ManualRefundUpdateErrorCode: getCustomExchange({
       Request: {
-        status: "failed",
+        status: "succeeded",
         error_code: {
           set: "TEST_ERROR_CODE",
         },
@@ -2553,13 +2669,7 @@ export const connectorDetails = {
     }),
     ManualRefundUpdatePartialRefund: getCustomExchange({
       Request: {
-        status: "failed",
-        error_code: {
-          set: "PARTIAL_REFUND_FAILED",
-        },
-        error_message: {
-          set: "Partial refund failed via manual update",
-        },
+        status: "succeeded",
       },
       Response: {
         status: 200,
@@ -2568,7 +2678,7 @@ export const connectorDetails = {
     }),
     ManualRefundUpdateIdempotency: getCustomExchange({
       Request: {
-        status: "failed",
+        status: "succeeded",
         error_code: {
           set: "IDEMPOTENCY_TEST",
         },
@@ -2595,11 +2705,30 @@ export const connectorDetails = {
         body: {},
       },
     }),
-    SyncRefundManualUpdateFailed: getCustomExchange({
+    ManualRefundUpdateConnectorRefundId: getCustomExchange({
+      Request: {
+        connector_refund_id: "updated_refund_id",
+      },
+      Response: {
+        status: 200,
+        body: {},
+      },
+    }),
+    ManualRefundUpdateConnectorRefundIdWithStatus: getCustomExchange({
+      Request: {
+        connector_refund_id: "combined_refund_id",
+        status: "succeeded",
+      },
+      Response: {
+        status: 200,
+        body: {},
+      },
+    }),
+    SyncRefundManualUpdateSucceeded: getCustomExchange({
       Response: {
         status: 200,
         body: {
-          status: "failed",
+          status: "succeeded",
         },
       },
     }),
@@ -2607,7 +2736,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "failed",
+          status: "succeeded",
           error_code: "TEST_ERROR_CODE",
           error_message: "Test error message for manual update",
         },
@@ -2617,9 +2746,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "failed",
-          error_code: "PARTIAL_REFUND_FAILED",
-          error_message: "Partial refund failed via manual update",
+          status: "succeeded",
         },
       },
     }),
@@ -2627,7 +2754,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "failed",
+          status: "succeeded",
           error_code: "IDEMPOTENCY_TEST",
           error_message: "First manual update for idempotency test",
         },
@@ -2637,7 +2764,26 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "failed",
+          status: "succeeded",
+          error_code: null,
+          error_message: null,
+        },
+      },
+    }),
+    SyncRefundManualUpdateConnectorRefundId: getCustomExchange({
+      Response: {
+        status: 200,
+        body: {
+          connector_refund_id: "updated_refund_id",
+        },
+      },
+    }),
+    SyncRefundManualUpdateConnectorRefundIdWithStatus: getCustomExchange({
+      Response: {
+        status: 200,
+        body: {
+          connector_refund_id: "combined_refund_id",
+          status: "succeeded",
         },
       },
     }),
@@ -3298,6 +3444,34 @@ export const connectorDetails = {
         },
       },
     }),
+    MITAutoCaptureWithCustomerAcceptance: getCustomExchange({
+      Request: {
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "127.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+      ResponseCustom: {
+        status: 400,
+        body: {
+          error: {
+            message:
+              "No eligible connector was found for the current payment method configuration",
+            type: "invalid_request",
+          },
+        },
+      },
+    }),
     MITWithLimitedCardData: getCustomExchange({
       Request: {},
       Response: {
@@ -3929,6 +4103,9 @@ export const connectorDetails = {
             payment_statuses_enabled: ["succeeded", "failed"],
             refund_statuses_enabled: ["success", "failure"],
             payout_statuses_enabled: ["success", "failed"],
+            dispute_statuses_enabled: ["dispute_opened", "dispute_won"],
+            mandate_statuses_enabled: ["active"],
+            invoice_statuses_enabled: ["invoice_paid"],
           },
         },
         Response: {
@@ -3939,6 +4116,9 @@ export const connectorDetails = {
               payment_statuses_enabled: ["succeeded", "failed"],
               refund_statuses_enabled: ["success", "failure"],
               payout_statuses_enabled: ["success", "failed"],
+              dispute_statuses_enabled: ["dispute_opened", "dispute_won"],
+              mandate_statuses_enabled: ["active"],
+              invoice_statuses_enabled: ["invoice_paid"],
             },
           },
         },
@@ -3961,6 +4141,17 @@ export const connectorDetails = {
             ],
             refund_statuses_enabled: ["success", "failure"],
             payout_statuses_enabled: ["success", "failed", "initiated"],
+            dispute_statuses_enabled: [
+              "dispute_opened",
+              "dispute_expired",
+              "dispute_accepted",
+              "dispute_cancelled",
+              "dispute_challenged",
+              "dispute_won",
+              "dispute_lost",
+            ],
+            mandate_statuses_enabled: ["active", "revoked"],
+            invoice_statuses_enabled: ["invoice_paid"],
           },
         },
         Response: {
@@ -3976,11 +4167,52 @@ export const connectorDetails = {
               ],
               refund_statuses_enabled: ["success", "failure"],
               payout_statuses_enabled: ["success", "failed", "initiated"],
+              dispute_statuses_enabled: [
+                "dispute_opened",
+                "dispute_expired",
+                "dispute_accepted",
+                "dispute_cancelled",
+                "dispute_challenged",
+                "dispute_won",
+                "dispute_lost",
+              ],
+              mandate_statuses_enabled: ["active", "revoked"],
+              invoice_statuses_enabled: ["invoice_paid"],
             },
           },
         },
       }),
     },
+    BlockImplicitCustomerCreationAllowed: getCustomExchange({
+      Request: {
+        currency: "EUR",
+        amount: 6500,
+        email: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    BlockImplicitCustomerCreationBlocked: getCustomExchange({
+      Request: {
+        currency: "EUR",
+        amount: 6500,
+        email: null,
+      },
+      Response: {
+        status: 404,
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "HE_02",
+            message: "Customer does not exist in our records",
+          },
+        },
+      },
+    }),
   },
   upi_pm: {
     PaymentIntent: getCustomExchange({
@@ -4418,6 +4650,37 @@ export const connectorDetails = {
       },
     }),
   },
+  threeds_routing_region_uas: (() => {
+    // Region only selects which UAS deployment the pre/post-auth calls are
+    // routed to — it does not change the observable payment outcome. All
+    // scenarios below intentionally share one exchange definition, since a
+    // valid region, an invalid region (falls back to default), and no
+    // config at all (also falls back to default) are all expected to
+    // produce the same 3DS challenge.
+    const uasRoutingRegionExchange = getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "USD",
+        amount: 6500,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          authentication_type: "three_ds",
+        },
+      },
+    });
+    return {
+      Region1: uasRoutingRegionExchange,
+      Region2: uasRoutingRegionExchange,
+      InvalidRegion: uasRoutingRegionExchange,
+      NoConfigDefault: uasRoutingRegionExchange,
+    };
+  })(),
   Dispute: {
     ListDisputes: {
       Response: {
@@ -5275,6 +5538,24 @@ export const connectorDetails = {
         },
       },
     },
+  },
+  card_redirect_pm: {
+    PaymentIntent: getCustomExchange({
+      Request: {
+        currency: "USD",
+      },
+    }),
+    CardRedirect: getCustomExchange({
+      Request: {
+        payment_method: "card_redirect",
+        payment_method_type: "card_redirect",
+        payment_method_data: {
+          card_redirect: {
+            card_redirect: {},
+          },
+        },
+      },
+    }),
   },
   step_up_auth: {
     PaymentIntentOnly: getCustomExchange({

@@ -4,6 +4,7 @@ import getConnectorDetails, {
   CONNECTOR_LISTS,
 } from "../../configs/Payment/Utils";
 import * as utils from "../../configs/Payment/Utils";
+import { isMockServer } from "../../../support/mitmProxy";
 
 let globalState;
 
@@ -210,7 +211,8 @@ describe("Client Session Validation", () => {
       });
 
       it("Wait for Redis session TTL to expire", () => {
-        cy.wait(61000); // Wait 61 seconds for Redis TTL to expire
+        // eslint-disable-next-line cypress/no-unnecessary-waiting
+        if (!isMockServer()) cy.wait(61000); // Wait 61 seconds for Redis TTL to expire
       });
 
       it("Confirm with expired sdk_authorization - expect 401", () => {

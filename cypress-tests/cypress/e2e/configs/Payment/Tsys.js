@@ -38,6 +38,9 @@ const payment_method_data_visa = {
   card: {
     last4: "0026",
     card_type: "DEBIT",
+    card_subtype: "CLASSIC",
+    card_segment_type: null,
+    funding_source: null,
     card_network: "Visa",
     card_issuer: "VISA PRODUCTION SUPPORT CLIENT BID 1",
     card_issuing_country: "UNITEDSTATES",
@@ -577,6 +580,28 @@ export const connectorDetails = {
     },
     MITAutoCapture: {
       Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          mandate_id: null,
+          payment_method: "card",
+          payment_method_data: payment_method_data_visa,
+          connector: "tsys",
+        },
+      },
+    },
+    MITAutoCaptureWithCustomerAcceptance: {
+      Request: {
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "127.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
+      },
       Response: {
         status: 200,
         body: {

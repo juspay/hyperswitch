@@ -1,3 +1,14 @@
+#[cfg(feature = "v1")]
+use std::time::Instant;
+
+#[cfg(feature = "v1")]
+use common_utils::types::keymanager::KeyManagerState;
+
+#[cfg(feature = "v1")]
+use crate::{
+    core::utils::get_feature_config,
+    routes::metrics::{record_payment_confirm, MerchantMode, PaymentMetricsContext},
+};
 use crate::{
     core::{
         api_locking::{self, GetLockingInput},
@@ -17,6 +28,8 @@ use router_env::{env, instrument, logger, tracing, types, Flow};
 use super::app::ReqState;
 #[cfg(feature = "v2")]
 use crate::core::payment_method_balance;
+#[cfg(feature = "v1")]
+use crate::core::payments::update_context;
 #[cfg(feature = "v2")]
 use crate::core::revenue_recovery::api as recovery;
 #[cfg(feature = "v1")]
@@ -29,7 +42,7 @@ use crate::{
         payments::{self, transformers::ToResponse, OperationSessionGetters, PaymentRedirectFlow},
     },
     routes::lock_utils,
-    services::{api, authentication as auth},
+    services::{self, api, authentication as auth},
     types::{
         api::{
             self as api_types, enums as api_enums,
@@ -126,6 +139,95 @@ pub async fn payments_create(
         state,
         &req,
         payload,
+        |mut state, auth: auth::AuthenticationData, req, req_state| {
+            let header_payload = header_payload.clone();
+            async move {
+                let metrics_start = req
+                    .confirm
+                    .is_some_and(|confirm| confirm)
+                    .then(Instant::now);
+                let metrics_context = if metrics_start.is_some() {
+                    Some(set_payment_confirm_metrics_context(&mut state, &auth.platform).await)
+                } else {
+                    None
+                };
+                let result = Box::pin(authorize_verify_select::<_>(
+                    payments::PaymentCreate,
+                    state,
+                    req_state,
+                    auth.platform,
+                    auth.profile.map(|profile| profile.get_id().clone()),
+                    header_payload,
+                    req,
+                    api::AuthFlow::Client,
+                ))
+                .await;
+
+                if let (Some(start), Some(context)) = (metrics_start, metrics_context) {
+                    record_payment_confirm(&result, start.elapsed(), context);
+                }
+
+                result
+            }
+        },
+        auth_type,
+        locking_action,
+    ))
+    .await
+}
+
+#[cfg(feature = "v1")]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentLinkCreate, payment_id))]
+pub async fn payment_link_create(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    json_payload: web::Json<payment_types::PaymentsRequest>,
+) -> impl Responder {
+    let flow = Flow::PaymentLinkCreate;
+    let mut payload = json_payload.into_inner().for_payment_link();
+
+    if let Err(err) = payload
+        .validate()
+        .map_err(|message| errors::ApiErrorResponse::InvalidRequestData { message })
+    {
+        return api::log_and_return_error_response(err.into());
+    };
+
+    if let Some(api_enums::CaptureMethod::Scheduled) = payload.capture_method {
+        return http_not_implemented();
+    };
+
+    if let Err(err) = get_or_generate_payment_id(&mut payload) {
+        return api::log_and_return_error_response(err);
+    }
+
+    let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
+        Ok(headers) => headers,
+        Err(err) => {
+            return api::log_and_return_error_response(err);
+        }
+    };
+
+    tracing::Span::current().record(
+        "payment_id",
+        payload
+            .payment_id
+            .as_ref()
+            .map(|payment_id_type| payment_id_type.get_payment_intent_id())
+            .transpose()
+            .unwrap_or_default()
+            .as_ref()
+            .map(|id| id.get_string_repr())
+            .unwrap_or_default(),
+    );
+
+    let locking_action = payload.get_locking_input(flow.clone());
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
         |state, auth: auth::AuthenticationData, req, req_state| {
             authorize_verify_select::<_>(
                 payments::PaymentCreate,
@@ -138,7 +240,11 @@ pub async fn payments_create(
                 api::AuthFlow::Client,
             )
         },
-        auth_type,
+        &auth::InternalMerchantIdProfileIdAuth(auth::JWTAuth {
+            permission: Permission::ProfilePaymentWrite,
+            allow_connected: true,
+            allow_platform: false,
+        }),
         locking_action,
     ))
     .await
@@ -823,33 +929,94 @@ pub async fn payments_update(
         }
     };
 
+    let integration_type = update_context::integration_type_from_headers(req.headers());
+
+    // Gated on merchant auth too: this route also accepts publishable-key + client-secret, and
+    // the enrichment runs as `AuthFlow::Merchant`, so a client caller must not opt in by header.
+    let enrich = integration_type.is_server() && auth_flow == api::AuthFlow::Merchant;
+
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         payload,
-        |state, auth: auth::AuthenticationData, req, req_state| {
-            payments::payments_core::<
-                api_types::UpdatePostConfirm,
-                payment_types::PaymentsResponse,
-                _,
-                _,
-                _,
-                payments::PaymentData<api_types::UpdatePostConfirm>,
-            >(
-                state,
-                req_state,
-                auth.platform,
-                auth.profile.map(|profile| profile.get_id().clone()),
-                payments::PaymentUpdate,
-                req,
-                auth_flow,
-                payments::CallConnectorAction::Trigger,
-                None,
-                None,
-                header_payload.clone(),
-                None,
-            )
+        move |state, auth: auth::AuthenticationData, req, req_state| {
+            let header_payload = header_payload.clone();
+            async move {
+                let profile_id = auth.profile.map(|profile| profile.get_id().clone());
+
+                // Only the enrichment path needs these afterwards. A client update — the vast
+                // majority — clones nothing.
+                let enrichment_inputs = enrich.then(|| {
+                    (
+                        state.clone(),
+                        req_state.clone(),
+                        auth.platform.clone(),
+                        profile_id.clone(),
+                        header_payload.clone(),
+                    )
+                });
+
+                let response = Box::pin(payments::payments_core::<
+                    api_types::UpdatePostConfirm,
+                    payment_types::PaymentsResponse,
+                    _,
+                    _,
+                    _,
+                    payments::PaymentData<api_types::UpdatePostConfirm>,
+                >(
+                    state,
+                    req_state,
+                    auth.platform,
+                    profile_id,
+                    payments::PaymentUpdate,
+                    req,
+                    auth_flow,
+                    payments::CallConnectorAction::Trigger,
+                    None,
+                    None,
+                    header_payload,
+                    None,
+                ))
+                .await?;
+
+                // Invoked directly, not through `server_wrap`: both flows map to
+                // `ApiIdentifier::Payments`, so a nested wrap would deadlock on the lock this
+                // request already holds.
+                let enrich_payment = |mut payment: payment_types::PaymentsResponse| async {
+                    if let Some((state, req_state, platform, profile_id, header_payload)) =
+                        enrichment_inputs
+                    {
+                        let id = payment.payment_id.clone();
+                        Box::pin(update_context::attach_server_context(
+                            state,
+                            req_state,
+                            platform,
+                            profile_id,
+                            &id,
+                            header_payload,
+                            &mut payment,
+                        ))
+                        .await;
+                    }
+                    payment
+                };
+
+                // `enrich_payment` is a no-op when `enrichment_inputs` is `None`, so the opt-in
+                // decision lives in exactly one place rather than being re-tested here.
+                match response {
+                    services::ApplicationResponse::JsonWithHeaders((payment, headers)) => {
+                        Ok(services::ApplicationResponse::JsonWithHeaders((
+                            enrich_payment(payment).await,
+                            headers,
+                        )))
+                    }
+                    services::ApplicationResponse::Json(payment) => Ok(
+                        services::ApplicationResponse::Json(enrich_payment(payment).await),
+                    ),
+                    response => Ok(response),
+                }
+            }
         },
         &*auth_type,
         locking_action,
@@ -899,7 +1066,7 @@ pub async fn payments_post_session_tokens(
                     .map(|client_secret| client_secret.peek())
                     .check_value_present("client_secret")
                     .map_err(|_| errors::ApiErrorResponse::MissingRequiredField {
-                        field_name: "client_secret",
+                        field_name: "client_secret".into(),
                     }) {
                     Ok(_) => {}
                     Err(err) => return api::log_and_return_error_response(report!(err)),
@@ -1041,8 +1208,10 @@ pub async fn payments_confirm(
         }
     };
 
-    if let Err(err) = helpers::populate_browser_info(&req, &mut payload, &header_payload) {
-        return api::log_and_return_error_response(err);
+    if payload.retry_action != Some(api_enums::RetryAction::ManualRetry) {
+        if let Err(err) = helpers::populate_browser_info(&req, &mut payload, &header_payload) {
+            return api::log_and_return_error_response(err);
+        }
     }
 
     let payment_id = path.into_inner();
@@ -1072,22 +1241,33 @@ pub async fn payments_confirm(
         state,
         &req,
         payload,
-        |state, auth: auth::AuthenticationData, mut req, req_state| {
-            // If client_secret is provided via SDK authorization header, use it
-            if let Some(client_secret) = auth.client_secret {
-                req.client_secret = Some(client_secret);
-            }
+        |mut state, auth: auth::AuthenticationData, mut req, req_state| {
+            let header_payload = header_payload.clone();
+            async move {
+                let metrics_start = Instant::now();
+                let metrics_context =
+                    set_payment_confirm_metrics_context(&mut state, &auth.platform).await;
 
-            authorize_verify_select::<_>(
-                payments::PaymentConfirm,
-                state,
-                req_state,
-                auth.platform,
-                auth.profile.map(|profile| profile.get_id().clone()),
-                header_payload.clone(),
-                req,
-                auth_flow,
-            )
+                // If client_secret is provided via SDK authorization header, use it
+                if let Some(client_secret) = auth.client_secret {
+                    req.client_secret = Some(client_secret);
+                }
+
+                let result = Box::pin(authorize_verify_select::<_>(
+                    payments::PaymentConfirm,
+                    state,
+                    req_state,
+                    auth.platform,
+                    auth.profile.map(|profile| profile.get_id().clone()),
+                    header_payload,
+                    req,
+                    auth_flow,
+                ))
+                .await;
+
+                record_payment_confirm(&result, metrics_start.elapsed(), metrics_context);
+                result
+            }
         },
         &*auth_type,
         locking_action,
@@ -1203,7 +1383,7 @@ pub async fn payments_dynamic_tax_calculation(
                     .map(|client_secret| client_secret.peek())
                     .check_value_present("client_secret")
                     .map_err(|_| errors::ApiErrorResponse::MissingRequiredField {
-                        field_name: "client_secret",
+                        field_name: "client_secret".into(),
                     }) {
                     Ok(_) => {}
                     Err(err) => return api::log_and_return_error_response(report!(err)),
@@ -1359,7 +1539,7 @@ pub async fn payments_connector_session(
                     .client_secret
                     .check_value_present("client_secret")
                     .map_err(|_| errors::ApiErrorResponse::MissingRequiredField {
-                        field_name: "client_secret",
+                        field_name: "client_secret".into(),
                     }) {
                     Ok(_) => {}
                     Err(err) => return api::log_and_return_error_response(report!(err)),
@@ -2498,6 +2678,27 @@ pub async fn payments_reject(
 }
 
 #[cfg(feature = "v1")]
+async fn set_payment_confirm_metrics_context(
+    state: &mut app::SessionState,
+    platform: &domain::Platform,
+) -> PaymentMetricsContext {
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
+    let feature_config = get_feature_config(state, platform, &dimensions).await;
+    let context = PaymentMetricsContext::payments_confirm(MerchantMode::from_modular_enabled(
+        feature_config.is_payment_method_modular_allowed,
+    ));
+
+    state.payment_metrics_context = Some(context);
+    state
+        .store
+        .set_key_manager_state(KeyManagerState::from(&*state));
+
+    context
+}
+
+#[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 async fn authorize_verify_select<Op>(
     operation: Op,
@@ -2676,11 +2877,10 @@ where
                             GetToken::Connector,
                             None,
                         )?;
+                        let setup_future_usage = payment_data.payment_intent.setup_future_usage;
                         let should_continue_further = connector_data
                             .connector
-                            .is_payment_recurrence_operation_needed(
-                                &payment_data.payment_intent.clone(),
-                            )
+                            .is_payment_recurrence_operation_needed(setup_future_usage, None)
                             .unwrap_or(false);
                         if should_continue_further {
                             logger::info!(
@@ -2909,7 +3109,7 @@ pub async fn payments_external_authentication(
                     .map(|client_secret| client_secret.peek())
                     .check_value_present("client_secret")
                     .map_err(|_| errors::ApiErrorResponse::MissingRequiredField {
-                        field_name: "client_secret",
+                        field_name: "client_secret".into(),
                     }) {
                     Ok(_) => {}
                     Err(err) => return api::log_and_return_error_response(report!(err)),

@@ -111,6 +111,8 @@ pub struct CardInfoResponse {
     pub card_sub_type: Option<String>,
     #[schema(example = "INDIA")]
     pub card_issuing_country: Option<String>,
+    #[schema(example = "IN")]
+    pub country_code: Option<String>,
     #[schema(example = "CREDIT")]
     pub funding_source: Option<String>,
     #[schema(example = "PAN")]
@@ -156,6 +158,7 @@ pub struct CardInfoMigrateResponseRecord {
     pub card_type: Option<String>,
     pub card_sub_type: Option<String>,
     pub card_issuing_country: Option<String>,
+    pub country_code: Option<String>,
     pub funding_source: Option<String>,
     pub card_iin_type: Option<String>,
     pub virtual_card: Option<bool>,
@@ -305,6 +308,7 @@ pub struct CardInfoMigrationResponse {
     pub card_type: Option<String>,
     pub card_sub_type: Option<String>,
     pub card_issuing_country: Option<String>,
+    pub country_code: Option<String>,
     pub funding_source: Option<String>,
     pub card_iin_type: Option<String>,
     pub virtual_card: Option<bool>,
@@ -358,6 +362,7 @@ impl From<CardInfoMigrationResponseType> for CardInfoMigrationResponse {
                 card_type: res.card_type,
                 card_sub_type: res.card_sub_type,
                 card_issuing_country: res.card_issuing_country,
+                country_code: res.country_code,
                 funding_source: res.funding_source,
                 card_iin_type: res.card_iin_type,
                 virtual_card: res.virtual_card,

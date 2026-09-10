@@ -182,6 +182,7 @@ enum RequiredField {
     CyptoPayCurrency(Vec<&'static str>),
     PixDocumentType(Vec<&'static str>),
     PixDocumentNumber,
+    CustomerDateOfBirth,
     BoletoSocialSecurityNumber,
     UpiCollectVpaId,
     AchBankDebitAccountNumber,
@@ -731,6 +732,17 @@ impl RequiredField {
                     required_field: "customer.document_details.document_number".to_string(),
                     display_name: "document_number".to_string(),
                     field_type: FieldType::UserSocialSecurityNumber,
+                    value: None,
+                },
+            ),
+            // Named for the customer, not the connector: unlike `MifinityDateOfBirth` the path
+            // is payment-method agnostic, so any connector that needs a date of birth reuses it.
+            Self::CustomerDateOfBirth => (
+                "customer.date_of_birth".to_string(),
+                RequiredFieldInfo {
+                    required_field: "customer.date_of_birth".to_string(),
+                    display_name: "date_of_birth".to_string(),
+                    field_type: FieldType::UserDateOfBirth,
                     value: None,
                 },
             ),
@@ -1619,6 +1631,7 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
                 vec![],
                 vec![],
                 [
+                    card_basic(),
                     vec![
                         RequiredField::BillingFirstName("first_name", FieldType::UserFullName),
                         RequiredField::BillingLastName("last_name", FieldType::UserFullName),
@@ -1756,6 +1769,24 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
         ),
         (Connector::Tsys, fields(vec![], card_basic(), vec![])),
         (
+            // TSYS Transit hard-requires billing addressLine1 + zip on every
+            // card authorization (AVS), for both CIT and MIT flows. Surface
+            // them as dynamic required fields so the SDK collects them.
+            Connector::TsysTransit,
+            fields(
+                vec![],
+                vec![],
+                [
+                    card_basic(),
+                    vec![
+                        RequiredField::BillingAddressLine1,
+                        RequiredField::BillingAddressZip,
+                    ],
+                ]
+                .concat(),
+            ),
+        ),
+        (
             Connector::Wellsfargo,
             fields(
                 vec![],
@@ -1831,6 +1862,74 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
         (
             Connector::Imerchantsolutions,
             fields(vec![], card_basic(), vec![]),
+        ),
+        (
+            Connector::Ilixium,
+            // Everything here is `common`, not `non_mandate`: `non_mandate` is only merged when
+            // the payment is not customer-initiated, so a save-card or
+            // `setup_future_usage = off_session` payment would collect none of these. Ilixium
+            // requires all of them on every authorisation.
+            fields(
+                vec![],
+                vec![],
+                vec![
+                    RequiredField::CardNumber,
+                    RequiredField::CardExpMonth,
+                    RequiredField::CardExpYear,
+                    RequiredField::CardCvc,
+                    RequiredField::Email,
+                    // Schema-mandatory. Absent, Ilixium rejects the authorisation with `VA8`.
+                    RequiredField::CustomerDateOfBirth,
+                    RequiredField::BillingAddressCountries(vec!["ALL"]),
+                    // Ilixium requires `customer.firstName` and `customer.surname` on every
+                    // authorisation. On a 3DS payment the billing address is the *only* source:
+                    // that leg runs as PreAuthenticate, and `PaymentsPreAuthenticateData` carries
+                    // no `customer_name` for the connector to fall back on.
+                    RequiredField::BillingFirstName("first_name", FieldType::UserFullName),
+                    RequiredField::BillingLastName("last_name", FieldType::UserFullName),
+                ],
+            ),
+        ),
+        (
+            Connector::Givepayments,
+            RequiredFieldFinal {
+                mandate: HashMap::new(),
+                non_mandate: HashMap::from([
+                    RequiredField::BillingUserFirstName.to_tuple(),
+                    RequiredField::BillingUserLastName.to_tuple(),
+                    RequiredField::CardNumber.to_tuple(),
+                    RequiredField::CardExpMonth.to_tuple(),
+                    RequiredField::CardExpYear.to_tuple(),
+                    RequiredField::Email.to_tuple(),
+                ]),
+                common: HashMap::new(),
+            },
+        ),
+        (
+            Connector::Citigate,
+            fields(
+                vec![],
+                vec![],
+                [
+                    card_basic(),
+                    // `billing_address()` is exactly Citigate's address set: StreetLine1, City,
+                    // PostalCode, Country and StateProvince. StateProvince is flagged `Y` in the
+                    // API Card field table and is additionally called out as mandatory for
+                    // `Country = "US"`, which the connector enforces at request-build time.
+                    billing_address(),
+                    vec![
+                        // Read from the top-level `email`, falling back to the billing address.
+                        RequiredField::Email,
+                        // Citigate sends `Firstname`/`Surname` as fields distinct from
+                        // `CardholderName`, so the cardholder name cannot stand in for them.
+                        RequiredField::BillingFirstName("first_name", FieldType::UserFullName),
+                        RequiredField::BillingLastName("last_name", FieldType::UserFullName),
+                        // `Telephone` is `R` in the field table but mandatory for `Country = "US"`.
+                        RequiredField::BillingPhone,
+                    ],
+                ]
+                .concat(),
+            ),
         ),
     ])
 }
@@ -4233,11 +4332,69 @@ fn test_required_fields_to_json() {
                 }
             }
         }
+        // Verify TSYS Transit surfaces billing addressLine1 + zip (AVS) as
+        // required fields on both credit and debit cards, so the SDK collects
+        // them for CIT and MIT.
+        if let Some(card_method) = default_fields.0.get(&enums::PaymentMethod::Card) {
+            for pmt in [
+                enums::PaymentMethodType::Credit,
+                enums::PaymentMethodType::Debit,
+            ] {
+                let type_fields = card_method
+                    .0
+                    .get(&pmt)
+                    .expect("card payment method type should be present");
+                let tsys_fields = type_fields
+                    .fields
+                    .get(&Connector::TsysTransit)
+                    .expect("tsys_transit required fields should be present");
+                assert!(tsys_fields.common.contains_key("billing.address.line1"));
+                assert!(tsys_fields.common.contains_key("billing.address.zip"));
+                assert!(tsys_fields
+                    .common
+                    .contains_key("payment_method_data.card.card_number"));
+            }
+        }
+
         // print the result of default required fields as json in new file
         serde_json::to_writer_pretty(
             std::fs::File::create("default_required_fields.json").unwrap(),
             &default_fields,
         )
         .unwrap();
+    }
+}
+
+#[cfg(feature = "v1")]
+#[test]
+fn ilixium_collects_date_of_birth_on_every_card_payment() {
+    let ilixium = get_cards_required_fields()
+        .remove(&Connector::Ilixium)
+        .expect("Ilixium has a card required-fields entry");
+
+    // `common` is the only bucket merged for both customer-initiated and one-off payments
+    // (see `cards.rs`, which extends `common` with either `mandate` or `non_mandate`). Ilixium
+    // rejects an authorisation missing any of these, so none of them may sit in a bucket that
+    // a save-card payment would skip.
+    assert!(ilixium.mandate.is_empty());
+    assert!(ilixium.non_mandate.is_empty());
+
+    let date_of_birth = ilixium
+        .common
+        .get("customer.date_of_birth")
+        .expect("date_of_birth is schema-mandatory for Ilixium; absent, it answers VA8");
+    assert_eq!(date_of_birth.display_name, "date_of_birth");
+    assert!(matches!(
+        date_of_birth.field_type,
+        FieldType::UserDateOfBirth
+    ));
+
+    for field in [
+        "payment_method_data.card.card_number",
+        "email",
+        "billing.address.first_name",
+        "billing.address.country",
+    ] {
+        assert!(ilixium.common.contains_key(field), "missing {field}");
     }
 }

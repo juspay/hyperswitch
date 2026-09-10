@@ -296,12 +296,13 @@ impl ConnectorCommon for Payload {
             Ok(response) => {
                 event_builder.map(|i| i.set_response_body(&response));
                 router_env::logger::info!(connector_response=?response);
+                let reason = response.details.as_ref().map(|details| details.to_string());
 
                 Ok(ErrorResponse {
                     status_code: res.status_code,
                     code: response.error_type,
                     message: response.error_description.clone(),
-                    reason: Some(response.error_description),
+                    reason,
                     attempt_status: None,
                     connector_transaction_id: None,
                     connector_response_reference_id: None,
@@ -1171,7 +1172,7 @@ impl webhooks::IncomingWebhook for Payload {
         )?;
         let currency = payment_context.currency.ok_or_else(|| {
             errors::ConnectorError::MissingRequiredField {
-                field_name: "currency",
+                field_name: "currency".into(),
             }
         })?;
 
@@ -1185,7 +1186,7 @@ impl webhooks::IncomingWebhook for Payload {
             dispute_stage: api_models::enums::DisputeStage::Dispute,
             connector_dispute_id: webhook_body.triggered_on.transaction_id.ok_or_else(|| {
                 errors::ConnectorError::MissingRequiredField {
-                    field_name: "connector_dispute_id",
+                    field_name: "connector_dispute_id".into(),
                 }
             })?,
             connector_reason: None,

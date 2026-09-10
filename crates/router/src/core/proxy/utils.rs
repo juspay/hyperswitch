@@ -6,9 +6,10 @@ use common_utils::{
     id_type,
 };
 use error_stack::ResultExt;
-use hyperswitch_domain_models::{behaviour::Conversion, payment_methods};
+use hyperswitch_domain_models::payment_methods;
 use hyperswitch_masking::{Mask, PeekInterface};
 use serde_json::Value;
+use storage_impl::behaviour::Conversion;
 use x509_parser::nom::{
     bytes::complete::{tag, take_while1},
     character::complete::{char, multispace0},
@@ -248,10 +249,11 @@ impl ProxyRecord {
                         payment_method.get_id().get_string_repr().to_string();
                     let key_store = platform.get_provider().get_key_store();
 
-                    match vault::retrieve_and_delete_cvc_from_payment_token(
+                    match vault::retrieve_cvc_from_payment_token(
                         state,
                         &payment_method_id_str,
                         key_store,
+                        vault::CvcReadMode::ReadAndDelete,
                     )
                     .await
                     {
@@ -326,10 +328,11 @@ impl ProxyRecord {
                                 payment_method.get_id().get_string_repr().to_string();
                             let key_store = platform.get_provider().get_key_store();
 
-                            match vault::retrieve_and_delete_cvc_from_payment_token(
+                            match vault::retrieve_cvc_from_payment_token(
                                 state,
                                 &payment_method_id_str,
                                 key_store,
+                                vault::CvcReadMode::ReadAndDelete,
                             )
                             .await
                             {

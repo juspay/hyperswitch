@@ -540,6 +540,8 @@ pub enum AuthenticationUpdate {
         device_brand: Option<String>,
         device_os: Option<String>,
         device_display: Option<String>,
+        platform: Option<api_models::payments::DeviceChannel>,
+        exemption_accepted: Option<bool>,
         updated_by: String,
     },
     PostAuthenticationUpdate {
@@ -677,6 +679,8 @@ impl From<AuthenticationUpdate> for diesel_models::authentication::Authenticatio
                 device_brand,
                 device_os,
                 device_display,
+                platform,
+                exemption_accepted,
                 updated_by,
             } => Self::AuthenticationUpdate {
                 trans_status,
@@ -699,6 +703,8 @@ impl From<AuthenticationUpdate> for diesel_models::authentication::Authenticatio
                 device_brand,
                 device_os,
                 device_display,
+                platform: platform.map(|platform| platform.to_string()),
+                exemption_accepted,
                 updated_by,
             },
             AuthenticationUpdate::PostAuthenticationUpdate {

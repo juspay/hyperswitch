@@ -28,6 +28,8 @@ pub enum ThreeDSDecision {
     ChallengeRequested,
     /// Prefer 3DS Challenge
     ChallengePreferred,
+    /// Perform 3DS authentication without expressing a challenge preference
+    NoPreference,
     /// Request 3DS Exemption, Type: Transaction Risk Analysis (TRA)
     ThreeDsExemptionRequestedTra,
     /// Request 3DS Exemption, Type: Low Value Transaction
@@ -65,6 +67,8 @@ impl_to_sql_from_sql_json!(ThreeDSDecisionRule);
 
 impl EuclidDirFilter for ThreeDSDecisionRule {
     const ALLOWED: &'static [DirKeyKind] = &[
+        DirKeyKind::CardBin,
+        DirKeyKind::ExtendedCardBin,
         DirKeyKind::CardNetwork,
         DirKeyKind::PaymentAmount,
         DirKeyKind::PaymentCurrency,
@@ -79,4 +83,26 @@ impl EuclidDirFilter for ThreeDSDecisionRule {
         DirKeyKind::BusinessCountry,
         DirKeyKind::MetaData,
     ];
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn no_preference_does_not_force_a_challenge() {
+        assert!(!ThreeDSDecision::NoPreference.should_force_3ds_challenge());
+        assert_eq!(
+            serde_json::to_value(ThreeDSDecision::NoPreference).expect("serialize decision"),
+            serde_json::json!("no_preference")
+        );
+    }
+
+    #[test]
+    fn bin_keys_are_allowed_for_three_ds_decision_rules() {
+        let allowed = <ThreeDSDecisionRule as EuclidDirFilter>::ALLOWED;
+
+        assert!(allowed.contains(&DirKeyKind::CardBin));
+        assert!(allowed.contains(&DirKeyKind::ExtendedCardBin));
+    }
 }

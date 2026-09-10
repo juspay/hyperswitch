@@ -1,0 +1,75 @@
+---
+title: "Routing Config Endpoints"
+description: "Curl examples for routing key metadata and SR dimension configuration."
+---
+
+# Routing Config Endpoints
+
+## Routing Keys
+
+The dashboard uses this route to discover valid rule builder keys.
+
+```bash
+curl "$BASE_URL/config/routing-keys" \
+  --header "$AUTH_HEADER"
+```
+
+## Configure SR Dimensions
+
+```bash
+curl --location "$BASE_URL/config-sr-dimension" \
+  --header "$AUTH_HEADER" \
+  --header "Content-Type: application/json" \
+  --data '{
+    "merchant_id": "merchant_demo",
+    "dimensions": ["payment_method_type", "payment_method", "currency"]
+  }'
+```
+
+## Get SR Dimensions
+
+Read back the SR scoring dimensions currently configured for a merchant.
+
+```bash
+curl "$BASE_URL/config-sr-dimension/merchant_demo" \
+  --header "$AUTH_HEADER"
+```
+
+```json
+{
+  "merchant_id": "merchant_demo",
+  "paymentInfo": {
+    "udfs": [],
+    "fields": ["payment_method_type", "payment_method", "currency"]
+  }
+}
+```
+
+Returns an empty default (`fields: null`) when nothing has been configured for the merchant yet.
+
+## GSM Options
+
+Gateway Status Mapper rule catalog — the error-code classification options used by the `gsm-scoring-filter` merchant feature (see [Merchant Features](/decision-engine-api-reference/api-reference/guides/autopilot/merchant-features)).
+
+```bash
+curl "$BASE_URL/gsm/options" \
+  --header "$AUTH_HEADER"
+```
+
+```json
+{
+  "rules": [
+    {
+      "connector": "stripe",
+      "flow": "authorize",
+      "subFlow": "card",
+      "errorCode": "card_declined",
+      "errorMessage": "Your card was declined.",
+      "errorCategory": "soft_decline",
+      "unifiedCode": "UE_001",
+      "unifiedMessage": "Card declined by issuer",
+      "decision": "retry"
+    }
+  ]
+}
+```

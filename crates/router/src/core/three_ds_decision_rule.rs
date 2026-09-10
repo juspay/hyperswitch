@@ -8,7 +8,7 @@ use euclid::{
     frontend::ast,
 };
 use hyperswitch_domain_models::platform::Platform;
-use router_env::{instrument, tracing};
+use router_env::{instrument, logger, tracing};
 
 use crate::{
     core::{
@@ -73,9 +73,14 @@ pub async fn get_three_ds_decision_rule_output(
         .execute(backend_input)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Error executing 3DS decision rule")?;
-    // Apply PSD2 validations to the decision
+
+    logger::info!(
+        "3DS decision after rule evaluation {:?}",
+        result.get_output().get_decision()
+    );
+    // Apply SCA validations to the decision
     let final_decision =
-        utils::apply_psd2_validations_during_execute(result.get_output().get_decision(), &request);
+        utils::apply_sca_validations_during_execute(result.get_output().get_decision(), &request);
     Ok(final_decision)
 }
 

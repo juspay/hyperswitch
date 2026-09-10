@@ -8,7 +8,11 @@ pub mod types;
 
 use std::sync::{atomic, Arc};
 
-use common_utils::errors::CustomResult;
+use common_utils::{
+    errors::CustomResult,
+    external_service::{ExternalServiceEventEmitter, NoOpEventEmitter},
+    request_context::RequestContext,
+};
 use error_stack::ResultExt;
 use fred::{
     clients::Transaction,
@@ -172,12 +176,51 @@ pub struct RedisConnectionPool {
     pub subscriber: Arc<SubscriberClient>,
     pub publisher: Arc<RedisClient>,
     pub is_redis_available: Arc<atomic::AtomicBool>,
+    pub event_emitter: Arc<dyn ExternalServiceEventEmitter>,
+}
+
+/// A request-scoped Redis handle.
+///
+/// Wraps the shared [`RedisConnectionPool`] and carries the request ID of the
+/// execution that created it, so per-roundtrip events can be correlated back to
+/// the originating API request.
+#[derive(Clone)]
+pub struct RedisConnectionWithContext {
+    pub redis_conn: Arc<RedisConnectionPool>,
+    pub request_id: Option<String>,
+}
+
+impl RedisConnectionWithContext {
+    pub fn new(pool: Arc<RedisConnectionPool>, context: &dyn RequestContext) -> Self {
+        Self {
+            redis_conn: pool,
+            request_id: context.request_id().map(str::to_owned),
+        }
+    }
+
+    pub fn new_without_context(pool: Arc<RedisConnectionPool>) -> Self {
+        Self {
+            redis_conn: pool,
+            request_id: None,
+        }
+    }
+
+    pub fn get_transaction(&self) -> Transaction {
+        self.redis_conn.pool.next().multi()
+    }
 }
 
 impl RedisConnectionPool {
     /// Create a new Redis connection
+    pub async fn new_without_event_emitter(
+        conf: &crate::types::RedisSettings,
+    ) -> CustomResult<Self, crate::errors::RedisError> {
+        Self::new(conf, Arc::new(NoOpEventEmitter)).await
+    }
+
     pub async fn new(
         conf: &crate::types::RedisSettings,
+        event_emitter: Arc<dyn ExternalServiceEventEmitter>,
     ) -> CustomResult<Self, crate::errors::RedisError> {
         let redis_connection_url = match conf.cluster_enabled {
             true => format!(
@@ -260,6 +303,7 @@ impl RedisConnectionPool {
             subscriber: Arc::new(subscriber),
             publisher: Arc::new(publisher),
             key_prefix: String::default(),
+            event_emitter,
         })
     }
 
@@ -271,7 +315,30 @@ impl RedisConnectionPool {
             subscriber: Arc::clone(&self.subscriber),
             publisher: Arc::clone(&self.publisher),
             is_redis_available: Arc::clone(&self.is_redis_available),
+            event_emitter: Arc::clone(&self.event_emitter),
         }
+    }
+
+    /// Prefix `key` with this pool's tenant key prefix.
+    pub fn add_prefix(&self, key: &str) -> String {
+        let physical = if self.key_prefix.is_empty() {
+            key.to_string()
+        } else {
+            format!("{}:{}", self.key_prefix, key)
+        };
+        // Deja replay isolation: during REPLAY, namespace every physical key
+        // by the active correlation so each test case's store is isolated — no
+        // cross-case collisions and no read-modify-write double-apply, which is
+        // what makes it safe to Execute stateful redis ops against the seeded
+        // store. The harness seeds each correlation under the same
+        // `{correlation}:{physical}` namespace. Inert during record and when no
+        // correlation is in scope, so recorded keys and normal operation are
+        // unchanged (and for Substitute ops the real command never runs anyway).
+        #[cfg(feature = "deja")]
+        if let Some(corr) = deja::replay_key_namespace() {
+            return format!("{corr}:{physical}");
+        }
+        physical
     }
 
     pub async fn on_error(&self, tx: tokio::sync::oneshot::Sender<()>) {
@@ -308,10 +375,6 @@ impl RedisConnectionPool {
                 Ok(())
             })
         });
-    }
-
-    pub fn get_transaction(&self) -> Transaction {
-        self.pool.next().multi()
     }
 }
 

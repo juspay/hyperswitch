@@ -194,6 +194,7 @@ pub struct AuthenticationInfo {
     pub device_details: Option<api_models::payments::DeviceDetails>,
     pub merchant_category_code: Option<common_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_enums::CountryAlpha2>,
+    pub platform: Option<api_models::payments::DeviceChannel>,
 }
 
 #[cfg(feature = "v1")]
@@ -207,6 +208,7 @@ impl From<api_models::authentication::AuthenticationEligibilityRequest> for Auth
             device_details: None,
             merchant_category_code: None,
             merchant_country_code: None,
+            platform: None,
         }
     }
 }

@@ -140,6 +140,45 @@ export const connectorDetails = {
         },
       },
     },
+    PaymentIntentWithProcessingMethodId: {
+      Request: {
+        currency: "USD",
+        metadata: {
+          processing_method_id: "pm_3fNsdcDR2fSf0PpqzXgwR",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          metadata: {
+            processing_method_id: "pm_3fNsdcDR2fSf0PpqzXgwR",
+          },
+        },
+      },
+    },
+    PaymentConfirmWithProcessingMethodId: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        metadata: {
+          processing_method_id: "pm_3fNsdcDR2fSf0PpqzXgwR",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          metadata: {
+            processing_method_id: "pm_3fNsdcDR2fSf0PpqzXgwR",
+          },
+        },
+      },
+    },
     "3DSManualCapture": {
       Configs: {
         TRIGGER_SKIP: true,
@@ -575,6 +614,34 @@ export const connectorDetails = {
         },
       },
     },
+    MandateSingleUseNo3DSAutoCaptureWithProcessingMethodId: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: DUPLICATION_TIMEOUT,
+        },
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        mandate_data: singleUseMandateData,
+        metadata: {
+          processing_method_id: "pm_3fNsdcDR2fSf0PpqzXgwR",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          metadata: {
+            processing_method_id: "pm_3fNsdcDR2fSf0PpqzXgwR",
+          },
+        },
+      },
+    },
     MandateSingleUseNo3DSManualCapture: {
       Configs: {
         DELAY: {
@@ -724,6 +791,15 @@ export const connectorDetails = {
       },
       ...commonConnectorDetails.card_pm.MITAutoCapture,
     }),
+    MITAutoCaptureWithCustomerAcceptance: getCustomExchange({
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: DUPLICATION_TIMEOUT,
+        },
+      },
+      ...commonConnectorDetails.card_pm.MITAutoCaptureWithCustomerAcceptance,
+    }),
     MITManualCapture: {
       Configs: {
         DELAY: {
@@ -780,6 +856,7 @@ export const connectorDetails = {
           STATUS: true,
           TIMEOUT: DUPLICATION_TIMEOUT,
         },
+        LOCAL_VAULT_REQUIRED: true,
       },
       Request: {
         amount: 6540,

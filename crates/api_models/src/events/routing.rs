@@ -4,16 +4,23 @@ use crate::routing::{
     ContractBasedRoutingPayloadWrapper, ContractBasedRoutingSetupPayloadWrapper,
     CreateDynamicRoutingWrapper, DynamicRoutingUpdateConfigQuery, EliminationRoutingPayloadWrapper,
     LinkedRoutingConfigRetrieveResponse, MerchantRoutingAlgorithm, ProfileDefaultRoutingConfig,
-    RoutingAlgorithmId, RoutingConfigRequest, RoutingDictionaryRecord, RoutingKind,
-    RoutingLinkWrapper, RoutingPayloadWrapper, RoutingRetrieveLinkQuery,
-    RoutingRetrieveLinkQueryWrapper, RoutingRetrieveQuery, RoutingVolumeSplit,
-    RoutingVolumeSplitResponse, RoutingVolumeSplitWrapper, RuleMigrationError, RuleMigrationQuery,
+    RoutingAlgorithmId, RoutingConfigRequest, RoutingDictionaryRecord, RoutingEntryResponse,
+    RoutingKind, RoutingLinkWrapper, RoutingMigrationStatusQuery, RoutingMigrationStatusResponse,
+    RoutingPayloadWrapper, RoutingRetrieveLinkQuery, RoutingRetrieveLinkQueryWrapper,
+    RoutingRetrieveQuery, RoutingVolumeSplit, RoutingVolumeSplitResponse,
+    RoutingVolumeSplitWrapper, RuleMigrationError, RuleMigrationQuery, RuleMigrationRequest,
     RuleMigrationResponse, RuleMigrationResult, SuccessBasedRoutingConfig,
     SuccessBasedRoutingPayloadWrapper, ToggleDynamicRoutingPath, ToggleDynamicRoutingQuery,
     ToggleDynamicRoutingWrapper,
 };
 
 impl ApiEventMetric for RoutingKind {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Routing)
+    }
+}
+
+impl ApiEventMetric for RoutingEntryResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Routing)
     }
@@ -162,6 +169,24 @@ impl ApiEventMetric for RoutingVolumeSplit {
 }
 
 impl ApiEventMetric for RuleMigrationQuery {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Routing)
+    }
+}
+
+impl ApiEventMetric for RuleMigrationRequest {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Routing)
+    }
+}
+
+impl ApiEventMetric for RoutingMigrationStatusQuery {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Routing)
+    }
+}
+
+impl ApiEventMetric for RoutingMigrationStatusResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Routing)
     }

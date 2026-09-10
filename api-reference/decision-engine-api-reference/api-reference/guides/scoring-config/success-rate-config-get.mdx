@@ -1,0 +1,20 @@
+---
+title: "Get Success Rate Config"
+description: "Curl example for reading success-rate scoring config."
+---
+
+# Get Success Rate Config
+
+```bash
+curl --location "$BASE_URL/rule/get" \
+  --header "$AUTH_HEADER" \
+  --header "Content-Type: application/json" \
+  --data '{
+    "merchant_id": "merchant_demo",
+    "algorithm": "successRate"
+  }'
+```
+
+```json
+{ "merchant_id": "merchant_demo", "config": { "type": "successRate" } }
+```

@@ -244,6 +244,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, TruelayerPaymentsResponse, T, PaymentsR
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -342,6 +343,12 @@ pub struct TruelayerPayoutRequest {
     amount_in_minor: MinorUnit,
     currency: api_models::enums::Currency,
     beneficiary: TruelayerBeneficiary,
+    metadata: Option<TruelayerPayoutMetadata>,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub struct TruelayerPayoutMetadata {
+    reference_id: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
@@ -376,18 +383,34 @@ impl TryFrom<&TruelayerRouterData<&PayoutsRouterData<PoFulfill>>> for TruelayerP
     fn try_from(
         item: &TruelayerRouterData<&PayoutsRouterData<PoFulfill>>,
     ) -> Result<Self, Self::Error> {
+        let reference = item
+            .router_data
+            .request
+            .billing_descriptor
+            .as_ref()
+            .and_then(|descriptor| descriptor.reference.as_ref())
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "billing_descriptor.reference".into(),
+            })?;
+
+        validate_fps_payout_reference(reference)?;
+
+        let metadata = Some(TruelayerPayoutMetadata {
+            reference_id: Some(item.router_data.connector_request_reference_id.clone()),
+        });
+
         match item.router_data.get_payout_method_data()? {
             PayoutMethodData::BankTransfer(BankTransfer::OpenBanking(open_banking_data)) => {
-                let metadata = TruelayerMetadata::try_from(&item.router_data.connector_meta_data)?;
+                let truelayer_metadata =
+                    TruelayerMetadata::try_from(&item.router_data.connector_meta_data)?;
                 Ok(Self {
-                    merchant_account_id: metadata.merchant_account_id,
+                    merchant_account_id: truelayer_metadata.merchant_account_id,
+                    metadata,
                     amount_in_minor: item.amount,
                     currency: item.router_data.request.destination_currency,
                     beneficiary: TruelayerBeneficiary {
                         _type: TruelayerBeneficiaryType::ExternalAccount,
-                        reference: normalize_connector_request_reference_id(
-                            &item.router_data.connector_request_reference_id.clone(),
-                        ),
+                        reference: reference.clone(),
                         account_holder_name: Some(open_banking_data.account_holder_name),
                         account_identifier: Some(TruelayerAccountIdentifier {
                             _type: "iban".to_string(),
@@ -399,16 +422,16 @@ impl TryFrom<&TruelayerRouterData<&PayoutsRouterData<PoFulfill>>> for TruelayerP
                 })
             }
             PayoutMethodData::Passthrough(passthrough_data) => {
-                let metadata = TruelayerMetadata::try_from(&item.router_data.connector_meta_data)?;
+                let truelayer_metadata =
+                    TruelayerMetadata::try_from(&item.router_data.connector_meta_data)?;
                 Ok(Self {
-                    merchant_account_id: metadata.merchant_account_id,
+                    merchant_account_id: truelayer_metadata.merchant_account_id,
                     amount_in_minor: item.amount,
+                    metadata,
                     currency: item.router_data.request.destination_currency,
                     beneficiary: TruelayerBeneficiary {
                         _type: TruelayerBeneficiaryType::PaymentSource,
-                        reference: normalize_connector_request_reference_id(
-                            &item.router_data.connector_request_reference_id.clone(),
-                        ),
+                        reference: reference.clone(),
                         account_holder_name: None,
                         account_identifier: None,
                         user_id: passthrough_data.psp_customer_id,
@@ -421,6 +444,25 @@ impl TryFrom<&TruelayerRouterData<&PayoutsRouterData<PoFulfill>>> for TruelayerP
                 connector: "Truelayer",
             })?,
         }
+    }
+}
+
+#[cfg(feature = "payouts")]
+fn validate_fps_payout_reference(
+    reference: &str,
+) -> Result<(), error_stack::Report<errors::ConnectorError>> {
+    let has_valid_length = !reference.is_empty() && reference.len() <= 18;
+    let has_valid_characters = reference
+        .chars()
+        .all(|character| character.is_ascii_alphanumeric() || matches!(character, '-' | '.'));
+
+    if has_valid_length && has_valid_characters {
+        Ok(())
+    } else {
+        Err(errors::ConnectorError::InvalidDataFormat {
+            field_name: "billing_descriptor.reference , expected to be alphanumeric, hyphen, or period and length between 1 and 18 characters for truelayer".into(),
+        }
+        .into())
     }
 }
 
@@ -444,6 +486,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, TruelayerPayoutResponse>> for Payou
                 error_code: None,
                 error_message: None,
                 payout_connector_metadata: None,
+                connector_eligibility_reference_id: None,
             }),
             ..item.data
         })
@@ -536,6 +579,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, TruelayerPayoutSyncType>> for Payou
                             error_code: None,
                             error_message: None,
                             payout_connector_metadata: None,
+                            connector_eligibility_reference_id: None,
                         }),
                         ..item.data
                     })
@@ -580,6 +624,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, TruelayerPayoutSyncType>> for Payou
                             error_code: None,
                             error_message: None,
                             payout_connector_metadata: None,
+                            connector_eligibility_reference_id: None,
                         }),
                         ..item.data
                     })
@@ -659,13 +704,6 @@ pub fn generate_tl_signature(
         )
         .into()),
     }
-}
-
-fn normalize_connector_request_reference_id(reference_id: &str) -> String {
-    reference_id
-        .chars()
-        .map(|c| if c == '_' { '-' } else { c })
-        .collect()
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]

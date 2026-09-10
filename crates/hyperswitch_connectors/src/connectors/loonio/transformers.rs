@@ -170,6 +170,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, LoonioPaymentsResponse, T, PaymentsResp
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -214,6 +215,8 @@ pub struct LoonioTransactionSyncResponse {
     pub transaction_id: String,
     pub state: LoonioTransactionStatus,
     pub customer_bank_info: Option<LoonioCustomerInfo>,
+    pub amount: Option<FloatMajorUnit>,
+    pub currency_code: Option<Currency>,
 }
 
 #[derive(Default, Debug, Serialize)]
@@ -271,6 +274,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, LoonioPaymentResponseData, T, PaymentsR
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     }),
                     connector_response,
                     ..item.data
@@ -306,6 +310,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, LoonioPaymentResponseData, T, PaymentsR
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     }),
                     connector_response,
                     ..item.data
@@ -354,6 +359,8 @@ impl From<RefundStatus> for enums::RefundStatus {
 pub struct RefundResponse {
     id: String,
     status: RefundStatus,
+    pub amount: Option<FloatMajorUnit>,
+    pub currency_code: Option<Currency>,
 }
 
 impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRouterData<Execute> {
@@ -431,6 +438,7 @@ pub enum LoonioWebhookTransactionType {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct LoonioWebhookBody {
     pub amount: FloatMajorUnit,
+    pub currency_code: Option<Currency>,
     pub api_transaction_id: String,
     pub signature: Option<String>,
     pub event_code: LoonioWebhookEventCode,
@@ -663,6 +671,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, LoonioPayoutFulfillResponse>>
                 error_code: None,
                 error_message: None,
                 payout_connector_metadata: None,
+                connector_eligibility_reference_id: None,
             }),
             ..item.data
         })
@@ -691,6 +700,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, LoonioPayoutSyncResponse>> for Payo
                 error_code: None,
                 error_message: None,
                 payout_connector_metadata: None,
+                connector_eligibility_reference_id: None,
             }),
             ..item.data
         })

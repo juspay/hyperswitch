@@ -1,31 +1,14 @@
-use bb8::PooledConnection;
 use common_utils::errors;
-use diesel::PgConnection;
 use error_stack::ResultExt;
 
-pub type PgPool = bb8::Pool<async_bb8_diesel::ConnectionManager<PgConnection>>;
+use crate::{
+    database::store::DatabaseConnectionWithContext, errors::StorageError, DatabaseStore,
+    RequestContext,
+};
 
-pub type PgPooledConn = async_bb8_diesel::Connection<PgConnection>;
-
-/// Creates a Redis connection pool for the specified Redis settings
-/// # Panics
-///
-/// Panics if failed to create a redis pool
-#[allow(clippy::expect_used)]
-pub async fn redis_connection(
-    redis: &redis_interface::RedisSettings,
-) -> redis_interface::RedisConnectionPool {
-    redis_interface::RedisConnectionPool::new(redis)
-        .await
-        .expect("Failed to create Redis Connection Pool")
-}
-
-pub async fn pg_connection_read<T: crate::DatabaseStore>(
-    store: &T,
-) -> errors::CustomResult<
-    PooledConnection<'_, async_bb8_diesel::ConnectionManager<PgConnection>>,
-    crate::errors::StorageError,
-> {
+pub async fn pg_connection_read<'a, T: DatabaseStore + RequestContext>(
+    store: &'a T,
+) -> errors::CustomResult<DatabaseConnectionWithContext<'a>, StorageError> {
     // If only OLAP is enabled get replica pool.
     #[cfg(all(feature = "olap", not(feature = "oltp")))]
     let pool = store.get_replica_pool();
@@ -41,21 +24,42 @@ pub async fn pg_connection_read<T: crate::DatabaseStore>(
     ))]
     let pool = store.get_master_pool();
 
-    pool.get()
+    #[cfg_attr(not(feature = "deja"), allow(unused_mut))]
+    let mut connection = pool
+        .pg_pool
+        .get()
         .await
-        .change_context(crate::errors::StorageError::DatabaseConnectionError)
+        .change_context(StorageError::DatabaseConnectionError)?;
+
+    #[cfg(feature = "deja")]
+    crate::utils::deja_route_replay_schema(&mut connection, store).await;
+
+    Ok(DatabaseConnectionWithContext::new(
+        connection,
+        store.request_id().map(str::to_owned),
+        pool.event_emitter.clone(),
+    ))
 }
 
-pub async fn pg_connection_write<T: crate::DatabaseStore>(
-    store: &T,
-) -> errors::CustomResult<
-    PooledConnection<'_, async_bb8_diesel::ConnectionManager<PgConnection>>,
-    crate::errors::StorageError,
-> {
+pub async fn pg_connection_write<'a, T: DatabaseStore + RequestContext>(
+    store: &'a T,
+) -> errors::CustomResult<DatabaseConnectionWithContext<'a>, StorageError> {
     // Since all writes should happen to master DB only choose master DB.
     let pool = store.get_master_pool();
 
-    pool.get()
+    #[cfg_attr(not(feature = "deja"), allow(unused_mut))]
+    let mut connection = pool
+        .pg_pool
+        .get()
         .await
-        .change_context(crate::errors::StorageError::DatabaseConnectionError)
+        .change_context(StorageError::DatabaseConnectionError)?;
+
+    #[cfg(feature = "deja")]
+    crate::utils::deja_route_replay_schema(&mut connection, store).await;
+
+    Ok(DatabaseConnectionWithContext::new(
+        connection,
+        store.request_id().map(str::to_owned),
+        pool.event_emitter.clone(),
+    ))
 }

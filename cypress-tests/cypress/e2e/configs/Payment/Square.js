@@ -29,6 +29,9 @@ const payment_method_data_no3ds = {
   card: {
     last4: "1111",
     card_type: "DEBIT",
+    card_subtype: "VISA CLASSIC",
+    card_segment_type: "consumer",
+    funding_source: "DEBIT",
     card_network: "Visa",
     card_issuer: "Conotoxia Sp Z Oo",
     card_issuing_country: "POLAND",
@@ -765,6 +768,32 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          mandate_id: null,
+          payment_method: "card",
+          payment_method_data: payment_method_data_no3ds,
+          connector: "square",
+        },
+      },
+    },
+    MITAutoCaptureWithCustomerAcceptance: {
+      // Square does not support MIT payments with mandate_id
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "127.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
+      },
       Response: {
         status: 200,
         body: {

@@ -524,5 +524,8 @@ export const connectorDetails = {
     MITAutoCapture: getCustomExchange({
       ...commonConnectorDetails.card_pm.MITAutoCapture,
     }),
+    MITAutoCaptureWithCustomerAcceptance: getCustomExchange({
+      ...commonConnectorDetails.card_pm.MITAutoCaptureWithCustomerAcceptance,
+    }),
   },
 };

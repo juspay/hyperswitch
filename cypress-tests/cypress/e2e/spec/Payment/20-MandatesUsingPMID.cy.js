@@ -3,15 +3,27 @@ import State from "../../../utils/State";
 import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 
 let globalState;
+let originalCustomerId;
 
 describe("Card - Mandates using Payment Method Id flow test", () => {
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
+      originalCustomerId = globalState.get("customerId");
     });
   });
 
   afterEach("flush global state", () => {
+    cy.task("setGlobalState", globalState.data);
+  });
+
+  after("restore customerId", () => {
+    // Most tests in this spec intentionally continue using a customer
+    // created by an earlier test in the same file, so customerId can't be
+    // restored after every test. Restore it only once, after the whole
+    // spec finishes, so later specs don't inherit a customer scoped to
+    // this spec's own tests.
+    globalState.set("customerId", originalCustomerId);
     cy.task("setGlobalState", globalState.data);
   });
 
@@ -595,6 +607,107 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
       });
     });
   });
+
+  context(
+    "Card - NoThreeDS MIT with PMID and customer_acceptance flow test",
+    () => {
+      it("Create Customer -> Create No 3DS Payment Intent -> Confirm No 3DS CIT -> List Customer Payment Methods -> MIT with PMID and customer_acceptance -> List Customer Payment Methods", () => {
+        let shouldContinue = true;
+
+        cy.step("Create Customer", () => {
+          cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
+        });
+
+        cy.step("Create No 3DS Payment Intent", () => {
+          if (!shouldContinue) {
+            cy.task("cli_log", "Skipping step: Create No 3DS Payment Intent");
+            return;
+          }
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["PaymentIntentOffSession"];
+
+          cy.createPaymentIntentTest(
+            fixtures.createPaymentBody,
+            data,
+            "no_three_ds",
+            "automatic",
+            globalState
+          );
+
+          if (!utils.should_continue_further(data)) {
+            shouldContinue = false;
+          }
+        });
+
+        cy.step("Confirm No 3DS CIT", () => {
+          if (!shouldContinue) {
+            cy.task("cli_log", "Skipping step: Confirm No 3DS CIT");
+            return;
+          }
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["PaymentMethodIdMandateNo3DSAutoCapture"];
+
+          cy.citForMandatesCallTest(
+            fixtures.citConfirmBody,
+            data,
+            6000,
+            true,
+            "automatic",
+            "new_mandate",
+            globalState
+          );
+
+          if (!utils.should_continue_further(data)) {
+            shouldContinue = false;
+          }
+        });
+
+        cy.step("List Customer Payment Methods", () => {
+          if (!shouldContinue) {
+            cy.task("cli_log", "Skipping step: List Customer Payment Methods");
+            return;
+          }
+          cy.listCustomerPMCallTest(globalState);
+        });
+
+        cy.step("MIT with PMID and customer_acceptance", () => {
+          if (!shouldContinue) {
+            cy.task(
+              "cli_log",
+              "Skipping step: MIT with PMID and customer_acceptance"
+            );
+            return;
+          }
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["MITAutoCaptureWithCustomerAcceptance"];
+
+          cy.mitUsingPMId(
+            fixtures.pmIdConfirmBody,
+            data,
+            6000,
+            true,
+            "automatic",
+            globalState
+          );
+
+          if (!utils.should_continue_further(data)) {
+            shouldContinue = false;
+          }
+        });
+
+        cy.step("List Customer Payment Methods", () => {
+          if (!shouldContinue) {
+            cy.task("cli_log", "Skipping step: List Customer Payment Methods");
+            return;
+          }
+          cy.listCustomerPMCallTest(globalState);
+        });
+      });
+    }
+  );
 
   context(
     "Card - ThreeDS Create + Confirm Automatic CIT and MIT payment flow test",

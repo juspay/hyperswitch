@@ -1,0 +1,132 @@
+---
+title: "A/B Testing: Create An Experiment"
+description: "Curl examples for creating and activating a routing A/B test via /routing/create."
+---
+
+# A/B Testing: Create An Experiment
+
+A/B testing lets you compare two routing strategies — or two configurations of the same strategy — on a live split of traffic, with built-in guardrails and statistical significance checks. There is no separate create/manage API: an experiment is just another `algorithm.type` on the existing [`/routing/create`](/decision-engine-api-reference/api-reference/guides/configure-routing/routing-algorithm-create) endpoint, alongside `single`, `priority`, `volume_split`, and `advanced`.
+
+## Why run one
+
+Any routing change — turning on multi-objective routing, enabling autopilot, retuning hedging — is a bet that the new behaviour beats what you have today. The honest way to settle that bet is to run both on the *same* live traffic at the same time and measure the difference, rather than flip the change globally and hope the week-over-week numbers move for the right reason. That's what an experiment does: it holds one arm (**control**) on your current behaviour and sends a minority slice to the other (**variant**), so the two are compared under identical market conditions.
+
+The design has two safety properties built in:
+
+- **A guardrail.** If the variant's authorisation rate falls more than `guardrail_threshold_pp` percentage points below control, the experiment is flagged `GuardrailBreached` immediately — this is a deliberately eager point-estimate check, because no cost saving is worth an auth regression, and it trips without waiting for statistical significance (once past the minimum sample gate).
+- **A significance test.** A winner is only declared when the difference is statistically real. Once each arm clears `min_sample_size`, results run a two-sample z-test on per-transaction economic value (which collapses to a plain two-proportion auth-rate test when no cost dimension is involved). Until then the verdict stays `CollectingData`; a positive-but-noisy gap stays `NotSignificant` rather than prematurely crowning the variant. Only a `p < 0.05` gap yields `VariantWins` / `VariantLoses`. See [A/B Testing: Results](/decision-engine-api-reference/api-reference/guides/ab-testing/ab-testing-results) for reading the verdict.
+
+Because control and variant differ only in the routing behaviour you're testing, the measured delta is attributable to that change — which is exactly why you'd run an experiment before flipping a merchant-wide flag like [multi-objective routing](/decision-engine-api-reference/api-reference/guides/run-transactions/decide-gateway-multi-objective).
+
+## algorithm.type = "ab_test"
+
+```bash
+curl --location "$BASE_URL/routing/create" \
+  --header "$AUTH_HEADER" \
+  --header "Content-Type: application/json" \
+  --data '{
+    "name": "cost-vs-auth-test",
+    "description": "A/B test: 20% variant traffic",
+    "created_by": "merchant_demo",
+    "algorithm_for": "payment",
+    "metadata": {},
+    "algorithm": {
+      "type": "ab_test",
+      "data": {
+        "control_algorithm_id": "sr_routing",
+        "variant_algorithm_id": "sr_routing",
+        "variant_split_pct": 20,
+        "min_sample_size": 1000,
+        "guardrail_threshold_pp": 3.0,
+        "control_sr_config": { "enable_multi_objective": false, "use_autopilot": false },
+        "variant_sr_config": { "enable_multi_objective": true, "use_autopilot": false }
+      }
+    }
+  }'
+```
+
+Response is the standard routing-algorithm create response:
+
+```json
+{
+  "rule_id": "routing_a1b2c3d4-1111-2222-3333-444455556666",
+  "name": "cost-vs-auth-test",
+  "created_at": "2026-07-16 10:00:00",
+  "modified_at": "2026-07-16 10:00:00"
+}
+```
+
+## algorithm.data (ABTestData) Fields
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `control_algorithm_id` | string | Algorithm the control arm uses. `"sr_routing"` for success-rate scoring, or the `rule_id` of an existing `single`/`priority`/`volume_split`/`advanced` algorithm. |
+| `variant_algorithm_id` | string | Same, for the variant arm. |
+| `variant_split_pct` | integer, 1–49 | Percentage of traffic sent to the variant arm. Capped below 50 so the variant is always the minority arm. |
+| `min_sample_size` | integer | Transactions each arm needs before results are considered statistically meaningful. |
+| `guardrail_threshold_pp` | number | Auto-pause guardrail: if the variant's auth rate drops this many percentage points below control, the experiment result is marked `GuardrailBreached`. |
+| `control_sr_config` | object, optional | Per-arm SR override — see below. Only meaningful when the arm's algorithm is `sr_routing`. |
+| `variant_sr_config` | object, optional | Same, for the variant arm. |
+
+### SR Config Override
+
+```json
+{
+  "hedging_percent": 5.0,
+  "elimination_threshold": 0.35,
+  "enable_multi_objective": true,
+  "margin": 0.2,
+  "use_autopilot": false
+}
+```
+
+All fields are optional — set only the ones you want to override for that arm; anything omitted falls back to the merchant's live SR config. `enable_multi_objective` and `use_autopilot` are the same dials used by [multi-objective routing](/decision-engine-api-reference/api-reference/guides/run-transactions/decide-gateway-multi-objective) and [autopilot](/decision-engine-api-reference/api-reference/guides/autopilot/merchant-features), scoped to just this arm.
+
+## Common Experiment Shapes
+
+The dashboard's A/B test builder resolves its strategy dropdown into these four `sr_routing` + override combinations — useful presets when constructing the payload by hand:
+
+| Arm preset | `variant_sr_config` |
+| --- | --- |
+| SR routing (auth based) | `{ "enable_multi_objective": false, "use_autopilot": false }` |
+| SR routing (auth based, autopilot) | `{ "enable_multi_objective": false, "use_autopilot": true }` |
+| SR routing (multi-objective, manual) | `{ "enable_multi_objective": true, "use_autopilot": false }` |
+| SR routing (multi-objective, autopilot) | `{ "enable_multi_objective": true, "use_autopilot": true }` |
+
+A `sr_config_tuning` experiment (compare two SR tunings rather than two strategies) uses `sr_routing` for both arms and only sets `hedging_percent`/`elimination_threshold` on the variant, leaving control on the live config.
+
+## Activate The Experiment
+
+Creating an experiment does not make it active — activate it like any other routing algorithm:
+
+```bash
+curl --location "$BASE_URL/routing/activate" \
+  --header "$AUTH_HEADER" \
+  --header "Content-Type: application/json" \
+  --data '{
+    "created_by": "merchant_demo",
+    "routing_algorithm_id": "routing_a1b2c3d4-1111-2222-3333-444455556666"
+  }'
+```
+
+## How Traffic Is Split
+
+Arm assignment is deterministic per payment: `payment_id` is hashed and taken modulo 100 against `variant_split_pct`, so retries of the same payment always land in the same arm.
+
+Two integration points use this assignment:
+
+- **Real payments** — `/decide-gateway` / `/decision_gateway` route into the assigned arm. This only happens when the merchant feature `ab-test-real-payments` is enabled — see [Merchant Features](/decision-engine-api-reference/api-reference/guides/autopilot/merchant-features). Off by default so a newly created experiment doesn't affect live traffic until you opt in.
+- **Simulation / Decision Explorer** — [`/routing/evaluate`](/decision-engine-api-reference/api-reference/guides/configure-routing/routing-algorithm-evaluate) previews what each arm would do for a given payment context, without a real transaction.
+
+If an arm's algorithm id resolves to `sr_routing`, the payment proceeds through normal SR routing carrying that arm's `SrConfigOverride`. If it resolves to another algorithm's id, that algorithm's output is used directly and the response's `routing_approach` becomes `AB_TEST_STATIC_ALGORITHM`.
+
+## Editing Or Removing An Experiment
+
+Only an **inactive** experiment can be edited or deleted — see [Update & Delete Routing Algorithm](/decision-engine-api-reference/api-reference/guides/configure-routing/routing-algorithm-update-delete). Deactivate first with [`/routing/deactivate`](/decision-engine-api-reference/api-reference/guides/configure-routing/routing-algorithm-deactivate) if it's currently live.
+
+## Related
+
+- [A/B Testing: Results](/decision-engine-api-reference/api-reference/guides/ab-testing/ab-testing-results)
+- [Merchant Features](/decision-engine-api-reference/api-reference/guides/autopilot/merchant-features) — enabling `ab-test-real-payments` and autopilot.
+- [Multi-Objective Routing](/decision-engine-api-reference/api-reference/guides/run-transactions/decide-gateway-multi-objective)
+- [Create Routing Algorithm](/decision-engine-api-reference/api-reference/guides/configure-routing/routing-algorithm-create)

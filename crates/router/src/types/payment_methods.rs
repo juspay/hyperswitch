@@ -188,7 +188,8 @@ pub struct EntityCreateRequest {
 #[derive(Debug, serde::Deserialize)]
 pub struct EntityCreateResponse {
     pub entity_id: String,
-    pub created_at: String,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub created_at: time::PrimitiveDateTime,
 }
 
 #[cfg(feature = "v2")]
@@ -229,6 +230,12 @@ pub struct VaultRetrieveResponse {
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct VaultDeleteRequest {
     pub entity_id: id_type::GlobalCustomerId,
+    pub vault_id: domain::VaultId,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct VaultDeleteRequestNew {
+    pub entity_id: id_type::MerchantId,
     pub vault_id: domain::VaultId,
 }
 

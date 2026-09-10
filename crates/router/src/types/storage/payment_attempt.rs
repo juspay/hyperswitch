@@ -176,6 +176,7 @@ mod tests {
             save_to_locker: Default::default(),
             error_message: Default::default(),
             offer_amount: Default::default(),
+            applied_offer_details: Default::default(),
             payment_method_id: Default::default(),
             payment_method: Default::default(),
             capture_method: Default::default(),
@@ -214,6 +215,7 @@ mod tests {
             mandate_data: Default::default(),
             payment_method_billing_address_id: Default::default(),
             fingerprint_id: Default::default(),
+            fingerprint_type: Default::default(),
             client_source: Default::default(),
             client_version: Default::default(),
             customer_acceptance: Default::default(),
@@ -249,6 +251,7 @@ mod tests {
             installment_data: Default::default(),
             external_surcharge_details: Default::default(),
             sender_payment_instrument_id: Default::default(),
+            payment_account_reference: Default::default(),
         };
 
         let store = state
@@ -300,6 +303,7 @@ mod tests {
             save_to_locker: Default::default(),
             error_message: Default::default(),
             offer_amount: Default::default(),
+            applied_offer_details: Default::default(),
             payment_method_id: Default::default(),
             payment_method: Default::default(),
             capture_method: Default::default(),
@@ -338,6 +342,7 @@ mod tests {
             mandate_data: Default::default(),
             payment_method_billing_address_id: Default::default(),
             fingerprint_id: Default::default(),
+            fingerprint_type: Default::default(),
             client_source: Default::default(),
             client_version: Default::default(),
             customer_acceptance: Default::default(),
@@ -373,6 +378,7 @@ mod tests {
             installment_data: Default::default(),
             external_surcharge_details: Default::default(),
             sender_payment_instrument_id: Default::default(),
+            payment_account_reference: Default::default(),
         };
         let store = state
             .stores
@@ -439,6 +445,7 @@ mod tests {
             save_to_locker: Default::default(),
             error_message: Default::default(),
             offer_amount: Default::default(),
+            applied_offer_details: Default::default(),
             payment_method_id: Default::default(),
             payment_method: Default::default(),
             capture_method: Default::default(),
@@ -476,6 +483,7 @@ mod tests {
             mandate_data: Default::default(),
             payment_method_billing_address_id: Default::default(),
             fingerprint_id: Default::default(),
+            fingerprint_type: Default::default(),
             client_source: Default::default(),
             client_version: Default::default(),
             customer_acceptance: Default::default(),
@@ -511,6 +519,7 @@ mod tests {
             installment_data: Default::default(),
             external_surcharge_details: Default::default(),
             sender_payment_instrument_id: Default::default(),
+            payment_account_reference: Default::default(),
         };
         let store = state
             .stores

@@ -1,14 +1,12 @@
-use bb8::PooledConnection;
 use common_utils::DbConnectionParams;
-use diesel::PgConnection;
+use diesel_models::DejaPgConnection;
+use storage_impl::database::store::{DatabaseConnectionWithContext, PgPool};
 
 use crate::{settings::Database, Settings};
 
-pub type PgPool = bb8::Pool<async_bb8_diesel::ConnectionManager<PgConnection>>;
-
 #[allow(clippy::expect_used)]
 pub async fn redis_connection(conf: &Settings) -> redis_interface::RedisConnectionPool {
-    redis_interface::RedisConnectionPool::new(&conf.redis)
+    redis_interface::RedisConnectionPool::new_without_event_emitter(&conf.redis)
         .await
         .expect("Failed to create Redis connection Pool")
 }
@@ -24,21 +22,28 @@ pub async fn diesel_make_pg_pool(
     schema: &str,
 ) -> PgPool {
     let database_url = database.get_database_url(schema);
-    let manager = async_bb8_diesel::ConnectionManager::<PgConnection>::new(database_url);
+    let manager = async_bb8_diesel::ConnectionManager::<DejaPgConnection>::new(database_url);
     let pool = bb8::Pool::builder()
         .max_size(database.pool_size)
         .connection_timeout(std::time::Duration::from_secs(database.connection_timeout));
 
-    pool.build(manager)
+    let raw_pool = pool
+        .build(manager)
         .await
-        .expect("Failed to create PostgreSQL connection pool")
+        .expect("Failed to create PostgreSQL connection pool");
+
+    PgPool::new_without_event_emitter(raw_pool)
 }
 
 #[allow(clippy::expect_used)]
-pub async fn pg_connection(
-    pool: &PgPool,
-) -> PooledConnection<'_, async_bb8_diesel::ConnectionManager<PgConnection>> {
-    pool.get()
+pub async fn pg_connection<'a>(pool: &'a PgPool) -> DatabaseConnectionWithContext<'a> {
+    let connection = pool
+        .pg_pool
+        .get()
         .await
-        .expect("Couldn't retrieve PostgreSQL connection")
+        .expect("Couldn't retrieve PostgreSQL connection");
+
+    // The drainer serves no API request, so its queries carry no request id and emit no external
+    // service call events.
+    DatabaseConnectionWithContext::new(connection, None, pool.event_emitter.clone())
 }

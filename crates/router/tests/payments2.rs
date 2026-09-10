@@ -108,6 +108,9 @@ async fn payments_create_core() {
                 card_issuer: None,
                 card_network: None,
                 card_type: None,
+                card_subtype: None,
+                card_segment_type: None,
+                funding_source: None,
                 card_issuing_country: None,
                 card_issuing_country_code: None,
                 bank_code: None,
@@ -134,6 +137,9 @@ async fn payments_create_core() {
 
     let expected_response = api::PaymentsResponse {
         payment_id,
+        applied_offer: None,
+        payment_method_list: None,
+        session_tokens: None,
         status: api_enums::IntentStatus::Succeeded,
         amount: MinorUnit::new(6540),
         amount_capturable: MinorUnit::new(0),
@@ -207,6 +213,7 @@ async fn payments_create_core() {
         external_3ds_authentication_attempted: None,
         expires_on: None,
         fingerprint: None,
+        fingerprint_type: None,
         browser_info: None,
         payment_method_id: None,
         payment_method_status: None,
@@ -239,6 +246,8 @@ async fn payments_create_core() {
         is_stored_credential: None,
         request_extended_authorization: None,
         billing_descriptor: None,
+        is_account_funded_transaction: None,
+        recipient_details: None,
         partner_merchant_identifier_details: None,
         payment_method_tokenization_details: None,
         error_details: None,
@@ -248,6 +257,7 @@ async fn payments_create_core() {
         connector_response_metadata: None,
         connector_customer_id: None,
         sender_payment_instrument_id: None,
+        payment_account_reference: None,
     };
 
     let expected_response =
@@ -423,6 +433,9 @@ async fn payments_create_core_adyen_no_redirect() {
                 card_issuer: None,
                 card_network: None,
                 card_type: None,
+                card_subtype: None,
+                card_segment_type: None,
+                funding_source: None,
                 card_issuing_country: None,
                 card_issuing_country_code: None,
                 nick_name: Some(hyperswitch_masking::Secret::new("nick_name".into())),
@@ -450,6 +463,9 @@ async fn payments_create_core_adyen_no_redirect() {
     let expected_response = services::ApplicationResponse::JsonWithHeaders((
         api::PaymentsResponse {
             payment_id: payment_id.clone(),
+            applied_offer: None,
+            payment_method_list: None,
+            session_tokens: None,
             status: api_enums::IntentStatus::Processing,
             amount: MinorUnit::new(6540),
             amount_capturable: MinorUnit::new(0),
@@ -523,6 +539,7 @@ async fn payments_create_core_adyen_no_redirect() {
             external_3ds_authentication_attempted: None,
             expires_on: None,
             fingerprint: None,
+            fingerprint_type: None,
             browser_info: None,
             payment_method_id: None,
             payment_method_status: None,
@@ -554,6 +571,8 @@ async fn payments_create_core_adyen_no_redirect() {
             is_stored_credential: None,
             request_extended_authorization: None,
             billing_descriptor: None,
+            is_account_funded_transaction: None,
+            recipient_details: None,
             partner_merchant_identifier_details: None,
             payment_method_tokenization_details: None,
             error_details: None,
@@ -564,6 +583,7 @@ async fn payments_create_core_adyen_no_redirect() {
             network_transaction_link_id: None,
             connector_customer_id: None,
             sender_payment_instrument_id: None,
+            payment_account_reference: None,
         },
         vec![],
     ));

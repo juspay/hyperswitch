@@ -32,6 +32,9 @@ const payment_method_data_3ds = {
   card: {
     last4: "0071",
     card_type: "DEBIT",
+    card_subtype: "CLASSIC",
+    card_segment_type: null,
+    funding_source: null,
     card_network: "Visa",
     card_issuer: "VISA PRODUCTION SUPPORT CLIENT BID 1",
     card_issuing_country: "UNITEDSTATES",
@@ -51,6 +54,9 @@ const payment_method_data_no3ds = {
   card: {
     last4: "4242",
     card_type: "CREDIT",
+    card_subtype: null,
+    card_segment_type: null,
+    funding_source: null,
     card_network: "Visa",
     card_issuer: "STRIPE PAYMENTS UK LIMITED",
     card_issuing_country: "UNITEDKINGDOM",
@@ -736,6 +742,27 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    MITAutoCaptureWithCustomerAcceptance: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "127.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
+      },
       Response: {
         status: 200,
         body: {

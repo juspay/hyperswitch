@@ -17,6 +17,7 @@ pub struct BatchBlocklistJob {
     pub failed_rows: i32,
     pub created_at: PrimitiveDateTime,
     pub updated_at: PrimitiveDateTime,
+    pub profile_id: Option<id_type::ProfileId>,
 }
 
 #[derive(Clone, Debug, Insertable, Deserialize, Serialize)]
@@ -30,6 +31,7 @@ pub struct BatchBlocklistJobNew {
     pub failed_rows: i32,
     pub created_at: PrimitiveDateTime,
     pub updated_at: PrimitiveDateTime,
+    pub profile_id: id_type::ProfileId,
 }
 
 #[derive(Clone, Debug, AsChangeset)]

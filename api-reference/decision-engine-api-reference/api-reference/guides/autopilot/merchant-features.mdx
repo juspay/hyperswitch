@@ -1,0 +1,102 @@
+---
+title: "Merchant Features: Autopilot & Feature Flags"
+description: "Curl examples for reading and toggling merchant-level feature flags — including Autopilot and SR Auto-Calibration — and resetting gateway scores."
+---
+
+# Merchant Features: Autopilot & Feature Flags
+
+Every merchant-level toggle — multi-objective routing, A/B test real-payment interception, elimination, and the two self-tuning features (Autopilot and SR Auto-Calibration) — is read and set through one small feature-flag API.
+
+## List Feature Flags
+
+```bash
+curl "$BASE_URL/merchant-account/merchant_demo/features" \
+  --header "$AUTH_HEADER"
+```
+
+```json
+{
+  "merchant_id": "merchant_demo",
+  "features": [
+    { "feature": "gsm-scoring-filter", "enabled": false },
+    { "feature": "explore-exploit-srv3", "enabled": false },
+    { "feature": "ab-test-real-payments", "enabled": true },
+    { "feature": "multi-objective-routing", "enabled": true },
+    { "feature": "elimination", "enabled": true },
+    { "feature": "auto-calibration", "enabled": true },
+    { "feature": "autopilot", "enabled": true }
+  ]
+}
+```
+
+## Toggle A Feature
+
+```bash
+curl --location "$BASE_URL/merchant-account/merchant_demo/features/autopilot" \
+  --header "$AUTH_HEADER" \
+  --header "Content-Type: application/json" \
+  --data '{ "enabled": true }'
+```
+
+Response is the same shape as the list call, re-read after the change so you always see the current effective state of every flag.
+
+## Known Features
+
+| Slug | What it controls |
+| --- | --- |
+| `gsm-scoring-filter` | Filters gateway scoring using Gateway Status Mapper error-code classification. |
+| `explore-exploit-srv3` | Explore/exploit hedging on the SRv3 scoring path. |
+| `ab-test-real-payments` | Whether active A/B test experiments intercept real `/decide-gateway` traffic — see [A/B Testing: Results](/decision-engine-api-reference/api-reference/guides/ab-testing/ab-testing-results). |
+| `multi-objective-routing` | Merchant-wide default for the cost-aware post-step — see [Multi-Objective Routing](/decision-engine-api-reference/api-reference/guides/run-transactions/decide-gateway-multi-objective). Per-request `enableMultiObjective` overrides this. |
+| `elimination` | Gateway-level SR-based elimination (excluding gateways in downtime). |
+| `auto-calibration` | Enables the self-tuning background job (see below). Must be on **together with** `autopilot` for the job to actually write changes. |
+| `autopilot` | Master write-permission switch for the self-tuning job. With `auto-calibration` off, this alone does nothing. |
+
+## What Autopilot & Auto-Calibration Do
+
+The success-rate scorer has two knobs — **bucket size** (how many recent transactions each gateway's score is averaged over) and **hedging %** (how much traffic is explored away from the current leader). The right values depend on how much traffic a merchant sees and how many gateways it spreads across, and the ideal settings drift as that traffic changes through the day. Tuning them by hand is tedious and quickly goes stale.
+
+**Autopilot is the self-tuning layer that sets those two knobs for you, continuously, from observed traffic.** Instead of a fixed configuration, it watches each merchant's real volume and gateway spread and re-derives the bucket size and hedging % that keep scoring both responsive (fast to notice a gateway degrading) and stable (not thrashing on noise). "Auto-Calibration" is the background job that does the deriving; "Autopilot" is the switch that lets it actually write its results back. The two are split so you can enrol a merchant for observation without granting write access until you're ready.
+
+These two flags jointly control a background job — there is no separate "run autopilot" endpoint. `auto-calibration` gates whether the job considers a merchant at all; `autopilot` gates whether it's allowed to write. Both must be enabled for self-tuning to take effect.
+
+Every polling interval (default 900s, configurable via `[sr_auto_calibration]` in `config/*.toml` or `SR_AUTO_CALIBRATION_INTERVAL_SECS`), the job:
+
+1. Reads recent traffic volume from ClickHouse (default 3600s lookback).
+2. Derives two SRv3 knobs purely from observed data — no merchant input:
+   - **Bucket size** — clamped between 100 and 2000, only rewritten on a meaningful (25-step) change.
+   - **Hedging %** — capped at 30%, with a 1.0pp minimum move before it updates.
+3. Writes the result back into the merchant's SR config (readable via [`GET /config/routing-keys`](/decision-engine-api-reference/api-reference/guides/scoring-config/config-endpoints) and [`GET /config-sr-dimension/:merchant_id`](/decision-engine-api-reference/api-reference/guides/scoring-config/config-endpoints#get-sr-dimensions)), stamped with `"source": "autopilot"` so autopilot-written values are distinguishable from human-authored overrides.
+
+Every calibration run also emits an analytics event (`flow_type: autopilot_calibration`) — this is what powers the "Autopilot Actions" panel in the simulation UI, and is queryable via [Routing Events](/decision-engine-api-reference/api-reference/guides/analytics-audit/analytics-endpoints#routing-events).
+
+## Reset Gateway Scores
+
+Flushes all SR v2/v3 score and queue keys for a merchant from Redis, and strips any autopilot-written (`source: "autopilot"`) sub-level config overrides — human-authored overrides are preserved. Used by the simulator's "Hard refresh" so a new simulation run starts from a clean slate.
+
+Unlike the feature-flag calls above, this route requires `$TENANT_HEADER` in addition to `$AUTH_HEADER` — see [Environment setup](/decision-engine-api-reference/api-reference/guides/api-ref#environment-setup).
+
+```bash
+curl --location "$BASE_URL/gateway-score/reset" \
+  --header "$AUTH_HEADER" \
+  --header "$TENANT_HEADER" \
+  --header "Content-Type: application/json" \
+  --data '{ "merchant_id": "merchant_demo" }'
+```
+
+```json
+{
+  "merchant_id": "merchant_demo",
+  "deleted_keys": 214,
+  "removed_overrides": 3
+}
+```
+
+This does not disable routing or delete configuration — it only clears live scoring state so the next decisions start from a fresh baseline.
+
+## Related
+
+- [A/B Testing: Create An Experiment](/decision-engine-api-reference/api-reference/guides/ab-testing/ab-testing-create)
+- [Multi-Objective Routing](/decision-engine-api-reference/api-reference/guides/run-transactions/decide-gateway-multi-objective)
+- [Routing Config Endpoints](/decision-engine-api-reference/api-reference/guides/scoring-config/config-endpoints)
+- [Analytics Endpoints](/decision-engine-api-reference/api-reference/guides/analytics-audit/analytics-endpoints)

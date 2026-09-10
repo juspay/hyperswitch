@@ -99,6 +99,8 @@ pub type BoxedFilesConnectorIntegrationInterface<T, Req, Resp> =
     BoxedConnectorIntegrationInterface<T, common_types::FilesFlowData, Req, Resp>;
 pub type BoxedRevenueRecoveryRecordBackInterface<T, Req, Res> =
     BoxedConnectorIntegrationInterface<T, common_types::InvoiceRecordBackData, Req, Res>;
+pub type BoxedRevenueRecoveryDisputeRecordBackInterface<T, Req, Res> =
+    BoxedConnectorIntegrationInterface<T, common_types::DisputeRecordBackData, Req, Res>;
 pub type BoxedGetSubscriptionPlansInterface<T, Req, Res> =
     BoxedConnectorIntegrationInterface<T, common_types::GetSubscriptionItemsData, Req, Res>;
 pub type BoxedGetSubscriptionPlanPricesInterface<T, Req, Res> =
@@ -365,6 +367,7 @@ where
         state.infra_components.as_ref(),
     );
 
+    let auth_user_id = auth_type.get_user_id();
     let api_event = ApiEvent::new(
         tenant_id,
         Some(merchant_id.clone()),
@@ -376,6 +379,7 @@ where
         serialized_response,
         overhead_latency,
         auth_type,
+        auth_user_id,
         error,
         event_type.unwrap_or(ApiEventsType::Miscellaneous),
         request,

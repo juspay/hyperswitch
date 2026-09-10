@@ -483,6 +483,26 @@ export const connectorDetails = {
         },
       },
     },
+    MITAutoCaptureWithCustomerAcceptance: {
+      Request: {
+        currency: "EUR",
+        billing: billingAddress,
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "127.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
     MITManualCapture: {
       Request: {},
       Response: {
@@ -727,6 +747,20 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+        },
+      },
+    },
+    PaymentWithBilling: {
+      Request: {
+        currency: "EUR",
+        setup_future_usage: "on_session",
+        billing: billingAddress,
+        email: "hyperswitch.example@gmail.com",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
         },
       },
     },

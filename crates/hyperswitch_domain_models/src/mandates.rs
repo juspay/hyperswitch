@@ -660,6 +660,12 @@ pub enum MandateReferenceId {
     CardWithLimitedData(CardWithLimitedDataRef), // indicates the recurring transaction is done by card data only
 }
 
+impl MandateReferenceId {
+    pub fn is_network_mandate_id(&self) -> bool {
+        matches!(self, Self::NetworkMandateId(_))
+    }
+}
+
 /// Scheme-level identifiers for PSP-agnostic MIT flows (raw card path).
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq)]
 pub struct NetworkMandateIdRef {
@@ -774,6 +780,9 @@ impl From<&UpdatedMandateDetails> for api_models::payments::AdditionalCardInfo {
             card_isin: card_info.card_isin.clone(),
             card_issuer: None,
             card_type: None,
+            card_subtype: None,
+            card_segment_type: None,
+            funding_source: None,
             card_issuing_country: None,
             card_issuing_country_code: None,
             bank_code: None,

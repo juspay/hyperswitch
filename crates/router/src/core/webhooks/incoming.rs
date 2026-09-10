@@ -28,7 +28,7 @@ use hyperswitch_interfaces::webhooks::{
     IncomingWebhookFlowError, IncomingWebhookRequestDetails, WebhookContext, WebhookResourceData,
 };
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
-use router_env::{instrument, tracing};
+use router_env::{instrument, tracing, tracing::Instrument};
 
 use super::{types, MERCHANT_ID};
 use crate::{
@@ -447,7 +447,7 @@ async fn fetch_three_ds_execution_path(
         .clone();
     let connector_enum = Connector::from_str(&connector_name)
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "connector",
+            field_name: "connector".into(),
         })
         .attach_printable_lazy(|| format!("unable to parse connector name {connector_name:?}"))?;
     let is_merchant_eligible_for_uas =
@@ -738,7 +738,7 @@ fn handle_incoming_webhook_error(
     // fetch the connector enum from the connector name
     let connector_enum = Connector::from_str(connector_name)
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "connector",
+            field_name: "connector".into(),
         })
         .attach_printable_lazy(|| format!("unable to parse connector name {connector_name:?}"))?;
 
@@ -1291,6 +1291,7 @@ async fn payout_incoming_webhook_update_status(
     // if status is failure then update the error_code and error_message as well
     let payout_attempt_update = if status.is_payout_failure() {
         PayoutAttemptUpdate::StatusUpdate {
+            connector_eligibility_reference_id: None,
             connector_payout_id: payout_attempt.connector_payout_id.clone(),
             status,
             error_message: payout_webhook_details.error_message,
@@ -1302,6 +1303,7 @@ async fn payout_incoming_webhook_update_status(
         }
     } else {
         PayoutAttemptUpdate::StatusUpdate {
+            connector_eligibility_reference_id: None,
             connector_payout_id: payout_attempt.connector_payout_id.clone(),
             status,
             error_message: None,
@@ -1396,7 +1398,7 @@ async fn payout_incoming_webhook_retrieve_status(
             "Connector not found in payout_attempt - should not reach here.".to_string(),
         ))
         .change_context(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "connector",
+            field_name: "connector".into(),
         })
         .attach_printable("Connector not found for payout fulfillment")?,
     };
@@ -1466,7 +1468,7 @@ async fn relay_refunds_incoming_webhook_flow(
             webhooks::RefundIdType::RefundId(refund_id) => {
                 let relay_id = common_utils::id_type::RelayId::from_str(&refund_id)
                     .change_context(errors::ValidationError::IncorrectValueProvided {
-                        field_name: "relay_id",
+                        field_name: "relay_id".into(),
                     })
                     .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
@@ -1635,7 +1637,7 @@ async fn refunds_incoming_webhook_flow(
     let state_task = state.clone();
     let processor_task = platform.get_processor().clone();
     let payment_intent_task = payment_intent.clone();
-    tokio::spawn(async move {
+    let state_metadata_update = async move {
         if let Err(err) = PaymentIntentStateMetadataExt::from(
             payment_intent_task
                 .state_metadata
@@ -1647,7 +1649,8 @@ async fn refunds_incoming_webhook_flow(
         {
             tracing::error!(?err, "Failed to update intent state metadata for refund");
         }
-    });
+    };
+    tokio::spawn(state_metadata_update.in_current_span());
 
     let event_type: Option<enums::EventType> = updated_refund.refund_status.into();
 
@@ -1992,15 +1995,99 @@ async fn external_authentication_incoming_webhook_flow(
                     )
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+                let processor_merchant_id = platform.get_processor().get_account().get_id().clone();
                 let payment_confirm_req = api::PaymentsRequest {
                     payment_id: Some(api_models::payments::PaymentIdType::PaymentIntentId(
                         payment_intent.payment_id.clone(),
                     )),
-                    merchant_id: Some(platform.get_processor().get_account().get_id().clone()),
+                    merchant_id: Some(processor_merchant_id.clone()),
                     ..Default::default()
                 };
                 let is_setup_mandate = payment_intent.is_setup_mandate();
-                let payments_response = if is_setup_mandate {
+                let provider_business_profile = payments::helpers::resolve_provider_profile(
+                    &state,
+                    &platform,
+                    &business_profile,
+                )
+                .await?;
+                let attempt_id = payment_intent.active_attempt.get_id().clone();
+                let payment_attempt = state
+                    .store
+                    .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
+                        &payment_intent.payment_id,
+                        &processor_merchant_id,
+                        &attempt_id,
+                        platform.get_processor().get_account().storage_scheme,
+                        platform.get_processor().get_key_store(),
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+                // A merchant with external vault enabled can still accept a plain (non-proxied)
+                // card for an individual payment — probe whether this payment's payment_token
+                // actually resolves to a vault alias before committing to the proxy resume path.
+                let is_external_vault_payment = provider_business_profile
+                    .external_vault_details
+                    .is_external_vault_enabled()
+                    && match payment_attempt.payment_token.as_ref() {
+                        Some(token) => payments::read_external_vault_alias_from_temp_locker(
+                            &state,
+                            token,
+                            platform.get_processor().get_key_store(),
+                        )
+                        .await
+                        .is_ok(),
+                        None => false,
+                    };
+                let payments_response = if is_external_vault_payment {
+                    // External-vault-proxy payment: resume through the same proxy confirm
+                    // operation the normal confirm flow used (`PaymentExternalVaultProxyConfirm`
+                    // via `external_vault_proxy_for_payments_core`), instead of `payments_core`'s
+                    // `Authorize`/`SetupMandate` — mirrors the two branches below structurally.
+                    let payment_token = payment_attempt
+                        .payment_token
+                        .clone()
+                        .get_required_value("payment_token")
+                        .attach_printable(
+                            "payment_token missing on attempt for external vault 3DS webhook authorize",
+                        )?;
+                    // No `payment_method_data` is sent: `payment_token` alone points at the
+                    // temp-generic vault alias minted during pre-authentication, which
+                    // `PaymentExternalVaultProxyConfirm::get_trackers` resolves the same way the
+                    // AReq step already did (`read_external_vault_alias_from_temp_locker`) — this
+                    // payment used the inline `vault_data_card` shape at the original confirm,
+                    // not a saved `VaultCardTokenData` card, so there is nothing to fetch from
+                    // the modular PM service here.
+                    let external_vault_req = api::PaymentsRequest {
+                        payment_id: Some(api_models::payments::PaymentIdType::PaymentIntentId(
+                            payment_intent.payment_id.clone(),
+                        )),
+                        merchant_id: Some(processor_merchant_id.clone()),
+                        payment_token: Some(payment_token),
+                        payment_method: Some(common_enums::PaymentMethod::Card),
+                        payment_method_type: payment_attempt.payment_method_type,
+                        ..Default::default()
+                    };
+                    Box::pin(payments::external_vault_proxy_for_payments_core::<
+                        api::ExternalVaultProxy,
+                        api::PaymentsResponse,
+                        _,
+                        _,
+                        _,
+                        payments::PaymentData<api::ExternalVaultProxy>,
+                    >(
+                        state.clone(),
+                        req_state,
+                        platform.clone(),
+                        payment_intent.profile_id.clone(),
+                        payments::PaymentExternalVaultProxyConfirm,
+                        external_vault_req,
+                        services::api::AuthFlow::Merchant,
+                        payments::CallConnectorAction::Trigger,
+                        HeaderPayload::with_source(enums::PaymentSource::ExternalAuthenticator),
+                        None,
+                    ))
+                    .await?
+                } else if is_setup_mandate {
                     Box::pin(payments::payments_core::<
                         api::SetupMandate,
                         api::PaymentsResponse,
@@ -2435,6 +2522,7 @@ async fn disputes_incoming_webhook_flow(
                         );
                     }
                 }
+                .in_current_span()
             });
         }
 

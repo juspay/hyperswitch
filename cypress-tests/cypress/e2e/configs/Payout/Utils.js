@@ -5,13 +5,15 @@ import { connectorDetails as adyenPlatformConnectorDetails } from "./AdyenPlatfo
 import { connectorDetails as CommonConnectorDetails } from "./Commons.js";
 import { connectorDetails as wiseConnectorDetails } from "./Wise.js";
 import { connectorDetails as nomupayConnectorDetails } from "./Nomupay.js";
+import { connectorDetails as truelayerConnectorDetails } from "./Truelayer.js";
 
 const connectorDetails = {
   adyen: adyenConnectorDetails,
   adyenplatform: adyenPlatformConnectorDetails,
   commons: CommonConnectorDetails,
-  wise: wiseConnectorDetails,
   nomupay: nomupayConnectorDetails,
+  truelayer: truelayerConnectorDetails,
+  wise: wiseConnectorDetails,
 };
 
 export function getConnectorDetails(connectorId) {
@@ -95,6 +97,11 @@ export const CONNECTOR_LISTS = {
     // Payout recurring feature - only verified connectors
     PAYOUT_RECURRING: ["adyenplatform"],
     PAYOUT_LINK: ["wise"],
+    BANK_TRANSFER_OPEN_BANKING: ["truelayer"],
+    BANK_TRANSFER_OPEN_BANKING_INVALID_REFERENCE_FULFILL: [],
+    BANK_TRANSFER_SEPA: ["adyen", "adyenplatform", "nomupay", "wise"],
+    SAVED_CARD: ["adyen", "adyenplatform", "nomupay", "wise"],
+    SAVED_BANK_TRANSFER_SEPA: ["adyen", "adyenplatform", "nomupay", "wise"],
   },
 };
 
