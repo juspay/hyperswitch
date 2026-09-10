@@ -12,8 +12,8 @@ use router_env::{
 use self::{
     flows::{self as frm_flows, FeatureFrm},
     types::{
-        self as frm_core_types, ConnectorDetailsCore, FrmConfigsObject, FrmData,
-        FrmInfo, PaymentDetails, PaymentToFrmData,
+        self as frm_core_types, ConnectorDetailsCore, FrmConfigsObject, FrmData, FrmInfo,
+        PaymentDetails, PaymentToFrmData,
     },
 };
 use super::errors::{ConnectorErrorExt, RouterResponse};
