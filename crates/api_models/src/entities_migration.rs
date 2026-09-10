@@ -16,7 +16,8 @@ pub enum EntityMigrationStatus {
 pub struct EntityMigrationResult {
     pub merchant_id: common_utils::id_type::MerchantId,
     pub status: EntityMigrationStatus,
-    pub created_at: Option<String>,
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    pub created_at: Option<time::PrimitiveDateTime>,
     pub error_code: Option<String>,
     pub error_message: Option<String>,
 }

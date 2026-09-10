@@ -40,6 +40,8 @@ use self::settings::Tenant;
 use super::currency;
 #[cfg(feature = "dummy_connector")]
 use super::dummy_connector::*;
+#[cfg(all(feature = "olap", feature = "v1"))]
+use super::entities_migration;
 #[cfg(all(any(feature = "v1", feature = "v2"), feature = "oltp"))]
 use super::ephemeral_key::*;
 #[cfg(any(feature = "olap", feature = "oltp"))]
@@ -75,8 +77,7 @@ use super::{
 };
 #[cfg(feature = "v1")]
 use super::{
-    apple_pay_certificates_migration, blocklist, entities_migration, payment_link, subscription,
-    webhook_events,
+    apple_pay_certificates_migration, blocklist, payment_link, subscription, webhook_events,
 };
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::{configs::*, customers, metrics::PaymentMetricsContext, payments};

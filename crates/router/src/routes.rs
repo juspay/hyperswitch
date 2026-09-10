@@ -95,8 +95,8 @@ pub use self::app::PaymentMethodSession;
 pub use self::app::Proxy;
 pub use self::app::{
     ApiKeys, AppState, ApplePayCertificatesMigration, Authentication, Cache, CardIssuers, Cards,
-    Chat, Configs, ConnectorOnboarding, Customers, Disputes, Embedded, EntitiesMigration,
-    EphemeralKey, ExternalService, FeatureMatrix, Files, Forex, Gsm, Health, Hypersense, Mandates,
+    Configs, ConnectorOnboarding, Customers, Disputes, Embedded, EntitiesMigration, EphemeralKey,
+    ExternalService, FeatureMatrix, Files, Forex, Gsm, Health, Hypersense, Mandates,
     MerchantAccount, MerchantConnectorAccount, OfferEngine, Oidc, PaymentLink, PaymentMethods,
     Payments, Poll, ProcessTracker, ProcessTrackerDeprecated, Profile, ProfileAcquirer, ProfileNew,
     Refunds, Relay, RelayWebhooks, SdkConfig, SessionState, SuperpositionProxy,
