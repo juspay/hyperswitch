@@ -94,16 +94,6 @@ pub struct FrmConfigsObject {
     pub frm_preferred_flow_type: api_enums::FrmPreferredFlowTypes,
 }
 
-#[derive(Debug, Clone)]
-pub enum FrmEligibility {
-    NotApplicable,
-    Applicable {
-        frm_routing_algorithm: FrmRoutingAlgorithm,
-        profile_id: common_utils::id_type::ProfileId,
-        frm_configs: FrmConfigsObject,
-    },
-}
-
 #[derive(Debug, Deserialize, Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 #[serde_with::skip_serializing_none]
