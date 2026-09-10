@@ -105,8 +105,8 @@ pub use self::app::{
 };
 #[cfg(feature = "olap")]
 pub use self::app::{
-    Blocklist, HierarchicalResources, Organization, Routing, Subscription,
-    UnifiedConnectorService, Verify, WebhookEvents,
+    Blocklist, HierarchicalResources, Organization, Routing, Subscription, UnifiedConnectorService,
+    Verify, WebhookEvents,
 };
 #[cfg(feature = "payouts")]
 pub use self::app::{PayoutLink, Payouts};

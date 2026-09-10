@@ -108,9 +108,10 @@ impl<T: DatabaseStore> HierarchicalResourceInterface for RouterStore<T> {
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<domain::HierarchicalResource, Self::Error> {
         let conn = pg_accounts_connection_read(self).await?;
-        let resource = diesel_models::hierarchical_resource::HierarchicalResource::find_by_id(&conn, id)
-            .await
-            .map_err(|error| report!(Self::Error::from(error)))?;
+        let resource =
+            diesel_models::hierarchical_resource::HierarchicalResource::find_by_id(&conn, id)
+                .await
+                .map_err(|error| report!(Self::Error::from(error)))?;
         let identifier = domain::HierarchicalResource::identifier_for_diesel(&resource)
             .change_context(Self::Error::DecryptionError)?;
 
@@ -177,9 +178,13 @@ impl<T: DatabaseStore> HierarchicalResourceInterface for RouterStore<T> {
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<domain::HierarchicalResource, Self::Error> {
         let conn = pg_accounts_connection_write(self).await?;
-        let resource = diesel_models::hierarchical_resource::HierarchicalResource::update_by_id(&conn, id, update.into())
-            .await
-            .map_err(|error| report!(Self::Error::from(error)))?;
+        let resource = diesel_models::hierarchical_resource::HierarchicalResource::update_by_id(
+            &conn,
+            id,
+            update.into(),
+        )
+        .await
+        .map_err(|error| report!(Self::Error::from(error)))?;
         let identifier = domain::HierarchicalResource::identifier_for_diesel(&resource)
             .change_context(Self::Error::DecryptionError)?;
 

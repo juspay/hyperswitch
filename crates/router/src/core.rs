@@ -46,6 +46,7 @@ pub mod payments;
 #[cfg(feature = "v2")]
 pub mod split_payments;
 
+pub mod hierarchical_resources;
 #[cfg(feature = "payouts")]
 pub mod payout_link;
 #[cfg(feature = "payouts")]
@@ -60,7 +61,6 @@ pub mod refunds;
 #[cfg(feature = "v2")]
 pub mod refunds_v2;
 pub mod relay;
-pub mod hierarchical_resources;
 #[cfg(feature = "v2")]
 pub mod revenue_recovery;
 #[cfg(feature = "v2")]

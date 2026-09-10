@@ -34,6 +34,12 @@ use crate::{
     cards_info::*,
     disputes::*,
     files::*,
+    hierarchical_resources::{
+        GenerateHierarchicalResourceRequest, GenerateHierarchicalResourceResponse,
+        HierarchicalResourceSummary, LinkHierarchicalResourceRequest,
+        LinkHierarchicalResourceResponse, ListHierarchicalResourcesRequest,
+        ListHierarchicalResourcesResponse, UploadCertificateRequest, UploadCertificateResponse,
+    },
     mandates::*,
     merchant_connector_webhook_management::*,
     organization::{
@@ -42,12 +48,6 @@ use crate::{
     },
     payment_methods::*,
     payments::*,
-    hierarchical_resources::{
-        GenerateHierarchicalResourceRequest, GenerateHierarchicalResourceResponse,
-        HierarchicalResourceSummary, LinkHierarchicalResourceRequest,
-        LinkHierarchicalResourceResponse, ListHierarchicalResourcesRequest,
-        ListHierarchicalResourcesResponse, UploadCertificateRequest, UploadCertificateResponse,
-    },
     user::{UserKeyTransferRequest, UserTransferKeyResponse},
     verifications::*,
 };

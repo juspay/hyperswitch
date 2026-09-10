@@ -16,6 +16,7 @@ pub mod disputes;
 pub mod errors;
 pub mod ext_traits;
 pub mod gsm;
+pub mod hierarchical_resource;
 pub mod invoice;
 pub mod mandates;
 pub mod master_key;
@@ -31,7 +32,6 @@ pub mod payouts;
 pub mod platform;
 pub mod refunds;
 pub mod relay;
-pub mod hierarchical_resource;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 pub mod revenue_recovery;
 pub mod router_data;
