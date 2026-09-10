@@ -3963,6 +3963,7 @@ mod tests {
             color_icon_card_cvc_error: None,
             show_merchant_name: None,
             payment_methods_separator_text: None,
+            redirect_delay_seconds: None,
         };
         assert!(safe_request.validate().is_ok());
 
