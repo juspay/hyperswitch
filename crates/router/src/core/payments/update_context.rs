@@ -68,6 +68,35 @@ pub fn integration_type_from_headers(
     integration_type
 }
 
+/// Rejects a request whose `X-Integration-Type` header does not match the integration the
+/// merchant account is configured for.
+///
+/// A `client_and_server` account may send either value. A `client` or `server` account must send
+/// its own; an absent header reads as `client`, so a `server` account has to send the header on
+/// every request this check guards.
+pub fn validate_integration_type(
+    header: IntegrationType,
+    merchant: common_enums::MerchantIntegrationType,
+) -> errors::RouterResult<()> {
+    let allowed = match merchant {
+        common_enums::MerchantIntegrationType::ClientAndServer => true,
+        common_enums::MerchantIntegrationType::Client => !header.is_server(),
+        common_enums::MerchantIntegrationType::Server => header.is_server(),
+    };
+
+    common_utils::fp_utils::when(!allowed, || {
+        Err(error_stack::report!(
+            errors::ApiErrorResponse::InvalidRequestData {
+                message: format!(
+                    "`{}` header value `{}` does not match the merchant integration type `{merchant}`",
+                    consts::X_INTEGRATION_TYPE,
+                    header.as_header_value()
+                ),
+            }
+        ))
+    })
+}
+
 /// Builds the error payload a degraded section carries, from the same error the standalone
 /// endpoint would have surfaced.
 fn section_error(

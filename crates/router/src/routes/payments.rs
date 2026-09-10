@@ -943,6 +943,11 @@ pub async fn payments_update(
         move |state, auth: auth::AuthenticationData, req, req_state| {
             let header_payload = header_payload.clone();
             async move {
+                update_context::validate_integration_type(
+                    integration_type,
+                    auth.platform.get_processor().get_account().integration_type,
+                )?;
+
                 let profile_id = auth.profile.map(|profile| profile.get_id().clone());
 
                 // Only the enrichment path needs these afterwards. A client update — the vast

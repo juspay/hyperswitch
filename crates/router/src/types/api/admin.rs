@@ -141,6 +141,7 @@ impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
             product_type: item.product_type,
             merchant_account_type: item.merchant_account_type,
             network_tokenization_credentials,
+            integration_type: item.integration_type,
         })
     }
 }

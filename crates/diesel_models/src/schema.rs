@@ -984,6 +984,8 @@ diesel::table! {
         #[max_length = 128]
         fingerprint_secret -> Nullable<Varchar>,
         offer_engine_config -> Nullable<Bytea>,
+        #[max_length = 32]
+        integration_type -> Nullable<Varchar>,
     }
 }
 

@@ -2001,6 +2001,7 @@ mod tests {
             network_tokenization_credentials: None,
             fingerprint_secret: None,
             offer_engine_config: None,
+            integration_type: common_enums::MerchantIntegrationType::default(),
         });
         let merchant_account = state
             .store
