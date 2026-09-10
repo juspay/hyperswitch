@@ -19,7 +19,6 @@ use utoipa::ToSchema;
 
 use super::operation::BoxedFraudCheckOperation;
 use crate::types::{
-    api::routing::FrmRoutingAlgorithm,
     domain::MerchantAccount,
     storage::{enums as storage_enums, fraud_check::FraudCheck},
     PaymentAddress,

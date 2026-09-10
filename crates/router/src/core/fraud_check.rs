@@ -12,7 +12,7 @@ use router_env::{
 use self::{
     flows::{self as frm_flows, FeatureFrm},
     types::{
-        self as frm_core_types, ConnectorDetailsCore, FrmConfigsObject, FrmData, FrmEligibility,
+        self as frm_core_types, ConnectorDetailsCore, FrmConfigsObject, FrmData,
         FrmInfo, PaymentDetails, PaymentToFrmData,
     },
 };
@@ -73,6 +73,98 @@ where
 
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
+pub async fn call_frm_service<D: Clone, F, Req, OperationData>(
+    state: &SessionState,
+    payment_data: &OperationData,
+    frm_data: &mut FrmData,
+    platform: &domain::Platform,
+) -> RouterResult<oss_types::RouterData<F, Req, frm_types::FraudCheckResponseData>>
+where
+    F: Send + Clone,
+
+    OperationData: payments::OperationSessionGetters<D> + Send + Sync + Clone,
+
+    // To create connector flow specific interface data
+    FrmData: ConstructFlowSpecificData<F, Req, frm_types::FraudCheckResponseData>,
+    oss_types::RouterData<F, Req, frm_types::FraudCheckResponseData>: FeatureFrm<F, Req> + Send,
+
+    // To construct connector flow specific api
+    dyn Connector: services::api::ConnectorIntegration<F, Req, frm_types::FraudCheckResponseData>,
+{
+    let merchant_connector_account = payments::construct_profile_id_and_get_mca(
+        state,
+        platform.get_processor(),
+        payment_data,
+        &frm_data.connector_details.connector_name,
+        None,
+        false,
+    )
+    .await?;
+
+    frm_data
+        .payment_attempt
+        .connector_transaction_id
+        .clone_from(&payment_data.get_payment_attempt().connector_transaction_id);
+
+    let mut router_data = frm_data
+        .construct_router_data(
+            state,
+            &frm_data.connector_details.connector_name,
+            platform.get_processor(),
+            &merchant_connector_account,
+            None,
+            None,
+            None,
+            None,
+        )
+        .await?;
+
+    router_data.status = payment_data.get_payment_attempt().status;
+    if matches!(
+        frm_data.fraud_check.frm_transaction_type,
+        FraudCheckType::PreFrm
+    ) && matches!(
+        frm_data.fraud_check.last_step,
+        FraudCheckLastStep::CheckoutOrSale
+    ) {
+        frm_data.fraud_check.last_step = FraudCheckLastStep::TransactionOrRecordRefund
+    }
+
+    let connector =
+        FraudCheckConnectorData::get_connector_by_name(&frm_data.connector_details.connector_name)?;
+    let router_data_res = router_data
+        .decide_frm_flows(
+            state,
+            &connector,
+            payments::CallConnectorAction::Trigger,
+            platform,
+        )
+        .await?;
+
+    Ok(router_data_res)
+}
+
+#[cfg(feature = "v2")]
+pub async fn should_call_frm<F, D>(
+    _platform: &domain::Platform,
+    _payment_data: &D,
+    _state: &SessionState,
+) -> RouterResult<(
+    bool,
+    Option<FrmRoutingAlgorithm>,
+    Option<common_utils::id_type::ProfileId>,
+    Option<FrmConfigsObject>,
+)>
+where
+    F: Send + Clone,
+    D: payments::OperationSessionGetters<F> + Send + Sync + Clone,
+{
+    // Frm routing algorithm is not present in the merchant account
+    // it has to be fetched from the business profile
+    todo!()
+}
+
+#[cfg(feature = "v1")]
 pub async fn should_call_frm<F, D>(
     platform: &domain::Platform,
     payment_data: &D,
