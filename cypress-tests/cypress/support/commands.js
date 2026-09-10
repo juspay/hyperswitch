@@ -4753,10 +4753,9 @@ Cypress.Commands.add(
           ) {
             expect(response.body.payment_method_data, "payment_method_data").to
               .not.be.empty;
-            expect(
-              response.body.payment_method_data?.card?.auth_code,
-              "payment_method_data.card.auth_code"
-            ).to.be.a("string").and.not.be.empty;
+            // auth_code is populated only in the authorize/confirm response from
+            // the connector response; it is not returned in subsequent
+            // retrieve (GET /payments) responses, so skip asserting it here.
           }
 
           if (expectedIntentStatus) {
