@@ -35,8 +35,8 @@ use super::aci_result_codes::{FAILURE_CODES, PENDING_CODES, SUCCESSFUL_CODES};
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{
-        self, CardData, NetworkTokenData as NetworkTokenDataTrait, PaymentsAuthorizeRequestData,
-        PhoneDetailsData, RouterData as _,
+        self, CardData, CardIssuer, NetworkTokenData as NetworkTokenDataTrait,
+        PaymentsAuthorizeRequestData, PhoneDetailsData, RouterData as _,
     },
 };
 
@@ -569,6 +569,49 @@ fn get_aci_payment_brand(
     }
 }
 
+fn card_issuer_to_payment_brand(card_issuer: CardIssuer) -> Result<PaymentBrand, Error> {
+    match card_issuer {
+        CardIssuer::Visa => Ok(PaymentBrand::Visa),
+        CardIssuer::Master => Ok(PaymentBrand::Mastercard),
+        CardIssuer::AmericanExpress => Ok(PaymentBrand::AmericanExpress),
+        CardIssuer::JCB => Ok(PaymentBrand::Jcb),
+        CardIssuer::DinersClub => Ok(PaymentBrand::DinersClub),
+        CardIssuer::Discover => Ok(PaymentBrand::Discover),
+        CardIssuer::UnionPay => Ok(PaymentBrand::UnionPay),
+        CardIssuer::Maestro => Ok(PaymentBrand::Maestro),
+        CardIssuer::CarteBlanche | CardIssuer::CartesBancaires => {
+            Err(errors::ConnectorError::NotSupported {
+                message: format!("Card issuer {card_issuer} is not supported by ACI"),
+                connector: "ACI",
+            })?
+        }
+    }
+}
+
+/// ACI has made `paymentBrand` a mandatory field on their Payments API. When Hyperswitch
+/// does not receive an explicit card network from the request, fall back to detecting it
+/// from the card's BIN instead of silently omitting the field, which ACI rejects outright.
+///
+/// Uses `CardIssuer::from_isin`, which resolves overlapping BIN ranges (e.g. the
+/// Discover/UnionPay `622126`-`625925` range) via an explicitly ordered range list, rather
+/// than `CardData::get_card_issuer`, whose `HashMap`-backed lookup has no defined
+/// precedence between overlapping ranges and can misclassify a real card.
+fn get_aci_card_payment_brand(card_data: &Card) -> Result<PaymentBrand, Error> {
+    match card_data.card_network.clone() {
+        Some(card_network) => get_aci_payment_brand(Some(card_network), false),
+        None => {
+            let isin = card_data.card_number.get_card_isin();
+            CardIssuer::from_isin(&isin)
+                .ok_or_else(|| {
+                    report!(errors::ConnectorError::MissingRequiredField {
+                        field_name: "card.card_network".into(),
+                    })
+                })
+                .and_then(card_issuer_to_payment_brand)
+        }
+    }
+}
+
 fn parse_wallet_card_network(network: &str) -> Option<PaymentBrand> {
     match network.to_lowercase().as_str() {
         "visa" => Some(PaymentBrand::Visa),
@@ -646,7 +689,7 @@ impl TryFrom<(Card, Option<Secret<String>>)> for PaymentDetails {
     ) -> Result<Self, Self::Error> {
         let card_expiry_year = card_data.get_expiry_year_4_digit();
 
-        let payment_brand = get_aci_payment_brand(card_data.card_network, false).ok();
+        let payment_brand = Some(get_aci_card_payment_brand(&card_data)?);
 
         Ok(Self::AciCard(Box::new(CardDetails {
             card_number: card_data.card_number,
@@ -1237,19 +1280,18 @@ impl TryFrom<&RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponse
 
         let (payment_brand, payment_details) = match &item.request.payment_method_data {
             PaymentMethodData::Card(card_data) => {
-                let brand = get_aci_payment_brand(card_data.card_network.clone(), false).ok();
-                match brand.as_ref() {
-                    Some(PaymentBrand::Visa)
-                    | Some(PaymentBrand::Mastercard)
-                    | Some(PaymentBrand::AmericanExpress) => (),
-                    Some(_) => {
+                let brand = get_aci_card_payment_brand(card_data)?;
+                match brand {
+                    PaymentBrand::Visa
+                    | PaymentBrand::Mastercard
+                    | PaymentBrand::AmericanExpress => (),
+                    _ => {
                         return Err(errors::ConnectorError::NotSupported {
                             message: "Payment method not supported for mandate setup".to_string(),
                             connector: "ACI",
                         }
                         .into());
                     }
-                    None => (),
                 };
 
                 let details = PaymentDetails::AciCard(Box::new(CardDetails {
@@ -1262,10 +1304,10 @@ impl TryFrom<&RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponse
                             field_name: "card_holder_name".into(),
                         },
                     )?,
-                    payment_brand: brand.clone(),
+                    payment_brand: Some(brand.clone()),
                 }));
 
-                (brand, details)
+                (Some(brand), details)
             }
             _ => {
                 return Err(errors::ConnectorError::NotSupported {
@@ -1951,4 +1993,137 @@ pub struct AciWebhookNotification {
     pub event_type: AciWebhookEventType,
     pub action: Option<AciWebhookAction>,
     pub payload: serde_json::Value,
+}
+
+#[cfg(test)]
+mod test_get_aci_card_payment_brand {
+    use std::str::FromStr;
+
+    use cards::CardNumber;
+    use common_enums::enums;
+    use hyperswitch_domain_models::payment_method_data::Card;
+
+    use super::{card_issuer_to_payment_brand, get_aci_card_payment_brand, PaymentBrand};
+    use crate::utils::CardIssuer;
+
+    fn card_with_number(card_number: &str) -> Card {
+        Card {
+            card_number: CardNumber::from_str(card_number).expect("valid test card number"),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn uses_explicit_card_network_when_present() {
+        let mut card_data = card_with_number("4000000000000002");
+        card_data.card_network = Some(enums::CardNetwork::Mastercard);
+
+        let brand = get_aci_card_payment_brand(&card_data).expect("brand should be resolved");
+
+        assert_eq!(brand, PaymentBrand::Mastercard);
+    }
+
+    #[test]
+    fn falls_back_to_bin_detection_for_visa_when_network_is_absent() {
+        let card_data = card_with_number("4000000000000002");
+
+        let brand = get_aci_card_payment_brand(&card_data).expect("brand should be resolved");
+
+        assert_eq!(brand, PaymentBrand::Visa);
+    }
+
+    #[test]
+    fn falls_back_to_bin_detection_for_mastercard_when_network_is_absent() {
+        let card_data = card_with_number("5500000000000004");
+
+        let brand = get_aci_card_payment_brand(&card_data).expect("brand should be resolved");
+
+        assert_eq!(brand, PaymentBrand::Mastercard);
+    }
+
+    #[test]
+    fn falls_back_to_bin_detection_for_amex_when_network_is_absent() {
+        let card_data = card_with_number("340000000000009");
+
+        let brand = get_aci_card_payment_brand(&card_data).expect("brand should be resolved");
+
+        assert_eq!(brand, PaymentBrand::AmericanExpress);
+    }
+
+    #[test]
+    fn resolves_the_discover_unionpay_overlap_range_to_discover() {
+        // 622126-625925 is a carve-out inside UnionPay's broad 62-prefix range that
+        // belongs to Discover. Regressing to an unordered/HashMap-based BIN lookup
+        // would make this non-deterministic across process restarts.
+        let card_data = card_with_number("6221260000000000");
+
+        let brand = get_aci_card_payment_brand(&card_data).expect("brand should be resolved");
+
+        assert_eq!(brand, PaymentBrand::Discover);
+    }
+
+    #[test]
+    fn falls_back_to_bin_detection_for_unionpay_outside_the_discover_carveout() {
+        let card_data = card_with_number("6200000000000005");
+
+        let brand = get_aci_card_payment_brand(&card_data).expect("brand should be resolved");
+
+        assert_eq!(brand, PaymentBrand::UnionPay);
+    }
+
+    #[test]
+    fn errors_instead_of_omitting_the_field_when_bin_is_unrecognized() {
+        let card_data = card_with_number("1000000000000008");
+
+        let result = get_aci_card_payment_brand(&card_data);
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn errors_for_card_issuers_aci_does_not_support() {
+        assert!(card_issuer_to_payment_brand(CardIssuer::CarteBlanche).is_err());
+        assert!(card_issuer_to_payment_brand(CardIssuer::CartesBancaires).is_err());
+    }
+
+    #[test]
+    fn errors_for_carte_blanche_bin_instead_of_misclassifying_as_diners_club() {
+        // 389-prefixed BINs match `CardIssuer::CarteBlanche` ahead of the broader,
+        // overlapping Diners Club range in the ordered ISIN table (by design — see
+        // utils.rs). ACI's PaymentBrand has no Carte Blanche value, so this
+        // intentionally errors rather than silently reclassifying the card as Diners
+        // Club, which would risk sending ACI a brand that doesn't match the card.
+        // This isn't a regression: without an explicit network, such a card already
+        // failed before this fix (via the old swallowed-error path) — it just failed
+        // later and less clearly, inside ACI itself.
+        let card_data = card_with_number("38900000000007");
+
+        let result = get_aci_card_payment_brand(&card_data);
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn card_issuer_to_payment_brand_maps_all_supported_issuers() {
+        assert_eq!(
+            card_issuer_to_payment_brand(CardIssuer::JCB).expect("jcb"),
+            PaymentBrand::Jcb
+        );
+        assert_eq!(
+            card_issuer_to_payment_brand(CardIssuer::DinersClub).expect("diners"),
+            PaymentBrand::DinersClub
+        );
+        assert_eq!(
+            card_issuer_to_payment_brand(CardIssuer::Discover).expect("discover"),
+            PaymentBrand::Discover
+        );
+        assert_eq!(
+            card_issuer_to_payment_brand(CardIssuer::UnionPay).expect("unionpay"),
+            PaymentBrand::UnionPay
+        );
+        assert_eq!(
+            card_issuer_to_payment_brand(CardIssuer::Maestro).expect("maestro"),
+            PaymentBrand::Maestro
+        );
+    }
 }
