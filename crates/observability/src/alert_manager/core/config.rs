@@ -19,13 +19,13 @@ use diesel_models::{
 use error_stack::report;
 
 use crate::{
-    errors::{ObservabilityApiResult, ObservabilityError},
-    state::AppState,
-    types::config::{
+    alert_manager::types::config::{
         AlertDefinitionCreateRequest, AlertDefinitionListResponse, AlertDefinitionResponse,
         AlertDefinitionUpdateRequest, AlertEnablementListResponse, AlertEnablementResponse,
         AlertEnablementUpsertRequest,
     },
+    errors::{ObservabilityApiResult, ObservabilityError},
+    state::AppState,
 };
 
 /// Escalate a storage failure, keeping the report and everything attached to it.

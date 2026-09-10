@@ -47,13 +47,11 @@
 //! message looks like, in whatever markup its destination reads. `body` is HTML, because both email
 //! backends in `external_services` hardcode an HTML body and there is no plain-text path to reach.
 //!
-//! ## The configuration resources are next door
+//! ## The alert manager's contract is a separate one
 //!
 //! Everything above describes the notify routes, whose whole contract is one message going out.
-//! The alert *configuration* resources have a different shape and their own reasons, and live in
-//! [`config`].
-
-pub mod config;
+//! The alert *configuration* resources have a different shape and their own reasons, and live with
+//! the rest of that concern in [`crate::alert_manager::types`].
 
 use actix_multipart::form::{bytes::Bytes, text::Text, MultipartForm};
 use hyperswitch_masking::Secret;

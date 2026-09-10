@@ -21,7 +21,7 @@ use crate::{
         email::{EmailNotifier, EmailServiceNotifier},
         Registry,
     },
-    errors::ConfigurationError,
+    errors::{ConfigurationError, ObservabilityError},
     logger, secrets_transformers,
     settings::{ChatDestination, ChatSettings, DatabaseSettings, EmailSettings, Settings},
 };

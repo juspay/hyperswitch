@@ -344,10 +344,17 @@ unverified sender all arrive as one variant — so email only ever reports `deli
 ## Layout
 
 ```
-routes/   the route tree and handlers; deserialize, call core, serialize
-core/     what one request does: resolve a destination, or read and write a config row
-domain/   what delivering an alert is: the notifier traits and the types they exchange
+routes/          the route tree, and the notifier's handlers
+core/            what one notify request does: resolve a destination and deliver
+domain/          what delivering an alert is: the notifier traits and the types they exchange
+alert_manager/   the alert manager's own state, with its own core/, routes/ and types/
 ```
+
+The two concerns are separated by that last directory rather than by a filename. Everything outside
+`alert_manager/` delivers a message and keeps nothing; everything inside it reads and writes a
+configuration row and sends nothing. They share the HTTP server and the database pool, and nothing
+else. The one deliberate exception is `routes/app.rs`, which holds *every* route this service
+serves — both concerns' — so the tree and its guards are one file rather than a search.
 
 Rows and their queries are not here at all: `alerts_info` and `merchants_alert_external_config` are
 modelled in `diesel_models::observability`, alongside every other table this database owns, so the

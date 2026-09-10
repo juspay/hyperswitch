@@ -1,9 +1,9 @@
 //! Handlers for the alert configuration routes. The route tree that mounts them is in
 //! [`crate::routes::app`].
 //!
-//! Each handler deserializes, calls [`crate::core::config`], and converts the outcome into a
-//! response — the same shape as [`crate::routes::notify`], down to the required authentication
-//! argument on [`crate::services::server_wrap`].
+//! Each handler deserializes, calls [`crate::alert_manager::core::config`], and converts the
+//! outcome into a response — the same shape as [`crate::routes::notify`], down to the required
+//! authentication argument on [`crate::services::server_wrap`].
 //!
 //! Reads pass `()` as the payload. `server_wrap` takes one so that authentication cannot be
 //! forgotten, and a route with no body still has to go through it; the unit is the honest spelling
@@ -12,11 +12,15 @@
 use actix_web::{web, HttpRequest, HttpResponse};
 
 use crate::{
-    auth, core, services,
-    state::AppState,
-    types::config::{
-        AlertDefinitionCreateRequest, AlertDefinitionUpdateRequest, AlertEnablementUpsertRequest,
+    alert_manager::{
+        core,
+        types::config::{
+            AlertDefinitionCreateRequest, AlertDefinitionUpdateRequest,
+            AlertEnablementUpsertRequest,
+        },
     },
+    auth, services,
+    state::AppState,
 };
 
 /// `GET /alerts/config/definitions`.

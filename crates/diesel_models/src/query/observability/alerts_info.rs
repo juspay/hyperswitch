@@ -26,11 +26,6 @@ impl AlertsInfo {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(conn, dsl::id.eq(id)).await
     }
 
-    /// The definition for a name and product, if there is one.
-    ///
-    /// Optional rather than a not-found error: the caller asking is checking whether an alert
-    /// exists before writing an enablement row for it, and "no" is an answer rather than a
-    /// failure.
     pub async fn find_optional_by_name_and_product(
         conn: &DatabaseConnectionWithContext<'_>,
         name: String,
@@ -43,15 +38,6 @@ impl AlertsInfo {
         .await
     }
 
-    /// Every definition, for the alert manager's per-run read and for the config screen's list.
-    ///
-    /// Unpaginated. There is one row per detector per product — tens of them, not thousands — and
-    /// a page cursor would be a second thing to get right for a list that fits on a screen.
-    ///
-    /// The predicate is `name IS NOT NULL`, which every row satisfies because the column is `NOT
-    /// NULL`. `generic_filter` requires a predicate and this is the honest spelling of "all of
-    /// them"; a comparison against a sentinel id would exclude a real row the day one happened to
-    /// match it.
     pub async fn list(conn: &DatabaseConnectionWithContext<'_>) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
             conn,

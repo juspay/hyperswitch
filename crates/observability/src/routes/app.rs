@@ -2,9 +2,10 @@ use actix_multipart::form::MultipartFormConfig;
 use actix_web::{web, Scope};
 
 use crate::{
+    alert_manager::routes::config,
     errors::types::{ApiError, ApiErrorResponse},
     logger,
-    routes::{config, health_check, notify},
+    routes::{health_check, notify},
     state::AppState,
 };
 

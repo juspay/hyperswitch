@@ -21,8 +21,6 @@ pub(super) trait CompositeKey {
 mod composite_key {
     use super::{observability_schema, schema, schema_v2, CompositeKey};
 
-    // The enablement table is keyed on (name, product). `name` is the local unique key: a product
-    // is a family many alerts belong to, so it identifies nothing on its own.
     impl CompositeKey
         for <observability_schema::merchants_alert_external_config::table as diesel::Table>::PrimaryKey
     {
@@ -141,8 +139,7 @@ impl_get_primary_key!(
     schema_v2::refund::table,
     schema_v2::customers::table,
     schema_v2::payment_attempt::table,
-    // observability tables, which are version-agnostic: they live in their own database and have
-    // no v1/v2 flavour
+    // observability tables: their own database, no v1/v2 flavour
     observability_schema::alerts_info::table
 );
 
@@ -162,8 +159,7 @@ macro_rules! impl_get_primary_key_for_composite {
 }
 
 impl_get_primary_key_for_composite!(
-    // observability tables, which are version-agnostic: they live in their own database and have
-    // no v1/v2 flavour
+    // observability tables: their own database, no v1/v2 flavour
     observability_schema::merchants_alert_external_config::table,
     schema::payment_attempt::table,
     schema::refund::table,
