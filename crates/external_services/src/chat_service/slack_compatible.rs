@@ -48,6 +48,14 @@ const UNSPECIFIED_ERROR_CODE: &str = "unspecified";
 /// here even though nothing else in a banner needs cutting.
 const HEADER_MAX_CHARS: usize = 150;
 
+/// The cap a `section` block puts on its text.
+///
+/// Much lower than any backend's message cap — 10,000 on Xyne, 40,000 on Slack — because it applies
+/// per block rather than per message. A body that fits a plain message can therefore be too long for
+/// a bannered one, and an oversized block is rejected rather than trimmed, so it must be cut here or
+/// the banner turns a deliverable alert into a dropped one.
+const SECTION_MAX_CHARS: usize = 3_000;
+
 /// Request headers selected by the concrete backend.
 #[derive(Clone, Debug)]
 pub(super) struct EndpointHeaders {
@@ -334,20 +342,24 @@ impl Endpoint {
             })
             .transpose()?;
 
-        let body = truncate(message.text(), self.max_message_chars);
-
         // A banner moves the body inside the attachment, because that is the only place a
         // Slack-compatible backend draws the coloured rail: text left at the top level renders
         // above the rail as a second, unframed copy of the same message.
+        //
+        // The cut is taken against the block's own limit rather than the message's, and only once,
+        // so a body that has already been trimmed to fit is not trimmed again to a marker.
         let (text, attachments) = match message.banner() {
-            None => (body, None),
+            None => (truncate(message.text(), self.max_message_chars), None),
             Some(banner) => (
                 String::new(),
                 Some(vec![Attachment {
                     color: attachment_color(banner.severity()),
                     blocks: vec![
                         Block::header(truncate(banner.heading(), HEADER_MAX_CHARS)),
-                        Block::section(body),
+                        Block::section(truncate(
+                            message.text(),
+                            self.max_message_chars.min(SECTION_MAX_CHARS),
+                        )),
                     ],
                 }]),
             ),
@@ -1033,6 +1045,31 @@ mod tests {
         let heading = &payload.attachments.as_ref().unwrap()[0].blocks[0].text.text;
         assert!(heading.chars().count() <= HEADER_MAX_CHARS);
         assert!(heading.ends_with(TRUNCATION_MARKER));
+    }
+
+    /// A section block caps far below any backend's message cap, and an oversized one is rejected
+    /// rather than trimmed — so without this a long alert that used to arrive as plain text would be
+    /// dropped outright the moment it gained a banner.
+    #[test]
+    fn a_long_body_is_cut_to_the_section_limit_when_bannered() {
+        let endpoint = endpoint("https://example.com", "/", "token").unwrap();
+        let long = "x".repeat(TEST_MAX_MESSAGE_CHARS - 1);
+
+        let bannered = endpoint
+            .build_payload(
+                &ChatMessage::new(&long).with_banner(ChatBanner::new("h", ChatSeverity::Critical)),
+            )
+            .unwrap();
+        let section = &bannered.attachments.as_ref().unwrap()[0].blocks[1]
+            .text
+            .text;
+        assert!(section.chars().count() <= SECTION_MAX_CHARS);
+        assert!(section.ends_with(TRUNCATION_MARKER));
+
+        // The same body without a banner keeps the far larger message cap: the tighter limit is a
+        // property of the block, not of the message.
+        let plain = endpoint.build_payload(&ChatMessage::new(&long)).unwrap();
+        assert_eq!(plain.text.chars().count(), long.chars().count());
     }
 
     #[test]

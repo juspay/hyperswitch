@@ -74,8 +74,12 @@ pub struct ChatNotifyRequest {
     ///
     /// Sent with [`severity`](Self::severity) or not at all: the two make one banner, and a
     /// destination that cannot draw one delivers the message without it.
+    ///
+    /// Masked for the same reason [`text`](Self::text) is. A heading is written by the same caller
+    /// out of the same material — "zero SR on `merchant_1234`" is a perfectly natural one — so
+    /// leaving it bare would put in the logs exactly what masking the body keeps out of them.
     #[serde(default)]
-    pub heading: Option<String>,
+    pub heading: Option<Secret<String>>,
 
     /// How urgent the message is, which decides the banner's colour.
     #[serde(default)]
@@ -361,7 +365,13 @@ mod tests {
         }))
         .unwrap();
 
-        assert_eq!(request.heading.as_deref(), Some("🔴 SEV1 · Zero SR"));
+        assert_eq!(
+            request
+                .heading
+                .as_ref()
+                .map(hyperswitch_masking::PeekInterface::peek),
+            Some(&"🔴 SEV1 · Zero SR".to_owned())
+        );
         assert_eq!(request.severity, Some(NotifySeverity::Critical));
     }
 
@@ -408,8 +418,8 @@ mod tests {
         let chat = ChatNotifyRequest {
             text: "acquirer_declined for merchant_1234".to_owned().into(),
             reply_to: None,
-            heading: None,
-            severity: None,
+            heading: Some("zero SR on merchant_1234".to_owned().into()),
+            severity: Some(NotifySeverity::Critical),
         };
         assert!(!format!("{chat:?}").contains("merchant_1234"));
 

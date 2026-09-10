@@ -290,6 +290,7 @@ impl ChatNotifier for LogChatNotifier {
             destination = %self.destination,
             chars = notification.text.peek().chars().count(),
             threaded = notification.reply_to.is_some(),
+            bannered = notification.banner.is_some(),
             "not delivered: this destination is configured as `log`"
         );
 

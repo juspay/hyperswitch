@@ -8,7 +8,7 @@
 
 use error_stack::report;
 use external_services::chat_service::ChatBanner;
-use hyperswitch_masking::PeekInterface;
+use hyperswitch_masking::{ExposeInterface, PeekInterface};
 
 use crate::{
     domain::notifier::{
@@ -42,7 +42,7 @@ pub async fn notify_chat(
             banner: request
                 .heading
                 .zip(request.severity)
-                .map(|(heading, severity)| ChatBanner::new(heading, severity.into())),
+                .map(|(heading, severity)| ChatBanner::new(heading.expose(), severity.into())),
         })
         .await
 }
