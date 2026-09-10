@@ -478,6 +478,8 @@ pub mod superposition {
     /// Trigger PM modular backward compatibility inline configuration key
     pub const SHOULD_TRIGGER_BACKWARDS_COMPATIBILITY_INLINE: &str =
         "system.should_trigger_backwards_compatibility_inline";
+    /// Payment method integration type configuration key
+    pub const PAYMENT_METHOD_INTEGRATION_TYPE: &str = "system.payment_method_integration_type";
     /// Trigger fingerprint migration configuration key
     pub const SHOULD_TRIGGER_FINGERPRINT_MIGRATION: &str =
         "vaulting.should_trigger_fingerprint_migration";
