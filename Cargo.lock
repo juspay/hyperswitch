@@ -10044,9 +10044,9 @@ checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 
 [[package]]
 name = "superposition_core"
-version = "0.115.5"
+version = "0.117.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fed4c2aa7224ad8d848bc2266cc8f5908667ac9caf99c3cf6da97b76efa25ef6"
+checksum = "9dc05c7fd97978d8eeaba0a008c0b5719c140acb154d82fa649a11269944a28b"
 dependencies = [
  "bigdecimal 0.3.1",
  "blake3",
@@ -10065,9 +10065,9 @@ dependencies = [
 
 [[package]]
 name = "superposition_derives"
-version = "0.115.5"
+version = "0.117.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e1f5f16481c2a0e4654ccf2c7a834991f1ac2cd189820f4e8a6d26ddb86c4af"
+checksum = "87fab04b78903f80cdca9c6a3c4f55c8208fca6787b75ef4e3c929ada0ad6a69"
 dependencies = [
  "proc-macro-crate 3.2.0",
  "quote",
@@ -10076,9 +10076,9 @@ dependencies = [
 
 [[package]]
 name = "superposition_provider"
-version = "0.115.5"
+version = "0.117.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "be01f2952ff92c8ea21e57f7b8615491863b07e5ddc830c59f3e9fdcbb298325"
+checksum = "413b63606fe249662f1474984ca370052dc4e4f047fc779f44a1360dc2dbd13d"
 dependencies = [
  "async-trait",
  "aws-smithy-types",
@@ -10101,9 +10101,9 @@ dependencies = [
 
 [[package]]
 name = "superposition_sdk"
-version = "0.115.5"
+version = "0.117.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "732c84601c078655a4ee6f7888ad4f6a1fef3e619027de03d94837c4df881094"
+checksum = "2fa6f6130e7e6da746825f56b5581d005fc3d46ab76801c18cb684ae9340775d"
 dependencies = [
  "aws-smithy-async",
  "aws-smithy-http 0.62.1",
@@ -10119,9 +10119,9 @@ dependencies = [
 
 [[package]]
 name = "superposition_types"
-version = "0.115.5"
+version = "0.117.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9f9c04634344b80b2e0ebb50b5c4f752fd636dabf98902fe5986a1121be9d2fe"
+checksum = "563e7def3ffb8a0c1810afad39d8d7c4c72812cfd7313191dce38297668987fb"
 dependencies = [
  "bigdecimal 0.3.1",
  "chrono",
