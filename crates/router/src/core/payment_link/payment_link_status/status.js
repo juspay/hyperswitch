@@ -332,38 +332,47 @@ function renderStatusDetails(paymentDetails) {
       statusRedirectTextNode instanceof HTMLDivElement &&
       typeof paymentDetails.return_url === "string"
     ) {
-      var timeout = 5,
+      var timeout =
+        paymentDetails.redirect_delay_seconds !== undefined &&
+        paymentDetails.redirect_delay_seconds !== null
+          ? paymentDetails.redirect_delay_seconds
+          : 5,
         j = 0;
-      for (var i = 0; i <= timeout; i++) {
-        setTimeout(function () {
-          var secondsLeft = timeout - j++;
-          var innerText =
-            secondsLeft === 0
-              ? translations.redirecting
-              : translations.redirectingIn + secondsLeft + " " + translations.seconds;
-          // @ts-ignore
-          statusRedirectTextNode.innerText = innerText;
-          if (secondsLeft === 0) {
-            // Form query params
-            var queryParams = {
-              payment_id: paymentDetails.payment_id,
-              status: paymentDetails.status,
-            };
-            var url = new URL(paymentDetails.return_url);
-            var params = new URLSearchParams(url.search);
-            // Attach query params to return_url
-            for (var key in queryParams) {
-              if (queryParams.hasOwnProperty(key)) {
-                params.set(key, queryParams[key]);
+      if (timeout === 0) {
+        // Auto-redirect disabled by merchant config
+        statusRedirectTextNode.innerText = "";
+      } else {
+        for (var i = 0; i <= timeout; i++) {
+          setTimeout(function () {
+            var secondsLeft = timeout - j++;
+            var innerText =
+              secondsLeft === 0
+                ? translations.redirecting
+                : translations.redirectingIn + secondsLeft + " " + translations.seconds;
+            // @ts-ignore
+            statusRedirectTextNode.innerText = innerText;
+            if (secondsLeft === 0) {
+              // Form query params
+              var queryParams = {
+                payment_id: paymentDetails.payment_id,
+                status: paymentDetails.status,
+              };
+              var url = new URL(paymentDetails.return_url);
+              var params = new URLSearchParams(url.search);
+              // Attach query params to return_url
+              for (var key in queryParams) {
+                if (queryParams.hasOwnProperty(key)) {
+                  params.set(key, queryParams[key]);
+                }
               }
+              url.search = params.toString();
+              setTimeout(function () {
+                // Finally redirect
+                window.top.location.href = url.toString();
+              }, 1000);
             }
-            url.search = params.toString();
-            setTimeout(function () {
-              // Finally redirect
-              window.top.location.href = url.toString();
-            }, 1000);
-          }
-        }, i * 1000);
+          }, i * 1000);
+        }
       }
     }
   }

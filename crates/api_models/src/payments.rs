@@ -13142,6 +13142,7 @@ pub struct PaymentLinkStatusDetails {
     pub unified_message: Option<String>,
     pub capture_method: Option<common_enums::CaptureMethod>,
     pub setup_future_usage_applied: Option<common_enums::FutureUsage>,
+    pub redirect_delay_seconds: Option<u32>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
