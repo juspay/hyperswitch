@@ -528,7 +528,10 @@ struct FundingAddress {
     address2: Option<Secret<String>>,
     postal_code: Secret<String>,
     city: String,
-    state: Secret<String>,
+    // WPG declares fundingAddress.state optional; Worldpay validates AFT-specific requirements.
+    // https://secure.worldpay.com/dtd/paymentService_v1.dtd
+    #[serde(skip_serializing_if = "Option::is_none")]
+    state: Option<Secret<String>>,
     country_code: common_enums::CountryAlpha2,
 }
 
@@ -1566,12 +1569,7 @@ fn build_worldpayxml_recipient_party(
                 .ok_or_else(connector_utils::missing_field_err(
                     "recipient_details.address.city",
                 ))?,
-            state: address
-                .state
-                .clone()
-                .ok_or_else(connector_utils::missing_field_err(
-                    "recipient_details.address.state",
-                ))?,
+            state: address.state.clone(),
             country_code: address
                 .country
                 .ok_or_else(connector_utils::missing_field_err(
@@ -1617,7 +1615,7 @@ fn build_worldpayxml_sender_party<F, Req, Res>(
             address2: router_data.get_optional_billing_line2(),
             postal_code: router_data.get_billing_zip()?,
             city: router_data.get_billing_city()?,
-            state: router_data.get_billing_state()?,
+            state: router_data.get_optional_billing_state(),
             country_code: router_data.get_billing_country()?,
         },
         funding_data: Some(FundingData {
