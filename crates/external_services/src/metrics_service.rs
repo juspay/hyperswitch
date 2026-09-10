@@ -24,7 +24,7 @@ mod response;
 pub use self::{
     error::{MetricsError, MetricsResult},
     query::{Aggregation, Labels, MetricQuery, MetricRequest, Period, TimeRange},
-    response::{Cursor, Datapoint, MetricPage, MetricSeries, SeriesStatus},
+    response::{Cursor, MetricPage, MetricSeries, SeriesStatus},
 };
 
 /// Reads metric datapoints from a monitoring provider.

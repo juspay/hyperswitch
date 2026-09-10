@@ -30,8 +30,8 @@ use common_utils::ext_traits::ConfigExt;
 use error_stack::{report, ResultExt};
 
 use super::{
-    Aggregation, Cursor, Datapoint, MetricPage, MetricQuery, MetricRequest, MetricSeries,
-    MetricsError, MetricsProvider, MetricsResult, Period, SeriesStatus,
+    Aggregation, Cursor, MetricPage, MetricQuery, MetricRequest, MetricSeries, MetricsError,
+    MetricsProvider, MetricsResult, Period, SeriesStatus, TimeRange,
 };
 
 /// The prefix every minted query id carries, since CloudWatch requires a leading lowercase letter.
@@ -118,7 +118,7 @@ impl MetricsProvider for CloudWatchMetrics {
         let series = response
             .metric_data_results()
             .iter()
-            .map(metric_series)
+            .map(|result| metric_series(result, request))
             .collect::<MetricsResult<Vec<_>>>()?;
 
         Ok(MetricPage::new(
@@ -221,8 +221,16 @@ fn stat(aggregation: Aggregation) -> &'static str {
     }
 }
 
-/// Translate one result back into a series.
-fn metric_series(result: &MetricDataResult) -> MetricsResult<MetricSeries> {
+/// Translate one result back into a series, laid out on the grid its query asked for.
+///
+/// The timestamps are the only place a gap is visible — CloudWatch's `Values` for a metric that
+/// stopped reporting is an unbroken run of readings, with nothing in it to say a period is missing.
+/// Spending them here, against the range and period from the request, is what turns that into a
+/// `None` the caller cannot read past.
+fn metric_series(
+    result: &MetricDataResult,
+    request: &MetricRequest,
+) -> MetricsResult<MetricSeries> {
     let index = result
         .id()
         .and_then(query_index)
@@ -232,6 +240,14 @@ fn metric_series(result: &MetricDataResult) -> MetricsResult<MetricSeries> {
                 "CloudWatch reported a series under an id we never sent: {:?}",
                 result.id()
             )
+        })?;
+
+    let query = request
+        .queries
+        .get(index)
+        .ok_or_else(|| report!(MetricsError::MalformedResponse))
+        .attach_printable_lazy(|| {
+            format!("CloudWatch reported a series for query {index}, which was never sent")
         })?;
 
     let timestamps = result.timestamps();
@@ -249,22 +265,48 @@ fn metric_series(result: &MetricDataResult) -> MetricsResult<MetricSeries> {
         });
     }
 
-    let datapoints = timestamps
-        .iter()
-        .zip(values)
-        .map(|(timestamp, value)| {
-            Ok(Datapoint {
-                timestamp: from_aws_timestamp(timestamp)?,
-                value: *value,
-            })
-        })
-        .collect::<MetricsResult<Vec<_>>>()?;
+    let mut slots = vec![None; slot_count(request.range, query.period)];
+    let period_seconds = query.period.seconds_i64();
+    let start = request.range.start.unix_timestamp();
+
+    for (timestamp, value) in timestamps.iter().zip(values) {
+        let offset = from_aws_timestamp(timestamp)?.unix_timestamp() - start;
+        if offset < 0 || period_seconds <= 0 {
+            continue;
+        }
+
+        // Integer division floors, so a datapoint lands in the slot *containing* it rather than
+        // needing to sit exactly on a boundary. A later datapoint sharing a slot wins.
+        if let Ok(slot) = usize::try_from(offset / period_seconds) {
+            if let Some(bucket) = slots.get_mut(slot) {
+                *bucket = Some(*value);
+            }
+        }
+    }
 
     Ok(MetricSeries::new(
         index,
-        datapoints,
         series_status(result.status_code()),
+        slots,
     ))
+}
+
+/// How many periods of `period` the window covers.
+///
+/// Rounded up, so a range that is not a whole number of periods still gets a slot for its trailing
+/// part rather than dropping it. `TimeRange::ending_at` always produces exact multiples, so this
+/// only matters for a hand-built range.
+fn slot_count(range: TimeRange, period: Period) -> usize {
+    let period_seconds = period.seconds_i64();
+    if period_seconds <= 0 {
+        return 0;
+    }
+
+    let span = range.end.unix_timestamp() - range.start.unix_timestamp();
+    usize::try_from(
+        span.div_euclid(period_seconds) + i64::from(span.rem_euclid(period_seconds) > 0),
+    )
+    .unwrap_or_default()
 }
 
 /// Map CloudWatch's per-series status onto the provider-neutral one.
@@ -432,6 +474,14 @@ mod tests {
         }
     }
 
+    /// A request whose window is the four minutes before 12:04, for one query.
+    fn four_minutes() -> MetricRequest {
+        MetricRequest {
+            range: TimeRange::ending_at(datetime!(2026-09-09 12:04:00 UTC), Period::ONE_MINUTE, 4),
+            queries: vec![query(Period::ONE_MINUTE)],
+        }
+    }
+
     #[test]
     fn a_zero_datapoint_survives_and_a_gap_stays_a_gap() {
         // 12:02 is absent from the response entirely; 12:01 aggregated to a real zero.
@@ -446,27 +496,57 @@ mod tests {
             StatusCode::Complete,
         );
 
-        let series = metric_series(&result).unwrap();
+        let series = metric_series(&result, &four_minutes()).unwrap();
 
         assert_eq!(series.index(), 0);
-        assert_eq!(
-            series.window(datetime!(2026-09-09 12:04:00 UTC), Period::ONE_MINUTE, 4),
-            vec![Some(4.0), Some(0.0), None, Some(7.0)]
-        );
+        assert_eq!(series.values(), [Some(4.0), Some(0.0), None, Some(7.0)]);
     }
 
     #[test]
-    fn a_series_with_no_datapoints_reads_as_empty_rather_than_failing() {
-        let series = metric_series(&result_of(
-            "m2",
-            Vec::new(),
-            Vec::new(),
+    fn identical_values_still_reveal_the_gap_the_timestamps_describe() {
+        // The values alone are an unbroken run of 1.0 — only the missing 12:02 timestamp says a
+        // period had no reading at all, which is the whole reason timestamps are spent here.
+        let result = result_of(
+            "m0",
+            vec![
+                timestamp(datetime!(2026-09-09 12:00:00 UTC)),
+                timestamp(datetime!(2026-09-09 12:01:00 UTC)),
+                timestamp(datetime!(2026-09-09 12:03:00 UTC)),
+            ],
+            vec![1.0, 1.0, 1.0],
             StatusCode::Complete,
-        ))
+        );
+
+        let series = metric_series(&result, &four_minutes()).unwrap();
+
+        assert_eq!(series.values(), [Some(1.0), Some(1.0), None, Some(1.0)]);
+    }
+
+    #[test]
+    fn an_unaligned_datapoint_lands_in_the_period_containing_it() {
+        let result = result_of(
+            "m0",
+            vec![timestamp(datetime!(2026-09-09 12:00:37 UTC))],
+            vec![9.0],
+            StatusCode::Complete,
+        );
+
+        let series = metric_series(&result, &four_minutes()).unwrap();
+
+        assert_eq!(series.values(), [Some(9.0), None, None, None]);
+    }
+
+    #[test]
+    fn a_series_with_no_datapoints_is_all_gaps_rather_than_empty() {
+        let series = metric_series(
+            &result_of("m0", Vec::new(), Vec::new(), StatusCode::Complete),
+            &four_minutes(),
+        )
         .unwrap();
 
-        assert_eq!(series.index(), 2);
-        assert!(series.datapoints().is_empty());
+        // Four periods were asked for, so four gaps come back — not an empty list, which would
+        // let a caller conclude there was nothing to evaluate.
+        assert_eq!(series.values(), [None, None, None, None]);
         assert_eq!(series.status(), SeriesStatus::Complete);
     }
 
@@ -482,14 +562,18 @@ mod tests {
             StatusCode::Complete,
         );
 
-        assert!(metric_series(&result).is_err());
+        assert!(metric_series(&result, &four_minutes()).is_err());
     }
 
     #[test]
-    fn a_series_reported_under_an_unknown_id_is_refused() {
-        let result = result_of("e1", Vec::new(), Vec::new(), StatusCode::Complete);
+    fn a_series_reported_under_an_id_we_never_sent_is_refused() {
+        // An id CloudWatch could invent for metric math.
+        let invented = result_of("e1", Vec::new(), Vec::new(), StatusCode::Complete);
+        assert!(metric_series(&invented, &four_minutes()).is_err());
 
-        assert!(metric_series(&result).is_err());
+        // A well-formed id for a query that was not in this request.
+        let out_of_range = result_of("m7", Vec::new(), Vec::new(), StatusCode::Complete);
+        assert!(metric_series(&out_of_range, &four_minutes()).is_err());
     }
 
     #[test]
@@ -497,23 +581,37 @@ mod tests {
         // One metric the credentials cannot read must not blind the caller to the rest of the
         // batch, so this is a status on a series, not a failed call.
         for status in [StatusCode::Forbidden, StatusCode::InternalError] {
-            let result = result_of("m5", Vec::new(), Vec::new(), status.clone());
-            let series = metric_series(&result).unwrap();
+            let result = result_of("m0", Vec::new(), Vec::new(), status.clone());
+            let series = metric_series(&result, &four_minutes()).unwrap();
 
             assert_eq!(series.status(), SeriesStatus::Failed, "{status:?}");
-            assert_eq!(series.index(), 5);
+            assert_eq!(series.index(), 0);
         }
 
         let partial = result_of(
-            "m6",
+            "m0",
             vec![timestamp(datetime!(2026-09-09 12:00:00 UTC))],
             vec![1.0],
             StatusCode::PartialData,
         );
         assert_eq!(
-            metric_series(&partial).unwrap().status(),
+            metric_series(&partial, &four_minutes()).unwrap().status(),
             SeriesStatus::Partial
         );
+    }
+
+    #[test]
+    fn a_slot_count_rounds_up_so_a_trailing_partial_period_is_not_dropped() {
+        let exact = TimeRange::ending_at(datetime!(2026-09-09 12:04:00 UTC), Period::ONE_MINUTE, 4);
+        assert_eq!(slot_count(exact, Period::ONE_MINUTE), 4);
+
+        let ragged = TimeRange {
+            start: datetime!(2026-09-09 12:00:00 UTC),
+            end: datetime!(2026-09-09 12:04:30 UTC),
+        };
+        assert_eq!(slot_count(ragged, Period::ONE_MINUTE), 5);
+
+        assert_eq!(slot_count(exact, Period::from_seconds(0)), 0);
     }
 
     #[test]
