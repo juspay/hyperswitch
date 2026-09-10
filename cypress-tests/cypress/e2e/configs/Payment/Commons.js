@@ -332,6 +332,17 @@ export const payment_methods_enabled = [
         installment_payment_enabled: true,
       },
       {
+        payment_method_type: "open_banking",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+      {
         payment_method_type: "online_banking_fpx",
         payment_experience: null,
         card_networks: null,
@@ -344,6 +355,17 @@ export const payment_methods_enabled = [
       },
       {
         payment_method_type: "sofort",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+      {
+        payment_method_type: "trustly",
         payment_experience: null,
         card_networks: null,
         accepted_currencies: null,
@@ -4161,6 +4183,36 @@ export const connectorDetails = {
         },
       }),
     },
+    BlockImplicitCustomerCreationAllowed: getCustomExchange({
+      Request: {
+        currency: "EUR",
+        amount: 6500,
+        email: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    BlockImplicitCustomerCreationBlocked: getCustomExchange({
+      Request: {
+        currency: "EUR",
+        amount: 6500,
+        email: null,
+      },
+      Response: {
+        status: 404,
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "HE_02",
+            message: "Customer does not exist in our records",
+          },
+        },
+      },
+    }),
   },
   upi_pm: {
     PaymentIntent: getCustomExchange({

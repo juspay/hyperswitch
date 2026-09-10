@@ -7,7 +7,7 @@ use std::{
 pub mod additional_info;
 pub mod recipient;
 pub mod trait_impls;
-use cards::{CardNumber, NetworkToken};
+use cards::{CardBin, CardNumber, NetworkToken};
 #[cfg(feature = "v2")]
 use common_enums::enums::PaymentConnectorTransmission;
 #[cfg(feature = "v1")]
@@ -80,6 +80,8 @@ use time::{Date, PrimitiveDateTime};
 use url::Url;
 use utoipa::ToSchema;
 
+#[cfg(all(feature = "v1", feature = "errors"))]
+use crate::errors::types::ErrorResponse;
 #[cfg(feature = "v2")]
 use crate::mandates;
 use crate::{
@@ -2607,6 +2609,22 @@ pub struct Card {
     #[smithy(value_type = "Option<String>")]
     pub card_type: Option<String>,
 
+    /// The product the card is issued under, e.g. `CLASSIC` or `ELECTRON`
+    #[schema(example = "CLASSIC")]
+    #[smithy(value_type = "Option<String>")]
+    pub card_subtype: Option<String>,
+
+    /// The segment the card is issued to
+    #[schema(value_type = Option<CardSegmentType>, example = "consumer")]
+    #[smithy(value_type = "Option<CardSegmentType>")]
+    pub card_segment_type: Option<api_enums::CardSegmentType>,
+
+    /// How the card is funded. More granular than `card_type`, which collapses
+    /// deferred debit and charge cards.
+    #[schema(value_type = Option<FundingSource>, example = "CREDIT")]
+    #[smithy(value_type = "Option<FundingSource>")]
+    pub funding_source: Option<api_enums::FundingSource>,
+
     #[schema(example = "INDIA")]
     #[smithy(value_type = "Option<String>")]
     pub card_issuing_country: Option<String>,
@@ -2671,6 +2689,22 @@ pub struct CardWithNoCVC {
     #[smithy(value_type = "Option<String>")]
     pub card_type: Option<String>,
 
+    /// The product the card is issued under, e.g. `CLASSIC` or `ELECTRON`
+    #[schema(example = "CLASSIC")]
+    #[smithy(value_type = "Option<String>")]
+    pub card_subtype: Option<String>,
+
+    /// The segment the card is issued to
+    #[schema(value_type = Option<CardSegmentType>, example = "consumer")]
+    #[smithy(value_type = "Option<CardSegmentType>")]
+    pub card_segment_type: Option<api_enums::CardSegmentType>,
+
+    /// How the card is funded. More granular than `card_type`, which collapses
+    /// deferred debit and charge cards.
+    #[schema(value_type = Option<FundingSource>, example = "CREDIT")]
+    #[smithy(value_type = "Option<FundingSource>")]
+    pub funding_source: Option<api_enums::FundingSource>,
+
     #[schema(example = "INDIA")]
     #[smithy(value_type = "Option<String>")]
     pub card_issuing_country: Option<String>,
@@ -2703,6 +2737,9 @@ impl TryFrom<payment_methods::CardDetail> for Card {
             nick_name,
             card_network,
             card_issuer,
+            card_subtype,
+            card_segment_type,
+            funding_source,
             card_cvc,
             ..
         } = value;
@@ -2718,6 +2755,9 @@ impl TryFrom<payment_methods::CardDetail> for Card {
             card_issuer,
             card_network,
             card_type: None,
+            card_subtype,
+            card_segment_type,
+            funding_source,
             card_issuing_country: None,
             card_issuing_country_code: None,
             bank_code: None,
@@ -4159,10 +4199,24 @@ pub struct AdditionalCardInfo {
     pub card_issuer: Option<String>,
 
     /// Card network of the card
+    #[schema(value_type = Option<CardNetwork>, example = "Visa")]
     pub card_network: Option<api_enums::CardNetwork>,
 
     /// Card type, can be either `credit` or `debit`
     pub card_type: Option<String>,
+
+    /// The product the card is issued under, e.g. `CLASSIC` or `ELECTRON`.
+    /// Free form, as the value comes straight from the BIN record.
+    pub card_subtype: Option<String>,
+
+    /// The segment the card is issued to, as recorded against its BIN
+    #[schema(value_type = Option<CardSegmentType>, example = "consumer")]
+    pub card_segment_type: Option<api_enums::CardSegmentType>,
+
+    /// How the card is funded, as recorded against its BIN. More granular than
+    /// `card_type`, which collapses deferred debit and charge cards.
+    #[schema(value_type = Option<FundingSource>, example = "CREDIT")]
+    pub funding_source: Option<api_enums::FundingSource>,
 
     pub card_issuing_country: Option<String>,
     pub card_issuing_country_code: Option<String>,
@@ -4177,10 +4231,13 @@ pub struct AdditionalCardInfo {
     /// Extended bin of card, contains the first 8 digits of card number
     pub card_extended_bin: Option<String>,
 
+    #[schema(value_type = Option<String>, example = "01")]
     pub card_exp_month: Option<Secret<String>>,
 
+    #[schema(value_type = Option<String>, example = "2026")]
     pub card_exp_year: Option<Secret<String>>,
 
+    #[schema(value_type = Option<String>, example = "John Doe")]
     pub card_holder_name: Option<Secret<String>>,
 
     /// Additional payment checks done on the cvv and billing address by the processors.
@@ -4198,6 +4255,7 @@ pub struct AdditionalCardInfo {
 
     /// The global signature network under which the card is issued.
     /// This represents the primary global card brand, even if the transaction uses a local network
+    #[schema(value_type = Option<CardNetwork>, example = "Visa")]
     pub signature_network: Option<api_enums::CardNetwork>,
     /// Unique authorisation code generated for the payment.
     pub auth_code: Option<String>,
@@ -5878,8 +5936,28 @@ pub struct ApplepayPaymentMethod {
     /// The card's expiry year
     #[schema(value_type = Option<String>, example = "003925")]
     pub card_exp_year: Option<Secret<String>>,
+    /// Bin of the DPAN (device PAN) obtained from decrypting the Apple Pay payment data
+    pub device_pan_bin: Option<String>,
+    /// Bin of the underlying card, provided by the connector when it resolves the DPAN
+    pub card_bin: Option<String>,
+    // The card's type (eg. Credit, Debit), as returned by the connector
+    #[schema(value_type = Option<CardType>)]
+    pub card_type: Option<api_enums::CardType>,
     /// Unique authorisation code generated for the payment
     pub auth_code: Option<String>,
+    /// The card's product/subtype, as returned by the connector
+    pub card_subtype: Option<String>,
+    /// The card's segment (e.g. consumer, commercial), as returned by the connector
+    #[schema(value_type = Option<CardSegmentType>)]
+    pub card_segment_type: Option<api_enums::CardSegmentType>,
+    /// The card's funding source (e.g. credit, debit), as returned by the connector
+    #[schema(value_type = Option<FundingSource>)]
+    pub funding_source: Option<api_enums::FundingSource>,
+    /// The name of the card issuer, as returned by the connector
+    pub issuer_name: Option<String>,
+    /// The country of the card issuer, as returned by the connector
+    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    pub issuer_country: Option<api_enums::CountryAlpha2>,
 }
 
 #[derive(
@@ -5891,6 +5969,18 @@ pub struct CardResponse {
     pub last4: Option<String>,
     #[smithy(value_type = "Option<String>")]
     pub card_type: Option<String>,
+    /// The product the card is issued under, e.g. `CLASSIC` or `ELECTRON`.
+    #[smithy(value_type = "Option<String>")]
+    pub card_subtype: Option<String>,
+    /// The segment the card is issued to, as recorded against its BIN
+    #[schema(value_type = Option<CardSegmentType>, example = "consumer")]
+    #[smithy(value_type = "Option<CardSegmentType>")]
+    pub card_segment_type: Option<api_enums::CardSegmentType>,
+    /// How the card is funded, as recorded against its BIN. More granular than
+    /// `card_type`, which collapses deferred debit and charge cards.
+    #[schema(value_type = Option<FundingSource>, example = "CREDIT")]
+    #[smithy(value_type = "Option<FundingSource>")]
+    pub funding_source: Option<api_enums::FundingSource>,
     #[schema(value_type = Option<CardNetwork>, example = "Visa")]
     #[smithy(value_type = "Option<CardNetwork>")]
     pub card_network: Option<api_enums::CardNetwork>,
@@ -6361,8 +6451,8 @@ pub struct CustomRecoveryPaymentMethodData {
     #[schema(value_type = String, example = "token_1234")]
     pub primary_processor_payment_method_token: Secret<String>,
 
-    /// AdditionalCardInfo for the primary token.
-    pub additional_payment_method_info: AdditionalCardInfo,
+    /// Card details associated with the primary payment method token.
+    pub payment_method_metadata: AdditionalCardInfo,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -7405,6 +7495,20 @@ pub struct PaymentsResponse {
     #[schema(value_type = Option<String>, example = "cHJvZmlsZV9pZD1wcm9mXzEyMyxwdWJsaXNoYWJsZV9rZXk9cGtfbGl2ZV8xMjM=")]
     #[smithy(value_type = "Option<String>")]
     pub sdk_authorization: Option<String>,
+
+    /// The combined payment-method list, returned only for `X-Integration-Type: server`.
+    #[cfg(feature = "errors")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schema(value_type = Option<PaymentMethodListResult>)]
+    #[smithy(value_type = "Option<Object>")]
+    pub payment_method_list: Option<payment_methods::PaymentMethodListResult>,
+
+    /// Wallet session tokens for this payment, returned only for `X-Integration-Type: server`.
+    #[cfg(feature = "errors")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schema(value_type = Option<SessionTokensResult>)]
+    #[smithy(value_type = "Option<Object>")]
+    pub session_tokens: Option<SessionTokensResult>,
 
     /// The name of the payment connector (e.g., 'stripe', 'adyen') that processed or is processing this payment.
     #[schema(example = "stripe")]
@@ -9482,6 +9586,9 @@ impl From<AdditionalCardInfo> for CardResponse {
         Self {
             last4: card.last4,
             card_type: card.card_type,
+            card_subtype: card.card_subtype,
+            card_segment_type: card.card_segment_type,
+            funding_source: card.funding_source,
             card_network: card.card_network,
             card_issuer: card.card_issuer,
             card_issuing_country: card.card_issuing_country,
@@ -9554,11 +9661,19 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
                                     .collect::<String>(),
                             ),
                             card_network: Some(apple_pay_pm.network.clone()),
-                            card_type: Some(apple_pay_pm.pm_type.clone()),
+                            payment_method_data_type: Some(apple_pay_pm.pm_type.clone()),
                             card_exp_month: apple_pay_pm.card_exp_month,
                             card_exp_year: apple_pay_pm.card_exp_year,
                             auth_code: apple_pay_pm.auth_code,
                             email: None,
+                            device_pan_bin: apple_pay_pm.device_pan_bin,
+                            card_bin: apple_pay_pm.card_bin,
+                            card_subtype: apple_pay_pm.card_subtype,
+                            card_segment_type: apple_pay_pm.card_segment_type,
+                            funding_source: apple_pay_pm.funding_source,
+                            card_type: apple_pay_pm.card_type,
+                            issuer_name: apple_pay_pm.issuer_name,
+                            issuer_country: apple_pay_pm.issuer_country,
                         },
                     ))),
                 })),
@@ -10577,6 +10692,56 @@ pub struct GooglePayTokenizationParameters {
     pub stripe_version: Option<Secret<String>>,
 }
 
+/// Which integration the caller is building, taken from the `X-Integration-Type` header.
+///
+/// `Client` is the default by design: an integration that has never heard of the header keeps
+/// its current response shape.
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IntegrationType {
+    Client,
+    Server,
+}
+
+#[cfg(feature = "v1")]
+impl IntegrationType {
+    /// Parses the raw header value. `None`, or anything other than `server`, is a client
+    /// integration — the caller logs the unrecognised case, since this crate has no logger.
+    pub fn from_header_value(value: Option<&str>) -> Self {
+        value.map_or(Self::Client, |value| {
+            if value.trim().eq_ignore_ascii_case("server") {
+                Self::Server
+            } else {
+                Self::Client
+            }
+        })
+    }
+
+    pub fn is_server(self) -> bool {
+        matches!(self, Self::Server)
+    }
+}
+
+/// Wallet session tokens, or the error that prevented them being minted.
+///
+/// Serialized untagged: a success is the whole `PaymentsSessionResponse` object, a failure is
+/// `{ "error": {...} }`.
+/// Gated on `errors` as well as `v1` — see [`crate::payment_methods::PaymentMethodListResult`].
+#[cfg(all(feature = "v1", feature = "errors"))]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, ToSchema)]
+#[serde(untagged)]
+pub enum SessionTokensResult {
+    /// The session response exactly as `POST /payments/session_tokens` returns it, including
+    /// `vault_details` — which carries the internal vault SDK authorization.
+    Success(Box<PaymentsSessionResponse>),
+    /// Serializes as `{ "error": { ... } }` — the same envelope the HTTP layer puts around
+    /// `ErrorResponse`, so this reads identically to the standalone endpoint's error body.
+    Failed {
+        #[schema(value_type = GenericErrorResponseOpenApi)]
+        error: Box<ErrorResponse>,
+    },
+}
+
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
 #[serde(tag = "wallet_name")]
 #[serde(rename_all = "snake_case")]
@@ -11435,7 +11600,7 @@ impl AmazonPayDeliveryOptions {
 }
 
 #[cfg(feature = "v1")]
-#[derive(Default, Debug, serde::Serialize, Clone, ToSchema)]
+#[derive(Default, Debug, serde::Serialize, Clone, PartialEq, ToSchema)]
 pub struct PaymentsSessionResponse {
     /// The identifier for the payment
     #[schema(value_type = String)]
@@ -13209,6 +13374,16 @@ pub struct EligibilityCard {
     pub nick_name: Option<Secret<String>>,
 }
 
+/// BIN-only input for the eligibility check. Enables BIN-level blocklist and profile-config
+/// blocking without the client having to share the full card number; fingerprint-level
+/// (exact-card) blocking requires the full card number via the `card` variant instead.
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, Eq, PartialEq)]
+pub struct EligibilityCardBin {
+    /// The card BIN: the leading 6 to 10 digits of the card number
+    #[schema(value_type = String, example = "42424242")]
+    pub card_bin: CardBin,
+}
+
 /// Payment method data for eligibility check
 #[derive(
     Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, Eq, PartialEq, SmithyModel,
@@ -13219,6 +13394,9 @@ pub enum EligibilityPaymentMethodData {
     #[schema(title = "EligibilityCard")]
     #[smithy(value_type = "EligibilityCard")]
     Card(EligibilityCard),
+    #[schema(title = "EligibilityCardBin")]
+    #[smithy(value_type = "EligibilityCardBin")]
+    CardBin(EligibilityCardBin),
     #[schema(title = "CardRedirect")]
     #[smithy(value_type = "CardRedirectData")]
     CardRedirect(CardRedirectData),
@@ -14048,13 +14226,14 @@ pub struct RecoveryPaymentsCreate {
     /// The amount details for the payment
     pub amount_details: AmountDetails,
 
-    /// Unique identifier for the payment. This ensures idempotency for multiple payments
-    /// that have been done by a single merchant.
+    /// The invoice identifier from the merchant's billing system that this payment attempt is
+    /// being recorded against. This ensures idempotency when the same invoice is reported
+    /// more than once.
     #[schema(
         value_type = Option<String>,
         min_length = 30,
         max_length = 30,
-        example = "pay_mbabizu24mvu3mela5njyhpit4"
+        example = "invoice_mbabizu24mvu3mela5njyh"
     )]
     pub merchant_reference_id: id_type::PaymentReferenceId,
 
@@ -14069,8 +14248,9 @@ pub struct RecoveryPaymentsCreate {
     #[schema(value_type = String, example = "mca_1234567890")]
     pub payment_merchant_connector_id: id_type::MerchantConnectorAccountId,
 
+    /// The status of the transaction at the payment connector.
     #[schema(value_type = AttemptStatus, example = "charged")]
-    pub attempt_status: enums::AttemptStatus,
+    pub transaction_status: enums::AttemptStatus,
 
     /// The billing details of the payment attempt.
     pub billing: Option<Address>,
@@ -14105,6 +14285,7 @@ pub struct RecoveryPaymentsCreate {
     pub payment_method_data: CustomRecoveryPaymentMethodData,
 
     /// Type of action that needs to be taken after consuming the recovery payload. For example: scheduling a failed payment or stopping the invoice.
+    #[schema(value_type = RecoveryAction, example = "schedule_failed_payment")]
     pub action: common_payments_types::RecoveryAction,
 
     /// Allow partial authorization for this payment
