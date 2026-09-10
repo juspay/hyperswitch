@@ -5,18 +5,21 @@ use crate::{
     errors,
     file::{FileMetadata, FileMetadataNew, FileMetadataUpdate, FileMetadataUpdateInternal},
     schema::file_metadata::dsl,
-    PgPooledConn, StorageResult,
+    DatabaseConnectionWithContext, StorageResult,
 };
 
 impl FileMetadataNew {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<FileMetadata> {
+    pub async fn insert(
+        self,
+        conn: &DatabaseConnectionWithContext<'_>,
+    ) -> StorageResult<FileMetadata> {
         generics::generic_insert(conn, self).await
     }
 }
 
 impl FileMetadata {
     pub async fn find_by_processor_merchant_id_file_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         file_id: &str,
     ) -> StorageResult<Self> {
@@ -31,7 +34,7 @@ impl FileMetadata {
 
     // Fallback function for stagger release - finds by merchant_id when processor_merchant_id is NULL
     pub async fn find_by_merchant_id_file_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         file_id: &str,
     ) -> StorageResult<Self> {
@@ -45,7 +48,7 @@ impl FileMetadata {
     }
 
     pub async fn delete_by_processor_merchant_id_file_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         file_id: &str,
     ) -> StorageResult<bool> {
@@ -60,7 +63,7 @@ impl FileMetadata {
 
     // Fallback function for stagger release - deletes by merchant_id when processor_merchant_id is NULL
     pub async fn delete_by_merchant_id_file_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         file_id: &str,
     ) -> StorageResult<bool> {
@@ -75,7 +78,7 @@ impl FileMetadata {
 
     pub async fn update(
         self,
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         file_metadata: FileMetadataUpdate,
     ) -> StorageResult<Self> {
         match generics::generic_update_with_unique_predicate_get_result::<

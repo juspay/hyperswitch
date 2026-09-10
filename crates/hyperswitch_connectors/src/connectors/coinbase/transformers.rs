@@ -172,6 +172,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, CoinbasePaymentsResponse, T, PaymentsRe
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             Some(context) => Ok(PaymentsResponseData::TransactionUnresolvedResponse {
                 resource_id: connector_id,
