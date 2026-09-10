@@ -7,8 +7,11 @@ use diesel_models::observability::{
         effective_is_enabled, MerchantsAlertExternalConfig, MerchantsAlertExternalConfigNew,
     },
 };
+use error_stack::ResultExt;
 use serde::{Deserialize, Deserializer, Serialize};
 use time::PrimitiveDateTime;
+
+use crate::errors::ObservabilityError;
 
 fn double_option<'de, T, D>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
 where
@@ -177,14 +180,17 @@ pub struct AlertDefinitionResponse {
     pub last_updated_at: Option<PrimitiveDateTime>,
 }
 
-impl From<AlertsInfo> for AlertDefinitionResponse {
-    fn from(definition: AlertsInfo) -> Self {
-        let is_enabled = definition.is_enabled();
+impl TryFrom<AlertsInfo> for AlertDefinitionResponse {
+    type Error = error_stack::Report<ObservabilityError>;
 
-        Self {
-            id: definition.id,
-            name: definition.name,
-            product: definition.product,
+    fn try_from(definition: AlertsInfo) -> Result<Self, Self::Error> {
+        let is_enabled = definition.is_enabled();
+        let id = definition.id;
+
+        Ok(Self {
+            id,
+            name: required(definition.name, "name", id)?,
+            product: required(definition.product, "product", id)?,
             is_enabled,
             dimensions: definition.dimensions,
             period: definition.period,
@@ -206,8 +212,18 @@ impl From<AlertsInfo> for AlertDefinitionResponse {
             author: definition.author,
             approver: definition.approver,
             last_updated_at: definition.last_updated_at,
-        }
+        })
     }
+}
+
+fn required(
+    value: Option<String>,
+    column: &str,
+    id: uuid::Uuid,
+) -> Result<String, error_stack::Report<ObservabilityError>> {
+    value
+        .ok_or_else(|| error_stack::report!(ObservabilityError::InternalServerError))
+        .attach_printable_lazy(|| format!("Definition {id} has no {column}"))
 }
 
 #[derive(Debug, Serialize)]
@@ -216,17 +232,19 @@ pub struct AlertDefinitionListResponse {
     pub definitions: Vec<AlertDefinitionResponse>,
 }
 
-impl FromIterator<AlertsInfo> for AlertDefinitionListResponse {
-    fn from_iter<I: IntoIterator<Item = AlertsInfo>>(definitions: I) -> Self {
+impl AlertDefinitionListResponse {
+    pub fn build<I: IntoIterator<Item = AlertsInfo>>(
+        definitions: I,
+    ) -> Result<Self, error_stack::Report<ObservabilityError>> {
         let definitions = definitions
             .into_iter()
-            .map(AlertDefinitionResponse::from)
-            .collect::<Vec<_>>();
+            .map(AlertDefinitionResponse::try_from)
+            .collect::<Result<Vec<_>, _>>()?;
 
-        Self {
+        Ok(Self {
             count: definitions.len(),
             definitions,
-        }
+        })
     }
 }
 
@@ -403,8 +421,8 @@ mod tests {
     fn definition(is_enabled: Option<bool>) -> AlertsInfo {
         AlertsInfo {
             id: uuid::Uuid::nil(),
-            name: "sr_drop".to_owned(),
-            product: "payments".to_owned(),
+            name: Some("sr_drop".to_owned()),
+            product: Some("payments".to_owned()),
             dimensions: None,
             period: None,
             default_channel: None,
@@ -425,8 +443,10 @@ mod tests {
 
     #[test]
     fn a_definition_response_names_every_field_even_when_it_is_null() {
-        let body =
-            serde_json::to_value(AlertDefinitionResponse::from(definition(Some(true)))).unwrap();
+        let body = serde_json::to_value(
+            AlertDefinitionResponse::try_from(definition(Some(true))).unwrap(),
+        )
+        .unwrap();
 
         for field in ["dimensions", "period", "metadata", "author", "approver"] {
             assert!(body.get(field).is_some(), "{field} was skipped");
@@ -436,7 +456,9 @@ mod tests {
 
     #[test]
     fn a_definition_response_resolves_nulls_that_have_only_one_meaning() {
-        let body = serde_json::to_value(AlertDefinitionResponse::from(definition(None))).unwrap();
+        let body =
+            serde_json::to_value(AlertDefinitionResponse::try_from(definition(None)).unwrap())
+                .unwrap();
 
         assert_eq!(body["is_enabled"], false);
         assert_eq!(body["blacklist"], serde_json::json!([]));
@@ -447,9 +469,7 @@ mod tests {
     #[test]
     fn a_definition_list_reports_how_many_it_found() {
         let body = serde_json::to_value(
-            [definition(Some(true)), definition(None)]
-                .into_iter()
-                .collect::<AlertDefinitionListResponse>(),
+            AlertDefinitionListResponse::build([definition(Some(true)), definition(None)]).unwrap(),
         )
         .unwrap();
 
@@ -460,7 +480,7 @@ mod tests {
     #[test]
     fn an_empty_definition_list_is_an_object_with_a_zero_count() {
         let body = serde_json::to_value(
-            std::iter::empty::<AlertsInfo>().collect::<AlertDefinitionListResponse>(),
+            AlertDefinitionListResponse::build(std::iter::empty::<AlertsInfo>()).unwrap(),
         )
         .unwrap();
 

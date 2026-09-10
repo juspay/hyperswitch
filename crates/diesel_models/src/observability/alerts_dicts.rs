@@ -9,8 +9,8 @@ use crate::observability::{raw_json::RawJson, schema::alerts_dicts};
 #[diesel(table_name = alerts_dicts, check_for_backend(diesel::pg::Pg))]
 pub struct AlertsDict {
     pub id: uuid::Uuid,
-    pub name: String,
-    pub key_: String,
+    pub name: Option<String>,
+    pub key_: Option<String>,
     pub product: Option<RawJson>,
     pub values_: Option<RawJson>,
     pub ts_created: Option<PrimitiveDateTime>,

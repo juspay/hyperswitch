@@ -1,9 +1,11 @@
 use diesel_models::observability::{alerts_dicts::AlertsDict, raw_json::RawJson};
+use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 use serde_json::value::RawValue;
 use time::PrimitiveDateTime;
 
 use super::{ReadStatus, WriteStatus};
+use crate::errors::ObservabilityError;
 
 #[derive(Debug, Serialize)]
 pub struct DictionaryEntry {
@@ -53,18 +55,32 @@ pub struct DictionaryDeleteResponse {
     pub status: WriteStatus,
 }
 
-impl From<AlertsDict> for DictionaryEntry {
-    fn from(entry: AlertsDict) -> Self {
-        Self {
-            name: entry.name,
-            key_: entry.key_,
+impl TryFrom<AlertsDict> for DictionaryEntry {
+    type Error = error_stack::Report<ObservabilityError>;
+
+    fn try_from(entry: AlertsDict) -> Result<Self, Self::Error> {
+        let id = entry.id;
+
+        Ok(Self {
+            name: required(entry.name, "name", id)?,
+            key_: required(entry.key_, "key_", id)?,
             product: entry.product.map(RawJson::into_raw),
             values_: entry.values_.map(RawJson::into_raw),
             metadata: entry.metadata.map(RawJson::into_raw),
             ts_created: entry.ts_created,
             username: entry.username,
-        }
+        })
     }
+}
+
+fn required(
+    value: Option<String>,
+    column: &str,
+    id: uuid::Uuid,
+) -> Result<String, error_stack::Report<ObservabilityError>> {
+    value
+        .ok_or_else(|| error_stack::report!(ObservabilityError::InternalServerError))
+        .attach_printable_lazy(|| format!("Dictionary entry {id} has no {column}"))
 }
 
 #[cfg(test)]

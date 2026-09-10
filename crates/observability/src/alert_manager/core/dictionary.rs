@@ -37,7 +37,10 @@ pub async fn list(state: AppState) -> ObservabilityApiResult<DictionaryListRespo
         } else {
             ReadStatus::Found
         },
-        entries: entries.into_iter().map(DictionaryEntry::from).collect(),
+        entries: entries
+            .into_iter()
+            .map(DictionaryEntry::try_from)
+            .collect::<Result<Vec<_>, _>>()?,
     })
 }
 
@@ -57,7 +60,7 @@ pub async fn read(
         status: entry
             .as_ref()
             .map_or(ReadStatus::Absent, |_| ReadStatus::Found),
-        entry: entry.map(DictionaryEntry::from),
+        entry: entry.map(DictionaryEntry::try_from).transpose()?,
     })
 }
 
@@ -100,7 +103,7 @@ pub async fn upsert(
 
     Ok(DictionarySaveResponse {
         status: WriteStatus::Saved,
-        entry: DictionaryEntry::from(entry),
+        entry: DictionaryEntry::try_from(entry)?,
     })
 }
 
