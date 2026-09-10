@@ -2219,18 +2219,6 @@ pub async fn call_to_vault<V: pm_types::VaultingInterface>(
         additional_headers.unwrap_or_default()
     };
 
-    #[cfg(feature = "v2")]
-    let additional_headers = if V::supports_plain_response() && locker.plain_fingerprint_response {
-        let mut additional_headers = additional_headers;
-        additional_headers.insert(
-            consts::V2_VAULT_FP_RESPONSE_ENCODING_HEADER.to_string(),
-            consts::V2_VAULT_FP_RESPONSE_ENCODING_PLAIN.to_string(),
-        );
-        additional_headers
-    } else {
-        additional_headers
-    };
-
     let request = create_vault_request::<V>(
         jwekey,
         locker,
@@ -2259,28 +2247,32 @@ pub async fn call_to_vault<V: pm_types::VaultingInterface>(
         .attach_printable("Failed to get response from vault")?;
 
     #[cfg(feature = "v2")]
-    if is_plain_vault_response(&response) {
-        return String::from_utf8(response.response.to_vec())
+    let is_plain_response = V::supports_plain_response() && is_plain_vault_response(&response);
+    #[cfg(not(feature = "v2"))]
+    let is_plain_response = false;
+
+    if is_plain_response {
+        String::from_utf8(response.response.to_vec())
             .change_context(errors::VaultError::ResponseDeserializationFailed)
-            .attach_printable("Plain vault response is not valid UTF-8");
+            .attach_printable("Plain vault response is not valid UTF-8")
+    } else {
+        let jwe_body: services::JweBody = response
+            .response
+            .parse_struct("JweBody")
+            .change_context(errors::VaultError::ResponseDeserializationFailed)
+            .attach_printable("Failed to get JweBody from vault response")?;
+
+        let decrypted_payload = pm_transforms::get_decrypted_vault_response_payload(
+            jwekey,
+            jwe_body,
+            locker.decryption_scheme.clone(),
+        )
+        .await
+        .change_context(errors::VaultError::ResponseDecryptionFailed)
+        .attach_printable("Error getting decrypted vault response payload")?;
+
+        Ok(decrypted_payload)
     }
-
-    let jwe_body: services::JweBody = response
-        .response
-        .parse_struct("JweBody")
-        .change_context(errors::VaultError::ResponseDeserializationFailed)
-        .attach_printable("Failed to get JweBody from vault response")?;
-
-    let decrypted_payload = pm_transforms::get_decrypted_vault_response_payload(
-        jwekey,
-        jwe_body,
-        locker.decryption_scheme.clone(),
-    )
-    .await
-    .change_context(errors::VaultError::ResponseDecryptionFailed)
-    .attach_printable("Error getting decrypted vault response payload")?;
-
-    Ok(decrypted_payload)
 }
 
 /// The vault marks a response it returned unencrypted (at the caller's request) with the same
@@ -2357,10 +2349,18 @@ async fn get_fingerprint_id_from_vault<D: serde::Serialize>(
         .change_context(errors::VaultError::RequestEncodingFailed)
         .attach_printable("Failed to encode VaultFingerprintRequestNew")?;
 
-    let resp = call_to_vault::<pm_types::GetVaultFingerprint>(state, payload, None, None)
-        .await
-        .change_context(errors::VaultError::VaultAPIError)
-        .attach_printable("Call to vault failed")?;
+    let additional_headers = state.conf.locker.plain_fingerprint_response.then(|| {
+        HashMap::from([(
+            consts::V2_VAULT_FP_RESPONSE_ENCODING_HEADER.to_string(),
+            consts::V2_VAULT_FP_RESPONSE_ENCODING_PLAIN.to_string(),
+        )])
+    });
+
+    let resp =
+        call_to_vault::<pm_types::GetVaultFingerprint>(state, payload, None, additional_headers)
+            .await
+            .change_context(errors::VaultError::VaultAPIError)
+            .attach_printable("Call to vault failed")?;
 
     let fingerprint_resp: pm_types::VaultFingerprintResponse = resp
         .parse_struct("VaultFingerprintResponse")

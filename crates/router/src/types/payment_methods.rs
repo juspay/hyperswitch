@@ -27,8 +27,6 @@ pub trait VaultingInterface {
 
     fn get_vaulting_flow_name() -> &'static str;
 
-    /// Whether this flow may accept a plain (unencrypted) response from the vault. Only flows
-    /// whose response carries no sensitive data should opt in.
     fn supports_plain_response() -> bool {
         false
     }
