@@ -1,167 +1,175 @@
-//! Reads OCI Workload Identity credentials the OKE sidecar writes to local files.
+//! Obtains OCI Workload Identity credentials from OKE's proxymux service.
 //!
-//! Follows OCI's resource-principal-v2 environment contract:
-//!
-//! - `OCI_RESOURCE_PRINCIPAL_RPST` — path to the file holding the current session
-//!   token (used as `keyId="ST$<token>"` when signing requests)
-//! - `OCI_RESOURCE_PRINCIPAL_PRIVATE_PEM` — path to the file holding the ephemeral
-//!   private key the session token is bound to
-//! - `OCI_RESOURCE_PRINCIPAL_REGION` — the canonical region name (inline, not a path
-//!   — it doesn't rotate)
-//!
-//! CAUTION: this file-based contract is confirmed for OCI *Functions*' resource
-//! principals, but genuine OKE Workload Identity (per `oracle/oci-go-sdk`'s
-//! `auth.OkeWorkloadIdentityConfigurationProvider`, the code External Secrets
-//! Operator and the Secrets Store CSI driver both call) instead holds an in-memory
-//! ephemeral keypair and does a live handshake with a node-local proxymux service —
-//! no files at all. Verify against a real OKE pod before trusting this in production.
-
-use std::{
-    sync::{Arc, RwLock},
-    time::SystemTime,
-};
+//! OKE writes no credentials to a pod's filesystem. Instead the client generates an
+//! ephemeral RSA keypair in memory and trades the pod's own Kubernetes service account
+//! token for a session token bound to that keypair. Ported from `oci-go-sdk`'s
+//! `x509FederationClientForOkeWorkloadIdentity`
+//! (`common/auth/federation_client_oke_workload_identity.go`).
 
 use base64::Engine;
 use common_utils::errors::CustomResult;
 use error_stack::{report, ResultExt};
-use rsa::pkcs8::DecodePrivateKey;
+use rsa::pkcs8::EncodePublicKey;
 
-use super::core::OciKmsError;
+use super::{
+    core::OciKmsError,
+    credentials::{soft_expiry, OciCredentials},
+};
+use crate::consts;
 
-/// Mirrors `oci-go-sdk`'s `rpstValidForRatio` / `bufferTimeBeforeTokenExpiration` (`jwt.go`).
-const SOFT_EXPIRY_LIFETIME_RATIO: i64 = 2;
-const REFRESH_BUFFER_SECONDS: i64 = 5 * 60;
+/// Injected into every pod by kubelet. Proxymux answers on port 12250 at that same
+/// address — an Oracle-managed control-plane service, not a node-local agent and not
+/// anything deployed alongside this app.
+const KUBERNETES_HOST_VAR: &str = "KUBERNETES_SERVICE_HOST";
+const PROXYMUX_PORT: u16 = 12250;
+const PROXYMUX_PATH: &str = "/resourcePrincipalSessionTokens";
 
-const RPST_PATH_VAR: &str = "OCI_RESOURCE_PRINCIPAL_RPST";
-const PRIVATE_KEY_PATH_VAR: &str = "OCI_RESOURCE_PRINCIPAL_PRIVATE_PEM";
-const REGION_VAR: &str = "OCI_RESOURCE_PRINCIPAL_REGION";
+const SERVICE_ACCOUNT_TOKEN_PATH: &str = "/var/run/secrets/kubernetes.io/serviceaccount/token";
+const CLUSTER_CA_PATH: &str = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt";
 
-/// Ambient OCI Workload Identity credentials: a session token and its bound private key.
-pub(crate) struct WorkloadIdentityCredentials {
-    /// Used as `keyId="ST$<token>"` when signing requests.
-    pub(crate) session_token: String,
-    pub(crate) private_key: rsa::RsaPrivateKey,
-    pub(crate) region: String,
+const SESSION_KEY_BITS: usize = 2048;
+
+/// Proxymux returns the token already prefixed, and the `keyId` re-adds it.
+const SECURITY_TOKEN_PREFIX: &str = "ST$";
+
+pub(super) fn in_kubernetes() -> bool {
+    std::env::var_os(KUBERNETES_HOST_VAR).is_some()
 }
 
-impl std::fmt::Debug for WorkloadIdentityCredentials {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // Deliberately redact `session_token`/`private_key` — this is credential
-        // material, not something to expose via a Debug/panic-message format.
-        f.debug_struct("WorkloadIdentityCredentials")
-            .field("region", &self.region)
-            .finish_non_exhaustive()
-    }
-}
-
-struct CachedCredentials {
-    credentials: Arc<WorkloadIdentityCredentials>,
-    source_modified: SystemTime,
-    soft_expires_at: Option<i64>,
-}
-
-/// Caches parsed credentials by the session-token file's mtime, avoiding a PEM
-/// re-parse per request. Owned by `OciKmsClient` behind an `Arc` so cache lifetime
-/// matches client lifetime, not a process-global.
-#[derive(Default)]
-pub(crate) struct WorkloadIdentityCache {
-    cached: RwLock<Option<CachedCredentials>>,
-}
-
-impl WorkloadIdentityCache {
-    /// Returns current credentials, reloading if the file's mtime changed or the
-    /// cached token is past its own soft-expiry.
-    pub(crate) fn current(&self) -> CustomResult<Arc<WorkloadIdentityCredentials>, OciKmsError> {
-        let rpst_path = env_var(RPST_PATH_VAR)?;
-        let modified = std::fs::metadata(&rpst_path)
-            .and_then(|metadata| metadata.modified())
-            .change_context(OciKmsError::CredentialsUnavailable)
-            .attach_printable("Failed to stat the resource-principal session token file")?;
-
-        {
-            let cached = self
-                .cached
-                .read()
-                .map_err(|_| report!(OciKmsError::CredentialsUnavailable))?;
-            if let Some(cached) = cached.as_ref() {
-                if cached.source_modified == modified && !is_stale(cached.soft_expires_at) {
-                    return Ok(cached.credentials.clone());
-                }
-            }
-        }
-
-        let credentials = Arc::new(load(&rpst_path)?);
-        let soft_expires_at = soft_expiry(&credentials.session_token);
-
-        let mut cached = self
-            .cached
-            .write()
-            .map_err(|_| report!(OciKmsError::CredentialsUnavailable))?;
-        *cached = Some(CachedCredentials {
-            credentials: credentials.clone(),
-            source_modified: modified,
-            soft_expires_at,
-        });
-
-        Ok(credentials)
-    }
+#[derive(serde::Serialize)]
+struct SessionTokenRequest<'a> {
+    #[serde(rename = "podKey")]
+    pod_key: &'a str,
 }
 
 #[derive(serde::Deserialize)]
-struct RpstClaims {
-    iat: i64,
-    exp: i64,
+struct SessionTokenResponse {
+    token: String,
 }
 
-/// Halfway point of the token's real lifetime, from its own `iat`/`exp` JWT claims.
-fn soft_expiry(session_token: &str) -> Option<i64> {
-    let payload_b64 = session_token.split('.').nth(1)?;
-    let payload = base64::engine::general_purpose::URL_SAFE_NO_PAD
-        .decode(payload_b64)
-        .ok()?;
-    let claims: RpstClaims = serde_json::from_slice(&payload).ok()?;
-    Some(claims.iat + (claims.exp - claims.iat) / SOFT_EXPIRY_LIFETIME_RATIO)
-}
-
-/// `None` means "couldn't compute a soft-expiry" — trust it until mtime says otherwise.
-fn is_stale(soft_expires_at: Option<i64>) -> bool {
-    let Some(soft_expires_at) = soft_expires_at else {
-        return false;
-    };
-    let now = SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .ok()
-        .and_then(|elapsed| i64::try_from(elapsed.as_secs()).ok())
-        .unwrap_or(i64::MAX);
-    soft_expires_at <= now + REFRESH_BUFFER_SECONDS
-}
-
-fn load(rpst_path: &str) -> CustomResult<WorkloadIdentityCredentials, OciKmsError> {
-    let session_token = std::fs::read_to_string(rpst_path)
+pub(super) async fn credentials() -> CustomResult<OciCredentials, OciKmsError> {
+    let kubernetes_host = std::env::var(KUBERNETES_HOST_VAR)
         .change_context(OciKmsError::CredentialsUnavailable)
-        .attach_printable("Failed to read the resource-principal session token file")?
-        .trim()
-        .to_owned();
+        .attach_printable_lazy(|| format!("Missing environment variable: {KUBERNETES_HOST_VAR}"))?;
 
-    let private_key_path = env_var(PRIVATE_KEY_PATH_VAR)?;
-    let private_key_pem = std::fs::read_to_string(&private_key_path)
+    let service_account_token = std::fs::read_to_string(SERVICE_ACCOUNT_TOKEN_PATH)
         .change_context(OciKmsError::CredentialsUnavailable)
-        .attach_printable("Failed to read the resource-principal private key file")?;
-    let private_key = rsa::RsaPrivateKey::from_pkcs8_pem(&private_key_pem)
+        .attach_printable(
+            "Failed to read the pod's Kubernetes service account token; the pod needs `automountServiceAccountToken: true`",
+        )?;
+
+    let cluster_ca = std::fs::read(CLUSTER_CA_PATH)
         .change_context(OciKmsError::CredentialsUnavailable)
-        .attach_printable("Failed to parse the resource-principal private key")?;
+        .attach_printable("Failed to read the Kubernetes cluster CA certificate")?;
 
-    let region = env_var(REGION_VAR)?;
+    let private_key = generate_session_key().await?;
+    let public_key_pem = private_key
+        .to_public_key()
+        .to_public_key_pem(rsa::pkcs8::LineEnding::LF)
+        .change_context(OciKmsError::CredentialsUnavailable)
+        .attach_printable("Failed to encode the ephemeral session public key")?;
 
-    Ok(WorkloadIdentityCredentials {
-        session_token,
+    let body = serde_json::to_vec(&SessionTokenRequest {
+        pod_key: &public_key_pem,
+    })
+    .change_context(OciKmsError::CredentialsUnavailable)
+    .attach_printable("Failed to serialize the proxymux session token request")?;
+
+    let response = proxymux_client(&cluster_ca)?
+        .post(format!(
+            "https://{kubernetes_host}:{PROXYMUX_PORT}{PROXYMUX_PATH}"
+        ))
+        .bearer_auth(service_account_token.trim())
+        .header("content-type", "application/json")
+        .header("opc-request-id", format!("{:032x}", rand::random::<u128>()))
+        .body(body)
+        .send()
+        .await
+        .change_context(OciKmsError::CredentialsUnavailable)
+        .attach_printable("Failed to reach the OKE proxymux service")?;
+
+    let status = response.status();
+    let response_body = response
+        .text()
+        .await
+        .change_context(OciKmsError::CredentialsUnavailable)
+        .attach_printable("Failed to read the proxymux response body")?;
+
+    if !status.is_success() {
+        // Proxymux answers 403 when the cluster isn't an *enhanced* OKE cluster, which
+        // is the usual cause and isn't otherwise obvious from the response.
+        let hint = match status {
+            reqwest::StatusCode::FORBIDDEN => " (Workload Identity needs an enhanced OKE cluster and a policy granting this service account access)",
+            _ => "",
+        };
+        return Err(report!(OciKmsError::CredentialsUnavailable)).attach_printable(format!(
+            "Proxymux rejected the session token request with status {status}{hint}: {response_body}"
+        ));
+    }
+
+    let session_token = parse_session_token(&response_body)?;
+
+    Ok(OciCredentials {
+        soft_expires_at: Some(soft_expiry(&session_token)?),
+        key_id: format!("{SECURITY_TOKEN_PREFIX}{session_token}"),
         private_key,
-        region,
     })
 }
 
-fn env_var(name: &'static str) -> CustomResult<String, OciKmsError> {
-    std::env::var(name)
+/// Trusts the cluster CA alone: this request carries the pod's Kubernetes identity as a
+/// bearer token, so accepting any other issuer would risk handing it to an impostor.
+/// Deliberately not `http_client::create_client` — that applies the outbound proxy
+/// config, and proxymux is reachable only from inside the cluster.
+fn proxymux_client(cluster_ca_pem: &[u8]) -> CustomResult<reqwest::Client, OciKmsError> {
+    let certificates = reqwest::Certificate::from_pem_bundle(cluster_ca_pem)
         .change_context(OciKmsError::CredentialsUnavailable)
-        .attach_printable_lazy(|| format!("Missing environment variable: {name}"))
+        .attach_printable("Failed to parse the Kubernetes cluster CA certificate")?;
+
+    certificates
+        .into_iter()
+        .fold(
+            reqwest::Client::builder()
+                .use_rustls_tls()
+                .tls_built_in_root_certs(false),
+            |builder, certificate| builder.add_root_certificate(certificate),
+        )
+        .build()
+        .change_context(OciKmsError::CredentialsUnavailable)
+        .attach_printable("Failed to build the proxymux HTTP client")
+}
+
+/// RSA keygen is CPU-bound and can run for hundreds of milliseconds, so keep it off the
+/// async worker threads.
+async fn generate_session_key() -> CustomResult<rsa::RsaPrivateKey, OciKmsError> {
+    tokio::task::spawn_blocking(|| {
+        rsa::RsaPrivateKey::new(&mut rand::rngs::OsRng, SESSION_KEY_BITS)
+    })
+    .await
+    .change_context(OciKmsError::CredentialsUnavailable)
+    .attach_printable("The session key generation task failed to complete")?
+    .change_context(OciKmsError::CredentialsUnavailable)
+    .attach_printable("Failed to generate the ephemeral session key")
+}
+
+/// Proxymux answers with a JSON string whose base64-decoded value is itself the JSON
+/// `{"token": "ST$<jwt>"}`.
+fn parse_session_token(response_body: &str) -> CustomResult<String, OciKmsError> {
+    let encoded: String = serde_json::from_str(response_body)
+        .change_context(OciKmsError::CredentialsUnavailable)
+        .attach_printable("The proxymux response was not a JSON string")?;
+
+    let decoded = consts::BASE64_ENGINE
+        .decode(encoded)
+        .change_context(OciKmsError::CredentialsUnavailable)
+        .attach_printable("Failed to base64 decode the proxymux response")?;
+
+    let response: SessionTokenResponse = serde_json::from_slice(&decoded)
+        .change_context(OciKmsError::CredentialsUnavailable)
+        .attach_printable("Failed to parse the decoded proxymux response")?;
+
+    Ok(response
+        .token
+        .strip_prefix(SECURITY_TOKEN_PREFIX)
+        .unwrap_or(&response.token)
+        .to_owned())
 }

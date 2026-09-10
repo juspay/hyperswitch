@@ -8,7 +8,7 @@ use error_stack::{report, ResultExt};
 use router_env::logger;
 use serde::{Deserialize, Serialize};
 
-use super::{signing, workload_identity::WorkloadIdentityCache};
+use super::{credentials::CredentialCache, signing};
 use crate::{consts, metrics};
 
 /// Configuration parameters required for constructing an [`OciKmsClient`].
@@ -75,7 +75,7 @@ pub struct OciKmsClient {
     vault_crypto_endpoint: String,
     host: String,
     key_id: String,
-    credentials: Arc<WorkloadIdentityCache>,
+    credentials: Arc<CredentialCache>,
 }
 
 impl std::fmt::Debug for OciKmsClient {
@@ -106,7 +106,7 @@ impl OciKmsClient {
                 .to_owned(),
             host,
             key_id: config.key_id.clone(),
-            credentials: Arc::new(WorkloadIdentityCache::default()),
+            credentials: Arc::new(CredentialCache::default()),
         })
     }
 
@@ -177,14 +177,18 @@ impl OciKmsClient {
         Request: Serialize,
         Response: serde::de::DeserializeOwned,
     {
-        let credentials = self.credentials.current()?;
+        let credentials = self.credentials.current().await?;
         let body = serde_json::to_vec(request)
             .change_context(OciKmsError::ClientCreationFailed)
             .attach_printable("Failed to serialize OCI KMS request body")?;
 
-        let key_id = format!("ST${}", credentials.session_token);
-        let signed =
-            signing::sign_post_request(&key_id, &credentials.private_key, &self.host, path, &body)?;
+        let signed = signing::sign_post_request(
+            &credentials.key_id,
+            &credentials.private_key,
+            &self.host,
+            path,
+            &body,
+        )?;
 
         let response = self
             .http_client
@@ -241,7 +245,7 @@ pub enum OciKmsError {
     #[error("Failed to sign OCI KMS request")]
     SigningFailed,
 
-    /// Resource-principal credentials couldn't be read (missing env vars, unreadable files, or malformed key material).
+    /// Workload Identity credentials couldn't be obtained from the OKE proxymux service.
     #[error("OCI Workload Identity credentials unavailable")]
     CredentialsUnavailable,
 
