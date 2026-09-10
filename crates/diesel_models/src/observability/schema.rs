@@ -4,9 +4,9 @@ diesel::table! {
     alerts_dicts (id) {
         id -> Uuid,
         #[max_length = 64]
-        name -> Varchar,
+        name -> Nullable<Varchar>,
         #[max_length = 255]
-        key_ -> Varchar,
+        key_ -> Nullable<Varchar>,
         product -> Nullable<Json>,
         values_ -> Nullable<Json>,
         ts_created -> Nullable<Timestamp>,
@@ -21,9 +21,9 @@ diesel::table! {
     alerts_info (id) {
         id -> Uuid,
         #[max_length = 64]
-        name -> Varchar,
+        name -> Nullable<Varchar>,
         #[max_length = 64]
-        product -> Varchar,
+        product -> Nullable<Varchar>,
         #[max_length = 255]
         dimensions -> Nullable<Varchar>,
         period -> Nullable<Int4>,
@@ -51,9 +51,9 @@ diesel::table! {
         id_intermediate -> Uuid,
         id -> Nullable<Uuid>,
         #[max_length = 64]
-        name -> Varchar,
+        name -> Nullable<Varchar>,
         #[max_length = 64]
-        product -> Varchar,
+        product -> Nullable<Varchar>,
         dimensions -> Nullable<Jsonb>,
         #[max_length = 255]
         ts_slack -> Nullable<Varchar>,
@@ -65,7 +65,7 @@ diesel::table! {
         metadata_alert_details -> Nullable<Jsonb>,
         rca_metadata -> Nullable<Jsonb>,
         #[max_length = 64]
-        group_id -> Varchar,
+        group_id -> Nullable<Varchar>,
         #[max_length = 64]
         priority -> Nullable<Varchar>,
         last_updated_at -> Nullable<Timestamp>,
@@ -78,9 +78,9 @@ diesel::table! {
         id_intermediate -> Uuid,
         id -> Nullable<Uuid>,
         #[max_length = 64]
-        name -> Varchar,
+        name -> Nullable<Varchar>,
         #[max_length = 64]
-        product -> Varchar,
+        product -> Nullable<Varchar>,
         dimensions -> Nullable<Jsonb>,
         #[max_length = 255]
         ts_slack -> Nullable<Varchar>,
@@ -92,7 +92,7 @@ diesel::table! {
         metadata_alert_details -> Nullable<Jsonb>,
         rca_metadata -> Nullable<Jsonb>,
         #[max_length = 64]
-        group_id -> Varchar,
+        group_id -> Nullable<Varchar>,
         #[max_length = 64]
         priority -> Nullable<Varchar>,
         last_updated_at -> Nullable<Timestamp>,
@@ -104,9 +104,9 @@ diesel::table! {
     alerts_main (id) {
         id -> Uuid,
         #[max_length = 64]
-        name -> Varchar,
+        name -> Nullable<Varchar>,
         #[max_length = 64]
-        product -> Varchar,
+        product -> Nullable<Varchar>,
         dimensions -> Nullable<Json>,
         #[max_length = 255]
         ts_slack -> Nullable<Varchar>,
@@ -124,9 +124,9 @@ diesel::table! {
     alerts_main_xyne (id) {
         id -> Uuid,
         #[max_length = 64]
-        name -> Varchar,
+        name -> Nullable<Varchar>,
         #[max_length = 64]
-        product -> Varchar,
+        product -> Nullable<Varchar>,
         dimensions -> Nullable<Json>,
         #[max_length = 255]
         ts_slack -> Nullable<Varchar>,
@@ -146,24 +146,24 @@ diesel::table! {
         id_merchant_table -> Uuid,
         id_intermediate -> Nullable<Uuid>,
         #[max_length = 64]
-        name -> Varchar,
+        name -> Nullable<Varchar>,
         #[max_length = 64]
-        product -> Varchar,
+        product -> Nullable<Varchar>,
         #[max_length = 64]
-        merchant_id -> Varchar,
+        merchant_id -> Nullable<Varchar>,
         dimensions -> Nullable<Jsonb>,
         auxiliary_dimensions -> Nullable<Jsonb>,
-        current_metric -> Float8,
-        expected_metric -> Float8,
+        current_metric -> Nullable<Float8>,
+        expected_metric -> Nullable<Float8>,
         #[max_length = 255]
         attribution -> Nullable<Varchar>,
-        max_duration -> Int4,
-        start_time -> Timestamp,
-        is_visible -> Bool,
+        max_duration -> Nullable<Int4>,
+        start_time -> Nullable<Timestamp>,
+        is_visible -> Nullable<Bool>,
         recovered_ts -> Nullable<Timestamp>,
         #[max_length = 255]
-        ts_slack -> Varchar,
-        ts_alert -> Timestamp,
+        ts_slack -> Nullable<Varchar>,
+        ts_alert -> Nullable<Timestamp>,
         latest_ts_alert -> Nullable<Timestamp>,
         last_updated_at -> Nullable<Timestamp>,
         slack_info -> Nullable<Jsonb>,
@@ -197,26 +197,26 @@ diesel::table! {
         id_merchant_table -> Uuid,
         id_intermediate -> Nullable<Uuid>,
         #[max_length = 64]
-        name -> Varchar,
+        name -> Nullable<Varchar>,
         #[max_length = 64]
-        product -> Varchar,
+        product -> Nullable<Varchar>,
         #[max_length = 64]
-        dimension_key -> Varchar,
+        dimension_key -> Nullable<Varchar>,
         #[max_length = 255]
-        dimension_value -> Varchar,
+        dimension_value -> Nullable<Varchar>,
         dimensions -> Nullable<Jsonb>,
         auxiliary_dimensions -> Nullable<Jsonb>,
-        current_metric -> Float8,
-        expected_metric -> Float8,
+        current_metric -> Nullable<Float8>,
+        expected_metric -> Nullable<Float8>,
         #[max_length = 255]
         attribution -> Nullable<Varchar>,
-        max_duration -> Int4,
-        is_visible -> Bool,
-        start_time -> Timestamp,
+        max_duration -> Nullable<Int4>,
+        is_visible -> Nullable<Bool>,
+        start_time -> Nullable<Timestamp>,
         recovered_ts -> Nullable<Timestamp>,
         #[max_length = 255]
         ts_slack -> Nullable<Varchar>,
-        ts_alert -> Timestamp,
+        ts_alert -> Nullable<Timestamp>,
         latest_ts_alert -> Nullable<Timestamp>,
         last_updated_at -> Nullable<Timestamp>,
         slack_info -> Nullable<Jsonb>,
@@ -236,24 +236,24 @@ diesel::table! {
         id_merchant_table -> Uuid,
         id_intermediate -> Nullable<Uuid>,
         #[max_length = 64]
-        name -> Varchar,
+        name -> Nullable<Varchar>,
         #[max_length = 64]
-        product -> Varchar,
+        product -> Nullable<Varchar>,
         #[max_length = 64]
-        merchant_id -> Varchar,
+        merchant_id -> Nullable<Varchar>,
         dimensions -> Nullable<Jsonb>,
         auxiliary_dimensions -> Nullable<Jsonb>,
-        current_metric -> Float8,
-        expected_metric -> Float8,
+        current_metric -> Nullable<Float8>,
+        expected_metric -> Nullable<Float8>,
         #[max_length = 255]
         attribution -> Nullable<Varchar>,
-        max_duration -> Int4,
-        start_time -> Timestamp,
-        is_visible -> Bool,
+        max_duration -> Nullable<Int4>,
+        start_time -> Nullable<Timestamp>,
+        is_visible -> Nullable<Bool>,
         recovered_ts -> Nullable<Timestamp>,
         #[max_length = 255]
-        ts_slack -> Varchar,
-        ts_alert -> Timestamp,
+        ts_slack -> Nullable<Varchar>,
+        ts_alert -> Nullable<Timestamp>,
         latest_ts_alert -> Nullable<Timestamp>,
         last_updated_at -> Nullable<Timestamp>,
         slack_info -> Nullable<Jsonb>,
@@ -271,7 +271,7 @@ diesel::table! {
     notification_reads (user_name) {
         #[max_length = 255]
         user_name -> Varchar,
-        last_read_at -> Timestamp,
+        last_read_at -> Nullable<Timestamp>,
     }
 }
 

@@ -27,7 +27,7 @@ pub async fn read_watermark(
     Ok(match watermark {
         Some(watermark) => WatermarkResponse {
             status: ReadStatus::Found,
-            last_read_at: Some(watermark.last_read_at),
+            last_read_at: watermark.last_read_at,
         },
         None => WatermarkResponse {
             status: ReadStatus::Absent,
@@ -45,7 +45,7 @@ pub async fn mark_read(
 
     let watermark = NotificationRead {
         user_name: user_name.to_owned(),
-        last_read_at: common_utils::date_time::now(),
+        last_read_at: Some(common_utils::date_time::now()),
     }
     .upsert(&connection)
     .await
@@ -54,7 +54,7 @@ pub async fn mark_read(
 
     Ok(WatermarkResponse {
         status: ReadStatus::Found,
-        last_read_at: Some(watermark.last_read_at),
+        last_read_at: watermark.last_read_at,
     })
 }
 

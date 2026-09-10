@@ -43,7 +43,10 @@ pub async fn list_mappers(state: AppState) -> ObservabilityApiResult<MapperListR
         } else {
             ReadStatus::Found
         },
-        entries: entries.into_iter().map(MapperEntry::from).collect(),
+        entries: entries
+            .into_iter()
+            .map(MapperEntry::try_from)
+            .collect::<Result<Vec<_>, _>>()?,
     })
 }
 
@@ -63,7 +66,7 @@ pub async fn read_mapper(
         status: entry
             .as_ref()
             .map_or(ReadStatus::Absent, |_| ReadStatus::Found),
-        entry: entry.map(MapperEntry::from),
+        entry: entry.map(MapperEntry::try_from).transpose()?,
     })
 }
 
@@ -111,7 +114,7 @@ pub async fn upsert_mapper(
 
     Ok(MapperSaveResponse {
         status: WriteStatus::Saved,
-        entry: MapperEntry::from(entry),
+        entry: MapperEntry::try_from(entry)?,
     })
 }
 
