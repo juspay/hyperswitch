@@ -1193,11 +1193,7 @@ impl PaymentAttemptUpdateInternal {
         update_internal.card_network = update_internal
             .payment_method_data
             .as_ref()
-            .and_then(|data| data.as_object())
-            .and_then(|card| card.get("card"))
-            .and_then(|data| data.as_object())
-            .and_then(|card| card.get("card_network"))
-            .and_then(|network| network.as_str())
+            .and_then(common_enums::CardNetwork::from_payment_method_data)
             .map(|network| network.to_string());
         update_internal
     }

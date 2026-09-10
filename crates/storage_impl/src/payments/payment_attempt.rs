@@ -2109,13 +2109,7 @@ impl Conversion for PaymentAttempt {
         use common_utils::encryption::Encryption;
 
         let card_network = self
-            .payment_method_data
-            .as_ref()
-            .and_then(|data| data.peek().as_object())
-            .and_then(|card| card.get("card"))
-            .and_then(|data| data.as_object())
-            .and_then(|card| card.get("card_network"))
-            .and_then(|network| network.as_str())
+            .extract_card_network()
             .map(|network| network.to_string());
 
         let Self {
@@ -2432,6 +2426,11 @@ impl Conversion for PaymentAttempt {
 
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
         use common_utils::encryption::Encryption;
+
+        let card_network = self
+            .extract_card_network()
+            .map(|network| network.to_string());
+
         let Self {
             payment_id,
             merchant_id,
@@ -2490,15 +2489,6 @@ impl Conversion for PaymentAttempt {
             applied_offer_details: _,
             payment_account_reference,
         } = self;
-
-        let card_network = payment_method_data
-            .as_ref()
-            .and_then(|data| data.peek().as_object())
-            .and_then(|card| card.get("card"))
-            .and_then(|data| data.as_object())
-            .and_then(|card| card.get("card_network"))
-            .and_then(|network| network.as_str())
-            .map(|network| network.to_string());
 
         let error_details = error;
 
