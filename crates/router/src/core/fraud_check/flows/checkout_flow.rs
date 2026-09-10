@@ -4,12 +4,14 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::payments::payment_intent;
 use hyperswitch_masking::ExposeInterface;
 
+use hyperswitch_interfaces::api::gateway;
+
 use super::{ConstructFlowSpecificData, FeatureFrm};
 use crate::{
     core::{
         errors::{ConnectorErrorExt, RouterResult},
         fraud_check::types::FrmData,
-        payments::{self, helpers},
+        payments::{self, gateway::context::RouterGatewayContext, helpers},
         utils::get_gateway_frm_metadata,
     },
     errors, services,
@@ -142,6 +144,8 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
                 phone,
                 phone_country_code,
                 gateway_metadata: get_gateway_frm_metadata(&state.conf, &self.payment_attempt)?,
+                customer_name: customer_details.as_ref().and_then(|c| c.name.clone()),
+                payment_method_data_full: self.payment_method_data.clone(),
             },
             response: Ok(FraudCheckResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId("".to_string()),
@@ -153,7 +157,7 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
             access_token: None,
             session_token: None,
             reference_id: None,
-            payment_method_token: None,
+            payment_method_token: self.payment_method_token.clone(),
             connector_customer: None,
             preprocessing_id: None,
             connector_request_reference_id: common_utils::generate_uuid_v4().to_string(),
@@ -211,6 +215,35 @@ impl FeatureFrm<frm_api::Checkout, FraudCheckCheckoutData> for FrmCheckoutRouter
         platform: &domain::Platform,
     ) -> RouterResult<Self> {
         decide_frm_flow(&mut self, state, connector, call_connector_action, platform).await
+    }
+
+    /// Pre-authorization risk evaluation on the Unified Connector Service.
+    ///
+    /// Dispatches through the gateway abstraction so the UCS call runs under
+    /// `ucs_logging_wrapper_granular` like every other UCS flow.
+    async fn decide_frm_flows_via_ucs<'a>(
+        self,
+        state: &SessionState,
+        gateway_context: RouterGatewayContext,
+    ) -> RouterResult<Self> {
+        let connector = FraudCheckConnectorData::get_connector_by_name(&self.connector)?;
+        let connector_integration: services::BoxedFrmConnectorIntegrationInterface<
+            frm_api::Checkout,
+            FraudCheckCheckoutData,
+            FraudCheckResponseData,
+        > = connector.connector.get_connector_integration();
+
+        gateway::execute_payment_gateway(
+            state,
+            connector_integration,
+            &self,
+            payments::CallConnectorAction::Trigger,
+            None,
+            None,
+            gateway_context,
+        )
+        .await
+        .to_payment_failed_response()
     }
 }
 

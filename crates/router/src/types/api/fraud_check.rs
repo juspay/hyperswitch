@@ -59,14 +59,7 @@ impl FraudCheckConnectorData {
         connector_name: enums::FrmConnectors,
     ) -> CustomResult<ConnectorEnum, errors::ApiErrorResponse> {
         match connector_name {
-            enums::FrmConnectors::Nsure => Err(errors::ApiErrorResponse::NotImplemented {
-                message: errors::NotImplementedMessage::Reason(
-                    "nsure is executed via the Unified Connector Service and has no \
-                     in-process connector"
-                        .to_string(),
-                ),
-            }
-            .into()),
+            enums::FrmConnectors::Nsure => Ok(ConnectorEnum::Old(Box::new(connector::Nsure::new()))),
             enums::FrmConnectors::Signifyd => {
                 Ok(ConnectorEnum::Old(Box::new(connector::Signifyd::new())))
             }

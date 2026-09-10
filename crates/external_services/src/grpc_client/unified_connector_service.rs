@@ -85,11 +85,6 @@ pub struct UnifiedConnectorServiceClientConfig {
     #[serde(default, deserialize_with = "deserialize_hashset")]
     pub ucs_psync_disabled_connectors: HashSet<Connector>,
 
-    /// Set of FRM connectors whose risk evaluation is executed by the unified
-    /// connector service rather than by an in-process connector. Empty by
-    /// default, so no FRM traffic is routed to UCS unless explicitly configured.
-    #[serde(default, deserialize_with = "deserialize_hashset")]
-    pub ucs_frm_connectors: HashSet<Connector>,
 }
 
 /// Connection timeout for the Unified Connector Service in seconds.
@@ -1606,9 +1601,12 @@ impl UnifiedConnectorServiceClient {
         let mut request = tonic::Request::new(pre_risk_check_request);
 
         let connector_name = connector_auth_metadata.connector_name.clone();
-        let metadata = build_unified_connector_service_grpc_headers_for_frm(
+        // FRM providers are onboarded as `payment_vas`, which the shared builder
+        // maps to `x-frm-connector`.
+        let metadata = build_unified_connector_service_grpc_headers_for_connector_type(
             connector_auth_metadata,
             grpc_headers,
+            ConnectorType::PaymentVas,
         )?;
 
         *request.metadata_mut() = metadata;
@@ -1894,33 +1892,6 @@ pub fn build_unified_connector_service_grpc_headers_for_surcharge(
         consts::UCS_HEADER_SURCHARGE_CONNECTOR,
         surcharge_connector_value,
     );
-
-    Ok(metadata)
-}
-
-/// Build gRPC headers for a UCS FRM request.
-///
-/// FRM connectors are selected by `x-frm-connector` rather than `x-connector`,
-/// mirroring how surcharge connectors use `x-surcharge-connector`. prism routes
-/// on this header (see `frm_connector_from_composite_frm_metadata`).
-pub fn build_unified_connector_service_grpc_headers_for_frm(
-    meta: ConnectorAuthMetadata,
-    grpc_headers: GrpcHeadersUcs,
-) -> Result<MetadataMap, UnifiedConnectorServiceError> {
-    let mut metadata = build_unified_connector_service_grpc_headers(meta.clone(), grpc_headers)?;
-
-    metadata.remove(consts::UCS_HEADER_CONNECTOR);
-
-    let connector_name = meta.connector_name.clone();
-    let frm_connector_value = connector_name
-        .parse::<MetadataValue<_>>()
-        .map_err(|error| {
-            logger::error!(?error);
-            UnifiedConnectorServiceError::HeaderInjectionFailed(
-                consts::UCS_HEADER_FRM_CONNECTOR.to_string(),
-            )
-        })?;
-    metadata.append(consts::UCS_HEADER_FRM_CONNECTOR, frm_connector_value);
 
     Ok(metadata)
 }
