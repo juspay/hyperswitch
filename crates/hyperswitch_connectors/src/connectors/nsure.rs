@@ -85,7 +85,10 @@ impl Refund for Nsure {}
 impl RefundExecute for Nsure {}
 impl RefundSync for Nsure {}
 impl ConnectorValidation for Nsure {}
-impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData> for Nsure {}
+impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
+    for Nsure
+{
+}
 impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Nsure {}
 impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData> for Nsure {}
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Nsure {}
