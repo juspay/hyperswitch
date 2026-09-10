@@ -84,7 +84,6 @@ pub struct UnifiedConnectorServiceClientConfig {
     /// Set of connectors for which psync is disabled in unified connector service
     #[serde(default, deserialize_with = "deserialize_hashset")]
     pub ucs_psync_disabled_connectors: HashSet<Connector>,
-
 }
 
 /// Connection timeout for the Unified Connector Service in seconds.

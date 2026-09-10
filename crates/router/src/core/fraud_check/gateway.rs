@@ -13,8 +13,7 @@ use common_enums::{CallConnectorAction, ExecutionPath};
 use common_utils::{errors::CustomResult, request::Request};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    router_data::RouterData,
-    router_flow_types::fraud_check as frm_api,
+    router_data::RouterData, router_flow_types::fraud_check as frm_api,
     router_request_types::fraud_check::FraudCheckCheckoutData,
     router_response_types::fraud_check::FraudCheckResponseData,
 };
