@@ -17,8 +17,8 @@
       "starting_rps": 10,
       "target_rps": 1000,
       "step_rps": 10,
-      "hold_seconds": 10,
-      "idle_seconds": 5
+      "hold_seconds": 20,
+      "idle_seconds": 2
     },
     "request_timeout_ms": 30000
   },
