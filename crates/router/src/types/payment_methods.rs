@@ -587,8 +587,6 @@ pub struct PaymentMethodUpdateHandler<'a> {
     pub profile: &'a hyperswitch_domain_models::business_profile::Profile,
     pub request: hyperswitch_domain_models::payment_methods::PaymentMethodUpdate,
     pub payment_method: hyperswitch_domain_models::payment_methods::PaymentMethod,
-    /// Set when the payment method being promoted out of volatile storage has no row yet: this
-    /// update writes it instead of updating one.
     pub insert_promoted_record: bool,
     pub state: &'a SessionState,
 }

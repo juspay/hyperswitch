@@ -6805,9 +6805,13 @@ pub async fn update_payment_method_core(
             logger::info!(?error, "No volatile payment method found to promote");
         })
         .ok()
-        // The acceptance the record was written with is what marks it for promotion; without one
-        // the card was only ever meant to last for this payment.
-        .filter(|volatile_payment_method| volatile_payment_method.customer_acceptance.is_some())
+        // The acceptance the record was written with is what marks it for promotion, and there
+        // has to be a customer to attach the card to. Without either the card was only ever meant
+        // to last for this payment, whichever endpoint asks for the acknowledgement.
+        .filter(|volatile_payment_method| {
+            volatile_payment_method.customer_acceptance.is_some()
+                && volatile_payment_method.customer_id.is_some()
+        })
     } else {
         None
     };
@@ -6845,8 +6849,7 @@ pub async fn update_payment_method_core(
     ))
     .await?;
 
-    // The record is persisted now, and the redis copy left behind would shadow it on the next
-    // retrieval. A failed delete is not worth failing the call for.
+    // A volatile copy left in redis is read in preference to the row that now holds the card.
     if is_promotion {
         let deleted = state
             .store
@@ -8203,7 +8206,6 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
             )
             .await;
 
-        // A promoted card that was never persisted has no row to find: this update writes it.
         let (payment_method, insert_promoted_record) =
             match (payment_method, volatile_payment_method) {
                 (Ok(payment_method), _) => (payment_method, false),
