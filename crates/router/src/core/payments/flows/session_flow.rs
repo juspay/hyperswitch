@@ -1438,10 +1438,7 @@ fn resolve_google_pay_merchant_id(
 ) -> Option<String> {
     match merchant_info.merchant_id.clone() {
         Some(merchant_id) => Some(merchant_id),
-        None => match merchant_info
-            .tokenization_specification
-            .tokenization_type
-        {
+        None => match merchant_info.tokenization_specification.tokenization_type {
             payment_types::GooglePayTokenizationType::InternalGateway => {
                 match state
                     .conf
