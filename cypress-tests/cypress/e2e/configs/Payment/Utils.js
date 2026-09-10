@@ -828,6 +828,7 @@ export const CONNECTOR_LISTS = {
     WEBHOOK_CONFIG: ["stripe"],
     REQUIRES_CVV: ["bankofamerica"],
     BLOCK_IMPLICIT_CUSTOMER_CREATION: ["adyen"],
+    CVC_OMIT: ["cybersource"],
     // Add more inclusion lists
   },
 };
