@@ -143,7 +143,22 @@ pub struct OfferDescription {
     #[serde(default)]
     pub title: Option<String>,
     #[serde(default)]
+    pub display_title: Option<String>,
+    #[serde(default)]
     pub description: Option<String>,
+}
+
+/// Nested `offer_rules` from Offer Engine.
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct OfferRules {
+    #[serde(default)]
+    pub amount: Option<OfferRulesAmount>,
+}
+
+/// Nested `amount` inside `offer_rules`.
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct OfferRulesAmount {
+    pub currency: Option<common_enums::Currency>,
 }
 
 /// Request body for `/offers/apply`.
@@ -348,26 +363,105 @@ pub struct BrowseOfferListResponse {
 pub struct BrowseOfferListEntry {
     pub status: OfferStatus,
     pub offer_code: String,
+    #[serde(default)]
     pub offer_description: Option<OfferDescription>,
+    #[serde(default)]
+    pub offer_rules: Option<OfferRules>,
+    #[serde(default)]
     pub display_title: Option<String>,
+    #[serde(default)]
     pub currency: Option<common_enums::Currency>,
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    #[serde(
+        default,
+        alias = "end_time_utc",
+        with = "common_utils::custom_serde::iso8601::option"
+    )]
     pub valid_till: Option<time::PrimitiveDateTime>,
 }
 
 impl From<BrowseOfferListEntry> for api_models::offer_engine::BrowseOffer {
     fn from(entry: BrowseOfferListEntry) -> Self {
-        let (title, description) = entry.offer_description.map_or((None, None), |description| {
-            (description.title, description.description)
-        });
+        let (title, desc_display_title, description) =
+            entry.offer_description.map_or((None, None, None), |desc| {
+                (desc.title, desc.display_title, desc.description)
+            });
+
+        let display_title = desc_display_title.or(entry.display_title);
+        let currency = entry
+            .currency
+            .or_else(|| entry.offer_rules.and_then(|rules| rules.amount).and_then(|amt| amt.currency));
 
         Self {
             code: entry.offer_code,
             title,
-            display_title: entry.display_title,
+            display_title,
             description,
-            currency: entry.currency,
+            currency,
             valid_till: entry.valid_till,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_deserialize_browse_offer_list_entry_with_nested_fields() {
+        // Upstream Offer Engine sends:
+        // - display_title in offer_description.display_title
+        // - currency in offer_rules.amount.currency
+        // - valid_till as end_time_utc
+        let json_data = serde_json::json!({
+            "status": "ELIGIBLE",
+            "offer_code": "DISCOUNT10",
+            "offer_description": {
+                "title": "10% Off Everything",
+                "display_title": "10% Off",
+                "description": "Get 10% discount on entire cart"
+            },
+            "offer_rules": {
+                "amount": {
+                    "currency": "USD"
+                }
+            },
+            "end_time_utc": "2026-12-31T23:59:59.000Z"
+        });
+
+        let entry: BrowseOfferListEntry =
+            serde_json::from_value(json_data).expect("Failed to deserialize BrowseOfferListEntry");
+
+        assert_eq!(entry.status, OfferStatus::Eligible);
+        assert_eq!(entry.offer_code, "DISCOUNT10");
+        assert!(entry.valid_till.is_some());
+
+        let browse_offer = api_models::offer_engine::BrowseOffer::from(entry);
+        assert_eq!(browse_offer.code, "DISCOUNT10");
+        assert_eq!(browse_offer.title.as_deref(), Some("10% Off Everything"));
+        assert_eq!(browse_offer.display_title.as_deref(), Some("10% Off"));
+        assert_eq!(browse_offer.description.as_deref(), Some("Get 10% discount on entire cart"));
+        assert_eq!(browse_offer.currency, Some(common_enums::Currency::USD));
+        assert!(browse_offer.valid_till.is_some());
+    }
+
+    #[test]
+    fn test_deserialize_browse_offer_list_entry_fallback_compatibility() {
+        // Also supports legacy/top-level fields if provided
+        let json_data = serde_json::json!({
+            "status": "ELIGIBLE",
+            "offer_code": "FLAT50",
+            "display_title": "Flat $50 Off",
+            "currency": "EUR",
+            "valid_till": "2026-10-15T12:00:00.000Z"
+        });
+
+        let entry: BrowseOfferListEntry =
+            serde_json::from_value(json_data).expect("Failed to deserialize BrowseOfferListEntry");
+
+        let browse_offer = api_models::offer_engine::BrowseOffer::from(entry);
+        assert_eq!(browse_offer.code, "FLAT50");
+        assert_eq!(browse_offer.display_title.as_deref(), Some("Flat $50 Off"));
+        assert_eq!(browse_offer.currency, Some(common_enums::Currency::EUR));
+        assert!(browse_offer.valid_till.is_some());
     }
 }
