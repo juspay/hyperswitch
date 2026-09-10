@@ -34,7 +34,7 @@ function boot() {
       }
     }
     url.search = params.toString();
-    redirectToEndUrl(url, payoutDetails.redirect_delay_seconds);
+    redirectToEndUrl(url);
   }
 }
 boot();
@@ -154,48 +154,38 @@ function renderStatusDetails(payoutDetails) {
  *  - Redirect to end url
  * @param {URL} returnUrl
  */
-function redirectToEndUrl(returnUrl, redirectDelaySeconds) {
+function redirectToEndUrl(returnUrl) {
   // Form redirect text
   var statusRedirectTextNode = document.getElementById("redirect-text");
-  var timeout =
-    redirectDelaySeconds !== undefined && redirectDelaySeconds !== null
-      ? redirectDelaySeconds
-      : 5,
+  var timeout = 5,
     j = 0;
-  if (timeout === 0) {
-    // Auto-redirect disabled by merchant config
-    if (statusRedirectTextNode instanceof HTMLDivElement) {
-      statusRedirectTextNode.innerText = "";
-    }
-  } else {
-    for (var i = 0; i <= timeout; i++) {
-      setTimeout(function () {
-        var secondsLeft = timeout - j++;
-        var innerText =
-          secondsLeft === 0
-            ? "{{i18n_redirecting_text}}"
-            : "{{i18n_redirecting_in_text}} " +
-              secondsLeft +
-              " {{i18n_seconds_text}}";
-        if (statusRedirectTextNode instanceof HTMLDivElement) {
-          statusRedirectTextNode.innerText = innerText;
-        }
-        if (secondsLeft === 0) {
-          setTimeout(function () {
-            try {
-              window.top.location.href = returnUrl.toString();
-            } catch (error) {
-              console.error(
-                "CRITICAL ERROR",
-                "Failed to redirect top document. Error - ",
-                error
-              );
-              console.info("Redirecting in current document");
-              window.location.href = returnUrl.toString();
-            }
-          }, 1000);
-        }
-      }, i * 1000);
-    }
+  for (var i = 0; i <= timeout; i++) {
+    setTimeout(function () {
+      var secondsLeft = timeout - j++;
+      var innerText =
+        secondsLeft === 0
+          ? "{{i18n_redirecting_text}}"
+          : "{{i18n_redirecting_in_text}} " +
+            secondsLeft +
+            " {{i18n_seconds_text}}";
+      if (statusRedirectTextNode instanceof HTMLDivElement) {
+        statusRedirectTextNode.innerText = innerText;
+      }
+      if (secondsLeft === 0) {
+        setTimeout(function () {
+          try {
+            window.top.location.href = returnUrl.toString();
+          } catch (error) {
+            console.error(
+              "CRITICAL ERROR",
+              "Failed to redirect top document. Error - ",
+              error
+            );
+            console.info("Redirecting in current document");
+            window.location.href = returnUrl.toString();
+          }
+        }, 1000);
+      }
+    }, i * 1000);
   }
 }

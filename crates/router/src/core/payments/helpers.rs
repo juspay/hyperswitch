@@ -8142,12 +8142,12 @@ pub fn validate_payment_link_request(
         .payment_link_config
         .as_ref()
         .and_then(|config| config.theme_config.redirect_delay_seconds)
-        .filter(|&delay| delay > api_models::admin::MAX_PAYMENT_LINK_REDIRECT_DELAY_SECONDS)
+        .filter(|&delay| delay > common_utils::consts::MAX_PAYMENT_LINK_REDIRECT_DELAY_SECONDS)
         .map(|_| {
             Err(errors::ApiErrorResponse::InvalidRequestData {
                 message: format!(
                     "redirect_delay_seconds must not exceed {} seconds",
-                    api_models::admin::MAX_PAYMENT_LINK_REDIRECT_DELAY_SECONDS
+                    common_utils::consts::MAX_PAYMENT_LINK_REDIRECT_DELAY_SECONDS
                 ),
             })
         })

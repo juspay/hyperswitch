@@ -3714,18 +3714,16 @@ impl PaymentLinkConfigRequest {
         }
 
         self.redirect_delay_seconds
-            .filter(|&delay| delay > MAX_PAYMENT_LINK_REDIRECT_DELAY_SECONDS)
+            .filter(|&delay| delay > consts::MAX_PAYMENT_LINK_REDIRECT_DELAY_SECONDS)
             .map(|_| {
                 Err(format!(
                     "redirect_delay_seconds must not exceed {} seconds",
-                    MAX_PAYMENT_LINK_REDIRECT_DELAY_SECONDS
+                    consts::MAX_PAYMENT_LINK_REDIRECT_DELAY_SECONDS
                 ))
             })
             .unwrap_or(Ok(()))
     }
 }
-
-pub const MAX_PAYMENT_LINK_REDIRECT_DELAY_SECONDS: u32 = 90;
 
 #[derive(
     Clone,

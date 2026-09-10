@@ -13130,7 +13130,6 @@ pub struct PaymentLinkStatusDetails {
     pub unified_message: Option<String>,
     pub capture_method: Option<common_enums::CaptureMethod>,
     pub setup_future_usage_applied: Option<common_enums::FutureUsage>,
-    /// Duration in seconds before the status page auto-redirects. None means default (5s), 0 disables redirect.
     pub redirect_delay_seconds: Option<u32>,
 }
 

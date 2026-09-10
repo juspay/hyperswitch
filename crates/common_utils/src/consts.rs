@@ -84,6 +84,9 @@ pub const PROPHETPAY_TOKEN: &str = "cctoken";
 /// Payment intent default client secret expiry (in seconds)
 pub const DEFAULT_SESSION_EXPIRY: i64 = 15 * 60;
 
+/// Maximum allowed redirect delay in seconds for payment link status page
+pub const MAX_PAYMENT_LINK_REDIRECT_DELAY_SECONDS: u32 = 90;
+
 /// Payment intent fulfillment time (in seconds)
 pub const DEFAULT_INTENT_FULFILLMENT_TIME: i64 = 15 * 60;
 
