@@ -1,7 +1,7 @@
 use diesel_models::{
     errors::DatabaseError,
     observability::{
-        alerts_dicts::{AlertsDict, AlertsDictNew},
+        alerts_dicts::{AlertsDict, AlertsDictNew, DEFAULT_USERNAME},
         raw_json::RawJson,
     },
 };
@@ -94,12 +94,14 @@ pub async fn upsert_mapper(
     let connection = state.database_connection().await?;
 
     let entry = AlertsDictNew {
+        id: uuid::Uuid::now_v7(),
         name,
         key_: key,
         product,
         values_: values,
         ts_created: common_utils::date_time::now(),
-        username,
+        is_enabled: Some(true),
+        username: username.or_else(|| Some(DEFAULT_USERNAME.to_owned())),
         metadata,
     }
     .upsert(&connection)

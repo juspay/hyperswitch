@@ -109,6 +109,7 @@ impl AlertsInfo {
 #[derive(Clone, Debug, PartialEq, Insertable)]
 #[diesel(table_name = alerts_info)]
 pub struct AlertsInfoNew {
+    pub id: uuid::Uuid,
     pub name: String,
     pub product: String,
     pub dimensions: Option<String>,
