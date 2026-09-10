@@ -72,6 +72,7 @@ pub struct AlertDefinitionCreateRequest {
 impl AlertDefinitionCreateRequest {
     pub fn into_insertable(self, now: PrimitiveDateTime) -> AlertsInfoNew {
         AlertsInfoNew {
+            id: uuid::Uuid::now_v7(),
             name: self.name,
             product: self.product,
             dimensions: self.dimensions,

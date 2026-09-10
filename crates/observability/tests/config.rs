@@ -867,7 +867,7 @@ async fn an_empty_result_is_a_200_with_a_count() {
     assert!(body["definitions"].is_array());
 }
 
-async fn stored_rows(state: &AppState, name: &str) -> Vec<(String, Option<bool>)> {
+async fn stored_rows(state: &AppState, name: &str) -> Vec<(Option<String>, Option<bool>)> {
     let connection = state.database_connection().await.unwrap();
 
     alerts_dicts::table
@@ -1013,7 +1013,7 @@ async fn a_retired_entry_leaves_the_dictionary_and_its_row_stays_behind() {
 
     assert_eq!(
         stored_rows(&state, &name).await,
-        vec![("channels".to_owned(), Some(false))]
+        vec![(Some("channels".to_owned()), Some(false))]
     );
 
     forget_dictionary(&state, &name).await;
