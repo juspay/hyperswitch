@@ -27,6 +27,9 @@ pub mod payout_sync;
 #[cfg(feature = "v1")]
 pub mod batch_blocklist_upload;
 
+#[cfg(all(feature = "olap", feature = "v1"))]
+pub mod generate_report;
+
 pub mod network_tokenization;
 
 #[cfg(feature = "v1")]

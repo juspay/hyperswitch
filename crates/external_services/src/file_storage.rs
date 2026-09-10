@@ -64,6 +64,14 @@ pub trait FileStorageInterface: dyn_clone::DynClone + Sync + Send {
 
     /// Retrieves a file from the selected storage scheme.
     async fn retrieve_file(&self, file_key: &str) -> CustomResult<Vec<u8>, FileStorageError>;
+
+    /// Generates a time-limited signed URL from which the file can be downloaded without
+    /// further authentication.
+    async fn get_signed_url(
+        &self,
+        file_key: &str,
+        expires_in: std::time::Duration,
+    ) -> CustomResult<String, FileStorageError>;
 }
 
 dyn_clone::clone_trait_object!(FileStorageInterface);
@@ -94,4 +102,8 @@ pub enum FileStorageError {
     /// Indicates that the file deletion operation failed.
     #[error("Failed to delete file")]
     DeleteFailed,
+
+    /// Indicates that the signed URL generation operation failed.
+    #[error("Failed to generate signed URL for file")]
+    SignedUrlGenerationFailed,
 }

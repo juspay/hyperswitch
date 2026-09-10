@@ -1323,6 +1323,17 @@ file_storage_backend = "aws_s3" # File storage backend to be used
 region = "us-east-1"    # The AWS region used by the AWS S3 for file storage
 bucket_name = "bucket1" # The AWS S3 bucket name for file storage
 
+# Configuration for analytics report generation
+[report_download_config]
+payment_function = ""                          # Name of the lambda function used to generate payment reports
+refund_function = ""                           # Name of the lambda function used to generate refund reports
+dispute_function = ""                          # Name of the lambda function used to generate dispute reports
+authentication_function = ""                   # Name of the lambda function used to generate authentication reports
+payout_function = ""                           # Name of the lambda function used to generate payout reports
+relay_function = ""                            # Name of the lambda function used to generate relay reports
+region = ""                                    # AWS region of the report lambda functions
+generate_payment_reports_via_scheduler = false # Generate payment reports through the process tracker instead of the payment report lambda
+
 [secrets_management]
 secrets_manager = "aws_kms" # Secrets manager client to be used (no_encryption | aws_kms | hashicorp_vault | gcp_kms)
 

@@ -299,6 +299,7 @@ refund_function = "report_download_config_refund_function"   # Config to downloa
 payout_function = "report_download_config_payout_function"   # Config to download payout report
 relay_function = "report_download_config_relay_function"     # Config to download relay report
 region = "report_download_config_region"                     # Region of the bucket
+generate_payment_reports_via_scheduler = false               # Generate payment reports through the process tracker instead of the payment report lambda
 
 [opensearch]
 host = "https://localhost:9200"

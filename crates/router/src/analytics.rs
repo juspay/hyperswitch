@@ -3080,15 +3080,9 @@ pub mod routes {
                     payment_response_hash_key: hash_key,
                 };
 
-                let json_bytes =
-                    serde_json::to_vec(&lambda_req).map_err(|_| AnalyticsError::UnknownError)?;
-                invoke_lambda(
-                    &state.conf.report_download_config.payment_function,
-                    &state.conf.report_download_config.region,
-                    &json_bytes,
-                )
-                .await
-                .map(ApplicationResponse::Json)
+                crate::core::generate_report::trigger_payment_report_generation(&state, lambda_req)
+                    .await
+                    .map(ApplicationResponse::Json)
             },
             auth::auth_type::<auth::AuthenticationDataWithUserId, _>(
                 &auth::ApiKeyAuth {
@@ -3171,15 +3165,9 @@ pub mod routes {
                     payment_response_hash_key: None,
                 };
 
-                let json_bytes =
-                    serde_json::to_vec(&lambda_req).map_err(|_| AnalyticsError::UnknownError)?;
-                invoke_lambda(
-                    &state.conf.report_download_config.payment_function,
-                    &state.conf.report_download_config.region,
-                    &json_bytes,
-                )
-                .await
-                .map(ApplicationResponse::Json)
+                crate::core::generate_report::trigger_payment_report_generation(&state, lambda_req)
+                    .await
+                    .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
                 permission: Permission::OrganizationReportRead,
@@ -3280,15 +3268,9 @@ pub mod routes {
                     payment_response_hash_key: hash_key,
                 };
 
-                let json_bytes =
-                    serde_json::to_vec(&lambda_req).map_err(|_| AnalyticsError::UnknownError)?;
-                invoke_lambda(
-                    &state.conf.report_download_config.payment_function,
-                    &state.conf.report_download_config.region,
-                    &json_bytes,
-                )
-                .await
-                .map(ApplicationResponse::Json)
+                crate::core::generate_report::trigger_payment_report_generation(&state, lambda_req)
+                    .await
+                    .map(ApplicationResponse::Json)
             },
             auth::auth_type::<auth::AuthenticationDataWithUserId, _>(
                 &auth::ApiKeyAuth {

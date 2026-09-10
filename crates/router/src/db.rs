@@ -19,6 +19,7 @@ pub mod ephemeral_key;
 pub mod events;
 pub mod file;
 pub mod fraud_check;
+pub mod generate_report;
 pub mod generic_link;
 pub mod gsm;
 pub mod health_check;
@@ -112,6 +113,7 @@ pub trait StorageInterface:
     + events::EventInterface
     + file::FileMetadataInterface
     + FraudCheckInterface
+    + generate_report::PaymentReportInterface
     + locker_mock_up::LockerMockUpInterface
     + mandate::MandateInterface
     + merchant_account::MerchantAccountInterface<Error = StorageError>

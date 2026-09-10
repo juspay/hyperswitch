@@ -3,6 +3,7 @@ use aws_sdk_s3::{
     operation::{
         delete_object::DeleteObjectError, get_object::GetObjectError, put_object::PutObjectError,
     },
+    presigning::{PresigningConfig, PresigningConfigError},
     Client,
 };
 use aws_sdk_sts::config::Region;
@@ -53,8 +54,13 @@ impl AwsFileStorageClient {
     pub(super) async fn new(config: &AwsFileStorageConfig) -> Self {
         let region_provider = RegionProviderChain::first_try(Region::new(config.region.clone()));
         let sdk_config = aws_config::from_env().region(region_provider).load().await;
+        // Custom endpoints (e.g. a local AWS emulator) do not resolve virtual hosted
+        // bucket DNS, so path style addressing is required there
+        let s3_config = aws_sdk_s3::config::Builder::from(&sdk_config)
+            .force_path_style(sdk_config.endpoint_url().is_some())
+            .build();
         Self {
-            inner_client: Client::new(&sdk_config),
+            inner_client: Client::from_conf(s3_config),
             bucket_name: config.bucket_name.clone(),
         }
     }
@@ -104,6 +110,26 @@ impl AwsFileStorageClient {
             .map_err(AwsS3StorageError::UnknownError)?
             .to_vec())
     }
+
+    /// Generates a presigned URL for downloading a file from AWS S3.
+    async fn get_signed_url(
+        &self,
+        file_key: &str,
+        expires_in: std::time::Duration,
+    ) -> CustomResult<String, AwsS3StorageError> {
+        let presigning_config = PresigningConfig::expires_in(expires_in)
+            .map_err(AwsS3StorageError::PresigningConfigFailure)?;
+        Ok(self
+            .inner_client
+            .get_object()
+            .bucket(&self.bucket_name)
+            .key(file_key)
+            .presigned(presigning_config)
+            .await
+            .map_err(AwsS3StorageError::PresigningFailure)?
+            .uri()
+            .to_string())
+    }
 }
 
 #[async_trait::async_trait]
@@ -135,6 +161,18 @@ impl FileStorageInterface for AwsFileStorageClient {
             .await
             .change_context(FileStorageError::RetrieveFailed)?)
     }
+
+    /// Generates a presigned URL for downloading a file from AWS S3.
+    async fn get_signed_url(
+        &self,
+        file_key: &str,
+        expires_in: std::time::Duration,
+    ) -> CustomResult<String, FileStorageError> {
+        Ok(self
+            .get_signed_url(file_key, expires_in)
+            .await
+            .change_context(FileStorageError::SignedUrlGenerationFailed)?)
+    }
 }
 
 /// Enum representing errors that can occur during AWS S3 file storage operations.
@@ -151,6 +189,14 @@ enum AwsS3StorageError {
     /// Error indicating that file deletion from S3 failed.
     #[error("File delete from S3 failed: {0:?}")]
     DeleteFailure(aws_sdk_s3::error::SdkError<DeleteObjectError>),
+
+    /// Error indicating that the presigning configuration could not be built.
+    #[error("Failed to build S3 presigning configuration: {0:?}")]
+    PresigningConfigFailure(PresigningConfigError),
+
+    /// Error indicating that presigned URL generation failed.
+    #[error("Presigned URL generation for S3 failed: {0:?}")]
+    PresigningFailure(aws_sdk_s3::error::SdkError<GetObjectError>),
 
     /// Unknown error occurred.
     #[error("Unknown error occurred: {0:?}")]

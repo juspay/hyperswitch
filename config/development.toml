@@ -1485,6 +1485,9 @@ enabled = true
 [file_storage]
 file_storage_backend = "file_system"
 
+[report_download_config]
+generate_payment_reports_via_scheduler = true
+
 [unmasked_headers]
 keys = "accept-language,user-agent,x-profile-id"
 
