@@ -9235,3 +9235,55 @@ payment_method_type = "payshap"
 payment_method_type = "payshap_proxy"
 [gotyme_sanlam_payout.connector_webhook_details]
 merchant_secret="Source verification key"
+
+[mifinity_payout]
+[[mifinity_payout.credit]]
+payment_method_type = "Mastercard"
+[[mifinity_payout.credit]]
+payment_method_type = "Visa"
+[[mifinity_payout.credit]]
+payment_method_type = "Interac"
+[[mifinity_payout.credit]]
+payment_method_type = "AmericanExpress"
+[[mifinity_payout.credit]]
+payment_method_type = "JCB"
+[[mifinity_payout.credit]]
+payment_method_type = "DinersClub"
+[[mifinity_payout.credit]]
+payment_method_type = "Discover"
+[[mifinity_payout.credit]]
+payment_method_type = "CartesBancaires"
+[[mifinity_payout.credit]]
+payment_method_type = "UnionPay"
+[[mifinity_payout.debit]]
+payment_method_type = "Mastercard"
+[[mifinity_payout.debit]]
+payment_method_type = "Visa"
+[[mifinity_payout.debit]]
+payment_method_type = "Interac"
+[[mifinity_payout.debit]]
+payment_method_type = "AmericanExpress"
+[[mifinity_payout.debit]]
+payment_method_type = "JCB"
+[[mifinity_payout.debit]]
+payment_method_type = "DinersClub"
+[[mifinity_payout.debit]]
+payment_method_type = "Discover"
+[[mifinity_payout.debit]]
+payment_method_type = "CartesBancaires"
+[[mifinity_payout.debit]]
+payment_method_type = "UnionPay"
+[mifinity_payout.connector_auth.HeaderKey]
+api_key = "key"
+[mifinity_payout.metadata.brand_id]
+name = "brand_id"
+label = "Merchant Brand ID"
+placeholder = "Enter Brand ID"
+required = true
+type = "Text"
+[mifinity_payout.metadata.destination_account_number]
+name = "destination_account_number"
+label = "Destination Account Number"
+placeholder = "Enter Destination Account Number"
+required = true
+type = "Text"
