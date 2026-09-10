@@ -292,7 +292,10 @@ impl super::settings::GooglePayDecryptConfig {
                 "google_pay_private_key",
                 self.google_pay_private_key.is_none(),
             ),
-            ("google_pay_gateway_id", self.google_pay_gateway_id.is_none()),
+            (
+                "google_pay_gateway_id",
+                self.google_pay_gateway_id.is_none(),
+            ),
             (
                 "google_pay_common_merchant_id",
                 self.google_pay_common_merchant_id.is_none(),
