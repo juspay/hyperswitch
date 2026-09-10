@@ -7875,8 +7875,9 @@ async fn decrypt_google_pay_wallet_data(
             .clone(),
         payment_processing_details.google_pay_recipient_id.clone(),
         payment_processing_details.google_pay_private_key.clone(),
-        // INTERNAL_GATEWAY makes the decryptor verify the token unconditionally. DIRECT
-        // recipients are merchant supplied and are therefore left unverified, as they are today.
+        // INTERNAL_GATEWAY additionally enforces that the decrypted token's
+        // gatewayMerchantId matches the merchant being paid. Signature verification stays
+        // off, and DIRECT recipients are merchant supplied and left unverified, as today.
         payment_processing_details.google_pay_tokenization_type,
         payment_processing_details
             .google_pay_gateway_merchant_id
@@ -9503,10 +9504,10 @@ pub struct GooglePayPaymentProcessingDetails {
     pub google_pay_private_key: Secret<String>,
     pub google_pay_root_signing_keys: Secret<String>,
     pub google_pay_recipient_id: Secret<String>,
-    /// Tokenization type configured on the MCA. `INTERNAL_GATEWAY` turns signature verification
-    /// on: the recipient is derived by Hyperswitch in that flow, so it is known to be correct and
-    /// can be enforced. `DIRECT` recipients are typed by the merchant and are therefore left
-    /// unverified, as they are today.
+    /// Tokenization type configured on the MCA. `INTERNAL_GATEWAY` additionally enforces that
+    /// the decrypted token's `gatewayMerchantId` matches the merchant being paid; signature
+    /// verification stays off, as it does for `DIRECT`, whose recipients are typed by the
+    /// merchant and are therefore left unverified.
     pub google_pay_tokenization_type: api_models::payments::GooglePayTokenizationType,
     /// Hyperswitch merchant id sent to Google as `gateway_merchant_id`, checked against the
     /// decrypted token. Set for `INTERNAL_GATEWAY` only.

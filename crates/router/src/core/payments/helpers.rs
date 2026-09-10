@@ -7352,8 +7352,9 @@ pub struct GooglePayTokenDecryptor {
     root_signing_keys: Vec<GooglePayRootSigningKey>,
     recipient_id: hyperswitch_masking::Secret<String>,
     private_key: PKey<openssl::pkey::Private>,
-    /// Tokenization type the merchant configured on its MCA. `INTERNAL_GATEWAY` tokens are
-    /// verified unconditionally; every other type keeps today's behaviour.
+    /// Tokenization type the merchant configured on its MCA. `INTERNAL_GATEWAY` tokens get the
+    /// additional `gatewayMerchantId` check after decryption; every other type keeps today's
+    /// behaviour.
     tokenization_type: api_models::payments::GooglePayTokenizationType,
     /// Hyperswitch merchant id that was sent to Google as `gateway_merchant_id`. Set for
     /// `INTERNAL_GATEWAY` only, and checked against the decrypted token.
