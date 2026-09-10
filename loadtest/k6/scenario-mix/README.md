@@ -654,7 +654,9 @@ tag), but not the detail behind any individual failure. For that,
 `console.error` — scenario name, merchant path, phase (ramp mode), VU,
 iteration number, the same `reason` string used in the counters, and, when
 the failure came from an HTTP call, that response's status, URL, connector/
-network error, and body (truncated to 500 characters).
+network error, full response headers, and the full, untruncated response
+body — so a failed confirm's exact connector error message is always
+there, however long.
 
 k6 VU code can't write files directly — `open()` is read-only and only
 usable during init — so getting these into a file means redirecting k6's own
@@ -670,7 +672,7 @@ Only failures go to `failures.log` — the end-of-run table still prints to
 the terminal as usual. Each line looks like:
 
 ```
-time="2026-09-08T13:29:10+05:30" level=error msg="{\"time\":\"2026-09-08T07:59:10.867Z\",\"scenario\":\"mod_cit_off\",\"merchant_path\":\"modular\",\"scenario_type\":\"cit_off_session\",\"phase\":2,\"vu\":6,\"iteration\":14,\"reason\":\"payment_confirm_400_failed\",\"status\":400,\"url\":\"http://127.0.0.1:8080/payments/pay_.../confirm\",\"body\":\"{...}\"}"
+time="2026-09-08T13:29:10+05:30" level=error msg="{\"time\":\"2026-09-08T07:59:10.867Z\",\"scenario\":\"mod_cit_off\",\"merchant_path\":\"modular\",\"scenario_type\":\"cit_off_session\",\"phase\":2,\"vu\":6,\"iteration\":14,\"reason\":\"payment_confirm_400_failed\",\"status\":400,\"url\":\"http://127.0.0.1:8080/payments/pay_.../confirm\",\"headers\":{\"Content-Type\":\"application/json\",\"X-Request-Id\":\"...\"},\"body\":\"{...}\"}"
 ```
 
 k6 wraps each record in its own log line (`time=... level=error msg="..."`)

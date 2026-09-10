@@ -462,15 +462,6 @@ function paymentCreateBody(plan, customerId, description) {
   };
 }
 
-const FAILURE_LOG_BODY_MAX_CHARS = 500;
-
-function truncateBody(body) {
-  if (typeof body !== "string") return body;
-  return body.length > FAILURE_LOG_BODY_MAX_CHARS
-    ? `${body.slice(0, FAILURE_LOG_BODY_MAX_CHARS)}…(truncated)`
-    : body;
-}
-
 // One JSON record per failed iteration, via console.error. k6 VU code cannot
 // write files directly (open() is read-only, init-stage only), so the way to
 // get a durable failures file is k6's own console-output redirection: run
@@ -492,7 +483,8 @@ function logFailure(plan, phaseInfo, reason, response, errorMessage) {
     record.status = response.status;
     record.url = response.url;
     record.error = response.error || undefined;
-    record.body = truncateBody(response.body);
+    record.headers = response.headers;
+    record.body = response.body;
   }
   if (errorMessage) record.error_message = errorMessage;
   console.error(JSON.stringify(record));
