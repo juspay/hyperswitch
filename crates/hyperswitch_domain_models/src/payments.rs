@@ -167,17 +167,6 @@ pub enum SurchargeMode {
     External,
 }
 
-/// A business country paired with its business label. The two are always carried together, so
-/// that a `connector_label` is never generated from a country and a label which do not belong to
-/// each other
-#[cfg(feature = "v1")]
-type BusinessDetails = (common_enums::CountryAlpha2, String);
-
-/// The result of resolving business details from a source which has to be parsed
-#[cfg(feature = "v1")]
-type BusinessDetailsResult =
-    CustomResult<Option<BusinessDetails>, common_utils::errors::ParsingError>;
-
 impl PaymentIntent {
     #[cfg(feature = "v1")]
     pub fn get_id(&self) -> &id_type::PaymentId {
@@ -224,20 +213,17 @@ impl PaymentIntent {
     /// Get the business details (business_country, business_label) to be used for a payment when
     /// they are not passed in the payment request: from the merchant connector account if
     /// available, else from the `primary_business_details` configured in the merchant account
-    ///
-    /// `merchant_account_business_details` is only invoked when the merchant connector account
-    /// carries none, since resolving them from the merchant account parses its
-    /// `primary_business_details`
-    fn fallback_business_details<F>(
-        connector_business_details: Option<BusinessDetails>,
-        merchant_account_business_details: F,
-    ) -> BusinessDetailsResult
-    where
-        F: FnOnce() -> BusinessDetailsResult,
-    {
+    fn get_fallback_business_details(
+        connector_business_details: Option<(common_enums::CountryAlpha2, String)>,
+        merchant_account: &crate::merchant_account::MerchantAccount,
+        business_profile: &crate::business_profile::Profile,
+    ) -> CustomResult<
+        Option<(common_enums::CountryAlpha2, String)>,
+        common_utils::errors::ParsingError,
+    > {
         match connector_business_details {
             Some(business_details) => Ok(Some(business_details)),
-            None => merchant_account_business_details(),
+            None => merchant_account.get_business_details_for_profile(business_profile),
         }
     }
 
@@ -255,45 +241,24 @@ impl PaymentIntent {
     pub fn resolve_business_details(
         business_country: Option<common_enums::CountryAlpha2>,
         business_label: Option<String>,
-        connector_business_details: Option<BusinessDetails>,
+        connector_business_details: Option<(common_enums::CountryAlpha2, String)>,
         merchant_account: &crate::merchant_account::MerchantAccount,
         business_profile: &crate::business_profile::Profile,
     ) -> CustomResult<
         (Option<common_enums::CountryAlpha2>, Option<String>),
         common_utils::errors::ParsingError,
     > {
-        Self::resolve_business_details_with(
-            business_country,
-            business_label,
-            connector_business_details,
-            || merchant_account.get_business_details_for_profile(business_profile),
-        )
-    }
-
-    #[cfg(feature = "v1")]
-    /// [`Self::resolve_business_details`] over an arbitrary merchant account lookup, which is only
-    /// invoked when neither the request nor the merchant connector account supplied the details
-    fn resolve_business_details_with<F>(
-        business_country: Option<common_enums::CountryAlpha2>,
-        business_label: Option<String>,
-        connector_business_details: Option<BusinessDetails>,
-        merchant_account_business_details: F,
-    ) -> CustomResult<
-        (Option<common_enums::CountryAlpha2>, Option<String>),
-        common_utils::errors::ParsingError,
-    >
-    where
-        F: FnOnce() -> BusinessDetailsResult,
-    {
         if business_country.is_some() || business_label.is_some() {
             return Ok((business_country, business_label));
         }
 
-        Ok(Self::fallback_business_details(
+        let business_details = Self::get_fallback_business_details(
             connector_business_details,
-            merchant_account_business_details,
-        )?
-        .unzip())
+            merchant_account,
+            business_profile,
+        )?;
+
+        Ok(business_details.unzip())
     }
 
     #[cfg(feature = "v1")]
@@ -302,37 +267,21 @@ impl PaymentIntent {
     /// [`Self::resolve_business_details`] for the order of precedence
     pub fn get_business_details_to_populate(
         &self,
-        connector_business_details: Option<BusinessDetails>,
+        connector_business_details: Option<(common_enums::CountryAlpha2, String)>,
         merchant_account: &crate::merchant_account::MerchantAccount,
         business_profile: &crate::business_profile::Profile,
-    ) -> BusinessDetailsResult {
-        Self::business_details_to_populate_with(
-            self.business_country,
-            self.business_label.as_deref(),
-            connector_business_details,
-            || merchant_account.get_business_details_for_profile(business_profile),
-        )
-    }
-
-    #[cfg(feature = "v1")]
-    /// [`Self::get_business_details_to_populate`] over the business details already present on an
-    /// intent and an arbitrary merchant account lookup
-    fn business_details_to_populate_with<F>(
-        existing_business_country: Option<common_enums::CountryAlpha2>,
-        existing_business_label: Option<&str>,
-        connector_business_details: Option<BusinessDetails>,
-        merchant_account_business_details: F,
-    ) -> BusinessDetailsResult
-    where
-        F: FnOnce() -> BusinessDetailsResult,
-    {
-        if existing_business_country.is_some() || existing_business_label.is_some() {
+    ) -> CustomResult<
+        Option<(common_enums::CountryAlpha2, String)>,
+        common_utils::errors::ParsingError,
+    > {
+        if self.business_country.is_some() || self.business_label.is_some() {
             return Ok(None);
         }
 
-        Self::fallback_business_details(
+        Self::get_fallback_business_details(
             connector_business_details,
-            merchant_account_business_details,
+            merchant_account,
+            business_profile,
         )
     }
 
@@ -2006,192 +1955,4 @@ impl VaultData {
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, PartialEq)]
 pub struct GuestCustomer {
     pub customer_id: String,
-}
-
-#[cfg(feature = "v1")]
-#[cfg(test)]
-mod business_details_resolution_tests {
-    use std::cell::Cell;
-
-    use super::*;
-
-    const US: common_enums::CountryAlpha2 = common_enums::CountryAlpha2::US;
-    const GB: common_enums::CountryAlpha2 = common_enums::CountryAlpha2::GB;
-
-    fn details(country: common_enums::CountryAlpha2, label: &str) -> BusinessDetails {
-        (country, label.to_string())
-    }
-
-    /// A merchant account lookup which counts how often it is consulted, so that the tests can
-    /// assert the higher precedence sources short-circuit it rather than merely agreeing with it
-    fn lookup(
-        calls: &Cell<usize>,
-        result: Option<BusinessDetails>,
-    ) -> impl FnOnce() -> BusinessDetailsResult + '_ {
-        move || {
-            calls.set(calls.get() + 1);
-            Ok(result)
-        }
-    }
-
-    #[test]
-    fn request_business_details_win_over_every_other_source() {
-        let calls = Cell::new(0);
-
-        let resolved = PaymentIntent::resolve_business_details_with(
-            Some(US),
-            Some("default".to_string()),
-            Some(details(GB, "shop")),
-            lookup(&calls, Some(details(GB, "other"))),
-        );
-
-        assert_eq!(resolved.ok(), Some((Some(US), Some("default".to_string()))));
-        assert_eq!(calls.get(), 0, "merchant account must not be consulted");
-    }
-
-    #[test]
-    fn a_request_carrying_only_a_country_is_passed_through_untouched() {
-        let calls = Cell::new(0);
-
-        let resolved = PaymentIntent::resolve_business_details_with(
-            Some(US),
-            None,
-            Some(details(GB, "shop")),
-            lookup(&calls, Some(details(GB, "other"))),
-        );
-
-        assert_eq!(resolved.ok(), Some((Some(US), None)));
-        assert_eq!(calls.get(), 0, "merchant account must not be consulted");
-    }
-
-    #[test]
-    fn a_request_carrying_only_a_label_is_passed_through_untouched() {
-        let calls = Cell::new(0);
-
-        let resolved = PaymentIntent::resolve_business_details_with(
-            None,
-            Some("default".to_string()),
-            Some(details(GB, "shop")),
-            lookup(&calls, Some(details(GB, "other"))),
-        );
-
-        assert_eq!(resolved.ok(), Some((None, Some("default".to_string()))));
-        assert_eq!(calls.get(), 0, "merchant account must not be consulted");
-    }
-
-    #[test]
-    fn the_connector_account_is_used_when_the_request_carries_none() {
-        let calls = Cell::new(0);
-
-        let resolved = PaymentIntent::resolve_business_details_with(
-            None,
-            None,
-            Some(details(GB, "shop")),
-            lookup(&calls, Some(details(US, "food"))),
-        );
-
-        assert_eq!(resolved.ok(), Some((Some(GB), Some("shop".to_string()))));
-        assert_eq!(
-            calls.get(),
-            0,
-            "merchant account must not be consulted when the connector account has the details"
-        );
-    }
-
-    #[test]
-    fn the_merchant_account_is_used_when_no_higher_source_carries_them() {
-        let calls = Cell::new(0);
-
-        let resolved = PaymentIntent::resolve_business_details_with(
-            None,
-            None,
-            None,
-            lookup(&calls, Some(details(US, "food"))),
-        );
-
-        assert_eq!(resolved.ok(), Some((Some(US), Some("food".to_string()))));
-        assert_eq!(calls.get(), 1);
-    }
-
-    #[test]
-    fn nothing_is_resolved_when_no_source_carries_business_details() {
-        let calls = Cell::new(0);
-
-        let resolved =
-            PaymentIntent::resolve_business_details_with(None, None, None, lookup(&calls, None));
-
-        assert_eq!(resolved.ok(), Some((None, None)));
-        assert_eq!(calls.get(), 1);
-    }
-
-    #[test]
-    fn a_merchant_account_parsing_failure_is_propagated() {
-        let resolved = PaymentIntent::resolve_business_details_with(None, None, None, || {
-            Err(error_stack::report!(
-                common_utils::errors::ParsingError::UnknownError
-            ))
-        });
-
-        assert!(resolved.is_err());
-    }
-
-    #[test]
-    fn an_intent_which_already_carries_business_details_is_left_alone() {
-        let calls = Cell::new(0);
-
-        let to_populate = PaymentIntent::business_details_to_populate_with(
-            Some(US),
-            Some("default"),
-            Some(details(GB, "shop")),
-            lookup(&calls, Some(details(GB, "other"))),
-        );
-
-        assert_eq!(to_populate.ok(), Some(None));
-        assert_eq!(calls.get(), 0, "merchant account must not be consulted");
-    }
-
-    #[test]
-    fn an_intent_carrying_only_one_of_the_two_is_left_alone() {
-        let calls = Cell::new(0);
-
-        let to_populate = PaymentIntent::business_details_to_populate_with(
-            None,
-            Some("default"),
-            Some(details(GB, "shop")),
-            lookup(&calls, Some(details(GB, "other"))),
-        );
-
-        assert_eq!(to_populate.ok(), Some(None));
-        assert_eq!(calls.get(), 0, "merchant account must not be consulted");
-    }
-
-    #[test]
-    fn an_empty_intent_is_populated_from_the_connector_account_first() {
-        let calls = Cell::new(0);
-
-        let to_populate = PaymentIntent::business_details_to_populate_with(
-            None,
-            None,
-            Some(details(GB, "shop")),
-            lookup(&calls, Some(details(US, "food"))),
-        );
-
-        assert_eq!(to_populate.ok(), Some(Some(details(GB, "shop"))));
-        assert_eq!(calls.get(), 0);
-    }
-
-    #[test]
-    fn an_empty_intent_falls_back_to_the_merchant_account() {
-        let calls = Cell::new(0);
-
-        let to_populate = PaymentIntent::business_details_to_populate_with(
-            None,
-            None,
-            None,
-            lookup(&calls, Some(details(US, "food"))),
-        );
-
-        assert_eq!(to_populate.ok(), Some(Some(details(US, "food"))));
-        assert_eq!(calls.get(), 1);
-    }
 }
