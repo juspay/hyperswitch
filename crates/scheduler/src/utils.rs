@@ -502,7 +502,7 @@ mod tests {
     /// slot is the delay before one retry, so `N` slots describe the charge plus `N` retries.
     fn walk_pcr_ladder(
         mapping: &process_data::RetryMapping,
-        attempts_already_made: i32,
+        attempts_already_made: i64,
     ) -> (usize, i32) {
         let mut retry_count = attempts_already_made;
         let mut elapsed = 0;
@@ -527,7 +527,7 @@ mod tests {
     #[test]
     fn test_pcr_retry_ladder_leaves_thirteen_retries_to_us_ending_on_day_twenty_eight() {
         const DAY: i32 = 24 * 60 * 60;
-        const BILLING_CONNECTOR_RETRY_THRESHOLD: i32 = 2;
+        const BILLING_CONNECTOR_RETRY_THRESHOLD: i64 = 2;
 
         let mapping = process_data::RetryMapping {
             start_after: DAY,
