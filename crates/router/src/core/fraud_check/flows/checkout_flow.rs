@@ -2,15 +2,20 @@ use async_trait::async_trait;
 use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payments::payment_intent;
+use hyperswitch_masking::ExposeInterface;
+
+#[cfg(feature = "v1")]
 use hyperswitch_interfaces::api::gateway;
 use hyperswitch_masking::ExposeInterface;
 
 use super::{ConstructFlowSpecificData, FeatureFrm};
+#[cfg(feature = "v1")]
+use crate::core::payments::gateway::context::RouterGatewayContext;
 use crate::{
     core::{
         errors::{ConnectorErrorExt, RouterResult},
         fraud_check::types::FrmData,
-        payments::{self, gateway::context::RouterGatewayContext, helpers},
+        payments::{self, helpers},
     },
     errors, services,
     types::{
@@ -218,6 +223,7 @@ impl FeatureFrm<frm_api::Checkout, FraudCheckCheckoutData> for FrmCheckoutRouter
     ///
     /// Dispatches through the gateway abstraction so the UCS call runs under
     /// `ucs_logging_wrapper_granular` like every other UCS flow.
+    #[cfg(feature = "v1")]
     async fn decide_frm_flows_via_ucs<'a>(
         self,
         state: &SessionState,
