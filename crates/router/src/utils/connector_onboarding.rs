@@ -125,7 +125,7 @@ pub async fn get_tracking_id_from_configs(
         .store
         .find_config_by_key_unwrap_or(
             &build_key(connector_id, connector),
-            Some(common_utils::date_time::now_unix_timestamp().to_string()),
+            common_utils::date_time::now_unix_timestamp().to_string(),
         )
         .await
         .change_context(ApiErrorResponse::InternalServerError)

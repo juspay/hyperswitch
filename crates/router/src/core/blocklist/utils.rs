@@ -70,13 +70,13 @@ pub async fn toggle_blocklist_guard_for_merchant(
     query: api_blocklist::ToggleBlocklistQuery,
 ) -> CustomResult<api_blocklist::ToggleBlocklistResponse, errors::ApiErrorResponse> {
     let key = processor_merchant_id.get_blocklist_guard_key();
-    let maybe_guard = state.store.find_config_by_key_from_db(&key).await;
+    let maybe_guard = state.store.find_config_by_key_optional(&key).await;
     let new_config = configs::ConfigNew {
         key: key.clone(),
         config: query.status.to_string(),
     };
     match maybe_guard {
-        Ok(_config) => {
+        Ok(Some(_config)) => {
             let updated_config = configs::ConfigUpdate::Update {
                 config: Some(query.status.to_string()),
             };
@@ -87,7 +87,7 @@ pub async fn toggle_blocklist_guard_for_merchant(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Error enabling the blocklist guard")?;
         }
-        Err(e) if e.current_context().is_db_not_found() => {
+        Ok(None) => {
             state
                 .store
                 .insert_config(new_config)

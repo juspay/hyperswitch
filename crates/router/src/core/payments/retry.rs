@@ -249,7 +249,7 @@ pub async fn is_step_up_enabled_for_merchant_connector(
 ) -> bool {
     let key = merchant_id.get_step_up_enabled_key();
     let db = &*state.store;
-    db.find_config_by_key_unwrap_or(key.as_str(), Some("[]".to_string()))
+    db.find_config_by_key_unwrap_or(key.as_str(), "[]".to_string())
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .and_then(|step_up_config| {

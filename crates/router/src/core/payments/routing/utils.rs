@@ -3456,9 +3456,10 @@ pub async fn load_skip_pre_routing_config(
 ) -> HashMap<enums::PaymentMethod, HashSet<enums::PaymentMethodType>> {
     let merchant_cfg = state
         .store
-        .find_config_by_key_from_db(&pre_routing_disabled_pm_pmt_key)
+        .find_config_by_key_optional(&pre_routing_disabled_pm_pmt_key)
         .await
         .ok()
+        .flatten()
         .and_then(|cfg| serde_json::from_str::<MerchantPreRoutingConfig>(&cfg.config).ok())
         .unwrap_or_default();
 
