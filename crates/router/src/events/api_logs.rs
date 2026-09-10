@@ -3,7 +3,6 @@ pub use common_utils::events::{ApiEventMetric, ApiEventsType};
 use common_utils::impl_api_event_type;
 use router_env::{types::FlowMetric, RequestId};
 use serde::Serialize;
-use time::OffsetDateTime;
 
 use super::EventType;
 #[cfg(feature = "dummy_connector")]
@@ -73,7 +72,7 @@ impl ApiEvent {
             tenant_id,
             merchant_id,
             api_flow: api_flow.to_string(),
-            created_at_timestamp: OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000,
+            created_at_timestamp: common_utils::date_time::now_unix_timestamp_millis(),
             request_id: request_id.to_string(),
             latency,
             status_code,

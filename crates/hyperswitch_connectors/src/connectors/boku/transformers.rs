@@ -14,7 +14,6 @@ use hyperswitch_interfaces::errors;
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use url::Url;
-use uuid::Uuid;
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
@@ -163,7 +162,7 @@ impl
             country,
             merchant_id: auth_type.merchant_id,
             merchant_transaction_id: Secret::new(item.payment_id.to_string()),
-            merchant_request_id: Uuid::new_v4().to_string(),
+            merchant_request_id: common_utils::generate_uuid_v4().to_string(),
             merchant_item_description,
             notification_url: item.request.webhook_url.clone(),
             payment_method,
@@ -403,7 +402,7 @@ impl<F> TryFrom<&BokuRouterData<&RefundsRouterData<F>>> for BokuRefundRequest {
             refund_amount: item.amount,
             merchant_id: auth_type.merchant_id,
             merchant_refund_id: Secret::new(item.router_data.request.refund_id.to_string()),
-            merchant_request_id: Uuid::new_v4().to_string(),
+            merchant_request_id: common_utils::generate_uuid_v4().to_string(),
             charge_id: item
                 .router_data
                 .request

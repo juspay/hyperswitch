@@ -32,7 +32,6 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::errors;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret, StrongSecret};
-use rand::distributions::{Alphanumeric, DistString};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -49,7 +48,7 @@ const MAX_ID_LENGTH: usize = 20;
 const ADDRESS_MAX_LENGTH: usize = 60;
 
 fn get_random_string() -> String {
-    Alphanumeric.sample_string(&mut rand::thread_rng(), MAX_ID_LENGTH)
+    common_utils::generate_random_alphanumeric_string(MAX_ID_LENGTH)
 }
 
 #[derive(Debug, Serialize)]

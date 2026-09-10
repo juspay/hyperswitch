@@ -407,6 +407,10 @@ pub(crate) mod boundary {
                                 self.caller,
                                 args,
                             )
+                            // Self-describe the correlation root so replay tooling
+                            // reads a role rather than having to know this
+                            // boundary's name.
+                            .with_role(deja::ROLE_INGRESS)
                             .with_semantics(deja::BoundarySemantics {
                                 replay_strategy: deja::ReplayStrategy::Substitute,
                                 kind: None,
@@ -564,6 +568,10 @@ fn generate_uuid_v7() -> String {
             }
 
             // RECORD (or replay miss): generate live and record the value.
+            #[allow(
+                clippy::disallowed_methods,
+                reason = "this IS the seam: the record/replay boundary is written out by hand just above, because router_env cannot depend on common_utils -- common_utils depends on router_env, so the reverse edge would be a cycle"
+            )]
             let generated_value = Uuid::now_v7().to_string();
             boundary::record_id_generation(
                 "generate_uuid_v7",
@@ -577,11 +585,19 @@ fn generate_uuid_v7() -> String {
         }
 
         // Bootstrap / uncorrelated: generate live; identity folds into http_incoming.
+        #[allow(
+            clippy::disallowed_methods,
+            reason = "uncorrelated bootstrap id: there is no correlation yet, so there is no recording to serve it from; it folds into http_incoming's identity. router_env cannot reach the common_utils seams anyway -- that edge would be a cycle"
+        )]
         Uuid::now_v7().to_string()
     }
 
     #[cfg(not(feature = "deja"))]
     {
+        #[allow(
+            clippy::disallowed_methods,
+            reason = "deja is off in this build, so there is no boundary to route through; and router_env cannot reach the common_utils seams either, that edge would be a cycle"
+        )]
         Uuid::now_v7().to_string()
     }
 }
