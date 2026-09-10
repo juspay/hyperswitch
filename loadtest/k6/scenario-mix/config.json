@@ -16,7 +16,7 @@
     "phases": {
       "starting_rps": 10,
       "target_rps": 1000,
-      "step_rps": 10,
+      "step_rps": 15,
       "hold_seconds": 20,
       "idle_seconds": 2
     },
