@@ -10640,18 +10640,25 @@ pub struct GooglePayMerchantInfo {
 pub struct GooglePayTokenizationSpecification {
     #[serde(rename = "type")]
     pub tokenization_type: GooglePayTokenizationType,
+    /// Absent for `INTERNAL_GATEWAY`, where the merchant supplies no key material at all.
+    #[serde(default)]
     pub parameters: GooglePayTokenizationParameters,
 }
 
-#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, strum::Display)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, strum::Display,
+)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 #[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
 pub enum GooglePayTokenizationType {
     PaymentGateway,
     Direct,
+    /// Hyperswitch-internal marker: the token is encrypted to Hyperswitch's own registered
+    /// gateway key. Never sent to Google as-is; resolved to `PAYMENT_GATEWAY` in the session flow.
+    InternalGateway,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub struct GooglePayTokenizationParameters {
     pub gateway: Option<String>,
     pub public_key: Option<Secret<String>>,

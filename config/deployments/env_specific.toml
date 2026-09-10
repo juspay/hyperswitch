@@ -48,6 +48,10 @@ paze_private_key_passphrase = "PAZE_PRIVATE_KEY_PASSPHRASE" # PEM Passphrase use
 
 [google_pay_decrypt_keys]
 google_pay_root_signing_keys = "GOOGLE_PAY_ROOT_SIGNING_KEYS" # Base 64 Encoded Root Signing Keys provided by Google Pay (https://developers.google.com/pay/api/web/guides/resources/payment-data-cryptography)
+verify_signature = false                                      # Verify the ECv2 signature chain on Google Pay tokens. Requires root signing keys for the matching environment and a correct per-MCA recipient_id
+google_pay_private_key = "GOOGLE_PAY_PRIVATE_KEY"             # Base 64 Encoded PKCS#8 private key of the Hyperswitch registered Google Pay gateway, used by the INTERNAL_GATEWAY tokenization flow
+google_pay_common_merchant_id = "GOOGLE_PAY_COMMON_MERCHANT_ID" # Google Pay Business Console merchant id used when an INTERNAL_GATEWAY merchant does not supply one of its own. Not a secret, it is sent to the SDK
+google_pay_gateway_id = "GOOGLE_PAY_GATEWAY_ID"               # Gateway identifier registered with Google, also used to derive the `gateway:<id>` recipient. google_pay_private_key, google_pay_gateway_id and google_pay_common_merchant_id must either all be set or all be unset
 
 [applepay_merchant_configs]
 common_merchant_identifier = "APPLE_PAY_COMMON_MERCHANT_IDENTIFIER"                        # Refer to config.example.toml to learn how you can generate this value

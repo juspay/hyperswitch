@@ -627,6 +627,9 @@ impl ApplePayPredecryptDataInternal {
 pub struct GooglePayPredecryptDataInternal {
     pub message_expiration: String,
     pub message_id: String,
+    /// Present when the card was tokenized for a gateway, carrying the `gateway_merchant_id` that
+    /// was sent to Google in the session response. Absent for `DIRECT` tokenization.
+    pub gateway_merchant_id: Option<String>,
     #[serde(rename = "paymentMethod")]
     pub payment_method_type: String,
     pub payment_method_details: GooglePayPaymentMethodDetails,
