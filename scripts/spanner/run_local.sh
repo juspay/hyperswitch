@@ -74,5 +74,5 @@ cat <<EOF
 Schema is live on the emulator. Read $WORK/report.txt for what was translated.
 
 Run the router against it (no docker build):
-  cargo run --bin router --features spanner -- -f config/spanner-local.toml
+  RUST_MIN_STACK=16777216 cargo run --bin router --features spanner
 EOF

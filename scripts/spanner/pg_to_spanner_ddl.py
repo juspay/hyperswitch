@@ -12,9 +12,16 @@ translated here.
         > /tmp/pg_schema.sql
     ./scripts/spanner/pg_to_spanner_ddl.py /tmp/pg_schema.sql > /tmp/spanner.sql
 
-Anything this script cannot translate is emitted as a `-- UNSUPPORTED:` comment
-rather than silently dropped, and summarised on stderr. Read that summary: it is
-the actual list of decisions a human still has to make.
+Anything this script cannot translate is REMOVED from the output and reported on
+stderr -- a column that fails to map is dropped from its CREATE TABLE, and a
+table with no resolvable primary key is omitted entirely. It cannot be flagged
+in-band: PGAdapter batches consecutive DDL and hands the batch to Spanner as a
+unit, so a `--` comment between statements fails the whole batch.
+
+That makes the stderr report the ONLY signal. The generated DDL will apply with
+zero errors whether or not something was dropped. Always read the report, and
+treat `column-dropped`, `no-pk`, `unknown-type` and `array-unsupported` as
+blocking.
 """
 
 import re
