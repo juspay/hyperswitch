@@ -24485,6 +24485,14 @@
           }
         }
       },
+      "GooglePayTokenizationSpecificationType": {
+        "type": "string",
+        "description": "The tokenization type sent to the Google Pay SDK.\n\nUnlike [`GooglePayTokenizationType`], this holds only the values Google itself understands:\nthe Hyperswitch-internal `INTERNAL_GATEWAY` marker is resolved into `PAYMENT_GATEWAY` during\nthe session flow before this is built, so it can never leak into an SDK response.",
+        "enum": [
+          "PAYMENT_GATEWAY",
+          "DIRECT"
+        ]
+      },
       "GooglePayWalletData": {
         "type": "object",
         "required": [
