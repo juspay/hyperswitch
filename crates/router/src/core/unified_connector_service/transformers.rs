@@ -8974,6 +8974,11 @@ impl
 #[cfg(feature = "payouts")]
 macro_rules! impl_ucs_payout_response_transformation {
     ($response_type:ty, $merchant_id_field:ident) => {
+        impl_ucs_payout_response_transformation!($response_type, $merchant_id_field, |_response| {
+            None
+        });
+    };
+    ($response_type:ty, $merchant_id_field:ident, $connector_metadata:expr) => {
         impl transformers::ForeignTryFrom<($response_type, common_enums::PayoutStatus)>
             for Result<PayoutsResponseData, ErrorResponse>
         {
@@ -8984,6 +8989,15 @@ macro_rules! impl_ucs_payout_response_transformation {
             ) -> Result<Self, Self::Error> {
                 let status = common_enums::PayoutStatus::foreign_try_from(response.payout_status())
                     .unwrap_or(prev_status);
+
+                let connector_metadata: fn(&$response_type) -> Option<&Secret<String>> =
+                    $connector_metadata;
+                let payout_connector_metadata = connector_metadata(&response)
+                    .and_then(|metadata| {
+                        serde_json::from_str::<serde_json::Value>(metadata.peek()).ok()
+                    })
+                    .filter(|value| value.as_object().is_some_and(|details| !details.is_empty()))
+                    .map(Secret::new);
 
                 let router_response = if let Some(error_info) = response.error {
                     Ok(PayoutsResponseData {
@@ -9010,7 +9024,7 @@ macro_rules! impl_ucs_payout_response_transformation {
                         should_add_next_step_to_process_tracker: false,
                         error_code: None,
                         error_message: None,
-                        payout_connector_metadata: None,
+                        payout_connector_metadata,
                         connector_eligibility_reference_id: None,
                     })
                 };
@@ -9092,47 +9106,11 @@ impl_ucs_payout_response_transformation!(
 );
 
 #[cfg(feature = "payouts")]
-impl
-    transformers::ForeignTryFrom<(
-        payments_grpc::PayoutServiceCreateRecipientResponse,
-        common_enums::PayoutStatus,
-    )> for Result<PayoutsResponseData, ErrorResponse>
-{
-    type Error = error_stack::Report<UnifiedConnectorServiceError>;
-
-    fn foreign_try_from(
-        (response, prev_status): (
-            payments_grpc::PayoutServiceCreateRecipientResponse,
-            common_enums::PayoutStatus,
-        ),
-    ) -> Result<Self, Self::Error> {
-        let status = common_enums::PayoutStatus::foreign_try_from(response.payout_status())
-            .unwrap_or(prev_status);
-
-        let connector_details = response
-            .error
-            .as_ref()
-            .and_then(|error_info| error_info.connector_details.as_ref());
-
-        Ok(Ok(PayoutsResponseData {
-            status: Some(status),
-            connector_payout_id: response.connector_payout_id,
-            payout_eligible: None,
-            should_add_next_step_to_process_tracker: false,
-            error_code: connector_details.and_then(|details| details.code.clone()),
-            error_message: connector_details.and_then(|details| details.message.clone()),
-            payout_connector_metadata: response
-                .connector_metadata
-                .as_ref()
-                .and_then(|metadata| {
-                    serde_json::from_str::<serde_json::Value>(metadata.peek()).ok()
-                })
-                .filter(|value| value.as_object().is_some_and(|details| !details.is_empty()))
-                .map(Secret::new),
-            connector_eligibility_reference_id: None,
-        }))
-    }
-}
+impl_ucs_payout_response_transformation!(
+    payments_grpc::PayoutServiceCreateRecipientResponse,
+    merchant_payout_id,
+    |response| response.connector_metadata.as_ref()
+);
 
 #[cfg(feature = "payouts")]
 impl_ucs_payout_response_transformation!(
