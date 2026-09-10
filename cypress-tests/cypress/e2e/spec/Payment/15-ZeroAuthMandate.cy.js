@@ -186,7 +186,6 @@ describe("Card - SingleUse Mandates flow test", () => {
         cy.mitUsingPMId(
           fixtures.pmIdConfirmBody,
           data,
-          6000,
           true,
           "automatic",
           globalState
@@ -209,7 +208,6 @@ describe("Card - SingleUse Mandates flow test", () => {
         cy.mitUsingPMId(
           fixtures.pmIdConfirmBody,
           data,
-          6000,
           true,
           "automatic",
           globalState
@@ -247,7 +245,6 @@ describe("Card - SingleUse Mandates flow test", () => {
       cy.citForMandatesCallTest(
         fixtures.citConfirmBody,
         data,
-        0,
         true,
         "automatic",
         "setup_mandate",
@@ -273,7 +270,6 @@ describe("Card - SingleUse Mandates flow test", () => {
       cy.mitUsingPMId(
         fixtures.pmIdConfirmBody,
         data,
-        6000,
         true,
         "automatic",
         globalState

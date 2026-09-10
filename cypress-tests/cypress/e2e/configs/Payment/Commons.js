@@ -1198,7 +1198,7 @@ export const connectorDetails = {
         },
       }),
       MandateSingleUseAutoCapture: getCustomExchange({
-        Request: {},
+        Request: { amount: 6540 },
         Response: {
           status: 200,
           body: {
@@ -1228,7 +1228,7 @@ export const connectorDetails = {
         },
       }),
       MandateSingleUseAutoCapture: getCustomExchange({
-        Request: {},
+        Request: { amount: 6540 },
         Response: {
           status: 200,
           body: {
@@ -1254,7 +1254,7 @@ export const connectorDetails = {
         },
       }),
       MandateSingleUseAutoCapture: getCustomExchange({
-        Request: {},
+        Request: { amount: 6540 },
         Response: {
           status: 200,
           body: {
@@ -1447,7 +1447,7 @@ export const connectorDetails = {
         Configs: {
           TRIGGER_SKIP: true,
         },
-        Request: {},
+        Request: { amount: 6540 },
         Response: {
           status: 200,
           body: {
@@ -2829,6 +2829,7 @@ export const connectorDetails = {
     }),
     MandateSingleUseNo3DSAutoCapture: getCustomExchange({
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -2839,6 +2840,7 @@ export const connectorDetails = {
     }),
     MandateSingleUseNo3DSManualCapture: getCustomExchange({
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -2849,6 +2851,7 @@ export const connectorDetails = {
     }),
     MandateMultiUseNo3DSAutoCapture: getCustomExchange({
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -2859,6 +2862,7 @@ export const connectorDetails = {
     }),
     MandateMultiUseNo3DSManualCapture: getCustomExchange({
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -2889,6 +2893,7 @@ export const connectorDetails = {
     }),
     ZeroAuthMandate: getCustomExchange({
       Request: {
+        amount: 0,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -2907,6 +2912,7 @@ export const connectorDetails = {
     }),
     ZeroAuthConfirmPayment: getCustomExchange({
       Request: {
+        amount: 0,
         payment_type: "setup_mandate",
         payment_method: "card",
         payment_method_data: {
@@ -3016,6 +3022,7 @@ export const connectorDetails = {
     },
     PaymentMethodIdMandateNo3DSAutoCapture: getCustomExchange({
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -3027,6 +3034,7 @@ export const connectorDetails = {
     }),
     PaymentMethodIdMandateNo3DSManualCapture: getCustomExchange({
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -3038,6 +3046,7 @@ export const connectorDetails = {
     }),
     PaymentMethodIdMandate3DSAutoCapture: getCustomExchange({
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
@@ -3050,6 +3059,7 @@ export const connectorDetails = {
     }),
     PaymentMethodIdMandate3DSManualCapture: getCustomExchange({
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
@@ -3393,7 +3403,7 @@ export const connectorDetails = {
       },
     },
     MITAutoCapture: getCustomExchange({
-      Request: {},
+      Request: { amount: 6000 },
       Response: {
         status: 200,
         body: {
@@ -3413,6 +3423,7 @@ export const connectorDetails = {
     }),
     MITWithoutBillingAddress: getCustomExchange({
       Request: {
+        amount: 6000,
         billing: null,
       },
       Response: {
@@ -3424,6 +3435,7 @@ export const connectorDetails = {
     }),
     MITAutoCaptureWithCustomerAcceptance: getCustomExchange({
       Request: {
+        amount: 6000,
         customer_acceptance: {
           acceptance_type: "offline",
           accepted_at: "1963-05-03T04:07:52.723Z",
@@ -3452,6 +3464,19 @@ export const connectorDetails = {
     }),
     MITWithLimitedCardData: getCustomExchange({
       Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
+    // MIT whose amount exceeds the single use mandate amount, used to assert
+    // the mandate validation failure response
+    MITExceedingMandateAmount: getCustomExchange({
+      Request: {
+        amount: 60000,
+      },
       Response: {
         status: 200,
         body: {

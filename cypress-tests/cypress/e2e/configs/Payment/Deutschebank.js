@@ -223,6 +223,9 @@ export const connectorDetails = {
       },
     },
     ZeroAuthMandate: {
+      Request: {
+        amount: 0,
+      },
       Configs: {
         TRIGGER_SKIP: true,
       },
@@ -239,6 +242,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successful3DSCardDetails,
@@ -261,6 +265,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successful3DSCardDetails,

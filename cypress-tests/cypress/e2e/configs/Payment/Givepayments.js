@@ -248,6 +248,7 @@ export const connectorDetails = {
         POLL_AFTER: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_type: "credit",
         payment_method_data: {
@@ -267,6 +268,7 @@ export const connectorDetails = {
     },
     MandateSingleUseNo3DSManualCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_type: "credit",
         payment_method_data: {
@@ -287,6 +289,7 @@ export const connectorDetails = {
         POLL_AFTER: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_type: "credit",
         payment_method_data: {
@@ -306,6 +309,7 @@ export const connectorDetails = {
     },
     MandateMultiUseNo3DSManualCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_type: "credit",
         payment_method_data: {
@@ -325,7 +329,7 @@ export const connectorDetails = {
       Configs: {
         POLL_BEFORE: true,
       },
-      Request: {},
+      Request: { amount: 6000 },
       Response: {
         status: 200,
         body: {
@@ -339,7 +343,7 @@ export const connectorDetails = {
       Configs: {
         POLL_BEFORE: true,
       },
-      Request: { billing: null },
+      Request: { amount: 6000, billing: null },
       Response: {
         status: 200,
         body: {
@@ -350,7 +354,7 @@ export const connectorDetails = {
       },
     },
     MITManualCapture: {
-      Request: {},
+      Request: { amount: 6000 },
       Response: {
         status: 501,
         body: captureMethodNotSupportedError,
@@ -361,6 +365,7 @@ export const connectorDetails = {
         POLL_AFTER: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -380,6 +385,7 @@ export const connectorDetails = {
     },
     PaymentMethodIdMandateNo3DSManualCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -400,6 +406,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -422,6 +429,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,

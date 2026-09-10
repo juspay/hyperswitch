@@ -858,7 +858,6 @@ describe("Bank Redirect tests", () => {
           cy.citForMandatesCallTest(
             fixtures.citConfirmBody,
             data,
-            6540,
             true,
             "automatic",
             "new_mandate",
@@ -909,7 +908,6 @@ describe("Bank Redirect tests", () => {
           cy.citForMandatesCallTest(
             fixtures.citConfirmBody,
             data,
-            6540,
             true,
             "automatic",
             "new_mandate",
@@ -960,7 +958,6 @@ describe("Bank Redirect tests", () => {
           cy.citForMandatesCallTest(
             fixtures.citConfirmBody,
             data,
-            6540,
             true,
             "automatic",
             "new_mandate",
