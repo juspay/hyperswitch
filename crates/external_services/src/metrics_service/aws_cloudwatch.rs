@@ -26,7 +26,7 @@ use aws_sdk_cloudwatch::{
     types::{Dimension, Metric, MetricDataQuery, MetricDataResult, MetricStat, ScanBy, StatusCode},
     Client,
 };
-use common_utils::ext_traits::ConfigExt;
+use common_utils::{ext_traits::ConfigExt, fp_utils::when};
 use error_stack::{report, ResultExt};
 
 use super::{
@@ -132,45 +132,49 @@ impl MetricsProvider for CloudWatchMetrics {
 ///
 /// A rejected batch takes every metric in it down, so one bad period would blind a whole tick.
 fn validate(request: &MetricRequest) -> MetricsResult<()> {
-    if request.queries.is_empty() {
-        return Err(report!(MetricsError::InvalidRequest))
-            .attach_printable("A GetMetricData call needs at least one query");
-    }
+    validate_batch_size(request.queries.len())?;
+    validate_range(request.range)?;
+    request
+        .queries
+        .iter()
+        .try_for_each(|query| validate_period(query.period))
+}
 
-    if request.queries.len() > MAX_QUERIES_PER_CALL {
-        return Err(report!(MetricsError::InvalidRequest)).attach_printable_lazy(|| {
-            format!(
-                "GetMetricData takes at most {MAX_QUERIES_PER_CALL} queries, got {}",
-                request.queries.len()
-            )
-        });
-    }
+/// `GetMetricData` takes between one and [`MAX_QUERIES_PER_CALL`] queries.
+fn validate_batch_size(queries: usize) -> MetricsResult<()> {
+    when(queries == 0, || {
+        Err(report!(MetricsError::InvalidRequest))
+            .attach_printable("A GetMetricData call needs at least one query")
+    })?;
 
-    if request.range.start >= request.range.end {
-        return Err(report!(MetricsError::InvalidRequest))
-            .attach_printable("A GetMetricData time range must start before it ends");
-    }
+    when(queries > MAX_QUERIES_PER_CALL, || {
+        Err(report!(MetricsError::InvalidRequest)).attach_printable_lazy(|| {
+            format!("GetMetricData takes at most {MAX_QUERIES_PER_CALL} queries, got {queries}")
+        })
+    })
+}
 
-    for query in &request.queries {
-        if !is_usable_period(query.period) {
-            return Err(report!(MetricsError::InvalidRequest)).attach_printable_lazy(|| {
-                format!(
-                    "{} is not a CloudWatch period: use 1, 5, 10, 20, 30, or a multiple of 60",
-                    query.period.seconds()
-                )
-            });
-        }
-    }
-
-    Ok(())
+/// The window has to move forwards.
+fn validate_range(range: TimeRange) -> MetricsResult<()> {
+    when(range.start >= range.end, || {
+        Err(report!(MetricsError::InvalidRequest))
+            .attach_printable("A GetMetricData time range must start before it ends")
+    })
 }
 
 /// CloudWatch takes high-resolution periods of 1, 5, 10, 20 or 30 seconds, or any positive
 /// multiple of 60.
-fn is_usable_period(period: Period) -> bool {
+fn validate_period(period: Period) -> MetricsResult<()> {
     let seconds = period.seconds();
+    let usable = matches!(seconds, 1 | 5 | 10 | 20 | 30) || (seconds > 0 && seconds % 60 == 0);
 
-    matches!(seconds, 1 | 5 | 10 | 20 | 30) || (seconds > 0 && seconds % 60 == 0)
+    when(!usable, || {
+        Err(report!(MetricsError::InvalidRequest)).attach_printable_lazy(|| {
+            format!(
+                "{seconds} is not a CloudWatch period: use 1, 5, 10, 20, 30, or a multiple of 60"
+            )
+        })
+    })
 }
 
 /// The id a query at `index` is sent and reported under.
@@ -253,36 +257,25 @@ fn metric_series(
     let timestamps = result.timestamps();
     let values = result.values();
 
-    // CloudWatch documents these as always the same length. Pairing them off when they are not
-    // would invent datapoints or drop them, and either is worse than refusing.
-    if timestamps.len() != values.len() {
-        return Err(report!(MetricsError::MalformedResponse)).attach_printable_lazy(|| {
-            format!(
-                "CloudWatch returned {} timestamps against {} values",
-                timestamps.len(),
-                values.len()
-            )
-        });
-    }
+    validate_pairing(timestamps.len(), values.len())?;
 
     let mut slots = vec![None; slot_count(request.range, query.period)];
-    let period_seconds = query.period.seconds_i64();
-    let start = request.range.start.unix_timestamp();
 
-    for (timestamp, value) in timestamps.iter().zip(values) {
-        let offset = from_aws_timestamp(timestamp)?.unix_timestamp() - start;
-        if offset < 0 || period_seconds <= 0 {
-            continue;
-        }
-
-        // Integer division floors, so a datapoint lands in the slot *containing* it rather than
-        // needing to sit exactly on a boundary. A later datapoint sharing a slot wins.
-        if let Ok(slot) = usize::try_from(offset / period_seconds) {
+    timestamps
+        .iter()
+        .zip(values)
+        .map(|(timestamp, value)| Ok((from_aws_timestamp(timestamp)?, *value)))
+        .collect::<MetricsResult<Vec<_>>>()?
+        .into_iter()
+        .filter_map(|(timestamp, value)| {
+            slot_of(timestamp, request.range.start, query.period).map(|slot| (slot, value))
+        })
+        .for_each(|(slot, value)| {
+            // A later datapoint sharing a slot wins, since they arrive oldest-first.
             if let Some(bucket) = slots.get_mut(slot) {
-                *bucket = Some(*value);
+                *bucket = Some(value);
             }
-        }
-    }
+        });
 
     Ok(MetricSeries::new(
         index,
@@ -291,22 +284,48 @@ fn metric_series(
     ))
 }
 
+/// CloudWatch documents a series' timestamps and values as always the same length.
+///
+/// Pairing them off when they are not would invent datapoints or drop them, and either is worse
+/// than refusing.
+fn validate_pairing(timestamps: usize, values: usize) -> MetricsResult<()> {
+    when(timestamps != values, || {
+        Err(report!(MetricsError::MalformedResponse)).attach_printable_lazy(|| {
+            format!("CloudWatch returned {timestamps} timestamps against {values} values")
+        })
+    })
+}
+
+/// Which slot of the grid a timestamp falls in, or `None` if it falls outside.
+///
+/// Integer division floors, so a datapoint lands in the slot *containing* it rather than having to
+/// sit exactly on a boundary.
+fn slot_of(
+    timestamp: time::OffsetDateTime,
+    start: time::OffsetDateTime,
+    period: Period,
+) -> Option<usize> {
+    let offset = timestamp.unix_timestamp() - start.unix_timestamp();
+
+    Some(period.seconds_i64())
+        .filter(|seconds| *seconds > 0 && offset >= 0)
+        .map(|seconds| offset / seconds)
+        .and_then(|slot| usize::try_from(slot).ok())
+}
+
 /// How many periods of `period` the window covers.
 ///
 /// Rounded up, so a range that is not a whole number of periods still gets a slot for its trailing
 /// part rather than dropping it. `TimeRange::ending_at` always produces exact multiples, so this
 /// only matters for a hand-built range.
 fn slot_count(range: TimeRange, period: Period) -> usize {
-    let period_seconds = period.seconds_i64();
-    if period_seconds <= 0 {
-        return 0;
-    }
-
     let span = range.end.unix_timestamp() - range.start.unix_timestamp();
-    usize::try_from(
-        span.div_euclid(period_seconds) + i64::from(span.rem_euclid(period_seconds) > 0),
-    )
-    .unwrap_or_default()
+
+    Some(period.seconds_i64())
+        .filter(|seconds| *seconds > 0)
+        .map(|seconds| span.div_euclid(seconds) + i64::from(span.rem_euclid(seconds) > 0))
+        .and_then(|slots| usize::try_from(slots).ok())
+        .unwrap_or_default()
 }
 
 /// Map CloudWatch's per-series status onto the provider-neutral one.
