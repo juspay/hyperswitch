@@ -135,7 +135,7 @@ where
     // risk evaluation is executed by the connector-service, which owns the
     // provider-specific transformation. Only the pre-authorization risk
     // evaluation is routed there; the notify-style flows have no UCS equivalent
-    // yet and continue down the native path below.
+    // yet and always resolve to the direct path.
     //
     // `pre_payment_frm_core` invokes `call_frm_service` twice for a Pre flow —
     // once for Checkout and once for Transaction — and both carry
@@ -145,52 +145,55 @@ where
     // `CheckoutOrSale` after the first call) ensures nSure is asked exactly once
     // per payment, so the provider is not billed twice and does not see a
     // repeated `uniqueRequestId`.
-    if matches!(
+    let is_pre_risk_evaluation = matches!(
         frm_data.fraud_check.frm_transaction_type,
         FraudCheckType::PreFrm
     ) && matches!(
         frm_data.fraud_check.last_step,
         FraudCheckLastStep::Processing
-    ) {
-        // Same routing decision every UCS flow makes. A UCS-only FRM provider is
-        // a `ConnectorIntegrationType::UcsConnector` (listed in
-        // `ucs_only_connectors`), for which `decide_execution_path` returns UCS
-        // unconditionally and the kill switch is skipped — there is no direct
-        // integration to divert to. Everything else resolves to Direct.
-        let (execution_path, _) =
-            crate::core::unified_connector_service::should_call_unified_connector_service(
-                state,
-                platform.get_processor(),
-                &router_data,
-                None,
-                payments::CallConnectorAction::Trigger,
-                None,
-                common_enums::TransactionType::Payment,
-            )
-            .await?;
+    );
 
-        if matches!(
-            execution_path,
-            common_enums::ExecutionPath::UnifiedConnectorService
-        ) {
-            let gateway_context = payments::gateway::context::RouterGatewayContext {
-                creds_identifier: None,
-                processor: platform.get_processor().clone(),
-                header_payload: hyperswitch_domain_models::payments::HeaderPayload::default(),
-                lineage_ids: external_services::grpc_client::LineageIds::new(
-                    platform.get_processor().get_account().get_id().clone(),
-                    frm_data.connector_details.profile_id.clone(),
-                ),
-                merchant_connector_account,
-                execution_path,
-                execution_mode: common_enums::ExecutionMode::Primary,
-            };
+    // Same routing decision every UCS flow makes. A UCS-only FRM provider is a
+    // `ConnectorIntegrationType::UcsConnector` (listed in `ucs_only_connectors`),
+    // for which `decide_execution_path` returns UCS unconditionally and the kill
+    // switch is skipped — there is no direct integration to divert to.
+    // Everything else resolves to Direct.
+    let execution_path = if is_pre_risk_evaluation {
+        crate::core::unified_connector_service::should_call_unified_connector_service(
+            state,
+            platform.get_processor(),
+            &router_data,
+            None,
+            payments::CallConnectorAction::Trigger,
+            None,
+            common_enums::TransactionType::Payment,
+        )
+        .await?
+        .0
+    } else {
+        common_enums::ExecutionPath::Direct
+    };
 
-            return router_data
-                .decide_frm_flows_via_ucs(state, gateway_context)
-                .await;
-        }
-    }
+    let gateway_context = payments::gateway::context::RouterGatewayContext {
+        creds_identifier: None,
+        processor: platform.get_processor().clone(),
+        header_payload: hyperswitch_domain_models::payments::HeaderPayload::default(),
+        lineage_ids: external_services::grpc_client::LineageIds::new(
+            platform.get_processor().get_account().get_id().clone(),
+            frm_data.connector_details.profile_id.clone(),
+        ),
+        merchant_connector_account,
+        execution_path,
+        execution_mode: match execution_path {
+            common_enums::ExecutionPath::UnifiedConnectorService => {
+                common_enums::ExecutionMode::Primary
+            }
+            common_enums::ExecutionPath::ShadowUnifiedConnectorService => {
+                common_enums::ExecutionMode::Shadow
+            }
+            common_enums::ExecutionPath::Direct => common_enums::ExecutionMode::NotApplicable,
+        },
+    };
 
     let connector =
         FraudCheckConnectorData::get_connector_by_name(&frm_data.connector_details.connector_name)?;
@@ -200,6 +203,7 @@ where
             &connector,
             payments::CallConnectorAction::Trigger,
             platform,
+            gateway_context,
         )
         .await?;
 

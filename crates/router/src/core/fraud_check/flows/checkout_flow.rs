@@ -7,13 +7,11 @@ use hyperswitch_interfaces::api::gateway;
 use hyperswitch_masking::ExposeInterface;
 
 use super::{ConstructFlowSpecificData, FeatureFrm};
-#[cfg(feature = "v1")]
-use crate::core::payments::gateway::context::RouterGatewayContext;
 use crate::{
     core::{
         errors::{ConnectorErrorExt, RouterResult},
         fraud_check::types::FrmData,
-        payments::{self, helpers},
+        payments::{self, gateway::context::RouterGatewayContext, helpers},
     },
     errors, services,
     types::{
@@ -213,47 +211,62 @@ impl FeatureFrm<frm_api::Checkout, FraudCheckCheckoutData> for FrmCheckoutRouter
         connector: &FraudCheckConnectorData,
         call_connector_action: payments::CallConnectorAction,
         platform: &domain::Platform,
-    ) -> RouterResult<Self> {
-        decide_frm_flow(&mut self, state, connector, call_connector_action, platform).await
-    }
-
-    /// Pre-authorization risk evaluation on the Unified Connector Service.
-    ///
-    /// Dispatches through the gateway abstraction so the UCS call runs under
-    /// `ucs_logging_wrapper_granular` like every other UCS flow.
-    #[cfg(feature = "v1")]
-    async fn decide_frm_flows_via_ucs<'a>(
-        self,
-        state: &SessionState,
         gateway_context: RouterGatewayContext,
     ) -> RouterResult<Self> {
-        let connector = FraudCheckConnectorData::get_connector_by_name(&self.connector)?;
-        let connector_integration: services::BoxedFrmConnectorIntegrationInterface<
-            frm_api::Checkout,
-            FraudCheckCheckoutData,
-            FraudCheckResponseData,
-        > = connector.connector.get_connector_integration();
-
-        gateway::execute_payment_gateway(
+        decide_frm_flow(
+            &mut self,
             state,
-            connector_integration,
-            &self,
-            payments::CallConnectorAction::Trigger,
-            None,
-            None,
+            connector,
+            call_connector_action,
+            platform,
             gateway_context,
         )
         .await
-        .to_payment_failed_response()
     }
 }
 
+/// Dispatches on `gateway_context.execution_path`: `Direct` runs the in-process
+/// connector via `DirectGateway`, `UnifiedConnectorService` runs the UCS
+/// gateway in `core::fraud_check::gateway` under `ucs_logging_wrapper_granular`.
+#[cfg(feature = "v1")]
 pub async fn decide_frm_flow(
     router_data: &mut FrmCheckoutRouterData,
     state: &SessionState,
     connector: &FraudCheckConnectorData,
     call_connector_action: payments::CallConnectorAction,
     _platform: &domain::Platform,
+    gateway_context: RouterGatewayContext,
+) -> RouterResult<FrmCheckoutRouterData> {
+    let connector_integration: services::BoxedFrmConnectorIntegrationInterface<
+        frm_api::Checkout,
+        FraudCheckCheckoutData,
+        FraudCheckResponseData,
+    > = connector.connector.get_connector_integration();
+    let resp = gateway::execute_payment_gateway(
+        state,
+        connector_integration,
+        router_data,
+        call_connector_action,
+        None,
+        None,
+        gateway_context,
+    )
+    .await
+    .to_payment_failed_response()?;
+
+    Ok(resp)
+}
+
+/// The FRM UCS gateway is v1-only (v2 `call_frm_service` is unimplemented), so
+/// v2 keeps the direct call.
+#[cfg(feature = "v2")]
+pub async fn decide_frm_flow(
+    router_data: &mut FrmCheckoutRouterData,
+    state: &SessionState,
+    connector: &FraudCheckConnectorData,
+    call_connector_action: payments::CallConnectorAction,
+    _platform: &domain::Platform,
+    _gateway_context: RouterGatewayContext,
 ) -> RouterResult<FrmCheckoutRouterData> {
     let connector_integration: services::BoxedFrmConnectorIntegrationInterface<
         frm_api::Checkout,
