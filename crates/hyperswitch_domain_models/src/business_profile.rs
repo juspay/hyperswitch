@@ -90,6 +90,8 @@ pub struct Profile {
     pub network_tokenization_credentials: OptionalEncryptableValue,
     pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
+    pub apple_pay_certificates: Option<serde_json::Value>,
+    pub apple_pay_certificates_encrypted: OptionalEncryptableValue,
 }
 
 #[cfg(feature = "v1")]
@@ -343,6 +345,8 @@ impl From<ProfileSetter> for Profile {
             network_tokenization_credentials: value.network_tokenization_credentials,
             payment_method_blocking: value.payment_method_blocking,
             default_fallback_routing: value.default_fallback_routing,
+            apple_pay_certificates: None,
+            apple_pay_certificates_encrypted: None,
         }
     }
 }
@@ -413,6 +417,8 @@ pub struct ProfileDbBuilder {
     pub network_tokenization_credentials: OptionalEncryptableValue,
     pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
+    pub apple_pay_certificates: Option<serde_json::Value>,
+    pub apple_pay_certificates_encrypted: OptionalEncryptableValue,
 }
 
 #[cfg(feature = "v1")]
@@ -485,6 +491,8 @@ impl From<ProfileDbBuilder> for Profile {
             network_tokenization_credentials: value.network_tokenization_credentials,
             payment_method_blocking: value.payment_method_blocking,
             default_fallback_routing: value.default_fallback_routing,
+            apple_pay_certificates: value.apple_pay_certificates,
+            apple_pay_certificates_encrypted: value.apple_pay_certificates_encrypted,
         }
     }
 }

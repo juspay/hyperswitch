@@ -1420,8 +1420,10 @@ impl Conversion for domain::Profile {
                 .map(|name| name.into()),
             payment_method_blocking: self.payment_method_blocking,
             default_fallback_routing: self.default_fallback_routing,
-            apple_pay_certificates: None,
-            apple_pay_certificates_encrypted: None,
+            apple_pay_certificates: self.apple_pay_certificates,
+            apple_pay_certificates_encrypted: self
+                .apple_pay_certificates_encrypted
+                .map(|data| data.into()),
         })
     }
 
@@ -1439,6 +1441,7 @@ impl Conversion for domain::Profile {
             outgoing_webhook_custom_http_headers,
             card_testing_secret_key,
             network_tokenization_credentials,
+            apple_pay_certificates_encrypted,
         ) = async {
             let outgoing_webhook_custom_http_headers = item
                 .outgoing_webhook_custom_http_headers
@@ -1485,10 +1488,26 @@ impl Conversion for domain::Profile {
                 })
                 .await?;
 
+            let apple_pay_certificates_encrypted = item
+                .apple_pay_certificates_encrypted
+                .async_lift(|inner| async {
+                    crypto_operation(
+                        state,
+                        type_name!(Self::DstType),
+                        CryptoOperation::DecryptOptional(inner),
+                        key_manager_identifier.clone(),
+                        key.peek(),
+                    )
+                    .await
+                    .and_then(|val| val.try_into_optionaloperation())
+                })
+                .await?;
+
             Ok::<_, error_stack::Report<common_utils::errors::CryptoError>>((
                 outgoing_webhook_custom_http_headers,
                 card_testing_secret_key,
                 network_tokenization_credentials,
+                apple_pay_certificates_encrypted,
             ))
         }
         .await
@@ -1573,6 +1592,8 @@ impl Conversion for domain::Profile {
             network_tokenization_credentials,
             payment_method_blocking: item.payment_method_blocking,
             default_fallback_routing: item.default_fallback_routing,
+            apple_pay_certificates: item.apple_pay_certificates,
+            apple_pay_certificates_encrypted,
         }
         .into())
     }

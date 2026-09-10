@@ -148,7 +148,7 @@ use crate::{
             get_applepay_metadata, is_applepay_predecrypted_flow_supported,
             is_googlepay_predecrypted_flow_supported,
         },
-        payouts, resources as resources_core,
+        payouts,
         routing::{self as core_routing},
         unified_authentication_service::types::{ClickToPay, UnifiedAuthenticationService},
         utils as core_utils,
@@ -829,6 +829,7 @@ where
         &operation,
         state,
         platform,
+        &business_profile,
         &mut payment_data,
         connector.as_ref(),
     )
@@ -5663,6 +5664,7 @@ pub async fn get_decrypted_wallet_pm_token_and_set_pm_data<F, Req, D>(
     operation: &BoxedOperation<'_, F, Req, D>,
     state: &SessionState,
     platform: &domain::Platform,
+    business_profile: &domain::Profile,
     payment_data: &mut D,
     connector_call_type_optional: Option<&ConnectorCallType>,
 ) -> CustomResult<Option<PaymentMethodToken>, errors::ApiErrorResponse>
@@ -5718,7 +5720,13 @@ where
         }
 
         let decide_wallet_flow = wallet
-            .decide_wallet_flow(state, payment_data, &merchant_connector_account)
+            .decide_wallet_flow(
+                state,
+                payment_data,
+                &merchant_connector_account,
+                business_profile,
+                platform.get_processor(),
+            )
             .await
             .attach_printable("Failed to decide wallet flow")?;
 
@@ -7567,6 +7575,8 @@ where
         state: &SessionState,
         payment_data: &D,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        business_profile: &domain::Profile,
+        processor: &domain::Processor,
     ) -> CustomResult<Option<DecideWalletFlow>, errors::ApiErrorResponse>;
 
     async fn decrypt_wallet_token(
@@ -7587,6 +7597,8 @@ where
         state: &SessionState,
         _payment_data: &D,
         _merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        _business_profile: &domain::Profile,
+        _processor: &domain::Processor,
     ) -> CustomResult<Option<DecideWalletFlow>, errors::ApiErrorResponse> {
         let paze_keys = state
             .conf
@@ -7695,9 +7707,16 @@ where
         state: &SessionState,
         payment_data: &D,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        business_profile: &domain::Profile,
+        processor: &domain::Processor,
     ) -> CustomResult<Option<DecideWalletFlow>, errors::ApiErrorResponse> {
-        let apple_pay_metadata =
-            check_apple_pay_metadata(state, Some(merchant_connector_account)).await;
+        let apple_pay_metadata = check_apple_pay_metadata(
+            state,
+            Some(merchant_connector_account),
+            Some(business_profile),
+            processor,
+        )
+        .await;
 
         add_apple_pay_flow_metrics(
             &apple_pay_metadata,
@@ -7795,6 +7814,8 @@ where
         state: &SessionState,
         _payment_data: &D,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        _business_profile: &domain::Profile,
+        _processor: &domain::Processor,
     ) -> CustomResult<Option<DecideWalletFlow>, errors::ApiErrorResponse> {
         Ok(
             get_google_pay_connector_wallet_details(state, merchant_connector_account)
@@ -9196,112 +9217,71 @@ async fn decide_apple_pay_flow(
     state: &SessionState,
     payment_method_type: Option<enums::PaymentMethodType>,
     merchant_connector_account: Option<&helpers::MerchantConnectorAccountType>,
+    business_profile: Option<&domain::Profile>,
+    processor: &domain::Processor,
 ) -> Option<domain::ApplePayFlow> {
     match payment_method_type {
         Some(enums::PaymentMethodType::ApplePay) => {
-            check_apple_pay_metadata(state, merchant_connector_account).await
+            check_apple_pay_metadata(
+                state,
+                merchant_connector_account,
+                business_profile,
+                processor,
+            )
+            .await
         }
         _ => None,
     }
 }
 
 #[cfg(feature = "v1")]
-async fn resolve_managed_apple_pay_certificate(
-    state: &SessionState,
-    mca: &helpers::MerchantConnectorAccountType,
-) -> Option<payments_api::PaymentProcessingDetails> {
-    let db = state.store.as_ref();
-    let merchant_connector_id = mca.get_mca_id()?;
+struct ApplePayCertificateAccounts<'a> {
+    processor: &'a domain::Processor,
+    business_profile: Option<&'a domain::Profile>,
+    merchant_connector_account: &'a helpers::MerchantConnectorAccountType,
+}
 
-    let (data, encrypted_data) = match mca.get_apple_pay_certificate_cache() {
-        Some(cache) => cache,
-        None => {
-            let cache = db
-                .resolve_apple_pay_certificate_cache(
-                    common_enums::ResourceRequestorType::MerchantConnectorAccount,
-                    merchant_connector_id.get_string_repr().to_string(),
-                )
-                .await
-                .inspect_err(|error| {
-                    logger::warn!(
-                        ?error,
-                        "Failed to resolve linked Apple Pay certificate cache"
+#[cfg(feature = "v1")]
+async fn resolve_managed_apple_pay_certificate(
+    accounts: &ApplePayCertificateAccounts<'_>,
+) -> Option<payments_api::PaymentProcessingDetails> {
+    let (data, encrypted_data) = accounts
+        .merchant_connector_account
+        .get_apple_pay_certificate_cache()
+        .or_else(|| {
+            accounts.business_profile.and_then(|profile| {
+                profile
+                    .apple_pay_certificates
+                    .clone()
+                    .map(|data| (data, profile.apple_pay_certificates_encrypted.clone()))
+            })
+        })
+        .or_else(|| {
+            accounts
+                .processor
+                .get_account()
+                .apple_pay_certificates
+                .clone()
+                .map(|data| {
+                    (
+                        data,
+                        accounts
+                            .processor
+                            .get_account()
+                            .apple_pay_certificates_encrypted
+                            .clone(),
                     )
                 })
-                .ok()
-                .flatten()?;
-            (cache.data, cache.encrypted_data)
-        }
-    };
+        })?;
 
     let certificate = data
         .get("data")
         .and_then(|data| data.get("payment_processing_certificate"))
         .and_then(|value| value.as_str())?
         .to_string();
-    let encrypted_data = encrypted_data?;
-
-    let organization_id_str = db
-        .find_requestor_organization_id(
-            common_enums::ResourceRequestorType::MerchantConnectorAccount,
-            merchant_connector_id.get_string_repr().to_string(),
-        )
-        .await
-        .inspect_err(|error| {
-            logger::warn!(
-                ?error,
-                "Failed to resolve organization for Apple Pay certificate cache"
-            )
-        })
-        .ok()
-        .flatten()?;
-    let organization_id = id_type::OrganizationId::try_from_string(organization_id_str)
-        .inspect_err(|error| {
-            logger::warn!(
-                ?error,
-                "Invalid organization id while resolving Apple Pay certificate cache"
-            )
-        })
-        .ok()?;
-
-    let key_manager_state: &common_utils::types::keymanager::KeyManagerState = &state.into();
-    let org_key_store =
-        resources_core::ensure_organization_key_store(db, key_manager_state, &organization_id)
-            .await
-            .inspect_err(|error| {
-                logger::warn!(
-                    ?error,
-                    "Failed to fetch organization key store for Apple Pay certificate cache"
-                )
-            })
-            .ok()?;
-
-    let identifier = common_utils::types::keymanager::Identifier::Merchant(
-        organization_id.as_merchant_key_identifier().ok()?,
-    );
-
-    let decrypted_wrapper: Secret<String> = domain::types::crypto_operation(
-        key_manager_state,
-        common_utils::type_name!(domain::Resource),
-        domain::types::CryptoOperation::Decrypt(encrypted_data),
-        identifier,
-        org_key_store.key.peek(),
-    )
-    .await
-    .and_then(|value| value.try_into_operation())
-    .inspect_err(|error| logger::warn!(?error, "Failed to decrypt Apple Pay certificate cache"))
-    .ok()?
-    .into_inner();
-
-    let certificate_key_json: serde_json::Value = serde_json::from_str(decrypted_wrapper.peek())
-        .inspect_err(|error| {
-            logger::warn!(
-                ?error,
-                "Failed to parse decrypted Apple Pay certificate cache"
-            )
-        })
-        .ok()?;
+    let certificate_key_json: Secret<serde_json::Value> = encrypted_data?.into_inner();
     let certificate_key = certificate_key_json
+        .peek()
         .get("data")
         .and_then(|data| data.get("payment_processing_certificate_key"))
         .and_then(|value| value.as_str())?
@@ -9316,12 +9296,19 @@ async fn resolve_managed_apple_pay_certificate(
 async fn check_apple_pay_metadata(
     state: &SessionState,
     merchant_connector_account: Option<&helpers::MerchantConnectorAccountType>,
+    _business_profile: Option<&domain::Profile>,
+    _processor: &domain::Processor,
 ) -> Option<domain::ApplePayFlow> {
     let mca = merchant_connector_account?;
 
     #[cfg(feature = "v1")]
     if let Some(payment_processing_details) =
-        resolve_managed_apple_pay_certificate(state, mca).await
+        resolve_managed_apple_pay_certificate(&ApplePayCertificateAccounts {
+            processor: _processor,
+            business_profile: _business_profile,
+            merchant_connector_account: mca,
+        })
+        .await
     {
         return Some(domain::ApplePayFlow::DecryptAtApplication(
             payment_processing_details,
@@ -9997,6 +9984,7 @@ where
 async fn decrypt_apple_pay_wallet_for_eligibility(
     state: &SessionState,
     processor: &domain::Processor,
+    business_profile: &domain::Profile,
     merchant_connector_id: &id_type::MerchantConnectorAccountId,
     apple_pay_wallet_data: &domain::ApplePayWalletData,
 ) -> RouterResult<Option<domain::EligibilityPaymentMethodData>> {
@@ -10022,7 +10010,14 @@ async fn decrypt_apple_pay_wallet_for_eligibility(
 
     let payment_processing_details = match payment_processing_details {
         Some(merchant_connector_account) => {
-            match check_apple_pay_metadata(state, Some(&merchant_connector_account)).await {
+            match check_apple_pay_metadata(
+                state,
+                Some(&merchant_connector_account),
+                Some(business_profile),
+                processor,
+            )
+            .await
+            {
                 Some(domain::ApplePayFlow::DecryptAtApplication(payment_processing_details)) => {
                     Some(payment_processing_details)
                 }
@@ -14293,6 +14288,7 @@ impl EligibilityCheck for BlockListCheck {
                 decrypt_apple_pay_wallet_for_eligibility(
                     state,
                     platform.get_processor(),
+                    business_profile,
                     merchant_connector_id,
                     apple_pay_data,
                 )

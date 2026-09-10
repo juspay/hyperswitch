@@ -88,7 +88,7 @@ use crate::{
         merchant_key_store::MerchantKeyStoreInterface,
         payment_link::PaymentLinkInterface,
         refund::RefundInterface,
-        resource::{ApplePayCertificateCache, ResourceInterface},
+        resource::ResourceInterface,
         reverse_lookup::ReverseLookupInterface,
         routing_algorithm::RoutingAlgorithmInterface,
         tokenization::TokenizationInterface,
@@ -3368,45 +3368,6 @@ impl ResourceInterface for KafkaStore {
             .await
     }
 
-    async fn find_requestor_organization_id(
-        &self,
-        requestor_type: common_enums::ResourceRequestorType,
-        requestor_id: String,
-    ) -> CustomResult<Option<String>, errors::StorageError> {
-        self.diesel_store
-            .find_requestor_organization_id(requestor_type, requestor_id)
-            .await
-    }
-
-    async fn resolve_effective_resource_id(
-        &self,
-        requestor_type: common_enums::ResourceRequestorType,
-        requestor_id: String,
-    ) -> CustomResult<Option<id_type::ResourceId>, errors::StorageError> {
-        self.diesel_store
-            .resolve_effective_resource_id(requestor_type, requestor_id)
-            .await
-    }
-
-    async fn resolve_apple_pay_certificate_cache(
-        &self,
-        requestor_type: common_enums::ResourceRequestorType,
-        requestor_id: String,
-    ) -> CustomResult<Option<ApplePayCertificateCache>, errors::StorageError> {
-        self.diesel_store
-            .resolve_apple_pay_certificate_cache(requestor_type, requestor_id)
-            .await
-    }
-
-    async fn resolve_requestor_merchant_id(
-        &self,
-        requestor_type: common_enums::ResourceRequestorType,
-        requestor_id: String,
-    ) -> CustomResult<Option<id_type::MerchantId>, errors::StorageError> {
-        self.diesel_store
-            .resolve_requestor_merchant_id(requestor_type, requestor_id)
-            .await
-    }
 }
 
 #[async_trait::async_trait]

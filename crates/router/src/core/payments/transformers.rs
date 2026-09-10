@@ -2067,10 +2067,31 @@ where
         None
     };
 
+    let business_profile = match payment_data.payment_intent.profile_id.as_ref() {
+        Some(profile_id) => state
+            .store
+            .find_business_profile_by_merchant_id_profile_id(
+                processor.get_key_store(),
+                processor.get_account().get_id(),
+                profile_id,
+            )
+            .await
+            .inspect_err(|error| {
+                router_env::logger::warn!(
+                    ?error,
+                    "Failed to fetch business profile for Apple Pay flow decision"
+                )
+            })
+            .ok(),
+        None => None,
+    };
+
     let apple_pay_flow = payments::decide_apple_pay_flow(
         state,
         payment_data.payment_attempt.payment_method_type,
         Some(merchant_connector_account),
+        business_profile.as_ref(),
+        processor,
     )
     .await;
 
@@ -2395,10 +2416,31 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
         None
     };
 
+    let business_profile = match payment_data.payment_intent.profile_id.as_ref() {
+        Some(profile_id) => state
+            .store
+            .find_business_profile_by_merchant_id_profile_id(
+                processor.get_key_store(),
+                processor.get_account().get_id(),
+                profile_id,
+            )
+            .await
+            .inspect_err(|error| {
+                router_env::logger::warn!(
+                    ?error,
+                    "Failed to fetch business profile for Apple Pay flow decision"
+                )
+            })
+            .ok(),
+        None => None,
+    };
+
     let apple_pay_flow = payments::decide_apple_pay_flow(
         state,
         payment_data.payment_attempt.payment_method_type,
         Some(merchant_connector_account),
+        business_profile.as_ref(),
+        processor,
     )
     .await;
 

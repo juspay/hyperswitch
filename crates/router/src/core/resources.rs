@@ -43,16 +43,13 @@ trait ResourceHandler {
 
     fn display_data(resource: &domain::Resource) -> RouterResult<serde_json::Value>;
 
-    #[allow(clippy::too_many_arguments)]
     async fn on_link(
         state: &SessionState,
         key_manager_state: &KeyManagerState,
-        organization_id: &id_type::OrganizationId,
-        org_key: &Secret<Vec<u8>>,
         resource: &domain::Resource,
         resource_id: &id_type::ResourceId,
-        requestor_type: common_enums::ResourceRequestorType,
-        requestor_id: String,
+        account: RequestorAccount,
+        account_key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<()>;
 }
 
@@ -291,12 +288,10 @@ impl ResourceHandler for ApplePayCertificateResource {
     async fn on_link(
         state: &SessionState,
         key_manager_state: &KeyManagerState,
-        organization_id: &id_type::OrganizationId,
-        org_key: &Secret<Vec<u8>>,
         resource: &domain::Resource,
         resource_id: &id_type::ResourceId,
-        requestor_type: common_enums::ResourceRequestorType,
-        requestor_id: String,
+        account: RequestorAccount,
+        account_key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<()> {
         let db = state.store.as_ref();
 
@@ -318,26 +313,22 @@ impl ResourceHandler for ApplePayCertificateResource {
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to parse stored Apple Pay private key payload")?;
 
-            let key_wrapper = serde_json::to_string(&ApplePayCertificateKeyWrapper {
+            let key_wrapper = serde_json::to_value(ApplePayCertificateKeyWrapper {
                 data: private_key_payload,
             })
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to serialize Apple Pay certificate cache key wrapper")?;
-            let key_wrapper: Secret<String> = Secret::new(key_wrapper);
+            let key_wrapper: Secret<serde_json::Value> = Secret::new(key_wrapper);
 
-            let identifier = km_types::Identifier::Merchant(
-                organization_id
-                    .as_merchant_key_identifier()
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to derive organization key identifier")?,
-            );
+            let identifier =
+                km_types::Identifier::Merchant(account_key_store.merchant_id.clone());
 
             let encrypted_cache = domain::types::crypto_operation(
                 key_manager_state,
                 common_utils::type_name!(domain::Resource),
                 domain::types::CryptoOperation::Encrypt(key_wrapper),
                 identifier,
-                org_key.peek(),
+                account_key_store.key.peek(),
             )
             .await
             .and_then(|value| value.try_into_operation())
@@ -348,7 +339,7 @@ impl ResourceHandler for ApplePayCertificateResource {
                 apple_pay_certificates: Some(plain_data),
                 apple_pay_certificates_encrypted: Some(encrypted_cache.into()),
             };
-            link_resource_data_to_scope(db, requestor_type, requestor_id, &update).await?;
+            link_resource_data_to_scope(db, account_key_store, account, &update).await?;
         }
 
         Ok(())
@@ -389,66 +380,10 @@ impl RequestorResourceUpdate for ApplePayCertificateResourceUpdate {
     }
 }
 
-async fn link_resource_data_to_scope(
-    db: &dyn StorageInterface,
-    requestor_type: common_enums::ResourceRequestorType,
-    requestor_id: String,
-    update: &impl RequestorResourceUpdate,
-) -> RouterResult<()> {
-    let merchant_id = db
-        .resolve_requestor_merchant_id(requestor_type, requestor_id.clone())
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to resolve requestor's owning merchant")?
-        .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
-            message: "requestor_id not found".to_string(),
-        })?;
-
-    let key_store = db
-        .get_merchant_key_store_by_merchant_id(&merchant_id, &db.get_master_key().to_vec().into())
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
-
-    match requestor_type {
-        common_enums::ResourceRequestorType::MerchantConnectorAccount => {
-            let mca_id = parse_requestor_id::<id_type::MerchantConnectorAccountId>(&requestor_id)?;
-            link_merchant_connector_account_resource(
-                db,
-                &merchant_id,
-                &mca_id,
-                &key_store,
-                update.for_merchant_connector_account(),
-            )
-            .await?;
-        }
-        common_enums::ResourceRequestorType::Profile => {
-            let profile_id = parse_requestor_id::<id_type::ProfileId>(&requestor_id)?;
-            let profile = db
-                .find_business_profile_by_profile_id(&key_store, &profile_id)
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
-                    id: profile_id.get_string_repr().to_owned(),
-                })?;
-
-            db.update_profile_by_profile_id(&key_store, profile, update.for_profile())
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to link resource data to profile")?;
-        }
-        common_enums::ResourceRequestorType::MerchantAccount => {
-            let merchant_account = db
-                .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
-
-            db.update_merchant(merchant_account, update.for_merchant_account(), &key_store)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to link resource data to merchant account")?;
-        }
-    }
-
-    Ok(())
+enum RequestorAccount {
+    MerchantConnectorAccount(Box<domain::MerchantConnectorAccount>),
+    Profile(Box<domain::Profile>),
+    MerchantAccount(Box<domain::MerchantAccount>),
 }
 
 fn parse_requestor_id<T>(value: &str) -> RouterResult<T>
@@ -465,44 +400,148 @@ where
     )
 }
 
+/// Fetches the target MCA/profile/merchant_account scoped strictly to `processor`'s own
+/// merchant — a `NotFound` here is itself the authorization check, no separate org-membership
+/// check is needed since the fetch can never return an entity belonging to a different merchant.
 #[cfg(feature = "v1")]
-async fn link_merchant_connector_account_resource(
+async fn fetch_requestor_account(
     db: &dyn StorageInterface,
-    merchant_id: &id_type::MerchantId,
-    mca_id: &id_type::MerchantConnectorAccountId,
-    key_store: &domain::MerchantKeyStore,
-    update: domain::MerchantConnectorAccountUpdate,
-) -> RouterResult<()> {
-    let mca = db
-        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            merchant_id,
-            mca_id,
-            key_store,
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-            id: mca_id.get_string_repr().to_string(),
-        })?;
-
-    db.update_merchant_connector_account(mca, update.into(), key_store)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to link resource data to merchant connector account")?;
-
-    Ok(())
+    processor: &domain::Processor,
+    requestor_type: common_enums::ResourceRequestorType,
+    requestor_id: &str,
+) -> RouterResult<RequestorAccount> {
+    match requestor_type {
+        common_enums::ResourceRequestorType::MerchantConnectorAccount => {
+            let mca_id = parse_requestor_id::<id_type::MerchantConnectorAccountId>(requestor_id)?;
+            let mca = db
+                .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                    processor.get_account().get_id(),
+                    &mca_id,
+                    processor.get_key_store(),
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                    id: mca_id.get_string_repr().to_string(),
+                })?;
+            Ok(RequestorAccount::MerchantConnectorAccount(Box::new(mca)))
+        }
+        common_enums::ResourceRequestorType::Profile => {
+            let profile_id = parse_requestor_id::<id_type::ProfileId>(requestor_id)?;
+            let profile = db
+                .find_business_profile_by_merchant_id_profile_id(
+                    processor.get_key_store(),
+                    processor.get_account().get_id(),
+                    &profile_id,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
+                    id: profile_id.get_string_repr().to_owned(),
+                })?;
+            Ok(RequestorAccount::Profile(Box::new(profile)))
+        }
+        common_enums::ResourceRequestorType::MerchantAccount => {
+            let merchant_id = parse_requestor_id::<id_type::MerchantId>(requestor_id)?;
+            if &merchant_id != processor.get_account().get_id() {
+                return Err(report!(errors::ApiErrorResponse::MerchantAccountNotFound));
+            }
+            Ok(RequestorAccount::MerchantAccount(Box::new(
+                processor.get_account().clone(),
+            )))
+        }
+    }
 }
 
 #[cfg(feature = "v2")]
-async fn link_merchant_connector_account_resource(
+async fn fetch_requestor_account(
     _db: &dyn StorageInterface,
-    _merchant_id: &id_type::MerchantId,
-    _mca_id: &id_type::MerchantConnectorAccountId,
-    _key_store: &domain::MerchantKeyStore,
-    _update: domain::MerchantConnectorAccountUpdate,
-) -> RouterResult<()> {
+    _processor: &domain::Processor,
+    _requestor_type: common_enums::ResourceRequestorType,
+    _requestor_id: &str,
+) -> RouterResult<RequestorAccount> {
     Err(report!(errors::ApiErrorResponse::NotSupported {
         message: "Resource linking is not supported for v2".to_string(),
     }))
+}
+
+/// Reads the linked-certificate cache off an already-fetched `RequestorAccount`, cascading to
+/// its profile and then its merchant account exactly like `resolve_apple_pay_certificate_cache`
+/// used to — safely, since an MCA's own profile/merchant are inherent properties of an entity
+/// already scoped to `processor`'s merchant, not caller-supplied ids.
+#[cfg(feature = "v1")]
+async fn resolve_apple_pay_certificate_data(
+    db: &dyn StorageInterface,
+    processor: &domain::Processor,
+    account: &RequestorAccount,
+) -> Option<serde_json::Value> {
+    match account {
+        RequestorAccount::MerchantConnectorAccount(mca) => match mca.apple_pay_certificates.clone()
+        {
+            Some(data) => Some(data),
+            None => {
+                let profile = db
+                    .find_business_profile_by_merchant_id_profile_id(
+                        processor.get_key_store(),
+                        processor.get_account().get_id(),
+                        &mca.profile_id,
+                    )
+                    .await
+                    .ok()?;
+                profile
+                    .apple_pay_certificates
+                    .or_else(|| processor.get_account().apple_pay_certificates.clone())
+            }
+        },
+        RequestorAccount::Profile(profile) => profile
+            .apple_pay_certificates
+            .clone()
+            .or_else(|| processor.get_account().apple_pay_certificates.clone()),
+        RequestorAccount::MerchantAccount(merchant_account) => {
+            merchant_account.apple_pay_certificates.clone()
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+async fn resolve_apple_pay_certificate_data(
+    _db: &dyn StorageInterface,
+    _processor: &domain::Processor,
+    _account: &RequestorAccount,
+) -> Option<serde_json::Value> {
+    None
+}
+
+async fn link_resource_data_to_scope(
+    db: &dyn StorageInterface,
+    key_store: &domain::MerchantKeyStore,
+    account: RequestorAccount,
+    update: &impl RequestorResourceUpdate,
+) -> RouterResult<()> {
+    match account {
+        RequestorAccount::MerchantConnectorAccount(mca) => {
+            db.update_merchant_connector_account(
+                *mca,
+                update.for_merchant_connector_account().into(),
+                key_store,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to link resource data to merchant connector account")?;
+        }
+        RequestorAccount::Profile(profile) => {
+            db.update_profile_by_profile_id(key_store, *profile, update.for_profile())
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to link resource data to profile")?;
+        }
+        RequestorAccount::MerchantAccount(merchant_account) => {
+            db.update_merchant(*merchant_account, update.for_merchant_account(), key_store)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to link resource data to merchant account")?;
+        }
+    }
+
+    Ok(())
 }
 
 pub async fn generate_resource(
@@ -641,11 +680,12 @@ fn parse_apple_merchant_identifier(
 
 pub async fn list_resources(
     state: SessionState,
-    organization_id: id_type::OrganizationId,
+    processor: domain::Processor,
     req: api_resources::ListResourcesRequest,
 ) -> RouterResponse<api_resources::ListResourcesResponse> {
     let db = state.store.as_ref();
     let key_manager_state: &KeyManagerState = &(&state).into();
+    let organization_id = processor.get_account().organization_id.clone();
 
     let org_key_store =
         ensure_organization_key_store(db, key_manager_state, &organization_id).await?;
@@ -662,20 +702,15 @@ pub async fn list_resources(
 
     let effective_resource_id = match (req.scope_type, req.scope_id) {
         (Some(scope_type), Some(scope_id)) => {
-            let requestor_org_id = db
-                .find_requestor_organization_id(scope_type, scope_id.clone())
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to resolve scope entity's organization")?
-                .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
-                    message: "scope_id not found".to_string(),
-                })?;
-            authorize_scope_id_belongs_to_org(&requestor_org_id, &organization_id)?;
-
-            db.resolve_effective_resource_id(scope_type, scope_id)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to resolve effective resource id")?
+            let account = fetch_requestor_account(db, &processor, scope_type, &scope_id).await?;
+            match resolve_apple_pay_certificate_data(db, &processor, &account).await {
+                Some(data) => data
+                    .get("resource_id")
+                    .and_then(|value| value.as_str())
+                    .map(parse_requestor_id::<id_type::ResourceId>)
+                    .transpose()?,
+                None => None,
+            }
         }
         _ => None,
     };
@@ -731,15 +766,8 @@ pub async fn link_resource(
         })?;
     authorize_scope_id_belongs_to_org(&scope_id, &organization_id)?;
 
-    let requestor_org_id = db
-        .find_requestor_organization_id(req.requestor_type, req.requestor_id.clone())
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to resolve requestor_id's organization")?
-        .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
-            message: "requestor_id not found".to_string(),
-        })?;
-    authorize_scope_id_belongs_to_org(&requestor_org_id, &organization_id)?;
+    let account =
+        fetch_requestor_account(db, &processor, req.requestor_type, &req.requestor_id).await?;
 
     let org_key_store =
         ensure_organization_key_store(db, key_manager_state, &organization_id).await?;
@@ -757,12 +785,10 @@ pub async fn link_resource(
             ApplePayCertificateResource::on_link(
                 &state,
                 key_manager_state,
-                &organization_id,
-                &org_key_store.key,
                 &resource,
                 &resource_id,
-                req.requestor_type,
-                req.requestor_id,
+                account,
+                processor.get_key_store(),
             )
             .await?;
         }

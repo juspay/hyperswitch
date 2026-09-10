@@ -57,6 +57,8 @@ pub struct MerchantAccount {
     pub network_tokenization_credentials: OptionalEncryptableValue,
     pub fingerprint_secret: Option<Secret<String>>,
     pub offer_engine_config: OptionalEncryptableValue,
+    pub apple_pay_certificates: Option<serde_json::Value>,
+    pub apple_pay_certificates_encrypted: OptionalEncryptableValue,
 }
 
 #[cfg(feature = "v1")]
@@ -137,6 +139,8 @@ impl From<MerchantAccountSetter> for MerchantAccount {
             network_tokenization_credentials: item.network_tokenization_credentials,
             fingerprint_secret: item.fingerprint_secret,
             offer_engine_config: item.offer_engine_config,
+            apple_pay_certificates: None,
+            apple_pay_certificates_encrypted: None,
         }
     }
 }
@@ -926,6 +930,21 @@ impl Conversion for MerchantAccount {
                 fingerprint_secret: item.fingerprint_secret,
                 offer_engine_config: item
                     .offer_engine_config
+                    .async_lift(|inner| async {
+                        crypto_operation(
+                            state,
+                            type_name!(Self::DstType),
+                            CryptoOperation::DecryptOptional(inner),
+                            key_manager_identifier.clone(),
+                            key.peek(),
+                        )
+                        .await
+                        .and_then(|val| val.try_into_optionaloperation())
+                    })
+                    .await?,
+                apple_pay_certificates: item.apple_pay_certificates,
+                apple_pay_certificates_encrypted: item
+                    .apple_pay_certificates_encrypted
                     .async_lift(|inner| async {
                         crypto_operation(
                             state,

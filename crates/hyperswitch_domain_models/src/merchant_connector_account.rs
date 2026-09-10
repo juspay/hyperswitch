@@ -70,7 +70,8 @@ pub struct MerchantConnectorAccount {
     pub version: common_enums::ApiVersion,
     pub connector_webhook_registration_details: Option<Value>,
     pub apple_pay_certificates: Option<Value>,
-    pub apple_pay_certificates_encrypted: Option<Encryption>,
+    #[encrypt]
+    pub apple_pay_certificates_encrypted: Option<Encryptable<Secret<Value>>>,
 }
 
 #[cfg(feature = "v1")]
@@ -599,7 +600,9 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             version: self.version,
             connector_webhook_registration_details: self.connector_webhook_registration_details,
             apple_pay_certificates: self.apple_pay_certificates,
-            apple_pay_certificates_encrypted: self.apple_pay_certificates_encrypted,
+            apple_pay_certificates_encrypted: self
+                .apple_pay_certificates_encrypted
+                .map(|data| data.into()),
         })
     }
 
@@ -618,6 +621,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
                     connector_account_details: other.connector_account_details,
                     additional_merchant_data: other.additional_merchant_data,
                     connector_wallets_details: other.connector_wallets_details,
+                    apple_pay_certificates_encrypted: other.apple_pay_certificates_encrypted,
                 },
             )),
             identifier.clone(),
@@ -666,7 +670,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             version: other.version,
             connector_webhook_registration_details: other.connector_webhook_registration_details,
             apple_pay_certificates: other.apple_pay_certificates,
-            apple_pay_certificates_encrypted: other.apple_pay_certificates_encrypted,
+            apple_pay_certificates_encrypted: decrypted_data.apple_pay_certificates_encrypted,
         })
     }
 

@@ -130,13 +130,7 @@ pub async fn list_resources(
         &req,
         payload,
         |state, auth_data: auth::AuthenticationData, req, _| {
-            let organization_id = auth_data
-                .platform
-                .get_processor()
-                .get_account()
-                .organization_id
-                .clone();
-            resources_core::list_resources(state, organization_id, req)
+            resources_core::list_resources(state, auth_data.platform.get_processor().clone(), req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {

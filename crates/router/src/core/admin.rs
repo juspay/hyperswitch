@@ -2265,6 +2265,7 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
                             )
                             .await?,
                         additional_merchant_data: merchant_recipient_data.map(Secret::new),
+                        apple_pay_certificates_encrypted: None,
                     },
                 ),
             ),
@@ -2613,6 +2614,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
                             )
                             .await?,
                         additional_merchant_data: merchant_recipient_data.map(Secret::new),
+                        apple_pay_certificates_encrypted: None,
                     },
                 ),
             ),

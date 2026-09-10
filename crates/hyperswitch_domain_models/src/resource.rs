@@ -1,7 +1,6 @@
 use common_utils::{
     crypto::Encryptable,
     custom_serde, date_time,
-    encryption::Encryption,
     errors::{CustomResult, ValidationError},
     id_type,
     types::keymanager::{self, KeyManagerState},
@@ -169,32 +168,5 @@ pub trait ResourceInterface {
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<Resource, Self::Error>;
 
-    async fn find_requestor_organization_id(
-        &self,
-        requestor_type: common_enums::ResourceRequestorType,
-        requestor_id: String,
-    ) -> CustomResult<Option<String>, Self::Error>;
-
-    async fn resolve_effective_resource_id(
-        &self,
-        requestor_type: common_enums::ResourceRequestorType,
-        requestor_id: String,
-    ) -> CustomResult<Option<id_type::ResourceId>, Self::Error>;
-
-    async fn resolve_apple_pay_certificate_cache(
-        &self,
-        requestor_type: common_enums::ResourceRequestorType,
-        requestor_id: String,
-    ) -> CustomResult<Option<ApplePayCertificateCache>, Self::Error>;
-
-    async fn resolve_requestor_merchant_id(
-        &self,
-        requestor_type: common_enums::ResourceRequestorType,
-        requestor_id: String,
-    ) -> CustomResult<Option<id_type::MerchantId>, Self::Error>;
 }
 
-pub struct ApplePayCertificateCache {
-    pub data: serde_json::Value,
-    pub encrypted_data: Option<Encryption>,
-}

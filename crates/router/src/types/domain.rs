@@ -50,9 +50,7 @@ mod merchant_key_store {
     pub use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
 }
 mod resource {
-    pub use hyperswitch_domain_models::resource::{
-        ApplePayCertificateCache, Resource, ResourceDataUpdate,
-    };
+    pub use hyperswitch_domain_models::resource::{Resource, ResourceDataUpdate};
 }
 pub use hyperswitch_domain_models::bulk_tokenization::*;
 pub mod payment_methods {
