@@ -1039,24 +1039,23 @@ impl RoutingStage for SessionRoutingStage {
             // evaluates every wallet type's parameters in a single round trip. Against an
             // engine without the batch endpoint this degrades to concurrent single calls.
             // Not cut over, the result is shadow-only and is spawned after the loop.
-            let de_results: Vec<Vec<routing_types::RoutableConnectorChoice>> =
-                if de_routing_effective {
-                    utils::decision_engine_routing_batch_with_fallback(
-                        input.state,
-                        pm_entries
-                            .iter()
-                            .map(|(_, _, backend_input)| backend_input.clone())
-                            .collect(),
-                        input.business_profile,
-                        input.payment_id.clone(),
-                        input.default_config.clone(),
-                        *input.transaction_type,
-                        utils::RoutingFlow::SessionToken,
-                    )
-                    .await
-                } else {
-                    vec![Vec::new(); pm_entries.len()]
-                };
+            let de_results: Vec<utils::DeRoutingShapes> = if de_routing_effective {
+                utils::decision_engine_routing_batch_with_fallback(
+                    input.state,
+                    pm_entries
+                        .iter()
+                        .map(|(_, _, backend_input)| backend_input.clone())
+                        .collect(),
+                    input.business_profile,
+                    input.payment_id.clone(),
+                    input.default_config.clone(),
+                    *input.transaction_type,
+                    utils::RoutingFlow::SessionToken,
+                )
+                .await
+            } else {
+                vec![utils::DeRoutingShapes::default(); pm_entries.len()]
+            };
 
             let mut shadow_entries: Vec<utils::ShadowBatchEntry> = Vec::new();
 
@@ -1134,7 +1133,7 @@ impl RoutingStage for SessionRoutingStage {
                     // it gates routing for the whole profile, and tripping it on a
                     // session-flow discrepancy would disable DE routing for payments too.
                     utils::compare_and_log_result(
-                        de_connectors.clone(),
+                        de_connectors.for_diff.clone(),
                         chosen_connectors.clone(),
                         utils::RoutingFlow::SessionToken.as_str().to_string(),
                         is_volume_split,
@@ -1149,7 +1148,7 @@ impl RoutingStage for SessionRoutingStage {
                         input.dimensions,
                         input.business_profile,
                         chosen_connectors,
-                        de_connectors,
+                        de_connectors.for_routing,
                     )
                     .await
                 } else {
@@ -1826,7 +1825,7 @@ impl RoutingStage for HybridRoutingStage {
                 // Diff logging only — no kill-switch counting: this stage runs solely for
                 // cut-over profiles, whose DE-only writes make the HS baseline stale by design.
                 utils::compare_and_log_result(
-                    hybrid_outcome.connectors.clone(),
+                    hybrid_outcome.diff_connectors.clone(),
                     input.static_connectors.to_vec(),
                     "evaluate_routing".to_string(),
                     input.static_is_volume_split,
@@ -2141,13 +2140,19 @@ pub async fn perform_static_routing_v1(
     ) = match backend_input {
         Err(err) => {
             logger::error!(error=?err, "euclid_routing: failed to build routing input, falling back to merchant default connectors");
-            (fallback_config.clone(), None, false, Vec::default(), false)
+            (
+                fallback_config.clone(),
+                None,
+                false,
+                utils::DeRoutingShapes::default(),
+                false,
+            )
         }
         Ok(backend_input) => {
             // Decision engine evaluation is diagnostic only; errors degrade to an empty result.
             let de_evaluated_connector = if !state.conf.open_router.static_routing_enabled {
                 logger::debug!("decision_engine_euclid: decision_engine routing not enabled");
-                Vec::default()
+                utils::DeRoutingShapes::default()
             } else {
                 utils::decision_engine_routing(
                         state,
@@ -2215,12 +2220,21 @@ pub async fn perform_static_routing_v1(
         }
     };
 
+    // The Decision Engine answers a rule that selects nothing with the fallback list this
+    // request sent it, so diff against the same post-fallback list rather than the bare rule
+    // result -- otherwise an empty `default_selection` reads as a length mismatch every time.
+    let hs_connectors_for_diff = if routable_connectors.is_empty() {
+        fallback_config.clone()
+    } else {
+        routable_connectors.clone()
+    };
+
     // Always diff-log (dashboards consume this for cut-over profiles too), but feed the
     // kill switch only from a successfully evaluated HS algorithm on a non-cut-over
     // profile — under DE-only writes the HS baseline is stale by design.
     let comparison = utils::compare_and_log_result(
-        de_evaluated_connector.clone(),
-        routable_connectors.clone(),
+        de_evaluated_connector.for_diff.clone(),
+        hs_connectors_for_diff,
         utils::RoutingFlow::Payment.as_str().to_string(),
         is_volume_split,
     );
@@ -2240,7 +2254,7 @@ pub async fn perform_static_routing_v1(
             dimensions,
             business_profile,
             routable_connectors,
-            de_evaluated_connector,
+            de_evaluated_connector.for_routing,
         )
         .await,
         routing_approach,
@@ -3279,7 +3293,7 @@ pub async fn perform_session_flow_routing(
     // One batch call for a cut-over profile: the engine fetches the rule once and
     // evaluates every wallet type's parameters in a single round trip. Against an engine
     // without the batch endpoint this degrades to concurrent single calls.
-    let de_results: Vec<Vec<routing_types::RoutableConnectorChoice>> = if de_routing_effective {
+    let de_results: Vec<utils::DeRoutingShapes> = if de_routing_effective {
         utils::decision_engine_routing_batch_with_fallback(
             session_input.state,
             pm_entries
@@ -3294,7 +3308,7 @@ pub async fn perform_session_flow_routing(
         )
         .await
     } else {
-        vec![Vec::new(); pm_entries.len()]
+        vec![utils::DeRoutingShapes::default(); pm_entries.len()]
     };
 
     let mut shadow_entries: Vec<utils::ShadowBatchEntry> = Vec::new();
@@ -3323,6 +3337,7 @@ pub async fn perform_session_flow_routing(
                 de_routing_effective,
                 de_connectors,
                 collect_shadow_entries,
+                &de_fallback_config,
             )
             .await?;
 
@@ -3386,8 +3401,9 @@ async fn perform_session_routing_for_pm_type(
     business_profile: &domain::Profile,
     active_mca_ids: &std::collections::HashSet<common_utils::id_type::MerchantConnectorAccountId>,
     de_routing_effective: bool,
-    de_connectors: Vec<api_models::routing::RoutableConnectorChoice>,
+    de_connectors: utils::DeRoutingShapes,
     collect_shadow_entry: bool,
+    de_fallback_config: &[api_models::routing::RoutableConnectorChoice],
 ) -> RoutingResult<(
     Option<Vec<api_models::routing::RoutableConnectorChoice>>,
     Option<common_enums::RoutingApproach>,
@@ -3448,6 +3464,21 @@ async fn perform_session_routing_for_pm_type(
         (fallback_config.clone(), None)
     };
 
+    // A rule that selects nothing routes on the merchant fallback here too, just after cgraph
+    // filtering. Resolve it up front instead, the way `SessionRoutingStage` does, so the diff
+    // below compares against the list this flow actually routes on -- the Decision Engine
+    // answers such a rule with the fallback it was sent, and diffing the bare `[]` against it
+    // reported a mismatch on every non-matching payment.
+    let (chosen_connectors, routing_approach) =
+        if chosen_connectors.is_empty() && !de_fallback_config.is_empty() {
+            (
+                de_fallback_config.to_vec(),
+                Some(common_enums::RoutingApproach::DefaultFallback),
+            )
+        } else {
+            (chosen_connectors, routing_approach)
+        };
+
     let is_volume_split = matches!(
         routing_approach,
         Some(common_enums::RoutingApproach::VolumeBasedRouting)
@@ -3460,7 +3491,7 @@ async fn perform_session_routing_for_pm_type(
         // Diff logging only; see the note in `SessionRoutingStage` on why the kill switch
         // is not fed from these flows.
         utils::compare_and_log_result(
-            de_connectors.clone(),
+            de_connectors.for_diff.clone(),
             chosen_connectors.clone(),
             utils::RoutingFlow::PaymentMethodList.as_str().to_string(),
             is_volume_split,
@@ -3473,7 +3504,7 @@ async fn perform_session_routing_for_pm_type(
             session_pm_input.dimensions,
             business_profile,
             chosen_connectors,
-            de_connectors,
+            de_connectors.for_routing,
         )
         .await
     } else {
