@@ -1,5 +1,3 @@
-// @generated automatically by Diesel CLI.
-
 diesel::table! {
     alerts_dicts (id) {
         id -> Uuid,
