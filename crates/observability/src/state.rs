@@ -95,6 +95,9 @@ impl AppState {
         let metrics = build_metrics_provider(&raw_conf.cloudwatch)
             .await
             .expect("Failed to build the cloudwatch metrics client");
+        #[allow(clippy::expect_used)]
+        resolve_alarm_destinations(&raw_conf.cloudwatch, &chat)
+            .expect("Failed to resolve the cloudwatch alarm destinations");
 
         Self {
             conf: Arc::new(raw_conf),
@@ -103,6 +106,27 @@ impl AppState {
             metrics,
         }
     }
+}
+
+/// Check that every severity's announcement has somewhere to go.
+///
+/// A breaching rule pointed at a destination that does not exist is the one failure this service
+/// cannot report: the evaluation succeeds, the alarm is real, and the message goes nowhere. Caught
+/// at boot, where it is a typo, rather than at 3am, where it is silence.
+fn resolve_alarm_destinations(
+    settings: &CloudWatchSettings,
+    chat: &Registry<dyn ChatNotifier>,
+) -> Result<(), ConfigurationError> {
+    for (severity, destination) in settings.destination_ids() {
+        if chat.get(destination).is_none() {
+            Err(ConfigurationError::ConfigParsingError(format!(
+                "cloudwatch severity `{severity}` announces to chat destination `{destination}`, \
+                 which is not configured"
+            )))?
+        }
+    }
+
+    Ok(())
 }
 
 /// Build the provider the catalogue is read through, if there is a catalogue to read.

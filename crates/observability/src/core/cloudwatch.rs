@@ -1,5 +1,7 @@
 //! Reading the catalogue's metrics and evaluating every rule against them.
 
+pub mod announce;
+
 use std::collections::BTreeMap;
 
 use external_services::metrics_service::{
@@ -236,6 +238,11 @@ fn describe(id: &str, definition: &AlarmDefinition) -> Evaluation {
         name: definition.name.clone(),
         classification: definition.classification.clone(),
         metric_name: definition.metric_name.clone(),
+        dimensions: definition
+            .dimensions
+            .iter()
+            .map(|dimension| (dimension.name.clone(), dimension.value.clone()))
+            .collect(),
         period: definition.period,
         outcome: Outcome::Unread {
             reason: Unread::SeriesMissing,
@@ -246,7 +253,10 @@ fn describe(id: &str, definition: &AlarmDefinition) -> Evaluation {
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::expect_used, clippy::indexing_slicing)]
 mod tests {
-    use std::sync::{Arc, Mutex};
+    use std::{
+        collections::HashMap,
+        sync::{Arc, Mutex},
+    };
 
     use external_services::metrics_service::{
         Aggregation, Labels, MetricSeries, MetricsError, MetricsResult,
@@ -343,6 +353,7 @@ mod tests {
     fn catalogue(alarms: Vec<(&str, AlarmDefinition)>) -> CloudWatchSettings {
         CloudWatchSettings {
             client: Default::default(),
+            destinations: HashMap::new(),
             alarms: alarms
                 .into_iter()
                 .map(|(id, definition)| (id.to_owned(), definition))
@@ -428,6 +439,7 @@ mod tests {
             .collect();
         let settings = CloudWatchSettings {
             client: Default::default(),
+            destinations: HashMap::new(),
             alarms: alarms.into_iter().collect(),
         };
         let provider = StubProvider::answering(vec![]);
