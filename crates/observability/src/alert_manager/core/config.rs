@@ -7,28 +7,17 @@ use diesel_models::{
 use error_stack::report;
 
 use crate::{
-    alert_manager::types::config::{
-        AlertDefinitionCreateRequest, AlertDefinitionListResponse, AlertDefinitionResponse,
-        AlertDefinitionUpdateRequest, AlertEnablementListResponse, AlertEnablementResponse,
-        AlertEnablementUpsertRequest,
+    alert_manager::{
+        core::{escalate, unrecognised},
+        types::config::{
+            AlertDefinitionCreateRequest, AlertDefinitionListResponse, AlertDefinitionResponse,
+            AlertDefinitionUpdateRequest, AlertEnablementListResponse, AlertEnablementResponse,
+            AlertEnablementUpsertRequest,
+        },
     },
     errors::{ObservabilityApiResult, ObservabilityError},
     state::AppState,
 };
-
-fn escalate(
-    error: error_stack::Report<DatabaseError>,
-    recognise: impl FnOnce(DatabaseError) -> Option<ObservabilityError>,
-) -> error_stack::Report<ObservabilityError> {
-    let context =
-        recognise(*error.current_context()).unwrap_or(ObservabilityError::StorageUnavailable);
-
-    error.change_context(context)
-}
-
-fn unrecognised(_: DatabaseError) -> Option<ObservabilityError> {
-    None
-}
 
 pub async fn create_definition(
     state: AppState,

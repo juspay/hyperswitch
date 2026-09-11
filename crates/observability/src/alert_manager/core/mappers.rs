@@ -1,16 +1,22 @@
-use diesel_models::observability::{
-    alerts_dicts::{AlertsDict, AlertsDictNew},
-    raw_json::RawJson,
+use diesel_models::{
+    errors::DatabaseError,
+    observability::{
+        alerts_dicts::{AlertsDict, AlertsDictNew},
+        raw_json::RawJson,
+    },
 };
 use error_stack::{report, ResultExt};
 
 use crate::{
-    alert_manager::types::{
-        mappers::{
-            MapperDeleteResponse, MapperEntry, MapperListResponse, MapperReadResponse,
-            MapperSaveResponse, MapperUpsertRequest,
+    alert_manager::{
+        core::{escalate, unrecognised},
+        types::{
+            mappers::{
+                MapperEntry, MapperListResponse, MapperReadResponse, MapperRetireResponse,
+                MapperSaveResponse, MapperUpsertRequest,
+            },
+            ReadStatus, UserName, WriteStatus,
         },
-        ReadStatus, UserName, WriteStatus,
     },
     errors::{ObservabilityApiResult, ObservabilityError},
     logger,
@@ -23,12 +29,12 @@ const KEY_MAX_BYTES: usize = 255;
 
 const USERNAME_MAX_BYTES: usize = 64;
 
-pub async fn list(state: AppState) -> ObservabilityApiResult<MapperListResponse> {
+pub async fn list_mappers(state: AppState) -> ObservabilityApiResult<MapperListResponse> {
     let connection = state.database_connection().await?;
 
     let entries = AlertsDict::list_enabled(&connection)
         .await
-        .change_context(ObservabilityError::InternalServerError)
+        .map_err(|error| escalate(error, unrecognised))
         .attach_printable("Failed to list mapper entries")?;
 
     Ok(MapperListResponse {
@@ -41,7 +47,7 @@ pub async fn list(state: AppState) -> ObservabilityApiResult<MapperListResponse>
     })
 }
 
-pub async fn read(
+pub async fn read_mapper(
     state: AppState,
     name: &str,
     key: &str,
@@ -50,7 +56,7 @@ pub async fn read(
 
     let entry = AlertsDict::find_enabled_by_name_and_key(&connection, name, key)
         .await
-        .change_context(ObservabilityError::InternalServerError)
+        .map_err(|error| escalate(error, unrecognised))
         .attach_printable("Failed to read a mapper entry")?;
 
     Ok(MapperReadResponse {
@@ -61,7 +67,7 @@ pub async fn read(
     })
 }
 
-pub async fn upsert(
+pub async fn upsert_mapper(
     state: AppState,
     request: MapperUpsertRequest,
     user: UserName,
@@ -95,7 +101,12 @@ pub async fn upsert(
     }
     .upsert(&connection)
     .await
-    .change_context(ObservabilityError::InternalServerError)
+    .map_err(|error| {
+        escalate(error, |context| {
+            matches!(context, DatabaseError::UniqueViolation)
+                .then_some(ObservabilityError::InternalServerError)
+        })
+    })
     .attach_printable("Failed to save a mapper entry")?;
 
     Ok(MapperSaveResponse {
@@ -104,19 +115,19 @@ pub async fn upsert(
     })
 }
 
-pub async fn retire(
+pub async fn retire_mapper(
     state: AppState,
     name: &str,
     key: &str,
-) -> ObservabilityApiResult<MapperDeleteResponse> {
+) -> ObservabilityApiResult<MapperRetireResponse> {
     let connection = state.database_connection().await?;
 
     let retired = AlertsDict::retire(&connection, name, key)
         .await
-        .change_context(ObservabilityError::InternalServerError)
+        .map_err(|error| escalate(error, unrecognised))
         .attach_printable("Failed to retire a mapper entry")?;
 
-    Ok(MapperDeleteResponse {
+    Ok(MapperRetireResponse {
         status: retired.map_or(WriteStatus::Absent, |_| WriteStatus::Retired),
     })
 }

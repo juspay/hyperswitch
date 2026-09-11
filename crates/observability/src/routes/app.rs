@@ -55,13 +55,13 @@ fn config_scope() -> Scope {
             web::scope("/mappers")
                 .service(
                     web::resource("")
-                        .route(web::get().to(mappers::list))
-                        .route(web::post().to(mappers::upsert)),
+                        .route(web::get().to(mappers::list_mappers))
+                        .route(web::post().to(mappers::upsert_mapper)),
                 )
                 .service(
                     web::resource("/{name}/{key}")
-                        .route(web::get().to(mappers::read))
-                        .route(web::delete().to(mappers::retire)),
+                        .route(web::get().to(mappers::read_mapper))
+                        .route(web::delete().to(mappers::retire_mapper)),
                 ),
         )
         .service(
@@ -76,7 +76,7 @@ fn config_scope() -> Scope {
         .service(
             web::scope("/notifications").service(
                 web::resource("/read")
-                    .route(web::get().to(notifications::read))
+                    .route(web::get().to(notifications::read_watermark))
                     .route(web::post().to(notifications::mark_read)),
             ),
         )

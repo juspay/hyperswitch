@@ -2,20 +2,26 @@ use diesel_models::observability::notification_reads::NotificationRead;
 use error_stack::{report, ResultExt};
 
 use crate::{
-    alert_manager::types::{notifications::WatermarkResponse, ReadStatus, UserName},
+    alert_manager::{
+        core::{escalate, unrecognised},
+        types::{notifications::WatermarkResponse, ReadStatus, UserName},
+    },
     errors::{ObservabilityApiResult, ObservabilityError},
     state::AppState,
 };
 
 const USER_NAME_MAX_BYTES: usize = 255;
 
-pub async fn read(state: AppState, user: UserName) -> ObservabilityApiResult<WatermarkResponse> {
+pub async fn read_watermark(
+    state: AppState,
+    user: UserName,
+) -> ObservabilityApiResult<WatermarkResponse> {
     let user_name = validated(&user)?;
     let connection = state.database_connection().await?;
 
     let watermark = NotificationRead::find_by_user_name(&connection, user_name)
         .await
-        .change_context(ObservabilityError::InternalServerError)
+        .map_err(|error| escalate(error, unrecognised))
         .attach_printable("Failed to read a notification watermark")?;
 
     Ok(match watermark {
@@ -43,7 +49,7 @@ pub async fn mark_read(
     }
     .upsert(&connection)
     .await
-    .change_context(ObservabilityError::InternalServerError)
+    .map_err(|error| escalate(error, unrecognised))
     .attach_printable("Failed to save a notification watermark")?;
 
     Ok(WatermarkResponse {

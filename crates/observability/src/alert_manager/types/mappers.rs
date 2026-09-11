@@ -49,7 +49,7 @@ pub struct MapperSaveResponse {
 }
 
 #[derive(Debug, Serialize)]
-pub struct MapperDeleteResponse {
+pub struct MapperRetireResponse {
     pub status: WriteStatus,
 }
 
@@ -148,13 +148,13 @@ mod tests {
     #[test]
     fn a_retired_entry_and_one_that_was_never_there_report_different_statuses() {
         assert_eq!(
-            body_of(&MapperDeleteResponse {
+            body_of(&MapperRetireResponse {
                 status: WriteStatus::Retired
             })["status"],
             "retired"
         );
         assert_eq!(
-            body_of(&MapperDeleteResponse {
+            body_of(&MapperRetireResponse {
                 status: WriteStatus::Absent
             })["status"],
             "absent"
