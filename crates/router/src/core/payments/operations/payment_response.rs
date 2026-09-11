@@ -75,8 +75,9 @@ use crate::{
     utils,
 };
 
+/// Runs a detached tail of the payment: work whose result the payment does not wait on.
 #[cfg(any(feature = "v1", all(test, feature = "deja")))]
-fn spawn_save_payment_method<F>(future: F)
+fn spawn_detached<F>(future: F)
 where
     F: Future<Output = ()> + Send + 'static,
 {
@@ -355,36 +356,47 @@ where
                         || payload.network_transaction_id.is_some()
                         || payload.acknowledgement_status.is_some()
                     {
-                        match call_modular_payment_method_update(
-                            state,
-                            &payment_data.payment_attempt.processor_merchant_id,
-                            &payment_data.payment_attempt.profile_id,
-                            &pm_id,
-                            payload,
-                        )
-                        .await
-                        {
-                            Ok(_) => {
-                                logger::info!(
-                                    payment_method_id=%pm_id,
-                                    "Successfully called modular payment method update"
-                                );
-                            }
-                            Err(err) => {
-                                // Non-fatal by design: the attempt still gets the pm_id below,
-                                // so this log is the only trace the modular update failed and
-                                // the payment method may be stale (missing connector token /
-                                // NTI / acknowledgement).
-                                logger::error!(
-                                    error=%err,
-                                    payment_method_id=%pm_id,
-                                    merchant_id=%payment_data.payment_attempt.processor_merchant_id.get_string_repr(),
-                                    profile_id=%payment_data.payment_attempt.profile_id.get_string_repr(),
-                                    "Failed to call modular payment method update; continuing with possibly stale payment method"
-                                );
-                            }
-                        };
+                        // The response is discarded and the attempt takes the pm_id either way,
+                        // so the payment does not wait on this call: it runs as a detached tail
+                        // and a failure reaches the logs alone, as it did when awaited here.
                         payment_data.payment_attempt.payment_method_id = Some(pm_id.clone());
+
+                        let state = state.clone();
+                        let processor_merchant_id =
+                            payment_data.payment_attempt.processor_merchant_id.clone();
+                        let profile_id = payment_data.payment_attempt.profile_id.clone();
+
+                        spawn_detached(async move {
+                            match call_modular_payment_method_update(
+                                &state,
+                                &processor_merchant_id,
+                                &profile_id,
+                                &pm_id,
+                                payload,
+                            )
+                            .await
+                            {
+                                Ok(_) => {
+                                    logger::info!(
+                                        payment_method_id=%pm_id,
+                                        "Successfully called modular payment method update"
+                                    );
+                                }
+                                Err(err) => {
+                                    // Non-fatal by design: the attempt already carries the pm_id,
+                                    // so this log is the only trace the modular update failed and
+                                    // the payment method may be stale (missing connector token /
+                                    // NTI / acknowledgement).
+                                    logger::error!(
+                                        error=%err,
+                                        payment_method_id=%pm_id,
+                                        merchant_id=%processor_merchant_id.get_string_repr(),
+                                        profile_id=%profile_id.get_string_repr(),
+                                        "Failed to call modular payment method update; the payment method may be stale"
+                                    );
+                                }
+                            }
+                        });
                     } else {
                         logger::info!(
                             payment_method_id=%pm_id,
@@ -923,7 +935,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                     };
                 }
             };
-            spawn_save_payment_method(save_payment_method_future);
+            spawn_detached(save_payment_method_future);
             Ok(())
         }
     }

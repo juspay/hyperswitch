@@ -715,18 +715,20 @@ impl SuperpositionClient {
     ) -> CustomResult<Self, SuperpositionError> {
         let token_value = config.token.expose();
 
-        let refresh_strategy = superposition_provider::RefreshStrategy::Polling(
-            superposition_provider::PollingStrategy {
-                interval: config.polling_interval,
-                timeout: config.request_timeout,
-            },
+        let polling_strategy = superposition_provider::PollingStrategy::new(
+            config.polling_interval.saturating_mul(1000),
         );
+        let polling_strategy = match config.request_timeout {
+            Some(timeout_secs) => polling_strategy.with_timeout(timeout_secs.saturating_mul(1000)),
+            None => polling_strategy,
+        };
+        let refresh_strategy = superposition_provider::RefreshStrategy::Polling(polling_strategy);
 
         // --- Build HTTP (primary) data source ---
         let http_source = superposition_provider::data_source::http::HttpDataSource::new(
             superposition_provider::types::SuperpositionOptions::new(
                 config.endpoint.clone(),
-                token_value.clone(),
+                superposition_provider::types::AuthMethod::Token(token_value.clone()),
                 config.org_id.clone(),
                 config.workspace_id.clone(),
             ),
@@ -975,7 +977,7 @@ impl SuperpositionClient {
                     use superposition_provider::data_source::SuperpositionDataSource;
                     let response = self
                         .provider
-                        .fetch_filtered_config(dimension_filter, prefix_filter, None)
+                        .fetch_filtered_config(dimension_filter, prefix_filter, None, None)
                         .await
                         .map_err(|e| {
                             report!(SuperpositionError::ProviderError(format!(
@@ -1001,7 +1003,7 @@ impl SuperpositionClient {
             use superposition_provider::data_source::SuperpositionDataSource;
             let response = self
                 .provider
-                .fetch_filtered_config(dimension_filter, prefix_filter, None)
+                .fetch_filtered_config(dimension_filter, prefix_filter, None, None)
                 .await
                 .map_err(|e| {
                     report!(SuperpositionError::ProviderError(format!(
