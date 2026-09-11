@@ -13,6 +13,8 @@
 //! at the request's start rather than to an epoch grid, so a 300-second window ending at 12:07
 //! comes back as 11:42, 11:47 … 12:02 (verified against sandbox, 2026-09-11).
 
+pub mod announce;
+
 use std::collections::BTreeMap;
 
 use external_services::metrics_service::{
@@ -38,6 +40,7 @@ pub struct Evaluation {
     pub name: String,
     pub classification: String,
     pub metric_name: String,
+    pub dimensions: BTreeMap<String, String>,
     pub period: u32,
     pub outcome: Outcome,
 }
@@ -255,6 +258,11 @@ fn describe(id: &str, definition: &Definition) -> Evaluation {
         name: definition.name.clone(),
         classification: definition.classification.clone(),
         metric_name: definition.metric_name.clone(),
+        dimensions: definition
+            .dimensions
+            .iter()
+            .map(|dimension| (dimension.name.clone(), dimension.value.clone()))
+            .collect(),
         period: definition.period,
         outcome: Outcome::Unread {
             reason: Unread::SeriesMissing,
@@ -273,6 +281,8 @@ fn latest_completed_minute(now: OffsetDateTime) -> OffsetDateTime {
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::expect_used, clippy::indexing_slicing)]
 mod tests {
+    use std::collections::HashMap;
+
     use external_services::metrics_service::{Aggregation, Labels};
     use time::macros::datetime;
 
@@ -318,6 +328,7 @@ mod tests {
     fn catalogue(definitions: Vec<(&str, Definition)>) -> CloudWatchSettings {
         CloudWatchSettings {
             client: Default::default(),
+            destinations: HashMap::new(),
             definitions: definitions
                 .into_iter()
                 .map(|(id, definition)| (id.to_owned(), definition))

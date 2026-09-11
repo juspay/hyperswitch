@@ -110,6 +110,15 @@ aws_region = ""
 [email.destinations.smoke]
 to = "alerts@example.com"
 
+# Where each severity's announcement goes, by chat destination id. Every severity used by a
+# definition must appear, and each id must name a configured chat destination — both are
+# checked at boot, because a breaching rule with nowhere to go is silence, not an error.
+#
+# [cloudwatch.destinations]
+# sev1 = "infra_alerts"
+# sev2 = "infra_alerts"
+# sev3 = "infra_alerts"
+
 [cloudwatch.client]
 # The region whose metrics the catalogue is read from. Required once any definition is set.
 region = ""
