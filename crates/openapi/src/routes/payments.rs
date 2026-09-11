@@ -553,10 +553,93 @@
                     "attempt_count": 1,
                     "expires_on": "2023-10-26T10:45:00Z"
                 })
+            )),
+            ("12. Server integration response" = (
+                value = json!({
+                    "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                    "merchant_id": "merchant_1668273825",
+                    "status": "requires_payment_method",
+                    "amount": 6540,
+                    "currency": "USD",
+                    "customer_id": "cus_abcdefgh",
+                    "client_secret": "pay_mbabizu24mvu3mela5njyhpit4_secret_el9ksDkiB8hi6j9N78yo",
+                    "sdk_authorization": "cHJvZmlsZV9pZD1wcm9mXzEyMyxwdWJsaXNoYWJsZV9rZXk9cGtfbGl2ZV8xMjM=",
+                    "profile_id": "pro_abcdefghijklmnop",
+                    "attempt_count": 1,
+                    "payment_method_list": {
+                        "payment_methods_enabled": [
+                            {
+                                "payment_method": "card",
+                                "payment_method_type": "credit",
+                                "card_networks": ["Visa", "Mastercard"],
+                                "customer_acceptance_support": "supported"
+                            }
+                        ],
+                        "customer_payment_methods": [],
+                        "sdk_next_action": { "next_action": "confirm" },
+                        "intent_data": {
+                            "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                            "status": "requires_payment_method",
+                            "amount": 6540,
+                            "currency": "USD",
+                            "customer_id": "cus_abcdefgh",
+                            "profile_id": "pro_abcdefghijklmnop",
+                            "attempt_count": 1
+                        }
+                    },
+                    "session_tokens": {
+                        "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                        "client_secret": "pay_mbabizu24mvu3mela5njyhpit4_secret_el9ksDkiB8hi6j9N78yo",
+                        "session_token": [],
+                        "vault_details": {
+                            "vault_type": "hyperswitch",
+                            "vault_data": {
+                                "sdk_authorization": "cHJvZmlsZV9pZD1wcm9mXzEyMyxwdWJsaXNoYWJsZV9rZXk9cGtfbGl2ZV8xMjM="
+                            }
+                        }
+                    }
+                })
+            )),
+            ("13. Server integration, one section failed" = (
+                value = json!({
+                    "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                    "merchant_id": "merchant_1668273825",
+                    "status": "requires_payment_method",
+                    "amount": 6540,
+                    "currency": "USD",
+                    "client_secret": "pay_mbabizu24mvu3mela5njyhpit4_secret_el9ksDkiB8hi6j9N78yo",
+                    "profile_id": "pro_abcdefghijklmnop",
+                    "attempt_count": 1,
+                    "payment_method_list": {
+                        "payment_methods_enabled": [],
+                        "customer_payment_methods": [],
+                        "sdk_next_action": { "next_action": "confirm" },
+                        "intent_data": {
+                            "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                            "status": "requires_payment_method",
+                            "amount": 6540,
+                            "currency": "USD",
+                            "attempt_count": 1
+                        }
+                    },
+                    "session_tokens": {
+                        "error": {
+                            "type": "api",
+                            "message": "Something went wrong",
+                            "code": "HE_00"
+                        }
+                    }
+                })
             ))
             )
         ),
         (status = 400, description = "Missing Mandatory fields", body = GenericErrorResponseOpenApi),
+    ),
+    params(
+        ("X-Integration-Type" = Option<String>, Header, description = "Selects the response shape. `server` returns the payment together with \
+            `payment_method_list` and `session_tokens`, so a server-to-server integration can render \
+            its checkout from one call; it is honoured only with merchant API key authentication. \
+            `client`, or no header, returns the payment response unchanged.", example = "server")
     ),
     tag = "Payments",
     operation_id = "Create a Payment",
@@ -594,7 +677,11 @@ pub fn payments_retrieve() {}
     post,
     path = "/payments/{payment_id}",
     params(
-        ("payment_id" = String, Path, description = "The identifier for payment")
+        ("payment_id" = String, Path, description = "The identifier for payment"),
+        ("X-Integration-Type" = Option<String>, Header, description = "Selects the response shape. `server` returns the payment together with \
+            `payment_method_list` and `session_tokens`, so a server-to-server integration can render \
+            its checkout from one call; it is honoured only with merchant API key authentication. \
+            `client`, or no header, returns the payment response unchanged.", example = "server")
     ),
    request_body(
      content = PaymentsUpdateRequest,
@@ -635,7 +722,87 @@ pub fn payments_retrieve() {}
      )
     ),
     responses(
-        (status = 200, description = "Payment updated", body = PaymentsCreateResponseOpenApi),
+        (status = 200, description = "Payment updated", body = PaymentsCreateResponseOpenApi,
+            examples(
+                ("Server integration response" = (
+                    value = json!({
+                        "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                        "merchant_id": "merchant_1668273825",
+                        "status": "requires_payment_method",
+                        "amount": 6540,
+                        "currency": "USD",
+                        "customer_id": "cus_abcdefgh",
+                        "client_secret": "pay_mbabizu24mvu3mela5njyhpit4_secret_el9ksDkiB8hi6j9N78yo",
+                        "sdk_authorization": "cHJvZmlsZV9pZD1wcm9mXzEyMyxwdWJsaXNoYWJsZV9rZXk9cGtfbGl2ZV8xMjM=",
+                        "profile_id": "pro_abcdefghijklmnop",
+                        "attempt_count": 1,
+                        "payment_method_list": {
+                            "payment_methods_enabled": [
+                                {
+                                    "payment_method": "card",
+                                    "payment_method_type": "credit",
+                                    "card_networks": ["Visa", "Mastercard"],
+                                    "customer_acceptance_support": "supported"
+                                }
+                            ],
+                            "customer_payment_methods": [],
+                            "sdk_next_action": { "next_action": "confirm" },
+                            "intent_data": {
+                                "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                                "status": "requires_payment_method",
+                                "amount": 6540,
+                                "currency": "USD",
+                                "customer_id": "cus_abcdefgh",
+                                "profile_id": "pro_abcdefghijklmnop",
+                                "attempt_count": 1
+                            }
+                        },
+                        "session_tokens": {
+                            "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                            "client_secret": "pay_mbabizu24mvu3mela5njyhpit4_secret_el9ksDkiB8hi6j9N78yo",
+                            "session_token": [],
+                            "vault_details": {
+                                "vault_type": "hyperswitch",
+                                "vault_data": {
+                                    "sdk_authorization": "cHJvZmlsZV9pZD1wcm9mXzEyMyxwdWJsaXNoYWJsZV9rZXk9cGtfbGl2ZV8xMjM="
+                                }
+                            }
+                        }
+                    })
+                )),
+                ("Server integration, one section failed" = (
+                    value = json!({
+                        "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                        "merchant_id": "merchant_1668273825",
+                        "status": "requires_payment_method",
+                        "amount": 6540,
+                        "currency": "USD",
+                        "client_secret": "pay_mbabizu24mvu3mela5njyhpit4_secret_el9ksDkiB8hi6j9N78yo",
+                        "profile_id": "pro_abcdefghijklmnop",
+                        "attempt_count": 1,
+                        "payment_method_list": {
+                            "payment_methods_enabled": [],
+                            "customer_payment_methods": [],
+                            "sdk_next_action": { "next_action": "confirm" },
+                            "intent_data": {
+                                "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                                "status": "requires_payment_method",
+                                "amount": 6540,
+                                "currency": "USD",
+                                "attempt_count": 1
+                            }
+                        },
+                        "session_tokens": {
+                            "error": {
+                                "type": "api",
+                                "message": "Something went wrong",
+                                "code": "HE_00"
+                            }
+                        }
+                    })
+                ))
+            )
+        ),
         (status = 400, description = "Missing mandatory fields", body = GenericErrorResponseOpenApi)
     ),
     tag = "Payments",
