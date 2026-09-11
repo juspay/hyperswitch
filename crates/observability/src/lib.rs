@@ -1,8 +1,9 @@
 //! The observability plane for Hyperswitch.
 //!
-//! `observability` delivers alerts. Deciding what is alert-worthy happens elsewhere; alerts
-//! arrive here already decided. Its first concern is [`core::notifier`], and further alerting
-//! concerns are expected to live alongside it.
+//! `observability` delivers alerts, and for infrastructure it decides them too. Business alerts
+//! arrive already decided and go straight to [`core::notifier`]; the CloudWatch alarms the
+//! infrastructure repository owns are evaluated here instead, against metrics we query ourselves —
+//! see [`domain::cloudwatch`].
 //!
 //! Laid out on the router's lines: [`core`] decides, [`routes`] exposes, and the whole route tree
 //! is visible in [`routes::app`].

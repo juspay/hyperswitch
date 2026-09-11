@@ -48,8 +48,8 @@ async fn main() -> ObservabilityResult<()> {
     );
 
     observability::logger::info!(
-        "Loaded {} cloudwatch alarm definitions carrying {} severity rules",
-        state.conf.cloudwatch.alarms.len(),
+        "Loaded {} cloudwatch definitions carrying {} rules",
+        state.conf.cloudwatch.definitions.len(),
         state.conf.cloudwatch.rule_count(),
     );
 
