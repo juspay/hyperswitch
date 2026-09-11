@@ -47,8 +47,6 @@ async fn main() -> ObservabilityResult<()> {
         state.conf.server.port
     );
 
-    // The catalogue arrives from the environment, so how much of it arrived is worth stating once
-    // rather than leaving to be inferred from which alerts never fire.
     observability::logger::info!(
         "Loaded {} cloudwatch alarm definitions carrying {} severity rules",
         state.conf.cloudwatch.alarms.len(),

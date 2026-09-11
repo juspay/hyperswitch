@@ -110,40 +110,23 @@ aws_region = ""
 [email.destinations.smoke]
 to = "alerts@example.com"
 
-# The infrastructure alarm catalogue this service evaluates.
-#
-# Not authored here: these are the CloudWatch alarm rules the infrastructure repository already
-# owns, carried into this process so it can evaluate them itself. A deployment receives them as
-# environment variables — `config/cloudwatch_alarms.sandbox.env` holds the sandbox RDS set — and
-# this section stays empty, since a catalogue nobody has been given is a valid configuration.
-#
-# One definition looks like this. Ids must be lowercase, `_`-separated and free of `__`, because
-# the deployed form of every key below is an environment variable:
-#
-#   OBSERVABILITY__CLOUDWATCH__ALARMS__RDS_PRIMARY_CPU__METRIC_NAME=CPUUtilization
+# The infrastructure alarm catalogue. Empty here: a deployment sets it through
+# OBSERVABILITY__CLOUDWATCH__ALARMS__<ID>__* variables, as config/cloudwatch_alarms.sandbox.env
+# does. Dimensions take `Name=value` pairs rather than a table, because `config` lowercases keys
+# read from the environment and CloudWatch dimension names are case-sensitive.
 #
 # [cloudwatch.alarms.rds_primary_cpu]
-# name = "rds-primary-cpu"           # the name it has upstream; `-` cannot survive in an env key
+# name = "rds-primary-cpu"
 # classification = "rds-alerts"
 # metric_name = "CPUUtilization"
 # namespace = "AWS/RDS"
 # dimensions = "DBInstanceIdentifier=hyperswitchdb-primary"
 # period = 60
-# statistic = "Average"              # Average | Maximum | Minimum | Sum
-#
-# Dimensions are written as `Name=value` pairs rather than a table because CloudWatch dimension
-# names are case-sensitive and `config` lowercases the keys it reads from the environment — a
-# lowercased `dbinstanceidentifier` selects no metric stream and reports no error. A table works
-# here in the file, but the string form is what deploys.
-#
-# Each severity is an independent rule over the same readings. Neither suppresses the other, and
-# every field is required: absent is not a default, because the default would be a second copy of
-# somebody else's decision. `datapoints_to_alarm` is the exception — absent means all of them,
-# which is CloudWatch's own meaning.
+# statistic = "Average"
 #
 # [cloudwatch.alarms.rds_primary_cpu.severities.sev1]
 # threshold = 90
 # comparison_operator = "GreaterThanOrEqualToThreshold"
 # evaluation_periods = 1
-# treat_missing_data = "breaching"   # breaching | notBreaching | ignore | missing
+# treat_missing_data = "breaching"
 # description = "SEV1: RDS primary database CPU utilization is above 90% ..."
