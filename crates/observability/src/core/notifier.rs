@@ -1,10 +1,4 @@
-//! Per-request notification logic: resolve a destination, hand the message over, report what
-//! happened.
-//!
-//! The whole of it is "look up the id, call the notifier". That is deliberate — the crate is a
-//! pipe, and anything more here would be a decision the caller should have made. What the layer
-//! buys is a seam a handler can be tested against without HTTP, and one place where "unknown
-//! destination" is turned into an error rather than repeated per route.
+//! Per-request notification logic:
 
 use error_stack::report;
 use external_services::chat_service::ChatBanner;
@@ -37,8 +31,7 @@ pub async fn notify_chat(
         .notify(ChatNotification {
             text: request.text,
             reply_to: request.reply_to,
-            // Both halves or neither: a colour with no title says only that something happened, and
-            // a title with no colour is what the message body already is.
+            // Both halves or neither:
             banner: request
                 .heading
                 .zip(request.severity)

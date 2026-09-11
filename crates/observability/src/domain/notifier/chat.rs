@@ -17,18 +17,12 @@ use crate::{
 };
 
 /// The provider code that blames the provider rather than the message.
-///
-/// Every other code the Slack-compatible backends emit describes something about the request. This
-/// one says the provider failed on its own account, so nothing is known about delivery and it
-/// belongs with the transport failures rather than with the refusals. It rides in
-/// [`ChatErrorReason::Other`] because `external_services` has no neutral variant for it; the
-/// distinction is drawn here rather than by widening a shared enum for one caller.
 const PROVIDER_INTERNAL_ERROR: &str = "internal_error";
 
 /// A message to post to one chat destination.
 #[derive(Debug, Clone)]
 pub struct ChatNotification {
-    /// The message, in the markup the destination reads. Delivered unchanged.
+    /// The message, in the markup the destination reads.
     pub text: Secret<String>,
 
     /// Post as a reply under this message, if given.
@@ -59,10 +53,6 @@ pub type ChatFileOutcome = Outcome<ChatFileReceipt>;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ChatReceipt {
     /// The provider's id for the message, which threads a later reply under it.
-    ///
-    /// `None` when the provider accepted the message but named no id. The alert *was* delivered —
-    /// retrying would post it twice — so this is a success that has lost only the ability to
-    /// thread under it.
     pub message_id: Option<String>,
 }
 
@@ -70,15 +60,9 @@ pub struct ChatReceipt {
 pub type ChatOutcome = Outcome<ChatReceipt>;
 
 /// Posts an alert to one chat destination.
-///
-/// One implementation is bound to one destination, so there is no channel argument and no way to
-/// address a channel that was not configured.
 #[async_trait::async_trait]
 pub trait ChatNotifier: Send + Sync + std::fmt::Debug {
     /// Attempt delivery.
-    ///
-    /// A provider that refuses returns `Ok(Outcome::Refused)`, not an error: it was reached and it
-    /// answered. `Err` means the attempt itself failed, so whether the message arrived is unknown.
     async fn notify(&self, notification: ChatNotification) -> ObservabilityApiResult<ChatOutcome>;
 
     /// Upload one file and optionally share it in an existing thread.
@@ -94,9 +78,6 @@ pub struct ChatClientNotifier {
 
 impl ChatClientNotifier {
     /// Bind a client to the destination id it was configured under.
-    ///
-    /// The id is carried so failures can name it. With several destinations configured, "the chat
-    /// provider is unreachable" is not an actionable sentence and "`sr_alerts` is" is.
     pub fn new(destination: String, client: Arc<dyn ChatClient>) -> Self {
         Self {
             destination,
@@ -127,17 +108,13 @@ impl ChatNotifier for ChatClientNotifier {
             Err(report) => match classify(report.current_context()) {
                 Verdict::Refused(refusal) => Ok(Outcome::Refused(refusal)),
 
-                // `Delivered` from an `Err` is not a contradiction: the provider accepted the
-                // message and named no id for it. Reporting that as a failure would invite a retry
-                // that posts the alert twice.
+                // `Delivered` from an `Err` is not a contradiction:
                 Verdict::DeliveredWithoutId => {
                     Ok(Outcome::Delivered(ChatReceipt { message_id: None }))
                 }
 
                 Verdict::Failed(error) => {
-                    // `change_context` rather than a fresh error, so every `attach_printable` the
-                    // client left on the way up — the URL, the response snippet — reaches the log
-                    // while the caller sees only what `ErrorSwitch` renders.
+                    // `change_context` rather than a fresh error, so every `attach_printable` the client left on the way up — the URL, the response snippet — reaches the log while the caller sees only what `ErrorSwitch` renders.
                     Err(report.change_context(error(self.destination.clone())))
                 }
             },
@@ -181,15 +158,6 @@ enum Verdict {
 }
 
 /// Decide whether a chat failure is a refusal, a delivery, or an unknown.
-///
-/// The dividing line is **what the provider told us**, not whose fault it is. A refusal in its
-/// documented envelope — for any reason, including a channel we cannot see or a credential it will
-/// not accept — means the attempt completed and the answer was no. Only silence, or an answer we
-/// cannot interpret, leaves delivery unknown.
-///
-/// Fault deliberately does not appear here. Whether a bad channel id is our mistake or a merchant's
-/// depends on who owns the destination, and that moves from a config file to a database row without
-/// the wire contract being allowed to move with it.
 fn classify(error: &ChatError) -> Verdict {
     match error {
         ChatError::Rejected { reason } => match reason {
@@ -211,18 +179,16 @@ fn classify(error: &ChatError) -> Verdict {
         ChatError::MissingMessageId => Verdict::DeliveredWithoutId,
 
         // `reply_to` came off the request and named an id this backend cannot thread against.
-        // Rejected before anything was sent, so the message did not go anywhere.
         ChatError::IncompatibleReplyTarget => {
             Verdict::Refused(Refusal::new("incompatible_reply_target"))
         }
 
-        // No answer, or one outside the documented envelope. Delivery is genuinely unknown.
+        // No answer, or one outside the documented envelope.
         ChatError::RequestFailed | ChatError::HttpStatus { .. } | ChatError::UnreadableResponse => {
             Verdict::Failed(|destination| ObservabilityError::ProviderUnavailable { destination })
         }
 
-        // Rejected at boot by `Endpoint::new`, so reaching here means a destination was built some
-        // other way.
+        // Rejected at boot by `Endpoint::new`, so reaching here means a destination was built some other way.
         ChatError::InvalidConfiguration(_) => {
             Verdict::Failed(|_destination| ObservabilityError::InternalServerError)
         }
@@ -232,14 +198,6 @@ fn classify(error: &ChatError) -> Verdict {
 }
 
 /// The stable, matchable code for a refusal, in the provider's own snake_case vocabulary.
-///
-/// **Not `Display`.** [`ChatErrorReason`]'s `Display` is prose written for a log line ("channel not
-/// found"), and this value goes onto the wire where a caller matches on it. Deriving one from the
-/// other would let a reworded error message silently change the API.
-///
-/// **Not always the exact bytes the provider sent**, and it cannot be: `external_services` folds
-/// synonyms on the way in, so `is_archived` arrives as `NotInChannel` and `account_inactive` as
-/// `TokenRevoked`. The guarantee is that one condition always yields one code.
 fn reason_code(reason: &ChatErrorReason) -> String {
     match reason {
         ChatErrorReason::ChannelNotFound => "channel_not_found".to_owned(),
@@ -254,15 +212,6 @@ fn reason_code(reason: &ChatErrorReason) -> String {
 }
 
 /// A [`ChatNotifier`] that delivers nothing and says so.
-///
-/// Configured as `type = "log"`, so a deployment can exercise the whole path — guard, route,
-/// registry, response shape — before real credentials exist. A destination *type* rather than a
-/// flag on a real destination, which keeps the delivery path branchless: nothing downstream asks
-/// "but is this one pretending?".
-///
-/// **It does not log the message.** This writes to the same stream as everything else, and an
-/// alert body carries merchant ids and payment volumes. It proves the pipe works, not what the
-/// message says.
 #[derive(Debug)]
 pub struct LogChatNotifier {
     destination: String,
@@ -326,10 +275,7 @@ mod tests {
         }
     }
 
-    /// The whole point of the redesign: every reason the provider names is an answer, so it comes
-    /// back as an outcome. Fault does not enter into it — `channel_not_found` is as much an answer
-    /// as `msg_too_long`, and which of them is "our fault" changes when destinations move to a
-    /// database.
+    /// The whole point of the redesign:
     #[test]
     fn every_documented_refusal_is_an_outcome() {
         for reason in [
@@ -369,7 +315,7 @@ mod tests {
         ));
     }
 
-    /// The message went out. Anything that reads as retryable here posts the alert twice.
+    /// The message went out.
     #[test]
     fn accepted_content_with_no_id_is_still_a_delivery() {
         for error in [ChatError::MissingMessageId, ChatError::MissingFileId] {
@@ -391,9 +337,7 @@ mod tests {
         }
     }
 
-    /// `code` is advertised as matchable, so every value it can take has to be a code rather than a
-    /// sentence. This caught a real bug: four variants were rendered through `Display` and reached
-    /// the wire as prose like `channel not found`.
+    /// `code` is advertised as matchable, so every value it can take has to be a code rather than a sentence.
     #[test]
     fn every_reason_is_a_matchable_code_not_prose() {
         let reasons = [
@@ -421,7 +365,7 @@ mod tests {
         }
     }
 
-    /// The provider's spelling, not ours. Pinned because these are a wire contract now.
+    /// The provider's spelling, not ours.
     #[test]
     fn reason_codes_match_the_providers_spelling() {
         assert_eq!(

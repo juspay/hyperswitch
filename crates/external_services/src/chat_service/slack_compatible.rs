@@ -1,14 +1,4 @@
 //! The Slack-compatible wire protocol.
-//!
-//! Xyne exposes a facade over Slack's own API, so both backends post the same JSON body to the
-//! same method name and read the same response envelope. Only the base URL, the path prefix in
-//! front of the method and the credential differ, which is why [`Endpoint`] holds those three and
-//! the public clients are thin wrappers over it.
-//!
-//! Everything here is private to [`crate::chat_service`]. The single most important reason is the
-//! envelope: this API reports failures **twice over**, once as a non-2xx status and once as HTTP
-//! 200 carrying `{"ok": false, "error": "..."}`. A caller that never sees the raw response cannot
-//! forget the second one.
 
 use common_utils::request::{Method, RequestBuilder, RequestContent};
 use error_stack::ResultExt;
@@ -23,13 +13,12 @@ use super::{
 };
 use crate::http_client;
 
-/// The method that posts a message. The only one this crate calls; `files.upload` is out of v1.
+/// The method that posts a message.
 const CHAT_POST_MESSAGE: &str = "chat.postMessage";
 const FILES_GET_UPLOAD_URL: &str = "files.getUploadURLExternal";
 const FILES_COMPLETE_UPLOAD: &str = "files.completeUploadExternal";
 
-/// Long enough that a slow provider is not mistaken for a dead one, short enough that a caller
-/// delivering a time-sensitive message is not held indefinitely.
+/// Long enough that a slow provider is not mistaken for a dead one, short enough that a caller delivering a time-sensitive message is not held indefinitely.
 pub(super) const DEFAULT_TIMEOUT_SECONDS: u64 = 30;
 
 /// Appended to a message that had to be cut down to fit.
@@ -42,18 +31,9 @@ const BODY_SNIPPET_CHARS: usize = 512;
 const UNSPECIFIED_ERROR_CODE: &str = "unspecified";
 
 /// The cap a `header` block puts on its text.
-///
-/// Separate from the message cap, and far smaller. Slack rejects an oversized header outright
-/// rather than trimming it, and a rejected message is a *lost alert* — so the heading is cut to fit
-/// here even though nothing else in a banner needs cutting.
 const HEADER_MAX_CHARS: usize = 150;
 
 /// The cap a `section` block puts on its text.
-///
-/// Much lower than any backend's message cap — 10,000 on Xyne, 40,000 on Slack — because it applies
-/// per block rather than per message. A body that fits a plain message can therefore be too long for
-/// a bannered one, and an oversized block is rejected rather than trimmed, so it must be cut here or
-/// the banner turns a deliverable alert into a dropped one.
 const SECTION_MAX_CHARS: usize = 3_000;
 
 /// Request headers selected by the concrete backend.
@@ -72,14 +52,13 @@ impl EndpointHeaders {
     }
 }
 
-/// One destination on a Slack-compatible API: where to post, as whom, and to which channel.
+/// One destination on a Slack-compatible API:
 #[derive(Clone, Debug)]
 pub(super) struct Endpoint {
-    /// Root of the API, e.g. `https://slack.com/api`.
+    /// Root of the API, e.g.
     base_url: Url,
 
-    /// Sits between the base URL and the method name. Slack serves methods directly off its base
-    /// (`/api/chat.postMessage`); Xyne namespaces them (`/api/apps/slack/chat.postMessage`).
+    /// Sits between the base URL and the method name.
     method_prefix: &'static str,
 
     /// Headers for API method calls and the raw upload leg are supplied by the concrete backend.
@@ -95,9 +74,6 @@ pub(super) struct Endpoint {
 
 impl Endpoint {
     /// Validate a destination and bind it to a proxy.
-    ///
-    /// Validation happens here rather than at send time so a destination read from configuration
-    /// or from a database row fails once, on the way in, rather than once per message.
     pub(super) fn new(
         base_url: Url,
         method_prefix: &'static str,
@@ -131,9 +107,7 @@ impl Endpoint {
         })
     }
 
-    /// `Url::join` is deliberately not used: it resolves relatively, so a base of `/api/apps`
-    /// without a trailing slash would produce `/api/chat.postMessage`, silently dropping a path
-    /// segment.
+    /// `Url::join` is deliberately not used:
     fn method_url(&self, method: &str) -> String {
         format!(
             "{}{}{}",
@@ -144,19 +118,11 @@ impl Endpoint {
     }
 
     /// Post a message and return the id the provider assigned it.
-    ///
-    /// **Not idempotent, and the transport may retry.**
-    /// [`http_client::send_request`] clones a JSON request and resends it once when the connection
-    /// closes before the response completes, and `chat.postMessage` offers no idempotency key. A
-    /// message can therefore be delivered twice. That trade is deliberate for this caller: a
-    /// duplicate alert costs far less than a dropped one, and every connector call in this
-    /// workspace already carries the same retry.
     pub(super) async fn post_message(&self, message: ChatMessage) -> ChatResult<MessageId> {
         let payload = self.build_payload(&message)?;
         let url = self.method_url(CHAT_POST_MESSAGE);
 
-        // Without this, the only question that matters when no message arrives — did we try, where
-        // to, and what came back — has no answer in the logs.
+        // Without this, the only question that matters when no message arrives — did we try, where to, and what came back — has no answer in the logs.
         logger::info!(
             tag = "chat_post_message",
             url = %url,
@@ -342,12 +308,7 @@ impl Endpoint {
             })
             .transpose()?;
 
-        // A banner moves the body inside the attachment, because that is the only place a
-        // Slack-compatible backend draws the coloured rail: text left at the top level renders
-        // above the rail as a second, unframed copy of the same message.
-        //
-        // The cut is taken against the block's own limit rather than the message's, and only once,
-        // so a body that has already been trimmed to fit is not trimmed again to a marker.
+        // A banner moves the body inside the attachment, because that is the only place a Slack-compatible backend draws the coloured rail:
         let (text, attachments) = match message.banner() {
             None => (truncate(message.text(), self.max_message_chars), None),
             Some(banner) => (
@@ -369,7 +330,7 @@ impl Endpoint {
             channel: self.channel.clone(),
             text,
             thread_ts,
-            // See the field: setting it alongside `attachments` costs the banner entirely.
+            // See the field:
             mrkdwn: attachments.is_none().then_some(true),
             attachments,
         })
@@ -377,9 +338,6 @@ impl Endpoint {
 }
 
 /// The rail colour a backend draws for each severity.
-///
-/// These three names are Slack's whole documented vocabulary for `color`; anything else is read as
-/// a hex literal. Keeping the mapping here is what lets [`ChatSeverity`] stay in the reader's terms.
 fn attachment_color(severity: ChatSeverity) -> &'static str {
     match severity {
         ChatSeverity::Critical => "danger",
@@ -459,34 +417,16 @@ struct PostMessagePayload {
     thread_ts: Option<String>,
 
     /// Sent for a plain message, omitted for a bannered one.
-    ///
-    /// Slack treats markup as enabled by default, so this is redundant there. Xyne does not: its
-    /// adapter takes the markup path only on `mrkdwn === true`, so an omitted flag delivers
-    /// `*bold*` and backticks as literal characters. Since the whole point of
-    /// [`ChatMessage::text`](super::ChatMessage::text) is markup, sending it explicitly is the only
-    /// spelling that behaves the same on both.
-    ///
-    /// **Except alongside `attachments`.** That same adapter branch is text-only: with the flag set
-    /// it renders `text` and never looks at the attachments, so the coloured rail and the heading
-    /// silently vanish and the alert arrives as an ordinary message. Nothing is lost by omitting it
-    /// there — a bannered message carries its body in a block that declares `"type": "mrkdwn"` for
-    /// itself, so the markup is already accounted for.
     #[serde(skip_serializing_if = "Option::is_none")]
     mrkdwn: Option<bool>,
 
     /// The coloured frame, when the message asked for one.
-    ///
-    /// Omitted rather than sent empty: an empty array is a legal value that some backends render as
-    /// a stray divider.
     #[serde(skip_serializing_if = "Option::is_none")]
     attachments: Option<Vec<Attachment>>,
 }
 
 impl PostMessagePayload {
     /// How much text is actually being sent, wherever it sits.
-    ///
-    /// A bannered message carries its body inside the attachment and leaves `text` empty, so
-    /// counting `text` alone would log every alert as zero characters.
     fn body_chars(&self) -> usize {
         self.text.chars().count()
             + self
@@ -507,9 +447,6 @@ struct Attachment {
 }
 
 /// A block within an attachment.
-///
-/// Flat rather than an enum per block type: the two shapes this crate sends differ only in the two
-/// `type` strings, and an enum for that would be three declarations describing one object.
 #[derive(Debug, Serialize)]
 struct Block {
     #[serde(rename = "type")]
@@ -519,9 +456,6 @@ struct Block {
 
 impl Block {
     /// The large title at the top of the frame.
-    ///
-    /// `plain_text`, so a heading built from an error reason cannot open markup and swallow the
-    /// rest of the line — the reason `text` below is `mrkdwn` and this is not.
     fn header(text: String) -> Self {
         Self {
             kind: "header",
@@ -552,20 +486,12 @@ struct BlockText {
     kind: &'static str,
     text: String,
 
-    /// Whether `:shortcode:` sequences become emoji. Meaningful only on `plain_text`, and rejected
-    /// outright on `mrkdwn` by some backends, so it is omitted there rather than sent as `false`.
+    /// Whether `:shortcode:` sequences become emoji.
     #[serde(skip_serializing_if = "Option::is_none")]
     emoji: Option<bool>,
 }
 
 /// The `chat.postMessage` response, exactly as it arrives.
-///
-/// Faithful to the wire and nothing else. `ok` is a required field, so a body that carries no
-/// success marker fails to deserialize rather than being read as a success — which is the trap
-/// this API sets, since it reports failure at HTTP 200.
-///
-/// Private, and the only way out of this module is [`MessageId`] via the conversion below, so no
-/// caller can reach a `ts` without the `ok` check having run.
 #[derive(Debug, Deserialize)]
 struct PostMessageResponse {
     ok: bool,
@@ -585,8 +511,7 @@ impl TryFrom<PostMessageResponse> for MessageId {
 
     fn try_from(response: PostMessageResponse) -> Result<Self, Self::Error> {
         if !response.ok {
-            // A refusal carrying no code at all is malformed, but it is still unambiguously a
-            // refusal — reporting it as an unreadable response would be a worse lie.
+            // A refusal carrying no code at all is malformed, but it is still unambiguously a refusal — reporting it as an unreadable response would be a worse lie.
             let reason = response.error.map_or_else(
                 || ChatErrorReason::Other(UNSPECIFIED_ERROR_CODE.to_owned()),
                 ChatErrorReason::from,
@@ -608,23 +533,17 @@ impl TryFrom<PostMessageResponse> for MessageId {
 }
 
 /// The `error` field of a refused response.
-///
-/// A type rather than a string match: the wire spellings live in one derive that serde checks, and
-/// adding a code means adding a variant instead of remembering to extend a `match`. A code the
-/// provider adds later still arrives intact through [`SlackErrorCode::Unrecognised`], so nothing
-/// is flattened away for the logs.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "snake_case")]
 enum SlackErrorCode {
     ChannelNotFound,
     NotInChannel,
-    /// The channel exists and accepts nothing further — the same problem for a caller as not being
-    /// a member of it.
+    /// The channel exists and accepts nothing further — the same problem for a caller as not being a member of it.
     IsArchived,
     InvalidAuth,
     NotAuthed,
     TokenRevoked,
-    /// A deactivated account needs the same remedy as a revoked token: re-issue the credential.
+    /// A deactivated account needs the same remedy as a revoked token:
     AccountInactive,
     MsgTooLong,
     RateLimited,
@@ -635,8 +554,7 @@ enum SlackErrorCode {
     InvalidArguments,
     /// The message named as a reply target no longer resolves.
     ThreadNotFound,
-    /// The provider failed on its own account. Distinct from every other code here, all of which
-    /// blame the request: this one is the provider's fault and may succeed if tried again.
+    /// The provider failed on its own account.
     InternalError,
     /// Any code not listed above, kept verbatim.
     #[serde(untagged)]
@@ -651,14 +569,11 @@ impl From<SlackErrorCode> for ChatErrorReason {
             SlackErrorCode::InvalidAuth | SlackErrorCode::NotAuthed => Self::InvalidAuth,
             SlackErrorCode::TokenRevoked | SlackErrorCode::AccountInactive => Self::TokenRevoked,
             SlackErrorCode::MsgTooLong => Self::MessageTooLong,
-            // `Retry-After` rides on a 429, which is handled before a body is ever parsed, so a
-            // rate-limit code arriving at HTTP 200 comes without one.
+            // `Retry-After` rides on a 429, which is handled before a body is ever parsed, so a rate-limit code arriving at HTTP 200 comes without one.
             SlackErrorCode::RateLimited | SlackErrorCode::RateLimitedCompact => Self::RateLimited {
                 retry_after_seconds: None,
             },
-            // These three have no neutral variant yet, so they ride in `Other` with their code
-            // intact. `internal_error` is the one worth promoting first if a caller ever needs to
-            // decide whether retrying is worthwhile.
+            // These three have no neutral variant yet, so they ride in `Other` with their code intact.
             SlackErrorCode::InvalidArguments => Self::Other("invalid_arguments".to_owned()),
             SlackErrorCode::ThreadNotFound => Self::Other("thread_not_found".to_owned()),
             SlackErrorCode::InternalError => Self::Other("internal_error".to_owned()),
@@ -668,18 +583,12 @@ impl From<SlackErrorCode> for ChatErrorReason {
 }
 
 /// Cut `text` to `max_chars`, marking that it happened.
-///
-/// The API does not paginate, so oversized messages are rejected outright rather than split. This
-/// is a wire-level limit and belongs here; capping the *number of items* rendered into a message
-/// is the formatter's business, since this module never sees items.
 fn truncate(text: &str, max_chars: usize) -> String {
     if text.chars().count() <= max_chars {
         return text.to_owned();
     }
 
-    // The marker is itself subject to the cap. Appending it whole to an empty remainder would
-    // return something *longer* than the limit this function exists to enforce, which the provider
-    // would then reject.
+    // The marker is itself subject to the cap.
     let marker: String = TRUNCATION_MARKER.chars().take(max_chars).collect();
     let keep = max_chars.saturating_sub(marker.chars().count());
 
@@ -706,8 +615,7 @@ mod tests {
     use super::*;
     use crate::chat_service::ChatBanner;
 
-    /// Any cap generous enough not to interfere; the per-backend defaults live with their
-    /// clients, since Slack and Xyne do not agree on one.
+    /// Any cap generous enough not to interfere; the per-backend defaults live with their clients, since Slack and Xyne do not agree on one.
     const TEST_MAX_MESSAGE_CHARS: usize = 40_000;
 
     /// Parse a body and run it through the conversion, exactly as `post_message` does.
@@ -715,8 +623,7 @@ mod tests {
         serde_json::from_value::<PostMessageResponse>(value).map(TryInto::try_into)
     }
 
-    /// Deserialize a wire error code and map it, which is the whole path a refusal takes. Going
-    /// through serde rather than constructing the variant means the spellings are covered too.
+    /// Deserialize a wire error code and map it, which is the whole path a refusal takes.
     fn reason(code: &str) -> ChatErrorReason {
         serde_json::from_value::<SlackErrorCode>(json!(code))
             .unwrap()
@@ -738,8 +645,7 @@ mod tests {
 
     #[test]
     fn ok_false_with_a_ts_present_is_still_a_failure() {
-        // The shape that catches a status-code-only client out: everything a success has, plus
-        // `ok: false`.
+        // The shape that catches a status-code-only client out:
         let error = read(json!({"ok": false, "error": "msg_too_long", "ts": "1.2"}))
             .unwrap()
             .unwrap_err();
@@ -753,8 +659,7 @@ mod tests {
 
     #[test]
     fn a_body_without_ok_does_not_deserialize() {
-        // `ok` is required, so a body carrying a `ts` and nothing else cannot be mistaken for a
-        // success.
+        // `ok` is required, so a body carrying a `ts` and nothing else cannot be mistaken for a success.
         assert!(read(json!({"ts": "1503435956.000247"})).is_err());
     }
 
@@ -770,8 +675,7 @@ mod tests {
 
     #[test]
     fn a_refusal_naming_no_code_is_still_a_refusal() {
-        // Malformed, but unambiguously a refusal — calling it an unreadable response would be a
-        // worse lie than naming the code as unspecified.
+        // Malformed, but unambiguously a refusal — calling it an unreadable response would be a worse lie than naming the code as unspecified.
         let error = read(json!({"ok": false})).unwrap().unwrap_err();
         match error.current_context() {
             ChatError::Rejected { reason } => assert_eq!(
@@ -845,8 +749,7 @@ mod tests {
             );
         }
 
-        // Codes the Xyne adapter emits that have no neutral variant yet. They must still arrive
-        // with their meaning legible rather than as an empty `Other`.
+        // Codes the Xyne adapter emits that have no neutral variant yet.
         for code in ["invalid_arguments", "thread_not_found", "internal_error"] {
             assert_eq!(reason(code), ChatErrorReason::Other(code.to_owned()));
         }
@@ -878,8 +781,7 @@ mod tests {
 
     #[test]
     fn an_unusable_destination_is_rejected_on_the_way_in() {
-        // A malformed base URL cannot reach here at all: it is a `Url`, so it fails at
-        // deserialization. What is left for `Endpoint::new` is the rest of the destination.
+        // A malformed base URL cannot reach here at all:
         assert!(endpoint("https://example.com", "/", "token").is_ok());
 
         let blank_channel = Endpoint::new(
@@ -948,11 +850,6 @@ mod tests {
     }
 
     /// The exact body a bannered alert puts on the wire.
-    ///
-    /// Pinned against a payload confirmed to render on Xyne — coloured rail plus large title — so
-    /// that a later refactor cannot quietly reshape it back into something that only looks right in
-    /// a struct. The parts that matter are all here: the body moved inside the attachment, `text`
-    /// emptied, `plain_text` on the header and `mrkdwn` on the section.
     #[test]
     fn a_banner_moves_the_body_into_a_coloured_attachment() {
         let endpoint = endpoint("https://example.com", "/", "token").unwrap();
@@ -994,11 +891,6 @@ mod tests {
     }
 
     /// Setting `mrkdwn` alongside `attachments` costs the banner entirely.
-    ///
-    /// Xyne's adapter branches on the flag into a text-only path that never reads `attachments`, so
-    /// the message is delivered — `ok: true`, an id returned, nothing in the logs — and simply
-    /// arrives with no rail and no heading. Nothing downstream can detect it, which is why it is
-    /// pinned here rather than left to the payload test above.
     #[test]
     fn a_bannered_message_does_not_set_mrkdwn() {
         let endpoint = endpoint("https://example.com", "/", "token").unwrap();
@@ -1017,8 +909,7 @@ mod tests {
             .is_none());
     }
 
-    /// The other half: without a banner the flag is still required, or Xyne delivers `*bold*` and
-    /// backticks as literal characters.
+    /// The other half:
     #[test]
     fn a_plain_message_still_sets_mrkdwn() {
         let endpoint = endpoint("https://example.com", "/", "token").unwrap();
@@ -1029,8 +920,7 @@ mod tests {
         assert_eq!(serde_json::to_value(&payload).unwrap()["mrkdwn"], true);
     }
 
-    /// An oversized header is rejected outright rather than trimmed by the provider, so a long
-    /// heading would cost the whole alert rather than just its tail.
+    /// An oversized header is rejected outright rather than trimmed by the provider, so a long heading would cost the whole alert rather than just its tail.
     #[test]
     fn an_oversized_heading_is_cut_to_the_header_limit() {
         let endpoint = endpoint("https://example.com", "/", "token").unwrap();
@@ -1047,9 +937,7 @@ mod tests {
         assert!(heading.ends_with(TRUNCATION_MARKER));
     }
 
-    /// A section block caps far below any backend's message cap, and an oversized one is rejected
-    /// rather than trimmed — so without this a long alert that used to arrive as plain text would be
-    /// dropped outright the moment it gained a banner.
+    /// A section block caps far below any backend's message cap, and an oversized one is rejected rather than trimmed — so without this a long alert that used to arrive as plain text would be dropped outright the moment it gained a banner.
     #[test]
     fn a_long_body_is_cut_to_the_section_limit_when_bannered() {
         let endpoint = endpoint("https://example.com", "/", "token").unwrap();
@@ -1066,8 +954,7 @@ mod tests {
         assert!(section.chars().count() <= SECTION_MAX_CHARS);
         assert!(section.ends_with(TRUNCATION_MARKER));
 
-        // The same body without a banner keeps the far larger message cap: the tighter limit is a
-        // property of the block, not of the message.
+        // The same body without a banner keeps the far larger message cap:
         let plain = endpoint.build_payload(&ChatMessage::new(&long)).unwrap();
         assert_eq!(plain.text.chars().count(), long.chars().count());
     }

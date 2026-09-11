@@ -1,51 +1,4 @@
-//! The wire contract: what a caller sends and what it gets back.
-//!
-//! Lives here rather than in an API-models crate for the same reason [`crate::errors::types`] does
-//! — `observability` has none — and moves wholesale if one ever appears.
-//!
-//! ## The URL says where, the body says what
-//!
-//! `POST /alerts/chat/notify/{destination}`. The path names the channel and the destination; the
-//! body carries only content. That keeps the destination visible to access logs, metrics labels and
-//! tracing spans without anyone parsing a body, so "which destination is failing" is answerable from
-//! the ops view.
-//!
-//! A single `/notify/{destination}` over a channel-tagged body was considered and rejected: the
-//! destination already resolves the channel through configuration, so a tag in the body is a second
-//! authority on the same fact and the two can disagree.
-//!
-//! ## Status answers "did the notifier work", the body answers "did the message arrive"
-//!
-//! A provider that refuses is a `200` carrying [`NotifyStatus::Refused`], not an HTTP error. It was
-//! reached, it answered, and the notifier did its job. Only a request we cannot act on (`4xx`), an
-//! unreachable provider (`502`) or our own fault (`500`) is an error — so an alert on `5xx` fires
-//! when this service is genuinely broken and at no other time.
-//!
-//! This is the same line payments draws between a connector declining a transaction and a connector
-//! being unreachable, and it is drawn deliberately rather than by fault. Whether `channel_not_found`
-//! is our mistake or a merchant's depends on who owns the destination, and that moves from a config
-//! file to a database row without a status code being able to move with it.
-//!
-//! **`status` is required, and that is load-bearing.** A caller cannot deserialize a response
-//! without confronting whether the message arrived. `external_services` uses the same trick on the
-//! provider's own `ok` field, for the same reason: this shape's failure mode is a caller that reads
-//! `200` and stops looking.
-//!
-//! ## Content is `Secret`, so redaction is the type's job
-//!
-//! `text`, `subject` and `body` are `Secret<String>`. A subject carries merchant ids and a body
-//! carries payment volumes, and `services::server_wrap` takes `T: Debug`, so one added log line
-//! would otherwise put both in the log stream. A hand-written `Debug` would do the same job until
-//! somebody adds a field and forgets; the type cannot forget.
-//!
-//! Sizes are logged where they are useful — the chat client already emits `chars` per request — so
-//! nothing diagnostic is lost by redacting here.
-//!
-//! ## Nothing here renders
-//!
-//! `text`, `subject` and `body` are delivered exactly as they arrive. The caller decides what its
-//! message looks like, in whatever markup its destination reads. `body` is HTML, because both email
-//! backends in `external_services` hardcode an HTML body and there is no plain-text path to reach.
+//! The wire contract:
 
 use actix_multipart::form::{bytes::Bytes, text::Text, MultipartForm};
 use external_services::chat_service::ChatSeverity;
@@ -62,22 +15,14 @@ use crate::domain::notifier::{
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ChatNotifyRequest {
-    /// The message, in the markup the destination reads. Delivered unchanged.
+    /// The message, in the markup the destination reads.
     pub text: Secret<String>,
 
-    /// Post this as a reply in the thread of an earlier message, identified by the `message_id`
-    /// that message's response returned.
+    /// Post this as a reply in the thread of an earlier message, identified by the `message_id` that message's response returned.
     #[serde(default)]
     pub reply_to: Option<String>,
 
     /// A title to show above the message, larger than the body and free of markup.
-    ///
-    /// Sent with [`severity`](Self::severity) or not at all: the two make one banner, and a
-    /// destination that cannot draw one delivers the message without it.
-    ///
-    /// Masked for the same reason [`text`](Self::text) is. A heading is written by the same caller
-    /// out of the same material — "zero SR on `merchant_1234`" is a perfectly natural one — so
-    /// leaving it bare would put in the logs exactly what masking the body keeps out of them.
     #[serde(default)]
     pub heading: Option<Secret<String>>,
 
@@ -87,10 +32,6 @@ pub struct ChatNotifyRequest {
 }
 
 /// How urgent a chat message is.
-///
-/// Deliberately not a colour. Callers describe the alert, and each destination decides how to paint
-/// it — a caller that had to send `danger` would be encoding one backend's palette into every
-/// service that posts an alert.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum NotifySeverity {
@@ -140,14 +81,11 @@ pub struct EmailNotifyRequest {
     /// The subject line, delivered unchanged.
     pub subject: Secret<String>,
 
-    /// The body, as HTML. See the module docs: the transport offers nothing else today.
+    /// The body, as HTML.
     pub body: Secret<String>,
 }
 
 /// Whether the message arrived.
-///
-/// Not a bool, so a third outcome can be added without breaking a caller's match, and so the two
-/// states read the same in a log line as they do in code.
 #[derive(Debug, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum NotifyStatus {
@@ -160,24 +98,18 @@ pub enum NotifyStatus {
 /// What `/alerts/chat/notify/{destination}` returns.
 #[derive(Debug, Serialize)]
 pub struct ChatNotifyResponse {
-    /// Whether the message arrived. Always present.
+    /// Whether the message arrived.
     pub status: NotifyStatus,
 
-    /// The provider's id for the message, when it named one. Hand it back as
-    /// [`ChatNotifyRequest::reply_to`] to thread under it.
-    ///
-    /// `null` on a refusal, and also on the rare delivery where the provider accepted the message
-    /// without naming an id — the alert went out, but nothing can be threaded under it.
+    /// The provider's id for the message, when it named one.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub message_id: Option<String>,
 
-    /// Why the provider refused, as a stable snake_case code — `msg_too_long`,
-    /// `channel_not_found`, `rate_limited`. Absent on delivery.
+    /// Why the provider refused, as a stable snake_case code — `msg_too_long`, `channel_not_found`, `rate_limited`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error_code: Option<String>,
 
-    /// How long the provider asked us to wait, when it said. Only set alongside a rate-limiting
-    /// code.
+    /// How long the provider asked us to wait, when it said.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub retry_after_seconds: Option<u64>,
 }
@@ -197,10 +129,10 @@ pub struct ChatUploadResponse {
 /// What `/alerts/email/notify/{destination}` returns.
 #[derive(Debug, Serialize)]
 pub struct EmailNotifyResponse {
-    /// Whether the mail was sent. Always present.
+    /// Whether the mail was sent.
     pub status: NotifyStatus,
 
-    /// Why the provider refused, as a stable snake_case code. Absent on delivery.
+    /// Why the provider refused, as a stable snake_case code.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error_code: Option<String>,
 
@@ -306,8 +238,7 @@ mod tests {
         assert!(body.get("message_id").is_none());
     }
 
-    /// The alert went out; only the ability to thread under it was lost. It must not look like a
-    /// failure, because a retry would post the alert twice.
+    /// The alert went out; only the ability to thread under it was lost.
     #[test]
     fn a_delivery_without_an_id_is_still_a_delivery() {
         let body = body_of(&ChatNotifyResponse::from(Outcome::Delivered(ChatReceipt {
@@ -352,10 +283,6 @@ mod tests {
     }
 
     /// The body a bannered alert sends.
-    ///
-    /// Worth pinning because `deny_unknown_fields` is what rejected this shape before the fields
-    /// existed, and it rejects with the same "could not be parsed" as a typo — so a caller gets no
-    /// hint that the field is merely unsupported.
     #[test]
     fn chat_request_reads_a_banner() {
         let request: ChatNotifyRequest = serde_json::from_value(serde_json::json!({
@@ -397,8 +324,7 @@ mod tests {
         assert!(request.severity.is_none());
     }
 
-    /// Threading against a mailing list is a caller bug. `deny_unknown_fields` makes it a rejection
-    /// rather than a field that quietly goes nowhere.
+    /// Threading against a mailing list is a caller bug.
     #[test]
     fn email_request_rejects_reply_to() {
         let error = serde_json::from_value::<EmailNotifyRequest>(serde_json::json!({
@@ -411,8 +337,7 @@ mod tests {
         assert!(error.to_string().contains("reply_to"));
     }
 
-    /// The property is now the type's, not a hand-written `Debug`'s: a field added later cannot
-    /// leak by someone forgetting to update an impl.
+    /// The property is now the type's, not a hand-written `Debug`'s:
     #[test]
     fn debug_never_prints_the_message() {
         let chat = ChatNotifyRequest {

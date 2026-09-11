@@ -1,14 +1,4 @@
 //! Delivery of chat messages to a destination channel.
-//!
-//! A [`ChatClient`] is bound to one destination: a base URL, a credential and a channel. Callers
-//! that hold several destinations — one per merchant workspace, say — build one client per
-//! destination and hand each a [`ChatMessage`]. Clients own no connection state (the underlying
-//! `reqwest::Client` and its pool are cached globally by
-//! [`crate::http_client`]), so constructing one per message is cheap.
-//!
-//! This module deliberately knows nothing about *alerts*. It renders no domain content and holds
-//! no configuration store; deciding what to say, and looking up where to say it, belong to the
-//! callers.
 
 /// The Slack chat API.
 pub mod slack;
@@ -16,8 +6,7 @@ pub mod slack;
 /// Xyne, which exposes a Slack-compatible messaging API.
 pub mod xyne;
 
-/// The wire protocol Xyne and Slack share. Private: nothing outside this module should have to
-/// know that `ok: false` can arrive with HTTP 200.
+/// The wire protocol Xyne and Slack share.
 mod slack_compatible;
 
 use common_utils::errors::CustomResult;
@@ -27,11 +16,6 @@ use hyperswitch_masking::{PeekInterface, Secret};
 pub type ChatResult<T> = CustomResult<T, ChatError>;
 
 /// Posts messages to one chat destination.
-///
-/// Object-safe on purpose: a caller resolving destinations at runtime holds these as
-/// `Arc<dyn ChatClient>`. Resist adding an associated type — [`crate::email::EmailClient`] has one
-/// (`RichText`), which is why it cannot be used as a trait object and why the erased
-/// [`crate::email::EmailService`] had to be invented alongside it.
 #[async_trait::async_trait]
 pub trait ChatClient: Send + Sync + std::fmt::Debug {
     /// Post a message, returning the id of the message that was created.
@@ -64,10 +48,6 @@ impl FileId {
 }
 
 /// A file to upload to a chat destination.
-///
-/// Bytes are deliberately owned: the shared HTTP transport may retry a request and therefore must
-/// be able to replay its body. Content fields are secrets so derived debug output cannot expose an
-/// alert report or the identifying metadata around it.
 #[derive(Debug, Clone)]
 pub struct ChatFile {
     bytes: Secret<Vec<u8>>,
@@ -78,7 +58,7 @@ pub struct ChatFile {
 }
 
 impl ChatFile {
-    /// Build one upload. Validation that requires destination context happens in the client.
+    /// Build one upload.
     pub fn new(
         bytes: Vec<u8>,
         filename: impl Into<String>,
@@ -123,20 +103,10 @@ impl ChatFile {
 }
 
 /// Identifies a message that a backend has accepted.
-///
-/// Backends disagree on what a message id *is*, and the disagreement is not cosmetic: threading a
-/// reply means handing an id back, so an id from the wrong backend is a bug we want the type
-/// system to catch rather than a malformed field on the wire.
-///
-/// Non-exhaustive because more backends are expected (Discord identifies messages by a numeric
-/// snowflake rather than a timestamp); match with a wildcard arm.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum MessageId {
-    /// A Slack-compatible `ts`: `"1503435956.000247"`, seconds and microseconds since the epoch.
-    ///
-    /// Opaque — it must stay a string. Parsing it as a float loses precision, and Slack documents
-    /// it as an identifier rather than a time.
+    /// A Slack-compatible `ts`:
     Ts(String),
 }
 
@@ -155,20 +125,6 @@ impl MessageId {
 }
 
 /// A message to post.
-///
-/// The fields are private and reached through constructors and accessors on purpose: this is the
-/// type most likely to grow, and private fields mean it can grow without breaking callers.
-///
-/// Two directions it is expected to grow, and how:
-///
-/// - **A backend that is not Slack-compatible.** `text` is markup, and the markup is not portable
-///   — Slack reads `*bold*` where Discord reads `**bold**`. Today every backend is
-///   Slack-compatible so a rendered string is honest. The first backend that is not forces a
-///   choice between rendering at the call site and carrying structured content here; keeping
-///   `text` private means that choice stays open.
-/// - **Files.** They do not belong on this type. Uploading is a different endpoint with a
-///   different result — a file id, not a message id — and on current Slack it is three calls
-///   rather than one. It earns a sibling method on [`ChatClient`], not a field here.
 #[derive(Debug, Clone)]
 pub struct ChatMessage {
     text: String,
@@ -177,9 +133,6 @@ pub struct ChatMessage {
 }
 
 /// How urgent a message is, in the vocabulary of the reader rather than of any one backend.
-///
-/// Named states rather than a colour, because the colour is a rendering detail each backend spells
-/// differently, and because a caller that has to know `danger` means "critical" has to know Slack.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ChatSeverity {
     /// Something is broken now.
@@ -191,9 +144,6 @@ pub enum ChatSeverity {
 }
 
 /// A titled, colour-coded frame around a message.
-///
-/// Heading and severity travel together because neither is useful alone: a coloured bar with no
-/// title says only that something happened, and a title with no colour is what `text` already does.
 #[derive(Debug, Clone)]
 pub struct ChatBanner {
     heading: String,
@@ -209,7 +159,7 @@ impl ChatBanner {
         }
     }
 
-    /// The heading, rendered as plain text: markup in it is shown literally, not interpreted.
+    /// The heading, rendered as plain text:
     pub fn heading(&self) -> &str {
         &self.heading
     }
@@ -222,10 +172,6 @@ impl ChatBanner {
 
 impl ChatMessage {
     /// A new top-level message.
-    ///
-    /// `text` is delivered as-is, in whatever markup the target backend reads. Escape anything
-    /// interpolated into it: on Slack-compatible backends an unescaped `<` in a merchant id or an
-    /// error reason opens markup and mangles the message.
     pub fn new(text: impl Into<String>) -> Self {
         Self {
             text: text.into(),
@@ -235,12 +181,6 @@ impl ChatMessage {
     }
 
     /// A message threaded as a reply under `message_id`.
-    ///
-    /// Serialised as `thread_ts` by Slack-compatible backends.
-    ///
-    /// A second constructor rather than a `mut self` builder on top of [`ChatMessage::new`]:
-    /// whether a message is threaded is known at the call site, so it is an argument rather than a
-    /// state a value passes through.
     pub fn reply(text: impl Into<String>, message_id: MessageId) -> Self {
         Self {
             text: text.into(),
@@ -250,12 +190,6 @@ impl ChatMessage {
     }
 
     /// Frame this message in a titled, colour-coded banner.
-    ///
-    /// A builder here rather than a fourth constructor: unlike threading, a banner is orthogonal to
-    /// how the message was made, so both constructors would otherwise need a bannered twin.
-    ///
-    /// A backend that cannot draw one still delivers the message — the banner is presentation, and
-    /// dropping it must never cost the alert.
     pub fn with_banner(mut self, banner: ChatBanner) -> Self {
         self.banner = Some(banner);
         self
@@ -296,8 +230,6 @@ pub enum ChatError {
     },
 
     /// The response body could not be read, or was not the envelope the provider documents.
-    ///
-    /// A body carrying no success marker lands here rather than being read as a success.
     #[error("Could not interpret the chat provider's response")]
     UnreadableResponse,
 
@@ -308,13 +240,11 @@ pub enum ChatError {
         reason: ChatErrorReason,
     },
 
-    /// The message was delivered but the provider named no id for it, so replies cannot be
-    /// threaded under it. Retrying would post a duplicate.
+    /// The message was delivered but the provider named no id for it, so replies cannot be threaded under it.
     #[error("Chat provider accepted the message without returning a message id")]
     MissingMessageId,
 
-    /// [`ChatMessage::reply`] carried an id this backend cannot thread against — typically an
-    /// id minted by a different backend.
+    /// [`ChatMessage::reply`] carried an id this backend cannot thread against — typically an id minted by a different backend.
     #[error("The message id supplied cannot thread a reply on this chat provider")]
     IncompatibleReplyTarget,
 
@@ -324,11 +254,6 @@ pub enum ChatError {
 }
 
 /// Why a provider refused a message, in vocabulary no single backend owns.
-///
-/// Backends map their own codes into this; the code they actually sent is preserved either in
-/// [`ChatErrorReason::Other`] or on the error report's attachments, so nothing is lost for logs.
-/// `Display` is what [`ChatError::Rejected`] interpolates as `{reason}`, so each message lives on
-/// the variant it describes rather than in a separate impl that can drift from it.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum ChatErrorReason {
     /// No such channel, or the credential cannot see it.
