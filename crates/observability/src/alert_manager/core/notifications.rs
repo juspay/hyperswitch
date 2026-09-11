@@ -1,15 +1,4 @@
 //! Per-request logic for the notification bell's read watermark.
-//!
-//! The bell shows what happened after the watermark and hides what happened before it, so this is
-//! two operations: read one user's watermark, and move it to now.
-//!
-//! ## The instant is this service's, not the caller's
-//!
-//! `mark_read` stamps the row itself rather than storing a time from the request. A caller-chosen
-//! instant would let the bell pin the exact moment its feed was rendered, and would also let a
-//! skewed clock hide alerts the operator was never shown — permanently, since nothing ever moves a
-//! watermark backwards. The watermark is compared against timestamps this plane stamps, so it is
-//! stamped by the same clock. This is what the store it replaces did.
 
 use diesel_models::observability::notification_reads::NotificationRead;
 use error_stack::{report, ResultExt};
@@ -38,9 +27,7 @@ pub async fn read(state: AppState, user: UserName) -> ObservabilityApiResult<Wat
             status: ReadStatus::Found,
             last_read_at: Some(watermark.last_read_at),
         },
-        // Not an error and not a `404`. A user who has never cleared the feed has read nothing,
-        // which is what the bell needs to be told; it is also every user, on the day this table is
-        // created.
+        // Not an error and not a `404`.
         None => WatermarkResponse {
             status: ReadStatus::Absent,
             last_read_at: None,
@@ -65,8 +52,7 @@ pub async fn mark_read(
     .change_context(ObservabilityError::InternalServerError)
     .attach_printable("Failed to save a notification watermark")?;
 
-    // `found` rather than a write status of its own: the answer is the watermark the caller now
-    // has, in the same shape the read returns, so the bell can use it without a second request.
+    // `found` rather than a write status of its own:
     Ok(WatermarkResponse {
         status: ReadStatus::Found,
         last_read_at: Some(watermark.last_read_at),
@@ -74,8 +60,6 @@ pub async fn mark_read(
 }
 
 /// Check the asserted name against its column's width.
-///
-/// The empty name is valid, and is what every caller sends today — see [`UserName`].
 fn validated(user: &UserName) -> ObservabilityApiResult<&str> {
     let user_name = user.as_str();
 

@@ -9,8 +9,7 @@ use diesel::{
 };
 use serde_json::value::RawValue;
 
-// `product`/`values_` are `json`, not `jsonb`: the dashboard sends pre-serialised bytes and
-// expects them back unchanged, and `jsonb` would re-encode them.
+// `product`/`values_` are `json`, not `jsonb`:
 #[derive(Debug, Clone, AsExpression, FromSqlRow, serde::Serialize, serde::Deserialize)]
 #[diesel(sql_type = Json)]
 #[serde(transparent)]

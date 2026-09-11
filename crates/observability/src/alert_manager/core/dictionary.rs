@@ -1,15 +1,4 @@
-//! Per-request logic for the mappers dictionary: validate, store, report what the store did.
-//!
-//! The dictionary is the option lists and labels behind the portal's mappers screen — today the
-//! screen is broken outright, because the table it read was never created in the store it read
-//! from. This layer is what a screen's save and load turn into.
-//!
-//! ## What is checked here, and why not by the database
-//!
-//! The column widths and the size cap are checked before the query runs. Postgres would reject an
-//! over-wide value too, as a `22001` that arrives as an opaque failure with a `500` attached; the
-//! same rejection made here is a `400` naming what was wrong. The cap has no database equivalent
-//! at all: a `json` column takes a gigabyte, and the screen that reads it back does not.
+//! Per-request logic for the mappers dictionary:
 
 use diesel_models::observability::{
     alerts_dicts::{AlertsDict, AlertsDictNew},
@@ -37,10 +26,6 @@ const NAME_MAX_BYTES: usize = 64;
 const KEY_MAX_BYTES: usize = 255;
 
 /// `alerts_dicts.username` is `VARCHAR(64)`.
-///
-/// Narrower than `notification_reads.user_name`, so the same asserted name can be accepted by the
-/// bell and refused here. That is the schema's asymmetry rather than this API's, and it is checked
-/// rather than truncated: a save filed under half of someone's name is worse than a rejected one.
 const USERNAME_MAX_BYTES: usize = 64;
 
 /// Every live entry.
@@ -112,8 +97,7 @@ pub async fn upsert(
         key_: key,
         product,
         values_: values,
-        // The service's clock, not the caller's: these timestamps are compared against each other
-        // and against the alert rows this plane stamps, and a dashboard's clock is a laptop's.
+        // The service's clock, not the caller's:
         ts_created: common_utils::date_time::now(),
         username,
         metadata,
@@ -148,9 +132,6 @@ pub async fn retire(
 }
 
 /// Trim a required field and check it against its column's width.
-///
-/// Trimming matches what the store this replaces did with the same fields, and it is what stops
-/// `"dashboard"` and `"dashboard "` becoming two entries the screen shows as one.
 fn validated(value: &str, field: &'static str, max_bytes: usize) -> ObservabilityApiResult<String> {
     let value = value.trim();
 
@@ -172,10 +153,6 @@ fn validated(value: &str, field: &'static str, max_bytes: usize) -> Observabilit
 }
 
 /// Reject an entry whose JSON is larger than the configured cap.
-///
-/// Measured across the three JSON columns together, because the row is what has to stay readable
-/// and a caller splitting the same payload across `values_` and `metadata` has not made it any
-/// smaller.
 fn within_cap(limit: usize, columns: [Option<&RawJson>; 3]) -> ObservabilityApiResult<()> {
     let bytes = columns
         .into_iter()
@@ -184,8 +161,7 @@ fn within_cap(limit: usize, columns: [Option<&RawJson>; 3]) -> ObservabilityApiR
         .sum::<usize>();
 
     if bytes > limit {
-        // Logged with the sizes, which the response deliberately does not carry: the caller knows
-        // what it sent, and whoever is asked why the mappers screen stopped saving does not.
+        // Logged with the sizes, which the response deliberately does not carry:
         logger::warn!(
             bytes = bytes,
             limit = limit,
