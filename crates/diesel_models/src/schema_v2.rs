@@ -1891,6 +1891,7 @@ diesel::table! {
         last_password_modified_at -> Nullable<Timestamp>,
         lineage_context -> Nullable<Jsonb>,
         is_active -> Nullable<Bool>,
+        password_history -> Nullable<Array<Nullable<Text>>>,
     }
 }
 

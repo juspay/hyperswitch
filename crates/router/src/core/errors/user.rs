@@ -1,6 +1,6 @@
 use common_utils::errors::CustomResult;
 
-use crate::services::ApplicationResponse;
+use crate::{consts, services::ApplicationResponse};
 
 pub type UserResult<T> = CustomResult<T, UserErrors>;
 pub type UserResponse<T> = CustomResult<ApplicationResponse<T>, UserErrors>;
@@ -54,6 +54,8 @@ pub enum UserErrors {
     MerchantIdParsingError,
     #[error("ChangePasswordError")]
     ChangePasswordError,
+    #[error("PasswordReuseError")]
+    PasswordReuseError,
     #[error("InvalidDeleteOperation")]
     InvalidDeleteOperation,
     #[error("MaxInvitationsError")]
@@ -211,6 +213,9 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::ChangePasswordError => {
                 AER::BadRequest(ApiError::new(sub_code, 29, self.get_error_message(), None))
             }
+            Self::PasswordReuseError => {
+                AER::BadRequest(ApiError::new(sub_code, 66, self.get_error_message(), None))
+            }
             Self::InvalidDeleteOperation => {
                 AER::BadRequest(ApiError::new(sub_code, 30, self.get_error_message(), None))
             }
@@ -362,6 +367,12 @@ impl UserErrors {
             Self::InvalidMetadataRequest => "Invalid Metadata Request".to_string(),
             Self::MerchantIdParsingError => "Invalid Merchant Id".to_string(),
             Self::ChangePasswordError => "Old and new password cannot be same".to_string(),
+            Self::PasswordReuseError => format!(
+                "You cannot reuse your last {} passwords. Please choose a different password",
+                // The current password is not in `password_history`, so the window is the
+                // retained count plus the current one.
+                consts::user::PREVIOUS_PASSWORDS_RETAINED + 1
+            ),
             Self::InvalidDeleteOperation => "Delete Operation Not Supported".to_string(),
             Self::MaxInvitationsError => "Maximum invite count per request exceeded".to_string(),
             Self::RoleNotFound => "Role Not Found".to_string(),
