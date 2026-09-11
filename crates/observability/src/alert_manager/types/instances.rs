@@ -1,47 +1,29 @@
-//! The wire contract for per-merchant alert instances and their per-dimension breakdown.
+//! The wire contract for per-merchant alert instances and their per-dimension breakdown: one row
+//! per affected merchant, and one per dimension of the breakdown behind it.
 //!
-//! An announcement says *an alert went out*. These rows say **who it was about**: one row per
-//! affected merchant, and one row per dimension of the breakdown behind it — connector, payment
-//! method, whatever the detector split on.
+//! Both resources hang off an announcement, which is a path segment and never a body field. Both
+//! tables reference `alerts_main` `ON DELETE CASCADE`, so an instance cannot point at an
+//! announcement that does not exist.
 //!
-//! ## Both resources hang off an announcement
+//! `merchants_alert_external` is channel-twinned - `/alerts/instances/{channel}/{announcement}`.
+//! `merchants_alert_external_dimension` exists once and is addressed without a channel; one there
+//! would promise a `_xyne` breakdown table that does not exist.
 //!
-//! The announcement is a path segment, never a body field. Both tables reference `alerts_main`
-//! `ON DELETE CASCADE`, so the relationship is the schema's and this API keeps it rather than
-//! leaving every caller to fill an `id` column correctly: a caller records the announcement, gets
-//! an id back, and posts its instances to that id. There is no way to write an instance that
-//! points at nothing, and no way to write one that points at an announcement that does not exist.
-//!
-//! ## Why the breakdown is not channel-twinned
-//!
-//! `merchants_alert_external` and `merchants_alert_external_xyne` are the same table once per
-//! delivery channel, and are addressed as `/alerts/instances/{channel}/{announcement}`.
-//! `merchants_alert_external_dimension` exists **once** and references `alerts_main`, so it is
-//! addressed as `/alerts/dimensions/{announcement}` with no channel in the path. Putting a channel
-//! there would promise a `_xyne` breakdown table that does not exist, and answering "none" for it
-//! would read as "this alert had no breakdown".
-//!
-//! ## What the caller sends and what the server owns
-//!
-//! None of these columns carries a `DEFAULT` any more — see the migration — so every value one
-//! used to supply is supplied here instead:
+//! No column carries a `DEFAULT` any more (see the migration), so every value is supplied here:
 //!
 //! | Column | Who fills it |
 //! |---|---|
-//! | `id` | the path — the announcement these rows belong to |
-//! | `id_merchant_table` | the server, `uuid::Uuid::now_v7()`; it had `gen_random_uuid()` |
-//! | `ts_alert` | the server's clock; it had `CURRENT_TIMESTAMP` |
+//! | `id` | the path - the announcement these rows belong to |
+//! | `id_merchant_table` | the server, `uuid::Uuid::now_v7()` |
+//! | `ts_alert` | the server's clock |
 //! | `last_updated_at` | the server's clock |
-//! | `is_visible` | the caller, or `true` when absent; it had `DEFAULT TRUE` |
+//! | `is_visible` | the caller, or `true` when absent |
 //! | `ts_slack` | the caller, or the announcement's thread when absent |
 //! | everything else | the caller |
 //!
-//! ## Absent is not zero
-//!
-//! `current_metric` and `expected_metric` are `Option<f64>` and an absent one stays absent. The
-//! alert manager's absolutes — zero volume, zero success — have no expected value at all, and
-//! writing `0` for them would store "observed 0, expected 0", which reads as healthy. They are
-//! also what the truncation order is computed from, where the same rule applies: see
+//! `current_metric` and `expected_metric` are `Option<f64>` and an absent one stays absent: the
+//! absolutes - zero volume, zero success - have no expected value, and writing `0` would store
+//! "observed 0, expected 0", which reads as healthy. Same rule governs the truncation order, see
 //! [`super::super::core::instances`].
 
 use diesel_models::observability::{
@@ -56,9 +38,8 @@ use super::{ReadStatus, WriteStatus};
 /// What a write dropped to stay inside the row cap, and how much.
 ///
 /// Present on a response only when something was dropped, and recorded on every row the write
-/// kept — see [`super::super::core::instances`] for where it lands. A breakdown that silently
-/// arrived shortened would make an outage look narrower than it was, which is the one reading
-/// these rows exist to prevent.
+/// kept. A breakdown that silently arrived shortened would make an outage look narrower than it
+/// was.
 #[derive(Debug, Serialize, PartialEq, Eq)]
 pub struct Truncation {
     /// How many rows the request carried.

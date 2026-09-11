@@ -1,55 +1,24 @@
 //! Per-request logic for per-merchant alert instances and their per-dimension breakdown.
 //!
-//! Two resources, both hanging off an announcement: the merchants an announcement was about, and
-//! the dimension breakdown behind it. Each write replaces everything stored under that
-//! announcement, so a rerun of the same alert manager pass is idempotent rather than doubling the
-//! table.
+//! Each write replaces everything stored under that announcement, so a rerun of the same alert
+//! manager pass is idempotent rather than doubling the table.
 //!
-//! ## One handler, two channels, three tables
+//! `merchants_alert_external` is the same table once per delivery channel and only [`store`]
+//! branches on it; `merchants_alert_external_dimension` exists once and needs no channel.
 //!
-//! `merchants_alert_external` and `merchants_alert_external_xyne` are the same table once per
-//! delivery channel. The models are generated per table because diesel needs a struct per table —
-//! but everything that decides anything is written once here and takes the channel as an argument.
-//! The only code that branches on it is [`store`], whose functions are a two-arm match around one
-//! query each. `merchants_alert_external_dimension` exists once and needs no channel at all; it
-//! shares the policy below rather than a copy of it.
+//! A write over the row cap TRUNCATES rather than being refused - the opposite of
+//! [`super::lifecycle`], and deliberately: a broad outage is when the record matters most. Rows
+//! are ordered by [`Impact`] first so the worst survive, and the cut is recorded on every kept row
+//! under [`TRUNCATION_KEY`](self::TRUNCATION_KEY) and in the response. The cap is also a hard
+//! limit: at 25-26 columns against Postgres's 65535 bind parameters a batch insert stops working
+//! around 2,500 rows regardless. See [`crate::settings::InstanceSettings`].
 //!
-//! ## The row cap truncates, and says so
+//! `current_metric` and `expected_metric` are stored exactly as they arrive, absent included.
+//! Scoring an absolute as `expected - current` with both defaulted to `0` would rank a total
+//! outage as no impact and drop it first; [`Impact::Absolute`] ranks above every measured gap.
 //!
-//! One alert across many connectors becomes many rows, and a *broad* outage is exactly when the
-//! alert matters most — so a write over the cap is **not** refused. It is cut down to the cap and
-//! stored, which is the opposite of what [`super::lifecycle`] does with its alert cap, and
-//! deliberately so: losing the whole write there costs a rerun, losing it here costs the record of
-//! who was affected during the worst incident of the day.
-//!
-//! Two things make the cut safe to reason about:
-//!
-//! * **The rows kept are the worst ones.** Rows are ordered by [`Impact`] before the cut, so what
-//!   survives is what a human reading the alert would have looked at first.
-//! * **The cut is recorded on every row it kept**, under
-//!   [`TRUNCATION_KEY`](self::TRUNCATION_KEY) in `metadata_alert_details`, as well as in the
-//!   response. A breakdown that quietly arrived shortened would make an outage look narrower than
-//!   it was, and nothing downstream would ever know to ask.
-//!
-//! The cap is also a hard limit rather than only a policy: these tables are 25 and 26 columns
-//! wide, and Postgres accepts at most 65535 bind parameters in one statement, so a batch insert
-//! stops working somewhere around 2,500 rows however anyone feels about it. See
-//! [`crate::settings::InstanceSettings`].
-//!
-//! ## Absent is not zero
-//!
-//! `current_metric` and `expected_metric` are stored exactly as they arrive, including absent. The
-//! ordering above is where that matters most: an absolute — zero volume, zero success — reports no
-//! expected value, and scoring it as `expected - current` with both defaulted to `0` would rank a
-//! total outage as *no impact at all* and drop it first. [`Impact::Absolute`] ranks above every
-//! measured gap instead.
-//!
-//! ## Whose clock
-//!
-//! `ts_alert` and `last_updated_at` are this service's, as everywhere else in this crate. Neither
-//! column has a `DEFAULT` any more — `ts_alert` used to carry `CURRENT_TIMESTAMP` — so the handler
-//! supplies both, along with `id_merchant_table`, which used to carry `gen_random_uuid()`, and
-//! `is_visible`, which used to carry `TRUE`.
+//! `ts_alert`, `last_updated_at`, `id_merchant_table` and `is_visible` are supplied by the
+//! handler - none of those columns carries a `DEFAULT` any more.
 
 use std::cmp::Ordering;
 
@@ -523,12 +492,10 @@ fn record_truncation(
     }
 }
 
-/// Check a value against its column's width.
+/// Check a value against its column's width. Absent is fine - no column here is `NOT NULL`.
 ///
-/// An absent value is fine — no column here carries `NOT NULL`, so a `null` is a stored fact.
-/// Checked before the query runs for the reason [`super::lifecycle`] checks its own: Postgres
-/// rejects the same values as an opaque `22001` with a `500` attached, and one over-wide row would
-/// fail the whole batch.
+/// Checked before the query because Postgres rejects it as an opaque `22001` with a `500`
+/// attached, and one over-wide row would fail the whole batch.
 fn fits(value: Option<&str>, field: &'static str, max_bytes: usize) -> ObservabilityApiResult<()> {
     if let Some(value) = value {
         if value.len() > max_bytes {
@@ -596,11 +563,9 @@ mod store {
 
     /// The announcement a write hangs off, or [`ObservabilityError::UnknownAnnouncement`].
     ///
-    /// Checked before anything is written rather than left to the foreign key, which would arrive
-    /// as an opaque constraint failure naming neither the row nor the id — the same reason
-    /// [`super::super::lifecycle`] checks its references up front. The same error as there, and
-    /// deliberately not a `404`: it is the same condition, the id is one this service handed out,
-    /// and a caller should not have two codes to branch on for it.
+    /// Checked up front rather than left to the foreign key, which arrives as an opaque
+    /// constraint failure naming neither row nor id. Deliberately not a `404`: the id is one this
+    /// service handed out, so a caller should not have two codes to branch on.
     pub(super) async fn announcement(
         conn: &DatabaseConnectionWithContext<'_>,
         channel: Channel,
