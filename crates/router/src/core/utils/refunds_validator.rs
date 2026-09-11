@@ -304,10 +304,10 @@ pub const MAX_CANCELLATION_REASON_LENGTH: usize = 255;
 
 #[instrument(skip_all)]
 pub fn validate_cancellation_reason(
-    cancellation_reason: Option<&String>,
+    cancellation_reason: Option<&str>,
 ) -> RouterResult<()> {
     if let Some(reason) = cancellation_reason {
-        utils::when(reason.len() > MAX_CANCELLATION_REASON_LENGTH, || {
+        utils::when(reason.chars().count() > MAX_CANCELLATION_REASON_LENGTH, || {
             Err(report!(errors::ApiErrorResponse::InvalidDataFormat {
                 field_name: "cancellation_reason".into(),
                 expected_format: format!(
@@ -327,19 +327,26 @@ mod tests {
     #[test]
     fn test_validate_cancellation_reason_valid() {
         let reason = Some("POST_AUTH_USER_DECLINE".to_string());
-        assert!(validate_cancellation_reason(reason.as_ref()).is_ok());
+        assert!(validate_cancellation_reason(reason.as_deref()).is_ok());
 
         let empty_reason: Option<String> = None;
-        assert!(validate_cancellation_reason(empty_reason.as_ref()).is_ok());
+        assert!(validate_cancellation_reason(empty_reason.as_deref()).is_ok());
 
         let max_len_reason = Some("a".repeat(MAX_CANCELLATION_REASON_LENGTH));
-        assert!(validate_cancellation_reason(max_len_reason.as_ref()).is_ok());
+        assert!(validate_cancellation_reason(max_len_reason.as_deref()).is_ok());
+
+        let max_len_multibyte = Some("あ".repeat(MAX_CANCELLATION_REASON_LENGTH));
+        assert!(validate_cancellation_reason(max_len_multibyte.as_deref()).is_ok());
     }
 
     #[test]
     fn test_validate_cancellation_reason_exceeds_max_length() {
         let oversized_reason = Some("a".repeat(MAX_CANCELLATION_REASON_LENGTH + 1));
-        let result = validate_cancellation_reason(oversized_reason.as_ref());
+        let result = validate_cancellation_reason(oversized_reason.as_deref());
+        assert!(result.is_err());
+
+        let oversized_multibyte = Some("あ".repeat(MAX_CANCELLATION_REASON_LENGTH + 1));
+        let result = validate_cancellation_reason(oversized_multibyte.as_deref());
         assert!(result.is_err());
     }
 }

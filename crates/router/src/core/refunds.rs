@@ -122,7 +122,7 @@ pub async fn refund_reverse_core(
     platform: domain::Platform,
     req: refunds::RefundReverseRequest,
 ) -> RouterResponse<api_models::refunds::RefundResponse> {
-    validator::validate_cancellation_reason(req.cancellation_reason.as_ref())?;
+    validator::validate_cancellation_reason(req.cancellation_reason.as_deref())?;
 
     let db = state.store.as_ref();
     let processor = platform.get_processor();
