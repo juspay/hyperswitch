@@ -2,7 +2,10 @@ use diesel_models::observability::notification_reads::NotificationRead;
 use error_stack::{report, ResultExt};
 
 use crate::{
-    alert_manager::types::{notifications::WatermarkResponse, ReadStatus, UserName},
+    alert_manager::{
+        core::{escalate, unrecognised},
+        types::{notifications::WatermarkResponse, ReadStatus, UserName},
+    },
     errors::{ObservabilityApiResult, ObservabilityError},
     state::AppState,
 };
@@ -18,13 +21,13 @@ pub async fn read_watermark(
 
     let watermark = NotificationRead::find_by_user_name(&connection, user_name)
         .await
-        .change_context(ObservabilityError::InternalServerError)
+        .map_err(|error| escalate(error, unrecognised))
         .attach_printable("Failed to read a notification watermark")?;
 
     Ok(match watermark {
         Some(watermark) => WatermarkResponse {
             status: ReadStatus::Found,
-            last_read_at: Some(watermark.last_read_at),
+            last_read_at: watermark.last_read_at,
         },
         None => WatermarkResponse {
             status: ReadStatus::Absent,
@@ -42,16 +45,16 @@ pub async fn mark_read(
 
     let watermark = NotificationRead {
         user_name: user_name.to_owned(),
-        last_read_at: common_utils::date_time::now(),
+        last_read_at: Some(common_utils::date_time::now()),
     }
     .upsert(&connection)
     .await
-    .change_context(ObservabilityError::InternalServerError)
+    .map_err(|error| escalate(error, unrecognised))
     .attach_printable("Failed to save a notification watermark")?;
 
     Ok(WatermarkResponse {
         status: ReadStatus::Found,
-        last_read_at: Some(watermark.last_read_at),
+        last_read_at: watermark.last_read_at,
     })
 }
 

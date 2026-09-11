@@ -7,28 +7,17 @@ use diesel_models::{
 use error_stack::report;
 
 use crate::{
-    alert_manager::types::config::{
-        AlertDefinitionCreateRequest, AlertDefinitionListResponse, AlertDefinitionResponse,
-        AlertDefinitionUpdateRequest, AlertEnablementListResponse, AlertEnablementResponse,
-        AlertEnablementUpsertRequest,
+    alert_manager::{
+        core::{escalate, unrecognised},
+        types::config::{
+            AlertDefinitionCreateRequest, AlertDefinitionListResponse, AlertDefinitionResponse,
+            AlertDefinitionUpdateRequest, AlertEnablementListResponse, AlertEnablementResponse,
+            AlertEnablementUpsertRequest,
+        },
     },
     errors::{ObservabilityApiResult, ObservabilityError},
     state::AppState,
 };
-
-fn escalate(
-    error: error_stack::Report<DatabaseError>,
-    recognise: impl FnOnce(DatabaseError) -> Option<ObservabilityError>,
-) -> error_stack::Report<ObservabilityError> {
-    let context =
-        recognise(*error.current_context()).unwrap_or(ObservabilityError::StorageUnavailable);
-
-    error.change_context(context)
-}
-
-fn unrecognised(_: DatabaseError) -> Option<ObservabilityError> {
-    None
-}
 
 pub async fn create_definition(
     state: AppState,
@@ -48,7 +37,7 @@ pub async fn create_definition(
                     .then_some(ObservabilityError::DuplicateDefinition { name, product })
             })
         })
-        .map(AlertDefinitionResponse::from)
+        .and_then(AlertDefinitionResponse::try_from)
 }
 
 pub async fn read_definition(
@@ -60,7 +49,7 @@ pub async fn read_definition(
     AlertsInfo::find_by_id(&connection, id)
         .await
         .map_err(|error| escalate(error, definition_not_found(id)))
-        .map(AlertDefinitionResponse::from)
+        .and_then(AlertDefinitionResponse::try_from)
 }
 
 pub async fn list_definitions(
@@ -71,7 +60,7 @@ pub async fn list_definitions(
     AlertsInfo::list(&connection)
         .await
         .map_err(|error| escalate(error, unrecognised))
-        .map(|definitions| definitions.into_iter().collect())
+        .and_then(AlertDefinitionListResponse::build)
 }
 
 pub async fn update_definition(
@@ -88,7 +77,7 @@ pub async fn update_definition(
     )
     .await
     .map_err(|error| escalate(error, definition_not_found(id)))
-    .map(AlertDefinitionResponse::from)
+    .and_then(AlertDefinitionResponse::try_from)
 }
 
 fn definition_not_found(
@@ -166,11 +155,11 @@ pub async fn list_enablements(
         .await
         .map_err(|error| escalate(error, unrecognised))?
         .into_iter()
-        .map(|definition| {
-            (
-                (definition.name.clone(), definition.product.clone()),
+        .filter_map(|definition| {
+            Some((
+                definition.name.clone().zip(definition.product.clone())?,
                 definition.is_enabled(),
-            )
+            ))
         })
         .collect::<std::collections::HashMap<_, _>>();
 

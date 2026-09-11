@@ -77,8 +77,8 @@ common_utils::impl_to_sql_from_sql_json!(Thresholds, diesel::sql_types::Json);
 #[diesel(table_name = alerts_info, primary_key(id), check_for_backend(diesel::pg::Pg))]
 pub struct AlertsInfo {
     pub id: uuid::Uuid,
-    pub name: String,
-    pub product: String,
+    pub name: Option<String>,
+    pub product: Option<String>,
     pub dimensions: Option<String>,
     pub period: Option<i32>,
     pub default_channel: Option<String>,
@@ -102,13 +102,14 @@ impl AlertsInfo {
     }
 
     pub fn is_all_definitions(&self) -> bool {
-        self.name == ALL_DEFINITIONS
+        self.name.as_deref() == Some(ALL_DEFINITIONS)
     }
 }
 
 #[derive(Clone, Debug, PartialEq, Insertable)]
 #[diesel(table_name = alerts_info)]
 pub struct AlertsInfoNew {
+    pub id: uuid::Uuid,
     pub name: String,
     pub product: String,
     pub dimensions: Option<String>,
@@ -221,8 +222,8 @@ mod tests {
     fn a_definition_with_no_enablement_recorded_is_off() {
         let mut definition = AlertsInfo {
             id: uuid::Uuid::nil(),
-            name: ALL_DEFINITIONS.to_owned(),
-            product: "payments".to_owned(),
+            name: Some(ALL_DEFINITIONS.to_owned()),
+            product: Some("payments".to_owned()),
             dimensions: None,
             period: None,
             default_channel: None,

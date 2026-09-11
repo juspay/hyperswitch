@@ -16,5 +16,5 @@ use crate::observability::schema::notification_reads;
 #[diesel(table_name = notification_reads, primary_key(user_name), check_for_backend(diesel::pg::Pg))]
 pub struct NotificationRead {
     pub user_name: String,
-    pub last_read_at: PrimitiveDateTime,
+    pub last_read_at: Option<PrimitiveDateTime>,
 }
