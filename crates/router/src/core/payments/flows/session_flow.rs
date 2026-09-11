@@ -1154,11 +1154,16 @@ async fn create_gpay_session_token(
                 provider_details.clone();
 
             let gpay_allowed_payment_methods = get_allowed_payment_methods_from_cards(
+                state,
+                &router_data.merchant_id,
                 cards,
                 &gpay_info.merchant_info.tokenization_specification,
                 is_billing_details_required,
                 wallet_blocking_config,
             )?;
+
+            let google_pay_merchant_id =
+                resolve_google_pay_merchant_id(state, &gpay_info.merchant_info);
 
             Ok(types::PaymentsSessionRouterData {
                 response: Ok(types::PaymentsResponseData::SessionResponse {
@@ -1167,7 +1172,7 @@ async fn create_gpay_session_token(
                             payment_types::GooglePaySessionResponse {
                                 merchant_info: payment_types::GpayMerchantInfo {
                                     merchant_name: gpay_info.merchant_info.merchant_name,
-                                    merchant_id: gpay_info.merchant_info.merchant_id,
+                                    merchant_id: google_pay_merchant_id,
                                 },
                                 allowed_payment_methods: vec![gpay_allowed_payment_methods],
                                 transaction_info,
@@ -1304,6 +1309,8 @@ async fn create_gpay_session_token(
 pub(crate) const CARD: &str = "CARD";
 
 fn get_allowed_payment_methods_from_cards(
+    state: &routes::SessionState,
+    merchant_id: &common_utils::id_type::MerchantId,
     gpay_cards: payment_types::GpayAllowedMethodsParameters,
     gpay_token_specific_data: &payment_types::GooglePayTokenizationSpecification,
     is_billing_details_required: bool,
@@ -1315,13 +1322,13 @@ fn get_allowed_payment_methods_from_cards(
             format: payment_types::GpayBillingAddressFormat::FULL,
         });
 
-    let protocol_version: Option<String> = gpay_token_specific_data
-        .parameters
-        .public_key
-        .as_ref()
-        .map(|_| PROTOCOL.to_string());
-
     let allow_credit_cards = get_google_pay_card_type_restrictions(wallet_blocking_config);
+
+    let tokenization_specification = resolve_google_pay_tokenization_specification(
+        state,
+        merchant_id,
+        gpay_token_specific_data,
+    )?;
 
     Ok(payment_types::GpayAllowedPaymentMethods {
         parameters: payment_types::GpayAllowedMethodsParameters {
@@ -1331,30 +1338,137 @@ fn get_allowed_payment_methods_from_cards(
             ..gpay_cards
         },
         payment_method_type: CARD.to_string(),
-        tokenization_specification: payment_types::GpayTokenizationSpecification {
-            token_specification_type: gpay_token_specific_data.tokenization_type.to_string(),
-            parameters: payment_types::GpayTokenParameters {
-                protocol_version,
-                public_key: gpay_token_specific_data.parameters.public_key.clone(),
-                gateway: gpay_token_specific_data.parameters.gateway.clone(),
-                gateway_merchant_id: gpay_token_specific_data
-                    .parameters
-                    .gateway_merchant_id
-                    .clone()
-                    .expose_option(),
-                stripe_publishable_key: gpay_token_specific_data
-                    .parameters
-                    .stripe_publishable_key
-                    .clone()
-                    .expose_option(),
-                stripe_version: gpay_token_specific_data
-                    .parameters
-                    .stripe_version
-                    .clone()
-                    .expose_option(),
-            },
-        },
+        tokenization_specification,
     })
+}
+
+/// Resolve the tokenization specification that is sent to the Google Pay SDK.
+///
+/// `INTERNAL_GATEWAY` is a Hyperswitch internal marker and is not a tokenization type Google
+/// understands, so it is resolved here into a `PAYMENT_GATEWAY` specification pointing at
+/// Hyperswitch's own registered gateway. The card is then encrypted to a key we hold, which is
+/// what lets the merchant onboard without registering a keypair of its own.
+///
+/// `DIRECT` and `PAYMENT_GATEWAY` are passed through exactly as the merchant configured them.
+fn resolve_google_pay_tokenization_specification(
+    state: &routes::SessionState,
+    merchant_id: &common_utils::id_type::MerchantId,
+    gpay_token_specific_data: &payment_types::GooglePayTokenizationSpecification,
+) -> RouterResult<payment_types::GpayTokenizationSpecification> {
+    match gpay_token_specific_data.tokenization_type {
+        payment_types::GooglePayTokenizationType::InternalGateway => {
+            // A missing gateway id is a hard error rather than a silent skip: the SDK would
+            // otherwise raise a payment sheet whose token nothing can decrypt.
+            let gateway = state
+                .google_pay_gateway_id()
+                .ok_or(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "google_pay_decrypt_keys.google_pay_gateway_id is not configured, cannot \
+                     serve an INTERNAL_GATEWAY google pay session",
+                )?;
+
+            Ok(payment_types::GpayTokenizationSpecification {
+                token_specification_type:
+                    payment_types::GooglePayTokenizationSpecificationType::from(
+                        gpay_token_specific_data.tokenization_type,
+                    ),
+                parameters: payment_types::GpayTokenParameters {
+                    gateway: Some(gateway),
+                    // The Hyperswitch merchant id keeps each merchant individually identifiable
+                    // in the token, which a fixed constant would not.
+                    gateway_merchant_id: Some(merchant_id.get_string_repr().to_owned()),
+                    // A gateway specification carries no public key, and therefore no protocol
+                    // version.
+                    protocol_version: None,
+                    public_key: None,
+                    stripe_publishable_key: None,
+                    stripe_version: None,
+                },
+            })
+        }
+        payment_types::GooglePayTokenizationType::Direct
+        | payment_types::GooglePayTokenizationType::PaymentGateway => {
+            let token_specification_type =
+                payment_types::GooglePayTokenizationSpecificationType::from(
+                    gpay_token_specific_data.tokenization_type,
+                );
+
+            let protocol_version: Option<String> = gpay_token_specific_data
+                .parameters
+                .public_key
+                .as_ref()
+                .map(|_| PROTOCOL.to_string());
+
+            Ok(payment_types::GpayTokenizationSpecification {
+                token_specification_type,
+                parameters: payment_types::GpayTokenParameters {
+                    protocol_version,
+                    public_key: gpay_token_specific_data.parameters.public_key.clone(),
+                    gateway: gpay_token_specific_data.parameters.gateway.clone(),
+                    gateway_merchant_id: gpay_token_specific_data
+                        .parameters
+                        .gateway_merchant_id
+                        .clone()
+                        .expose_option(),
+                    stripe_publishable_key: gpay_token_specific_data
+                        .parameters
+                        .stripe_publishable_key
+                        .clone()
+                        .expose_option(),
+                    stripe_version: gpay_token_specific_data
+                        .parameters
+                        .stripe_version
+                        .clone()
+                        .expose_option(),
+                },
+            })
+        }
+    }
+}
+
+/// Google Pay merchant id sent back to the SDK.
+///
+/// Under `INTERNAL_GATEWAY` the merchant chooses whether to register with the Google Pay Business
+/// Console itself. If it did, its own id is used exactly as under `DIRECT`; if it did not, the
+/// common Hyperswitch merchant id from config is substituted. Both are supported configurations.
+///
+/// Never applied to `DIRECT` or `PAYMENT_GATEWAY`: substituting our merchant id into a merchant's
+/// own integration would change who Google treats as the merchant of record.
+fn resolve_google_pay_merchant_id(
+    state: &routes::SessionState,
+    merchant_info: &payment_types::GooglePayMerchantInfo,
+) -> Option<String> {
+    match merchant_info.merchant_id.clone() {
+        Some(merchant_id) => Some(merchant_id),
+        None => match merchant_info.tokenization_specification.tokenization_type {
+            payment_types::GooglePayTokenizationType::InternalGateway => {
+                match state
+                    .conf
+                    .google_pay_decrypt_keys
+                    .as_ref()
+                    .and_then(|google_pay_keys| {
+                        google_pay_keys
+                            .get_inner()
+                            .google_pay_common_merchant_id
+                            .clone()
+                    })
+                    .map(|merchant_id| merchant_id.expose())
+                {
+                    Some(common_merchant_id) => Some(common_merchant_id),
+                    None => {
+                        logger::warn!(
+                            "google_pay_common_merchant_id is not configured and the merchant \
+                             did not supply a merchant_id, the google pay sheet will be raised \
+                             without one"
+                        );
+                        None
+                    }
+                }
+            }
+            payment_types::GooglePayTokenizationType::Direct
+            | payment_types::GooglePayTokenizationType::PaymentGateway => None,
+        },
+    }
 }
 
 fn construct_stripe_publishable_key(

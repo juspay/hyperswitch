@@ -7908,21 +7908,49 @@ async fn decrypt_google_pay_wallet_data(
             .clone(),
         payment_processing_details.google_pay_recipient_id.clone(),
         payment_processing_details.google_pay_private_key.clone(),
+        // INTERNAL_GATEWAY additionally enforces that the decrypted token's
+        // gatewayMerchantId matches the merchant being paid. Signature verification stays
+        // off, and DIRECT recipients are merchant supplied and left unverified, as today.
+        payment_processing_details.google_pay_tokenization_type,
+        payment_processing_details
+            .google_pay_gateway_merchant_id
+            .clone(),
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("failed to create google pay token decryptor")?;
 
+    let google_pay_token = google_pay_wallet_data
+        .tokenization_data
+        .get_encrypted_google_pay_token()
+        .change_context(errors::ApiErrorResponse::InternalServerError)?
+        .clone();
+
     // should_verify_token is set to false to disable verification of token
     let google_pay_data_internal = decryptor
-        .decrypt_token(
-            google_pay_wallet_data
-                .tokenization_data
-                .get_encrypted_google_pay_token()
-                .change_context(errors::ApiErrorResponse::InternalServerError)?
-                .clone(),
-            false,
-        )
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .decrypt_token(google_pay_token, false)
+        .map_err(|error| {
+            logger::warn!(?error, "failed to decrypt google pay token");
+            let api_error = match error.current_context() {
+                // The gateway merchant id carried by the token does not match the gateway
+                // merchant id configured for the merchant (or is missing from either side).
+                // Authorization was never attempted with the connector; this is a gateway
+                // configuration mismatch, so report it as an invalid request instead of a
+                // connector authorization failure.
+                errors::GooglePayDecryptionError::InvalidGatewayMerchantId => {
+                    errors::ApiErrorResponse::InvalidRequestData {
+                        message: "Failed to decrypt the Google Pay token: gateway merchant id \
+                                  in the token does not match the gateway merchant id \
+                                  configured for the merchant"
+                            .to_string(),
+                    }
+                }
+
+                // Everything else, including a recipient that does not match the configured
+                // gateway, is our own fault and stays a server error as it is today.
+                _ => errors::ApiErrorResponse::InternalServerError,
+            };
+            error.change_context(api_error)
+        })
         .attach_printable("failed to decrypt google pay token")?;
     Ok(common_types::payments::GPayPredecryptData::from(
         google_pay_data_internal,
@@ -9399,10 +9427,12 @@ fn get_google_pay_connector_wallet_details(
     state: &SessionState,
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
 ) -> Option<GooglePayPaymentProcessingDetails> {
-    let google_pay_root_signing_keys = state
+    let google_pay_decrypt_keys = state
         .conf
         .google_pay_decrypt_keys
         .as_ref()
+        .map(|google_pay_keys| google_pay_keys.get_inner());
+    let google_pay_root_signing_keys = google_pay_decrypt_keys
         .map(|google_pay_keys| google_pay_keys.google_pay_root_signing_keys.clone());
     match merchant_connector_account.get_connector_wallets_details() {
         Some(wallet_details) => {
@@ -9420,31 +9450,68 @@ fn get_google_pay_connector_wallet_details(
                     |google_pay_wallet_details| {
                         match google_pay_wallet_details.provider_details {
                             api_models::payments::GooglePayProviderDetails::GooglePayMerchantDetails(merchant_details) => {
-                                match (
-                                    merchant_details
-                                        .merchant_info
-                                        .tokenization_specification
-                                        .parameters
-                                        .private_key,
-                                    google_pay_root_signing_keys,
-                                    merchant_details
-                                        .merchant_info
-                                        .tokenization_specification
-                                        .parameters
-                                        .recipient_id,
-                                    ) {
-                                        (Some(google_pay_private_key), Some(google_pay_root_signing_keys), Some(google_pay_recipient_id)) => {
-                                            Some(GooglePayPaymentProcessingDetails {
-                                                google_pay_private_key,
-                                                google_pay_root_signing_keys,
-                                                google_pay_recipient_id
-                                            })
-                                        }
-                                        _ => {
-                                            logger::warn!("One or more of the following fields are missing in GooglePayMerchantDetails: google_pay_private_key, google_pay_root_signing_keys, google_pay_recipient_id");
-                                            None
+                                let tokenization_specification = merchant_details.merchant_info.tokenization_specification;
+
+                                match tokenization_specification.tokenization_type {
+                                    // The merchant registered no key of its own: the token is
+                                    // encrypted to Hyperswitch's gateway key, and the recipient is
+                                    // derived from the same gateway id that was sent to Google in
+                                    // the session response.
+                                    api_models::payments::GooglePayTokenizationType::InternalGateway => {
+                                        let google_pay_gateway_id = google_pay_decrypt_keys
+                                            .and_then(|google_pay_keys| google_pay_keys.google_pay_gateway_id.clone());
+                                        let google_pay_private_key = google_pay_decrypt_keys
+                                            .and_then(|google_pay_keys| google_pay_keys.google_pay_private_key.clone());
+                                        // The same merchant id that was sent to Google as
+                                        // gateway_merchant_id when the sheet was raised.
+                                        let google_pay_gateway_merchant_id = merchant_connector_account
+                                            .get_merchant_id()
+                                            .map(|merchant_id| merchant_id.get_string_repr().to_owned());
+
+                                        match (google_pay_private_key, google_pay_root_signing_keys, google_pay_gateway_id) {
+                                            (Some(google_pay_private_key), Some(google_pay_root_signing_keys), Some(google_pay_gateway_id)) => {
+                                                Some(GooglePayPaymentProcessingDetails {
+                                                    google_pay_private_key,
+                                                    google_pay_root_signing_keys,
+                                                    google_pay_recipient_id: Secret::new(format!(
+                                                        "{}{}",
+                                                        consts::GOOGLE_PAY_GATEWAY_RECIPIENT_PREFIX,
+                                                        google_pay_gateway_id
+                                                    )),
+                                                    google_pay_tokenization_type: api_models::payments::GooglePayTokenizationType::InternalGateway,
+                                                    google_pay_gateway_merchant_id,
+                                                })
+                                            }
+                                            _ => {
+                                                logger::warn!("One or more of the following fields are missing in google_pay_decrypt_keys for an INTERNAL_GATEWAY merchant: google_pay_private_key, google_pay_root_signing_keys, google_pay_gateway_id");
+                                                None
+                                            }
                                         }
                                     }
+                                    // The connector decrypts the token, Hyperswitch never sees the card.
+                                    api_models::payments::GooglePayTokenizationType::PaymentGateway => None,
+                                    api_models::payments::GooglePayTokenizationType::Direct => {
+                                        match (
+                                            tokenization_specification.parameters.private_key,
+                                            google_pay_root_signing_keys,
+                                            tokenization_specification.parameters.recipient_id,
+                                            ) {
+                                                (Some(google_pay_private_key), Some(google_pay_root_signing_keys), Some(google_pay_recipient_id)) => {
+                                                    Some(GooglePayPaymentProcessingDetails {
+                                                        google_pay_private_key,
+                                                        google_pay_root_signing_keys,
+                                                        google_pay_recipient_id,
+                                                        google_pay_tokenization_type: api_models::payments::GooglePayTokenizationType::Direct,
+                                                        google_pay_gateway_merchant_id: None,
+                                                    })
+                                                }
+                                                _ => {
+                                                    logger::warn!("One or more of the following fields are missing in GooglePayMerchantDetails: google_pay_private_key, google_pay_root_signing_keys, google_pay_recipient_id");
+                                                    None
+                                                }
+                                            }
+                                    }
+                                }
                             }
                         }
                     }
@@ -9560,6 +9627,14 @@ pub struct GooglePayPaymentProcessingDetails {
     pub google_pay_private_key: Secret<String>,
     pub google_pay_root_signing_keys: Secret<String>,
     pub google_pay_recipient_id: Secret<String>,
+    /// Tokenization type configured on the MCA. `INTERNAL_GATEWAY` additionally enforces that
+    /// the decrypted token's `gatewayMerchantId` matches the merchant being paid; signature
+    /// verification stays off, as it does for `DIRECT`, whose recipients are typed by the
+    /// merchant and are therefore left unverified.
+    pub google_pay_tokenization_type: api_models::payments::GooglePayTokenizationType,
+    /// Hyperswitch merchant id sent to Google as `gateway_merchant_id`, checked against the
+    /// decrypted token. Set for `INTERNAL_GATEWAY` only.
+    pub google_pay_gateway_merchant_id: Option<String>,
 }
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug)]
@@ -13886,6 +13961,7 @@ pub async fn payments_manual_update(
         connector_transaction_id,
         amount_capturable,
         update_amount_captured,
+        amount_captured,
     } = req;
     let key_store = state
         .store
@@ -13923,6 +13999,23 @@ pub async fn payments_manual_update(
             || {
                 Err(errors::ApiErrorResponse::InvalidRequestData {
                     message: "amount_capturable should be less than or equal to amount".to_string(),
+                })
+            },
+        )?;
+    }
+
+    if let Some(amount_captured) = amount_captured {
+        utils::when(update_amount_captured == Some(true), || {
+            Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: "amount_captured cannot be provided when update_amount_captured is true"
+                    .to_string(),
+            })
+        })?;
+        utils::when(
+            amount_captured > payment_attempt.net_amount.get_total_amount(),
+            || {
+                Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "amount_captured should be less than or equal to amount".to_string(),
                 })
             },
         )?;
@@ -13978,7 +14071,7 @@ pub async fn payments_manual_update(
             .unwrap_or(payment_attempt.net_amount.get_total_amount());
         Some(new_captured_amount)
     } else {
-        None
+        amount_captured
     };
 
     let option_gsm = if let Some(((code, message), connector_name)) = error_code

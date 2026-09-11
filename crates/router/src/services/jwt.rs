@@ -13,6 +13,10 @@ use crate::{configs::Settings, core::errors::UserErrors};
     feature = "deja",
     deja::id(component = "router::jwt", operation = "generate_exp", codec = ResultOkCodec,)
 )]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "this function IS the seam: the deja::id attribute above records and replays the absolute expiry"
+)]
 pub fn generate_exp(
     exp_duration: std::time::Duration,
 ) -> CustomResult<std::time::Duration, UserErrors> {

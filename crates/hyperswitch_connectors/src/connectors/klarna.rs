@@ -562,6 +562,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::BhnCardNetwork
                         | common_enums::PaymentMethodType::Paysera
                         | common_enums::PaymentMethodType::Skrill
+                        | common_enums::PaymentMethodType::Neteller
                         | common_enums::PaymentMethodType::ApplePay
                         | common_enums::PaymentMethodType::Atome
                         | common_enums::PaymentMethodType::Bacs
@@ -698,6 +699,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::AmazonPay
                         | common_enums::PaymentMethodType::Paysera
                         | common_enums::PaymentMethodType::Skrill
+                        | common_enums::PaymentMethodType::Neteller
                         | common_enums::PaymentMethodType::ApplePay
                         | common_enums::PaymentMethodType::Atome
                         | common_enums::PaymentMethodType::Bacs
@@ -804,6 +806,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::Flexiti
                         | common_enums::PaymentMethodType::OpenBankingPIS
                         | common_enums::PaymentMethodType::Skrill
+                        | common_enums::PaymentMethodType::Neteller
                         | common_enums::PaymentMethodType::IndonesianBankTransfer
                         | common_enums::PaymentMethodType::RevolutPay
                         | common_enums::PaymentMethodType::Breadpay
@@ -845,6 +848,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::AmazonPay
                         | common_enums::PaymentMethodType::Paysera
                         | common_enums::PaymentMethodType::Skrill
+                        | common_enums::PaymentMethodType::Neteller
                         | common_enums::PaymentMethodType::ApplePay
                         | common_enums::PaymentMethodType::Atome
                         | common_enums::PaymentMethodType::Bacs
@@ -982,6 +986,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::AmazonPay
                         | common_enums::PaymentMethodType::Paysera
                         | common_enums::PaymentMethodType::Skrill
+                        | common_enums::PaymentMethodType::Neteller
                         | common_enums::PaymentMethodType::ApplePay
                         | common_enums::PaymentMethodType::Atome
                         | common_enums::PaymentMethodType::Bacs
@@ -1091,6 +1096,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::Breadpay
                         | common_enums::PaymentMethodType::IndonesianBankTransfer
                         | common_enums::PaymentMethodType::Skrill
+                        | common_enums::PaymentMethodType::Neteller
                         | common_enums::PaymentMethodType::Payjustnow
                         | common_enums::PaymentMethodType::OpenBanking
                         | common_enums::PaymentMethodType::Payshap

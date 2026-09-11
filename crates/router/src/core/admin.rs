@@ -21,7 +21,6 @@ use hyperswitch_domain_models::merchant_connector_account::{
 };
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use pm_auth::types as pm_auth_types;
-use uuid::Uuid;
 #[cfg(feature = "olap")]
 use {
     base64::Engine,
@@ -80,7 +79,7 @@ pub fn create_merchant_publishable_key() -> String {
     format!(
         "pk_{}_{}",
         router_env::env::prefix_for_env(),
-        Uuid::new_v4().simple()
+        common_utils::generate_uuid_v4().simple()
     )
 }
 

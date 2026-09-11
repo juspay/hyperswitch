@@ -49,7 +49,6 @@ use hyperswitch_interfaces::{
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
 use hyperswitch_masking::{ExposeInterface, Mask, PeekInterface, Secret};
-use rand::distributions::{Alphanumeric, DistString};
 use ring::hmac;
 use router_env::logger;
 use transformers as rapyd;
@@ -226,7 +225,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         let timestamp = date_time::now_unix_timestamp();
-        let salt = Alphanumeric.sample_string(&mut rand::thread_rng(), 12);
+        let salt = common_utils::generate_random_alphanumeric_string(12);
 
         let auth: rapyd::RapydAuthType = rapyd::RapydAuthType::try_from(&req.connector_auth_type)?;
         let body = types::PaymentsAuthorizeType::get_request_body(self, req, connectors)?;
@@ -340,7 +339,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Ra
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         let timestamp = date_time::now_unix_timestamp();
-        let salt = Alphanumeric.sample_string(&mut rand::thread_rng(), 12);
+        let salt = common_utils::generate_random_alphanumeric_string(12);
 
         let auth: rapyd::RapydAuthType = rapyd::RapydAuthType::try_from(&req.connector_auth_type)?;
         let url_path = format!("/v1/payments/{}", req.request.connector_transaction_id);
@@ -432,7 +431,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Rap
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         let timestamp = date_time::now_unix_timestamp();
-        let salt = Alphanumeric.sample_string(&mut rand::thread_rng(), 12);
+        let salt = common_utils::generate_random_alphanumeric_string(12);
 
         let auth: rapyd::RapydAuthType = rapyd::RapydAuthType::try_from(&req.connector_auth_type)?;
         let response_id = req.request.connector_transaction_id.clone();
@@ -530,7 +529,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         let timestamp = date_time::now_unix_timestamp();
-        let salt = Alphanumeric.sample_string(&mut rand::thread_rng(), 12);
+        let salt = common_utils::generate_random_alphanumeric_string(12);
 
         let auth: rapyd::RapydAuthType = rapyd::RapydAuthType::try_from(&req.connector_auth_type)?;
         let url_path = format!(
@@ -664,7 +663,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Rapyd {
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         let timestamp = date_time::now_unix_timestamp();
-        let salt = Alphanumeric.sample_string(&mut rand::thread_rng(), 12);
+        let salt = common_utils::generate_random_alphanumeric_string(12);
 
         let body = types::RefundExecuteType::get_request_body(self, req, connectors)?;
         let req_body = body.get_inner_value().expose();

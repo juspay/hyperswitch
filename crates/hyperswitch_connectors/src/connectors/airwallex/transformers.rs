@@ -32,7 +32,6 @@ use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use url::Url;
-use uuid::Uuid;
 
 use crate::{
     types::{CreateOrderResponseRouterData, RefundsResponseRouterData, ResponseRouterData},
@@ -131,7 +130,7 @@ impl TryFrom<&AirwallexRouterData<&types::CreateOrderRouterData>> for AirwallexI
         };
 
         Ok(Self {
-            request_id: Uuid::new_v4().to_string(),
+            request_id: common_utils::generate_uuid_v4().to_string(),
             amount,
             currency,
             merchant_order_id: item.router_data.connector_request_reference_id.clone(),
@@ -664,7 +663,7 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
         };
 
         Ok(Self {
-            request_id: Uuid::new_v4().to_string(),
+            request_id: common_utils::generate_uuid_v4().to_string(),
             payment_method,
             payment_method_options,
             return_url,
@@ -958,6 +957,7 @@ fn get_wallet_details(
         | WalletData::CashappQr(_)
         | WalletData::SwishQr(_)
         | WalletData::Mifinity(_)
+        | WalletData::Neteller(_)
         | WalletData::RevolutPay(_) => Err(errors::ConnectorError::NotImplemented(
             utils::get_unimplemented_payment_method_error_message("airwallex"),
         ))?,
@@ -1014,7 +1014,7 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for AirwallexCompleteR
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCompleteAuthorizeRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
-            request_id: Uuid::new_v4().to_string(),
+            request_id: common_utils::generate_uuid_v4().to_string(),
             three_ds: AirwallexThreeDsData {
                 acs_response: item
                     .request
@@ -1046,7 +1046,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for AirwallexPaymentsCaptureRequ
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
-            request_id: Uuid::new_v4().to_string(),
+            request_id: common_utils::generate_uuid_v4().to_string(),
             amount: Some(utils::to_currency_base_unit(
                 item.request.amount_to_capture,
                 item.request.currency,
@@ -1066,7 +1066,7 @@ impl TryFrom<&types::PaymentsCancelRouterData> for AirwallexPaymentsCancelReques
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
-            request_id: Uuid::new_v4().to_string(),
+            request_id: common_utils::generate_uuid_v4().to_string(),
             cancellation_reason: item.request.cancellation_reason.clone(),
         })
     }
@@ -1639,7 +1639,7 @@ impl<F> TryFrom<&AirwallexRouterData<&types::RefundsRouterData<F>>> for Airwalle
         item: &AirwallexRouterData<&types::RefundsRouterData<F>>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            request_id: Uuid::new_v4().to_string(),
+            request_id: common_utils::generate_uuid_v4().to_string(),
             amount: Some(item.amount.to_owned()),
             reason: item.router_data.request.reason.clone(),
             payment_intent_id: item.router_data.request.connector_transaction_id.clone(),
@@ -2067,7 +2067,7 @@ impl TryFrom<&types::ConnectorCustomerRouterData> for CustomerRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::ConnectorCustomerRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
-            request_id: Uuid::new_v4().to_string(),
+            request_id: common_utils::generate_uuid_v4().to_string(),
             email: item.request.email.to_owned(),
             phone_number: item.request.phone.to_owned(),
             first_name: item.request.name.to_owned(),

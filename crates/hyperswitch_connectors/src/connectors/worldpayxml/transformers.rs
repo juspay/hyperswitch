@@ -2479,8 +2479,7 @@ where
 fn generate_jwt_for_ddc(
     metadata_for_jwt: WorldpayxmlConnectorMetadataObject,
 ) -> Result<String, errors::ConnectorError> {
-    let iat: u64 = chrono::Utc::now()
-        .timestamp()
+    let iat: u64 = common_utils::date_time::now_unix_timestamp()
         .try_into()
         .map_err(|_| errors::ConnectorError::ResponseDeserializationFailed)?;
 
@@ -2503,7 +2502,7 @@ fn generate_jwt_for_ddc(
     )?;
 
     let payload_json = DeviceDataCollectionJwt {
-        jti: uuid::Uuid::new_v4().to_string(),
+        jti: common_utils::generate_uuid_v4().to_string(),
         iat,
         iss: Secret::new(iss),
         org_unit_id: Secret::new(org_unit_id),
@@ -2532,8 +2531,7 @@ fn generate_challenge_jwt(
     return_url: String,
     metadata_for_jwt: WorldpayxmlConnectorMetadataObject,
 ) -> Result<String, errors::ConnectorError> {
-    let iat: u64 = chrono::Utc::now()
-        .timestamp()
+    let iat: u64 = common_utils::date_time::now_unix_timestamp()
         .try_into()
         .map_err(|_| errors::ConnectorError::ResponseDeserializationFailed)?;
 
@@ -2556,7 +2554,7 @@ fn generate_challenge_jwt(
     )?;
 
     let payload_json = ChallengeJwt {
-        jti: uuid::Uuid::new_v4().to_string(),
+        jti: common_utils::generate_uuid_v4().to_string(),
         iat,
         iss: Secret::new(iss),
         org_unit_id: Secret::new(org_unit_id),

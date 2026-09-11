@@ -2288,6 +2288,7 @@ impl TryFrom<&BarclaycardRouterData<&PaymentsAuthorizeRouterData>> for Barclayca
                 | WalletData::SwishQr(_)
                 | WalletData::Paysera(_)
                 | WalletData::Skrill(_)
+                | WalletData::Neteller(_)
                 | WalletData::BluecodeRedirect {}
                 | WalletData::AmazonPay(_)
                 | WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(

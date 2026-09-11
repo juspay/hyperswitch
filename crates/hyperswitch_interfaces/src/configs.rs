@@ -149,6 +149,13 @@ impl MerchantConnectorAccountType {
         None
     }
 
+    pub fn get_merchant_id(&self) -> Option<id_type::MerchantId> {
+        match self {
+            Self::DbVal(db_val) => Some(db_val.merchant_id.clone()),
+            Self::CacheVal(_) => None,
+        }
+    }
+
     #[cfg(feature = "v1")]
     pub fn get_apple_pay_certificate_cache(
         &self,
