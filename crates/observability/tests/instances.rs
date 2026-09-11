@@ -1,33 +1,3 @@
-//! The per-merchant instance and per-dimension breakdown routes, exercised through actix as the
-//! alert manager would reach them.
-//!
-//! Both resources are here because the thing worth testing is how they behave *with the
-//! announcement they hang off*: every row references `alerts_main` `ON DELETE CASCADE`, and the
-//! whole point of putting the announcement in the path is that a caller cannot get that
-//! relationship wrong.
-//!
-//! These go through the real route tree rather than calling handlers directly, for the reason
-//! `tests/lifecycle.rs` does: the guard, the path extractors and which failure is which status code
-//! all live between the handler and the caller.
-//!
-//! ## Which tests need a database
-//!
-//! The ones that need none come first: the guard, the unknown channel, and the unreadable-store
-//! answer, which is only observable with a pool that cannot connect.
-//!
-//! The rest are `#[ignore]`d, following `tests/lifecycle.rs`. Bring a database up with `just
-//! migrate_observability` and run them with:
-//!
-//! ```text
-//! cargo test -p observability --test instances -- --ignored
-//! ```
-//!
-//! **They do not need to run one at a time.** Unlike lifecycle state, which is one global resource
-//! per channel, these rows are scoped to the announcement they were written under, and every test
-//! makes its own — so each test's fixture and cleanup touch nothing another test can see.
-
-// `panic`: a test fixture handed a channel that does not exist has nothing useful to do, and
-// saying so loudly is the point.
 #![allow(
     clippy::unwrap_used,
     clippy::expect_used,
@@ -57,11 +27,8 @@ use serde_json::{json, Value};
 
 const API_KEY: &str = "test_internal_key";
 
-/// Big enough for every write these tests make, so only the tests that mean to trip the cap do.
 const GENEROUS_CAP: usize = 500;
 
-/// A pool pointing at an address nothing answers on, for the routes that must say the store is
-/// away rather than say it is empty.
 fn unreachable() -> Value {
     json!({
         "host": "127.0.0.1",
@@ -73,7 +40,6 @@ fn unreachable() -> Value {
     })
 }
 
-/// The local observability database, as `config/observability.toml` describes it.
 fn local() -> Value {
     json!({
         "host": "127.0.0.1",
@@ -137,17 +103,10 @@ fn dimensions_uri(announcement: &str) -> String {
     format!("/alerts/dimensions/{announcement}")
 }
 
-/// An id no announcement will ever have been given.
 fn absent_announcement() -> String {
     uuid::Uuid::now_v7().to_string()
 }
 
-// ---------------------------------------------------------------------------
-// Properties of the route tree, which need no database
-// ---------------------------------------------------------------------------
-
-/// Every body here parses, deliberately: actix runs the body extractor before the handler and the
-/// guard runs inside it, so an unparseable body is answered `400` without the key being checked.
 #[actix_web::test]
 async fn every_instance_route_is_behind_the_guard() {
     let announcement = absent_announcement();
@@ -173,8 +132,6 @@ async fn every_instance_route_is_behind_the_guard() {
     }
 }
 
-/// A store that could not be read is never an empty list, for the reason it is never one under
-/// `/lifecycle`: the alert manager reads "nothing here" as a fact it can act on.
 #[actix_web::test]
 async fn an_unreadable_store_is_a_503_and_never_an_empty_list() {
     let announcement = absent_announcement();
@@ -192,8 +149,6 @@ async fn an_unreadable_store_is_a_503_and_never_an_empty_list() {
     }
 }
 
-/// A channel that is neither must not fall back to one of them: slack instances written into the
-/// xyne table is not something anybody would notice quickly.
 #[actix_web::test]
 async fn an_unknown_channel_is_a_404_rather_than_a_default() {
     let announcement = absent_announcement();
@@ -219,8 +174,6 @@ async fn an_unknown_channel_is_a_404_rather_than_a_default() {
     }
 }
 
-/// A field nobody stores is a field the caller believes is being stored — `sr`, for instance,
-/// which this model deliberately replaced with the two generic metrics.
 #[actix_web::test]
 async fn an_unknown_field_is_a_400_in_our_shape() {
     let (status, body) = call(
@@ -237,11 +190,6 @@ async fn an_unknown_field_is_a_400_in_our_shape() {
     assert_eq!(body["error"]["type"], "invalid_request");
 }
 
-// ---------------------------------------------------------------------------
-// End to end against a real database
-// ---------------------------------------------------------------------------
-
-/// Record one announcement and return the id it was given.
 async fn announce(state: &AppState, channel: &str, thread: Option<&str>) -> String {
     let (status, body) = call(
         post(
@@ -263,10 +211,6 @@ async fn announce(state: &AppState, channel: &str, thread: Option<&str>) -> Stri
     body["announcement"]["id"].as_str().unwrap().to_owned()
 }
 
-/// Remove one announcement, past the API on purpose.
-///
-/// There is no route that removes one — that is the point of the cascade — so a test that wants to
-/// see the cascade has to reach the table, and so does a test that wants to clean up after itself.
 async fn forget_announcement(state: &AppState, channel: &str, announcement: &str) {
     let connection = state.database_connection().await.expect("a connection");
     let raw = connection.raw_connection();
@@ -299,7 +243,6 @@ fn merchant(id: &str, current: f64, expected: Option<f64>) -> Value {
     })
 }
 
-/// The ticket's first acceptance criterion, for instances.
 #[actix_web::test]
 #[ignore]
 async fn an_instance_round_trips_without_loss() {
@@ -374,7 +317,6 @@ async fn an_instance_round_trips_without_loss() {
         assert_eq!(stored[field], instance[field], "{field} did not survive");
     }
 
-    // The four the server owns, and the caller never sends.
     assert!(stored["id_merchant_table"].is_string());
     assert_eq!(stored["announcement_id"], announcement);
     assert_eq!(stored["ts_alert"], saved["ts_alert"]);
@@ -383,7 +325,6 @@ async fn an_instance_round_trips_without_loss() {
     forget_announcement(&state, "slack", &announcement).await;
 }
 
-/// The same criterion for the breakdown.
 #[actix_web::test]
 #[ignore]
 async fn a_dimension_round_trips_without_loss() {
@@ -431,17 +372,12 @@ async fn a_dimension_round_trips_without_loss() {
         assert_eq!(stored[field], row[field], "{field} did not survive");
     }
     assert_eq!(stored["announcement_id"], announcement);
-    // The default the column lost, supplied here.
     assert_eq!(stored["is_visible"], true);
-    // And the thread the caller did not send, taken from the announcement.
     assert_eq!(stored["ts_slack"], "1757400000.000200");
 
     forget_announcement(&state, "slack", &announcement).await;
 }
 
-/// The ticket's third acceptance criterion, and the reason the announcement is in the path rather
-/// than in the body: removing an announcement takes everything recorded about it with it, on both
-/// tables, without this API doing anything at all.
 #[actix_web::test]
 #[ignore]
 async fn removing_an_announcement_takes_its_instances_and_its_breakdown_with_it() {
@@ -492,9 +428,6 @@ async fn removing_an_announcement_takes_its_instances_and_its_breakdown_with_it(
     assert_eq!(after["dimensions"], json!([]));
 }
 
-/// The other half of the relationship: a write cannot name an announcement that does not exist.
-/// Left to the foreign key this would arrive as an opaque constraint failure naming neither the
-/// row nor the id.
 #[actix_web::test]
 #[ignore]
 async fn a_write_against_a_missing_announcement_is_refused_and_nothing_is_written() {
@@ -521,8 +454,6 @@ async fn a_write_against_a_missing_announcement_is_refused_and_nothing_is_writte
     assert_eq!(read["status"], "absent");
 }
 
-/// An announcement's instances are replaced by a write, not added to, so a rerun of the same alert
-/// manager pass records the same merchants once rather than twice.
 #[actix_web::test]
 #[ignore]
 async fn a_second_write_replaces_the_first_rather_than_doubling_it() {
@@ -555,7 +486,6 @@ async fn a_second_write_replaces_the_first_rather_than_doubling_it() {
     let (_, read) = call(get(&instances_uri("slack", &announcement)), &state).await;
     assert_eq!(read["merchants"].as_array().unwrap().len(), 2);
 
-    // And an empty write clears them, which is how an announcement stops being about anybody.
     let (status, cleared) = call(
         post(
             &instances_uri("slack", &announcement),
@@ -574,9 +504,6 @@ async fn a_second_write_replaces_the_first_rather_than_doubling_it() {
     forget_announcement(&state, "slack", &announcement).await;
 }
 
-/// The `_xyne` twin is a different channel's table, not a different view of the same one — and its
-/// announcements live in a different table too, so an id from one channel is not an id in the
-/// other.
 #[actix_web::test]
 #[ignore]
 async fn the_two_channels_hold_their_own_instances() {
@@ -602,7 +529,6 @@ async fn the_two_channels_hold_their_own_instances() {
         assert_eq!(read["merchants"][0]["merchant_id"], channel);
     }
 
-    // A slack announcement id addresses nothing in the xyne tables.
     let (status, body) = call(
         post(
             &instances_uri("xyne", &slack),
@@ -618,9 +544,6 @@ async fn the_two_channels_hold_their_own_instances() {
     forget_announcement(&state, "xyne", &xyne).await;
 }
 
-/// The decision the row cap turns on. A broad outage is when these rows matter most, so the write
-/// is cut down and stored rather than refused — and what survives is the worst of it, marked as
-/// partial on the rows themselves as well as in the response.
 #[actix_web::test]
 #[ignore]
 async fn a_breakdown_over_the_cap_is_stored_cut_down_and_says_so() {
@@ -657,8 +580,6 @@ async fn a_breakdown_over_the_cap_is_stored_cut_down_and_says_so() {
         .map(|row| row["dimension_value"].as_str().unwrap())
         .collect();
 
-    // The absolute first — it expected nothing, so it is a total failure rather than a small gap —
-    // then the widest measured gap. Scoring the absolute as `0 - 0` would have dropped it.
     assert_eq!(kept.len(), 2);
     assert!(
         kept.contains(&"zero_volume"),
@@ -669,7 +590,6 @@ async fn a_breakdown_over_the_cap_is_stored_cut_down_and_says_so() {
         "the widest gap was dropped: {kept:?}"
     );
 
-    // And every row that survived carries the fact that it is part of a partial breakdown.
     for row in read["dimensions"].as_array().unwrap() {
         let marker = &row["metadata_alert_details"]["truncated_by_impact"];
         assert_eq!(marker["received"], 4, "{row}");
@@ -680,15 +600,12 @@ async fn a_breakdown_over_the_cap_is_stored_cut_down_and_says_so() {
     forget_announcement(&capped, "slack", &announcement).await;
 }
 
-/// The defaults these columns lost, proved against the database rather than in memory: an insert
-/// missing any of them fails only here.
 #[actix_web::test]
 #[ignore]
 async fn the_defaults_the_columns_lost_are_supplied_by_the_service() {
     let state = state();
     let announcement = announce(&state, "slack", Some("1757400000.000800")).await;
 
-    // Three rows, so a missing `id_merchant_table` collides rather than merely being null.
     let (status, saved) = call(
         post(
             &instances_uri("slack", &announcement),
@@ -719,8 +636,6 @@ async fn the_defaults_the_columns_lost_are_supplied_by_the_service() {
     assert_eq!(ids.len(), 3, "two rows were written under one primary key");
 
     for row in rows {
-        // `gen_random_uuid()`, `DEFAULT TRUE` and `CURRENT_TIMESTAMP`, all gone from the column and
-        // supplied here instead.
         assert!(row["id_merchant_table"].is_string());
         assert_eq!(row["is_visible"], true, "a row was stored invisible");
         assert!(
@@ -728,9 +643,7 @@ async fn the_defaults_the_columns_lost_are_supplied_by_the_service() {
             "a row was stored without a timestamp"
         );
         assert!(row["last_updated_at"].is_string());
-        // The thread the caller never sent, taken from the announcement rather than left null.
         assert_eq!(row["ts_slack"], "1757400000.000800");
-        // And the metric nobody reported stays absent rather than becoming a healthy-looking zero.
         assert!(row["current_metric"].is_null());
         assert!(row["expected_metric"].is_null());
     }
@@ -738,9 +651,6 @@ async fn the_defaults_the_columns_lost_are_supplied_by_the_service() {
     forget_announcement(&state, "slack", &announcement).await;
 }
 
-/// An announcement that never reached a channel has no thread to lend, and an instance recorded
-/// against it stores `null` rather than being refused. The column was `NOT NULL` in the schema
-/// this model came from; it is not one here, which is what makes this expressible.
 #[actix_web::test]
 #[ignore]
 async fn an_instance_recorded_before_its_announcement_reached_a_channel_has_no_thread() {

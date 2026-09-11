@@ -48,7 +48,6 @@ impl DimensionInstance {
         .attach_printable("Error while removing alert dimension rows")
     }
 
-    // One statement for the whole batch:
     pub async fn insert_all(
         conn: &DatabaseConnectionWithContext<'_>,
         rows: Vec<Self>,

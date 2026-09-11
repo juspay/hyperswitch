@@ -1,5 +1,3 @@
-//! Handlers for per-merchant alert instances and their per-dimension breakdown.
-
 use actix_web::{web, HttpRequest, HttpResponse};
 
 use crate::{
@@ -14,13 +12,11 @@ use crate::{
     state::AppState,
 };
 
-/// `GET /alerts/instances/{channel}/{announcement_id}`.
 pub async fn read_instances(
     state: web::Data<AppState>,
     request: HttpRequest,
     path: web::Path<(String, uuid::Uuid)>,
 ) -> HttpResponse {
-    // Resolved here and carried into the closure, the way the lifecycle routes carry theirs.
     let (channel, announcement) = path.into_inner();
     let channel = Channel::from_path(&channel);
 
@@ -34,7 +30,6 @@ pub async fn read_instances(
     .await
 }
 
-/// `POST /alerts/instances/{channel}/{announcement_id}`.
 pub async fn write_instances(
     state: web::Data<AppState>,
     request: HttpRequest,
@@ -56,7 +51,6 @@ pub async fn write_instances(
     .await
 }
 
-/// `GET /alerts/dimensions/{announcement_id}`.
 pub async fn read_dimensions(
     state: web::Data<AppState>,
     request: HttpRequest,
@@ -74,7 +68,6 @@ pub async fn read_dimensions(
     .await
 }
 
-/// `POST /alerts/dimensions/{announcement_id}`.
 pub async fn write_dimensions(
     state: web::Data<AppState>,
     request: HttpRequest,

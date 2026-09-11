@@ -2,7 +2,6 @@ use diesel::{Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-/// One per-merchant alert instance, independent of the channel whose table it came from.
 #[derive(Clone, Debug, PartialEq)]
 pub struct MerchantInstanceRow {
     pub id: Option<uuid::Uuid>,
@@ -38,14 +37,12 @@ impl MerchantInstanceRow {
     }
 }
 
-// One table per delivery channel, paired with the `alerts_main` twin of the same channel through `id`, which references it and cascades on delete.
 macro_rules! merchant_instance {
     ($module:ident, $table:ident) => {
         pub mod $module {
             use super::*;
             use crate::observability::schema::$table;
 
-            // Serialize/Deserialize satisfy `DejaQueryResult`, which the query helpers require under `deja`.
             #[derive(
                 Clone,
                 Debug,

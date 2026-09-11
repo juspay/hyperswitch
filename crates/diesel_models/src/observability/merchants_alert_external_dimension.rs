@@ -4,8 +4,6 @@ use time::PrimitiveDateTime;
 
 use crate::observability::schema::merchants_alert_external_dimension;
 
-/// One row of an announcement's per-dimension breakdown.
-// Serialize/Deserialize satisfy `DejaQueryResult`, which the query helpers require under `deja`.
 #[derive(
     Clone, Debug, PartialEq, Identifiable, Insertable, Queryable, Selectable, Deserialize, Serialize,
 )]

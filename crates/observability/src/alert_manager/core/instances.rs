@@ -1,5 +1,3 @@
-//! Per-request logic for per-merchant alert instances and their per-dimension breakdown.
-
 use std::cmp::Ordering;
 
 use async_bb8_diesel::AsyncConnection;
@@ -33,16 +31,12 @@ use crate::{
     state::AppState,
 };
 
-/// `name`, `product`, `merchant_id`, `dimension_key`, `priority` and `tenant_id` are all `VARCHAR(64)`.
 const NAME_MAX_BYTES: usize = 64;
 
-/// `attribution`, `dimension_value` and `ts_slack` are all `VARCHAR(255)`.
 const VALUE_MAX_BYTES: usize = 255;
 
-/// The key a truncated write records itself under, inside `metadata_alert_details`.
 pub const TRUNCATION_KEY: &str = "truncated_by_impact";
 
-/// Every instance recorded against one announcement.
 pub async fn read_instances(
     state: AppState,
     channel: Channel,
@@ -50,7 +44,6 @@ pub async fn read_instances(
 ) -> ObservabilityApiResult<InstanceReadResponse> {
     let connection = state.database_connection().await?;
 
-    // No check that the announcement itself exists:
     let rows = store::list(&connection, channel, announcement)
         .await
         .change_context(ObservabilityError::StorageUnavailable)
@@ -62,7 +55,6 @@ pub async fn read_instances(
     })
 }
 
-/// Replace every instance recorded against one announcement, in one transaction.
 pub async fn write_instances(
     state: AppState,
     channel: Channel,
@@ -83,7 +75,6 @@ pub async fn write_instances(
         state.conf.instances.max_merchants,
     )?;
 
-    // The connection handed to the closure is another handle to the one `connection` holds, so every query issued through it below runs inside this transaction.
     let borrowed = &connection;
     let rows = plan.rows;
     let applied = borrowed
@@ -106,7 +97,6 @@ pub async fn write_instances(
     })
 }
 
-/// The whole of one announcement's dimension breakdown.
 pub async fn read_dimensions(
     state: AppState,
     announcement: uuid::Uuid,
@@ -124,7 +114,6 @@ pub async fn read_dimensions(
     })
 }
 
-/// Replace one announcement's dimension breakdown, in one transaction.
 pub async fn write_dimensions(
     state: AppState,
     announcement: uuid::Uuid,
@@ -167,19 +156,16 @@ pub async fn write_dimensions(
     })
 }
 
-/// The announcement a write hangs off, and the thread it opened.
 struct Parent {
     announcement: uuid::Uuid,
     thread: Option<String>,
 }
 
-/// What a write left behind.
 struct Applied {
     stored: usize,
     removed: usize,
 }
 
-/// Whether a read found anything.
 fn found_or_absent(rows: usize) -> ReadStatus {
     if rows == 0 {
         ReadStatus::Absent
@@ -188,7 +174,6 @@ fn found_or_absent(rows: usize) -> ReadStatus {
     }
 }
 
-/// The rows one write will store, and what it dropped to get there.
 #[derive(Debug)]
 struct InstancePlan {
     rows: Vec<MerchantInstanceRow>,
@@ -221,7 +206,6 @@ impl InstancePlan {
             .into_iter()
             .map(|write| MerchantInstanceRow {
                 id: Some(parent.announcement),
-                // Minted here:
                 id_merchant_table: uuid::Uuid::now_v7(),
                 id_intermediate: write.id_intermediate,
                 name: write.name,
@@ -229,18 +213,14 @@ impl InstancePlan {
                 merchant_id: write.merchant_id,
                 dimensions: write.dimensions,
                 auxiliary_dimensions: write.auxiliary_dimensions,
-                // Stored exactly as they arrived, absent included.
                 current_metric: write.current_metric,
                 expected_metric: write.expected_metric,
                 attribution: write.attribution,
                 max_duration: write.max_duration,
                 start_time: write.start_time,
-                // The column lost `DEFAULT TRUE`, and a row nobody can see is not what a caller that said nothing asked for.
                 is_visible: Some(write.is_visible.unwrap_or(true)),
                 recovered_ts: write.recovered_ts,
-                // The announcement's thread when the caller sent none, and `null` when the announcement has none either — an instance recorded before its announcement reached a channel has no thread to point at.
                 ts_slack: write.ts_slack.or_else(|| parent.thread.clone()),
-                // The column lost `CURRENT_TIMESTAMP`; this service's clock replaces it.
                 ts_alert: Some(now),
                 latest_ts_alert: write.latest_ts_alert,
                 last_updated_at: Some(now),
@@ -260,7 +240,6 @@ impl InstancePlan {
     }
 }
 
-/// The breakdown rows one write will store, and what it dropped to get there.
 #[derive(Debug)]
 struct DimensionPlan {
     rows: Vec<DimensionInstance>,
@@ -337,28 +316,21 @@ impl DimensionPlan {
     }
 }
 
-/// How badly one row is affected, as far as the two metrics can say.
 #[derive(Debug, PartialEq)]
 enum Impact {
-    /// The detector reported an observation and expected nothing — an absolute, which fires only on zero volume or zero success.
     Absolute,
-    /// How far the observation is from what was expected.
     Gap(f64),
-    /// Nothing was reported to compare.
     Unknown,
 }
 
-/// What a pair of metrics says about one row.
 fn impact(current: Option<f64>, expected: Option<f64>) -> Impact {
     match (current, expected) {
         (Some(current), Some(expected)) => Impact::Gap((expected - current).abs()),
         (Some(_), None) => Impact::Absolute,
-        // An expectation with nothing observed against it measures nothing.
         (None, _) => Impact::Unknown,
     }
 }
 
-/// Order two rows worst first.
 fn worst_first(left: &Impact, right: &Impact) -> Ordering {
     match (left, right) {
         (Impact::Absolute, Impact::Absolute) | (Impact::Unknown, Impact::Unknown) => {
@@ -366,12 +338,10 @@ fn worst_first(left: &Impact, right: &Impact) -> Ordering {
         }
         (Impact::Absolute, _) | (Impact::Gap(_), Impact::Unknown) => Ordering::Less,
         (_, Impact::Absolute) | (Impact::Unknown, Impact::Gap(_)) => Ordering::Greater,
-        // `total_cmp` rather than `partial_cmp`:
         (Impact::Gap(left), Impact::Gap(right)) => right.total_cmp(left),
     }
 }
 
-/// Cut a write down to the row cap, keeping the most impacted rows.
 fn keep_the_worst<T>(
     mut rows: Vec<T>,
     limit: usize,
@@ -402,7 +372,6 @@ fn keep_the_worst<T>(
     )
 }
 
-/// The marker a truncated write leaves on every row it kept.
 fn marker_for(truncation: &Truncation) -> serde_json::Value {
     serde_json::json!({
         "received": truncation.received,
@@ -411,7 +380,6 @@ fn marker_for(truncation: &Truncation) -> serde_json::Value {
     })
 }
 
-/// Add the marker to one row's `metadata_alert_details`, if there is one to add.
 fn record_truncation(
     details: Option<serde_json::Value>,
     marker: Option<&serde_json::Value>,
@@ -425,7 +393,6 @@ fn record_truncation(
             fields.insert(TRUNCATION_KEY.to_owned(), marker.clone());
             Some(serde_json::Value::Object(fields))
         }
-        // Nothing to insert into, so the caller's value is kept beside the marker rather than dropped.
         Some(other) => Some(serde_json::json!({
             TRUNCATION_KEY: marker.clone(),
             "details": other,
@@ -434,7 +401,6 @@ fn record_truncation(
     }
 }
 
-/// Check a value against its column's width.
 fn fits(value: Option<&str>, field: &'static str, max_bytes: usize) -> ObservabilityApiResult<()> {
     if let Some(value) = value {
         if value.len() > max_bytes {
@@ -450,11 +416,8 @@ fn fits(value: Option<&str>, field: &'static str, max_bytes: usize) -> Observabi
     Ok(())
 }
 
-/// Why a write did not apply.
 enum WriteFailure {
-    /// A query failed.
     Storage(error_stack::Report<diesel_models::errors::DatabaseError>),
-    /// The transaction itself failed to begin, commit or roll back.
     Transaction(diesel::result::Error),
 }
 
@@ -484,7 +447,6 @@ impl From<error_stack::Report<diesel_models::errors::DatabaseError>> for WriteFa
     }
 }
 
-/// The only code in this module that knows there are two channels.
 mod store {
     use super::{
         report, slack_instance, slack_main, xyne_instance, xyne_main, AnnouncementRow, Channel,
@@ -492,7 +454,6 @@ mod store {
         ObservabilityError, ResultExt, StorageResult,
     };
 
-    /// The announcement a write hangs off, or [`ObservabilityError::UnknownAnnouncement`].
     pub(super) async fn announcement(
         conn: &DatabaseConnectionWithContext<'_>,
         channel: Channel,
@@ -565,7 +526,6 @@ mod tests {
         }
     }
 
-    /// One affected merchant, reporting the pair of metrics a test cares about.
     fn merchant(id: &str, current: Option<f64>, expected: Option<f64>) -> MerchantInstanceWrite {
         MerchantInstanceWrite {
             id_intermediate: None,
@@ -630,9 +590,6 @@ mod tests {
             .collect()
     }
 
-    // ----------------------------------------------------------------------- The defaults these columns lost -----------------------------------------------------------------------
-
-    /// `id_merchant_table` lost `gen_random_uuid()`, so an unminted id would make every row after the first collide on the primary key — and the first one collide with the previous write.
     #[test]
     fn every_row_is_given_an_id_of_its_own() {
         let plan = InstancePlan::build(
@@ -650,7 +607,6 @@ mod tests {
         );
     }
 
-    /// `ts_alert` lost `CURRENT_TIMESTAMP` and `last_updated_at` never had one.
     #[test]
     fn every_row_is_stamped_with_the_servers_clock() {
         let at = now();
@@ -668,7 +624,6 @@ mod tests {
         }
     }
 
-    /// `is_visible` lost `DEFAULT TRUE`, and a row nobody can see is not what a caller that said nothing asked for.
     #[test]
     fn a_row_that_says_nothing_about_visibility_is_visible() {
         let mut hidden = merchant("m2", None, None);
@@ -686,7 +641,6 @@ mod tests {
         assert_eq!(plan.rows[1].is_visible, Some(false));
     }
 
-    /// The same three defaults, on the breakdown table.
     #[test]
     fn a_breakdown_row_is_given_the_same_defaults() {
         let at = now();
@@ -699,9 +653,6 @@ mod tests {
         assert_eq!(plan.rows[0].is_visible, Some(true));
     }
 
-    // ----------------------------------------------------------------------- The announcement, and the thread it opened -----------------------------------------------------------------------
-
-    /// Every row points at the announcement in the path, which is what makes the cascade the API's job rather than the caller's.
     #[test]
     fn every_row_points_at_the_announcement_it_was_written_under() {
         let parent = parent();
@@ -719,7 +670,6 @@ mod tests {
         }
     }
 
-    /// The ticket's `ts_slack` edge case.
     #[test]
     fn a_row_without_a_thread_takes_the_announcements() {
         let mut own = merchant("m2", None, None);
@@ -732,7 +682,6 @@ mod tests {
         assert_eq!(plan.rows[1].ts_slack.as_deref(), Some("1757400000.999999"));
     }
 
-    /// The other half of it:
     #[test]
     fn an_instance_recorded_before_its_announcement_has_no_thread_to_store() {
         let plan = InstancePlan::build(
@@ -749,9 +698,6 @@ mod tests {
         assert!(plan.rows[0].ts_slack.is_none());
     }
 
-    // ----------------------------------------------------------------------- Absent metrics -----------------------------------------------------------------------
-
-    /// The ticket's other edge case.
     #[test]
     fn an_absent_expected_metric_is_stored_absent_rather_than_as_zero() {
         let plan = InstancePlan::build(vec![merchant("m1", Some(0.0), None)], parent(), now(), 10)
@@ -761,9 +707,6 @@ mod tests {
         assert!(plan.rows[0].expected_metric.is_none());
     }
 
-    // ----------------------------------------------------------------------- The row cap -----------------------------------------------------------------------
-
-    /// A write that fits is stored whole, in the order it arrived, and reports no truncation at all rather than a truncation of nothing.
     #[test]
     fn a_write_inside_the_cap_is_stored_untouched() {
         let plan = InstancePlan::build(
@@ -781,7 +724,6 @@ mod tests {
         assert_eq!(merchants_of(&plan), vec!["m1", "m2"]);
     }
 
-    /// The decision this resource turns on:
     #[test]
     fn a_write_over_the_cap_keeps_the_most_impacted_rows() {
         let plan = InstancePlan::build(
@@ -807,7 +749,6 @@ mod tests {
         );
     }
 
-    /// The trap the whole ordering exists for.
     #[test]
     fn an_absolute_outranks_every_measured_gap() {
         let plan = InstancePlan::build(
@@ -825,7 +766,6 @@ mod tests {
         assert_eq!(merchants_of(&plan), vec!["zero_volume", "large_gap"]);
     }
 
-    /// And a row that reported nothing to compare is the one worth dropping when something has to be.
     #[test]
     fn a_row_that_measured_nothing_is_dropped_first() {
         let plan = InstancePlan::build(
@@ -842,7 +782,6 @@ mod tests {
         assert_eq!(merchants_of(&plan), vec!["barely"]);
     }
 
-    /// A gap is a distance, so a metric that overshot what was expected is as far out as one that fell as far short — a doubled refund rate is not a healthy row.
     #[test]
     fn impact_is_the_distance_from_what_was_expected_in_either_direction() {
         assert_eq!(impact(Some(1.0), Some(3.0)), Impact::Gap(2.0));
@@ -852,7 +791,6 @@ mod tests {
         assert_eq!(impact(None, None), Impact::Unknown);
     }
 
-    /// Two runs over the same breakdown must keep the same rows, or a dimension would flicker in and out of the record between runs for no reason anybody could see.
     #[test]
     fn rows_of_equal_impact_keep_the_order_they_arrived_in() {
         let of = |plan: &DimensionPlan| {
@@ -879,7 +817,6 @@ mod tests {
         assert_eq!(of(&build()), of(&build()));
     }
 
-    /// The other half of the decision:
     #[test]
     fn a_truncated_write_records_itself_on_every_row_it_kept() {
         let plan = DimensionPlan::build(
@@ -900,7 +837,6 @@ mod tests {
         assert_eq!(marker["dropped"], 1);
     }
 
-    /// A write that was stored whole leaves the caller's document exactly as it arrived.
     #[test]
     fn a_write_that_was_not_cut_leaves_no_marker() {
         let mut carrying = merchant("m1", None, None);
@@ -914,7 +850,6 @@ mod tests {
         );
     }
 
-    /// The marker is added to what the caller sent, never over it:
     #[test]
     fn the_marker_is_added_to_the_callers_document_rather_than_replacing_it() {
         let mut carrying = merchant("m1", Some(1.0), Some(90.0));
@@ -933,7 +868,6 @@ mod tests {
         assert_eq!(stored[TRUNCATION_KEY]["dropped"], 1);
     }
 
-    /// And a caller that sent something that is not an object keeps it, beside the marker rather than under it.
     #[test]
     fn a_document_that_is_not_an_object_is_kept_beside_the_marker() {
         let mut carrying = merchant("m1", Some(1.0), Some(90.0));
@@ -952,7 +886,6 @@ mod tests {
         assert_eq!(stored[TRUNCATION_KEY]["received"], 2);
     }
 
-    /// An empty write is a legitimate one — it clears what the announcement carried.
     #[test]
     fn a_write_carrying_nothing_stores_nothing_and_is_not_a_truncation() {
         let plan = InstancePlan::build(Vec::new(), parent(), now(), 10).unwrap();
@@ -961,9 +894,6 @@ mod tests {
         assert!(plan.truncated.is_none());
     }
 
-    // ----------------------------------------------------------------------- Column widths -----------------------------------------------------------------------
-
-    /// Postgres would reject these too, as a `22001` that arrives as an opaque failure with a `500` attached — and one over-wide row would take the whole batch with it.
     #[test]
     fn a_value_wider_than_its_column_is_rejected_before_the_query_runs() {
         let mut wide_merchant = merchant("m1", None, None);
@@ -979,7 +909,6 @@ mod tests {
         assert!(DimensionPlan::build(vec![wide_value], parent(), now(), 10).is_err());
     }
 
-    /// A row over the cap is still checked:
     #[test]
     fn a_row_that_would_be_dropped_is_still_checked() {
         let mut wide = merchant("m2", Some(89.0), Some(90.0));
@@ -994,7 +923,6 @@ mod tests {
         .is_err());
     }
 
-    /// No column here is `NOT NULL`, so an absent value is a stored fact and not a short one.
     #[test]
     fn an_absent_value_is_not_measured_against_its_column() {
         let mut bare = merchant("m1", None, None);
