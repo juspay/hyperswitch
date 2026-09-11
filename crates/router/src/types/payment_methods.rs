@@ -14,6 +14,8 @@ use router_env::logger;
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "v2")]
+use crate::routes::app::SessionState;
+#[cfg(feature = "v2")]
 use crate::types::storage;
 use crate::{
     consts,
@@ -24,6 +26,10 @@ pub trait VaultingInterface {
     fn get_vaulting_request_url() -> &'static str;
 
     fn get_vaulting_flow_name() -> &'static str;
+
+    fn supports_plain_response() -> bool {
+        false
+    }
 }
 
 #[cfg(feature = "v1")]
@@ -144,6 +150,11 @@ impl VaultingInterface for GetVaultFingerprint {
 
     fn get_vaulting_flow_name() -> &'static str {
         consts::V2_VAULT_GET_FINGERPRINT_FLOW_TYPE
+    }
+
+    // The response is only a fingerprint id.
+    fn supports_plain_response() -> bool {
+        true
     }
 }
 
@@ -574,5 +585,5 @@ pub struct PaymentMethodUpdateHandler<'a> {
     pub profile: &'a hyperswitch_domain_models::business_profile::Profile,
     pub request: hyperswitch_domain_models::payment_methods::PaymentMethodUpdate,
     pub payment_method: hyperswitch_domain_models::payment_methods::PaymentMethod,
-    pub state: &'a crate::routes::app::SessionState,
+    pub state: &'a SessionState,
 }

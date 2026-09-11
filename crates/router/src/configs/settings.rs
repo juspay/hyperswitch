@@ -1151,6 +1151,8 @@ pub struct Locker {
     pub ttl_for_storage_in_secs: i64,
     pub decryption_scheme: DecryptionScheme,
     pub create_entity_on_merchant_create: bool,
+    #[cfg(feature = "v2")]
+    pub plain_fingerprint_response: bool,
 }
 
 impl Locker {
