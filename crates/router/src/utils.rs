@@ -1,4 +1,3 @@
-pub mod chat;
 #[cfg(feature = "olap")]
 pub mod connector_onboarding;
 pub mod currency;
@@ -125,6 +124,7 @@ pub mod error_parser {
     feature = "deja",
     deja::id(component = "router::utils", operation = "generate_id", codec = SerdeCodec,)
 )]
+#[allow(clippy::disallowed_macros, reason = "this function IS the seam")]
 pub fn generate_id(length: usize, prefix: &str) -> String {
     format!("{}_{}", prefix, nanoid!(length, &consts::ALPHABETS))
 }
@@ -1502,7 +1502,7 @@ pub async fn trigger_subscriptions_outgoing_webhook(
     let created_at = subscription.created_at;
     let business_profile = profile.clone();
 
-    tokio::spawn(async move {
+    let outgoing_webhook = async move {
         Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
             cloned_state,
             platform,
@@ -1517,7 +1517,8 @@ pub async fn trigger_subscriptions_outgoing_webhook(
             business_profile,
         ))
         .await
-    });
+    };
+    tokio::spawn(outgoing_webhook.in_current_span());
 
     Ok(())
 }

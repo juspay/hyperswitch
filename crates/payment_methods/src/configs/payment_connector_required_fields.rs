@@ -182,6 +182,7 @@ enum RequiredField {
     CyptoPayCurrency(Vec<&'static str>),
     PixDocumentType(Vec<&'static str>),
     PixDocumentNumber,
+    CustomerDateOfBirth,
     BoletoSocialSecurityNumber,
     UpiCollectVpaId,
     AchBankDebitAccountNumber,
@@ -731,6 +732,17 @@ impl RequiredField {
                     required_field: "customer.document_details.document_number".to_string(),
                     display_name: "document_number".to_string(),
                     field_type: FieldType::UserSocialSecurityNumber,
+                    value: None,
+                },
+            ),
+            // Named for the customer, not the connector: unlike `MifinityDateOfBirth` the path
+            // is payment-method agnostic, so any connector that needs a date of birth reuses it.
+            Self::CustomerDateOfBirth => (
+                "customer.date_of_birth".to_string(),
+                RequiredFieldInfo {
+                    required_field: "customer.date_of_birth".to_string(),
+                    display_name: "date_of_birth".to_string(),
+                    field_type: FieldType::UserDateOfBirth,
                     value: None,
                 },
             ),
@@ -1853,7 +1865,12 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
         ),
         (
             Connector::Ilixium,
+            // Everything here is `common`, not `non_mandate`: `non_mandate` is only merged when
+            // the payment is not customer-initiated, so a save-card or
+            // `setup_future_usage = off_session` payment would collect none of these. Ilixium
+            // requires all of them on every authorisation.
             fields(
+                vec![],
                 vec![],
                 vec![
                     RequiredField::CardNumber,
@@ -1861,6 +1878,8 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
                     RequiredField::CardExpYear,
                     RequiredField::CardCvc,
                     RequiredField::Email,
+                    // Schema-mandatory. Absent, Ilixium rejects the authorisation with `VA8`.
+                    RequiredField::CustomerDateOfBirth,
                     RequiredField::BillingAddressCountries(vec!["ALL"]),
                     // Ilixium requires `customer.firstName` and `customer.surname` on every
                     // authorisation. On a 3DS payment the billing address is the *only* source:
@@ -1869,7 +1888,6 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
                     RequiredField::BillingFirstName("first_name", FieldType::UserFullName),
                     RequiredField::BillingLastName("last_name", FieldType::UserFullName),
                 ],
-                vec![],
             ),
         ),
         (
@@ -4344,5 +4362,39 @@ fn test_required_fields_to_json() {
             &default_fields,
         )
         .unwrap();
+    }
+}
+
+#[cfg(feature = "v1")]
+#[test]
+fn ilixium_collects_date_of_birth_on_every_card_payment() {
+    let ilixium = get_cards_required_fields()
+        .remove(&Connector::Ilixium)
+        .expect("Ilixium has a card required-fields entry");
+
+    // `common` is the only bucket merged for both customer-initiated and one-off payments
+    // (see `cards.rs`, which extends `common` with either `mandate` or `non_mandate`). Ilixium
+    // rejects an authorisation missing any of these, so none of them may sit in a bucket that
+    // a save-card payment would skip.
+    assert!(ilixium.mandate.is_empty());
+    assert!(ilixium.non_mandate.is_empty());
+
+    let date_of_birth = ilixium
+        .common
+        .get("customer.date_of_birth")
+        .expect("date_of_birth is schema-mandatory for Ilixium; absent, it answers VA8");
+    assert_eq!(date_of_birth.display_name, "date_of_birth");
+    assert!(matches!(
+        date_of_birth.field_type,
+        FieldType::UserDateOfBirth
+    ));
+
+    for field in [
+        "payment_method_data.card.card_number",
+        "email",
+        "billing.address.first_name",
+        "billing.address.country",
+    ] {
+        assert!(ilixium.common.contains_key(field), "missing {field}");
     }
 }

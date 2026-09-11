@@ -159,6 +159,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, TrustlyPaymentsResponse, T, PaymentsRes
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -459,14 +460,14 @@ fn get_customer_details(
                 .first_name
                 .clone()
                 .ok_or(ConnectorError::MissingRequiredField {
-                    field_name: "first_name",
+                    field_name: "first_name".into(),
                 })?
                 .expose();
             let last_name = address
                 .last_name
                 .clone()
                 .ok_or(ConnectorError::MissingRequiredField {
-                    field_name: "last_name",
+                    field_name: "last_name".into(),
                 })?
                 .expose();
 
@@ -475,7 +476,7 @@ fn get_customer_details(
     }
 
     Err(ConnectorError::MissingRequiredField {
-        field_name: "customer's first name / last name",
+        field_name: "customer's first name / last name".into(),
     })
 }
 
@@ -493,12 +494,12 @@ impl<F> TryFrom<&TrustlyRouterData<&PayoutsRouterData<F>>> for RegisterAccountRe
                         (
                             trustly_data.bank_account_number.ok_or(
                                 ConnectorError::MissingRequiredField {
-                                    field_name: "account_number",
+                                    field_name: "account_number".into(),
                                 },
                             )?,
                             trustly_data.bank_number.ok_or(
                                 ConnectorError::MissingRequiredField {
-                                    field_name: "bank_number",
+                                    field_name: "bank_number".into(),
                                 },
                             )?,
                         )
@@ -525,7 +526,7 @@ impl<F> TryFrom<&TrustlyRouterData<&PayoutsRouterData<F>>> for RegisterAccountRe
                         None
                     };
 
-                    let uuid = uuid::Uuid::new_v4().to_string();
+                    let uuid = common_utils::generate_uuid_v4().to_string();
                     let auth_details =
                         TrustlyAuthType::try_from(&item.router_data.connector_auth_type)?;
                     let private_key = auth_details.private_key.clone();
@@ -710,14 +711,14 @@ impl<F> TryFrom<&TrustlyRouterData<&PayoutsRouterData<F>>> for AccountPayoutRequ
                         TrustlyAuthType::try_from(&item.router_data.connector_auth_type)?;
 
                     let private_key = auth_details.private_key.clone();
-                    let uuid = uuid::Uuid::new_v4().to_string();
+                    let uuid = common_utils::generate_uuid_v4().to_string();
                     let account_payout_data = AccountPayoutData {
                         account_i_d: account_id.account_id,
                         amount: item.amount.clone(),
                         attributes: Some(AccountPayoutAttributes {
                             shopper_statement: item.router_data.description.clone().ok_or(
                                 ConnectorError::MissingRequiredField {
-                                    field_name: "description",
+                                    field_name: "description".into(),
                                 },
                             )?,
                         }),
@@ -879,7 +880,7 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for TrustlyPayoutSyncRequest {
         };
         let private_key = auth_details.private_key.clone();
 
-        let uuid = uuid::Uuid::new_v4().to_string();
+        let uuid = common_utils::generate_uuid_v4().to_string();
         let signature = generate_trustly_signature(
             TrustlyMethod::GetWithdrawals.as_str(),
             uuid.as_str(),

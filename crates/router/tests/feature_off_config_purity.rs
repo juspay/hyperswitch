@@ -8,7 +8,6 @@ use std::{
     io::ErrorKind,
     path::{Path, PathBuf},
     sync::atomic::{AtomicU64, Ordering},
-    time::{SystemTime, UNIX_EPOCH},
 };
 
 use router::configs::settings::Settings;
@@ -182,16 +181,15 @@ struct CleanupDir {
 
 impl CleanupDir {
     fn new() -> Self {
-        let unique_nanos = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("system clock before unix epoch")
-            .as_nanos();
+        let unique_nanos = common_utils::date_time::now()
+            .assume_utc()
+            .unix_timestamp_nanos();
 
         for _ in 0..100 {
             let unique = NEXT_TEMP_ID.fetch_add(1, Ordering::Relaxed);
+            let pid = common_utils::process_id();
             let path = std::env::temp_dir().join(format!(
-                "feature_off_config_purity-{}-{unique_nanos}-{unique}",
-                std::process::id()
+                "feature_off_config_purity-{pid}-{unique_nanos}-{unique}"
             ));
             match fs::create_dir(&path) {
                 Ok(()) => return Self { path },

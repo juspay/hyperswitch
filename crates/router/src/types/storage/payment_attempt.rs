@@ -126,7 +126,6 @@ impl AttemptStatusExt for enums::AttemptStatus {
 mod tests {
     use hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt;
     use tokio::sync::oneshot;
-    use uuid::Uuid;
 
     use crate::{
         configs::settings::Settings,
@@ -251,6 +250,7 @@ mod tests {
             installment_data: Default::default(),
             external_surcharge_details: Default::default(),
             sender_payment_instrument_id: Default::default(),
+            payment_account_reference: Default::default(),
         };
 
         let store = state
@@ -285,7 +285,7 @@ mod tests {
         let current_time = common_utils::date_time::now();
         let payment_id =
             common_utils::id_type::PaymentId::generate_test_payment_id_for_sample_data();
-        let attempt_id = Uuid::new_v4().to_string();
+        let attempt_id = common_utils::generate_uuid_v4().to_string();
         let merchant_id = common_utils::id_type::MerchantId::new_from_unix_timestamp();
         let connector = types::Connector::DummyConnector1.to_string();
 
@@ -377,6 +377,7 @@ mod tests {
             installment_data: Default::default(),
             external_surcharge_details: Default::default(),
             sender_payment_instrument_id: Default::default(),
+            payment_account_reference: Default::default(),
         };
         let store = state
             .stores
@@ -419,7 +420,7 @@ mod tests {
     /// Kind of test: state-based testing
     async fn test_payment_attempt_mandate_field() {
         let state = create_single_connection_test_transaction_pool().await;
-        let uuid = Uuid::new_v4().to_string();
+        let uuid = common_utils::generate_uuid_v4().to_string();
         let merchant_id =
             common_utils::id_type::MerchantId::try_from(std::borrow::Cow::from("merchant1"))
                 .unwrap();
@@ -517,6 +518,7 @@ mod tests {
             installment_data: Default::default(),
             external_surcharge_details: Default::default(),
             sender_payment_instrument_id: Default::default(),
+            payment_account_reference: Default::default(),
         };
         let store = state
             .stores

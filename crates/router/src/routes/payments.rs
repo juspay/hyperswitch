@@ -191,8 +191,9 @@ pub async fn payments_create(
 
                 let response = result?;
 
-                // Enrichment cores are called directly, not via `server_wrap`: both flows share
-                // `ApiIdentifier::Payments`, so a nested wrap would deadlock on this request's lock.
+                // Invoked directly, not through `server_wrap`: both flows map to
+                // `ApiIdentifier::Payments`, so a nested wrap would deadlock on the lock this
+                // request already holds.
                 let enrich_payment = |mut payment: payment_types::PaymentsResponse| async {
                     if let Some((state, req_state, platform, profile_id, header_payload)) =
                         enrichment_inputs
@@ -989,8 +990,8 @@ pub async fn payments_update(
 
     let integration_type = update_intent::integration_type_from_headers(req.headers());
 
-    // Gated on merchant auth too: the enrichment runs as `AuthFlow::Merchant` and skips
-    // client-secret validation, so a client-authenticated caller cannot opt in via the header.
+    // Gated on merchant auth too: this route also accepts publishable-key + client-secret, and
+    // the enrichment runs as `AuthFlow::Merchant`, so a client caller must not opt in by header.
     let enrich = integration_type.is_server() && auth_flow == api::AuthFlow::Merchant;
 
     Box::pin(api::server_wrap(
@@ -1038,8 +1039,9 @@ pub async fn payments_update(
                 ))
                 .await?;
 
-                // Enrichment cores are called directly, not via `server_wrap`: both flows share
-                // `ApiIdentifier::Payments`, so a nested wrap would deadlock on this request's lock.
+                // Invoked directly, not through `server_wrap`: both flows map to
+                // `ApiIdentifier::Payments`, so a nested wrap would deadlock on the lock this
+                // request already holds.
                 let enrich_payment = |mut payment: payment_types::PaymentsResponse| async {
                     if let Some((state, req_state, platform, profile_id, header_payload)) =
                         enrichment_inputs
@@ -1123,7 +1125,7 @@ pub async fn payments_post_session_tokens(
                     .map(|client_secret| client_secret.peek())
                     .check_value_present("client_secret")
                     .map_err(|_| errors::ApiErrorResponse::MissingRequiredField {
-                        field_name: "client_secret",
+                        field_name: "client_secret".into(),
                     }) {
                     Ok(_) => {}
                     Err(err) => return api::log_and_return_error_response(report!(err)),
@@ -1440,7 +1442,7 @@ pub async fn payments_dynamic_tax_calculation(
                     .map(|client_secret| client_secret.peek())
                     .check_value_present("client_secret")
                     .map_err(|_| errors::ApiErrorResponse::MissingRequiredField {
-                        field_name: "client_secret",
+                        field_name: "client_secret".into(),
                     }) {
                     Ok(_) => {}
                     Err(err) => return api::log_and_return_error_response(report!(err)),
@@ -1596,7 +1598,7 @@ pub async fn payments_connector_session(
                     .client_secret
                     .check_value_present("client_secret")
                     .map_err(|_| errors::ApiErrorResponse::MissingRequiredField {
-                        field_name: "client_secret",
+                        field_name: "client_secret".into(),
                     }) {
                     Ok(_) => {}
                     Err(err) => return api::log_and_return_error_response(report!(err)),
@@ -3166,7 +3168,7 @@ pub async fn payments_external_authentication(
                     .map(|client_secret| client_secret.peek())
                     .check_value_present("client_secret")
                     .map_err(|_| errors::ApiErrorResponse::MissingRequiredField {
-                        field_name: "client_secret",
+                        field_name: "client_secret".into(),
                     }) {
                     Ok(_) => {}
                     Err(err) => return api::log_and_return_error_response(report!(err)),

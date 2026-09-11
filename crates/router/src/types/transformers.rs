@@ -20,6 +20,8 @@ use hyperswitch_domain_models::{mandates, payments::payment_intent::CustomerData
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 
 use super::domain;
+#[cfg(feature = "olap")]
+use crate::core::webhooks::utils::redact_header_values;
 #[cfg(feature = "v2")]
 use crate::db::storage::revenue_recovery_redis_operation;
 use crate::{
@@ -317,6 +319,7 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::Venmo
             | api_enums::PaymentMethodType::Mifinity
             | api_enums::PaymentMethodType::RevolutPay
+            | api_enums::PaymentMethodType::Neteller
             | api_enums::PaymentMethodType::Bluecode => Self::Wallet,
             api_enums::PaymentMethodType::Affirm
             | api_enums::PaymentMethodType::Alma
@@ -465,8 +468,9 @@ impl ForeignTryFrom<api_models::webhooks::IncomingWebhookEvent> for storage_enum
         match value {
             api_models::webhooks::IncomingWebhookEvent::RefundSuccess => Ok(Self::Success),
             api_models::webhooks::IncomingWebhookEvent::RefundFailure => Ok(Self::Failure),
+            api_models::webhooks::IncomingWebhookEvent::RefundReview => Ok(Self::ManualReview),
             _ => Err(errors::ValidationError::IncorrectValueProvided {
-                field_name: "incoming_webhook_event_type",
+                field_name: "incoming_webhook_event_type".into(),
             }),
         }
     }
@@ -482,7 +486,7 @@ impl ForeignTryFrom<api_models::webhooks::IncomingWebhookEvent> for api_enums::R
             api_models::webhooks::IncomingWebhookEvent::RefundSuccess => Ok(Self::Success),
             api_models::webhooks::IncomingWebhookEvent::RefundFailure => Ok(Self::Failure),
             _ => Err(errors::ValidationError::IncorrectValueProvided {
-                field_name: "incoming_webhook_event_type",
+                field_name: "incoming_webhook_event_type".into(),
             }),
         }
     }
@@ -504,7 +508,7 @@ impl ForeignTryFrom<api_models::webhooks::IncomingWebhookEvent> for storage_enum
             api_models::webhooks::IncomingWebhookEvent::PayoutExpired => Ok(Self::Expired),
             api_models::webhooks::IncomingWebhookEvent::PayoutReversed => Ok(Self::Reversed),
             _ => Err(errors::ValidationError::IncorrectValueProvided {
-                field_name: "incoming_webhook_event_type",
+                field_name: "incoming_webhook_event_type".into(),
             }),
         }
     }
@@ -520,7 +524,7 @@ impl ForeignTryFrom<api_models::webhooks::IncomingWebhookEvent> for storage_enum
             api_models::webhooks::IncomingWebhookEvent::MandateActive => Ok(Self::Active),
             api_models::webhooks::IncomingWebhookEvent::MandateRevoked => Ok(Self::Revoked),
             _ => Err(errors::ValidationError::IncorrectValueProvided {
-                field_name: "incoming_webhook_event_type",
+                field_name: "incoming_webhook_event_type".into(),
             }),
         }
     }
@@ -718,7 +722,7 @@ impl ForeignTryFrom<api_models::webhooks::IncomingWebhookEvent> for storage_enum
             api_models::webhooks::IncomingWebhookEvent::DisputeWon => Ok(Self::DisputeWon),
             api_models::webhooks::IncomingWebhookEvent::DisputeLost => Ok(Self::DisputeLost),
             _ => Err(errors::ValidationError::IncorrectValueProvided {
-                field_name: "incoming_webhook_event",
+                field_name: "incoming_webhook_event".into(),
             }),
         }
     }
@@ -983,7 +987,7 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
                         .clone()
                         .parse_value("FrmConfigs")
                         .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-                            field_name: "frm_configs".to_string(),
+                            field_name: "frm_configs".into(),
                             expected_format: r#"[{ "gateway": "stripe", "payment_methods": [{ "payment_method": "card","payment_method_types": [{"payment_method_type": "credit","card_networks": ["Visa"],"flow": "pre","action": "cancel_txn"}]}]}]"#.to_string(),
                         })
                     })
@@ -1058,7 +1062,7 @@ impl ForeignTryFrom<domain::MerchantConnectorAccountWithoutEncrypted>
                         .clone()
                         .parse_value("FrmConfigs")
                         .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-                            field_name: "frm_configs".to_string(),
+                            field_name: "frm_configs".into(),
                             expected_format: r#"[{ "gateway": "stripe", "payment_methods": [{ "payment_method": "card","payment_method_types": [{"payment_method_type": "credit","card_networks": ["Visa"],"flow": "pre","action": "cancel_txn"}]}]}]"#.to_string(),
                         })
                     })
@@ -1130,7 +1134,7 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
                         .clone()
                         .parse_value("FrmConfigs")
                         .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-                            field_name: "frm_configs".to_string(),
+                            field_name: "frm_configs".into(),
                             expected_format: r#"[{ "gateway": "stripe", "payment_methods": [{ "payment_method": "card","payment_method_types": [{"payment_method_type": "credit","card_networks": ["Visa"],"flow": "pre","action": "cancel_txn"}]}]}]"#.to_string(),
                         })
                     })
@@ -1317,7 +1321,7 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
                         .clone()
                         .parse_value("FrmConfigs")
                         .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-                            field_name: "frm_configs".to_string(),
+                            field_name: "frm_configs".into(),
                             expected_format: r#"[{ "gateway": "stripe", "payment_methods": [{ "payment_method": "card","payment_method_types": [{"payment_method_type": "credit","card_networks": ["Visa"],"flow": "pre","action": "cancel_txn"}]}]}]"#.to_string(),
                         })
                     })
@@ -1813,13 +1817,13 @@ impl
                     .clone()
                     .parse_value::<CustomerData>("CustomerData")
                     .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "customer_details",
+                        field_name: "customer_details".into(),
                     })
                     .attach_printable("Failed to parse customer_details")
             })
             .transpose()
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "customer_details",
+                field_name: "customer_details".into(),
             })?;
 
         let mut billing_address = billing
@@ -1887,6 +1891,7 @@ impl
                 }),
             customer: Some(CustomerDetails {
                 name: None,
+                date_of_birth: None,
                 email: None,
                 phone: None,
                 id: None,
@@ -2239,12 +2244,20 @@ impl TryFrom<domain::EventWithDeliverySuccessSource>
 }
 
 #[cfg(feature = "olap")]
-impl TryFrom<domain::EventWithDeliverySuccessSource>
-    for api_models::webhook_events::EventRetrieveResponse
+impl
+    ForeignTryFrom<(
+        domain::EventWithDeliverySuccessSource,
+        Option<&std::collections::HashSet<String>>,
+    )> for api_models::webhook_events::EventRetrieveResponse
 {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
-    fn try_from(value: domain::EventWithDeliverySuccessSource) -> Result<Self, Self::Error> {
+    fn foreign_try_from(
+        (value, sensitive_header_names): (
+            domain::EventWithDeliverySuccessSource,
+            Option<&std::collections::HashSet<String>>,
+        ),
+    ) -> Result<Self, Self::Error> {
         use crate::utils::OptionExt;
 
         let item = value.event.clone();
@@ -2254,7 +2267,7 @@ impl TryFrom<domain::EventWithDeliverySuccessSource>
         // We cannot retrieve events with only some of these fields populated.
         let event_information = api_models::webhook_events::EventListItemResponse::try_from(value)?;
 
-        let request = item
+        let mut request: api_models::webhook_events::OutgoingWebhookRequestContent = item
             .request
             .get_required_value("request")
             .change_context(errors::ApiErrorResponse::InternalServerError)?
@@ -2262,7 +2275,7 @@ impl TryFrom<domain::EventWithDeliverySuccessSource>
             .parse_struct("OutgoingWebhookRequestContent")
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse webhook event request information")?;
-        let response = item
+        let mut response: api_models::webhook_events::OutgoingWebhookResponseContent = item
             .response
             .get_required_value("response")
             .change_context(errors::ApiErrorResponse::InternalServerError)?
@@ -2270,6 +2283,13 @@ impl TryFrom<domain::EventWithDeliverySuccessSource>
             .parse_struct("OutgoingWebhookResponseContent")
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse webhook event response information")?;
+
+        // The persisted event retains the original header values, which webhook retries reuse.
+        // The keys are masked only in the response
+        redact_header_values(&mut request.headers, sensitive_header_names);
+        if let Some(headers) = response.headers.as_mut() {
+            redact_header_values(headers, sensitive_header_names);
+        }
 
         Ok(Self {
             event_information,
@@ -2542,6 +2562,9 @@ impl ForeignFrom<api_models::admin::WebhookDetails>
             payment_statuses_enabled: item.payment_statuses_enabled,
             refund_statuses_enabled: item.refund_statuses_enabled,
             payout_statuses_enabled: item.payout_statuses_enabled,
+            dispute_statuses_enabled: item.dispute_statuses_enabled,
+            mandate_statuses_enabled: item.mandate_statuses_enabled,
+            invoice_statuses_enabled: item.invoice_statuses_enabled,
             multiple_webhooks_list: None,
         }
     }
@@ -2562,6 +2585,9 @@ impl ForeignFrom<diesel_models::business_profile::WebhookDetails>
             payment_statuses_enabled: item.payment_statuses_enabled,
             refund_statuses_enabled: item.refund_statuses_enabled,
             payout_statuses_enabled: item.payout_statuses_enabled,
+            dispute_statuses_enabled: item.dispute_statuses_enabled,
+            mandate_statuses_enabled: item.mandate_statuses_enabled,
+            invoice_statuses_enabled: item.invoice_statuses_enabled,
         }
     }
 }
@@ -2858,6 +2884,9 @@ impl ForeignFrom<&revenue_recovery_redis_operation::PaymentProcessorTokenStatus>
             card_issuer: card_info.card_issuer.to_owned(),
             card_network: card_info.card_network.to_owned(),
             card_type: card_info.card_type.to_owned(),
+            card_subtype: None,
+            card_segment_type: None,
+            funding_source: None,
             card_issuing_country: None,
             card_issuing_country_code: None,
             bank_code: None,
@@ -2882,7 +2911,7 @@ impl ForeignTryFrom<storage::CardIssuer> for card_issuer_types::CardIssuerRespon
     fn foreign_try_from(from: storage::CardIssuer) -> Result<Self, Self::Error> {
         let issuer_name = CardIssuerName::try_new(from.issuer_name).change_context(
             errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "issuer_name",
+                field_name: "issuer_name".into(),
             },
         )?;
         Ok(Self {

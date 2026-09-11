@@ -19,6 +19,7 @@ use super::amount;
 pub enum OfferEngineCredentialSource {
     None,
     Application,
+    Merchant,
 }
 
 #[derive(Debug, Clone)]
@@ -32,6 +33,8 @@ pub struct ResolvedOfferEngineConfig {
 pub enum OfferEngineError {
     #[error("Offer Engine application config is missing or invalid: {0}")]
     MissingApplicationConfig(String),
+    #[error("Offer Engine merchant config is missing or invalid: {0}")]
+    MissingMerchantConfig(String),
     #[error("Offer Engine request failed")]
     RequestFailed,
     #[error("Failed to parse Offer Engine response")]
@@ -141,6 +144,8 @@ pub struct OfferDescription {
     pub title: Option<String>,
     #[serde(default)]
     pub description: Option<String>,
+    #[serde(default)]
+    pub display_title: Option<String>,
 }
 
 /// Request body for `/offers/apply`.
@@ -284,5 +289,104 @@ impl OfferApplyResponse {
             offer_id: applied.offer_id.clone(),
             offer_amount,
         })
+    }
+}
+
+/// Transaction status reported to Offer Engine when revoking an applied offer; currently always `FAILURE`, the only valid revoke transition from the post-`/apply` `PENDING` state.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
+pub enum OfferTxnStatus {
+    #[default]
+    #[serde(rename = "FAILURE")]
+    Failure,
+}
+
+/// Per-offer status reported alongside a notification; `/apply` already availed the offer, so this only ever revokes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+pub enum OfferNotifyStatus {
+    #[serde(rename = "REVOKED")]
+    Revoked,
+}
+
+/// A single offer's outcome inside a notification.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct OfferNotifyOffer {
+    pub offer_id: String,
+    pub status: OfferNotifyStatus,
+    pub error_code: Option<String>,
+    pub error_message: Option<String>,
+}
+
+/// Request body for `/offers/notify`.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct OfferNotifyRequest {
+    pub order_id: String,
+    pub txn_id: String,
+    pub txn_status: OfferTxnStatus,
+    pub merchant_id: String,
+    pub offers: Vec<OfferNotifyOffer>,
+    pub refund_id: Option<String>,
+}
+
+/// Response marker for `/offers/notify`; a 2xx is treated as delivered.
+pub struct OfferNotifyResponse;
+
+/// Browse request to Offer Engine. Carries no `order`: Offer Engine requires an amount inside
+/// an `order` once one is present, and browse has no order. The merchant comes from the API key.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct BrowseOfferListRequest {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub currency: Option<common_enums::Currency>,
+}
+
+/// Browse response from Offer Engine
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct BrowseOfferListResponse {
+    #[serde(default)]
+    pub offers: Vec<BrowseOfferListEntry>,
+}
+
+/// A per-offer entry in a browse response.
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct BrowseOfferListEntry {
+    pub status: OfferStatus,
+    pub offer_code: String,
+    pub offer_description: Option<OfferDescription>,
+    pub offer_rules: Option<BrowseOfferRules>,
+    // Offer Engine names the validity window `start_time_utc`/`end_time_utc`; only the end is
+    // surfaced, as `valid_till`.
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub end_time_utc: Option<time::PrimitiveDateTime>,
+}
+
+/// The subset of `offer_rules` browse reads; the currency lives under `amount`.
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct BrowseOfferRules {
+    pub amount: Option<BrowseOfferAmount>,
+}
+
+/// The subset of `offer_rules.amount` browse reads.
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct BrowseOfferAmount {
+    pub currency: Option<common_enums::Currency>,
+}
+
+impl From<BrowseOfferListEntry> for api_models::offer_engine::BrowseOffer {
+    fn from(entry: BrowseOfferListEntry) -> Self {
+        let (title, description, display_title) =
+            entry.offer_description.map_or((None, None, None), |value| {
+                (value.title, value.description, value.display_title)
+            });
+
+        Self {
+            code: entry.offer_code,
+            title,
+            display_title,
+            description,
+            currency: entry
+                .offer_rules
+                .and_then(|rules| rules.amount)
+                .and_then(|amount| amount.currency),
+            valid_till: entry.end_time_utc,
+        }
     }
 }

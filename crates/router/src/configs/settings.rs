@@ -43,7 +43,6 @@ pub use payment_methods::configs::{
     },
     AuthenticationServiceConfig, MicroServicesConfig,
 };
-use rand::seq::IteratorRandom;
 use redis_interface::RedisSettings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use rust_decimal::Decimal;
@@ -82,7 +81,6 @@ pub struct Settings<S: SecretState> {
     pub application_source: common_enums::ApplicationSource,
     pub proxy: Proxy,
     pub env: Env,
-    pub chat: SecretStateContainer<ChatSettings, S>,
     pub sage: SecretStateContainer<SageSettings, S>,
     pub master_database: SecretStateContainer<Database, S>,
     /// Falls back to `master_database` when not configured.
@@ -139,6 +137,7 @@ pub struct Settings<S: SecretState> {
     pub webhook_source_verification_call: WebhookSourceVerificationCall,
     pub billing_connectors_payment_sync: BillingConnectorPaymentsSyncCall,
     pub billing_connectors_invoice_sync: BillingConnectorInvoiceSyncCall,
+    pub billing_connectors_dispute_record_back: BillingConnectorDisputeRecordBackCall,
     pub payment_method_auth: SecretStateContainer<PaymentMethodAuth, S>,
     pub connector_request_reference_id_config: ConnectorRequestReferenceIdConfig,
     #[cfg(feature = "payouts")]
@@ -148,7 +147,7 @@ pub struct Settings<S: SecretState> {
     pub debit_routing_config: DebitRoutingConfig,
     pub applepay_decrypt_keys: SecretStateContainer<ApplePayDecryptConfig, S>,
     pub paze_decrypt_keys: Option<SecretStateContainer<PazeDecryptConfig, S>>,
-    pub google_pay_decrypt_keys: Option<GooglePayDecryptConfig>,
+    pub google_pay_decrypt_keys: Option<SecretStateContainer<GooglePayDecryptConfig, S>>,
     pub multiple_api_version_supported_connectors: MultipleApiVersionSupportedConnectors,
     pub applepay_merchant_configs: SecretStateContainer<ApplepayMerchantConfigs, S>,
     pub lock_settings: LockSettings,
@@ -480,14 +479,6 @@ pub struct Platform {
 
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
-pub struct ChatSettings {
-    pub enabled: bool,
-    pub hyperswitch_ai_host: String,
-    pub encryption_key: Secret<String>,
-}
-
-#[derive(Debug, Deserialize, Clone, Default)]
-#[serde(default)]
 pub struct SageSettings {
     pub enabled: bool,
     pub base_url: String,
@@ -708,8 +699,8 @@ pub struct ForexApi {
 #[derive(Debug, Deserialize, Clone)]
 pub struct OfferEngineConfig {
     pub base_url: url::Url,
-    pub api_key: Secret<String>,
-    pub merchant_id: String,
+    pub api_key: Option<Secret<String>>,
+    pub merchant_id: Option<String>,
 }
 
 impl OfferEngineConfig {
@@ -719,18 +710,28 @@ impl OfferEngineConfig {
                 "offer_engine.base_url must end with a trailing slash".into(),
             ))
         })?;
-        common_utils::fp_utils::when(self.api_key.peek().is_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "offer_engine.api_key must not be empty".into(),
-            ))
-        })?;
-        common_utils::fp_utils::when(self.merchant_id.is_empty(), || {
-            Err(error_stack::Report::from(
-                ApplicationError::InvalidConfigurationValueError(
-                    "offer_engine.merchant_id must not be empty".into(),
-                ),
-            ))
-        })
+        common_utils::fp_utils::when(
+            self.api_key
+                .as_ref()
+                .is_some_and(|api_key| api_key.peek().is_empty()),
+            || {
+                Err(ApplicationError::InvalidConfigurationValueError(
+                    "offer_engine.api_key must not be empty".into(),
+                ))
+            },
+        )?;
+        common_utils::fp_utils::when(
+            self.merchant_id
+                .as_ref()
+                .is_some_and(|merchant_id| merchant_id.is_empty()),
+            || {
+                Err(error_stack::Report::from(
+                    ApplicationError::InvalidConfigurationValueError(
+                        "offer_engine.merchant_id must not be empty".into(),
+                    ),
+                ))
+            },
+        )
     }
 }
 
@@ -1063,13 +1064,80 @@ impl OidcSettings {
         self.client.values().find(|c| c.client_id == client_id)
     }
 
+    // deja: split out of get_signing_key so the sort's property — candidate
+    // order follows the key set's content, not which `HashMap` instance holds
+    // it — is testable without pinning the draw. See the tests below.
+    fn sorted_key_ids(&self) -> Vec<&String> {
+        // `HashMap` iteration is seeded per process, so seaming the draw alone
+        // is not enough — a recorded index would select a different key on
+        // replay. Sorting gives the index a stable meaning.
+        let mut key_ids: Vec<&String> = self.key.keys().collect();
+        key_ids.sort_unstable();
+        key_ids
+    }
+
     pub fn get_signing_key(&self) -> Option<&OidcKey> {
-        let mut rng = rand::thread_rng();
-        self.key.values().choose_stable(&mut rng)
+        let key_ids = self.sorted_key_ids();
+
+        let index = common_utils::generate_random_index(key_ids.len())?;
+        self.key.get(key_ids.get(index).copied()?)
     }
 
     pub fn get_all_keys(&self) -> Vec<&OidcKey> {
         self.key.values().collect()
+    }
+}
+
+#[cfg(test)]
+mod oidc_signing_key_tests {
+    use std::collections::HashMap;
+
+    use hyperswitch_masking::Secret;
+
+    use super::{OidcClient, OidcKey, OidcSettings};
+
+    fn oidc_key(kid: &str) -> OidcKey {
+        OidcKey {
+            kid: kid.to_string(),
+            private_key: Secret::new(String::new()),
+        }
+    }
+
+    fn oidc_settings_with_keys(kids: &[&str]) -> OidcSettings {
+        OidcSettings {
+            key: kids
+                .iter()
+                .map(|kid| (kid.to_string(), oidc_key(kid)))
+                .collect::<HashMap<String, OidcKey>>(),
+            client: HashMap::<String, OidcClient>::new(),
+        }
+    }
+
+    // deja: a replay reproduces `self.key`'s content from config, not its
+    // iteration order -- `HashMap`'s hasher is seeded per instance, so two
+    // `OidcSettings` built from the same config data can iterate their keys
+    // in a different order. `get_signing_key` sorts before drawing so the
+    // recorded index still names the same key; that is the property this
+    // test asserts, and it is not visible from either single call's result
+    // shape alone. If the sort in `sorted_key_ids` is ever dropped, two
+    // independently-constructed instances holding the same key set resolve
+    // their candidate order from raw hasher-seeded iteration, which very
+    // reliably differs across instances for a set this size -- so this
+    // assertion fails on that regression rather than passing by accident.
+    #[test]
+    fn signing_key_order_is_independent_of_which_hashmap_instance_holds_it() {
+        let kids = ["a", "m", "z", "b", "y", "c", "x", "d", "w", "e"];
+
+        let first = oidc_settings_with_keys(&kids);
+        let second = oidc_settings_with_keys(&kids);
+
+        assert_eq!(
+            first.sorted_key_ids(),
+            second.sorted_key_ids(),
+            "the same signing-key set, built as two separate HashMap instances, \
+             produced a different candidate order -- a recorded index would no \
+             longer name the same key on replay"
+        );
     }
 }
 
@@ -1318,6 +1386,12 @@ pub struct BillingConnectorInvoiceSyncCall {
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
+pub struct BillingConnectorDisputeRecordBackCall {
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub billing_connectors_which_requires_dispute_record_back_call: HashSet<enums::Connector>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct ApplePayDecryptConfig {
     pub apple_pay_ppc: Secret<String>,
     pub apple_pay_ppc_key: Secret<String>,
@@ -1334,6 +1408,17 @@ pub struct PazeDecryptConfig {
 #[derive(Debug, Deserialize, Clone)]
 pub struct GooglePayDecryptConfig {
     pub google_pay_root_signing_keys: Secret<String>,
+    /// Private key of Hyperswitch's own registered Google Pay gateway. Used by the
+    /// `INTERNAL_GATEWAY` tokenization flow, where the merchant registers no key of its own.
+    pub google_pay_private_key: Option<Secret<String>>,
+    /// Google Pay Business Console merchant id used when an `INTERNAL_GATEWAY` merchant chooses
+    /// not to supply one of its own. Not secret managed: it is sent to the SDK in the session
+    /// response.
+    pub google_pay_common_merchant_id: Option<Secret<String>>,
+    /// Gateway identifier registered with Google, sent as
+    /// `tokenizationSpecification.parameters.gateway` and used to derive the `gateway:<id>`
+    /// recipient the token is signed against.
+    pub google_pay_gateway_id: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -1520,7 +1605,6 @@ impl Settings<SecuredSecret> {
         self.secrets.get_inner().validate()?;
         self.locker.validate()?;
         self.connectors.validate("connectors")?;
-        self.chat.get_inner().validate()?;
         self.sage.get_inner().validate()?;
         self.cors.validate()?;
 
@@ -1580,7 +1664,7 @@ impl Settings<SecuredSecret> {
 
         self.google_pay_decrypt_keys
             .as_ref()
-            .map(|x| x.validate())
+            .map(|x| x.get_inner().validate())
             .transpose()?;
 
         self.key_manager.get_inner().validate()?;

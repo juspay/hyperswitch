@@ -6570,6 +6570,55 @@
         ]
       }
     },
+    "/offer_engine/offers/list": {
+      "post": {
+        "tags": [
+          "Offers"
+        ],
+        "summary": "Offers - Browse",
+        "description": "Lists the offers currently available to the merchant. Offers that are not eligible are\nexcluded, so the response contains only offers that can be used.",
+        "operationId": "Browse offers",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BrowseOffersRequest"
+              },
+              "examples": {
+                "Browse offers for a currency": {
+                  "value": {
+                    "offer_payment_info": {
+                      "currency": "USD"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Offers available to the merchant",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowseOffersResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Offer Engine is not enabled for this merchant"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/blocklist": {
       "delete": {
         "tags": [
@@ -6757,6 +6806,104 @@
         ]
       }
     },
+    "/blocklist/count": {
+      "get": {
+        "tags": [
+          "Blocklist"
+        ],
+        "operationId": "Count blocked fingerprints of a particular kind",
+        "parameters": [
+          {
+            "name": "data_kind",
+            "in": "query",
+            "description": "Kind of blocklist entries to count",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/BlocklistDataKind"
+            }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Restricts the count to entries belonging to this business profile, plus entries with no profile. If omitted, the merchant's default profile is used; merchants with more than one profile have no default and will receive an error asking for this header.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Blocklist entry counts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BlocklistCountResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid Data, or no profile could be resolved"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/blocklist/lookup": {
+      "get": {
+        "tags": [
+          "Blocklist"
+        ],
+        "operationId": "Look up whether a value is blocked",
+        "parameters": [
+          {
+            "name": "data",
+            "in": "query",
+            "description": "The raw value to check against the blocklist, e.g. a card BIN",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Restricts the lookup to entries belonging to this business profile, plus entries with no profile. If omitted, the merchant's default profile is used; merchants with more than one profile have no default and will receive an error asking for this header.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Blocklist lookup result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BlocklistLookupResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid Data, or no profile could be resolved"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/blocklist/batch": {
       "post": {
         "tags": [
@@ -6776,7 +6923,7 @@
           }
         ],
         "requestBody": {
-          "description": "A multipart/form-data request with a `file` field containing a UTF-8 CSV (max 5 MiB). The CSV must have a header row: `type,data,metadata`. `type`: one of `card_bin` (6 digits), `extended_card_bin` (8 digits), `fingerprint`. `metadata`: optional, `key=value` pairs separated by `;` (e.g. `reason=fraud;source=manual`). Maximum 100,000 data rows.",
+          "description": "A multipart/form-data request with a `file` field containing a UTF-8 CSV (max 5 MiB). The CSV must have a header row: `type,data,metadata`. `type`: one of `generic_card_bin` (6 to 10 digits), `fingerprint`. `metadata`: optional, `key=value` pairs separated by `;` (e.g. `reason=fraud;source=manual`). Maximum 100,000 data rows.",
           "content": {
             "multipart/form-data": {
               "schema": {
@@ -11001,9 +11148,61 @@
             "example": "003925",
             "nullable": true
           },
+          "device_pan_bin": {
+            "type": "string",
+            "description": "Bin of the DPAN (device PAN) obtained from decrypting the Apple Pay payment data",
+            "nullable": true
+          },
+          "card_bin": {
+            "type": "string",
+            "description": "Bin of the underlying card, provided by the connector when it resolves the DPAN",
+            "nullable": true
+          },
+          "card_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardType"
+              }
+            ],
+            "nullable": true
+          },
           "auth_code": {
             "type": "string",
             "description": "Unique authorisation code generated for the payment",
+            "nullable": true
+          },
+          "card_subtype": {
+            "type": "string",
+            "description": "The card's product/subtype, as returned by the connector",
+            "nullable": true
+          },
+          "card_segment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardSegmentType"
+              }
+            ],
+            "nullable": true
+          },
+          "funding_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FundingSource"
+              }
+            ],
+            "nullable": true
+          },
+          "issuer_name": {
+            "type": "string",
+            "description": "The name of the card issuer, as returned by the connector",
+            "nullable": true
+          },
+          "issuer_country": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              }
+            ],
             "nullable": true
           }
         }
@@ -13034,6 +13233,10 @@
         "description": "Name of banks supported by Hyperswitch",
         "enum": [
           "absa",
+          "access_bank",
+          "african_bank",
+          "african_bank_business",
+          "albaraka",
           "american_express",
           "affin_bank",
           "agro_bank",
@@ -13045,16 +13248,46 @@
           "bank_muamalat",
           "bank_rakyat",
           "bank_simpanan_nasional",
+          "bank_zero",
           "barclays",
+          "bidvest_bank",
+          "bidvest_bank_alliances",
           "blik_p_s_p",
           "capital_one",
+          "capitec",
+          "capitec_business",
           "chase",
+          "china_construction_bank",
           "citi",
           "cimb_bank",
           "discover",
+          "discovery",
+          "enl_bank",
+          "fbc_fidelity_bank",
+          "finbond_epe",
+          "finbond_mutual_bank",
+          "first_national_bank",
+          "gotyme_bank",
+          "habib_overseas",
+          "hbz_bank",
+          "investec",
+          "ithala",
+          "jp_morgan_chase",
+          "mtn_banking",
+          "nedbank",
           "navy_federal_credit_union",
+          "olympus",
+          "old_mutual",
+          "peoples_bank_pep_bank",
+          "peoples_bank",
+          "permanent_bank",
           "pentagon_federal_credit_union",
+          "societe_generale",
+          "standard_bank",
+          "state_bank_of_india",
           "synchrony_bank",
+          "ubank",
+          "vbs_mutual_bank",
           "wells_fargo",
           "abn_amro",
           "asn_bank",
@@ -15216,7 +15449,11 @@
           "checking",
           "savings",
           "salary",
-          "payment"
+          "payment",
+          "transmission",
+          "current",
+          "bond",
+          "subscription_share"
         ]
       },
       "BatchBlocklistJobStatus": {
@@ -15423,13 +15660,81 @@
           "blocked_issuer"
         ]
       },
+      "BlocklistCountQuery": {
+        "type": "object",
+        "required": [
+          "data_kind"
+        ],
+        "properties": {
+          "data_kind": {
+            "$ref": "#/components/schemas/BlocklistDataKind"
+          }
+        }
+      },
+      "BlocklistCountResponse": {
+        "type": "object",
+        "required": [
+          "data_kind",
+          "total_count"
+        ],
+        "properties": {
+          "data_kind": {
+            "$ref": "#/components/schemas/BlocklistDataKind"
+          },
+          "total_count": {
+            "type": "integer",
+            "description": "The total number of blocked entries for the given data_kind",
+            "minimum": 0
+          },
+          "counts_by_length": {
+            "type": "object",
+            "description": "The number of blocked entries for each BIN length, keyed by the BIN length.\n\nFor `generic_card_bin`, this also includes entries blocked as `card_bin` or\n`extended_card_bin`. Omitted for `payment_method`, since fingerprints have a fixed length.",
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "nullable": true
+          }
+        }
+      },
       "BlocklistDataKind": {
         "type": "string",
+        "description": "`card_bin` (6 digits) and `extended_card_bin` (8 digits) are deprecated, use\n`generic_card_bin`, which accepts 6 to 10 digits.",
         "enum": [
           "payment_method",
           "card_bin",
-          "extended_card_bin"
+          "extended_card_bin",
+          "generic_card_bin"
         ]
+      },
+      "BlocklistLookupQuery": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "string",
+            "description": "The raw value to check against the blocklist, e.g. a card BIN. Limited to 20 characters,\nthe longest value a `fingerprint_id` can hold.",
+            "maxLength": 20
+          }
+        }
+      },
+      "BlocklistLookupResponse": {
+        "type": "object",
+        "required": [
+          "data",
+          "blocked"
+        ],
+        "properties": {
+          "data": {
+            "type": "string"
+          },
+          "blocked": {
+            "type": "boolean",
+            "description": "Whether an entry matching `data` exists in the blocklist, under any data_kind"
+          }
+        }
       },
       "BlocklistRequest": {
         "oneOf": [
@@ -15447,7 +15752,9 @@
                 ]
               },
               "data": {
-                "type": "string"
+                "type": "string",
+                "description": "Deprecated, use `generic_card_bin`. A card number prefix of exactly 6 digits.",
+                "deprecated": true
               }
             }
           },
@@ -15483,7 +15790,28 @@
                 ]
               },
               "data": {
-                "type": "string"
+                "type": "string",
+                "description": "Deprecated, use `generic_card_bin`. A card number prefix of exactly 8 digits.",
+                "deprecated": true
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "generic_card_bin"
+                ]
+              },
+              "data": {
+                "type": "string",
+                "description": "A card number prefix of 6 to 10 digits."
               }
             }
           }
@@ -15777,6 +16105,82 @@
           "merchant_config_currency": {
             "type": "string",
             "description": "Information about the merchant_config_currency that merchant wants to specify at connector level."
+          }
+        }
+      },
+      "BrowseOffer": {
+        "type": "object",
+        "description": "A single offer available to the merchant.",
+        "required": [
+          "code"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "Offer code, as configured in Offer Engine.",
+            "example": "TESTHS"
+          },
+          "title": {
+            "type": "string",
+            "description": "Full offer title.",
+            "example": "Test offer HS",
+            "nullable": true
+          },
+          "display_title": {
+            "type": "string",
+            "description": "Shortened title, for constrained layouts.",
+            "example": "TSH",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "description": "Offer description.",
+            "example": "Testing offers",
+            "nullable": true
+          },
+          "currency": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Currency"
+              }
+            ],
+            "nullable": true
+          },
+          "valid_till": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the offer stops being valid.",
+            "example": "2026-08-31T18:29:59.000Z",
+            "nullable": true
+          }
+        }
+      },
+      "BrowseOffersRequest": {
+        "type": "object",
+        "description": "Request to browse the offers available to a merchant.",
+        "properties": {
+          "offer_payment_info": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OfferPaymentInfo"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "BrowseOffersResponse": {
+        "type": "object",
+        "description": "The offers a merchant can currently use.",
+        "required": [
+          "offers"
+        ],
+        "properties": {
+          "offers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BrowseOffer"
+            }
           }
         }
       },
@@ -16241,6 +16645,28 @@
             "example": "CREDIT",
             "nullable": true
           },
+          "card_subtype": {
+            "type": "string",
+            "description": "The product the card is issued under, e.g. `CLASSIC` or `ELECTRON`",
+            "example": "CLASSIC",
+            "nullable": true
+          },
+          "card_segment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardSegmentType"
+              }
+            ],
+            "nullable": true
+          },
+          "funding_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FundingSource"
+              }
+            ],
+            "nullable": true
+          },
           "card_issuing_country": {
             "type": "string",
             "example": "INDIA",
@@ -16484,6 +16910,27 @@
             "type": "string",
             "description": "Card Type",
             "nullable": true
+          },
+          "card_subtype": {
+            "type": "string",
+            "description": "The product the card is issued under, e.g. `CLASSIC` or `ELECTRON`",
+            "nullable": true
+          },
+          "card_segment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardSegmentType"
+              }
+            ],
+            "nullable": true
+          },
+          "funding_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FundingSource"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -16552,6 +16999,26 @@
           },
           "card_type": {
             "type": "string",
+            "nullable": true
+          },
+          "card_subtype": {
+            "type": "string",
+            "nullable": true
+          },
+          "card_segment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardSegmentType"
+              }
+            ],
+            "nullable": true
+          },
+          "funding_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FundingSource"
+              }
+            ],
             "nullable": true
           },
           "saved_to_locker": {
@@ -16975,6 +17442,27 @@
             "type": "string",
             "nullable": true
           },
+          "card_subtype": {
+            "type": "string",
+            "description": "The product the card is issued under, e.g. `CLASSIC` or `ELECTRON`.",
+            "nullable": true
+          },
+          "card_segment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardSegmentType"
+              }
+            ],
+            "nullable": true
+          },
+          "funding_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FundingSource"
+              }
+            ],
+            "nullable": true
+          },
           "card_network": {
             "allOf": [
               {
@@ -17272,6 +17760,28 @@
             "example": "CREDIT",
             "nullable": true
           },
+          "card_subtype": {
+            "type": "string",
+            "description": "The product the card is issued under, e.g. `CLASSIC` or `ELECTRON`",
+            "example": "CLASSIC",
+            "nullable": true
+          },
+          "card_segment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardSegmentType"
+              }
+            ],
+            "nullable": true
+          },
+          "funding_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FundingSource"
+              }
+            ],
+            "nullable": true
+          },
           "card_issuing_country": {
             "type": "string",
             "example": "INDIA",
@@ -17366,6 +17876,18 @@
           "invoice_immediately",
           "add_to_unbilled_charges"
         ]
+      },
+      "CheckoutData": {
+        "type": "object",
+        "properties": {
+          "purpose_of_payment": {
+            "type": "string",
+            "description": "Purpose of Payment. Required for AFT.",
+            "example": "wallet top-up",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
       },
       "ClickToPayDetails": {
         "type": "object",
@@ -18085,6 +18607,22 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/SantanderConnectorMetadataData"
+              }
+            ],
+            "nullable": true
+          },
+          "worldpayxml": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WorldpayxmlData"
+              }
+            ],
+            "nullable": true
+          },
+          "checkout": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CheckoutData"
               }
             ],
             "nullable": true
@@ -19903,6 +20441,13 @@
               }
             ],
             "nullable": true
+          },
+          "date_of_birth": {
+            "type": "string",
+            "format": "date",
+            "description": "The customer's date of birth",
+            "example": "1990-01-31",
+            "nullable": true
           }
         }
       },
@@ -21646,6 +22191,20 @@
           }
         }
       },
+      "EligibilityCardBin": {
+        "type": "object",
+        "description": "BIN-only input for the eligibility check. Enables BIN-level blocklist and profile-config\nblocking without the client having to share the full card number; fingerprint-level\n(exact-card) blocking requires the full card number via the `card` variant instead.",
+        "required": [
+          "card_bin"
+        ],
+        "properties": {
+          "card_bin": {
+            "type": "string",
+            "description": "The card BIN: the leading 6 to 10 digits of the card number",
+            "example": "42424242"
+          }
+        }
+      },
       "EligibilityOfferDetails": {
         "type": "object",
         "description": "Offer Engine eligibility details returned to the client.",
@@ -21677,6 +22236,18 @@
             "properties": {
               "card": {
                 "$ref": "#/components/schemas/EligibilityCard"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "EligibilityCardBin",
+            "required": [
+              "card_bin"
+            ],
+            "properties": {
+              "card_bin": {
+                "$ref": "#/components/schemas/EligibilityCardBin"
               }
             }
           },
@@ -22346,6 +22917,7 @@
           "action_required",
           "refund_succeeded",
           "refund_failed",
+          "refund_review",
           "dispute_opened",
           "dispute_expired",
           "dispute_accepted",
@@ -23965,6 +24537,14 @@
           }
         }
       },
+      "GooglePayTokenizationSpecificationType": {
+        "type": "string",
+        "description": "The tokenization type sent to the Google Pay SDK.\n\nUnlike [`GooglePayTokenizationType`], this holds only the values Google itself understands:\nthe Hyperswitch-internal `INTERNAL_GATEWAY` marker is resolved into `PAYMENT_GATEWAY` during\nthe session flow before this is built, so it can never leak into an SDK response.",
+        "enum": [
+          "PAYMENT_GATEWAY",
+          "DIRECT"
+        ]
+      },
       "GooglePayWalletData": {
         "type": "object",
         "required": [
@@ -24094,6 +24674,14 @@
           "token": {
             "type": "string",
             "description": "Token generated for the wallet"
+          },
+          "auth_method": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GooglePayAuthMethod"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -24188,8 +24776,7 @@
         ],
         "properties": {
           "type": {
-            "type": "string",
-            "description": "The token specification type(ex: PAYMENT_GATEWAY)"
+            "$ref": "#/components/schemas/GooglePayTokenizationSpecificationType"
           },
           "parameters": {
             "$ref": "#/components/schemas/GpayTokenParameters"
@@ -25633,6 +26220,305 @@
           }
         }
       },
+      "MaskedRecipientAccount": {
+        "oneOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MaskedRecipientBankAccount"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "bank_account"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "object",
+            "description": "A partially masked card.",
+            "required": [
+              "card_number",
+              "type"
+            ],
+            "properties": {
+              "card_number": {
+                "type": "string",
+                "description": "The recipient's partially masked card number.",
+                "example": "411111******1111"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "card"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "A partially masked wallet.",
+            "required": [
+              "wallet_id",
+              "type"
+            ],
+            "properties": {
+              "wallet_id": {
+                "type": "string",
+                "description": "The partially masked identifier of the recipient's wallet.",
+                "example": "wall****8891"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "wallet"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "A masked email address.",
+            "required": [
+              "email",
+              "type"
+            ],
+            "properties": {
+              "email": {
+                "type": "string",
+                "description": "The email address that identifies the recipient's account.",
+                "example": "ja******@example.com"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "email"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "A partially masked phone number.",
+            "required": [
+              "phone_number",
+              "type"
+            ],
+            "properties": {
+              "phone_number": {
+                "type": "string",
+                "description": "The phone number that identifies the recipient's account.",
+                "example": "9123****6789"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "phone"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "A partially masked social network handle.",
+            "required": [
+              "social_network_id",
+              "type"
+            ],
+            "properties": {
+              "social_network_id": {
+                "type": "string",
+                "description": "The social network identifier of the recipient.",
+                "example": "jane****.doe"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "social_network"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "A partially masked view of `RecipientAccount`, safe to return in API responses.",
+        "discriminator": {
+          "propertyName": "type"
+        }
+      },
+      "MaskedRecipientBankAccount": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "A partially masked International Bank Account Number.",
+            "required": [
+              "iban",
+              "bank_account_type"
+            ],
+            "properties": {
+              "iban": {
+                "type": "string",
+                "description": "The recipient's partially masked IBAN.",
+                "example": "GB29N************46864"
+              },
+              "bank_account_type": {
+                "type": "string",
+                "enum": [
+                  "iban"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "A partially masked account number and routing number.",
+            "required": [
+              "account_number",
+              "routing_number",
+              "bank_account_type"
+            ],
+            "properties": {
+              "account_number": {
+                "type": "string",
+                "description": "The recipient's partially masked bank account number.",
+                "example": "0001****6789"
+              },
+              "routing_number": {
+                "type": "string",
+                "description": "The partially masked routing number of the recipient's bank.",
+                "example": "110***000"
+              },
+              "bank_account_type": {
+                "type": "string",
+                "enum": [
+                  "routing_number"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "A partially masked account number and BIC.",
+            "required": [
+              "account_number",
+              "bic",
+              "bank_account_type"
+            ],
+            "properties": {
+              "account_number": {
+                "type": "string",
+                "description": "The recipient's partially masked bank account number.",
+                "example": "0987****5432"
+              },
+              "bic": {
+                "type": "string",
+                "description": "The partially masked Bank Identification Code of the recipient's bank.",
+                "example": "HBU***4B"
+              },
+              "bank_account_type": {
+                "type": "string",
+                "enum": [
+                  "bic"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "A partially masked bare bank account number.",
+            "required": [
+              "account_number",
+              "bank_account_type"
+            ],
+            "properties": {
+              "account_number": {
+                "type": "string",
+                "description": "The recipient's partially masked bank account number.",
+                "example": "0001****6789"
+              },
+              "bank_account_type": {
+                "type": "string",
+                "enum": [
+                  "account_number"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "A truncated primary account number. This is already the industry standard truncated form,\nso it is returned as supplied.",
+            "required": [
+              "card_isin",
+              "last4",
+              "bank_account_type"
+            ],
+            "properties": {
+              "card_isin": {
+                "type": "string",
+                "description": "The first six digits of the recipient's PAN.",
+                "example": "411111"
+              },
+              "last4": {
+                "type": "string",
+                "description": "The last four digits of the recipient's PAN.",
+                "example": "1111"
+              },
+              "bank_account_type": {
+                "type": "string",
+                "enum": [
+                  "truncated_pan"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "A partially masked view of `RecipientBankAccount`, safe to return in API responses.",
+        "discriminator": {
+          "propertyName": "bank_account_type"
+        }
+      },
+      "MaskedRecipientDetails": {
+        "type": "object",
+        "description": "A partially masked view of `RecipientDetails`, safe to return in API responses.",
+        "properties": {
+          "account": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MaskedRecipientAccount"
+              }
+            ],
+            "nullable": true
+          },
+          "phone_number": {
+            "type": "string",
+            "description": "The recipient's partially masked phone number.",
+            "example": "9123****6789",
+            "nullable": true
+          },
+          "tax_id": {
+            "type": "string",
+            "description": "The recipient's partially masked tax identifier.",
+            "example": "162.****41-42",
+            "nullable": true
+          },
+          "address": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AddressDetails"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "MasterCardEligibilityCheckData": {
         "type": "object",
         "required": [
@@ -26423,6 +27309,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/NetworkTokeizationProviderCredentials"
+              }
+            ],
+            "nullable": true
+          },
+          "offer_engine_config": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OfferEngineMerchantConfig"
               }
             ],
             "nullable": true
@@ -27538,6 +28432,9 @@
           }
         }
       },
+      "NetellerData": {
+        "type": "object"
+      },
       "NetworkDetails": {
         "type": "object",
         "properties": {
@@ -27766,6 +28663,28 @@
           "card_type": {
             "type": "string",
             "example": "CREDIT",
+            "nullable": true
+          },
+          "card_subtype": {
+            "type": "string",
+            "description": "The product the card is issued under, e.g. `CLASSIC` or `ELECTRON`",
+            "example": "CLASSIC",
+            "nullable": true
+          },
+          "card_segment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardSegmentType"
+              }
+            ],
+            "nullable": true
+          },
+          "funding_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FundingSource"
+              }
+            ],
             "nullable": true
           },
           "card_issuing_country": {
@@ -28443,6 +29362,36 @@
           },
           "number": {
             "$ref": "#/components/schemas/MinorUnit"
+          }
+        }
+      },
+      "OfferEngineMerchantConfig": {
+        "type": "object",
+        "description": "Merchant-level Offer Engine credentials (Offer Engine issues one account per merchant)",
+        "required": [
+          "api_key",
+          "merchant_id"
+        ],
+        "properties": {
+          "api_key": {
+            "type": "string",
+            "description": "API key issued by Offer Engine for this merchant"
+          },
+          "merchant_id": {
+            "type": "string",
+            "description": "The Offer Engine merchant id sent in Offer Engine request bodies"
+          }
+        }
+      },
+      "OfferPaymentInfo": {
+        "type": "object",
+        "description": "Order context supplied when browsing offers.",
+        "required": [
+          "currency"
+        ],
+        "properties": {
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
           }
         }
       },
@@ -32156,6 +33105,7 @@
           "momo",
           "momo_atm",
           "multibanco",
+          "neteller",
           "online_banking_thailand",
           "online_banking_czech_republic",
           "online_banking_finland",
@@ -33676,6 +34626,20 @@
             ],
             "nullable": true
           },
+          "is_account_funded_transaction": {
+            "type": "boolean",
+            "description": "Indicates whether this payment is an account funded transaction.",
+            "example": true,
+            "nullable": true
+          },
+          "recipient_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RecipientDetails"
+              }
+            ],
+            "nullable": true
+          },
           "tokenization": {
             "allOf": [
               {
@@ -34312,6 +35276,12 @@
             "description": "The network transaction ID is a unique identifier for the transaction as recognized by the payment network (e.g., Visa, Mastercard), this ID can be used to reference it for future transactions or recurring payments.\nRefer `payment_method_tokenization_details` for detailed view of payment method tokenization",
             "nullable": true
           },
+          "payment_account_reference": {
+            "type": "string",
+            "description": "Payment Account Reference (PAR) returned by the connector for the underlying card, used to link tokenized and non-tokenized transactions for the same card.",
+            "example": "V001428640638148739",
+            "nullable": true
+          },
           "network_transaction_link_id": {
             "type": "string",
             "description": "The Mastercard Transaction Link Identifier (TLID) for this payment. Returned on CITs that set up\nstored credentials. External-vault merchants should persist this and echo it back on subsequent\nMIT requests. Mandatory for Mastercard recurring/MIT (no static fallback).",
@@ -34469,6 +35439,20 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/BillingDescriptor"
+              }
+            ],
+            "nullable": true
+          },
+          "is_account_funded_transaction": {
+            "type": "boolean",
+            "description": "Indicates whether this payment is an account funded transaction, where funds are pulled\nfrom a card account to fund another account rather than to pay for goods or services.",
+            "example": true,
+            "nullable": true
+          },
+          "recipient_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MaskedRecipientDetails"
               }
             ],
             "nullable": true
@@ -35495,6 +36479,20 @@
             ],
             "nullable": true
           },
+          "is_account_funded_transaction": {
+            "type": "boolean",
+            "description": "Indicates whether this payment is an account funded transaction.",
+            "example": true,
+            "nullable": true
+          },
+          "recipient_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RecipientDetails"
+              }
+            ],
+            "nullable": true
+          },
           "tokenization": {
             "allOf": [
               {
@@ -36157,6 +37155,12 @@
             "description": "The network transaction ID is a unique identifier for the transaction as recognized by the payment network (e.g., Visa, Mastercard), this ID can be used to reference it for future transactions or recurring payments.\nRefer `payment_method_tokenization_details` for detailed view of payment method tokenization",
             "nullable": true
           },
+          "payment_account_reference": {
+            "type": "string",
+            "description": "Payment Account Reference (PAR) returned by the connector for the underlying card, used to link tokenized and non-tokenized transactions for the same card.",
+            "example": "V001428640638148739",
+            "nullable": true
+          },
           "network_transaction_link_id": {
             "type": "string",
             "description": "The Mastercard Transaction Link Identifier (TLID) for this payment. Returned on CITs that set up\nstored credentials. External-vault merchants should persist this and echo it back on subsequent\nMIT requests. Mandatory for Mastercard recurring/MIT (no static fallback).",
@@ -36314,6 +37318,20 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/BillingDescriptor"
+              }
+            ],
+            "nullable": true
+          },
+          "is_account_funded_transaction": {
+            "type": "boolean",
+            "description": "Indicates whether this payment is an account funded transaction, where funds are pulled\nfrom a card account to fund another account rather than to pay for goods or services.",
+            "example": true,
+            "nullable": true
+          },
+          "recipient_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MaskedRecipientDetails"
               }
             ],
             "nullable": true
@@ -37047,6 +38065,20 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/BillingDescriptor"
+              }
+            ],
+            "nullable": true
+          },
+          "is_account_funded_transaction": {
+            "type": "boolean",
+            "description": "Indicates whether this payment is an account funded transaction.",
+            "example": true,
+            "nullable": true
+          },
+          "recipient_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RecipientDetails"
               }
             ],
             "nullable": true
@@ -39000,6 +40032,23 @@
             "type": "string",
             "description": "Total price",
             "example": "38.02"
+          }
+        }
+      },
+      "PaypalWalletAdditionalData": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "Email address associated with the payer's PayPal account",
+            "example": "johntest@test.com",
+            "nullable": true
+          },
+          "payer_id": {
+            "type": "string",
+            "description": "Unique identifier of the payer in PayPal",
+            "example": "7DY7FRMPQ8CT6",
+            "nullable": true
           }
         }
       },
@@ -41216,6 +42265,272 @@
           }
         }
       },
+      "RecipientAccount": {
+        "oneOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RecipientBankAccount"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "bank_account"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "object",
+            "description": "Funds are credited to a card.",
+            "required": [
+              "card_number",
+              "type"
+            ],
+            "properties": {
+              "card_number": {
+                "type": "string",
+                "description": "The recipient's card number.",
+                "example": "4111111111111111"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "card"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Funds are credited to a wallet held for the recipient.",
+            "required": [
+              "wallet_id",
+              "type"
+            ],
+            "properties": {
+              "wallet_id": {
+                "type": "string",
+                "description": "The identifier of the recipient's wallet.",
+                "example": "wallet_8891"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "wallet"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "The recipient's account is identified by their email address.",
+            "required": [
+              "email",
+              "type"
+            ],
+            "properties": {
+              "email": {
+                "type": "string",
+                "description": "The email address that identifies the recipient's account.",
+                "example": "jane.doe@example.com"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "email"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "The recipient's account is identified by their phone number.",
+            "required": [
+              "phone_number",
+              "type"
+            ],
+            "properties": {
+              "phone_number": {
+                "type": "string",
+                "description": "The phone number that identifies the recipient's account.",
+                "example": "9123456789"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "phone"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "The recipient's account is identified by a social network handle.",
+            "required": [
+              "social_network_id",
+              "type"
+            ],
+            "properties": {
+              "social_network_id": {
+                "type": "string",
+                "description": "The social network identifier of the recipient.",
+                "example": "jane.doe"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "social_network"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "The account that receives the funds in an account funded transaction.",
+        "discriminator": {
+          "propertyName": "type"
+        }
+      },
+      "RecipientBankAccount": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "An International Bank Account Number.",
+            "required": [
+              "iban",
+              "bank_account_type"
+            ],
+            "properties": {
+              "iban": {
+                "type": "string",
+                "description": "The recipient's IBAN.",
+                "example": "GB29NWBK70361331946864"
+              },
+              "bank_account_type": {
+                "type": "string",
+                "enum": [
+                  "iban"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "A bank account number paired with the routing number of the holding bank.",
+            "required": [
+              "account_number",
+              "routing_number",
+              "bank_account_type"
+            ],
+            "properties": {
+              "account_number": {
+                "type": "string",
+                "description": "The recipient's bank account number.",
+                "example": "000123456789"
+              },
+              "routing_number": {
+                "type": "string",
+                "description": "The routing number of the recipient's bank.",
+                "example": "110000000"
+              },
+              "bank_account_type": {
+                "type": "string",
+                "enum": [
+                  "routing_number"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "A bank account number paired with the BIC of the holding bank.",
+            "required": [
+              "account_number",
+              "bic",
+              "bank_account_type"
+            ],
+            "properties": {
+              "account_number": {
+                "type": "string",
+                "description": "The recipient's bank account number.",
+                "example": "09875432"
+              },
+              "bic": {
+                "type": "string",
+                "description": "The Bank Identification Code of the recipient's bank.",
+                "example": "HBUKGB4B"
+              },
+              "bank_account_type": {
+                "type": "string",
+                "enum": [
+                  "bic"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "A bare bank account number, where the scheme does not require a bank identifier.",
+            "required": [
+              "account_number",
+              "bank_account_type"
+            ],
+            "properties": {
+              "account_number": {
+                "type": "string",
+                "description": "The recipient's bank account number.",
+                "example": "000123456789"
+              },
+              "bank_account_type": {
+                "type": "string",
+                "enum": [
+                  "account_number"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "A truncated primary account number, made up of the first six and last four digits.",
+            "required": [
+              "card_isin",
+              "last4",
+              "bank_account_type"
+            ],
+            "properties": {
+              "card_isin": {
+                "type": "string",
+                "description": "The first six digits of the recipient's PAN.",
+                "example": "411111",
+                "maxLength": 6
+              },
+              "last4": {
+                "type": "string",
+                "description": "The last four digits of the recipient's PAN.",
+                "example": "1111",
+                "maxLength": 4
+              },
+              "bank_account_type": {
+                "type": "string",
+                "enum": [
+                  "truncated_pan"
+                ]
+              }
+            }
+          }
+        ],
+        "discriminator": {
+          "propertyName": "bank_account_type"
+        }
+      },
       "RecipientCardData": {
         "type": "object",
         "required": [
@@ -41239,6 +42554,42 @@
           "card_holder_name": {
             "type": "string",
             "example": "John Doe",
+            "nullable": true
+          }
+        }
+      },
+      "RecipientDetails": {
+        "type": "object",
+        "description": "Details of the party receiving the funds in an account funded transaction.",
+        "properties": {
+          "account": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RecipientAccount"
+              }
+            ],
+            "nullable": true
+          },
+          "phone_number": {
+            "type": "string",
+            "description": "The recipient's phone number.",
+            "example": "9123456789",
+            "nullable": true,
+            "maxLength": 20
+          },
+          "tax_id": {
+            "type": "string",
+            "description": "The recipient's tax identifier. Some connectors require this for recipients in Brazil\n(CPF or CNPJ) and Argentina.",
+            "example": "162.152.541-42",
+            "nullable": true,
+            "maxLength": 25
+          },
+          "address": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AddressDetails"
+              }
+            ],
             "nullable": true
           }
         }
@@ -45776,6 +47127,27 @@
               }
             ],
             "nullable": true
+          },
+          "card_subtype": {
+            "type": "string",
+            "description": "The product the card is issued under, e.g. `CLASSIC` or `ELECTRON`",
+            "nullable": true
+          },
+          "card_segment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardSegmentType"
+              }
+            ],
+            "nullable": true
+          },
+          "funding_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FundingSource"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -46919,9 +48291,9 @@
       "WalletAdditionalDataForCard": {
         "type": "object",
         "properties": {
-          "last4": {
+          "type": {
             "type": "string",
-            "description": "Last 4 digits of the card number",
+            "description": "The type of payment method",
             "nullable": true
           },
           "card_network": {
@@ -46929,9 +48301,50 @@
             "description": "The information of the payment method",
             "nullable": true
           },
-          "type": {
+          "card_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardType"
+              }
+            ],
+            "nullable": true
+          },
+          "card_subtype": {
             "type": "string",
-            "description": "The type of payment method",
+            "description": "The card's product/subtype, as returned by the connector",
+            "nullable": true
+          },
+          "card_segment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardSegmentType"
+              }
+            ],
+            "nullable": true
+          },
+          "funding_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FundingSource"
+              }
+            ],
+            "nullable": true
+          },
+          "last4": {
+            "type": "string",
+            "description": "Last 4 digits of the card number",
+            "nullable": true
+          },
+          "card_bin": {
+            "type": "string",
+            "description": "Bin of the underlying card",
+            "example": "411111",
+            "nullable": true
+          },
+          "device_pan_bin": {
+            "type": "string",
+            "description": "Bin of the DPAN (device PAN) obtained from decrypting the wallet payment data.",
+            "example": "411111",
             "nullable": true
           },
           "card_exp_month": {
@@ -46944,6 +48357,19 @@
             "type": "string",
             "description": "The card's expiry year",
             "example": "25",
+            "nullable": true
+          },
+          "issuer_name": {
+            "type": "string",
+            "description": "The name of the card issuer, as returned by the connector",
+            "nullable": true
+          },
+          "issuer_country": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              }
+            ],
             "nullable": true
           },
           "auth_code": {
@@ -47333,6 +48759,18 @@
           },
           {
             "type": "object",
+            "title": "Neteller",
+            "required": [
+              "neteller"
+            ],
+            "properties": {
+              "neteller": {
+                "$ref": "#/components/schemas/NetellerData"
+              }
+            }
+          },
+          {
+            "type": "object",
             "title": "SwishQr",
             "required": [
               "swish_qr"
@@ -47560,6 +48998,17 @@
                 "$ref": "#/components/schemas/WalletAdditionalDataForCard"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "paypal"
+            ],
+            "properties": {
+              "paypal": {
+                "$ref": "#/components/schemas/PaypalWalletAdditionalData"
+              }
+            }
           }
         ],
         "description": "Hyperswitch supports SDK integration with Apple Pay and Google Pay wallets. For other wallets, we integrate with their respective connectors, redirecting the customer to the connector for wallet payments. As a result, we don’t receive any payment method data in the confirm call for payments made through other wallets."
@@ -47677,7 +49126,7 @@
           "refund_statuses_enabled": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/IntentStatus"
+              "$ref": "#/components/schemas/RefundStatus"
             },
             "description": "List of refund statuses that triggers a webhook for refunds",
             "example": [
@@ -47694,6 +49143,41 @@
             "example": [
               "success",
               "failed"
+            ],
+            "nullable": true
+          },
+          "dispute_statuses_enabled": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DisputeStatus"
+            },
+            "description": "List of dispute statuses that trigger outgoing webhooks for disputes",
+            "example": [
+              "dispute_opened",
+              "dispute_won"
+            ],
+            "nullable": true
+          },
+          "mandate_statuses_enabled": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MandateStatus"
+            },
+            "description": "List of mandate statuses that trigger outgoing webhooks for mandates",
+            "example": [
+              "active",
+              "inactive"
+            ],
+            "nullable": true
+          },
+          "invoice_statuses_enabled": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InvoiceStatus"
+            },
+            "description": "List of invoice statuses that trigger outgoing webhooks for subscriptions",
+            "example": [
+              "invoice_paid"
             ],
             "nullable": true
           }
@@ -47801,6 +49285,79 @@
             "nullable": true
           }
         }
+      },
+      "WorldpayxmlData": {
+        "type": "object",
+        "properties": {
+          "funding_transaction_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WorldpayxmlFundingTransactionType"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_purpose": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WorldpayxmlPaymentPurpose"
+              }
+            ],
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "WorldpayxmlFundingTransactionType": {
+        "type": "string",
+        "enum": [
+          "credit_card_bill_repayment",
+          "gift_card_purchase",
+          "gift_card_purchase_for_another",
+          "non_reloadable_prepaid_card",
+          "reloadable_prepaid_card_or_account",
+          "gaming_chips_purchase",
+          "gaming_stored_value_wallet",
+          "gaming_staged_digital_wallet",
+          "liquid_and_crypto_assets_purchase",
+          "liquid_and_crypto_stored_value_wallet_load",
+          "stored_value_digital_wallet_load",
+          "stored_value_digital_wallet_load_non_securities",
+          "securities_stored_value_digital_wallet_load",
+          "securities_staged_digital_wallet_load",
+          "single_merchant_wallet_load",
+          "debit_card_load",
+          "transfer_to_own_debit_account",
+          "funds_transfer_me_to_me",
+          "account_to_account",
+          "back_to_back_p2p_without_wallet",
+          "back_to_back_p2p_with_wallet",
+          "agent_cash_out",
+          "staged_digital_wallet_load",
+          "staged_digital_wallet_purchase",
+          "back_to_back_card_purchase",
+          "payroll_disbursement_funding",
+          "business_to_consumer_disbursement",
+          "business_to_business_invoice_payment"
+        ]
+      },
+      "WorldpayxmlPaymentPurpose": {
+        "type": "string",
+        "enum": [
+          "family_support",
+          "regular_labour_transfers",
+          "travel_and_tourism",
+          "education",
+          "hospitalisation_and_medical_treatment",
+          "emergency_need",
+          "savings",
+          "gifts",
+          "other",
+          "salary",
+          "crowd_lending",
+          "crypto_currency",
+          "high_risk_securities"
+        ]
       },
       "XenditChargeResponseData": {
         "oneOf": [

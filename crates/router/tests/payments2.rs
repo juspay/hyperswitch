@@ -13,7 +13,6 @@ use router::{
 };
 use time::macros::datetime;
 use tokio::sync::oneshot;
-use uuid::Uuid;
 
 #[test]
 fn connector_list() {
@@ -108,6 +107,9 @@ async fn payments_create_core() {
                 card_issuer: None,
                 card_network: None,
                 card_type: None,
+                card_subtype: None,
+                card_segment_type: None,
+                funding_source: None,
                 card_issuing_country: None,
                 card_issuing_country_code: None,
                 bank_code: None,
@@ -243,6 +245,8 @@ async fn payments_create_core() {
         is_stored_credential: None,
         request_extended_authorization: None,
         billing_descriptor: None,
+        is_account_funded_transaction: None,
+        recipient_details: None,
         partner_merchant_identifier_details: None,
         payment_method_tokenization_details: None,
         error_details: None,
@@ -252,6 +256,7 @@ async fn payments_create_core() {
         connector_response_metadata: None,
         connector_customer_id: None,
         sender_payment_instrument_id: None,
+        payment_account_reference: None,
     };
 
     let expected_response =
@@ -295,7 +300,7 @@ async fn payments_create_core() {
 //         redis_conn: connection::redis_connection(&conf).await,
 //     };
 //
-//     let customer_id = format!("cust_{}", Uuid::new_v4());
+//     let customer_id = format!("cust_{}", common_utils::generate_uuid_v4());
 //     let merchant_id = "jarnura".to_string();
 //     let payment_id = "pay_mbabizu24mvu3mela5njyhpit10".to_string();
 //     let customer_data = api::CreateCustomerRequest {
@@ -374,7 +379,7 @@ async fn payments_create_core_adyen_no_redirect() {
         )
         .unwrap();
 
-    let customer_id = format!("cust_{}", Uuid::new_v4());
+    let customer_id = format!("cust_{}", common_utils::generate_uuid_v4());
     let merchant_id = id_type::MerchantId::try_from(Cow::from("juspay_merchant")).unwrap();
     let payment_id =
         id_type::PaymentId::try_from(Cow::Borrowed("pay_mbabizu24mvu3mela5njyhpit10")).unwrap();
@@ -427,6 +432,9 @@ async fn payments_create_core_adyen_no_redirect() {
                 card_issuer: None,
                 card_network: None,
                 card_type: None,
+                card_subtype: None,
+                card_segment_type: None,
+                funding_source: None,
                 card_issuing_country: None,
                 card_issuing_country_code: None,
                 nick_name: Some(hyperswitch_masking::Secret::new("nick_name".into())),
@@ -562,6 +570,8 @@ async fn payments_create_core_adyen_no_redirect() {
             is_stored_credential: None,
             request_extended_authorization: None,
             billing_descriptor: None,
+            is_account_funded_transaction: None,
+            recipient_details: None,
             partner_merchant_identifier_details: None,
             payment_method_tokenization_details: None,
             error_details: None,
@@ -572,6 +582,7 @@ async fn payments_create_core_adyen_no_redirect() {
             network_transaction_link_id: None,
             connector_customer_id: None,
             sender_payment_instrument_id: None,
+            payment_account_reference: None,
         },
         vec![],
     ));

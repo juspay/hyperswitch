@@ -69,8 +69,9 @@ use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_ve
 #[cfg(feature = "oltp")]
 use super::webhooks::*;
 use super::{
-    admin, api_keys, cache::*, card_issuer, chat, connector_onboarding, disputes, files, gsm,
-    health::*, offer_engine, oidc, profiles, relay, user, user_role,
+    admin, api_keys, cache::*, card_issuer, connector_onboarding, disputes,
+    external_service_auth as external_service_auth_routes, files, gsm, health::*, offer_engine,
+    oidc, profiles, relay, user, user_role,
 };
 #[cfg(feature = "v1")]
 use super::{
@@ -217,6 +218,13 @@ impl SessionState {
         GrpcRecoveryHeaders {
             request_id: self.request_id.as_ref().map(|req_id| req_id.to_string()),
         }
+    }
+    /// Gateway identifier of Hyperswitch's own Google Pay gateway registration.
+    pub fn google_pay_gateway_id(&self) -> Option<String> {
+        self.conf
+            .google_pay_decrypt_keys
+            .as_ref()
+            .and_then(|google_pay_keys| google_pay_keys.get_inner().google_pay_gateway_id.clone())
     }
 }
 
@@ -746,6 +754,8 @@ impl Health {
 
 pub struct OfferEngine;
 
+/// Offers are only supported on v1.
+#[cfg(feature = "v1")]
 impl OfferEngine {
     pub fn server(state: AppState) -> Scope {
         web::scope("/offer_engine")
@@ -753,6 +763,10 @@ impl OfferEngine {
             .service(
                 web::resource("/connectivity")
                     .route(web::post().to(offer_engine::offer_engine_connectivity_check)),
+            )
+            .service(
+                web::resource("/offers/list")
+                    .route(web::post().to(offer_engine::offer_engine_browse_offers)),
             )
     }
 }
@@ -1584,7 +1598,8 @@ impl Refunds {
                     web::resource("/{id}")
                         .route(web::get().to(refunds_retrieve))
                         .route(web::post().to(refunds_update)),
-                );
+                )
+                .service(web::resource("/{id}/reverse").route(web::post().to(refunds_reverse)));
         }
         route
     }
@@ -1902,6 +1917,19 @@ impl Tokenization {
     }
 }
 
+pub struct ExternalService;
+
+impl ExternalService {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/external-service")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("/validate-token")
+                    .route(web::post().to(external_service_auth_routes::validate_token)),
+            )
+    }
+}
+
 pub struct Hypersense;
 
 impl Hypersense {
@@ -1955,6 +1983,10 @@ impl Blocklist {
             )
             .service(
                 web::resource("/toggle").route(web::post().to(blocklist::toggle_blocklist_guard)),
+            )
+            .service(web::resource("/count").route(web::get().to(blocklist::get_blocklist_count)))
+            .service(
+                web::resource("/lookup").route(web::get().to(blocklist::lookup_blocklist_entry)),
             )
             .service(
                 web::resource("/batch")
@@ -2733,27 +2765,7 @@ impl Gsm {
             .service(web::resource("/delete").route(web::post().to(gsm::delete_gsm_rule)))
     }
 }
-pub struct Chat;
 
-#[cfg(feature = "olap")]
-impl Chat {
-    pub fn server(state: AppState) -> Scope {
-        let mut route = web::scope("/chat").app_data(web::Data::new(state.clone()));
-        if state.conf.chat.get_inner().enabled {
-            route = route.service(
-                web::scope("/ai")
-                    .service(
-                        web::resource("/data")
-                            .route(web::post().to(chat::get_data_from_hyperswitch_ai_workflow)),
-                    )
-                    .service(
-                        web::resource("/list").route(web::get().to(chat::get_all_conversations)),
-                    ),
-            );
-        }
-        route
-    }
-}
 pub struct ThreeDsDecisionRule;
 
 #[cfg(feature = "oltp")]
@@ -3466,6 +3478,11 @@ impl RecoveryDataBackfill {
             .service(web::resource("/update-token").route(
                 web::put().to(
                     super::revenue_recovery_data_backfill::update_revenue_recovery_additional_redis_data,
+                ),
+            ))
+            .service(web::resource("/retry-stats").route(
+                web::post().to(
+                    super::revenue_recovery_data_backfill::revenue_recovery_retry_stats_migration,
                 ),
             ))
     }

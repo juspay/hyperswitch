@@ -26,10 +26,6 @@ pub(crate) const ALPHABETS: [char; 62] = [
 ];
 /// API client request timeout (in seconds)
 pub const REQUEST_TIME_OUT: u64 = 30;
-/// Bound on each server-integration section (session tokens, payment-method list). Matches the
-/// outbound HTTP client timeout, since the session core can make connector calls.
-pub const SERVER_INTEGRATION_SECTION_TIMEOUT: std::time::Duration =
-    std::time::Duration::from_secs(consts::REQUEST_TIME_OUT);
 pub const REQUEST_TIMEOUT_PAYMENT_NOT_FOUND: &str = "Timed out ,payment not found";
 pub const REQUEST_TIMEOUT_ERROR_MESSAGE_FROM_PSYNC: &str =
     "This Payment has been moved to failed as there is no response from the connector";
@@ -290,6 +286,11 @@ pub(crate) const PROTOCOL: &str = "ECv2";
 /// Sender ID for Google Pay Decryption
 pub(crate) const SENDER_ID: &[u8] = b"Google";
 
+/// Prefix of the recipient identifier Google signs a gateway tokenized card against, i.e.
+/// `gateway:<gateway id>`. Used by the `INTERNAL_GATEWAY` google pay flow, which derives the
+/// recipient from configuration instead of taking it from the merchant.
+pub(crate) const GOOGLE_PAY_GATEWAY_RECIPIENT_PREFIX: &str = "gateway:";
+
 /// Default value for the number of attempts to retry fetching forex rates
 pub const DEFAULT_ANALYTICS_FOREX_RETRY_ATTEMPTS: u64 = 3;
 
@@ -410,9 +411,9 @@ pub const UCS_DDC_METHOD_URL_KEY: &str = "threeDsMethodUrl";
 /// Superposition configuration keys
 pub mod superposition {
     /// Offer Engine master gate key: boolean, `false` (default) disables all Offer Engine calls.
-    pub const OFFER_ENGINE_ENABLED: &str = "offer_engine_enabled";
-    /// Offer Engine credential source key: `"none"` skips Offer Engine, `"application"` uses the static app config.
-    pub const OFFER_ENGINE_CREDENTIAL_SOURCE: &str = "offer_engine_credential_source";
+    pub const OFFER_ENGINE_ENABLED: &str = "offer_engine.enabled";
+    /// Offer Engine credential source key: `"none"` skips Offer Engine, `"application"` uses the static app config, `"merchant"` uses per-merchant credentials.
+    pub const OFFER_ENGINE_CREDENTIAL_SOURCE: &str = "offer_engine.credential_source";
     /// Account Updater master gate key: `false` (default) disables all Account Updater calls.
     pub const ACCOUNT_UPDATER_ENABLED: &str = "account_updater.enabled";
     /// Account Updater credential source key: `"none"` skips Account Updater, `"application"` uses the static application config.
@@ -434,6 +435,11 @@ pub mod superposition {
         "pt_mapping_outgoing_connector_webhooks";
     /// PCR (Revenue Recovery) payments retry process tracker mapping key
     pub const PT_MAPPING_PCR_RETRIES: &str = "process_tracker.pt_mapping_pcr_retries";
+    /// Static ladder process tracker mapping used by the adaptive revenue recovery retry
+    /// algorithm, kept separate from the cascading ladder so the two can be tuned independently
+    pub const PT_MAPPING_ADAPTIVE_RETRIES: &str = "process_tracker.pt_mapping_adaptive_retries";
+    /// Revenue Recovery retry-stats key. Enables recording of retry outcome stats
+    pub const REVREC_RETRY_STATS_ENABLED: &str = "revenue_recovery.retry_stats.enabled";
     /// Whether the adaptive revenue recovery retry algorithm — static ladder combined with
     /// the smart algorithm — replaces the decider-based smart retry implementation
     pub const ADAPTIVE_RETRY_ENABLED: &str = "revenue_recovery.adaptive_retry_enabled";
@@ -506,6 +512,9 @@ pub mod superposition {
     /// save wallet decrypted data in locker
     pub const SAVE_WALLET_DECRYPTED_DATA: &str = "vaulting.save_wallet_decrypted_data";
 }
+
+/// The value substituted for sensitive webhook header values in event retrieval responses.
+pub const REDACTED_HEADER_VALUE: &str = "*** ***";
 
 #[cfg(test)]
 mod tests {
