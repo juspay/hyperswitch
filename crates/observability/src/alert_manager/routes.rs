@@ -1,3 +1,3 @@
 pub mod config;
-pub mod dictionary;
+pub mod mappers;
 pub mod notifications;

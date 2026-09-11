@@ -2,7 +2,7 @@ use actix_multipart::form::MultipartFormConfig;
 use actix_web::{web, Scope};
 
 use crate::{
-    alert_manager::routes::{config, dictionary, notifications},
+    alert_manager::routes::{config, mappers, notifications},
     errors::types::{ApiError, ApiErrorResponse},
     logger,
     routes::{health_check, notify},
@@ -52,16 +52,16 @@ fn config_scope() -> Scope {
                 ),
         )
         .service(
-            web::scope("/dictionary")
+            web::scope("/mappers")
                 .service(
                     web::resource("")
-                        .route(web::get().to(dictionary::list))
-                        .route(web::post().to(dictionary::upsert)),
+                        .route(web::get().to(mappers::list))
+                        .route(web::post().to(mappers::upsert)),
                 )
                 .service(
                     web::resource("/{name}/{key}")
-                        .route(web::get().to(dictionary::read))
-                        .route(web::delete().to(dictionary::retire)),
+                        .route(web::get().to(mappers::read))
+                        .route(web::delete().to(mappers::retire)),
                 ),
         )
         .service(

@@ -6,11 +6,11 @@ use time::PrimitiveDateTime;
 use super::{ReadStatus, WriteStatus};
 
 #[derive(Debug, Serialize)]
-pub struct DictionaryEntry {
+pub struct MapperEntry {
     pub name: String,
-    pub key_: String,
+    pub key: String,
     pub product: Option<Box<RawValue>>,
-    pub values_: Option<Box<RawValue>>,
+    pub values: Option<Box<RawValue>>,
     pub metadata: Option<Box<RawValue>>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub ts_created: Option<PrimitiveDateTime>,
@@ -19,47 +19,47 @@ pub struct DictionaryEntry {
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct DictionaryUpsertRequest {
+pub struct MapperUpsertRequest {
     pub name: String,
-    pub key_: String,
+    pub key: String,
     #[serde(default)]
     pub product: Option<Box<RawValue>>,
     #[serde(default)]
-    pub values_: Option<Box<RawValue>>,
+    pub values: Option<Box<RawValue>>,
     #[serde(default)]
     pub metadata: Option<Box<RawValue>>,
 }
 
 #[derive(Debug, Serialize)]
-pub struct DictionaryListResponse {
+pub struct MapperListResponse {
     pub status: ReadStatus,
-    pub entries: Vec<DictionaryEntry>,
+    pub entries: Vec<MapperEntry>,
 }
 
 #[derive(Debug, Serialize)]
-pub struct DictionaryReadResponse {
+pub struct MapperReadResponse {
     pub status: ReadStatus,
-    pub entry: Option<DictionaryEntry>,
+    pub entry: Option<MapperEntry>,
 }
 
 #[derive(Debug, Serialize)]
-pub struct DictionarySaveResponse {
+pub struct MapperSaveResponse {
     pub status: WriteStatus,
-    pub entry: DictionaryEntry,
+    pub entry: MapperEntry,
 }
 
 #[derive(Debug, Serialize)]
-pub struct DictionaryDeleteResponse {
+pub struct MapperDeleteResponse {
     pub status: WriteStatus,
 }
 
-impl From<AlertsDict> for DictionaryEntry {
+impl From<AlertsDict> for MapperEntry {
     fn from(entry: AlertsDict) -> Self {
         Self {
             name: entry.name,
-            key_: entry.key_,
+            key: entry.key_,
             product: entry.product.map(RawJson::into_raw),
-            values_: entry.values_.map(RawJson::into_raw),
+            values: entry.values_.map(RawJson::into_raw),
             metadata: entry.metadata.map(RawJson::into_raw),
             ts_created: entry.ts_created,
             username: entry.username,
@@ -84,25 +84,25 @@ mod tests {
     fn stored_json_keeps_its_key_order_and_spacing() {
         let sent = r#"{"b": 1, "a": [2, 3]}"#;
 
-        let request: DictionaryUpsertRequest = serde_json::from_str(&format!(
-            r#"{{"name": "dashboard", "key_": "slack_users", "values_": {sent}}}"#
+        let request: MapperUpsertRequest = serde_json::from_str(&format!(
+            r#"{{"name": "dashboard", "key": "slack_users", "values": {sent}}}"#
         ))
         .unwrap();
 
-        let stored = RawJson::from(request.values_.unwrap());
+        let stored = RawJson::from(request.values.unwrap());
         assert_eq!(stored.get(), sent);
 
-        let entry = DictionaryEntry {
+        let entry = MapperEntry {
             name: "dashboard".to_owned(),
-            key_: "slack_users".to_owned(),
+            key: "slack_users".to_owned(),
             product: None,
-            values_: Some(stored.into_raw()),
+            values: Some(stored.into_raw()),
             metadata: None,
             ts_created: None,
             username: None,
         };
         assert_eq!(
-            serde_json::to_value(&entry).unwrap()["values_"].to_string(),
+            serde_json::to_value(&entry).unwrap()["values"].to_string(),
             r#"{"b":1,"a":[2,3]}"#
         );
     }
@@ -116,17 +116,17 @@ mod tests {
 
     #[test]
     fn an_entry_carries_every_field_even_when_the_columns_are_null() {
-        let body = body_of(&DictionaryEntry {
+        let body = body_of(&MapperEntry {
             name: "dashboard".to_owned(),
-            key_: "slack_users".to_owned(),
+            key: "slack_users".to_owned(),
             product: None,
-            values_: None,
+            values: None,
             metadata: None,
             ts_created: None,
             username: None,
         });
 
-        for field in ["product", "values_", "metadata", "ts_created", "username"] {
+        for field in ["product", "values", "metadata", "ts_created", "username"] {
             assert!(
                 body.get(field).is_some_and(serde_json::Value::is_null),
                 "{field} was omitted"
@@ -135,8 +135,8 @@ mod tests {
     }
 
     #[test]
-    fn an_empty_dictionary_says_so_rather_than_returning_an_empty_body() {
-        let body = body_of(&DictionaryListResponse {
+    fn an_empty_mapper_list_says_so_rather_than_returning_an_empty_body() {
+        let body = body_of(&MapperListResponse {
             status: ReadStatus::Absent,
             entries: Vec::new(),
         });
@@ -148,13 +148,13 @@ mod tests {
     #[test]
     fn a_retired_entry_and_one_that_was_never_there_report_different_statuses() {
         assert_eq!(
-            body_of(&DictionaryDeleteResponse {
+            body_of(&MapperDeleteResponse {
                 status: WriteStatus::Retired
             })["status"],
             "retired"
         );
         assert_eq!(
-            body_of(&DictionaryDeleteResponse {
+            body_of(&MapperDeleteResponse {
                 status: WriteStatus::Absent
             })["status"],
             "absent"
