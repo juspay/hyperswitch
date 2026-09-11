@@ -156,7 +156,6 @@ pub async fn list_enablements(
         .map_err(|error| escalate(error, unrecognised))?
         .into_iter()
         .filter_map(|definition| {
-            // A definition missing either half of its natural key cannot match an enablement row.
             Some((
                 definition.name.clone().zip(definition.product.clone())?,
                 definition.is_enabled(),
