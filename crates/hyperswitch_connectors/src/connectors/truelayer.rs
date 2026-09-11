@@ -101,7 +101,7 @@ where
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
     {
-        let idempotency_key = uuid::Uuid::new_v4().to_string();
+        let idempotency_key = common_utils::generate_uuid_v4().to_string();
         let truelayer_req = self
             .get_request_body(req, connectors)
             .map(|req| req.get_inner_value().expose().clone())?;
@@ -1095,7 +1095,7 @@ impl ConnectorSpecifications for Truelayer {
         #[cfg(feature = "v1")]
         _payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     ) -> api::ConnectorCustomerAction {
-        let connector_customer_id = uuid::Uuid::new_v4().to_string();
+        let connector_customer_id = common_utils::generate_uuid_v4().to_string();
         api::ConnectorCustomerAction::GeneratedCustomerId(connector_customer_id)
     }
 }

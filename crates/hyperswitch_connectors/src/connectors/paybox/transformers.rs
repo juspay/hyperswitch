@@ -498,12 +498,7 @@ fn get_transaction_type(
     }
 }
 fn get_paybox_request_number() -> Result<String, Error> {
-    let time_stamp = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .ok()
-        .ok_or(errors::ConnectorError::RequestEncodingFailed)?
-        .as_millis()
-        .to_string();
+    let time_stamp = common_utils::date_time::now_unix_timestamp_millis().to_string();
     // unix time (in milliseconds) has 13 digits.if we consider 8 digits(the number digits to make day deterministic) there is no collision in the paybox_request_number as it will reset the paybox_request_number for each day  and paybox accepting maximum length is 10 so we gonna take 9 (13-9)
     let request_number = time_stamp
         .get(4..)

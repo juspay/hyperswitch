@@ -1710,7 +1710,7 @@ impl ConnectorSpecifications for Checkout {
 
         let attempt_id = payment_attempt.attempt_id.clone();
         if is_amex & (attempt_id.clone().len() > AMEX_PAYMENT_REFERENCE_LENGTH) {
-            nanoid::nanoid!(AMEX_PAYMENT_REFERENCE_LENGTH)
+            common_utils::generate_nanoid_with_default_alphabet(AMEX_PAYMENT_REFERENCE_LENGTH)
         } else {
             payment_attempt.attempt_id.clone()
         }
