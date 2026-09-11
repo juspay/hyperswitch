@@ -1409,8 +1409,8 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     key1,
                     api_secret,
                 } => Ok(Self::Etisalat {
-                    password: api_key.clone(),
-                    user_name: key1.clone(),
+                    user_name: api_key.clone(),
+                    password: key1.clone(),
                     customer: api_secret.clone(),
                 }),
                 _ => Err(err("Etisalat requires SignatureKey auth type")),
