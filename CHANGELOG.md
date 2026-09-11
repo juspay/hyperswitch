@@ -4,6 +4,25 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.09.11.0
+
+### Features
+
+- **connector:**
+  - [SANTANDER] Update Production Base URL for Boleto ([#13988](https://github.com/juspay/hyperswitch/pull/13988)) ([`2dd05cb`](https://github.com/juspay/hyperswitch/commit/2dd05cbfbe9cdba4ccd0dfdc6347c6be8ee2c3af))
+  - [CYBERSOURCE] Implement step_up 3ds for GooglePay PAN_ONLY & CommerceIndicator for GooglePay ([#13876](https://github.com/juspay/hyperswitch/pull/13876)) ([`fef24c8`](https://github.com/juspay/hyperswitch/commit/fef24c82b8f18792282506e179f8a980378c4ec6))
+- **core:** Add support for neteller wallet ([#14022](https://github.com/juspay/hyperswitch/pull/14022)) ([`b3fd9b4`](https://github.com/juspay/hyperswitch/commit/b3fd9b484110b50a4acc00bf590e136d5b629105))
+
+### Bug Fixes
+
+- **connectors:** [airwallex] update API version from merchant default to standard 2026-08-21 ([#13960](https://github.com/juspay/hyperswitch/pull/13960)) ([`8e10d91`](https://github.com/juspay/hyperswitch/commit/8e10d91d26d543ffcfd3b078300005c0b915842b))
+- **events:** Mask header values for outgoing webhook events ([#14046](https://github.com/juspay/hyperswitch/pull/14046)) ([`a17a23c`](https://github.com/juspay/hyperswitch/commit/a17a23c4c4c907d2314043a32a9f505f7f2bd4f9))
+- **user:** Make community welcome email generic and skip it in production ([#14103](https://github.com/juspay/hyperswitch/pull/14103)) ([`e63c792`](https://github.com/juspay/hyperswitch/commit/e63c7924009c405ac7b98ba9fa22e160946ddeaf))
+
+**Full Changelog:** [`2026.09.10.1...2026.09.11.0`](https://github.com/juspay/hyperswitch/compare/2026.09.10.1...2026.09.11.0)
+
+- - -
+
 ## 2026.09.10.1
 
 ### Bug Fixes
