@@ -4,8 +4,7 @@ use error_stack::{report, ResultExt};
 
 use crate::{errors, query::generics, DatabaseConnectionWithContext, StorageResult};
 
-// One set of helpers per channel, over the table the model is generated for. They take and return
-// the channel-agnostic row, so a caller matches on the channel once.
+// One set of helpers per channel, over the table the model is generated for.
 macro_rules! merchant_instance_queries {
     ($module:ident, $table:ident) => {
         pub mod $module {
@@ -50,9 +49,7 @@ macro_rules! merchant_instance_queries {
                     .attach_printable("Error while removing merchant alert instances")
                 }
 
-                // One statement for the whole batch: a row at a time would make the transaction's
-                // cost the number of merchants affected, which is largest exactly during an
-                // outage.
+                // One statement for the whole batch:
                 pub async fn insert_all(
                     conn: &DatabaseConnectionWithContext<'_>,
                     rows: Vec<MerchantInstanceRow>,

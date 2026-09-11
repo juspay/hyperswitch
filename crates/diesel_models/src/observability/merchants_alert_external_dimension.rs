@@ -5,12 +5,7 @@ use time::PrimitiveDateTime;
 use crate::observability::schema::merchants_alert_external_dimension;
 
 /// One row of an announcement's per-dimension breakdown.
-///
-/// No channel twin, and no macro: unlike the instance tables this one exists once and references
-/// `alerts_main`, so there is a single struct rather than a generated pair.
 // Serialize/Deserialize satisfy `DejaQueryResult`, which the query helpers require under `deja`.
-// Insertable as well as Queryable: every column is written, so a separate insert struct would be
-// the same fields twice.
 #[derive(
     Clone, Debug, PartialEq, Identifiable, Insertable, Queryable, Selectable, Deserialize, Serialize,
 )]

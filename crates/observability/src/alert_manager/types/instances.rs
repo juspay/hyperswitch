@@ -1,30 +1,4 @@
-//! The wire contract for per-merchant alert instances and their per-dimension breakdown: one row
-//! per affected merchant, and one per dimension of the breakdown behind it.
-//!
-//! Both resources hang off an announcement, which is a path segment and never a body field. Both
-//! tables reference `alerts_main` `ON DELETE CASCADE`, so an instance cannot point at an
-//! announcement that does not exist.
-//!
-//! `merchants_alert_external` is channel-twinned - `/alerts/instances/{channel}/{announcement}`.
-//! `merchants_alert_external_dimension` exists once and is addressed without a channel; one there
-//! would promise a `_xyne` breakdown table that does not exist.
-//!
-//! No column carries a `DEFAULT` any more (see the migration), so every value is supplied here:
-//!
-//! | Column | Who fills it |
-//! |---|---|
-//! | `id` | the path - the announcement these rows belong to |
-//! | `id_merchant_table` | the server, `uuid::Uuid::now_v7()` |
-//! | `ts_alert` | the server's clock |
-//! | `last_updated_at` | the server's clock |
-//! | `is_visible` | the caller, or `true` when absent |
-//! | `ts_slack` | the caller, or the announcement's thread when absent |
-//! | everything else | the caller |
-//!
-//! `current_metric` and `expected_metric` are `Option<f64>` and an absent one stays absent: the
-//! absolutes - zero volume, zero success - have no expected value, and writing `0` would store
-//! "observed 0, expected 0", which reads as healthy. Same rule governs the truncation order, see
-//! [`super::super::core::instances`].
+//! The wire contract for per-merchant alert instances and their per-dimension breakdown:
 
 use diesel_models::observability::{
     merchants_alert_external::MerchantInstanceRow,
@@ -36,25 +10,17 @@ use time::PrimitiveDateTime;
 use super::{ReadStatus, WriteStatus};
 
 /// What a write dropped to stay inside the row cap, and how much.
-///
-/// Present on a response only when something was dropped, and recorded on every row the write
-/// kept. A breakdown that silently arrived shortened would make an outage look narrower than it
-/// was.
 #[derive(Debug, Serialize, PartialEq, Eq)]
 pub struct Truncation {
     /// How many rows the request carried.
     pub received: usize,
     /// How many of them were written.
     pub stored: usize,
-    /// How many were not. `received - stored`, spelled out so a reader does not have to subtract.
+    /// How many were not.
     pub dropped: usize,
 }
 
 /// One affected merchant, as a write sends it.
-///
-/// Every field is optional because every column is nullable, and because a detector reports what
-/// it has: an absolute has no `expected_metric`, and an instance recorded before its announcement
-/// reached a channel has no `ts_slack`.
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct MerchantInstanceWrite {
@@ -77,15 +43,9 @@ pub struct MerchantInstanceWrite {
     #[serde(default)]
     pub auxiliary_dimensions: Option<serde_json::Value>,
     /// What was observed.
-    ///
-    /// Absent stays absent. It is never coerced to `0`, which is a real reading — a zero-volume
-    /// alert observes exactly that.
     #[serde(default)]
     pub current_metric: Option<f64>,
     /// What was expected, or absent when the detector had no expectation.
-    ///
-    /// The absolutes send it absent: "zero payments succeeded" is not measured against anything.
-    /// Storing `0` here instead would read as "observed 0, expected 0" — a healthy row.
     #[serde(default)]
     pub expected_metric: Option<f64>,
     /// Free-form, uninterpreted here.
@@ -97,18 +57,13 @@ pub struct MerchantInstanceWrite {
     /// When the episode started.
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub start_time: Option<PrimitiveDateTime>,
-    /// Whether the portal shows the row. `true` when absent — the column lost its `DEFAULT TRUE`,
-    /// and a row nobody can see is not what a caller that said nothing meant.
+    /// Whether the portal shows the row.
     #[serde(default)]
     pub is_visible: Option<bool>,
     /// When the episode recovered, or absent while it is still firing.
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub recovered_ts: Option<PrimitiveDateTime>,
     /// The provider's thread id.
-    ///
-    /// Absent takes the announcement's, so a caller does not carry the thread around; absent on
-    /// both is stored as `null`, which is what an instance recorded before its announcement
-    /// reached a channel honestly has.
     #[serde(default)]
     pub ts_slack: Option<String>,
     /// When it was last seen firing.
@@ -123,7 +78,7 @@ pub struct MerchantInstanceWrite {
     /// Free-form, uninterpreted here.
     #[serde(default)]
     pub metadata: Option<serde_json::Value>,
-    /// Free-form, and the one field this service adds to: a truncated write records itself here.
+    /// Free-form, and the one field this service adds to:
     #[serde(default)]
     pub metadata_alert_details: Option<serde_json::Value>,
     /// The severity the detector assigned.
@@ -135,10 +90,6 @@ pub struct MerchantInstanceWrite {
 }
 
 /// One row of the breakdown, as a write sends it.
-///
-/// The instance shape with the merchant swapped for the dimension it is broken down by. Kept as
-/// its own type rather than one type with three optional discriminators, so that a request cannot
-/// name a merchant on a route that has no column for one.
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct DimensionInstanceWrite {
@@ -163,7 +114,7 @@ pub struct DimensionInstanceWrite {
     /// Anything else identifying the slice, uninterpreted here.
     #[serde(default)]
     pub auxiliary_dimensions: Option<serde_json::Value>,
-    /// What was observed. Absent stays absent — see [`MerchantInstanceWrite::current_metric`].
+    /// What was observed.
     #[serde(default)]
     pub current_metric: Option<f64>,
     /// What was expected, or absent when the detector had no expectation.
@@ -175,7 +126,7 @@ pub struct DimensionInstanceWrite {
     /// How long the episode has run.
     #[serde(default)]
     pub max_duration: Option<i32>,
-    /// Whether the portal shows the row. `true` when absent.
+    /// Whether the portal shows the row.
     #[serde(default)]
     pub is_visible: Option<bool>,
     /// When the episode started.
@@ -184,7 +135,7 @@ pub struct DimensionInstanceWrite {
     /// When the episode recovered, or absent while it is still firing.
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub recovered_ts: Option<PrimitiveDateTime>,
-    /// The provider's thread id. Absent takes the announcement's.
+    /// The provider's thread id.
     #[serde(default)]
     pub ts_slack: Option<String>,
     /// When it was last seen firing.
@@ -211,14 +162,10 @@ pub struct DimensionInstanceWrite {
 }
 
 /// The body of `POST /alerts/instances/{channel}/{announcement_id}`.
-///
-/// The whole of one announcement's instances. A write replaces what that announcement already has,
-/// which makes a retried run idempotent rather than doubling every merchant.
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct InstanceWriteRequest {
-    /// Every affected merchant. An empty list is a legitimate write: it clears the announcement's
-    /// instances.
+    /// Every affected merchant.
     pub merchants: Vec<MerchantInstanceWrite>,
 }
 
@@ -236,9 +183,6 @@ pub struct MerchantInstanceEntry {
     /// The row's identity, minted by this service.
     pub id_merchant_table: uuid::Uuid,
     /// The announcement this row belongs to.
-    ///
-    /// Named for what it points at rather than for its column, which is `id` and would read as
-    /// this row's own identity beside `id_merchant_table`.
     pub announcement_id: Option<uuid::Uuid>,
     /// The lifecycle row it belongs to.
     pub id_intermediate: Option<uuid::Uuid>,
@@ -252,9 +196,9 @@ pub struct MerchantInstanceEntry {
     pub dimensions: Option<serde_json::Value>,
     /// Anything else identifying the slice.
     pub auxiliary_dimensions: Option<serde_json::Value>,
-    /// What was observed. `null` when the detector reported none.
+    /// What was observed.
     pub current_metric: Option<f64>,
-    /// What was expected. `null` for an absolute, which expected nothing.
+    /// What was expected.
     pub expected_metric: Option<f64>,
     /// Free-form, uninterpreted here.
     pub attribution: Option<String>,
@@ -265,7 +209,7 @@ pub struct MerchantInstanceEntry {
     pub start_time: Option<PrimitiveDateTime>,
     /// Whether the portal shows the row.
     pub is_visible: Option<bool>,
-    /// When the episode recovered. `null` means it is still firing.
+    /// When the episode recovered.
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub recovered_ts: Option<PrimitiveDateTime>,
     /// The provider's thread id, the caller's or the announcement's.
@@ -314,9 +258,9 @@ pub struct DimensionInstanceEntry {
     pub dimensions: Option<serde_json::Value>,
     /// Anything else identifying the slice.
     pub auxiliary_dimensions: Option<serde_json::Value>,
-    /// What was observed. `null` when the detector reported none.
+    /// What was observed.
     pub current_metric: Option<f64>,
-    /// What was expected. `null` for an absolute.
+    /// What was expected.
     pub expected_metric: Option<f64>,
     /// Free-form, uninterpreted here.
     pub attribution: Option<String>,
@@ -327,7 +271,7 @@ pub struct DimensionInstanceEntry {
     /// When the episode started.
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub start_time: Option<PrimitiveDateTime>,
-    /// When the episode recovered. `null` means it is still firing.
+    /// When the episode recovered.
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub recovered_ts: Option<PrimitiveDateTime>,
     /// The provider's thread id.
@@ -358,10 +302,9 @@ pub struct DimensionInstanceEntry {
 /// What `GET /alerts/instances/{channel}/{announcement_id}` returns.
 #[derive(Debug, Serialize)]
 pub struct InstanceReadResponse {
-    /// Whether the announcement has any instances. An announcement that exists and affected
-    /// nobody is [`ReadStatus::Absent`] and a `200`; a store that could not be read is a `503`.
+    /// Whether the announcement has any instances.
     pub status: ReadStatus,
-    /// Every stored instance. Never `null`.
+    /// Every stored instance.
     pub merchants: Vec<MerchantInstanceEntry>,
 }
 
@@ -370,7 +313,7 @@ pub struct InstanceReadResponse {
 pub struct DimensionReadResponse {
     /// Whether the announcement has a breakdown.
     pub status: ReadStatus,
-    /// Every stored row of it. Never `null`.
+    /// Every stored row of it.
     pub dimensions: Vec<DimensionInstanceEntry>,
 }
 
@@ -384,8 +327,7 @@ pub struct InstanceSaveResponse {
     pub ts_alert: PrimitiveDateTime,
     /// How many rows the announcement now holds.
     pub merchants: usize,
-    /// How many rows this write replaced. A write is a replacement, so a retried run reports what
-    /// its predecessor left rather than doubling the table.
+    /// How many rows this write replaced.
     pub removed: usize,
     /// What the row cap dropped, or `null` when the write was stored whole.
     pub truncated: Option<Truncation>,
@@ -563,8 +505,7 @@ mod tests {
         assert!(body.get("id").is_none());
     }
 
-    /// The edge case the ticket names. "Observed 0, expected 0" reads as healthy, so an absolute —
-    /// which expects nothing — must be able to say so rather than being made to supply a number.
+    /// The edge case the ticket names.
     #[test]
     fn an_absent_expected_metric_stays_absent_rather_than_becoming_zero() {
         let write: MerchantInstanceWrite =
@@ -578,7 +519,7 @@ mod tests {
         assert!(explicit.expected_metric.is_none());
     }
 
-    /// The other half of it: a stored absence comes back as `null`, not as `0`.
+    /// The other half of it:
     #[test]
     fn an_absent_expected_metric_reads_back_as_null() {
         let mut row = bare_row();
@@ -601,8 +542,7 @@ mod tests {
         assert!(error.to_string().contains("sr"));
     }
 
-    /// The breakdown has no merchant column, so a body naming one is a caller that has confused
-    /// the two routes and should hear about it here rather than have the field dropped.
+    /// The breakdown has no merchant column, so a body naming one is a caller that has confused the two routes and should hear about it here rather than have the field dropped.
     #[test]
     fn a_dimension_row_cannot_name_a_merchant() {
         assert!(serde_json::from_str::<DimensionWriteRequest>(
@@ -611,8 +551,7 @@ mod tests {
         .is_err());
     }
 
-    /// A write that was stored whole says so by carrying no truncation at all, rather than by
-    /// carrying zeroes a reader has to interpret.
+    /// A write that was stored whole says so by carrying no truncation at all, rather than by carrying zeroes a reader has to interpret.
     #[test]
     fn a_write_that_was_not_capped_reports_no_truncation() {
         let body = body_of(&InstanceSaveResponse {

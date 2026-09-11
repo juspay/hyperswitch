@@ -48,8 +48,7 @@ impl DimensionInstance {
         .attach_printable("Error while removing alert dimension rows")
     }
 
-    // One statement for the whole batch: a row at a time would make the transaction's cost the
-    // width of the breakdown, which is largest exactly during a broad outage.
+    // One statement for the whole batch:
     pub async fn insert_all(
         conn: &DatabaseConnectionWithContext<'_>,
         rows: Vec<Self>,
