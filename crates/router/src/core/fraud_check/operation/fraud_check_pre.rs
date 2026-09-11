@@ -3,7 +3,6 @@ use common_enums::FrmSuggestion;
 use common_utils::ext_traits::Encode;
 use diesel_models::enums::FraudCheckLastStep;
 use router_env::{instrument, tracing};
-use uuid::Uuid;
 
 use super::{Domain, FraudCheckOperation, GetTracker, UpdateTracker};
 use crate::{
@@ -108,7 +107,7 @@ impl GetTracker<PaymentToFrmData> for FraudCheckPre {
             Some(Some(fraud_check)) => Ok(fraud_check),
             _ => {
                 db.insert_fraud_check_response(FraudCheckNew {
-                    frm_id: Uuid::new_v4().simple().to_string(),
+                    frm_id: common_utils::generate_uuid_v4().simple().to_string(),
                     payment_id: payment_data.payment_intent.get_id().to_owned(),
                     merchant_id: payment_data.merchant_account.get_id().clone(),
                     processor_merchant_id: Some(

@@ -580,7 +580,7 @@ impl
     ) -> Result<Self, Self::Error> {
         let signed_on = match item.response.approval_date.clone() {
             Some(date) => date.chars().take(10).collect(),
-            None => time::OffsetDateTime::now_utc().date().to_string(),
+            None => common_utils::date_time::now().date().to_string(),
         };
         let response_code = item.response.rc.clone();
         let is_response_success = is_response_success(&response_code);

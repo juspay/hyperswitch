@@ -1591,6 +1591,6 @@ impl ConnectorSpecifications for Trustpay {
         _payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     ) -> String {
         // The length of receipt for Trustpay order request should not exceed 35 characters.
-        uuid::Uuid::now_v7().simple().to_string()
+        common_utils::generate_uuid_v7().simple().to_string()
     }
 }

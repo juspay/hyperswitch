@@ -15,7 +15,6 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::errors;
 use hyperswitch_masking::Secret;
-use rand::distributions::DistString;
 use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::{
@@ -115,7 +114,7 @@ impl TryFrom<&AccessTokenAuthenticationRouterData> for NordeaOAuthRequest {
             AccessScope::PaymentsMultiple,
         ]
         .to_vec();
-        let state = rand::distributions::Alphanumeric.sample_string(&mut rand::thread_rng(), 15);
+        let state = common_utils::generate_random_alphanumeric_string(15);
 
         Ok(Self {
             country,

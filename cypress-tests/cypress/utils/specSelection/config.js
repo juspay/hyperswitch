@@ -64,6 +64,7 @@ export const CONNECTOR_PAYMENT_METHODS = Object.freeze({
   trustly: ["bank_redirect"],
   volt: ["bank_redirect"],
   tsys_transit: ["card"],
+  tesouro: ["card"],
 });
 
 /**

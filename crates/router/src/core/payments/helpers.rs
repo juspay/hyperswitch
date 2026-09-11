@@ -64,14 +64,12 @@ use openssl::{
     pkey::PKey,
     symm::{decrypt_aead, Cipher},
 };
-use rand::Rng;
 #[cfg(feature = "v2")]
 use redis_interface::errors::RedisError;
 use router_env::{instrument, logger, tracing};
 use rust_decimal::Decimal;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_with::{serde_as, VecSkipError};
-use uuid::Uuid;
 use x509_parser::parse_x509_certificate;
 
 use super::{
@@ -903,7 +901,7 @@ pub async fn get_token_for_recurring_mandate(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
-    let token = Uuid::new_v4().to_string();
+    let token = common_utils::generate_uuid_v4().to_string();
     let payment_method_type = payment_method.get_payment_method_subtype();
     let mandate_connector_details = payments::MandateConnectorDetails {
         connector: mandate.connector,
@@ -2657,7 +2655,7 @@ impl From<RolloutConfig> for RolloutExecutionResult {
                 Self::default()
             }
             true => {
-                let sampled_value: f64 = rand::thread_rng().gen_range(0.0..1.0);
+                let sampled_value: f64 = common_utils::generate_random_f64_unit();
                 let should_execute = sampled_value < config.rollout_percent;
 
                 logger::debug!(
@@ -3951,11 +3949,24 @@ pub async fn store_payment_method_data_in_vault(
     merchant_key_store: &domain::MerchantKeyStore,
     business_profile: Option<&domain::Profile>,
 ) -> RouterResult<Option<String>> {
+    let should_store_google_pay_pan_only_for_three_ds = payment_attempt
+        .connector
+        .as_deref()
+        .and_then(|connector| api_enums::Connector::from_str(connector).ok())
+        .is_some_and(|connector| {
+            connector.should_store_google_pay_pan_only_for_three_ds(
+                payment_method,
+                payment_attempt.authentication_type,
+                payment_method_data.is_google_pay_pan_only(),
+            )
+        });
+
     if should_store_payment_method_data_in_vault(
         &state.conf.temp_locker_enable_config,
         payment_attempt.connector.clone(),
         payment_method,
     ) || payment_intent.request_external_three_ds_authentication == Some(true)
+        || should_store_google_pay_pan_only_for_three_ds
     {
         let parent_payment_method_token = store_in_vault_and_generate_ppmt(
             state,
@@ -3973,6 +3984,7 @@ pub async fn store_payment_method_data_in_vault(
 
     Ok(None)
 }
+
 pub fn should_store_payment_method_data_in_vault(
     temp_locker_enable_config: &TempLockerEnableConfig,
     option_connector: Option<String>,
@@ -4385,7 +4397,7 @@ pub async fn make_ephemeral_key(
 ) -> errors::RouterResponse<ephemeral_key::EphemeralKey> {
     let store = &state.store;
     let id = utils::generate_id(consts::ID_LENGTH, "eki");
-    let secret = format!("epk_{}", Uuid::new_v4().simple());
+    let secret = format!("epk_{}", common_utils::generate_uuid_v4().simple());
     let ek = ephemeral_key::EphemeralKeyNew {
         id,
         customer_id,
@@ -5587,9 +5599,7 @@ fn validate_manual_retry_cutoff(
     intent_fulfillment_time: Option<i64>,
     is_token_based_retry: bool,
 ) -> bool {
-    let utc_current_time = time::OffsetDateTime::now_utc();
-    let primitive_utc_current_time =
-        time::PrimitiveDateTime::new(utc_current_time.date(), utc_current_time.time());
+    let primitive_utc_current_time = common_utils::date_time::now();
     let time_difference_from_creation = primitive_utc_current_time - created_at;
 
     // Token based retries (S2S) use the fulfillment window;
@@ -7411,6 +7421,13 @@ pub struct GooglePayTokenDecryptor {
     root_signing_keys: Vec<GooglePayRootSigningKey>,
     recipient_id: hyperswitch_masking::Secret<String>,
     private_key: PKey<openssl::pkey::Private>,
+    /// Tokenization type the merchant configured on its MCA. `INTERNAL_GATEWAY` tokens get the
+    /// additional `gatewayMerchantId` check after decryption; every other type keeps today's
+    /// behaviour.
+    tokenization_type: api_models::payments::GooglePayTokenizationType,
+    /// Hyperswitch merchant id that was sent to Google as `gateway_merchant_id`. Set for
+    /// `INTERNAL_GATEWAY` only, and checked against the decrypted token.
+    gateway_merchant_id: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -7473,7 +7490,7 @@ fn check_expiration_date_is_valid(
     let expiration_time =
         time::OffsetDateTime::from_unix_timestamp_nanos(expiration_ms * 1_000_000)
             .change_context(errors::GooglePayDecryptionError::InvalidExpirationTime)?;
-    let now = time::OffsetDateTime::now_utc();
+    let now = common_utils::date_time::now().assume_utc();
 
     Ok(expiration_time > now)
 }
@@ -7518,6 +7535,8 @@ impl GooglePayTokenDecryptor {
         root_keys: hyperswitch_masking::Secret<String>,
         recipient_id: hyperswitch_masking::Secret<String>,
         private_key: hyperswitch_masking::Secret<String>,
+        tokenization_type: api_models::payments::GooglePayTokenizationType,
+        gateway_merchant_id: Option<String>,
     ) -> CustomResult<Self, errors::GooglePayDecryptionError> {
         // base64 decode the private key
         let decoded_key = BASE64_ENGINE
@@ -7544,6 +7563,8 @@ impl GooglePayTokenDecryptor {
             root_signing_keys: filtered_root_signing_keys,
             recipient_id,
             private_key,
+            tokenization_type,
+            gateway_merchant_id,
         })
     }
 
@@ -7561,7 +7582,6 @@ impl GooglePayTokenDecryptor {
             .parse_struct("EncryptedData")
             .change_context(errors::GooglePayDecryptionError::DeserializationFailed)?;
 
-        // verify the signature if required
         if should_verify_signature {
             self.verify_signature(&encrypted_data)?;
         }
@@ -7591,6 +7611,16 @@ impl GooglePayTokenDecryptor {
                 .parse_struct("GooglePayPredecryptDataInternal")
                 .change_context(errors::GooglePayDecryptionError::DeserializationFailed)?;
 
+        // `gatewayMerchantId` only exists once the message is decrypted, so this half of the
+        // INTERNAL_GATEWAY verification necessarily runs here rather than alongside the signature
+        // checks above.
+        if matches!(
+            self.tokenization_type,
+            api_models::payments::GooglePayTokenizationType::InternalGateway
+        ) {
+            self.verify_internal_gateway_merchant_id(&decrypted_data)?;
+        }
+
         // check the expiration date of the decrypted data
 
         if matches!(
@@ -7603,6 +7633,44 @@ impl GooglePayTokenDecryptor {
         }
     }
 
+    /// Check that the decrypted token was minted for the merchant now being paid.
+    ///
+    /// Under `INTERNAL_GATEWAY` every merchant's card is encrypted to the same gateway key, so the
+    /// key alone no longer separates one merchant from another. `gateway_merchant_id` is what
+    /// does: Google echoes back the Hyperswitch merchant id that was sent in the session response,
+    /// and a mismatch means the token belongs to a different merchant's payment.
+    fn verify_internal_gateway_merchant_id(
+        &self,
+        decrypted_data: &hyperswitch_domain_models::router_data::GooglePayPredecryptDataInternal,
+    ) -> CustomResult<(), errors::GooglePayDecryptionError> {
+        let expected_gateway_merchant_id = self
+            .gateway_merchant_id
+            .as_ref()
+            .ok_or(errors::GooglePayDecryptionError::InvalidGatewayMerchantId)
+            .attach_printable(
+                "gateway merchant id is not set on the decryptor for an INTERNAL_GATEWAY token",
+            )?;
+
+        let token_gateway_merchant_id = decrypted_data
+            .gateway_merchant_id
+            .as_ref()
+            .ok_or(errors::GooglePayDecryptionError::InvalidGatewayMerchantId)
+            .attach_printable(
+                "decrypted INTERNAL_GATEWAY token does not carry a gateway merchant id",
+            )?;
+
+        if token_gateway_merchant_id != expected_gateway_merchant_id {
+            logger::warn!(
+                expected_gateway_merchant_id,
+                token_gateway_merchant_id,
+                "gateway merchant id in the token does not match the merchant"
+            );
+            Err(errors::GooglePayDecryptionError::InvalidGatewayMerchantId)
+                .attach_printable("gateway merchant id in the token does not match the merchant")?;
+        }
+
+        Ok(())
+    }
     // Verify the signature of the token
     fn verify_signature(
         &self,
@@ -9767,6 +9835,25 @@ pub async fn get_merchant_connector_account_v2(
         })
         .attach_printable("merchant_connector_id is not provided"),
     }
+}
+
+#[cfg(feature = "v1")]
+pub fn is_off_session_mit_for_payment_method(
+    req: &api::PaymentsRequest,
+    payment_method_id: &str,
+) -> bool {
+    req.confirm == Some(true)
+        && req.off_session == Some(true)
+        && req
+            .recurring_details
+            .as_ref()
+            .is_some_and(|recurring_details| {
+                matches!(
+                    recurring_details,
+                    RecurringDetails::PaymentMethodId(recurring_payment_method_id)
+                        if recurring_payment_method_id.as_str() == payment_method_id
+                )
+            })
 }
 
 pub fn is_stored_credential(
