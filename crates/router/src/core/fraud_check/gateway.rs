@@ -91,9 +91,10 @@ where
             router_data.access_token = ucs_frm::get_frm_access_token(
                 state,
                 processor,
-                &router_data.connector,
+                &router_data,
                 &merchant_connector_account,
                 lineage_ids.clone(),
+                execution_mode,
             )
             .await
             .unwrap_or_else(|err| {

@@ -1578,7 +1578,12 @@ impl UnifiedConnectorServiceClient {
             .clone()
             .calculate(request)
             .await
-            .change_context(UnifiedConnectorServiceError::SurchargeCalculateFailure)
+            .map_err(|error| {
+                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+                    &error,
+                    &connector_name,
+                ))
+            })
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
@@ -1614,7 +1619,12 @@ impl UnifiedConnectorServiceClient {
             .clone()
             .pre_risk_check(request)
             .await
-            .change_context(UnifiedConnectorServiceError::FrmPreRiskCheckFailure)
+            .map_err(|error| {
+                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+                    &error,
+                    &connector_name,
+                ))
+            })
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
