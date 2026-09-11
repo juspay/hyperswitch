@@ -47,6 +47,12 @@ async fn main() -> ObservabilityResult<()> {
         state.conf.server.port
     );
 
+    observability::logger::info!(
+        "Loaded {} cloudwatch alarm definitions carrying {} severity rules",
+        state.conf.cloudwatch.alarms.len(),
+        state.conf.cloudwatch.rule_count(),
+    );
+
     let server = Box::pin(start_server(state)).await?;
     server.await.map_err(errors::ConfigurationError::from)?;
 
