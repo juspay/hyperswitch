@@ -243,9 +243,10 @@ impl Connector {
         payout_method: Option<PayoutType>,
         is_passthrough: bool,
     ) -> bool {
-        match self {
-            Self::Trustly => !is_passthrough,
-            _ => matches!(payout_method, Some(PayoutType::Bank)),
+        if matches!(self, Self::Trustly) {
+            !is_passthrough
+        } else {
+            matches!(payout_method, Some(PayoutType::Bank))
         }
     }
     #[cfg(feature = "payouts")]

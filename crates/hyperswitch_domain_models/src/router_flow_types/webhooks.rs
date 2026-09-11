@@ -25,7 +25,7 @@ impl ConnectorNetworkTxnId {
 /// (payment methods, for instance) can be added without changing the flow's signature.
 #[derive(Debug, Clone, Serialize)]
 pub struct WebhookAssociatedData {
-    pub payment_attempt: Option<PaymentAttemptAssociatedData>,
+    pub payment_attempt: PaymentAttemptAssociatedData,
 }
 
 /// Associated data written to the payment attempt.

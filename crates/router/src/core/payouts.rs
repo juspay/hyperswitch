@@ -1338,10 +1338,10 @@ pub async fn complete_create_recipient(
     connector_data: &api::ConnectorData,
     payout_data: &mut PayoutData,
 ) -> RouterResult<()> {
-    let is_passthrough = matches!(
-        payout_data.payout_method_data.as_ref(),
-        Some(payouts::PayoutMethodData::Passthrough(_))
-    );
+    let is_passthrough = payout_data
+        .payout_method_data
+        .as_ref()
+        .is_some_and(|payout_method_data| payout_method_data.is_passthrough());
 
     if !payout_data.should_terminate
         && matches!(
