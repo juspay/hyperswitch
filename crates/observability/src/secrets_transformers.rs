@@ -122,6 +122,7 @@ pub async fn fetch_raw_secrets(
         chat,
         email: conf.email,
         lifecycle: conf.lifecycle,
+        instances: conf.instances,
         mappers: conf.mappers,
     }
 }

@@ -1,11 +1,19 @@
 pub mod config;
+pub mod instances;
 pub mod lifecycle;
 pub mod mappers;
 pub mod notifications;
 
 use diesel_models::errors::DatabaseError;
+use time::PrimitiveDateTime;
 
 use crate::errors::ObservabilityError;
+
+pub(super) fn stamp() -> PrimitiveDateTime {
+    let now = common_utils::date_time::now();
+
+    now.replace_millisecond(now.millisecond()).unwrap_or(now)
+}
 
 pub(super) fn escalate(
     error: error_stack::Report<DatabaseError>,

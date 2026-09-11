@@ -11,6 +11,7 @@ use diesel_models::{
 use error_stack::{report, ResultExt};
 use time::PrimitiveDateTime;
 
+use super::stamp;
 use crate::{
     alert_manager::types::{
         lifecycle::{
@@ -268,12 +269,6 @@ impl From<error_stack::Report<diesel_models::errors::DatabaseError>> for WriteFa
     fn from(error: error_stack::Report<diesel_models::errors::DatabaseError>) -> Self {
         Self::Storage(error)
     }
-}
-
-fn stamp() -> PrimitiveDateTime {
-    let now = common_utils::date_time::now();
-
-    now.replace_millisecond(now.millisecond()).unwrap_or(now)
 }
 
 fn fits(value: Option<&str>, field: &'static str, max_bytes: usize) -> ObservabilityApiResult<()> {

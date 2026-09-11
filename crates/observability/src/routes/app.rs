@@ -2,7 +2,7 @@ use actix_multipart::form::MultipartFormConfig;
 use actix_web::{web, Scope};
 
 use crate::{
-    alert_manager::routes::{config, lifecycle, mappers, notifications},
+    alert_manager::routes::{config, instances, lifecycle, mappers, notifications},
     errors::types::{ApiError, ApiErrorResponse},
     logger,
     routes::{health_check, notify},
@@ -34,6 +34,8 @@ impl Alerts {
             ))
             .service(config_scope())
             .service(lifecycle_scope())
+            .service(instances_scope())
+            .service(dimensions_scope())
     }
 }
 
@@ -95,6 +97,24 @@ fn lifecycle_scope() -> Scope {
                 web::resource("/announcements")
                     .route(web::post().to(lifecycle::record_announcement)),
             ),
+    )
+}
+
+fn instances_scope() -> Scope {
+    web::scope("/instances").service(
+        web::scope("/{channel}").service(
+            web::resource("/{announcement_id}")
+                .route(web::get().to(instances::read_instances))
+                .route(web::post().to(instances::write_instances)),
+        ),
+    )
+}
+
+fn dimensions_scope() -> Scope {
+    web::scope("/dimensions").service(
+        web::resource("/{announcement_id}")
+            .route(web::get().to(instances::read_dimensions))
+            .route(web::post().to(instances::write_dimensions)),
     )
 }
 
