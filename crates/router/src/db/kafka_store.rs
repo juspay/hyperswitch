@@ -47,12 +47,13 @@ use scheduler::{
 };
 use serde::Serialize;
 use storage_impl::redis::kv_store::RedisConnInterface;
+#[cfg(feature = "v2")]
+use storage_impl::revenue_recovery_retry_stats;
 use time::PrimitiveDateTime;
 
 use super::{
     dashboard_metadata::DashboardMetadataInterface,
     ephemeral_key::ClientSecretInterface,
-    hyperswitch_ai_interaction::HyperswitchAiInteractionInterface,
     role::RoleInterface,
     user::{sample_data::BatchSampleDataInterface, theme::ThemeInterface, UserInterface},
     user_authentication_method::UserAuthenticationMethodInterface,
@@ -2969,6 +2970,15 @@ impl ProcessTrackerInterface for KafkaStore {
             .finish_process_with_business_status(this, business_status)
             .await
     }
+    async fn finish_process_with_update(
+        &self,
+        this: storage::ProcessTracker,
+        update: storage::ProcessTrackerUpdate,
+    ) -> CustomResult<(), errors::StorageError> {
+        self.diesel_store
+            .finish_process_with_update(this, update)
+            .await
+    }
     async fn find_processes_by_time_status(
         &self,
         time_lower_limit: PrimitiveDateTime,
@@ -3640,6 +3650,17 @@ impl UnifiedTranslationsInterface for KafkaStore {
 impl StorageInterface for KafkaStore {
     fn get_scheduler_db(&self) -> Box<dyn SchedulerInterface> {
         Box::new(self.clone())
+    }
+
+    #[cfg(feature = "v2")]
+    fn get_revenue_recovery_retry_stats_store(
+        &self,
+    ) -> Box<
+        dyn revenue_recovery_retry_stats::RevenueRecoveryRetryStatsInterface<
+            Error = errors::StorageError,
+        >,
+    > {
+        self.diesel_store.get_revenue_recovery_retry_stats_store()
     }
 
     fn get_payment_methods_store(&self) -> Box<dyn PaymentMethodsStorageInterface> {
@@ -4588,29 +4609,6 @@ impl UserAuthenticationMethodInterface for KafkaStore {
     > {
         self.diesel_store
             .list_user_authentication_methods_for_email_domain(email_domain)
-            .await
-    }
-}
-
-#[async_trait::async_trait]
-impl HyperswitchAiInteractionInterface for KafkaStore {
-    async fn insert_hyperswitch_ai_interaction(
-        &self,
-        hyperswitch_ai_interaction: storage::HyperswitchAiInteractionNew,
-    ) -> CustomResult<storage::HyperswitchAiInteraction, errors::StorageError> {
-        self.diesel_store
-            .insert_hyperswitch_ai_interaction(hyperswitch_ai_interaction)
-            .await
-    }
-
-    async fn list_hyperswitch_ai_interactions(
-        &self,
-        merchant_id: Option<id_type::MerchantId>,
-        limit: i64,
-        offset: i64,
-    ) -> CustomResult<Vec<storage::HyperswitchAiInteraction>, errors::StorageError> {
-        self.diesel_store
-            .list_hyperswitch_ai_interactions(merchant_id, limit, offset)
             .await
     }
 }

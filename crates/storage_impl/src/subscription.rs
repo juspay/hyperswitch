@@ -31,7 +31,7 @@ impl<T: DatabaseStore> SubscriptionInterface for RouterStore<T> {
             .await
             .change_context(StorageError::DecryptionError)?;
         let conn = connection::pg_connection_write(self).await?;
-        self.call_database(key_store, sub_new.insert(&conn)).await
+        Box::pin(self.call_database(key_store, sub_new.insert(&conn))).await
     }
     #[instrument(skip_all)]
     async fn find_by_merchant_id_subscription_id(

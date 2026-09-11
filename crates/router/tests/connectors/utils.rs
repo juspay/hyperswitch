@@ -394,7 +394,7 @@ pub trait ConnectorActions: Connector {
                 payment_amount: 1000,
                 minor_payment_amount: MinorUnit::new(1000),
                 currency: enums::Currency::USD,
-                refund_id: uuid::Uuid::new_v4().to_string(),
+                refund_id: common_utils::generate_uuid_v4().to_string(),
                 connector_transaction_id: "".to_string(),
                 webhook_url: None,
                 refund_amount: 100,
@@ -455,15 +455,16 @@ pub trait ConnectorActions: Connector {
     ) -> RouterData<Flow, types::PayoutsData, Res> {
         self.generate_data(
             types::PayoutsData {
+                connector_eligibility_reference_id: None,
                 payout_id: common_utils::id_type::PayoutId::generate(),
                 amount: 1,
                 minor_amount: MinorUnit::new(1),
                 connector_payout_id,
                 destination_currency: payment_info.to_owned().map_or(enums::Currency::EUR, |pi| {
-                    pi.currency.map_or(enums::Currency::EUR, |c| c)
+                    pi.currency.unwrap_or(enums::Currency::EUR)
                 }),
                 source_currency: payment_info.to_owned().map_or(enums::Currency::EUR, |pi| {
-                    pi.currency.map_or(enums::Currency::EUR, |c| c)
+                    pi.currency.unwrap_or(enums::Currency::EUR)
                 }),
                 entity_type: enums::PayoutEntityType::Individual,
                 payout_type: Some(payout_type),
@@ -475,6 +476,7 @@ pub trait ConnectorActions: Connector {
                     phone_country_code: Some("+31".to_string()),
                     tax_registration_id: Some("1232343243".to_string().into()),
                     document_details: None,
+                    date_of_birth: None,
                 }),
                 vendor_details: None,
                 priority: None,
@@ -506,14 +508,13 @@ pub trait ConnectorActions: Connector {
             connector: self.get_name(),
             tenant_id: common_utils::id_type::TenantId::try_from_string("public".to_string())
                 .unwrap(),
-            payment_id: uuid::Uuid::new_v4().to_string(),
-            attempt_id: uuid::Uuid::new_v4().to_string(),
+            payment_id: common_utils::generate_uuid_v4().to_string(),
+            attempt_id: common_utils::generate_uuid_v4().to_string(),
             status: enums::AttemptStatus::default(),
             auth_type: info
                 .clone()
                 .map_or(enums::AuthenticationType::NoThreeDs, |a| {
-                    a.auth_type
-                        .map_or(enums::AuthenticationType::NoThreeDs, |a| a)
+                    a.auth_type.unwrap_or(enums::AuthenticationType::NoThreeDs)
                 }),
             payment_method: enums::PaymentMethod::Card,
             payment_method_type: None,
@@ -544,7 +545,7 @@ pub trait ConnectorActions: Connector {
             recurring_mandate_payment_data: None,
 
             preprocessing_id: None,
-            connector_request_reference_id: uuid::Uuid::new_v4().to_string(),
+            connector_request_reference_id: common_utils::generate_uuid_v4().to_string(),
             #[cfg(feature = "payouts")]
             payout_method_data: info.and_then(|p| p.payout_method_data),
             #[cfg(feature = "payouts")]
@@ -575,6 +576,7 @@ pub trait ConnectorActions: Connector {
             feature_data: None,
             sender_payment_instrument_id: None,
             connector_returned_payment_method_details: None,
+            customer_date_of_birth: None,
         }
     }
 
@@ -830,7 +832,7 @@ pub trait ConnectorActions: Connector {
                 create_res
                     .connector_payout_id
                     .ok_or(ConnectorError::MissingRequiredField {
-                        field_name: "connector_payout_id",
+                        field_name: "connector_payout_id".into(),
                     })?,
                 payout_type,
                 payment_info.to_owned(),
@@ -970,6 +972,9 @@ impl Default for CCardType {
             card_issuer: None,
             card_network: None,
             card_type: None,
+            card_subtype: None,
+            card_segment_type: None,
+            funding_source: None,
             card_issuing_country: None,
             card_issuing_country_code: None,
             bank_code: None,
@@ -1014,6 +1019,7 @@ impl Default for PaymentAuthorizeType {
             metadata: None,
             authentication_data: None,
             ucs_authentication_data: None,
+            force_3ds_challenge: None,
             customer_acceptance: None,
             split_payments: None,
             guest_customer: None,
@@ -1032,11 +1038,14 @@ impl Default for PaymentAuthorizeType {
             is_stored_credential: None,
             mit_category: None,
             billing_descriptor: None,
+            is_account_funded_transaction: None,
+            recipient_details: None,
             tokenization: None,
             partner_merchant_identifier_details: None,
             feature_metadata: None,
             installment_details: None,
             connector_intent_metadata: None,
+            business_country: None,
         };
         Self(data)
     }
@@ -1115,7 +1124,7 @@ impl Default for PaymentRefundType {
             payment_amount: 100,
             minor_payment_amount: MinorUnit::new(100),
             currency: enums::Currency::USD,
-            refund_id: uuid::Uuid::new_v4().to_string(),
+            refund_id: common_utils::generate_uuid_v4().to_string(),
             connector_transaction_id: String::new(),
             refund_amount: 100,
             minor_refund_amount: MinorUnit::new(100),
@@ -1220,6 +1229,7 @@ pub fn get_connector_metadata(
             incremental_authorization_allowed: _,
             authentication_data: None,
             charges: _,
+            payment_account_reference: _,
         }) => connector_metadata,
         _ => None,
     }

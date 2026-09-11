@@ -117,7 +117,7 @@ impl TryFrom<&MonerisRouterData<&PaymentsAuthorizeRouterData>> for MonerisPaymen
                         connector: "Moneris",
                     })?
                 };
-                let idempotency_key = uuid::Uuid::new_v4().to_string();
+                let idempotency_key = common_utils::generate_uuid_v4().to_string();
                 let amount = Amount {
                     currency: item.router_data.request.currency,
                     amount: item.amount,
@@ -162,7 +162,7 @@ impl TryFrom<&MonerisRouterData<&PaymentsAuthorizeRouterData>> for MonerisPaymen
                 })
             }
             PaymentMethodData::MandatePayment => {
-                let idempotency_key = uuid::Uuid::new_v4().to_string();
+                let idempotency_key = common_utils::generate_uuid_v4().to_string();
                 let amount = Amount {
                     currency: item.router_data.request.currency,
                     amount: item.amount,
@@ -175,7 +175,7 @@ impl TryFrom<&MonerisRouterData<&PaymentsAuthorizeRouterData>> for MonerisPaymen
                         .request
                         .connector_mandate_id()
                         .ok_or(errors::ConnectorError::MissingRequiredField {
-                            field_name: "connector_mandate_id",
+                            field_name: "connector_mandate_id".into(),
                         })?
                         .into(),
                 });
@@ -331,6 +331,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, MonerisPaymentsResponse, T, PaymentsRes
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -351,7 +352,7 @@ impl TryFrom<&MonerisRouterData<&PaymentsCaptureRouterData>> for MonerisPayments
             currency: item.router_data.request.currency,
             amount: item.amount,
         };
-        let idempotency_key = uuid::Uuid::new_v4().to_string();
+        let idempotency_key = common_utils::generate_uuid_v4().to_string();
         Ok(Self {
             amount,
             idempotency_key,
@@ -369,7 +370,7 @@ pub struct MonerisCancelRequest {
 impl TryFrom<&PaymentsCancelRouterData> for MonerisCancelRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &PaymentsCancelRouterData) -> Result<Self, Self::Error> {
-        let idempotency_key = uuid::Uuid::new_v4().to_string();
+        let idempotency_key = common_utils::generate_uuid_v4().to_string();
         let reason = item.request.cancellation_reason.clone();
         Ok(Self {
             idempotency_key,
@@ -394,7 +395,7 @@ impl<F> TryFrom<&MonerisRouterData<&RefundsRouterData<F>>> for MonerisRefundRequ
             currency: item.router_data.request.currency,
             amount: item.amount,
         };
-        let idempotency_key = uuid::Uuid::new_v4().to_string();
+        let idempotency_key = common_utils::generate_uuid_v4().to_string();
         let reason = item.router_data.request.reason.clone();
         let payment_id = item.router_data.request.connector_transaction_id.clone();
         Ok(Self {

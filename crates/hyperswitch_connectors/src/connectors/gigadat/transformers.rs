@@ -332,6 +332,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, GigadatPaymentResponse, T, PaymentsResp
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -370,6 +371,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, GigadatTransactionStatusResponse, T, Pa
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             connector_response,
             ..item.data
@@ -555,6 +557,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, GigadatPayoutQuoteResponse>> for Pa
                 error_code: None,
                 error_message: None,
                 payout_connector_metadata: Some(Secret::new(connector_meta)),
+                connector_eligibility_reference_id: None,
             }),
             ..item.data
         })
@@ -584,6 +587,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, GigadatPayoutResponse>> for Payouts
                 error_code: None,
                 error_message: None,
                 payout_connector_metadata: None,
+                connector_eligibility_reference_id: None,
             }),
             ..item.data
         })
@@ -641,6 +645,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, GigadatPayoutSyncResponse>> for Pay
                 error_code: None,
                 error_message: None,
                 payout_connector_metadata: None,
+                connector_eligibility_reference_id: None,
             }),
             ..item.data
         })

@@ -1422,6 +1422,7 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
             request_extended_authorization: None,
             authentication_data: None,
             ucs_authentication_data: None,
+            force_3ds_challenge: None,
             customer_acceptance: data.request.customer_acceptance.clone(),
             split_payments: None, // TODO: allow charges on mandates?
             guest_customer: None,
@@ -1440,6 +1441,9 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
             is_stored_credential: data.request.is_stored_credential,
             mit_category: None,
             billing_descriptor: data.request.billing_descriptor.clone(),
+            is_account_funded_transaction: data.request.is_account_funded_transaction,
+            recipient_details: data.request.recipient_details.clone(),
+            business_country: data.request.business_country,
             tokenization: None,
             partner_merchant_identifier_details: data
                 .request
@@ -1520,6 +1524,7 @@ impl<F1, F2, T1, T2> ForeignFrom<(&RouterData<F1, T1, PaymentsResponseData>, T2)
             feature_data: data.feature_data.clone(),
             sender_payment_instrument_id: None,
             connector_returned_payment_method_details: None,
+            customer_date_of_birth: data.customer_date_of_birth.clone(),
         }
     }
 }
@@ -1597,6 +1602,7 @@ impl<F1, F2>
             feature_data: data.feature_data.clone(),
             sender_payment_instrument_id: None,
             connector_returned_payment_method_details: None,
+            customer_date_of_birth: None,
         }
     }
 }
@@ -1614,6 +1620,8 @@ impl ForeignFrom<&domain::MerchantConnectorAccountFeatureMetadata>
                     max_retry_count: revenue_recovery_metadata.max_retry_count,
                     billing_connector_retry_threshold: revenue_recovery_metadata
                         .billing_connector_retry_threshold,
+                    max_hybrid_cascading_retry_count: revenue_recovery_metadata
+                        .max_hybrid_cascading_retry_count,
                     billing_account_reference: revenue_recovery_metadata
                         .mca_reference
                         .recovery_to_billing
@@ -1643,6 +1651,8 @@ impl ForeignTryFrom<&api_models::admin::MerchantConnectorAccountFeatureMetadata>
                     max_retry_count: revenue_recovery_metadata.max_retry_count,
                     billing_connector_retry_threshold: revenue_recovery_metadata
                         .billing_connector_retry_threshold,
+                    max_hybrid_cascading_retry_count: revenue_recovery_metadata
+                        .max_hybrid_cascading_retry_count,
                     mca_reference,
                 })
             })

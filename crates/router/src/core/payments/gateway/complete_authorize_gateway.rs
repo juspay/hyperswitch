@@ -158,6 +158,9 @@ where
                 router_data.minor_amount_captured = payment_authorize_response
                     .captured_amount
                     .map(MinorUnit::new);
+                router_data.sender_payment_instrument_id = payment_authorize_response
+                    .sender_payment_instrument_id
+                    .clone();
                 if return_raw_connector_response.unwrap_or(false) {
                     router_data.raw_connector_response = payment_authorize_response
                         .raw_connector_response
@@ -175,7 +178,7 @@ where
         ))
         .await
         .map(|(router_data, _)| router_data)
-        .map_err(super::convert_ucs_error_to_connector_error)
+        .map_err(payment_gateway::convert_ucs_error_to_connector_error)
     }
 }
 

@@ -91,7 +91,9 @@ mod deja_boundary {
     ) -> deja::__private::Reconstructed<CustomResult<T, SuperpositionError>> {
         use deja::__private::Reconstructed;
         let Some(object) = recorded.as_object() else {
-            return Reconstructed::Failed;
+            return Reconstructed::Failed(format!(
+                "superposition envelope is not an object: {recorded}"
+            ));
         };
         match object.get("result").and_then(serde_json::Value::as_str) {
             Some("Ok") => match object
@@ -100,7 +102,14 @@ mod deja_boundary {
                 .map(serde_json::from_value::<T>)
             {
                 Some(Ok(value)) => Reconstructed::Value(Ok(value)),
-                _ => Reconstructed::Failed,
+                other => Reconstructed::Failed(format!(
+                    "recorded superposition Ok value will not deserialize into `{}`: {}",
+                    std::any::type_name::<T>(),
+                    match other {
+                        Some(Err(error)) => error.to_string(),
+                        _ => "envelope carried no `value`".to_owned(),
+                    }
+                )),
             },
             Some("Err") => match object
                 .get("error")
@@ -108,9 +117,17 @@ mod deja_boundary {
                 .map(serde_json::from_value::<SuperpositionError>)
             {
                 Some(Ok(error)) => Reconstructed::Value(Err(report!(error))),
-                _ => Reconstructed::Failed,
+                other => Reconstructed::Failed(format!(
+                    "recorded superposition Err will not deserialize into `SuperpositionError`: {}",
+                    match other {
+                        Some(Err(error)) => error.to_string(),
+                        _ => "envelope carried no `error`".to_owned(),
+                    }
+                )),
             },
-            _ => Reconstructed::Failed,
+            other => Reconstructed::Failed(format!(
+                "superposition envelope has no usable `result` discriminant: {other:?}"
+            )),
         }
     }
 

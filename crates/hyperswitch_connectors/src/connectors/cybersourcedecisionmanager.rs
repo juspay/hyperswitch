@@ -163,7 +163,7 @@ where
         req: &RouterData<Flow, Request, Response>,
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
-        let date = OffsetDateTime::now_utc();
+        let date = common_utils::date_time::now().assume_utc();
         let cybersource_req = self.get_request_body(req, connectors)?;
         let auth = cybersourcedecisionmanager::CybersourcedecisionmanagerAuthType::try_from(
             &req.connector_auth_type,
@@ -472,7 +472,7 @@ impl ConnectorIntegration<Checkout, FraudCheckCheckoutData, FraudCheckResponseDa
             .request
             .currency
             .ok_or(ConnectorError::MissingRequiredField {
-                field_name: "Currency",
+                field_name: "Currency".into(),
             })?;
         let amount = convert_amount(self.amount_converter, req.request.amount, currency)?;
 
@@ -560,7 +560,7 @@ impl ConnectorIntegration<Transaction, FraudCheckTransactionData, FraudCheckResp
                 .frm_transaction_id
                 .clone()
                 .ok_or(ConnectorError::MissingRequiredField {
-                    field_name: "frm_transaction_id",
+                    field_name: "frm_transaction_id".into(),
                 })?;
         Ok(format!(
             "{}risk/v1/decisions/{}/actions",

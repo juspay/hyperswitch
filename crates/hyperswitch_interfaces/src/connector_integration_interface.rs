@@ -782,6 +782,21 @@ impl ConnectorSpecifications for ConnectorEnum {
         }
     }
 
+    #[cfg(feature = "payouts")]
+    fn generate_payout_connector_request_reference_id(
+        &self,
+        payout_attempt: &hyperswitch_domain_models::payouts::payout_attempt::PayoutAttempt,
+    ) -> String {
+        match self {
+            Self::Old(connector) => {
+                connector.generate_payout_connector_request_reference_id(payout_attempt)
+            }
+            Self::New(connector) => {
+                connector.generate_payout_connector_request_reference_id(payout_attempt)
+            }
+        }
+    }
+
     #[cfg(feature = "v1")]
     fn generate_connector_customer_id(
         &self,

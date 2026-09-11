@@ -17,7 +17,6 @@ use router::{
 };
 use time::macros::datetime;
 use tokio::sync::oneshot;
-use uuid::Uuid;
 
 // setting the connector in environment variables doesn't work when run in parallel. Neither does passing the paymentid
 // do we'll test refund and payment in same tests and later implement thread_local variables.
@@ -29,7 +28,7 @@ use uuid::Uuid;
 async fn payments_create_stripe() {
     Box::pin(utils::setup()).await;
 
-    let payment_id = format!("test_{}", Uuid::new_v4());
+    let payment_id = format!("test_{}", common_utils::generate_uuid_v4());
     let api_key = ("API-KEY", "MySecretApiKey");
 
     let request = serde_json::json!({
@@ -98,7 +97,7 @@ async fn payments_create_stripe() {
 async fn payments_create_adyen() {
     Box::pin(utils::setup()).await;
 
-    let payment_id = format!("test_{}", Uuid::new_v4());
+    let payment_id = format!("test_{}", common_utils::generate_uuid_v4());
     let api_key = ("API-KEY", "321");
 
     let request = serde_json::json!({
@@ -167,7 +166,7 @@ async fn payments_create_adyen() {
 async fn payments_create_fail() {
     Box::pin(utils::setup()).await;
 
-    let payment_id = format!("test_{}", Uuid::new_v4());
+    let payment_id = format!("test_{}", common_utils::generate_uuid_v4());
     let api_key = ("API-KEY", "MySecretApiKey");
 
     let invalid_request = serde_json::json!({
@@ -348,6 +347,9 @@ async fn payments_create_core() {
                 card_issuer: None,
                 card_network: None,
                 card_type: None,
+                card_subtype: None,
+                card_segment_type: None,
+                funding_source: None,
                 card_issuing_country: None,
                 card_issuing_country_code: None,
                 bank_code: None,
@@ -375,6 +377,8 @@ async fn payments_create_core() {
     let expected_response = api::PaymentsResponse {
         payment_id,
         applied_offer: None,
+        payment_method_list: None,
+        session_tokens: None,
         status: api_enums::IntentStatus::Succeeded,
         amount: MinorUnit::new(6540),
         amount_capturable: MinorUnit::new(0),
@@ -448,6 +452,7 @@ async fn payments_create_core() {
         external_3ds_authentication_attempted: None,
         expires_on: None,
         fingerprint: None,
+        fingerprint_type: None,
         mit_category: None,
         tokenization: None,
         browser_info: None,
@@ -480,6 +485,8 @@ async fn payments_create_core() {
         is_stored_credential: None,
         request_extended_authorization: None,
         billing_descriptor: None,
+        is_account_funded_transaction: None,
+        recipient_details: None,
         partner_merchant_identifier_details: None,
         payment_method_tokenization_details: None,
         error_details: None,
@@ -489,6 +496,7 @@ async fn payments_create_core() {
         connector_response_metadata: None,
         connector_customer_id: None,
         sender_payment_instrument_id: None,
+        payment_account_reference: None,
     };
     let expected_response =
         services::ApplicationResponse::JsonWithHeaders((expected_response, vec![]));
@@ -529,7 +537,7 @@ async fn payments_create_core() {
 //         redis_conn: connection::redis_connection(&conf).await,
 //     };
 
-//     let customer_id = format!("cust_{}", Uuid::new_v4());
+//     let customer_id = format!("cust_{}", common_utils::generate_uuid_v4());
 //     let merchant_id = "jarnura".to_string();
 //     let payment_id = "pay_mbabizu24mvu3mela5njyhpit10".to_string();
 //     let customer_data = api::CreateCustomerRequest {
@@ -606,7 +614,7 @@ async fn payments_create_core_adyen_no_redirect() {
     let payment_id =
         id_type::PaymentId::try_from(Cow::Borrowed("pay_mbabizu24mvu3mela5njyhpit10")).unwrap();
 
-    let customer_id = format!("cust_{}", Uuid::new_v4());
+    let customer_id = format!("cust_{}", common_utils::generate_uuid_v4());
     let merchant_id = id_type::MerchantId::try_from(Cow::from("juspay_merchant")).unwrap();
     let key_store = state
         .store
@@ -655,6 +663,9 @@ async fn payments_create_core_adyen_no_redirect() {
                 card_issuer: None,
                 card_network: None,
                 card_type: None,
+                card_subtype: None,
+                card_segment_type: None,
+                funding_source: None,
                 card_issuing_country: None,
                 card_issuing_country_code: None,
                 bank_code: None,
@@ -683,6 +694,8 @@ async fn payments_create_core_adyen_no_redirect() {
         api::PaymentsResponse {
             payment_id: payment_id.clone(),
             applied_offer: None,
+            payment_method_list: None,
+            session_tokens: None,
             status: api_enums::IntentStatus::Processing,
             amount: MinorUnit::new(6540),
             amount_capturable: MinorUnit::new(0),
@@ -756,6 +769,7 @@ async fn payments_create_core_adyen_no_redirect() {
             external_3ds_authentication_attempted: None,
             expires_on: None,
             fingerprint: None,
+            fingerprint_type: None,
             browser_info: None,
             mit_category: None,
             tokenization: None,
@@ -787,6 +801,8 @@ async fn payments_create_core_adyen_no_redirect() {
             is_stored_credential: None,
             request_extended_authorization: None,
             billing_descriptor: None,
+            is_account_funded_transaction: None,
+            recipient_details: None,
             partner_merchant_identifier_details: None,
             payment_method_tokenization_details: None,
             error_details: None,
@@ -797,6 +813,7 @@ async fn payments_create_core_adyen_no_redirect() {
             network_transaction_link_id: None,
             connector_customer_id: None,
             sender_payment_instrument_id: None,
+            payment_account_reference: None,
         },
         vec![],
     ));

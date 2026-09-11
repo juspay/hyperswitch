@@ -48,6 +48,9 @@ paze_private_key_passphrase = "PAZE_PRIVATE_KEY_PASSPHRASE" # PEM Passphrase use
 
 [google_pay_decrypt_keys]
 google_pay_root_signing_keys = "GOOGLE_PAY_ROOT_SIGNING_KEYS" # Base 64 Encoded Root Signing Keys provided by Google Pay (https://developers.google.com/pay/api/web/guides/resources/payment-data-cryptography)
+google_pay_private_key = "GOOGLE_PAY_PRIVATE_KEY"             # Base 64 Encoded PKCS#8 private key of the Hyperswitch registered Google Pay gateway, used by the INTERNAL_GATEWAY tokenization flow
+google_pay_common_merchant_id = "GOOGLE_PAY_COMMON_MERCHANT_ID" # Google Pay Business Console merchant id used when an INTERNAL_GATEWAY merchant does not supply one of its own. Not a secret, it is sent to the SDK
+google_pay_gateway_id = "GOOGLE_PAY_GATEWAY_ID"               # Gateway identifier registered with Google, also used to derive the `gateway:<id>` recipient. google_pay_private_key, google_pay_gateway_id and google_pay_common_merchant_id must either all be set or all be unset
 
 [applepay_merchant_configs]
 common_merchant_identifier = "APPLE_PAY_COMMON_MERCHANT_IDENTIFIER"                        # Refer to config.example.toml to learn how you can generate this value
@@ -361,18 +364,34 @@ private_key = "/path/to/private_key.pem"
 certificate = "/path/to/certificate.pem"
 
 [secrets_management]
-secrets_manager = "aws_kms" # Secrets manager client to be used
+secrets_manager = "aws_kms" # Secrets manager client to be used (no_encryption | aws_kms | hashicorp_vault | gcp_kms)
 
+# Required only if `secrets_manager` above is set to "aws_kms"
 [secrets_management.aws_kms]
 key_id = "kms_key_id" # The AWS key ID used by the KMS SDK for decrypting data.
 region = "kms_region" # The AWS region used by the KMS SDK for decrypting data.
 
-[encryption_management]
-encryption_manager = "aws_kms" # Encryption manager client to be used
+# Required only if `secrets_manager` above is set to "gcp_kms"
+[secrets_management.gcp_kms]
+project_id = "gcp_project_id"
+location_id = "gcp_kms_location_id" # e.g. "global", "us-east1"
+key_ring_id = "gcp_kms_key_ring_id"
+key_id = "gcp_kms_key_id"
 
+[encryption_management]
+encryption_manager = "aws_kms" # Encryption manager client to be used (no_encryption | aws_kms | gcp_kms)
+
+# Required only if `encryption_manager` above is set to "aws_kms"
 [encryption_management.aws_kms]
 key_id = "kms_key_id" # The AWS key ID used by the KMS SDK for decrypting data.
 region = "kms_region" # The AWS region used by the KMS SDK for decrypting data.
+
+# Required only if `encryption_manager` above is set to "gcp_kms"
+[encryption_management.gcp_kms]
+project_id = "gcp_project_id"
+location_id = "gcp_kms_location_id"
+key_ring_id = "gcp_kms_key_ring_id"
+key_id = "gcp_kms_key_id"
 
 [crm]
 crm_manager = "hubspot_proxy" # Crm manager client to be used
@@ -453,7 +472,7 @@ payment_method = "payment_method_types" # <payment_method> = comma-separated clo
 base_url = "http://localhost:8000"      # Unified Connector Service Base URL
 connection_timeout = 10                 # Connection Timeout Duration in Seconds
 request_timeout = 35                    # Per-RPC Request Timeout in Seconds
-ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, payconex, dlocal, barclaycard, jpmorgan, datatrans, tsys_transit, givepayments, tesouro, citigate, ilixium"    # Comma-separated list of connectors that use UCS only
+ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, payconex, dlocal, barclaycard, jpmorgan, datatrans, tsys_transit, givepayments, tesouro, citigate, ilixium, moneris, elavon, worldpayraft"    # Comma-separated list of connectors that use UCS only
 ucs_psync_disabled_connectors = "cashtocode, trustly"    # Comma-separated list of connectors to disable UCS PSync call
 
 [revenue_recovery]
@@ -461,6 +480,7 @@ ucs_psync_disabled_connectors = "cashtocode, trustly"    # Comma-separated list 
 monitoring_threshold_in_seconds = 10368000
 retry_algorithm_type = "cascading"
 redis_ttl_in_seconds=3888000
+default_retry_hour_utc = 12 # fallback hour-of-day (UTC, 0-23) the mathmodel retries at when a cluster has no hour-of-day history
 
 # Card specific configuration for Revenue Recovery
 [revenue_recovery.card_config.amex]
@@ -486,10 +506,11 @@ reopen_workflow_buffer_time_in_seconds = 3600  # time in seconds to be added in 
 max_random_schedule_delay_in_seconds = 300 # max random delay in seconds to schedule the payment for Revenue Recovery
 redis_ttl_buffer_in_seconds=300 # buffer time in seconds to be added to redis ttl for Revenue Recovery
 
-[chat]
-enabled = false                                # Enable or disable chat features
-hyperswitch_ai_host = "http://0.0.0.0:8000"    # Hyperswitch ai workflow host
-encryption_key = ""                            # Key to encrypt and decrypt chats
+# Redis lock configuration guarding the retry-stats read-merge-write
+[revenue_recovery.retry_stats_lock]
+redis_lock_expiry_seconds = 10              # Seconds before redis lock expires
+delay_between_retries_in_milliseconds = 100 # Wait between attempts to acquire a contended lock
+
 
 [sage]
 enabled = false                                # Master switch for sage sessions

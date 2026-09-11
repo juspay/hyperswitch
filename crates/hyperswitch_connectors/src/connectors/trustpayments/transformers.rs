@@ -620,6 +620,7 @@ impl
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -696,6 +697,7 @@ impl
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -772,6 +774,7 @@ impl
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -848,6 +851,7 @@ impl
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -1273,7 +1277,7 @@ impl TrustpaymentsErrorResponse {
             | TrustpaymentsErrorCode::CardExpired
             | TrustpaymentsErrorCode::InvalidAmountValue => {
                 errors::ConnectorError::InvalidDataFormat {
-                    field_name: "payment_method_data",
+                    field_name: "payment_method_data".into(),
                 }
             }
             TrustpaymentsErrorCode::InsufficientFunds
@@ -1310,7 +1314,7 @@ impl TrustpaymentsErrorResponse {
             | TrustpaymentsErrorCode::InvalidAmount
             | TrustpaymentsErrorCode::NoSearchableFilter => {
                 errors::ConnectorError::MissingRequiredField {
-                    field_name: "request_data",
+                    field_name: "request_data".into(),
                 }
             }
             TrustpaymentsErrorCode::Success => errors::ConnectorError::ProcessingStepFailed(Some(

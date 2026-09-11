@@ -112,17 +112,24 @@ fn captured_body_json(response: &reqwest::Response) -> Secret<serde_json::Value>
     })
 }
 
+/// Captures response headers, keeping every value under a repeated name.
+///
+/// This used to `insert` one value per name, so a response carrying three
+/// `set-cookie` headers recorded one. The loss only bites on replay, and not at
+/// this boundary: record builds the key-manager payload from the live response
+/// and replay builds it from the reconstructed one, so the two payloads differ
+/// in entry count and diverge downstream at `km` — twelve of the fifty-seven
+/// value divergences on the 42-tape sweep.
+///
+/// Order across distinct names is deliberately not recorded. The comparison
+/// sorts arrays before comparing (`bag_canon`), so a permutation of the same
+/// values is already absorbed; only a change in what was recorded can diverge.
 fn response_headers_json(response: &reqwest::Response) -> Secret<serde_json::Value> {
-    let mut map = serde_json::Map::new();
-    for (key, value) in response.headers() {
-        if let Ok(value) = value.to_str() {
-            map.insert(
-                key.as_str().to_string(),
-                serde_json::Value::String(value.to_string()),
-            );
-        }
-    }
-    Secret::new(serde_json::Value::Object(map))
+    // A non-UTF-8 header value has no JSON representation; drop the one entry
+    // rather than failing the whole capture.
+    Secret::new(deja::http::headers(response.headers().iter().filter_map(
+        |(name, value)| value.to_str().ok().map(|value| (name.as_str(), value)),
+    )))
 }
 
 pub(super) fn response_result(
@@ -147,7 +154,11 @@ pub(super) fn response_result(
     )
 }
 
-pub(super) struct HttpResponseCodec;
+/// Capture and rebuild a `send_request` outcome on the `http_outgoing`
+/// boundary. `reconstruct` returning `None` is what fail-stops a substituted
+/// egress call, so the tape-conformance gate calls it directly.
+#[derive(Debug)]
+pub struct HttpResponseCodec;
 
 impl deja::codec::ReplayCodec for HttpResponseCodec {
     type Value = CustomResult<reqwest::Response, HttpClientError>;
@@ -170,12 +181,15 @@ impl deja::codec::ReplayCodec for HttpResponseCodec {
 /// and body bytes, and all three come from the tape, so that call touches no
 /// network.
 ///
-/// A recorded ERROR carries no `status` field and reconstructs to `None`, which
-/// the boundary treats as a lookup miss and answers by executing LIVE. Replaying
-/// a request whose connector call failed therefore issues a real outbound request
-/// to the real endpoint. This is the current Ok-only replay policy: replay is
-/// egress-free only for as long as every recorded call succeeded, so it must not
-/// be relied on as an egress guarantee.
+/// Returning `None` does not fall through to a live call. deja maps it to
+/// `Reconstructed::Failed`, which fail-stops the request with a named reason —
+/// so a recorded value this build cannot read halts the replay rather than
+/// quietly reaching the real endpoint.
+///
+/// Headers are read as an array of values per name and no other shape is
+/// accepted. A recording written before that capture stored a single string per
+/// name and had already lost every repeat; reading one would replay a tape that
+/// still carries the defect this fixes, so it fail-stops instead.
 pub(super) fn replay_response(recorded: &serde_json::Value) -> Option<reqwest::Response> {
     let status_code = u16::try_from(recorded.get("status")?.as_u64()?).ok()?;
     let status = http::StatusCode::from_u16(status_code).ok()?;
@@ -189,8 +203,13 @@ pub(super) fn replay_response(recorded: &serde_json::Value) -> Option<reqwest::R
 
     let mut builder = http::Response::builder().status(status);
     if let Some(headers) = recorded.get("response_headers").and_then(|h| h.as_object()) {
-        for (name, value) in headers {
-            if let Some(value) = value.as_str() {
+        for (name, values) in headers {
+            // `?` rather than a skip: a name whose values are not an array is a
+            // pre-fix recording, and replaying it with its headers dropped would
+            // be worse than refusing it.
+            for value in values.as_array()?.iter().filter_map(|value| value.as_str()) {
+                // `Builder::header` is `try_append`, so a repeated name keeps
+                // every value rather than replacing the previous one.
                 builder = builder.header(name.as_str(), value);
             }
         }
@@ -232,5 +251,68 @@ fn request_body(body: &RequestContent) -> serde_json::Value {
             }
             captured
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Three `set-cookie` headers must survive capture and reconstruct as three.
+    ///
+    /// Fails on the `insert`-per-name capture this replaced, which kept one value
+    /// per name and so recorded a single cookie.
+    #[test]
+    fn repeated_headers_survive_capture_and_reconstruct() {
+        let mut builder = http::Response::builder().status(200);
+        for (name, value) in [
+            ("x-request-id", "req-1"),
+            ("set-cookie", "a=1"),
+            ("set-cookie", "b=2"),
+            ("set-cookie", "c=3"),
+        ] {
+            builder = builder.header(name, value);
+        }
+        let source = reqwest::Response::from(
+            builder
+                .body(bytes::Bytes::from_static(b"{}"))
+                .expect("failed to build the test response"),
+        );
+
+        let result: CustomResult<reqwest::Response, HttpClientError> = Ok(source);
+        let (captured, _) = response_result(&result);
+        let captured = captured.expose();
+
+        let reconstructed =
+            replay_response(&captured).expect("a captured response must reconstruct");
+        let cookies: Vec<&str> = reconstructed
+            .headers()
+            .get_all("set-cookie")
+            .iter()
+            .filter_map(|value| value.to_str().ok())
+            .collect();
+        assert_eq!(
+            cookies,
+            ["a=1", "b=2", "c=3"],
+            "every set-cookie value must survive the round trip"
+        );
+    }
+
+    /// A recording written before the capture kept repeats stored one string per
+    /// name, having already lost every repeated value. Reconstructing it would
+    /// replay a tape that still carries the defect this fixes, so it refuses —
+    /// and deja turns that refusal into a fail-stop with a named reason rather
+    /// than a live call.
+    #[test]
+    fn a_recording_with_one_value_per_name_is_refused() {
+        let recorded = serde_json::json!({
+            "status": 200,
+            "response_headers": { "content-type": "application/json" },
+            "response_body": { "raw_bytes": [] },
+        });
+        assert!(
+            replay_response(&recorded).is_none(),
+            "a pre-fix recording must refuse rather than replay with its headers dropped"
+        );
     }
 }

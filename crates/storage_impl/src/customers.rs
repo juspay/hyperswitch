@@ -739,7 +739,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
         let conn = pg_connection_write(self).await?;
-        self.call_database_new(
+        Box::pin(self.call_database_new(
             key_store,
             diesel_models::Customer::update_by_customer_id_merchant_id(
                 &conn,
@@ -747,7 +747,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
                 merchant_id.clone(),
                 customer_update.foreign_into(),
             ),
-        )
+        ))
         .await
     }
 
@@ -876,8 +876,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
             .construct_new()
             .await
             .change_context(StorageError::EncryptionError)?;
-        self.call_database_new(key_store, customer_new.insert(&conn))
-            .await
+        Box::pin(self.call_database_new(key_store, customer_new.insert(&conn))).await
     }
 
     #[cfg(feature = "v1")]
@@ -907,14 +906,14 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
         let conn = pg_connection_write(self).await?;
-        self.call_database_new(
+        Box::pin(self.call_database_new(
             key_store,
             diesel_models::Customer::update_by_id(
                 &conn,
                 id.clone(),
                 customer_update.foreign_into(),
             ),
-        )
+        ))
         .await
     }
 
