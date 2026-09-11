@@ -198,6 +198,11 @@ pub struct PaysafeRedirectAccountId {
 }
 
 #[derive(Debug, serde::Deserialize)]
+pub struct GlobalpayMetadata {
+    account_name: Option<Secret<String>>,
+}
+
+#[derive(Debug, serde::Deserialize)]
 pub struct PeachpaymentsMetadata {
     client_merchant_reference_id: Secret<String>,
     merchant_payment_method_route_id: Secret<String>,
@@ -365,6 +370,8 @@ pub enum ConnectorSpecificConfig {
     Globalpay {
         app_id: Secret<String>,
         app_key: Secret<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        account_name: Option<Secret<String>>,
     },
     /// Fiserv connector configuration
     Fiserv {
@@ -1035,10 +1042,20 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 _ => Err(err("Datatrans requires BodyKey auth type")),
             },
             Connector::Globalpay => match auth {
-                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Globalpay {
-                    app_id: key1.clone(),
-                    app_key: api_key.clone(),
-                }),
+                ConnectorAuthType::BodyKey { api_key, key1 } => {
+                    let globalpay_meta = metadata
+                        .map(|m| {
+                            serde_json::from_value::<GlobalpayMetadata>(m.clone())
+                                .map_err(|_| err("Invalid Globalpay metadata format"))
+                        })
+                        .transpose()?;
+
+                    Ok(Self::Globalpay {
+                        app_id: key1.clone(),
+                        app_key: api_key.clone(),
+                        account_name: globalpay_meta.and_then(|m| m.account_name),
+                    })
+                }
                 _ => Err(err("Globalpay requires BodyKey auth type")),
             },
             Connector::Hipay => match auth {

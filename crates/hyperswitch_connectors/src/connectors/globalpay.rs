@@ -1238,4 +1238,19 @@ impl ConnectorSpecifications for Globalpay {
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
         Some(&GLOBALPAY_SUPPORTED_WEBHOOK_FLOWS)
     }
+
+    // PayPal requires an explicit POST /transactions/{id}/confirmation after the
+    // payer returns from the redirect. Bank redirects (iDEAL, Giropay, EPS) are
+    // auto-captured by GlobalPay — no confirmation call needed.
+    // We route only Wallet (PayPal) CompleteAuthorize through UCS PostAuthenticate.
+
+    fn is_post_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
+        matches!(
+            current_flow,
+            api::CurrentFlowInfo::CompleteAuthorize {
+                payment_method: Some(common_enums::PaymentMethod::Wallet),
+                ..
+            }
+        )
+    }
 }
