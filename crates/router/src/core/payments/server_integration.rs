@@ -1,14 +1,15 @@
-//! Server-integration enrichment for payments responses.
+//! Shared plumbing for the server-integration (`X-Integration-Type: server`) response shape.
 //!
-//! A caller that sends `X-Integration-Type: server` gets the payment response it always got,
-//! plus the two artifacts its checkout would otherwise fetch in separate calls: the combined
-//! payment-method list and the wallet session tokens. Client integrations, and callers that
-//! send no header at all, are unaffected.
+//! Both the create-intent and update-intent flows hand the caller the two artifacts its checkout
+//! would otherwise fetch in separate calls: the combined payment-method list and the wallet
+//! session tokens. This module owns the header parsing and the concurrent fetch of those two
+//! sections; the per-flow modules ([`super::create_intent`], [`super::update_intent`]) decide
+//! when to run it and attach the result to their response.
 //!
-//! This module adds no business logic. It calls the two existing cores — the same ones behind
-//! `POST /payments/session_tokens` and `GET /payments/{id}/client` — and attaches their results
-//! to the response. Both reads run after the write they depend on, and concurrently with each
-//! other, since neither reads the other's output.
+//! No business logic lives here. It calls the two existing cores — the same ones behind
+//! `POST /payments/session_tokens` and `GET /payments/{id}/client` — and reports each outcome.
+//! Both reads run after the write they depend on, and concurrently with each other, since neither
+//! reads the other's output.
 
 use api_models::{
     payment_methods as payment_methods_api,
@@ -16,23 +17,16 @@ use api_models::{
 };
 use common_utils::{consts, errors::ErrorSwitch, id_type};
 use error_stack::ResultExt;
+use hyperswitch_domain_models::payments::HeaderPayload;
 use router_env::{instrument, logger, tracing};
 
 use crate::{
+    consts::SERVER_INTEGRATION_SECTION_TIMEOUT as SECTION_TIMEOUT,
     core::{errors, payment_methods::client as pm_client, payments},
     routes::{app::ReqState, SessionState},
     services::{ApplicationResponse, AuthFlow},
     types::{api as api_types, domain},
 };
-
-/// How long a single section may take before it is reported as degraded.
-///
-/// The session core runs with `CallConnectorAction::Trigger`, so it can make outbound connector
-/// calls, and the payment-method list is served by the modular service over HTTP. The payment has
-/// already committed by the time either runs, so a section that hangs would hold a response the
-/// caller is entitled to. Each section is bounded independently so a slow one cannot starve the
-/// other.
-const SECTION_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
 
 /// Reads [`IntegrationType`] from the request headers.
 ///
@@ -92,21 +86,28 @@ fn timed_out(section: &str) -> error_stack::Report<errors::ApiErrorResponse> {
     ))
 }
 
-/// Attaches the payment-method list and wallet session tokens to a payments response.
+/// The two server-integration sections, each already in the shape the response carries.
+pub struct ServerContext {
+    pub session_tokens: payment_types::SessionTokensResult,
+    pub payment_method_list: payment_methods_api::PaymentMethodListResult,
+}
+
+/// Fetches the wallet session tokens and the combined payment-method list for a committed
+/// payment, concurrently.
 ///
 /// Best-effort by design: the payment write has already committed by the time this runs, so a
-/// failing section reports its own error inline and the response still succeeds. Turning a
-/// section failure into a 5xx would hide a committed state change from the caller.
+/// failing section reports its own error inline rather than failing the whole response. Turning a
+/// section failure into a 5xx would hide a committed state change from the caller. That is why
+/// this is a `join` and not a `try_join`: one section's failure must not cancel the other.
 #[instrument(skip_all, fields(payment_id))]
-pub async fn attach_server_context(
+pub async fn fetch_server_context(
     state: SessionState,
     req_state: ReqState,
     platform: domain::Platform,
     profile_id: Option<id_type::ProfileId>,
     payment_id: &id_type::PaymentId,
-    header_payload: hyperswitch_domain_models::payments::HeaderPayload,
-    response: &mut payment_types::PaymentsResponse,
-) {
+    header_payload: HeaderPayload,
+) -> ServerContext {
     tracing::Span::current().record("payment_id", payment_id.get_string_repr());
 
     // Both reads observe the committed payment; neither reads the other's output. Each is
@@ -140,7 +141,7 @@ pub async fn attach_server_context(
     let payment_methods_result =
         payment_methods_result.unwrap_or_else(|_| Err(timed_out("payment_method_list")));
 
-    response.session_tokens = Some(match session_result {
+    let session_tokens = match session_result {
         Ok(session) => payment_types::SessionTokensResult::Success(Box::new(session)),
         Err(error) => {
             logger::warn!(?error, "server-integration: session tokens unavailable");
@@ -148,22 +149,27 @@ pub async fn attach_server_context(
                 error: section_error(&error),
             }
         }
-    });
+    };
 
-    response.payment_method_list = Some(
-        match payment_methods_result.and_then(|listing| json_body(listing, "payment_method_list")) {
-            Ok(listing) => payment_methods_api::PaymentMethodListResult::Success(Box::new(listing)),
-            Err(error) => {
-                logger::warn!(
-                    ?error,
-                    "server-integration: payment-method list unavailable"
-                );
-                payment_methods_api::PaymentMethodListResult::Failed {
-                    error: section_error(&error),
-                }
+    let payment_method_list = match payment_methods_result
+        .and_then(|listing| json_body(listing, "payment_method_list"))
+    {
+        Ok(listing) => payment_methods_api::PaymentMethodListResult::Success(Box::new(listing)),
+        Err(error) => {
+            logger::warn!(
+                ?error,
+                "server-integration: payment-method list unavailable"
+            );
+            payment_methods_api::PaymentMethodListResult::Failed {
+                error: section_error(&error),
             }
-        },
-    );
+        }
+    };
+
+    ServerContext {
+        session_tokens,
+        payment_method_list,
+    }
 }
 
 /// Runs the session-token core over every wallet we can mint for.
@@ -173,7 +179,7 @@ async fn session_tokens(
     platform: domain::Platform,
     profile_id: Option<id_type::ProfileId>,
     payment_id: &id_type::PaymentId,
-    header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+    header_payload: HeaderPayload,
 ) -> errors::RouterResult<payment_types::PaymentsSessionResponse> {
     let response = Box::pin(payments::payments_core::<
         api_types::Session,

@@ -29,7 +29,7 @@ use super::app::ReqState;
 #[cfg(feature = "v2")]
 use crate::core::payment_method_balance;
 #[cfg(feature = "v1")]
-use crate::core::payments::update_context;
+use crate::core::payments::{create_intent, update_intent};
 #[cfg(feature = "v2")]
 use crate::core::revenue_recovery::api as recovery;
 #[cfg(feature = "v1")]
@@ -134,12 +134,19 @@ pub async fn payments_create(
         ),
     };
 
+    let integration_type = create_intent::integration_type_from_headers(req.headers());
+
+    // Merchant-only auth here, so the header alone opts in. A create-and-confirm has no use for
+    // the enrichment, and the session core rejects the statuses it lands in.
+    let is_create_and_confirm = payload.confirm.is_some_and(|confirm| confirm);
+    let enrich = integration_type.is_server() && !is_create_and_confirm;
+
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         payload,
-        |mut state, auth: auth::AuthenticationData, req, req_state| {
+        move |mut state, auth: auth::AuthenticationData, req, req_state| {
             let header_payload = header_payload.clone();
             async move {
                 let metrics_start = req
@@ -151,12 +158,27 @@ pub async fn payments_create(
                 } else {
                     None
                 };
+
+                let profile_id = auth.profile.map(|profile| profile.get_id().clone());
+
+                // Only the enrichment path needs these afterwards. A client create — the vast
+                // majority — clones nothing.
+                let enrichment_inputs = enrich.then(|| {
+                    (
+                        state.clone(),
+                        req_state.clone(),
+                        auth.platform.clone(),
+                        profile_id.clone(),
+                        header_payload.clone(),
+                    )
+                });
+
                 let result = Box::pin(authorize_verify_select::<_>(
                     payments::PaymentCreate,
                     state,
                     req_state,
                     auth.platform,
-                    auth.profile.map(|profile| profile.get_id().clone()),
+                    profile_id,
                     header_payload,
                     req,
                     api::AuthFlow::Client,
@@ -167,7 +189,43 @@ pub async fn payments_create(
                     record_payment_confirm(&result, start.elapsed(), context);
                 }
 
-                result
+                let response = result?;
+
+                // Enrichment cores are called directly, not via `server_wrap`: both flows share
+                // `ApiIdentifier::Payments`, so a nested wrap would deadlock on this request's lock.
+                let enrich_payment = |mut payment: payment_types::PaymentsResponse| async {
+                    if let Some((state, req_state, platform, profile_id, header_payload)) =
+                        enrichment_inputs
+                    {
+                        let id = payment.payment_id.clone();
+                        Box::pin(create_intent::attach_server_context(
+                            state,
+                            req_state,
+                            platform,
+                            profile_id,
+                            &id,
+                            header_payload,
+                            &mut payment,
+                        ))
+                        .await;
+                    }
+                    payment
+                };
+
+                // `enrich_payment` is a no-op when `enrichment_inputs` is `None`, so the opt-in
+                // decision lives in exactly one place rather than being re-tested here.
+                match response {
+                    services::ApplicationResponse::JsonWithHeaders((payment, headers)) => {
+                        Ok(services::ApplicationResponse::JsonWithHeaders((
+                            enrich_payment(payment).await,
+                            headers,
+                        )))
+                    }
+                    services::ApplicationResponse::Json(payment) => Ok(
+                        services::ApplicationResponse::Json(enrich_payment(payment).await),
+                    ),
+                    response => Ok(response),
+                }
             }
         },
         auth_type,
@@ -929,23 +987,11 @@ pub async fn payments_update(
         }
     };
 
-    let integration_type = update_context::integration_type_from_headers(req.headers());
+    let integration_type = update_intent::integration_type_from_headers(req.headers());
 
-    // Both inputs are known before the operation runs, so the decision — and therefore whether
-    // the enrichment inputs need cloning at all — is made once, here.
-    //
-    // Gated on merchant auth as well as the header: this route also accepts publishable-key +
-    // client-secret, and the enrichment runs the session core as `AuthFlow::Merchant` and skips
-    // client-secret validation on the list, so a client-authenticated caller must not be able to
-    // opt in with a header alone.
+    // Gated on merchant auth too: the enrichment runs as `AuthFlow::Merchant` and skips
+    // client-secret validation, so a client-authenticated caller cannot opt in via the header.
     let enrich = integration_type.is_server() && auth_flow == api::AuthFlow::Merchant;
-
-    if integration_type.is_server() && !enrich {
-        logger::warn!(
-            "server integration type requested on a client-authenticated request; \
-             returning the client response shape"
-        );
-    }
 
     Box::pin(api::server_wrap(
         flow,
@@ -992,20 +1038,14 @@ pub async fn payments_update(
                 ))
                 .await?;
 
-                // The two enrichment cores are invoked directly rather than through `server_wrap`,
-                // so they take no lock of their own. That matters: `Flow::PaymentsUpdate` and
-                // `Flow::PaymentsSessionToken` both map to `ApiIdentifier::Payments`, so a nested
-                // `server_wrap` would ask for the very key this request already holds and
-                // deadlock until it gave up with `ResourceBusy`.
-                //
-                // Payments responses come back as `JsonWithHeaders`; `Json` is handled too so the
-                // enrichment does not silently skip if that ever changes.
+                // Enrichment cores are called directly, not via `server_wrap`: both flows share
+                // `ApiIdentifier::Payments`, so a nested wrap would deadlock on this request's lock.
                 let enrich_payment = |mut payment: payment_types::PaymentsResponse| async {
                     if let Some((state, req_state, platform, profile_id, header_payload)) =
                         enrichment_inputs
                     {
                         let id = payment.payment_id.clone();
-                        Box::pin(update_context::attach_server_context(
+                        Box::pin(update_intent::attach_server_context(
                             state,
                             req_state,
                             platform,

@@ -26,6 +26,10 @@ pub(crate) const ALPHABETS: [char; 62] = [
 ];
 /// API client request timeout (in seconds)
 pub const REQUEST_TIME_OUT: u64 = 30;
+/// Bound on each server-integration section (session tokens, payment-method list). Matches the
+/// outbound HTTP client timeout, since the session core can make connector calls.
+pub const SERVER_INTEGRATION_SECTION_TIMEOUT: std::time::Duration =
+    std::time::Duration::from_secs(consts::REQUEST_TIME_OUT);
 pub const REQUEST_TIMEOUT_PAYMENT_NOT_FOUND: &str = "Timed out ,payment not found";
 pub const REQUEST_TIMEOUT_ERROR_MESSAGE_FROM_PSYNC: &str =
     "This Payment has been moved to failed as there is no response from the connector";
