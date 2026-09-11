@@ -20,6 +20,7 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_masking::PeekInterface;
+#[cfg(not(target_arch = "wasm32"))]
 use router_env::logger;
 use rust_decimal::{
     prelude::{FromPrimitive, ToPrimitive},
@@ -1962,11 +1963,14 @@ impl TryFrom<PaymentMethodDataWalletInfo> for Box<payments::ApplepayPaymentMetho
                 .to_uppercase()
                 .parse::<api_enums::CardType>()
                 .inspect_err(|error| {
+                    #[cfg(not(target_arch = "wasm32"))]
                     logger::error!(
                         ?error,
                         unparsed_card_type = %card_type,
                         "Received an unrecognized card_type value from Apple Pay; defaulting to None"
-                    )
+                    );
+                    #[cfg(target_arch = "wasm32")]
+                    let _ = error;
                 })
                 .ok(),
             card_exp_month: item.card_exp_month,
