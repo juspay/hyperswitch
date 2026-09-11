@@ -31,6 +31,19 @@
         "summary": "Payments - Create",
         "description": "Creates a payment resource, which represents a customer's intent to pay.\nThis endpoint is the starting point for various payment flows:\n",
         "operationId": "Create a Payment",
+        "parameters": [
+          {
+            "name": "X-Integration-Type",
+            "in": "header",
+            "description": "Selects the response shape. `server` returns the payment together with `payment_method_list` and `session_tokens`, so a server-to-server integration can render its checkout from one call; it is honoured only with merchant API key authentication. `client`, or no header, returns the payment response unchanged.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "server"
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -627,6 +640,90 @@
                       "profile_id": "pro_pzzzzzzzzzzz",
                       "status": "succeeded"
                     }
+                  },
+                  "12. Server integration response": {
+                    "value": {
+                      "amount": 6540,
+                      "attempt_count": 1,
+                      "client_secret": "pay_mbabizu24mvu3mela5njyhpit4_secret_el9ksDkiB8hi6j9N78yo",
+                      "currency": "USD",
+                      "customer_id": "cus_abcdefgh",
+                      "merchant_id": "merchant_1668273825",
+                      "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                      "payment_method_list": {
+                        "customer_payment_methods": [],
+                        "intent_data": {
+                          "amount": 6540,
+                          "attempt_count": 1,
+                          "currency": "USD",
+                          "customer_id": "cus_abcdefgh",
+                          "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                          "profile_id": "pro_pzzzzzzzzzzz",
+                          "status": "requires_payment_method"
+                        },
+                        "payment_methods_enabled": [
+                          {
+                            "card_networks": [
+                              "Visa",
+                              "Mastercard"
+                            ],
+                            "customer_acceptance_support": "supported",
+                            "payment_method": "card",
+                            "payment_method_type": "credit"
+                          }
+                        ],
+                        "sdk_next_action": {
+                          "next_action": "confirm"
+                        }
+                      },
+                      "profile_id": "pro_pzzzzzzzzzzz",
+                      "sdk_authorization": "cHJvZmlsZV9pZD1wcm9mXzEyMyxwdWJsaXNoYWJsZV9rZXk9cGtfbGl2ZV8xMjM=",
+                      "session_tokens": {
+                        "client_secret": "pay_mbabizu24mvu3mela5njyhpit4_secret_el9ksDkiB8hi6j9N78yo",
+                        "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                        "session_token": [],
+                        "vault_details": {
+                          "vault_data": {
+                            "sdk_authorization": "cHJvZmlsZV9pZD1wcm9mXzEyMyxwdWJsaXNoYWJsZV9rZXk9cGtfbGl2ZV8xMjM="
+                          },
+                          "vault_type": "hyperswitch"
+                        }
+                      },
+                      "status": "requires_payment_method"
+                    }
+                  },
+                  "13. Server integration, one section failed": {
+                    "value": {
+                      "amount": 6540,
+                      "attempt_count": 1,
+                      "client_secret": "pay_mbabizu24mvu3mela5njyhpit4_secret_el9ksDkiB8hi6j9N78yo",
+                      "currency": "USD",
+                      "merchant_id": "merchant_1668273825",
+                      "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                      "payment_method_list": {
+                        "customer_payment_methods": [],
+                        "intent_data": {
+                          "amount": 6540,
+                          "attempt_count": 1,
+                          "currency": "USD",
+                          "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                          "status": "requires_payment_method"
+                        },
+                        "payment_methods_enabled": [],
+                        "sdk_next_action": {
+                          "next_action": "confirm"
+                        }
+                      },
+                      "profile_id": "pro_pzzzzzzzzzzz",
+                      "session_tokens": {
+                        "error": {
+                          "code": "HE_00",
+                          "message": "Something went wrong",
+                          "type": "api"
+                        }
+                      },
+                      "status": "requires_payment_method"
+                    }
                   }
                 }
               }
@@ -667,6 +764,17 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Integration-Type",
+            "in": "header",
+            "description": "Selects the response shape. `server` returns the payment together with `payment_method_list` and `session_tokens`, so a server-to-server integration can render its checkout from one call; it is honoured only with merchant API key authentication. `client`, or no header, returns the payment response unchanged.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "server"
           }
         ],
         "requestBody": {
@@ -714,6 +822,92 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PaymentsCreateResponseOpenApi"
+                },
+                "examples": {
+                  "Server integration response": {
+                    "value": {
+                      "amount": 6540,
+                      "attempt_count": 1,
+                      "client_secret": "pay_mbabizu24mvu3mela5njyhpit4_secret_el9ksDkiB8hi6j9N78yo",
+                      "currency": "USD",
+                      "customer_id": "cus_abcdefgh",
+                      "merchant_id": "merchant_1668273825",
+                      "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                      "payment_method_list": {
+                        "customer_payment_methods": [],
+                        "intent_data": {
+                          "amount": 6540,
+                          "attempt_count": 1,
+                          "currency": "USD",
+                          "customer_id": "cus_abcdefgh",
+                          "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                          "profile_id": "pro_pzzzzzzzzzzz",
+                          "status": "requires_payment_method"
+                        },
+                        "payment_methods_enabled": [
+                          {
+                            "card_networks": [
+                              "Visa",
+                              "Mastercard"
+                            ],
+                            "customer_acceptance_support": "supported",
+                            "payment_method": "card",
+                            "payment_method_type": "credit"
+                          }
+                        ],
+                        "sdk_next_action": {
+                          "next_action": "confirm"
+                        }
+                      },
+                      "profile_id": "pro_pzzzzzzzzzzz",
+                      "sdk_authorization": "cHJvZmlsZV9pZD1wcm9mXzEyMyxwdWJsaXNoYWJsZV9rZXk9cGtfbGl2ZV8xMjM=",
+                      "session_tokens": {
+                        "client_secret": "pay_mbabizu24mvu3mela5njyhpit4_secret_el9ksDkiB8hi6j9N78yo",
+                        "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                        "session_token": [],
+                        "vault_details": {
+                          "vault_data": {
+                            "sdk_authorization": "cHJvZmlsZV9pZD1wcm9mXzEyMyxwdWJsaXNoYWJsZV9rZXk9cGtfbGl2ZV8xMjM="
+                          },
+                          "vault_type": "hyperswitch"
+                        }
+                      },
+                      "status": "requires_payment_method"
+                    }
+                  },
+                  "Server integration, one section failed": {
+                    "value": {
+                      "amount": 6540,
+                      "attempt_count": 1,
+                      "client_secret": "pay_mbabizu24mvu3mela5njyhpit4_secret_el9ksDkiB8hi6j9N78yo",
+                      "currency": "USD",
+                      "merchant_id": "merchant_1668273825",
+                      "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                      "payment_method_list": {
+                        "customer_payment_methods": [],
+                        "intent_data": {
+                          "amount": 6540,
+                          "attempt_count": 1,
+                          "currency": "USD",
+                          "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                          "status": "requires_payment_method"
+                        },
+                        "payment_methods_enabled": [],
+                        "sdk_next_action": {
+                          "next_action": "confirm"
+                        }
+                      },
+                      "profile_id": "pro_pzzzzzzzzzzz",
+                      "session_tokens": {
+                        "error": {
+                          "code": "HE_00",
+                          "message": "Something went wrong",
+                          "type": "api"
+                        }
+                      },
+                      "status": "requires_payment_method"
+                    }
+                  }
                 }
               }
             }
