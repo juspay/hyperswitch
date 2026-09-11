@@ -362,6 +362,12 @@ pub const UCS_ROLLOUT_PERCENT_CONFIG_PREFIX: &str = "ucs_rollout_config";
 // skip the DB entirely instead of hitting it on every cache miss.
 pub const UCS_ROLLOUT_CONFIG_NOT_CONFIGURED: &str = "not_configured";
 
+// Sentinel cached when a config key is absent from the `configs` table.
+// `find_config_by_key` returns `NotFound` for such keys and the cache layer stores values but
+// not errors, so without this every request re-queries every unset key. Distinct from the UCS
+// sentinel so a value written for one never satisfies a lookup for the other.
+pub const CONFIG_NOT_CONFIGURED: &str = "__not_configured__";
+
 // UCS feature enabled config
 pub const UCS_ENABLED: &str = "ucs_enabled";
 

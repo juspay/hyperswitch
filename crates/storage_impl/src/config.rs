@@ -21,6 +21,14 @@ pub struct Database {
     pub max_lifetime: u64,
     #[serde(default = "default_idle_timeout")]
     pub idle_timeout: u64,
+    /// Run a liveness query on every checkout from the pool.
+    ///
+    /// bb8 defaults this on, which costs one extra `SELECT 1` round trip per
+    /// checkout. That is cheap against a local Postgres and expensive against
+    /// Spanner through PGAdapter, where the probe carries the same per-RPC
+    /// overhead as a real query, so it is worth turning off there.
+    #[serde(default = "default_test_on_check_out")]
+    pub test_on_check_out: bool,
 }
 
 const fn default_min_idle_pool_size() -> u32 {
@@ -33,6 +41,10 @@ const fn default_max_lifetime() -> u64 {
 
 const fn default_idle_timeout() -> u64 {
     300
+}
+
+const fn default_test_on_check_out() -> bool {
+    true
 }
 
 impl DbConnectionParams for Database {
@@ -84,6 +96,7 @@ impl Default for Database {
             min_idle_pool_size: default_min_idle_pool_size(),
             max_lifetime: default_max_lifetime(),
             idle_timeout: default_idle_timeout(),
+            test_on_check_out: default_test_on_check_out(),
         }
     }
 }

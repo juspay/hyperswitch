@@ -1156,6 +1156,7 @@ pub struct Database {
     pub min_idle_pool_size: u32,
     pub max_lifetime: u64,
     pub idle_timeout: u64,
+    pub test_on_check_out: bool,
 }
 
 impl From<Database> for storage_impl::config::Database {
@@ -1172,6 +1173,7 @@ impl From<Database> for storage_impl::config::Database {
             min_idle_pool_size: val.min_idle_pool_size,
             max_lifetime: val.max_lifetime,
             idle_timeout: val.idle_timeout,
+            test_on_check_out: val.test_on_check_out,
         }
     }
 }

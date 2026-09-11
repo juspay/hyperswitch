@@ -68,6 +68,7 @@ min_idle_pool_size = 8
 connection_timeout = 10
 idle_timeout = 300
 max_lifetime = 1800
+test_on_check_out = true  # Validate each pooled connection with `SELECT 1` before handing it out. Costs one extra round trip per checkout; set false only where that round trip is expensive and a stale connection can be tolerated
 
 [replica_database]
 username = "spanner"

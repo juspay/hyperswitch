@@ -9600,13 +9600,18 @@ pub async fn is_merchant_eligible_authentication_service(
         .get_account()
         .get_org_id()
         .get_authentication_service_eligible_key();
+    // Neither key is set for most deployments. `find_config_by_key` reports a missing
+    // key as `NotFound` and the cache layer does not store errors, so reading them
+    // directly costs two database round trips on every payment, forever. Caching a
+    // sentinel instead makes the miss as cheap as the hit.
     let org_eligible = db
-        .find_config_by_key(&org_key)
+        .find_config_by_key_unwrap_or(&org_key, Some(consts::CONFIG_NOT_CONFIGURED.to_string()))
         .await
         .inspect_err(|error| {
             logger::error!(?error, "Failed to fetch `{org_key}` config from DB");
         })
         .ok()
+        .filter(|c| c.config != consts::CONFIG_NOT_CONFIGURED)
         .map(|c| c.config.to_lowercase() == "true");
 
     Ok(org_eligible
@@ -9615,14 +9620,18 @@ pub async fn is_merchant_eligible_authentication_service(
                 .get_account()
                 .get_id()
                 .get_authentication_service_eligible_key();
-            db.find_config_by_key(&merchant_key)
-                .await
-                .inspect_err(|error| {
-                    logger::error!(?error, "Failed to fetch `{merchant_key}` config from DB");
-                })
-                .ok()
-                .map(|c| c.config.to_lowercase() == "true")
-                .unwrap_or(false)
+            db.find_config_by_key_unwrap_or(
+                &merchant_key,
+                Some(consts::CONFIG_NOT_CONFIGURED.to_string()),
+            )
+            .await
+            .inspect_err(|error| {
+                logger::error!(?error, "Failed to fetch `{merchant_key}` config from DB");
+            })
+            .ok()
+            .filter(|c| c.config != consts::CONFIG_NOT_CONFIGURED)
+            .map(|c| c.config.to_lowercase() == "true")
+            .unwrap_or(false)
         })
         .await)
 }
