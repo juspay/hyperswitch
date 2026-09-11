@@ -38,9 +38,9 @@ pub struct Settings<S: SecretState> {
     pub proxy: Proxy,
     pub chat: SecretStateContainer<ChatSettings, S>,
     pub email: EmailSettings,
-    pub dictionary: DictionarySettings,
     pub lifecycle: LifecycleSettings,
     pub instances: InstanceSettings,
+    pub mappers: MapperSettings,
 }
 
 const DEFAULT_MAX_UPLOAD_BYTES: usize = 25 * 1024 * 1024;
@@ -160,12 +160,12 @@ fn default_max_entry_bytes() -> usize {
 
 #[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
-pub struct DictionarySettings {
+pub struct MapperSettings {
     #[serde(default = "default_max_entry_bytes")]
     pub max_entry_bytes: usize,
 }
 
-impl Default for DictionarySettings {
+impl Default for MapperSettings {
     fn default() -> Self {
         Self {
             max_entry_bytes: default_max_entry_bytes(),
@@ -173,11 +173,11 @@ impl Default for DictionarySettings {
     }
 }
 
-impl DictionarySettings {
+impl MapperSettings {
     pub fn validate(&self) -> Result<(), errors::ConfigurationError> {
         common_utils::fp_utils::when(self.max_entry_bytes == 0, || {
             Err(errors::ConfigurationError::ConfigParsingError(
-                "dictionary max_entry_bytes must be greater than zero".into(),
+                "mappers max_entry_bytes must be greater than zero".into(),
             ))
         })
     }
@@ -454,9 +454,9 @@ impl Settings<SecuredSecret> {
         self.database.get_inner().validate()?;
         self.chat.get_inner().validate()?;
         self.email.validate()?;
-        self.dictionary.validate()?;
         self.lifecycle.validate()?;
         self.instances.validate()?;
+        self.mappers.validate()?;
         self.secrets_management
             .validate()
             .map_err(|error| errors::ConfigurationError::ConfigParsingError(error.into()))?;
