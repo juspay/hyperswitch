@@ -1034,8 +1034,11 @@ impl
                 .map(payments_grpc::Tokenization::foreign_from)
                 .map(Into::into),
             l2_l3_data: None,
-            // Captures the order created before the redirect instead of creating a new one.
-            connector_order_id: router_data.request.connector_transaction_id.clone(),
+            connector_order_id: router_data
+                .request
+                .order_id
+                .clone()
+                .or_else(|| router_data.request.connector_transaction_id.clone()),
             merchant_request_id: None,
             partner_merchant_identifier_details: None,
             // TODO: Populate currency_conversion_data when Dynamic Currency Conversion (DCC) is implemented
@@ -1702,7 +1705,10 @@ impl
             metadata: None,
             return_url: None,
             continue_redirection_url: None,
-            state: None,
+            state: router_data
+                .access_token
+                .as_ref()
+                .map(ConnectorState::foreign_from),
             redirection_response: router_data
                 .request
                 .redirect_response
@@ -1718,7 +1724,11 @@ impl
                 .map(payments_grpc::BrowserInformation::foreign_try_from)
                 .transpose()?,
             connector_feature_data: None,
-            connector_order_reference_id: None,
+            connector_order_reference_id: router_data
+                .request
+                .order_id
+                .clone()
+                .or_else(|| router_data.request.connector_transaction_id.clone()),
             capture_method: capture_method.map(|capture_method| capture_method.into()),
         })
     }
@@ -1802,7 +1812,10 @@ impl
             metadata: None,
             return_url: None,
             continue_redirection_url: None,
-            state: None,
+            state: router_data
+                .access_token
+                .as_ref()
+                .map(ConnectorState::foreign_from),
             redirection_response: router_data
                 .request
                 .redirect_response
@@ -1818,7 +1831,11 @@ impl
                 .map(payments_grpc::BrowserInformation::foreign_try_from)
                 .transpose()?,
             connector_feature_data: None,
-            connector_order_reference_id: None,
+            connector_order_reference_id: router_data
+                .request
+                .order_id
+                .clone()
+                .or_else(|| router_data.request.connector_transaction_id.clone()),
             capture_method: capture_method.map(|capture_method| capture_method.into()),
         })
     }
@@ -2262,7 +2279,11 @@ impl
             threeds_completion_indicator: None,
             redirection_response: None,
             continue_redirection_url: None,
-            connector_order_id: None,
+            connector_order_id: router_data
+                .request
+                .order_id
+                .clone()
+                .or_else(|| router_data.request.connector_transaction_id.clone()),
             l2_l3_data: None,
             merchant_request_id: None,
             partner_merchant_identifier_details: None,
