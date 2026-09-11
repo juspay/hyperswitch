@@ -61,6 +61,18 @@ pub enum ObservabilityError {
     #[error("No alert is defined as `{name}` / `{product}`")]
     NotAnAlert { name: String, product: String },
 
+    #[error("No alert channel is named `{channel}`")]
+    UnknownChannel { channel: String },
+
+    #[error("The lifecycle write carries {alerts} alerts, over the {limit} allowed")]
+    StateTooLarge { alerts: usize, limit: usize },
+
+    #[error("The lifecycle state changed after it was read")]
+    StateChanged,
+
+    #[error("No announcement exists with id `{id}`")]
+    UnknownAnnouncement { id: String },
+
     #[error("No destination is configured under `{destination}`")]
     UnknownDestination { destination: String },
 
@@ -92,6 +104,24 @@ impl ErrorSwitch<ApiErrorResponse> for ObservabilityError {
                 "IR",
                 8,
                 "The mapper entry is larger than this service stores",
+            )),
+            Self::UnknownChannel { .. } => {
+                ApiErrorResponse::NotFound(ApiError::new("IR", 9, "Unknown alert channel"))
+            }
+            Self::StateTooLarge { .. } => ApiErrorResponse::BadRequest(ApiError::new(
+                "IR",
+                10,
+                "The lifecycle write carries more alerts than this service stores",
+            )),
+            Self::StateChanged => ApiErrorResponse::Conflict(ApiError::new(
+                "IR",
+                11,
+                "The lifecycle state changed after it was read",
+            )),
+            Self::UnknownAnnouncement { .. } => ApiErrorResponse::BadRequest(ApiError::new(
+                "IR",
+                12,
+                "No announcement exists with that id",
             )),
             Self::UnknownDestination { .. } => {
                 ApiErrorResponse::NotFound(ApiError::new("IR", 2, "Unknown destination"))
@@ -189,6 +219,30 @@ mod tests {
             }),
             400
         );
+        assert_eq!(
+            status_of(&ObservabilityError::UnknownChannel {
+                channel: "teams".to_owned(),
+            }),
+            404
+        );
+        assert_eq!(
+            status_of(&ObservabilityError::StateTooLarge {
+                alerts: 6000,
+                limit: 5000,
+            }),
+            400
+        );
+        assert_eq!(
+            status_of(&ObservabilityError::UnknownAnnouncement {
+                id: "0189d0a0-0000-7000-8000-000000000000".to_owned(),
+            }),
+            400
+        );
+    }
+
+    #[test]
+    fn a_stale_whole_state_write_is_its_own_status() {
+        assert_eq!(status_of(&ObservabilityError::StateChanged), 409);
     }
 
     #[test]
@@ -218,6 +272,15 @@ mod tests {
             ObservabilityError::ProviderUnavailable {
                 destination: String::new(),
             },
+            ObservabilityError::UnknownChannel {
+                channel: String::new(),
+            },
+            ObservabilityError::StateTooLarge {
+                alerts: 0,
+                limit: 0,
+            },
+            ObservabilityError::StateChanged,
+            ObservabilityError::UnknownAnnouncement { id: String::new() },
         ]
         .iter()
         .map(|error| {
@@ -230,7 +293,7 @@ mod tests {
         })
         .collect::<std::collections::HashSet<_>>();
 
-        assert_eq!(codes.len(), 11);
+        assert_eq!(codes.len(), 15);
     }
 
     #[test]

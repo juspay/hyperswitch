@@ -9,6 +9,7 @@ impl actix_web::ResponseError for ApiErrorResponse {
             Self::BadRequest(_) => StatusCode::BAD_REQUEST,
             Self::Unauthorized(_) => StatusCode::UNAUTHORIZED,
             Self::NotFound(_) => StatusCode::NOT_FOUND,
+            Self::Conflict(_) => StatusCode::CONFLICT,
             Self::InternalServerError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             Self::BadGateway(_) => StatusCode::BAD_GATEWAY,
             Self::ServiceUnavailable(_) => StatusCode::SERVICE_UNAVAILABLE,
