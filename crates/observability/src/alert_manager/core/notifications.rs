@@ -13,7 +13,7 @@ pub async fn read_watermark(
     state: AppState,
     user: UserName,
 ) -> ObservabilityApiResult<WatermarkResponse> {
-    let user_name = validated(&user)?;
+    let user_name = within_width(&user)?;
     let connection = state.database_connection().await?;
 
     let watermark = NotificationRead::find_by_user_name(&connection, user_name)
@@ -37,7 +37,7 @@ pub async fn mark_read(
     state: AppState,
     user: UserName,
 ) -> ObservabilityApiResult<WatermarkResponse> {
-    let user_name = validated(&user)?;
+    let user_name = within_width(&user)?;
     let connection = state.database_connection().await?;
 
     let watermark = NotificationRead {
@@ -55,7 +55,7 @@ pub async fn mark_read(
     })
 }
 
-fn validated(user: &UserName) -> ObservabilityApiResult<&str> {
+fn within_width(user: &UserName) -> ObservabilityApiResult<&str> {
     let user_name = user.as_str();
 
     if user_name.len() > USER_NAME_MAX_BYTES {
