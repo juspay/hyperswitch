@@ -428,6 +428,9 @@ impl TryFrom<SetupMandateRequestData> for PaymentsPreProcessingData {
     type Error = error_stack::Report<ApiErrorResponse>;
 
     fn try_from(data: SetupMandateRequestData) -> Result<Self, Self::Error> {
+        let device_channel = Some(BrowserInformation::resolve_device_channel(
+            data.browser_info.as_ref(),
+        ));
         Ok(Self {
             payment_method_data: Some(data.payment_method_data),
             amount: data.amount,
@@ -442,6 +445,7 @@ impl TryFrom<SetupMandateRequestData> for PaymentsPreProcessingData {
             webhook_url: data.webhook_url,
             complete_authorize_url: data.complete_authorize_url,
             browser_info: data.browser_info,
+            device_channel,
             surcharge_details: None,
             connector_transaction_id: None,
             mandate_id: data.mandate_id,
@@ -453,6 +457,7 @@ impl TryFrom<SetupMandateRequestData> for PaymentsPreProcessingData {
             customer_acceptance: data.customer_acceptance,
             setup_future_usage: data.setup_future_usage,
             is_stored_credential: data.is_stored_credential,
+            force_3ds_challenge: None,
         })
     }
 }
@@ -769,6 +774,7 @@ pub struct PaymentsPreProcessingData {
     pub complete_authorize_url: Option<String>,
     pub surcharge_details: Option<SurchargeDetails>,
     pub browser_info: Option<BrowserInformation>,
+    pub device_channel: Option<api_models::payments::DeviceChannel>,
     pub connector_transaction_id: Option<String>,
     pub enrolled_for_3ds: bool,
     pub mandate_id: Option<mandates::MandateIds>,
@@ -781,6 +787,7 @@ pub struct PaymentsPreProcessingData {
     // New amount for amount frame work
     pub minor_amount: MinorUnit,
     pub is_stored_credential: Option<bool>,
+    pub force_3ds_challenge: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -832,6 +839,9 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsPreProcessingData {
     type Error = error_stack::Report<ApiErrorResponse>;
 
     fn try_from(data: PaymentsAuthorizeData) -> Result<Self, Self::Error> {
+        let device_channel = Some(BrowserInformation::resolve_device_channel(
+            data.browser_info.as_ref(),
+        ));
         Ok(Self {
             payment_method_data: Some(data.payment_method_data),
             amount: data.amount,
@@ -846,6 +856,7 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsPreProcessingData {
             webhook_url: data.webhook_url,
             complete_authorize_url: data.complete_authorize_url,
             browser_info: data.browser_info,
+            device_channel,
             surcharge_details: data.surcharge_details,
             connector_transaction_id: None,
             mandate_id: data.mandate_id,
@@ -857,6 +868,7 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsPreProcessingData {
             customer_acceptance: data.customer_acceptance,
             setup_future_usage: data.setup_future_usage,
             is_stored_credential: data.is_stored_credential,
+            force_3ds_challenge: None,
         })
     }
 }
@@ -930,6 +942,9 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsAuthenticateData {
     type Error = error_stack::Report<ApiErrorResponse>;
 
     fn try_from(data: PaymentsAuthorizeData) -> Result<Self, Self::Error> {
+        let device_channel = Some(BrowserInformation::resolve_device_channel(
+            data.browser_info.as_ref(),
+        ));
         Ok(Self {
             payment_method_data: Some(data.payment_method_data),
             payment_method_type: data.payment_method_type,
@@ -945,8 +960,9 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsAuthenticateData {
             // This is handled within authentication_step function in authorize_flow.rs
             authentication_data: None,
             sdk_information: None,
-            device_channel: None,
+            device_channel,
             webhook_url: data.webhook_url,
+            force_3ds_challenge: data.force_3ds_challenge,
         })
     }
 }
@@ -967,12 +983,16 @@ pub struct PaymentsAuthenticateData {
     pub sdk_information: Option<api_models::payments::SdkInformation>,
     pub device_channel: Option<api_models::payments::DeviceChannel>,
     pub webhook_url: Option<String>,
+    pub force_3ds_challenge: Option<bool>,
 }
 
 impl TryFrom<CompleteAuthorizeData> for PaymentsAuthenticateData {
     type Error = error_stack::Report<ApiErrorResponse>;
 
     fn try_from(data: CompleteAuthorizeData) -> Result<Self, Self::Error> {
+        let device_channel = Some(BrowserInformation::resolve_device_channel(
+            data.browser_info.as_ref(),
+        ));
         Ok(Self {
             payment_method_data: data.payment_method_data,
             payment_method_type: data.payment_method_type,
@@ -986,8 +1006,9 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsAuthenticateData {
             capture_method: data.capture_method,
             authentication_data: data.authentication_data,
             sdk_information: None,
-            device_channel: None,
+            device_channel,
             webhook_url: None,
+            force_3ds_challenge: data.force_3ds_challenge,
         })
     }
 }
@@ -1036,6 +1057,9 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsPreProcessingData {
     type Error = error_stack::Report<ApiErrorResponse>;
 
     fn try_from(data: CompleteAuthorizeData) -> Result<Self, Self::Error> {
+        let device_channel = Some(BrowserInformation::resolve_device_channel(
+            data.browser_info.as_ref(),
+        ));
         Ok(Self {
             payment_method_data: data.payment_method_data,
             amount: data.amount,
@@ -1050,6 +1074,7 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsPreProcessingData {
             webhook_url: None,
             complete_authorize_url: data.complete_authorize_url,
             browser_info: data.browser_info,
+            device_channel,
             surcharge_details: None,
             connector_transaction_id: data.connector_transaction_id,
             mandate_id: data.mandate_id,
@@ -1061,6 +1086,7 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsPreProcessingData {
             customer_acceptance: data.customer_acceptance,
             setup_future_usage: data.setup_future_usage,
             is_stored_credential: data.is_stored_credential,
+            force_3ds_challenge: data.force_3ds_challenge,
         })
     }
 }
@@ -1141,6 +1167,7 @@ pub struct CompleteAuthorizeData {
     pub business_country: Option<common_enums::CountryAlpha2>,
     pub connector_intent_metadata: Option<ConnectorMetadata>,
     pub order_id: Option<String>,
+    pub force_3ds_challenge: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1261,6 +1288,17 @@ pub struct BrowserInformation {
     pub device_model: Option<String>,
     pub accept_language: Option<String>,
     pub referer: Option<String>,
+}
+
+impl BrowserInformation {
+    pub fn resolve_device_channel(
+        browser_info: Option<&Self>,
+    ) -> api_models::payments::DeviceChannel {
+        match browser_info {
+            Some(_) => api_models::payments::DeviceChannel::Browser,
+            None => api_models::payments::DeviceChannel::App,
+        }
+    }
 }
 
 #[cfg(feature = "v2")]

@@ -1326,8 +1326,9 @@ where
     let additional_params = match item.request.is_customer_initiated_mandate_payment() {
         true => Some(V2AdditionalParams {
             rebill_expiry: Some(
-                time::OffsetDateTime::now_utc()
-                    .replace_year(time::OffsetDateTime::now_utc().year() + 5)
+                date_time::now()
+                    .assume_utc()
+                    .replace_year(date_time::now().assume_utc().year() + 5)
                     .map_err(|_| errors::ConnectorError::DateFormattingFailed)?
                     .date()
                     .format(&time::macros::format_description!("[year][month][day]"))

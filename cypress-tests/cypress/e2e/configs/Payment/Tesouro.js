@@ -1,5 +1,24 @@
 import { customerAcceptance } from "./Commons";
 
+const captureMethodNotSupportedError = {
+  type: "invalid_request",
+  message: "Capture method not supported is not implemented",
+  code: "IR_00",
+};
+
+const cardsThreeDsNotSupportedError = {
+  type: "invalid_request",
+  message: "Cards 3DS is not supported by Tesouro is not implemented",
+  code: "IR_00",
+};
+
+const refundNotImplementedError = {
+  type: "invalid_request",
+  message:
+    "This feature is not implemented: refund flow for tesouro is not implemented",
+  code: "IR_00",
+};
+
 const successfulNo3DSCardDetails = {
   card_number: "4530910000012345",
   card_exp_month: "10",
@@ -14,6 +33,14 @@ const successfulNoThreeDsCardDetailsRequest = {
   card_exp_year: "28",
   card_holder_name: "John",
   card_cvc: "111",
+};
+
+const failedNo3DSCardDetails = {
+  card_number: "5111111006001002",
+  card_exp_month: "01",
+  card_exp_year: "35",
+  card_holder_name: "Joseph Doe",
+  card_cvc: "123",
 };
 
 const successfulThreeDSTestCardDetails = {
@@ -106,13 +133,9 @@ export const connectorDetails = {
         setup_future_usage: "on_session",
       },
       Response: {
-        status: 400,
+        status: 501,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "Payment method type not supported",
-            code: "IR_16",
-          },
+          error: captureMethodNotSupportedError,
         },
       },
     },
@@ -129,13 +152,9 @@ export const connectorDetails = {
         setup_future_usage: "on_session",
       },
       Response: {
-        status: 400,
+        status: 501,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "Payment method type not supported",
-            code: "IR_16",
-          },
+          error: cardsThreeDsNotSupportedError,
         },
       },
     },
@@ -151,9 +170,9 @@ export const connectorDetails = {
         setup_future_usage: "on_session",
       },
       Response: {
-        status: 200,
+        status: 501,
         body: {
-          status: "requires_capture",
+          error: captureMethodNotSupportedError,
         },
       },
     },
@@ -172,6 +191,22 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+        },
+      },
+    },
+    No3DSFailPayment: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: failedNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded", // Tesouro does not fail the payment even if the card is failed, it will return succeeded
         },
       },
     },
@@ -226,9 +261,9 @@ export const connectorDetails = {
         amount: 6000,
       },
       Response: {
-        status: 200,
+        status: 501,
         body: {
-          status: "succeeded",
+          error: refundNotImplementedError,
         },
       },
     },
@@ -237,9 +272,9 @@ export const connectorDetails = {
         amount: 2000,
       },
       Response: {
-        status: 200,
+        status: 501,
         body: {
-          status: "succeeded",
+          error: refundNotImplementedError,
         },
       },
     },
@@ -248,9 +283,9 @@ export const connectorDetails = {
         amount: 6000,
       },
       Response: {
-        status: 200,
+        status: 501,
         body: {
-          status: "succeeded",
+          error: refundNotImplementedError,
         },
       },
     },
@@ -259,9 +294,9 @@ export const connectorDetails = {
         amount: 2000,
       },
       Response: {
-        status: 200,
+        status: 501,
         body: {
-          status: "succeeded",
+          error: refundNotImplementedError,
         },
       },
     },
@@ -348,9 +383,9 @@ export const connectorDetails = {
         customer_acceptance: customerAcceptance,
       },
       Response: {
-        status: 200,
+        status: 501,
         body: {
-          status: "requires_capture",
+          error: captureMethodNotSupportedError,
         },
       },
     },
@@ -364,9 +399,9 @@ export const connectorDetails = {
         customer_acceptance: customerAcceptance,
       },
       Response: {
-        status: 200,
+        status: 501,
         body: {
-          status: "requires_capture",
+          error: captureMethodNotSupportedError,
         },
       },
     },
@@ -378,9 +413,9 @@ export const connectorDetails = {
         setup_future_usage: "off_session",
       },
       Response: {
-        status: 200,
+        status: 501,
         body: {
-          status: "requires_capture",
+          error: captureMethodNotSupportedError,
         },
       },
     },
@@ -396,6 +431,46 @@ export const connectorDetails = {
         },
         setup_future_usage: "off_session",
         customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    SaveCardUse3DSAutoCaptureOffSession: {
+      Request: {
+        payment_method: "card",
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        setup_future_usage: "off_session",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 501,
+        body: {
+          error: cardsThreeDsNotSupportedError,
+        },
+      },
+    },
+    SaveCardConfirmAutoCaptureOffSession: {
+      Request: {
+        setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    SaveCardConfirmAutoCaptureOffSessionWithoutBilling: {
+      Request: {
+        setup_future_usage: "off_session",
+        billing: null,
       },
       Response: {
         status: 200,
@@ -430,9 +505,9 @@ export const connectorDetails = {
         mandate_data: multiUseMandateData,
       },
       Response: {
-        status: 200,
+        status: 501,
         body: {
-          status: "requires_capture",
+          error: captureMethodNotSupportedError,
         },
       },
     },
@@ -462,9 +537,9 @@ export const connectorDetails = {
         mandate_data: singleUseMandateData,
       },
       Response: {
-        status: 200,
+        status: 501,
         body: {
-          status: "requires_capture",
+          error: captureMethodNotSupportedError,
         },
       },
     },
@@ -479,18 +554,18 @@ export const connectorDetails = {
         customer_acceptance: customerAcceptance,
       },
       Response: {
-        status: 200,
+        status: 501,
         body: {
-          status: "requires_capture",
+          error: captureMethodNotSupportedError,
         },
       },
     },
     MITManualCapture: {
       Request: {},
       Response: {
-        status: 200,
+        status: 501,
         body: {
-          status: "requires_capture",
+          error: captureMethodNotSupportedError,
         },
       },
     },
@@ -511,14 +586,38 @@ export const connectorDetails = {
         },
       },
     },
-    SaveCardConfirmAutoCaptureOffSession: {
+    PaymentMethodIdMandate3DSAutoCapture: {
       Request: {
-        setup_future_usage: "off_session",
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "USD",
+        mandate_data: null,
+        authentication_type: "three_ds",
+        customer_acceptance: customerAcceptance,
       },
       Response: {
-        status: 200,
+        status: 501,
         body: {
-          status: "succeeded",
+          error: cardsThreeDsNotSupportedError,
+        },
+      },
+    },
+    PaymentMethodIdMandate3DSManualCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        mandate_data: null,
+        authentication_type: "three_ds",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 501,
+        body: {
+          error: captureMethodNotSupportedError,
         },
       },
     },
@@ -535,6 +634,17 @@ export const connectorDetails = {
         body: {
           status: "requires_payment_method",
           setup_future_usage: "off_session",
+        },
+      },
+    },
+    DuplicateRefundID: {
+      Request: {
+        amount: 2000,
+      },
+      Response: {
+        status: 501,
+        body: {
+          error: refundNotImplementedError,
         },
       },
     },

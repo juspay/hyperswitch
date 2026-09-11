@@ -1843,7 +1843,7 @@ impl ConnectorSpecifications for Nuvei {
             payment_attempt.payment_id.get_string_repr().to_owned()
         } else {
             let max_payment_reference_id_length = nuvei::MAX_CLIENT_UNIQUE_ID_LENGTH;
-            nanoid::nanoid!(max_payment_reference_id_length)
+            common_utils::generate_nanoid_with_default_alphabet(max_payment_reference_id_length)
         }
     }
 }

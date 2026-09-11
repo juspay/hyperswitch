@@ -126,7 +126,7 @@ pub struct WorldpayxmlMetadata {
 
 /// Paysafe payment method details for account_id configuration.
 /// Contains per-currency account IDs for card, ACH, Apple Pay, Interac,
-/// Skrill and paysafecard.
+/// Skrill, paysafecard and Neteller.
 /// This struct is compatible with the UCS Paysafe connector expectations
 /// (proto `PaysafePaymentMethodDetails` in the UCS `PaysafeConfig`).
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -150,6 +150,9 @@ pub struct PaysafePaymentMethodDetails {
     /// paysafecard account IDs by currency
     #[serde(default)]
     pub pay_safe_card: HashMap<Currency, PaysafeRedirectAccountId>,
+    /// Neteller wallet account IDs by currency
+    #[serde(default)]
+    pub neteller: HashMap<Currency, PaysafeRedirectAccountId>,
 }
 
 /// Paysafe card account ID configuration for a specific currency

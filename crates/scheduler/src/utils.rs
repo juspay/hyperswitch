@@ -6,7 +6,6 @@ pub use diesel_models::process_tracker as storage;
 use error_stack::{report, ResultExt};
 use redis_interface::{RedisConnectionWithContext, RedisEntryId};
 use router_env::{instrument, tracing};
-use uuid::Uuid;
 
 use super::{
     consumer::{self, types::process_data, workflows},
@@ -167,7 +166,7 @@ pub fn divide_into_batches(
     conf: &SchedulerSettings,
     application_source: enums::ApplicationSource,
 ) -> Vec<ProcessTrackerBatch> {
-    let batch_id = Uuid::new_v4().to_string();
+    let batch_id = common_utils::generate_uuid_v4().to_string();
 
     let stream_name = match application_source {
         enums::ApplicationSource::Main => &conf.stream,

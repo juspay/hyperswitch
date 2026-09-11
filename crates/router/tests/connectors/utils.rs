@@ -394,7 +394,7 @@ pub trait ConnectorActions: Connector {
                 payment_amount: 1000,
                 minor_payment_amount: MinorUnit::new(1000),
                 currency: enums::Currency::USD,
-                refund_id: uuid::Uuid::new_v4().to_string(),
+                refund_id: common_utils::generate_uuid_v4().to_string(),
                 connector_transaction_id: "".to_string(),
                 webhook_url: None,
                 refund_amount: 100,
@@ -508,8 +508,8 @@ pub trait ConnectorActions: Connector {
             connector: self.get_name(),
             tenant_id: common_utils::id_type::TenantId::try_from_string("public".to_string())
                 .unwrap(),
-            payment_id: uuid::Uuid::new_v4().to_string(),
-            attempt_id: uuid::Uuid::new_v4().to_string(),
+            payment_id: common_utils::generate_uuid_v4().to_string(),
+            attempt_id: common_utils::generate_uuid_v4().to_string(),
             status: enums::AttemptStatus::default(),
             auth_type: info
                 .clone()
@@ -545,7 +545,7 @@ pub trait ConnectorActions: Connector {
             recurring_mandate_payment_data: None,
 
             preprocessing_id: None,
-            connector_request_reference_id: uuid::Uuid::new_v4().to_string(),
+            connector_request_reference_id: common_utils::generate_uuid_v4().to_string(),
             #[cfg(feature = "payouts")]
             payout_method_data: info.and_then(|p| p.payout_method_data),
             #[cfg(feature = "payouts")]
@@ -1124,7 +1124,7 @@ impl Default for PaymentRefundType {
             payment_amount: 100,
             minor_payment_amount: MinorUnit::new(100),
             currency: enums::Currency::USD,
-            refund_id: uuid::Uuid::new_v4().to_string(),
+            refund_id: common_utils::generate_uuid_v4().to_string(),
             connector_transaction_id: String::new(),
             refund_amount: 100,
             minor_refund_amount: MinorUnit::new(100),

@@ -574,6 +574,6 @@ impl ConnectorSpecifications for GotymeSanlam {
         &self,
         _payout_attempt: &hyperswitch_domain_models::payouts::payout_attempt::PayoutAttempt,
     ) -> String {
-        uuid::Uuid::new_v4().to_string()
+        common_utils::generate_uuid_v4().to_string()
     }
 }
