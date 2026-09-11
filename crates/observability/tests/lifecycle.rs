@@ -1,32 +1,3 @@
-//! The alert lifecycle routes, exercised through actix as the alert manager would reach them.
-//!
-//! Both resources are here — the whole-state read and write, and the announcement append — because
-//! the thing worth testing is how they behave *together*: a state row references an announcement
-//! `ON DELETE CASCADE`, and the two write shapes are deliberately not alike.
-//!
-//! These go through the real route tree rather than calling handlers directly, for the reason
-//! `tests/config.rs` does: the guard, the path extractors and which failure is which status code
-//! all live between the handler and the caller.
-//!
-//! ## Which tests need a database
-//!
-//! The ones that need none come first, and that is not a compromise: the guard, the unknown
-//! channel, the alert cap and the unreadable-state answer are all properties of the route tree, and
-//! the last of them is *only* observable with a pool that cannot connect.
-//!
-//! The rest are `#[ignore]`d, following `tests/config.rs`. Bring a database up with `just
-//! migrate_observability` and run them with:
-//!
-//! ```text
-//! cargo test -p observability --test lifecycle -- --ignored
-//! ```
-//!
-//! **They run one at a time.** Lifecycle state is one global resource per channel — that is the
-//! design, not a limitation of the tests — so a whole-state write in one test would replace another
-//! test's state. [`SERIAL`] holds them apart, and each starts from a cleared channel.
-
-// `panic`: a test fixture handed a channel that does not exist has nothing useful to do, and
-// saying so loudly is the point.
 #![allow(
     clippy::unwrap_used,
     clippy::expect_used,
@@ -64,15 +35,10 @@ use serde_json::{json, Value};
 
 const API_KEY: &str = "test_internal_key";
 
-/// Big enough for every write these tests make, so only the test that means to trip the cap does.
 const GENEROUS_CAP: usize = 5_000;
 
-/// Lifecycle state is one resource per channel and every write replaces all of it, so two tests
-/// running at once would each be the other's overlapping run.
 static SERIAL: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
-/// A pool pointing at an address nothing answers on, for the route that must say the store is away
-/// rather than say it is empty.
 fn unreachable() -> Value {
     json!({
         "host": "127.0.0.1",
@@ -84,7 +50,6 @@ fn unreachable() -> Value {
     })
 }
 
-/// The local observability database, as `config/observability.toml` describes it.
 fn local() -> Value {
     json!({
         "host": "127.0.0.1",
@@ -148,7 +113,6 @@ fn announcements_uri(channel: &str) -> String {
     format!("/alerts/lifecycle/{channel}/announcements")
 }
 
-/// A detector name no other test or earlier run will have used.
 fn unique(prefix: &str) -> String {
     static COUNTER: AtomicU64 = AtomicU64::new(0);
 
@@ -159,12 +123,6 @@ fn unique(prefix: &str) -> String {
     )
 }
 
-// ---------------------------------------------------------------------------
-// Properties of the route tree, which need no database
-// ---------------------------------------------------------------------------
-
-/// Every body here parses, deliberately: actix runs the body extractor before the handler and the
-/// guard runs inside it, so an unparseable body is answered `400` without the key being checked.
 #[actix_web::test]
 async fn every_lifecycle_route_is_behind_the_guard() {
     let routes = [
@@ -188,9 +146,6 @@ async fn every_lifecycle_route_is_behind_the_guard() {
     }
 }
 
-/// The edge case the whole ticket turns on. The alert manager skips its run when the state cannot
-/// be read and proceeds when the state is genuinely empty, so a `200` with an empty list here would
-/// re-announce every alert at once the next time the database blinked.
 #[actix_web::test]
 async fn an_unreadable_state_is_a_503_and_never_an_empty_list() {
     let (status, body) = call(
@@ -205,8 +160,6 @@ async fn an_unreadable_state_is_a_503_and_never_an_empty_list() {
     assert!(body.get("status").is_none());
 }
 
-/// A channel that is neither must not fall back to one of them: slack state written into the xyne
-/// tables is not something anybody would notice quickly.
 #[actix_web::test]
 async fn an_unknown_channel_is_a_404_rather_than_a_default() {
     let routes = [
@@ -235,8 +188,6 @@ async fn an_unknown_channel_is_a_404_rather_than_a_default() {
     }
 }
 
-/// The cap the ticket asks for, and what happens when it is exceeded: the whole write is refused,
-/// before a connection is even taken — which is why this test needs no database.
 #[actix_web::test]
 async fn a_write_over_the_alert_cap_is_refused_before_it_is_stored() {
     let alerts: Vec<Value> = (0..3).map(|_| json!({ "name": "sr_drop" })).collect();
@@ -249,12 +200,9 @@ async fn a_write_over_the_alert_cap_is_refused_before_it_is_stored() {
 
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert_eq!(body["error"]["code"], "IR_10");
-    // The counts go to the log. A rejection is not the place to describe what was rejected.
     assert!(!body.to_string().contains('3'));
 }
 
-/// A field nobody stores is a field the caller believes is being stored — `runs`, for instance,
-/// which this model deliberately does not carry.
 #[actix_web::test]
 async fn an_unknown_field_in_a_state_write_is_a_400_in_our_shape() {
     let (status, body) = call(
@@ -271,15 +219,6 @@ async fn an_unknown_field_in_a_state_write_is_a_400_in_our_shape() {
     assert_eq!(body["error"]["type"], "invalid_request");
 }
 
-// ---------------------------------------------------------------------------
-// End to end against a real database
-// ---------------------------------------------------------------------------
-
-/// Empty every lifecycle table for a channel. Reaches past the API on purpose: there is no route
-/// that clears announcements, and a fixture should not depend on the precondition it is setting up.
-///
-/// State first, then announcements — the same order the transaction under test uses, and for the
-/// same reason: the other way round the cascade would do half the work invisibly.
 async fn clear(state: &AppState, channel: &str) {
     let connection = state.database_connection().await.expect("a connection");
     let raw = connection.raw_connection();
@@ -309,8 +248,6 @@ async fn clear(state: &AppState, channel: &str) {
     }
 }
 
-/// How many announcements a channel holds. Counted past the API because there is no route that
-/// lists them, and the point of these assertions is that a state write left them alone.
 async fn announcement_count(state: &AppState, channel: &str) -> i64 {
     let connection = state.database_connection().await.expect("a connection");
     let raw = connection.raw_connection();
@@ -323,7 +260,6 @@ async fn announcement_count(state: &AppState, channel: &str) -> i64 {
     .expect("the count should run")
 }
 
-/// Record one announcement and return the id it was given.
 async fn announce(state: &AppState, channel: &str, name: &str, sent: bool, thread: &str) -> String {
     let (status, body) = call(
         post(
@@ -346,7 +282,6 @@ async fn announce(state: &AppState, channel: &str, name: &str, sent: bool, threa
     body["announcement"]["id"].as_str().unwrap().to_owned()
 }
 
-/// The precondition for the next write, as the read hands it out.
 async fn watermark(state: &AppState, channel: &str) -> Value {
     let (status, body) = call(get(&state_uri(channel)), state).await;
 
@@ -354,7 +289,6 @@ async fn watermark(state: &AppState, channel: &str) -> Value {
     body["last_updated_at"].clone()
 }
 
-/// The ticket's first acceptance criterion.
 #[actix_web::test]
 #[ignore]
 async fn a_full_read_and_write_round_trip_without_loss() {
@@ -420,16 +354,12 @@ async fn a_full_read_and_write_round_trip_without_loss() {
         assert_eq!(stored[field], alert[field], "{field} did not survive");
     }
 
-    // The two the server owns, and the caller never sends.
     assert!(stored["id_intermediate"].is_string());
     assert_eq!(stored["last_updated_at"], saved["last_updated_at"]);
 
     clear(&state, "slack").await;
 }
 
-/// The ticket's second acceptance criterion. The unreadable half is
-/// [`an_unreadable_state_is_a_503_and_never_an_empty_list`]; this is the half that needs a database
-/// to prove, because only a working store can answer "there is nothing here".
 #[actix_web::test]
 #[ignore]
 async fn empty_state_is_a_200_that_says_so() {
@@ -445,8 +375,6 @@ async fn empty_state_is_a_200_that_says_so() {
     assert!(body["last_updated_at"].is_null());
 }
 
-/// The ticket's third acceptance criterion. Two runs read the same state; the slower one must not
-/// land second and put back what the faster one recovered.
 #[actix_web::test]
 #[ignore]
 async fn an_overlapping_write_cannot_put_back_older_state() {
@@ -455,7 +383,6 @@ async fn an_overlapping_write_cannot_put_back_older_state() {
     let name = unique("sr_drop");
     clear(&state, "slack").await;
 
-    // Both runs read here, and both hold this precondition.
     let read_by_both = watermark(&state, "slack").await;
 
     let (status, _) = call(
@@ -471,7 +398,6 @@ async fn an_overlapping_write_cannot_put_back_older_state() {
     .await;
     assert_eq!(status, StatusCode::OK, "the first run should land");
 
-    // The slower run, still holding the precondition it read before the first one wrote.
     let (status, body) = call(
         post(
             &state_uri("slack"),
@@ -487,7 +413,6 @@ async fn an_overlapping_write_cannot_put_back_older_state() {
     assert_eq!(status, StatusCode::CONFLICT);
     assert_eq!(body["error"]["code"], "IR_11");
 
-    // And nothing of the loser's is in the table.
     let (_, read) = call(get(&state_uri("slack")), &state).await;
     assert_eq!(read["alerts"].as_array().unwrap().len(), 1);
     assert_eq!(read["alerts"][0]["group_id"], "still_firing");
@@ -495,15 +420,6 @@ async fn an_overlapping_write_cannot_put_back_older_state() {
     clear(&state, "slack").await;
 }
 
-/// The other half of the overlap guard, and the half the precondition cannot provide on its own.
-///
-/// Two writes genuinely in flight would both read the watermark before either wrote, both find
-/// their precondition satisfied, and the second would land. The channel's advisory lock is what
-/// makes the check happen against state nothing else is changing, so a write must not get past it
-/// while somebody else holds it.
-///
-/// The lock is taken here by its literal key rather than through the handler, so that changing the
-/// key breaks this test rather than silently unguarding the write.
 #[actix_web::test]
 #[ignore]
 async fn a_write_waits_for_the_channel_lock() {
@@ -512,8 +428,6 @@ async fn a_write_waits_for_the_channel_lock() {
     let name = unique("sr_drop");
     clear(&state, "slack").await;
 
-    // Session-level rather than transaction-level: nothing here needs a transaction, and the lock
-    // is released explicitly below. Same lock space as `pg_advisory_xact_lock`.
     let holder = state.database_connection().await.expect("a connection");
     diesel::sql_query("SELECT pg_advisory_lock(23404, 1)")
         .execute_async(holder.raw_connection())
@@ -548,7 +462,6 @@ async fn a_write_waits_for_the_channel_lock() {
         .await
         .expect("the lock should be released");
 
-    // And it goes through once the lock is free, rather than having failed.
     let (status, body) = writer.await.expect("the write task should finish");
     assert_eq!(status, StatusCode::OK, "{body}");
 
@@ -558,7 +471,6 @@ async fn a_write_waits_for_the_channel_lock() {
     clear(&state, "slack").await;
 }
 
-/// The ticket's fourth acceptance criterion.
 #[actix_web::test]
 #[ignore]
 async fn an_announcement_records_whether_it_was_delivered_and_to_which_thread() {
@@ -578,7 +490,6 @@ async fn an_announcement_records_whether_it_was_delivered_and_to_which_thread() 
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["announcement"]["sent"], false);
     assert!(body["announcement"]["ts_slack"].is_null());
-    // Stamped by this service, never by the caller — there is no field to send it in.
     assert!(body["announcement"]["ts_alert"].is_string());
 
     let (_, delivered) = call(
@@ -592,7 +503,6 @@ async fn an_announcement_records_whether_it_was_delivered_and_to_which_thread() 
     assert_eq!(delivered["announcement"]["sent"], true);
     assert_eq!(delivered["announcement"]["ts_slack"], "1757400000.000200");
 
-    // An append, not a replace: the failed attempt is still there beside the delivery.
     assert_ne!(
         delivered["announcement"]["id"], body["announcement"]["id"],
         "an announcement replaced the one before it"
@@ -602,9 +512,6 @@ async fn an_announcement_records_whether_it_was_delivered_and_to_which_thread() 
     clear(&state, "xyne").await;
 }
 
-/// The cascade. `alerts_intermediate.id` references `alerts_main.id` `ON DELETE CASCADE`, so a
-/// whole-state write that reached the announcement table would delete state rows pointing at it —
-/// including ones the same request is writing. A state write touches `alerts_intermediate` only.
 #[actix_web::test]
 #[ignore]
 async fn a_state_write_never_removes_an_announcement() {
@@ -617,7 +524,6 @@ async fn a_state_write_never_removes_an_announcement() {
     let second = announce(&state, "slack", &name, true, "1757400000.000400").await;
     assert_eq!(announcement_count(&state, "slack").await, 2);
 
-    // One episode per announcement.
     let (status, _) = call(
         post(
             &state_uri("slack"),
@@ -634,10 +540,6 @@ async fn a_state_write_never_removes_an_announcement() {
     .await;
     assert_eq!(status, StatusCode::OK);
 
-    // The first episode recovers and the second is still firing, in one write. The surviving row
-    // is echoed back by its id, which is what keeps it rather than replacing it; the removal of
-    // the recovered row and the write of the surviving one happen in that order, and neither
-    // statement reaches `alerts_main`.
     let (_, read) = call(get(&state_uri("slack")), &state).await;
     let surviving = read["alerts"]
         .as_array()
@@ -667,10 +569,8 @@ async fn a_state_write_never_removes_an_announcement() {
     assert_eq!(saved["removed"], 1);
     assert_eq!(saved["alerts"], 1);
 
-    // Both announcements survive a write that removed a row referencing one of them.
     assert_eq!(announcement_count(&state, "slack").await, 2);
 
-    // And clearing the state entirely still leaves the history behind.
     let expected = watermark(&state, "slack").await;
     let (status, _) = call(
         post(
@@ -689,9 +589,6 @@ async fn a_state_write_never_removes_an_announcement() {
     clear(&state, "slack").await;
 }
 
-/// The other half of the ordering: a row cannot be written before the announcement it points at
-/// exists. Left to the foreign key this would arrive as an opaque constraint failure, and half the
-/// batch might already have been written.
 #[actix_web::test]
 #[ignore]
 async fn a_row_referencing_a_missing_announcement_is_refused_and_nothing_is_written() {
@@ -721,7 +618,6 @@ async fn a_row_referencing_a_missing_announcement_is_refused_and_nothing_is_writ
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert_eq!(body["error"]["code"], "IR_12");
 
-    // The transaction rolled back, so the row that *was* valid did not land either.
     let (_, read) = call(get(&state_uri("slack")), &state).await;
     assert_eq!(read["status"], "absent");
     assert_eq!(read["alerts"], json!([]));
@@ -729,7 +625,6 @@ async fn a_row_referencing_a_missing_announcement_is_refused_and_nothing_is_writ
     clear(&state, "slack").await;
 }
 
-/// The `_xyne` twins are a different channel's tables, not a different view of the same ones.
 #[actix_web::test]
 #[ignore]
 async fn the_two_channels_hold_their_own_state() {
@@ -762,8 +657,6 @@ async fn the_two_channels_hold_their_own_state() {
     clear(&state, "slack").await;
 }
 
-/// An alert the caller has just detected has no id to send, and the column has no default, so the
-/// handler mints one — and hands it back so the next run can echo it and keep the episode.
 #[actix_web::test]
 #[ignore]
 async fn a_row_written_without_an_id_is_given_one_that_survives_the_next_write() {
@@ -791,8 +684,6 @@ async fn a_row_written_without_an_id_is_given_one_that_survives_the_next_write()
         .unwrap()
         .to_owned();
 
-    // The next run echoes the id back, which updates the row rather than replacing it — the start
-    // of the episode is still the one recorded the first time.
     let (status, saved) = call(
         post(
             &state_uri("slack"),

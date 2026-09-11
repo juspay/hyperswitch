@@ -2,7 +2,6 @@ use diesel::{Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-/// One lifecycle row, independent of the channel whose table it came from.
 #[derive(Clone, Debug, PartialEq)]
 pub struct AlertStateRow {
     pub id_intermediate: uuid::Uuid,
@@ -30,14 +29,12 @@ impl AlertStateRow {
     }
 }
 
-// One table per delivery channel, paired with the `alerts_main` twin of the same channel through `id`, which references it and cascades on delete.
 macro_rules! alert_state {
     ($module:ident, $table:ident) => {
         pub mod $module {
             use super::*;
             use crate::observability::schema::$table;
 
-            // Serialize/Deserialize satisfy `DejaQueryResult`, which the query helpers require under `deja`.
             #[derive(
                 Clone,
                 Debug,

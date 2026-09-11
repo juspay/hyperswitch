@@ -4,7 +4,6 @@ use error_stack::{report, ResultExt};
 
 use crate::{errors, query::generics, DatabaseConnectionWithContext, StorageResult};
 
-// One set of helpers per channel, over the pair of tables the models are generated for.
 macro_rules! announcement_queries {
     ($module:ident, $table:ident) => {
         pub mod $module {
@@ -27,7 +26,6 @@ macro_rules! announcement_queries {
                     .map(AnnouncementRow::from)
                 }
 
-                // Only the ids, and only the ones that exist:
                 pub async fn existing_ids(
                     conn: &DatabaseConnectionWithContext<'_>,
                     ids: Vec<uuid::Uuid>,

@@ -1,5 +1,3 @@
-//! Handlers for alert lifecycle state and announcements.
-
 use actix_web::{web, HttpRequest, HttpResponse};
 
 use crate::{
@@ -11,13 +9,11 @@ use crate::{
     state::AppState,
 };
 
-/// `GET /alerts/lifecycle/{channel}/state`.
 pub async fn read_state(
     state: web::Data<AppState>,
     request: HttpRequest,
     path: web::Path<String>,
 ) -> HttpResponse {
-    // Resolved here and carried into the closure, the same way the dictionary carries its user name.
     let channel = Channel::from_path(&path.into_inner());
 
     services::server_wrap(
@@ -30,7 +26,6 @@ pub async fn read_state(
     .await
 }
 
-/// `POST /alerts/lifecycle/{channel}/state`.
 pub async fn write_state(
     state: web::Data<AppState>,
     request: HttpRequest,
@@ -51,7 +46,6 @@ pub async fn write_state(
     .await
 }
 
-/// `POST /alerts/lifecycle/{channel}/announcements`.
 pub async fn record_announcement(
     state: web::Data<AppState>,
     request: HttpRequest,

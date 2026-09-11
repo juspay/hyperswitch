@@ -7,10 +7,8 @@ use time::PrimitiveDateTime;
 
 use crate::{errors, query::generics, DatabaseConnectionWithContext, StorageResult};
 
-// Distinguishes these locks from any other advisory lock taken against this database.
 const LIFECYCLE_LOCK_NAMESPACE: i32 = 23_404;
 
-/// Hold the whole-state write lock for one channel until the surrounding transaction ends.
 pub async fn lock_lifecycle_state(
     conn: &DatabaseConnectionWithContext<'_>,
     channel: i32,
@@ -26,7 +24,6 @@ pub async fn lock_lifecycle_state(
     Ok(())
 }
 
-// One set of helpers per channel, over the pair of tables the models are generated for.
 macro_rules! alert_state_queries {
     ($module:ident, $table:ident) => {
         pub mod $module {
@@ -51,7 +48,6 @@ macro_rules! alert_state_queries {
                     .map(|rows| rows.into_iter().map(AlertStateRow::from).collect())
                 }
 
-                // The precondition a whole-state write is checked against, in one round trip rather than by listing every row and folding it in the caller.
                 pub async fn latest_last_updated_at(
                     conn: &DatabaseConnectionWithContext<'_>,
                 ) -> StorageResult<Option<PrimitiveDateTime>> {
@@ -69,7 +65,6 @@ macro_rules! alert_state_queries {
                     .attach_printable("Error while reading the lifecycle state watermark")
                 }
 
-                // Everything the request no longer carries.
                 pub async fn delete_absent(
                     conn: &DatabaseConnectionWithContext<'_>,
                     keep: Vec<uuid::Uuid>,
@@ -89,7 +84,6 @@ macro_rules! alert_state_queries {
                     .attach_printable("Error while removing lifecycle state rows")
                 }
 
-                // One statement for the whole batch:
                 pub async fn upsert_all(
                     conn: &DatabaseConnectionWithContext<'_>,
                     rows: Vec<AlertStateRow>,

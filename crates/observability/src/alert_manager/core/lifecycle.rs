@@ -1,5 +1,3 @@
-//! Per-request logic for alert lifecycle state and the announcements made about it.
-
 use async_bb8_diesel::AsyncConnection;
 use diesel_models::{
     observability::{
@@ -27,13 +25,10 @@ use crate::{
     state::AppState,
 };
 
-/// `name`, `product`, `group_id` and `priority` are all `VARCHAR(64)`.
 const NAME_MAX_BYTES: usize = 64;
 
-/// `ts_slack` is `VARCHAR(255)`.
 const TS_SLACK_MAX_BYTES: usize = 255;
 
-/// The whole of one channel's lifecycle state.
 pub async fn read_state(
     state: AppState,
     channel: Channel,
@@ -42,7 +37,6 @@ pub async fn read_state(
 
     let rows = store::list(&connection, channel)
         .await
-        // Not `InternalServerError`:
         .change_context(ObservabilityError::StorageUnavailable)
         .attach_printable("Failed to read the lifecycle state")?;
 
@@ -52,13 +46,11 @@ pub async fn read_state(
         } else {
             ReadStatus::Found
         },
-        // Folded from the rows rather than asked for separately:
         last_updated_at: rows.iter().filter_map(|row| row.last_updated_at).max(),
         alerts: rows.into_iter().map(AlertStateEntry::from).collect(),
     })
 }
 
-/// Replace the whole of one channel's lifecycle state, in one transaction.
 pub async fn write_state(
     state: AppState,
     channel: Channel,
@@ -66,7 +58,6 @@ pub async fn write_state(
 ) -> ObservabilityApiResult<LifecycleStateSaveResponse> {
     let limit = state.conf.lifecycle.max_alerts;
     if request.alerts.len() > limit {
-        // Logged with the counts, which the response deliberately does not carry:
         logger::warn!(
             alerts = request.alerts.len(),
             limit = limit,
@@ -84,7 +75,6 @@ pub async fn write_state(
     let expected = request.expected_last_updated_at;
     let connection = state.database_connection().await?;
 
-    // The connection handed to the closure is another handle to the one `connection` holds, so every query issued through it below runs inside this transaction.
     let borrowed = &connection;
     let applied = borrowed
         .raw_connection()
@@ -107,7 +97,6 @@ pub async fn write_state(
                 Err(WriteFailure::UnknownAnnouncement(missing))?;
             }
 
-            // Remove first, then write.
             let removed = store::delete_absent(borrowed, channel, plan.keep).await?;
             let alerts = store::upsert_all(borrowed, channel, plan.rows).await?;
 
@@ -124,7 +113,6 @@ pub async fn write_state(
     })
 }
 
-/// Record one announcement against `alerts_main`.
 pub async fn record_announcement(
     state: AppState,
     channel: Channel,
@@ -141,13 +129,11 @@ pub async fn record_announcement(
         &connection,
         channel,
         AnnouncementRow {
-            // Minted here:
             id: uuid::Uuid::now_v7(),
             name: request.name,
             product: request.product,
             dimensions: request.dimensions.map(RawJson::from),
             ts_slack: request.ts_slack,
-            // The moment the announcement was recorded, by this service's clock.
             ts_alert: Some(now),
             duration: request.duration,
             sent: request.sent,
@@ -167,20 +153,15 @@ pub async fn record_announcement(
     })
 }
 
-/// How many rows a whole-state write left behind.
 struct Applied {
     alerts: usize,
     removed: usize,
 }
 
-/// What a whole-state write does to the tables, worked out before the transaction opens.
 #[derive(Debug)]
 struct WritePlan {
-    /// The rows to write, stamped and with their ids settled.
     rows: Vec<AlertStateRow>,
-    /// The ids the write keeps.
     keep: Vec<uuid::Uuid>,
-    /// The announcements the rows point at.
     referenced: Vec<uuid::Uuid>,
 }
 
@@ -197,11 +178,9 @@ impl WritePlan {
             fits(alert.priority.as_deref(), "priority", NAME_MAX_BYTES)?;
             fits(alert.ts_slack.as_deref(), "ts_slack", TS_SLACK_MAX_BYTES)?;
 
-            // Minted when the caller has none, which is every alert it has just detected.
             let id_intermediate = alert.id_intermediate.unwrap_or_else(uuid::Uuid::now_v7);
 
             if keep.contains(&id_intermediate) {
-                // Postgres refuses to touch the same row twice in one `ON CONFLICT DO UPDATE`, so this would otherwise fail the whole batch with a message about the statement rather than about the request.
                 Err(
                     report!(ObservabilityError::InvalidRequest).attach_printable(format!(
                         "The lifecycle write carries id_intermediate {id_intermediate} twice"
@@ -232,7 +211,6 @@ impl WritePlan {
                 rca_metadata: alert.rca_metadata,
                 group_id: alert.group_id,
                 priority: alert.priority,
-                // The server's clock, on every row, every time.
                 last_updated_at: Some(now),
                 recovered_ts: alert.recovered_ts,
             });
@@ -246,25 +224,19 @@ impl WritePlan {
     }
 }
 
-/// Why a whole-state write did not apply.
 enum WriteFailure {
-    /// The state moved after the caller read it.
     Stale {
         expected: Option<PrimitiveDateTime>,
         found: Option<PrimitiveDateTime>,
     },
-    /// A row referenced an announcement that does not exist.
     UnknownAnnouncement(uuid::Uuid),
-    /// A query failed.
     Storage(error_stack::Report<diesel_models::errors::DatabaseError>),
-    /// The transaction itself failed to begin, commit or roll back.
     Transaction(diesel::result::Error),
 }
 
 impl WriteFailure {
     fn into_report(self, channel: Channel) -> error_stack::Report<ObservabilityError> {
         match self {
-            // The two timestamps go to the log and not to the response:
             Self::Stale { expected, found } => {
                 logger::warn!(
                     channel = channel.as_str(),
@@ -298,14 +270,12 @@ impl From<error_stack::Report<diesel_models::errors::DatabaseError>> for WriteFa
     }
 }
 
-/// The instant this service stamps a row with, to the precision the wire carries.
 fn stamp() -> PrimitiveDateTime {
     let now = common_utils::date_time::now();
 
     now.replace_millisecond(now.millisecond()).unwrap_or(now)
 }
 
-/// Check a value against its column's width.
 fn fits(value: Option<&str>, field: &'static str, max_bytes: usize) -> ObservabilityApiResult<()> {
     if let Some(value) = value {
         if value.len() > max_bytes {
@@ -321,7 +291,6 @@ fn fits(value: Option<&str>, field: &'static str, max_bytes: usize) -> Observabi
     Ok(())
 }
 
-/// The only code in this module that knows there are two channels.
 mod store {
     use super::{
         slack_main, slack_state, xyne_main, xyne_state, AlertStateRow, AnnouncementRow, Channel,
@@ -423,7 +392,6 @@ mod tests {
         common_utils::date_time::now()
     }
 
-    /// The whole point of the cascade:
     #[test]
     fn a_plan_collects_the_announcements_its_rows_reference() {
         let first = uuid::Uuid::now_v7();
@@ -433,7 +401,6 @@ mod tests {
             vec![
                 alert(None, Some(first)),
                 alert(None, Some(second)),
-                // Two rows under one announcement:
                 alert(None, Some(first)),
                 alert(None, None),
             ],
@@ -446,7 +413,6 @@ mod tests {
         assert_eq!(plan.keep.len(), 4);
     }
 
-    /// A whole-state write is a replacement, so what it does not carry goes.
     #[test]
     fn a_write_carrying_nothing_keeps_nothing() {
         let plan = WritePlan::build(Vec::new(), now()).unwrap();
@@ -456,7 +422,6 @@ mod tests {
         assert!(plan.referenced.is_empty());
     }
 
-    /// Every row is stamped by this service, and with the same instant, because that stamp is the precondition the next write is checked against.
     #[test]
     fn every_row_is_stamped_with_the_servers_clock() {
         let at = now();
@@ -467,7 +432,6 @@ mod tests {
         }
     }
 
-    /// A caller that has just detected an alert has no id to send, and the column has no default.
     #[test]
     fn a_row_without_an_id_is_given_one() {
         let plan = WritePlan::build(vec![alert(None, None)], now()).unwrap();
@@ -476,7 +440,6 @@ mod tests {
         assert_eq!(plan.keep[0], plan.rows[0].id_intermediate);
     }
 
-    /// An id the caller echoed back updates that row rather than replacing it, which is what keeps the episode's start and its thread.
     #[test]
     fn a_row_with_an_id_keeps_it() {
         let id = uuid::Uuid::now_v7();
@@ -486,7 +449,6 @@ mod tests {
         assert_eq!(plan.keep, vec![id]);
     }
 
-    /// Postgres refuses to touch the same row twice in one upsert, and the message it gives names the statement rather than the request.
     #[test]
     fn the_same_row_twice_in_one_write_is_rejected() {
         let id = uuid::Uuid::now_v7();
@@ -499,7 +461,6 @@ mod tests {
         ));
     }
 
-    /// Postgres would reject it too, as a `22001` that arrives as an opaque failure with a `500` attached — and one over-wide row would take the whole batch with it.
     #[test]
     fn a_value_wider_than_its_column_is_rejected_before_the_query_runs() {
         let mut wide = alert(None, None);
@@ -513,7 +474,6 @@ mod tests {
         assert!(WritePlan::build(vec![long_thread], now()).is_err());
     }
 
-    /// The precondition is an equality, so the value this service stores has to be one the wire format can carry exactly.
     #[test]
     fn a_stamp_survives_the_wire_format_unchanged() {
         #[derive(serde::Deserialize, serde::Serialize)]
@@ -528,7 +488,6 @@ mod tests {
         }
     }
 
-    /// No column here is `NOT NULL`, so an absent value is a stored fact and not a short one.
     #[test]
     fn an_absent_value_is_not_measured_against_its_column() {
         let mut bare = alert(None, None);

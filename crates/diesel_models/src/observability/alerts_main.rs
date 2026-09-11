@@ -4,7 +4,6 @@ use time::PrimitiveDateTime;
 
 use crate::observability::raw_json::RawJson;
 
-/// One announcement, independent of the channel whose table it came from.
 #[derive(Clone, Debug)]
 pub struct AnnouncementRow {
     pub id: uuid::Uuid,
@@ -27,14 +26,12 @@ impl AnnouncementRow {
     }
 }
 
-// `alerts_main` and `alerts_main_xyne` are the same table per delivery channel.
 macro_rules! announcement {
     ($module:ident, $table:ident) => {
         pub mod $module {
             use super::*;
             use crate::observability::schema::$table;
 
-            // Serialize/Deserialize satisfy `DejaQueryResult`, which the query helpers require under `deja`.
             #[derive(
                 Clone,
                 Debug,
