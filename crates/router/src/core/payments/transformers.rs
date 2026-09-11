@@ -7634,35 +7634,30 @@ impl
             Option<&hyperswitch_domain_models::payments::payment_attempt::AttemptAmountDetails>,
         ),
     ) -> Self {
-        Self {
-            order_amount: intent_amount_details.order_amount,
-            currency: intent_amount_details.currency,
-            shipping_cost: attempt_amount_details
-                .and_then(|attempt_amount| attempt_amount.get_shipping_cost())
-                .or(intent_amount_details.shipping_cost),
-            order_tax_amount: attempt_amount_details
-                .and_then(|attempt_amount| attempt_amount.get_order_tax_amount())
-                .or(intent_amount_details
+        // The amount components and the net amount they add up to must describe the same level.
+        // Resolving each component independently lets a component fall back to the intent while
+        // `net_amount` stays on the attempt, which returns a response that contradicts itself.
+        match attempt_amount_details {
+            Some(attempt_amount_details) => {
+                Self::foreign_from((intent_amount_details, attempt_amount_details))
+            }
+            None => Self {
+                order_amount: intent_amount_details.order_amount,
+                currency: intent_amount_details.currency,
+                shipping_cost: intent_amount_details.shipping_cost,
+                order_tax_amount: intent_amount_details
                     .tax_details
                     .as_ref()
-                    .and_then(|tax_details| tax_details.get_default_tax_amount())),
-            external_tax_calculation: intent_amount_details.skip_external_tax_calculation,
-            surcharge_calculation: intent_amount_details.skip_surcharge_calculation,
-            surcharge_amount: attempt_amount_details
-                .and_then(|attempt| attempt.get_surcharge_amount())
-                .or(intent_amount_details.surcharge_amount),
-            tax_on_surcharge: attempt_amount_details
-                .and_then(|attempt| attempt.get_tax_on_surcharge())
-                .or(intent_amount_details.tax_on_surcharge),
-            net_amount: attempt_amount_details
-                .map(|attempt| attempt.get_net_amount())
-                .unwrap_or(intent_amount_details.calculate_net_amount()),
-            amount_to_capture: attempt_amount_details
-                .and_then(|attempt| attempt.get_amount_to_capture()),
-            amount_capturable: attempt_amount_details
-                .map(|attempt| attempt.get_amount_capturable())
-                .unwrap_or(MinorUnit::zero()),
-            amount_captured: intent_amount_details.amount_captured,
+                    .and_then(|tax_details| tax_details.get_default_tax_amount()),
+                external_tax_calculation: intent_amount_details.skip_external_tax_calculation,
+                surcharge_calculation: intent_amount_details.skip_surcharge_calculation,
+                surcharge_amount: intent_amount_details.surcharge_amount,
+                tax_on_surcharge: intent_amount_details.tax_on_surcharge,
+                net_amount: intent_amount_details.calculate_net_amount(),
+                amount_to_capture: None,
+                amount_capturable: MinorUnit::zero(),
+                amount_captured: intent_amount_details.amount_captured,
+            },
         }
     }
 }
@@ -8431,4 +8426,282 @@ pub async fn construct_payment_router_data_for_update_post_confirm<'a>(
     };
 
     Ok(router_data)
+}
+
+#[cfg(all(test, feature = "v2"))]
+mod payment_amount_details_response_tests {
+    // `MinorUnit`, `common_enums` and `ForeignFrom` all arrive through the parent
+    // module's v2 imports, so this module adds only what the parent does not carry.
+    use hyperswitch_domain_models::payments::{
+        payment_attempt::{AttemptAmountDetails, AttemptAmountDetailsSetter},
+        AmountDetails,
+    };
+
+    use super::*;
+
+    const ORDER_AMOUNT: i64 = 10_000;
+    const DEFAULT_TAX: i64 = 800;
+
+    /// An intent that carries a merchant supplied default order tax and nothing else.
+    fn intent_with_default_tax(
+        skip_external_tax_calculation: common_enums::TaxCalculationOverride,
+    ) -> AmountDetails {
+        AmountDetails {
+            order_amount: MinorUnit::new(ORDER_AMOUNT),
+            currency: Currency::USD,
+            shipping_cost: None,
+            tax_details: Some(diesel_models::payment_intent::TaxDetails {
+                default: Some(diesel_models::DefaultTax {
+                    order_tax_amount: MinorUnit::new(DEFAULT_TAX),
+                }),
+                payment_method_type: None,
+            }),
+            skip_external_tax_calculation,
+            skip_surcharge_calculation: common_enums::SurchargeCalculationOverride::Skip,
+            surcharge_amount: None,
+            tax_on_surcharge: None,
+            amount_captured: None,
+        }
+    }
+
+    /// An attempt that has not resolved an order tax, which is the state the
+    /// attempt paths persist under `TaxCalculationOverride::Calculate`.
+    fn attempt_without_order_tax(net_amount: i64) -> AttemptAmountDetails {
+        AttemptAmountDetails::from(AttemptAmountDetailsSetter {
+            net_amount: MinorUnit::new(net_amount),
+            amount_to_capture: None,
+            surcharge_amount: None,
+            tax_on_surcharge: None,
+            amount_capturable: MinorUnit::new(net_amount),
+            shipping_cost: None,
+            order_tax_amount: None,
+            amount_captured: None,
+        })
+    }
+
+    /// The defect. Every reported component must belong to the same level as the
+    /// `net_amount` reported beside it.
+    #[test]
+    fn mixed_level_response_is_self_consistent() {
+        let intent = intent_with_default_tax(common_enums::TaxCalculationOverride::Calculate);
+        let attempt = attempt_without_order_tax(ORDER_AMOUNT);
+
+        let response = api_models::payments::PaymentAmountDetailsResponse::foreign_from((
+            &intent,
+            Some(&attempt),
+        ));
+
+        assert_eq!(
+            response.net_amount,
+            MinorUnit::new(ORDER_AMOUNT),
+            "net amount must come from the attempt"
+        );
+        assert_eq!(
+            response.order_tax_amount, None,
+            "the attempt resolved no order tax, so the response must not report the intent's \
+             default tax beside a net amount that excludes it"
+        );
+    }
+
+    /// With an attempt present, the optional conversion must agree field for
+    /// field with the required-attempt conversion.
+    #[test]
+    fn optional_attempt_matches_required_attempt() {
+        let intent = intent_with_default_tax(common_enums::TaxCalculationOverride::Calculate);
+        let attempt = attempt_without_order_tax(ORDER_AMOUNT);
+
+        let optional = api_models::payments::PaymentAmountDetailsResponse::foreign_from((
+            &intent,
+            Some(&attempt),
+        ));
+        let required =
+            api_models::payments::PaymentAmountDetailsResponse::foreign_from((&intent, &attempt));
+
+        assert_eq!(optional, required);
+    }
+
+    /// Missing, zero and resolved attempt components must never be replaced with
+    /// the different values on the intent, including when only some are missing.
+    #[test]
+    fn attempt_components_do_not_fall_back_to_intent() {
+        let mut intent = intent_with_default_tax(common_enums::TaxCalculationOverride::Calculate);
+        intent.currency = Currency::EUR;
+        intent.shipping_cost = Some(MinorUnit::new(500));
+        intent.surcharge_amount = Some(MinorUnit::new(600));
+        intent.tax_on_surcharge = Some(MinorUnit::new(70));
+        intent.amount_captured = Some(MinorUnit::new(250));
+
+        for shipping_cost in [None, Some(MinorUnit::zero()), Some(MinorUnit::new(101))] {
+            for order_tax_amount in [None, Some(MinorUnit::zero()), Some(MinorUnit::new(202))] {
+                for surcharge_amount in [None, Some(MinorUnit::zero()), Some(MinorUnit::new(303))] {
+                    for tax_on_surcharge in
+                        [None, Some(MinorUnit::zero()), Some(MinorUnit::new(44))]
+                    {
+                        let net_amount = MinorUnit::new(ORDER_AMOUNT)
+                            + shipping_cost.unwrap_or(MinorUnit::zero())
+                            + order_tax_amount.unwrap_or(MinorUnit::zero())
+                            + surcharge_amount.unwrap_or(MinorUnit::zero())
+                            + tax_on_surcharge.unwrap_or(MinorUnit::zero());
+                        let attempt = AttemptAmountDetails::from(AttemptAmountDetailsSetter {
+                            net_amount,
+                            amount_to_capture: Some(MinorUnit::new(100)),
+                            surcharge_amount,
+                            tax_on_surcharge,
+                            amount_capturable: net_amount - MinorUnit::new(250),
+                            shipping_cost,
+                            order_tax_amount,
+                            amount_captured: Some(MinorUnit::new(100)),
+                        });
+
+                        let response =
+                            api_models::payments::PaymentAmountDetailsResponse::foreign_from((
+                                &intent,
+                                Some(&attempt),
+                            ));
+
+                        assert_eq!(
+                            response,
+                            api_models::payments::PaymentAmountDetailsResponse {
+                                order_amount: MinorUnit::new(ORDER_AMOUNT),
+                                currency: Currency::EUR,
+                                shipping_cost,
+                                order_tax_amount,
+                                external_tax_calculation:
+                                    common_enums::TaxCalculationOverride::Calculate,
+                                surcharge_calculation:
+                                    common_enums::SurchargeCalculationOverride::Skip,
+                                surcharge_amount,
+                                tax_on_surcharge,
+                                net_amount,
+                                amount_to_capture: Some(MinorUnit::new(100)),
+                                amount_capturable: net_amount - MinorUnit::new(250),
+                                // This field is the intent's cumulative captured amount.
+                                amount_captured: Some(MinorUnit::new(250)),
+                            }
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    /// Preserve every intent-only field, including missing tax details, missing
+    /// default tax, explicit zero amounts and both calculation overrides.
+    #[test]
+    fn intent_only_response_is_unchanged() {
+        for external_tax_calculation in [
+            common_enums::TaxCalculationOverride::Skip,
+            common_enums::TaxCalculationOverride::Calculate,
+        ] {
+            for surcharge_calculation in [
+                common_enums::SurchargeCalculationOverride::Skip,
+                common_enums::SurchargeCalculationOverride::Calculate,
+            ] {
+                for default_tax in [
+                    None,
+                    Some(None),
+                    Some(Some(MinorUnit::zero())),
+                    Some(Some(MinorUnit::new(DEFAULT_TAX))),
+                ] {
+                    for (shipping_cost, surcharge_amount, tax_on_surcharge) in [
+                        (None, None, None),
+                        (
+                            Some(MinorUnit::zero()),
+                            Some(MinorUnit::zero()),
+                            Some(MinorUnit::zero()),
+                        ),
+                        (
+                            Some(MinorUnit::new(500)),
+                            Some(MinorUnit::new(600)),
+                            Some(MinorUnit::new(70)),
+                        ),
+                    ] {
+                        let mut intent = intent_with_default_tax(external_tax_calculation);
+                        intent.currency = Currency::EUR;
+                        intent.shipping_cost = shipping_cost;
+                        intent.surcharge_amount = surcharge_amount;
+                        intent.tax_on_surcharge = tax_on_surcharge;
+                        intent.skip_surcharge_calculation = surcharge_calculation;
+                        intent.amount_captured = Some(MinorUnit::new(250));
+                        intent.tax_details = default_tax.map(|default_tax| {
+                            diesel_models::payment_intent::TaxDetails {
+                                default: default_tax.map(|order_tax_amount| {
+                                    diesel_models::DefaultTax { order_tax_amount }
+                                }),
+                                payment_method_type: None,
+                            }
+                        });
+
+                        let response =
+                            api_models::payments::PaymentAmountDetailsResponse::foreign_from((
+                                &intent, None,
+                            ));
+
+                        assert_eq!(
+                            response,
+                            api_models::payments::PaymentAmountDetailsResponse {
+                                order_amount: MinorUnit::new(ORDER_AMOUNT),
+                                currency: Currency::EUR,
+                                shipping_cost,
+                                order_tax_amount: default_tax.flatten(),
+                                external_tax_calculation,
+                                surcharge_calculation,
+                                surcharge_amount,
+                                tax_on_surcharge,
+                                // Preserve the domain helper's arithmetic, outside this change.
+                                net_amount: intent.calculate_net_amount(),
+                                amount_to_capture: None,
+                                amount_capturable: MinorUnit::zero(),
+                                amount_captured: Some(MinorUnit::new(250)),
+                            }
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn zero_attempt_total_does_not_fall_back_to_intent() {
+        let mut intent = intent_with_default_tax(common_enums::TaxCalculationOverride::Calculate);
+        intent.shipping_cost = Some(MinorUnit::new(500));
+        let attempt = attempt_without_order_tax(0);
+
+        let response = api_models::payments::PaymentAmountDetailsResponse::foreign_from((
+            &intent,
+            Some(&attempt),
+        ));
+
+        assert_eq!(response.net_amount, MinorUnit::zero());
+        assert_eq!(response.amount_capturable, MinorUnit::zero());
+        assert_eq!(response.order_tax_amount, None);
+        assert_eq!(response.shipping_cost, None);
+    }
+
+    /// An attempt that did resolve its own order tax keeps reporting it.
+    #[test]
+    fn attempt_resolved_tax_is_reported() {
+        let intent = intent_with_default_tax(common_enums::TaxCalculationOverride::Skip);
+        let attempt = AttemptAmountDetails::from(AttemptAmountDetailsSetter {
+            net_amount: MinorUnit::new(ORDER_AMOUNT + DEFAULT_TAX),
+            amount_to_capture: None,
+            surcharge_amount: None,
+            tax_on_surcharge: None,
+            amount_capturable: MinorUnit::new(ORDER_AMOUNT + DEFAULT_TAX),
+            shipping_cost: None,
+            order_tax_amount: Some(MinorUnit::new(DEFAULT_TAX)),
+            amount_captured: None,
+        });
+
+        let response = api_models::payments::PaymentAmountDetailsResponse::foreign_from((
+            &intent,
+            Some(&attempt),
+        ));
+
+        assert_eq!(response.order_tax_amount, Some(MinorUnit::new(DEFAULT_TAX)));
+        assert_eq!(
+            response.net_amount,
+            MinorUnit::new(ORDER_AMOUNT + DEFAULT_TAX)
+        );
+    }
 }
