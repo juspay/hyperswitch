@@ -1,5 +1,3 @@
-//! Shared application state.
-
 use std::{collections::HashMap, sync::Arc};
 
 use diesel_models::DejaPgConnection;
@@ -26,24 +24,17 @@ use crate::{
     settings::{ChatDestination, ChatSettings, DatabaseSettings, EmailSettings, Settings},
 };
 
-/// The observability database's connection pool.
 pub type DatabasePool = bb8::Pool<async_bb8_diesel::ConnectionManager<DejaPgConnection>>;
 
-/// Everything a request handler needs, cloned per worker.
 #[derive(Clone)]
 pub struct AppState {
-    /// The resolved configuration.
     pub conf: Arc<Settings<RawSecret>>,
-    /// Chat destinations, by the id a request names.
     pub chat: Arc<Registry<dyn ChatNotifier>>,
-    /// Email destinations, by the id a request names.
     pub email: Arc<Registry<dyn EmailNotifier>>,
-    /// Connections to the observability database.
     pub database: DatabasePool,
 }
 
 impl AppState {
-    /// Build the application state, resolving secrets and destinations on the way.
     pub async fn new(conf: Settings<SecuredSecret>) -> Self {
         #[allow(clippy::expect_used)]
         let secret_management_client = conf
@@ -89,7 +80,6 @@ impl AppState {
     }
 }
 
-/// Turn configured chat destinations into the notifiers that serve them.
 fn build_chat_registry(
     settings: &ChatSettings,
     proxy: &Proxy,
@@ -128,7 +118,6 @@ fn build_chat_registry(
     Ok(Registry::new(destinations))
 }
 
-/// Turn configured email destinations into the notifiers that serve them.
 async fn build_email_registry(
     settings: &EmailSettings,
     proxy: &Proxy,
@@ -156,7 +145,6 @@ async fn build_email_registry(
     ))
 }
 
-/// Send connection failures to the log.
 #[derive(Debug, Clone, Copy)]
 struct LogConnectionErrors;
 
@@ -170,7 +158,6 @@ impl<E: std::fmt::Display> bb8::ErrorSink<E> for LogConnectionErrors {
     }
 }
 
-/// Build the pool for the observability database.
 pub fn build_database_pool(
     database: &DatabaseSettings,
 ) -> Result<DatabasePool, ConfigurationError> {
@@ -184,7 +171,6 @@ pub fn build_database_pool(
         .build_unchecked(manager))
 }
 
-/// Build the email transport named in configuration.
 async fn create_email_client(
     settings: &EmailClientSettings,
     proxy: &Proxy,
@@ -204,7 +190,6 @@ async fn create_email_client(
         EmailClientConfigs::Smtp { smtp } => {
             Box::new(SmtpServer::create(settings, smtp.clone()).await)
         }
-        // The default, and the off switch:
         EmailClientConfigs::NoEmailClient => Box::new(NoEmailClient::create().await),
     })
 }
@@ -227,7 +212,6 @@ mod tests {
         assert!(registry.get("missing").is_none());
     }
 
-    /// A destination the endpoint rejects must stop the boot, not quietly vanish from the registry and resurface as "unknown destination" on the first alert.
     #[test]
     fn a_chat_destination_with_no_channel_fails_the_boot() {
         let config: external_services::chat_service::xyne::XyneConfig =
@@ -261,7 +245,6 @@ mod tests {
         }
     }
 
-    /// The default client is `NoEmailClient`, so this builds the whole registry — transport included — without reaching for SES credentials.
     #[tokio::test]
     async fn email_destinations_share_one_client() {
         let registry = build_email_registry(
@@ -276,7 +259,6 @@ mod tests {
         assert!(registry.get("missing").is_none());
     }
 
-    /// No destinations means no transport is built at all, so a deployment that has not configured email does not construct an SES client it will never use.
     #[tokio::test]
     async fn an_empty_registry_reports_itself_as_empty() {
         assert!(
@@ -292,7 +274,6 @@ mod tests {
         );
     }
 
-    /// A destination with no address would accept alerts and send them nowhere.
     #[test]
     fn a_destination_without_an_address_fails_validation() {
         let mut settings = email_settings_with(&["oncall"]);
@@ -307,7 +288,6 @@ mod tests {
         assert!(error.to_string().contains("broken"));
     }
 
-    /// Validation of the transport is skipped when nothing uses it, so a first deployment does not need a verified SES sender before anyone has asked for an email.
     #[test]
     fn an_unused_transport_is_not_validated() {
         EmailSettings::default().validate().unwrap();

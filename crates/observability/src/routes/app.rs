@@ -1,5 +1,3 @@
-//! The whole route tree, in one place.
-
 use actix_multipart::form::MultipartFormConfig;
 use actix_web::{web, Scope};
 
@@ -10,11 +8,9 @@ use crate::{
     state::AppState,
 };
 
-/// The service's routes, all of them behind the internal API key.
 pub struct Alerts;
 
 impl Alerts {
-    /// Build the guarded scope.
     pub fn server(state: AppState) -> Scope {
         let max_upload_bytes = state.conf.chat.get_inner().max_upload_bytes;
 
@@ -38,7 +34,6 @@ impl Alerts {
     }
 }
 
-/// Make a malformed body render like every other error this service returns.
 fn json_config() -> web::JsonConfig {
     web::JsonConfig::default().error_handler(|error, request| {
         logger::warn!(
@@ -75,11 +70,9 @@ fn multipart_config(max_upload_bytes: usize) -> MultipartFormConfig {
         })
 }
 
-/// Liveness, deliberately unauthenticated.
 pub struct Health;
 
 impl Health {
-    /// Build the unguarded health scope.
     pub fn server(state: AppState) -> Scope {
         web::scope("health")
             .app_data(web::Data::new(state))

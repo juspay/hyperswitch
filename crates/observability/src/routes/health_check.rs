@@ -1,5 +1,3 @@
-//! Two probes.
-
 use std::time::Duration;
 
 use actix_web::web;
@@ -7,7 +5,6 @@ use router_env::{instrument, tracing};
 
 use crate::{logger, state::AppState};
 
-/// How long the probe waits for a connection before answering unready.
 const PROBE_BUDGET: Duration = Duration::from_millis(900);
 
 #[instrument(skip_all)]
@@ -16,7 +13,6 @@ pub async fn health() -> impl actix_web::Responder {
     actix_web::HttpResponse::Ok().body("Observability health is good")
 }
 
-/// Report whether this instance can reach the observability database.
 #[instrument(skip_all)]
 pub async fn deep_health_check(state: web::Data<AppState>) -> impl actix_web::Responder {
     match tokio::time::timeout(PROBE_BUDGET, state.database.get()).await {

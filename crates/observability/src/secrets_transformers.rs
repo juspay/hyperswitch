@@ -1,5 +1,3 @@
-//! Resolving secret values at boot.
-
 use std::collections::HashMap;
 
 use common_utils::errors::CustomResult;
@@ -47,7 +45,6 @@ impl SecretsHandler for AuthSettings {
     }
 }
 
-/// Chat credentials are resolved one destination at a time.
 #[async_trait::async_trait]
 impl SecretsHandler for ChatSettings {
     async fn convert_to_raw_secret(
@@ -71,7 +68,6 @@ impl SecretsHandler for ChatSettings {
                         .await?,
                     ..config.clone()
                 }),
-                // Holds no credential, so there is nothing to resolve.
                 ChatDestination::Log => ChatDestination::Log,
             };
 
@@ -86,7 +82,6 @@ impl SecretsHandler for ChatSettings {
     }
 }
 
-/// Resolve every secret in the configuration.
 pub async fn fetch_raw_secrets(
     conf: Settings<SecuredSecret>,
     secret_management_client: &dyn SecretManagementInterface,
@@ -96,7 +91,6 @@ pub async fn fetch_raw_secrets(
         .await
         .expect("Failed to decrypt auth internal api key");
 
-    // Re-validate *after* decryption.
     #[allow(clippy::expect_used)]
     auth.get_inner()
         .validate()
@@ -112,7 +106,6 @@ pub async fn fetch_raw_secrets(
         .await
         .expect("Failed to decrypt the database password");
 
-    // Re-validate after decryption, for the reason given above:
     #[allow(clippy::expect_used)]
     database
         .get_inner()

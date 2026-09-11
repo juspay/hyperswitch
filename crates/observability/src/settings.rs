@@ -1,5 +1,3 @@
-//! Application configuration.
-
 use std::{collections::HashMap, path::PathBuf};
 
 use common_utils::{ext_traits::ConfigExt, pii};
@@ -20,37 +18,25 @@ use serde::Deserialize;
 
 use crate::errors;
 
-/// The default configuration file name, looked up inside the config directory.
 const CONFIG_FILE_NAME: &str = "observability.toml";
 
-/// Command line arguments accepted by the standalone binary.
 #[derive(clap::Parser, Default)]
 #[cfg_attr(feature = "vergen", command(version = router_env::version!()))]
 pub struct CmdLineConf {
-    /// Config file.
     #[arg(short = 'f', long, value_name = "FILE")]
     pub config_path: Option<PathBuf>,
 }
 
-/// The whole configuration of the service.
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct Settings<S: SecretState> {
-    /// Listener configuration.
     pub server: Server,
-    /// Logging and telemetry.
     pub log: Log,
-    /// Credentials guarding this service's routes.
     pub auth: SecretStateContainer<AuthSettings, S>,
-    /// The observability database.
     pub database: SecretStateContainer<DatabaseSettings, S>,
-    /// How secret values in this file are resolved at boot.
     pub secrets_management: SecretsManagementConfig,
-    /// Outbound HTTP proxy.
     pub proxy: Proxy,
-    /// Chat destinations this service can deliver to.
     pub chat: SecretStateContainer<ChatSettings, S>,
-    /// Email destinations this service can deliver to.
     pub email: EmailSettings,
 }
 
@@ -60,14 +46,11 @@ fn default_max_upload_bytes() -> usize {
     DEFAULT_MAX_UPLOAD_BYTES
 }
 
-/// Chat destinations, keyed by the id a request names.
 #[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
 pub struct ChatSettings {
-    /// Every chat destination, by id.
     pub destinations: HashMap<String, ChatDestination>,
 
-    /// Maximum multipart body bytes accepted by the upload route.
     #[serde(default = "default_max_upload_bytes")]
     pub max_upload_bytes: usize,
 }
@@ -81,38 +64,28 @@ impl Default for ChatSettings {
     }
 }
 
-/// One chat destination, tagged by the kind of backend it talks to.
 #[derive(Debug, Deserialize, Clone)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ChatDestination {
-    /// A Xyne channel.
     Xyne(XyneConfig),
-    /// A Slack channel.
     Slack(SlackConfig),
-    /// Accepts messages and delivers nothing.
     Log,
 }
 
-/// Email destinations and the transport that serves them.
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct EmailSettings {
-    /// The transport, shared by every destination:
     #[serde(flatten)]
     pub client: EmailClientSettings,
 
-    /// Every email destination, by id.
     pub destinations: HashMap<String, EmailDestination>,
 }
 
-/// One email destination.
 #[derive(Debug, Deserialize, Clone)]
 pub struct EmailDestination {
-    /// Where the alert goes.
     pub to: pii::Email,
 }
 
-/// Ids are addressed by callers and set from the environment, so they must survive both.
 fn validate_destination_ids<T>(
     destinations: &HashMap<String, T>,
     section: &str,
@@ -129,7 +102,6 @@ fn validate_destination_ids<T>(
 }
 
 impl ChatSettings {
-    /// Reject destination ids that cannot be set from the environment.
     pub fn validate(&self) -> Result<(), errors::ConfigurationError> {
         validate_destination_ids(&self.destinations, "chat")?;
         common_utils::fp_utils::when(self.max_upload_bytes == 0, || {
@@ -141,7 +113,6 @@ impl ChatSettings {
 }
 
 impl EmailSettings {
-    /// Reject destination ids that cannot be set from the environment, an unusable transport, and a destination with no address.
     pub fn validate(&self) -> Result<(), errors::ConfigurationError> {
         validate_destination_ids(&self.destinations, "email")?;
 
@@ -153,7 +124,6 @@ impl EmailSettings {
             .validate()
             .map_err(|error| errors::ConfigurationError::ConfigParsingError(error.to_owned()))?;
 
-        // `EmailSettings::validate` checks only the backend-specific section — SES's role ARN, SMTP's host — and never the shared sender.
         common_utils::fp_utils::when(
             !matches!(self.client.client_config, EmailClientConfigs::NoEmailClient)
                 && !crate::domain::notifier::email::is_usable_recipient(&self.client.sender_email),
@@ -179,11 +149,9 @@ impl EmailSettings {
     }
 }
 
-/// Credentials guarding this service's routes.
 #[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
 pub struct AuthSettings {
-    /// The key callers must supply in the `X-Internal-Api-Key` header.
     pub internal_api_key: Secret<String>,
 }
 
@@ -196,7 +164,6 @@ impl Default for AuthSettings {
 }
 
 impl AuthSettings {
-    /// Reject an absent internal API key.
     pub fn validate(&self) -> Result<(), errors::ConfigurationError> {
         common_utils::fp_utils::when(self.internal_api_key.peek().is_default_or_empty(), || {
             Err(errors::ConfigurationError::ConfigParsingError(
@@ -206,10 +173,8 @@ impl AuthSettings {
     }
 }
 
-/// Default pool size.
 const DEFAULT_POOL_SIZE: u32 = 5;
 
-/// Default seconds to wait for a connection before giving up.
 const DEFAULT_CONNECTION_TIMEOUT: u64 = 10;
 
 fn default_pool_size() -> u32 {
@@ -220,29 +185,20 @@ fn default_connection_timeout() -> u64 {
     DEFAULT_CONNECTION_TIMEOUT
 }
 
-/// The observability database.
 #[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
 pub struct DatabaseSettings {
-    /// Hostname of the cluster.
     pub host: String,
-    /// Port the cluster listens on.
     pub port: u16,
-    /// The database within the cluster.
     pub dbname: String,
-    /// The role this service connects as.
     pub username: String,
-    /// The role's password.
     pub password: Secret<String>,
-    /// Connections held open.
     #[serde(default = "default_pool_size")]
     pub pool_size: u32,
-    /// Seconds to wait for a connection from the pool before giving up.
     #[serde(default = "default_connection_timeout")]
     pub connection_timeout: u64,
 }
 
-/// Percent-encode a connection-string component.
 fn encode(value: &str) -> String {
     value
         .bytes()
@@ -255,7 +211,6 @@ fn encode(value: &str) -> String {
         .collect()
 }
 
-/// Hand-written so that `Default` and the `#[serde(default = ...)]` attributes agree.
 impl Default for DatabaseSettings {
     fn default() -> Self {
         Self {
@@ -271,7 +226,6 @@ impl Default for DatabaseSettings {
 }
 
 impl DatabaseSettings {
-    /// The connection string.
     pub fn database_url(&self) -> String {
         format!(
             "postgres://{}:{}@{}:{}/{}?application_name=observability",
@@ -283,7 +237,6 @@ impl DatabaseSettings {
         )
     }
 
-    /// Reject a configuration that cannot connect.
     pub fn validate(&self) -> Result<(), errors::ConfigurationError> {
         common_utils::fp_utils::when(self.host.is_default_or_empty(), || {
             Err(errors::ConfigurationError::ConfigParsingError(
@@ -321,7 +274,6 @@ impl DatabaseSettings {
             ))
         })?;
 
-        // bb8 asserts both of these are non-zero when the pool is built, and an assert names neither the key nor the file it came from.
         common_utils::fp_utils::when(self.connection_timeout == 0, || {
             Err(errors::ConfigurationError::ConfigParsingError(
                 "database connection_timeout must be greater than zero".into(),
@@ -330,15 +282,11 @@ impl DatabaseSettings {
     }
 }
 
-/// Listener configuration for the standalone binary.
 #[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
 pub struct Server {
-    /// Port to bind to.
     pub port: u16,
-    /// Number of actix workers.
     pub workers: usize,
-    /// Host to bind to.
     pub host: String,
 }
 
@@ -353,7 +301,6 @@ impl Default for Server {
 }
 
 impl Server {
-    /// Reject an empty bind host.
     pub fn validate(&self) -> Result<(), errors::ConfigurationError> {
         common_utils::fp_utils::when(self.host.is_default_or_empty(), || {
             Err(errors::ConfigurationError::ConfigParsingError(
@@ -364,12 +311,10 @@ impl Server {
 }
 
 impl Settings<SecuredSecret> {
-    /// Read configuration from the default location.
     pub fn new() -> Result<Self, errors::ConfigurationError> {
         Self::with_config_path(None)
     }
 
-    /// Read configuration, optionally from an explicit path.
     pub fn with_config_path(
         explicit_config_path: Option<PathBuf>,
     ) -> Result<Self, errors::ConfigurationError> {
@@ -386,7 +331,6 @@ impl Settings<SecuredSecret> {
             )
             .build()?;
 
-        // The logger may not yet be initialized when constructing the application configuration
         #[allow(clippy::print_stderr)]
         serde_path_to_error::deserialize(config).map_err(|error| {
             logger::error!(%error, "Unable to deserialize application configuration");
@@ -395,7 +339,6 @@ impl Settings<SecuredSecret> {
         })
     }
 
-    /// Reject an unusable configuration.
     pub fn validate(&self) -> Result<(), errors::ConfigurationError> {
         self.server.validate()?;
         self.auth.get_inner().validate()?;
@@ -431,7 +374,6 @@ mod tests {
             .unwrap();
     }
 
-    /// Each of these is a lookup that would silently miss when the id came from the environment, because `config` lowercases keys and splits on `__`.
     #[test]
     fn ids_that_cannot_round_trip_through_the_environment_are_rejected() {
         for id in ["SR_ALERTS", "sr__alerts", ""] {
@@ -442,7 +384,6 @@ mod tests {
         }
     }
 
-    /// The tag is what makes Xyne and Slack two variants of one client rather than two integrations, and `log` has to sit in the same enum or the delivery path grows a branch.
     #[test]
     fn a_zero_upload_cap_is_rejected() {
         let settings = ChatSettings {
@@ -488,7 +429,6 @@ mod tests {
         }
     }
 
-    /// Every one of these fails at connection time rather than at boot, and a connection failure names a host and a role — so it reads as a wrong credential rather than an absent one, at whatever hour the first alert run happens to be.
     #[test]
     fn an_incomplete_database_configuration_fails_the_boot() {
         let cases: [(&str, DatabaseSettings); 5] = [
@@ -537,7 +477,6 @@ mod tests {
         }
     }
 
-    /// A pool of zero connections never serves a query and never errors either:
     #[test]
     fn a_zero_pool_size_fails_the_boot() {
         assert!(DatabaseSettings {
@@ -553,7 +492,6 @@ mod tests {
         assert!(database().validate().is_ok());
     }
 
-    /// On a shared cluster `pg_stat_activity` has to be able to answer whose connections are whose.
     #[test]
     fn the_connection_string_names_the_application() {
         assert!(database()
@@ -561,7 +499,6 @@ mod tests {
             .contains("application_name=observability"));
     }
 
-    /// The password reaches the log the moment someone debugs the configuration, unless the type prevents it.
     #[test]
     fn the_database_password_is_not_in_the_debug_output() {
         let rendered = format!("{:?}", database());
