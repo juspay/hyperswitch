@@ -162,6 +162,10 @@ pub enum UnifiedConnectorServiceError {
     #[error("This step has not been implemented for: {0}")]
     NotImplemented(String),
 
+    /// The connector does not support this operation.
+    #[error("This operation is not supported: {0}")]
+    NotSupported(String),
+
     /// Parsing of some value or input failed.
     #[error("Parsing failed")]
     ParsingFailed,
@@ -1979,6 +1983,7 @@ impl UnifiedConnectorServiceError {
             | Self::RequestEncodingFailedWithReason(_)
             | Self::InvalidConnectorName
             | Self::MissingConnectorName
+            | Self::NotSupported(_)
             | Self::FailedToObtainAuthType => 400,
             Self::NotImplemented(_) => 501,
             _ => 500,
@@ -2166,12 +2171,13 @@ impl UnifiedConnectorServiceError {
             | Code::InvalidConnectorConfig
             | Code::NoConnectorMetaData
             | Code::ConfigurationError => Self::FailedToObtainAuthType,
-            // Unsupported flow / feature → IR_00
-            Code::NotImplemented
-            | Code::NotSupported
+            // Not implemented → IR_00
+            Code::NotImplemented => Self::NotImplemented(ie.error_message.clone()),
+            // Unsupported flow / method / currency → IR_19
+            Code::NotSupported
             | Code::FlowNotSupported
             | Code::CaptureMethodNotSupported
-            | Code::CurrencyNotSupported => Self::NotImplemented(ie.error_message.clone()),
+            | Code::CurrencyNotSupported => Self::NotSupported(ie.error_message.clone()),
             // UCS internal failures → HE_00
             Code::RequestEncodingFailed
             | Code::HeaderMapConstructionFailed
@@ -2217,6 +2223,23 @@ impl ErrorSwitch<ApiErrorResponse> for UnifiedConnectorServiceError {
                 connector: inner.connector.clone(),
                 status_code: inner.status_code,
                 reason: inner.reason.clone(),
+            },
+            Self::NotSupported(message) => ApiErrorResponse::NotSupported {
+                message: message.clone(),
+            },
+            Self::NotImplemented(message) => ApiErrorResponse::NotImplemented {
+                message: NotImplementedMessage::Reason(message.clone()),
+            },
+            Self::MissingRequiredField { field_name } => ApiErrorResponse::MissingRequiredField {
+                field_name: field_name.clone(),
+            },
+            Self::MissingRequiredFields { field_names } => {
+                ApiErrorResponse::MissingRequiredFields {
+                    field_names: field_names.clone(),
+                }
+            }
+            Self::InvalidDataFormat { field_name } => ApiErrorResponse::InvalidRequestData {
+                message: format!("Invalid data format: {field_name}"),
             },
             _ => ApiErrorResponse::InternalServerError,
         }
@@ -2279,6 +2302,11 @@ impl ErrorSwitch<ConnectorError> for UnifiedConnectorServiceError {
             Self::FailedToObtainAuthType => ConnectorError::FailedToObtainAuthType,
             // Not implemented
             Self::NotImplemented(msg) => ConnectorError::NotImplemented(msg.clone()),
+            // Not supported
+            Self::NotSupported(msg) => ConnectorError::NotSupported {
+                message: msg.clone(),
+                connector: "unified_connector_service",
+            },
             // Invalid connector name
             Self::InvalidConnectorName | Self::MissingConnectorName => {
                 ConnectorError::InvalidConnectorName
@@ -2380,6 +2408,9 @@ impl UnifiedConnectorServiceError {
 
             // Raised by Hyperswitch, but it reports a flow UCS cannot serve.
             Self::NotImplemented(_) => Some(UcsKillSwitchReason::UcsFlowUnsupported),
+
+            // UCS rejected a request it does not support.
+            Self::NotSupported(_) => Some(UcsKillSwitchReason::UcsRejectedRequest),
 
             // UCS-side by construction: `from_grpc_error` extracts connector errors first.
             Self::TonicStatus { code, .. } => match code {
