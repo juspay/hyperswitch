@@ -111,9 +111,9 @@ aws_region = ""
 to = "alerts@example.com"
 
 # The infrastructure alarm catalogue. Empty here: a deployment sets it through
-# OBSERVABILITY__CLOUDWATCH__ALARMS__<ID>__* variables, as config/cloudwatch_alarms.sandbox.env
-# does. Dimensions take `Name=value` pairs rather than a table, because `config` lowercases keys
-# read from the environment and CloudWatch dimension names are case-sensitive.
+# OBSERVABILITY__CLOUDWATCH__ALARMS__<ID>__* variables, rendered from the chart values in
+# hyperswitch-infra. Dimensions take `Name=value` pairs rather than a table, because `config`
+# lowercases keys read from the environment and CloudWatch dimension names are case-sensitive.
 #
 # [cloudwatch.alarms.rds_primary_cpu]
 # name = "rds-primary-cpu"
