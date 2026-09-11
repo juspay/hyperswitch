@@ -31,6 +31,9 @@ pub struct CloudWatchSettings {
     /// Where to read the metrics from. Empty means no provider is built, which is only valid
     /// while there is nothing to evaluate.
     pub client: CloudWatchConfig,
+    /// Which chat destination each severity announces to. Every severity the catalogue
+    /// uses must appear, or an alarm would be evaluated and then silently dropped.
+    pub destinations: HashMap<String, String>,
     pub definitions: HashMap<String, Definition>,
 }
 
@@ -159,7 +162,27 @@ impl CloudWatchSettings {
             })?;
         }
 
+        // An alarm with nowhere to announce to is worse than one that never fires: it is evaluated,
+        // found breaching, and dropped.
+        for (id, definition) in &self.definitions {
+            for severity in definition.severities.keys() {
+                if !self.destinations.contains_key(severity) {
+                    Err(errors::ConfigurationError::ConfigParsingError(format!(
+                        "cloudwatch definition `{id}` announces at severity `{severity}`, which \
+                         has no entry in cloudwatch.destinations"
+                    )))?
+                }
+            }
+        }
+
         Ok(())
+    }
+
+    /// The severities that would be announced, and where each of them goes.
+    pub fn destination_ids(&self) -> impl Iterator<Item = (&str, &str)> {
+        self.destinations
+            .iter()
+            .map(|(severity, destination)| (severity.as_str(), destination.as_str()))
     }
 
     pub fn rule_count(&self) -> usize {
@@ -289,6 +312,8 @@ mod tests {
     fn rds_primary_cpu_environment() -> HashMap<String, String> {
         [
             ("OBSERVABILITY__CLOUDWATCH__CLIENT__REGION", "ap-south-1"),
+            ("OBSERVABILITY__CLOUDWATCH__DESTINATIONS__SEV1", "infra_alerts"),
+            ("OBSERVABILITY__CLOUDWATCH__DESTINATIONS__SEV3", "infra_alerts"),
             ("OBSERVABILITY__CLOUDWATCH__DEFINITIONS__RDS_PRIMARY_CPU__NAME", "rds-primary-cpu"),
             ("OBSERVABILITY__CLOUDWATCH__DEFINITIONS__RDS_PRIMARY_CPU__CLASSIFICATION", "rds-alerts"),
             ("OBSERVABILITY__CLOUDWATCH__DEFINITIONS__RDS_PRIMARY_CPU__METRIC_NAME", "CPUUtilization"),
@@ -454,6 +479,10 @@ mod tests {
     /// for having nowhere to read from.
     fn catalogue_with(id: &str, definition: Definition) -> CloudWatchSettings {
         CloudWatchSettings {
+            destinations: [("sev1", "infra"), ("sev3", "infra")]
+                .into_iter()
+                .map(|(severity, id)| (severity.to_owned(), id.to_owned()))
+                .collect(),
             client: CloudWatchConfig {
                 region: "ap-south-1".to_owned(),
             },
@@ -539,6 +568,13 @@ mod tests {
             }),
             // Nowhere to read from evaluates to nothing at all, which from outside is
             // indistinguishable from a service reporting that everything is fine.
+            // Evaluated, found breaching, and then dropped — the one failure this service
+            // cannot report on its own.
+            ("a severity with nowhere to announce to", {
+                let mut catalogue = catalogue_with("rds_primary_cpu", rds_primary_cpu());
+                catalogue.destinations.remove("sev3");
+                catalogue
+            }),
             ("definitions but no region to read them from", {
                 let mut catalogue = catalogue_with("rds_primary_cpu", rds_primary_cpu());
                 catalogue.client = CloudWatchConfig::default();

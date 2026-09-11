@@ -52,7 +52,7 @@ use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    core::cloudwatch,
+    core::cloudwatch::{self, announce},
     domain::{
         cloudwatch::State,
         notifier::{
@@ -365,6 +365,7 @@ pub struct DefinitionState {
     pub name: String,
     pub classification: String,
     pub metric_name: String,
+    pub dimensions: std::collections::BTreeMap<String, String>,
     pub period_seconds: u32,
     #[serde(flatten)]
     pub outcome: DefinitionOutcome,
@@ -427,6 +428,7 @@ impl From<cloudwatch::Evaluation> for DefinitionState {
             name: evaluation.name,
             classification: evaluation.classification,
             metric_name: evaluation.metric_name,
+            dimensions: evaluation.dimensions,
             period_seconds: evaluation.period,
             outcome: evaluation.outcome.into(),
         }
@@ -474,6 +476,76 @@ impl From<State> for AlarmState {
             State::Ok => Self::Ok,
             State::Alarm => Self::Alarm,
             State::InsufficientData => Self::InsufficientData,
+        }
+    }
+}
+
+/// The body of `POST /alerts/cloudwatch/notify`.
+///
+/// The same definitions the dry run returns, plus what was said about them and whether it arrived.
+/// An empty `announcements` with a full `definitions` means nothing was breaching.
+#[derive(Debug, Serialize)]
+pub struct NotifyResponse {
+    pub definitions: Vec<DefinitionState>,
+    pub announcements: Vec<AnnouncementResponse>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct AnnouncementResponse {
+    pub definition_id: String,
+    pub severity: String,
+    pub destination: String,
+    pub message: String,
+    #[serde(flatten)]
+    pub delivery: DeliveryResponse,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(tag = "delivery", rename_all = "snake_case")]
+pub enum DeliveryResponse {
+    Delivered { message_id: Option<String> },
+    Refused { code: String },
+    Failed,
+    UnknownDestination,
+}
+
+impl From<(cloudwatch::Catalogue, Vec<announce::Announcement>)> for NotifyResponse {
+    fn from(
+        (catalogue, announcements): (cloudwatch::Catalogue, Vec<announce::Announcement>),
+    ) -> Self {
+        Self {
+            definitions: catalogue
+                .definitions
+                .into_iter()
+                .map(DefinitionState::from)
+                .collect(),
+            announcements: announcements
+                .into_iter()
+                .map(AnnouncementResponse::from)
+                .collect(),
+        }
+    }
+}
+
+impl From<announce::Announcement> for AnnouncementResponse {
+    fn from(announcement: announce::Announcement) -> Self {
+        Self {
+            definition_id: announcement.definition_id,
+            severity: announcement.severity,
+            destination: announcement.destination,
+            message: announcement.message,
+            delivery: announcement.delivery.into(),
+        }
+    }
+}
+
+impl From<announce::Delivery> for DeliveryResponse {
+    fn from(delivery: announce::Delivery) -> Self {
+        match delivery {
+            announce::Delivery::Delivered { message_id } => Self::Delivered { message_id },
+            announce::Delivery::Refused { code } => Self::Refused { code },
+            announce::Delivery::Failed => Self::Failed,
+            announce::Delivery::UnknownDestination => Self::UnknownDestination,
         }
     }
 }
