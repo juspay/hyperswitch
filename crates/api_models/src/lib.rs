@@ -23,6 +23,7 @@ pub mod feature_matrix;
 pub mod files;
 pub mod gsm;
 pub mod health_check;
+pub mod hierarchical_resources;
 pub mod launch_sage;
 pub mod mandates;
 pub mod merchant_connector_webhook_management;

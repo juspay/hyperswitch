@@ -18,6 +18,7 @@ mod profile;
 mod profile_acquirer;
 mod refunds;
 mod relay;
+mod resource;
 mod routing;
 mod subscription;
 mod tenant;
@@ -61,6 +62,7 @@ pub use self::{
     profile_acquirer::ProfileAcquirerId,
     refunds::RefundReferenceId,
     relay::RelayId,
+    resource::ResourceId,
     routing::RoutingId,
     subscription::SubscriptionId,
     tenant::TenantId,

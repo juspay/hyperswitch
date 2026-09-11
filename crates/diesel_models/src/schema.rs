@@ -333,6 +333,8 @@ diesel::table! {
         default_fallback_routing -> Nullable<Jsonb>,
         surcharge_connector_details -> Nullable<Jsonb>,
         order_fulfillment_time -> Nullable<Int8>,
+        apple_pay_certificates -> Nullable<Jsonb>,
+        apple_pay_certificates_encrypted -> Nullable<Bytea>,
     }
 }
 
@@ -788,6 +790,27 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
+    hierarchical_resources (id) {
+        #[max_length = 64]
+        id -> Varchar,
+        #[max_length = 64]
+        resource_type -> Varchar,
+        #[max_length = 32]
+        scope -> Varchar,
+        #[max_length = 64]
+        scope_id -> Varchar,
+        data -> Jsonb,
+        encrypted_data -> Nullable<Bytea>,
+        created_by -> Text,
+        created_at -> Timestamp,
+        modified_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
     incremental_authorization (authorization_id, merchant_id) {
         #[max_length = 64]
         authorization_id -> Varchar,
@@ -984,6 +1007,8 @@ diesel::table! {
         #[max_length = 128]
         fingerprint_secret -> Nullable<Varchar>,
         offer_engine_config -> Nullable<Bytea>,
+        apple_pay_certificates -> Nullable<Jsonb>,
+        apple_pay_certificates_encrypted -> Nullable<Bytea>,
     }
 }
 
@@ -1027,6 +1052,8 @@ diesel::table! {
         #[max_length = 64]
         id -> Nullable<Varchar>,
         connector_webhook_registration_details -> Nullable<Jsonb>,
+        apple_pay_certificates -> Nullable<Jsonb>,
+        apple_pay_certificates_encrypted -> Nullable<Bytea>,
     }
 }
 
@@ -1975,6 +2002,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     fraud_check,
     gateway_status_map,
     generic_link,
+    hierarchical_resources,
     incremental_authorization,
     invoice,
     locker_mock_up,

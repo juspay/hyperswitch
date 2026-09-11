@@ -69,6 +69,9 @@ pub struct MerchantConnectorAccount {
     pub additional_merchant_data: Option<Encryptable<Secret<Value>>>,
     pub version: common_enums::ApiVersion,
     pub connector_webhook_registration_details: Option<Value>,
+    pub apple_pay_certificates: Option<Value>,
+    #[encrypt]
+    pub apple_pay_certificates_encrypted: Option<Encryptable<Secret<Value>>>,
 }
 
 #[cfg(feature = "v1")]
@@ -527,6 +530,10 @@ pub enum MerchantConnectorAccountUpdate {
         connector_webhook_details: Option<pii::SecretSerdeValue>,
         metadata: Option<pii::SecretSerdeValue>,
     },
+    ApplePayCertificateCacheUpdate {
+        apple_pay_certificates: Option<Value>,
+        apple_pay_certificates_encrypted: Option<Encryption>,
+    },
 }
 
 #[cfg(feature = "v2")]
@@ -550,6 +557,10 @@ pub enum MerchantConnectorAccountUpdate {
     },
     ConnectorWalletDetailsUpdate {
         connector_wallets_details: Encryptable<pii::SecretSerdeValue>,
+    },
+    ApplePayCertificateCacheUpdate {
+        apple_pay_certificates: Option<Value>,
+        apple_pay_certificates_encrypted: Option<Encryption>,
     },
 }
 
@@ -588,6 +599,10 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             additional_merchant_data: self.additional_merchant_data.map(|data| data.into()),
             version: self.version,
             connector_webhook_registration_details: self.connector_webhook_registration_details,
+            apple_pay_certificates: self.apple_pay_certificates,
+            apple_pay_certificates_encrypted: self
+                .apple_pay_certificates_encrypted
+                .map(|data| data.into()),
         })
     }
 
@@ -606,6 +621,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
                     connector_account_details: other.connector_account_details,
                     additional_merchant_data: other.additional_merchant_data,
                     connector_wallets_details: other.connector_wallets_details,
+                    apple_pay_certificates_encrypted: other.apple_pay_certificates_encrypted,
                 },
             )),
             identifier.clone(),
@@ -653,6 +669,8 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             additional_merchant_data: decrypted_data.additional_merchant_data,
             version: other.version,
             connector_webhook_registration_details: other.connector_webhook_registration_details,
+            apple_pay_certificates: other.apple_pay_certificates,
+            apple_pay_certificates_encrypted: decrypted_data.apple_pay_certificates_encrypted,
         })
     }
 
@@ -719,6 +737,8 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             version: self.version,
             feature_metadata: self.feature_metadata.map(From::from),
             connector_webhook_registration_details: None,
+            apple_pay_certificates: None,
+            apple_pay_certificates_encrypted: None,
         })
     }
 
@@ -849,6 +869,8 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 connector_wallets_details: connector_wallets_details.map(Encryption::from),
                 additional_merchant_data: additional_merchant_data.map(Encryption::from),
                 connector_webhook_registration_details: None,
+                apple_pay_certificates: None,
+                apple_pay_certificates_encrypted: None,
             },
             MerchantConnectorAccountUpdate::ConnectorWalletDetailsUpdate {
                 connector_wallets_details,
@@ -872,6 +894,8 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 status: None,
                 additional_merchant_data: None,
                 connector_webhook_registration_details: None,
+                apple_pay_certificates: None,
+                apple_pay_certificates_encrypted: None,
             },
             MerchantConnectorAccountUpdate::ConnectorWebhookRegisterationUpdate {
                 connector_webhook_registration_details,
@@ -897,6 +921,34 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 connector_wallets_details: None,
                 additional_merchant_data: None,
                 connector_webhook_registration_details,
+                apple_pay_certificates: None,
+                apple_pay_certificates_encrypted: None,
+            },
+            MerchantConnectorAccountUpdate::ApplePayCertificateCacheUpdate {
+                apple_pay_certificates,
+                apple_pay_certificates_encrypted,
+            } => Self {
+                connector_type: None,
+                connector_name: None,
+                connector_account_details: None,
+                connector_label: None,
+                test_mode: None,
+                disabled: None,
+                merchant_connector_id: None,
+                payment_methods_enabled: None,
+                frm_configs: None,
+                metadata: None,
+                modified_at: Some(date_time::now()),
+                connector_webhook_details: None,
+                frm_config: None,
+                applepay_verified_domains: None,
+                pm_auth_config: None,
+                status: None,
+                connector_wallets_details: None,
+                additional_merchant_data: None,
+                connector_webhook_registration_details: None,
+                apple_pay_certificates,
+                apple_pay_certificates_encrypted,
             },
         }
     }
@@ -937,6 +989,8 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 connector_wallets_details: connector_wallets_details.map(Encryption::from),
                 additional_merchant_data: additional_merchant_data.map(Encryption::from),
                 feature_metadata: feature_metadata.map(From::from),
+                apple_pay_certificates: None,
+                apple_pay_certificates_encrypted: None,
             },
             MerchantConnectorAccountUpdate::ConnectorWalletDetailsUpdate {
                 connector_wallets_details,
@@ -956,6 +1010,30 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 status: None,
                 additional_merchant_data: None,
                 feature_metadata: None,
+                apple_pay_certificates: None,
+                apple_pay_certificates_encrypted: None,
+            },
+            MerchantConnectorAccountUpdate::ApplePayCertificateCacheUpdate {
+                apple_pay_certificates,
+                apple_pay_certificates_encrypted,
+            } => Self {
+                connector_type: None,
+                connector_account_details: None,
+                connector_label: None,
+                disabled: None,
+                payment_methods_enabled: None,
+                metadata: None,
+                modified_at: Some(date_time::now()),
+                connector_webhook_details: None,
+                frm_config: None,
+                applepay_verified_domains: None,
+                pm_auth_config: None,
+                status: None,
+                connector_wallets_details: None,
+                additional_merchant_data: None,
+                feature_metadata: None,
+                apple_pay_certificates,
+                apple_pay_certificates_encrypted,
             },
         }
     }

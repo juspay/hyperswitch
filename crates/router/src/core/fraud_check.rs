@@ -100,6 +100,26 @@ where
     )
     .await?;
 
+    use common_utils::ext_traits::OptionExt;
+
+    let profile_id = payment_data
+        .get_payment_intent()
+        .profile_id
+        .as_ref()
+        .get_required_value("profile_id")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("profile_id is not set in payment_intent")?;
+    let business_profile = state
+        .store
+        .find_business_profile_by_merchant_id_profile_id(
+            platform.get_processor().get_key_store(),
+            platform.get_processor().get_account().get_id(),
+            profile_id,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to fetch business profile for FRM router data construction")?;
+
     frm_data
         .payment_attempt
         .connector_transaction_id
@@ -110,6 +130,7 @@ where
             state,
             &frm_data.connector_details.connector_name,
             platform.get_processor(),
+            &business_profile,
             &merchant_connector_account,
             None,
             None,

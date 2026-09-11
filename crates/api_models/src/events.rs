@@ -34,6 +34,12 @@ use crate::{
     cards_info::*,
     disputes::*,
     files::*,
+    hierarchical_resources::{
+        GenerateHierarchicalResourceRequest, GenerateHierarchicalResourceResponse,
+        HierarchicalResourceSummary, LinkHierarchicalResourceRequest,
+        LinkHierarchicalResourceResponse, ListHierarchicalResourcesRequest,
+        ListHierarchicalResourcesResponse, UploadCertificateRequest, UploadCertificateResponse,
+    },
     mandates::*,
     merchant_connector_webhook_management::*,
     organization::{
@@ -149,7 +155,16 @@ impl_api_event_type!(
         OrganizationUpdateRequest,
         OrganizationId,
         CustomerListRequest,
-        RoutingEventsRequest
+        RoutingEventsRequest,
+        GenerateHierarchicalResourceRequest,
+        GenerateHierarchicalResourceResponse,
+        UploadCertificateRequest,
+        UploadCertificateResponse,
+        HierarchicalResourceSummary,
+        ListHierarchicalResourcesRequest,
+        ListHierarchicalResourcesResponse,
+        LinkHierarchicalResourceRequest,
+        LinkHierarchicalResourceResponse
     )
 );
 

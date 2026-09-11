@@ -28,6 +28,7 @@ pub mod customers;
 pub mod database;
 pub mod dispute;
 pub mod errors;
+pub mod hierarchical_resource;
 pub mod invoice;
 pub mod kv_router_store;
 pub mod lookup;

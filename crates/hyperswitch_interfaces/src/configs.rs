@@ -156,6 +156,32 @@ impl MerchantConnectorAccountType {
         }
     }
 
+    #[cfg(feature = "v1")]
+    pub fn get_apple_pay_certificate_cache(
+        &self,
+    ) -> Option<(
+        serde_json::Value,
+        common_utils::crypto::OptionalEncryptableValue,
+    )> {
+        match self {
+            Self::DbVal(val) => val
+                .apple_pay_certificates
+                .clone()
+                .map(|data| (data, val.apple_pay_certificates_encrypted.clone())),
+            Self::CacheVal(_) => None,
+        }
+    }
+
+    #[cfg(feature = "v2")]
+    pub fn get_apple_pay_certificate_cache(
+        &self,
+    ) -> Option<(
+        serde_json::Value,
+        common_utils::crypto::OptionalEncryptableValue,
+    )> {
+        None
+    }
+
     pub fn get_mca_id(&self) -> Option<id_type::MerchantConnectorAccountId> {
         match self {
             Self::DbVal(db_val) => Some(db_val.get_id()),
