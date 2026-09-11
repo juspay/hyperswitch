@@ -40,6 +40,8 @@ use self::settings::Tenant;
 use super::currency;
 #[cfg(feature = "dummy_connector")]
 use super::dummy_connector::*;
+#[cfg(all(feature = "olap", feature = "v1"))]
+use super::entities_migration;
 #[cfg(all(any(feature = "v1", feature = "v2"), feature = "oltp"))]
 use super::ephemeral_key::*;
 #[cfg(any(feature = "olap", feature = "oltp"))]
@@ -2385,6 +2387,19 @@ impl ApplePayCertificatesMigration {
             .service(web::resource("").route(
                 web::post().to(apple_pay_certificates_migration::apple_pay_certificates_migration),
             ))
+    }
+}
+
+pub struct EntitiesMigration;
+
+#[cfg(all(feature = "olap", feature = "v1"))]
+impl EntitiesMigration {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/entities_migration")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("").route(web::post().to(entities_migration::entities_migration)),
+            )
     }
 }
 

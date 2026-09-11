@@ -429,6 +429,8 @@ pub enum Flow {
     GsmRuleUpdate,
     /// Apple pay certificates migration
     ApplePayCertificatesMigration,
+    /// Locker entities migration
+    EntitiesMigration,
     /// Gsm Rule Delete flow
     GsmRuleDelete,
     /// Mint a sage session for the dashboard user.
