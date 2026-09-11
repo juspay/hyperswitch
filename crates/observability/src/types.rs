@@ -51,10 +51,16 @@ use actix_multipart::form::{bytes::Bytes, text::Text, MultipartForm};
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
-use crate::domain::notifier::{
-    chat::{ChatFileOutcome, ChatFileReceipt, ChatOutcome, ChatReceipt},
-    email::EmailOutcome,
-    Outcome, Refusal,
+use crate::{
+    core::cloudwatch,
+    domain::{
+        cloudwatch::State,
+        notifier::{
+            chat::{ChatFileOutcome, ChatFileReceipt, ChatOutcome, ChatReceipt},
+            email::EmailOutcome,
+            Outcome, Refusal,
+        },
+    },
 };
 
 /// The body of `POST /alerts/chat/notify/{destination}`.
@@ -340,5 +346,134 @@ mod tests {
         let rendered = format!("{email:?}");
         assert!(!rendered.contains("merchant_1234"));
         assert!(!rendered.contains("4,201"));
+    }
+}
+
+/// The body of `GET /alerts/cloudwatch/evaluate`.
+///
+/// Every definition appears, in id order, whether or not it could be read. A definition we failed
+/// to read carries no `rules` at all rather than states derived from an absence — the caller is
+/// meant to see the hole, not a row of `ok`.
+#[derive(Debug, Serialize)]
+pub struct EvaluateResponse {
+    pub definitions: Vec<DefinitionState>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct DefinitionState {
+    pub id: String,
+    pub name: String,
+    pub classification: String,
+    pub metric_name: String,
+    pub period_seconds: u32,
+    #[serde(flatten)]
+    pub outcome: DefinitionOutcome,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(tag = "outcome", rename_all = "snake_case")]
+pub enum DefinitionOutcome {
+    Evaluated {
+        /// Oldest first, `null` where the period had no datapoint. Included because "why did this
+        /// say alarm" is the question the route exists to answer.
+        readings: Vec<Option<f64>>,
+        rules: Vec<RuleStateResponse>,
+    },
+    Unread {
+        reason: UnreadReason,
+    },
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum UnreadReason {
+    QueryFailed,
+    SeriesIncomplete,
+    SeriesMissing,
+}
+
+#[derive(Debug, Serialize)]
+pub struct RuleStateResponse {
+    pub severity: String,
+    pub state: AlarmState,
+    pub threshold: f64,
+    pub description: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum AlarmState {
+    Ok,
+    Alarm,
+    InsufficientData,
+}
+
+impl From<cloudwatch::Catalogue> for EvaluateResponse {
+    fn from(catalogue: cloudwatch::Catalogue) -> Self {
+        Self {
+            definitions: catalogue
+                .definitions
+                .into_iter()
+                .map(DefinitionState::from)
+                .collect(),
+        }
+    }
+}
+
+impl From<cloudwatch::Evaluation> for DefinitionState {
+    fn from(evaluation: cloudwatch::Evaluation) -> Self {
+        Self {
+            id: evaluation.id,
+            name: evaluation.name,
+            classification: evaluation.classification,
+            metric_name: evaluation.metric_name,
+            period_seconds: evaluation.period,
+            outcome: evaluation.outcome.into(),
+        }
+    }
+}
+
+impl From<cloudwatch::Outcome> for DefinitionOutcome {
+    fn from(outcome: cloudwatch::Outcome) -> Self {
+        match outcome {
+            cloudwatch::Outcome::Evaluated { readings, rules } => Self::Evaluated {
+                readings,
+                rules: rules.into_iter().map(RuleStateResponse::from).collect(),
+            },
+            cloudwatch::Outcome::Unread { reason } => Self::Unread {
+                reason: reason.into(),
+            },
+        }
+    }
+}
+
+impl From<cloudwatch::Unread> for UnreadReason {
+    fn from(reason: cloudwatch::Unread) -> Self {
+        match reason {
+            cloudwatch::Unread::QueryFailed => Self::QueryFailed,
+            cloudwatch::Unread::SeriesIncomplete => Self::SeriesIncomplete,
+            cloudwatch::Unread::SeriesMissing => Self::SeriesMissing,
+        }
+    }
+}
+
+impl From<cloudwatch::RuleState> for RuleStateResponse {
+    fn from(rule: cloudwatch::RuleState) -> Self {
+        Self {
+            severity: rule.severity,
+            state: rule.state.into(),
+            threshold: rule.threshold,
+            description: rule.description,
+        }
+    }
+}
+
+impl From<State> for AlarmState {
+    fn from(state: State) -> Self {
+        match state {
+            State::Ok => Self::Ok,
+            State::Alarm => Self::Alarm,
+            State::InsufficientData => Self::InsufficientData,
+        }
     }
 }
