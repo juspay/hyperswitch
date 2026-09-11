@@ -440,6 +440,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 paybox::transformers::PayboxAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Paydotcom => {
+                paydotcom::PaydotcomAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Payload => {
                 payload::transformers::PayloadAuthType::try_from(self.auth_type)?;
                 Ok(())

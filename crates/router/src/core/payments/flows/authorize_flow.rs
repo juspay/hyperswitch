@@ -589,6 +589,21 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     }) => redirection_data.is_none(),
                     _ => false,
                 },
+                // Pay.com gateway 3DS is three legs: PreAuthenticate mints the
+                // `chrg_`/`hld_` id, the Authenticate step that follows this gate turns it
+                // into a challenge session (`/v1/sessions/authentication/linked`), and
+                // CompleteAuthorize confirms after the shopper returns. PreAuthenticate
+                // never returns a redirect of its own — the challenge URL only exists
+                // after the Authenticate leg — so continue whenever leg 1 succeeded
+                // without one. `should_continue_after_authenticate` then stops the chain,
+                // because the Authenticate leg is what produces the redirect.
+                api_models::enums::Connector::Paydotcom => match &authorize_router_data.response {
+                    Ok(types::PaymentsResponseData::TransactionResponse {
+                        redirection_data,
+                        ..
+                    }) => redirection_data.is_none(),
+                    _ => false,
+                },
                 _ => false,
             };
             Ok((authorize_router_data, should_continue_after_preauthenticate))
