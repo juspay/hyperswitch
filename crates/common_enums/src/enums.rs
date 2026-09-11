@@ -3031,6 +3031,7 @@ impl ExecutionPath {
 pub enum UcsAvailability {
     Enabled,
     Disabled,
+    ShadowDisabled,
 }
 
 #[derive(
