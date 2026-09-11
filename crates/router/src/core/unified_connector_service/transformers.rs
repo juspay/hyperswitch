@@ -10138,8 +10138,7 @@ impl
                     ..Default::default()
                 });
 
-        let order_details =
-            build_ucs_order_details(request.order_details.as_deref());
+        let order_details = build_ucs_order_details(request.order_details.as_deref());
 
         Ok(Self {
             amount: Some(amount),
