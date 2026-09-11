@@ -6,13 +6,15 @@
 //! `-`, and severities nest under their definition so metric and dimensions are set once.
 
 use std::{
-    collections::{BTreeMap, HashMap},
-    fmt,
+    collections::{HashMap, HashSet},
+    fmt::Display,
+    hash::Hash,
+    str::FromStr,
 };
 
 use common_utils::ext_traits::ConfigExt;
 use external_services::metrics_service::{Aggregation, Labels, Period};
-use serde::{de, Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer};
 
 use crate::{errors, settings::validate_config_ids};
 
@@ -29,8 +31,9 @@ pub struct AlarmDefinition {
     pub classification: String,
     pub metric_name: String,
     pub namespace: String,
-    #[serde(default)]
-    pub dimensions: Dimensions,
+    /// `Name=value` pairs separated by commas.
+    #[serde(default, deserialize_with = "deserialize_hashset")]
+    pub dimensions: HashSet<Dimension>,
     pub period: u32,
     pub statistic: Statistic,
     pub severities: HashMap<String, SeverityRule>,
@@ -97,92 +100,86 @@ pub enum MissingDataPolicy {
     Missing,
 }
 
-/// Written as `Name=value` pairs rather than a table because `config` lowercases keys read from
-/// the environment, and CloudWatch answers a lowercased dimension name with no data rather than an
-/// error. A table is accepted too, for files.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct Dimensions(BTreeMap<String, String>);
+/// One dimension, written `Name=value`.
+///
+/// A pair rather than a table entry because `config` lowercases keys read from the environment,
+/// and CloudWatch answers a lowercased dimension name with no data rather than an error.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize)]
+pub struct Dimension {
+    pub name: String,
+    pub value: String,
+}
 
-impl Dimensions {
-    pub fn iter(&self) -> impl Iterator<Item = (&str, &str)> {
-        self.0
-            .iter()
-            .map(|(name, value)| (name.as_str(), value.as_str()))
-    }
+impl FromStr for Dimension {
+    type Err = String;
 
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
+    fn from_str(pair: &str) -> Result<Self, Self::Err> {
+        let (name, value) = pair
+            .split_once('=')
+            .ok_or_else(|| format!("`{}` is not a `Name=value` pair", pair.trim()))?;
+        let (name, value) = (name.trim(), value.trim());
 
-    pub fn labels(&self) -> Labels {
-        self.iter().collect()
-    }
-
-    fn parse(text: &str) -> Result<Self, String> {
-        let mut dimensions = Self::default();
-
-        for pair in text.split(',').filter(|pair| !pair.trim().is_empty()) {
-            let (name, value) = pair
-                .split_once('=')
-                .ok_or_else(|| format!("`{}` is not a `Name=value` pair", pair.trim()))?;
-            dimensions.insert(name.trim(), value.trim())?;
-        }
-
-        Ok(dimensions)
-    }
-
-    fn insert(&mut self, name: &str, value: &str) -> Result<(), String> {
         if name.is_empty() || value.is_empty() {
-            Err(format!("`{name}={value}` has an empty name or value"))?
+            Err(format!("`{}` has an empty name or value", pair.trim()))?
         }
-        if self.0.insert(name.to_owned(), value.to_owned()).is_some() {
-            Err(format!("`{name}` is set twice"))?
-        }
-        Ok(())
+
+        Ok(Self {
+            name: name.to_owned(),
+            value: value.to_owned(),
+        })
     }
 }
 
-impl fmt::Display for Dimensions {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut first = true;
-        for (name, value) in self.iter() {
-            if !first {
-                write!(formatter, ",")?;
-            }
-            write!(formatter, "{name}={value}")?;
-            first = false;
-        }
-        Ok(())
-    }
+/// A comma-separated value, as a set.
+///
+/// `router` carries the same helper for its own configuration. Copied rather than shared, so a
+/// change made for one of its settings cannot quietly change how alarms are read here.
+fn deserialize_hashset<'de, D, T>(deserializer: D) -> Result<HashSet<T>, D::Error>
+where
+    D: Deserializer<'de>,
+    T: Eq + Hash + FromStr,
+    <T as FromStr>::Err: Display,
+{
+    use serde::de::Error;
+
+    deserialize_hashset_inner(<String>::deserialize(deserializer)?).map_err(D::Error::custom)
 }
 
-impl<'de> Deserialize<'de> for Dimensions {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        struct DimensionsVisitor;
-
-        impl<'de> de::Visitor<'de> for DimensionsVisitor {
-            type Value = Dimensions;
-
-            fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-                formatter.write_str("`Name=value` pairs separated by commas, or a table of them")
-            }
-
-            fn visit_str<E: de::Error>(self, text: &str) -> Result<Self::Value, E> {
-                Dimensions::parse(text).map_err(de::Error::custom)
-            }
-
-            fn visit_map<M: de::MapAccess<'de>>(self, mut map: M) -> Result<Self::Value, M::Error> {
-                let mut dimensions = Dimensions::default();
-                while let Some((name, value)) = map.next_entry::<String, String>()? {
-                    dimensions
-                        .insert(name.trim(), value.trim())
-                        .map_err(de::Error::custom)?;
+fn deserialize_hashset_inner<T>(value: impl AsRef<str>) -> Result<HashSet<T>, String>
+where
+    T: Eq + Hash + FromStr,
+    <T as FromStr>::Err: Display,
+{
+    let (values, errors) = value
+        .as_ref()
+        .trim()
+        .split(',')
+        .map(|element| {
+            T::from_str(element.trim()).map_err(|error| {
+                format!(
+                    "Unable to deserialize `{}` as `{}`: {error}",
+                    element.trim(),
+                    std::any::type_name::<T>()
+                )
+            })
+        })
+        .fold(
+            (HashSet::new(), Vec::new()),
+            |(mut values, mut errors), result| {
+                match result {
+                    Ok(value) => {
+                        values.insert(value);
+                    }
+                    Err(error) => errors.push(error),
                 }
-                Ok(dimensions)
-            }
-        }
+                (values, errors)
+            },
+        );
 
-        deserializer.deserialize_any(DimensionsVisitor)
+    if errors.is_empty() {
+        Ok(values)
+    } else {
+        Err(format!("Some errors occurred:\n{}", errors.join("\n")))
     }
 }
 
@@ -206,6 +203,13 @@ impl CloudWatchSettings {
 }
 
 impl AlarmDefinition {
+    pub fn labels(&self) -> Labels {
+        self.dimensions
+            .iter()
+            .map(|dimension| (dimension.name.as_str(), dimension.value.as_str()))
+            .collect()
+    }
+
     pub fn period(&self) -> Period {
         Period::from_seconds(i32::try_from(self.period).unwrap_or(i32::MAX))
     }
@@ -235,6 +239,13 @@ impl AlarmDefinition {
                 "period must be 1, 5, 10, 20, 30 or a multiple of 60 seconds, not {}",
                 self.period
             ));
+        }
+
+        let mut names = HashSet::with_capacity(self.dimensions.len());
+        for dimension in &self.dimensions {
+            if !names.insert(dimension.name.as_str()) {
+                return reject(format!("dimension `{}` is set twice", dimension.name));
+            }
         }
 
         if self.severities.is_empty() {
@@ -406,71 +417,63 @@ mod tests {
     #[test]
     fn dimension_names_survive_the_environment_with_their_case() {
         let settings = settings_from(rds_primary_cpu_environment());
-        let dimensions = &settings.cloudwatch.alarms["rds_primary_cpu"].dimensions;
+        let alarm = &settings.cloudwatch.alarms["rds_primary_cpu"];
 
         assert_eq!(
-            dimensions.iter().collect::<Vec<_>>(),
-            vec![("DBInstanceIdentifier", "hyperswitchdb-primary")]
+            alarm.dimensions,
+            [dimension("DBInstanceIdentifier", "hyperswitchdb-primary")]
+                .into_iter()
+                .collect::<HashSet<_>>()
         );
         assert_eq!(
-            dimensions.labels(),
+            alarm.labels(),
             [("DBInstanceIdentifier", "hyperswitchdb-primary")]
                 .into_iter()
                 .collect::<Labels>()
         );
     }
 
+    fn dimension(name: &str, value: &str) -> Dimension {
+        Dimension {
+            name: name.to_owned(),
+            value: value.to_owned(),
+        }
+    }
+
     #[test]
     fn several_dimensions_are_comma_separated_and_may_be_spaced() {
-        let dimensions =
-            Dimensions::parse(" DBClusterIdentifier=hyperswitchdb-cluster , Role=WRITER ").unwrap();
+        let dimensions: HashSet<Dimension> =
+            deserialize_hashset_inner(" DBClusterIdentifier=hyperswitchdb-cluster , Role=WRITER ")
+                .unwrap();
 
         assert_eq!(
-            dimensions.iter().collect::<Vec<_>>(),
-            vec![
-                ("DBClusterIdentifier", "hyperswitchdb-cluster"),
-                ("Role", "WRITER"),
+            dimensions,
+            [
+                dimension("DBClusterIdentifier", "hyperswitchdb-cluster"),
+                dimension("Role", "WRITER"),
             ]
+            .into_iter()
+            .collect::<HashSet<_>>()
         );
+    }
+
+    /// Only the first `=` separates, so a value containing one survives.
+    #[test]
+    fn a_value_may_contain_the_separator() {
         assert_eq!(
-            dimensions.to_string(),
-            "DBClusterIdentifier=hyperswitchdb-cluster,Role=WRITER"
+            "LoadBalancer=app/envoy-alb/123=456"
+                .parse::<Dimension>()
+                .unwrap(),
+            dimension("LoadBalancer", "app/envoy-alb/123=456")
         );
     }
 
     #[test]
     fn a_dimension_that_is_not_a_pair_is_rejected() {
-        for text in ["DBInstanceIdentifier", "=value", "Name=", "A=1,A=2"] {
+        for text in ["DBInstanceIdentifier", "=value", "Name=", "Name=  ", ""] {
             assert!(
-                Dimensions::parse(text).is_err(),
+                text.parse::<Dimension>().is_err(),
                 "`{text}` should be rejected"
-            );
-        }
-    }
-
-    #[test]
-    fn dimensions_can_also_be_written_as_a_table() {
-        let dimensions: Dimensions =
-            serde_json::from_str(r#"{"DBInstanceIdentifier":"hyperswitchdb-primary"}"#).unwrap();
-
-        assert_eq!(
-            dimensions.iter().collect::<Vec<_>>(),
-            vec![("DBInstanceIdentifier", "hyperswitchdb-primary")]
-        );
-    }
-
-    /// The table form takes the same checks as the string form; an empty value would otherwise
-    /// deserialize into a selector CloudWatch cannot answer.
-    #[test]
-    fn a_dimension_table_with_an_empty_name_or_value_is_rejected() {
-        for json in [
-            r#"{"Role":""}"#,
-            r#"{"":"hyperswitchdb-primary"}"#,
-            r#"{"Role":"  "}"#,
-        ] {
-            assert!(
-                serde_json::from_str::<Dimensions>(json).is_err(),
-                "`{json}` should be rejected"
             );
         }
     }
@@ -512,6 +515,16 @@ mod tests {
             ("a period beyond a day", {
                 let mut alarm = rds_primary_cpu();
                 alarm.period = 86_460;
+                catalogue_with("rds_primary_cpu", alarm)
+            }),
+            ("the same dimension twice", {
+                let mut alarm = rds_primary_cpu();
+                alarm.dimensions = [
+                    dimension("DBClusterIdentifier", "hyperswitchdb-cluster"),
+                    dimension("DBClusterIdentifier", "failover-replica-1"),
+                ]
+                .into_iter()
+                .collect();
                 catalogue_with("rds_primary_cpu", alarm)
             }),
             ("an empty metric name", {
