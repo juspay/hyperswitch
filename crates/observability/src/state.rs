@@ -1,6 +1,8 @@
 use std::{collections::HashMap, sync::Arc};
 
-use diesel_models::DejaPgConnection;
+use common_utils::external_service::NoOpEventEmitter;
+use diesel_models::{DatabaseConnectionWithContext, DejaPgConnection};
+use error_stack::report;
 use external_services::{
     chat_service::{slack::SlackClient, xyne::XyneClient},
     email::{
@@ -19,7 +21,7 @@ use crate::{
         email::{EmailNotifier, EmailServiceNotifier},
         Registry,
     },
-    errors::ConfigurationError,
+    errors::{ConfigurationError, ObservabilityError},
     logger, secrets_transformers,
     settings::{ChatDestination, ChatSettings, DatabaseSettings, EmailSettings, Settings},
 };
@@ -77,6 +79,21 @@ impl AppState {
             email: Arc::new(email),
             database,
         }
+    }
+
+    pub async fn database_connection(
+        &self,
+    ) -> error_stack::Result<DatabaseConnectionWithContext<'_>, ObservabilityError> {
+        let connection = self.database.get().await.map_err(|error| {
+            report!(ObservabilityError::StorageUnavailable)
+                .attach_printable(format!("Failed to lease a database connection: {error}"))
+        })?;
+
+        Ok(DatabaseConnectionWithContext::new(
+            connection,
+            None,
+            Arc::new(NoOpEventEmitter),
+        ))
     }
 }
 

@@ -1,25 +1,26 @@
-use crate::{schema, schema_v2};
+use crate::{observability::schema as observability_schema, schema, schema_v2};
 
-/// This trait will return a single column as primary key even in case of composite primary key.
-///
-/// In case of composite key, it will return the column that is used as local unique.
 pub(super) trait GetPrimaryKey: diesel::Table {
     type PK: diesel::ExpressionMethods;
     fn get_primary_key(&self) -> Self::PK;
 }
 
-/// This trait must be implemented for all composite keys.
 pub(super) trait CompositeKey {
     type UK;
-    /// It will return the local unique key of the composite key.
-    ///
-    /// If `(attempt_id, merchant_id)` is the composite key for `payment_attempt` table, then it will return `attempt_id`.
     fn get_local_unique_key(&self) -> Self::UK;
 }
 
-/// implementation of `CompositeKey` trait for all the composite keys must be done here.
 mod composite_key {
-    use super::{schema, schema_v2, CompositeKey};
+    use super::{observability_schema, schema, schema_v2, CompositeKey};
+
+    impl CompositeKey
+        for <observability_schema::merchants_alert_external_config::table as diesel::Table>::PrimaryKey
+    {
+        type UK = observability_schema::merchants_alert_external_config::dsl::name;
+        fn get_local_unique_key(&self) -> Self::UK {
+            self.0
+        }
+    }
     impl CompositeKey for <schema::payment_attempt::table as diesel::Table>::PrimaryKey {
         type UK = schema::payment_attempt::dsl::attempt_id;
         fn get_local_unique_key(&self) -> Self::UK {
@@ -76,7 +77,6 @@ mod composite_key {
     }
 }
 
-/// This macro will implement the `GetPrimaryKey` trait for all the tables with single primary key.
 macro_rules! impl_get_primary_key {
     ($($table:ty),*) => {
         $(
@@ -91,7 +91,6 @@ macro_rules! impl_get_primary_key {
     };
 }
 impl_get_primary_key!(
-    // v1 tables
     schema::card_issuers::table,
     schema::dashboard_metadata::table,
     schema::merchant_connector_account::table,
@@ -111,7 +110,6 @@ impl_get_primary_key!(
     schema::invoice::table,
     schema::subscription::table,
     schema::batch_blocklist_jobs::table,
-    // v2 tables
     schema_v2::dashboard_metadata::table,
     schema_v2::merchant_connector_account::table,
     schema_v2::merchant_key_store::table,
@@ -129,10 +127,10 @@ impl_get_primary_key!(
     schema_v2::process_tracker::table,
     schema_v2::refund::table,
     schema_v2::customers::table,
-    schema_v2::payment_attempt::table
+    schema_v2::payment_attempt::table,
+    observability_schema::alerts_info::table
 );
 
-/// This macro will implement the `GetPrimaryKey` trait for all the tables with composite key.
 macro_rules! impl_get_primary_key_for_composite {
     ($($table:ty),*) => {
         $(
@@ -148,6 +146,7 @@ macro_rules! impl_get_primary_key_for_composite {
 }
 
 impl_get_primary_key_for_composite!(
+    observability_schema::merchants_alert_external_config::table,
     schema::payment_attempt::table,
     schema::refund::table,
     schema::customers::table,

@@ -1,3 +1,4 @@
+pub mod alert_manager;
 pub mod auth;
 pub mod core;
 pub mod domain;

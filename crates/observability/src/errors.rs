@@ -1,18 +1,3 @@
-//! Errors, in three layers.
-//!
-//! This mirrors the router's layering, which separates errors by *lifetime* and by *audience*:
-//!
-//! | Layer | Type | Rendered to HTTP? |
-//! |---|---|---|
-//! | Boot / configuration | [`ConfigurationError`] | never — the process exits instead |
-//! | Internal, semantic | [`ObservabilityError`] | no — carried in an [`error_stack::Report`] |
-//! | Wire | [`types::ApiErrorResponse`] | yes — via its `ResponseError` impl in [`actix`] |
-//!
-//! The two request-side layers are bridged by [`common_utils::errors::ErrorSwitch`], which
-//! escalates the internal error into the wire error *without consuming the report*. That is the
-//! whole point of the split: the full `error_stack` context reaches the log while the client sees
-//! only the wire shape, so internal detail cannot leak into a response by accident.
-
 pub mod actix;
 pub mod types;
 
@@ -21,21 +6,14 @@ use thiserror::Error;
 
 use crate::errors::types::{ApiError, ApiErrorResponse};
 
-/// Errors raised while the application is starting up.
-///
-/// These are never rendered to a client — by the time a request can arrive, startup has already
-/// succeeded. A variant here means the process refuses to start.
 #[derive(Debug, Error)]
 pub enum ConfigurationError {
-    /// A configuration value was present but unusable.
     #[error("Error in parsing config: {0}")]
     ConfigParsingError(String),
 
-    /// The configuration file could not be read or deserialized.
     #[error("Application configuration error: {0}")]
     ConfigurationError(config::ConfigError),
 
-    /// Binding the listener failed, or another I/O error occurred during startup.
     #[error("I/O: {0}")]
     IoError(std::io::Error),
 }
@@ -52,50 +30,41 @@ impl From<config::ConfigError> for ConfigurationError {
     }
 }
 
-/// The result type for anything that runs during startup.
 pub type ObservabilityResult<T> = error_stack::Result<T, ConfigurationError>;
 
-/// Errors raised while handling a request.
-///
-/// Semantic rather than HTTP-shaped: a variant says what went wrong, not what status code the
-/// client should see. The mapping happens once, in the [`ErrorSwitch`] impl below, so a handler
-/// never has to think about HTTP.
-///
-/// **A provider refusing a message is not in here.** That is an outcome, reported through
-/// [`crate::domain::notifier::Outcome`] and answered with a `200`. What remains is a request we
-/// cannot act on, and a notifier that did not work — which is exactly what a `4xx`/`5xx` from this
-/// service should mean, so an alert on 5xx pages someone only when the service is genuinely broken.
 #[derive(Debug, Error)]
 pub enum ObservabilityError {
-    /// Something failed that the client can do nothing about.
     #[error("Internal server error")]
     InternalServerError,
 
-    /// The internal API key was missing, malformed, or did not match.
     #[error("Authentication failed")]
     Unauthorized,
 
-    /// The request body was structurally valid but contained unusable values.
     #[error("The request body is invalid")]
     InvalidRequest,
 
-    /// The path named a destination that is not configured.
-    #[error("No destination is configured under `{destination}`")]
-    UnknownDestination {
-        /// The id the request asked for.
-        destination: String,
-    },
+    #[error("The observability database is unavailable")]
+    StorageUnavailable,
 
-    /// The provider could not be reached, or answered outside its documented envelope. Nothing is
-    /// known about whether the message was delivered, which is what separates this from a refusal.
+    #[error("No alert definition exists with id `{id}`")]
+    DefinitionNotFound { id: String },
+
+    #[error("An alert definition already exists for `{name}` / `{product}`")]
+    DuplicateDefinition { name: String, product: String },
+
+    #[error("No alert enablement exists for `{name}` / `{product}`")]
+    EnablementNotFound { name: String, product: String },
+
+    #[error("No alert is defined as `{name}` / `{product}`")]
+    NotAnAlert { name: String, product: String },
+
+    #[error("No destination is configured under `{destination}`")]
+    UnknownDestination { destination: String },
+
     #[error("The destination `{destination}` could not be reached")]
-    ProviderUnavailable {
-        /// The destination that could not be reached.
-        destination: String,
-    },
+    ProviderUnavailable { destination: String },
 }
 
-/// The result type for request handling.
 pub type ObservabilityApiResult<T> = error_stack::Result<T, ObservabilityError>;
 
 impl ErrorSwitch<ApiErrorResponse> for ObservabilityError {
@@ -106,8 +75,6 @@ impl ErrorSwitch<ApiErrorResponse> for ObservabilityError {
                 0,
                 "Something went wrong",
             )),
-            // Deliberately vague. A caller that failed to authenticate learns only that it
-            // failed — never whether the header was absent, malformed, or simply wrong.
             Self::Unauthorized => ApiErrorResponse::Unauthorized(ApiError::new(
                 "IR",
                 1,
@@ -118,14 +85,30 @@ impl ErrorSwitch<ApiErrorResponse> for ObservabilityError {
                 4,
                 "The request body could not be parsed",
             )),
-            // The id is already in the path the caller sent, so there is nothing to echo back, and
-            // the configured ids are deliberately not listed.
             Self::UnknownDestination { .. } => {
                 ApiErrorResponse::NotFound(ApiError::new("IR", 2, "Unknown destination"))
             }
-            // 502 rather than 500: the failure is on the far side of a hop we made. Note this is
-            // the *only* provider-shaped error left, because every answer the provider gives is a
-            // 200 outcome instead.
+            Self::StorageUnavailable => ApiErrorResponse::ServiceUnavailable(ApiError::new(
+                "HE",
+                1,
+                "The observability database is unavailable",
+            )),
+            Self::DefinitionNotFound { .. } => {
+                ApiErrorResponse::NotFound(ApiError::new("IR", 3, "Unknown alert definition"))
+            }
+            Self::DuplicateDefinition { .. } => ApiErrorResponse::BadRequest(ApiError::new(
+                "IR",
+                5,
+                "An alert definition already exists for this name and product",
+            )),
+            Self::EnablementNotFound { .. } => {
+                ApiErrorResponse::NotFound(ApiError::new("IR", 6, "Unknown alert enablement"))
+            }
+            Self::NotAnAlert { .. } => ApiErrorResponse::BadRequest(ApiError::new(
+                "IR",
+                7,
+                "No alert is defined for this name and product",
+            )),
             Self::ProviderUnavailable { .. } => ApiErrorResponse::BadGateway(ApiError::new(
                 "HE",
                 3,
@@ -148,8 +131,6 @@ mod tests {
             .as_u16()
     }
 
-    /// The rule this service is built on: a 5xx means the notifier did not work. Anything the
-    /// provider actually said is a 200 and never reaches here.
     #[test]
     fn only_our_own_failures_are_5xx() {
         assert_eq!(
@@ -162,6 +143,11 @@ mod tests {
     }
 
     #[test]
+    fn an_unreachable_database_is_503_and_not_500() {
+        assert_eq!(status_of(&ObservabilityError::StorageUnavailable), 503);
+    }
+
+    #[test]
     fn a_request_we_cannot_act_on_is_4xx() {
         assert_eq!(
             status_of(&ObservabilityError::UnknownDestination {
@@ -171,9 +157,81 @@ mod tests {
         );
         assert_eq!(status_of(&ObservabilityError::Unauthorized), 401);
         assert_eq!(status_of(&ObservabilityError::InvalidRequest), 400);
+        assert_eq!(
+            status_of(&ObservabilityError::DefinitionNotFound {
+                id: "0189d0a0-0000-7000-8000-000000000000".to_owned(),
+            }),
+            404
+        );
+        assert_eq!(
+            status_of(&ObservabilityError::EnablementNotFound {
+                name: "sr_drop".to_owned(),
+                product: "payments".to_owned(),
+            }),
+            404
+        );
+        assert_eq!(
+            status_of(&ObservabilityError::DuplicateDefinition {
+                name: "sr_drop".to_owned(),
+                product: "payments".to_owned(),
+            }),
+            400
+        );
     }
 
-    /// A caller that guessed an id should not be handed the registry.
+    #[test]
+    fn no_two_conditions_share_a_code() {
+        let codes = [
+            ObservabilityError::InternalServerError,
+            ObservabilityError::Unauthorized,
+            ObservabilityError::InvalidRequest,
+            ObservabilityError::StorageUnavailable,
+            ObservabilityError::DefinitionNotFound { id: String::new() },
+            ObservabilityError::DuplicateDefinition {
+                name: String::new(),
+                product: String::new(),
+            },
+            ObservabilityError::EnablementNotFound {
+                name: String::new(),
+                product: String::new(),
+            },
+            ObservabilityError::NotAnAlert {
+                name: String::new(),
+                product: String::new(),
+            },
+            ObservabilityError::UnknownDestination {
+                destination: String::new(),
+            },
+            ObservabilityError::ProviderUnavailable {
+                destination: String::new(),
+            },
+        ]
+        .iter()
+        .map(|error| {
+            let payload = ErrorSwitch::<ApiErrorResponse>::switch(error);
+            format!(
+                "{}_{:02}",
+                payload.payload().sub_code,
+                payload.payload().error_identifier
+            )
+        })
+        .collect::<std::collections::HashSet<_>>();
+
+        assert_eq!(codes.len(), 10);
+    }
+
+    #[test]
+    fn a_missing_definition_does_not_echo_the_key_back() {
+        let body = ErrorSwitch::<ApiErrorResponse>::switch(&ObservabilityError::NotAnAlert {
+            name: "typo".to_owned(),
+            product: "payments".to_owned(),
+        })
+        .to_string();
+
+        assert!(body.contains("IR_07"));
+        assert!(!body.contains("typo"));
+    }
+
     #[test]
     fn an_unknown_destination_does_not_leak_the_configured_ids() {
         let body =
