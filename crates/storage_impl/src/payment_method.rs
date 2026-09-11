@@ -4,6 +4,7 @@ use std::collections::HashSet;
 use common_enums::enums::MerchantStorageScheme;
 use common_utils::{errors::CustomResult, id_type};
 pub use diesel_models::payment_method::PaymentMethod;
+use diesel_models::errors::DatabaseError;
 use diesel_models::payment_method::{PaymentMethodUpdate, PaymentMethodUpdateInternal};
 use error_stack::ResultExt;
 #[cfg(feature = "v1")]
@@ -165,7 +166,6 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
         storage_scheme: MerchantStorageScheme,
         compat_action: Option<PaymentMethodCompatAction>,
     ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
-        let conn = pg_connection_write(self).await?;
         let mut payment_method_new = payment_method
             .construct_new()
             .await
@@ -184,15 +184,33 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
         }
         let payment_method = (&payment_method_new.clone()).into();
 
-        let mut query_gen_conn = pg_connection_write(self).await?;
-        let drainer_query_fut = payment_method_new
-            .clone()
-            .generate_drainer_insert_query(&mut query_gen_conn);
+        // Lazy: only the branch that actually runs checks out a connection.
+        let insert_fut = {
+            let payment_method_new = payment_method_new.clone();
+            async move {
+                let conn = pg_connection_write(self)
+                    .await
+                    .change_context(DatabaseError::DatabaseConnectionError)?;
+                payment_method_new.insert(&conn).await
+            }
+        };
+
+        let drainer_query_fut = {
+            let payment_method_new = payment_method_new.clone();
+            async move {
+                let mut query_gen_conn = pg_connection_write(self)
+                    .await
+                    .change_context(DatabaseError::DatabaseConnectionError)?;
+                payment_method_new
+                    .generate_drainer_insert_query(&mut query_gen_conn)
+                    .await
+            }
+        };
 
         let payment_method: DomainPaymentMethod = Box::pin(self.insert_resource(
             key_store,
             storage_scheme,
-            payment_method_new.clone().insert(&conn),
+            insert_fut,
             payment_method,
             InsertResourceParams {
                 drainer_query_fut,
@@ -231,25 +249,43 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
             merchant_id: &merchant_id,
             customer_id: &customer_id,
         };
-        let conn = pg_connection_write(self).await?;
         let field = format!("payment_method_id_{}", payment_method.get_id().clone());
         let p_update: PaymentMethodUpdateInternal =
             payment_method_update.convert_to_payment_method_update(storage_scheme);
         let updated_payment_method = p_update.clone().apply_changeset(payment_method.clone());
 
-        let mut query_gen_conn = pg_connection_write(self).await?;
-        let drainer_query_fut = p_update.clone().generate_drainer_update_query(
-            &mut query_gen_conn,
-            payment_method.payment_method_id.clone(),
-        );
+        // Lazy: only the branch that actually runs checks out a connection.
+        let update_fut = {
+            let payment_method = payment_method.clone();
+            let p_update = p_update.clone();
+            async move {
+                let conn = pg_connection_write(self)
+                    .await
+                    .change_context(DatabaseError::DatabaseConnectionError)?;
+                payment_method
+                    .update_with_payment_method_id(&conn, p_update)
+                    .await
+            }
+        };
+
+        let drainer_query_fut = {
+            let p_update = p_update.clone();
+            let payment_method_id = payment_method.payment_method_id.clone();
+            async move {
+                let mut query_gen_conn = pg_connection_write(self)
+                    .await
+                    .change_context(DatabaseError::DatabaseConnectionError)?;
+                p_update
+                    .generate_drainer_update_query(&mut query_gen_conn, payment_method_id)
+                    .await
+            }
+        };
 
         let payment_method: DomainPaymentMethod = Box::pin(
             self.update_resource(
                 key_store,
                 storage_scheme,
-                payment_method
-                    .clone()
-                    .update_with_payment_method_id(&conn, p_update.clone()),
+                update_fut,
                 updated_payment_method,
                 UpdateResourceParams {
                     drainer_query_fut,

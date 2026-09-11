@@ -26,7 +26,8 @@ use diesel_models::schema_v2::{
     payment_intent::dsl as pi_dsl,
 };
 use diesel_models::{
-    enums::MerchantStorageScheme, payment_intent::PaymentIntent as DieselPaymentIntent,
+    enums::MerchantStorageScheme, errors::DatabaseError,
+    payment_intent::PaymentIntent as DieselPaymentIntent,
 };
 use error_stack::ResultExt;
 #[cfg(all(feature = "v1", feature = "olap"))]
@@ -88,22 +89,39 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
             payment_id: &payment_id,
         };
 
-        let conn = pg_connection_write(self).await?;
         let new_payment_intent = payment_intent
             .construct_new()
             .await
             .change_context(StorageError::EncryptionError)?;
         let diesel_payment_intent = DieselPaymentIntent::from(new_payment_intent.clone());
 
-        let mut query_gen_conn = pg_connection_write(self).await?;
-        let drainer_query_fut = new_payment_intent
-            .clone()
-            .generate_drainer_insert_query(&mut query_gen_conn);
+        // Lazy: only the branch that actually runs checks out a connection.
+        let insert_fut = {
+            let new_payment_intent = new_payment_intent.clone();
+            async move {
+                let conn = pg_connection_write(self)
+                    .await
+                    .change_context(DatabaseError::DatabaseConnectionError)?;
+                new_payment_intent.insert(&conn).await
+            }
+        };
+
+        let drainer_query_fut = {
+            let new_payment_intent = new_payment_intent.clone();
+            async move {
+                let mut query_gen_conn = pg_connection_write(self)
+                    .await
+                    .change_context(DatabaseError::DatabaseConnectionError)?;
+                new_payment_intent
+                    .generate_drainer_insert_query(&mut query_gen_conn)
+                    .await
+            }
+        };
 
         Box::pin(self.insert_resource_old(
             merchant_key_store,
             storage_scheme,
-            new_payment_intent.insert(&conn),
+            insert_fut,
             diesel_payment_intent,
             InsertResourceParams {
                 drainer_query_fut,
@@ -232,7 +250,6 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
             payment_id: &payment_id,
         };
         let field = format!("pi_{}", this.get_id().get_string_repr());
-        let conn = pg_connection_write(self).await?;
         let diesel_intent_update = DieselPaymentIntentUpdate::from(payment_intent_update);
         let origin_diesel_intent = this
             .convert()
@@ -242,17 +259,40 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
             .clone()
             .apply_changeset(origin_diesel_intent.clone());
 
-        let mut query_gen_conn = pg_connection_write(self).await?;
-        let drainer_query_fut = diesel_intent_update.clone().generate_drainer_update_query(
-            &mut query_gen_conn,
-            origin_diesel_intent.payment_id.clone(),
-            origin_diesel_intent.processor_merchant_id.clone(),
-        );
+        // Lazy: only the branch that actually runs checks out a connection.
+        let update_fut = {
+            let diesel_intent_update = diesel_intent_update.clone();
+            let origin_diesel_intent = origin_diesel_intent.clone();
+            async move {
+                let conn = pg_connection_write(self)
+                    .await
+                    .change_context(DatabaseError::DatabaseConnectionError)?;
+                origin_diesel_intent.update(&conn, diesel_intent_update).await
+            }
+        };
+
+        let drainer_query_fut = {
+            let diesel_intent_update = diesel_intent_update.clone();
+            let payment_id = origin_diesel_intent.payment_id.clone();
+            let processor_merchant_id = origin_diesel_intent.processor_merchant_id.clone();
+            async move {
+                let mut query_gen_conn = pg_connection_write(self)
+                    .await
+                    .change_context(DatabaseError::DatabaseConnectionError)?;
+                diesel_intent_update
+                    .generate_drainer_update_query(
+                        &mut query_gen_conn,
+                        payment_id,
+                        processor_merchant_id,
+                    )
+                    .await
+            }
+        };
 
         Box::pin(self.update_resource_old(
             merchant_key_store,
             storage_scheme,
-            origin_diesel_intent.update(&conn, diesel_intent_update),
+            update_fut,
             diesel_intent,
             UpdateResourceParams {
                 drainer_query_fut,

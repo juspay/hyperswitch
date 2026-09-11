@@ -11,6 +11,8 @@ use diesel_models::{
     payment_attempt::PaymentAttempt as DieselPaymentAttempt,
     reverse_lookup::{ReverseLookup, ReverseLookupNew},
 };
+#[cfg(feature = "v2")]
+use diesel_models::errors::DatabaseError;
 use error_stack::ResultExt;
 #[cfg(all(feature = "v1", feature = "olap"))]
 use futures::future::{try_join_all, FutureExt};
@@ -1153,13 +1155,32 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
             .apply_changeset(payment_attempt.clone());
 
         let updated_by = updated_payment_attempt.updated_by.to_owned();
-        let updated_payment_attempt_with_id = payment_attempt
-            .clone()
-            .update_with_attempt_id(&conn, payment_attempt_internal.clone());
+        // Lazy: only the branch that actually runs checks out a connection.
+        let updated_payment_attempt_with_id = {
+            let payment_attempt = payment_attempt.clone();
+            let payment_attempt_internal = payment_attempt_internal.clone();
+            async move {
+                let conn = pg_connection_write(self)
+                    .await
+                    .change_context(DatabaseError::DatabaseConnectionError)?;
+                payment_attempt
+                    .update_with_attempt_id(&conn, payment_attempt_internal)
+                    .await
+            }
+        };
 
-        let mut query_gen_conn = pg_connection_write(self).await?;
-        let drainer_query_fut = payment_attempt_internal
-            .generate_drainer_update_query(&mut query_gen_conn, payment_attempt.id.clone());
+        let drainer_query_fut = {
+            let payment_attempt_internal = payment_attempt_internal.clone();
+            let id = payment_attempt.id.clone();
+            async move {
+                let mut query_gen_conn = pg_connection_write(self)
+                    .await
+                    .change_context(DatabaseError::DatabaseConnectionError)?;
+                payment_attempt_internal
+                    .generate_drainer_update_query(&mut query_gen_conn, id)
+                    .await
+            }
+        };
 
         Box::pin(self.update_resource(
             merchant_key_store,
