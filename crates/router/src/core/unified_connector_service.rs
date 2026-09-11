@@ -48,10 +48,10 @@ use crate::{
         errors::{self, RouterResult},
         payments::{
             helpers::{
-                is_config_flag_enabled, is_googlepay_predecrypted_flow_supported,
-                should_execute_based_on_rollout, should_execute_based_on_rollout_with_precedence,
-                MerchantConnectorAccountType, ProxyOverride, WebhookRolloutConfig,
-                WebhookRolloutExecutionResult,
+                get_ucs_shadow_proxy_override, is_config_flag_enabled,
+                is_googlepay_predecrypted_flow_supported, should_execute_based_on_rollout,
+                should_execute_based_on_rollout_with_precedence, MerchantConnectorAccountType,
+                ProxyOverride, WebhookRolloutConfig, WebhookRolloutExecutionResult,
             },
             OperationSessionGetters, OperationSessionSetters,
         },
@@ -1064,19 +1064,25 @@ where
     // Handle proxy configuration for Shadow UCS flows
     let session_state = match execution_path {
         ExecutionPath::ShadowUnifiedConnectorService => {
-            // For shadow UCS, use rollout_result for proxy configuration since it takes priority
-            match &rollout_result.proxy_override {
+            // For shadow UCS, route the direct call through the shadow (MITM) proxy from config.
+            // Only shadow when a rollout key opted this request in, matching the earlier
+            // behaviour where the proxy came from the rollout config itself.
+            match rollout_result
+                .should_execute
+                .then(|| get_ucs_shadow_proxy_override(state))
+                .flatten()
+            {
                 Some(proxy_override) => {
                     router_env::logger::debug!(
                         proxy_override = ?proxy_override,
-                        "Creating updated session state with proxy configuration for Shadow UCS"
+                        "Creating updated session state with shadow proxy configuration for Shadow UCS"
                     );
-                    create_updated_session_state_with_proxy(state.clone(), proxy_override)
+                    create_updated_session_state_with_proxy(state.clone(), &proxy_override)
                 }
                 None => {
                     // info, not debug: this downgrade has to be visible at default log levels.
                     router_env::logger::info!(
-                        "No proxy override available for Shadow UCS; falling back to Direct, so no shadow comparison will run for this request"
+                        "No shadow proxy configured under grpc_client.unified_connector_service.shadow_proxy; falling back to Direct, so no shadow comparison will run for this request"
                     );
                     execution_path = ExecutionPath::Direct;
                     state.clone()

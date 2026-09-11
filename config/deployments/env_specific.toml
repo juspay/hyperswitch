@@ -472,6 +472,12 @@ request_timeout = 35                    # Per-RPC Request Timeout in Seconds
 ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, payconex, dlocal, barclaycard, jpmorgan, datatrans, tsys_transit, givepayments, tesouro, citigate, ilixium, moneris, elavon, worldpayraft"    # Comma-separated list of connectors that use UCS only
 ucs_psync_disabled_connectors = "cashtocode, trustly"    # Comma-separated list of connectors to disable UCS PSync call
 
+[grpc_client.unified_connector_service.shadow_proxy]
+# Proxy (typically the validation service MITM proxy) used for the direct connector call when a request is
+# mirrored to UCS in shadow mode. Leave both empty to disable shadow mode and send requests directly.
+http_url = ""
+https_url = ""
+
 [revenue_recovery]
 # monitoring threshold -  120 days
 monitoring_threshold_in_seconds = 10368000
