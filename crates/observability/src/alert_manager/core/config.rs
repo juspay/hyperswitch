@@ -1,14 +1,12 @@
 //! Per-request logic for the alert configuration resources: lease a connection, run one query,
 //! turn what comes back into the wire shape.
 //!
-//! The layer exists for one reason beyond symmetry with [`crate::core::notifier`]: it is where a
-//! [`diesel_models::errors::DatabaseError`] becomes an [`ObservabilityError`]. That mapping is the
-//! whole of this module's judgement, and getting it wrong is what makes a `503` look like a `404`.
+//! This is where a [`diesel_models::errors::DatabaseError`] becomes an [`ObservabilityError`].
 //!
-//! **An empty result and an unreachable database are never the same answer.** A list route with no
-//! rows answers `200` with a count of zero; a list route that could not ask answers `503`. The
-//! alert manager's own outage rule reads "no alerts" as "nothing is wrong", so collapsing the two
-//! would report all-clear during exactly the incident this plane exists to notice.
+//! An empty result and an unreachable database are never the same answer: a list with no rows is
+//! `200` and a count of zero, a list that could not ask is `503`. The alert manager reads "no
+//! alerts" as "nothing is wrong", so collapsing the two reports all-clear during exactly the
+//! incident this plane exists to notice.
 
 use diesel_models::{
     errors::DatabaseError,
@@ -30,16 +28,13 @@ use crate::{
 
 /// Escalate a storage failure, keeping the report and everything attached to it.
 ///
-/// `recognise` gets first refusal: only the caller knows which resource was being addressed, so
-/// only it can turn a `NotFound` into a message naming the id that was missing. Anything it
-/// declines is the storage layer being away — a dropped connection, a type mismatch, a permission
-/// the migration role has and this one does not — which is indistinguishable from here and is
-/// answered `503`. A `500` would be the wrong reading twice over: the service is fine, and the
-/// condition is expected to clear.
+/// `recognise` gets first refusal: only the caller knows which resource was addressed, so only it
+/// can turn a `NotFound` into a message naming the missing id. Anything it declines is the storage
+/// layer being away and is answered `503` - a `500` would be wrong twice over, since the service
+/// is fine and the condition is expected to clear.
 ///
-/// **The default is the safe direction.** A new `DatabaseError` variant added upstream lands in
-/// the catch-all and is reported as an outage, which is noisy; the opposite default would report
-/// an outage as a well-formed empty answer, which is silent.
+/// The default is the safe direction: a new upstream `DatabaseError` variant lands in the
+/// catch-all and is reported as an outage, which is noisy rather than silent.
 fn escalate(
     error: error_stack::Report<DatabaseError>,
     recognise: impl FnOnce(DatabaseError) -> Option<ObservabilityError>,
@@ -141,12 +136,12 @@ fn definition_not_found(
 
 /// Write the enablement row for a name and product.
 ///
-/// **The definition is checked first.** r-apps enforces this with a database trigger that does not
-/// exist on this schema, and without the check an enablement row can name an alert nobody defined
-/// — a switch wired to nothing, which reads on the screen exactly like a switch that works.
+/// The definition is checked first. r-apps enforces this with a trigger that does not exist on
+/// this schema, and without the check an enablement row can name an alert nobody defined - a
+/// switch wired to nothing, which reads on screen exactly like one that works.
 ///
-/// The reserved `all` definition is refused here too. It carries suppression for every detector
-/// and is not itself a detector, so there is nothing for a switch on it to turn on or off.
+/// The reserved `all` definition is refused too: it carries suppression for every detector and is
+/// not itself a detector.
 pub async fn upsert_enablement(
     state: AppState,
     name: String,

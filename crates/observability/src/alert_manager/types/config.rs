@@ -1,49 +1,27 @@
 //! The wire contract for the alert configuration resources.
 //!
-//! Two resources, both under `/alerts/config`:
+//! Two resources under `/alerts/config`:
 //!
-//! * **definitions** — [`alerts_info`](diesel_models::observability::alerts_info), everything that
-//!   says what an alert *is*. Suppression, snooze and thresholds are columns of that one row, so
-//!   they are fields of this one resource rather than three of their own.
-//! * **enablement** — [`merchants_alert_external_config`](diesel_models::observability::merchants_alert_external_config),
-//!   the per-`(name, product)` switch. Which of the two switches wins is decided in
-//!   [`effective_is_enabled`](diesel_models::observability::merchants_alert_external_config::effective_is_enabled)
-//!   and reported here as [`AlertEnablementResponse::effective_is_enabled`].
+//! * **definitions** - [`alerts_info`](diesel_models::observability::alerts_info). Suppression,
+//!   snooze and thresholds are columns of that one row, so they are fields here, not resources.
+//! * **enablement** - the per-`(name, product)` switch. Which switch wins is decided in
+//!   [`effective_is_enabled`](diesel_models::observability::merchants_alert_external_config::effective_is_enabled).
 //!
-//! ## Definitions are addressed by id, enablement by its natural key
+//! Definitions are addressed by id: `(name, product)` is a unique index rather than the primary
+//! key, and a caller creating one cannot know the id it will be given. Enablement has no id -
+//! `(name, product)` *is* its primary key - so it is addressed by the pair and its write is an
+//! upsert.
 //!
-//! A definition's `(name, product)` is a unique index rather than its primary key, and a caller
-//! creating one cannot know the id it will be given, so creation posts to the collection and
-//! everything afterwards addresses `/{id}`. Addressing definitions by name instead was rejected:
-//! renaming would then be indistinguishable from creating, and the id is what
-//! `merchants_alert_external` rows already carry.
+//! An update mentions only what it changes. Three portal screens edit different parts of a
+//! definition, so [`AlertDefinitionUpdateRequest`] uses [`Option<Option<T>>`]: absent leaves the
+//! value alone, an explicit `null` clears it, a value sets it. Optimistic concurrency was
+//! rejected - two screens editing different columns are not in conflict, and last-writer-wins is
+//! the honest answer for a config row.
 //!
-//! Enablement has no id of its own — `(name, product)` *is* its primary key — so it is addressed
-//! by the pair, and its write is a real upsert rather than a create and an update.
-//!
-//! ## An update mentions only what it changes
-//!
-//! Three portal screens edit different parts of a definition. A whole-row `PUT` from any of them
-//! would silently discard what the other two had just saved, so [`AlertDefinitionUpdateRequest`]
-//! distinguishes three states per field with [`Option<Option<T>>`]: absent leaves the value alone,
-//! an explicit `null` clears it, and a value sets it. Same idiom as `RefundUpdateInternal`.
-//!
-//! Optimistic concurrency — a version column the caller echoes back — was the alternative. It was
-//! rejected because it solves a problem this resource does not have: two screens editing
-//! *different* columns are not in conflict, and making them retry against each other would be a
-//! worse experience than the lost update it prevents. Two screens editing the *same* column still
-//! race, and last-writer-wins is the honest answer for a config row.
-//!
-//! ## No `status` envelope, and no delete
-//!
-//! The notify routes answer `{ "status": ... }` because "the request succeeded" and "the message
-//! arrived" are genuinely different questions there. A config write has no such gap: a `200` means
-//! the row is written, so a `status` field would be a constant. These routes answer with the row
-//! instead, and errors keep the crate's existing envelope.
-//!
-//! There is no delete route on either resource. `is_enabled` is how an alert is turned off, and it
-//! is reversible; deleting an `alerts_info` row cascades to every `alerts_main` row referencing it,
-//! which destroys the record of what was announced in order to stop announcing it.
+//! No `status` envelope: a `200` means the row is written, so the field would be a constant. No
+//! delete either - `is_enabled` turns an alert off reversibly, while deleting an `alerts_info` row
+//! cascades to every `alerts_main` row referencing it and destroys the record of what was
+//! announced in order to stop announcing it.
 
 use diesel_models::observability::{
     alerts_info::{
@@ -59,11 +37,9 @@ use time::PrimitiveDateTime;
 
 /// Tell "the caller did not mention this field" apart from "the caller set it to null".
 ///
-/// `#[serde(default)]` alone collapses both into `None`, which is why an absent field and an
-/// explicit `null` would otherwise be the same request. Applied to an `Option<Option<T>>` field,
-/// this runs only when the key is present, so the outer option answers "was it mentioned" and the
-/// inner one "what to". Diesel's `AsChangeset` reads the same shape the same way, so the wire
-/// meaning and the SQL meaning cannot drift apart.
+/// `#[serde(default)]` alone collapses both into `None`. On an `Option<Option<T>>` field this runs
+/// only when the key is present, so the outer option answers "was it mentioned" and the inner one
+/// "what to". Diesel's `AsChangeset` reads the same shape the same way.
 fn double_option<'de, T, D>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
 where
     T: Deserialize<'de>,
@@ -74,14 +50,12 @@ where
 
 /// The body of `POST /alerts/config/definitions`.
 ///
-/// `is_enabled` is **required**, and that is load-bearing. The column defaults to false, so a
-/// definition created without it is off — and an alert that is off without anyone deciding it
-/// should be reads as "the alert is broken" rather than "nobody enabled it". Making the caller say
-/// which they meant is the same trick [`crate::types`] plays with `status`: the failure mode of
-/// the shape is a caller that does not confront the question.
+/// `is_enabled` is **required**: the column defaults to false, so a definition created without it
+/// is off, and an alert that is off without anyone deciding it should be reads as broken rather
+/// than as unenabled.
 ///
-/// `author` is required for a different reason: the internal API key identifies the calling
-/// service, not a person, so if the body does not say who is asking then nothing does.
+/// `author` is required because the internal API key identifies the calling service, not a
+/// person - if the body does not say who is asking, nothing does.
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct AlertDefinitionCreateRequest {
@@ -174,13 +148,12 @@ impl AlertDefinitionCreateRequest {
 
 /// The body of `POST /alerts/config/definitions/{id}`.
 ///
-/// Every field is absent-able. `name`, `product` and `author` are not here at all: the first two
-/// are the alert's identity, referenced by the enablement table and matched by name in the alert
-/// manager, and the third records who introduced the definition rather than who last touched it.
+/// Every field is absent-able. `name`, `product` and `author` are not here: the first two are the
+/// alert's identity, and the third records who introduced the definition rather than who last
+/// touched it.
 ///
-/// `is_enabled` is a plain `Option<bool>` where the rest are nested. Clearing a switch is the same
-/// as turning it off, and offering two spellings for off would mean two paths to test and two ways
-/// for a screen to express one intent.
+/// `is_enabled` is a plain `Option<bool>` where the rest are nested - clearing a switch is the
+/// same as turning it off, and two spellings for off would be two paths to test.
 #[derive(Debug, Default, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct AlertDefinitionUpdateRequest {

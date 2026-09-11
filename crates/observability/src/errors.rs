@@ -1,17 +1,14 @@
-//! Errors, in three layers.
-//!
-//! This mirrors the router's layering, which separates errors by *lifetime* and by *audience*:
+//! Errors, in three layers, mirroring the router's split by lifetime and audience.
 //!
 //! | Layer | Type | Rendered to HTTP? |
 //! |---|---|---|
-//! | Boot / configuration | [`ConfigurationError`] | never — the process exits instead |
-//! | Internal, semantic | [`ObservabilityError`] | no — carried in an [`error_stack::Report`] |
-//! | Wire | [`types::ApiErrorResponse`] | yes — via its `ResponseError` impl in [`actix`] |
+//! | Boot / configuration | [`ConfigurationError`] | never - the process exits instead |
+//! | Internal, semantic | [`ObservabilityError`] | no - carried in an [`error_stack::Report`] |
+//! | Wire | [`types::ApiErrorResponse`] | yes - via its `ResponseError` impl in [`actix`] |
 //!
-//! The two request-side layers are bridged by [`common_utils::errors::ErrorSwitch`], which
-//! escalates the internal error into the wire error *without consuming the report*. That is the
-//! whole point of the split: the full `error_stack` context reaches the log while the client sees
-//! only the wire shape, so internal detail cannot leak into a response by accident.
+//! [`common_utils::errors::ErrorSwitch`] bridges the two request-side layers without consuming the
+//! report, so the full `error_stack` context reaches the log while the client sees only the wire
+//! shape - internal detail cannot leak into a response by accident.
 
 pub mod actix;
 pub mod types;
