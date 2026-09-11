@@ -362,6 +362,7 @@ impl UserInterface for MockDb {
                 is_verified: false,
                 lineage_context: None,
                 is_active: Some(false),
+                password_history: None,
                 ..user.to_owned()
             },
         };
@@ -440,6 +441,7 @@ impl UserInterface for MockDb {
                 is_verified: false,
                 lineage_context: None,
                 is_active: Some(false),
+                password_history: None,
                 ..user.to_owned()
             },
         };

@@ -864,18 +864,13 @@ impl NewUser {
                     .transpose()?;
                 let last_password_modified_at =
                     hashed_password.is_some().then(common_utils::date_time::now);
-                let mut password_history = user_from_db.get_password_history().unwrap_or_default();
-                if let Some(hashed_password) = hashed_password.clone() {
-                    password_history.insert(0, hashed_password);
-                    password_history.truncate(consts::user::PASSWORD_HISTORY_LIMIT);
-                }
                 db.reactivate_user_by_user_id(
                     user_from_db.get_user_id(),
                     storage_user::ReactivateUserUpdate {
                         new_name: Some(self.get_name().expose()),
                         new_password: hashed_password,
                         last_password_modified_at,
-                        password_history: Some(password_history),
+                        password_history: user_from_db.get_password_history(),
                     },
                 )
                 .await
@@ -1025,7 +1020,7 @@ impl TryFrom<NewUser> for storage_user::UserNew {
             user_id: generate_user_id(),
             name: value.get_name(),
             email: value.get_email().into_inner(),
-            password: hashed_password.clone(),
+            password: hashed_password,
             is_verified: false,
             created_at: Some(now),
             last_modified_at: Some(now),
@@ -1037,7 +1032,7 @@ impl TryFrom<NewUser> for storage_user::UserNew {
                 .and_then(|password_inner| password_inner.is_temporary.not().then_some(now)),
             lineage_context: None,
             is_active: true,
-            password_history: hashed_password.map(|hash| vec![hash]),
+            password_history: None,
         })
     }
 }
@@ -1322,6 +1317,12 @@ impl UserFromStorage {
 
     pub fn get_password_history(&self) -> Option<Vec<Secret<String>>> {
         self.0.password_history.clone()
+    }
+
+    /// The stored hash of the user's current password, which becomes the most recent entry in
+    /// `password_history` when the password is replaced.
+    pub fn get_password_hash(&self) -> Option<Secret<String>> {
+        self.0.password.clone()
     }
 
     pub fn is_active(&self) -> bool {

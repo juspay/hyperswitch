@@ -369,7 +369,9 @@ impl UserErrors {
             Self::ChangePasswordError => "Old and new password cannot be same".to_string(),
             Self::PasswordReuseError => format!(
                 "You cannot reuse your last {} passwords. Please choose a different password",
-                consts::user::PASSWORD_HISTORY_LIMIT
+                // The current password is not in `password_history`, so the window is the
+                // retained count plus the current one.
+                consts::user::PREVIOUS_PASSWORDS_RETAINED + 1
             ),
             Self::InvalidDeleteOperation => "Delete Operation Not Supported".to_string(),
             Self::MaxInvitationsError => "Maximum invite count per request exceeded".to_string(),

@@ -185,10 +185,9 @@ impl From<UserUpdate> for UserUpdateInternal {
                 totp_recovery_codes: Some(None),
                 lineage_context: Some(None),
                 is_active: Some(false),
-                // Intentionally left untouched while every other credential on this arm is
-                // cleared: preserving history stops a reactivated user from cycling back to a
-                // pre-deactivation password.
-                password_history: None,
+                // Cleared alongside every other credential on this arm; a deactivated user's
+                // password hashes are not retained.
+                password_history: Some(None),
             },
         }
     }
