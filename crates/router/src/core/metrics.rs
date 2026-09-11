@@ -17,6 +17,8 @@ counter_metric!(
     INCOMING_DISPUTE_WEBHOOK_MERCHANT_NOTIFIED_METRIC,
     GLOBAL_METER
 ); // No. of incoming dispute webhooks which are notified to merchant
+counter_metric!(DISPUTE_RECORD_BACK_SUCCESS_METRIC, GLOBAL_METER); // No. of lost disputes recorded back to the billing connector
+counter_metric!(DISPUTE_RECORD_BACK_FAILURE_METRIC, GLOBAL_METER); // No. of dispute record-backs the billing connector rejected. These are NOT retried.
 counter_metric!(
     ACCEPT_DISPUTE_STATUS_VALIDATION_FAILURE_METRIC,
     GLOBAL_METER

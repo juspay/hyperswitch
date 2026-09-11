@@ -252,6 +252,7 @@ impl<'a> KafkaPaymentIntent<'a> {
             external_surcharge_applicable: _,
             is_account_funded_transaction: _,
             recipient_details: _,
+            state_metadata: _,
         } = intent;
 
         Self {

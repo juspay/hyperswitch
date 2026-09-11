@@ -8,6 +8,7 @@ use time::OffsetDateTime;
 
 use crate::types::storage::dispute::Dispute;
 
+#[cfg(feature = "v1")]
 #[serde_with::skip_serializing_none]
 #[derive(serde::Serialize, Debug)]
 pub struct KafkaDisputeEvent<'a> {
@@ -18,6 +19,41 @@ pub struct KafkaDisputeEvent<'a> {
     pub dispute_status: &'a storage_enums::DisputeStatus,
     pub payment_id: &'a common_utils::id_type::PaymentId,
     pub attempt_id: &'a String,
+    pub merchant_id: &'a common_utils::id_type::MerchantId,
+    pub connector_status: &'a String,
+    pub connector_dispute_id: &'a String,
+    pub connector_reason: Option<&'a String>,
+    pub connector_reason_code: Option<&'a String>,
+    #[serde(default, with = "time::serde::timestamp::nanoseconds::option")]
+    pub challenge_required_by: Option<OffsetDateTime>,
+    #[serde(default, with = "time::serde::timestamp::nanoseconds::option")]
+    pub connector_created_at: Option<OffsetDateTime>,
+    #[serde(default, with = "time::serde::timestamp::nanoseconds::option")]
+    pub connector_updated_at: Option<OffsetDateTime>,
+    #[serde(with = "time::serde::timestamp::nanoseconds")]
+    pub created_at: OffsetDateTime,
+    #[serde(with = "time::serde::timestamp::nanoseconds")]
+    pub modified_at: OffsetDateTime,
+    pub connector: &'a String,
+    pub evidence: &'a Secret<serde_json::Value>,
+    pub profile_id: Option<&'a common_utils::id_type::ProfileId>,
+    pub merchant_connector_id: Option<&'a common_utils::id_type::MerchantConnectorAccountId>,
+    pub organization_id: &'a common_utils::id_type::OrganizationId,
+    pub processor_merchant_id: Option<&'a common_utils::id_type::MerchantId>,
+    pub created_by: Option<CreatedBy>,
+}
+
+#[cfg(feature = "v2")]
+#[serde_with::skip_serializing_none]
+#[derive(serde::Serialize, Debug)]
+pub struct KafkaDisputeEvent<'a> {
+    pub dispute_id: &'a String,
+    pub dispute_amount: MinorUnit,
+    pub currency: storage_enums::Currency,
+    pub dispute_stage: &'a storage_enums::DisputeStage,
+    pub dispute_status: &'a storage_enums::DisputeStatus,
+    pub payment_id: &'a common_utils::id_type::GlobalPaymentId,
+    pub attempt_id: &'a common_utils::id_type::GlobalAttemptId,
     pub merchant_id: &'a common_utils::id_type::MerchantId,
     pub connector_status: &'a String,
     pub connector_dispute_id: &'a String,
