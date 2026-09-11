@@ -134,6 +134,7 @@ impl IntoDirValue for (api_enums::PaymentMethodType, api_enums::PaymentMethod) {
             api_enums::PaymentMethodType::AmazonPay => Ok(dirval!(WalletType = AmazonPay)),
             api_enums::PaymentMethodType::Paysera => Ok(dirval!(WalletType = Paysera)),
             api_enums::PaymentMethodType::Skrill => Ok(dirval!(WalletType = Skrill)),
+            api_enums::PaymentMethodType::Neteller => Ok(dirval!(WalletType = Neteller)),
             api_enums::PaymentMethodType::Credit => Ok(dirval!(CardType = Credit)),
             api_enums::PaymentMethodType::Debit => Ok(dirval!(CardType = Debit)),
             #[cfg(feature = "v2")]
@@ -231,6 +232,10 @@ impl IntoDirValue for (api_enums::PaymentMethodType, api_enums::PaymentMethod) {
             }
             api_enums::PaymentMethodType::PixAutomaticoQr => {
                 Ok(dirval!(BankTransferType = PixAutomaticoQr))
+            }
+            api_enums::PaymentMethodType::Payshap => Ok(dirval!(BankTransferType = Payshap)),
+            api_enums::PaymentMethodType::PayshapProxy => {
+                Ok(dirval!(BankTransferType = PayshapProxy))
             }
             api_enums::PaymentMethodType::Pse => Ok(dirval!(BankTransferType = Pse)),
             api_enums::PaymentMethodType::Interac => Ok(dirval!(BankRedirectType = Interac)),

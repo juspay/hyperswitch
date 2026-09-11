@@ -11,7 +11,7 @@
 /// Merchant secret-key auth is not supported for this client endpoint.
 use api_models::payment_methods::{
     ClientPaymentMethodsListResponse, CustomerPaymentMethod, CustomerPaymentMethodDataForClient,
-    CustomerPaymentMethodForClient, PaymentMethodListIntentDataInput,
+    CustomerPaymentMethodForClient, MaskedBankDetails, PaymentMethodListIntentDataInput,
     ResponsePaymentMethodsEnabledForClient,
 };
 use common_utils::{consts, ext_traits::AsyncExt, generate_id, id_type};
@@ -20,6 +20,7 @@ use router_env::{instrument, logger, tracing, Flow};
 
 use crate::{
     core::{
+        blocklist::utils as blocklist_utils,
         configs::dimension_state,
         errors::{self, StorageErrorExt},
         payment_methods::{
@@ -48,16 +49,29 @@ pub trait CustomerPaymentMethodsFetcher: Send + Sync {
         state: &routes::SessionState,
         platform: &domain::Platform,
         payment_intent: Option<&storage::PaymentIntent>,
+        payment_attempt: Option<&storage::PaymentAttempt>,
         customer: &domain::Customer,
         dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> errors::RouterResult<Vec<CustomerPaymentMethodForClient>>;
+}
+
+fn bank_redirect_data_for_client(
+    payment_method: common_enums::PaymentMethod,
+    bank: Option<MaskedBankDetails>,
+) -> Option<CustomerPaymentMethodDataForClient> {
+    if payment_method == common_enums::PaymentMethod::BankRedirect {
+        bank.map(CustomerPaymentMethodDataForClient::BankRedirect)
+    } else {
+        None
+    }
 }
 
 /// Convert a legacy `CustomerPaymentMethod` into the slimmer client-facing type.
 fn to_client_pm(pm: CustomerPaymentMethod) -> CustomerPaymentMethodForClient {
     let payment_method_data = pm
         .card
-        .map(|card| CustomerPaymentMethodDataForClient::Card(Box::new(card)));
+        .map(|card| CustomerPaymentMethodDataForClient::Card(Box::new(card)))
+        .or_else(|| bank_redirect_data_for_client(pm.payment_method, pm.bank));
 
     CustomerPaymentMethodForClient {
         payment_token: pm.payment_token,
@@ -82,13 +96,15 @@ impl CustomerPaymentMethodsFetcher for DbCustomerPaymentMethodsFetcher {
         state: &routes::SessionState,
         platform: &domain::Platform,
         payment_intent: Option<&storage::PaymentIntent>,
+        payment_attempt: Option<&storage::PaymentAttempt>,
         customer: &domain::Customer,
         dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> errors::RouterResult<Vec<CustomerPaymentMethodForClient>> {
         let customer_payment_methods_response = Box::pin(cards::list_customer_payment_method(
             state,
-            platform.clone(),
-            payment_intent.cloned(),
+            platform,
+            payment_intent,
+            payment_attempt,
             customer.get_id(),
             None, // limit
             dimensions,
@@ -168,14 +184,16 @@ impl CustomerPaymentMethodsFetcher for ModularCustomerPaymentMethodsFetcher {
         state: &routes::SessionState,
         platform: &domain::Platform,
         _payment_intent: Option<&storage::PaymentIntent>,
+        _payment_attempt: Option<&storage::PaymentAttempt>,
         customer: &domain::Customer,
         dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> errors::RouterResult<Vec<CustomerPaymentMethodForClient>> {
         let merchant_id = platform.get_processor().get_account().get_id().clone();
-        let id = customer
-            .get_global_id()
-            .cloned()
-            .ok_or(errors::ApiErrorResponse::MissingRequiredField { field_name: "id" })?;
+        let id = customer.get_global_id().cloned().ok_or(
+            errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "id".into(),
+            },
+        )?;
 
         let items = list_customer_payment_methods_from_modular_service(
             state,
@@ -413,11 +431,22 @@ async fn fetch_enabled_payment_methods(
     ))
     .await?;
 
-    let mut flat_pms = merchant_enabled_pms_context.payment_experience_pms_for_client();
-    flat_pms.extend(merchant_enabled_pms_context.card_network_pms_for_client());
+    let customer_acceptance_support_config = &state.conf.customer_acceptance_support;
+
+    let mut flat_pms = merchant_enabled_pms_context
+        .payment_experience_pms_for_client(customer_acceptance_support_config);
+    flat_pms.extend(
+        merchant_enabled_pms_context
+            .card_network_pms_for_client(customer_acceptance_support_config),
+    );
     flat_pms.extend(merchant_enabled_pms_context.bank_redirect_pms_for_client(state)?);
-    flat_pms.extend(merchant_enabled_pms_context.bank_debit_pms_for_client());
-    flat_pms.extend(merchant_enabled_pms_context.bank_transfer_pms_for_client());
+    flat_pms.extend(
+        merchant_enabled_pms_context.bank_debit_pms_for_client(customer_acceptance_support_config),
+    );
+    flat_pms.extend(
+        merchant_enabled_pms_context
+            .bank_transfer_pms_for_client(customer_acceptance_support_config),
+    );
 
     Ok(EnabledPmsResult {
         payment_methods_enabled: flat_pms,
@@ -458,6 +487,68 @@ fn filter_customer_pms_by_enabled(
             })
         })
         .collect()
+}
+
+/// Filter out saved cards whose BIN (`card_isin`) has an active blocklist entry for this
+/// merchant/profile (merchant-wide entries with a NULL `profile_id` match every profile).
+/// Runs only when the merchant has enabled the blocklist guard (the same config
+/// key that gates confirm-time and eligibility-time blocklist checks). BIN lookups are
+/// deduplicated across the list and run concurrently. Non-card payment methods and cards
+/// without a stored `card_isin` are passed through unchanged — fingerprint-level (exact
+/// card) blocklist entries cannot be evaluated at list time since the stored record does
+/// not carry a blocklist-comparable fingerprint.
+async fn filter_customer_pms_by_blocklist(
+    state: &routes::SessionState,
+    platform: &domain::Platform,
+    profile_id: &id_type::ProfileId,
+    customer_pms: Vec<CustomerPaymentMethodForClient>,
+) -> Vec<CustomerPaymentMethodForClient> {
+    let processor = platform.get_processor();
+    let guard_enabled =
+        blocklist_utils::is_blocklist_guard_enabled(state, processor.get_account().get_id()).await;
+
+    let bins: std::collections::HashSet<String> = if guard_enabled {
+        customer_pms
+            .iter()
+            .filter_map(
+                |customer_pm| match customer_pm.payment_method_data.as_ref() {
+                    Some(CustomerPaymentMethodDataForClient::Card(card)) => card.card_isin.clone(),
+                    _ => None,
+                },
+            )
+            .collect()
+    } else {
+        std::collections::HashSet::new()
+    };
+
+    let blocked_bins = if bins.is_empty() {
+        std::collections::HashSet::new()
+    } else {
+        blocklist_utils::get_blocked_bins(state, processor, profile_id, bins).await
+    };
+
+    if blocked_bins.is_empty() {
+        customer_pms
+    } else {
+        let initial_count = customer_pms.len();
+        let filtered: Vec<CustomerPaymentMethodForClient> = customer_pms
+            .into_iter()
+            .filter(
+                |customer_pm| match customer_pm.payment_method_data.as_ref() {
+                    Some(CustomerPaymentMethodDataForClient::Card(card)) => !card
+                        .card_isin
+                        .as_ref()
+                        .is_some_and(|card_isin| blocked_bins.contains(card_isin)),
+                    _ => true,
+                },
+            )
+            .collect();
+        logger::info!(
+            filtered_out = initial_count - filtered.len(),
+            "Filtered blocklisted saved cards from the payment method list"
+        );
+        filtered
+    }
 }
 
 async fn fetch_customer_payment_methods(
@@ -515,6 +606,7 @@ async fn fetch_customer_payment_methods(
                     state,
                     platform,
                     Some(&payment_intent_context.payment_intent),
+                    Some(&payment_intent_context.payment_attempt),
                     customer,
                     &dimensions,
                 )
@@ -526,6 +618,7 @@ async fn fetch_customer_payment_methods(
                         state,
                         platform,
                         Some(&payment_intent_context.payment_intent),
+                        Some(&payment_intent_context.payment_attempt),
                         customer,
                         &dimensions,
                     )
@@ -573,7 +666,17 @@ pub async fn list_payment_methods_client(
     let customer_payment_methods_filtered =
         filter_customer_pms_by_enabled(customer_payment_methods, &payment_methods_enabled);
 
-    // 5. Build intent_data
+    // 5. Drop saved cards whose BIN is blocklisted for this merchant/profile (no-op unless
+    //    the merchant has the blocklist guard enabled).
+    let customer_payment_methods_filtered = filter_customer_pms_by_blocklist(
+        &state,
+        &platform,
+        payment_intent_context.business_profile.get_id(),
+        customer_payment_methods_filtered,
+    )
+    .await;
+
+    // 6. Build intent_data
     let net_amount = payment_intent_context
         .payment_attempt
         .net_amount

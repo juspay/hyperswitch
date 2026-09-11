@@ -6,17 +6,17 @@ use crate::{
     dispute::{Dispute, DisputeNew, DisputeUpdate, DisputeUpdateInternal},
     errors, kv,
     schema::dispute::dsl,
-    PgPooledConn, StorageResult,
+    DatabaseConnectionWithContext, StorageResult,
 };
 
 impl DisputeNew {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Dispute> {
+    pub async fn insert(self, conn: &DatabaseConnectionWithContext<'_>) -> StorageResult<Dispute> {
         generics::generic_insert(conn, self).await
     }
 
     pub async fn generate_drainer_insert_query(
         self,
-        conn: &mut PgPooledConn,
+        conn: &mut DatabaseConnectionWithContext<'_>,
     ) -> StorageResult<kv::SerializableQuery> {
         kv::generate_insert_query(conn, self)
             .await
@@ -26,7 +26,7 @@ impl DisputeNew {
 
 impl Dispute {
     pub async fn find_optional_by_processor_merchant_id_payment_id_connector_dispute_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         payment_id: &common_utils::id_type::PaymentId,
         connector_dispute_id: &str,
@@ -42,7 +42,7 @@ impl Dispute {
     }
 
     pub async fn find_by_processor_merchant_id_dispute_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         dispute_id: &str,
     ) -> StorageResult<Self> {
@@ -56,7 +56,7 @@ impl Dispute {
     }
 
     pub async fn find_by_processor_merchant_id_payment_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         payment_id: &common_utils::id_type::PaymentId,
     ) -> StorageResult<Vec<Self>> {
@@ -82,7 +82,7 @@ impl Dispute {
 
     // Fallback function for stagger release - finds by merchant_id when processor_merchant_id is NULL
     pub async fn find_optional_by_merchant_id_payment_id_connector_dispute_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         payment_id: &common_utils::id_type::PaymentId,
         connector_dispute_id: &str,
@@ -99,7 +99,7 @@ impl Dispute {
 
     // Fallback function for stagger release - finds by merchant_id when processor_merchant_id is NULL
     pub async fn find_by_merchant_id_dispute_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         dispute_id: &str,
     ) -> StorageResult<Self> {
@@ -114,7 +114,7 @@ impl Dispute {
 
     // Fallback function for stagger release - finds by merchant_id when processor_merchant_id is NULL
     pub async fn find_by_merchant_id_payment_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         payment_id: &common_utils::id_type::PaymentId,
     ) -> StorageResult<Vec<Self>> {
@@ -135,7 +135,11 @@ impl Dispute {
         .await
     }
 
-    pub async fn update(self, conn: &PgPooledConn, dispute: DisputeUpdate) -> StorageResult<Self> {
+    pub async fn update(
+        self,
+        conn: &DatabaseConnectionWithContext<'_>,
+        dispute: DisputeUpdate,
+    ) -> StorageResult<Self> {
         match generics::generic_update_with_unique_predicate_get_result::<
             <Self as HasTable>::Table,
             _,
@@ -160,7 +164,7 @@ impl Dispute {
 impl DisputeUpdateInternal {
     pub async fn generate_drainer_update_query(
         self,
-        conn: &mut PgPooledConn,
+        conn: &mut DatabaseConnectionWithContext<'_>,
         dispute_id: String,
     ) -> StorageResult<kv::SerializableQuery> {
         kv::generate_update_query_with_predicate::<<Dispute as HasTable>::Table, _, _>(

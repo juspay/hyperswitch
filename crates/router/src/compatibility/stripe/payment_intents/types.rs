@@ -117,7 +117,7 @@ pub struct StripePaymentMethodData {
 #[serde(rename_all = "snake_case")]
 pub enum StripePaymentMethodDetails {
     Card(StripeCard),
-    Wallet(StripeWallet),
+    Wallet(Box<StripeWallet>),
     Upi(StripeUpi),
 }
 
@@ -135,6 +135,9 @@ impl From<StripeCard> for payments::Card {
             card_issuing_country: None,
             card_issuing_country_code: None,
             card_type: None,
+            card_subtype: None,
+            card_segment_type: None,
+            funding_source: None,
             nick_name: None,
         }
     }
@@ -162,7 +165,7 @@ impl From<StripePaymentMethodDetails> for payments::PaymentMethodData {
         match item {
             StripePaymentMethodDetails::Card(card) => Self::Card(payments::Card::from(card)),
             StripePaymentMethodDetails::Wallet(wallet) => {
-                Self::Wallet(payments::WalletData::from(wallet))
+                Self::Wallet(payments::WalletData::from(*wallet))
             }
             StripePaymentMethodDetails::Upi(upi) => Self::Upi(payments::UpiData::from(upi)),
         }
@@ -311,7 +314,7 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
             .map(|ip| std::net::IpAddr::from_str(ip.as_str()))
             .transpose()
             .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-                field_name: "receipt_ipaddress".to_string(),
+                field_name: "receipt_ipaddress".into(),
                 expected_format: "127.0.0.1".to_string(),
             })?;
 
@@ -342,7 +345,7 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
                 .map(|c| c.to_uppercase().parse_enum("currency"))
                 .transpose()
                 .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "currency",
+                    field_name: "currency".into(),
                 })?,
             capture_method: item.capture_method,
             amount_to_capture: item.amount_capturable.map(MinorUnit::new),
@@ -650,7 +653,7 @@ impl TryFrom<StripePaymentListConstraints> for payments::PaymentListConstraints 
             customer_id: item.customer,
             starting_after: item.starting_after,
             ending_before: item.ending_before,
-            limit: item.limit,
+            limit: item.limit.into(),
             created: from_timestamp_to_datetime(item.created)?,
             created_lt: from_timestamp_to_datetime(item.created_lt)?,
             created_gt: from_timestamp_to_datetime(item.created_gt)?,
@@ -733,14 +736,14 @@ impl ForeignTryFrom<(Option<MandateData>, Option<String>)> for Option<payments::
         let currency = currency
             .ok_or(
                 errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "currency",
+                    field_name: "currency".into(),
                 }
                 .into(),
             )
             .and_then(|c| {
                 c.to_uppercase().parse_enum("currency").change_context(
                     errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "currency",
+                        field_name: "currency".into(),
                     },
                 )
             })?;

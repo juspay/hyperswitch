@@ -794,12 +794,12 @@ pub async fn connector_sync_disputes(
         .attach_printable("Failed to parse the date-time format")?;
     let created_from = time::PrimitiveDateTime::parse(&payload.fetch_from, &format)
         .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-            field_name: "fetch_from".to_string(),
+            field_name: "fetch_from".into(),
             expected_format: "YYYY-MM-DDTHH:MM:SS".to_string(),
         })?;
     let created_till = time::PrimitiveDateTime::parse(&payload.fetch_till, &format)
         .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-            field_name: "fetch_till".to_string(),
+            field_name: "fetch_till".into(),
             expected_format: "YYYY-MM-DDTHH:MM:SS".to_string(),
         })?;
     let fetch_dispute_request = FetchDisputesRequestData {
@@ -1094,14 +1094,12 @@ pub async fn schedule_dispute_sync_task(
 ) -> common_utils::errors::CustomResult<(), errors::ApiErrorResponse> {
     let connector = api::enums::Connector::from_str(&mca.connector_name).change_context(
         errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "connector",
+            field_name: "connector".into(),
         },
     )?;
 
     if core_utils::should_add_dispute_sync_task_to_pt(state, connector) {
-        let offset_date_time = time::OffsetDateTime::now_utc();
-        let created_from =
-            time::PrimitiveDateTime::new(offset_date_time.date(), offset_date_time.time());
+        let created_from = common_utils::date_time::now();
         let dispute_polling_interval = *business_profile
             .dispute_polling_interval
             .unwrap_or_default()

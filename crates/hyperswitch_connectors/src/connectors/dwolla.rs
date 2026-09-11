@@ -113,7 +113,7 @@ where
             ),
             (
                 headers::IDEMPOTENCY_KEY.to_string(),
-                uuid::Uuid::new_v4().to_string().into(),
+                common_utils::generate_uuid_v4().to_string().into(),
             ),
         ];
         Ok(header)
@@ -594,6 +594,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             amount_captured: Some(data.request.amount),
             ..data.clone()

@@ -117,7 +117,7 @@ impl TryFrom<UpiCollectData> for DummyConnectorUpi {
     fn try_from(value: UpiCollectData) -> Result<Self, Self::Error> {
         Ok(Self::UpiCollect(DummyConnectorUpiCollect {
             vpa_id: value.vpa_id.ok_or(ConnectorError::MissingRequiredField {
-                field_name: "vpa_id",
+                field_name: "vpa_id".into(),
             })?,
         }))
     }
@@ -319,6 +319,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PaymentsResponse, T, PaymentsResponseDa
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })

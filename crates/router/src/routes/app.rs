@@ -3,7 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 use actix_web::{web, Scope};
 #[cfg(all(feature = "olap", feature = "v1"))]
 use api_models::routing::RoutingRetrieveQuery;
-use api_models::routing::RuleMigrationQuery;
+use api_models::routing::{RoutingMigrationStatusQuery, RuleMigrationRequest};
 #[cfg(feature = "olap")]
 use common_enums::{ExecutionMode, TransactionType};
 #[cfg(feature = "partial-auth")]
@@ -69,15 +69,16 @@ use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_ve
 #[cfg(feature = "oltp")]
 use super::webhooks::*;
 use super::{
-    admin, api_keys, cache::*, card_issuer, chat, connector_onboarding, disputes, files, gsm,
-    health::*, offer_engine, oidc, profiles, relay, user, user_role,
+    admin, api_keys, cache::*, card_issuer, connector_onboarding, disputes,
+    external_service_auth as external_service_auth_routes, files, gsm, health::*, offer_engine,
+    oidc, profiles, relay, user, user_role,
 };
 #[cfg(feature = "v1")]
 use super::{
     apple_pay_certificates_migration, blocklist, payment_link, subscription, webhook_events,
 };
 #[cfg(any(feature = "olap", feature = "oltp"))]
-use super::{configs::*, customers, payments};
+use super::{configs::*, customers, metrics::PaymentMetricsContext, payments};
 #[cfg(all(any(feature = "olap", feature = "oltp"), feature = "v1"))]
 use super::{mandates::*, refunds::*};
 #[cfg(feature = "olap")]
@@ -149,6 +150,8 @@ pub struct SessionState {
     pub infra_components: Option<serde_json::Value>,
     pub enhancement: Option<HashMap<String, String>>,
     pub superposition_service: Arc<SuperpositionClient>,
+    /// Bounded request context used to correlate v1 payment I/O metrics.
+    pub payment_metrics_context: Option<PaymentMetricsContext>,
 }
 impl scheduler::SchedulerSessionState for SessionState {
     fn get_db(&self) -> Box<dyn SchedulerInterface> {
@@ -215,6 +218,13 @@ impl SessionState {
         GrpcRecoveryHeaders {
             request_id: self.request_id.as_ref().map(|req_id| req_id.to_string()),
         }
+    }
+    /// Gateway identifier of Hyperswitch's own Google Pay gateway registration.
+    pub fn google_pay_gateway_id(&self) -> Option<String> {
+        self.conf
+            .google_pay_decrypt_keys
+            .as_ref()
+            .and_then(|google_pay_keys| google_pay_keys.get_inner().google_pay_gateway_id.clone())
     }
 }
 
@@ -592,6 +602,7 @@ impl AppState {
             ca: km_conf.ca.clone(),
             infra_values: Self::process_env_mappings(conf.infra_values.clone()),
             use_legacy_key_store_decryption: km_conf.use_legacy_key_store_decryption,
+            metrics_context: None,
         };
         match storage_impl {
             StorageImpl::Postgresql | StorageImpl::PostgresqlTest => match event_handler {
@@ -694,6 +705,7 @@ impl AppState {
             infra_components: self.infra_components.clone(),
             enhancement: self.enhancement.clone(),
             superposition_service: self.superposition_service.clone(),
+            payment_metrics_context: None,
         })
     }
 
@@ -742,6 +754,8 @@ impl Health {
 
 pub struct OfferEngine;
 
+/// Offers are only supported on v1.
+#[cfg(feature = "v1")]
 impl OfferEngine {
     pub fn server(state: AppState) -> Scope {
         web::scope("/offer_engine")
@@ -749,6 +763,10 @@ impl OfferEngine {
             .service(
                 web::resource("/connectivity")
                     .route(web::post().to(offer_engine::offer_engine_connectivity_check)),
+            )
+            .service(
+                web::resource("/offers/list")
+                    .route(web::post().to(offer_engine::offer_engine_browse_offers)),
             )
     }
 }
@@ -1198,8 +1216,13 @@ impl Routing {
                 })),
             )
             .service(web::resource("/rule/migrate").route(web::post().to(
-                |state, req, query: web::Query<RuleMigrationQuery>| {
-                    routing::migrate_routing_rules_for_profile(state, req, query)
+                |state, req, payload: web::Json<RuleMigrationRequest>| {
+                    routing::migrate_routing_rules(state, req, payload)
+                },
+            )))
+            .service(web::resource("/migration/status").route(web::get().to(
+                |state, req, query: web::Query<RoutingMigrationStatusQuery>| {
+                    routing::routing_migration_status(state, req, query)
                 },
             )))
             .service(
@@ -1575,7 +1598,8 @@ impl Refunds {
                     web::resource("/{id}")
                         .route(web::get().to(refunds_retrieve))
                         .route(web::post().to(refunds_update)),
-                );
+                )
+                .service(web::resource("/{id}/reverse").route(web::post().to(refunds_reverse)));
         }
         route
     }
@@ -1893,6 +1917,19 @@ impl Tokenization {
     }
 }
 
+pub struct ExternalService;
+
+impl ExternalService {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/external-service")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("/validate-token")
+                    .route(web::post().to(external_service_auth_routes::validate_token)),
+            )
+    }
+}
+
 pub struct Hypersense;
 
 impl Hypersense {
@@ -1946,6 +1983,10 @@ impl Blocklist {
             )
             .service(
                 web::resource("/toggle").route(web::post().to(blocklist::toggle_blocklist_guard)),
+            )
+            .service(web::resource("/count").route(web::get().to(blocklist::get_blocklist_count)))
+            .service(
+                web::resource("/lookup").route(web::get().to(blocklist::lookup_blocklist_entry)),
             )
             .service(
                 web::resource("/batch")
@@ -2724,27 +2765,7 @@ impl Gsm {
             .service(web::resource("/delete").route(web::post().to(gsm::delete_gsm_rule)))
     }
 }
-pub struct Chat;
 
-#[cfg(feature = "olap")]
-impl Chat {
-    pub fn server(state: AppState) -> Scope {
-        let mut route = web::scope("/chat").app_data(web::Data::new(state.clone()));
-        if state.conf.chat.get_inner().enabled {
-            route = route.service(
-                web::scope("/ai")
-                    .service(
-                        web::resource("/data")
-                            .route(web::post().to(chat::get_data_from_hyperswitch_ai_workflow)),
-                    )
-                    .service(
-                        web::resource("/list").route(web::get().to(chat::get_all_conversations)),
-                    ),
-            );
-        }
-        route
-    }
-}
 pub struct ThreeDsDecisionRule;
 
 #[cfg(feature = "oltp")]
@@ -3457,6 +3478,11 @@ impl RecoveryDataBackfill {
             .service(web::resource("/update-token").route(
                 web::put().to(
                     super::revenue_recovery_data_backfill::update_revenue_recovery_additional_redis_data,
+                ),
+            ))
+            .service(web::resource("/retry-stats").route(
+                web::post().to(
+                    super::revenue_recovery_data_backfill::revenue_recovery_retry_stats_migration,
                 ),
             ))
     }

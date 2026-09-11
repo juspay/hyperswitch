@@ -141,7 +141,7 @@ pub async fn mk_tokenization_req(
     .attach_printable("Error on jwe encrypt")?;
 
     let order_data = pm_types::OrderData {
-        consent_id: uuid::Uuid::new_v4().to_string(),
+        consent_id: common_utils::generate_uuid_v4().to_string(),
         customer_id,
     };
 
@@ -313,7 +313,7 @@ pub async fn generate_network_token(
     .attach_printable("Error on jwe encrypt")?;
 
     let order_data = pm_types::OrderData {
-        consent_id: uuid::Uuid::new_v4().to_string(),
+        consent_id: common_utils::generate_uuid_v4().to_string(),
         customer_id,
     };
 

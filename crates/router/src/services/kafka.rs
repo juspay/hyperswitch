@@ -33,7 +33,7 @@ pub mod revenue_recovery;
 use diesel_models::refund::Refund;
 use hyperswitch_domain_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
 use serde::Serialize;
-use time::{OffsetDateTime, PrimitiveDateTime};
+use time::PrimitiveDateTime;
 
 #[cfg(feature = "payouts")]
 use self::payout::KafkaPayout;
@@ -166,6 +166,7 @@ pub struct KafkaSettings {
     routing_logs_topic: String,
     revenue_recovery_topic: String,
     external_service_call_topic: String,
+    account_updater_topic: String,
 }
 
 /// Base rdkafka client configuration for this deployment's Kafka cluster.
@@ -281,6 +282,12 @@ impl KafkaSettings {
             ))
         })?;
 
+        common_utils::fp_utils::when(self.account_updater_topic.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "Kafka Account Updater topic must not be empty".into(),
+            ))
+        })?;
+
         Ok(())
     }
 
@@ -322,6 +329,7 @@ pub struct KafkaProducer {
     routing_logs_topic: String,
     revenue_recovery_topic: String,
     external_service_call_topic: String,
+    account_updater_topic: String,
 }
 
 struct RdKafkaProducer(ThreadedProducer<DefaultProducerContext>);
@@ -372,6 +380,7 @@ impl KafkaProducer {
             routing_logs_topic: conf.routing_logs_topic.clone(),
             revenue_recovery_topic: conf.revenue_recovery_topic.clone(),
             external_service_call_topic: conf.external_service_call_topic.clone(),
+            account_updater_topic: conf.account_updater_topic.clone(),
         })
     }
 
@@ -385,12 +394,12 @@ impl KafkaProducer {
                     .key(&event.key())
                     .payload(&event.value()?)
                     .timestamp(event.creation_timestamp().unwrap_or_else(|| {
-                        (OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000)
+                        common_utils::date_time::now_unix_timestamp_millis()
                             .try_into()
                             .unwrap_or_else(|_| {
                                 // kafka producer accepts milliseconds
                                 // try converting nanos to millis if that fails convert seconds to millis
-                                OffsetDateTime::now_utc().unix_timestamp() * 1_000
+                                common_utils::date_time::now_unix_timestamp() * 1_000
                             })
                     })),
             )
@@ -712,6 +721,7 @@ impl KafkaProducer {
             EventType::RoutingApiLogs => &self.routing_logs_topic,
             EventType::RevenueRecovery => &self.revenue_recovery_topic,
             EventType::ExternalServiceCall => &self.external_service_call_topic,
+            EventType::AccountUpdater => &self.account_updater_topic,
         }
     }
 }

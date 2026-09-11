@@ -208,6 +208,13 @@ impl
 
 #[async_trait]
 impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAuthorizeRouterData {
+    fn current_flow_info(&self) -> Option<api_interface::CurrentFlowInfo> {
+        Some(api_interface::CurrentFlowInfo::Authorize {
+            auth_type: self.auth_type,
+            request_data: Box::new(self.request.clone()),
+        })
+    }
+
     async fn decide_flows<'a>(
         mut self,
         state: &SessionState,
@@ -1395,13 +1402,13 @@ fn transform_redirection_response_for_pre_authenticate_flow(
         ) => {
             let access_token = form_fields.get("access_token").cloned().ok_or(
                 ucs_transformers::UnifiedConnectorServiceError::MissingRequiredField {
-                    field_name: "access_token",
+                    field_name: "access_token".into(),
                 },
             )?;
             let ddc_url = form_fields.get("ddc_url").unwrap_or(endpoint).clone();
             let reference_id = form_fields.get("reference_id").cloned().ok_or(
                 ucs_transformers::UnifiedConnectorServiceError::MissingRequiredField {
-                    field_name: "reference_id",
+                    field_name: "reference_id".into(),
                 },
             )?;
 
@@ -1445,6 +1452,7 @@ fn transform_response_for_pre_authenticate_flow(
                 network_txn_id,
                 network_txn_link_id: _,
                 connector_response_reference_id,
+                payment_account_reference,
                 incremental_authorization_allowed,
                 authentication_data,
                 charges,
@@ -1470,6 +1478,7 @@ fn transform_response_for_pre_authenticate_flow(
                     network_txn_id,
                     network_txn_link_id: None,
                     connector_response_reference_id,
+                    payment_account_reference,
                     incremental_authorization_allowed,
                     authentication_data,
                     charges,
@@ -1501,6 +1510,7 @@ fn transform_response_for_pre_authenticate_flow(
                 network_txn_id,
                 network_txn_link_id,
                 connector_response_reference_id,
+                payment_account_reference,
                 incremental_authorization_allowed,
                 charges,
                 authentication_data,
@@ -1564,6 +1574,7 @@ fn transform_response_for_pre_authenticate_flow(
                     network_txn_id,
                     network_txn_link_id,
                     connector_response_reference_id,
+                    payment_account_reference,
                     incremental_authorization_allowed,
                     charges,
                     authentication_data,

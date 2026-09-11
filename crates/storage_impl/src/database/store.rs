@@ -1,10 +1,14 @@
+use std::sync::Arc;
+
 use async_bb8_diesel::{AsyncConnection, ConnectionError};
 use bb8::CustomizeConnection;
 use common_utils::{
+    external_service::{ExternalServiceEventEmitter, NoOpEventEmitter},
     types::{keymanager, TenantConfig},
     DbConnectionParams,
 };
-use diesel::PgConnection;
+pub use diesel_models::DatabaseConnectionWithContext;
+use diesel_models::{DejaPgConnection, RawPgConnection};
 use error_stack::ResultExt;
 
 use crate::{
@@ -12,9 +16,32 @@ use crate::{
     errors::{StorageError, StorageResult},
 };
 
-pub type PgPool = bb8::Pool<async_bb8_diesel::ConnectionManager<PgConnection>>;
-pub type PgPooledConn = async_bb8_diesel::Connection<PgConnection>;
+pub type RawPgPool = bb8::Pool<async_bb8_diesel::ConnectionManager<DejaPgConnection>>;
 
+#[derive(Debug, Clone)]
+pub struct PgPool {
+    pub pg_pool: RawPgPool,
+    pub event_emitter: Arc<dyn ExternalServiceEventEmitter>,
+}
+
+impl PgPool {
+    pub fn new(pg_pool: RawPgPool, event_emitter: Arc<dyn ExternalServiceEventEmitter>) -> Self {
+        Self {
+            pg_pool,
+            event_emitter,
+        }
+    }
+
+    pub fn new_without_event_emitter(pool: RawPgPool) -> Self {
+        Self::new(pool, Arc::new(NoOpEventEmitter))
+    }
+}
+
+/// Shared database-pool ownership.
+///
+/// Request context is intentionally not part of this trait. Request-scoped wrappers such as
+/// `RouterStore` and `KVRouterStore` implement `RequestContext` separately, and the connection
+/// helpers in `crate::connection` combine the two when leasing a connection.
 #[async_trait::async_trait]
 pub trait DatabaseStore: Clone + Send + Sync {
     type Config: Send;
@@ -23,6 +50,7 @@ pub trait DatabaseStore: Clone + Send + Sync {
         tenant_config: &dyn TenantConfig,
         test_transaction: bool,
         key_manager_state: Option<keymanager::KeyManagerState>,
+        event_emitter: Arc<dyn ExternalServiceEventEmitter>,
     ) -> StorageResult<Self>;
     fn get_master_pool(&self) -> &PgPool;
     fn get_replica_pool(&self) -> &PgPool;
@@ -52,6 +80,7 @@ impl DatabaseStore for Store {
         tenant_config: &dyn TenantConfig,
         test_transaction: bool,
         _key_manager_state: Option<keymanager::KeyManagerState>,
+        event_emitter: Arc<dyn ExternalServiceEventEmitter>,
     ) -> StorageResult<Self> {
         let (master_config, accounts_config) = config;
         Ok(Self {
@@ -59,12 +88,14 @@ impl DatabaseStore for Store {
                 &master_config,
                 tenant_config.get_schema(),
                 test_transaction,
+                Arc::clone(&event_emitter),
             )
             .await?,
             accounts_pool: diesel_make_pg_pool(
                 &accounts_config,
                 tenant_config.get_accounts_schema(),
                 test_transaction,
+                event_emitter,
             )
             .await?,
         })
@@ -104,17 +135,23 @@ impl DatabaseStore for ReplicaStore {
         tenant_config: &dyn TenantConfig,
         test_transaction: bool,
         _key_manager_state: Option<keymanager::KeyManagerState>,
+        event_emitter: Arc<dyn ExternalServiceEventEmitter>,
     ) -> StorageResult<Self> {
         let (master_config, replica_config, accounts_master_config, accounts_replica_config) =
             config;
-        let master_pool =
-            diesel_make_pg_pool(&master_config, tenant_config.get_schema(), test_transaction)
-                .await
-                .attach_printable("failed to create master pool")?;
+        let master_pool = diesel_make_pg_pool(
+            &master_config,
+            tenant_config.get_schema(),
+            test_transaction,
+            Arc::clone(&event_emitter),
+        )
+        .await
+        .attach_printable("failed to create master pool")?;
         let accounts_master_pool = diesel_make_pg_pool(
             &accounts_master_config,
             tenant_config.get_accounts_schema(),
             test_transaction,
+            Arc::clone(&event_emitter),
         )
         .await
         .attach_printable("failed to create accounts master pool")?;
@@ -122,6 +159,7 @@ impl DatabaseStore for ReplicaStore {
             &replica_config,
             tenant_config.get_schema(),
             test_transaction,
+            Arc::clone(&event_emitter),
         )
         .await
         .attach_printable("failed to create replica pool")?;
@@ -130,6 +168,7 @@ impl DatabaseStore for ReplicaStore {
             &accounts_replica_config,
             tenant_config.get_accounts_schema(),
             test_transaction,
+            event_emitter,
         )
         .await
         .attach_printable("failed to create accounts pool")?;
@@ -162,9 +201,10 @@ pub async fn diesel_make_pg_pool(
     database: &Database,
     schema: &str,
     test_transaction: bool,
+    event_emitter: Arc<dyn ExternalServiceEventEmitter>,
 ) -> StorageResult<PgPool> {
     let database_url = database.get_database_url(schema);
-    let manager = async_bb8_diesel::ConnectionManager::<PgConnection>::new(database_url);
+    let manager = async_bb8_diesel::ConnectionManager::<DejaPgConnection>::new(database_url);
     let mut pool = bb8::Pool::builder()
         .max_size(database.max_pool_size)
         .min_idle(Some(database.min_idle_pool_size))
@@ -177,19 +217,53 @@ pub async fn diesel_make_pg_pool(
         pool = pool.connection_customizer(Box::new(TestTransaction));
     }
 
-    pool.build(manager)
+    let raw_pool = pool
+        .build(manager)
         .await
         .change_context(StorageError::InitializationError)
-        .attach_printable("Failed to create PostgreSQL connection pool")
+        .attach_printable("Failed to create PostgreSQL connection pool")?;
+
+    // Register row identity (primary-key columns) with deja from this
+    // database's own catalog. Idempotent; on failure identity stays
+    // unregistered, making recorded row keys absent rather than wrong.
+    #[cfg(feature = "deja")]
+    if !deja::runtime_mode_is_disabled() {
+        use async_bb8_diesel::AsyncConnection;
+        use diesel::RunQueryDsl;
+        if let Ok(connection) = raw_pool.get().await {
+            let rows = connection
+                .run(|conn| {
+                    diesel::sql_query(deja::TABLE_IDENTITY_SQL)
+                        .load::<deja::db::TableIdentityRow>(conn)
+                        .map(|rows| {
+                            rows.into_iter()
+                                .map(|row| (row.table_name, row.column_name))
+                                .collect::<Vec<(String, String)>>()
+                        })
+                })
+                .await;
+            match rows {
+                Ok(rows) => deja::db::register_table_identity_rows(rows),
+                Err(error) => {
+                    router_env::logger::warn!(
+                        ?error,
+                        "deja: could not read row identity from the schema; recorded row keys will fall back to query fingerprints"
+                    );
+                }
+            }
+        }
+    }
+
+    Ok(PgPool::new(raw_pool, event_emitter))
 }
 
 #[derive(Debug)]
 struct TestTransaction;
 
 #[async_trait::async_trait]
-impl CustomizeConnection<PgPooledConn, ConnectionError> for TestTransaction {
+impl CustomizeConnection<RawPgConnection, ConnectionError> for TestTransaction {
     #[allow(clippy::unwrap_used)]
-    async fn on_acquire(&self, conn: &mut PgPooledConn) -> Result<(), ConnectionError> {
+    async fn on_acquire(&self, conn: &mut RawPgConnection) -> Result<(), ConnectionError> {
         use diesel::Connection;
 
         conn.run(|conn| {

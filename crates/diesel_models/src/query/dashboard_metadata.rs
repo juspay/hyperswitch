@@ -10,7 +10,7 @@ use crate::{
         DashboardMetadata, DashboardMetadataNew, DashboardMetadataUpdate,
         DashboardMetadataUpdateInternal,
     },
-    PgPooledConn, StorageResult,
+    DatabaseConnectionWithContext, StorageResult,
 };
 
 macro_rules! dashboard_metadata_filter {
@@ -57,14 +57,17 @@ macro_rules! dashboard_metadata_filter {
 }
 
 impl DashboardMetadataNew {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<DashboardMetadata> {
+    pub async fn insert(
+        self,
+        conn: &DatabaseConnectionWithContext<'_>,
+    ) -> StorageResult<DashboardMetadata> {
         generics::generic_insert(conn, self).await
     }
 }
 
 impl DashboardMetadata {
     pub async fn update(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         user_id: Option<String>,
         merchant_id: id_type::MerchantId,
         org_id: id_type::OrganizationId,
@@ -99,7 +102,7 @@ impl DashboardMetadata {
     }
 
     pub async fn find_user_scoped_dashboard_metadata(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         user_id: String,
         merchant_id: id_type::MerchantId,
         org_id: id_type::OrganizationId,
@@ -122,7 +125,7 @@ impl DashboardMetadata {
     }
 
     pub async fn find_merchant_scoped_dashboard_metadata(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         merchant_id: id_type::MerchantId,
         org_id: id_type::OrganizationId,
         data_types: Vec<enums::DashboardMetadata>,
@@ -143,7 +146,7 @@ impl DashboardMetadata {
     }
 
     pub async fn find_dashboard_metadata_by_user_merchant_org_profile_key(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         user_id: String,
         merchant_id: id_type::MerchantId,
         org_id: id_type::OrganizationId,
@@ -167,7 +170,7 @@ impl DashboardMetadata {
     }
 
     pub async fn delete_all_user_scoped_dashboard_metadata_by_merchant_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         user_id: String,
         merchant_id: id_type::MerchantId,
     ) -> StorageResult<bool> {
@@ -181,7 +184,7 @@ impl DashboardMetadata {
     }
 
     pub async fn delete_user_scoped_dashboard_metadata_by_merchant_id_data_key(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         user_id: String,
         merchant_id: id_type::MerchantId,
         data_key: enums::DashboardMetadata,
@@ -197,7 +200,7 @@ impl DashboardMetadata {
     }
 
     pub async fn delete_all_by_user_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         user_id: String,
     ) -> StorageResult<bool> {
         match generics::generic_delete::<<Self as HasTable>::Table, _>(

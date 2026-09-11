@@ -118,7 +118,7 @@ pub async fn save_optional_network_token_details_in_nt_mapper(
 }
 
 #[cfg(feature = "v1")]
-async fn save_in_locker(
+pub async fn save_in_locker(
     state: &SessionState,
     platform: &domain::Platform,
     payment_method_request: api::PaymentMethodCreate,
@@ -446,6 +446,11 @@ where
                     (_, domain::PaymentMethodData::BankDebit(bank_debit_data)) => bank_debit_data
                         .get_bank_debit_details()
                         .map(domain::PaymentMethodsData::BankDebit),
+                    (_, domain::PaymentMethodData::BankRedirect(bank_redirect_data)) => {
+                        bank_redirect_data
+                            .get_bank_redirect_details()
+                            .map(domain::PaymentMethodsData::BankRedirect)
+                    }
                     _ => None,
                 };
 
@@ -905,6 +910,15 @@ where
                                         .or(existing_pm_data.card_network),
                                     card_issuer: card.card_issuer.or(existing_pm_data.card_issuer),
                                     card_type: card.card_type.or(existing_pm_data.card_type),
+                                    card_subtype: card
+                                        .card_subtype
+                                        .or(existing_pm_data.card_subtype),
+                                    card_segment_type: card
+                                        .card_segment_type
+                                        .or(existing_pm_data.card_segment_type),
+                                    funding_source: card
+                                        .funding_source
+                                        .or(existing_pm_data.funding_source),
                                     saved_to_locker: true,
                                 });
 
@@ -1034,10 +1048,9 @@ where
                                 create_payment_method_metadata(None, connector_token)?;
 
                             locker_id = resp.payment_method.and_then(|pm| {
-                                if pm == PaymentMethod::Card
-                                    || pm == PaymentMethod::BankDebit
-                                    || (pm == PaymentMethod::Wallet && !check_for_customer_pm)
-                                {
+                                if pm.should_persist_locker_id_for_saved_payment_method(
+                                    check_for_customer_pm,
+                                ) {
                                     Some(resp.payment_method_id)
                                 } else {
                                     None
@@ -1327,6 +1340,9 @@ async fn skip_saving_card_in_locker(
                 card_issuer: card.card_issuer.clone(),
                 card_network: card.card_network.clone(),
                 card_type: card.card_type.clone(),
+                card_subtype: card.card_subtype.clone(),
+                card_segment_type: card.card_segment_type,
+                funding_source: card.funding_source,
                 saved_to_locker: false,
             };
             let pm_resp = domain::PaymentMethodResponse {
@@ -1469,6 +1485,21 @@ pub async fn save_in_locker_internal(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Add Wallet Failed"),
+        (
+            None,
+            None,
+            Some(api_models::payment_methods::PaymentMethodCreateData::BankRedirect(
+                bank_redirect_create_data,
+            )),
+        ) => Box::pin(PmCards { state, provider }.add_bank_redirect_to_locker(
+            payment_method_request,
+            bank_redirect_create_data,
+            provider.get_key_store(),
+            &customer_id,
+        ))
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Add Bank Redirect Failed"),
 
         _ => {
             let pm_id = common_utils::generate_id(consts::ID_LENGTH, "pm");
@@ -1686,6 +1717,9 @@ pub async fn save_network_token_in_locker(
                             card_network: Some(token_response.card_brand.clone()),
                             card_issuer: None,
                             card_type: None,
+                            card_subtype: None,
+                            card_segment_type: None,
+                            funding_source: None,
                         };
 
                         let (res, dc) = Box::pin(PmCards { state, provider }.add_card_to_locker(
@@ -2407,6 +2441,9 @@ impl From<NetworkTokenizationCardData<'_>> for domain::Card {
             card_type: None,
             card_issuing_country: None,
             card_issuing_country_code: None,
+            card_subtype: None,
+            card_segment_type: None,
+            funding_source: None,
             bank_code: None,
             card_holder_name: tracking_data.billing_name.clone(),
             nick_name: locker_card.nick_name.clone().map(Secret::new),

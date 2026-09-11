@@ -151,6 +151,8 @@ pub fn construct_uas_router_data<F: Clone, Req, Res>(
         customer_document_details: None,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
+        customer_date_of_birth: None,
     })
 }
 
@@ -254,7 +256,7 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                     .map(common_utils::ext_traits::Encode::encode_to_value)
                     .transpose()
                     .change_context(ApiErrorResponse::InvalidDataValue {
-                        field_name: "browser_information",
+                        field_name: "browser_information".into(),
                     })?;
                 Ok(
                     hyperswitch_domain_models::authentication::AuthenticationUpdate::PreAuthenticationUpdate {
@@ -489,7 +491,7 @@ pub fn authenticate_authentication_client_secret_and_check_expiry(
         .clone()
         .get_required_value("authentication_client_secret")
         .change_context(ApiErrorResponse::MissingRequiredField {
-            field_name: "client_secret",
+            field_name: "client_secret".into(),
         })
         .attach_printable("client secret not found in db")?;
 
@@ -590,6 +592,9 @@ fn get_vault_details(
                     card_issuer: None,
                     card_network: None,
                     card_type: None,
+                    card_subtype: None,
+                    card_segment_type: None,
+                    funding_source: None,
                     card_issuing_country: None,
                     card_issuing_country_code: None,
                     card_holder_name: None,
@@ -621,7 +626,7 @@ fn get_vault_details(
             )
         }
         (None, None) => Err(ApiErrorResponse::MissingRequiredField {
-            field_name: "Either Card or Network Token details",
+            field_name: "Either Card or Network Token details".into(),
         }
         .into()),
     }
@@ -720,6 +725,8 @@ pub fn construct_uas_webhook_router_data<F: Clone, Req, Res>(
         customer_document_details: None,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
+        customer_date_of_birth: None,
     })
 }
 

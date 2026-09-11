@@ -62,8 +62,17 @@ impl router_env::request_id::RequestRecordingSampler for SuperpositionDejaRecord
     ) -> router_env::request_id::RequestRecordingSamplerFuture<'_> {
         // No sampling source to consult: the configured failure default
         // decides, exactly as it does for lookup errors and timeouts below.
+        // This is a process-lifetime condition, so it warns once.
         let failure_default = !self.fail_closed;
         if !self.superposition_enabled {
+            static NO_SAMPLING_SOURCE: std::sync::Once = std::sync::Once::new();
+            NO_SAMPLING_SOURCE.call_once(|| {
+                router_env::logger::warn!(
+                    failure_default,
+                    "Deja recording sampler has no sampling source (Superposition is not \
+                     configured); every request resolves to the configured failure default"
+                );
+            });
             return Box::pin(async move { failure_default });
         }
 
@@ -197,10 +206,21 @@ pub fn mk_app(
     let deja_recording_sampler: Option<
         std::sync::Arc<dyn router_env::request_id::RequestRecordingSampler>,
     > = matches!(state.conf.deja.mode, settings::DejaMode::Record).then(|| {
+        // `validate()` is a configuration check, not a reachability one; it
+        // catches a record-mode deployment with no sampling source at all.
+        let superposition_enabled = state.conf.superposition.get_inner().validate().is_ok();
+        if !superposition_enabled {
+            router_env::logger::error!(
+                fail_closed = state.conf.deja.sampler.fail_closed,
+                "Deja is in record mode but Superposition is not configured; the recording \
+                 sampler has no policy to consult and every request will resolve to the \
+                 configured failure default"
+            );
+        }
         let sampler: std::sync::Arc<dyn router_env::request_id::RequestRecordingSampler> =
             std::sync::Arc::new(SuperpositionDejaRecordingSampler {
                 superposition_service: state.superposition_service.clone(),
-                superposition_enabled: state.conf.superposition.get_inner().validate().is_ok(),
+                superposition_enabled,
                 record_key: state
                     .conf
                     .deja
@@ -254,6 +274,7 @@ pub fn mk_app(
             .service(routes::RelayWebhooks::server(state.clone()))
             .service(routes::Webhooks::server(state.clone()))
             .service(routes::Hypersense::server(state.clone()))
+            .service(routes::ExternalService::server(state.clone()))
             .service(routes::Relay::server(state.clone()))
             .service(routes::ThreeDsDecisionRule::server(state.clone()));
 
@@ -279,7 +300,8 @@ pub fn mk_app(
                 .service(routes::Mandates::server(state.clone()))
                 .service(routes::Authentication::server(state.clone()))
                 .service(routes::SdkConfig::server(state.clone()))
-                .service(routes::SuperpositionProxy::server(state.clone()));
+                .service(routes::SuperpositionProxy::server(state.clone()))
+                .service(routes::OfferEngine::server(state.clone()));
         }
     }
 
@@ -300,8 +322,7 @@ pub fn mk_app(
             .service(routes::User::server(state.clone()))
             .service(routes::ApiKeys::server(state.clone()))
             .service(routes::Routing::server(state.clone()))
-            .service(routes::UnifiedConnectorService::server(state.clone()))
-            .service(routes::Chat::server(state.clone()));
+            .service(routes::UnifiedConnectorService::server(state.clone()));
 
         #[cfg(all(feature = "olap", any(feature = "v1", feature = "v2")))]
         {
@@ -359,7 +380,6 @@ pub fn mk_app(
 
     server_app = server_app.service(routes::Cache::server(state.clone()));
     server_app = server_app.service(routes::Health::server(state.clone()));
-    server_app = server_app.service(routes::OfferEngine::server(state.clone()));
     // Registered at the end because this entry has an empty scope
     #[cfg(feature = "olap")]
     {
@@ -441,7 +461,7 @@ pub async fn start_server(
                 })?;
 
             server_builder
-                .bind_rustls_0_22(
+                .bind_rustls_0_23(
                     (tls_conf.host.unwrap_or(server.host).as_str(), tls_conf.port),
                     config,
                 )?
