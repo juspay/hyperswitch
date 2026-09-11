@@ -58,7 +58,8 @@ impl<S> DejaGrpcTransport<S> {
     ///
     /// Valid ONLY under replay, where every call is served from the recording:
     /// readiness is answered directly, and a call the recording cannot answer
-    /// fail-stops via [`fail_stop_absent_transport`] rather than connecting.
+    /// fail-stops via `deja::__private::fail_stop_absent_executor` rather than
+    /// connecting.
     pub fn substituted() -> Self {
         Self { inner: None }
     }
@@ -79,43 +80,6 @@ where
     } else {
         connect().await.map(DejaGrpcTransport::new)
     }
-}
-
-/// Replay fail-stop for a boundary that deliberately has no transport.
-///
-/// Distinct from `deja::__private::fail_stop_substitute_miss`, whose message
-/// offers `replay_strategy = Execute` as the remedy: with nothing beneath the
-/// boundary there is nothing to run, and the miss says nothing about the
-/// candidate either way.
-///
-/// Names the rpc path and authority because `BOUNDARY` and `COMPONENT` are
-/// module constants shared by every transport this wrapper is installed on.
-// Panicking IS deja's fail-stop mechanism, not an accident: `catch_fail_stop_async`
-// classifies the payload by `FAIL_STOP_SENTINEL` and renders the divergence. Returning
-// an error instead would erase the stop from the diff artifact.
-#[allow(clippy::panic)]
-#[cold]
-#[inline(never)]
-fn fail_stop_absent_transport(
-    boundary: &str,
-    component: &str,
-    rpc: &str,
-    authority: Option<&str>,
-) -> ! {
-    let target = match authority {
-        Some(authority) => format!("`{rpc}` at `{authority}`"),
-        None => format!("`{rpc}`"),
-    };
-    panic!(
-        "{} Substitute boundary `{boundary}` in `{component}` has no transport for \
-         {target}. It was constructed for substitution only: the host builds this \
-         transport eagerly, that connect did not succeed, and replay never issues \
-         this call live. The recording has no entry for these args, so there is \
-         nothing to substitute and nothing this boundary could have executed. This \
-         says nothing about the candidate — the call could not have been served \
-         here whatever the candidate did.",
-        deja::FAIL_STOP_SENTINEL
-    );
 }
 
 /// A boundary with no transport asked to issue a call live. Unreachable in
@@ -346,7 +310,19 @@ where
                 move || async { Err(BoxError::from(AbsentTransportError)) },
                 reconstruct_from_recorded,
                 extract_envelope,
-                move || fail_stop_absent_transport(BOUNDARY, COMPONENT, &rpc, authority.as_deref()),
+                // The absent-EXECUTOR fail-stop, not `fail_stop_substitute_miss`:
+                // that one offers `replay_strategy = Execute` as the remedy, and
+                // with nothing beneath the boundary there is nothing to run. The
+                // target names the rpc and authority because `BOUNDARY` and
+                // `OPERATION` are module constants shared by every transport this
+                // wrapper is installed on.
+                move || {
+                    let target = match authority.as_deref() {
+                        Some(authority) => format!("{rpc} at {authority}"),
+                        None => rpc.to_string(),
+                    };
+                    deja::__private::fail_stop_absent_executor(BOUNDARY, OPERATION, &target)
+                },
             )
             .await
         }

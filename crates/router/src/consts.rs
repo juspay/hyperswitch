@@ -286,6 +286,11 @@ pub(crate) const PROTOCOL: &str = "ECv2";
 /// Sender ID for Google Pay Decryption
 pub(crate) const SENDER_ID: &[u8] = b"Google";
 
+/// Prefix of the recipient identifier Google signs a gateway tokenized card against, i.e.
+/// `gateway:<gateway id>`. Used by the `INTERNAL_GATEWAY` google pay flow, which derives the
+/// recipient from configuration instead of taking it from the merchant.
+pub(crate) const GOOGLE_PAY_GATEWAY_RECIPIENT_PREFIX: &str = "gateway:";
+
 /// Default value for the number of attempts to retry fetching forex rates
 pub const DEFAULT_ANALYTICS_FOREX_RETRY_ATTEMPTS: u64 = 3;
 
@@ -467,6 +472,9 @@ pub mod superposition {
     /// Disable vault tokenization configuration key
     pub const SHOULD_DISABLE_VAULT_TOKENIZATION: &str =
         "vaulting.should_disable_vault_tokenization";
+    /// Authentication service eligibility configuration key (org and merchant scoped, org takes precedence)
+    pub const SHOULD_ENABLE_AUTHENTICATION_SERVICE: &str =
+        "system.should_enable_authentication_service";
     /// Return raw payment method details configuration key
     pub const SHOULD_RETURN_RAW_PAYMENT_METHOD_DETAILS: &str =
         "payments.should_return_raw_payment_method_details";
@@ -507,6 +515,9 @@ pub mod superposition {
     /// save wallet decrypted data in locker
     pub const SAVE_WALLET_DECRYPTED_DATA: &str = "vaulting.save_wallet_decrypted_data";
 }
+
+/// The value substituted for sensitive webhook header values in event retrieval responses.
+pub const REDACTED_HEADER_VALUE: &str = "*** ***";
 
 #[cfg(test)]
 mod tests {

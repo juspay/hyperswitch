@@ -10,7 +10,7 @@ mod utils;
 async fn customer_success() {
     Box::pin(utils::setup()).await;
 
-    let customer_id = format!("customer_{}", uuid::Uuid::new_v4());
+    let customer_id = format!("customer_{}", common_utils::generate_uuid_v4());
     let api_key = ("API-KEY", "MySecretApiKey");
     let name = "Doe";
     let new_name = "new Doe";
@@ -79,7 +79,7 @@ async fn customer_success() {
 async fn customer_failure() {
     Box::pin(utils::setup()).await;
 
-    let customer_id = format!("customer_{}", uuid::Uuid::new_v4());
+    let customer_id = format!("customer_{}", common_utils::generate_uuid_v4());
     let api_key = ("api-key", "MySecretApiKey");
 
     let mut request = serde_json::json!({

@@ -81,6 +81,7 @@ pub enum WalletType {
     GooglePay,
     AmazonPay,
     Skrill,
+    Neteller,
     Paysera,
     ApplePay,
     Paypal,
