@@ -9,7 +9,10 @@ use crate::{
 
 const USER_NAME_MAX_BYTES: usize = 255;
 
-pub async fn read(state: AppState, user: UserName) -> ObservabilityApiResult<WatermarkResponse> {
+pub async fn read_watermark(
+    state: AppState,
+    user: UserName,
+) -> ObservabilityApiResult<WatermarkResponse> {
     let user_name = validated(&user)?;
     let connection = state.database_connection().await?;
 

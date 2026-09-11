@@ -9,18 +9,18 @@ use crate::{
     state::AppState,
 };
 
-pub async fn list(state: web::Data<AppState>, request: HttpRequest) -> HttpResponse {
+pub async fn list_mappers(state: web::Data<AppState>, request: HttpRequest) -> HttpResponse {
     services::server_wrap(
         state.get_ref().clone(),
         &request,
         (),
-        |state, ()| async move { core::mappers::list(state).await },
+        |state, ()| async move { core::mappers::list_mappers(state).await },
         &auth::InternalApiKeyAuth,
     )
     .await
 }
 
-pub async fn read(
+pub async fn read_mapper(
     state: web::Data<AppState>,
     request: HttpRequest,
     path: web::Path<(String, String)>,
@@ -31,13 +31,13 @@ pub async fn read(
         state.get_ref().clone(),
         &request,
         (),
-        |state, ()| async move { core::mappers::read(state, &name, &key).await },
+        |state, ()| async move { core::mappers::read_mapper(state, &name, &key).await },
         &auth::InternalApiKeyAuth,
     )
     .await
 }
 
-pub async fn upsert(
+pub async fn upsert_mapper(
     state: web::Data<AppState>,
     request: HttpRequest,
     payload: web::Json<MapperUpsertRequest>,
@@ -48,13 +48,13 @@ pub async fn upsert(
         state.get_ref().clone(),
         &request,
         payload.into_inner(),
-        |state, payload| async move { core::mappers::upsert(state, payload, user?).await },
+        |state, payload| async move { core::mappers::upsert_mapper(state, payload, user?).await },
         &auth::InternalApiKeyAuth,
     )
     .await
 }
 
-pub async fn retire(
+pub async fn retire_mapper(
     state: web::Data<AppState>,
     request: HttpRequest,
     path: web::Path<(String, String)>,
@@ -65,7 +65,7 @@ pub async fn retire(
         state.get_ref().clone(),
         &request,
         (),
-        |state, ()| async move { core::mappers::retire(state, &name, &key).await },
+        |state, ()| async move { core::mappers::retire_mapper(state, &name, &key).await },
         &auth::InternalApiKeyAuth,
     )
     .await
