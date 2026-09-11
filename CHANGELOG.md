@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.09.09.1-hotfix1
+
+### Features
+
+- **Googlepay:** [Googlepay] InternalGateway flow ([#14179](https://github.com/juspay/hyperswitch/pull/14179)) ([`fc8007e`](https://github.com/juspay/hyperswitch/commit/fc8007e8aa7e290ef93dcceb3b7816cd1799aa3d))
+
+**Full Changelog:** [`2026.09.09.1...2026.09.09.1-hotfix1`](https://github.com/juspay/hyperswitch/compare/2026.09.09.1...2026.09.09.1-hotfix1)
+
+- - -
+
 ## 2026.09.09.1
 
 ### Features
