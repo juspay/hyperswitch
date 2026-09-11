@@ -10777,6 +10777,14 @@ impl IntegrationType {
     pub fn is_server(self) -> bool {
         matches!(self, Self::Server)
     }
+
+    /// The header spelling of this value.
+    pub fn as_header_value(self) -> &'static str {
+        match self {
+            Self::Client => "client",
+            Self::Server => "server",
+        }
+    }
 }
 
 /// Wallet session tokens, or the error that prevented them being minted.

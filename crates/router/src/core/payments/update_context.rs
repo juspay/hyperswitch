@@ -19,7 +19,7 @@ use error_stack::ResultExt;
 use router_env::{instrument, logger, tracing};
 
 use crate::{
-    core::{errors, payment_methods::client as pm_client, payments},
+    core::{configs::dimension_state, errors, payment_methods::client as pm_client, payments},
     routes::{app::ReqState, SessionState},
     services::{ApplicationResponse, AuthFlow},
     types::{api as api_types, domain},
@@ -66,6 +66,53 @@ pub fn integration_type_from_headers(
     }
 
     integration_type
+}
+
+/// Resolves the integration type the merchant is configured for: Superposition's
+/// `payments.integration_type`, keyed on the processor merchant, with the `configs` table as
+/// fallback and `client_and_server` when neither has a value.
+pub async fn merchant_integration_type(
+    state: &SessionState,
+    platform: &domain::Platform,
+) -> common_enums::MerchantIntegrationType {
+    dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .get_merchant_integration_type(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            None,
+        )
+        .await
+}
+
+/// Rejects a request whose `X-Integration-Type` header does not match the integration the
+/// merchant is configured for.
+///
+/// A `client_and_server` merchant may send either value. A `client` or `server` merchant must
+/// send its own; an absent header reads as `client`, so a `server` merchant has to send the
+/// header on every request this check guards.
+pub fn validate_integration_type(
+    header: IntegrationType,
+    merchant: common_enums::MerchantIntegrationType,
+) -> errors::RouterResult<()> {
+    let allowed = match merchant {
+        common_enums::MerchantIntegrationType::ClientAndServer => true,
+        common_enums::MerchantIntegrationType::Client => !header.is_server(),
+        common_enums::MerchantIntegrationType::Server => header.is_server(),
+    };
+
+    common_utils::fp_utils::when(!allowed, || {
+        Err(error_stack::report!(
+            errors::ApiErrorResponse::InvalidRequestData {
+                message: format!(
+                    "`{}` header value `{}` does not match the merchant integration type `{merchant}`",
+                    consts::X_INTEGRATION_TYPE,
+                    header.as_header_value()
+                ),
+            }
+        ))
+    })
 }
 
 /// Builds the error payload a degraded section carries, from the same error the standalone

@@ -414,6 +414,8 @@ pub mod superposition {
     pub const OFFER_ENGINE_ENABLED: &str = "offer_engine.enabled";
     /// Offer Engine credential source key: `"none"` skips Offer Engine, `"application"` uses the static app config, `"merchant"` uses per-merchant credentials.
     pub const OFFER_ENGINE_CREDENTIAL_SOURCE: &str = "offer_engine.credential_source";
+    /// Merchant integration type key: `"client"`, `"server"` or `"client_and_server"` (default). The `X-Integration-Type` header on payment requests must match it.
+    pub const MERCHANT_INTEGRATION_TYPE: &str = "payments.integration_type";
     /// Account Updater master gate key: `false` (default) disables all Account Updater calls.
     pub const ACCOUNT_UPDATER_ENABLED: &str = "account_updater.enabled";
     /// Account Updater credential source key: `"none"` skips Account Updater, `"application"` uses the static application config.
