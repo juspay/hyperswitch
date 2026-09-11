@@ -1,9 +1,4 @@
 //! Resolving secret values at boot.
-//!
-//! In release builds the values in `observability.toml` may be KMS handles rather than the secrets
-//! themselves. This module performs the one-time transition from `Settings<SecuredSecret>` to
-//! `Settings<RawSecret>`, so that everything downstream is statically known to hold resolved
-//! values. Mirrors `drainer::secrets_transformers`.
 
 use std::collections::HashMap;
 
@@ -53,10 +48,6 @@ impl SecretsHandler for AuthSettings {
 }
 
 /// Chat credentials are resolved one destination at a time.
-///
-/// Sequentially rather than concurrently: this runs once, at boot, against a handful of
-/// destinations, and a failure that names the destination it came from is worth more here than the
-/// milliseconds a join would save.
 #[async_trait::async_trait]
 impl SecretsHandler for ChatSettings {
     async fn convert_to_raw_secret(
@@ -96,12 +87,6 @@ impl SecretsHandler for ChatSettings {
 }
 
 /// Resolve every secret in the configuration.
-///
-/// # Panics
-///
-/// Panics if any secret fails to resolve, or if a resolved secret is unusable. This is
-/// deliberate: a service that cannot read its own API key must not start, and there is no
-/// partially-configured state worth serving traffic from.
 pub async fn fetch_raw_secrets(
     conf: Settings<SecuredSecret>,
     secret_management_client: &dyn SecretManagementInterface,
@@ -111,11 +96,7 @@ pub async fn fetch_raw_secrets(
         .await
         .expect("Failed to decrypt auth internal api key");
 
-    // Re-validate *after* decryption. The check in `main` ran against the `SecuredSecret` value,
-    // which under a KMS backend is a handle, not the key — and a perfectly well-formed handle can
-    // resolve to an empty string. Without this, the service would start with an empty configured
-    // key, and an empty `X-Internal-Api-Key` header would compare equal to it: every request
-    // authenticated. The boot-time check must therefore happen on both sides of the transition.
+    // Re-validate *after* decryption.
     #[allow(clippy::expect_used)]
     auth.get_inner()
         .validate()
@@ -131,10 +112,7 @@ pub async fn fetch_raw_secrets(
         .await
         .expect("Failed to decrypt the database password");
 
-    // Re-validate after decryption, for the reason given above: a well-formed handle can resolve
-    // to an empty string. An empty password would not fail here but at connection time, as an
-    // authentication error against the cluster — which reads as a wrong credential rather than an
-    // absent one.
+    // Re-validate after decryption, for the reason given above:
     #[allow(clippy::expect_used)]
     database
         .get_inner()
