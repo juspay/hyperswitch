@@ -7,16 +7,17 @@
 
 use std::{
     collections::{HashMap, HashSet},
-    fmt::Display,
-    hash::Hash,
     str::FromStr,
 };
 
 use common_utils::ext_traits::ConfigExt;
 use external_services::metrics_service::{Aggregation, Labels, Period};
-use serde::{Deserialize, Deserializer};
+use serde::Deserialize;
 
-use crate::{errors, settings::validate_config_ids};
+use crate::{
+    errors,
+    settings::utils::{deserialize_hashset, validate_config_ids},
+};
 
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(default)]
@@ -127,59 +128,6 @@ impl FromStr for Dimension {
             name: name.to_owned(),
             value: value.to_owned(),
         })
-    }
-}
-
-/// A comma-separated value, as a set.
-///
-/// `router` carries the same helper for its own configuration. Copied rather than shared, so a
-/// change made for one of its settings cannot quietly change how alarms are read here.
-fn deserialize_hashset<'de, D, T>(deserializer: D) -> Result<HashSet<T>, D::Error>
-where
-    D: Deserializer<'de>,
-    T: Eq + Hash + FromStr,
-    <T as FromStr>::Err: Display,
-{
-    use serde::de::Error;
-
-    deserialize_hashset_inner(<String>::deserialize(deserializer)?).map_err(D::Error::custom)
-}
-
-fn deserialize_hashset_inner<T>(value: impl AsRef<str>) -> Result<HashSet<T>, String>
-where
-    T: Eq + Hash + FromStr,
-    <T as FromStr>::Err: Display,
-{
-    let (values, errors) = value
-        .as_ref()
-        .trim()
-        .split(',')
-        .map(|element| {
-            T::from_str(element.trim()).map_err(|error| {
-                format!(
-                    "Unable to deserialize `{}` as `{}`: {error}",
-                    element.trim(),
-                    std::any::type_name::<T>()
-                )
-            })
-        })
-        .fold(
-            (HashSet::new(), Vec::new()),
-            |(mut values, mut errors), result| {
-                match result {
-                    Ok(value) => {
-                        values.insert(value);
-                    }
-                    Err(error) => errors.push(error),
-                }
-                (values, errors)
-            },
-        );
-
-    if errors.is_empty() {
-        Ok(values)
-    } else {
-        Err(format!("Some errors occurred:\n{}", errors.join("\n")))
     }
 }
 
@@ -316,7 +264,7 @@ mod tests {
     use hyperswitch_interfaces::secrets_interface::secret_state::SecuredSecret;
 
     use super::*;
-    use crate::settings::Settings;
+    use crate::settings::{utils::deserialize_hashset_inner, Settings};
 
     fn rds_primary_cpu_environment() -> HashMap<String, String> {
         [

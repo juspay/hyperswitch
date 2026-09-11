@@ -10,6 +10,7 @@
 //! by the type checker rather than by review.
 
 pub mod cloudwatch;
+pub mod utils;
 
 use std::{collections::HashMap, path::PathBuf};
 
@@ -29,7 +30,10 @@ pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use router_env::{env, logger};
 use serde::Deserialize;
 
-use crate::{errors, settings::cloudwatch::CloudWatchSettings};
+use crate::{
+    errors,
+    settings::{cloudwatch::CloudWatchSettings, utils::validate_config_ids},
+};
 
 /// The default configuration file name, looked up inside the config directory.
 const CONFIG_FILE_NAME: &str = "observability.toml";
@@ -152,24 +156,6 @@ pub struct EmailDestination {
     /// a follow-up ticket lands this widens to a list and no caller changes, since a request
     /// only ever names an id.
     pub to: pii::Email,
-}
-
-/// Ids are addressed by callers and set from the environment, so they must survive both. `config`
-/// lowercases environment keys and splits on `__`; an id that would come back different is
-/// rejected at boot rather than silently failing to match at lookup time.
-pub(crate) fn validate_config_ids<T>(
-    entries: &HashMap<String, T>,
-    section: &str,
-) -> Result<(), errors::ConfigurationError> {
-    for id in entries.keys() {
-        if id.is_empty() || id.contains("__") || id != &id.to_lowercase() {
-            Err(errors::ConfigurationError::ConfigParsingError(format!(
-                "{section} id `{id}` must be lowercase, non-empty and free of `__`, so that it \
-                 can be set from the environment"
-            )))?
-        }
-    }
-    Ok(())
 }
 
 impl ChatSettings {
