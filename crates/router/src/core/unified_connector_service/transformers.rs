@@ -128,7 +128,41 @@ impl ForeignFrom<common_enums::TaxStatus> for payments_grpc::TaxStatus {
     }
 }
 
-fn build_ucs_order_details(
+/// Map a UCS FRM verdict onto Hyperswitch's fraud-check status.
+///
+/// Deliberately conservative: anything that is not an explicit approval leaves
+/// the transaction short of `Legit`, so an unrecognised or missing verdict never
+/// silently approves a payment. The status code is folded in here because a
+/// non-2xx from the connector-service means the provider never produced a
+/// verdict at all, which must not read as an implicit approval.
+pub(super) fn frm_status_from_ucs_decision(
+    status_code: u16,
+    decision: Option<payments_grpc::FrmDecision>,
+) -> storage_enums::FraudCheckStatus {
+    match (status_code, decision) {
+        (200..=299, Some(payments_grpc::FrmDecision::Approve)) => {
+            storage_enums::FraudCheckStatus::Legit
+        }
+        (200..=299, Some(payments_grpc::FrmDecision::Reject)) => {
+            storage_enums::FraudCheckStatus::Fraud
+        }
+        (200..=299, Some(payments_grpc::FrmDecision::Review)) => {
+            storage_enums::FraudCheckStatus::ManualReview
+        }
+        // `Error`/`Unspecified`/absent verdict: the provider gave us nothing
+        // usable. Hold for review rather than approve.
+        (200..=299, _) => storage_enums::FraudCheckStatus::ManualReview,
+        (code, _) => {
+            router_env::logger::warn!(
+                status_code = code,
+                "FRM pre risk check returned a non-success status; treating as manual review"
+            );
+            storage_enums::FraudCheckStatus::ManualReview
+        }
+    }
+}
+
+pub(super) fn build_ucs_order_details(
     order_details: Option<&[OrderDetailsWithAmount]>,
 ) -> Vec<payments_grpc::OrderDetailsWithAmount> {
     order_details
@@ -9981,6 +10015,148 @@ impl transformers::ForeignTryFrom<payments_grpc::NotifyConnectorResponse>
                     .as_ref()
                     .and_then(|cd| cd.message.clone())
             }),
+        })
+    }
+}
+
+use hyperswitch_domain_models::{
+    router_flow_types::fraud_check as frm_api,
+    router_request_types::fraud_check::FraudCheckCheckoutData,
+    router_response_types::fraud_check::FraudCheckResponseData,
+};
+
+/// Build the pre-risk-check request from the FRM `Checkout` router data.
+///
+/// Everything the risk provider needs is already on the router data: the
+/// request carries the instrument and buyer details, and the top-level fields
+/// carry address, token, access token and `frm_metadata`.
+impl
+    transformers::ForeignTryFrom<
+        &RouterData<frm_api::Checkout, FraudCheckCheckoutData, FraudCheckResponseData>,
+    > for payments_grpc::FrmServicePreRiskCheckRequest
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        router_data: &RouterData<frm_api::Checkout, FraudCheckCheckoutData, FraudCheckResponseData>,
+    ) -> Result<Self, Self::Error> {
+        let request = &router_data.request;
+
+        let currency = request.currency.ok_or_else(|| {
+            error_stack::report!(UnifiedConnectorServiceError::MissingRequiredField {
+                field_name: "currency".into(),
+            })
+        })?;
+        let grpc_currency = payments_grpc::Currency::foreign_try_from(currency)?;
+
+        let amount = payments_grpc::Money {
+            minor_amount: request.amount.get_amount_as_i64(),
+            currency: grpc_currency.into(),
+        };
+
+        // `customer_id` is the stable merchant-side key risk providers use to
+        // build cross-transaction history for the buyer; the contact details
+        // alongside it are what they match on when the id is new.
+        let has_customer = request.customer_id.is_some()
+            || request.customer_name.is_some()
+            || request.email.is_some()
+            || request.phone.is_some();
+        let customer_info = has_customer.then(|| payments_grpc::Customer {
+            id: request
+                .customer_id
+                .as_ref()
+                .map(|id| id.get_string_repr().to_owned()),
+            // Sent as the full name; providers that want the parts split it
+            // themselves, since Hyperswitch does not store them apart.
+            name: request
+                .customer_name
+                .as_ref()
+                .map(|name| name.peek().to_owned()),
+            email: request
+                .email
+                .as_ref()
+                .map(|email| Secret::new(email.peek().to_owned())),
+            phone_number: request
+                .phone
+                .as_ref()
+                .map(|phone| Secret::new(phone.peek().to_owned())),
+            phone_country_code: request.phone_country_code.clone(),
+            ..Default::default()
+        });
+
+        // Reuses the same builder the payments UCS path uses, so the instrument
+        // is encoded identically for a risk check and for the authorization that
+        // follows it.
+        //
+        // A payment method Hyperswitch cannot encode degrades to `None` rather
+        // than failing: the FRM pre-check propagates its error with `?` in
+        // `pre_payment_frm_core`, so returning `Err` here would fail the payment
+        // outright over a risk-signal encoding problem.
+        let payment_method =
+            request
+                .payment_method_data_full
+                .as_ref()
+                .and_then(|payment_method_data| {
+                    unified_connector_service::build_unified_connector_service_payment_method(
+                        payment_method_data.clone(),
+                        router_data.payment_method_type,
+                        router_data.payment_method_token.as_ref(),
+                        None,
+                    )
+                    .inspect_err(|error| {
+                        router_env::logger::warn!(
+                            ?error,
+                            "Failed to encode the payment method for the FRM pre risk check; \
+                         the provider will score this transaction without instrument details"
+                        )
+                    })
+                    .ok()
+                });
+
+        // Merchant identity for risk scoring. The MCC lives on the business
+        // profile, which this path does not load, so it is left unset rather
+        // than issuing an extra fetch for a field no current provider reads.
+        let merchant_details = Some(payments_grpc::MerchantDetails {
+            merchant_id: Some(router_data.merchant_id.get_string_repr().to_owned()),
+            merchant_category_code: None,
+        });
+
+        let browser_info =
+            request
+                .browser_info
+                .as_ref()
+                .map(|info| payments_grpc::BrowserInformation {
+                    user_agent: info.user_agent.clone(),
+                    ip_address: info.ip_address.map(|ip| ip.to_string()),
+                    language: info.language.clone(),
+                    accept_header: info.accept_header.clone(),
+                    ..Default::default()
+                });
+
+        let order_details = build_ucs_order_details(request.order_details.as_deref());
+
+        Ok(Self {
+            amount: Some(amount),
+            customer_info,
+            payment_method,
+            browser_info,
+            merchant_transaction_id: Some(router_data.attempt_id.clone()),
+            order_details,
+            address: Some(payments_grpc::PaymentAddress::foreign_try_from(
+                router_data.address.clone(),
+            )?),
+            merchant_details,
+            connector_feature_data: router_data
+                .frm_metadata
+                .as_ref()
+                .map(|metadata| Secret::new(metadata.clone().expose().to_string())),
+            // Bearer-authenticated providers read the token from
+            // `state.access_token`; prism threads it onto FrmFlowData.
+            state: router_data
+                .access_token
+                .as_ref()
+                .map(ConnectorState::foreign_from),
+            ..Default::default()
         })
     }
 }

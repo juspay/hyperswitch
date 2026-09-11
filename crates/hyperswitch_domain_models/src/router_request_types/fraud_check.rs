@@ -8,7 +8,7 @@ use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use crate::router_request_types;
+use crate::{payment_method_data::PaymentMethodData, router_request_types};
 
 #[derive(Debug, Clone)]
 pub struct FraudCheckSaleData {
@@ -24,7 +24,7 @@ pub struct FraudCheckSaleData {
     pub payment_method_data: Option<api_models::payments::AdditionalPaymentData>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct FraudCheckCheckoutData {
     pub amount: MinorUnit,
     pub order_details: Option<Vec<OrderDetailsWithAmount>>,
@@ -37,6 +37,14 @@ pub struct FraudCheckCheckoutData {
     pub email: Option<Email>,
     pub phone: Option<Secret<String>>,
     pub phone_country_code: Option<String>,
+    /// Buyer's full name from the intent's customer details. Risk providers
+    /// match buyer history on it alongside `email`/`phone`.
+    pub customer_name: Option<Secret<String>>,
+    /// The full instrument being scored (card BIN, last four, expiry). The
+    /// `payment_method_data` above is the thinner `AdditionalPaymentData`
+    /// shape the in-process connectors consume; UCS-backed providers need the
+    /// domain type.
+    pub payment_method_data_full: Option<PaymentMethodData>,
 }
 
 #[derive(Debug, Clone)]

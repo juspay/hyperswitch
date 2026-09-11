@@ -59,6 +59,9 @@ impl FraudCheckConnectorData {
         connector_name: enums::FrmConnectors,
     ) -> CustomResult<ConnectorEnum, errors::ApiErrorResponse> {
         match connector_name {
+            enums::FrmConnectors::Nsure => {
+                Ok(ConnectorEnum::Old(Box::new(connector::Nsure::new())))
+            }
             enums::FrmConnectors::Signifyd => {
                 Ok(ConnectorEnum::Old(Box::new(connector::Signifyd::new())))
             }

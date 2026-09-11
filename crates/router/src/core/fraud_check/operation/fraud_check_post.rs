@@ -155,6 +155,8 @@ impl GetTracker<PaymentToFrmData> for FraudCheckPost {
                     order_details: payment_data.order_details,
                     refund: None,
                     frm_metadata: payment_data.frm_metadata,
+                    payment_method_data: payment_data.payment_method_data,
+                    payment_method_token: payment_data.payment_method_token,
                 };
                 Ok(Some(frm_data))
             }

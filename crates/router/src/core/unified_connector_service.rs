@@ -30,8 +30,11 @@ use hyperswitch_domain_models::{
     platform::Processor,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, PaymentMethodToken, RouterData},
     router_flow_types::refunds,
-    router_request_types::RefundsData,
-    router_response_types::{PaymentsResponseData, PayoutsResponseData, RefundsResponseData},
+    router_request_types::{RefundsData, ResponseId},
+    router_response_types::{
+        fraud_check::FraudCheckResponseData, PaymentsResponseData, PayoutsResponseData,
+        RefundsResponseData,
+    },
 };
 use hyperswitch_interfaces::helpers as interface_helpers;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
@@ -70,6 +73,7 @@ use crate::{
 };
 
 pub mod connector_config;
+pub mod frm;
 pub mod kill_switch;
 pub mod transformers;
 
@@ -854,7 +858,7 @@ type UnifiedConnectorServiceCreateOrderResult = CustomResult<
 >;
 
 /// Checks if the Unified Connector Service (UCS) is available for use
-async fn check_ucs_availability(state: &SessionState) -> UcsAvailability {
+pub(crate) async fn check_ucs_availability(state: &SessionState) -> UcsAvailability {
     let is_client_available = state.grpc_client.unified_connector_service_client.is_some();
 
     let is_enabled = is_config_flag_enabled(state, consts::UCS_ENABLED).await;
@@ -3070,6 +3074,37 @@ pub fn handle_unified_connector_service_response_for_create_connector_customer(
         Result::<PaymentsResponseData, ErrorResponse>::foreign_try_from(response)?;
 
     Ok((connector_customer_result, status_code))
+}
+
+/// Convert the UCS verdict back into Hyperswitch's FRM response shape.
+///
+/// The verdict-to-status mapping itself lives in
+/// [`transformers::frm_status_from_ucs_decision`].
+pub fn handle_unified_connector_service_response_for_frm_pre_risk_check(
+    response: payments_grpc::FrmServicePreRiskCheckResponse,
+) -> CustomResult<FraudCheckResponseData, UnifiedConnectorServiceError> {
+    use payments_grpc::FrmDecision;
+
+    // Same status-code handling every payments UCS handler performs.
+    let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
+
+    let decision = response
+        .frm_decision
+        .and_then(|decision| FrmDecision::try_from(decision).ok());
+
+    let status = transformers::frm_status_from_ucs_decision(status_code, decision);
+
+    Ok(FraudCheckResponseData::TransactionResponse {
+        resource_id: response
+            .frm_transaction_id
+            .clone()
+            .map(ResponseId::ConnectorTransactionId)
+            .unwrap_or(ResponseId::NoResponseId),
+        status,
+        connector_metadata: None,
+        reason: response.reason.map(serde_json::Value::String),
+        score: response.risk_score,
+    })
 }
 
 pub fn handle_unified_connector_service_response_for_payment_create_order(

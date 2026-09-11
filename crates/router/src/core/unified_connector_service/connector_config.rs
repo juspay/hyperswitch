@@ -92,6 +92,13 @@ impl SantanderPayoutMetadataCompat {
     }
 }
 
+/// Optional nSure.ai settings that are not credentials, so they live on the
+/// merchant connector account metadata rather than the auth type.
+#[derive(Debug, serde::Deserialize)]
+pub struct NsureMetadata {
+    api_version: Option<String>,
+}
+
 #[derive(Debug, serde::Deserialize)]
 pub struct MifinityMetadata {
     brand_id: Secret<String>,
@@ -508,6 +515,18 @@ pub enum ConnectorSpecificConfig {
         payment_access_key: Secret<String>,
         tariff_id: Secret<String>,
     },
+    /// nSure.ai connector configuration.
+    ///
+    /// `api_key` is the authorization key, sent verbatim in the `Authorization`
+    /// header with no `Bearer`/`Basic` prefix. `app_id` is the Application ID
+    /// from the same nSure.ai portal screen. `api_version` reaches the provider
+    /// as `x-nsure-api-version`; the connector-service defaults it to 2.0.0 when
+    /// unset.
+    Nsure {
+        api_key: Secret<String>,
+        app_id: Secret<String>,
+        api_version: Option<String>,
+    },
     /// Gigadat connector configuration
     Gigadat {
         security_token: Secret<String>,
@@ -736,8 +755,6 @@ pub enum ConnectorSpecificConfig {
         response_decryption_private_key: Secret<String>,
         card_sync_key_id: String,
     },
-    /// Netcetera authentication connector configuration (no connector-specific config needed)
-    Netcetera,
     /// Santander payout connector configuration
     Santander {
         certificates: Secret<String>,
@@ -1421,6 +1438,26 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 }),
                 _ => Err(err("Novalnet requires SignatureKey auth type")),
             },
+            Connector::Nsure => match auth {
+                // The portal issues an authorization key and an Application ID,
+                // which map onto BodyKey's two fields; `connector_validation`
+                // accepts exactly this shape for nSure.
+                ConnectorAuthType::BodyKey { api_key, key1 } => {
+                    let nsure_meta = metadata
+                        .map(|m| {
+                            serde_json::from_value::<NsureMetadata>(m.clone())
+                                .map_err(|_| err("Invalid Nsure metadata format"))
+                        })
+                        .transpose()?;
+
+                    Ok(Self::Nsure {
+                        api_key: api_key.clone(),
+                        app_id: key1.clone(),
+                        api_version: nsure_meta.and_then(|m| m.api_version),
+                    })
+                }
+                _ => Err(err("Nsure requires BodyKey auth type")),
+            },
             Connector::Nuvei => match auth {
                 ConnectorAuthType::SignatureKey {
                     api_key,
@@ -1858,7 +1895,6 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 }
                 _ => Err(err("Juspay requires HeaderKey auth type")),
             },
-            Connector::Netcetera => Ok(Self::Netcetera),
             Connector::Santander => match auth {
                 ConnectorAuthType::CertificateAuth {
                     certificate,
@@ -1932,19 +1968,20 @@ pub fn build_connector_config_header(
     auth_type: &ConnectorAuthType,
     merchant_account_metadata: Option<&serde_json::Value>,
 ) -> RouterResult<Option<String>> {
+    // Netcetera has no connector-specific config on the wire: connector-service's
+    // `ConnectorSpecificConfig` oneof has no `netcetera` case at all, so sending
+    // this header makes UCS hard-error on deserialization instead of falling back
+    // to the legacy auth header. Suppress it here so UCS takes the legacy-header
+    // path (`x-auth` / `x-api-key` / `x-key1`), which does work for Netcetera.
+    if matches!(connector, Connector::Netcetera) {
+        return Ok(None);
+    }
+
     let config = ConnectorSpecificConfig::foreign_try_from((
         connector,
         auth_type,
         merchant_account_metadata,
     ))?;
-
-    // Netcetera has no connector-specific config on the wire (connector-service's
-    // `ConnectorSpecificConfig` oneof has no `netcetera` case), so sending this header makes
-    // UCS hard-error on deserialization instead of falling back to the legacy auth header.
-    // Suppress it here so UCS takes the legacy-header path, which does work for Netcetera.
-    if matches!(config, ConnectorSpecificConfig::Netcetera) {
-        return Ok(None);
-    }
 
     let config_json = serde_json::to_value(&config)
         .change_context(errors::ApiErrorResponse::InternalServerError)
