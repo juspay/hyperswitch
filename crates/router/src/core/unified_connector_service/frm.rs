@@ -98,23 +98,18 @@ pub async fn get_frm_access_token(
             .attach_printable(
                 "Could not create FRM access token request from connector credentials",
             )?;
-    let access_token_router_data = payments::helpers::router_data_type_conversion::<
-        _,
-        AccessTokenAuth,
-        _,
-        _,
-        _,
-        AccessToken,
-    >(
-        router_data.clone(),
-        access_token_request,
-        Err(hyperswitch_domain_models::router_data::ErrorResponse::default()),
-    );
+    let access_token_router_data =
+        payments::helpers::router_data_type_conversion::<_, AccessTokenAuth, _, _, _, AccessToken>(
+            router_data.clone(),
+            access_token_request,
+            Err(hyperswitch_domain_models::router_data::ErrorResponse::default()),
+        );
 
     let (_, token_result) = Box::pin(super::ucs_logging_wrapper_granular(
         access_token_router_data,
         state,
-        payments_grpc::MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest::default(),
+        payments_grpc::MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest::default(
+        ),
         header_payload,
         execution_mode,
         |router_data, request, grpc_headers| async move {
@@ -136,7 +131,11 @@ pub async fn get_frm_access_token(
                 )
                 .attach_printable("Failed to parse the UCS FRM access token response")?;
 
-            Ok((router_data, Some(token_result), create_access_token_response))
+            Ok((
+                router_data,
+                Some(token_result),
+                create_access_token_response,
+            ))
         },
     ))
     .await
