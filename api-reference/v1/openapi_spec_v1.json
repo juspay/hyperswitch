@@ -26688,14 +26688,6 @@
             ],
             "nullable": true
           },
-          "integration_type": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MerchantIntegrationType"
-              }
-            ],
-            "nullable": true
-          },
           "network_tokenization_credentials": {
             "allOf": [
               {
@@ -27012,8 +27004,7 @@
           "organization_id",
           "is_recon_enabled",
           "recon_status",
-          "merchant_account_type",
-          "integration_type"
+          "merchant_account_type"
         ],
         "properties": {
           "merchant_id": {
@@ -27162,9 +27153,6 @@
           },
           "merchant_account_type": {
             "$ref": "#/components/schemas/MerchantAccountType"
-          },
-          "integration_type": {
-            "$ref": "#/components/schemas/MerchantIntegrationType"
           },
           "network_tokenization_credentials": {
             "allOf": [
@@ -27322,14 +27310,6 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/OfferEngineMerchantConfig"
-              }
-            ],
-            "nullable": true
-          },
-          "integration_type": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MerchantIntegrationType"
               }
             ],
             "nullable": true
@@ -28186,15 +28166,6 @@
       "MerchantId": {
         "type": "string",
         "description": "A type for merchant_id that can be used for merchant ids"
-      },
-      "MerchantIntegrationType": {
-        "type": "string",
-        "description": "Which integration a merchant builds its checkout with, and therefore which\n`X-Integration-Type` header values its payment requests may carry.\n\n`client_and_server` is the default: an account that never set this keeps accepting either\nheader value, exactly as it did before the setting existed.",
-        "enum": [
-          "client",
-          "server",
-          "client_and_server"
-        ]
       },
       "MerchantProductType": {
         "type": "string",

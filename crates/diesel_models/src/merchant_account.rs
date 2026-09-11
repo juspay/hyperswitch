@@ -59,7 +59,6 @@ pub struct MerchantAccount {
     pub network_tokenization_credentials: Option<Encryption>,
     pub fingerprint_secret: Option<Secret<String>>,
     pub offer_engine_config: Option<Encryption>,
-    pub integration_type: Option<common_enums::MerchantIntegrationType>,
 }
 
 #[cfg(feature = "v1")]
@@ -98,7 +97,6 @@ pub struct MerchantAccountSetter {
     pub network_tokenization_credentials: Option<Encryption>,
     pub fingerprint_secret: Option<Secret<String>>,
     pub offer_engine_config: Option<Encryption>,
-    pub integration_type: common_enums::MerchantIntegrationType,
 }
 
 #[cfg(feature = "v1")]
@@ -140,7 +138,6 @@ impl From<MerchantAccountSetter> for MerchantAccount {
             network_tokenization_credentials: item.network_tokenization_credentials,
             fingerprint_secret: item.fingerprint_secret,
             offer_engine_config: item.offer_engine_config,
-            integration_type: Some(item.integration_type),
         }
     }
 }
@@ -178,7 +175,6 @@ pub struct MerchantAccount {
     pub network_tokenization_credentials: Option<Encryption>,
     pub fingerprint_secret: Option<Secret<String>>,
     pub offer_engine_config: Option<Encryption>,
-    pub integration_type: Option<common_enums::MerchantIntegrationType>,
 }
 
 #[cfg(feature = "v2")]
@@ -202,7 +198,6 @@ impl From<MerchantAccountSetter> for MerchantAccount {
             network_tokenization_credentials: None, // need to check if we can have this column in v2
             fingerprint_secret: item.fingerprint_secret,
             offer_engine_config: None,
-            integration_type: None,
         }
     }
 }
@@ -278,7 +273,6 @@ pub struct MerchantAccountNew {
     pub network_tokenization_credentials: Option<Encryption>,
     pub fingerprint_secret: Option<Secret<String>>,
     pub offer_engine_config: Option<Encryption>,
-    pub integration_type: common_enums::MerchantIntegrationType,
 }
 
 #[cfg(feature = "v2")]
@@ -353,5 +347,4 @@ pub struct MerchantAccountUpdateInternal {
     pub product_type: Option<common_enums::MerchantProductType>,
     pub network_tokenization_credentials: Option<Encryption>,
     pub offer_engine_config: Option<Encryption>,
-    pub integration_type: Option<common_enums::MerchantIntegrationType>,
 }

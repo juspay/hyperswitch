@@ -118,11 +118,6 @@ pub struct MerchantAccountCreate {
     #[schema(value_type = Option<MerchantAccountType>, example = "standard")]
     pub merchant_account_type: Option<api_enums::MerchantAccountType>,
 
-    /// Which integration this merchant builds its checkout with. Gates the `X-Integration-Type`
-    /// header on payment requests; defaults to `client_and_server`, which accepts either value.
-    #[schema(value_type = Option<MerchantIntegrationType>, example = "client_and_server")]
-    pub integration_type: Option<api_enums::MerchantIntegrationType>,
-
     /// Network tokenization credentials for this merchant account
     #[schema(value_type = Option<NetworkTokeizationProviderCredentials>)]
     pub network_tokenization_credentials: Option<NetworkTokeizationProviderCredentials>,
@@ -522,11 +517,6 @@ pub struct MerchantAccountUpdate {
     /// Merchant-level Offer Engine credentials, used when the resolved credential source is `merchant`
     #[schema(value_type = Option<OfferEngineMerchantConfig>)]
     pub offer_engine_config: Option<OfferEngineMerchantConfig>,
-
-    /// Which integration this merchant builds its checkout with. Gates the `X-Integration-Type`
-    /// header on payment requests.
-    #[schema(value_type = Option<MerchantIntegrationType>, example = "client_and_server")]
-    pub integration_type: Option<api_enums::MerchantIntegrationType>,
 }
 
 #[cfg(feature = "v1")]
@@ -751,11 +741,6 @@ pub struct MerchantAccountResponse {
     /// Merchant Account Type of this merchant account
     #[schema(value_type = MerchantAccountType, example = "standard")]
     pub merchant_account_type: api_enums::MerchantAccountType,
-
-    /// Which integration this merchant builds its checkout with. Gates the `X-Integration-Type`
-    /// header on payment requests.
-    #[schema(value_type = MerchantIntegrationType, example = "client_and_server")]
-    pub integration_type: api_enums::MerchantIntegrationType,
 
     /// Network tokenization credentials for this merchant account
     #[schema(value_type = Option<NetworkTokeizationProviderCredentials>)]

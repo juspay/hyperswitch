@@ -186,7 +186,6 @@ fn create_platform_merchant_account_request(
         merchant_name: Some(Secret::new(merchant_name)),
         organization_id: Some(organization_id),
         merchant_account_type: Some(MerchantAccountType::Platform),
-        integration_type: None,
         merchant_details: None,
         return_url: None,
         webhook_details: None,
@@ -645,7 +644,6 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                         "fs",
                     ))),
                     offer_engine_config: None,
-                    integration_type: self.integration_type.unwrap_or_default(),
                 },
             )
         }
@@ -1292,7 +1290,6 @@ impl MerchantAccountUpdateBridge for api::MerchantAccountUpdate {
             routing_algorithm: self.routing_algorithm,
             network_tokenization_credentials,
             offer_engine_config,
-            integration_type: self.integration_type,
         })
     }
 }

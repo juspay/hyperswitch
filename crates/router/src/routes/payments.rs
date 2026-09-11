@@ -943,9 +943,11 @@ pub async fn payments_update(
         move |state, auth: auth::AuthenticationData, req, req_state| {
             let header_payload = header_payload.clone();
             async move {
+                let merchant_integration_type =
+                    update_context::merchant_integration_type(&state, &auth.platform).await;
                 update_context::validate_integration_type(
                     integration_type,
-                    auth.platform.get_processor().get_account().integration_type,
+                    merchant_integration_type,
                 )?;
 
                 let profile_id = auth.profile.map(|profile| profile.get_id().clone());
