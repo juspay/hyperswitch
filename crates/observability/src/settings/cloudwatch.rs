@@ -15,7 +15,9 @@ use std::{
 };
 
 use common_utils::ext_traits::ConfigExt;
-use external_services::metrics_service::{Aggregation, Labels, Period};
+use external_services::metrics_service::{
+    aws_cloudwatch::CloudWatchConfig, Aggregation, Labels, Period,
+};
 use serde::Deserialize;
 
 use crate::{
@@ -26,6 +28,9 @@ use crate::{
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(default)]
 pub struct CloudWatchSettings {
+    /// Where to read the metrics from. Empty means no provider is built, which is only valid
+    /// while there is nothing to evaluate.
+    pub client: CloudWatchConfig,
     pub definitions: HashMap<String, Definition>,
 }
 
@@ -141,6 +146,17 @@ impl CloudWatchSettings {
 
         for (id, definition) in &self.definitions {
             definition.validate(id)?;
+        }
+
+        // A catalogue with nowhere to read from evaluates to nothing at all, which looks from the
+        // outside like a service reporting that everything is fine.
+        if !self.definitions.is_empty() {
+            self.client.validate().map_err(|reason| {
+                errors::ConfigurationError::ConfigParsingError(format!(
+                    "{reason}, because {} cloudwatch definitions are configured",
+                    self.definitions.len()
+                ))
+            })?;
         }
 
         Ok(())
@@ -272,6 +288,7 @@ mod tests {
 
     fn rds_primary_cpu_environment() -> HashMap<String, String> {
         [
+            ("OBSERVABILITY__CLOUDWATCH__CLIENT__REGION", "ap-south-1"),
             ("OBSERVABILITY__CLOUDWATCH__DEFINITIONS__RDS_PRIMARY_CPU__NAME", "rds-primary-cpu"),
             ("OBSERVABILITY__CLOUDWATCH__DEFINITIONS__RDS_PRIMARY_CPU__CLASSIFICATION", "rds-alerts"),
             ("OBSERVABILITY__CLOUDWATCH__DEFINITIONS__RDS_PRIMARY_CPU__METRIC_NAME", "CPUUtilization"),
@@ -433,8 +450,13 @@ mod tests {
         }
     }
 
+    /// Carries a usable client, so a case below is rejected for the reason it names rather than
+    /// for having nowhere to read from.
     fn catalogue_with(id: &str, definition: Definition) -> CloudWatchSettings {
         CloudWatchSettings {
+            client: CloudWatchConfig {
+                region: "ap-south-1".to_owned(),
+            },
             definitions: [(id.to_owned(), definition)].into_iter().collect(),
         }
     }
@@ -515,6 +537,13 @@ mod tests {
                 }
                 catalogue_with("rds_primary_cpu", definition)
             }),
+            // Nowhere to read from evaluates to nothing at all, which from outside is
+            // indistinguishable from a service reporting that everything is fine.
+            ("definitions but no region to read them from", {
+                let mut catalogue = catalogue_with("rds_primary_cpu", rds_primary_cpu());
+                catalogue.client = CloudWatchConfig::default();
+                catalogue
+            }),
         ];
 
         for (reason, catalogue) in cases {
@@ -536,7 +565,7 @@ mod tests {
     }
 
     #[test]
-    fn an_empty_catalogue_is_accepted() {
+    fn an_empty_catalogue_is_accepted_without_a_region() {
         CloudWatchSettings::default().validate().unwrap();
     }
 

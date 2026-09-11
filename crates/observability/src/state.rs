@@ -8,6 +8,7 @@ use external_services::{
         no_email::NoEmailClient, ses::AwsSes, smtp::SmtpServer, EmailClientConfigs, EmailService,
         EmailSettings as EmailClientSettings,
     },
+    metrics_service::{aws_cloudwatch::CloudWatchMetrics, MetricsProvider},
 };
 use hyperswitch_interfaces::{
     secrets_interface::secret_state::{RawSecret, SecuredSecret},
@@ -22,7 +23,9 @@ use crate::{
     },
     errors::ConfigurationError,
     logger, secrets_transformers,
-    settings::{ChatDestination, ChatSettings, EmailSettings, Settings},
+    settings::{
+        cloudwatch::CloudWatchSettings, ChatDestination, ChatSettings, EmailSettings, Settings,
+    },
 };
 
 /// Everything a request handler needs, cloned per worker.
@@ -39,6 +42,9 @@ pub struct AppState {
     pub chat: Arc<Registry<dyn ChatNotifier>>,
     /// Email destinations, by the id a request names.
     pub email: Arc<Registry<dyn EmailNotifier>>,
+    /// Reads the metrics the alarm catalogue is evaluated against. `None` when no catalogue is
+    /// configured, which boot has already checked is the only way to have no client.
+    pub metrics: Option<Arc<dyn MetricsProvider>>,
 }
 
 impl AppState {
@@ -85,12 +91,47 @@ impl AppState {
             );
         }
 
+        #[allow(clippy::expect_used)]
+        let metrics = build_metrics_provider(&raw_conf.cloudwatch)
+            .await
+            .expect("Failed to build the cloudwatch metrics client");
+
         Self {
             conf: Arc::new(raw_conf),
             chat: Arc::new(chat),
             email: Arc::new(email),
+            metrics,
         }
     }
+}
+
+/// Build the provider the catalogue is read through, if there is a catalogue to read.
+///
+/// Built at boot rather than per request, and eagerly enough that a region the SDK cannot resolve
+/// stops the service starting instead of turning every evaluation into a failed batch.
+async fn build_metrics_provider(
+    settings: &CloudWatchSettings,
+) -> Result<Option<Arc<dyn MetricsProvider>>, ConfigurationError> {
+    if settings.definitions.is_empty() {
+        return Ok(None);
+    }
+
+    let provider = CloudWatchMetrics::create(&settings.client)
+        .await
+        .map_err(|error| {
+            ConfigurationError::ConfigParsingError(format!(
+                "the cloudwatch metrics client is not usable: {error}"
+            ))
+        })?;
+
+    logger::info!(
+        definitions = settings.definitions.len(),
+        rules = settings.rule_count(),
+        region = %settings.client.region,
+        "CloudWatch alarm catalogue loaded"
+    );
+
+    Ok(Some(Arc::new(provider)))
 }
 
 /// Turn configured chat destinations into the notifiers that serve them.
