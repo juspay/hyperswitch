@@ -1,18 +1,12 @@
-//! The wire error layer:
-
 use serde::Serialize;
 
-/// The category of an error, as reported to the client.
 #[derive(Debug, Serialize)]
 pub enum ErrorType {
-    /// The request itself was at fault.
     InvalidRequestError,
-    /// The service was at fault.
     ObservabilityError,
 }
 
 impl ErrorType {
-    /// The string form used in the serialized response body.
     fn as_str(&self) -> &'static str {
         match self {
             Self::InvalidRequestError => "invalid_request",
@@ -21,19 +15,14 @@ impl ErrorType {
     }
 }
 
-/// The payload carried by every wire error.
 #[derive(Debug, Serialize, Clone)]
 pub struct ApiError {
-    /// Short category prefix, e.g.
     pub sub_code: &'static str,
-    /// Distinguishes errors sharing a `sub_code`.
     pub error_identifier: u16,
-    /// Human-readable description.
     pub error_message: String,
 }
 
 impl ApiError {
-    /// Construct an [`ApiError`].
     pub fn new(
         sub_code: &'static str,
         error_identifier: u16,
@@ -47,25 +36,17 @@ impl ApiError {
     }
 }
 
-/// Every error this service can return to a client, keyed by HTTP semantics.
 #[derive(Debug, Serialize)]
 pub enum ApiErrorResponse {
-    /// 400 — the request was malformed.
     BadRequest(ApiError),
-    /// 401 — authentication failed.
     Unauthorized(ApiError),
-    /// 404 — the destination named in the path is not configured.
     NotFound(ApiError),
-    /// 500 — the service failed.
     InternalServerError(ApiError),
-    /// 502 — the provider could not be reached, or answered outside its documented envelope, so whether the message was delivered is unknown.
     BadGateway(ApiError),
-    /// 503 — a dependency this service owns is away, and the condition is expected to clear without intervention.
     ServiceUnavailable(ApiError),
 }
 
 impl ApiErrorResponse {
-    /// The payload of whichever variant this is.
     pub(crate) fn payload(&self) -> &ApiError {
         match self {
             Self::BadRequest(error)
@@ -77,7 +58,6 @@ impl ApiErrorResponse {
         }
     }
 
-    /// The error category reported to the client.
     fn error_type(&self) -> &'static str {
         match self {
             Self::BadRequest(_) | Self::Unauthorized(_) | Self::NotFound(_) => {
@@ -90,15 +70,11 @@ impl ApiErrorResponse {
     }
 }
 
-/// The serialized body, nested under `error` by [`ApiErrorResponse`]'s `Display` impl.
 #[derive(Debug, Serialize)]
 pub struct ErrorResponse {
-    /// The error category.
     #[serde(rename = "type")]
     pub error_type: &'static str,
-    /// The human-readable description.
     pub message: String,
-    /// The stable code, e.g.
     pub code: String,
 }
 
@@ -139,7 +115,6 @@ mod tests {
         assert_eq!(body["error"]["type"], "invalid_request");
     }
 
-    /// A notifier that could not reach the provider is our problem; a request we cannot parse is the caller's.
     #[test]
     fn categories_follow_who_the_error_belongs_to() {
         assert_eq!(

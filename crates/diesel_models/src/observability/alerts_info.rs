@@ -73,7 +73,6 @@ pub struct Thresholds(pub Vec<ThresholdEntry>);
 
 common_utils::impl_to_sql_from_sql_json!(Thresholds, diesel::sql_types::Json);
 
-// Serialize/Deserialize satisfy `DejaQueryResult`, which the query helpers require under `deja`.
 #[derive(Clone, Debug, PartialEq, Identifiable, Queryable, Selectable, Deserialize, Serialize)]
 #[diesel(table_name = alerts_info, primary_key(id), check_for_backend(diesel::pg::Pg))]
 pub struct AlertsInfo {
@@ -129,7 +128,6 @@ pub struct AlertsInfoNew {
     pub last_updated_at: PrimitiveDateTime,
 }
 
-// `Option<Option<T>>`:
 #[derive(Clone, Debug, PartialEq, AsChangeset)]
 #[diesel(table_name = alerts_info)]
 pub struct AlertsInfoUpdate {

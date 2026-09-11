@@ -1,5 +1,3 @@
-//! Handlers for the alert configuration routes.
-
 use actix_web::{web, HttpRequest, HttpResponse};
 
 use crate::{
@@ -14,7 +12,6 @@ use crate::{
     state::AppState,
 };
 
-/// `GET /alerts/config/definitions`.
 pub async fn list_definitions(state: web::Data<AppState>, request: HttpRequest) -> HttpResponse {
     services::server_wrap(
         state.get_ref().clone(),
@@ -26,7 +23,6 @@ pub async fn list_definitions(state: web::Data<AppState>, request: HttpRequest) 
     .await
 }
 
-/// `POST /alerts/config/definitions`.
 pub async fn create_definition(
     state: web::Data<AppState>,
     request: HttpRequest,
@@ -42,7 +38,6 @@ pub async fn create_definition(
     .await
 }
 
-/// `GET /alerts/config/definitions/{id}`.
 pub async fn read_definition(
     state: web::Data<AppState>,
     request: HttpRequest,
@@ -60,7 +55,6 @@ pub async fn read_definition(
     .await
 }
 
-/// `POST /alerts/config/definitions/{id}`.
 pub async fn update_definition(
     state: web::Data<AppState>,
     request: HttpRequest,
@@ -79,7 +73,6 @@ pub async fn update_definition(
     .await
 }
 
-/// `GET /alerts/config/enablement`.
 pub async fn list_enablements(state: web::Data<AppState>, request: HttpRequest) -> HttpResponse {
     services::server_wrap(
         state.get_ref().clone(),
@@ -91,7 +84,6 @@ pub async fn list_enablements(state: web::Data<AppState>, request: HttpRequest) 
     .await
 }
 
-/// `GET /alerts/config/enablement/{name}/{product}`.
 pub async fn read_enablement(
     state: web::Data<AppState>,
     request: HttpRequest,
@@ -109,7 +101,6 @@ pub async fn read_enablement(
     .await
 }
 
-/// `POST /alerts/config/enablement/{name}/{product}`.
 pub async fn upsert_enablement(
     state: web::Data<AppState>,
     request: HttpRequest,

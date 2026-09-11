@@ -1,5 +1,3 @@
-//! The one place the wire error becomes an HTTP response.
-
 use actix_web::http::header;
 use reqwest::StatusCode;
 

@@ -8,7 +8,6 @@ pub fn effective_is_enabled(definition_is_enabled: bool, config_is_enabled: Opti
     definition_is_enabled && config_is_enabled.unwrap_or(true)
 }
 
-// Serialize/Deserialize satisfy `DejaQueryResult`, which the query helpers require under `deja`.
 #[derive(Clone, Debug, PartialEq, Identifiable, Queryable, Selectable, Deserialize, Serialize)]
 #[diesel(
     table_name = merchants_alert_external_config,

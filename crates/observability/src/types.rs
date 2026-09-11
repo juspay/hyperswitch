@@ -1,5 +1,3 @@
-//! The wire contract:
-
 use actix_multipart::form::{bytes::Bytes, text::Text, MultipartForm};
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -10,19 +8,15 @@ use crate::domain::notifier::{
     Outcome, Refusal,
 };
 
-/// The body of `POST /alerts/chat/notify/{destination}`.
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ChatNotifyRequest {
-    /// The message, in the markup the destination reads.
     pub text: Secret<String>,
 
-    /// Post this as a reply in the thread of an earlier message, identified by the `message_id` that message's response returned.
     #[serde(default)]
     pub reply_to: Option<String>,
 }
 
-/// Multipart fields accepted by `POST /alerts/chat/upload/{destination}`.
 #[derive(Debug, MultipartForm)]
 #[multipart(deny_unknown_fields, duplicate_field = "deny")]
 pub struct ChatUploadForm {
@@ -33,7 +27,6 @@ pub struct ChatUploadForm {
     pub reply_to: Option<Text<String>>,
 }
 
-/// Parsed multipart body passed through the authenticated request wrapper.
 #[derive(Debug)]
 pub struct ChatUploadRequest {
     pub bytes: Secret<Vec<u8>>,
@@ -43,47 +36,35 @@ pub struct ChatUploadRequest {
     pub reply_to: Option<String>,
 }
 
-/// The body of `POST /alerts/email/notify/{destination}`.
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct EmailNotifyRequest {
-    /// The subject line, delivered unchanged.
     pub subject: Secret<String>,
 
-    /// The body, as HTML.
     pub body: Secret<String>,
 }
 
-/// Whether the message arrived.
 #[derive(Debug, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum NotifyStatus {
-    /// The provider accepted the message.
     Delivered,
-    /// The provider was reached and refused it.
     Refused,
 }
 
-/// What `/alerts/chat/notify/{destination}` returns.
 #[derive(Debug, Serialize)]
 pub struct ChatNotifyResponse {
-    /// Whether the message arrived.
     pub status: NotifyStatus,
 
-    /// The provider's id for the message, when it named one.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub message_id: Option<String>,
 
-    /// Why the provider refused, as a stable snake_case code — `msg_too_long`, `channel_not_found`, `rate_limited`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error_code: Option<String>,
 
-    /// How long the provider asked us to wait, when it said.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub retry_after_seconds: Option<u64>,
 }
 
-/// What `/alerts/chat/upload/{destination}` returns.
 #[derive(Debug, Serialize)]
 pub struct ChatUploadResponse {
     pub status: NotifyStatus,
@@ -95,17 +76,13 @@ pub struct ChatUploadResponse {
     pub retry_after_seconds: Option<u64>,
 }
 
-/// What `/alerts/email/notify/{destination}` returns.
 #[derive(Debug, Serialize)]
 pub struct EmailNotifyResponse {
-    /// Whether the mail was sent.
     pub status: NotifyStatus,
 
-    /// Why the provider refused, as a stable snake_case code.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error_code: Option<String>,
 
-    /// How long the provider asked us to wait, when it said.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub retry_after_seconds: Option<u64>,
 }
@@ -207,7 +184,6 @@ mod tests {
         assert!(body.get("message_id").is_none());
     }
 
-    /// The alert went out; only the ability to thread under it was lost.
     #[test]
     fn a_delivery_without_an_id_is_still_a_delivery() {
         let body = body_of(&ChatNotifyResponse::from(Outcome::Delivered(ChatReceipt {
@@ -230,7 +206,6 @@ mod tests {
         assert!(body.get("message_id").is_none());
     }
 
-    /// `status` is what stops a caller reading `200` and assuming delivery, so it is never skipped.
     #[test]
     fn status_is_always_present() {
         for outcome in [
@@ -251,7 +226,6 @@ mod tests {
         assert_eq!(request.reply_to.as_deref(), Some("cmtk931s1"));
     }
 
-    /// Threading against a mailing list is a caller bug.
     #[test]
     fn email_request_rejects_reply_to() {
         let error = serde_json::from_value::<EmailNotifyRequest>(serde_json::json!({
@@ -264,7 +238,6 @@ mod tests {
         assert!(error.to_string().contains("reply_to"));
     }
 
-    /// The property is now the type's, not a hand-written `Debug`'s:
     #[test]
     fn debug_never_prints_the_message() {
         let chat = ChatNotifyRequest {

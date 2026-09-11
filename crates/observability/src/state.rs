@@ -81,7 +81,6 @@ impl AppState {
         }
     }
 
-    /// Lease a connection from the pool, ready for the query helpers in `diesel_models`.
     pub async fn database_connection(
         &self,
     ) -> error_stack::Result<DatabaseConnectionWithContext<'_>, ObservabilityError> {

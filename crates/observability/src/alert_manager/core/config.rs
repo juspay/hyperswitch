@@ -1,5 +1,3 @@
-//! Per-request logic for the alert configuration resources:
-
 use diesel_models::{
     errors::DatabaseError,
     observability::{
@@ -18,7 +16,6 @@ use crate::{
     state::AppState,
 };
 
-/// Escalate a storage failure, keeping the report and everything attached to it.
 fn escalate(
     error: error_stack::Report<DatabaseError>,
     recognise: impl FnOnce(DatabaseError) -> Option<ObservabilityError>,
@@ -29,12 +26,10 @@ fn escalate(
     error.change_context(context)
 }
 
-/// No condition this route can describe better than "the database did not answer".
 fn unrecognised(_: DatabaseError) -> Option<ObservabilityError> {
     None
 }
 
-/// Create a definition.
 pub async fn create_definition(
     state: AppState,
     request: AlertDefinitionCreateRequest,
@@ -56,7 +51,6 @@ pub async fn create_definition(
         .map(AlertDefinitionResponse::from)
 }
 
-/// Read one definition by id.
 pub async fn read_definition(
     state: AppState,
     id: uuid::Uuid,
@@ -69,7 +63,6 @@ pub async fn read_definition(
         .map(AlertDefinitionResponse::from)
 }
 
-/// Every definition, including the reserved `all` row.
 pub async fn list_definitions(
     state: AppState,
 ) -> ObservabilityApiResult<AlertDefinitionListResponse> {
@@ -81,7 +74,6 @@ pub async fn list_definitions(
         .map(|definitions| definitions.into_iter().collect())
 }
 
-/// Apply a partial change to a definition.
 pub async fn update_definition(
     state: AppState,
     id: uuid::Uuid,
@@ -99,7 +91,6 @@ pub async fn update_definition(
     .map(AlertDefinitionResponse::from)
 }
 
-/// Recognise "no definition with this id", which only a route that knows the id can name.
 fn definition_not_found(
     id: uuid::Uuid,
 ) -> impl FnOnce(DatabaseError) -> Option<ObservabilityError> {
@@ -109,7 +100,6 @@ fn definition_not_found(
     }
 }
 
-/// Write the enablement row for a name and product.
 pub async fn upsert_enablement(
     state: AppState,
     name: String,
@@ -135,7 +125,6 @@ pub async fn upsert_enablement(
         .map(|row| AlertEnablementResponse::new(row, Some(definition_is_enabled)))
 }
 
-/// Read the enablement row for a name and product.
 pub async fn read_enablement(
     state: AppState,
     name: String,
@@ -164,7 +153,6 @@ pub async fn read_enablement(
     Ok(AlertEnablementResponse::new(row, definition_is_enabled))
 }
 
-/// Every enablement row, each resolved against its definition.
 pub async fn list_enablements(
     state: AppState,
 ) -> ObservabilityApiResult<AlertEnablementListResponse> {
@@ -202,7 +190,6 @@ pub async fn list_enablements(
     })
 }
 
-/// The definition for a name and product, if there is one.
 async fn find_definition_for(
     connection: &diesel_models::DatabaseConnectionWithContext<'_>,
     name: &str,

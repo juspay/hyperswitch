@@ -1,5 +1,3 @@
-//! Errors, in three layers, mirroring the router's split by lifetime and audience.
-
 pub mod actix;
 pub mod types;
 
@@ -8,18 +6,14 @@ use thiserror::Error;
 
 use crate::errors::types::{ApiError, ApiErrorResponse};
 
-/// Errors raised while the application is starting up.
 #[derive(Debug, Error)]
 pub enum ConfigurationError {
-    /// A configuration value was present but unusable.
     #[error("Error in parsing config: {0}")]
     ConfigParsingError(String),
 
-    /// The configuration file could not be read or deserialized.
     #[error("Application configuration error: {0}")]
     ConfigurationError(config::ConfigError),
 
-    /// Binding the listener failed, or another I/O error occurred during startup.
     #[error("I/O: {0}")]
     IoError(std::io::Error),
 }
@@ -36,78 +30,41 @@ impl From<config::ConfigError> for ConfigurationError {
     }
 }
 
-/// The result type for anything that runs during startup.
 pub type ObservabilityResult<T> = error_stack::Result<T, ConfigurationError>;
 
-/// Errors raised while handling a request.
 #[derive(Debug, Error)]
 pub enum ObservabilityError {
-    /// Something failed that the client can do nothing about.
     #[error("Internal server error")]
     InternalServerError,
 
-    /// The internal API key was missing, malformed, or did not match.
     #[error("Authentication failed")]
     Unauthorized,
 
-    /// The request body was structurally valid but contained unusable values.
     #[error("The request body is invalid")]
     InvalidRequest,
 
-    /// The observability database could not be reached, or a query against it failed.
     #[error("The observability database is unavailable")]
     StorageUnavailable,
 
-    /// No alert definition exists with the requested id.
     #[error("No alert definition exists with id `{id}`")]
-    DefinitionNotFound {
-        /// The id the request asked for.
-        id: String,
-    },
+    DefinitionNotFound { id: String },
 
-    /// A definition already exists for this name and product.
     #[error("An alert definition already exists for `{name}` / `{product}`")]
-    DuplicateDefinition {
-        /// The name that collided.
-        name: String,
-        /// The product it collided within.
-        product: String,
-    },
+    DuplicateDefinition { name: String, product: String },
 
-    /// No enablement row exists for this name and product.
     #[error("No alert enablement exists for `{name}` / `{product}`")]
-    EnablementNotFound {
-        /// The name the request asked for.
-        name: String,
-        /// The product the request asked for.
-        product: String,
-    },
+    EnablementNotFound { name: String, product: String },
 
-    /// The name and product do not identify an alert that can be switched on or off.
     #[error("No alert is defined as `{name}` / `{product}`")]
-    NotAnAlert {
-        /// The name the request asked for.
-        name: String,
-        /// The product the request asked for.
-        product: String,
-    },
+    NotAnAlert { name: String, product: String },
 
-    /// The path named a destination that is not configured.
     #[error("No destination is configured under `{destination}`")]
-    UnknownDestination {
-        /// The id the request asked for.
-        destination: String,
-    },
+    UnknownDestination { destination: String },
 
-    /// The provider could not be reached, or answered outside its documented envelope.
     #[error("The destination `{destination}` could not be reached")]
-    ProviderUnavailable {
-        /// The destination that could not be reached.
-        destination: String,
-    },
+    ProviderUnavailable { destination: String },
 }
 
-/// The result type for request handling.
 pub type ObservabilityApiResult<T> = error_stack::Result<T, ObservabilityError>;
 
 impl ErrorSwitch<ApiErrorResponse> for ObservabilityError {
@@ -118,7 +75,6 @@ impl ErrorSwitch<ApiErrorResponse> for ObservabilityError {
                 0,
                 "Something went wrong",
             )),
-            // Deliberately vague.
             Self::Unauthorized => ApiErrorResponse::Unauthorized(ApiError::new(
                 "IR",
                 1,
@@ -129,21 +85,17 @@ impl ErrorSwitch<ApiErrorResponse> for ObservabilityError {
                 4,
                 "The request body could not be parsed",
             )),
-            // The id is already in the path the caller sent, so there is nothing to echo back, and the configured ids are deliberately not listed.
             Self::UnknownDestination { .. } => {
                 ApiErrorResponse::NotFound(ApiError::new("IR", 2, "Unknown destination"))
             }
-            // 503 rather than 500:
             Self::StorageUnavailable => ApiErrorResponse::ServiceUnavailable(ApiError::new(
                 "HE",
                 1,
                 "The observability database is unavailable",
             )),
-            // The id is already in the path the caller sent, so there is nothing to echo back.
             Self::DefinitionNotFound { .. } => {
                 ApiErrorResponse::NotFound(ApiError::new("IR", 3, "Unknown alert definition"))
             }
-            // A name identifies a definition to the alert manager and to the enablement table, so a second one under the same name is refused rather than silently shadowing the first.
             Self::DuplicateDefinition { .. } => ApiErrorResponse::BadRequest(ApiError::new(
                 "IR",
                 5,
@@ -152,13 +104,11 @@ impl ErrorSwitch<ApiErrorResponse> for ObservabilityError {
             Self::EnablementNotFound { .. } => {
                 ApiErrorResponse::NotFound(ApiError::new("IR", 6, "Unknown alert enablement"))
             }
-            // 400 rather than 404:
             Self::NotAnAlert { .. } => ApiErrorResponse::BadRequest(ApiError::new(
                 "IR",
                 7,
                 "No alert is defined for this name and product",
             )),
-            // 502 rather than 500:
             Self::ProviderUnavailable { .. } => ApiErrorResponse::BadGateway(ApiError::new(
                 "HE",
                 3,
@@ -181,7 +131,6 @@ mod tests {
             .as_u16()
     }
 
-    /// The rule this service is built on:
     #[test]
     fn only_our_own_failures_are_5xx() {
         assert_eq!(
@@ -193,7 +142,6 @@ mod tests {
         assert_eq!(status_of(&ObservabilityError::InternalServerError), 500);
     }
 
-    /// A database that is away is not this service being broken, and must not be alerted on as if it were.
     #[test]
     fn an_unreachable_database_is_503_and_not_500() {
         assert_eq!(status_of(&ObservabilityError::StorageUnavailable), 503);
@@ -231,7 +179,6 @@ mod tests {
         );
     }
 
-    /// Every condition a caller can provoke has to be told apart from every other one by the code alone, because the messages are free to be reworded and the codes are not.
     #[test]
     fn no_two_conditions_share_a_code() {
         let codes = [
@@ -273,7 +220,6 @@ mod tests {
         assert_eq!(codes.len(), 10);
     }
 
-    /// The names a caller guessed are theirs already; the ones that exist are not.
     #[test]
     fn a_missing_definition_does_not_echo_the_key_back() {
         let body = ErrorSwitch::<ApiErrorResponse>::switch(&ObservabilityError::NotAnAlert {
@@ -286,7 +232,6 @@ mod tests {
         assert!(!body.contains("typo"));
     }
 
-    /// A caller that guessed an id should not be handed the registry.
     #[test]
     fn an_unknown_destination_does_not_leak_the_configured_ids() {
         let body =

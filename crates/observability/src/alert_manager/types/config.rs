@@ -1,5 +1,3 @@
-//! The wire contract for the alert configuration resources.
-
 use diesel_models::observability::{
     alerts_info::{
         AlertsInfo, AlertsInfoNew, AlertsInfoUpdate, Blacklist, BlacklistEntry, Snooze,
@@ -12,7 +10,6 @@ use diesel_models::observability::{
 use serde::{Deserialize, Deserializer, Serialize};
 use time::PrimitiveDateTime;
 
-/// Tell "the caller did not mention this field" apart from "the caller set it to null".
 fn double_option<'de, T, D>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
 where
     T: Deserialize<'de>,
@@ -21,73 +18,55 @@ where
     Deserialize::deserialize(deserializer).map(Some)
 }
 
-/// The body of `POST /alerts/config/definitions`.
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct AlertDefinitionCreateRequest {
-    /// The detector this configures.
     pub name: String,
 
-    /// The family the alert belongs to.
     pub product: String,
 
-    /// Whether the alert fires.
     pub is_enabled: bool,
 
-    /// Who is creating this definition.
     pub author: String,
 
-    /// Who signed it off, when someone has.
     #[serde(default)]
     pub approver: Option<String>,
 
-    /// The dimensions the detector groups by.
     #[serde(default)]
     pub dimensions: Option<String>,
 
-    /// How long a window the detector evaluates, in minutes.
     #[serde(default)]
     pub period: Option<i32>,
 
-    /// Where announcements go when nothing overrides it.
     #[serde(default)]
     pub default_channel: Option<String>,
 
-    /// Whether announcements are critical when nothing overrides it.
     #[serde(default)]
     pub default_critical: Option<bool>,
 
-    /// Suppression rules:
     #[serde(default)]
     pub blacklist: Option<Vec<BlacklistEntry>>,
 
-    /// Snooze windows:
     #[serde(default)]
     pub snooze: Option<Vec<SnoozeEntry>>,
 
-    /// How much history the detector compares against, in days.
     #[serde(default)]
     pub history_window: Option<i32>,
 
-    /// Per-merchant and per-profile overrides of the detector's gates.
     #[serde(default)]
     pub thresholds: Option<Vec<ThresholdEntry>>,
 
-    /// Anything the dashboard wants to keep alongside the definition.
     #[serde(default)]
     pub metadata: Option<serde_json::Value>,
 
-    /// Operator notes.
     #[serde(default)]
     pub comments: Option<serde_json::Value>,
 
-    /// How often the detector runs, in minutes.
     #[serde(default)]
     pub call_period: Option<i32>,
 }
 
 impl AlertDefinitionCreateRequest {
-    /// Turn the request into the row to insert, stamped at `now`.
     pub fn into_insertable(self, now: PrimitiveDateTime) -> AlertsInfoNew {
         AlertsInfoNew {
             name: self.name,
@@ -111,15 +90,12 @@ impl AlertDefinitionCreateRequest {
     }
 }
 
-/// The body of `POST /alerts/config/definitions/{id}`.
 #[derive(Debug, Default, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct AlertDefinitionUpdateRequest {
-    /// Whether the alert fires.
     #[serde(default)]
     pub is_enabled: Option<bool>,
 
-    /// Who signed off the current state.
     #[serde(default, deserialize_with = "double_option")]
     pub approver: Option<Option<String>>,
 
@@ -158,7 +134,6 @@ pub struct AlertDefinitionUpdateRequest {
 }
 
 impl AlertDefinitionUpdateRequest {
-    /// Turn the request into the changeset to apply, stamped at `now`.
     pub fn into_changeset(self, now: PrimitiveDateTime) -> AlertsInfoUpdate {
         AlertsInfoUpdate {
             dimensions: self.dimensions,
@@ -179,7 +154,6 @@ impl AlertDefinitionUpdateRequest {
     }
 }
 
-/// One alert definition, as a caller sees it.
 #[derive(Debug, Serialize)]
 pub struct AlertDefinitionResponse {
     pub id: uuid::Uuid,
@@ -236,7 +210,6 @@ impl From<AlertsInfo> for AlertDefinitionResponse {
     }
 }
 
-/// What `GET /alerts/config/definitions` returns.
 #[derive(Debug, Serialize)]
 pub struct AlertDefinitionListResponse {
     pub count: usize,
@@ -257,24 +230,19 @@ impl FromIterator<AlertsInfo> for AlertDefinitionListResponse {
     }
 }
 
-/// The body of `POST /alerts/config/enablement/{name}/{product}`.
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct AlertEnablementUpsertRequest {
-    /// Whether this alert runs for this product.
     pub is_enabled: bool,
 
-    /// How the dashboard groups this alert.
     #[serde(default)]
     pub category: Option<String>,
 
-    /// Anything the dashboard wants to keep alongside the switch.
     #[serde(default)]
     pub metadata: Option<serde_json::Value>,
 }
 
 impl AlertEnablementUpsertRequest {
-    /// Turn the request into the row to upsert, stamped at `now`.
     pub fn into_upsertable(
         self,
         name: String,
@@ -292,7 +260,6 @@ impl AlertEnablementUpsertRequest {
     }
 }
 
-/// One enablement row, as a caller sees it.
 #[derive(Debug, Serialize)]
 pub struct AlertEnablementResponse {
     pub name: String,
@@ -306,7 +273,6 @@ pub struct AlertEnablementResponse {
 }
 
 impl AlertEnablementResponse {
-    /// Build the response, resolving the two switches against each other.
     pub fn new(row: MerchantsAlertExternalConfig, definition_is_enabled: Option<bool>) -> Self {
         Self {
             effective_is_enabled: effective_is_enabled(
@@ -323,7 +289,6 @@ impl AlertEnablementResponse {
     }
 }
 
-/// What `GET /alerts/config/enablement` returns.
 #[derive(Debug, Serialize)]
 pub struct AlertEnablementListResponse {
     pub count: usize,
@@ -343,7 +308,6 @@ mod tests {
         common_utils::date_time::now()
     }
 
-    /// The property the whole update shape exists for:
     #[test]
     fn an_absent_field_and_an_explicit_null_are_different_requests() {
         let mentioned = update_from(serde_json::json!({ "default_channel": null }));
@@ -360,7 +324,6 @@ mod tests {
         assert_eq!(update.period, Some(Some(15)));
     }
 
-    /// Diesel refuses an update with nothing to set, so the timestamp is what makes an update mentioning no field a no-op rather than an error.
     #[test]
     fn an_update_that_changes_nothing_still_moves_the_timestamp() {
         let stamp = now();
@@ -370,7 +333,6 @@ mod tests {
         assert_eq!(changeset.dimensions, None);
     }
 
-    /// Renaming a definition would orphan the enablement rows and the announcements that reference it by name, so the field is not there to be sent at all.
     #[test]
     fn an_update_cannot_rename_a_definition() {
         let error = serde_json::from_value::<AlertDefinitionUpdateRequest>(
@@ -381,7 +343,6 @@ mod tests {
         assert!(error.to_string().contains("name"));
     }
 
-    /// A definition created without saying so is off, and reads to whoever finds it as broken rather than as never switched on.
     #[test]
     fn creating_a_definition_requires_saying_whether_it_is_on() {
         let error = serde_json::from_value::<AlertDefinitionCreateRequest>(serde_json::json!({
@@ -394,7 +355,6 @@ mod tests {
         assert!(error.to_string().contains("is_enabled"));
     }
 
-    /// The internal API key says which service called, never which person, so the body is the only place an author can come from.
     #[test]
     fn creating_a_definition_requires_an_author() {
         let error = serde_json::from_value::<AlertDefinitionCreateRequest>(serde_json::json!({
@@ -407,7 +367,6 @@ mod tests {
         assert!(error.to_string().contains("author"));
     }
 
-    /// Structured rather than opaque, which is the point of typing the column:
     #[test]
     fn a_malformed_suppression_rule_is_refused_rather_than_stored() {
         let error = serde_json::from_value::<AlertDefinitionCreateRequest>(serde_json::json!({
@@ -464,7 +423,6 @@ mod tests {
         }
     }
 
-    /// A caller reads a definition in order to edit it and send it back.
     #[test]
     fn a_definition_response_names_every_field_even_when_it_is_null() {
         let body =
@@ -476,7 +434,6 @@ mod tests {
         }
     }
 
-    /// `NULL` and `false` both mean off, and a caller should not have to know the column is nullable to work that out.
     #[test]
     fn a_definition_response_resolves_nulls_that_have_only_one_meaning() {
         let body = serde_json::to_value(AlertDefinitionResponse::from(definition(None))).unwrap();
@@ -522,7 +479,6 @@ mod tests {
         }
     }
 
-    /// Reporting only the stored switch would leave a caller unable to tell "on" from "on, but the definition is off" — which is the confusion this resource was ticketed to end.
     #[test]
     fn an_enablement_response_reports_both_switches() {
         let body = serde_json::to_value(AlertEnablementResponse::new(
@@ -535,7 +491,6 @@ mod tests {
         assert_eq!(body["effective_is_enabled"], false);
     }
 
-    /// An enablement row naming an alert nobody defined switches nothing on.
     #[test]
     fn an_enablement_row_without_a_definition_is_not_effective() {
         let response = AlertEnablementResponse::new(enablement(Some(true)), None);

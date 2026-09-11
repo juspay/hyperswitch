@@ -1,30 +1,3 @@
-//! The alert configuration routes, exercised through actix as a caller would reach them.
-//!
-//! These go through the real route tree rather than calling handlers directly, for the same reason
-//! `tests/notify.rs` does: most of what these tickets decided lives *between* the handler and the
-//! caller — the guard, the path extractors, the body extractor's rejection shape, and which
-//! failures are which status code.
-//!
-//! ## Two kinds of test here
-//!
-//! The tests below the divider need a database. They are skipped, loudly, when one is not
-//! reachable — CI has no Postgres for this crate, and a suite that fails there would be turned off
-//! rather than fixed. Point them at a database with:
-//!
-//! ```text
-//! OBSERVABILITY_TEST_DATABASE_URL=postgres://db_user:db_pass@127.0.0.1:5432/observability \
-//!     cargo test -p observability --test config
-//! ```
-//!
-//! The tests above it need none, and that is not a compromise: the guard, the malformed body and
-//! the unreachable-database answer are all properties of the route tree, and the last of the three
-//! is *only* observable with a pool that cannot connect.
-//!
-//! Rows are named with a per-test unique suffix, so a rerun does not collide with the last run and
-//! two tests running in parallel do not see each other's definitions.
-
-// `print_stderr`: a skipped test has to say so somewhere a developer will see it, and a test
-// harness has no logger.
 #![allow(
     clippy::unwrap_used,
     clippy::expect_used,
@@ -58,8 +31,6 @@ use serde_json::{json, Value};
 const API_KEY: &str = "test_internal_key";
 const PRODUCT: &str = "payments";
 
-/// A pool pointing at an address nothing answers on, for the routes that must say the store is
-/// away rather than say it is empty.
 fn unreachable() -> Value {
     json!({
         "host": "127.0.0.1",
@@ -108,14 +79,6 @@ fn post(uri: &str, body: Value) -> TestRequest {
         .set_json(body)
 }
 
-// ---------------------------------------------------------------------------
-// Properties of the route tree, which need no database
-// ---------------------------------------------------------------------------
-
-/// Every body here parses. That is deliberate: actix runs the body extractor before the handler
-/// and the guard runs inside it, so an unparseable body is answered `400` without the key being
-/// checked — a known ordering `tests/notify.rs` records. Sending a valid body is what makes the
-/// guard, rather than the extractor, the thing being tested.
 #[actix_web::test]
 async fn every_config_route_is_behind_the_guard() {
     const ID: &str = "/alerts/config/definitions/0189d0a0-0000-7000-8000-000000000000";
@@ -150,9 +113,6 @@ async fn every_config_route_is_behind_the_guard() {
     }
 }
 
-/// The property both tickets turn on. "Nothing is configured" and "the configuration store is
-/// away" are the same sentence to a caller that only reads the status, and the alert manager's
-/// outage rule reads an empty list as all-clear.
 #[actix_web::test]
 async fn an_unreachable_database_is_a_503_and_never_an_empty_list() {
     for uri in ["/alerts/config/definitions", "/alerts/config/enablement"] {
@@ -164,8 +124,6 @@ async fn an_unreachable_database_is_a_503_and_never_an_empty_list() {
     }
 }
 
-/// The host, the database and the role are all in a connection error, and this port is reachable
-/// by anything that can reach the service.
 #[actix_web::test]
 async fn an_unreachable_database_does_not_describe_itself_to_the_caller() {
     let (_, body) = call_with_state(
@@ -179,8 +137,6 @@ async fn an_unreachable_database_does_not_describe_itself_to_the_caller() {
     assert!(!rendered.contains("127.0.0.1"));
 }
 
-/// A malformed body renders in the crate's envelope rather than actix's own plain-text 400, and it
-/// is rejected before a connection is ever leased.
 #[actix_web::test]
 async fn a_definition_missing_a_required_field_is_a_400_in_our_shape() {
     let (status, body) = call_with_state(
@@ -197,8 +153,6 @@ async fn a_definition_missing_a_required_field_is_a_400_in_our_shape() {
     assert_eq!(body["error"]["type"], "invalid_request");
 }
 
-/// A path that is not a uuid must not reach the query layer as a string that happens to parse
-/// later, or "no such definition" and "that is not an id" would be the same answer.
 #[actix_web::test]
 async fn a_definition_id_that_is_not_a_uuid_does_not_route() {
     let (status, _) = call_with_state(
@@ -210,14 +164,6 @@ async fn a_definition_id_that_is_not_a_uuid_does_not_route() {
     assert_eq!(status, StatusCode::NOT_FOUND);
 }
 
-// ---------------------------------------------------------------------------
-// End to end against a real database
-// ---------------------------------------------------------------------------
-
-/// The database these tests use, or `None` when there is not one.
-///
-/// Defaults match `config/observability.toml`, so a developer who has run `just
-/// migrate_observability` needs no environment variable.
 async fn database_state() -> Option<AppState> {
     let url = std::env::var("OBSERVABILITY_TEST_DATABASE_URL")
         .unwrap_or_else(|_| "postgres://db_user:db_pass@127.0.0.1:5432/observability".to_owned());
@@ -235,8 +181,6 @@ async fn database_state() -> Option<AppState> {
         "connection_timeout": 2
     }));
 
-    // The lease is dropped inside `map` so that nothing borrowed from the pool outlives this
-    // statement — `state` is moved out of the function on the next line.
     let probe = state
         .database
         .get()
@@ -256,7 +200,6 @@ async fn database_state() -> Option<AppState> {
     }
 }
 
-/// A name no other test or earlier run will have used.
 fn unique_name(prefix: &str) -> String {
     static COUNTER: AtomicU64 = AtomicU64::new(0);
 
@@ -267,7 +210,6 @@ fn unique_name(prefix: &str) -> String {
     )
 }
 
-/// Remove what a test wrote. There is no delete route by design, so this reaches past the API.
 async fn forget(state: &AppState, name: &str) {
     let connection = state.database_connection().await.expect("a connection");
 
@@ -282,8 +224,6 @@ async fn forget(state: &AppState, name: &str) {
     }
 }
 
-/// A definition with every field of every entry spelled out, so that a round trip through the
-/// database is an equality rather than an approximation.
 fn definition_body(name: &str, is_enabled: bool) -> Value {
     json!({
         "name": name,
@@ -372,8 +312,6 @@ async fn a_definition_can_be_created_read_and_listed() {
     forget(&state, &name).await;
 }
 
-/// The structured columns are the point of the resource: what the alert manager reads back has to
-/// be what the dashboard meant, entry for entry and value for value.
 #[actix_web::test]
 async fn the_json_columns_survive_a_round_trip_through_the_database() {
     with_database!(state);
@@ -393,11 +331,6 @@ async fn the_json_columns_survive_a_round_trip_through_the_database() {
     forget(&state, &name).await;
 }
 
-/// The cost of typing the columns, recorded rather than discovered. A partial entry comes back
-/// filled in — `profile_id` as the empty string that means "every profile", `created_by` as an
-/// explicit null — because the value has been through `serde_json` in both directions. That is the
-/// trade the ticket flagged: the bytes are not preserved, and in exchange a shape the alert manager
-/// cannot read is refused at the edge rather than stored and silently ignored.
 #[actix_web::test]
 async fn an_entry_written_without_its_optional_fields_comes_back_with_their_defaults() {
     with_database!(state);
@@ -431,8 +364,6 @@ async fn an_entry_written_without_its_optional_fields_comes_back_with_their_defa
     forget(&state, &name).await;
 }
 
-/// The whole reason an update is partial: the suppression screen and the threshold screen edit the
-/// same row, and neither may discard what the other just saved.
 #[actix_web::test]
 async fn an_update_leaves_the_columns_it_did_not_mention_alone() {
     with_database!(state);
@@ -464,8 +395,6 @@ async fn an_update_leaves_the_columns_it_did_not_mention_alone() {
     forget(&state, &name).await;
 }
 
-/// An explicit null is a different request from an absent field, and only a write proves the
-/// distinction survives all the way into the column.
 #[actix_web::test]
 async fn an_explicit_null_clears_a_column_that_an_absent_field_would_have_kept() {
     with_database!(state);
@@ -499,7 +428,6 @@ async fn an_explicit_null_clears_a_column_that_an_absent_field_would_have_kept()
     forget(&state, &name).await;
 }
 
-/// `is_enabled` is how an alert is turned off, which is only true if it can be turned back on.
 #[actix_web::test]
 async fn an_alert_is_turned_off_and_on_again_through_is_enabled() {
     with_database!(state);
@@ -529,8 +457,6 @@ async fn an_alert_is_turned_off_and_on_again_through_is_enabled() {
     forget(&state, &name).await;
 }
 
-/// A name resolving to two rows would make the alert manager's lookup and the enablement table's
-/// reference both "pick one".
 #[actix_web::test]
 async fn a_second_definition_with_the_same_name_and_product_is_refused() {
     with_database!(state);
@@ -554,8 +480,6 @@ async fn a_second_definition_with_the_same_name_and_product_is_refused() {
     forget(&state, &name).await;
 }
 
-/// The reserved row is a definition like any other: it is created, listed and edited through the
-/// same routes, because the suppression it carries has to be manageable.
 #[actix_web::test]
 async fn the_reserved_all_definition_carries_suppression_for_every_detector() {
     with_database!(state);
@@ -603,8 +527,6 @@ async fn an_unknown_definition_id_is_a_404() {
     assert_eq!(body["error"]["code"], "IR_03");
 }
 
-/// The edge case the composite key exists for: the second call must be an update, not a second row
-/// disagreeing with the first about whether the alert is on.
 #[actix_web::test]
 async fn a_repeated_enablement_upsert_updates_rather_than_duplicating() {
     with_database!(state);
@@ -650,8 +572,6 @@ async fn a_repeated_enablement_upsert_updates_rather_than_duplicating() {
     forget(&state, &name).await;
 }
 
-/// The decision this ticket asked to be written down, proved rather than described: the definition
-/// is the master switch, and the enablement row can only narrow it.
 #[actix_web::test]
 async fn the_definition_switch_wins_over_the_enablement_switch() {
     with_database!(state);
@@ -665,13 +585,11 @@ async fn the_definition_switch_wins_over_the_enablement_switch() {
     let id = created["id"].as_str().unwrap().to_owned();
     let uri = format!("/alerts/config/enablement/{name}/{PRODUCT}");
 
-    // The narrower switch is on and the definition is off: the alert does not run.
     let (_, enabled) =
         call_with_state(post(&uri, json!({ "is_enabled": true })), state.clone()).await;
     assert_eq!(enabled["is_enabled"], true);
     assert_eq!(enabled["effective_is_enabled"], false);
 
-    // Turning the definition on is what makes it run.
     call_with_state(
         post(
             &format!("/alerts/config/definitions/{id}"),
@@ -683,7 +601,6 @@ async fn the_definition_switch_wins_over_the_enablement_switch() {
     let (_, read) = call_with_state(get(&uri), state.clone()).await;
     assert_eq!(read["effective_is_enabled"], true);
 
-    // And the narrower switch can still turn it off again.
     let (_, narrowed) =
         call_with_state(post(&uri, json!({ "is_enabled": false })), state.clone()).await;
     assert_eq!(narrowed["effective_is_enabled"], false);
@@ -691,9 +608,6 @@ async fn the_definition_switch_wins_over_the_enablement_switch() {
     forget(&state, &name).await;
 }
 
-/// r-apps enforces this with a database trigger this schema does not have. Without the check, a
-/// switch can be wired to an alert nobody defined and looks on the screen exactly like one that
-/// works.
 #[actix_web::test]
 async fn an_enablement_row_cannot_name_an_alert_that_does_not_exist() {
     with_database!(state);
@@ -713,8 +627,6 @@ async fn an_enablement_row_cannot_name_an_alert_that_does_not_exist() {
     assert!(!body.to_string().contains(&name));
 }
 
-/// The reserved row carries suppression for every detector and is not a detector, so there is
-/// nothing for a switch on it to turn on or off.
 #[actix_web::test]
 async fn the_reserved_all_definition_has_no_enablement_of_its_own() {
     with_database!(state);
@@ -769,8 +681,6 @@ async fn an_unknown_enablement_key_is_a_404() {
     assert_eq!(body["error"]["code"], "IR_06");
 }
 
-/// The other half of the outage rule: a database that answers with nothing must be a `200` with a
-/// count of zero, or every empty list would look like an incident.
 #[actix_web::test]
 async fn an_empty_result_is_a_200_with_a_count() {
     with_database!(state);
