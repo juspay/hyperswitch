@@ -75,18 +75,18 @@ pub async fn upsert_mapper(
     request: MapperUpsertRequest,
     user: UserName,
 ) -> ObservabilityApiResult<MapperSaveResponse> {
-    let name = validated(&request.name, "name", NAME_MAX_BYTES)?;
-    let key = validated(&request.key, "key", KEY_MAX_BYTES)?;
+    let name = trimmed_within(&request.name, "name", NAME_MAX_BYTES)?;
+    let key = trimmed_within(&request.key, "key", KEY_MAX_BYTES)?;
     let username = user.to_option();
 
     if let Some(username) = username.as_deref() {
-        validated(username, "user name", USERNAME_MAX_BYTES)?;
+        trimmed_within(username, "user name", USERNAME_MAX_BYTES)?;
     }
 
     let product = request.product.map(RawJson::from);
     let values = request.values.map(RawJson::from);
     let metadata = request.metadata.map(RawJson::from);
-    within_cap(
+    within_entry_cap(
         state.conf.mappers.max_entry_bytes,
         [product.as_ref(), values.as_ref(), metadata.as_ref()],
     )?;
@@ -137,7 +137,11 @@ pub async fn retire_mapper(
     })
 }
 
-fn validated(value: &str, field: &'static str, max_bytes: usize) -> ObservabilityApiResult<String> {
+fn trimmed_within(
+    value: &str,
+    field: &'static str,
+    max_bytes: usize,
+) -> ObservabilityApiResult<String> {
     let value = value.trim();
 
     if value.is_empty() {
@@ -157,7 +161,7 @@ fn validated(value: &str, field: &'static str, max_bytes: usize) -> Observabilit
     Ok(value.to_owned())
 }
 
-fn within_cap(limit: usize, columns: [Option<&RawJson>; 3]) -> ObservabilityApiResult<()> {
+fn within_entry_cap(limit: usize, columns: [Option<&RawJson>; 3]) -> ObservabilityApiResult<()> {
     let bytes = columns
         .into_iter()
         .flatten()
