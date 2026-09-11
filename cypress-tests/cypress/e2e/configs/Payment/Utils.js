@@ -554,6 +554,7 @@ export const CONNECTOR_LISTS = {
       "paypal",
       "stax",
       "stripeconnect",
+      "tesouro",
       "wellsfargo",
       "worldpayxml",
       "finix",
