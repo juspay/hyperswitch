@@ -1,7 +1,6 @@
-//! Shared application state.
-
 use std::{collections::HashMap, sync::Arc};
 
+use diesel_models::DejaPgConnection;
 use external_services::{
     chat_service::{slack::SlackClient, xyne::XyneClient},
     email::{
@@ -22,37 +21,20 @@ use crate::{
     },
     errors::ConfigurationError,
     logger, secrets_transformers,
-    settings::{ChatDestination, ChatSettings, EmailSettings, Settings},
+    settings::{ChatDestination, ChatSettings, DatabaseSettings, EmailSettings, Settings},
 };
 
-/// Everything a request handler needs, cloned per worker.
-///
-/// The registries are built once here rather than per request. A chat destination holds a
-/// validated endpoint and a connection-pool-backed client, so building it per request would move a
-/// configuration failure out of boot and into the delivery path — which is the one place a
-/// service like this must not be discovering problems.
+pub type DatabasePool = bb8::Pool<async_bb8_diesel::ConnectionManager<DejaPgConnection>>;
+
 #[derive(Clone)]
 pub struct AppState {
-    /// The resolved configuration.
     pub conf: Arc<Settings<RawSecret>>,
-    /// Chat destinations, by the id a request names.
     pub chat: Arc<Registry<dyn ChatNotifier>>,
-    /// Email destinations, by the id a request names.
     pub email: Arc<Registry<dyn EmailNotifier>>,
+    pub database: DatabasePool,
 }
 
 impl AppState {
-    /// Build the application state, resolving secrets and destinations on the way.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the secrets management client cannot be created, if a secret fails to resolve, or
-    /// if a configured destination cannot be built. All three mean the service cannot serve a
-    /// request correctly, so failing here is preferable to failing later under load.
-    ///
-    /// Having *no* destinations is not one of those cases. It is warned about and started, because
-    /// a first deployment has none until credentials exist and refusing to boot would make the
-    /// service undeployable before them.
     pub async fn new(conf: Settings<SecuredSecret>) -> Self {
         #[allow(clippy::expect_used)]
         let secret_management_client = conf
@@ -72,6 +54,10 @@ impl AppState {
             .await
             .expect("Failed to build the email destinations");
 
+        #[allow(clippy::expect_used)]
+        let database = build_database_pool(raw_conf.database.get_inner())
+            .expect("Failed to build the database connection pool");
+
         if chat.is_empty() && email.is_empty() {
             logger::warn!(
                 "No chat or email destinations are configured; every notify request will be \
@@ -89,15 +75,11 @@ impl AppState {
             conf: Arc::new(raw_conf),
             chat: Arc::new(chat),
             email: Arc::new(email),
+            database,
         }
     }
 }
 
-/// Turn configured chat destinations into the notifiers that serve them.
-///
-/// A destination that cannot be built is an error rather than a skipped entry. Dropping it would
-/// leave the service running and answering "unknown destination" to a destination that is very
-/// much configured, which is a far worse thing to debug than a failure to start.
 fn build_chat_registry(
     settings: &ChatSettings,
     proxy: &Proxy,
@@ -136,14 +118,6 @@ fn build_chat_registry(
     Ok(Registry::new(destinations))
 }
 
-/// Turn configured email destinations into the notifiers that serve them.
-///
-/// **One client, shared by every destination.** Unlike chat, where a destination *is* an endpoint
-/// with its own credential, email has one transport and many addresses. Building a client per
-/// destination would open a connection pool per recipient for no reason.
-///
-/// A transport that cannot be built is an error, matching the chat side: a destination that is
-/// configured and broken must stop the boot rather than answer every alert with a 502.
 async fn build_email_registry(
     settings: &EmailSettings,
     proxy: &Proxy,
@@ -171,21 +145,32 @@ async fn build_email_registry(
     ))
 }
 
-/// Build the email transport named in configuration.
-///
-/// Mirrors the router's `create_email_client` (`router/src/routes/app.rs:411`), which is private to
-/// that crate. Copied rather than shared because lifting it into `external_services` would mean
-/// moving `Proxy` handling with it, and the function is a three-arm match.
-///
-/// **SES is probed rather than trusted.** `AwsSes::create` builds a client to check the
-/// configuration and then throws the result away — `.map_err(|e| logger::error!(..)).ok()` — so it
-/// returns a usable-looking client even when assuming the role failed. A wrong role ARN would boot
-/// cleanly and turn every alert into a 502 forever. Calling the fallible `create_client` first
-/// makes that a startup failure instead.
-///
-/// The cost is one extra `AssumeRole` at boot, and one trade worth naming: a transient AWS outage
-/// now prevents startup. For a service whose entire job is delivery, refusing to start with a clear
-/// error beats running while silently dropping every alert.
+#[derive(Debug, Clone, Copy)]
+struct LogConnectionErrors;
+
+impl<E: std::fmt::Display> bb8::ErrorSink<E> for LogConnectionErrors {
+    fn sink(&self, error: E) {
+        logger::error!(%error, "Observability database connection failed");
+    }
+
+    fn boxed_clone(&self) -> Box<dyn bb8::ErrorSink<E>> {
+        Box::new(*self)
+    }
+}
+
+pub fn build_database_pool(
+    database: &DatabaseSettings,
+) -> Result<DatabasePool, ConfigurationError> {
+    let manager =
+        async_bb8_diesel::ConnectionManager::<DejaPgConnection>::new(database.database_url());
+
+    Ok(bb8::Pool::builder()
+        .max_size(database.pool_size)
+        .connection_timeout(std::time::Duration::from_secs(database.connection_timeout))
+        .error_sink(Box::new(LogConnectionErrors))
+        .build_unchecked(manager))
+}
+
 async fn create_email_client(
     settings: &EmailClientSettings,
     proxy: &Proxy,
@@ -205,8 +190,6 @@ async fn create_email_client(
         EmailClientConfigs::Smtp { smtp } => {
             Box::new(SmtpServer::create(settings, smtp.clone()).await)
         }
-        // The default, and the off switch: accepts and logs. A deployment runs with this until SES
-        // credentials exist, which is why there is no separate "email enabled" flag.
         EmailClientConfigs::NoEmailClient => Box::new(NoEmailClient::create().await),
     })
 }
@@ -229,8 +212,6 @@ mod tests {
         assert!(registry.get("missing").is_none());
     }
 
-    /// A destination the endpoint rejects must stop the boot, not quietly vanish from the
-    /// registry and resurface as "unknown destination" on the first alert.
     #[test]
     fn a_chat_destination_with_no_channel_fails_the_boot() {
         let config: external_services::chat_service::xyne::XyneConfig =
@@ -264,8 +245,6 @@ mod tests {
         }
     }
 
-    /// The default client is `NoEmailClient`, so this builds the whole registry — transport
-    /// included — without reaching for SES credentials.
     #[tokio::test]
     async fn email_destinations_share_one_client() {
         let registry = build_email_registry(
@@ -280,8 +259,6 @@ mod tests {
         assert!(registry.get("missing").is_none());
     }
 
-    /// No destinations means no transport is built at all, so a deployment that has not configured
-    /// email does not construct an SES client it will never use.
     #[tokio::test]
     async fn an_empty_registry_reports_itself_as_empty() {
         assert!(
@@ -297,7 +274,6 @@ mod tests {
         );
     }
 
-    /// A destination with no address would accept alerts and send them nowhere.
     #[test]
     fn a_destination_without_an_address_fails_validation() {
         let mut settings = email_settings_with(&["oncall"]);
@@ -312,8 +288,6 @@ mod tests {
         assert!(error.to_string().contains("broken"));
     }
 
-    /// Validation of the transport is skipped when nothing uses it, so a first deployment does not
-    /// need a verified SES sender before anyone has asked for an email.
     #[test]
     fn an_unused_transport_is_not_validated() {
         EmailSettings::default().validate().unwrap();

@@ -1,11 +1,3 @@
-//! The notify routes, exercised through actix as a caller would reach them.
-//!
-//! These go through the real route tree rather than calling handlers directly, because most of what
-//! this ticket decided lives *between* the handler and the caller: the guard, the path extractor,
-//! the body extractor's rejection shape, and which outcomes are a `200` versus an error.
-//!
-//! Both destinations are `log` destinations, so nothing here reaches a network.
-
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::indexing_slicing)]
 
 use std::{collections::HashMap, sync::Arc};
@@ -24,7 +16,7 @@ use observability::{
         Registry,
     },
     routes::Alerts,
-    state::AppState,
+    state::{build_database_pool, AppState},
 };
 use serde_json::{json, Value};
 
@@ -44,8 +36,6 @@ async fn state_with_max(max_upload_bytes: usize) -> AppState {
     .expect("the test configuration should deserialize");
 
     let chat: Arc<dyn ChatNotifier> = Arc::new(LogChatNotifier::new(CHAT.to_owned()));
-    // The real notifier over `NoEmailClient`, which accepts and logs. Exercises the composition
-    // path rather than a stand-in, and needs no credentials.
     let email: Arc<dyn EmailNotifier> = Arc::new(EmailServiceNotifier::new(
         EMAIL.to_owned(),
         Arc::new(Box::new(NoEmailClient::create().await)),
@@ -53,10 +43,23 @@ async fn state_with_max(max_upload_bytes: usize) -> AppState {
         None,
     ));
 
+    let database = build_database_pool(
+        &serde_json::from_value(json!({
+            "host": "127.0.0.1",
+            "port": 1,
+            "dbname": "unused",
+            "username": "unused",
+            "password": "unused"
+        }))
+        .expect("the test database configuration should deserialize"),
+    )
+    .expect("an unchecked pool should build without connecting");
+
     AppState {
         conf: Arc::new(conf),
         chat: Arc::new(Registry::new(HashMap::from([(CHAT.to_owned(), chat)]))),
         email: Arc::new(Registry::new(HashMap::from([(EMAIL.to_owned(), email)]))),
+        database,
     }
 }
 
@@ -108,7 +111,6 @@ async fn a_chat_notification_reports_delivery_and_a_message_id() {
     assert!(body.get("error_code").is_none());
 }
 
-/// The threading round trip a recovery notice needs: post, keep the id, reply under it.
 #[actix_web::test]
 async fn a_chat_notification_can_reply_under_an_earlier_message() {
     let (_, first) = call(post(
@@ -179,8 +181,6 @@ async fn an_email_notification_reports_delivery() {
     assert_eq!(body["status"], "delivered");
 }
 
-/// The load-bearing property of the response shape: a caller cannot read a `200` and assume the
-/// message arrived, because `status` is always there to be checked.
 #[actix_web::test]
 async fn every_success_carries_a_status() {
     for (uri, body) in [
@@ -199,8 +199,6 @@ async fn every_success_carries_a_status() {
     }
 }
 
-/// Threading against a mailing list is a caller bug, and `deny_unknown_fields` makes it loud rather
-/// than a field that quietly goes nowhere.
 #[actix_web::test]
 async fn threading_against_an_email_destination_is_rejected() {
     let (status, body) = call(post(
@@ -221,7 +219,6 @@ async fn an_unknown_destination_is_a_404() {
     assert_eq!(body["error"]["code"], "IR_02");
 }
 
-/// The id a caller guessed must not come back, and nor must the ones that exist.
 #[actix_web::test]
 async fn an_unknown_destination_does_not_echo_or_enumerate() {
     let (_, body) = call(post("/alerts/chat/notify/typo", json!({ "text": "x" }))).await;
@@ -231,7 +228,6 @@ async fn an_unknown_destination_does_not_echo_or_enumerate() {
     assert!(!rendered.contains(CHAT));
 }
 
-/// A malformed body must render like every other error, not as actix's own plain-text 400.
 #[actix_web::test]
 async fn a_missing_field_renders_in_our_error_shape() {
     let (status, body) = call(post(&format!("/alerts/chat/notify/{CHAT}"), json!({}))).await;
@@ -241,8 +237,6 @@ async fn a_missing_field_renders_in_our_error_shape() {
     assert_eq!(body["error"]["type"], "invalid_request");
 }
 
-/// Serde's message quotes the body, and a body carries merchant ids and payment volumes. It goes to
-/// the log; the caller gets the code.
 #[actix_web::test]
 async fn a_parse_failure_does_not_echo_the_body_back() {
     let (_, body) = call(post(
@@ -273,8 +267,6 @@ async fn both_routes_are_behind_the_guard() {
     }
 }
 
-/// The guard runs before the destination is resolved, so an unauthenticated caller cannot probe
-/// which ids exist by watching the status change.
 #[actix_web::test]
 async fn a_bad_key_is_rejected_before_the_destination_is_resolved() {
     let (known, _) = call(
@@ -297,11 +289,6 @@ async fn a_bad_key_is_rejected_before_the_destination_is_resolved() {
     assert_eq!(unknown, StatusCode::UNAUTHORIZED);
 }
 
-/// **Known and accepted:** actix runs the body extractor before the handler, and the guard runs
-/// inside the handler via `server_wrap`, so an unparseable body is answered 400 without its key
-/// being checked. Restoring "guard strictly first" means extracting raw bytes and deserializing by
-/// hand, trading typed extraction for the concealment of a documented schema. Kept as a test so the
-/// ordering is a recorded property rather than something a reviewer rediscovers.
 #[actix_web::test]
 async fn an_unparseable_body_is_rejected_before_the_key_is_checked() {
     let (status, body) = call(

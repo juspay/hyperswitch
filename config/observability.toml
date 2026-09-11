@@ -13,6 +13,18 @@ host = "127.0.0.1"
 port = 8085
 workers = 1
 
+# The observability database. Local development points at a database created by
+# `just migrate_observability`; deployed environments override these from the environment, and the
+# password is resolved through `secrets_management`.
+[database]
+host = "localhost"
+port = 5432
+dbname = "observability"
+username = "db_user"
+password = "db_pass"
+pool_size = 5
+connection_timeout = 10
+
 [log.console]
 enabled = true
 level = "DEBUG"
