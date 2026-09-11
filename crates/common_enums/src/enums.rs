@@ -584,6 +584,22 @@ pub enum FraudCheckStatus {
     TransactionFailure,
 }
 
+impl FraudCheckStatus {
+    pub fn should_stop_payment(&self, failure_mode: &PreFrmFailureMode) -> bool {
+        matches!(self, Self::Fraud)
+            || (matches!(self, Self::TransactionFailure)
+                && matches!(failure_mode, PreFrmFailureMode::FailClosed))
+    }
+}
+
+#[derive(Debug, Clone, Default, strum::Display, strum::EnumString)]
+#[strum(serialize_all = "snake_case")]
+pub enum PreFrmFailureMode {
+    #[default]
+    FailOpen,
+    FailClosed,
+}
+
 #[derive(
     Clone,
     Copy,
