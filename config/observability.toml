@@ -110,6 +110,10 @@ aws_region = ""
 [email.destinations.smoke]
 to = "alerts@example.com"
 
+[cloudwatch.client]
+# The region whose metrics the catalogue is read from. Required once any definition is set.
+region = ""
+
 # The infrastructure alert catalogue. Empty here: a deployment sets it through
 # OBSERVABILITY__CLOUDWATCH__DEFINITIONS__<ID>__* variables, rendered from the chart values in
 # hyperswitch-infra. Dimensions take `Name=value` pairs rather than a table, because `config`
