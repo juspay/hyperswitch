@@ -645,11 +645,11 @@
                     "value": {
                       "amount": 6540,
                       "attempt_count": 1,
-                      "client_secret": "pay_mbabizu24mvu3mela5njyhpit4_secret_el9ksDkiB8hi6j9N78yo",
+                      "client_secret": "pay_serverint_xxxxxxxxxxxx_secret_szzzzzzzzzzz",
                       "currency": "USD",
                       "customer_id": "cus_abcdefgh",
-                      "merchant_id": "merchant_1668273825",
-                      "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                      "merchant_id": "merchant_myyyyyyyyyyyy",
+                      "payment_id": "pay_serverint_xxxxxxxxxxxx",
                       "payment_method_list": {
                         "customer_payment_methods": [],
                         "intent_data": {
@@ -657,7 +657,7 @@
                           "attempt_count": 1,
                           "currency": "USD",
                           "customer_id": "cus_abcdefgh",
-                          "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                          "payment_id": "pay_serverint_xxxxxxxxxxxx",
                           "profile_id": "pro_pzzzzzzzzzzz",
                           "status": "requires_payment_method"
                         },
@@ -679,8 +679,8 @@
                       "profile_id": "pro_pzzzzzzzzzzz",
                       "sdk_authorization": "cHJvZmlsZV9pZD1wcm9mXzEyMyxwdWJsaXNoYWJsZV9rZXk9cGtfbGl2ZV8xMjM=",
                       "session_tokens": {
-                        "client_secret": "pay_mbabizu24mvu3mela5njyhpit4_secret_el9ksDkiB8hi6j9N78yo",
-                        "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                        "client_secret": "pay_serverint_xxxxxxxxxxxx_secret_szzzzzzzzzzz",
+                        "payment_id": "pay_serverint_xxxxxxxxxxxx",
                         "session_token": [],
                         "vault_details": {
                           "vault_data": {
@@ -696,17 +696,17 @@
                     "value": {
                       "amount": 6540,
                       "attempt_count": 1,
-                      "client_secret": "pay_mbabizu24mvu3mela5njyhpit4_secret_el9ksDkiB8hi6j9N78yo",
+                      "client_secret": "pay_serverint_xxxxxxxxxxxx_secret_szzzzzzzzzzz",
                       "currency": "USD",
-                      "merchant_id": "merchant_1668273825",
-                      "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                      "merchant_id": "merchant_myyyyyyyyyyyy",
+                      "payment_id": "pay_serverint_xxxxxxxxxxxx",
                       "payment_method_list": {
                         "customer_payment_methods": [],
                         "intent_data": {
                           "amount": 6540,
                           "attempt_count": 1,
                           "currency": "USD",
-                          "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                          "payment_id": "pay_serverint_xxxxxxxxxxxx",
                           "status": "requires_payment_method"
                         },
                         "payment_methods_enabled": [],
@@ -828,11 +828,11 @@
                     "value": {
                       "amount": 6540,
                       "attempt_count": 1,
-                      "client_secret": "pay_mbabizu24mvu3mela5njyhpit4_secret_el9ksDkiB8hi6j9N78yo",
+                      "client_secret": "pay_serverint_xxxxxxxxxxxx_secret_szzzzzzzzzzz",
                       "currency": "USD",
                       "customer_id": "cus_abcdefgh",
-                      "merchant_id": "merchant_1668273825",
-                      "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                      "merchant_id": "merchant_myyyyyyyyyyyy",
+                      "payment_id": "pay_serverint_xxxxxxxxxxxx",
                       "payment_method_list": {
                         "customer_payment_methods": [],
                         "intent_data": {
@@ -840,7 +840,7 @@
                           "attempt_count": 1,
                           "currency": "USD",
                           "customer_id": "cus_abcdefgh",
-                          "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                          "payment_id": "pay_serverint_xxxxxxxxxxxx",
                           "profile_id": "pro_pzzzzzzzzzzz",
                           "status": "requires_payment_method"
                         },
@@ -862,8 +862,8 @@
                       "profile_id": "pro_pzzzzzzzzzzz",
                       "sdk_authorization": "cHJvZmlsZV9pZD1wcm9mXzEyMyxwdWJsaXNoYWJsZV9rZXk9cGtfbGl2ZV8xMjM=",
                       "session_tokens": {
-                        "client_secret": "pay_mbabizu24mvu3mela5njyhpit4_secret_el9ksDkiB8hi6j9N78yo",
-                        "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                        "client_secret": "pay_serverint_xxxxxxxxxxxx_secret_szzzzzzzzzzz",
+                        "payment_id": "pay_serverint_xxxxxxxxxxxx",
                         "session_token": [],
                         "vault_details": {
                           "vault_data": {
@@ -879,17 +879,17 @@
                     "value": {
                       "amount": 6540,
                       "attempt_count": 1,
-                      "client_secret": "pay_mbabizu24mvu3mela5njyhpit4_secret_el9ksDkiB8hi6j9N78yo",
+                      "client_secret": "pay_serverint_xxxxxxxxxxxx_secret_szzzzzzzzzzz",
                       "currency": "USD",
-                      "merchant_id": "merchant_1668273825",
-                      "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                      "merchant_id": "merchant_myyyyyyyyyyyy",
+                      "payment_id": "pay_serverint_xxxxxxxxxxxx",
                       "payment_method_list": {
                         "customer_payment_methods": [],
                         "intent_data": {
                           "amount": 6540,
                           "attempt_count": 1,
                           "currency": "USD",
-                          "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                          "payment_id": "pay_serverint_xxxxxxxxxxxx",
                           "status": "requires_payment_method"
                         },
                         "payment_methods_enabled": [],
