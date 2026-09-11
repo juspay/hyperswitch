@@ -1,13 +1,4 @@
-//! Handlers for alert lifecycle state and announcements. The route tree that mounts them is in
-//! [`crate::routes::app`].
-//!
-//! Three handlers, not six. The channel is a path segment, resolved once into a
-//! [`Channel`](crate::alert_manager::types::lifecycle::Channel) and passed down — the tables come
-//! once per channel, but nothing that decides anything does.
-//!
-//! The channel is in the path for the reason a notify destination is: it keeps *which channel* a
-//! request was for answerable from an access log, without anyone parsing a body, and it makes a
-//! body naming one channel on a route serving the other unrepresentable.
+//! Handlers for alert lifecycle state and announcements.
 
 use actix_web::{web, HttpRequest, HttpResponse};
 
@@ -26,9 +17,7 @@ pub async fn read_state(
     request: HttpRequest,
     path: web::Path<String>,
 ) -> HttpResponse {
-    // Resolved here and carried into the closure, the same way the dictionary carries its user
-    // name. An unknown channel travels as a `Result` and is raised inside the closure, which runs
-    // only after authentication has passed.
+    // Resolved here and carried into the closure, the same way the dictionary carries its user name.
     let channel = Channel::from_path(&path.into_inner());
 
     services::server_wrap(
@@ -42,9 +31,6 @@ pub async fn read_state(
 }
 
 /// `POST /alerts/lifecycle/{channel}/state`.
-///
-/// The whole state, applied in one transaction. `POST` rather than `PUT` for consistency with
-/// every other write this service takes, even though this one really is a replacement.
 pub async fn write_state(
     state: web::Data<AppState>,
     request: HttpRequest,
@@ -66,9 +52,6 @@ pub async fn write_state(
 }
 
 /// `POST /alerts/lifecycle/{channel}/announcements`.
-///
-/// An append. There is no route that removes one: a state row references an announcement
-/// `ON DELETE CASCADE`, so removing an announcement would take the state pointing at it with it.
 pub async fn record_announcement(
     state: web::Data<AppState>,
     request: HttpRequest,

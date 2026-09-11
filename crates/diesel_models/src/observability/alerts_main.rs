@@ -5,9 +5,6 @@ use time::PrimitiveDateTime;
 use crate::observability::raw_json::RawJson;
 
 /// One announcement, independent of the channel whose table it came from.
-///
-/// The channel-agnostic half of the pair below, for the reason
-/// [`AlertStateRow`](super::alerts_intermediate::AlertStateRow) is.
 #[derive(Clone, Debug)]
 pub struct AnnouncementRow {
     pub id: uuid::Uuid,
@@ -30,17 +27,14 @@ impl AnnouncementRow {
     }
 }
 
-// `alerts_main` and `alerts_main_xyne` are the same table per delivery channel. Diesel needs a
-// struct per table, so the pair is generated; callers pick a channel.
+// `alerts_main` and `alerts_main_xyne` are the same table per delivery channel.
 macro_rules! announcement {
     ($module:ident, $table:ident) => {
         pub mod $module {
             use super::*;
             use crate::observability::schema::$table;
 
-            // Serialize/Deserialize satisfy `DejaQueryResult`, which the query helpers require
-            // under `deja`. Insertable as well as Queryable: every column is written, so a
-            // separate insert struct would be the same fields twice.
+            // Serialize/Deserialize satisfy `DejaQueryResult`, which the query helpers require under `deja`.
             #[derive(
                 Clone,
                 Debug,

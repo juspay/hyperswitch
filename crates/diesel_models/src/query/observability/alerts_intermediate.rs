@@ -11,10 +11,6 @@ use crate::{errors, query::generics, DatabaseConnectionWithContext, StorageResul
 const LIFECYCLE_LOCK_NAMESPACE: i32 = 23_404;
 
 /// Hold the whole-state write lock for one channel until the surrounding transaction ends.
-///
-/// Whole-state writes are serialised per channel so that the precondition a caller sends is
-/// checked against state nothing else is changing. Without it two writers read the same watermark,
-/// both find their precondition satisfied, and the second one lands on top of the first.
 pub async fn lock_lifecycle_state(
     conn: &DatabaseConnectionWithContext<'_>,
     channel: i32,
@@ -30,8 +26,7 @@ pub async fn lock_lifecycle_state(
     Ok(())
 }
 
-// One set of helpers per channel, over the pair of tables the models are generated for. They take
-// and return the channel-agnostic row, so a caller matches on the channel once.
+// One set of helpers per channel, over the pair of tables the models are generated for.
 macro_rules! alert_state_queries {
     ($module:ident, $table:ident) => {
         pub mod $module {
@@ -56,8 +51,7 @@ macro_rules! alert_state_queries {
                     .map(|rows| rows.into_iter().map(AlertStateRow::from).collect())
                 }
 
-                // The precondition a whole-state write is checked against, in one round trip
-                // rather than by listing every row and folding it in the caller.
+                // The precondition a whole-state write is checked against, in one round trip rather than by listing every row and folding it in the caller.
                 pub async fn latest_last_updated_at(
                     conn: &DatabaseConnectionWithContext<'_>,
                 ) -> StorageResult<Option<PrimitiveDateTime>> {
@@ -75,8 +69,7 @@ macro_rules! alert_state_queries {
                     .attach_printable("Error while reading the lifecycle state watermark")
                 }
 
-                // Everything the request no longer carries. An empty `keep` removes every row,
-                // which is what a write carrying no alerts means.
+                // Everything the request no longer carries.
                 pub async fn delete_absent(
                     conn: &DatabaseConnectionWithContext<'_>,
                     keep: Vec<uuid::Uuid>,
@@ -96,8 +89,7 @@ macro_rules! alert_state_queries {
                     .attach_printable("Error while removing lifecycle state rows")
                 }
 
-                // One statement for the whole batch: a row at a time would make the transaction's
-                // cost the number of alerts firing, which is largest exactly during an outage.
+                // One statement for the whole batch:
                 pub async fn upsert_all(
                     conn: &DatabaseConnectionWithContext<'_>,
                     rows: Vec<AlertStateRow>,
