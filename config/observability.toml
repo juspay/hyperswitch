@@ -121,3 +121,13 @@ aws_region = ""
 # nowhere.
 [email.destinations.smoke]
 to = "alerts@example.com"
+
+# The mappers behind the portal's Mappers screen: named key/value collections
+# scoped by product, holding the dropdown options and dimension labels the pages read.
+#
+# `max_entry_bytes` caps the JSON one entry may carry across `product`, `values_` and `metadata`
+# together. The dashboard decides how large an entry is, and one oversized save becomes a row the
+# screen cannot read back — a broken page long after the save that caused it. The cap makes that a
+# rejected request instead.
+[mappers]
+max_entry_bytes = 1048576

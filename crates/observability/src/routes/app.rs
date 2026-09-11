@@ -2,7 +2,7 @@ use actix_multipart::form::MultipartFormConfig;
 use actix_web::{web, Scope};
 
 use crate::{
-    alert_manager::routes::config,
+    alert_manager::routes::{config, mappers, notifications},
     errors::types::{ApiError, ApiErrorResponse},
     logger,
     routes::{health_check, notify},
@@ -52,6 +52,19 @@ fn config_scope() -> Scope {
                 ),
         )
         .service(
+            web::scope("/mappers")
+                .service(
+                    web::resource("")
+                        .route(web::get().to(mappers::list_mappers))
+                        .route(web::post().to(mappers::upsert_mapper)),
+                )
+                .service(
+                    web::resource("/{name}/{key}")
+                        .route(web::get().to(mappers::read_mapper))
+                        .route(web::delete().to(mappers::retire_mapper)),
+                ),
+        )
+        .service(
             web::scope("/enablement")
                 .service(web::resource("").route(web::get().to(config::list_enablements)))
                 .service(
@@ -59,6 +72,13 @@ fn config_scope() -> Scope {
                         .route(web::get().to(config::read_enablement))
                         .route(web::post().to(config::upsert_enablement)),
                 ),
+        )
+        .service(
+            web::scope("/notifications").service(
+                web::resource("/read")
+                    .route(web::get().to(notifications::read_watermark))
+                    .route(web::post().to(notifications::mark_read)),
+            ),
         )
 }
 

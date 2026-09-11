@@ -43,6 +43,9 @@ pub enum ObservabilityError {
     #[error("The request body is invalid")]
     InvalidRequest,
 
+    #[error("The mapper entry is {bytes} bytes, over the {limit} byte limit")]
+    EntryTooLarge { bytes: usize, limit: usize },
+
     #[error("The observability database is unavailable")]
     StorageUnavailable,
 
@@ -84,6 +87,11 @@ impl ErrorSwitch<ApiErrorResponse> for ObservabilityError {
                 "IR",
                 4,
                 "The request body could not be parsed",
+            )),
+            Self::EntryTooLarge { .. } => ApiErrorResponse::BadRequest(ApiError::new(
+                "IR",
+                8,
+                "The mapper entry is larger than this service stores",
             )),
             Self::UnknownDestination { .. } => {
                 ApiErrorResponse::NotFound(ApiError::new("IR", 2, "Unknown destination"))
@@ -158,6 +166,10 @@ mod tests {
         assert_eq!(status_of(&ObservabilityError::Unauthorized), 401);
         assert_eq!(status_of(&ObservabilityError::InvalidRequest), 400);
         assert_eq!(
+            status_of(&ObservabilityError::EntryTooLarge { bytes: 1, limit: 0 }),
+            400
+        );
+        assert_eq!(
             status_of(&ObservabilityError::DefinitionNotFound {
                 id: "0189d0a0-0000-7000-8000-000000000000".to_owned(),
             }),
@@ -185,6 +197,7 @@ mod tests {
             ObservabilityError::InternalServerError,
             ObservabilityError::Unauthorized,
             ObservabilityError::InvalidRequest,
+            ObservabilityError::EntryTooLarge { bytes: 0, limit: 0 },
             ObservabilityError::StorageUnavailable,
             ObservabilityError::DefinitionNotFound { id: String::new() },
             ObservabilityError::DuplicateDefinition {
@@ -217,7 +230,7 @@ mod tests {
         })
         .collect::<std::collections::HashSet<_>>();
 
-        assert_eq!(codes.len(), 10);
+        assert_eq!(codes.len(), 11);
     }
 
     #[test]
