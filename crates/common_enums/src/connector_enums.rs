@@ -98,6 +98,7 @@ pub enum Connector {
     CtpVisa,
     Cybersource,
     Cybersourcedecisionmanager,
+    D24,
     Datatrans,
     Deutschebank,
     Digitalvirgo,
@@ -134,6 +135,7 @@ pub enum Connector {
     Imerchantsolutions,
     Itaubank,
     Jpmorgan,
+    JpmorganOrbital,
     Juspay,
     Juspaythreedsserver,
     Klarna,
@@ -157,6 +159,7 @@ pub enum Connector {
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
     Payload,
     Payme,
+    Paynearme,
     Payone,
     Paypal,
     Paysafe,
@@ -176,6 +179,7 @@ pub enum Connector {
     Recurly,
     Redsys,
     Revolv3,
+    Saferpay,
     Santander,
     Shift4,
     Silverflow,
@@ -405,6 +409,7 @@ impl Connector {
             | Self::Paybox
             | Self::Payload
             | Self::Payme
+            | Self::Paynearme
             | Self::Payone
             | Self::Paypal
             | Self::Paysafe
@@ -418,6 +423,7 @@ impl Connector {
             | Self::Recurly
             | Self::Redsys
             | Self::Revolv3
+            | Self::Saferpay
             | Self::Santander
             | Self::Shift4
             | Self::Silverflow
@@ -464,12 +470,14 @@ impl Connector {
             | Self::Paytm
             | Self::Payconex
             | Self::Citigate
+            | Self::D24
             | Self::Worldpayraft
             | Self::Payjustnow
             | Self::Payjustnowinstore
             | Self::Phonepe
             | Self::Imerchantsolutions
             | Self::Ilixium
+            | Self::JpmorganOrbital
             | Self::Givepayments => false,
             Self::Stripe | Self::Checkout | Self::Zift | Self::Nmi | Self::Braintree|
             Self::Cybersource | Self::Archipel | Self::Nuvei | Self::Adyen | Self::Fiservcommercehub | Self::Worldpayxml => true,
