@@ -1,13 +1,4 @@
-//! Handlers for the alert configuration routes. The route tree that mounts them is in
-//! [`crate::routes::app`].
-//!
-//! Each handler deserializes, calls [`crate::alert_manager::core::config`], and converts the
-//! outcome into a response — the same shape as [`crate::routes::notify`], down to the required
-//! authentication argument on [`crate::services::server_wrap`].
-//!
-//! Reads pass `()` as the payload. `server_wrap` takes one so that authentication cannot be
-//! forgotten, and a route with no body still has to go through it; the unit is the honest spelling
-//! of "there is nothing here to log".
+//! Handlers for the alert configuration routes.
 
 use actix_web::{web, HttpRequest, HttpResponse};
 
@@ -70,9 +61,6 @@ pub async fn read_definition(
 }
 
 /// `POST /alerts/config/definitions/{id}`.
-///
-/// `POST` rather than `PUT`, because the body is a partial change and `PUT` means replacement.
-/// Sending a whole row would be the thing that makes two portal screens overwrite each other.
 pub async fn update_definition(
     state: web::Data<AppState>,
     request: HttpRequest,
@@ -122,10 +110,6 @@ pub async fn read_enablement(
 }
 
 /// `POST /alerts/config/enablement/{name}/{product}`.
-///
-/// A real upsert: one statement with the table's composite primary key as its conflict target, so
-/// a repeated call updates the row it wrote the first time instead of adding a second one that
-/// disagrees with it.
 pub async fn upsert_enablement(
     state: web::Data<AppState>,
     request: HttpRequest,

@@ -1,14 +1,4 @@
 //! Errors, in three layers, mirroring the router's split by lifetime and audience.
-//!
-//! | Layer | Type | Rendered to HTTP? |
-//! |---|---|---|
-//! | Boot / configuration | [`ConfigurationError`] | never - the process exits instead |
-//! | Internal, semantic | [`ObservabilityError`] | no - carried in an [`error_stack::Report`] |
-//! | Wire | [`types::ApiErrorResponse`] | yes - via its `ResponseError` impl in [`actix`] |
-//!
-//! [`common_utils::errors::ErrorSwitch`] bridges the two request-side layers without consuming the
-//! report, so the full `error_stack` context reaches the log while the client sees only the wire
-//! shape - internal detail cannot leak into a response by accident.
 
 pub mod actix;
 pub mod types;
@@ -19,9 +9,6 @@ use thiserror::Error;
 use crate::errors::types::{ApiError, ApiErrorResponse};
 
 /// Errors raised while the application is starting up.
-///
-/// These are never rendered to a client — by the time a request can arrive, startup has already
-/// succeeded. A variant here means the process refuses to start.
 #[derive(Debug, Error)]
 pub enum ConfigurationError {
     /// A configuration value was present but unusable.
@@ -53,15 +40,6 @@ impl From<config::ConfigError> for ConfigurationError {
 pub type ObservabilityResult<T> = error_stack::Result<T, ConfigurationError>;
 
 /// Errors raised while handling a request.
-///
-/// Semantic rather than HTTP-shaped: a variant says what went wrong, not what status code the
-/// client should see. The mapping happens once, in the [`ErrorSwitch`] impl below, so a handler
-/// never has to think about HTTP.
-///
-/// **A provider refusing a message is not in here.** That is an outcome, reported through
-/// [`crate::domain::notifier::Outcome`] and answered with a `200`. What remains is a request we
-/// cannot act on, and a notifier that did not work — which is exactly what a `4xx`/`5xx` from this
-/// service should mean, so an alert on 5xx pages someone only when the service is genuinely broken.
 #[derive(Debug, Error)]
 pub enum ObservabilityError {
     /// Something failed that the client can do nothing about.
@@ -77,10 +55,6 @@ pub enum ObservabilityError {
     InvalidRequest,
 
     /// The observability database could not be reached, or a query against it failed.
-    ///
-    /// Distinct from an empty result on purpose. The alert manager's own outage rule reads "no
-    /// alerts" as "nothing is wrong", so a list route that answered `200 []` when its database was
-    /// down would report all-clear during exactly the incident it exists to catch.
     #[error("The observability database is unavailable")]
     StorageUnavailable,
 
@@ -110,11 +84,6 @@ pub enum ObservabilityError {
     },
 
     /// The name and product do not identify an alert that can be switched on or off.
-    ///
-    /// Either no definition exists for the pair, or it names the reserved `all` definition, which
-    /// carries suppression for every detector and is not itself a detector. r-apps enforces the
-    /// first half with a database trigger we do not have; the check lives here instead, so that an
-    /// enablement row cannot name an alert that does not exist.
     #[error("No alert is defined as `{name}` / `{product}`")]
     NotAnAlert {
         /// The name the request asked for.
@@ -130,8 +99,7 @@ pub enum ObservabilityError {
         destination: String,
     },
 
-    /// The provider could not be reached, or answered outside its documented envelope. Nothing is
-    /// known about whether the message was delivered, which is what separates this from a refusal.
+    /// The provider could not be reached, or answered outside its documented envelope.
     #[error("The destination `{destination}` could not be reached")]
     ProviderUnavailable {
         /// The destination that could not be reached.
@@ -150,8 +118,7 @@ impl ErrorSwitch<ApiErrorResponse> for ObservabilityError {
                 0,
                 "Something went wrong",
             )),
-            // Deliberately vague. A caller that failed to authenticate learns only that it
-            // failed — never whether the header was absent, malformed, or simply wrong.
+            // Deliberately vague.
             Self::Unauthorized => ApiErrorResponse::Unauthorized(ApiError::new(
                 "IR",
                 1,
@@ -162,14 +129,11 @@ impl ErrorSwitch<ApiErrorResponse> for ObservabilityError {
                 4,
                 "The request body could not be parsed",
             )),
-            // The id is already in the path the caller sent, so there is nothing to echo back, and
-            // the configured ids are deliberately not listed.
+            // The id is already in the path the caller sent, so there is nothing to echo back, and the configured ids are deliberately not listed.
             Self::UnknownDestination { .. } => {
                 ApiErrorResponse::NotFound(ApiError::new("IR", 2, "Unknown destination"))
             }
-            // 503 rather than 500: this service is fine, and the condition is expected to clear
-            // without anyone touching it — the same reading `/health/ready` takes. The failing
-            // host, database and role stay in the log.
+            // 503 rather than 500:
             Self::StorageUnavailable => ApiErrorResponse::ServiceUnavailable(ApiError::new(
                 "HE",
                 1,
@@ -179,9 +143,7 @@ impl ErrorSwitch<ApiErrorResponse> for ObservabilityError {
             Self::DefinitionNotFound { .. } => {
                 ApiErrorResponse::NotFound(ApiError::new("IR", 3, "Unknown alert definition"))
             }
-            // A name identifies a definition to the alert manager and to the enablement table, so
-            // a second one under the same name is refused rather than silently shadowing the
-            // first.
+            // A name identifies a definition to the alert manager and to the enablement table, so a second one under the same name is refused rather than silently shadowing the first.
             Self::DuplicateDefinition { .. } => ApiErrorResponse::BadRequest(ApiError::new(
                 "IR",
                 5,
@@ -190,17 +152,13 @@ impl ErrorSwitch<ApiErrorResponse> for ObservabilityError {
             Self::EnablementNotFound { .. } => {
                 ApiErrorResponse::NotFound(ApiError::new("IR", 6, "Unknown alert enablement"))
             }
-            // 400 rather than 404: the missing thing is the definition the body named, not the
-            // enablement row the path addresses, and answering 404 would read as "this switch does
-            // not exist" when the problem is that the alert does not.
+            // 400 rather than 404:
             Self::NotAnAlert { .. } => ApiErrorResponse::BadRequest(ApiError::new(
                 "IR",
                 7,
                 "No alert is defined for this name and product",
             )),
-            // 502 rather than 500: the failure is on the far side of a hop we made. Note this is
-            // the *only* provider-shaped error left, because every answer the provider gives is a
-            // 200 outcome instead.
+            // 502 rather than 500:
             Self::ProviderUnavailable { .. } => ApiErrorResponse::BadGateway(ApiError::new(
                 "HE",
                 3,
@@ -223,8 +181,7 @@ mod tests {
             .as_u16()
     }
 
-    /// The rule this service is built on: a 5xx means the notifier did not work. Anything the
-    /// provider actually said is a 200 and never reaches here.
+    /// The rule this service is built on:
     #[test]
     fn only_our_own_failures_are_5xx() {
         assert_eq!(
@@ -236,9 +193,7 @@ mod tests {
         assert_eq!(status_of(&ObservabilityError::InternalServerError), 500);
     }
 
-    /// A database that is away is not this service being broken, and must not be alerted on as if
-    /// it were. It is also not an empty list — the distinction the alert manager's outage rule
-    /// depends on.
+    /// A database that is away is not this service being broken, and must not be alerted on as if it were.
     #[test]
     fn an_unreachable_database_is_503_and_not_500() {
         assert_eq!(status_of(&ObservabilityError::StorageUnavailable), 503);
@@ -276,8 +231,7 @@ mod tests {
         );
     }
 
-    /// Every condition a caller can provoke has to be told apart from every other one by the code
-    /// alone, because the messages are free to be reworded and the codes are not.
+    /// Every condition a caller can provoke has to be told apart from every other one by the code alone, because the messages are free to be reworded and the codes are not.
     #[test]
     fn no_two_conditions_share_a_code() {
         let codes = [

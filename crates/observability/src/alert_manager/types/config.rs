@@ -1,27 +1,4 @@
 //! The wire contract for the alert configuration resources.
-//!
-//! Two resources under `/alerts/config`:
-//!
-//! * **definitions** - [`alerts_info`](diesel_models::observability::alerts_info). Suppression,
-//!   snooze and thresholds are columns of that one row, so they are fields here, not resources.
-//! * **enablement** - the per-`(name, product)` switch. Which switch wins is decided in
-//!   [`effective_is_enabled`](diesel_models::observability::merchants_alert_external_config::effective_is_enabled).
-//!
-//! Definitions are addressed by id: `(name, product)` is a unique index rather than the primary
-//! key, and a caller creating one cannot know the id it will be given. Enablement has no id -
-//! `(name, product)` *is* its primary key - so it is addressed by the pair and its write is an
-//! upsert.
-//!
-//! An update mentions only what it changes. Three portal screens edit different parts of a
-//! definition, so [`AlertDefinitionUpdateRequest`] uses [`Option<Option<T>>`]: absent leaves the
-//! value alone, an explicit `null` clears it, a value sets it. Optimistic concurrency was
-//! rejected - two screens editing different columns are not in conflict, and last-writer-wins is
-//! the honest answer for a config row.
-//!
-//! No `status` envelope: a `200` means the row is written, so the field would be a constant. No
-//! delete either - `is_enabled` turns an alert off reversibly, while deleting an `alerts_info` row
-//! cascades to every `alerts_main` row referencing it and destroys the record of what was
-//! announced in order to stop announcing it.
 
 use diesel_models::observability::{
     alerts_info::{
@@ -36,10 +13,6 @@ use serde::{Deserialize, Deserializer, Serialize};
 use time::PrimitiveDateTime;
 
 /// Tell "the caller did not mention this field" apart from "the caller set it to null".
-///
-/// `#[serde(default)]` alone collapses both into `None`. On an `Option<Option<T>>` field this runs
-/// only when the key is present, so the outer option answers "was it mentioned" and the inner one
-/// "what to". Diesel's `AsChangeset` reads the same shape the same way.
 fn double_option<'de, T, D>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
 where
     T: Deserialize<'de>,
@@ -49,24 +22,16 @@ where
 }
 
 /// The body of `POST /alerts/config/definitions`.
-///
-/// `is_enabled` is **required**: the column defaults to false, so a definition created without it
-/// is off, and an alert that is off without anyone deciding it should be reads as broken rather
-/// than as unenabled.
-///
-/// `author` is required because the internal API key identifies the calling service, not a
-/// person - if the body does not say who is asking, nothing does.
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct AlertDefinitionCreateRequest {
-    /// The detector this configures. `all` is reserved for the row carrying suppression that
-    /// applies to every detector.
+    /// The detector this configures.
     pub name: String,
 
     /// The family the alert belongs to.
     pub product: String,
 
-    /// Whether the alert fires. No default — see the type's documentation.
+    /// Whether the alert fires.
     pub is_enabled: bool,
 
     /// Who is creating this definition.
@@ -92,11 +57,11 @@ pub struct AlertDefinitionCreateRequest {
     #[serde(default)]
     pub default_critical: Option<bool>,
 
-    /// Suppression rules: alerts that are correct and not worth seeing.
+    /// Suppression rules:
     #[serde(default)]
     pub blacklist: Option<Vec<BlacklistEntry>>,
 
-    /// Snooze windows: suppression that ends by itself.
+    /// Snooze windows:
     #[serde(default)]
     pub snooze: Option<Vec<SnoozeEntry>>,
 
@@ -108,11 +73,11 @@ pub struct AlertDefinitionCreateRequest {
     #[serde(default)]
     pub thresholds: Option<Vec<ThresholdEntry>>,
 
-    /// Anything the dashboard wants to keep alongside the definition. Not interpreted here.
+    /// Anything the dashboard wants to keep alongside the definition.
     #[serde(default)]
     pub metadata: Option<serde_json::Value>,
 
-    /// Operator notes. Not interpreted here.
+    /// Operator notes.
     #[serde(default)]
     pub comments: Option<serde_json::Value>,
 
@@ -147,17 +112,10 @@ impl AlertDefinitionCreateRequest {
 }
 
 /// The body of `POST /alerts/config/definitions/{id}`.
-///
-/// Every field is absent-able. `name`, `product` and `author` are not here: the first two are the
-/// alert's identity, and the third records who introduced the definition rather than who last
-/// touched it.
-///
-/// `is_enabled` is a plain `Option<bool>` where the rest are nested - clearing a switch is the
-/// same as turning it off, and two spellings for off would be two paths to test.
 #[derive(Debug, Default, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct AlertDefinitionUpdateRequest {
-    /// Whether the alert fires. Absent leaves it as it is.
+    /// Whether the alert fires.
     #[serde(default)]
     pub is_enabled: Option<bool>,
 
@@ -201,10 +159,6 @@ pub struct AlertDefinitionUpdateRequest {
 
 impl AlertDefinitionUpdateRequest {
     /// Turn the request into the changeset to apply, stamped at `now`.
-    ///
-    /// `last_updated_at` is set unconditionally, which also guarantees the changeset is never
-    /// empty — diesel refuses an update with nothing to set, so a request that mentioned no field
-    /// would otherwise fail rather than be the no-op it reads as.
     pub fn into_changeset(self, now: PrimitiveDateTime) -> AlertsInfoUpdate {
         AlertsInfoUpdate {
             dimensions: self.dimensions,
@@ -226,16 +180,6 @@ impl AlertDefinitionUpdateRequest {
 }
 
 /// One alert definition, as a caller sees it.
-///
-/// Nothing is skipped when it is null. The notify responses drop absent fields because a caller
-/// reads them once and throws them away; a config row is read in order to be edited and sent back,
-/// and a field that disappears when it is null is a field a round-tripping caller will drop.
-///
-/// `is_enabled` is a plain `bool` even though the column is nullable, because `NULL` and `false`
-/// both mean the alert is off and a caller should not have to know that.
-///
-/// The three list columns render as arrays, empty when the column is `NULL`: a definition with no
-/// suppression and one whose suppression column was never written are the same alert.
 #[derive(Debug, Serialize)]
 pub struct AlertDefinitionResponse {
     pub id: uuid::Uuid,
@@ -293,10 +237,6 @@ impl From<AlertsInfo> for AlertDefinitionResponse {
 }
 
 /// What `GET /alerts/config/definitions` returns.
-///
-/// An object rather than a bare array. `count` costs nothing and gives a caller something to
-/// assert on, and an object leaves room for a cursor the day this list stops fitting on a screen —
-/// which a top-level array would not.
 #[derive(Debug, Serialize)]
 pub struct AlertDefinitionListResponse {
     pub count: usize,
@@ -318,21 +258,17 @@ impl FromIterator<AlertsInfo> for AlertDefinitionListResponse {
 }
 
 /// The body of `POST /alerts/config/enablement/{name}/{product}`.
-///
-/// The key is in the path, not the body. Carrying it in both would give a request two authorities
-/// on which alert it addresses, and nothing useful to do when they disagree.
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct AlertEnablementUpsertRequest {
-    /// Whether this alert runs for this product. Required, for the reason
-    /// [`AlertDefinitionCreateRequest::is_enabled`] is.
+    /// Whether this alert runs for this product.
     pub is_enabled: bool,
 
     /// How the dashboard groups this alert.
     #[serde(default)]
     pub category: Option<String>,
 
-    /// Anything the dashboard wants to keep alongside the switch. Not interpreted here.
+    /// Anything the dashboard wants to keep alongside the switch.
     #[serde(default)]
     pub metadata: Option<serde_json::Value>,
 }
@@ -357,11 +293,6 @@ impl AlertEnablementUpsertRequest {
 }
 
 /// One enablement row, as a caller sees it.
-///
-/// `is_enabled` is this table's switch; `effective_is_enabled` is the answer after the definition's
-/// own switch is applied. Both are reported, because a caller that saw only the stored value would
-/// have no way to tell "on" from "on, but the definition is off", and the ticket that added this
-/// resource exists because those two were silently the same.
 #[derive(Debug, Serialize)]
 pub struct AlertEnablementResponse {
     pub name: String,
@@ -376,10 +307,6 @@ pub struct AlertEnablementResponse {
 
 impl AlertEnablementResponse {
     /// Build the response, resolving the two switches against each other.
-    ///
-    /// `definition_is_enabled` is `None` when no definition exists for the pair. That is only
-    /// reachable on a read of a row written before this API started checking, and it resolves to
-    /// off: an enablement row naming an alert nobody defined cannot switch anything on.
     pub fn new(row: MerchantsAlertExternalConfig, definition_is_enabled: Option<bool>) -> Self {
         Self {
             effective_is_enabled: effective_is_enabled(
@@ -416,8 +343,7 @@ mod tests {
         common_utils::date_time::now()
     }
 
-    /// The property the whole update shape exists for: three states, not two. Without it a screen
-    /// editing the snooze list would clear the suppression list it never mentioned.
+    /// The property the whole update shape exists for:
     #[test]
     fn an_absent_field_and_an_explicit_null_are_different_requests() {
         let mentioned = update_from(serde_json::json!({ "default_channel": null }));
@@ -434,8 +360,7 @@ mod tests {
         assert_eq!(update.period, Some(Some(15)));
     }
 
-    /// Diesel refuses an update with nothing to set, so the timestamp is what makes an update
-    /// mentioning no field a no-op rather than an error.
+    /// Diesel refuses an update with nothing to set, so the timestamp is what makes an update mentioning no field a no-op rather than an error.
     #[test]
     fn an_update_that_changes_nothing_still_moves_the_timestamp() {
         let stamp = now();
@@ -445,8 +370,7 @@ mod tests {
         assert_eq!(changeset.dimensions, None);
     }
 
-    /// Renaming a definition would orphan the enablement rows and the announcements that reference
-    /// it by name, so the field is not there to be sent at all.
+    /// Renaming a definition would orphan the enablement rows and the announcements that reference it by name, so the field is not there to be sent at all.
     #[test]
     fn an_update_cannot_rename_a_definition() {
         let error = serde_json::from_value::<AlertDefinitionUpdateRequest>(
@@ -457,8 +381,7 @@ mod tests {
         assert!(error.to_string().contains("name"));
     }
 
-    /// A definition created without saying so is off, and reads to whoever finds it as broken
-    /// rather than as never switched on. Requiring the field makes that a rejection instead.
+    /// A definition created without saying so is off, and reads to whoever finds it as broken rather than as never switched on.
     #[test]
     fn creating_a_definition_requires_saying_whether_it_is_on() {
         let error = serde_json::from_value::<AlertDefinitionCreateRequest>(serde_json::json!({
@@ -471,8 +394,7 @@ mod tests {
         assert!(error.to_string().contains("is_enabled"));
     }
 
-    /// The internal API key says which service called, never which person, so the body is the only
-    /// place an author can come from.
+    /// The internal API key says which service called, never which person, so the body is the only place an author can come from.
     #[test]
     fn creating_a_definition_requires_an_author() {
         let error = serde_json::from_value::<AlertDefinitionCreateRequest>(serde_json::json!({
@@ -485,8 +407,7 @@ mod tests {
         assert!(error.to_string().contains("author"));
     }
 
-    /// Structured rather than opaque, which is the point of typing the column: a suppression rule
-    /// the alert manager cannot read is refused at the edge instead of being stored and ignored.
+    /// Structured rather than opaque, which is the point of typing the column:
     #[test]
     fn a_malformed_suppression_rule_is_refused_rather_than_stored() {
         let error = serde_json::from_value::<AlertDefinitionCreateRequest>(serde_json::json!({
@@ -543,8 +464,7 @@ mod tests {
         }
     }
 
-    /// A caller reads a definition in order to edit it and send it back. A field that vanishes
-    /// when it is null is a field that round trip would drop.
+    /// A caller reads a definition in order to edit it and send it back.
     #[test]
     fn a_definition_response_names_every_field_even_when_it_is_null() {
         let body =
@@ -556,8 +476,7 @@ mod tests {
         }
     }
 
-    /// `NULL` and `false` both mean off, and a caller should not have to know the column is
-    /// nullable to work that out. Likewise a missing list is an empty list.
+    /// `NULL` and `false` both mean off, and a caller should not have to know the column is nullable to work that out.
     #[test]
     fn a_definition_response_resolves_nulls_that_have_only_one_meaning() {
         let body = serde_json::to_value(AlertDefinitionResponse::from(definition(None))).unwrap();
@@ -603,8 +522,7 @@ mod tests {
         }
     }
 
-    /// Reporting only the stored switch would leave a caller unable to tell "on" from "on, but the
-    /// definition is off" — which is the confusion this resource was ticketed to end.
+    /// Reporting only the stored switch would leave a caller unable to tell "on" from "on, but the definition is off" — which is the confusion this resource was ticketed to end.
     #[test]
     fn an_enablement_response_reports_both_switches() {
         let body = serde_json::to_value(AlertEnablementResponse::new(

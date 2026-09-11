@@ -1,11 +1,4 @@
 //! The one place the wire error becomes an HTTP response.
-//!
-//! Kept in its own module, mirroring `api_models::errors::actix`, so that the error *shape*
-//! ([`super::types`]) stays independent of the framework rendering it.
-//!
-//! No `Retry-After` here. A provider rate limiting us is reported as a `200` carrying
-//! `retry_after_seconds`, because the notifier reached the provider and did its job; a header that
-//! belongs on a `429` has nowhere to sit in that design.
 
 use actix_web::http::header;
 use reqwest::StatusCode;

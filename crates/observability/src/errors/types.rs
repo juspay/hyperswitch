@@ -1,16 +1,4 @@
-//! The wire error layer: what a client actually receives.
-//!
-//! Mirrors `api_models::errors::types` in both shape and file layout. It lives in this crate
-//! rather than in `api_models` only because `observability` has no API-models crate of its own;
-//! if one ever appears, this module moves wholesale.
-//!
-//! Variants here are keyed to **HTTP semantics**, not to causes. Adding a new failure mode
-//! usually means a new [`crate::errors::ObservabilityError`] variant mapping onto an existing
-//! one of these, not a new variant here.
-//!
-//! **A provider refusing a message does not reach this module.** The status code answers "did the
-//! notifier function?", and a refusal means it did. Refusals are reported as a normal `200`
-//! response — see [`crate::types`] — which is why nothing here carries a provider's error code.
+//! The wire error layer:
 
 use serde::Serialize;
 
@@ -34,16 +22,13 @@ impl ErrorType {
 }
 
 /// The payload carried by every wire error.
-///
-/// `sub_code` and `error_identifier` combine into a stable, greppable code (`IR_01`) that survives
-/// rewording of the message.
 #[derive(Debug, Serialize, Clone)]
 pub struct ApiError {
-    /// Short category prefix, e.g. `IR` for invalid request, `HE` for a service error.
+    /// Short category prefix, e.g.
     pub sub_code: &'static str,
     /// Distinguishes errors sharing a `sub_code`.
     pub error_identifier: u16,
-    /// Human-readable description. Must never contain a secret or the contents of a request.
+    /// Human-readable description.
     pub error_message: String,
 }
 
@@ -63,9 +48,6 @@ impl ApiError {
 }
 
 /// Every error this service can return to a client, keyed by HTTP semantics.
-///
-/// Deliberately short. Everything a provider says about a message is a `200`, so the only failures
-/// left are a request we cannot act on, and a notifier that did not work.
 #[derive(Debug, Serialize)]
 pub enum ApiErrorResponse {
     /// 400 — the request was malformed.
@@ -76,20 +58,14 @@ pub enum ApiErrorResponse {
     NotFound(ApiError),
     /// 500 — the service failed.
     InternalServerError(ApiError),
-    /// 502 — the provider could not be reached, or answered outside its documented envelope, so
-    /// whether the message was delivered is unknown.
+    /// 502 — the provider could not be reached, or answered outside its documented envelope, so whether the message was delivered is unknown.
     BadGateway(ApiError),
-    /// 503 — a dependency this service owns is away, and the condition is expected to clear
-    /// without intervention. Separate from [`Self::InternalServerError`] so that a database blip
-    /// does not page whoever is alerting on 500s.
+    /// 503 — a dependency this service owns is away, and the condition is expected to clear without intervention.
     ServiceUnavailable(ApiError),
 }
 
 impl ApiErrorResponse {
     /// The payload of whichever variant this is.
-    ///
-    /// Named for the payload rather than for "internal", which `api_models` uses and which reads
-    /// as *internal server error* at a glance.
     pub(crate) fn payload(&self) -> &ApiError {
         match self {
             Self::BadRequest(error)
@@ -102,8 +78,6 @@ impl ApiErrorResponse {
     }
 
     /// The error category reported to the client.
-    ///
-    /// Mirrors `api_models::errors::types::ApiErrorResponse::error_type`.
     fn error_type(&self) -> &'static str {
         match self {
             Self::BadRequest(_) | Self::Unauthorized(_) | Self::NotFound(_) => {
@@ -124,7 +98,7 @@ pub struct ErrorResponse {
     pub error_type: &'static str,
     /// The human-readable description.
     pub message: String,
-    /// The stable code, e.g. `IR_01`.
+    /// The stable code, e.g.
     pub code: String,
 }
 
@@ -165,8 +139,7 @@ mod tests {
         assert_eq!(body["error"]["type"], "invalid_request");
     }
 
-    /// A notifier that could not reach the provider is our problem; a request we cannot parse is
-    /// the caller's. Nothing in between reaches this module.
+    /// A notifier that could not reach the provider is our problem; a request we cannot parse is the caller's.
     #[test]
     fn categories_follow_who_the_error_belongs_to() {
         assert_eq!(

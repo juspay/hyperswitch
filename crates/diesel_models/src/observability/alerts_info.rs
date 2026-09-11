@@ -129,7 +129,7 @@ pub struct AlertsInfoNew {
     pub last_updated_at: PrimitiveDateTime,
 }
 
-// `Option<Option<T>>`: an absent field leaves the column alone, an explicit null clears it.
+// `Option<Option<T>>`:
 #[derive(Clone, Debug, PartialEq, AsChangeset)]
 #[diesel(table_name = alerts_info)]
 pub struct AlertsInfoUpdate {

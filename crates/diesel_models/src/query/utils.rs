@@ -1,8 +1,6 @@
 use crate::{observability::schema as observability_schema, schema, schema_v2};
 
 /// This trait will return a single column as primary key even in case of composite primary key.
-///
-/// In case of composite key, it will return the column that is used as local unique.
 pub(super) trait GetPrimaryKey: diesel::Table {
     type PK: diesel::ExpressionMethods;
     fn get_primary_key(&self) -> Self::PK;
@@ -12,8 +10,6 @@ pub(super) trait GetPrimaryKey: diesel::Table {
 pub(super) trait CompositeKey {
     type UK;
     /// It will return the local unique key of the composite key.
-    ///
-    /// If `(attempt_id, merchant_id)` is the composite key for `payment_attempt` table, then it will return `attempt_id`.
     fn get_local_unique_key(&self) -> Self::UK;
 }
 
@@ -139,7 +135,7 @@ impl_get_primary_key!(
     schema_v2::refund::table,
     schema_v2::customers::table,
     schema_v2::payment_attempt::table,
-    // observability tables: their own database, no v1/v2 flavour
+    // observability tables:
     observability_schema::alerts_info::table
 );
 
@@ -159,7 +155,7 @@ macro_rules! impl_get_primary_key_for_composite {
 }
 
 impl_get_primary_key_for_composite!(
-    // observability tables: their own database, no v1/v2 flavour
+    // observability tables:
     observability_schema::merchants_alert_external_config::table,
     schema::payment_attempt::table,
     schema::refund::table,

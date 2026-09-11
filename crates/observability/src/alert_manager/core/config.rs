@@ -1,12 +1,4 @@
-//! Per-request logic for the alert configuration resources: lease a connection, run one query,
-//! turn what comes back into the wire shape.
-//!
-//! This is where a [`diesel_models::errors::DatabaseError`] becomes an [`ObservabilityError`].
-//!
-//! An empty result and an unreachable database are never the same answer: a list with no rows is
-//! `200` and a count of zero, a list that could not ask is `503`. The alert manager reads "no
-//! alerts" as "nothing is wrong", so collapsing the two reports all-clear during exactly the
-//! incident this plane exists to notice.
+//! Per-request logic for the alert configuration resources:
 
 use diesel_models::{
     errors::DatabaseError,
@@ -27,14 +19,6 @@ use crate::{
 };
 
 /// Escalate a storage failure, keeping the report and everything attached to it.
-///
-/// `recognise` gets first refusal: only the caller knows which resource was addressed, so only it
-/// can turn a `NotFound` into a message naming the missing id. Anything it declines is the storage
-/// layer being away and is answered `503` - a `500` would be wrong twice over, since the service
-/// is fine and the condition is expected to clear.
-///
-/// The default is the safe direction: a new upstream `DatabaseError` variant lands in the
-/// catch-all and is reported as an outage, which is noisy rather than silent.
 fn escalate(
     error: error_stack::Report<DatabaseError>,
     recognise: impl FnOnce(DatabaseError) -> Option<ObservabilityError>,
@@ -51,11 +35,6 @@ fn unrecognised(_: DatabaseError) -> Option<ObservabilityError> {
 }
 
 /// Create a definition.
-///
-/// A second definition under the same name and product is refused rather than stored. The alert
-/// manager looks up a detector's configuration by name and the enablement table references the
-/// pair, so a duplicate would make both of those lookups "pick one" — which is why the unique
-/// index exists and why its violation is reported as a `400` rather than swallowed.
 pub async fn create_definition(
     state: AppState,
     request: AlertDefinitionCreateRequest,
@@ -91,10 +70,6 @@ pub async fn read_definition(
 }
 
 /// Every definition, including the reserved `all` row.
-///
-/// The reserved row is listed rather than filtered out. It is a definition a caller can read and
-/// edit like any other, and hiding it from the list would make the suppression it carries
-/// invisible to the screen that is supposed to manage it.
 pub async fn list_definitions(
     state: AppState,
 ) -> ObservabilityApiResult<AlertDefinitionListResponse> {
@@ -135,13 +110,6 @@ fn definition_not_found(
 }
 
 /// Write the enablement row for a name and product.
-///
-/// The definition is checked first. r-apps enforces this with a trigger that does not exist on
-/// this schema, and without the check an enablement row can name an alert nobody defined - a
-/// switch wired to nothing, which reads on screen exactly like one that works.
-///
-/// The reserved `all` definition is refused too: it carries suppression for every detector and is
-/// not itself a detector.
 pub async fn upsert_enablement(
     state: AppState,
     name: String,
@@ -197,11 +165,6 @@ pub async fn read_enablement(
 }
 
 /// Every enablement row, each resolved against its definition.
-///
-/// Two queries and a join in memory rather than one `LEFT JOIN`. There is one row per alert per
-/// product in both tables, so the whole of each fits in a handful of kilobytes, and the SQL that
-/// would express the outer join across a composite key is markedly harder to read than the map
-/// below. If either table ever grows past a screenful this is the thing to revisit.
 pub async fn list_enablements(
     state: AppState,
 ) -> ObservabilityApiResult<AlertEnablementListResponse> {
