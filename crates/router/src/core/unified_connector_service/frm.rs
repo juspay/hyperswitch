@@ -1,186 +1,36 @@
-//! Bridge from Hyperswitch's FRM core to the Unified Connector Service.
+//! FRM-specific orchestration for the Unified Connector Service.
 //!
 //! Native FRM providers (Signifyd, Riskified, CyberSource Decision Manager) run
 //! in-process. UCS-backed providers instead have their risk evaluation executed
 //! by the connector-service, which owns the provider-specific transformation.
 //!
-//! ```text
-//! FrmData                        ──▶ FrmServicePreRiskCheckRequest
-//! FrmServicePreRiskCheckResponse ──▶ FraudCheckResponseData
-//! ```
-//!
-//! The merchant's `frm_metadata` is forwarded verbatim as
-//! `connector_feature_data`. That is how provider-specific signals (device
-//! fingerprint, account tenure, velocity counters) reach the connector without
-//! Hyperswitch needing to model them — the same escape hatch Signifyd uses for
-//! its device `session_id`.
+//! This module holds what has no payments analogue: the access-token fetch for
+//! bearer-authenticated providers and the lifecycle notification sender. The
+//! `RouterData ──▶ FrmServicePreRiskCheckRequest` builder lives with every other
+//! request builder in `transformers.rs`, the verdict handler with its siblings
+//! in the parent module, and the gRPC call itself in `core::fraud_check::gateway`.
 
 use common_utils::{id_type, types::MinorUnit};
 use error_stack::ResultExt;
 use external_services::grpc_client::LineageIds;
 use hyperswitch_domain_models::{
-    platform::Processor, router_data::RouterData, router_flow_types::fraud_check as frm_api,
-    router_request_types::fraud_check::FraudCheckCheckoutData,
+    platform::Processor,
+    router_data::{AccessToken, RouterData},
+    router_flow_types::{fraud_check as frm_api, AccessTokenAuth},
+    router_request_types::{fraud_check::FraudCheckCheckoutData, AccessTokenRequestData},
     router_response_types::fraud_check::FraudCheckResponseData,
 };
-use hyperswitch_interfaces::unified_connector_service::UnifiedConnectorServiceError;
-use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use unified_connector_service_client::payments as payments_grpc;
 
-use super::{
-    build_unified_connector_service_auth_metadata, build_unified_connector_service_payment_method,
-    get_ucs_client,
-};
+use super::{build_unified_connector_service_auth_metadata, get_ucs_client};
 use crate::{
     core::{
         errors::{self, RouterResult},
-        payments::helpers::MerchantConnectorAccountType,
+        payments::{self, helpers::MerchantConnectorAccountType},
     },
     routes::SessionState,
     types::transformers::ForeignTryFrom,
 };
-
-/// Build the pre-risk-check request from the FRM `Checkout` router data.
-///
-/// Everything the risk provider needs is already on the router data: the
-/// request carries the instrument and buyer details, and the top-level fields
-/// carry address, token, access token and `frm_metadata`.
-impl ForeignTryFrom<&RouterData<frm_api::Checkout, FraudCheckCheckoutData, FraudCheckResponseData>>
-    for payments_grpc::FrmServicePreRiskCheckRequest
-{
-    type Error = error_stack::Report<UnifiedConnectorServiceError>;
-
-    fn foreign_try_from(
-        router_data: &RouterData<frm_api::Checkout, FraudCheckCheckoutData, FraudCheckResponseData>,
-    ) -> Result<Self, Self::Error> {
-        let request = &router_data.request;
-
-        let currency = request.currency.ok_or_else(|| {
-            error_stack::report!(UnifiedConnectorServiceError::MissingRequiredField {
-                field_name: "currency".into(),
-            })
-        })?;
-        let grpc_currency = payments_grpc::Currency::foreign_try_from(currency)?;
-
-        let amount = payments_grpc::Money {
-            minor_amount: request.amount.get_amount_as_i64(),
-            currency: grpc_currency.into(),
-        };
-
-        // `customer_id` is the stable merchant-side key risk providers use to
-        // build cross-transaction history for the buyer; the contact details
-        // alongside it are what they match on when the id is new.
-        let has_customer = request.customer_id.is_some()
-            || request.customer_name.is_some()
-            || request.email.is_some()
-            || request.phone.is_some();
-        let customer_info = has_customer.then(|| payments_grpc::Customer {
-            id: request
-                .customer_id
-                .as_ref()
-                .map(|id| id.get_string_repr().to_owned()),
-            // Sent as the full name; providers that want the parts split it
-            // themselves, since Hyperswitch does not store them apart.
-            name: request
-                .customer_name
-                .as_ref()
-                .map(|name| name.peek().to_owned()),
-            email: request
-                .email
-                .as_ref()
-                .map(|email| Secret::new(email.peek().to_owned())),
-            phone_number: request
-                .phone
-                .as_ref()
-                .map(|phone| Secret::new(phone.peek().to_owned())),
-            phone_country_code: request.phone_country_code.clone(),
-            ..Default::default()
-        });
-
-        // Reuses the same builder the payments UCS path uses, so the instrument
-        // is encoded identically for a risk check and for the authorization that
-        // follows it.
-        //
-        // A payment method Hyperswitch cannot encode degrades to `None` rather
-        // than failing: the FRM pre-check propagates its error with `?` in
-        // `pre_payment_frm_core`, so returning `Err` here would fail the payment
-        // outright over a risk-signal encoding problem.
-        let payment_method =
-            request
-                .payment_method_data_full
-                .as_ref()
-                .and_then(|payment_method_data| {
-                    build_unified_connector_service_payment_method(
-                        payment_method_data.clone(),
-                        router_data.payment_method_type,
-                        router_data.payment_method_token.as_ref(),
-                        None,
-                    )
-                    .inspect_err(|error| {
-                        router_env::logger::warn!(
-                            ?error,
-                            "Failed to encode the payment method for the FRM pre risk check; \
-                         the provider will score this transaction without instrument details"
-                        )
-                    })
-                    .ok()
-                });
-
-        // Merchant identity for risk scoring. The MCC lives on the business
-        // profile, which this path does not load, so it is left unset rather
-        // than issuing an extra fetch for a field no current provider reads.
-        let merchant_details = Some(payments_grpc::MerchantDetails {
-            merchant_id: Some(router_data.merchant_id.get_string_repr().to_owned()),
-            merchant_category_code: None,
-        });
-
-        let browser_info =
-            request
-                .browser_info
-                .as_ref()
-                .map(|info| payments_grpc::BrowserInformation {
-                    user_agent: info.user_agent.clone(),
-                    ip_address: info.ip_address.map(|ip| ip.to_string()),
-                    language: info.language.clone(),
-                    accept_header: info.accept_header.clone(),
-                    ..Default::default()
-                });
-
-        let order_details =
-            super::transformers::build_ucs_order_details(request.order_details.as_deref());
-
-        Ok(Self {
-            amount: Some(amount),
-            customer_info,
-            payment_method,
-            browser_info,
-            merchant_transaction_id: Some(router_data.attempt_id.clone()),
-            order_details,
-            address: Some(payments_grpc::PaymentAddress::foreign_try_from(
-                router_data.address.clone(),
-            )?),
-            merchant_details,
-            connector_feature_data: router_data
-                .frm_metadata
-                .as_ref()
-                .map(|metadata| Secret::new(metadata.clone().expose().to_string())),
-            // Bearer-authenticated providers read the token from
-            // `state.access_token`; prism threads it onto FrmFlowData.
-            state: router_data
-                .access_token
-                .as_ref()
-                .map(|token| payments_grpc::ConnectorState {
-                    access_token: Some(payments_grpc::AccessToken {
-                        token: Some(token.token.clone()),
-                        expires_in_seconds: Some(token.expires),
-                        token_type: None,
-                    }),
-                    connector_customer_id: None,
-                }),
-            ..Default::default()
-        })
-    }
-}
 
 /// Fetch (and cache) the OAuth token a bearer-authenticated FRM provider needs.
 ///
@@ -193,11 +43,13 @@ impl ForeignTryFrom<&RouterData<frm_api::Checkout, FraudCheckCheckoutData, Fraud
 pub async fn get_frm_access_token(
     state: &SessionState,
     processor: &Processor,
-    connector_name: &str,
+    router_data: &RouterData<frm_api::Checkout, FraudCheckCheckoutData, FraudCheckResponseData>,
     merchant_connector_account: &MerchantConnectorAccountType,
     lineage_ids: LineageIds,
-) -> RouterResult<Option<hyperswitch_domain_models::router_data::AccessToken>> {
+    execution_mode: common_enums::ExecutionMode,
+) -> RouterResult<Option<AccessToken>> {
     let merchant_id = processor.get_account().get_id();
+    let connector_name = router_data.connector.as_str();
 
     // Scope the cached token to the merchant connector account, the way the
     // payments path does (`access_token::get_cached_access_token_for_ucs`).
@@ -230,31 +82,69 @@ pub async fn get_frm_access_token(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to build UCS auth metadata for the FRM access token")?;
 
-    let grpc_headers = state
-        .get_grpc_headers_ucs(common_enums::ExecutionMode::Primary)
+    let header_payload = state
+        .get_grpc_headers_ucs(execution_mode)
         .lineage_ids(lineage_ids)
         .external_vault_proxy_metadata(None)
         .merchant_reference_id(None)
-        .resource_id(None)
-        .build();
+        .resource_id(None);
 
-    let response = ucs_client
-        .create_access_token(
-            payments_grpc::MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest::default(),
-            connector_auth_metadata,
-            grpc_headers,
-            common_enums::ConnectorType::PaymentVas,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("UCS create_access_token gRPC call failed for FRM")?;
+    // Same audit wrapper the payments access-token gateway uses, so an FRM
+    // token fetch produces the same request/response/timing event. The router
+    // data is re-typed to the access-token flow first (as `add_access_token`
+    // does) so the event is labelled `AccessTokenAuth`, not `Checkout`.
+    let access_token_request =
+        AccessTokenRequestData::try_from(router_data.connector_auth_type.clone())
+            .attach_printable(
+                "Could not create FRM access token request from connector credentials",
+            )?;
+    let access_token_router_data = payments::helpers::router_data_type_conversion::<
+        _,
+        AccessTokenAuth,
+        _,
+        _,
+        _,
+        AccessToken,
+    >(
+        router_data.clone(),
+        access_token_request,
+        Err(hyperswitch_domain_models::router_data::ErrorResponse::default()),
+    );
 
-    let (token_result, _status) =
-        super::handle_unified_connector_service_response_for_create_access_token(
-            response.into_inner(),
-        )
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to parse the UCS FRM access token response")?;
+    let (_, token_result) = Box::pin(super::ucs_logging_wrapper_granular(
+        access_token_router_data,
+        state,
+        payments_grpc::MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest::default(),
+        header_payload,
+        execution_mode,
+        |router_data, request, grpc_headers| async move {
+            let response = ucs_client
+                .create_access_token(
+                    request,
+                    connector_auth_metadata,
+                    grpc_headers,
+                    common_enums::ConnectorType::PaymentVas,
+                )
+                .await
+                .attach_printable("UCS create_access_token gRPC call failed for FRM")?;
+
+            let create_access_token_response = response.into_inner();
+
+            let (token_result, _status) =
+                super::handle_unified_connector_service_response_for_create_access_token(
+                    create_access_token_response.clone(),
+                )
+                .attach_printable("Failed to parse the UCS FRM access token response")?;
+
+            Ok((router_data, Some(token_result), create_access_token_response))
+        },
+    ))
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+    let Some(token_result) = token_result else {
+        return Ok(None);
+    };
 
     match token_result {
         Ok(token) => {
