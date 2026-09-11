@@ -1,16 +1,11 @@
-//! The wire contract for the notification bell's read watermark.
-
 use serde::Serialize;
 use time::PrimitiveDateTime;
 
 use super::ReadStatus;
 
-/// What the notification watermark routes return.
 #[derive(Debug, Serialize)]
 pub struct WatermarkResponse {
-    /// Whether a watermark exists.
     pub status: ReadStatus,
-    /// The instant the feed was last cleared, or `null` when it never was.
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub last_read_at: Option<PrimitiveDateTime>,
 }
@@ -24,7 +19,6 @@ mod tests {
         serde_json::to_value(value).unwrap()
     }
 
-    /// A user who has never cleared the feed has no row, and the bell reads that as "everything is unread" — which it can only do if the response says so rather than failing.
     #[test]
     fn a_watermark_that_was_never_set_is_an_answer_and_not_an_error() {
         let body = body_of(&WatermarkResponse {

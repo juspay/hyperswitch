@@ -3,7 +3,6 @@ use time::PrimitiveDateTime;
 
 use crate::observability::schema::notification_reads;
 
-// Serialize/Deserialize satisfy `DejaQueryResult`, which the query helpers require under `deja`.
 #[derive(
     Clone,
     Debug,

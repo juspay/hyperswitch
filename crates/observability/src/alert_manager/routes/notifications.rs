@@ -1,5 +1,3 @@
-//! Handlers for the notification bell's read watermark.
-
 use actix_web::{web, HttpRequest, HttpResponse};
 
 use crate::{
@@ -8,7 +6,6 @@ use crate::{
     state::AppState,
 };
 
-/// `GET /alerts/config/notifications/read`.
 pub async fn read(state: web::Data<AppState>, request: HttpRequest) -> HttpResponse {
     let user = UserName::from_headers(request.headers());
 
@@ -22,7 +19,6 @@ pub async fn read(state: web::Data<AppState>, request: HttpRequest) -> HttpRespo
     .await
 }
 
-/// `POST /alerts/config/notifications/read`.
 pub async fn mark_read(state: web::Data<AppState>, request: HttpRequest) -> HttpResponse {
     let user = UserName::from_headers(request.headers());
 

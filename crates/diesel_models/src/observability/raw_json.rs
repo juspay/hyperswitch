@@ -9,7 +9,6 @@ use diesel::{
 };
 use serde_json::value::RawValue;
 
-// `product`/`values_` are `json`, not `jsonb`:
 #[derive(Debug, Clone, AsExpression, FromSqlRow, serde::Serialize, serde::Deserialize)]
 #[diesel(sql_type = Json)]
 #[serde(transparent)]

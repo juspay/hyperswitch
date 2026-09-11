@@ -1,5 +1,3 @@
-//! Handlers for the mappers dictionary.
-
 use actix_web::{web, HttpRequest, HttpResponse};
 
 use crate::{
@@ -11,7 +9,6 @@ use crate::{
     state::AppState,
 };
 
-/// `GET /alerts/config/dictionary`.
 pub async fn list(state: web::Data<AppState>, request: HttpRequest) -> HttpResponse {
     services::server_wrap(
         state.get_ref().clone(),
@@ -23,7 +20,6 @@ pub async fn list(state: web::Data<AppState>, request: HttpRequest) -> HttpRespo
     .await
 }
 
-/// `GET /alerts/config/dictionary/{name}/{key}`.
 pub async fn read(
     state: web::Data<AppState>,
     request: HttpRequest,
@@ -41,13 +37,11 @@ pub async fn read(
     .await
 }
 
-/// `POST /alerts/config/dictionary`.
 pub async fn upsert(
     state: web::Data<AppState>,
     request: HttpRequest,
     payload: web::Json<DictionaryUpsertRequest>,
 ) -> HttpResponse {
-    // Read here and carried into the closure, which never sees the request — the same way the notify handlers carry their destination.
     let user = UserName::from_headers(request.headers());
 
     services::server_wrap(
@@ -60,7 +54,6 @@ pub async fn upsert(
     .await
 }
 
-/// `DELETE /alerts/config/dictionary/{name}/{key}`.
 pub async fn retire(
     state: web::Data<AppState>,
     request: HttpRequest,

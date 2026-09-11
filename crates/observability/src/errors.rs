@@ -44,46 +44,28 @@ pub enum ObservabilityError {
     InvalidRequest,
 
     #[error("The dictionary entry is {bytes} bytes, over the {limit} byte limit")]
-    EntryTooLarge {
-        bytes: usize,
-        limit: usize,
-    },
+    EntryTooLarge { bytes: usize, limit: usize },
 
     #[error("The observability database is unavailable")]
     StorageUnavailable,
 
     #[error("No alert definition exists with id `{id}`")]
-    DefinitionNotFound {
-        id: String,
-    },
+    DefinitionNotFound { id: String },
 
     #[error("An alert definition already exists for `{name}` / `{product}`")]
-    DuplicateDefinition {
-        name: String,
-        product: String,
-    },
+    DuplicateDefinition { name: String, product: String },
 
     #[error("No alert enablement exists for `{name}` / `{product}`")]
-    EnablementNotFound {
-        name: String,
-        product: String,
-    },
+    EnablementNotFound { name: String, product: String },
 
     #[error("No alert is defined as `{name}` / `{product}`")]
-    NotAnAlert {
-        name: String,
-        product: String,
-    },
+    NotAnAlert { name: String, product: String },
 
     #[error("No destination is configured under `{destination}`")]
-    UnknownDestination {
-        destination: String,
-    },
+    UnknownDestination { destination: String },
 
     #[error("The destination `{destination}` could not be reached")]
-    ProviderUnavailable {
-        destination: String,
-    },
+    ProviderUnavailable { destination: String },
 }
 
 pub type ObservabilityApiResult<T> = error_stack::Result<T, ObservabilityError>;

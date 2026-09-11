@@ -1,5 +1,3 @@
-//! Per-request logic for the notification bell's read watermark.
-
 use diesel_models::observability::notification_reads::NotificationRead;
 use error_stack::{report, ResultExt};
 
@@ -9,10 +7,8 @@ use crate::{
     state::AppState,
 };
 
-/// `notification_reads.user_name` is `VARCHAR(255)`.
 const USER_NAME_MAX_BYTES: usize = 255;
 
-/// One user's watermark, or the fact that they have never cleared their feed.
 pub async fn read(state: AppState, user: UserName) -> ObservabilityApiResult<WatermarkResponse> {
     let user_name = validated(&user)?;
     let connection = state.database_connection().await?;
@@ -27,7 +23,6 @@ pub async fn read(state: AppState, user: UserName) -> ObservabilityApiResult<Wat
             status: ReadStatus::Found,
             last_read_at: Some(watermark.last_read_at),
         },
-        // Not an error and not a `404`.
         None => WatermarkResponse {
             status: ReadStatus::Absent,
             last_read_at: None,
@@ -35,7 +30,6 @@ pub async fn read(state: AppState, user: UserName) -> ObservabilityApiResult<Wat
     })
 }
 
-/// Move the user's watermark to now.
 pub async fn mark_read(
     state: AppState,
     user: UserName,
@@ -52,14 +46,12 @@ pub async fn mark_read(
     .change_context(ObservabilityError::InternalServerError)
     .attach_printable("Failed to save a notification watermark")?;
 
-    // `found` rather than a write status of its own:
     Ok(WatermarkResponse {
         status: ReadStatus::Found,
         last_read_at: Some(watermark.last_read_at),
     })
 }
 
-/// Check the asserted name against its column's width.
 fn validated(user: &UserName) -> ObservabilityApiResult<&str> {
     let user_name = user.as_str();
 

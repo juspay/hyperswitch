@@ -15,7 +15,6 @@ use crate::{
     DatabaseConnectionWithContext, StorageResult,
 };
 
-// The partial index's predicate, spelled out rather than bound:
 const ENABLED_INDEX_PREDICATE: &str = "is_enabled IS TRUE";
 
 impl AlertsDictNew {

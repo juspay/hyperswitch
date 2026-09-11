@@ -3,7 +3,6 @@ use time::PrimitiveDateTime;
 
 use crate::observability::{raw_json::RawJson, schema::alerts_dicts};
 
-// Serialize/Deserialize satisfy `DejaQueryResult`, which the query helpers require under `deja`.
 #[derive(
     Clone, Debug, Queryable, Identifiable, Selectable, serde::Serialize, serde::Deserialize,
 )]

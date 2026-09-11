@@ -1,5 +1,3 @@
-//! Per-request logic for the mappers dictionary:
-
 use diesel_models::observability::{
     alerts_dicts::{AlertsDict, AlertsDictNew},
     raw_json::RawJson,
@@ -19,16 +17,12 @@ use crate::{
     state::AppState,
 };
 
-/// `alerts_dicts.name` is `VARCHAR(64)`.
 const NAME_MAX_BYTES: usize = 64;
 
-/// `alerts_dicts.key_` is `VARCHAR(255)`.
 const KEY_MAX_BYTES: usize = 255;
 
-/// `alerts_dicts.username` is `VARCHAR(64)`.
 const USERNAME_MAX_BYTES: usize = 64;
 
-/// Every live entry.
 pub async fn list(state: AppState) -> ObservabilityApiResult<DictionaryListResponse> {
     let connection = state.database_connection().await?;
 
@@ -47,7 +41,6 @@ pub async fn list(state: AppState) -> ObservabilityApiResult<DictionaryListRespo
     })
 }
 
-/// One live entry, or the fact that there is none.
 pub async fn read(
     state: AppState,
     name: &str,
@@ -68,7 +61,6 @@ pub async fn read(
     })
 }
 
-/// Save an entry, replacing the live row for its key.
 pub async fn upsert(
     state: AppState,
     request: DictionaryUpsertRequest,
@@ -97,7 +89,6 @@ pub async fn upsert(
         key_: key,
         product,
         values_: values,
-        // The service's clock, not the caller's:
         ts_created: common_utils::date_time::now(),
         username,
         metadata,
@@ -113,7 +104,6 @@ pub async fn upsert(
     })
 }
 
-/// Retire an entry, keeping it as history.
 pub async fn retire(
     state: AppState,
     name: &str,
@@ -131,7 +121,6 @@ pub async fn retire(
     })
 }
 
-/// Trim a required field and check it against its column's width.
 fn validated(value: &str, field: &'static str, max_bytes: usize) -> ObservabilityApiResult<String> {
     let value = value.trim();
 
@@ -152,7 +141,6 @@ fn validated(value: &str, field: &'static str, max_bytes: usize) -> Observabilit
     Ok(value.to_owned())
 }
 
-/// Reject an entry whose JSON is larger than the configured cap.
 fn within_cap(limit: usize, columns: [Option<&RawJson>; 3]) -> ObservabilityApiResult<()> {
     let bytes = columns
         .into_iter()
@@ -161,7 +149,6 @@ fn within_cap(limit: usize, columns: [Option<&RawJson>; 3]) -> ObservabilityApiR
         .sum::<usize>();
 
     if bytes > limit {
-        // Logged with the sizes, which the response deliberately does not carry:
         logger::warn!(
             bytes = bytes,
             limit = limit,
