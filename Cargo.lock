@@ -8087,6 +8087,7 @@ dependencies = [
  "error-stack 0.4.1",
  "fred",
  "futures 0.3.31",
+ "hyperswitch_masking",
  "redis",
  "router_env",
  "serde",

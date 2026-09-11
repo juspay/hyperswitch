@@ -30,6 +30,12 @@ pub struct RedisValue {
 pub struct RedisSettings {
     pub host: String,
     pub port: u16,
+    /// Username for Redis ACL authentication (Redis 6+ / Redis Cloud).
+    /// When unset, the `default` user is assumed.
+    pub username: Option<String>,
+    /// Password for Redis `AUTH` / ACL authentication.
+    /// When unset, the connection handshake is unauthenticated.
+    pub password: Option<hyperswitch_masking::Secret<String>>,
     pub cluster_enabled: bool,
     pub cluster_urls: Vec<String>,
     pub use_legacy_version: bool,
@@ -61,6 +67,25 @@ pub struct RedisSettings {
 }
 
 impl RedisSettings {
+    /// The configured ACL username, treating an empty or whitespace-only
+    /// value as unset.
+    pub(crate) fn auth_username(&self) -> Option<&str> {
+        self.username
+            .as_deref()
+            .map(str::trim)
+            .filter(|username| !username.is_empty())
+    }
+
+    /// The configured password, treating an empty value as unset.
+    pub(crate) fn auth_password(&self) -> Option<&str> {
+        use hyperswitch_masking::PeekInterface;
+
+        self.password
+            .as_ref()
+            .map(|password| password.peek().as_str())
+            .filter(|password| !password.is_empty())
+    }
+
     /// Validates the Redis configuration provided.
     pub fn validate(&self) -> CustomResult<(), errors::RedisError> {
         use common_utils::{ext_traits::ConfigExt, fp_utils::when};
@@ -70,6 +95,15 @@ impl RedisSettings {
                 "Redis `host` must be specified".into(),
             ))
         })?;
+
+        when(
+            self.auth_username().is_some() && self.auth_password().is_none(),
+            || {
+                Err(errors::RedisError::InvalidConfiguration(
+                    "Redis `password` must be specified when `username` is set".into(),
+                ))
+            },
+        )?;
 
         when(self.cluster_enabled && self.cluster_urls.is_empty(), || {
             Err(errors::RedisError::InvalidConfiguration(
@@ -105,6 +139,8 @@ impl Default for RedisSettings {
         Self {
             host: "127.0.0.1".to_string(),
             port: 6379,
+            username: None,
+            password: None,
             cluster_enabled: false,
             cluster_urls: vec![],
             use_legacy_version: false,
@@ -460,6 +496,57 @@ mod tests {
         assert_eq!(settings.default_hash_ttl, 900);
         assert_eq!(settings.broadcast_channel_capacity, 32);
         assert_eq!(settings.max_failure_threshold_seconds, 5);
+    }
+
+    #[test]
+    fn test_redis_settings_validate_username_without_password() {
+        let settings = RedisSettings {
+            username: Some("app_user".to_string()),
+            password: None,
+            ..RedisSettings::default()
+        };
+        assert!(settings.validate().is_err());
+    }
+
+    #[test]
+    fn test_redis_settings_validate_username_with_password() {
+        let settings = RedisSettings {
+            username: Some("app_user".to_string()),
+            password: Some("secret".to_string().into()),
+            ..RedisSettings::default()
+        };
+        assert!(settings.validate().is_ok());
+    }
+
+    #[test]
+    fn test_redis_settings_validate_password_only() {
+        let settings = RedisSettings {
+            password: Some("secret".to_string().into()),
+            ..RedisSettings::default()
+        };
+        assert!(settings.validate().is_ok());
+    }
+
+    #[test]
+    fn test_redis_settings_empty_credentials_treated_as_unset() {
+        let settings = RedisSettings {
+            username: Some(String::new()),
+            password: Some(String::new().into()),
+            ..RedisSettings::default()
+        };
+        assert!(settings.auth_username().is_none());
+        assert!(settings.auth_password().is_none());
+        assert!(settings.validate().is_ok());
+    }
+
+    #[test]
+    fn test_redis_settings_password_masked_in_debug() {
+        let settings = RedisSettings {
+            password: Some("super_secret".to_string().into()),
+            ..RedisSettings::default()
+        };
+        let debug_output = format!("{settings:?}");
+        assert!(!debug_output.contains("super_secret"));
     }
 
     #[test]
