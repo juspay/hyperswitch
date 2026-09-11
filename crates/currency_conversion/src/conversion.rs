@@ -30,62 +30,60 @@ pub fn convert(
 mod tests {
     use std::collections::HashMap;
 
-    use crate::types::CurrencyFactors;
+    use common_enums::Currency;
+    use rust_decimal::Decimal;
+
+    use super::convert;
+    use crate::types::{CurrencyFactors, ExchangeRates};
+
+    // Base currency is USD for every case below. `CurrencyFactors::new` takes
+    // `(to_factor, from_factor)`, where `to_factor` converts base -> currency
+    // and `from_factor` converts currency -> base.
+    //   INR: 1 USD = 80 INR  -> to_factor = 80,  from_factor = 1/80 = 0.0125
+    //   SZL: 1 USD = 20 SZL  -> to_factor = 20,  from_factor = 1/20 = 0.05
+    fn inr_factors() -> CurrencyFactors {
+        CurrencyFactors::new(Decimal::new(80, 0), Decimal::new(125, 4))
+    }
+    fn szl_factors() -> CurrencyFactors {
+        CurrencyFactors::new(Decimal::new(20, 0), Decimal::new(5, 2))
+    }
+    fn usd_factors() -> CurrencyFactors {
+        CurrencyFactors::new(Decimal::new(1, 0), Decimal::new(1, 0))
+    }
+
     #[test]
     fn currency_to_currency_conversion() {
-        use super::*;
-        let mut conversion: HashMap<Currency, CurrencyFactors> = HashMap::new();
-        let inr_conversion_rates =
-            CurrencyFactors::new(Decimal::new(823173, 4), Decimal::new(1214, 5));
-        let szl_conversion_rates =
-            CurrencyFactors::new(Decimal::new(194423, 4), Decimal::new(514, 4));
-        let convert_from = Currency::SZL;
-        let convert_to = Currency::INR;
-        let amount = 2000;
-        let base_currency = Currency::USD;
-        conversion.insert(convert_from, inr_conversion_rates);
-        conversion.insert(convert_to, szl_conversion_rates);
-        let sample_rate = ExchangeRates::new(base_currency, conversion);
-        let res =
-            convert(&sample_rate, convert_from, convert_to, amount).expect("converted_currency");
-        println!("The conversion from {amount} {convert_from} to {convert_to} is {res:?}");
+        let mut conversion = HashMap::new();
+        conversion.insert(Currency::SZL, szl_factors());
+        conversion.insert(Currency::INR, inr_factors());
+        let rates = ExchangeRates::new(Currency::USD, conversion);
+
+        // 2000 minor SZL = 20 SZL -> 20 * 0.05 = 1 USD -> 1 * 80 = 80 INR
+        let res = convert(&rates, Currency::SZL, Currency::INR, 2000).expect("conversion failed");
+        assert_eq!(res, Decimal::from(80));
     }
 
     #[test]
     fn currency_to_base_conversion() {
-        use super::*;
-        let mut conversion: HashMap<Currency, CurrencyFactors> = HashMap::new();
-        let inr_conversion_rates =
-            CurrencyFactors::new(Decimal::new(823173, 4), Decimal::new(1214, 5));
-        let usd_conversion_rates = CurrencyFactors::new(Decimal::new(1, 0), Decimal::new(1, 0));
-        let convert_from = Currency::INR;
-        let convert_to = Currency::USD;
-        let amount = 2000;
-        let base_currency = Currency::USD;
-        conversion.insert(convert_from, inr_conversion_rates);
-        conversion.insert(convert_to, usd_conversion_rates);
-        let sample_rate = ExchangeRates::new(base_currency, conversion);
-        let res =
-            convert(&sample_rate, convert_from, convert_to, amount).expect("converted_currency");
-        println!("The conversion from {amount} {convert_from} to {convert_to} is {res:?}");
+        let mut conversion = HashMap::new();
+        conversion.insert(Currency::INR, inr_factors());
+        conversion.insert(Currency::USD, usd_factors());
+        let rates = ExchangeRates::new(Currency::USD, conversion);
+
+        // 2000 minor INR = 20 INR -> 20 * 0.0125 = 0.25 USD
+        let res = convert(&rates, Currency::INR, Currency::USD, 2000).expect("conversion failed");
+        assert_eq!(res, Decimal::new(25, 2));
     }
 
     #[test]
     fn base_to_currency_conversion() {
-        use super::*;
-        let mut conversion: HashMap<Currency, CurrencyFactors> = HashMap::new();
-        let inr_conversion_rates =
-            CurrencyFactors::new(Decimal::new(823173, 4), Decimal::new(1214, 5));
-        let usd_conversion_rates = CurrencyFactors::new(Decimal::new(1, 0), Decimal::new(1, 0));
-        let convert_from = Currency::USD;
-        let convert_to = Currency::INR;
-        let amount = 2000;
-        let base_currency = Currency::USD;
-        conversion.insert(convert_from, usd_conversion_rates);
-        conversion.insert(convert_to, inr_conversion_rates);
-        let sample_rate = ExchangeRates::new(base_currency, conversion);
-        let res =
-            convert(&sample_rate, convert_from, convert_to, amount).expect("converted_currency");
-        println!("The conversion from {amount} {convert_from} to {convert_to} is {res:?}");
+        let mut conversion = HashMap::new();
+        conversion.insert(Currency::USD, usd_factors());
+        conversion.insert(Currency::INR, inr_factors());
+        let rates = ExchangeRates::new(Currency::USD, conversion);
+
+        // 2000 minor USD = 20 USD -> 20 * 80 = 1600 INR
+        let res = convert(&rates, Currency::USD, Currency::INR, 2000).expect("conversion failed");
+        assert_eq!(res, Decimal::from(1600));
     }
 }
