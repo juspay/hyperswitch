@@ -110,12 +110,12 @@ aws_region = ""
 [email.destinations.smoke]
 to = "alerts@example.com"
 
-# The infrastructure alarm catalogue. Empty here: a deployment sets it through
-# OBSERVABILITY__CLOUDWATCH__ALARMS__<ID>__* variables, rendered from the chart values in
+# The infrastructure alert catalogue. Empty here: a deployment sets it through
+# OBSERVABILITY__CLOUDWATCH__DEFINITIONS__<ID>__* variables, rendered from the chart values in
 # hyperswitch-infra. Dimensions take `Name=value` pairs rather than a table, because `config`
 # lowercases keys read from the environment and CloudWatch dimension names are case-sensitive.
 #
-# [cloudwatch.alarms.rds_primary_cpu]
+# [cloudwatch.definitions.rds_primary_cpu]
 # name = "rds-primary-cpu"
 # classification = "rds-alerts"
 # metric_name = "CPUUtilization"
@@ -124,7 +124,7 @@ to = "alerts@example.com"
 # period = 60
 # statistic = "Average"
 #
-# [cloudwatch.alarms.rds_primary_cpu.severities.sev1]
+# [cloudwatch.definitions.rds_primary_cpu.severities.sev1]
 # threshold = 90
 # comparison_operator = "GreaterThanOrEqualToThreshold"
 # evaluation_periods = 1

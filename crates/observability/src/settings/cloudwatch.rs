@@ -1,5 +1,9 @@
-//! The infrastructure alarm catalogue, transcribed from the CloudWatch alarm rules the
-//! infrastructure repository owns.
+//! The infrastructure alert catalogue, transcribed from the CloudWatch alarms the infrastructure
+//! repository owns.
+//!
+//! A [`Definition`] says what to measure; the [`Rule`]s under it each say what is bad about it.
+//! One rule corresponds to one of the AWS alarms we run alongside, which is why "alarm" is not
+//! used for anything here.
 //!
 //! Shaped for environment variables, since that is how a deployment sets it: ids are lowercase and
 //! `_`-separated because `config` lowercases keys and an environment variable name cannot contain
@@ -22,11 +26,11 @@ use crate::{
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(default)]
 pub struct CloudWatchSettings {
-    pub alarms: HashMap<String, AlarmDefinition>,
+    pub definitions: HashMap<String, Definition>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
-pub struct AlarmDefinition {
+pub struct Definition {
     /// The name upstream, e.g. `rds-primary-cpu`. Separate from the id, which cannot carry `-`.
     pub name: String,
     pub classification: String,
@@ -37,12 +41,12 @@ pub struct AlarmDefinition {
     pub dimensions: HashSet<Dimension>,
     pub period: u32,
     pub statistic: Statistic,
-    pub severities: HashMap<String, SeverityRule>,
+    pub severities: HashMap<String, Rule>,
 }
 
 /// An independent rule over the definition's readings. Severities do not suppress each other.
 #[derive(Debug, Clone, Deserialize)]
-pub struct SeverityRule {
+pub struct Rule {
     pub threshold: f64,
     pub comparison_operator: ComparisonOperator,
     pub evaluation_periods: u32,
@@ -133,24 +137,24 @@ impl FromStr for Dimension {
 
 impl CloudWatchSettings {
     pub fn validate(&self) -> Result<(), errors::ConfigurationError> {
-        validate_config_ids(&self.alarms, "cloudwatch alarm")?;
+        validate_config_ids(&self.definitions, "cloudwatch definition")?;
 
-        for (id, alarm) in &self.alarms {
-            alarm.validate(id)?;
+        for (id, definition) in &self.definitions {
+            definition.validate(id)?;
         }
 
         Ok(())
     }
 
     pub fn rule_count(&self) -> usize {
-        self.alarms
+        self.definitions
             .values()
-            .map(|alarm| alarm.severities.len())
+            .map(|definition| definition.severities.len())
             .sum()
     }
 }
 
-impl AlarmDefinition {
+impl Definition {
     pub fn labels(&self) -> Labels {
         self.dimensions
             .iter()
@@ -165,7 +169,7 @@ impl AlarmDefinition {
     fn validate(&self, id: &str) -> Result<(), errors::ConfigurationError> {
         let reject = |reason: String| {
             Err(errors::ConfigurationError::ConfigParsingError(format!(
-                "cloudwatch alarm `{id}`: {reason}"
+                "cloudwatch definition `{id}`: {reason}"
             )))
         };
 
@@ -180,7 +184,7 @@ impl AlarmDefinition {
             }
         }
 
-        // The provider rejects the whole batch over one unusable period, so an alarm configured
+        // The provider rejects the whole batch over one unusable period, so a definition configured
         // with 61 would blind every other metric evaluated alongside it.
         if !is_queryable_period(self.period) {
             return reject(format!(
@@ -202,7 +206,7 @@ impl AlarmDefinition {
 
         validate_config_ids(
             &self.severities,
-            &format!("cloudwatch alarm `{id}` severity"),
+            &format!("cloudwatch definition `{id}` severity"),
         )?;
 
         for (severity, rule) in &self.severities {
@@ -221,15 +225,15 @@ fn is_queryable_period(seconds: u32) -> bool {
     high_resolution || standard
 }
 
-impl SeverityRule {
-    fn validate(&self, alarm: &str, severity: &str) -> Result<(), errors::ConfigurationError> {
+impl Rule {
+    fn validate(&self, definition: &str, severity: &str) -> Result<(), errors::ConfigurationError> {
         let reject = |reason: String| {
             Err(errors::ConfigurationError::ConfigParsingError(format!(
-                "cloudwatch alarm `{alarm}` severity `{severity}`: {reason}"
+                "cloudwatch definition `{definition}` severity `{severity}`: {reason}"
             )))
         };
 
-        // NaN compares false against every reading, so the alarm could never fire.
+        // NaN compares false against every reading, so the rule could never fire.
         if !self.threshold.is_finite() {
             return reject(format!(
                 "threshold must be a finite number, not {}",
@@ -268,43 +272,43 @@ mod tests {
 
     fn rds_primary_cpu_environment() -> HashMap<String, String> {
         [
-            ("OBSERVABILITY__CLOUDWATCH__ALARMS__RDS_PRIMARY_CPU__NAME", "rds-primary-cpu"),
-            ("OBSERVABILITY__CLOUDWATCH__ALARMS__RDS_PRIMARY_CPU__CLASSIFICATION", "rds-alerts"),
-            ("OBSERVABILITY__CLOUDWATCH__ALARMS__RDS_PRIMARY_CPU__METRIC_NAME", "CPUUtilization"),
-            ("OBSERVABILITY__CLOUDWATCH__ALARMS__RDS_PRIMARY_CPU__NAMESPACE", "AWS/RDS"),
+            ("OBSERVABILITY__CLOUDWATCH__DEFINITIONS__RDS_PRIMARY_CPU__NAME", "rds-primary-cpu"),
+            ("OBSERVABILITY__CLOUDWATCH__DEFINITIONS__RDS_PRIMARY_CPU__CLASSIFICATION", "rds-alerts"),
+            ("OBSERVABILITY__CLOUDWATCH__DEFINITIONS__RDS_PRIMARY_CPU__METRIC_NAME", "CPUUtilization"),
+            ("OBSERVABILITY__CLOUDWATCH__DEFINITIONS__RDS_PRIMARY_CPU__NAMESPACE", "AWS/RDS"),
             (
-                "OBSERVABILITY__CLOUDWATCH__ALARMS__RDS_PRIMARY_CPU__DIMENSIONS",
+                "OBSERVABILITY__CLOUDWATCH__DEFINITIONS__RDS_PRIMARY_CPU__DIMENSIONS",
                 "DBInstanceIdentifier=hyperswitchdb-primary",
             ),
-            ("OBSERVABILITY__CLOUDWATCH__ALARMS__RDS_PRIMARY_CPU__PERIOD", "60"),
-            ("OBSERVABILITY__CLOUDWATCH__ALARMS__RDS_PRIMARY_CPU__STATISTIC", "Average"),
-            ("OBSERVABILITY__CLOUDWATCH__ALARMS__RDS_PRIMARY_CPU__SEVERITIES__SEV1__THRESHOLD", "90"),
+            ("OBSERVABILITY__CLOUDWATCH__DEFINITIONS__RDS_PRIMARY_CPU__PERIOD", "60"),
+            ("OBSERVABILITY__CLOUDWATCH__DEFINITIONS__RDS_PRIMARY_CPU__STATISTIC", "Average"),
+            ("OBSERVABILITY__CLOUDWATCH__DEFINITIONS__RDS_PRIMARY_CPU__SEVERITIES__SEV1__THRESHOLD", "90"),
             (
-                "OBSERVABILITY__CLOUDWATCH__ALARMS__RDS_PRIMARY_CPU__SEVERITIES__SEV1__COMPARISON_OPERATOR",
+                "OBSERVABILITY__CLOUDWATCH__DEFINITIONS__RDS_PRIMARY_CPU__SEVERITIES__SEV1__COMPARISON_OPERATOR",
                 "GreaterThanOrEqualToThreshold",
             ),
-            ("OBSERVABILITY__CLOUDWATCH__ALARMS__RDS_PRIMARY_CPU__SEVERITIES__SEV1__EVALUATION_PERIODS", "1"),
+            ("OBSERVABILITY__CLOUDWATCH__DEFINITIONS__RDS_PRIMARY_CPU__SEVERITIES__SEV1__EVALUATION_PERIODS", "1"),
             (
-                "OBSERVABILITY__CLOUDWATCH__ALARMS__RDS_PRIMARY_CPU__SEVERITIES__SEV1__TREAT_MISSING_DATA",
+                "OBSERVABILITY__CLOUDWATCH__DEFINITIONS__RDS_PRIMARY_CPU__SEVERITIES__SEV1__TREAT_MISSING_DATA",
                 "breaching",
             ),
             (
-                "OBSERVABILITY__CLOUDWATCH__ALARMS__RDS_PRIMARY_CPU__SEVERITIES__SEV1__DESCRIPTION",
+                "OBSERVABILITY__CLOUDWATCH__DEFINITIONS__RDS_PRIMARY_CPU__SEVERITIES__SEV1__DESCRIPTION",
                 "SEV1: RDS primary database CPU utilization is above 90%.",
             ),
-            ("OBSERVABILITY__CLOUDWATCH__ALARMS__RDS_PRIMARY_CPU__SEVERITIES__SEV3__THRESHOLD", "65"),
+            ("OBSERVABILITY__CLOUDWATCH__DEFINITIONS__RDS_PRIMARY_CPU__SEVERITIES__SEV3__THRESHOLD", "65"),
             (
-                "OBSERVABILITY__CLOUDWATCH__ALARMS__RDS_PRIMARY_CPU__SEVERITIES__SEV3__COMPARISON_OPERATOR",
+                "OBSERVABILITY__CLOUDWATCH__DEFINITIONS__RDS_PRIMARY_CPU__SEVERITIES__SEV3__COMPARISON_OPERATOR",
                 "GreaterThanOrEqualToThreshold",
             ),
-            ("OBSERVABILITY__CLOUDWATCH__ALARMS__RDS_PRIMARY_CPU__SEVERITIES__SEV3__EVALUATION_PERIODS", "3"),
-            ("OBSERVABILITY__CLOUDWATCH__ALARMS__RDS_PRIMARY_CPU__SEVERITIES__SEV3__DATAPOINTS_TO_ALARM", "2"),
+            ("OBSERVABILITY__CLOUDWATCH__DEFINITIONS__RDS_PRIMARY_CPU__SEVERITIES__SEV3__EVALUATION_PERIODS", "3"),
+            ("OBSERVABILITY__CLOUDWATCH__DEFINITIONS__RDS_PRIMARY_CPU__SEVERITIES__SEV3__DATAPOINTS_TO_ALARM", "2"),
             (
-                "OBSERVABILITY__CLOUDWATCH__ALARMS__RDS_PRIMARY_CPU__SEVERITIES__SEV3__TREAT_MISSING_DATA",
+                "OBSERVABILITY__CLOUDWATCH__DEFINITIONS__RDS_PRIMARY_CPU__SEVERITIES__SEV3__TREAT_MISSING_DATA",
                 "notBreaching",
             ),
             (
-                "OBSERVABILITY__CLOUDWATCH__ALARMS__RDS_PRIMARY_CPU__SEVERITIES__SEV3__DESCRIPTION",
+                "OBSERVABILITY__CLOUDWATCH__DEFINITIONS__RDS_PRIMARY_CPU__SEVERITIES__SEV3__DESCRIPTION",
                 "SEV3: RDS primary database CPU utilization is above 65%.",
             ),
         ]
@@ -333,16 +337,19 @@ mod tests {
     #[test]
     fn a_definition_is_read_from_the_environment() {
         let settings = settings_from(rds_primary_cpu_environment());
-        let alarm = &settings.cloudwatch.alarms["rds_primary_cpu"];
+        let definition = &settings.cloudwatch.definitions["rds_primary_cpu"];
 
-        assert_eq!(alarm.name, "rds-primary-cpu");
-        assert_eq!(alarm.classification, "rds-alerts");
-        assert_eq!(alarm.metric_name, "CPUUtilization");
-        assert_eq!(alarm.namespace, "AWS/RDS");
-        assert_eq!(alarm.period(), Period::ONE_MINUTE);
-        assert_eq!(Aggregation::from(alarm.statistic), Aggregation::Average);
+        assert_eq!(definition.name, "rds-primary-cpu");
+        assert_eq!(definition.classification, "rds-alerts");
+        assert_eq!(definition.metric_name, "CPUUtilization");
+        assert_eq!(definition.namespace, "AWS/RDS");
+        assert_eq!(definition.period(), Period::ONE_MINUTE);
+        assert_eq!(
+            Aggregation::from(definition.statistic),
+            Aggregation::Average
+        );
 
-        let sev1 = &alarm.severities["sev1"];
+        let sev1 = &definition.severities["sev1"];
         assert!((sev1.threshold - 90.0).abs() < f64::EPSILON);
         assert_eq!(
             sev1.comparison_operator,
@@ -352,7 +359,7 @@ mod tests {
         assert_eq!(sev1.datapoints_to_alarm, None);
         assert_eq!(sev1.treat_missing_data, MissingDataPolicy::Breaching);
 
-        let sev3 = &alarm.severities["sev3"];
+        let sev3 = &definition.severities["sev3"];
         assert_eq!(sev3.datapoints_to_alarm, Some(2));
         assert_eq!(sev3.treat_missing_data, MissingDataPolicy::NotBreaching);
 
@@ -365,16 +372,16 @@ mod tests {
     #[test]
     fn dimension_names_survive_the_environment_with_their_case() {
         let settings = settings_from(rds_primary_cpu_environment());
-        let alarm = &settings.cloudwatch.alarms["rds_primary_cpu"];
+        let definition = &settings.cloudwatch.definitions["rds_primary_cpu"];
 
         assert_eq!(
-            alarm.dimensions,
+            definition.dimensions,
             [dimension("DBInstanceIdentifier", "hyperswitchdb-primary")]
                 .into_iter()
                 .collect::<HashSet<_>>()
         );
         assert_eq!(
-            alarm.labels(),
+            definition.labels(),
             [("DBInstanceIdentifier", "hyperswitchdb-primary")]
                 .into_iter()
                 .collect::<Labels>()
@@ -426,16 +433,16 @@ mod tests {
         }
     }
 
-    fn catalogue_with(id: &str, alarm: AlarmDefinition) -> CloudWatchSettings {
+    fn catalogue_with(id: &str, definition: Definition) -> CloudWatchSettings {
         CloudWatchSettings {
-            alarms: [(id.to_owned(), alarm)].into_iter().collect(),
+            definitions: [(id.to_owned(), definition)].into_iter().collect(),
         }
     }
 
-    fn rds_primary_cpu() -> AlarmDefinition {
+    fn rds_primary_cpu() -> Definition {
         settings_from(rds_primary_cpu_environment())
             .cloudwatch
-            .alarms["rds_primary_cpu"]
+            .definitions["rds_primary_cpu"]
             .clone()
     }
 
@@ -446,67 +453,67 @@ mod tests {
                 catalogue_with("RDS_PRIMARY_CPU", rds_primary_cpu())
             }),
             ("no severities at all", {
-                let mut alarm = rds_primary_cpu();
-                alarm.severities.clear();
-                catalogue_with("rds_primary_cpu", alarm)
+                let mut definition = rds_primary_cpu();
+                definition.severities.clear();
+                catalogue_with("rds_primary_cpu", definition)
             }),
             ("a zero period", {
-                let mut alarm = rds_primary_cpu();
-                alarm.period = 0;
-                catalogue_with("rds_primary_cpu", alarm)
+                let mut definition = rds_primary_cpu();
+                definition.period = 0;
+                catalogue_with("rds_primary_cpu", definition)
             }),
             ("a period the provider would reject the whole batch over", {
-                let mut alarm = rds_primary_cpu();
-                alarm.period = 61;
-                catalogue_with("rds_primary_cpu", alarm)
+                let mut definition = rds_primary_cpu();
+                definition.period = 61;
+                catalogue_with("rds_primary_cpu", definition)
             }),
             ("a period beyond a day", {
-                let mut alarm = rds_primary_cpu();
-                alarm.period = 86_460;
-                catalogue_with("rds_primary_cpu", alarm)
+                let mut definition = rds_primary_cpu();
+                definition.period = 86_460;
+                catalogue_with("rds_primary_cpu", definition)
             }),
             ("the same dimension twice", {
-                let mut alarm = rds_primary_cpu();
-                alarm.dimensions = [
+                let mut definition = rds_primary_cpu();
+                definition.dimensions = [
                     dimension("DBClusterIdentifier", "hyperswitchdb-cluster"),
                     dimension("DBClusterIdentifier", "failover-replica-1"),
                 ]
                 .into_iter()
                 .collect();
-                catalogue_with("rds_primary_cpu", alarm)
+                catalogue_with("rds_primary_cpu", definition)
             }),
             ("an empty metric name", {
-                let mut alarm = rds_primary_cpu();
-                alarm.metric_name = String::new();
-                catalogue_with("rds_primary_cpu", alarm)
+                let mut definition = rds_primary_cpu();
+                definition.metric_name = String::new();
+                catalogue_with("rds_primary_cpu", definition)
             }),
             ("a window that can never fill", {
-                let mut alarm = rds_primary_cpu();
-                if let Some(rule) = alarm.severities.get_mut("sev3") {
+                let mut definition = rds_primary_cpu();
+                if let Some(rule) = definition.severities.get_mut("sev3") {
                     rule.datapoints_to_alarm = Some(rule.evaluation_periods + 1);
                 }
-                catalogue_with("rds_primary_cpu", alarm)
+                catalogue_with("rds_primary_cpu", definition)
             }),
             ("a window of no periods", {
-                let mut alarm = rds_primary_cpu();
-                if let Some(rule) = alarm.severities.get_mut("sev1") {
+                let mut definition = rds_primary_cpu();
+                if let Some(rule) = definition.severities.get_mut("sev1") {
                     rule.evaluation_periods = 0;
                 }
-                catalogue_with("rds_primary_cpu", alarm)
+                catalogue_with("rds_primary_cpu", definition)
             }),
             ("an alert with nothing to say", {
-                let mut alarm = rds_primary_cpu();
-                if let Some(rule) = alarm.severities.get_mut("sev1") {
+                let mut definition = rds_primary_cpu();
+                if let Some(rule) = definition.severities.get_mut("sev1") {
                     rule.description = String::new();
                 }
-                catalogue_with("rds_primary_cpu", alarm)
+                catalogue_with("rds_primary_cpu", definition)
             }),
             ("a threshold no reading can be compared against", {
-                let mut alarm = rds_primary_cpu();
-                if let Some(rule) = alarm.severities.get_mut("sev1") {
+                let mut definition = rds_primary_cpu();
+                if let Some(rule) = definition.severities.get_mut("sev1") {
                     rule.threshold = f64::NAN;
                 }
-                catalogue_with("rds_primary_cpu", alarm)
+                catalogue_with("rds_primary_cpu", definition)
             }),
         ];
 
