@@ -1931,6 +1931,18 @@ impl PaymentCreate {
             .force_3ds_challenge
             .unwrap_or(business_profile.force_3ds_challenge);
 
+        // If the business details are not passed in the request, populate them from the merchant
+        // account so that the connector label can be generated for the payment
+        let (business_country, business_label) = storage::PaymentIntent::resolve_business_details(
+            request.business_country,
+            request.business_label.clone(),
+            None,
+            platform.get_processor().get_account(),
+            business_profile,
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to resolve business details for the payment")?;
+
         Ok(storage::PaymentIntent {
             payment_id: payment_id.to_owned(),
             merchant_id: platform.get_provider().get_account().get_id().to_owned(),
@@ -1950,8 +1962,8 @@ impl PaymentCreate {
             statement_descriptor_name: request.statement_descriptor_name.clone(),
             statement_descriptor_suffix: request.statement_descriptor_suffix.clone(),
             metadata: request.metadata.clone(),
-            business_country: request.business_country,
-            business_label: request.business_label.clone(),
+            business_country,
+            business_label,
             active_attempt: hyperswitch_domain_models::RemoteStorageObject::ForeignID(
                 active_attempt_id,
             ),

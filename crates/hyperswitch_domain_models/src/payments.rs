@@ -209,6 +209,104 @@ impl PaymentIntent {
                 .is_some()
     }
 
+    #[cfg(feature = "v1")]
+    /// Get the business details (business_country, business_label) to be used for a payment when
+    /// they are not passed in the payment request: from the merchant connector account if
+    /// available, else from the `primary_business_details` configured in the merchant account
+    fn get_fallback_business_details(
+        connector_business_details: Option<(common_enums::CountryAlpha2, String)>,
+        merchant_account: &crate::merchant_account::MerchantAccount,
+        business_profile: &crate::business_profile::Profile,
+    ) -> CustomResult<
+        Option<(common_enums::CountryAlpha2, String)>,
+        common_utils::errors::ParsingError,
+    > {
+        match connector_business_details {
+            Some(business_details) => Ok(Some(business_details)),
+            None => merchant_account.get_business_details_for_profile(business_profile),
+        }
+    }
+
+    #[cfg(feature = "v1")]
+    /// Resolve the business details (business_country, business_label) for a payment
+    ///
+    /// The business details are resolved in the following order of precedence:
+    /// 1. The business details passed in the payment request
+    /// 2. The business details configured in the merchant connector account, if available
+    /// 3. The business details configured in the merchant account (`primary_business_details`)
+    ///
+    /// Business details are always resolved as a pair, so that a `connector_label` is never
+    /// generated from a business country and business label which do not belong together. Hence
+    /// the business details passed in the request are returned as is if either of them is present.
+    pub fn resolve_business_details(
+        business_country: Option<common_enums::CountryAlpha2>,
+        business_label: Option<String>,
+        connector_business_details: Option<(common_enums::CountryAlpha2, String)>,
+        merchant_account: &crate::merchant_account::MerchantAccount,
+        business_profile: &crate::business_profile::Profile,
+    ) -> CustomResult<
+        (Option<common_enums::CountryAlpha2>, Option<String>),
+        common_utils::errors::ParsingError,
+    > {
+        if business_country.is_some() || business_label.is_some() {
+            return Ok((business_country, business_label));
+        }
+
+        let business_details = Self::get_fallback_business_details(
+            connector_business_details,
+            merchant_account,
+            business_profile,
+        )?;
+
+        Ok(business_details.unzip())
+    }
+
+    #[cfg(feature = "v1")]
+    /// Get the business details (business_country, business_label) to be populated in the payment
+    /// intent, if they were not passed in the payment request. Refer to
+    /// [`Self::resolve_business_details`] for the order of precedence
+    pub fn get_business_details_to_populate(
+        &self,
+        connector_business_details: Option<(common_enums::CountryAlpha2, String)>,
+        merchant_account: &crate::merchant_account::MerchantAccount,
+        business_profile: &crate::business_profile::Profile,
+    ) -> CustomResult<
+        Option<(common_enums::CountryAlpha2, String)>,
+        common_utils::errors::ParsingError,
+    > {
+        if self.business_country.is_some() || self.business_label.is_some() {
+            return Ok(None);
+        }
+
+        Self::get_fallback_business_details(
+            connector_business_details,
+            merchant_account,
+            business_profile,
+        )
+    }
+
+    #[cfg(feature = "v1")]
+    /// Populate the business details (business_country, business_label) in the payment intent, if
+    /// they were not passed in the payment request. Refer to [`Self::resolve_business_details`]
+    /// for the order of precedence
+    pub fn populate_business_details(
+        &mut self,
+        connector_business_details: Option<(common_enums::CountryAlpha2, String)>,
+        merchant_account: &crate::merchant_account::MerchantAccount,
+        business_profile: &crate::business_profile::Profile,
+    ) -> CustomResult<(), common_utils::errors::ParsingError> {
+        if let Some((business_country, business_label)) = self.get_business_details_to_populate(
+            connector_business_details,
+            merchant_account,
+            business_profile,
+        )? {
+            self.business_country = Some(business_country);
+            self.business_label = Some(business_label);
+        }
+
+        Ok(())
+    }
+
     #[cfg(feature = "v2")]
     /// This is the url to which the customer will be redirected to, to complete the redirection flow
     pub fn create_start_redirection_url(

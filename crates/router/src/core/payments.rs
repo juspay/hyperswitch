@@ -6160,6 +6160,25 @@ where
     )
     .await?;
 
+    // If the business details were not passed in the payment request, populate them from the
+    // merchant connector account or the merchant account, so that the connector label can be
+    // generated for the payment. These are persisted along with the other payment intent updates
+    if let Some((business_country, business_label)) = payment_data
+        .get_payment_intent()
+        .get_business_details_to_populate(
+            merchant_connector_account.get_business_details(),
+            platform.get_processor().get_account(),
+            business_profile,
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to resolve business details for the payment")?
+    {
+        let mut payment_intent = payment_data.get_payment_intent().clone();
+        payment_intent.business_country = Some(business_country);
+        payment_intent.business_label = Some(business_label);
+        payment_data.set_payment_intent(payment_intent);
+    }
+
     let customer_acceptance = payment_data
         .get_payment_attempt()
         .customer_acceptance

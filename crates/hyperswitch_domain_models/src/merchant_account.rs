@@ -1,3 +1,5 @@
+#[cfg(feature = "v1")]
+use common_utils::errors::ParsingError;
 use common_utils::{
     crypto::{OptionalEncryptableName, OptionalEncryptableValue},
     date_time,
@@ -241,6 +243,31 @@ impl MerchantAccount {
         self.offer_engine_config
             .as_ref()
             .map(|config| config.get_inner())
+    }
+
+    #[cfg(feature = "v1")]
+    /// Get the business details (business_country, business_label) for the given business profile
+    /// from the `primary_business_details` configured in the merchant account
+    ///
+    /// The business details are resolved as follows:
+    /// 1. The entry whose `{country}_{business}` matches the profile name, since profiles created
+    ///    from `primary_business_details` are named this way
+    /// 2. The only configured entry, if exactly one entry is present
+    ///
+    /// Returns `None` if the business details cannot be resolved unambiguously
+    pub fn get_business_details_for_profile(
+        &self,
+        business_profile: &crate::business_profile::Profile,
+    ) -> CustomResult<Option<(common_enums::CountryAlpha2, String)>, ParsingError> {
+        let primary_business_details: Vec<api_models::admin::PrimaryBusinessDetails> = self
+            .primary_business_details
+            .clone()
+            .parse_value("PrimaryBusinessDetails")?;
+
+        Ok(get_business_details_for_profile_name(
+            &primary_business_details,
+            &business_profile.profile_name,
+        ))
     }
 
     #[cfg(feature = "v2")]
@@ -1000,4 +1027,25 @@ where
         )>,
         Self::Error,
     >;
+}
+
+#[cfg(feature = "v1")]
+/// Get the business details (business_country, business_label) for a profile name from the
+/// `primary_business_details` configured in the merchant account
+///
+/// Refer to [`MerchantAccount::get_business_details_for_profile`] for the resolution rules
+fn get_business_details_for_profile_name(
+    primary_business_details: &[api_models::admin::PrimaryBusinessDetails],
+    profile_name: &str,
+) -> Option<(common_enums::CountryAlpha2, String)> {
+    primary_business_details
+        .iter()
+        .find(|business_details| {
+            format!("{}_{}", business_details.country, business_details.business) == profile_name
+        })
+        .or(match primary_business_details {
+            [business_details] => Some(business_details),
+            _ => None,
+        })
+        .map(|business_details| (business_details.country, business_details.business.clone()))
 }
