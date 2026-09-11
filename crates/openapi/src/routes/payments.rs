@@ -556,13 +556,13 @@
             )),
             ("12. Server integration response" = (
                 value = json!({
-                    "payment_id": "pay_serverint_xxxxxxxxxxxx",
-                    "merchant_id": "merchant_myyyyyyyyyyyy",
+                    "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                    "merchant_id": "merchant_1668273825",
                     "status": "requires_payment_method",
                     "amount": 6540,
                     "currency": "USD",
                     "customer_id": "cus_abcdefgh",
-                    "client_secret": "pay_serverint_xxxxxxxxxxxx_secret_szzzzzzzzzzz",
+                    "client_secret": "pay_mbabizu24mvu3mela5njyhpit4_secret_el9ksDkiB8hi6j9N78yo",
                     "sdk_authorization": "cHJvZmlsZV9pZD1wcm9mXzEyMyxwdWJsaXNoYWJsZV9rZXk9cGtfbGl2ZV8xMjM=",
                     "profile_id": "pro_pzzzzzzzzzzz",
                     "attempt_count": 1,
@@ -578,7 +578,7 @@
                         "customer_payment_methods": [],
                         "sdk_next_action": { "next_action": "confirm" },
                         "intent_data": {
-                            "payment_id": "pay_serverint_xxxxxxxxxxxx",
+                            "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
                             "status": "requires_payment_method",
                             "amount": 6540,
                             "currency": "USD",
@@ -588,8 +588,8 @@
                         }
                     },
                     "session_tokens": {
-                        "payment_id": "pay_serverint_xxxxxxxxxxxx",
-                        "client_secret": "pay_serverint_xxxxxxxxxxxx_secret_szzzzzzzzzzz",
+                        "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                        "client_secret": "pay_mbabizu24mvu3mela5njyhpit4_secret_el9ksDkiB8hi6j9N78yo",
                         "session_token": [],
                         "vault_details": {
                             "vault_type": "hyperswitch",
@@ -602,12 +602,12 @@
             )),
             ("13. Server integration, one section failed" = (
                 value = json!({
-                    "payment_id": "pay_serverint_xxxxxxxxxxxx",
-                    "merchant_id": "merchant_myyyyyyyyyyyy",
+                    "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                    "merchant_id": "merchant_1668273825",
                     "status": "requires_payment_method",
                     "amount": 6540,
                     "currency": "USD",
-                    "client_secret": "pay_serverint_xxxxxxxxxxxx_secret_szzzzzzzzzzz",
+                    "client_secret": "pay_mbabizu24mvu3mela5njyhpit4_secret_el9ksDkiB8hi6j9N78yo",
                     "profile_id": "pro_pzzzzzzzzzzz",
                     "attempt_count": 1,
                     "payment_method_list": {
@@ -615,7 +615,7 @@
                         "customer_payment_methods": [],
                         "sdk_next_action": { "next_action": "confirm" },
                         "intent_data": {
-                            "payment_id": "pay_serverint_xxxxxxxxxxxx",
+                            "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
                             "status": "requires_payment_method",
                             "amount": 6540,
                             "currency": "USD",
@@ -726,13 +726,13 @@ pub fn payments_retrieve() {}
             examples(
                 ("Server integration response" = (
                     value = json!({
-                        "payment_id": "pay_serverint_xxxxxxxxxxxx",
-                        "merchant_id": "merchant_myyyyyyyyyyyy",
+                        "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                        "merchant_id": "merchant_1668273825",
                         "status": "requires_payment_method",
                         "amount": 6540,
                         "currency": "USD",
                         "customer_id": "cus_abcdefgh",
-                        "client_secret": "pay_serverint_xxxxxxxxxxxx_secret_szzzzzzzzzzz",
+                        "client_secret": "pay_mbabizu24mvu3mela5njyhpit4_secret_el9ksDkiB8hi6j9N78yo",
                         "sdk_authorization": "cHJvZmlsZV9pZD1wcm9mXzEyMyxwdWJsaXNoYWJsZV9rZXk9cGtfbGl2ZV8xMjM=",
                         "profile_id": "pro_pzzzzzzzzzzz",
                         "attempt_count": 1,
@@ -748,7 +748,7 @@ pub fn payments_retrieve() {}
                             "customer_payment_methods": [],
                             "sdk_next_action": { "next_action": "confirm" },
                             "intent_data": {
-                                "payment_id": "pay_serverint_xxxxxxxxxxxx",
+                                "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
                                 "status": "requires_payment_method",
                                 "amount": 6540,
                                 "currency": "USD",
@@ -758,8 +758,8 @@ pub fn payments_retrieve() {}
                             }
                         },
                         "session_tokens": {
-                            "payment_id": "pay_serverint_xxxxxxxxxxxx",
-                            "client_secret": "pay_serverint_xxxxxxxxxxxx_secret_szzzzzzzzzzz",
+                            "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                            "client_secret": "pay_mbabizu24mvu3mela5njyhpit4_secret_el9ksDkiB8hi6j9N78yo",
                             "session_token": [],
                             "vault_details": {
                                 "vault_type": "hyperswitch",
@@ -772,12 +772,12 @@ pub fn payments_retrieve() {}
                 )),
                 ("Server integration, one section failed" = (
                     value = json!({
-                        "payment_id": "pay_serverint_xxxxxxxxxxxx",
-                        "merchant_id": "merchant_myyyyyyyyyyyy",
+                        "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                        "merchant_id": "merchant_1668273825",
                         "status": "requires_payment_method",
                         "amount": 6540,
                         "currency": "USD",
-                        "client_secret": "pay_serverint_xxxxxxxxxxxx_secret_szzzzzzzzzzz",
+                        "client_secret": "pay_mbabizu24mvu3mela5njyhpit4_secret_el9ksDkiB8hi6j9N78yo",
                         "profile_id": "pro_pzzzzzzzzzzz",
                         "attempt_count": 1,
                         "payment_method_list": {
@@ -785,7 +785,7 @@ pub fn payments_retrieve() {}
                             "customer_payment_methods": [],
                             "sdk_next_action": { "next_action": "confirm" },
                             "intent_data": {
-                                "payment_id": "pay_serverint_xxxxxxxxxxxx",
+                                "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
                                 "status": "requires_payment_method",
                                 "amount": 6540,
                                 "currency": "USD",
