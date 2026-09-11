@@ -1,5 +1,3 @@
-//! Per-request notification logic:
-
 use error_stack::report;
 use external_services::chat_service::ChatBanner;
 use hyperswitch_masking::{ExposeInterface, PeekInterface};
@@ -14,7 +12,6 @@ use crate::{
     types::{ChatNotifyRequest, ChatUploadRequest, EmailNotifyRequest},
 };
 
-/// Deliver a chat message to the named destination.
 pub async fn notify_chat(
     state: AppState,
     destination: &str,
@@ -31,7 +28,6 @@ pub async fn notify_chat(
         .notify(ChatNotification {
             text: request.text,
             reply_to: request.reply_to,
-            // Both halves or neither:
             banner: request
                 .heading
                 .zip(request.severity)
@@ -40,7 +36,6 @@ pub async fn notify_chat(
         .await
 }
 
-/// Upload a file to the named chat destination.
 pub async fn upload_chat_file(
     state: AppState,
     destination: &str,
@@ -72,7 +67,6 @@ pub async fn upload_chat_file(
         .await
 }
 
-/// Deliver an email to the named destination.
 pub async fn notify_email(
     state: AppState,
     destination: &str,

@@ -1,5 +1,3 @@
-//! Delivering an alert to a chat destination.
-
 use std::sync::{
     atomic::{AtomicU64, Ordering},
     Arc,
@@ -16,23 +14,17 @@ use crate::{
     logger,
 };
 
-/// The provider code that blames the provider rather than the message.
 const PROVIDER_INTERNAL_ERROR: &str = "internal_error";
 
-/// A message to post to one chat destination.
 #[derive(Debug, Clone)]
 pub struct ChatNotification {
-    /// The message, in the markup the destination reads.
     pub text: Secret<String>,
 
-    /// Post as a reply under this message, if given.
     pub reply_to: Option<String>,
 
-    /// Frame the message in a titled, colour-coded banner.
     pub banner: Option<ChatBanner>,
 }
 
-/// One file to upload to a chat destination.
 #[derive(Debug, Clone)]
 pub struct ChatFileUpload {
     pub bytes: Secret<Vec<u8>>,
@@ -49,27 +41,20 @@ pub struct ChatFileReceipt {
 
 pub type ChatFileOutcome = Outcome<ChatFileReceipt>;
 
-/// What a chat destination hands back when it accepts a message.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ChatReceipt {
-    /// The provider's id for the message, which threads a later reply under it.
     pub message_id: Option<String>,
 }
 
-/// The result of one chat delivery attempt.
 pub type ChatOutcome = Outcome<ChatReceipt>;
 
-/// Posts an alert to one chat destination.
 #[async_trait::async_trait]
 pub trait ChatNotifier: Send + Sync + std::fmt::Debug {
-    /// Attempt delivery.
     async fn notify(&self, notification: ChatNotification) -> ObservabilityApiResult<ChatOutcome>;
 
-    /// Upload one file and optionally share it in an existing thread.
     async fn upload_file(&self, upload: ChatFileUpload) -> ObservabilityApiResult<ChatFileOutcome>;
 }
 
-/// A [`ChatNotifier`] backed by a real chat transport.
 #[derive(Debug)]
 pub struct ChatClientNotifier {
     destination: String,
@@ -77,7 +62,6 @@ pub struct ChatClientNotifier {
 }
 
 impl ChatClientNotifier {
-    /// Bind a client to the destination id it was configured under.
     pub fn new(destination: String, client: Arc<dyn ChatClient>) -> Self {
         Self {
             destination,
@@ -108,13 +92,11 @@ impl ChatNotifier for ChatClientNotifier {
             Err(report) => match classify(report.current_context()) {
                 Verdict::Refused(refusal) => Ok(Outcome::Refused(refusal)),
 
-                // `Delivered` from an `Err` is not a contradiction:
                 Verdict::DeliveredWithoutId => {
                     Ok(Outcome::Delivered(ChatReceipt { message_id: None }))
                 }
 
                 Verdict::Failed(error) => {
-                    // `change_context` rather than a fresh error, so every `attach_printable` the client left on the way up — the URL, the response snippet — reaches the log while the caller sees only what `ErrorSwitch` renders.
                     Err(report.change_context(error(self.destination.clone())))
                 }
             },
@@ -147,21 +129,15 @@ impl ChatNotifier for ChatClientNotifier {
     }
 }
 
-/// What a chat failure means for the caller.
 enum Verdict {
-    /// The provider answered and said no.
     Refused(Refusal),
-    /// The provider accepted the message but named no id for it.
     DeliveredWithoutId,
-    /// Nothing is known about delivery.
     Failed(fn(String) -> ObservabilityError),
 }
 
-/// Decide whether a chat failure is a refusal, a delivery, or an unknown.
 fn classify(error: &ChatError) -> Verdict {
     match error {
         ChatError::Rejected { reason } => match reason {
-            // The provider blaming itself is not an answer about the message, so nothing is known.
             ChatErrorReason::Other(code) if code == PROVIDER_INTERNAL_ERROR => {
                 Verdict::Failed(|destination| ObservabilityError::ProviderUnavailable {
                     destination,
@@ -178,17 +154,14 @@ fn classify(error: &ChatError) -> Verdict {
 
         ChatError::MissingMessageId => Verdict::DeliveredWithoutId,
 
-        // `reply_to` came off the request and named an id this backend cannot thread against.
         ChatError::IncompatibleReplyTarget => {
             Verdict::Refused(Refusal::new("incompatible_reply_target"))
         }
 
-        // No answer, or one outside the documented envelope.
         ChatError::RequestFailed | ChatError::HttpStatus { .. } | ChatError::UnreadableResponse => {
             Verdict::Failed(|destination| ObservabilityError::ProviderUnavailable { destination })
         }
 
-        // Rejected at boot by `Endpoint::new`, so reaching here means a destination was built some other way.
         ChatError::InvalidConfiguration(_) => {
             Verdict::Failed(|_destination| ObservabilityError::InternalServerError)
         }
@@ -197,7 +170,6 @@ fn classify(error: &ChatError) -> Verdict {
     }
 }
 
-/// The stable, matchable code for a refusal, in the provider's own snake_case vocabulary.
 fn reason_code(reason: &ChatErrorReason) -> String {
     match reason {
         ChatErrorReason::ChannelNotFound => "channel_not_found".to_owned(),
@@ -206,21 +178,17 @@ fn reason_code(reason: &ChatErrorReason) -> String {
         ChatErrorReason::TokenRevoked => "token_revoked".to_owned(),
         ChatErrorReason::MessageTooLong => "msg_too_long".to_owned(),
         ChatErrorReason::RateLimited { .. } => "rate_limited".to_owned(),
-        // Already a wire code, carried through untouched.
         ChatErrorReason::Other(code) => code.clone(),
     }
 }
 
-/// A [`ChatNotifier`] that delivers nothing and says so.
 #[derive(Debug)]
 pub struct LogChatNotifier {
     destination: String,
-    /// Makes each synthetic id distinct so a threading round trip can be exercised end to end.
     sequence: AtomicU64,
 }
 
 impl LogChatNotifier {
-    /// Build a log destination under the id it was configured with.
     pub fn new(destination: String) -> Self {
         Self {
             destination,
@@ -275,7 +243,6 @@ mod tests {
         }
     }
 
-    /// The whole point of the redesign:
     #[test]
     fn every_documented_refusal_is_an_outcome() {
         for reason in [
@@ -304,7 +271,6 @@ mod tests {
         );
     }
 
-    /// The provider blaming itself is not an answer about the message, so delivery is unknown.
     #[test]
     fn the_providers_own_failure_is_not_a_refusal() {
         assert!(matches!(
@@ -315,7 +281,6 @@ mod tests {
         ));
     }
 
-    /// The message went out.
     #[test]
     fn accepted_content_with_no_id_is_still_a_delivery() {
         for error in [ChatError::MissingMessageId, ChatError::MissingFileId] {
@@ -337,7 +302,6 @@ mod tests {
         }
     }
 
-    /// `code` is advertised as matchable, so every value it can take has to be a code rather than a sentence.
     #[test]
     fn every_reason_is_a_matchable_code_not_prose() {
         let reasons = [
@@ -365,7 +329,6 @@ mod tests {
         }
     }
 
-    /// The provider's spelling, not ours.
     #[test]
     fn reason_codes_match_the_providers_spelling() {
         assert_eq!(
