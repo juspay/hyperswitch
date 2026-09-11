@@ -10119,6 +10119,44 @@ pub struct GpayTokenParameters {
     pub public_key: Option<Secret<String>>,
 }
 
+/// The tokenization type sent to the Google Pay SDK.
+///
+/// Unlike [`GooglePayTokenizationType`], this holds only the values Google itself understands:
+/// the Hyperswitch-internal `INTERNAL_GATEWAY` marker is resolved into `PAYMENT_GATEWAY` during
+/// the session flow before this is built, so it can never leak into an SDK response.
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    ToSchema,
+    strum::Display,
+    strum::EnumString,
+)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
+pub enum GooglePayTokenizationSpecificationType {
+    PaymentGateway,
+    Direct,
+}
+
+/// Resolves the caller-facing [`GooglePayTokenizationType`] into the SDK-side equivalent.
+///
+/// `INTERNAL_GATEWAY` is not a tokenization type Google understands: sessions served through it
+/// go through Hyperswitch's own registered gateway, which the SDK knows as `PAYMENT_GATEWAY`.
+impl From<GooglePayTokenizationType> for GooglePayTokenizationSpecificationType {
+    fn from(tokenization_type: GooglePayTokenizationType) -> Self {
+        match tokenization_type {
+            GooglePayTokenizationType::Direct => Self::Direct,
+            GooglePayTokenizationType::PaymentGateway
+            | GooglePayTokenizationType::InternalGateway => Self::PaymentGateway,
+        }
+    }
+}
+
 #[derive(
     Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
 )]
@@ -10126,8 +10164,8 @@ pub struct GpayTokenParameters {
 pub struct GpayTokenizationSpecification {
     /// The token specification type(ex: PAYMENT_GATEWAY)
     #[serde(rename = "type")]
-    #[smithy(value_type = "String")]
-    pub token_specification_type: String,
+    #[smithy(value_type = "GooglePayTokenizationSpecificationType")]
+    pub token_specification_type: GooglePayTokenizationSpecificationType,
     /// The parameters for the token specification Google Pay
     #[smithy(value_type = "GpayTokenParameters")]
     pub parameters: GpayTokenParameters,
@@ -10668,18 +10706,25 @@ pub struct GooglePayMerchantInfo {
 pub struct GooglePayTokenizationSpecification {
     #[serde(rename = "type")]
     pub tokenization_type: GooglePayTokenizationType,
+    /// Absent for `INTERNAL_GATEWAY`, where the merchant supplies no key material at all.
+    #[serde(default)]
     pub parameters: GooglePayTokenizationParameters,
 }
 
-#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, strum::Display)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, strum::Display,
+)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 #[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
 pub enum GooglePayTokenizationType {
     PaymentGateway,
     Direct,
+    /// Hyperswitch-internal marker: the token is encrypted to Hyperswitch's own registered
+    /// gateway key. Never sent to Google as-is; resolved to `PAYMENT_GATEWAY` in the session flow.
+    InternalGateway,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub struct GooglePayTokenizationParameters {
     pub gateway: Option<String>,
     pub public_key: Option<Secret<String>>,

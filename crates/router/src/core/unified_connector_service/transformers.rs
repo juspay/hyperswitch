@@ -3,9 +3,9 @@ use std::{collections::HashMap, str::FromStr};
 use api_models::payments::{
     AdditionalCardInfo, AdditionalPaymentData, AmountInfo, ApplePayAddressParameters,
     ApplePayPaymentRequest, ApplePaySessionResponse, ApplepaySessionTokenResponse,
-    GooglePaySessionResponse, GpayAllowedMethodsParameters, GpayAllowedPaymentMethods,
-    GpayBillingAddressFormat, GpayBillingAddressParameters, GpayMerchantInfo,
-    GpaySessionTokenResponse, GpayShippingAddressParameters, GpayTokenParameters,
+    GooglePaySessionResponse, GooglePayTokenizationSpecificationType, GpayAllowedMethodsParameters,
+    GpayAllowedPaymentMethods, GpayBillingAddressFormat, GpayBillingAddressParameters,
+    GpayMerchantInfo, GpaySessionTokenResponse, GpayShippingAddressParameters, GpayTokenParameters,
     GpayTokenizationSpecification, GpayTransactionInfo, NextActionCall, PaypalFlow,
     PaypalSessionTokenResponse, PaypalTransactionInfo, RecipientAccount, RecipientBankAccount,
     RecipientDetails, SdkNextAction, SecretInfoToInitiateSdk, SessionToken,
@@ -7165,7 +7165,11 @@ impl transformers::ForeignTryFrom<payments_grpc::GpayTokenizationSpecification>
         value: payments_grpc::GpayTokenizationSpecification,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            token_specification_type: value.token_specification_type,
+            token_specification_type: GooglePayTokenizationSpecificationType::from_str(
+                &value.token_specification_type,
+            )
+            .change_context(UnifiedConnectorServiceError::ParsingFailed)
+            .attach_printable("invalid gpay token_specification_type received from ucs")?,
             parameters: value
                 .parameters
                 .map(GpayTokenParameters::foreign_try_from)
