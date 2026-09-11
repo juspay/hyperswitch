@@ -2672,6 +2672,10 @@ pt_mapping_outgoing_connector_webhooks = { value = { default_mapping = { frequen
 "vaulting.save_wallet_decrypted_data" = { value = false, schema = { type = "boolean" }, description = "Whether to save wallet decrypted data", change_reason = "Initial setup" }
 "vaulting.fingerprint_secret" = { value = "", schema = { type = "string" }, description = "Fingerprint secret used as a migration fallback for merchant accounts", change_reason = "Retain during merchant account migration" }
 "payments.should_call_gsm" = { value = false, schema = { type = "boolean" }, description = "Whether to call GSM (Global Status Mapping) for auto-retries on payment failure", change_reason = "Initial setup" }
+"system.payment_method_integration_type" = { value = "vault_then_pay", schema = { enum = [
+  "vault_then_pay",
+  "pay_then_vault",
+] }, description = "When the payment method is written to durable storage: vault_then_pay vaults at session confirm, pay_then_vault vaults only after the payment is acknowledged", change_reason = "Initial setup" }
 "system.should_call_pm_modular_service" = { value = false, schema = { type = "boolean" }, description = "Whether to call the PM modular service for a provider merchant, with organization fallback", change_reason = "Initial setup" }
 "vaulting.should_disable_vault_tokenization" = { value = false, schema = { type = "boolean" }, description = "Whether to disable vault tokenization for a merchant", change_reason = "Initial setup" }
 "system.should_enable_authentication_service" = { value = false, schema = { type = "boolean" }, description = "Whether a merchant/org is eligible for the unified authentication service, with organization taking precedence over merchant", change_reason = "Initial setup" }

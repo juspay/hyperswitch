@@ -6,7 +6,10 @@ use external_services::superposition;
 use scheduler::consumer::types::process_data::RetryMapping;
 
 use super::{dimension_state, fetch_db_config_for_dimensions, ConfigContext, DatabaseBackedConfig};
-use crate::{consts::superposition as superposition_consts, db::StorageInterface, utils::id_type};
+use crate::{
+    consts::superposition as superposition_consts, db::StorageInterface,
+    types::payment_methods as pm_types, utils::id_type,
+};
 
 /// Macro to generate config struct and superposition::Config trait implementation.
 /// Note: Manually implement `DatabaseBackedConfig` for the config struct:
@@ -415,6 +418,25 @@ config! {
 
 impl DatabaseBackedConfig for ShouldCallPmModularService {
     const KEY: &'static str = "should_call_pm_modular_service";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_organization_id()
+            .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
+    }
+}
+
+config! {
+    superposition_key = PAYMENT_METHOD_INTEGRATION_TYPE,
+    output = pm_types::PaymentMethodIntegrationType,
+    default = pm_types::PaymentMethodIntegrationType::VaultThenPay,
+    string_enum = true,
+    requires = dimension_state::DimensionsWithProviderMerchantIdAndOrgId,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for PaymentMethodIntegrationType {
+    const KEY: &'static str = "payment_method_integration_type";
 
     fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
         dimensions

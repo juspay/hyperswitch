@@ -653,6 +653,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
                     req,
                     platform,
                     business_profile,
+                    None,
                 )
                 .boxed()
                 .await?;
