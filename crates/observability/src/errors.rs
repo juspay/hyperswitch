@@ -43,7 +43,7 @@ pub enum ObservabilityError {
     #[error("The request body is invalid")]
     InvalidRequest,
 
-    #[error("The dictionary entry is {bytes} bytes, over the {limit} byte limit")]
+    #[error("The mapper entry is {bytes} bytes, over the {limit} byte limit")]
     EntryTooLarge { bytes: usize, limit: usize },
 
     #[error("The observability database is unavailable")]
@@ -103,7 +103,7 @@ impl ErrorSwitch<ApiErrorResponse> for ObservabilityError {
             Self::EntryTooLarge { .. } => ApiErrorResponse::BadRequest(ApiError::new(
                 "IR",
                 8,
-                "The dictionary entry is larger than this service stores",
+                "The mapper entry is larger than this service stores",
             )),
             Self::UnknownChannel { .. } => {
                 ApiErrorResponse::NotFound(ApiError::new("IR", 9, "Unknown alert channel"))

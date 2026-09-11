@@ -79,7 +79,7 @@ async fn state_with_cap(max_entry_bytes: usize) -> AppState {
             "username": "db_user",
             "password": "db_pass"
         },
-        "dictionary": { "max_entry_bytes": max_entry_bytes }
+        "mappers": { "max_entry_bytes": max_entry_bytes }
     }))
     .expect("the test configuration should deserialize");
 
@@ -246,8 +246,8 @@ async fn an_entry_over_the_configured_cap_is_refused_before_it_is_stored() {
 
     let (status, body) = call_with_state(
         post(
-            "/alerts/config/dictionary",
-            json!({ "name": "mappers", "key_": "oversized", "values_": oversized }),
+            "/alerts/config/mappers",
+            json!({ "name": "mappers", "key": "oversized", "values": oversized }),
         ),
         &state,
     )
@@ -264,8 +264,8 @@ async fn an_oversized_entry_is_not_echoed_back() {
 
     let (_, body) = call_with_state(
         post(
-            "/alerts/config/dictionary",
-            json!({ "name": "mappers", "key_": "oversized", "values_": format!("\"{secret}{}\"", "x".repeat(128)) }),
+            "/alerts/config/mappers",
+            json!({ "name": "mappers", "key": "oversized", "values": format!("\"{secret}{}\"", "x".repeat(128)) }),
         ),
         &state,
     )
@@ -277,10 +277,10 @@ async fn an_oversized_entry_is_not_echoed_back() {
 #[actix_web::test]
 async fn an_entry_with_no_name_or_no_key_is_refused() {
     for body in [
-        json!({ "name": "   ", "key_": "channels" }),
-        json!({ "name": "mappers", "key_": "" }),
+        json!({ "name": "   ", "key": "channels" }),
+        json!({ "name": "mappers", "key": "" }),
     ] {
-        let (status, response) = call(post("/alerts/config/dictionary", body.clone())).await;
+        let (status, response) = call(post("/alerts/config/mappers", body.clone())).await;
 
         assert_eq!(status, StatusCode::BAD_REQUEST, "{body} was accepted");
         assert_eq!(response["error"]["code"], "IR_04");
@@ -290,8 +290,8 @@ async fn an_entry_with_no_name_or_no_key_is_refused() {
 #[actix_web::test]
 async fn an_entry_wider_than_its_column_is_refused_rather_than_left_to_the_database() {
     let (status, body) = call(post(
-        "/alerts/config/dictionary",
-        json!({ "name": "n".repeat(65), "key_": "channels" }),
+        "/alerts/config/mappers",
+        json!({ "name": "n".repeat(65), "key": "channels" }),
     ))
     .await;
 
@@ -302,8 +302,8 @@ async fn an_entry_wider_than_its_column_is_refused_rather_than_left_to_the_datab
 #[actix_web::test]
 async fn a_save_rejects_unknown_fields() {
     let (status, body) = call(post(
-        "/alerts/config/dictionary",
-        json!({ "name": "mappers", "key_": "channels", "value_": "[]" }),
+        "/alerts/config/mappers",
+        json!({ "name": "mappers", "key": "channels", "value": "[]" }),
     ))
     .await;
 
@@ -314,12 +314,12 @@ async fn a_save_rejects_unknown_fields() {
 #[actix_web::test]
 async fn every_state_route_is_behind_the_guard() {
     for request in [
-        TestRequest::get().uri("/alerts/config/dictionary"),
+        TestRequest::get().uri("/alerts/config/mappers"),
         TestRequest::post()
-            .uri("/alerts/config/dictionary")
-            .set_json(json!({ "name": "mappers", "key_": "channels" })),
-        TestRequest::get().uri("/alerts/config/dictionary/mappers/channels"),
-        TestRequest::delete().uri("/alerts/config/dictionary/mappers/channels"),
+            .uri("/alerts/config/mappers")
+            .set_json(json!({ "name": "mappers", "key": "channels" })),
+        TestRequest::get().uri("/alerts/config/mappers/mappers/channels"),
+        TestRequest::delete().uri("/alerts/config/mappers/mappers/channels"),
         TestRequest::get().uri("/alerts/config/notifications/read"),
         TestRequest::post().uri("/alerts/config/notifications/read"),
     ] {
@@ -879,7 +879,7 @@ async fn stored_rows(state: &AppState, name: &str) -> Vec<(Option<String>, Optio
         .unwrap()
 }
 
-async fn forget_dictionary(state: &AppState, name: &str) {
+async fn forget_mappers(state: &AppState, name: &str) {
     let connection = state.database_connection().await.unwrap();
 
     diesel::delete(alerts_dicts::table.filter(alerts_dicts::name.eq(name.to_owned())))
@@ -908,8 +908,8 @@ async fn an_entry_saved_twice_updates_the_live_row_rather_than_duplicating_it() 
     for values in ["[\"one\"]", "[\"one\",\"two\"]"] {
         let (status, body) = call_with_state(
             post(
-                "/alerts/config/dictionary",
-                json!({ "name": name, "key_": "slack_users", "values_": values }),
+                "/alerts/config/mappers",
+                json!({ "name": name, "key": "slack_users", "values": values }),
             ),
             &state,
         )
@@ -923,14 +923,14 @@ async fn an_entry_saved_twice_updates_the_live_row_rather_than_duplicating_it() 
     assert_eq!(rows.len(), 1, "a repeated save added a row: {rows:?}");
 
     let (_, body) = call_with_state(
-        get(&format!("/alerts/config/dictionary/{name}/slack_users")),
+        get(&format!("/alerts/config/mappers/{name}/slack_users")),
         &state,
     )
     .await;
     assert_eq!(body["status"], "found");
-    assert_eq!(body["entry"]["values_"], "[\"one\",\"two\"]");
+    assert_eq!(body["entry"]["values"], "[\"one\",\"two\"]");
 
-    forget_dictionary(&state, &name).await;
+    forget_mappers(&state, &name).await;
 }
 
 #[actix_web::test]
@@ -943,11 +943,11 @@ async fn the_json_columns_come_back_byte_identical() {
     let metadata = r#"{"category": "dashboard"}"#;
 
     let body = format!(
-        r#"{{"name": "{name}", "key_": "spacing", "product": {product}, "values_": {values}, "metadata": {metadata}}}"#
+        r#"{{"name": "{name}", "key": "spacing", "product": {product}, "values": {values}, "metadata": {metadata}}}"#
     );
     let (status, saved) = call_raw(
         TestRequest::post()
-            .uri("/alerts/config/dictionary")
+            .uri("/alerts/config/mappers")
             .insert_header((X_INTERNAL_API_KEY, API_KEY))
             .insert_header(("content-type", "application/json"))
             .set_payload(body),
@@ -957,14 +957,14 @@ async fn the_json_columns_come_back_byte_identical() {
     assert_eq!(status, StatusCode::OK);
 
     let (_, read) = call_raw(
-        get(&format!("/alerts/config/dictionary/{name}/spacing")),
+        get(&format!("/alerts/config/mappers/{name}/spacing")),
         &state,
     )
     .await;
 
     for response in [&saved, &read] {
         assert!(
-            response.contains(&format!(r#""values_":{values}"#)),
+            response.contains(&format!(r#""values":{values}"#)),
             "values_ was re-encoded: {response}"
         );
         assert!(
@@ -977,26 +977,26 @@ async fn the_json_columns_come_back_byte_identical() {
         );
     }
 
-    forget_dictionary(&state, &name).await;
+    forget_mappers(&state, &name).await;
 }
 
 #[actix_web::test]
 #[ignore]
-async fn a_retired_entry_leaves_the_dictionary_and_its_row_stays_behind() {
+async fn a_retired_entry_leaves_the_mappers_and_its_row_stays_behind() {
     let state = state().await;
     let name = unique("mappers");
 
     call_with_state(
         post(
-            "/alerts/config/dictionary",
-            json!({ "name": name, "key_": "channels", "values_": "[]" }),
+            "/alerts/config/mappers",
+            json!({ "name": name, "key": "channels", "values": "[]" }),
         ),
         &state,
     )
     .await;
 
     let (status, body) = call_with_state(
-        delete(&format!("/alerts/config/dictionary/{name}/channels")),
+        delete(&format!("/alerts/config/mappers/{name}/channels")),
         &state,
     )
     .await;
@@ -1004,7 +1004,7 @@ async fn a_retired_entry_leaves_the_dictionary_and_its_row_stays_behind() {
     assert_eq!(body["status"], "retired");
 
     let (_, read) = call_with_state(
-        get(&format!("/alerts/config/dictionary/{name}/channels")),
+        get(&format!("/alerts/config/mappers/{name}/channels")),
         &state,
     )
     .await;
@@ -1016,7 +1016,7 @@ async fn a_retired_entry_leaves_the_dictionary_and_its_row_stays_behind() {
         vec![(Some("channels".to_owned()), Some(false))]
     );
 
-    forget_dictionary(&state, &name).await;
+    forget_mappers(&state, &name).await;
 }
 
 #[actix_web::test]
@@ -1027,21 +1027,21 @@ async fn saving_a_retired_key_again_writes_a_new_row_rather_than_reviving_the_ol
 
     call_with_state(
         post(
-            "/alerts/config/dictionary",
-            json!({ "name": name, "key_": "channels", "values_": "[\"old\"]" }),
+            "/alerts/config/mappers",
+            json!({ "name": name, "key": "channels", "values": "[\"old\"]" }),
         ),
         &state,
     )
     .await;
     call_with_state(
-        delete(&format!("/alerts/config/dictionary/{name}/channels")),
+        delete(&format!("/alerts/config/mappers/{name}/channels")),
         &state,
     )
     .await;
     call_with_state(
         post(
-            "/alerts/config/dictionary",
-            json!({ "name": name, "key_": "channels", "values_": "[\"new\"]" }),
+            "/alerts/config/mappers",
+            json!({ "name": name, "key": "channels", "values": "[\"new\"]" }),
         ),
         &state,
     )
@@ -1062,13 +1062,13 @@ async fn saving_a_retired_key_again_writes_a_new_row_rather_than_reviving_the_ol
     );
 
     let (_, body) = call_with_state(
-        get(&format!("/alerts/config/dictionary/{name}/channels")),
+        get(&format!("/alerts/config/mappers/{name}/channels")),
         &state,
     )
     .await;
-    assert_eq!(body["entry"]["values_"], "[\"new\"]");
+    assert_eq!(body["entry"]["values"], "[\"new\"]");
 
-    forget_dictionary(&state, &name).await;
+    forget_mappers(&state, &name).await;
 }
 
 #[actix_web::test]
@@ -1078,7 +1078,7 @@ async fn retiring_an_entry_that_is_not_there_is_reported_rather_than_refused() {
     let name = unique("mappers");
 
     let (status, body) = call_with_state(
-        delete(&format!("/alerts/config/dictionary/{name}/missing")),
+        delete(&format!("/alerts/config/mappers/{name}/missing")),
         &state,
     )
     .await;
@@ -1094,7 +1094,7 @@ async fn reading_an_entry_that_is_not_there_is_an_answer_and_not_a_404() {
     let name = unique("mappers");
 
     let (status, body) = call_with_state(
-        get(&format!("/alerts/config/dictionary/{name}/missing")),
+        get(&format!("/alerts/config/mappers/{name}/missing")),
         &state,
     )
     .await;
@@ -1112,24 +1112,24 @@ async fn an_entry_whose_key_needs_encoding_is_still_addressable() {
 
     call_with_state(
         post(
-            "/alerts/config/dictionary",
-            json!({ "name": name, "key_": "sr/drop", "values_": "[]" }),
+            "/alerts/config/mappers",
+            json!({ "name": name, "key": "sr/drop", "values": "[]" }),
         ),
         &state,
     )
     .await;
 
     let (status, body) = call_with_state(
-        get(&format!("/alerts/config/dictionary/{name}/sr%2Fdrop")),
+        get(&format!("/alerts/config/mappers/{name}/sr%2Fdrop")),
         &state,
     )
     .await;
 
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["status"], "found");
-    assert_eq!(body["entry"]["key_"], "sr/drop");
+    assert_eq!(body["entry"]["key"], "sr/drop");
 
-    forget_dictionary(&state, &name).await;
+    forget_mappers(&state, &name).await;
 }
 
 #[actix_web::test]
@@ -1140,14 +1140,14 @@ async fn a_saved_entry_appears_in_the_list() {
 
     call_with_state(
         post(
-            "/alerts/config/dictionary",
-            json!({ "name": name, "key_": "listed", "values_": "[]" }),
+            "/alerts/config/mappers",
+            json!({ "name": name, "key": "listed", "values": "[]" }),
         ),
         &state,
     )
     .await;
 
-    let (status, body) = call_with_state(get("/alerts/config/dictionary"), &state).await;
+    let (status, body) = call_with_state(get("/alerts/config/mappers"), &state).await;
 
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["status"], "found");
@@ -1155,11 +1155,11 @@ async fn a_saved_entry_appears_in_the_list() {
     assert!(
         entries
             .iter()
-            .any(|entry| entry["name"] == name.as_str() && entry["key_"] == "listed"),
+            .any(|entry| entry["name"] == name.as_str() && entry["key"] == "listed"),
         "the saved entry was not listed"
     );
 
-    forget_dictionary(&state, &name).await;
+    forget_mappers(&state, &name).await;
 }
 
 #[actix_web::test]
@@ -1170,8 +1170,8 @@ async fn a_save_without_a_user_header_is_attributed_to_the_column_default() {
 
     let (_, body) = call_with_state(
         post(
-            "/alerts/config/dictionary",
-            json!({ "name": name, "key_": "anonymous", "values_": "[]" }),
+            "/alerts/config/mappers",
+            json!({ "name": name, "key": "anonymous", "values": "[]" }),
         ),
         &state,
     )
@@ -1179,7 +1179,7 @@ async fn a_save_without_a_user_header_is_attributed_to_the_column_default() {
 
     assert_eq!(body["entry"]["username"], DEFAULT_USERNAME);
 
-    forget_dictionary(&state, &name).await;
+    forget_mappers(&state, &name).await;
 }
 
 #[actix_web::test]
@@ -1190,8 +1190,8 @@ async fn a_save_records_the_user_the_caller_named() {
 
     let (_, body) = call_with_state(
         post(
-            "/alerts/config/dictionary",
-            json!({ "name": name, "key_": "attributed", "values_": "[]" }),
+            "/alerts/config/mappers",
+            json!({ "name": name, "key": "attributed", "values": "[]" }),
         )
         .insert_header((X_USER_NAME, "ops@example.com")),
         &state,
@@ -1200,7 +1200,7 @@ async fn a_save_records_the_user_the_caller_named() {
 
     assert_eq!(body["entry"]["username"], "ops@example.com");
 
-    forget_dictionary(&state, &name).await;
+    forget_mappers(&state, &name).await;
 }
 
 #[actix_web::test]

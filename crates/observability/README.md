@@ -9,7 +9,7 @@ already decided, and storing a threshold is not applying it.
 Two concerns live here today. The [`notifier`](src/domain/notifier.rs) receives alert data over a
 webhook and delivers it to a channel. The configuration routes own the rows the alert manager reads:
 what an alert is and whether it runs, together with what it used to write into the application's
-ClickHouse — the mappers dictionary and the notification bell's read watermark.
+ClickHouse — the mappers and the notification bell's read watermark.
 
 ## Shape
 
@@ -98,10 +98,10 @@ The whole surface, guarded and not:
 | `POST` | `/alerts/config/definitions` | `X-Internal-Api-Key` |
 | `GET` | `/alerts/config/definitions/{id}` | `X-Internal-Api-Key` |
 | `POST` | `/alerts/config/definitions/{id}` | `X-Internal-Api-Key` |
-| `GET` | `/alerts/config/dictionary` | `X-Internal-Api-Key` |
-| `POST` | `/alerts/config/dictionary` | `X-Internal-Api-Key` |
-| `GET` | `/alerts/config/dictionary/{name}/{key}` | `X-Internal-Api-Key` |
-| `DELETE` | `/alerts/config/dictionary/{name}/{key}` | `X-Internal-Api-Key` |
+| `GET` | `/alerts/config/mappers` | `X-Internal-Api-Key` |
+| `POST` | `/alerts/config/mappers` | `X-Internal-Api-Key` |
+| `GET` | `/alerts/config/mappers/{name}/{key}` | `X-Internal-Api-Key` |
+| `DELETE` | `/alerts/config/mappers/{name}/{key}` | `X-Internal-Api-Key` |
 | `GET` | `/alerts/config/enablement` | `X-Internal-Api-Key` |
 | `GET` | `/alerts/config/enablement/{name}/{product}` | `X-Internal-Api-Key` |
 | `POST` | `/alerts/config/enablement/{name}/{product}` | `X-Internal-Api-Key` |
@@ -215,7 +215,7 @@ thread under it was lost — reporting a failure there would invite a retry that
 ### Configuration
 
 Four resources, backed by the observability plane's own Postgres: the **definition** of an alert,
-the **enablement** switch that says whether it runs, the **mappers dictionary** the portal reads,
+the **enablement** switch that says whether it runs, the **mappers** the portal reads,
 and the **notification watermark** the bell reads. All four answer in the envelope the delivery
 routes use, and `status` carries the same weight on a state read as it does on a notification: a
 caller cannot read a `200` and assume there was something there.
@@ -299,21 +299,21 @@ first. r-apps leaves this table keyless and permits exactly that. It also valida
 exists**; without the check a switch can be wired to an alert nobody defined and looks on the screen
 exactly like one that works.
 
-#### The mappers dictionary
+#### The mappers
 
 The option lists and labels behind the portal's mappers screen, keyed on `(name, key_)`.
 
 ```http
-POST /alerts/config/dictionary
+POST /alerts/config/mappers
 X-Internal-Api-Key: <key>
 X-User-Name: ops@example.com
 
 { "name": "dashboard", "key_": "slack_users", "values_": "[]", "metadata": {"category": "dashboard"} }
 → 200 { "status": "saved", "entry": { "name": "dashboard", "key_": "slack_users", … } }
 
-GET    /alerts/config/dictionary                    → 200 { "status": "found",  "entries": [ … ] }
-GET    /alerts/config/dictionary/dashboard/unknown  → 200 { "status": "absent", "entry": null }
-DELETE /alerts/config/dictionary/dashboard/unknown  → 200 { "status": "absent" }
+GET    /alerts/config/mappers                    → 200 { "status": "found",  "entries": [ … ] }
+GET    /alerts/config/mappers/dashboard/unknown  → 200 { "status": "absent", "entry": null }
+DELETE /alerts/config/mappers/dashboard/unknown  → 200 { "status": "absent" }
 ```
 
 **`alerts_dicts` keeps history.** A delete retires the live row rather than removing it, and the
@@ -328,10 +328,10 @@ dashboard serializes them itself and the mappers screen parses some of them twic
 this service as raw bytes in both directions — see `diesel_models::observability::raw_json`.
 Parsing into a `serde_json::Value` and serializing it again would hand the screen back a document it
 did not save. A definition takes the opposite trade for the opposite reason: its `json` columns are
-typed because the alert manager reads them, and nothing reads a dictionary entry but the screen that
+typed because the alert manager reads them, and nothing reads a mapper entry but the screen that
 wrote it.
 
-An entry's JSON is capped by `dictionary.max_entry_bytes` (1 MiB by default). The dashboard decides
+An entry's JSON is capped by `mappers.max_entry_bytes` (1 MiB by default). The dashboard decides
 how large an entry is, and one oversized save becomes a row nothing can read back — a broken page
 long after the save that caused it, rather than a rejected request naming the entry.
 
@@ -355,14 +355,14 @@ dashboard cannot hide alerts nobody was shown — a watermark never moves backwa
 #### Who a request is for
 
 The internal API key authenticates the **service**, not a person, so the two routes that need a user
-— a dictionary save and the watermark — read `X-User-Name`. **Nothing authenticates it**; it is an
+— a mapper save and the watermark — read `X-User-Name`. **Nothing authenticates it**; it is an
 assertion by a caller that has already decided who it is acting for. The definition resource asks
 instead for `author` in the body, because a definition records who wrote it rather than who is
 looking at it.
 
 That is the honest shape of the deployment. Local accounts are disabled in sandbox and production
 alike (`localUsers: false`), so every request arrives with no name, the watermark table holds one
-shared row, and dictionary saves are attributed to the `username` column's default. Keeping the name
+shared row, and mapper saves are attributed to the `username` column's default. Keeping the name
 on the request anyway is what makes that a data fact rather than a schema one: the day the portal
 authenticates, the alert manager forwards the name and rows appear per person with no route and no
 migration to change.
@@ -376,7 +376,7 @@ shared row.
 
 #### Nothing stored is an answer, not a `404`
 
-A dictionary read or a watermark read that finds nothing is `200` with `status: "absent"`. Both
+A mapper read or a watermark read that finds nothing is `200` with `status: "absent"`. Both
 screens have a defined behaviour for "nothing saved yet" — offer the built-in options, treat
 everything as unread — and making that an HTTP error would mean the caller has to treat an error
 response as normal, which is the habit that hides a real one.
@@ -398,7 +398,7 @@ The configuration errors, added to the table above:
 |---|---|---|
 | Definition already exists for this name and product | 400 | `IR_05` |
 | Name and product do not identify an alert (or name the reserved `all` row) | 400 | `IR_07` |
-| Dictionary entry over `dictionary.max_entry_bytes` | 400 | `IR_08` |
+| Mapper entry over `mappers.max_entry_bytes` | 400 | `IR_08` |
 | Unknown definition id | 404 | `IR_03` |
 | Unknown enablement key | 404 | `IR_06` |
 | Observability database unreachable | 503 | `HE_01` |
