@@ -1,19 +1,11 @@
-//! Health handlers. The route tree that mounts them is in [`crate::routes::app`].
+//! Two probes. [`health`] is liveness - it touches nothing, because a liveness check that dialled
+//! the chat provider would turn every third-party blip into a restart loop. [`deep_health_check`]
+//! is readiness and checks the database only: chat and email are destinations this service
+//! delivers to and a failing one is already reported per request, but without its own state store
+//! there is nothing to serve.
 //!
-//! Two probes, answering different questions.
-//!
-//! [`health`] is **liveness**: is the process running. It touches nothing. A liveness check that
-//! dialled the chat provider and the mail backend would sound thorough and turn every third-party
-//! blip into a restart loop; the point of this service is to be up when its dependencies are
-//! flaky.
-//!
-//! [`deep_health_check`] is **readiness**: can this instance do its job. It checks the database and
-//! only the database — chat and email are destinations this service delivers *to*, and a failing
-//! one is already reported per request, but without its own state store there is nothing to serve.
-//!
-//! The split is what lets the pool be built without connecting: a database briefly away makes an
-//! instance unready, which stops traffic, rather than dead, which restarts it. Mirrors the router's
-//! `/health` and `/health/ready` pair.
+//! That split is what lets the pool be built without connecting - a database briefly away makes an
+//! instance unready rather than dead. Mirrors the router's `/health` and `/health/ready`.
 
 use std::time::Duration;
 

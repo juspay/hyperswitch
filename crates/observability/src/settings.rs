@@ -1,13 +1,11 @@
 //! Application configuration.
 //!
-//! Read from `config/observability.toml` (override with `-f`), with every value overridable by an
+//! Read from `config/observability.toml` (override with `-f`), every value overridable by an
 //! `OBSERVABILITY__`-prefixed environment variable using `__` to separate levels.
 //!
-//! [`Settings`] is generic over [`SecretState`]: it is deserialized as `Settings<SecuredSecret>`,
-//! where secret values may be KMS handles, and transitions to `Settings<RawSecret>` at boot once
-//! those handles have been resolved. See [`crate::secrets_transformers`]. Only a `RawSecret`
-//! configuration can be used to serve requests, so "did we remember to decrypt this?" is answered
-//! by the type checker rather than by review.
+//! [`Settings`] is generic over [`SecretState`]: deserialized as `Settings<SecuredSecret>` and
+//! transitioned to `Settings<RawSecret>` at boot once KMS handles resolve, so "did we remember to
+//! decrypt this?" is answered by the type checker. See [`crate::secrets_transformers`].
 
 use std::{collections::HashMap, path::PathBuf};
 
@@ -78,13 +76,10 @@ fn default_max_upload_bytes() -> usize {
 pub struct ChatSettings {
     /// Every chat destination, by id.
     ///
-    /// **Ids arriving from the environment are lowercased and cannot contain `__`.** The `config`
-    /// crate lowercases every environment key before splitting it (`config-0.14.1/src/env.rs`),
-    /// and `__` is the level separator, so
-    /// `OBSERVABILITY__CHAT__DESTINATIONS__SR_ALERTS__CHANNEL` sets
-    /// `chat.destinations.sr_alerts.channel` and there is no spelling that yields `SR_ALERTS` or
-    /// `sr__alerts`. [`ChatSettings::validate`] rejects an id that cannot survive the round trip,
-    /// so this is a boot failure rather than a lookup that mysteriously misses.
+    /// Ids from the environment are lowercased and cannot contain `__`: the `config` crate
+    /// lowercases every env key before splitting and `__` is the level separator, so no spelling
+    /// yields `SR_ALERTS`. [`ChatSettings::validate`] rejects such an id at boot rather than
+    /// leaving a lookup to miss silently.
     pub destinations: HashMap<String, ChatDestination>,
 
     /// Maximum multipart body bytes accepted by the upload route.
@@ -125,14 +120,12 @@ pub enum ChatDestination {
 pub struct EmailSettings {
     /// The transport, shared by every destination: which backend, and who mail comes from.
     ///
-    /// `external_services`' own type, reused wholesale rather than mirrored, so the SES / SMTP /
-    /// no-email selection and its validation come for free and cannot drift from the router's. It
-    /// carries a few fields this service has no use for (`allowed_unverified_days`, the two recon
-    /// recipient addresses); they default and are ignored, which is a smaller price than a second
-    /// representation of the same configuration.
+    /// `external_services`' own type, reused wholesale so the SES / SMTP / no-email selection and
+    /// its validation cannot drift from the router's. A few of its fields are unused here and
+    /// default.
     ///
-    /// Defaults to `NO_EMAIL_CLIENT`, which accepts and logs. That is the off switch: it needs no
-    /// flag of its own, and it is what a deployment runs with before SES credentials exist.
+    /// Defaults to `NO_EMAIL_CLIENT`, which accepts and logs - the off switch, and what a
+    /// deployment runs before SES credentials exist.
     #[serde(flatten)]
     pub client: EmailClientSettings,
 
@@ -145,10 +138,9 @@ pub struct EmailSettings {
 pub struct EmailDestination {
     /// Where the alert goes.
     ///
-    /// A single address, because `EmailClient::send_email` accepts one and both backends build a
-    /// single-recipient message. Reaching three people is three destinations today; when
-    /// a follow-up ticket lands this widens to a list and no caller changes, since a request
-    /// only ever names an id.
+    /// A single address: `EmailClient::send_email` accepts one. Reaching three people is three
+    /// destinations today; widening to a list later changes no caller, since a request only ever
+    /// names an id.
     pub to: pii::Email,
 }
 
@@ -186,10 +178,8 @@ impl EmailSettings {
     /// Reject destination ids that cannot be set from the environment, an unusable transport, and
     /// a destination with no address.
     ///
-    /// The transport check is `external_services`' own, so SES and SMTP are validated exactly as
-    /// the router validates them. It runs only when destinations exist: a deployment with none has
-    /// nothing to misconfigure, and demanding a verified SES sender before anyone has asked for an
-    /// email would make the service undeployable for no gain.
+    /// The transport check is `external_services`' own, and runs only when destinations exist: a
+    /// deployment with none would otherwise need a verified SES sender to be deployable at all.
     pub fn validate(&self) -> Result<(), errors::ConfigurationError> {
         validate_destination_ids(&self.destinations, "email")?;
 
@@ -236,9 +226,8 @@ impl EmailSettings {
 pub struct AuthSettings {
     /// The key callers must supply in the `X-Internal-Api-Key` header.
     ///
-    /// Deliberately *not* the router's `secrets.admin_api_key`: reusing that would mean anyone
-    /// holding admin credentials could send alerts, and would tie this service's rotation
-    /// schedule to the router's.
+    /// Deliberately *not* the router's `secrets.admin_api_key`: that would let any admin
+    /// credential send alerts, and tie this service's rotation to the router's.
     pub internal_api_key: Secret<String>,
 }
 
@@ -309,9 +298,8 @@ pub struct DatabaseSettings {
 
 /// Percent-encode a connection-string component.
 ///
-/// A generated password routinely contains `/`, `@`, `?` or `#`, and each of those ends a field in
-/// a URI: libpq would read the host, the database and the query parameters from the wrong side of
-/// the character. Encoding is what makes a correct password a correct URL.
+/// A generated password routinely contains `/`, `@`, `?` or `#`, each of which ends a field in a
+/// URI - libpq would read the host, database and query parameters from the wrong side of it.
 fn encode(value: &str) -> String {
     value
         .bytes()
