@@ -61,6 +61,7 @@ CREATE TABLE IF NOT EXISTS alerts_info (
 -- failed delivery is indistinguishable from a successful one on the next run.
 CREATE TABLE IF NOT EXISTS alerts_main (
     id              UUID PRIMARY KEY,
+    channel         VARCHAR(64),
     name            VARCHAR(64),
     product         VARCHAR(64),
     dimensions      JSON,
@@ -75,38 +76,20 @@ CREATE TABLE IF NOT EXISTS alerts_main (
 );
 
 CREATE INDEX IF NOT EXISTS idx_ts_alert
-    ON alerts_main USING btree (ts_alert);
+    ON alerts_main USING btree (channel, ts_alert);
 CREATE INDEX IF NOT EXISTS idx_alerts_last_updated_at
     ON alerts_main USING btree (last_updated_at);
-
-CREATE TABLE IF NOT EXISTS alerts_main_xyne (
-    id              UUID PRIMARY KEY,
-    name            VARCHAR(64),
-    product         VARCHAR(64),
-    dimensions      JSON,
-    ts_slack        VARCHAR(255),
-    ts_alert        TIMESTAMP,
-    duration        INTEGER,
-    sent            BOOLEAN,
-    critical        BOOLEAN,
-    rca_metadata    JSONB,
-    metadata        JSON,
-    last_updated_at TIMESTAMP
-);
 
 -- The xyne twin indexes ts_slack where the slack table indexes ts_alert, as r-apps has it: the
 -- xyne reader looks alerts up by thread. Named apart because r-apps reuses one name across both
 -- tables and Postgres index names are unique per schema.
-CREATE INDEX IF NOT EXISTS idx_ts_alert_xyne
-    ON alerts_main_xyne USING btree (ts_slack);
-CREATE INDEX IF NOT EXISTS idx_xyne_alerts_last_updated_at
-    ON alerts_main_xyne USING btree (last_updated_at);
 
 -- Current lifecycle state: what is firing now, since when, and what recovered.
 -- This is what the classifier diffs against; `alerts_main` is the log of what
 -- was said about it.
 CREATE TABLE IF NOT EXISTS alerts_intermediate (
     id_intermediate        UUID PRIMARY KEY,
+    channel                VARCHAR(64),
     id                     UUID REFERENCES alerts_main(id) ON DELETE CASCADE,
     name                   VARCHAR(64),
     product                VARCHAR(64),
@@ -126,30 +109,8 @@ CREATE TABLE IF NOT EXISTS alerts_intermediate (
 );
 
 CREATE INDEX IF NOT EXISTS idx_ts
-    ON alerts_intermediate USING btree (ts_alert, latest_ts_alert);
+    ON alerts_intermediate USING btree (channel, ts_alert, latest_ts_alert);
 
-CREATE TABLE IF NOT EXISTS alerts_intermediate_xyne (
-    id_intermediate        UUID PRIMARY KEY,
-    id                     UUID REFERENCES alerts_main_xyne(id) ON DELETE CASCADE,
-    name                   VARCHAR(64),
-    product                VARCHAR(64),
-    dimensions             JSONB,
-    ts_slack               VARCHAR(255),
-    ts_alert               TIMESTAMP,
-    latest_ts_alert        TIMESTAMP,
-    max_duration           INTEGER,
-    other_metrics          JSONB,
-    metadata               JSONB,
-    metadata_alert_details JSONB,
-    rca_metadata           JSONB,
-    group_id               VARCHAR(64),
-    priority               VARCHAR(64),
-    last_updated_at        TIMESTAMP,
-    recovered_ts           TIMESTAMP
-);
-
-CREATE INDEX IF NOT EXISTS idx_ts_xyne
-    ON alerts_intermediate_xyne USING btree (ts_slack, latest_ts_alert);
 
 -- The mappers screen. product and values_ are `json` rather than `jsonb`: the
 -- dashboard sends them already serialised and reads them back expecting the
@@ -178,6 +139,7 @@ CREATE INDEX IF NOT EXISTS idx_alerts_dicts_latest
 -- needs no schema change.
 CREATE TABLE IF NOT EXISTS merchants_alert_external (
     id                     UUID REFERENCES alerts_main(id) ON DELETE CASCADE,
+    channel                VARCHAR(64),
     id_merchant_table      UUID PRIMARY KEY,
     id_intermediate        UUID,
     name                   VARCHAR(64),
@@ -205,47 +167,16 @@ CREATE TABLE IF NOT EXISTS merchants_alert_external (
 );
 
 CREATE INDEX IF NOT EXISTS idx_alerts_external
-    ON merchants_alert_external (merchant_id);
+    ON merchants_alert_external (channel, merchant_id);
 CREATE INDEX IF NOT EXISTS idx_ts_alerts_external
     ON merchants_alert_external USING btree (ts_alert);
 
-CREATE TABLE IF NOT EXISTS merchants_alert_external_xyne (
-    id                     UUID REFERENCES alerts_main_xyne(id) ON DELETE CASCADE,
-    id_merchant_table      UUID PRIMARY KEY,
-    id_intermediate        UUID,
-    name                   VARCHAR(64),
-    product                VARCHAR(64),
-    merchant_id            VARCHAR(64),
-    dimensions             JSONB,
-    auxiliary_dimensions   JSONB,
-    current_metric         DOUBLE PRECISION,
-    expected_metric        DOUBLE PRECISION,
-    attribution            VARCHAR(255),
-    max_duration           INTEGER,
-    start_time             TIMESTAMP,
-    is_visible             BOOLEAN,
-    recovered_ts           TIMESTAMP,
-    ts_slack               VARCHAR(255),
-    ts_alert               TIMESTAMP,
-    latest_ts_alert        TIMESTAMP,
-    last_updated_at        TIMESTAMP,
-    slack_info             JSONB,
-    communication_info     JSONB,
-    metadata               JSONB,
-    metadata_alert_details JSONB,
-    priority               VARCHAR(64),
-    tenant_id              VARCHAR(64)
-);
-
-CREATE INDEX IF NOT EXISTS idx_alerts_external_xyne
-    ON merchants_alert_external_xyne (merchant_id);
-CREATE INDEX IF NOT EXISTS idx_ts_alerts_external_xyne
-    ON merchants_alert_external_xyne USING btree (ts_alert);
 
 -- One row per dimension of an instance, so a single alert can be broken down by
 -- connector, method or anything else without widening the instance table.
 CREATE TABLE IF NOT EXISTS merchants_alert_external_dimension (
     id                     UUID REFERENCES alerts_main(id) ON DELETE CASCADE,
+    channel                VARCHAR(64),
     id_merchant_table      UUID PRIMARY KEY,
     id_intermediate        UUID,
     name                   VARCHAR(64),
