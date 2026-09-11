@@ -64,8 +64,10 @@ pub async fn update_payment_method_record(
     let payment_method_id = req.payment_method_id.clone();
     let network_transaction_id = req.network_transaction_id.clone();
     let status = req.status;
+    let payment_method_type = req.payment_method_type;
+    let scheme = req.card_network.as_ref().map(|network| network.to_string());
     let key_manager_state = state.into();
-    let mut updated_card_expiry = false;
+    let mut updated_card_details = false;
 
     let payment_method = db
         .find_payment_method(
@@ -90,15 +92,32 @@ pub async fn update_payment_method_record(
                 Ok(pm_api::PaymentMethodsData::Card(mut card_data)) => {
                     if let Some(new_month) = &req.card_expiry_month {
                         card_data.expiry_month = Some(new_month.clone());
-                        updated_card_expiry = true;
+                        updated_card_details = true;
                     }
 
                     if let Some(new_year) = &req.card_expiry_year {
                         card_data.expiry_year = Some(new_year.clone());
-                        updated_card_expiry = true;
+                        updated_card_details = true;
                     }
 
-                    if updated_card_expiry {
+                    // The stored blob keeps its own copy of the BIN-derived card attributes, and
+                    // the saved-card response reads them from here, not from the columns.
+                    if let Some(new_network) = &req.card_network {
+                        card_data.card_network = Some(new_network.clone());
+                        updated_card_details = true;
+                    }
+
+                    if let Some(new_card_type) = &req.card_type {
+                        card_data.card_type = Some(new_card_type.clone());
+                        updated_card_details = true;
+                    }
+
+                    if let Some(new_issuer) = &req.card_issuer {
+                        card_data.card_issuer = Some(new_issuer.clone());
+                        updated_card_details = true;
+                    }
+
+                    if updated_card_details {
                         Some(
                             create_encrypted_data(
                                 &key_manager_state,
@@ -256,6 +275,8 @@ pub async fn update_payment_method_record(
                 network_transaction_link_id: None,
                 status,
                 payment_method_data: updated_payment_method_data.clone(),
+                payment_method_type,
+                scheme: scheme.clone(),
                 last_modified_by: platform
                     .get_initiator()
                     .and_then(|initiator| initiator.to_created_by())
@@ -346,6 +367,8 @@ pub async fn update_payment_method_record(
                 network_transaction_link_id: None,
                 status,
                 payment_method_data: updated_payment_method_data.clone(),
+                payment_method_type,
+                scheme: scheme.clone(),
                 last_modified_by: platform
                     .get_initiator()
                     .and_then(|initiator| initiator.to_created_by())
@@ -353,23 +376,35 @@ pub async fn update_payment_method_record(
             }
         }
         _ => {
-            if updated_payment_method_data.is_some() {
-                PaymentMethodUpdate::PaymentMethodDataUpdate {
-                    payment_method_data: updated_payment_method_data,
-                    last_modified_by: platform
-                        .get_initiator()
-                        .and_then(|initiator| initiator.to_created_by())
-                        .map(|last_modified_by| last_modified_by.to_string()),
+            let last_modified_by = platform
+                .get_initiator()
+                .and_then(|initiator| initiator.to_created_by())
+                .map(|last_modified_by| last_modified_by.to_string());
+
+            match (payment_method_type, scheme, updated_payment_method_data) {
+                (None, None, Some(payment_method_data)) => {
+                    PaymentMethodUpdate::PaymentMethodDataUpdate {
+                        payment_method_data: Some(payment_method_data),
+                        last_modified_by,
+                    }
                 }
-            } else {
-                PaymentMethodUpdate::NetworkTransactionIdAndStatusUpdate {
+                (None, None, None) => PaymentMethodUpdate::NetworkTransactionIdAndStatusUpdate {
                     network_transaction_id,
                     network_transaction_link_id: None,
                     status,
-                    last_modified_by: platform
-                        .get_initiator()
-                        .and_then(|initiator| initiator.to_created_by())
-                        .map(|last_modified_by| last_modified_by.to_string()),
+                    last_modified_by,
+                },
+                (payment_method_type, scheme, payment_method_data) => {
+                    PaymentMethodUpdate::PaymentMethodBatchUpdate {
+                        connector_mandate_details: None,
+                        network_transaction_id,
+                        network_transaction_link_id: None,
+                        status,
+                        payment_method_data,
+                        payment_method_type,
+                        scheme,
+                        last_modified_by,
+                    }
                 }
             }
         }
@@ -398,7 +433,7 @@ pub async fn update_payment_method_record(
             connector_mandate_details: response
                 .connector_mandate_details
                 .map(pii::SecretSerdeValue::new),
-            updated_payment_method_data: Some(updated_card_expiry),
+            updated_payment_method_data: Some(updated_card_details),
         },
     ))
 }

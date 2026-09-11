@@ -4180,6 +4180,10 @@ pub struct UpdatePaymentMethodRecord {
     pub merchant_connector_ids: Option<String>,
     pub card_expiry_month: Option<hyperswitch_masking::Secret<String>>,
     pub card_expiry_year: Option<hyperswitch_masking::Secret<String>>,
+    pub payment_method_type: Option<common_enums::PaymentMethodType>,
+    pub card_network: Option<api_enums::CardNetwork>,
+    pub card_type: Option<String>,
+    pub card_issuer: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
