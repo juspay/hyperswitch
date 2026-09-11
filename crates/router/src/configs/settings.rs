@@ -147,7 +147,7 @@ pub struct Settings<S: SecretState> {
     pub debit_routing_config: DebitRoutingConfig,
     pub applepay_decrypt_keys: SecretStateContainer<ApplePayDecryptConfig, S>,
     pub paze_decrypt_keys: Option<SecretStateContainer<PazeDecryptConfig, S>>,
-    pub google_pay_decrypt_keys: Option<GooglePayDecryptConfig>,
+    pub google_pay_decrypt_keys: Option<SecretStateContainer<GooglePayDecryptConfig, S>>,
     pub multiple_api_version_supported_connectors: MultipleApiVersionSupportedConnectors,
     pub applepay_merchant_configs: SecretStateContainer<ApplepayMerchantConfigs, S>,
     pub lock_settings: LockSettings,
@@ -1408,6 +1408,17 @@ pub struct PazeDecryptConfig {
 #[derive(Debug, Deserialize, Clone)]
 pub struct GooglePayDecryptConfig {
     pub google_pay_root_signing_keys: Secret<String>,
+    /// Private key of Hyperswitch's own registered Google Pay gateway. Used by the
+    /// `INTERNAL_GATEWAY` tokenization flow, where the merchant registers no key of its own.
+    pub google_pay_private_key: Option<Secret<String>>,
+    /// Google Pay Business Console merchant id used when an `INTERNAL_GATEWAY` merchant chooses
+    /// not to supply one of its own. Not secret managed: it is sent to the SDK in the session
+    /// response.
+    pub google_pay_common_merchant_id: Option<Secret<String>>,
+    /// Gateway identifier registered with Google, sent as
+    /// `tokenizationSpecification.parameters.gateway` and used to derive the `gateway:<id>`
+    /// recipient the token is signed against.
+    pub google_pay_gateway_id: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -1653,7 +1664,7 @@ impl Settings<SecuredSecret> {
 
         self.google_pay_decrypt_keys
             .as_ref()
-            .map(|x| x.validate())
+            .map(|x| x.get_inner().validate())
             .transpose()?;
 
         self.key_manager.get_inner().validate()?;

@@ -609,6 +609,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::GpayAllowedPaymentMethods,
         api_models::payments::GpayAllowedMethodsParameters,
         api_models::payments::GpayTokenizationSpecification,
+        api_models::payments::GooglePayTokenizationSpecificationType,
         api_models::payments::GpayTokenParameters,
         api_models::payments::GpayTransactionInfo,
         api_models::payments::GpaySessionTokenResponse,
