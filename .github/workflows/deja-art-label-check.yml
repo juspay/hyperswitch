@@ -1,0 +1,39 @@
+name: Deja ART Label Check
+
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - ready_for_review
+      - labeled
+      - unlabeled
+
+  merge_group:
+    types:
+      - checks_requested
+
+jobs:
+  verify_deja_art_label:
+    name: Verify PR has the deja-art label
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Skip check for merge queue
+        if: ${{ github.event_name == 'merge_group' }}
+        shell: bash
+        run: echo "Skipping deja-art label check for merge queue"
+
+      - name: Verify PR has the deja-art label
+        if: ${{ github.event_name == 'pull_request' }}
+        shell: bash
+        run: |
+          has_label="$(jq -r '.pull_request.labels[]?.name' "${GITHUB_EVENT_PATH}" | grep -Fx 'deja-art' || true)"
+
+          if [[ -n "${has_label}" ]]; then
+            echo "PR contains the required 'deja-art' label"
+          else
+            echo "::error::PR is missing the required 'deja-art' label"
+            exit 1
+          fi
