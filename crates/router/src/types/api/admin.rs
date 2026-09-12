@@ -525,7 +525,7 @@ pub async fn create_profile_from_merchant_account(
         dynamic_routing_algorithm: None,
         is_network_tokenization_enabled: request.is_network_tokenization_enabled,
         is_auto_retries_enabled: request.is_auto_retries_enabled.unwrap_or_default(),
-        max_auto_retries_enabled: request.max_auto_retries_enabled.map(i16::from),
+        max_auto_retries_enabled: request.max_auto_retries_enabled.map(i64::from),
         always_request_extended_authorization: request.always_request_extended_authorization,
         is_click_to_pay_enabled: request.is_click_to_pay_enabled,
         authentication_product_ids: request.authentication_product_ids,

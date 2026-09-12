@@ -269,7 +269,7 @@ pub async fn is_step_up_enabled_for_merchant_connector(
 pub async fn get_merchant_max_auto_retries_enabled(
     db: &dyn StorageInterface,
     merchant_id: &common_utils::id_type::MerchantId,
-) -> Option<i32> {
+) -> Option<i64> {
     let key = merchant_id.get_max_auto_retries_enabled();
 
     db.find_config_by_key_optional(key.as_str())
@@ -283,13 +283,13 @@ pub async fn get_merchant_max_auto_retries_enabled(
         .and_then(|retries_config| {
             retries_config
                 .config
-                .parse::<i32>()
+                .parse::<i64>()
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Retries config parsing failed")
         })
         .map_err(|err| {
             logger::error!(retries_error=?err);
-            None::<i32>
+            None::<i64>
         })
         .ok()
 }
@@ -298,15 +298,15 @@ pub async fn get_merchant_max_auto_retries_enabled(
 #[instrument(skip_all)]
 pub async fn get_retries(
     state: &app::SessionState,
-    retries: Option<i32>,
+    retries: Option<i64>,
     merchant_id: &common_utils::id_type::MerchantId,
     profile: &domain::Profile,
-) -> Option<i32> {
+) -> Option<i64> {
     match retries {
         Some(retries) => Some(retries),
         None => get_merchant_max_auto_retries_enabled(state.store.as_ref(), merchant_id)
             .await
-            .or(profile.max_auto_retries_enabled.map(i32::from)),
+            .or(profile.max_auto_retries_enabled),
     }
 }
 
@@ -789,7 +789,7 @@ where
 pub fn make_new_auto_retry_payment_attempt(
     connector: String,
     old_payment_attempt: storage::PaymentAttempt,
-    new_attempt_count: i16,
+    new_attempt_count: i64,
     is_step_up: bool,
     setup_future_usage_intent: Option<storage_enums::FutureUsage>,
 ) -> storage::PaymentAttempt {

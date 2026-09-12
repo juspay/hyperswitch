@@ -26,7 +26,7 @@ pub struct KafkaPayout<'a> {
     pub created_at: OffsetDateTime,
     #[serde(with = "time::serde::timestamp")]
     pub last_modified_at: OffsetDateTime,
-    pub attempt_count: i16,
+    pub attempt_count: i64,
     pub status: storage_enums::PayoutStatus,
     pub priority: Option<storage_enums::PayoutSendPriority>,
 

@@ -12,10 +12,10 @@ pub const API_VERSION: common_enums::ApiVersion = common_enums::ApiVersion::V1;
 pub const API_VERSION: common_enums::ApiVersion = common_enums::ApiVersion::V2;
 
 /// Maximum Dispute Polling Interval In Hours
-pub const MAX_DISPUTE_POLLING_INTERVAL_IN_HOURS: i32 = 24;
+pub const MAX_DISPUTE_POLLING_INTERVAL_IN_HOURS: i64 = 24;
 
 ///Default Dispute Polling Interval In Hours
-pub const DEFAULT_DISPUTE_POLLING_INTERVAL_IN_HOURS: i32 = 24;
+pub const DEFAULT_DISPUTE_POLLING_INTERVAL_IN_HOURS: i64 = 24;
 
 /// Customer List Lower Limit
 pub const CUSTOMER_LIST_LOWER_LIMIT: u16 = 1;

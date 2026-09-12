@@ -40,6 +40,11 @@ const MAX_CAPACITY: u64 = 30;
 pub static CONFIG_CACHE: LazyLock<Cache> =
     LazyLock::new(|| Cache::new("CONFIG_CACHE", CACHE_TTL, CACHE_TTI, None));
 
+/// Card BIN reference data. Read on every card payment and written only by the
+/// card-info admin endpoints, so it is the cheapest possible cache hit.
+pub static CARDS_INFO_CACHE: LazyLock<Cache> =
+    LazyLock::new(|| Cache::new("CARDS_INFO_CACHE", CACHE_TTL, CACHE_TTI, Some(MAX_CAPACITY)));
+
 /// Accounts cache with time_to_live as 30 mins and size limit
 pub static ACCOUNTS_CACHE: LazyLock<Cache> =
     LazyLock::new(|| Cache::new("ACCOUNTS_CACHE", CACHE_TTL, CACHE_TTI, Some(MAX_CAPACITY)));
@@ -139,6 +144,7 @@ pub enum CacheKind<'a> {
     EliminationBasedDynamicRoutingCache(Cow<'a, str>),
     ContractBasedDynamicRoutingCache(Cow<'a, str>),
     PmFiltersCGraph(Cow<'a, str>),
+    CardsInfo(Cow<'a, str>),
     All(Cow<'a, str>),
 }
 
@@ -156,6 +162,7 @@ impl CacheKind<'_> {
             | CacheKind::EliminationBasedDynamicRoutingCache(key)
             | CacheKind::ContractBasedDynamicRoutingCache(key)
             | CacheKind::PmFiltersCGraph(key)
+            | CacheKind::CardsInfo(key)
             | CacheKind::All(key) => key,
         }
     }

@@ -142,7 +142,7 @@ pub async fn get_post_capture_void_sync_process_schedule_time(
     db: &dyn StorageInterface,
     connector: &str,
     _merchant_id: &common_utils::id_type::MerchantId,
-    retry_count: i32,
+    retry_count: i64,
 ) -> Result<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
     let config_key = format!("pt_mapping_post_capture_void_sync_{connector}");
     let mapping: common_utils::errors::CustomResult<

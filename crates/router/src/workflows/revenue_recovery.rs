@@ -243,7 +243,7 @@ pub(crate) async fn get_schedule_time_to_retry_mit_payments(
     db: &dyn StorageInterface,
     superposition_client: &external_services::superposition::SuperpositionClient,
     dimensions: &crate::core::configs::dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
-    retry_count: i32,
+    retry_count: i64,
 ) -> Option<time::PrimitiveDateTime> {
     let mapping = dimensions
         .get_pt_mapping_pcr_retries(db, superposition_client, None)
@@ -644,7 +644,7 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
     payment_intent: &PaymentIntent,
     billing_connector: common_enums::connector_enums::Connector,
     retry_algorithm_type: RevenueRecoveryAlgorithmType,
-    retry_count: i32,
+    retry_count: i64,
     static_ladder_progress: &pcr::schedule::StaticLadderProgress,
 ) -> CustomResult<
     (
@@ -713,7 +713,7 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                     state.store.as_ref(),
                     state.superposition_service.as_ref(),
                     &dimensions,
-                    queried_rung,
+                    queried_rung.into(),
                 )
                 .await
                 .ok_or(errors::ProcessTrackerError::EApiErrorResponse)?;

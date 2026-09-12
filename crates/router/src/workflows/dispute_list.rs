@@ -162,7 +162,7 @@ pub async fn get_sync_process_schedule_time(
     db: &dyn StorageInterface,
     superposition_client: &external_services::superposition::SuperpositionClient,
     dimensions: &crate::core::configs::dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
-    retry_count: i32,
+    retry_count: i64,
 ) -> Result<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
     let mapping = dimensions
         .get_pt_mapping_dispute_sync(db, superposition_client, None)
@@ -210,7 +210,7 @@ pub async fn retry_sync_task(
 pub async fn schedule_next_dispute_list_task(
     db: &dyn StorageInterface,
     tracking_data: &api::DisputeListPTData,
-    dispute_polling_interval: i32,
+    dispute_polling_interval: i64,
     application_source: common_enums::ApplicationSource,
 ) -> Result<(), errors::ProcessTrackerError> {
     let new_created_till = tracking_data

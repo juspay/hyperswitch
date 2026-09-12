@@ -1482,7 +1482,7 @@ pub async fn reopen_calculate_workflow_on_payment_failure(
                 .feature_metadata
                 .as_ref()
                 .and_then(|metadata| metadata.payment_revenue_recovery_metadata.as_ref())
-                .map(|recovery_metadata| i32::from(recovery_metadata.total_retry_count))
+                .map(|recovery_metadata| i64::from(recovery_metadata.total_retry_count))
                 .unwrap_or(process.retry_count + 1);
 
             // Check if a process tracker entry already exists for this payment intent

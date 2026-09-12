@@ -1,0 +1,58 @@
+# Local Spanner harness: emulator + PGAdapter, no GCP account required.
+#
+# Runs alongside the normal stack. The existing `pg` service keeps port 5432;
+# PGAdapter is published on 5433 so you can point the router at either one and
+# diff the behaviour without editing two configs.
+#
+#   docker compose -f docker-compose-spanner.yml up -d
+#   psql -h localhost -p 5433 -d hyperswitch_db      # no password
+#
+# Scope note: the emulator validates DIALECT and DRIVER compatibility, which is
+# where essentially all of the migration risk lives. It does not model
+# multi-region replication, and it serves one read-write transaction at a time,
+# so it tells you nothing about latency or throughput. Those need a real
+# instance.
+
+networks:
+  router_net:
+    name: hs_spanner_net
+
+services:
+  spanner-emulator:
+    image: gcr.io/cloud-spanner-emulator/emulator:latest
+    platform: linux/amd64
+    container_name: spanner-emulator
+    ports:
+      - "9010:9010"   # gRPC
+      - "9020:9020"   # REST
+    networks:
+      - router_net
+
+  pgadapter:
+    image: gcr.io/cloud-spanner-pg-adapter/pgadapter:latest
+    container_name: pgadapter
+    depends_on:
+      - spanner-emulator
+    ports:
+      - "5433:5432"
+    networks:
+      - router_net
+    environment:
+      - SPANNER_EMULATOR_HOST=spanner-emulator:9010
+    # List form, not folded scalar: `-c ""` collapses to nothing when YAML folds
+    # it, and PGAdapter then reads the next flag as the credentials path.
+    # autoConfigEmulator points at SPANNER_EMULATOR_HOST and auto-creates the
+    # instance and database, so no credentials are needed at all.
+    command:
+      - "-p"
+      - "hyperswitch-local"
+      - "-i"
+      - "hyperswitch-local"
+      - "-d"
+      - "hyperswitch_db"
+      - "-x"
+      - "-s"
+      - "5432"
+      - "-r"
+      - "autoConfigEmulator=true"
+    restart: unless-stopped   # PGAdapter exits if the emulator isn't up yet

@@ -11841,7 +11841,9 @@ pub enum ExpiryType {
 #[derive(
     Debug, Clone, PartialEq, Eq, Deserialize, Serialize, diesel::FromSqlRow, AsExpression, ToSchema,
 )]
-#[diesel(sql_type = diesel::sql_types::Json)]
+#[cfg_attr(not(feature = "spanner"), diesel(sql_type = diesel::sql_types::Json))]
+// Spanner has no `json` type, only `jsonb`.
+#[cfg_attr(feature = "spanner", diesel(sql_type = diesel::sql_types::Jsonb))]
 #[serde(tag = "type", content = "value", rename_all = "snake_case")]
 pub enum PixKey {
     #[schema(value_type = String)]

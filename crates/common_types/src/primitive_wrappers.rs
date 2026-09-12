@@ -376,11 +376,11 @@ mod u32_wrappers {
     };
     /// Time interval in hours for polling disputes
     #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, diesel::expression::AsExpression)]
-    #[diesel(sql_type = diesel::sql_types::Integer)]
-    pub struct DisputePollingIntervalInHours(i32);
+    #[diesel(sql_type = diesel::sql_types::BigInt)]
+    pub struct DisputePollingIntervalInHours(i64);
 
     impl Deref for DisputePollingIntervalInHours {
-        type Target = i32;
+        type Target = i64;
 
         fn deref(&self) -> &Self::Target {
             &self.0
@@ -392,7 +392,7 @@ mod u32_wrappers {
         where
             D: serde::Deserializer<'de>,
         {
-            let val = i32::deserialize(deserializer)?;
+            let val = i64::deserialize(deserializer)?;
             if val < 0 {
                 Err(D::Error::custom(
                     "DisputePollingIntervalInHours cannot be negative",
@@ -407,22 +407,22 @@ mod u32_wrappers {
         }
     }
 
-    impl diesel::deserialize::FromSql<diesel::sql_types::Integer, diesel::pg::Pg>
+    impl diesel::deserialize::FromSql<diesel::sql_types::BigInt, diesel::pg::Pg>
         for DisputePollingIntervalInHours
     {
         fn from_sql(value: diesel::pg::PgValue<'_>) -> diesel::deserialize::Result<Self> {
-            i32::from_sql(value).map(Self)
+            i64::from_sql(value).map(Self)
         }
     }
 
-    impl diesel::serialize::ToSql<diesel::sql_types::Integer, diesel::pg::Pg>
+    impl diesel::serialize::ToSql<diesel::sql_types::BigInt, diesel::pg::Pg>
         for DisputePollingIntervalInHours
     {
         fn to_sql<'b>(
             &'b self,
             out: &mut diesel::serialize::Output<'b, '_, diesel::pg::Pg>,
         ) -> diesel::serialize::Result {
-            <i32 as diesel::serialize::ToSql<diesel::sql_types::Integer, diesel::pg::Pg>>::to_sql(
+            <i64 as diesel::serialize::ToSql<diesel::sql_types::BigInt, diesel::pg::Pg>>::to_sql(
                 &self.0, out,
             )
         }

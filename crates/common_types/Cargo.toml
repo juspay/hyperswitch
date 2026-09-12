@@ -11,6 +11,7 @@ default = []
 v1 = ["common_utils/v1"]
 v2 = ["common_utils/v2"]
 tokenization_v2 = ["common_utils/tokenization_v2"]
+spanner = []
 
 [dependencies]
 diesel = "2.3.12"

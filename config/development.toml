@@ -58,49 +58,50 @@ use_legacy_key_store_decryption = false
 
 # TODO: Update database credentials before running application
 [master_database]
-username = "db_user"
-password = "db_pass"
+username = "spanner"
+password = "spanner"
 host = "localhost"
-port = 5432
+port = 5433          # PGAdapter -> Spanner emulator (5432 = plain Postgres)
 dbname = "hyperswitch_db"
-max_pool_size = 5
-min_idle_pool_size = 2
+max_pool_size = 32
+min_idle_pool_size = 8
 connection_timeout = 10
 idle_timeout = 300
 max_lifetime = 1800
+test_on_check_out = true  # Validate each pooled connection with `SELECT 1` before handing it out. Costs one extra round trip per checkout; set false only where that round trip is expensive and a stale connection can be tolerated
 
 [replica_database]
-username = "db_user"
-password = "db_pass"
+username = "spanner"
+password = "spanner"
 host = "localhost"
-port = 5432
+port = 5433          # PGAdapter -> Spanner emulator (5432 = plain Postgres)
 dbname = "hyperswitch_db"
-max_pool_size = 5
-min_idle_pool_size = 2
+max_pool_size = 32
+min_idle_pool_size = 8
 connection_timeout = 10
 idle_timeout = 300
 max_lifetime = 1800
 
 [accounts_database]
-username = "db_user"
-password = "db_pass"
+username = "spanner"
+password = "spanner"
 host = "localhost"
-port = 5432
+port = 5433          # PGAdapter -> Spanner emulator (5432 = plain Postgres)
 dbname = "hyperswitch_db"
-max_pool_size = 5
-min_idle_pool_size = 2
+max_pool_size = 32
+min_idle_pool_size = 8
 connection_timeout = 10
 idle_timeout = 300
 max_lifetime = 1800
 
 [global_database]
-username = "db_user"
-password = "db_pass"
+username = "spanner"
+password = "spanner"
 host = "localhost"
-port = 5432
+port = 5433          # PGAdapter -> Spanner emulator (5432 = plain Postgres)
 dbname = "hyperswitch_db"
-max_pool_size = 5
-min_idle_pool_size = 2
+max_pool_size = 32
+min_idle_pool_size = 8
 connection_timeout = 10
 idle_timeout = 300
 max_lifetime = 1800
@@ -130,6 +131,9 @@ header_name = "x-request-id"
 id_reuse_strategy = "ignore_incoming"  # Options: "ignore_incoming" (default) or "use_incoming"
 
 [server]
+port = 8085
+workers = 2
+host = "127.0.0.1"
 # HTTP Request body limit. Defaults to 32kB
 request_body_limit = 32768
 
@@ -337,7 +341,7 @@ datatrans.secondary_base_url = "https://pay.sandbox.datatrans.com/"
 deutschebank.base_url = "https://testmerch.directpos.de/rest-api"
 digitalvirgo.base_url = "https://dcb-integration-service-sandbox-external.staging.digitalvirgo.pl"
 dlocal.base_url = "https://sandbox.dlocal.com/"
-dummyconnector.base_url = "http://localhost:8080/dummy-connector"
+dummyconnector.base_url = "http://localhost:8085/dummy-connector"
 dwolla.base_url = "https://api-sandbox.dwolla.com"
 ebanx.base_url = "https://sandbox.ebanxpay.com/"
 elavon.base_url = "https://api.demo.convergepay.com/VirtualMerchantDemo/"
@@ -1460,7 +1464,7 @@ forex_enabled = false
 
 [analytics.clickhouse]
 username = "default"
-# password = ""
+# password = "spanner"
 host = "http://localhost:8123"
 database_name = "default"
 

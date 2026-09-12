@@ -11,6 +11,7 @@ use external_services::superposition;
 pub use external_services::superposition::ConfigContext;
 
 use crate::{
+    consts,
     core::errors::{self, utils::StorageErrorExt, RouterResponse},
     db,
     routes::{metrics, SessionState},
@@ -233,11 +234,21 @@ where
             for db_key in db_keys.into_iter().flatten() {
                 attempted = true;
                 if resolved_value.is_none() {
-                    let config_result = storage.find_config_by_key_optional(db_key).await;
+                    // Absent keys are cached under a sentinel, mirroring the rollout config
+                    // lookup in `payments::helpers`. `find_config_by_key` reports a missing key
+                    // as `NotFound`, and the cache layer stores values but not errors, so a key
+                    // that is simply not configured would otherwise cost a Redis GET plus a
+                    // database round trip on every single request.
+                    let config_result = storage
+                        .find_config_by_key_unwrap_or(
+                            db_key,
+                            consts::CONFIG_NOT_CONFIGURED.to_string(),
+                        )
+                        .await;
 
                     if let Some(value) = config_result
                         .ok()
-                        .flatten()
+                        .filter(|config| config.config != consts::CONFIG_NOT_CONFIGURED)
                         .and_then(|config| C::parse_db_config(&config.config, context.as_ref()))
                     {
                         router_env::logger::info!(

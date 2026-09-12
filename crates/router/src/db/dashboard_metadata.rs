@@ -234,7 +234,7 @@ impl DashboardMetadataInterface for MockDb {
             })?
         }
         let metadata_new = storage::DashboardMetadata {
-            id: i32::try_from(dashboard_metadata.len())
+            id: i64::try_from(dashboard_metadata.len())
                 .change_context(errors::StorageError::MockDbError)?,
             user_id: metadata.user_id,
             merchant_id: metadata.merchant_id,

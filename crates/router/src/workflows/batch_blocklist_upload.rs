@@ -25,7 +25,7 @@ async fn run_batch_job(
     process_id: &str,
     mut tracking_data: storage::BatchBlocklistTrackingData,
     merchant_id_obj: &id_type::MerchantId,
-) -> RouterResult<(i32, i32)> {
+) -> RouterResult<(i64, i64)> {
     let db = &*state.store;
     let job_id = &tracking_data.job_id;
     let merchant_id_str = merchant_id_obj.get_string_repr();
@@ -38,7 +38,7 @@ async fn run_batch_job(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to fetch job for counter seeding")?;
     let total_rows = existing_job.total_rows;
-    let mut total_succeeded: i32 = existing_job.succeeded_rows;
+    let mut total_succeeded: i64 = existing_job.succeeded_rows;
 
     for chunk_idx in 0..n_chunks {
         if tracking_data.completed_chunks.contains(&chunk_idx) {

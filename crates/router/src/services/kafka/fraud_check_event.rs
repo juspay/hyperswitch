@@ -18,7 +18,7 @@ pub struct KafkaFraudCheckEvent<'a> {
     pub frm_transaction_id: Option<&'a String>,
     pub frm_transaction_type: FraudCheckType,
     pub frm_status: FraudCheckStatus,
-    pub frm_score: Option<i32>,
+    pub frm_score: Option<i64>,
     pub frm_reason: Option<serde_json::Value>,
     pub frm_error: Option<&'a String>,
     pub payment_details: Option<serde_json::Value>,

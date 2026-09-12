@@ -2382,7 +2382,7 @@ pub struct CaptureResponse {
     pub connector_capture_id: Option<String>,
     /// Sequence number of this capture, in the series of captures made for the parent attempt
     #[smithy(value_type = "i16")]
-    pub capture_sequence: i16,
+    pub capture_sequence: i64,
     /// A human-readable message from the connector explaining why this capture operation failed, if applicable.
     #[smithy(value_type = "Option<String>")]
     pub error_message: Option<String>,
@@ -7711,7 +7711,7 @@ pub struct PaymentsResponse {
 
     /// Total number of attempts associated with this payment
     #[smithy(value_type = "i16")]
-    pub attempt_count: i16,
+    pub attempt_count: i64,
 
     /// Denotes the action(approve or reject) taken by merchant in case of manual review. Manual review can occur when the transaction is marked as risky by the frm_processor, payment processor or when there is underpayment/over payment incase of crypto payment
     #[smithy(value_type = "Option<String>")]
@@ -7728,7 +7728,7 @@ pub struct PaymentsResponse {
 
     /// Total number of authorizations happened in an incremental_authorization payment
     #[smithy(value_type = "Option<i32>")]
-    pub authorization_count: Option<i32>,
+    pub authorization_count: Option<i64>,
 
     /// List of incremental authorizations happened to the payment
     #[smithy(value_type = "Option<Vec<IncrementalAuthorizationResponse>>")]
@@ -8070,7 +8070,7 @@ pub struct PaymentsListResponseItem {
     pub setup_future_usage: Option<api_enums::FutureUsage>,
 
     /// Total number of attempts associated with this payment
-    pub attempt_count: i16,
+    pub attempt_count: i64,
 
     /// Error details for the payment if any
     pub error: Option<ErrorDetails>,
@@ -8099,7 +8099,7 @@ pub struct PaymentsListResponseItem {
     pub allowed_payment_method_types: Option<Vec<common_enums::PaymentMethodType>>,
 
     /// Total number of authorizations happened in an incremental_authorization payment
-    pub authorization_count: Option<i32>,
+    pub authorization_count: Option<i64>,
 
     /// Date time at which payment was updated
     #[schema(example = "2022-09-10T10:11:12Z")]
@@ -8178,7 +8178,7 @@ pub struct RecoveryPaymentsListResponseItem {
     pub description: Option<String>,
 
     /// Total number of attempts associated with this payment
-    pub attempt_count: i16,
+    pub attempt_count: i64,
 
     /// Error details for the payment if any
     pub error: Option<ErrorDetails>,
@@ -12553,7 +12553,7 @@ pub struct FrmMessage {
     #[smithy(value_type = "Option<String>")]
     pub frm_status: Option<String>,
     #[smithy(value_type = "Option<i32>")]
-    pub frm_score: Option<i32>,
+    pub frm_score: Option<i64>,
     #[smithy(value_type = "Option<Object>")]
     pub frm_reason: Option<serde_json::Value>,
     #[smithy(value_type = "Option<String>")]

@@ -11,6 +11,14 @@ license.workspace = true
 proc-macro = true
 doctest = false
 
+[features]
+default = []
+# Emit enum sql_type markers that resolve to `text` instead of a user-defined
+# Postgres enum type. Spanner's PostgreSQL dialect has no CREATE TYPE, so every
+# enum column becomes varchar there. Off by default: the Postgres build is
+# unchanged.
+spanner = []
+
 [dependencies]
 indexmap = "2.9.0"
 proc-macro2 = "1.0.95"

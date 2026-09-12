@@ -60,6 +60,7 @@ pub mod payment_methods_session;
 
 #[allow(unused_qualifications)]
 pub mod schema;
+pub mod spanner_types;
 #[allow(unused_qualifications)]
 pub mod schema_v2;
 

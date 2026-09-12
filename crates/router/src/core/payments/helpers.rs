@@ -5611,7 +5611,7 @@ impl AttemptType {
     fn make_new_manual_retry_payment_attempt(
         request: &api_models::payments::PaymentsRequest,
         old_payment_attempt: PaymentAttempt,
-        new_attempt_count: i16,
+        new_attempt_count: i64,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> PaymentAttempt {
         let created_at @ modified_at @ last_synced = common_utils::date_time::now();
@@ -9436,18 +9436,18 @@ pub async fn is_merchant_eligible_authentication_service(
         .get_account()
         .get_org_id()
         .get_authentication_service_eligible_key();
+    // Neither key is set for most deployments. `find_config_by_key` reports a missing
+    // key as `NotFound` and the cache layer does not store errors, so reading them
+    // directly costs two database round trips on every payment, forever. Caching a
+    // sentinel instead makes the miss as cheap as the hit.
     let org_eligible = db
-        .find_config_by_key_optional(&org_key)
+        .find_config_by_key_unwrap_or(&org_key, consts::CONFIG_NOT_CONFIGURED.to_string())
         .await
-        .and_then(|config_optional| {
-            config_optional.ok_or_else(|| {
-                error_stack::Report::new(errors::StorageError::ValueNotFound(org_key.clone()))
-            })
-        })
         .inspect_err(|error| {
             logger::error!(?error, "Failed to fetch `{org_key}` config from DB");
         })
         .ok()
+        .filter(|c| c.config != consts::CONFIG_NOT_CONFIGURED)
         .map(|c| c.config.to_lowercase() == "true");
 
     Ok(org_eligible
@@ -9456,21 +9456,18 @@ pub async fn is_merchant_eligible_authentication_service(
                 .get_account()
                 .get_id()
                 .get_authentication_service_eligible_key();
-            db.find_config_by_key_optional(&merchant_key)
-                .await
-                .and_then(|config_optional| {
-                    config_optional.ok_or_else(|| {
-                        error_stack::Report::new(errors::StorageError::ValueNotFound(
-                            merchant_key.clone(),
-                        ))
-                    })
-                })
-                .inspect_err(|error| {
-                    logger::error!(?error, "Failed to fetch `{merchant_key}` config from DB");
-                })
-                .ok()
-                .map(|c| c.config.to_lowercase() == "true")
-                .unwrap_or(false)
+            db.find_config_by_key_unwrap_or(
+                &merchant_key,
+                consts::CONFIG_NOT_CONFIGURED.to_string(),
+            )
+            .await
+            .inspect_err(|error| {
+                logger::error!(?error, "Failed to fetch `{merchant_key}` config from DB");
+            })
+            .ok()
+            .filter(|c| c.config != consts::CONFIG_NOT_CONFIGURED)
+            .map(|c| c.config.to_lowercase() == "true")
+            .unwrap_or(false)
         })
         .await)
 }

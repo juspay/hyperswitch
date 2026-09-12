@@ -100,7 +100,7 @@ pub struct PaymentIntent {
     pub allowed_payment_method_types: Option<Value>,
     pub connector_metadata: Option<Value>,
     pub feature_metadata: Option<pii::SecretSerdeValue>,
-    pub attempt_count: i16,
+    pub attempt_count: i64,
     pub profile_id: Option<id_type::ProfileId>,
     pub payment_link_id: Option<String>,
     // Denotes the action(approve or reject) taken by merchant in case of manual review.
@@ -112,7 +112,7 @@ pub struct PaymentIntent {
     pub surcharge_applicable: Option<bool>,
     pub request_incremental_authorization: Option<storage_enums::RequestIncrementalAuthorization>,
     pub incremental_authorization_allowed: Option<bool>,
-    pub authorization_count: Option<i32>,
+    pub authorization_count: Option<i64>,
     pub fingerprint_id: Option<String>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub session_expiry: Option<PrimitiveDateTime>,
@@ -956,7 +956,7 @@ pub struct PaymentIntent {
     pub connector_metadata: Option<ConnectorMetadata>,
     pub feature_metadata: Option<FeatureMetadata>,
     /// Number of attempts that have been made for the order
-    pub attempt_count: i16,
+    pub attempt_count: i64,
     /// The profile id for the payment.
     pub profile_id: id_type::ProfileId,
     pub profile_acquirer_id: Option<id_type::ProfileAcquirerId>,
@@ -972,7 +972,7 @@ pub struct PaymentIntent {
     /// Denotes whether merchant requested for split payments to be enabled for this payment
     pub split_txns_enabled: storage_enums::SplitTxnsEnabled,
     /// Denotes the number of authorizations that have been made for the payment.
-    pub authorization_count: Option<i32>,
+    pub authorization_count: Option<i64>,
     /// Denotes the client secret expiry for the payment. This is the time at which the client secret will expire.
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub session_expiry: PrimitiveDateTime,

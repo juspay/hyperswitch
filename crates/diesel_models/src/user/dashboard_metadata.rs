@@ -9,7 +9,7 @@ use crate::{enums, schema::dashboard_metadata};
 #[cfg_attr(feature = "deja", derive(serde::Serialize, serde::Deserialize))]
 #[diesel(table_name = dashboard_metadata, check_for_backend(diesel::pg::Pg))]
 pub struct DashboardMetadata {
-    pub id: i32,
+    pub id: i64,
     pub user_id: Option<String>,
     pub merchant_id: id_type::MerchantId,
     pub org_id: id_type::OrganizationId,

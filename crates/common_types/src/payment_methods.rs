@@ -19,7 +19,9 @@ use utoipa::ToSchema;
 // https://docs.rs/diesel/latest/diesel/sql_types/struct.Jsonb.html
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, AsExpression)]
 #[serde(deny_unknown_fields)]
-#[diesel(sql_type = Json)]
+#[cfg_attr(not(feature = "spanner"), diesel(sql_type = Json))]
+// Spanner has no `json` type, only `jsonb`.
+#[cfg_attr(feature = "spanner", diesel(sql_type = Jsonb))]
 pub struct PaymentMethodsEnabled {
     /// Type of payment method.
     #[schema(value_type = PaymentMethod,example = "card")]
@@ -49,6 +51,30 @@ impl ToSql<Json, diesel::pg::Pg> for PaymentMethodsEnabled {
         // please refer to the diesel migration blog:
         // https://github.com/Diesel-rs/Diesel/blob/master/guide_drafts/migration_guide.md#changed-tosql-implementations
         <serde_json::Value as ToSql<Json, diesel::pg::Pg>>::to_sql(&value, &mut out.reborrow())
+    }
+}
+
+// Spanner equivalent of the `Json` impl above, for when this column is declared `jsonb`
+// (Spanner rejects the plain `json` type outright).
+impl FromSql<Jsonb, diesel::pg::Pg> for PaymentMethodsEnabled {
+    fn from_sql(bytes: <diesel::pg::Pg as Backend>::RawValue<'_>) -> deserialize::Result<Self> {
+        // Unlike `json`, `jsonb`'s binary wire format carries a leading version-number byte
+        // ahead of the JSON text, so it must be decoded via `serde_json::Value`'s own
+        // `FromSql<Jsonb, _>` rather than sliced directly like the `Json` impl above.
+        let value = <serde_json::Value as FromSql<Jsonb, diesel::pg::Pg>>::from_sql(bytes)?;
+        let helper: PaymentMethodsEnabledHelper = serde_json::from_value(value)
+            .map_err(|e| Box::new(diesel::result::Error::DeserializationError(Box::new(e))))?;
+        Ok(helper.into())
+    }
+}
+
+impl ToSql<Jsonb, diesel::pg::Pg> for PaymentMethodsEnabled {
+    fn to_sql<'b>(
+        &'b self,
+        out: &mut diesel::serialize::Output<'b, '_, diesel::pg::Pg>,
+    ) -> diesel::serialize::Result {
+        let value = serde_json::to_value(self)?;
+        <serde_json::Value as ToSql<Jsonb, diesel::pg::Pg>>::to_sql(&value, &mut out.reborrow())
     }
 }
 

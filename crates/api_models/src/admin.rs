@@ -2770,7 +2770,7 @@ pub struct ProfileResponse {
     pub is_auto_retries_enabled: bool,
 
     /// Maximum number of auto retries allowed for a payment
-    pub max_auto_retries_enabled: Option<i16>,
+    pub max_auto_retries_enabled: Option<i64>,
 
     /// Bool indicating if extended authentication must be requested for all payments
     #[schema(value_type = Option<bool>)]

@@ -40,5 +40,5 @@ pub struct RevenueRecoveryRetriggerRequest {
     pub business_status: Option<String>,
     /// Retry count to set on the process tracker task. If not provided, the
     /// existing retry count is retained as is.
-    pub retry_count: Option<i32>,
+    pub retry_count: Option<i64>,
 }

@@ -140,7 +140,7 @@ pub async fn upsert_calculate_pcr_task(
 
             // The ladder is indexed by attempts already made on the invoice, so seeding it with
             // anything else replays the slots the billing connector already consumed.
-            let attempts_already_made = i32::from(intent_retry_count);
+            let attempts_already_made = i64::from(intent_retry_count);
 
             router_env::logger::info!(
                 payment_id = %payment_id.get_string_repr(),
@@ -587,9 +587,9 @@ pub async fn perform_payments_sync(
 
 /// `attempts_already_made` counts the initial charge, which is not a retry, so the retry about to
 /// be scheduled is retry number `attempts_already_made`. No ceiling configured means no gate.
-fn is_retry_budget_exhausted(attempts_already_made: i32, max_retry_count: Option<u16>) -> bool {
+fn is_retry_budget_exhausted(attempts_already_made: i64, max_retry_count: Option<u16>) -> bool {
     max_retry_count
-        .map(|max_retry_count| attempts_already_made > i32::from(max_retry_count))
+        .map(|max_retry_count| attempts_already_made > i64::from(max_retry_count))
         .unwrap_or(false)
 }
 
@@ -1629,8 +1629,8 @@ pub fn map_recovery_status(
     intent_status: IntentStatus,
     calculate_workflow: Option<&ProcessTrackerStorage>,
     execute_workflow: Option<&ProcessTrackerStorage>,
-    attempt_count: i16,
-    max_retry_threshold: i16,
+    attempt_count: i64,
+    max_retry_threshold: i64,
 ) -> RecoveryStatus {
     let (calculate_business_status, calculate_process_tracker_status) = calculate_workflow
         .map(|calculate| {
@@ -1702,7 +1702,7 @@ pub fn map_to_recovery_payment_item(
     payment_attempt: Option<PaymentAttempt>,
     calculate_workflow: Option<ProcessTrackerStorage>,
     execute_workflow: Option<ProcessTrackerStorage>,
-    max_retry_threshold: i16,
+    max_retry_threshold: i64,
 ) -> RecoveryPaymentsListResponseItem {
     // Map the recovery status
     let recovery_status = map_recovery_status(

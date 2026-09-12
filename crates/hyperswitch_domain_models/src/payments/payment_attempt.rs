@@ -763,7 +763,7 @@ pub struct PaymentAttempt {
     pub routing_result: Option<Value>,
     pub preprocessing_step_id: Option<String>,
     /// Number of captures that have happened for the payment attempt
-    pub multiple_capture_count: Option<i16>,
+    pub multiple_capture_count: Option<i64>,
     /// A reference to the payment at connector side. This is returned by the connector
     pub connector_response_reference_id: Option<String>,
     /// Whether the payment was updated by postgres or redis
@@ -1393,7 +1393,7 @@ pub struct PaymentAttempt {
     // providing a location to store mandate details intermediately for transaction
     pub mandate_details: Option<MandateDataType>,
     pub error_reason: Option<String>,
-    pub multiple_capture_count: Option<i16>,
+    pub multiple_capture_count: Option<i64>,
     // reference to the payment at connector side
     pub connector_response_reference_id: Option<String>,
     pub amount_capturable: MinorUnit,
@@ -2193,7 +2193,7 @@ pub enum PaymentAttemptUpdate {
     },
     CaptureUpdate {
         amount_to_capture: Option<MinorUnit>,
-        multiple_capture_count: Option<i16>,
+        multiple_capture_count: Option<i64>,
         updated_by: String,
     },
     AmountToCaptureUpdate {

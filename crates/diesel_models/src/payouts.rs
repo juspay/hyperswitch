@@ -30,7 +30,7 @@ pub struct Payouts {
     pub created_at: PrimitiveDateTime,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub last_modified_at: PrimitiveDateTime,
-    pub attempt_count: i16,
+    pub attempt_count: i64,
     pub profile_id: common_utils::id_type::ProfileId,
     pub status: storage_enums::PayoutStatus,
     pub confirm: Option<bool>,
@@ -75,7 +75,7 @@ pub struct PayoutsNew {
     pub created_at: PrimitiveDateTime,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub last_modified_at: PrimitiveDateTime,
-    pub attempt_count: i16,
+    pub attempt_count: i64,
     pub profile_id: common_utils::id_type::ProfileId,
     pub status: storage_enums::PayoutStatus,
     pub confirm: Option<bool>,
@@ -115,7 +115,7 @@ pub enum PayoutsUpdate {
         recurring: bool,
     },
     AttemptCountUpdate {
-        attempt_count: i16,
+        attempt_count: i64,
     },
     StatusUpdate {
         status: storage_enums::PayoutStatus,
@@ -146,7 +146,7 @@ pub struct PayoutsUpdateInternal {
     pub profile_id: Option<common_utils::id_type::ProfileId>,
     pub status: Option<storage_enums::PayoutStatus>,
     pub last_modified_at: PrimitiveDateTime,
-    pub attempt_count: Option<i16>,
+    pub attempt_count: Option<i64>,
     pub confirm: Option<bool>,
     pub payout_type: Option<common_enums::PayoutType>,
     pub address_id: Option<String>,

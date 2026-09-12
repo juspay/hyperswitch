@@ -9,6 +9,7 @@ readme = "README.md"
 license.workspace = true
 
 [features]
+spanner = ["diesel_models/spanner", "storage_impl/spanner", "hyperswitch_domain_models/spanner", "api_models/spanner", "common_enums/spanner"]
 default = ["common_default", "v1", "redis-rs"]
 common_default = [
     "kv_store",

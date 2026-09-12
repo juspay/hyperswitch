@@ -167,7 +167,7 @@ pub async fn get_sync_process_schedule_time(
     db: &dyn StorageInterface,
     superposition_client: &external_services::superposition::SuperpositionClient,
     dimensions: &crate::core::configs::dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
-    retry_count: i32,
+    retry_count: i64,
     payment_id: Option<&common_utils::id_type::PaymentId>,
 ) -> Result<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
     let mapping = dimensions

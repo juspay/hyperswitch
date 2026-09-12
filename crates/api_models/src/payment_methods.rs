@@ -2957,7 +2957,7 @@ pub struct PaymentMethodListIntentData {
     pub merchant_order_reference_id: Option<String>,
 
     /// Number of payment attempts made
-    pub attempt_count: i16,
+    pub attempt_count: i64,
 
     /// Installment options available for this payment
     pub installment_options: Option<Vec<PaymentMethodListInstallmentOption>>,

@@ -345,7 +345,7 @@ pub(crate) async fn get_webhook_delivery_retry_schedule_time(
     db: &dyn StorageInterface,
     superposition_client: &external_services::superposition::SuperpositionClient,
     dimensions: &crate::core::configs::dimension_state::DimensionsWithProcessorMerchantId,
-    retry_count: i32,
+    retry_count: i64,
 ) -> Option<time::PrimitiveDateTime> {
     let mapping = dimensions
         .get_pt_mapping_outgoing_webhooks(db, superposition_client, None)
@@ -368,7 +368,7 @@ pub(crate) async fn get_connector_webhook_delivery_retry_schedule_time(
     db: &dyn StorageInterface,
     superposition_client: &external_services::superposition::SuperpositionClient,
     dimensions: &crate::core::configs::dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
-    retry_count: i32,
+    retry_count: i64,
 ) -> Option<time::PrimitiveDateTime> {
     let mapping = dimensions
         .get_pt_mapping_outgoing_connector_webhooks(db, superposition_client, None)

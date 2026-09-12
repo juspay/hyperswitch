@@ -334,7 +334,7 @@ pub fn add_histogram_metrics(
 
 pub fn get_schedule_time(
     mapping: process_data::ConnectorPTMapping,
-    retry_count: i32,
+    retry_count: i64,
 ) -> Option<i32> {
     let mapping = mapping.default_mapping;
 
@@ -349,7 +349,7 @@ pub fn get_schedule_time(
 pub fn get_pm_schedule_time(
     mapping: process_data::PaymentMethodsPTMapping,
     pm: enums::PaymentMethod,
-    retry_count: i32,
+    retry_count: i64,
 ) -> Option<i32> {
     let mapping = match mapping.custom_pm_mapping.get(&pm) {
         Some(map) => map.clone(),
@@ -365,7 +365,7 @@ pub fn get_pm_schedule_time(
 
 pub fn get_outgoing_webhook_retry_schedule_time(
     mapping: process_data::OutgoingWebhookRetryProcessTrackerMapping,
-    retry_count: i32,
+    retry_count: i64,
 ) -> Option<i32> {
     let retry_mapping = mapping.default_mapping;
 
@@ -379,7 +379,7 @@ pub fn get_outgoing_webhook_retry_schedule_time(
 
 pub fn get_pcr_payments_retry_schedule_time(
     mapping: process_data::RevenueRecoveryPaymentProcessTrackerMapping,
-    retry_count: i32,
+    retry_count: i64,
 ) -> Option<i32> {
     let mapping = mapping.default_mapping;
     // TODO: check if the current scheduled time is not more than the configured timerange
@@ -395,7 +395,7 @@ pub fn get_pcr_payments_retry_schedule_time(
 pub fn get_subscription_invoice_sync_retry_schedule_time(
     mapping: process_data::SubscriptionInvoiceSyncPTMapping,
     merchant_id: &common_utils::id_type::MerchantId,
-    retry_count: i32,
+    retry_count: i64,
 ) -> Option<i32> {
     let mapping = match mapping.custom_merchant_mapping.get(merchant_id) {
         Some(map) => map.clone(),
@@ -411,7 +411,7 @@ pub fn get_subscription_invoice_sync_retry_schedule_time(
 
 /// Get the delay based on the retry count
 pub fn get_delay<'a>(
-    retry_count: i32,
+    retry_count: i64,
     frequencies: impl IntoIterator<Item = &'a (i32, i32)>,
 ) -> Option<i32> {
     // Preferably, fix this by using unsigned ints
@@ -419,9 +419,11 @@ pub fn get_delay<'a>(
         return None;
     }
 
-    let mut cumulative_count = 0;
+    // retry_count is i64 (process_tracker.retry_count is bigint); widen the
+    // running total to match rather than narrowing the comparison.
+    let mut cumulative_count: i64 = 0;
     for &(frequency, count) in frequencies.into_iter() {
-        cumulative_count += count;
+        cumulative_count += i64::from(count);
         if cumulative_count >= retry_count {
             return Some(frequency);
         }
@@ -500,7 +502,7 @@ mod tests {
     /// slot is the delay before one retry, so `N` slots describe the charge plus `N` retries.
     fn walk_pcr_ladder(
         mapping: &process_data::RetryMapping,
-        attempts_already_made: i32,
+        attempts_already_made: i64,
     ) -> (usize, i32) {
         let mut retry_count = attempts_already_made;
         let mut elapsed = 0;
@@ -525,7 +527,7 @@ mod tests {
     #[test]
     fn test_pcr_retry_ladder_leaves_thirteen_retries_to_us_ending_on_day_twenty_eight() {
         const DAY: i32 = 24 * 60 * 60;
-        const BILLING_CONNECTOR_RETRY_THRESHOLD: i32 = 2;
+        const BILLING_CONNECTOR_RETRY_THRESHOLD: i64 = 2;
 
         let mapping = process_data::RetryMapping {
             start_after: DAY,
