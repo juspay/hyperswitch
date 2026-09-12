@@ -664,10 +664,18 @@ impl crate::types::RedisSettings {
             .into_connection_info()
             .change_context(crate::errors::RedisError::RedisConnectionError)?;
 
-        let redis_settings = connection_info
+        let mut redis_settings = connection_info
             .redis_settings()
             .clone()
             .set_protocol(redis::ProtocolVersion::RESP3);
+
+        if let Some(username) = self.auth_username() {
+            redis_settings = redis_settings.set_username(username);
+        }
+        if let Some(password) = self.auth_password() {
+            redis_settings = redis_settings.set_password(password);
+        }
+
         connection_info = connection_info.set_redis_settings(redis_settings);
 
         Ok(connection_info)
@@ -699,13 +707,22 @@ impl crate::types::RedisSettings {
         &self,
         nodes: Vec<String>,
     ) -> redis::cluster::ClusterClientBuilder {
-        redis::cluster::ClusterClient::builder(nodes)
+        let mut builder = redis::cluster::ClusterClient::builder(nodes)
             .retries(self.reconnect_max_attempts)
             .min_retry_wait(u64::from(self.reconnect_delay))
             .response_timeout(std::time::Duration::from_secs(
                 self.default_command_timeout.max(1),
             ))
-            .use_protocol(redis::ProtocolVersion::RESP3)
+            .use_protocol(redis::ProtocolVersion::RESP3);
+
+        if let Some(username) = self.auth_username() {
+            builder = builder.username(username);
+        }
+        if let Some(password) = self.auth_password() {
+            builder = builder.password(password);
+        }
+
+        builder
     }
 }
 

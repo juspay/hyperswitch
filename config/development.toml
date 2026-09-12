@@ -108,6 +108,11 @@ max_lifetime = 1800
 [redis]
 host = "127.0.0.1"
 port = 6379
+# Credentials for authenticated Redis (e.g. Redis Cloud). Leave commented for
+# an unauthenticated local Redis. `username` is optional (defaults to the
+# `default` user); setting `username` requires `password`.
+# username = "default"
+# password = ""
 pool_size = 5
 reconnect_max_attempts = 5
 reconnect_delay = 5
