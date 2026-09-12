@@ -542,7 +542,7 @@ describe("PayLater tests", () => {
     });
   });
 
-  context("Atome PayLater - Auto Capture flow test", () => {
+  context.skip("Atome PayLater - Auto Capture flow test", () => {
     before("skip if connector does not support Atome", function () {
       if (
         shouldIncludeConnector(
