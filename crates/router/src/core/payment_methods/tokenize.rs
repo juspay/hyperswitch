@@ -344,7 +344,10 @@ where
             return Ok(None);
         }
 
-        db.get_card_info(&card_number.get_card_isin())
+        let bin = card_number.get_card_isin();
+        self.state
+            .card_info_cache
+            .get_or_try_init(&bin, || db.get_card_info(&bin))
             .await
             .attach_printable("Failed to perform BIN lookup")
             .change_context(errors::ApiErrorResponse::InternalServerError)?
