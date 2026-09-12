@@ -30,12 +30,16 @@ use hyperswitch_domain_models::{
 };
 #[cfg(feature = "frm")]
 use hyperswitch_domain_models::{
-    router_flow_types::{Checkout, Transaction},
-    router_request_types::fraud_check::{FraudCheckCheckoutData, FraudCheckTransactionData},
+    router_flow_types::{Checkout, PoFrm, Transaction},
+    router_request_types::fraud_check::{
+        FraudCheckCheckoutData, FraudCheckPayoutData, FraudCheckTransactionData,
+    },
     router_response_types::fraud_check::FraudCheckResponseData,
 };
 #[cfg(feature = "frm")]
-use hyperswitch_interfaces::api::{FraudCheck, FraudCheckCheckout, FraudCheckTransaction};
+use hyperswitch_interfaces::api::{
+    FraudCheck, FraudCheckCheckout, FraudCheckPayout, FraudCheckTransaction,
+};
 use hyperswitch_interfaces::{
     api::{
         self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
@@ -430,6 +434,13 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Cybersour
 
 #[cfg(feature = "frm")]
 impl FraudCheck for Cybersourcedecisionmanager {}
+#[cfg(feature = "frm")]
+impl FraudCheckPayout for Cybersourcedecisionmanager {}
+#[cfg(feature = "frm")]
+impl ConnectorIntegration<PoFrm, FraudCheckPayoutData, FraudCheckResponseData>
+    for Cybersourcedecisionmanager
+{
+}
 #[cfg(feature = "frm")]
 impl FraudCheckCheckout for Cybersourcedecisionmanager {}
 #[cfg(feature = "frm")]

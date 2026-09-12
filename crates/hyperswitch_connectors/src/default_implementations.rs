@@ -104,10 +104,12 @@ use hyperswitch_domain_models::{
 };
 #[cfg(feature = "frm")]
 use hyperswitch_domain_models::{
-    router_flow_types::fraud_check::{Checkout, Fulfillment, RecordReturn, Sale, Transaction},
+    router_flow_types::fraud_check::{
+        Checkout, Fulfillment, PoFrm, RecordReturn, Sale, Transaction,
+    },
     router_request_types::fraud_check::{
-        FraudCheckCheckoutData, FraudCheckFulfillmentData, FraudCheckRecordReturnData,
-        FraudCheckSaleData, FraudCheckTransactionData,
+        FraudCheckCheckoutData, FraudCheckFulfillmentData, FraudCheckPayoutData,
+        FraudCheckRecordReturnData, FraudCheckSaleData, FraudCheckTransactionData,
     },
     router_response_types::fraud_check::FraudCheckResponseData,
 };
@@ -128,8 +130,8 @@ use hyperswitch_domain_models::{
 };
 #[cfg(feature = "frm")]
 use hyperswitch_interfaces::api::fraud_check::{
-    FraudCheck, FraudCheckCheckout, FraudCheckFulfillment, FraudCheckRecordReturn, FraudCheckSale,
-    FraudCheckTransaction,
+    FraudCheck, FraudCheckCheckout, FraudCheckFulfillment, FraudCheckPayout,
+    FraudCheckRecordReturn, FraudCheckSale, FraudCheckTransaction,
 };
 #[cfg(feature = "payouts")]
 use hyperswitch_interfaces::api::payouts::{
@@ -6882,6 +6884,176 @@ default_imp_for_frm_checkout!(
 );
 
 #[cfg(feature = "frm")]
+macro_rules! default_imp_for_po_frm {
+    ($($path:ident::$connector:ident),*) => {
+        $(
+            impl FraudCheckPayout for $path::$connector {}
+            impl
+            ConnectorIntegration<
+            PoFrm,
+            FraudCheckPayoutData,
+            FraudCheckResponseData,
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+
+#[cfg(feature = "frm")]
+default_imp_for_po_frm!(
+    connectors::Vgs,
+    connectors::AbsaSanlam,
+    connectors::Aci,
+    connectors::Adyen,
+    connectors::Adyenplatform,
+    connectors::Affirm,
+    connectors::Airwallex,
+    connectors::Amazonpay,
+    connectors::Archipel,
+    connectors::Authipay,
+    connectors::Authorizedotnet,
+    connectors::Bambora,
+    connectors::Bamboraapac,
+    connectors::Bankofamerica,
+    connectors::Barclaycard,
+    connectors::Billwerk,
+    connectors::Bitpay,
+    connectors::Blackhawknetwork,
+    connectors::Calida,
+    connectors::Bluesnap,
+    connectors::Braintree,
+    connectors::Boku,
+    connectors::Breadpay,
+    connectors::Cashtocode,
+    connectors::Celero,
+    connectors::Chargebee,
+    connectors::Checkbook,
+    connectors::Checkout,
+    connectors::Coinbase,
+    connectors::Coingate,
+    connectors::Cryptopay,
+    connectors::Custombilling,
+    connectors::Cybersource,
+    connectors::Datatrans,
+    connectors::Deutschebank,
+    connectors::Digitalvirgo,
+    connectors::Dlocal,
+    connectors::Dwolla,
+    connectors::Ebanx,
+    connectors::Elavon,
+    connectors::Envoy,
+    connectors::Facilitapay,
+    connectors::Finix,
+    connectors::Fiserv,
+    connectors::Fiservcommercehub,
+    connectors::Fiservemea,
+    connectors::Fiuu,
+    connectors::Flexiti,
+    connectors::Forte,
+    connectors::Getnet,
+    connectors::Gigadat,
+    connectors::Givepayments,
+    connectors::Globalpay,
+    connectors::Globepay,
+    connectors::Gocardless,
+    connectors::GotymeSanlam,
+    connectors::Gpayments,
+    connectors::Hipay,
+    connectors::Hyperpg,
+    connectors::Helcim,
+    connectors::HyperswitchVault,
+    connectors::Hyperwallet,
+    connectors::Iatapay,
+    connectors::Ilixium,
+    connectors::Imerchantsolutions,
+    connectors::Inespay,
+    connectors::Interpayments,
+    connectors::Itaubank,
+    connectors::Jpmorgan,
+    connectors::Juspaythreedsserver,
+    connectors::Katapult,
+    connectors::Klarna,
+    connectors::Loonio,
+    connectors::Netcetera,
+    connectors::Nmi,
+    connectors::Nomupay,
+    connectors::Noon,
+    connectors::Nordea,
+    connectors::Novalnet,
+    connectors::Nexinets,
+    connectors::Nexixpay,
+    connectors::Payconex,
+    connectors::Citigate,
+    connectors::Worldpayraft,
+    connectors::Opayo,
+    connectors::Opennode,
+    connectors::Nuvei,
+    connectors::Paybox,
+    connectors::Payeezy,
+    connectors::Payjustnow,
+    connectors::Payjustnowinstore,
+    connectors::Payload,
+    connectors::Payme,
+    connectors::Payone,
+    connectors::Paypal,
+    connectors::Paysafe,
+    connectors::Paystack,
+    connectors::Paytm,
+    connectors::Payu,
+    connectors::Peachpayments,
+    connectors::Phonepe,
+    connectors::Placetopay,
+    connectors::Plaid,
+    connectors::Powertranz,
+    connectors::Prophetpay,
+    connectors::Mifinity,
+    connectors::Mollie,
+    connectors::Moneris,
+    connectors::Mpgs,
+    connectors::Multisafepay,
+    connectors::Rapyd,
+    connectors::Razorpay,
+    connectors::Recurly,
+    connectors::Redsys,
+    connectors::Revolv3,
+    connectors::TsysTransit,
+    connectors::Santander,
+    connectors::Shift4,
+    connectors::Sift,
+    connectors::Silverflow,
+    connectors::Stax,
+    connectors::Square,
+    connectors::Stripe,
+    connectors::Stripebilling,
+    connectors::Taxjar,
+    connectors::Tesouro,
+    connectors::Threedsecureio,
+    connectors::Thunes,
+    connectors::Tokenex,
+    connectors::Tokenio,
+    connectors::Truelayer,
+    connectors::Trustly,
+    connectors::Trustpay,
+    connectors::Trustpayments,
+    connectors::Tsys,
+    connectors::UnifiedAuthenticationService,
+    connectors::Wise,
+    connectors::Worldline,
+    connectors::Worldpay,
+    connectors::Worldpaymodular,
+    connectors::Worldpayvantiv,
+    connectors::Worldpayxml,
+    connectors::Wellsfargo,
+    connectors::Wellsfargopayout,
+    connectors::Volt,
+    connectors::Xendit,
+    connectors::Zift,
+    connectors::Zen,
+    connectors::Zsl,
+    connectors::CtpMastercard
+);
+
+#[cfg(feature = "frm")]
 macro_rules! default_imp_for_frm_transaction {
     ($($path:ident::$connector:ident),*) => {
         $(
@@ -8404,7 +8576,7 @@ macro_rules! default_imp_for_fraud_check {
     ($($path:ident::$connector:ident),*) => {
         $(
             impl FraudCheck for $path::$connector {}
-    )*
+        )*
     };
 }
 #[cfg(feature = "frm")]
@@ -11779,6 +11951,14 @@ impl<const T: u8> ConnectorIntegration<Reject, PaymentsRejectData, PaymentsRespo
 }
 #[cfg(all(feature = "frm", feature = "dummy_connector"))]
 impl<const T: u8> FraudCheck for connectors::DummyConnector<T> {}
+
+#[cfg(all(feature = "frm", feature = "dummy_connector"))]
+impl<const T: u8> FraudCheckPayout for connectors::DummyConnector<T> {}
+#[cfg(all(feature = "frm", feature = "dummy_connector"))]
+impl<const T: u8> ConnectorIntegration<PoFrm, FraudCheckPayoutData, FraudCheckResponseData>
+    for connectors::DummyConnector<T>
+{
+}
 
 #[cfg(all(feature = "frm", feature = "dummy_connector"))]
 impl<const T: u8> FraudCheckSale for connectors::DummyConnector<T> {}

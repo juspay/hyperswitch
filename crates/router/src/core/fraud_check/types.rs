@@ -1,13 +1,21 @@
+#[cfg(all(feature = "payouts", feature = "v1"))]
+use std::collections::HashSet;
+
 use api_models::{
     enums as api_enums,
     enums::{PaymentMethod, PaymentMethodType},
     payments::Amount,
+    payouts::PayoutMethodData,
     refunds::RefundResponse,
 };
 use common_enums::FrmSuggestion;
 use common_utils::pii::SecretSerdeValue;
 use hyperswitch_domain_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
 pub use hyperswitch_domain_models::{
+    address::Address as PayoutAddress,
+    customer::Customer,
+    merchant_connector_account::MerchantConnectorAccount,
+    payouts::payout_attempt::PayoutAttempt,
     router_request_types::fraud_check::{
         Address, Destination, FrmFulfillmentRequest, FulfillmentStatus, Fulfillments, Product,
     },
@@ -19,8 +27,12 @@ use utoipa::ToSchema;
 
 use super::operation::BoxedFraudCheckOperation;
 use crate::types::{
+    api::routing::FrmRoutingAlgorithm,
     domain::MerchantAccount,
-    storage::{enums as storage_enums, fraud_check::FraudCheck},
+    storage::{
+        enums::{self as storage_enums, FraudCheckStatus},
+        fraud_check::FraudCheck,
+    },
     PaymentAddress,
 };
 
@@ -84,6 +96,62 @@ pub struct PaymentToFrmData {
     pub connector_details: ConnectorDetailsCore,
     pub order_details: Option<Vec<OrderDetailsWithAmount>>,
     pub frm_metadata: Option<SecretSerdeValue>,
+}
+
+#[derive(Clone, Debug)]
+pub struct PayoutFrmData {
+    pub fraud_check: FraudCheck,
+    pub amount: common_utils::types::MinorUnit,
+    pub currency: storage_enums::Currency,
+    pub payout_attempt: PayoutAttempt,
+    pub payout_method_data: Option<PayoutMethodData>,
+    pub customer_details: Option<Customer>,
+    pub billing_address: Option<PayoutAddress>,
+}
+
+impl PayoutFrmData {
+    pub fn should_cancel_payout(&self) -> bool {
+        matches!(self.fraud_check.frm_status, FraudCheckStatus::Fraud)
+    }
+
+    pub fn get_frm_outcome(&self) -> PayoutFrmOutcome {
+        if self.should_cancel_payout() {
+            PayoutFrmOutcome::Blocked {
+                error_code: self.fraud_check.frm_status.to_string(),
+                error_message: self
+                    .fraud_check
+                    .frm_reason
+                    .as_ref()
+                    .map(|reason| match reason {
+                        serde_json::Value::String(value) => value.clone(),
+                        other => other.to_string(),
+                    })
+                    .or(self.fraud_check.frm_error.clone()),
+            }
+        } else {
+            PayoutFrmOutcome::Continue
+        }
+    }
+}
+
+#[cfg(all(feature = "payouts", feature = "v1"))]
+#[derive(Debug, Clone)]
+pub enum PayoutFrmApplicability {
+    Applicable {
+        connectors: HashSet<api_enums::Connector>,
+        frm_routing_algorithm: FrmRoutingAlgorithm,
+    },
+    NotApplicable,
+}
+
+#[cfg(all(feature = "payouts", feature = "v1"))]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PayoutFrmOutcome {
+    Continue,
+    Blocked {
+        error_code: String,
+        error_message: Option<String>,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

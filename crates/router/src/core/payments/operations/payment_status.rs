@@ -410,17 +410,23 @@ async fn get_tracker_for_sync<
             format!("Error while retrieving dispute list for, merchant_id: {:?}, payment_id: {payment_id:?}", platform.get_processor().get_account().get_id())
         })?;
 
-    let frm_response = if cfg!(feature = "frm") {
-        db.find_fraud_check_by_payment_id(payment_id.to_owned(), platform.get_processor().get_account().get_id().clone())
+    #[cfg(feature = "frm")]
+    let frm_response = match payment_attempt.active_frm_id.clone() {
+        Some(frm_id) => Some(
+            db.find_fraud_check_by_frm_id(
+                frm_id,
+                platform.get_processor().get_account().get_id().clone(),
+            )
             .await
             .change_context(errors::ApiErrorResponse::PaymentNotFound)
             .attach_printable_lazy(|| {
                 format!("Error while retrieving frm_response, merchant_id: {:?}, payment_id: {payment_id:?}", platform.get_processor().get_account().get_id())
-            })
-            .ok()
-    } else {
-        None
+            })?,
+        ),
+        None => None,
     };
+    #[cfg(not(feature = "frm"))]
+    let frm_response = None;
 
     let contains_encoded_data = payment_attempt.encoded_data.is_some();
 

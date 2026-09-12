@@ -2094,7 +2094,23 @@ pub struct FrmConfigs {
     #[schema(value_type = ConnectorType, example = "payment_processor")]
     pub gateway: Option<api_enums::Connector>,
     ///payment methods that can be used in the payment
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub payment_methods: Vec<FrmPaymentMethod>,
+    ///payout types for which fraud checks are enabled
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub payout_types: Vec<FrmPayoutType>,
+}
+
+/// Payout type configuration for a fraud-check connector.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct FrmPayoutType {
+    ///Payout type for which fraud checks are enabled
+    #[schema(value_type = PayoutType, example = "bank")]
+    pub payout_type: common_enums::PayoutType,
+    ///FRM flow used for the payout. Currently only `pre` is supported.
+    #[schema(value_type = FrmPreferredFlowTypes, example = "pre")]
+    pub flow: api_enums::FrmPreferredFlowTypes,
 }
 
 ///Details of FrmPaymentMethod are mentioned here... it should be passed in payment connector create api call, and stored in merchant_connector_table

@@ -1,5 +1,7 @@
 pub mod checkout_flow;
 pub mod fulfillment_flow;
+#[cfg(all(feature = "payouts", feature = "v1"))]
+pub mod pre_payout_frm_flow;
 pub mod record_return;
 pub mod sale_flow;
 pub mod transaction_flow;

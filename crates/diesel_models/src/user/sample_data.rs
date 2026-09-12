@@ -332,6 +332,7 @@ impl PaymentAttemptBatchNew {
             payment_account_reference: None,
             sender_payment_instrument_id: None,
             external_threeds_authentication_type: None,
+            active_frm_id: None,
         }
     }
 }

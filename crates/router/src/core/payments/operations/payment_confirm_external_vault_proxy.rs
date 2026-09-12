@@ -627,6 +627,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, PaymentsRequest>
                         .payment_attempt
                         .applied_offer_details
                         .clone(),
+                    active_frm_id: payment_data.payment_attempt.active_frm_id.clone(),
                 },
                 storage_scheme,
                 key_store,

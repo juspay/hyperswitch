@@ -123,17 +123,23 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsCancelRequest
         let currency = payment_attempt.currency.get_required_value("currency")?;
         let amount = payment_attempt.get_total_amount().into();
 
-        let frm_response = if cfg!(feature = "frm") {
-            db.find_fraud_check_by_payment_id(payment_intent.payment_id.clone(), platform.get_processor().get_account().get_id().clone())
+        #[cfg(feature = "frm")]
+        let frm_response = match payment_attempt.active_frm_id.clone() {
+            Some(frm_id) => Some(
+                db.find_fraud_check_by_frm_id(
+                    frm_id,
+                    platform.get_processor().get_account().get_id().clone(),
+                )
                 .await
                 .change_context(errors::ApiErrorResponse::PaymentNotFound)
                 .attach_printable_lazy(|| {
-                    format!("Error while retrieving frm_response, merchant_id: {:?}, payment_id: {attempt_id}", platform.get_processor().get_account().get_id())
-                })
-                .ok()
-        } else {
-            None
+                    format!("Error while retrieving frm_response, merchant_id: {:?}, payment_id: {payment_id:?}", platform.get_processor().get_account().get_id())
+                })?,
+            ),
+            None => None,
         };
+        #[cfg(not(feature = "frm"))]
+        let frm_response = None;
 
         let profile_id = payment_intent
             .profile_id

@@ -937,6 +937,10 @@ pub struct PayoutCreateResponse {
     #[schema(value_type = Option<String>, example = "E0001")]
     pub error_code: Option<String>,
 
+    /// FRM response information when fraud checks were invoked for this payout
+    #[schema(value_type = Option<FrmMessage>)]
+    pub frm_message: Option<payments::FrmMessage>,
+
     /// The business profile that is associated with this payout
     #[schema(value_type = String)]
     pub profile_id: id_type::ProfileId,
