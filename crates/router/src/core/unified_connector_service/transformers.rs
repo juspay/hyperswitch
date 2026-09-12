@@ -4613,6 +4613,10 @@ impl transformers::ForeignTryFrom<&common_types::payments::ApplePayPaymentData>
                         ),
                         eci_indicator: decrypted_data.payment_data.eci_indicator.clone(),
                     }),
+                    device_manufacturer_identifier: decrypted_data
+                        .device_manufacturer_identifier
+                        .clone()
+                        .map(|identifier| identifier.expose().into()),
                 }))
             }
         }
