@@ -3284,6 +3284,31 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     offer_engine::schedule_payment_notification_for_attempt(state, &payment_data.payment_attempt)
         .await;
 
+    // A pre-call UCS rejection is recorded as a payment outcome above. For these refusals
+    // the API contract stays the error response, so return the mapped error after the
+    // attempt has been written instead of the payment object.
+    if let Err(error_response) = &router_data.response {
+        match error_response.code.as_str() {
+            "IR_19" => {
+                return Err(error_stack::Report::new(
+                    errors::ApiErrorResponse::NotSupported {
+                        message: error_response.message.clone(),
+                    },
+                ));
+            }
+            "IR_00" => {
+                return Err(error_stack::Report::new(
+                    errors::ApiErrorResponse::NotImplemented {
+                        message: errors::NotImplementedMessage::Reason(
+                            error_response.message.clone(),
+                        ),
+                    },
+                ));
+            }
+            _ => {}
+        }
+    }
+
     match router_data.integrity_check {
         Ok(()) => Ok(payment_data),
         Err(err) => {
