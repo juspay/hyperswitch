@@ -1675,6 +1675,129 @@
         ]
       }
     },
+    "/payment_link/list": {
+      "post": {
+        "tags": [
+          "Payment Links"
+        ],
+        "summary": "Payment Link - List",
+        "description": "To list the payment links across all profiles for a merchant",
+        "operationId": "List Payment Links",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentLinkListConstraints"
+              },
+              "examples": {
+                "List with default params": {
+                  "value": {}
+                },
+                "List with pagination and time range": {
+                  "value": {
+                    "end_time": "2025-03-31T23:59:59Z",
+                    "limit": 10,
+                    "offset": 0,
+                    "start_time": "2025-01-01T00:00:00Z"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Payment links listed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentLinkListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request (e.g. end_time before start_time, range > 3 months)"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "jwt_key": []
+          }
+        ]
+      }
+    },
+    "/payment_link/profile/list": {
+      "post": {
+        "tags": [
+          "Payment Links"
+        ],
+        "summary": "Payment Link - Profile List",
+        "description": "To list payment links scoped to the authenticated business profile",
+        "operationId": "List Profile Payment Links",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentLinkListConstraints"
+              },
+              "examples": {
+                "List with default params": {
+                  "value": {}
+                },
+                "List with pagination": {
+                  "value": {
+                    "limit": 5,
+                    "offset": 0,
+                    "start_time": "2025-01-01T00:00:00Z"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Payment links listed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentLinkListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "jwt_key": []
+          }
+        ]
+      }
+    },
     "/payments/{payment_id}/3ds/authentication": {
       "post": {
         "tags": [
@@ -31734,6 +31857,56 @@
           }
         }
       },
+      "PaymentLinkListConstraints": {
+        "allOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TimeRange"
+              }
+            ],
+            "nullable": true
+          },
+          {
+            "type": "object",
+            "properties": {
+              "limit": {
+                "$ref": "#/components/schemas/common_utils.types.list.PageSize"
+              },
+              "offset": {
+                "$ref": "#/components/schemas/common_utils.types.list.PageOffset"
+              }
+            }
+          }
+        ]
+      },
+      "PaymentLinkListResponse": {
+        "type": "object",
+        "required": [
+          "size",
+          "total_count",
+          "data"
+        ],
+        "properties": {
+          "size": {
+            "type": "integer",
+            "description": "The number of payment links included in the current page",
+            "minimum": 0
+          },
+          "total_count": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The total number of payment links matching the given filters"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RetrievePaymentLinkResponse"
+            },
+            "description": "The list of payment link response objects"
+          }
+        }
+      },
       "PaymentLinkResponse": {
         "type": "object",
         "required": [
@@ -44281,6 +44454,7 @@
         "type": "object",
         "required": [
           "payment_link_id",
+          "payment_id",
           "merchant_id",
           "link_to_pay",
           "amount",
@@ -44292,6 +44466,10 @@
             "type": "string",
             "description": "Identifier for Payment Link"
           },
+          "payment_id": {
+            "type": "string",
+            "description": "Identifier for the associated Payment"
+          },
           "merchant_id": {
             "type": "string",
             "description": "Identifier for Merchant"
@@ -44299,6 +44477,11 @@
           "processor_merchant_id": {
             "type": "string",
             "description": "Identifier for the processor merchant",
+            "nullable": true
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "Identifier for the business profile",
             "nullable": true
           },
           "link_to_pay": {
