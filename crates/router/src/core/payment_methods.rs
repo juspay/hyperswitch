@@ -3960,8 +3960,8 @@ impl PaymentMethodExt for domain::PaymentMethodVaultingData {
                 let card_isin = card.card_number.get_card_isin();
 
                 let card_info = state
-                    .store
-                    .get_card_info(&card_isin)
+                    .card_info_cache
+                    .get_or_try_init(&card_isin, || state.store.get_card_info(&card_isin))
                     .await
                     .map_err(|error| services::logger::error!(card_info_error=?error))
                     .ok()
@@ -4060,8 +4060,8 @@ impl PaymentMethodExt for payment_methods::PaymentMethodCreateData {
                 let card_isin = card.bin_number.clone();
                 let card_info = if let Some(card_isin) = card_isin.as_ref() {
                     state
-                        .store
-                        .get_card_info(card_isin)
+                        .card_info_cache
+                        .get_or_try_init(card_isin, || state.store.get_card_info(card_isin))
                         .await
                         .map_err(|error| services::logger::error!(card_info_error=?error))
                         .ok()

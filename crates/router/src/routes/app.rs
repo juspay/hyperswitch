@@ -126,6 +126,8 @@ pub struct ReqState {
 
 #[derive(Clone)]
 pub struct SessionState {
+    /// Fresh per tenant request; shared with spawned task clones.
+    pub card_info_cache: crate::services::card_info_cache::CardInfoCache,
     pub store: Box<dyn StorageInterface>,
     /// Global store is used for global schema operations in tables like Users and Tenants
     pub global_store: Box<dyn GlobalStorageInterface>,
@@ -681,6 +683,7 @@ impl AppState {
         let key_manager_state = KeyManagerState::foreign_from((self.as_ref(), tenant_conf.clone()));
         store.set_key_manager_state(key_manager_state);
         Ok(SessionState {
+            card_info_cache: Default::default(),
             store,
             global_store: self.global_store.clone(),
             accounts_store: self.accounts_store.get(tenant).ok_or_else(err)?.clone(),

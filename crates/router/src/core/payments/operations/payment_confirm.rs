@@ -542,11 +542,13 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let customer_id = payment_intent.customer_id.clone();
         let additional_pm_data_dimensions = dimensions.with_profile_id(profile_id.clone());
 
+        let card_info_cache = state.card_info_cache.clone();
         let additional_pm_data_fut = tokio::spawn(
             async move {
                 Ok(n_request_payment_method_data
                     .async_map(|payment_method_data| async move {
-                        helpers::get_additional_payment_data(
+                        helpers::get_additional_payment_data_with_card_cache(
+                            Some(&card_info_cache),
                             &payment_method_data,
                             store.as_ref(),
                             superposition_service.as_ref(),
@@ -2716,7 +2718,8 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             .payment_method_data
             .as_ref()
             .async_map(|payment_method_data| async {
-                helpers::get_additional_payment_data(
+                helpers::get_additional_payment_data_with_card_cache(
+                    Some(&state.card_info_cache),
                     payment_method_data,
                     &*state.store,
                     state.superposition_service.as_ref(),

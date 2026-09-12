@@ -5955,6 +5955,31 @@ pub async fn get_additional_payment_data(
     Option<api_models::payments::AdditionalPaymentData>,
     error_stack::Report<errors::ApiErrorResponse>,
 > {
+    get_additional_payment_data_with_card_cache(
+        None,
+        pm_data,
+        db,
+        superposition_service,
+        dimensions,
+        customer_id,
+        payment_method_token,
+    )
+    .await
+}
+
+#[instrument(skip_all)]
+pub async fn get_additional_payment_data_with_card_cache(
+    card_cache: Option<&services::card_info_cache::CardInfoCache>,
+    pm_data: &domain::PaymentMethodData,
+    db: &dyn StorageInterface,
+    superposition_service: &external_services::superposition::SuperpositionClient,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    customer_id: Option<&id_type::CustomerId>,
+    payment_method_token: Option<&PaymentMethodToken>,
+) -> Result<
+    Option<api_models::payments::AdditionalPaymentData>,
+    error_stack::Report<errors::ApiErrorResponse>,
+> {
     let enable_extended_bin = dimensions
         .get_enable_extended_card_bin(db, superposition_service, customer_id)
         .await;
@@ -6042,10 +6067,16 @@ pub async fn get_additional_payment_data(
                 let card_info = card_isin
                     .clone()
                     .async_and_then(|card_isin| async move {
-                        db.get_card_info(&card_isin)
-                            .await
-                            .map_err(|error| services::logger::warn!(card_info_error=?error))
-                            .ok()
+                        match card_cache {
+                            Some(cache) => {
+                                cache
+                                    .get_or_try_init(&card_isin, || db.get_card_info(&card_isin))
+                                    .await
+                            }
+                            None => db.get_card_info(&card_isin).await,
+                        }
+                        .map_err(|error| services::logger::warn!(card_info_error=?error))
+                        .ok()
                     })
                     .await
                     .flatten()
@@ -6180,10 +6211,16 @@ pub async fn get_additional_payment_data(
                 let card_info = card_isin
                     .clone()
                     .async_and_then(|card_isin| async move {
-                        db.get_card_info(&card_isin)
-                            .await
-                            .map_err(|error| services::logger::warn!(card_info_error=?error))
-                            .ok()
+                        match card_cache {
+                            Some(cache) => {
+                                cache
+                                    .get_or_try_init(&card_isin, || db.get_card_info(&card_isin))
+                                    .await
+                            }
+                            None => db.get_card_info(&card_isin).await,
+                        }
+                        .map_err(|error| services::logger::warn!(card_info_error=?error))
+                        .ok()
                     })
                     .await
                     .flatten()
@@ -6545,10 +6582,16 @@ pub async fn get_additional_payment_data(
                 let card_info = card_isin
                     .clone()
                     .async_and_then(|card_isin| async move {
-                        db.get_card_info(&card_isin)
-                            .await
-                            .map_err(|error| services::logger::warn!(card_info_error=?error))
-                            .ok()
+                        match card_cache {
+                            Some(cache) => {
+                                cache
+                                    .get_or_try_init(&card_isin, || db.get_card_info(&card_isin))
+                                    .await
+                            }
+                            None => db.get_card_info(&card_isin).await,
+                        }
+                        .map_err(|error| services::logger::warn!(card_info_error=?error))
+                        .ok()
                     })
                     .await
                     .flatten()
@@ -6652,10 +6695,16 @@ pub async fn get_additional_payment_data(
                 let card_info = card_isin
                     .clone()
                     .async_and_then(|card_isin| async move {
-                        db.get_card_info(&card_isin)
-                            .await
-                            .map_err(|error| services::logger::warn!(card_info_error=?error))
-                            .ok()
+                        match card_cache {
+                            Some(cache) => {
+                                cache
+                                    .get_or_try_init(&card_isin, || db.get_card_info(&card_isin))
+                                    .await
+                            }
+                            None => db.get_card_info(&card_isin).await,
+                        }
+                        .map_err(|error| services::logger::warn!(card_info_error=?error))
+                        .ok()
                     })
                     .await
                     .flatten()
