@@ -88,6 +88,8 @@ pub struct DynamicRoutingWrapper {
 #[derive(Clone, Debug)]
 pub struct HybridRoutingOutcome {
     pub connectors: Vec<RoutableConnectorChoice>,
+    /// The static half's rule decision, for the shadow diff; see `DeRoutingShapes`.
+    pub diff_connectors: Vec<RoutableConnectorChoice>,
     pub routing_approach: RoutingApproach,
 }
 
@@ -96,6 +98,7 @@ impl HybridRoutingOutcome {
     pub fn empty() -> Self {
         Self {
             connectors: Vec::new(),
+            diff_connectors: Vec::new(),
             routing_approach: RoutingApproach::Default,
         }
     }
@@ -492,47 +495,48 @@ fn infer_hybrid_routing_approach(response: &HybridRoutingResponse) -> RoutingApp
 pub fn normalize_hybrid_routing_response(
     response: &HybridRoutingResponse,
 ) -> RoutingResult<HybridRoutingOutcome> {
+    // Read the diff shape from the static half whenever there is one: the diff compares rule
+    // engine against rule engine, and `evaluated_connectors` may carry a dynamic decision.
+    let static_shapes = response
+        .static_routing
+        .as_ref()
+        .map(|static_routing_response| {
+            build_de_routing_shapes(
+                static_routing_response.output.clone(),
+                static_routing_response.evaluated_output.clone(),
+            )
+        })
+        .transpose()
+        .map_err(|error| {
+            logger::error!(
+                error=?error,
+                "euclid: failed to read connectors from hybrid static output"
+            );
+            error
+        })?;
+
     let outcome = if let Some(evaluated_connectors) = response
         .evaluated_connectors
         .as_ref()
         .filter(|connectors| !connectors.is_empty())
     {
-        let connectors = evaluated_connectors
+        let connectors: Vec<RoutableConnectorChoice> = evaluated_connectors
             .iter()
             .cloned()
             .map(RoutableConnectorChoice::from)
             .collect();
 
         HybridRoutingOutcome {
+            diff_connectors: static_shapes
+                .map(|shapes| shapes.for_diff)
+                .unwrap_or_else(|| connectors.clone()),
             connectors,
             routing_approach: infer_hybrid_routing_approach(response),
         }
-    } else if let Some(static_routing_response) = response.static_routing.as_ref() {
-        let static_output_connectors = extract_de_output_connectors(
-            static_routing_response.output.clone(),
-        )
-        .map_err(|error| {
-            logger::error!(
-                error=?error,
-                "euclid: failed to extract connector from hybrid static output"
-            );
-            error
-        })?;
-
-        let static_connectors = transform_de_output_for_router(
-            static_output_connectors,
-            static_routing_response.evaluated_output.clone(),
-        )
-        .map_err(|error| {
-            logger::error!(
-                error=?error,
-                "euclid: failed to transform connectors from hybrid static output"
-            );
-            error
-        })?;
-
+    } else if let Some(shapes) = static_shapes {
         HybridRoutingOutcome {
-            connectors: static_connectors,
+            connectors: shapes.for_routing,
+            diff_connectors: shapes.for_diff,
             routing_approach: RoutingApproach::StaticRouting,
         }
     } else {
@@ -713,6 +717,52 @@ pub fn transform_de_output_for_router(
     Ok(ordered)
 }
 
+/// Whether the engine drew its connectors at evaluation time rather than stating them in
+/// `output`. A volume split's `output` carries every arm, so only `evaluated_output` names
+/// the arm that was drawn.
+fn de_output_is_volume_split(output_value: &serde_json::Value) -> bool {
+    matches!(
+        output_value.get("type").and_then(|ty| ty.as_str()),
+        Some("volume_split") | Some("volume_split_priority")
+    )
+}
+
+/// The two readings of one Decision Engine evaluation: what routing consumes, and what the
+/// shadow diff compares. They differ because the engine narrows `evaluated_output` by its
+/// pm_filter graph while leaving `output` as the rule produced it -- so routing gets the
+/// eligible list, and the diff gets a rule decision to compare against Hyperswitch's own.
+#[derive(Clone, Debug, Default)]
+pub struct DeRoutingShapes {
+    /// Eligible connectors first, the rest of the rule output behind them as fallback.
+    pub for_routing: Vec<RoutableConnectorChoice>,
+    /// The engine's rule decision, in rule order, before pm_filter narrowing.
+    pub for_diff: Vec<RoutableConnectorChoice>,
+}
+
+/// Reads one evaluation into both shapes. Takes `output` unparsed so the volume-split check
+/// can read its type tag before the connectors are extracted.
+pub fn build_de_routing_shapes(
+    output_value: serde_json::Value,
+    de_evaluated_output: Vec<RoutableConnectorChoice>,
+) -> RoutingResult<DeRoutingShapes> {
+    let is_volume_split = de_output_is_volume_split(&output_value);
+    let de_output = extract_de_output_connectors(output_value)?;
+
+    let for_diff = if is_volume_split {
+        // The drawn arm exists only in `evaluated_output`. These diffs carry `is_volume` and
+        // are expected to differ regardless, so the narrowing costs nothing here.
+        de_evaluated_output.clone()
+    } else {
+        // Nothing to front-load, so this is `output` in rule order, deduplicated.
+        transform_de_output_for_router(de_output.clone(), Vec::new())?
+    };
+
+    Ok(DeRoutingShapes {
+        for_routing: transform_de_output_for_router(de_output, de_evaluated_output)?,
+        for_diff,
+    })
+}
+
 /// Which call site produced a Decision Engine evaluation.
 ///
 /// Carried into the routing event and the Hyperswitch/DE diff log so the three flows
@@ -758,7 +808,7 @@ pub async fn decision_engine_routing(
     merchant_fallback_config: Vec<RoutableConnectorChoice>,
     algorithm_for: TransactionType,
     routing_flow: RoutingFlow,
-) -> RoutingResult<Vec<RoutableConnectorChoice>> {
+) -> RoutingResult<DeRoutingShapes> {
     let routing_events_wrapper = RoutingEventsWrapper::new(
         state.tenant.tenant_id.clone(),
         state.request_id.clone(),
@@ -784,23 +834,17 @@ pub async fn decision_engine_routing(
 
     let Ok(de_euclid_response) = de_euclid_evaluate_response else {
         logger::error!("decision_engine_euclid_evaluation_error: error in evaluation of rule");
-        return Ok(Vec::default());
+        return Ok(DeRoutingShapes::default());
     };
 
-    let de_output_connector = extract_de_output_connectors(de_euclid_response.output)
-            .map_err(|e| {
-                logger::error!(error=?e, "decision_engine_euclid_evaluation_error: Failed to extract connector from Output");
-                e
-            })?;
-
-    transform_de_output_for_router(
-            de_output_connector.clone(),
-            de_euclid_response.evaluated_output.clone(),
-        )
-        .map_err(|e| {
-            logger::error!(error=?e, "decision_engine_euclid_evaluation_error: failed to transform connector from de-output");
-            e
-        })
+    build_de_routing_shapes(
+        de_euclid_response.output,
+        de_euclid_response.evaluated_output,
+    )
+    .map_err(|e| {
+        logger::error!(error=?e, "decision_engine_euclid_evaluation_error: failed to read connectors from de-output");
+        e
+    })
 }
 
 /// Custom deserializer for output from decision_engine, this is required as untagged enum is
@@ -1381,7 +1425,7 @@ pub async fn shadow_decision_engine_routing(
             .unwrap_or_default();
 
     compare_and_log_result(
-        de_result,
+        de_result.for_diff,
         hs_connectors,
         routing_flow.as_str().to_string(),
         is_volume,
@@ -1425,7 +1469,7 @@ pub async fn decision_engine_routing_batch(
     merchant_fallback_config: Vec<RoutableConnectorChoice>,
     algorithm_for: TransactionType,
     routing_flow: RoutingFlow,
-) -> RoutingResult<Vec<Vec<RoutableConnectorChoice>>> {
+) -> RoutingResult<Vec<DeRoutingShapes>> {
     // Callers build one entry per payment method type, so a card-only profile has none.
     if backend_inputs.is_empty() {
         return Ok(Vec::new());
@@ -1508,10 +1552,9 @@ pub async fn decision_engine_routing_batch(
             // A per-entry failure is an empty list rather than a batch failure: one
             // wallet type falling back must not take the others down with it.
             if entry.status == "error" {
-                return Vec::new();
+                return DeRoutingShapes::default();
             }
-            extract_de_output_connectors(entry.output)
-                .and_then(|output| transform_de_output_for_router(output, entry.evaluated_output))
+            build_de_routing_shapes(entry.output, entry.evaluated_output)
                 .map_err(|error| {
                     logger::error!(
                         ?error,
@@ -1524,8 +1567,12 @@ pub async fn decision_engine_routing_batch(
 
     if let Some(mut routing_event) = event_response.event {
         routing_event.set_routing_approach(RoutingApproach::StaticRouting.to_string());
-        routing_event
-            .set_routable_connectors(transformed.iter().flatten().cloned().collect::<Vec<_>>());
+        routing_event.set_routable_connectors(
+            transformed
+                .iter()
+                .flat_map(|shapes| shapes.for_routing.clone())
+                .collect::<Vec<_>>(),
+        );
         state.event_handler.log_event(&routing_event);
     }
 
@@ -1544,7 +1591,7 @@ pub async fn decision_engine_routing_batch_with_fallback(
     merchant_fallback_config: Vec<RoutableConnectorChoice>,
     algorithm_for: TransactionType,
     routing_flow: RoutingFlow,
-) -> Vec<Vec<RoutableConnectorChoice>> {
+) -> Vec<DeRoutingShapes> {
     match decision_engine_routing_batch(
         state,
         backend_inputs.clone(),
@@ -1637,11 +1684,11 @@ pub async fn shadow_decision_engine_routing_batch(
             "decision_engine_euclid: shadow batch evaluate failed"
         );
     })
-    .unwrap_or_else(|_| vec![Vec::new(); entry_count]);
+    .unwrap_or_else(|_| vec![DeRoutingShapes::default(); entry_count]);
 
     for (entry, de_result) in entries.into_iter().zip(de_results) {
         compare_and_log_result(
-            de_result,
+            de_result.for_diff,
             entry.hs_connectors,
             routing_flow.as_str().to_string(),
             entry.is_volume,
@@ -3588,6 +3635,77 @@ mod transform_de_output_tests {
         assert_eq!(
             connector_order,
             vec![RoutableConnectors::Stripe, RoutableConnectors::Adyen]
+        );
+    }
+
+    fn connectors(choices: &[RoutableConnectorChoice]) -> Vec<RoutableConnectors> {
+        choices.iter().map(|c| c.connector).collect()
+    }
+
+    // The order-only diff this fixes: the engine narrows `evaluated_output` by its pm_filter
+    // graph, which moved the dropped connector to the tail of the list routing consumes.
+    #[test]
+    fn diff_shape_keeps_rule_order_when_pm_filter_narrows() {
+        let output = serde_json::json!({
+            "type": "priority",
+            "connectors": [
+                { "gateway_name": "adyen", "gateway_id": "mca_ady" },
+                { "gateway_name": "paypal", "gateway_id": "mca_pp" },
+                { "gateway_name": "stripe", "gateway_id": "mca_strp" },
+            ],
+        });
+        // paypal is ineligible for this payment method type, so the engine dropped it.
+        let evaluated = vec![
+            choice(RoutableConnectors::Adyen, "mca_ady"),
+            choice(RoutableConnectors::Stripe, "mca_strp"),
+        ];
+
+        let shapes = build_de_routing_shapes(output, evaluated).unwrap();
+
+        assert_eq!(
+            connectors(&shapes.for_diff),
+            vec![
+                RoutableConnectors::Adyen,
+                RoutableConnectors::Paypal,
+                RoutableConnectors::Stripe
+            ],
+            "diff shape must stay in rule order"
+        );
+        assert_eq!(
+            connectors(&shapes.for_routing),
+            vec![
+                RoutableConnectors::Adyen,
+                RoutableConnectors::Stripe,
+                RoutableConnectors::Paypal
+            ],
+            "routing shape keeps eligible connectors first"
+        );
+    }
+
+    // A volume split's `output` holds every arm, so only `evaluated_output` names the draw.
+    #[test]
+    fn volume_split_diff_shape_uses_the_drawn_arm() {
+        let output = serde_json::json!({
+            "type": "volume_split",
+            "splits": [
+                { "connector": { "gateway_name": "stripe", "gateway_id": "mca_strp" }, "split": 70 },
+                { "connector": { "gateway_name": "adyen", "gateway_id": "mca_ady" }, "split": 30 },
+            ],
+        });
+
+        let shapes =
+            build_de_routing_shapes(output, vec![choice(RoutableConnectors::Adyen, "mca_ady")])
+                .unwrap();
+
+        assert_eq!(
+            connectors(&shapes.for_diff),
+            vec![RoutableConnectors::Adyen],
+            "diff shape must not list arms that were never drawn"
+        );
+        assert_eq!(
+            connectors(&shapes.for_routing),
+            vec![RoutableConnectors::Adyen, RoutableConnectors::Stripe],
+            "routing shape keeps the drawn arm first"
         );
     }
 }
