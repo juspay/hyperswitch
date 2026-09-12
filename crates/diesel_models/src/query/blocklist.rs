@@ -354,6 +354,59 @@ impl Blocklist {
         .await
     }
 
+    pub async fn list_after_fingerprint_by_processor_merchant_id_profile_id(
+        conn: &DatabaseConnectionWithContext<'_>,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
+        profile_id: &common_utils::id_type::ProfileId,
+        after_fingerprint_id: String,
+        snapshot_at: time::PrimitiveDateTime,
+        limit: i64,
+    ) -> StorageResult<Vec<Self>> {
+        generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
+            conn,
+            dsl::processor_merchant_id
+                .eq(processor_merchant_id.to_owned())
+                .and(dsl::fingerprint_id.gt(after_fingerprint_id))
+                .and(dsl::created_at.le(snapshot_at))
+                .and(
+                    dsl::profile_id
+                        .eq(profile_id.to_owned())
+                        .or(dsl::profile_id.is_null()),
+                ),
+            Some(limit),
+            None,
+            Some(dsl::fingerprint_id.asc()),
+        )
+        .await
+    }
+
+    pub async fn list_after_fingerprint_by_legacy_merchant_id_profile_id(
+        conn: &DatabaseConnectionWithContext<'_>,
+        merchant_id: &common_utils::id_type::MerchantId,
+        profile_id: &common_utils::id_type::ProfileId,
+        after_fingerprint_id: String,
+        snapshot_at: time::PrimitiveDateTime,
+        limit: i64,
+    ) -> StorageResult<Vec<Self>> {
+        generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
+            conn,
+            dsl::merchant_id
+                .eq(merchant_id.to_owned())
+                .and(dsl::processor_merchant_id.is_null())
+                .and(dsl::fingerprint_id.gt(after_fingerprint_id))
+                .and(dsl::created_at.le(snapshot_at))
+                .and(
+                    dsl::profile_id
+                        .eq(profile_id.to_owned())
+                        .or(dsl::profile_id.is_null()),
+                ),
+            Some(limit),
+            None,
+            Some(dsl::fingerprint_id.asc()),
+        )
+        .await
+    }
+
     pub async fn delete_by_processor_merchant_id_fingerprint_id(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,

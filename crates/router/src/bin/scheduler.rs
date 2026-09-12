@@ -411,6 +411,21 @@ impl ProcessTrackerWorkflows<routes::SessionState> for WorkflowRunner {
                             )
                     }
                 }
+                storage::ProcessTrackerRunner::BlocklistExportWorkflow => {
+                    #[cfg(feature = "v1")]
+                    {
+                        Ok(Box::new(
+                            workflows::blocklist_export::BlocklistExportWorkflow,
+                        ))
+                    }
+                    #[cfg(feature = "v2")]
+                    {
+                        Err(error_stack::report!(ProcessTrackerError::UnexpectedFlow))
+                            .attach_printable(
+                                "Cannot run blocklist export workflow when v1 feature is disabled",
+                            )
+                    }
+                }
             }
         };
 

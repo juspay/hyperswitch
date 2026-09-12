@@ -873,7 +873,7 @@ where
         let mut should_continue_capture: bool = true;
         #[cfg(feature = "frm")]
         let frm_configs = if state.conf.frm.enabled {
-            match Box::pin(frm_core::call_frm_before_connector_call(
+            Box::pin(frm_core::call_frm_before_connector_call(
                 &operation,
                 platform,
                 &mut payment_data,
@@ -881,31 +881,9 @@ where
                 &mut frm_info,
                 &mut should_continue_transaction,
                 &mut should_continue_capture,
+                &dimensions,
             ))
-            .await
-            {
-                Ok(configs) => configs,
-                Err(e) => {
-                    // Log the error
-                    logger::info!(
-                        "FRM call before connector failed : payment_id={:?}, error={:?}",
-                        payment_data.get_payment_intent().payment_id,
-                        e
-                    );
-                    metrics::FRM_FAILURE.add(
-                        1,
-                        router_env::metric_attributes!(
-                            (
-                                "merchant_id",
-                                platform.get_processor().get_account().get_id().clone()
-                            ),
-                            ("error_type", e.current_context().to_string())
-                        ),
-                    );
-                    // Continue with default values
-                    None
-                }
-            }
+            .await?
         } else {
             None
         };
@@ -12210,7 +12188,11 @@ where
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
     let has_token_data = payment_data.get_token_data().is_some();
-    let is_token_data_present = has_token_data || is_payment_method_modular_allowed;
+    let is_volatile_payment_method = payment_data
+        .get_payment_method_info()
+        .is_some_and(domain::PaymentMethod::is_pm_volatile);
+    let is_token_data_present =
+        has_token_data || (is_payment_method_modular_allowed && !is_volatile_payment_method);
 
     match (
         payment_data.get_payment_intent().setup_future_usage,
