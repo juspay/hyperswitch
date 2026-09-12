@@ -34,10 +34,10 @@ use hyperswitch_domain_models::{
 #[cfg(feature = "frm")]
 use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, ErrorResponse},
-    router_flow_types::{Checkout, Fulfillment, RecordReturn, Sale, Transaction},
+    router_flow_types::{Checkout, Fulfillment, PoFrm, RecordReturn, Sale, Transaction},
     router_request_types::fraud_check::{
-        FraudCheckCheckoutData, FraudCheckFulfillmentData, FraudCheckRecordReturnData,
-        FraudCheckSaleData, FraudCheckTransactionData,
+        FraudCheckCheckoutData, FraudCheckFulfillmentData, FraudCheckPayoutData,
+        FraudCheckRecordReturnData, FraudCheckSaleData, FraudCheckTransactionData,
     },
     router_response_types::fraud_check::FraudCheckResponseData,
 };
@@ -54,8 +54,8 @@ use hyperswitch_interfaces::{
 #[cfg(feature = "frm")]
 use hyperswitch_interfaces::{
     api::{
-        FraudCheck, FraudCheckCheckout, FraudCheckFulfillment, FraudCheckRecordReturn,
-        FraudCheckSale, FraudCheckTransaction,
+        FraudCheck, FraudCheckCheckout, FraudCheckFulfillment, FraudCheckPayout,
+        FraudCheckRecordReturn, FraudCheckSale, FraudCheckTransaction,
     },
     consts::NO_ERROR_CODE,
     events::connector_api_logs::ConnectorEvent,
@@ -225,6 +225,10 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Signifyd 
 
 #[cfg(feature = "frm")]
 impl FraudCheck for Signifyd {}
+#[cfg(feature = "frm")]
+impl FraudCheckPayout for Signifyd {}
+#[cfg(feature = "frm")]
+impl ConnectorIntegration<PoFrm, FraudCheckPayoutData, FraudCheckResponseData> for Signifyd {}
 #[cfg(feature = "frm")]
 impl FraudCheckSale for Signifyd {}
 #[cfg(feature = "frm")]

@@ -16,23 +16,17 @@ pub trait FraudCheckInterface {
         new: storage::FraudCheckNew,
     ) -> CustomResult<FraudCheck, errors::StorageError>;
 
-    async fn update_fraud_check_response_with_attempt_id(
+    async fn update_fraud_check_response_with_frm_id(
         &self,
         this: FraudCheck,
         fraud_check: FraudCheckUpdate,
     ) -> CustomResult<FraudCheck, errors::StorageError>;
 
-    async fn find_fraud_check_by_payment_id(
+    async fn find_fraud_check_by_frm_id(
         &self,
-        payment_id: common_utils::id_type::PaymentId,
+        frm_id: String,
         merchant_id: common_utils::id_type::MerchantId,
     ) -> CustomResult<FraudCheck, errors::StorageError>;
-
-    async fn find_fraud_check_by_payment_id_if_present(
-        &self,
-        payment_id: common_utils::id_type::PaymentId,
-        merchant_id: common_utils::id_type::MerchantId,
-    ) -> CustomResult<Option<FraudCheck>, errors::StorageError>;
 }
 
 #[async_trait::async_trait]
@@ -49,37 +43,25 @@ impl FraudCheckInterface for Store {
     }
 
     #[instrument(skip_all)]
-    async fn update_fraud_check_response_with_attempt_id(
+    async fn update_fraud_check_response_with_frm_id(
         &self,
         this: FraudCheck,
         fraud_check: FraudCheckUpdate,
     ) -> CustomResult<FraudCheck, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        this.update_with_attempt_id(&conn, fraud_check)
+        this.update_with_frm_id(&conn, fraud_check)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
-    async fn find_fraud_check_by_payment_id(
+    async fn find_fraud_check_by_frm_id(
         &self,
-        payment_id: common_utils::id_type::PaymentId,
+        frm_id: String,
         merchant_id: common_utils::id_type::MerchantId,
     ) -> CustomResult<FraudCheck, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        FraudCheck::get_with_payment_id(&conn, payment_id, merchant_id)
-            .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
-    }
-
-    #[instrument(skip_all)]
-    async fn find_fraud_check_by_payment_id_if_present(
-        &self,
-        payment_id: common_utils::id_type::PaymentId,
-        merchant_id: common_utils::id_type::MerchantId,
-    ) -> CustomResult<Option<FraudCheck>, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
-        FraudCheck::get_with_payment_id_if_present(&conn, payment_id, merchant_id)
+        FraudCheck::get_with_frm_id(&conn, frm_id, merchant_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
@@ -93,26 +75,20 @@ impl FraudCheckInterface for MockDb {
     ) -> CustomResult<FraudCheck, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
     }
-    async fn update_fraud_check_response_with_attempt_id(
+
+    async fn update_fraud_check_response_with_frm_id(
         &self,
         _this: FraudCheck,
         _fraud_check: FraudCheckUpdate,
     ) -> CustomResult<FraudCheck, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
     }
-    async fn find_fraud_check_by_payment_id(
+
+    async fn find_fraud_check_by_frm_id(
         &self,
-        _payment_id: common_utils::id_type::PaymentId,
+        _frm_id: String,
         _merchant_id: common_utils::id_type::MerchantId,
     ) -> CustomResult<FraudCheck, errors::StorageError> {
-        Err(errors::StorageError::MockDbError)?
-    }
-
-    async fn find_fraud_check_by_payment_id_if_present(
-        &self,
-        _payment_id: common_utils::id_type::PaymentId,
-        _merchant_id: common_utils::id_type::MerchantId,
-    ) -> CustomResult<Option<FraudCheck>, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
     }
 }
