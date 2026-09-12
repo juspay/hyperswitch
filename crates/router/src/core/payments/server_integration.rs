@@ -1,14 +1,15 @@
-//! Server-integration enrichment for payments responses.
+//! Shared plumbing for the server-integration (`X-Integration-Type: server`) response shape.
 //!
-//! A caller that sends `X-Integration-Type: server` gets the payment response it always got,
-//! plus the two artifacts its checkout would otherwise fetch in separate calls: the combined
-//! payment-method list and the wallet session tokens. Client integrations, and callers that
-//! send no header at all, are unaffected.
+//! Both the create-intent and update-intent flows hand the caller the two artifacts its checkout
+//! would otherwise fetch in separate calls: the combined payment-method list and the wallet
+//! session tokens. This module owns the header parsing and the concurrent fetch of those two
+//! sections; the per-flow modules ([`super::create_intent`], [`super::update_intent`]) decide
+//! when to run it and attach the result to their response.
 //!
-//! This module adds no business logic. It calls the two existing cores — the same ones behind
-//! `POST /payments/session_tokens` and `GET /payments/{id}/client` — and attaches their results
-//! to the response. Both reads run after the write they depend on, and concurrently with each
-//! other, since neither reads the other's output.
+//! No business logic lives here. It calls the two existing cores — the same ones behind
+//! `POST /payments/session_tokens` and `GET /payments/{id}/client` — and reports each outcome.
+//! Both reads run after the write they depend on, and concurrently with each other, since neither
+//! reads the other's output.
 
 use api_models::{
     payment_methods as payment_methods_api,
@@ -87,21 +88,28 @@ fn timed_out(section: &str) -> error_stack::Report<errors::ApiErrorResponse> {
     ))
 }
 
-/// Attaches the payment-method list and wallet session tokens to a payments response.
+/// The two server-integration sections, each already in the shape the response carries.
+pub struct ServerContext {
+    pub session_tokens: payment_types::SessionTokensResult,
+    pub payment_method_list: payment_methods_api::PaymentMethodListResult,
+}
+
+/// Fetches the wallet session tokens and the combined payment-method list for a committed
+/// payment, concurrently.
 ///
 /// Best-effort by design: the payment write has already committed by the time this runs, so a
-/// failing section reports its own error inline and the response still succeeds. Turning a
-/// section failure into a 5xx would hide a committed state change from the caller.
+/// failing section reports its own error inline rather than failing the whole response. Turning a
+/// section failure into a 5xx would hide a committed state change from the caller. That is why
+/// this is a `join` and not a `try_join`: one section's failure must not cancel the other.
 #[instrument(skip_all, fields(payment_id))]
-pub async fn attach_server_context(
+pub async fn fetch_server_context(
     state: SessionState,
     req_state: ReqState,
     platform: domain::Platform,
     profile_id: Option<id_type::ProfileId>,
     payment_id: &id_type::PaymentId,
     header_payload: hyperswitch_domain_models::payments::HeaderPayload,
-    response: &mut payment_types::PaymentsResponse,
-) {
+) -> ServerContext {
     tracing::Span::current().record("payment_id", payment_id.get_string_repr());
 
     // Logged unconditionally on entry. This function runs only for a caller that opted in with
@@ -142,7 +150,7 @@ pub async fn attach_server_context(
     let payment_methods_result =
         payment_methods_result.unwrap_or_else(|_| Err(timed_out("payment_method_list")));
 
-    response.session_tokens = Some(match session_result {
+    let session_tokens = match session_result {
         Ok(session) => {
             logger::info!(
                 session_token_count = session.session_token.len(),
@@ -156,9 +164,9 @@ pub async fn attach_server_context(
                 error: section_error(&error),
             }
         }
-    });
+    };
 
-    response.payment_method_list = Some(match payment_methods_result {
+    let payment_method_list = match payment_methods_result {
         Ok(listing) => {
             logger::info!(
                 payment_methods_enabled_count = listing.payment_methods_enabled.len(),
@@ -176,22 +184,27 @@ pub async fn attach_server_context(
                 error: section_error(&error),
             }
         }
-    });
+    };
 
     // Reports what each section actually produced. A blanket "complete" here would read as
     // success on a response whose sections both carry errors.
     logger::info!(
         elapsed_ms,
         session_tokens_ok = matches!(
-            response.session_tokens,
-            Some(payment_types::SessionTokensResult::Success(_))
+            session_tokens,
+            payment_types::SessionTokensResult::Success(_)
         ),
         payment_method_list_ok = matches!(
-            response.payment_method_list,
-            Some(payment_methods_api::PaymentMethodListResult::Success(_))
+            payment_method_list,
+            payment_methods_api::PaymentMethodListResult::Success(_)
         ),
         "server-integration: enrichment complete"
     );
+
+    ServerContext {
+        session_tokens,
+        payment_method_list,
+    }
 }
 
 /// Runs the session-token core for this payment.
