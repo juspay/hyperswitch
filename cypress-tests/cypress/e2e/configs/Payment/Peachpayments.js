@@ -358,6 +358,48 @@ export const connectorDetails = {
         },
       },
     },
+    ZeroAuthConfirmPaymentManual: {
+      Request: {
+        payment_type: "setup_mandate",
+        payment_method: "card",
+        payment_method_type: "credit",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          setup_future_usage: "off_session",
+        },
+      },
+    },
+    MITManualCapture: {
+      // Peach sandbox rejects the generic fixture card (4242424242424242) for
+      // NTID MIT with "Server couldn't find that" / acquirer timeout; the
+      // registered peach test card (same as the CIT card) succeeds and the
+      // network_transaction_id is injected at runtime by mitUsingNTID.
+      Request: {
+        recurring_details: {
+          type: "network_transaction_id_and_card_details",
+          data: {
+            card_number: "5200000000000015",
+            card_exp_month: "01",
+            card_exp_year: "28",
+            card_holder_name: "John",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    },
     SaveCardUseNo3DSAutoCapture: {
       Configs: {
         TRIGGER_SKIP: true,

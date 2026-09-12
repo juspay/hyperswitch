@@ -1,3 +1,5 @@
+use common_enums::BatchBlocklistJobType;
+use common_utils::id_type;
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
 
 use super::generics;
@@ -31,6 +33,7 @@ impl BatchBlocklistJob {
         .await
     }
 
+    // The listing and the count must be given the same filter, or the page and the total disagree.
     pub async fn list_by_merchant_id(
         conn: &DatabaseConnectionWithContext<'_>,
         merchant_id: &str,
@@ -54,6 +57,121 @@ impl BatchBlocklistJob {
         generics::generic_count::<<Self as HasTable>::Table, _>(
             conn,
             dsl::merchant_id.eq(merchant_id.to_owned()),
+        )
+        .await
+    }
+
+    pub async fn list_by_merchant_id_job_type(
+        conn: &DatabaseConnectionWithContext<'_>,
+        merchant_id: &str,
+        job_type: BatchBlocklistJobType,
+        limit: i64,
+        offset: i64,
+    ) -> StorageResult<Vec<Self>> {
+        generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
+            conn,
+            dsl::merchant_id
+                .eq(merchant_id.to_owned())
+                .and(dsl::job_type.eq(job_type)),
+            Some(limit),
+            Some(offset),
+            Some(dsl::created_at.desc()),
+        )
+        .await
+    }
+
+    pub async fn count_by_merchant_id_job_type(
+        conn: &DatabaseConnectionWithContext<'_>,
+        merchant_id: &str,
+        job_type: BatchBlocklistJobType,
+    ) -> StorageResult<usize> {
+        generics::generic_count::<<Self as HasTable>::Table, _>(
+            conn,
+            dsl::merchant_id
+                .eq(merchant_id.to_owned())
+                .and(dsl::job_type.eq(job_type)),
+        )
+        .await
+    }
+
+    pub async fn list_by_merchant_id_profile_id(
+        conn: &DatabaseConnectionWithContext<'_>,
+        merchant_id: &str,
+        profile_id: &id_type::ProfileId,
+        limit: i64,
+        offset: i64,
+    ) -> StorageResult<Vec<Self>> {
+        generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
+            conn,
+            dsl::merchant_id.eq(merchant_id.to_owned()).and(
+                dsl::profile_id
+                    .eq(profile_id.to_owned())
+                    .or(dsl::profile_id.is_null()),
+            ),
+            Some(limit),
+            Some(offset),
+            Some(dsl::created_at.desc()),
+        )
+        .await
+    }
+
+    pub async fn count_by_merchant_id_profile_id(
+        conn: &DatabaseConnectionWithContext<'_>,
+        merchant_id: &str,
+        profile_id: &id_type::ProfileId,
+    ) -> StorageResult<usize> {
+        generics::generic_count::<<Self as HasTable>::Table, _>(
+            conn,
+            dsl::merchant_id.eq(merchant_id.to_owned()).and(
+                dsl::profile_id
+                    .eq(profile_id.to_owned())
+                    .or(dsl::profile_id.is_null()),
+            ),
+        )
+        .await
+    }
+
+    pub async fn list_by_merchant_id_profile_id_job_type(
+        conn: &DatabaseConnectionWithContext<'_>,
+        merchant_id: &str,
+        profile_id: &id_type::ProfileId,
+        job_type: BatchBlocklistJobType,
+        limit: i64,
+        offset: i64,
+    ) -> StorageResult<Vec<Self>> {
+        generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
+            conn,
+            dsl::merchant_id
+                .eq(merchant_id.to_owned())
+                .and(dsl::job_type.eq(job_type))
+                .and(
+                    dsl::profile_id
+                        .eq(profile_id.to_owned())
+                        .or(dsl::profile_id.is_null()),
+                ),
+            Some(limit),
+            Some(offset),
+            Some(dsl::created_at.desc()),
+        )
+        .await
+    }
+
+    pub async fn count_by_merchant_id_profile_id_job_type(
+        conn: &DatabaseConnectionWithContext<'_>,
+        merchant_id: &str,
+        profile_id: &id_type::ProfileId,
+        job_type: BatchBlocklistJobType,
+    ) -> StorageResult<usize> {
+        generics::generic_count::<<Self as HasTable>::Table, _>(
+            conn,
+            dsl::merchant_id
+                .eq(merchant_id.to_owned())
+                .and(dsl::job_type.eq(job_type))
+                .and(
+                    dsl::profile_id
+                        .eq(profile_id.to_owned())
+                        .or(dsl::profile_id.is_null()),
+                ),
         )
         .await
     }

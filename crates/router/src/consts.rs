@@ -489,6 +489,8 @@ pub mod superposition {
     /// Trigger PM modular backward compatibility inline configuration key
     pub const SHOULD_TRIGGER_BACKWARDS_COMPATIBILITY_INLINE: &str =
         "system.should_trigger_backwards_compatibility_inline";
+    /// Payment method integration type configuration key
+    pub const PAYMENT_METHOD_INTEGRATION_TYPE: &str = "system.payment_method_integration_type";
     /// Trigger fingerprint migration configuration key
     pub const SHOULD_TRIGGER_FINGERPRINT_MIGRATION: &str =
         "vaulting.should_trigger_fingerprint_migration";
@@ -514,6 +516,8 @@ pub mod superposition {
     pub const INCOMING_WEBHOOK_DISABLED_EVENTS: &str = "webhooks.incoming_webhook_disabled_events";
     /// save wallet decrypted data in locker
     pub const SAVE_WALLET_DECRYPTED_DATA: &str = "vaulting.save_wallet_decrypted_data";
+    /// Pre-FRM failure handling mode
+    pub const PRE_FRM_FAILURE_MODE: &str = "frm.pre_frm_failure_mode";
 }
 
 /// The value substituted for sensitive webhook header values in event retrieval responses.
