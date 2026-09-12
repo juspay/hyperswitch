@@ -1093,7 +1093,10 @@ where
                         )
                         .await?;
 
-                    let (router_data, mca) = Box::pin(complete_connector_service(
+                    let failed_attempt_router_data =
+                        call_connector_service_response.router_data.clone();
+
+                    let (router_data, mca) = match Box::pin(complete_connector_service(
                         &updated_state,
                         platform.get_processor(),
                         &operation,
@@ -1112,7 +1115,48 @@ where
                         call_connector_service_response,
                         &dimensions.without_profile_id(),
                     ))
-                    .await?;
+                    .await
+                    {
+                        Ok(result) => result,
+                        Err(api_error) => {
+                            // Record the rejected attempt, then return the mapped error so the
+                            // API returns the error response instead of a payment object.
+                            let status_code = {
+                                use actix_web::ResponseError;
+                                api_error.current_context().status_code().as_u16()
+                            };
+                            let mut error_response: hyperswitch_domain_models::router_data::ErrorResponse =
+                                api_error.current_context().clone().into();
+                            error_response.status_code = status_code;
+                            let mut failed_router_data = failed_attempt_router_data;
+                            failed_router_data.response = Err(error_response);
+                            failed_router_data.connector_http_status_code = Some(status_code);
+                            // Record through the same tracker the normal path uses.
+                            let operation = Box::new(PaymentResponse);
+                            if let Err(tracker_error) = operation
+                                .to_post_update_tracker()?
+                                .update_tracker(
+                                    state,
+                                    platform.get_processor(),
+                                    payment_data,
+                                    failed_router_data,
+                                    &locale,
+                                    #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+                                    routable_connectors,
+                                    #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+                                    &business_profile,
+                                    &dimensions.without_profile_id(),
+                                )
+                                .await
+                            {
+                                logger::error!(
+                                    ?tracker_error,
+                                    "failed to record the rejected attempt"
+                                );
+                            }
+                            return Err(api_error);
+                        }
+                    };
 
                     let op_ref = &operation;
                     let should_trigger_post_processing_flows = is_operation_confirm(&operation);
@@ -1281,7 +1325,10 @@ where
                         )
                         .await?;
 
-                    let (router_data, mca) = Box::pin(complete_connector_service(
+                    let failed_attempt_router_data =
+                        call_connector_service_response.router_data.clone();
+
+                    let (router_data, mca) = match Box::pin(complete_connector_service(
                         &updated_state,
                         platform.get_processor(),
                         &operation,
@@ -1300,7 +1347,48 @@ where
                         call_connector_service_response,
                         &dimensions.without_profile_id(),
                     ))
-                    .await?;
+                    .await
+                    {
+                        Ok(result) => result,
+                        Err(api_error) => {
+                            // Record the rejected attempt, then return the mapped error so the
+                            // API returns the error response instead of a payment object.
+                            let status_code = {
+                                use actix_web::ResponseError;
+                                api_error.current_context().status_code().as_u16()
+                            };
+                            let mut error_response: hyperswitch_domain_models::router_data::ErrorResponse =
+                                api_error.current_context().clone().into();
+                            error_response.status_code = status_code;
+                            let mut failed_router_data = failed_attempt_router_data;
+                            failed_router_data.response = Err(error_response);
+                            failed_router_data.connector_http_status_code = Some(status_code);
+                            // Record through the same tracker the normal path uses.
+                            let operation = Box::new(PaymentResponse);
+                            if let Err(tracker_error) = operation
+                                .to_post_update_tracker()?
+                                .update_tracker(
+                                    state,
+                                    platform.get_processor(),
+                                    payment_data,
+                                    failed_router_data,
+                                    &locale,
+                                    #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+                                    routable_connectors,
+                                    #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+                                    &business_profile,
+                                    &dimensions.without_profile_id(),
+                                )
+                                .await
+                            {
+                                logger::error!(
+                                    ?tracker_error,
+                                    "failed to record the rejected attempt"
+                                );
+                            }
+                            return Err(api_error);
+                        }
+                    };
 
                     #[cfg(all(feature = "retry", feature = "v1"))]
                     let mut router_data = router_data;

@@ -4074,22 +4074,10 @@ where
                     "error": error.to_string(),
                     "error_type": "ucs_call_failed"
                 });
-
-                // Turn the typed UCS error into a payment outcome so the normal response
-                // handling records it, rather than aborting with nothing persisted. The
-                // error's own status decides whether the attempt fails (4xx) or stays
-                // pending (5xx) under the shared status rule.
-                let status_code = error.current_context().http_status();
-                let api_error: errors::ApiErrorResponse = error.current_context().switch();
-                let mut router_data = router_data_clone;
-                let mut error_response: ErrorResponse = api_error.into();
-                error_response.status_code = status_code;
-                router_data.response = Err(error_response);
-                router_data.connector_http_status_code = Some(status_code);
                 (
-                    status_code,
+                    error.current_context().http_status(),
                     Some(error_body),
-                    Ok((router_data, FlowOutput::default())),
+                    Err(error),
                 )
             }
         }
