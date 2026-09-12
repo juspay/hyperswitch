@@ -32,6 +32,7 @@ pub struct FraudCheckCheckoutData {
     pub browser_info: Option<router_request_types::BrowserInformation>,
     pub payment_method_data: Option<api_models::payments::AdditionalPaymentData>,
     pub gateway: Option<String>,
+    pub gateway_metadata: Option<common_utils::pii::SecretSerdeValue>,
     pub client_ip: Option<std::net::IpAddr>,
     pub customer_id: Option<common_utils::id_type::CustomerId>,
     pub email: Option<Email>,

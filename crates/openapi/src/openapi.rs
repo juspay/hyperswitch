@@ -210,6 +210,7 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::blocklist::upload_batch_blocklist,
         routes::blocklist::get_batch_blocklist_job_status,
         routes::blocklist::list_batch_blocklist_jobs,
+        routes::blocklist::create_blocklist_export,
 
         // Routes for payouts
         routes::payouts::payouts_create,
@@ -739,6 +740,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::GpayAllowedPaymentMethods,
         api_models::payments::GpayAllowedMethodsParameters,
         api_models::payments::GpayTokenizationSpecification,
+        api_models::payments::GooglePayTokenizationSpecificationType,
         api_models::payments::GpayTokenParameters,
         api_models::payments::GpayTransactionInfo,
         api_models::payments::GpaySessionTokenResponse,
@@ -785,6 +787,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::DokuBankTransferInstructions,
         api_models::payments::AmazonPayRedirectData,
         api_models::payments::SkrillData,
+        api_models::payments::NetellerData,
         api_models::payments::PayseraData,
         api_models::payments::ApplePayRedirectData,
         api_models::payments::ApplePayThirdPartySdkData,
@@ -1038,7 +1041,9 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::blocklist::BatchBlocklistJobStatusResponse,
         api_models::blocklist::ListBatchBlocklistJobsResponse,
         api_models::blocklist::BlocklistRowError,
+        api_models::blocklist::BlocklistExportResponse,
         api_models::enums::BatchBlocklistJobStatus,
+        api_models::enums::BatchBlocklistJobType,
         api_models::enums::BlocklistDataKind,
         api_models::enums::ErrorCategory,
         api_models::webhook_events::EventListConstraints,

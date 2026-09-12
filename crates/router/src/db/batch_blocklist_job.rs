@@ -10,6 +10,22 @@ use crate::{
     types::storage,
 };
 
+/// The listing predicate the SQL queries apply, restated for `MockDb` so the two agree.
+fn matches_job_scope(
+    job: &storage::BatchBlocklistJob,
+    merchant_id: &str,
+    profile_id: Option<&common_utils::id_type::ProfileId>,
+    job_type: Option<common_enums::BatchBlocklistJobType>,
+) -> bool {
+    job.merchant_id.get_string_repr() == merchant_id
+        && job_type.is_none_or(|job_type| job.job_type == Some(job_type))
+        && profile_id.is_none_or(|profile_id| {
+            job.profile_id
+                .as_ref()
+                .is_none_or(|job_profile_id| job_profile_id == profile_id)
+        })
+}
+
 #[async_trait::async_trait]
 pub trait BatchBlocklistJobInterface {
     async fn insert_batch_blocklist_job(
@@ -23,9 +39,12 @@ pub trait BatchBlocklistJobInterface {
         merchant_id: &str,
     ) -> CustomResult<storage::BatchBlocklistJob, errors::StorageError>;
 
+    /// `profile_id` restricts the page to that profile; `None` lists the whole merchant.
     async fn list_batch_blocklist_jobs_by_merchant_id(
         &self,
         merchant_id: &str,
+        profile_id: Option<&common_utils::id_type::ProfileId>,
+        job_type: Option<common_enums::BatchBlocklistJobType>,
         limit: i64,
         offset: i64,
     ) -> CustomResult<Vec<storage::BatchBlocklistJob>, errors::StorageError>;
@@ -40,6 +59,8 @@ pub trait BatchBlocklistJobInterface {
     async fn count_batch_blocklist_jobs_by_merchant_id(
         &self,
         merchant_id: &str,
+        profile_id: Option<&common_utils::id_type::ProfileId>,
+        job_type: Option<common_enums::BatchBlocklistJobType>,
     ) -> CustomResult<usize, errors::StorageError>;
 }
 
@@ -72,13 +93,50 @@ impl BatchBlocklistJobInterface for Store {
     async fn list_batch_blocklist_jobs_by_merchant_id(
         &self,
         merchant_id: &str,
+        profile_id: Option<&common_utils::id_type::ProfileId>,
+        job_type: Option<common_enums::BatchBlocklistJobType>,
         limit: i64,
         offset: i64,
     ) -> CustomResult<Vec<storage::BatchBlocklistJob>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::BatchBlocklistJob::list_by_merchant_id(&conn, merchant_id, limit, offset)
-            .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
+        match (profile_id, job_type) {
+            (Some(profile_id), Some(job_type)) => {
+                storage::BatchBlocklistJob::list_by_merchant_id_profile_id_job_type(
+                    &conn,
+                    merchant_id,
+                    profile_id,
+                    job_type,
+                    limit,
+                    offset,
+                )
+                .await
+            }
+            (Some(profile_id), None) => {
+                storage::BatchBlocklistJob::list_by_merchant_id_profile_id(
+                    &conn,
+                    merchant_id,
+                    profile_id,
+                    limit,
+                    offset,
+                )
+                .await
+            }
+            (None, Some(job_type)) => {
+                storage::BatchBlocklistJob::list_by_merchant_id_job_type(
+                    &conn,
+                    merchant_id,
+                    job_type,
+                    limit,
+                    offset,
+                )
+                .await
+            }
+            (None, None) => {
+                storage::BatchBlocklistJob::list_by_merchant_id(&conn, merchant_id, limit, offset)
+                    .await
+            }
+        }
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -98,11 +156,41 @@ impl BatchBlocklistJobInterface for Store {
     async fn count_batch_blocklist_jobs_by_merchant_id(
         &self,
         merchant_id: &str,
+        profile_id: Option<&common_utils::id_type::ProfileId>,
+        job_type: Option<common_enums::BatchBlocklistJobType>,
     ) -> CustomResult<usize, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::BatchBlocklistJob::count_by_merchant_id(&conn, merchant_id)
-            .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
+        match (profile_id, job_type) {
+            (Some(profile_id), Some(job_type)) => {
+                storage::BatchBlocklistJob::count_by_merchant_id_profile_id_job_type(
+                    &conn,
+                    merchant_id,
+                    profile_id,
+                    job_type,
+                )
+                .await
+            }
+            (Some(profile_id), None) => {
+                storage::BatchBlocklistJob::count_by_merchant_id_profile_id(
+                    &conn,
+                    merchant_id,
+                    profile_id,
+                )
+                .await
+            }
+            (None, Some(job_type)) => {
+                storage::BatchBlocklistJob::count_by_merchant_id_job_type(
+                    &conn,
+                    merchant_id,
+                    job_type,
+                )
+                .await
+            }
+            (None, None) => {
+                storage::BatchBlocklistJob::count_by_merchant_id(&conn, merchant_id).await
+            }
+        }
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 }
 
@@ -127,6 +215,11 @@ impl BatchBlocklistJobInterface for MockDb {
             created_at: new.created_at,
             updated_at: new.updated_at,
             profile_id: Some(new.profile_id),
+            job_type: Some(new.job_type),
+            file_name: new.file_name,
+            file_key: None,
+            error_message: None,
+            expires_at: None,
         };
         jobs.push(job.clone());
         Ok(job)
@@ -156,6 +249,8 @@ impl BatchBlocklistJobInterface for MockDb {
     async fn list_batch_blocklist_jobs_by_merchant_id(
         &self,
         merchant_id: &str,
+        profile_id: Option<&common_utils::id_type::ProfileId>,
+        job_type: Option<common_enums::BatchBlocklistJobType>,
         limit: i64,
         offset: i64,
     ) -> CustomResult<Vec<storage::BatchBlocklistJob>, errors::StorageError> {
@@ -164,7 +259,7 @@ impl BatchBlocklistJobInterface for MockDb {
             .lock()
             .await
             .iter()
-            .filter(|j| j.merchant_id.get_string_repr() == merchant_id)
+            .filter(|j| matches_job_scope(j, merchant_id, profile_id, job_type))
             .cloned()
             .collect::<Vec<_>>()
             .into_iter()
@@ -196,6 +291,18 @@ impl BatchBlocklistJobInterface for MockDb {
         if let Some(failed_rows) = update.failed_rows {
             job.failed_rows = failed_rows;
         }
+        if let Some(total_rows) = update.total_rows {
+            job.total_rows = total_rows;
+        }
+        if let Some(file_key) = update.file_key {
+            job.file_key = Some(file_key);
+        }
+        if let Some(error_message) = update.error_message {
+            job.error_message = Some(error_message);
+        }
+        if let Some(expires_at) = update.expires_at {
+            job.expires_at = Some(expires_at);
+        }
         job.updated_at = update.updated_at;
         Ok(job.clone())
     }
@@ -204,13 +311,15 @@ impl BatchBlocklistJobInterface for MockDb {
     async fn count_batch_blocklist_jobs_by_merchant_id(
         &self,
         merchant_id: &str,
+        profile_id: Option<&common_utils::id_type::ProfileId>,
+        job_type: Option<common_enums::BatchBlocklistJobType>,
     ) -> CustomResult<usize, errors::StorageError> {
         Ok(self
             .batch_blocklist_jobs
             .lock()
             .await
             .iter()
-            .filter(|j| j.merchant_id.get_string_repr() == merchant_id)
+            .filter(|j| matches_job_scope(j, merchant_id, profile_id, job_type))
             .count())
     }
 }
@@ -240,11 +349,19 @@ impl BatchBlocklistJobInterface for KafkaStore {
     async fn list_batch_blocklist_jobs_by_merchant_id(
         &self,
         merchant_id: &str,
+        profile_id: Option<&common_utils::id_type::ProfileId>,
+        job_type: Option<common_enums::BatchBlocklistJobType>,
         limit: i64,
         offset: i64,
     ) -> CustomResult<Vec<storage::BatchBlocklistJob>, errors::StorageError> {
         self.diesel_store
-            .list_batch_blocklist_jobs_by_merchant_id(merchant_id, limit, offset)
+            .list_batch_blocklist_jobs_by_merchant_id(
+                merchant_id,
+                profile_id,
+                job_type,
+                limit,
+                offset,
+            )
             .await
     }
 
@@ -264,9 +381,11 @@ impl BatchBlocklistJobInterface for KafkaStore {
     async fn count_batch_blocklist_jobs_by_merchant_id(
         &self,
         merchant_id: &str,
+        profile_id: Option<&common_utils::id_type::ProfileId>,
+        job_type: Option<common_enums::BatchBlocklistJobType>,
     ) -> CustomResult<usize, errors::StorageError> {
         self.diesel_store
-            .count_batch_blocklist_jobs_by_merchant_id(merchant_id)
+            .count_batch_blocklist_jobs_by_merchant_id(merchant_id, profile_id, job_type)
             .await
     }
 }

@@ -474,7 +474,6 @@ dependencies = [
  "nutype",
  "reqwest 0.11.27",
  "router_derive",
- "router_env",
  "rust_decimal",
  "serde",
  "serde_json",
@@ -484,6 +483,7 @@ dependencies = [
  "superposition_types",
  "tempfile",
  "time 0.3.41",
+ "tracing",
  "url 2.5.4",
  "utoipa",
 ]
@@ -2288,7 +2288,7 @@ dependencies = [
 [[package]]
 name = "config_patch_derive"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?tag=2026.09.07.1#f7e575b7d31e5e34ceb82a4929e6fceea8f25e21"
+source = "git+https://github.com/juspay/connector-service?tag=2026.09.08.0#04befffdc53dfc81f9ac533671c8f35b9c652093"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2871,7 +2871,7 @@ checksum = "092966b41edc516079bdf31ec78a2e0588d1d0c08f78b91d8307215928642b2b"
 [[package]]
 name = "deja"
 version = "0.1.0"
-source = "git+https://github.com/juspay/deja?rev=1838093c7f29938022ba0614d7b78fd2a2e92c4d#1838093c7f29938022ba0614d7b78fd2a2e92c4d"
+source = "git+https://github.com/juspay/deja?rev=de0a42a42248fc22722bc5a385d9fa6a39449e91#de0a42a42248fc22722bc5a385d9fa6a39449e91"
 dependencies = [
  "deja-context",
  "deja-core",
@@ -2888,7 +2888,7 @@ dependencies = [
 [[package]]
 name = "deja-context"
 version = "0.1.0"
-source = "git+https://github.com/juspay/deja?rev=1838093c7f29938022ba0614d7b78fd2a2e92c4d#1838093c7f29938022ba0614d7b78fd2a2e92c4d"
+source = "git+https://github.com/juspay/deja?rev=de0a42a42248fc22722bc5a385d9fa6a39449e91#de0a42a42248fc22722bc5a385d9fa6a39449e91"
 dependencies = [
  "pin-project-lite",
 ]
@@ -2896,7 +2896,7 @@ dependencies = [
 [[package]]
 name = "deja-core"
 version = "0.1.0"
-source = "git+https://github.com/juspay/deja?rev=1838093c7f29938022ba0614d7b78fd2a2e92c4d#1838093c7f29938022ba0614d7b78fd2a2e92c4d"
+source = "git+https://github.com/juspay/deja?rev=de0a42a42248fc22722bc5a385d9fa6a39449e91#de0a42a42248fc22722bc5a385d9fa6a39449e91"
 dependencies = [
  "serde",
  "serde_json",
@@ -2906,7 +2906,7 @@ dependencies = [
 [[package]]
 name = "deja-derive"
 version = "0.1.0"
-source = "git+https://github.com/juspay/deja?rev=1838093c7f29938022ba0614d7b78fd2a2e92c4d#1838093c7f29938022ba0614d7b78fd2a2e92c4d"
+source = "git+https://github.com/juspay/deja?rev=de0a42a42248fc22722bc5a385d9fa6a39449e91#de0a42a42248fc22722bc5a385d9fa6a39449e91"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2916,7 +2916,7 @@ dependencies = [
 [[package]]
 name = "deja-diesel"
 version = "0.1.0"
-source = "git+https://github.com/juspay/deja?rev=1838093c7f29938022ba0614d7b78fd2a2e92c4d#1838093c7f29938022ba0614d7b78fd2a2e92c4d"
+source = "git+https://github.com/juspay/deja?rev=de0a42a42248fc22722bc5a385d9fa6a39449e91#de0a42a42248fc22722bc5a385d9fa6a39449e91"
 dependencies = [
  "async-bb8-diesel",
  "deja-runtime",
@@ -2926,7 +2926,7 @@ dependencies = [
 [[package]]
 name = "deja-runtime"
 version = "0.1.0"
-source = "git+https://github.com/juspay/deja?rev=1838093c7f29938022ba0614d7b78fd2a2e92c4d#1838093c7f29938022ba0614d7b78fd2a2e92c4d"
+source = "git+https://github.com/juspay/deja?rev=de0a42a42248fc22722bc5a385d9fa6a39449e91#de0a42a42248fc22722bc5a385d9fa6a39449e91"
 dependencies = [
  "async-trait",
  "deja-context",
@@ -4262,7 +4262,7 @@ checksum = "32619942b8be646939eaf3db0602b39f5229b74575b67efc897811ded1db4e57"
 [[package]]
 name = "grpc-api-types"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?tag=2026.09.07.1#f7e575b7d31e5e34ceb82a4929e6fceea8f25e21"
+source = "git+https://github.com/juspay/connector-service?tag=2026.09.08.0#04befffdc53dfc81f9ac533671c8f35b9c652093"
 dependencies = [
  "axum 0.8.4",
  "bytes 1.10.1",
@@ -8583,7 +8583,7 @@ dependencies = [
 [[package]]
 name = "rust-grpc-client"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?tag=2026.09.07.1#f7e575b7d31e5e34ceb82a4929e6fceea8f25e21"
+source = "git+https://github.com/juspay/connector-service?tag=2026.09.08.0#04befffdc53dfc81f9ac533671c8f35b9c652093"
 dependencies = [
  "grpc-api-types",
 ]
@@ -10397,6 +10397,7 @@ dependencies = [
  "base64 0.22.1",
  "clap 4.5.38",
  "common_enums",
+ "common_utils",
  "hyperswitch_masking",
  "rand 0.8.5",
  "regex",
@@ -11423,7 +11424,7 @@ checksum = "ed646292ffc8188ef8ea4d1e0e0150fb15a5c2e12ad9b8fc191ae7a8a7f3c4b9"
 [[package]]
 name = "ucs_cards"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?tag=2026.09.07.1#f7e575b7d31e5e34ceb82a4929e6fceea8f25e21"
+source = "git+https://github.com/juspay/connector-service?tag=2026.09.08.0#04befffdc53dfc81f9ac533671c8f35b9c652093"
 dependencies = [
  "bytes 1.10.1",
  "error-stack 0.4.1",
@@ -11439,7 +11440,7 @@ dependencies = [
 [[package]]
 name = "ucs_common_enums"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?tag=2026.09.07.1#f7e575b7d31e5e34ceb82a4929e6fceea8f25e21"
+source = "git+https://github.com/juspay/connector-service?tag=2026.09.08.0#04befffdc53dfc81f9ac533671c8f35b9c652093"
 dependencies = [
  "serde",
  "strum 0.26.3",
@@ -11450,7 +11451,7 @@ dependencies = [
 [[package]]
 name = "ucs_common_utils"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?tag=2026.09.07.1#f7e575b7d31e5e34ceb82a4929e6fceea8f25e21"
+source = "git+https://github.com/juspay/connector-service?tag=2026.09.08.0#04befffdc53dfc81f9ac533671c8f35b9c652093"
 dependencies = [
  "anyhow",
  "base64 0.21.7",
