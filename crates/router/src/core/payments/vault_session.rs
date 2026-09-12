@@ -33,6 +33,8 @@ use crate::core::{
     payments::{customers, gateway::context as gateway_context},
     utils as core_utils,
 };
+#[cfg(feature = "v1")]
+use crate::{consts, core::utils as core_utils};
 use crate::{
     core::{
         errors::{self, RouterResult},
@@ -108,6 +110,131 @@ where
     Ok(())
 }
 
+/// What the internal PM service handed back for a freshly created session.
+#[cfg(feature = "v1")]
+struct CreatedPmVaultSession {
+    vault_details: Option<api::VaultDetails>,
+    expires_at: Option<time::PrimitiveDateTime>,
+}
+
+/// The vault session cached per payment, so every call for that payment hands the SDK the same
+/// authorization. `customer_id` and `storage_type` travel with it so an intent update that
+/// changes either mints a fresh session instead of reusing one created under different terms.
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+struct CachedPmVaultSession {
+    customer_id: Option<id_type::CustomerId>,
+    storage_type: common_enums::StorageType,
+    vault_details: api::VaultDetails,
+}
+
+/// Storage intent for the PM vault session.
+///
+/// `setup_future_usage` on the intent carries the merchant's storage intent for the session: set
+/// (on_session/off_session) → persistent, absent → volatile. Persistent intent without a
+/// customer_id is rejected at payment create/confirm (`validate_customer_id_mandatory_cases`), so
+/// a persistent session always has a customer to attach to.
+#[cfg(feature = "v1")]
+pub fn resolve_vault_storage_type(
+    setup_future_usage: Option<common_enums::FutureUsage>,
+    customer_id: Option<&id_type::CustomerId>,
+) -> common_enums::StorageType {
+    match (setup_future_usage, customer_id) {
+        (Some(_), Some(_)) => common_enums::StorageType::Persistent,
+        _ => common_enums::StorageType::Volatile,
+    }
+}
+
+/// Returns the PM vault session for this payment, creating it on first use.
+///
+/// Every route that mints session tokens for a payment — the standalone session-tokens call and
+/// the server-integration enrichment of a payment create or intent update — comes through here,
+/// so all of them return the session minted by whichever ran first. The cache lives no longer
+/// than the PM service says the session does. A cache miss or a cache write failure is never
+/// fatal: the worst case is a fresh session, which is what every call used to get.
+#[cfg(feature = "v1")]
+pub async fn get_or_create_pm_vault_session(
+    state: &SessionState,
+    external_vault_profile: &domain::Profile,
+    merchant_id: &id_type::MerchantId,
+    payment_id: &id_type::PaymentId,
+    customer_id: Option<&id_type::CustomerId>,
+    storage_type: common_enums::StorageType,
+) -> RouterResult<Option<api::VaultDetails>> {
+    let redis_key = payment_id.get_pm_vault_session_redis_key(merchant_id);
+
+    let cached = core_utils::read_cached_value::<CachedPmVaultSession>(
+        state,
+        &redis_key,
+        "CachedPmVaultSession",
+    )
+    .await
+    .filter(|cached| {
+        cached.customer_id.as_ref() == customer_id && cached.storage_type == storage_type
+    });
+
+    match cached {
+        Some(cached) => {
+            router_env::logger::info!(
+                payment_id = %payment_id.get_string_repr(),
+                ?storage_type,
+                "Reusing the cached PM vault session for this payment"
+            );
+            Ok(Some(cached.vault_details))
+        }
+        None => {
+            let created = call_internal_pm_session_create_for_vault(
+                state,
+                external_vault_profile,
+                customer_id,
+                storage_type,
+            )
+            .await?;
+
+            let cache_entry = created
+                .vault_details
+                .clone()
+                .zip(cache_ttl_seconds(created.expires_at))
+                .map(|(vault_details, ttl_seconds)| {
+                    (
+                        CachedPmVaultSession {
+                            customer_id: customer_id.cloned(),
+                            storage_type,
+                            vault_details,
+                        },
+                        ttl_seconds,
+                    )
+                });
+
+            if let Some((entry, ttl_seconds)) = cache_entry {
+                core_utils::cache_value_with_expiry(
+                    state,
+                    &redis_key,
+                    "CachedPmVaultSession",
+                    &entry,
+                    ttl_seconds,
+                )
+                .await;
+            }
+
+            Ok(created.vault_details)
+        }
+    }
+}
+
+/// How long the cache entry may live: the remaining life of the PM session, capped at the
+/// default session expiry. `None` when the session has already expired, in which case caching
+/// would only hand out a dead authorization.
+#[cfg(feature = "v1")]
+fn cache_ttl_seconds(expires_at: Option<time::PrimitiveDateTime>) -> Option<i64> {
+    let default_ttl = i64::from(consts::DEFAULT_PAYMENT_METHOD_SESSION_EXPIRY);
+    expires_at
+        .map(|expires_at| (expires_at - common_utils::date_time::now()).whole_seconds())
+        .map_or(Some(default_ttl), |remaining| {
+            Some(remaining.min(default_ttl)).filter(|ttl| *ttl > 0)
+        })
+}
+
 /// Call the internal payment-methods service to create a PM session and extract both
 /// `internal_vault` (sdk_authorization) and `external_vault_details` from the response.
 #[cfg(feature = "v1")]
@@ -116,7 +243,7 @@ async fn call_internal_pm_session_create_for_vault(
     profile: &domain::Profile,
     customer_id: Option<&id_type::CustomerId>,
     storage_type: common_enums::StorageType,
-) -> RouterResult<Option<api::VaultDetails>> {
+) -> RouterResult<CreatedPmVaultSession> {
     use common_utils::request::Headers;
     use payment_methods::client::{
         CreatePaymentMethodSession, CreatePaymentMethodSessionV1Request, PaymentMethodClient,
@@ -179,32 +306,37 @@ async fn call_internal_pm_session_create_for_vault(
                 sdk_authorization: sdk_auth,
             });
 
-    let external_vault_details = response.external_vault_details;
+    // Only worth returning when at least one of the two parts is present.
+    let vault_details = match (internal_vault, response.external_vault_details) {
+        (None, None) => {
+            router_env::logger::warn!(
+                merchant_id=%merchant_id.get_string_repr(),
+                profile_id=%profile_id.get_string_repr(),
+                ?storage_type,
+                "Internal PM session create returned neither sdk_authorization nor external_vault_details"
+            );
+            None
+        }
+        (internal_vault, external_vault_details) => {
+            router_env::logger::info!(
+                merchant_id=%merchant_id.get_string_repr(),
+                profile_id=%profile_id.get_string_repr(),
+                ?storage_type,
+                has_internal_vault=internal_vault.is_some(),
+                has_external_vault_details=external_vault_details.is_some(),
+                "Internal PM session created for vault details"
+            );
+            Some(api::VaultDetails {
+                internal_vault,
+                external_vault_details,
+            })
+        }
+    };
 
-    // Only return Some if at least one of the two parts is present.
-    if internal_vault.is_none() && external_vault_details.is_none() {
-        router_env::logger::warn!(
-            merchant_id=%merchant_id.get_string_repr(),
-            profile_id=%profile_id.get_string_repr(),
-            ?storage_type,
-            "Internal PM session create returned neither sdk_authorization nor external_vault_details"
-        );
-        return Ok(None);
-    }
-
-    router_env::logger::info!(
-        merchant_id=%merchant_id.get_string_repr(),
-        profile_id=%profile_id.get_string_repr(),
-        ?storage_type,
-        has_internal_vault=internal_vault.is_some(),
-        has_external_vault_details=external_vault_details.is_some(),
-        "Internal PM session create for vault succeeded"
-    );
-
-    Ok(Some(api::VaultDetails {
-        internal_vault,
-        external_vault_details,
-    }))
+    Ok(CreatedPmVaultSession {
+        vault_details,
+        expires_at: response.expires_at,
+    })
 }
 
 #[cfg(feature = "v1")]
@@ -237,31 +369,27 @@ where
             helpers::resolve_provider_profile(state, platform, profile).await?;
         let customer_id = customer.as_ref().map(|c| c.get_id());
 
-        // `setup_future_usage` on the intent carries the merchant's storage intent for the
-        // session: set (on_session/off_session) → persistent, absent → volatile. Persistent
-        // intent without a customer_id is rejected at payment create/confirm
-        // (`validate_customer_id_mandatory_cases`), so a persistent session always has a
-        // customer to attach to.
-        let storage_type = match (
-            payment_data.get_payment_intent().setup_future_usage,
-            customer_id,
-        ) {
-            (Some(_), Some(_)) => common_enums::StorageType::Persistent,
-            _ => common_enums::StorageType::Volatile,
-        };
+        let payment_intent = payment_data.get_payment_intent();
+        let merchant_id = payment_intent.merchant_id.clone();
+        let payment_id = payment_intent.payment_id.clone();
+        let setup_future_usage = payment_intent.setup_future_usage;
+
+        let storage_type = resolve_vault_storage_type(setup_future_usage, customer_id);
         router_env::logger::info!(
             ?storage_type,
-            setup_future_usage=?payment_data.get_payment_intent().setup_future_usage,
-            has_customer=customer_id.is_some(),
+            ?setup_future_usage,
+            has_customer = customer_id.is_some(),
             "Resolved storage type for PM vault session create"
         );
 
         // Use the resolved external vault profile (the platform merchant's profile in platform
         // flows) so the PM service operates under the merchant that actually holds the external
         // vault configuration. For standard merchants this is the payment profile itself.
-        let vault_details = call_internal_pm_session_create_for_vault(
+        let vault_details = get_or_create_pm_vault_session(
             state,
             &external_vault_profile,
+            &merchant_id,
+            &payment_id,
             customer_id,
             storage_type,
         )

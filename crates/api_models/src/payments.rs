@@ -10839,7 +10839,7 @@ pub enum SessionToken {
 /// Top-level vault details returned in the session-tokens response.
 /// For v1: contains both internal vault (SDK authorization) and external vault details.
 /// For v2: contains only external vault details.
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct VaultDetails {
     /// Internal vault details containing the SDK authorization token (v1 only)
     pub internal_vault: Option<InternalVaultSessionDetails>,
@@ -10848,20 +10848,20 @@ pub struct VaultDetails {
 }
 
 /// Internal vault details for SDK authorization
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct InternalVaultSessionDetails {
     /// Base64-encoded SDK authorization token for the internal vault session
     pub sdk_authorization: String,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum VaultSessionDetails {
     Vgs(VgsSessionDetails),
     HyperswitchVault(HyperswitchVaultSessionDetails),
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct VgsSessionDetails {
     /// The identifier of the external vault
     #[schema(value_type = String)]
@@ -10870,7 +10870,7 @@ pub struct VgsSessionDetails {
     pub sdk_env: String,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct HyperswitchVaultSessionDetails {
     /// Base64-encoded SDK authorization token for the Hyperswitch Vault session
     #[schema(value_type = String)]
