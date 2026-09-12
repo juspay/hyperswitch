@@ -36,6 +36,7 @@ impl TryFrom<&ConnectorAuthType> for SanlamPayshieldAuthType {
 pub struct SanlamPayshieldFrmMetadata {
     pub profile_id: String,
     pub connector_id: Option<String>,
+    pub created_at: time::PrimitiveDateTime,
 }
 
 #[derive(Debug, Serialize)]
@@ -79,6 +80,7 @@ impl TryFrom<&FrmCheckoutRouterData> for SanlamPayshieldCheckoutRequest {
         let SanlamPayshieldFrmMetadata {
             profile_id,
             connector_id,
+            created_at,
         } = data
             .request
             .gateway_metadata
@@ -111,6 +113,14 @@ impl TryFrom<&FrmCheckoutRouterData> for SanlamPayshieldCheckoutRequest {
             )),
         }?;
 
+        let created_at = created_at
+            .assume_utc()
+            .to_offset(time::macros::offset!(+2))
+            .format(time::macros::format_description!(
+                "[year]-[month]-[day]T[hour]:[minute]:[second][offset_hour sign:mandatory]:[offset_minute]"
+            ))
+            .change_context(ConnectorError::RequestEncodingFailed)?;
+
         Ok(Self {
             request_id: data.connector_request_reference_id.clone(),
             profile_id,
@@ -121,24 +131,11 @@ impl TryFrom<&FrmCheckoutRouterData> for SanlamPayshieldCheckoutRequest {
                 amount_in_cents: data.request.amount.to_string(),
                 currency: currency.to_string(),
                 payment_method_type,
-                created_at: get_current_time()?,
+                created_at,
             },
             metadata: data.frm_metadata.clone(),
         })
     }
-}
-
-fn get_current_time() -> Result<String, error_stack::Report<ConnectorError>> {
-    let format = time::macros::format_description!(
-        "[year]-[month]-[day]T[hour]:[minute]:[second][offset_hour sign:mandatory]:[offset_minute]"
-    );
-
-    let time = time::OffsetDateTime::now_utc()
-        .to_offset(time::macros::offset!(+2))
-        .format(&format)
-        .change_context(ConnectorError::RequestEncodingFailed)?;
-
-    Ok(time)
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
