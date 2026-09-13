@@ -88,6 +88,9 @@ jobs:
 
     env:
       RUSTFLAGS: "-D warnings"
+      RUSTC_WRAPPER: sccache
+      SCCACHE_GHA_ENABLED: "true"
+      SCCACHE_GHA_RW_MODE: READ_ONLY
 
     strategy:
       fail-fast: false
@@ -126,6 +129,9 @@ jobs:
         with:
           shared-key: msrv
           save-if: false
+
+      - name: Set up sccache
+        uses: mozilla-actions/sccache-action@v0.0.11
 
       - name: Run cargo check
         shell: bash
