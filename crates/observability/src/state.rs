@@ -26,14 +26,14 @@ use crate::{
     settings::{ChatDestination, ChatSettings, DatabaseSettings, EmailSettings, Settings},
 };
 
+pub type DatabasePool = bb8::Pool<async_bb8_diesel::ConnectionManager<DejaPgConnection>>;
+
 /// Everything a request handler needs, cloned per worker.
 ///
 /// The registries are built once here rather than per request. A chat destination holds a
 /// validated endpoint and a connection-pool-backed client, so building it per request would move a
 /// configuration failure out of boot and into the delivery path — which is the one place a
 /// service like this must not be discovering problems.
-pub type DatabasePool = bb8::Pool<async_bb8_diesel::ConnectionManager<DejaPgConnection>>;
-
 #[derive(Clone)]
 pub struct AppState {
     /// The resolved configuration.
@@ -180,21 +180,6 @@ async fn build_email_registry(
     ))
 }
 
-/// Build the email transport named in configuration.
-///
-/// Mirrors the router's `create_email_client` (`router/src/routes/app.rs:411`), which is private to
-/// that crate. Copied rather than shared because lifting it into `external_services` would mean
-/// moving `Proxy` handling with it, and the function is a three-arm match.
-///
-/// **SES is probed rather than trusted.** `AwsSes::create` builds a client to check the
-/// configuration and then throws the result away — `.map_err(|e| logger::error!(..)).ok()` — so it
-/// returns a usable-looking client even when assuming the role failed. A wrong role ARN would boot
-/// cleanly and turn every alert into a 502 forever. Calling the fallible `create_client` first
-/// makes that a startup failure instead.
-///
-/// The cost is one extra `AssumeRole` at boot, and one trade worth naming: a transient AWS outage
-/// now prevents startup. For a service whose entire job is delivery, refusing to start with a clear
-/// error beats running while silently dropping every alert.
 #[derive(Debug, Clone, Copy)]
 struct LogConnectionErrors;
 
@@ -221,6 +206,21 @@ pub fn build_database_pool(
         .build_unchecked(manager))
 }
 
+/// Build the email transport named in configuration.
+///
+/// Mirrors the router's `create_email_client` (`router/src/routes/app.rs:411`), which is private to
+/// that crate. Copied rather than shared because lifting it into `external_services` would mean
+/// moving `Proxy` handling with it, and the function is a three-arm match.
+///
+/// **SES is probed rather than trusted.** `AwsSes::create` builds a client to check the
+/// configuration and then throws the result away — `.map_err(|e| logger::error!(..)).ok()` — so it
+/// returns a usable-looking client even when assuming the role failed. A wrong role ARN would boot
+/// cleanly and turn every alert into a 502 forever. Calling the fallible `create_client` first
+/// makes that a startup failure instead.
+///
+/// The cost is one extra `AssumeRole` at boot, and one trade worth naming: a transient AWS outage
+/// now prevents startup. For a service whose entire job is delivery, refusing to start with a clear
+/// error beats running while silently dropping every alert.
 async fn create_email_client(
     settings: &EmailClientSettings,
     proxy: &Proxy,

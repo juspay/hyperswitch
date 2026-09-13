@@ -53,8 +53,8 @@ pub struct Settings<S: SecretState> {
     pub log: Log,
     /// Credentials guarding this service's routes.
     pub auth: SecretStateContainer<AuthSettings, S>,
-    /// How secret values in this file are resolved at boot.
     pub database: SecretStateContainer<DatabaseSettings, S>,
+    /// How secret values in this file are resolved at boot.
     pub secrets_management: SecretsManagementConfig,
     /// Outbound HTTP proxy. A deployment fact rather than a property of any destination, which is
     /// why it sits here and is handed to every chat client rather than repeated per destination.
@@ -263,7 +263,6 @@ impl AuthSettings {
     }
 }
 
-/// Listener configuration for the standalone binary.
 const DEFAULT_POOL_SIZE: u32 = 5;
 
 const DEFAULT_CONNECTION_TIMEOUT: u64 = 10;
@@ -373,6 +372,7 @@ impl DatabaseSettings {
     }
 }
 
+/// Listener configuration for the standalone binary.
 #[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
 pub struct Server {
