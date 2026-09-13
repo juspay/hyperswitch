@@ -2673,13 +2673,16 @@ pub async fn get_routing_result_source(
     }
 }
 
-/// Effective cutover: routing_result_source is DecisionEngine AND the global
-/// static_routing_enabled flag is on — the flag always wins, for APIs and payment paths alike.
+/// Effective cutover means routing_result_source is DecisionEngine and at least one of the
+/// global routing flags is on. The flags always win, for APIs and payment paths alike. Either
+/// capability is enough, so a profile routed dynamically by the engine is cut over even with
+/// static routing off, and vice versa.
 pub async fn is_decision_engine_routing_effective(
     state: &SessionState,
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
 ) -> bool {
-    state.conf.open_router.static_routing_enabled
+    (state.conf.open_router.static_routing_enabled
+        || state.conf.open_router.dynamic_routing_enabled)
         && matches!(
             get_routing_result_source(state, dimensions).await,
             api_routing::RoutingResultSource::DecisionEngine
@@ -2695,7 +2698,7 @@ pub async fn select_routing_result<T>(
 where
     T: Clone + IntoIterator,
 {
-    // Same predicate as every other consumer: with the global flag off the profile is
+    // Same predicate as every other consumer: with both global flags off the profile is
     // Hyperswitch-routed, so reads must not serve DE records the payment path ignores.
     let routing_result_source = if is_decision_engine_routing_effective(state, dimensions).await {
         api_routing::RoutingResultSource::DecisionEngine
