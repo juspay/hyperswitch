@@ -410,7 +410,7 @@ pub enum PaymentMethodUpdate {
         network_token_requestor_reference_id: Option<String>,
         network_token_locker_id: Option<String>,
         network_token_payment_method_data: Option<Encryption>,
-        locker_fingerprint_id: Option<String>,
+        locker_fingerprint_id: Option<Option<String>>,
         connector_mandate_details: Box<Option<CommonMandateReference>>,
         external_vault_source: Option<common_utils::id_type::MerchantConnectorAccountId>,
         network_transaction_id: Option<Secret<String>>,
@@ -423,7 +423,7 @@ pub enum PaymentMethodUpdate {
     },
     StatusAndFingerprintUpdate {
         status: Option<storage_enums::PaymentMethodStatus>,
-        locker_fingerprint_id: Option<String>,
+        locker_fingerprint_id: Option<Option<String>>,
         last_modified_by: Option<String>,
     },
     // Compatibility-only update used by modular backward-compat inline/PT.
@@ -468,7 +468,7 @@ pub struct PaymentMethodUpdateInternal {
     network_token_requestor_reference_id: Option<String>,
     network_token_locker_id: Option<String>,
     network_token_payment_method_data: Option<Encryption>,
-    locker_fingerprint_id: Option<String>,
+    locker_fingerprint_id: Option<Option<String>>,
     external_vault_source: Option<common_utils::id_type::MerchantConnectorAccountId>,
     last_modified_by: Option<String>,
     customer_details: Option<Encryption>,

@@ -5589,6 +5589,27 @@
             "description": "Card type, can be either `credit` or `debit`",
             "nullable": true
           },
+          "card_subtype": {
+            "type": "string",
+            "description": "The product the card is issued under, e.g. `CLASSIC` or `ELECTRON`.\nFree form, as the value comes straight from the BIN record.",
+            "nullable": true
+          },
+          "card_segment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardSegmentType"
+              }
+            ],
+            "nullable": true
+          },
+          "funding_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FundingSource"
+              }
+            ],
+            "nullable": true
+          },
           "card_issuing_country": {
             "type": "string",
             "nullable": true
@@ -6829,9 +6850,61 @@
             "example": "003925",
             "nullable": true
           },
+          "device_pan_bin": {
+            "type": "string",
+            "description": "Bin of the DPAN (device PAN) obtained from decrypting the Apple Pay payment data",
+            "nullable": true
+          },
+          "card_bin": {
+            "type": "string",
+            "description": "Bin of the underlying card, provided by the connector when it resolves the DPAN",
+            "nullable": true
+          },
+          "card_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardType"
+              }
+            ],
+            "nullable": true
+          },
           "auth_code": {
             "type": "string",
             "description": "Unique authorisation code generated for the payment",
+            "nullable": true
+          },
+          "card_subtype": {
+            "type": "string",
+            "description": "The card's product/subtype, as returned by the connector",
+            "nullable": true
+          },
+          "card_segment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardSegmentType"
+              }
+            ],
+            "nullable": true
+          },
+          "funding_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FundingSource"
+              }
+            ],
+            "nullable": true
+          },
+          "issuer_name": {
+            "type": "string",
+            "description": "The name of the card issuer, as returned by the connector",
+            "nullable": true
+          },
+          "issuer_country": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              }
+            ],
             "nullable": true
           }
         }
@@ -11006,6 +11079,28 @@
             "example": "CREDIT",
             "nullable": true
           },
+          "card_subtype": {
+            "type": "string",
+            "description": "The product the card is issued under, e.g. `CLASSIC` or `ELECTRON`",
+            "example": "CLASSIC",
+            "nullable": true
+          },
+          "card_segment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardSegmentType"
+              }
+            ],
+            "nullable": true
+          },
+          "funding_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FundingSource"
+              }
+            ],
+            "nullable": true
+          },
           "card_issuing_country": {
             "type": "string",
             "example": "INDIA",
@@ -11179,6 +11274,27 @@
             ],
             "nullable": true
           },
+          "card_subtype": {
+            "type": "string",
+            "description": "The product the card is issued under, e.g. `CLASSIC` or `ELECTRON`",
+            "nullable": true
+          },
+          "card_segment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardSegmentType"
+              }
+            ],
+            "nullable": true
+          },
+          "funding_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FundingSource"
+              }
+            ],
+            "nullable": true
+          },
           "card_cvc": {
             "type": "string",
             "description": "The CVC number for the card\nThis is optional in case the card needs to be vaulted",
@@ -11251,6 +11367,27 @@
           "card_type": {
             "type": "string",
             "example": "Credit",
+            "nullable": true
+          },
+          "card_subtype": {
+            "type": "string",
+            "example": "CLASSIC",
+            "nullable": true
+          },
+          "card_segment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardSegmentType"
+              }
+            ],
+            "nullable": true
+          },
+          "funding_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FundingSource"
+              }
+            ],
             "nullable": true
           },
           "saved_to_locker": {
@@ -11539,6 +11676,27 @@
             "type": "string",
             "nullable": true
           },
+          "card_subtype": {
+            "type": "string",
+            "description": "The product the card is issued under, e.g. `CLASSIC` or `ELECTRON`.",
+            "nullable": true
+          },
+          "card_segment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardSegmentType"
+              }
+            ],
+            "nullable": true
+          },
+          "funding_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FundingSource"
+              }
+            ],
+            "nullable": true
+          },
           "card_network": {
             "allOf": [
               {
@@ -11586,6 +11744,15 @@
             "nullable": true
           }
         }
+      },
+      "CardSegmentType": {
+        "type": "string",
+        "enum": [
+          "business",
+          "commercial",
+          "consumer",
+          "government"
+        ]
       },
       "CardSpecificFeatures": {
         "type": "object",
@@ -11825,6 +11992,28 @@
           "card_type": {
             "type": "string",
             "example": "CREDIT",
+            "nullable": true
+          },
+          "card_subtype": {
+            "type": "string",
+            "description": "The product the card is issued under, e.g. `CLASSIC` or `ELECTRON`",
+            "example": "CLASSIC",
+            "nullable": true
+          },
+          "card_segment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardSegmentType"
+              }
+            ],
+            "nullable": true
+          },
+          "funding_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FundingSource"
+              }
+            ],
             "nullable": true
           },
           "card_issuing_country": {
@@ -12292,6 +12481,7 @@
           "signifyd",
           "plaid",
           "riskified",
+          "sanlam_payshield",
           "xendit",
           "zen",
           "zift",
@@ -16299,6 +16489,16 @@
           "post"
         ]
       },
+      "FundingSource": {
+        "type": "string",
+        "enum": [
+          "CREDIT",
+          "DEBIT",
+          "DEFERRED DEBIT",
+          "PREPAID",
+          "CHARGE CARD"
+        ]
+      },
       "FutureUsage": {
         "type": "string",
         "description": "Specifies how the payment method can be used for future payments.\n- `off_session`: The payment method can be used for future payments when the customer is not present.\n- `on_session`: The payment method is intended for use only when the customer is present during checkout.\nIf omitted, defaults to `on_session`.",
@@ -16813,6 +17013,14 @@
           }
         }
       },
+      "GooglePayTokenizationSpecificationType": {
+        "type": "string",
+        "description": "The tokenization type sent to the Google Pay SDK.\n\nUnlike [`GooglePayTokenizationType`], this holds only the values Google itself understands:\nthe Hyperswitch-internal `INTERNAL_GATEWAY` marker is resolved into `PAYMENT_GATEWAY` during\nthe session flow before this is built, so it can never leak into an SDK response.",
+        "enum": [
+          "PAYMENT_GATEWAY",
+          "DIRECT"
+        ]
+      },
       "GooglePayWalletData": {
         "type": "object",
         "required": [
@@ -16942,6 +17150,14 @@
           "token": {
             "type": "string",
             "description": "Token generated for the wallet"
+          },
+          "auth_method": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GooglePayAuthMethod"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -17036,8 +17252,7 @@
         ],
         "properties": {
           "type": {
-            "type": "string",
-            "description": "The token specification type(ex: PAYMENT_GATEWAY)"
+            "$ref": "#/components/schemas/GooglePayTokenizationSpecificationType"
           },
           "parameters": {
             "$ref": "#/components/schemas/GpayTokenParameters"
@@ -19898,6 +20113,9 @@
           }
         }
       },
+      "NetellerData": {
+        "type": "object"
+      },
       "NetworkParams": {
         "type": "object",
         "description": "Represents additional network-level parameters for 3DS processing.",
@@ -20333,6 +20551,28 @@
           "card_type": {
             "type": "string",
             "example": "CREDIT",
+            "nullable": true
+          },
+          "card_subtype": {
+            "type": "string",
+            "description": "The product the card is issued under, e.g. `CLASSIC` or `ELECTRON`",
+            "example": "CLASSIC",
+            "nullable": true
+          },
+          "card_segment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardSegmentType"
+              }
+            ],
+            "nullable": true
+          },
+          "funding_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FundingSource"
+              }
+            ],
             "nullable": true
           },
           "card_issuing_country": {
@@ -24648,6 +24888,7 @@
           "momo",
           "momo_atm",
           "multibanco",
+          "neteller",
           "online_banking_thailand",
           "online_banking_czech_republic",
           "online_banking_finland",
@@ -31791,6 +32032,7 @@
           "redsys",
           "revolv3",
           "riskified",
+          "sanlam_payshield",
           "santander",
           "shift4",
           "signifyd",
@@ -34274,6 +34516,27 @@
               }
             ],
             "nullable": true
+          },
+          "card_subtype": {
+            "type": "string",
+            "description": "The product the card is issued under, e.g. `CLASSIC` or `ELECTRON`",
+            "nullable": true
+          },
+          "card_segment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardSegmentType"
+              }
+            ],
+            "nullable": true
+          },
+          "funding_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FundingSource"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -35209,9 +35472,9 @@
       "WalletAdditionalDataForCard": {
         "type": "object",
         "properties": {
-          "last4": {
+          "type": {
             "type": "string",
-            "description": "Last 4 digits of the card number",
+            "description": "The type of payment method",
             "nullable": true
           },
           "card_network": {
@@ -35219,9 +35482,50 @@
             "description": "The information of the payment method",
             "nullable": true
           },
-          "type": {
+          "card_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardType"
+              }
+            ],
+            "nullable": true
+          },
+          "card_subtype": {
             "type": "string",
-            "description": "The type of payment method",
+            "description": "The card's product/subtype, as returned by the connector",
+            "nullable": true
+          },
+          "card_segment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardSegmentType"
+              }
+            ],
+            "nullable": true
+          },
+          "funding_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FundingSource"
+              }
+            ],
+            "nullable": true
+          },
+          "last4": {
+            "type": "string",
+            "description": "Last 4 digits of the card number",
+            "nullable": true
+          },
+          "card_bin": {
+            "type": "string",
+            "description": "Bin of the underlying card",
+            "example": "411111",
+            "nullable": true
+          },
+          "device_pan_bin": {
+            "type": "string",
+            "description": "Bin of the DPAN (device PAN) obtained from decrypting the wallet payment data.",
+            "example": "411111",
             "nullable": true
           },
           "card_exp_month": {
@@ -35234,6 +35538,19 @@
             "type": "string",
             "description": "The card's expiry year",
             "example": "25",
+            "nullable": true
+          },
+          "issuer_name": {
+            "type": "string",
+            "description": "The name of the card issuer, as returned by the connector",
+            "nullable": true
+          },
+          "issuer_country": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              }
+            ],
             "nullable": true
           },
           "auth_code": {
@@ -35587,6 +35904,18 @@
             "properties": {
               "skrill": {
                 "$ref": "#/components/schemas/SkrillData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "Neteller",
+            "required": [
+              "neteller"
+            ],
+            "properties": {
+              "neteller": {
+                "$ref": "#/components/schemas/NetellerData"
               }
             }
           },

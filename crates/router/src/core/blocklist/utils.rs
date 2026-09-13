@@ -559,10 +559,15 @@ pub async fn should_payment_be_blocked(
     let card_bin_prefixes = payment_method_data
         .as_ref()
         .and_then(|pm_data| match pm_data {
-            domain::EligibilityPaymentMethodData::Card(card) => Some(&card.card_number),
+            domain::EligibilityPaymentMethodData::Card(card) => {
+                Some(card.card_number.get_blocklist_bin_prefixes())
+            }
+            // BIN-only eligibility input: probe every prefix derivable from the provided BIN
+            domain::EligibilityPaymentMethodData::CardBin(card_bin) => {
+                Some(card_bin.get_blocklist_bin_prefixes())
+            }
             _ => None,
         })
-        .map(cards::CardNumber::get_blocklist_bin_prefixes)
         .unwrap_or_default();
 
     // Extended bin of the wallet's decrypted token, to check whether or not this payment should be blocked.
@@ -611,6 +616,60 @@ pub async fn should_payment_be_blocked(
     }
 
     Ok(block_reason)
+}
+
+/// Whether the merchant has enabled the blocklist guard (the same config key that gates
+/// confirm-time and eligibility-time blocklist checks). Defaults to `false` when unset.
+pub async fn is_blocklist_guard_enabled(
+    state: &SessionState,
+    processor_merchant_id: &common_utils::id_type::MerchantId,
+) -> bool {
+    let blocklist_enabled_key = processor_merchant_id.get_blocklist_guard_key();
+    match state
+        .store
+        .find_config_by_key_unwrap_or(&blocklist_enabled_key, Some("false".to_string()))
+        .await
+    {
+        Ok(config) => serde_json::from_str(&config.config).unwrap_or(false),
+        Err(error) => {
+            if !error.current_context().is_db_not_found() {
+                logger::error!(?error, "Error fetching blocklist guard enabled config");
+            }
+            false
+        }
+    }
+}
+
+/// Returns the subset of `bins` (card ISINs / extended BINs) that have an active BIN
+/// blocklist entry (BIN kinds only — PAN-fingerprint entries cannot be matched from a
+/// BIN) for this merchant/profile, resolved with a single batched query. Merchant-wide
+/// entries (NULL `profile_id`) match every profile. DB errors are logged and treated as
+/// not blocked, mirroring [`should_payment_be_blocked`].
+pub async fn get_blocked_bins(
+    state: &SessionState,
+    processor: &domain::Processor,
+    profile_id: &common_utils::id_type::ProfileId,
+    bins: HashSet<String>,
+) -> HashSet<String> {
+    let lookup_result = state
+        .store
+        .list_blocklist_entries_by_processor_merchant_id_profile_id_card_bins(
+            processor.get_account().get_id(),
+            profile_id,
+            bins.into_iter().collect(),
+        )
+        .await;
+
+    match lookup_result {
+        Ok(blocklist_entries) => blocklist_entries
+            .into_iter()
+            .map(|blocklist_entry| blocklist_entry.fingerprint_id)
+            .collect(),
+        Err(error) => {
+            logger::error!(blocklist_db_error=?error, "failed db operations for blocklist");
+            HashSet::new()
+        }
+    }
 }
 
 pub async fn validate_data_for_blocklist<F>(
@@ -703,6 +762,11 @@ fn resolve_blocking_config_and_bin<'a>(
             .card
             .as_ref()
             .map(|card_config| (card_config, card.card_number.get_card_isin())),
+
+        domain::EligibilityPaymentMethodData::CardBin(card_bin) => blocking_config
+            .card
+            .as_ref()
+            .map(|card_config| (card_config, card_bin.get_card_isin())),
 
         domain::EligibilityPaymentMethodData::Wallet(domain::WalletData::ApplePay(_)) => {
             blocking_config

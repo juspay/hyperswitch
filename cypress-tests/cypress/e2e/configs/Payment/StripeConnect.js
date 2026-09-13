@@ -75,6 +75,9 @@ const payment_method_data_3ds = {
   card: {
     last4: "3155",
     card_type: "CREDIT",
+    card_subtype: "VISA TRADITIONAL",
+    card_segment_type: "consumer",
+    funding_source: "CREDIT",
     card_network: "Visa",
     card_issuer: "INTL HDQTRS CENTER OWNED",
     card_issuing_country: "UNITED STATES OF AMERICA",
@@ -94,6 +97,9 @@ const payment_method_data_no3ds = {
   card: {
     last4: "0005",
     card_type: "CREDIT",
+    card_subtype: "CORPORATE",
+    card_segment_type: null,
+    funding_source: null,
     card_network: "AmericanExpress",
     card_issuer: "AMERICAN EXPRESS US CARS",
     card_issuing_country: "UNITED STATES OF AMERICA",
@@ -318,8 +324,8 @@ export const connectorDetails = {
           error_code: "card_declined",
           error_message:
             "message - Your card was declined., decline_code - generic_decline",
-          unified_code: "UE_1000",
-          unified_message: "Issue with Payment Method details",
+          unified_code: "UE_3000",
+          unified_message: "Technical issue with PSP",
         },
       },
     },

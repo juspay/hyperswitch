@@ -36,6 +36,9 @@ const paymentMethodData = {
   card: {
     last4: "1111",
     card_type: "DEBIT",
+    card_subtype: "VISA CLASSIC",
+    card_segment_type: "consumer",
+    funding_source: "DEBIT",
     card_network: "Visa",
     card_issuer: "CONOTOXIA SP Z OO",
     card_issuing_country: "POLAND",

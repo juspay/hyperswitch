@@ -2115,6 +2115,9 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                                 card_issuer: card.card_issuer,
                                 card_network: card.card_network,
                                 card_type: card.card_type,
+                                card_subtype: card.card_subtype,
+                                card_segment_type: card.card_segment_type,
+                                funding_source: card.funding_source,
                                 card_issuing_country: card.card_issuing_country,
                                 card_issuing_country_code: card.card_issuing_country_code,
                                 bank_code: card.bank_code,
@@ -2546,6 +2549,7 @@ impl PaymentConfirm {
             payment_method_ref,
             card_token_data,
             true, // fetch raw card detail from the internal vault
+            helpers::is_off_session_mit_for_payment_method(req, payment_method_ref),
         )
         .await?;
         logger::info!("Payment method fetched from PM Modular Service.");
@@ -2641,7 +2645,15 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                 frm_message.map_or((None, None), |fraud_check| {
                     (
                         Some(Some(fraud_check.frm_status.to_string())),
-                        Some(fraud_check.frm_reason.map(|reason| reason.to_string())),
+                        Some(
+                            fraud_check
+                                .frm_reason
+                                .map(|reason| match reason {
+                                    serde_json::Value::String(s) => s,
+                                    other => other.to_string(),
+                                })
+                                .or(fraud_check.frm_error),
+                        ),
                     )
                 }),
             ),

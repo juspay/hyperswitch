@@ -31,6 +31,19 @@
         "summary": "Payments - Create",
         "description": "Creates a payment resource, which represents a customer's intent to pay.\nThis endpoint is the starting point for various payment flows:\n",
         "operationId": "Create a Payment",
+        "parameters": [
+          {
+            "name": "X-Integration-Type",
+            "in": "header",
+            "description": "Selects the response shape. `server` returns the payment together with `payment_method_list` and `session_tokens`, so a server-to-server integration can render its checkout from one call; it is honoured only with merchant API key authentication. `client`, or no header, returns the payment response unchanged.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "server"
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -627,6 +640,90 @@
                       "profile_id": "pro_pzzzzzzzzzzz",
                       "status": "succeeded"
                     }
+                  },
+                  "12. Server integration response": {
+                    "value": {
+                      "amount": 6540,
+                      "attempt_count": 1,
+                      "client_secret": "pay_mbabizu24mvu3mela5njyhpit4_secret_el9ksDkiB8hi6j9N78yo",
+                      "currency": "USD",
+                      "customer_id": "cus_abcdefgh",
+                      "merchant_id": "merchant_1668273825",
+                      "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                      "payment_method_list": {
+                        "customer_payment_methods": [],
+                        "intent_data": {
+                          "amount": 6540,
+                          "attempt_count": 1,
+                          "currency": "USD",
+                          "customer_id": "cus_abcdefgh",
+                          "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                          "profile_id": "pro_abcdefghijklmnop",
+                          "status": "requires_payment_method"
+                        },
+                        "payment_methods_enabled": [
+                          {
+                            "card_networks": [
+                              "Visa",
+                              "Mastercard"
+                            ],
+                            "customer_acceptance_support": "supported",
+                            "payment_method": "card",
+                            "payment_method_type": "credit"
+                          }
+                        ],
+                        "sdk_next_action": {
+                          "next_action": "confirm"
+                        }
+                      },
+                      "profile_id": "pro_abcdefghijklmnop",
+                      "sdk_authorization": "cHJvZmlsZV9pZD1wcm9mXzEyMyxwdWJsaXNoYWJsZV9rZXk9cGtfbGl2ZV8xMjM=",
+                      "session_tokens": {
+                        "client_secret": "pay_mbabizu24mvu3mela5njyhpit4_secret_el9ksDkiB8hi6j9N78yo",
+                        "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                        "session_token": [],
+                        "vault_details": {
+                          "vault_data": {
+                            "sdk_authorization": "cHJvZmlsZV9pZD1wcm9mXzEyMyxwdWJsaXNoYWJsZV9rZXk9cGtfbGl2ZV8xMjM="
+                          },
+                          "vault_type": "hyperswitch"
+                        }
+                      },
+                      "status": "requires_payment_method"
+                    }
+                  },
+                  "13. Server integration, one section failed": {
+                    "value": {
+                      "amount": 6540,
+                      "attempt_count": 1,
+                      "client_secret": "pay_mbabizu24mvu3mela5njyhpit4_secret_el9ksDkiB8hi6j9N78yo",
+                      "currency": "USD",
+                      "merchant_id": "merchant_1668273825",
+                      "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                      "payment_method_list": {
+                        "customer_payment_methods": [],
+                        "intent_data": {
+                          "amount": 6540,
+                          "attempt_count": 1,
+                          "currency": "USD",
+                          "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                          "status": "requires_payment_method"
+                        },
+                        "payment_methods_enabled": [],
+                        "sdk_next_action": {
+                          "next_action": "confirm"
+                        }
+                      },
+                      "profile_id": "pro_abcdefghijklmnop",
+                      "session_tokens": {
+                        "error": {
+                          "code": "HE_00",
+                          "message": "Something went wrong",
+                          "type": "api"
+                        }
+                      },
+                      "status": "requires_payment_method"
+                    }
                   }
                 }
               }
@@ -667,6 +764,17 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Integration-Type",
+            "in": "header",
+            "description": "Selects the response shape. `server` returns the payment together with `payment_method_list` and `session_tokens`, so a server-to-server integration can render its checkout from one call; it is honoured only with merchant API key authentication. `client`, or no header, returns the payment response unchanged.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "server"
           }
         ],
         "requestBody": {
@@ -714,6 +822,92 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PaymentsCreateResponseOpenApi"
+                },
+                "examples": {
+                  "Server integration response": {
+                    "value": {
+                      "amount": 6540,
+                      "attempt_count": 1,
+                      "client_secret": "pay_mbabizu24mvu3mela5njyhpit4_secret_el9ksDkiB8hi6j9N78yo",
+                      "currency": "USD",
+                      "customer_id": "cus_abcdefgh",
+                      "merchant_id": "merchant_1668273825",
+                      "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                      "payment_method_list": {
+                        "customer_payment_methods": [],
+                        "intent_data": {
+                          "amount": 6540,
+                          "attempt_count": 1,
+                          "currency": "USD",
+                          "customer_id": "cus_abcdefgh",
+                          "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                          "profile_id": "pro_abcdefghijklmnop",
+                          "status": "requires_payment_method"
+                        },
+                        "payment_methods_enabled": [
+                          {
+                            "card_networks": [
+                              "Visa",
+                              "Mastercard"
+                            ],
+                            "customer_acceptance_support": "supported",
+                            "payment_method": "card",
+                            "payment_method_type": "credit"
+                          }
+                        ],
+                        "sdk_next_action": {
+                          "next_action": "confirm"
+                        }
+                      },
+                      "profile_id": "pro_abcdefghijklmnop",
+                      "sdk_authorization": "cHJvZmlsZV9pZD1wcm9mXzEyMyxwdWJsaXNoYWJsZV9rZXk9cGtfbGl2ZV8xMjM=",
+                      "session_tokens": {
+                        "client_secret": "pay_mbabizu24mvu3mela5njyhpit4_secret_el9ksDkiB8hi6j9N78yo",
+                        "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                        "session_token": [],
+                        "vault_details": {
+                          "vault_data": {
+                            "sdk_authorization": "cHJvZmlsZV9pZD1wcm9mXzEyMyxwdWJsaXNoYWJsZV9rZXk9cGtfbGl2ZV8xMjM="
+                          },
+                          "vault_type": "hyperswitch"
+                        }
+                      },
+                      "status": "requires_payment_method"
+                    }
+                  },
+                  "Server integration, one section failed": {
+                    "value": {
+                      "amount": 6540,
+                      "attempt_count": 1,
+                      "client_secret": "pay_mbabizu24mvu3mela5njyhpit4_secret_el9ksDkiB8hi6j9N78yo",
+                      "currency": "USD",
+                      "merchant_id": "merchant_1668273825",
+                      "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                      "payment_method_list": {
+                        "customer_payment_methods": [],
+                        "intent_data": {
+                          "amount": 6540,
+                          "attempt_count": 1,
+                          "currency": "USD",
+                          "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                          "status": "requires_payment_method"
+                        },
+                        "payment_methods_enabled": [],
+                        "sdk_next_action": {
+                          "next_action": "confirm"
+                        }
+                      },
+                      "profile_id": "pro_abcdefghijklmnop",
+                      "session_tokens": {
+                        "error": {
+                          "code": "HE_00",
+                          "message": "Something went wrong",
+                          "type": "api"
+                        }
+                      },
+                      "status": "requires_payment_method"
+                    }
+                  }
                 }
               }
             }
@@ -6923,7 +7117,7 @@
           }
         ],
         "requestBody": {
-          "description": "A multipart/form-data request with a `file` field containing a UTF-8 CSV (max 5 MiB). The CSV must have a header row: `type,data,metadata`. `type`: one of `generic_card_bin` (6 to 10 digits), `fingerprint`. `metadata`: optional, `key=value` pairs separated by `;` (e.g. `reason=fraud;source=manual`). Maximum 100,000 data rows.",
+          "description": "A multipart/form-data request with a `file` field containing a UTF-8 CSV (max 5 MiB). The part's `filename` is recorded on the job and returned as `file_name`. The CSV must have a header row: `type,data,metadata`. `type`: one of `generic_card_bin` (6 to 10 digits), `fingerprint`. `metadata`: optional, `key=value` pairs separated by `;` (e.g. `reason=fraud;source=manual`). Maximum 100,000 data rows.",
           "content": {
             "multipart/form-data": {
               "schema": {
@@ -6983,11 +7177,35 @@
               "nullable": true,
               "minimum": 0
             }
+          },
+          {
+            "name": "job_type",
+            "in": "query",
+            "description": "Restricts the listing to `upload` or `export` jobs. Both kinds are returned when omitted, newest first.",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/BatchBlocklistJobType"
+                }
+              ],
+              "nullable": true
+            }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Restricts the listing to jobs run for this business profile, plus jobs that predate profile scoping. When no profile can be resolved, all of the merchant's jobs are returned, as before.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
           }
         ],
         "responses": {
           "200": {
-            "description": "List of batch blocklist jobs",
+            "description": "List of batch blocklist jobs. Rows report `downloadable`, but never `download_url` - fetch the link from `GET /blocklist/batch/{job_id}` when the merchant asks for that specific file.",
             "content": {
               "application/json": {
                 "schema": {
@@ -7014,7 +7232,7 @@
           {
             "name": "job_id",
             "in": "path",
-            "description": "The job ID returned by the batch upload endpoint",
+            "description": "The job ID returned by the batch upload endpoint, or the export ID returned by `POST /blocklist/export`",
             "required": true,
             "schema": {
               "type": "string"
@@ -7023,7 +7241,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Batch blocklist job status",
+            "description": "Batch blocklist job status. For a completed export whose file is still stored, this is where the short-lived `download_url` is issued.",
             "content": {
               "application/json": {
                 "schema": {
@@ -7034,6 +7252,46 @@
           },
           "404": {
             "description": "Job not found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/blocklist/export": {
+      "post": {
+        "tags": [
+          "Blocklist"
+        ],
+        "operationId": "Start a blocklist CSV export",
+        "parameters": [
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "The business profile whose blocklist is exported. Resolution follows the same rules as blocking a single entry.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Blocklist export started",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BlocklistExportResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "No profile could be resolved"
           }
         },
         "security": [
@@ -11148,9 +11406,61 @@
             "example": "003925",
             "nullable": true
           },
+          "device_pan_bin": {
+            "type": "string",
+            "description": "Bin of the DPAN (device PAN) obtained from decrypting the Apple Pay payment data",
+            "nullable": true
+          },
+          "card_bin": {
+            "type": "string",
+            "description": "Bin of the underlying card, provided by the connector when it resolves the DPAN",
+            "nullable": true
+          },
+          "card_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardType"
+              }
+            ],
+            "nullable": true
+          },
           "auth_code": {
             "type": "string",
             "description": "Unique authorisation code generated for the payment",
+            "nullable": true
+          },
+          "card_subtype": {
+            "type": "string",
+            "description": "The card's product/subtype, as returned by the connector",
+            "nullable": true
+          },
+          "card_segment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardSegmentType"
+              }
+            ],
+            "nullable": true
+          },
+          "funding_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FundingSource"
+              }
+            ],
+            "nullable": true
+          },
+          "issuer_name": {
+            "type": "string",
+            "description": "The name of the card issuer, as returned by the connector",
+            "nullable": true
+          },
+          "issuer_country": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              }
+            ],
             "nullable": true
           }
         }
@@ -15415,16 +15725,18 @@
       },
       "BatchBlocklistJobStatusResponse": {
         "type": "object",
-        "description": "Response for `GET /blocklist/batch/{job_id}`.",
+        "description": "One batch blocklist job, as returned by the listing and by `GET /blocklist/batch/{job_id}`.",
         "required": [
           "job_id",
           "merchant_id",
+          "job_type",
           "status",
           "total_rows",
           "succeeded_rows",
           "failed_rows",
           "created_at",
-          "updated_at"
+          "updated_at",
+          "downloadable"
         ],
         "properties": {
           "job_id": {
@@ -15432,6 +15744,14 @@
           },
           "merchant_id": {
             "type": "string"
+          },
+          "job_type": {
+            "$ref": "#/components/schemas/BatchBlocklistJobType"
+          },
+          "file_name": {
+            "type": "string",
+            "description": "The file the merchant uploaded, or the name the export downloads as.",
+            "nullable": true
           },
           "status": {
             "$ref": "#/components/schemas/BatchBlocklistJobStatus"
@@ -15458,8 +15778,40 @@
           "updated_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Exports only: when the stored file is removed by the storage lifecycle rule.",
+            "nullable": true
+          },
+          "downloadable": {
+            "type": "boolean",
+            "description": "Whether this job's file can be fetched right now."
+          },
+          "error_message": {
+            "type": "string",
+            "nullable": true
+          },
+          "download_url": {
+            "type": "string",
+            "description": "Exports only: short-lived signed link, generated per request and never stored. Null in the\nlisting, which does not mint a link per row.",
+            "nullable": true
+          },
+          "download_url_expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
           }
         }
+      },
+      "BatchBlocklistJobType": {
+        "type": "string",
+        "description": "Distinguishes a bulk upload job from a CSV export job in the `batch_blocklist_jobs` table.",
+        "enum": [
+          "upload",
+          "export"
+        ]
       },
       "BatchBlocklistUploadResponse": {
         "type": "object",
@@ -15654,6 +16006,28 @@
           "extended_card_bin",
           "generic_card_bin"
         ]
+      },
+      "BlocklistExportResponse": {
+        "type": "object",
+        "description": "Response for `POST /blocklist/export`.",
+        "required": [
+          "export_id",
+          "status",
+          "file_name"
+        ],
+        "properties": {
+          "export_id": {
+            "type": "string",
+            "description": "Present for support and log correlation."
+          },
+          "status": {
+            "$ref": "#/components/schemas/BatchBlocklistJobStatus"
+          },
+          "file_name": {
+            "type": "string",
+            "description": "The name this export will download as."
+          }
+        }
       },
       "BlocklistLookupQuery": {
         "type": "object",
@@ -16593,6 +16967,28 @@
             "example": "CREDIT",
             "nullable": true
           },
+          "card_subtype": {
+            "type": "string",
+            "description": "The product the card is issued under, e.g. `CLASSIC` or `ELECTRON`",
+            "example": "CLASSIC",
+            "nullable": true
+          },
+          "card_segment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardSegmentType"
+              }
+            ],
+            "nullable": true
+          },
+          "funding_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FundingSource"
+              }
+            ],
+            "nullable": true
+          },
           "card_issuing_country": {
             "type": "string",
             "example": "INDIA",
@@ -16836,6 +17232,27 @@
             "type": "string",
             "description": "Card Type",
             "nullable": true
+          },
+          "card_subtype": {
+            "type": "string",
+            "description": "The product the card is issued under, e.g. `CLASSIC` or `ELECTRON`",
+            "nullable": true
+          },
+          "card_segment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardSegmentType"
+              }
+            ],
+            "nullable": true
+          },
+          "funding_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FundingSource"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -16904,6 +17321,26 @@
           },
           "card_type": {
             "type": "string",
+            "nullable": true
+          },
+          "card_subtype": {
+            "type": "string",
+            "nullable": true
+          },
+          "card_segment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardSegmentType"
+              }
+            ],
+            "nullable": true
+          },
+          "funding_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FundingSource"
+              }
+            ],
             "nullable": true
           },
           "saved_to_locker": {
@@ -17327,6 +17764,27 @@
             "type": "string",
             "nullable": true
           },
+          "card_subtype": {
+            "type": "string",
+            "description": "The product the card is issued under, e.g. `CLASSIC` or `ELECTRON`.",
+            "nullable": true
+          },
+          "card_segment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardSegmentType"
+              }
+            ],
+            "nullable": true
+          },
+          "funding_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FundingSource"
+              }
+            ],
+            "nullable": true
+          },
           "card_network": {
             "allOf": [
               {
@@ -17622,6 +18080,28 @@
           "card_type": {
             "type": "string",
             "example": "CREDIT",
+            "nullable": true
+          },
+          "card_subtype": {
+            "type": "string",
+            "description": "The product the card is issued under, e.g. `CLASSIC` or `ELECTRON`",
+            "example": "CLASSIC",
+            "nullable": true
+          },
+          "card_segment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardSegmentType"
+              }
+            ],
+            "nullable": true
+          },
+          "funding_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FundingSource"
+              }
+            ],
             "nullable": true
           },
           "card_issuing_country": {
@@ -18277,6 +18757,7 @@
           "signifyd",
           "plaid",
           "riskified",
+          "sanlam_payshield",
           "xendit",
           "zen",
           "zift",
@@ -22033,6 +22514,20 @@
           }
         }
       },
+      "EligibilityCardBin": {
+        "type": "object",
+        "description": "BIN-only input for the eligibility check. Enables BIN-level blocklist and profile-config\nblocking without the client having to share the full card number; fingerprint-level\n(exact-card) blocking requires the full card number via the `card` variant instead.",
+        "required": [
+          "card_bin"
+        ],
+        "properties": {
+          "card_bin": {
+            "type": "string",
+            "description": "The card BIN: the leading 6 to 10 digits of the card number",
+            "example": "42424242"
+          }
+        }
+      },
       "EligibilityOfferDetails": {
         "type": "object",
         "description": "Offer Engine eligibility details returned to the client.",
@@ -22064,6 +22559,18 @@
             "properties": {
               "card": {
                 "$ref": "#/components/schemas/EligibilityCard"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "EligibilityCardBin",
+            "required": [
+              "card_bin"
+            ],
+            "properties": {
+              "card_bin": {
+                "$ref": "#/components/schemas/EligibilityCardBin"
               }
             }
           },
@@ -24353,6 +24860,14 @@
           }
         }
       },
+      "GooglePayTokenizationSpecificationType": {
+        "type": "string",
+        "description": "The tokenization type sent to the Google Pay SDK.\n\nUnlike [`GooglePayTokenizationType`], this holds only the values Google itself understands:\nthe Hyperswitch-internal `INTERNAL_GATEWAY` marker is resolved into `PAYMENT_GATEWAY` during\nthe session flow before this is built, so it can never leak into an SDK response.",
+        "enum": [
+          "PAYMENT_GATEWAY",
+          "DIRECT"
+        ]
+      },
       "GooglePayWalletData": {
         "type": "object",
         "required": [
@@ -24482,6 +24997,14 @@
           "token": {
             "type": "string",
             "description": "Token generated for the wallet"
+          },
+          "auth_method": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GooglePayAuthMethod"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -24576,8 +25099,7 @@
         ],
         "properties": {
           "type": {
-            "type": "string",
-            "description": "The token specification type(ex: PAYMENT_GATEWAY)"
+            "$ref": "#/components/schemas/GooglePayTokenizationSpecificationType"
           },
           "parameters": {
             "$ref": "#/components/schemas/GpayTokenParameters"
@@ -28233,6 +28755,9 @@
           }
         }
       },
+      "NetellerData": {
+        "type": "object"
+      },
       "NetworkDetails": {
         "type": "object",
         "properties": {
@@ -28461,6 +28986,28 @@
           "card_type": {
             "type": "string",
             "example": "CREDIT",
+            "nullable": true
+          },
+          "card_subtype": {
+            "type": "string",
+            "description": "The product the card is issued under, e.g. `CLASSIC` or `ELECTRON`",
+            "example": "CLASSIC",
+            "nullable": true
+          },
+          "card_segment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardSegmentType"
+              }
+            ],
+            "nullable": true
+          },
+          "funding_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FundingSource"
+              }
+            ],
             "nullable": true
           },
           "card_issuing_country": {
@@ -32582,6 +33129,26 @@
           }
         }
       },
+      "PaymentMethodListResult": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ClientPaymentMethodsListResponse"
+          },
+          {
+            "type": "object",
+            "description": "Serializes as `{ \"error\": { ... } }` — the same envelope the HTTP layer puts around\n`ErrorResponse`, so this reads identically to the standalone endpoint's error body.",
+            "required": [
+              "error"
+            ],
+            "properties": {
+              "error": {
+                "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+              }
+            }
+          }
+        ],
+        "description": "The combined payment-method list, or the error that prevented it being built.\n\nSerialized untagged: a success is the listing object itself, a failure is `{ \"error\": {...} }`.\nGated on `errors` as well as `v1`: it holds [`crate::errors::types::ErrorResponse`], which\nlives behind that feature because it pulls in `reqwest`. `euclid_wasm` builds\n`api_models/v1` without `errors`, and cannot take `actix-web` in via that feature on a\nwasm target, so the section types simply do not exist there."
+      },
       "PaymentMethodMetaData": {
         "type": "object",
         "description": "Represents metadata about the payment method used in the 3DS decision rule.",
@@ -32861,6 +33428,7 @@
           "momo",
           "momo_atm",
           "multibanco",
+          "neteller",
           "online_banking_thailand",
           "online_banking_czech_republic",
           "online_banking_finland",
@@ -34529,6 +35097,22 @@
             "type": "string",
             "description": "Token containing encoded information for sdk authorization.",
             "example": "cHJvZmlsZV9pZD1wcm9mXzEyMyxwdWJsaXNoYWJsZV9rZXk9cGtfbGl2ZV8xMjM=",
+            "nullable": true
+          },
+          "payment_method_list": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodListResult"
+              }
+            ],
+            "nullable": true
+          },
+          "session_tokens": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SessionTokensResult"
+              }
+            ],
             "nullable": true
           },
           "connector": {
@@ -36367,6 +36951,22 @@
             "type": "string",
             "description": "Token containing encoded information for sdk authorization.",
             "example": "cHJvZmlsZV9pZD1wcm9mXzEyMyxwdWJsaXNoYWJsZV9rZXk9cGtfbGl2ZV8xMjM=",
+            "nullable": true
+          },
+          "payment_method_list": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodListResult"
+              }
+            ],
+            "nullable": true
+          },
+          "session_tokens": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SessionTokensResult"
+              }
+            ],
             "nullable": true
           },
           "connector": {
@@ -43963,6 +44563,7 @@
           "redsys",
           "revolv3",
           "riskified",
+          "sanlam_payshield",
           "santander",
           "shift4",
           "signifyd",
@@ -45452,6 +46053,26 @@
           }
         ]
       },
+      "SessionTokensResult": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/PaymentsSessionResponse"
+          },
+          {
+            "type": "object",
+            "description": "Serializes as `{ \"error\": { ... } }` — the same envelope the HTTP layer puts around\n`ErrorResponse`, so this reads identically to the standalone endpoint's error body.",
+            "required": [
+              "error"
+            ],
+            "properties": {
+              "error": {
+                "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+              }
+            }
+          }
+        ],
+        "description": "Wallet session tokens, or the error that prevented them being minted.\n\nSerialized untagged: a success is the whole `PaymentsSessionResponse` object, a failure is\n`{ \"error\": {...} }`.\nGated on `errors` as well as `v1` — see [`crate::payment_methods::PaymentMethodListResult`]."
+      },
       "SizeVariants": {
         "type": "string",
         "enum": [
@@ -46830,6 +47451,27 @@
               }
             ],
             "nullable": true
+          },
+          "card_subtype": {
+            "type": "string",
+            "description": "The product the card is issued under, e.g. `CLASSIC` or `ELECTRON`",
+            "nullable": true
+          },
+          "card_segment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardSegmentType"
+              }
+            ],
+            "nullable": true
+          },
+          "funding_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FundingSource"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -47973,9 +48615,9 @@
       "WalletAdditionalDataForCard": {
         "type": "object",
         "properties": {
-          "last4": {
+          "type": {
             "type": "string",
-            "description": "Last 4 digits of the card number",
+            "description": "The type of payment method",
             "nullable": true
           },
           "card_network": {
@@ -47983,9 +48625,50 @@
             "description": "The information of the payment method",
             "nullable": true
           },
-          "type": {
+          "card_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardType"
+              }
+            ],
+            "nullable": true
+          },
+          "card_subtype": {
             "type": "string",
-            "description": "The type of payment method",
+            "description": "The card's product/subtype, as returned by the connector",
+            "nullable": true
+          },
+          "card_segment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardSegmentType"
+              }
+            ],
+            "nullable": true
+          },
+          "funding_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FundingSource"
+              }
+            ],
+            "nullable": true
+          },
+          "last4": {
+            "type": "string",
+            "description": "Last 4 digits of the card number",
+            "nullable": true
+          },
+          "card_bin": {
+            "type": "string",
+            "description": "Bin of the underlying card",
+            "example": "411111",
+            "nullable": true
+          },
+          "device_pan_bin": {
+            "type": "string",
+            "description": "Bin of the DPAN (device PAN) obtained from decrypting the wallet payment data.",
+            "example": "411111",
             "nullable": true
           },
           "card_exp_month": {
@@ -47998,6 +48681,19 @@
             "type": "string",
             "description": "The card's expiry year",
             "example": "25",
+            "nullable": true
+          },
+          "issuer_name": {
+            "type": "string",
+            "description": "The name of the card issuer, as returned by the connector",
+            "nullable": true
+          },
+          "issuer_country": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              }
+            ],
             "nullable": true
           },
           "auth_code": {
@@ -48382,6 +49078,18 @@
             "properties": {
               "skrill": {
                 "$ref": "#/components/schemas/SkrillData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "Neteller",
+            "required": [
+              "neteller"
+            ],
+            "properties": {
+              "neteller": {
+                "$ref": "#/components/schemas/NetellerData"
               }
             }
           },

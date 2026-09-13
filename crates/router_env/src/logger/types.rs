@@ -263,6 +263,8 @@ pub enum Flow {
     RefundsRetrieveForceSync,
     /// Refunds update flow.
     RefundsUpdate,
+    /// Refunds reverse flow.
+    RefundsReverse,
     /// Refunds list flow.
     RefundsList,
     /// Refunds filters flow
@@ -349,6 +351,8 @@ pub enum Flow {
     GetBlocklistCount,
     /// Look up whether a value is present in the blocklist
     LookupBlocklistEntry,
+    /// Start a CSV export of the blocklist
+    CreateBlocklistExport,
     /// Incoming Webhook Receive
     IncomingWebhookReceive,
     /// Recovery incoming webhook receive

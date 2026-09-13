@@ -1539,7 +1539,8 @@ pub struct PublishableKey(LengthString<PUBLISHABLE_KEY_LENGTH, PUBLISHABLE_KEY_L
 impl PublishableKey {
     /// Create a new PublishableKey Domain type without any length check from a static str
     pub fn generate(env_prefix: &'static str) -> Self {
-        let publishable_key_string = format!("pk_{env_prefix}_{}", uuid::Uuid::now_v7().simple());
+        let publishable_key_string =
+            format!("pk_{env_prefix}_{}", crate::generate_uuid_v7().simple());
         Self(LengthString::new_unchecked(publishable_key_string))
     }
 
@@ -1603,6 +1604,11 @@ impl_enum_str!(
             /// merchant id of creator.
             merchant_id: String,
         },
+        /// AccountUpdater variant, for writes made while applying a reported card change
+        AccountUpdater {
+            /// account updater service that reported the change.
+            service: String,
+        },
     }
 );
 
@@ -1614,7 +1620,10 @@ impl CreatedBy {
             Self::Api { merchant_id } => id_type::MerchantId::wrap(merchant_id.clone())
                 .map(|parsed_merchant_id| parsed_merchant_id == *provider_merchant_id)
                 .unwrap_or_default(),
-            Self::Jwt { .. } | Self::Invalid | Self::EmbeddedToken { .. } => false,
+            Self::Jwt { .. }
+            | Self::Invalid
+            | Self::EmbeddedToken { .. }
+            | Self::AccountUpdater { .. } => false,
         }
     }
 }

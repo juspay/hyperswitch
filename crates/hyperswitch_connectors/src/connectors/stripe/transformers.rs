@@ -473,7 +473,7 @@ pub struct CustomerRequest {
 pub struct StripeCustomerResponse {
     pub id: String,
     pub description: Option<String>,
-    pub email: Option<String>,
+    pub email: Option<Email>,
     pub phone: Option<Secret<String>>,
     pub name: Option<Secret<String>>,
 }
@@ -975,6 +975,7 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             enums::PaymentMethodType::Boleto
             | enums::PaymentMethodType::Paysera
             | enums::PaymentMethodType::Skrill
+            | enums::PaymentMethodType::Neteller
             | enums::PaymentMethodType::CardRedirect
             | enums::PaymentMethodType::CryptoCurrency
             | enums::PaymentMethodType::Multibanco
@@ -1385,6 +1386,7 @@ fn get_stripe_payment_method_type_from_wallet_data(
         | WalletData::BluecodeRedirect {}
         | WalletData::Paysera(_)
         | WalletData::Skrill(_)
+        | WalletData::Neteller(_)
         | WalletData::AmazonPay(_)
         | WalletData::AliPayHkRedirect(_)
         | WalletData::MomoRedirect(_)
@@ -1923,6 +1925,7 @@ impl
             | WalletData::Paysera(_)
             | WalletData::BluecodeRedirect {}
             | WalletData::Skrill(_)
+            | WalletData::Neteller(_)
             | WalletData::AmazonPay(_)
             | WalletData::AliPayHkRedirect(_)
             | WalletData::MomoRedirect(_)
@@ -5455,9 +5458,7 @@ impl TryFrom<&SubmitEvidenceRouterData> for Evidence {
             cancellation_rebuttal: submit_evidence_request_data.cancellation_rebuttal,
             customer_communication: submit_evidence_request_data
                 .customer_communication_provider_file_id,
-            customer_email_address: submit_evidence_request_data
-                .customer_email_address
-                .map(Secret::new),
+            customer_email_address: submit_evidence_request_data.customer_email_address,
             customer_name: submit_evidence_request_data.customer_name.map(Secret::new),
             customer_purchase_ip: submit_evidence_request_data
                 .customer_purchase_ip

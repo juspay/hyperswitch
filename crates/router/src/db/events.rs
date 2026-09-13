@@ -2112,6 +2112,8 @@ mod tests {
         let primary_object_created_at = Some(common_utils::date_time::now());
         let expected_response = api::PaymentsResponse {
             payment_id,
+            payment_method_list: None,
+            session_tokens: None,
             status: IntentStatus::Succeeded,
             amount: MinorUnit::new(6540),
             amount_capturable: MinorUnit::new(0),
