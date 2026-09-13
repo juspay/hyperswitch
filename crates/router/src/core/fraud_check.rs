@@ -1,4 +1,4 @@
-#[cfg(all(feature = "payouts", feature = "v1"))]
+#[cfg(feature = "payouts")]
 use std::collections::HashSet;
 use std::fmt::Debug;
 
@@ -352,6 +352,30 @@ pub async fn pre_payouts_frm_core(
         }
         PayoutFrmApplicability::NotApplicable => Ok(PayoutFrmOutcome::Continue),
     }
+}
+
+#[cfg(all(feature = "payouts", feature = "v2"))]
+pub async fn should_call_payout_frm(
+    _state: &SessionState,
+    _platform: &domain::Platform,
+    _payout_data: &PayoutData,
+) -> RouterResult<PayoutFrmApplicability> {
+    // FRM routing algorithm is not present in the merchant account.
+    // It has to be fetched from the business profile.
+    todo!()
+}
+
+#[cfg(all(feature = "payouts", feature = "v2"))]
+pub async fn pre_payouts_frm_core(
+    _state: &SessionState,
+    _platform: &domain::Platform,
+    _payout_data: &mut PayoutData,
+    _connector_data: &ConnectorData,
+    _applicability: &PayoutFrmApplicability,
+    _failure_mode: &PreFrmFailureMode,
+) -> RouterResult<PayoutFrmOutcome> {
+    // Payout FRM execution for v2 will be implemented with v2 FRM routing.
+    todo!()
 }
 
 #[cfg(feature = "v2")]

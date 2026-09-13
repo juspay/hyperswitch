@@ -828,6 +828,8 @@ pub struct PaymentAttempt {
     pub applied_offer_details: Option<common_types::payments::AppliedOfferDetails>,
     /// Payment Account Reference (PAR) returned by the connector for the underlying card
     pub payment_account_reference: Option<String>,
+    /// Active fraud-check record associated with this payment attempt.
+    pub active_frm_id: Option<String>,
 }
 
 impl PaymentAttempt {
@@ -998,6 +1000,7 @@ impl PaymentAttempt {
             external_surcharge_details: None,
             applied_offer_details: None,
             payment_account_reference: None,
+            active_frm_id: None,
         })
     }
 
@@ -1095,6 +1098,7 @@ impl PaymentAttempt {
             external_surcharge_details: None,
             applied_offer_details: None,
             payment_account_reference: None,
+            active_frm_id: None,
         })
     }
 
@@ -1199,6 +1203,7 @@ impl PaymentAttempt {
             external_surcharge_details: None,
             applied_offer_details: None,
             payment_account_reference: None,
+            active_frm_id: None,
         })
     }
 
@@ -1331,6 +1336,7 @@ impl PaymentAttempt {
             external_surcharge_details: None,
             applied_offer_details: None,
             payment_account_reference: None,
+            active_frm_id: None,
         })
     }
 

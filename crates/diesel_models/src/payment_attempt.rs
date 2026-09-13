@@ -176,6 +176,7 @@ pub struct PaymentAttempt {
     pub fingerprint_type: Option<common_enums::FingerprintType>,
     /// Payment Account Reference (PAR) returned by the connector for the underlying payment method
     pub payment_account_reference: Option<String>,
+    pub active_frm_id: Option<String>,
     #[diesel(deserialize_as = RequiredFromNullable<storage_enums::PaymentMethod>)]
     pub payment_method_type_v2: storage_enums::PaymentMethod,
     pub connector_payment_id: Option<ConnectorTransactionId>,
@@ -477,6 +478,7 @@ pub struct PaymentAttemptNew {
     pub external_surcharge_details: Option<common_types::payments::ExternalSurchargeDetails>,
     pub applied_offer_details: Option<common_types::payments::AppliedOfferDetails>,
     pub payment_account_reference: Option<String>,
+    pub active_frm_id: Option<String>,
 }
 
 #[cfg(feature = "v1")]

@@ -1,21 +1,23 @@
-#[cfg(all(feature = "payouts", feature = "v1"))]
+#[cfg(feature = "payouts")]
 use std::collections::HashSet;
 
+#[cfg(all(feature = "payouts", feature = "v1"))]
+use api_models::payouts::PayoutMethodData;
 use api_models::{
     enums as api_enums,
     enums::{PaymentMethod, PaymentMethodType},
     payments::Amount,
-    payouts::PayoutMethodData,
     refunds::RefundResponse,
 };
 use common_enums::{FrmSuggestion, PreFrmFailureMode};
 use common_utils::pii::SecretSerdeValue;
 use hyperswitch_domain_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
+#[cfg(all(feature = "payouts", feature = "v1"))]
+use hyperswitch_domain_models::{
+    address::Address as PayoutAddress, customer::Customer, payouts::payout_attempt::PayoutAttempt,
+};
 pub use hyperswitch_domain_models::{
-    address::Address as PayoutAddress,
-    customer::Customer,
     merchant_connector_account::MerchantConnectorAccount,
-    payouts::payout_attempt::PayoutAttempt,
     router_request_types::fraud_check::{
         Address, Destination, FrmFulfillmentRequest, FulfillmentStatus, Fulfillments, Product,
     },
@@ -98,6 +100,7 @@ pub struct PaymentToFrmData {
     pub frm_metadata: Option<SecretSerdeValue>,
 }
 
+#[cfg(all(feature = "payouts", feature = "v1"))]
 #[derive(Clone, Debug)]
 pub struct PayoutFrmData {
     pub fraud_check: FraudCheck,
@@ -109,6 +112,7 @@ pub struct PayoutFrmData {
     pub billing_address: Option<PayoutAddress>,
 }
 
+#[cfg(all(feature = "payouts", feature = "v1"))]
 impl PayoutFrmData {
     pub fn should_cancel_payout(&self, failure_mode: &PreFrmFailureMode) -> bool {
         matches!(self.fraud_check.frm_status, FraudCheckStatus::Fraud)
@@ -127,7 +131,7 @@ impl PayoutFrmData {
     }
 }
 
-#[cfg(all(feature = "payouts", feature = "v1"))]
+#[cfg(feature = "payouts")]
 #[derive(Debug, Clone)]
 pub enum PayoutFrmApplicability {
     Applicable {
@@ -137,7 +141,7 @@ pub enum PayoutFrmApplicability {
     NotApplicable,
 }
 
-#[cfg(all(feature = "payouts", feature = "v1"))]
+#[cfg(feature = "payouts")]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PayoutFrmOutcome {
     Continue,
