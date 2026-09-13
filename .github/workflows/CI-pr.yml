@@ -124,6 +124,7 @@ jobs:
       - name: Install rust cache
         uses: Swatinem/rust-cache@v2.9.1
         with:
+          shared-key: msrv
           save-if: false
 
       - name: Run cargo check
@@ -135,8 +136,6 @@ jobs:
     runs-on: hyperswitch-runners
 
     env:
-      # Use `sccache` for caching compilation artifacts
-      RUSTC_WRAPPER: sccache
       RUSTFLAGS: "-D warnings"
 
     steps:
@@ -177,11 +176,11 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install sccache
-        uses: taiki-e/install-action@v2
+      - name: Install rust cache
+        uses: Swatinem/rust-cache@v2.9.1
         with:
-          tool: sccache
-          checksum: true
+          shared-key: stable-v1
+          save-if: false
 
       - name: Install just
         uses: taiki-e/install-action@v2
@@ -253,10 +252,6 @@ jobs:
     name: Check compilation for V2 features
     runs-on: hyperswitch-runners
 
-    env:
-      # Use `sccache` for caching compilation artifacts
-      RUSTC_WRAPPER: sccache
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -278,11 +273,11 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install sccache
-        uses: taiki-e/install-action@v2
+      - name: Install rust cache
+        uses: Swatinem/rust-cache@v2.9.1
         with:
-          tool: sccache
-          checksum: true
+          shared-key: stable-v2
+          save-if: false
 
       - name: Install just
         uses: taiki-e/install-action@v2
