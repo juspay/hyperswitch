@@ -149,7 +149,7 @@ impl TryFrom<&FrmCheckoutRouterData> for SanlamPayshieldCheckoutRequest {
                 amount_in_cents: data.request.amount,
                 currency,
                 payment_method_type,
-                created_at: get_current_time()?,
+                created_at,
             },
             metadata: data.frm_metadata.clone(),
         })
@@ -163,6 +163,7 @@ impl TryFrom<&PoFrmRouterData> for SanlamPayshieldCheckoutRequest {
         let SanlamPayshieldFrmMetadata {
             profile_id,
             connector_id,
+            created_at,
         } = data
             .request
             .gateway_metadata
@@ -193,6 +194,14 @@ impl TryFrom<&PoFrmRouterData> for SanlamPayshieldCheckoutRequest {
             .ok_or(ConnectorError::MissingRequiredField {
                 field_name: "payout_id".into(),
             })?;
+
+        let created_at = created_at
+            .assume_utc()
+            .to_offset(time::macros::offset!(+2))
+            .format(time::macros::format_description!(
+                "[year]-[month]-[day]T[hour]:[minute]:[second][offset_hour sign:mandatory]:[offset_minute]"
+            ))
+            .change_context(ConnectorError::RequestEncodingFailed)?;
 
         Ok(Self {
             request_id: data.connector_request_reference_id.clone(),

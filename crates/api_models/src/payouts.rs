@@ -15,7 +15,8 @@ use common_utils::{
 };
 use hyperswitch_masking::Secret;
 #[cfg(feature = "v1")]
-use payments::{BrowserInformation, FrmMessage};
+use payments::BrowserInformation;
+use payments::FrmMessage;
 use router_derive::FlatStruct;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;

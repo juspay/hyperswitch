@@ -492,8 +492,7 @@ impl<T: DatabaseStore> PayoutAttemptInterface for crate::RouterStore<T> {
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PayoutAttempt, errors::StorageError> {
         let conn = pg_connection_write(self).await?;
-        new.to_storage_model()
-            .insert(&conn)
+        Box::pin(new.to_storage_model().insert(&conn))
             .await
             .map_err(|er| {
                 let new_err = diesel_error_to_data_error(*er.current_context());
@@ -511,15 +510,17 @@ impl<T: DatabaseStore> PayoutAttemptInterface for crate::RouterStore<T> {
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PayoutAttempt, errors::StorageError> {
         let conn = pg_connection_write(self).await?;
-        this.clone()
-            .to_storage_model()
-            .update_with_attempt_id(&conn, payout.to_storage_model())
-            .await
-            .map_err(|er| {
-                let new_err = diesel_error_to_data_error(*er.current_context());
-                er.change_context(new_err)
-            })
-            .map(PayoutAttempt::from_storage_model)
+        Box::pin(
+            this.clone()
+                .to_storage_model()
+                .update_with_attempt_id(&conn, payout.to_storage_model()),
+        )
+        .await
+        .map_err(|er| {
+            let new_err = diesel_error_to_data_error(*er.current_context());
+            er.change_context(new_err)
+        })
+        .map(PayoutAttempt::from_storage_model)
     }
 
     #[instrument(skip_all)]

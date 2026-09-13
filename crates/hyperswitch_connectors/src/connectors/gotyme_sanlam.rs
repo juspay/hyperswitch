@@ -588,6 +588,7 @@ impl ConnectorSpecifications for GotymeSanlam {
                 .merchant_connector_id
                 .as_ref()
                 .map(|id| id.get_string_repr().to_owned()),
+            created_at: payout_attempt.created_at,
         };
         serde_json::to_value(metadata)
             .change_context(errors::ConnectorError::RequestEncodingFailed)
