@@ -1,3 +1,8 @@
+//! Health handlers. The route tree that mounts them is in [`crate::routes::app`].
+//!
+//! Liveness only. A readiness check that dials the chat provider and the mail backend sounds
+//! thorough and turns every third-party blip into a restart loop; the point of this service is to
+//! be up when its dependencies are flaky.
 use std::time::Duration;
 
 use actix_web::web;
