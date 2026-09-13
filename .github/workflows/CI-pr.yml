@@ -125,7 +125,11 @@ jobs:
         uses: Swatinem/rust-cache@v2.9.1
         with:
           shared-key: msrv
-          save-if: false
+          # TEMPORARY - REMOVE BEFORE MERGE.
+          # Lets this branch exercise save+restore without waiting for a merge to main.
+          # Guarded by branch name, so it stays inert for every other PR even if it leaks.
+          save-if: ${{ github.head_ref == 'ci/fix-rust-build-cache' }}
+          cache-on-failure: true
 
       - name: Run cargo check
         shell: bash
@@ -180,7 +184,11 @@ jobs:
         uses: Swatinem/rust-cache@v2.9.1
         with:
           shared-key: stable-v1
-          save-if: false
+          # TEMPORARY - REMOVE BEFORE MERGE.
+          # Lets this branch exercise save+restore without waiting for a merge to main.
+          # Guarded by branch name, so it stays inert for every other PR even if it leaks.
+          save-if: ${{ github.head_ref == 'ci/fix-rust-build-cache' }}
+          cache-on-failure: true
 
       - name: Install just
         uses: taiki-e/install-action@v2
@@ -277,7 +285,11 @@ jobs:
         uses: Swatinem/rust-cache@v2.9.1
         with:
           shared-key: stable-v2
-          save-if: false
+          # TEMPORARY - REMOVE BEFORE MERGE.
+          # Lets this branch exercise save+restore without waiting for a merge to main.
+          # Guarded by branch name, so it stays inert for every other PR even if it leaks.
+          save-if: ${{ github.head_ref == 'ci/fix-rust-build-cache' }}
+          cache-on-failure: true
 
       - name: Install just
         uses: taiki-e/install-action@v2
