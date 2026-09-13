@@ -210,6 +210,7 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::blocklist::upload_batch_blocklist,
         routes::blocklist::get_batch_blocklist_job_status,
         routes::blocklist::list_batch_blocklist_jobs,
+        routes::blocklist::create_blocklist_export,
 
         // Routes for payouts
         routes::payouts::payouts_create,
@@ -1040,7 +1041,9 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::blocklist::BatchBlocklistJobStatusResponse,
         api_models::blocklist::ListBatchBlocklistJobsResponse,
         api_models::blocklist::BlocklistRowError,
+        api_models::blocklist::BlocklistExportResponse,
         api_models::enums::BatchBlocklistJobStatus,
+        api_models::enums::BatchBlocklistJobType,
         api_models::enums::BlocklistDataKind,
         api_models::enums::ErrorCategory,
         api_models::webhook_events::EventListConstraints,

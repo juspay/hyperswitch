@@ -1472,9 +1472,13 @@ where
 
     let mut ordered = vec![predetermined.clone()];
     for choice in candidates {
+        // An unpinned plan entry (`None`) refers to the connector that just ran; skip it so
+        // it is not appended again and retried on the same connector.
         let is_current_connector = choice.connector.to_string()
             == predetermined.connector_data.connector_name.to_string()
-            && choice.merchant_connector_id == predetermined.connector_data.merchant_connector_id;
+            && (choice.merchant_connector_id.is_none()
+                || choice.merchant_connector_id
+                    == predetermined.connector_data.merchant_connector_id);
         if is_current_connector {
             continue;
         }
