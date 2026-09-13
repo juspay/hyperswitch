@@ -16,6 +16,7 @@ use crate::{types::ResponseRouterData, utils};
 pub struct AbsaSanlamFrmMetadata {
     pub profile_id: String,
     pub connector_id: Option<String>,
+    pub created_at: time::PrimitiveDateTime,
 }
 
 pub struct AbsaSanlamAuthType {
