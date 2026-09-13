@@ -1217,7 +1217,7 @@ pub async fn relay_unreferenced_refund(
     let connector_resource_id = request
         .connector_resource_id
         .clone()
-        .unwrap_or_else(|| format!("internal_{}", uuid::Uuid::now_v7()));
+        .unwrap_or_else(|| format!("internal_{}", common_utils::generate_uuid_v7()));
 
     let (updated_relay, connector_name, raw_connector_response) =
         process_relay_unreferenced_refund(

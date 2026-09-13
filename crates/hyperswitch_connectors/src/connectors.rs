@@ -120,6 +120,7 @@ pub mod redsys;
 pub mod revolv3;
 pub mod riskified;
 pub mod saferpay;
+pub mod sanlam_payshield;
 pub mod santander;
 pub mod shift4;
 pub mod sift;
@@ -190,11 +191,11 @@ pub use self::{
     peachpayments::Peachpayments, phonepe::Phonepe, placetopay::Placetopay, plaid::Plaid,
     powertranz::Powertranz, prophetpay::Prophetpay, rapyd::Rapyd, razorpay::Razorpay,
     recurly::Recurly, redsys::Redsys, revolv3::Revolv3, riskified::Riskified, saferpay::Saferpay,
-    santander::Santander, shift4::Shift4, sift::Sift, signifyd::Signifyd, silverflow::Silverflow,
-    square::Square, stax::Stax, stripe::Stripe, stripebilling::Stripebilling, taxjar::Taxjar,
-    tesouro::Tesouro, threedsecureio::Threedsecureio, thunes::Thunes, tokenex::Tokenex,
-    tokenio::Tokenio, truelayer::Truelayer, trustly::Trustly, trustpay::Trustpay,
-    trustpayments::Trustpayments, tsys::Tsys, tsys_transit::TsysTransit,
+    sanlam_payshield::SanlamPayshield, santander::Santander, shift4::Shift4, sift::Sift,
+    signifyd::Signifyd, silverflow::Silverflow, square::Square, stax::Stax, stripe::Stripe,
+    stripebilling::Stripebilling, taxjar::Taxjar, tesouro::Tesouro, threedsecureio::Threedsecureio,
+    thunes::Thunes, tokenex::Tokenex, tokenio::Tokenio, truelayer::Truelayer, trustly::Trustly,
+    trustpay::Trustpay, trustpayments::Trustpayments, tsys::Tsys, tsys_transit::TsysTransit,
     unified_authentication_service::UnifiedAuthenticationService, vgs::Vgs, volt::Volt,
     wellsfargo::Wellsfargo, wellsfargopayout::Wellsfargopayout, wise::Wise, worldline::Worldline,
     worldpay::Worldpay, worldpaymodular::Worldpaymodular, worldpayraft::Worldpayraft,
