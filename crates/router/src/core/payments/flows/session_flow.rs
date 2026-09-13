@@ -5,6 +5,7 @@ use api_models::{
 use async_trait::async_trait;
 use common_utils::{
     ext_traits::ByteSliceExt,
+    fp_utils,
     request::RequestContent,
     types::{AmountConvertor, StringMajorUnitForConnector},
 };
@@ -85,6 +86,10 @@ impl
         payment_method: Option<common_enums::PaymentMethod>,
         payment_method_type: Option<common_enums::PaymentMethodType>,
     ) -> RouterResult<types::PaymentsSessionRouterData> {
+        fp_utils::when(merchant_connector_account.is_disabled(), || {
+            Err(errors::ApiErrorResponse::MerchantConnectorAccountDisabled)
+        })?;
+
         Box::pin(transformers::construct_payment_router_data::<
             api::Session,
             types::PaymentsSessionData,

@@ -1971,10 +1971,6 @@ where
     error_stack::Report<errors::ApiErrorResponse>:
         From<<T as TryFrom<PaymentAdditionalData<'a, F>>>::Error>,
 {
-    fp_utils::when(merchant_connector_account.is_disabled(), || {
-        Err(errors::ApiErrorResponse::MerchantConnectorAccountDisabled)
-    })?;
-
     let test_mode = merchant_connector_account.is_test_mode_on();
 
     let auth_type: types::ConnectorAuthType = merchant_connector_account

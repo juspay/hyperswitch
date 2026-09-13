@@ -211,6 +211,7 @@ pub enum Connector {
     Signifyd,
     Plaid,
     Riskified,
+    SanlamPayshield,
     Xendit,
     Zen,
     Zift,
@@ -452,6 +453,7 @@ impl Connector {
             | Self::Plaid
             | Self::Razorpay
             | Self::Riskified
+            | Self::SanlamPayshield
             | Self::Threedsecureio
             | Self::Netcetera
             | Self::CtpMastercard
