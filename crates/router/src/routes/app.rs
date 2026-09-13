@@ -1997,6 +1997,9 @@ impl Blocklist {
                 web::resource("/batch/{job_id}")
                     .route(web::get().to(blocklist::get_batch_blocklist_job_status)),
             )
+            .service(
+                web::resource("/export").route(web::post().to(blocklist::create_blocklist_export)),
+            )
     }
 }
 
