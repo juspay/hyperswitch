@@ -278,9 +278,12 @@
                       "v1/blocklist/post-blocklist",
                       "v1/blocklist/delete-blocklist",
                       "v1/blocklist/post-blocklisttoggle",
+                      "v1/blocklist/blocklist--count",
+                      "v1/blocklist/blocklist--lookup",
                       "v1/blocklist/blocklist--batch-upload",
                       "v1/blocklist/blocklist--batch-list",
-                      "v1/blocklist/blocklist--batch-status"
+                      "v1/blocklist/blocklist--batch-status",
+                      "v1/blocklist/blocklist--export-create"
                     ]
                   },
                   {

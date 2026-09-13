@@ -333,6 +333,7 @@ pub enum RoutableConnectors {
     Redsys,
     Revolv3,
     Riskified,
+    SanlamPayshield,
     Santander,
     Shift4,
     Signifyd,
@@ -496,6 +497,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Santander => Ok(Self::Santander),
             Connector::Shift4 => Ok(Self::Shift4),
             Connector::Signifyd => Ok(Self::Signifyd),
+            Connector::SanlamPayshield => Ok(Self::SanlamPayshield),
             Connector::Silverflow => Ok(Self::Silverflow),
             Connector::Square => Ok(Self::Square),
             Connector::Stax => Ok(Self::Stax),
@@ -715,6 +717,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Vgs => Self::Vgs,
             RoutableConnectors::Cardinal => Self::Cardinal,
             RoutableConnectors::Threedsecureio => Self::Threedsecureio,
+            RoutableConnectors::SanlamPayshield => Self::SanlamPayshield,
         }
     }
 }
