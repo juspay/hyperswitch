@@ -1758,6 +1758,7 @@ impl PaymentCreate {
                 applied_offer_details: None,
                 sender_payment_instrument_id: None,
                 payment_account_reference: None,
+                active_frm_id: None,
             },
             additional_pm_data,
 

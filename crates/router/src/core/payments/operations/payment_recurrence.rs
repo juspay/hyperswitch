@@ -607,6 +607,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         let m_error_code = error_code.clone();
         let m_error_message = error_message.clone();
         let m_error_reason = error_message.clone();
+        let m_active_frm_id = payment_data
+            .frm_message
+            .as_ref()
+            .map(|fraud_check| fraud_check.frm_id.clone());
         let m_db = state.clone().store;
         let cloned_key_store = key_store.clone();
         let payment_attempt_fut = tokio::spawn(
@@ -623,6 +627,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                             .payment_attempt
                             .connector_mandate_detail
                             .clone(),
+                        active_frm_id: m_active_frm_id,
                     },
                     storage_scheme,
                     &cloned_key_store,

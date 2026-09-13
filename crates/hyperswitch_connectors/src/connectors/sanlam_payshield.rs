@@ -12,12 +12,12 @@ use hyperswitch_domain_models::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
         refunds::{Execute, RSync},
-        Checkout, Fulfillment, RecordReturn, Sale, Transaction,
+        Checkout, Fulfillment, PoFrm, RecordReturn, Sale, Transaction,
     },
     router_request_types::{
         fraud_check::{
-            FraudCheckCheckoutData, FraudCheckFulfillmentData, FraudCheckRecordReturnData,
-            FraudCheckSaleData, FraudCheckTransactionData,
+            FraudCheckCheckoutData, FraudCheckFulfillmentData, FraudCheckPayoutData,
+            FraudCheckRecordReturnData, FraudCheckSaleData, FraudCheckTransactionData,
         },
         AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
@@ -31,9 +31,9 @@ use hyperswitch_interfaces::{
     api::{
         ConnectorAccessToken, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration,
         ConnectorSpecifications, ConnectorValidation, FraudCheck, FraudCheckCheckout,
-        FraudCheckFulfillment, FraudCheckRecordReturn, FraudCheckSale, FraudCheckTransaction,
-        MandateSetup, Payment, PaymentAuthorize, PaymentCapture, PaymentSession, PaymentSync,
-        PaymentToken, PaymentVoid, Refund, RefundExecute, RefundSync,
+        FraudCheckFulfillment, FraudCheckPayout, FraudCheckRecordReturn, FraudCheckSale,
+        FraudCheckTransaction, MandateSetup, Payment, PaymentAuthorize, PaymentCapture,
+        PaymentSession, PaymentSync, PaymentToken, PaymentVoid, Refund, RefundExecute, RefundSync,
     },
     configs::Connectors,
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
@@ -47,7 +47,9 @@ use transformers as sanlam_payshield;
 
 use crate::{
     constants::headers,
-    types::{FrmCheckoutRouterData, FrmCheckoutType, ResponseRouterData},
+    types::{
+        FrmCheckoutRouterData, FrmCheckoutType, PoFrmRouterData, PoFrmType, ResponseRouterData,
+    },
 };
 
 #[derive(Clone)]
@@ -206,7 +208,89 @@ impl ConnectorIntegration<Checkout, FraudCheckCheckoutData, FraudCheckResponseDa
         event_builder.map(|event| event.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        FrmCheckoutRouterData::try_from(ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
+impl ConnectorIntegration<PoFrm, FraudCheckPayoutData, FraudCheckResponseData> for SanlamPayshield {
+    fn get_headers(
+        &self,
+        req: &PoFrmRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &PoFrmRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, ConnectorError> {
+        let merchant_id = _req.merchant_id.get_string_repr();
+        Ok(format!(
+            "{}/payshield/v1/check/{}",
+            self.base_url(connectors).to_owned(),
+            merchant_id
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &PoFrmRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, ConnectorError> {
+        Ok(RequestContent::Json(Box::new(
+            sanlam_payshield::SanlamPayshieldCheckoutRequest::try_from(req)?,
+        )))
+    }
+
+    fn build_request(
+        &self,
+        req: &PoFrmRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&PoFrmType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(PoFrmType::get_headers(self, req, connectors)?)
+                .set_body(PoFrmType::get_request_body(self, req, connectors)?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &PoFrmRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PoFrmRouterData, ConnectorError> {
+        let response: sanlam_payshield::SanlamPayshieldCheckoutResponse = res
+            .response
+            .parse_struct("SanlamPayshieldCheckoutResponse")
+            .change_context(ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|event| event.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -242,7 +326,7 @@ impl FraudCheckSale for SanlamPayshield {}
 impl FraudCheckTransaction for SanlamPayshield {}
 impl FraudCheckFulfillment for SanlamPayshield {}
 impl FraudCheckRecordReturn for SanlamPayshield {}
-
+impl FraudCheckPayout for SanlamPayshield {}
 impl Payment for SanlamPayshield {}
 impl PaymentSession for SanlamPayshield {}
 impl ConnectorAccessToken for SanlamPayshield {}

@@ -95,20 +95,18 @@ impl GetTracker<PaymentToFrmData> for FraudCheckPre {
             .encode_to_value()
             .ok();
 
-        let existing_fraud_check = db
-            .find_fraud_check_by_payment_id_if_present(
-                payment_data.payment_intent.get_id().to_owned(),
-                payment_data.merchant_account.get_id().clone(),
-            )
-            .await
-            .ok();
-
-        let fraud_check = match existing_fraud_check {
-            Some(Some(fraud_check)) => Ok(fraud_check),
-            _ => {
+        let fraud_check = match payment_data.payment_attempt.active_frm_id.clone() {
+            Some(frm_id) => {
+                db.find_fraud_check_by_frm_id(
+                    frm_id,
+                    payment_data.merchant_account.get_id().clone(),
+                )
+                .await
+            }
+            None => {
                 db.insert_fraud_check_response(FraudCheckNew {
                     frm_id: common_utils::generate_uuid_v4().simple().to_string(),
-                    payment_id: payment_data.payment_intent.get_id().to_owned(),
+                    payment_id: Some(payment_data.payment_intent.get_id().to_owned()),
                     merchant_id: payment_data.merchant_account.get_id().clone(),
                     processor_merchant_id: Some(
                         payment_data.payment_intent.processor_merchant_id.clone(),
@@ -128,6 +126,7 @@ impl GetTracker<PaymentToFrmData> for FraudCheckPre {
                     last_step: FraudCheckLastStep::Processing,
                     payment_capture_method: payment_data.payment_attempt.capture_method,
                     created_by: None,
+                    payout_id: None,
                 })
                 .await
             }
@@ -395,7 +394,7 @@ where
         let db = &*state.store;
         frm_data.fraud_check = match frm_check_update {
             Some(fraud_check_update) => db
-                .update_fraud_check_response_with_attempt_id(
+                .update_fraud_check_response_with_frm_id(
                     frm_data.clone().fraud_check,
                     fraud_check_update,
                 )

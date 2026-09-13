@@ -24211,8 +24211,7 @@
         "type": "object",
         "description": "Details of FrmConfigs are mentioned here... it should be passed in payment connector create api call, and stored in merchant_connector_table",
         "required": [
-          "gateway",
-          "payment_methods"
+          "gateway"
         ],
         "properties": {
           "gateway": {
@@ -24224,6 +24223,13 @@
               "$ref": "#/components/schemas/FrmPaymentMethod"
             },
             "description": "payment methods that can be used in the payment"
+          },
+          "payout_types": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FrmPayoutType"
+            },
+            "description": "payout types for which fraud checks are enabled"
           }
         },
         "additionalProperties": false
@@ -24315,6 +24321,23 @@
           },
           "action": {
             "$ref": "#/components/schemas/FrmAction"
+          }
+        },
+        "additionalProperties": false
+      },
+      "FrmPayoutType": {
+        "type": "object",
+        "description": "Payout type configuration for a fraud-check connector.",
+        "required": [
+          "payout_type",
+          "flow"
+        ],
+        "properties": {
+          "payout_type": {
+            "$ref": "#/components/schemas/PayoutType"
+          },
+          "flow": {
+            "$ref": "#/components/schemas/FrmPreferredFlowTypes"
           }
         },
         "additionalProperties": false
@@ -39050,6 +39073,14 @@
             "type": "string",
             "description": "If there was an error while calling the connectors the code is received here",
             "example": "E0001",
+            "nullable": true
+          },
+          "frm_message": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FrmMessage"
+              }
+            ],
             "nullable": true
           },
           "profile_id": {

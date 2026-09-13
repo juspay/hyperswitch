@@ -2855,6 +2855,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             payment_data.mandate_id.is_some(),
             payment_data.payment_attempt.is_stored_credential,
         );
+        let m_active_frm_id = payment_data
+            .frm_message
+            .as_ref()
+            .map(|fraud_check| fraud_check.frm_id.clone());
         let cloned_key_store = key_store.clone();
         let payment_attempt_fut = tokio::spawn(
             async move {
@@ -2938,6 +2942,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                             .payment_attempt
                             .applied_offer_details
                             .clone(),
+                        active_frm_id: m_active_frm_id,
                     },
                     storage_scheme,
                     &cloned_key_store,

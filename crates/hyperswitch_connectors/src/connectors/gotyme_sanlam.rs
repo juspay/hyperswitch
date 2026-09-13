@@ -576,4 +576,21 @@ impl ConnectorSpecifications for GotymeSanlam {
     ) -> String {
         common_utils::generate_uuid_v4().to_string()
     }
+
+    #[cfg(feature = "frm")]
+    fn get_payout_frm_metadata(
+        &self,
+        payout_attempt: &hyperswitch_domain_models::payouts::payout_attempt::PayoutAttempt,
+    ) -> CustomResult<Option<common_utils::pii::SecretSerdeValue>, errors::ConnectorError> {
+        let metadata = gotyme_sanlam::GotymeSanlamFrmMetadata {
+            profile_id: payout_attempt.profile_id.get_string_repr().to_owned(),
+            connector_id: payout_attempt
+                .merchant_connector_id
+                .as_ref()
+                .map(|id| id.get_string_repr().to_owned()),
+        };
+        serde_json::to_value(metadata)
+            .change_context(errors::ConnectorError::RequestEncodingFailed)
+            .map(|value| Some(hyperswitch_masking::Secret::new(value)))
+    }
 }

@@ -887,6 +887,7 @@ pub fn make_new_auto_retry_payment_attempt(
         applied_offer_details: old_payment_attempt.applied_offer_details,
         sender_payment_instrument_id: Default::default(),
         payment_account_reference: Default::default(),
+        active_frm_id: old_payment_attempt.active_frm_id,
     }
 }
 

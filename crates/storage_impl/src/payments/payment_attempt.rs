@@ -823,6 +823,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                         .sender_payment_instrument_id
                         .clone(),
                     payment_account_reference: payment_attempt.payment_account_reference.clone(),
+                    active_frm_id: payment_attempt.active_frm_id.clone(),
                 };
                 let payment_attempt_new = payment_attempt
                     .clone()

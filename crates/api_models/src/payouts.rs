@@ -15,7 +15,7 @@ use common_utils::{
 };
 use hyperswitch_masking::Secret;
 #[cfg(feature = "v1")]
-use payments::BrowserInformation;
+use payments::{BrowserInformation, FrmMessage};
 use router_derive::FlatStruct;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -936,6 +936,10 @@ pub struct PayoutCreateResponse {
     /// If there was an error while calling the connectors the code is received here
     #[schema(value_type = Option<String>, example = "E0001")]
     pub error_code: Option<String>,
+
+    /// FRM response information when fraud checks were invoked for this payout
+    #[schema(value_type = Option<FrmMessage>)]
+    pub frm_message: Option<FrmMessage>,
 
     /// The business profile that is associated with this payout
     #[schema(value_type = String)]
