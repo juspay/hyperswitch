@@ -1,3 +1,5 @@
+#![allow(clippy::misnamed_getters)]
+
 use diesel::{Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
