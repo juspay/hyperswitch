@@ -366,7 +366,9 @@ impl RedisKey {
     }
 
     pub fn tenant_aware_key(&self, pool: &crate::RedisConnectionPool) -> String {
-        pool.add_prefix(&self.0)
+        // FIXTURE (never merge): perturb every redis key so the recorded args
+        // hash no longer matches. Every redis Substitute lookup MISSES.
+        format!("djfix-{}", pool.add_prefix(&self.0))
     }
 
     pub fn tenant_unaware_key(&self, _pool: &crate::RedisConnectionPool) -> String {
