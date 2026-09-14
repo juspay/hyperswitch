@@ -98,7 +98,7 @@ fn multipart_config(max_upload_bytes: usize) -> MultipartFormConfig {
         })
 }
 
-/// Liveness, deliberately unauthenticated.
+/// Liveness and database readiness, deliberately unauthenticated.
 pub struct Health;
 
 impl Health {

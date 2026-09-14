@@ -37,10 +37,9 @@ The binary keeps the crate's name, so the Dockerfile takes `BINARY=observability
 
 ## Versioning
 
-`observability` has **no `v1`/`v2` feature flags**. The API version duality is the router's
-concern, and this crate stays out of it by not depending on any version-flavoured type. Keep it
-that way: adding a dependency on `diesel_models` or `hyperswitch_domain_models` would drag the
-feature matrix in with it.
+`observability` uses no version-flavoured type. Its `v1` (default) and `v2` features only select
+the flavour its shared dependencies compile with: `common_utils`, `diesel_models`,
+`external_services` and `hyperswitch_interfaces`.
 
 ## Configuration
 
@@ -50,6 +49,12 @@ overridden by an environment variable prefixed `OBSERVABILITY__`, with `__` sepa
 
 Configuration is validated at boot and startup fails loudly on a missing internal API key, rather
 than on the first request.
+
+`[database]` is the Postgres database holding the observability tables. It can be omitted: `host`
+and `port` default to `localhost:5432`, `pool_size` to 5, `connection_timeout` to 10 seconds, and
+`dbname`, `username` and `password` to empty. Boot fails only on an empty host or a zero port, pool
+size or connection timeout. The pool connects lazily, so an unreachable database does not stop the
+service from starting; it shows as `503` on `/health/ready`.
 
 ## Authentication
 
@@ -91,6 +96,7 @@ The whole surface, guarded and not:
 | `POST` | `/alerts/chat/upload/{destination}` | `X-Internal-Api-Key` |
 | `POST` | `/alerts/email/notify/{destination}` | `X-Internal-Api-Key` |
 | `GET` | `/health` | none — liveness |
+| `GET` | `/health/ready` | none — readiness: `200` when a database connection is taken within 900 ms, otherwise `503` |
 
 The scope is `/alerts` rather than `/observability`: it names the resource being posted, not the
 service, so it stays correct as the crate widens past delivery.
