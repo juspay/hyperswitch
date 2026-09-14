@@ -79,13 +79,13 @@ impl AlertsConfig {
                 web::scope("/mappers")
                     .service(
                         web::resource("")
-                            .route(web::get().to(mappers::list_mappers))
-                            .route(web::post().to(mappers::save_mapper)),
+                            .route(web::get().to(mappers::mapper_list))
+                            .route(web::post().to(mappers::mapper_save)),
                     )
                     .service(
                         web::resource("/{name}/{key}")
-                            .route(web::get().to(mappers::read_mapper))
-                            .route(web::delete().to(mappers::delete_mapper)),
+                            .route(web::get().to(mappers::mapper_retrieve))
+                            .route(web::delete().to(mappers::mapper_delete)),
                     ),
             )
             .service(
@@ -114,8 +114,8 @@ impl AlertsConfig {
             .service(
                 web::scope("/notifications").service(
                     web::resource("/read")
-                        .route(web::get().to(notifications::read_watermark))
-                        .route(web::post().to(notifications::mark_read)),
+                        .route(web::get().to(notifications::notification_watermark_retrieve))
+                        .route(web::post().to(notifications::notification_watermark_upsert)),
                 ),
             )
     }

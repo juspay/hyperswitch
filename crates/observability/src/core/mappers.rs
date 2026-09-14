@@ -35,7 +35,7 @@ pub async fn list_mappers(state: AppState) -> ObservabilityApiResult<MapperEntry
     })
 }
 
-pub async fn read_mapper(
+pub async fn retrieve_mapper(
     state: AppState,
     name: String,
     key: String,

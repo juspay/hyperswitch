@@ -8,7 +8,7 @@ use crate::{
     types::notifications::NotificationWatermarkResponse,
 };
 
-pub async fn read_watermark(
+pub async fn retrieve_notification_watermark(
     state: AppState,
     user_name: UserName,
 ) -> ObservabilityApiResult<NotificationWatermarkResponse> {
@@ -21,7 +21,7 @@ pub async fn read_watermark(
         .map(NotificationWatermarkResponse::from)
 }
 
-pub async fn mark_read(
+pub async fn upsert_notification_watermark(
     state: AppState,
     user_name: UserName,
 ) -> ObservabilityApiResult<NotificationWatermarkResponse> {
