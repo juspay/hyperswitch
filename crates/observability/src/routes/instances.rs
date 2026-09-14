@@ -9,7 +9,7 @@ use crate::{
     },
 };
 
-pub async fn read_instances(
+pub async fn instances_retrieve(
     state: web::Data<AppState>,
     request: HttpRequest,
     path: web::Path<(Channel, uuid::Uuid)>,
@@ -20,13 +20,15 @@ pub async fn read_instances(
         state.get_ref().clone(),
         &request,
         (),
-        |state, ()| async move { core::instances::read_instances(state, channel, announcement).await },
+        |state, ()| async move {
+            core::instances::retrieve_instances(state, channel, announcement).await
+        },
         &auth::InternalApiKeyAuth,
     )
     .await
 }
 
-pub async fn write_instances(
+pub async fn instances_save(
     state: web::Data<AppState>,
     request: HttpRequest,
     path: web::Path<(Channel, uuid::Uuid)>,
@@ -39,14 +41,14 @@ pub async fn write_instances(
         &request,
         payload.into_inner(),
         |state, payload| async move {
-            core::instances::write_instances(state, channel, announcement, payload).await
+            core::instances::save_instances(state, channel, announcement, payload).await
         },
         &auth::InternalApiKeyAuth,
     )
     .await
 }
 
-pub async fn read_dimensions(
+pub async fn dimensions_retrieve(
     state: web::Data<AppState>,
     request: HttpRequest,
     path: web::Path<(Channel, uuid::Uuid)>,
@@ -58,14 +60,14 @@ pub async fn read_dimensions(
         &request,
         (),
         |state, ()| async move {
-            core::instances::read_dimensions(state, channel, announcement).await
+            core::instances::retrieve_dimensions(state, channel, announcement).await
         },
         &auth::InternalApiKeyAuth,
     )
     .await
 }
 
-pub async fn write_dimensions(
+pub async fn dimensions_save(
     state: web::Data<AppState>,
     request: HttpRequest,
     path: web::Path<(Channel, uuid::Uuid)>,
@@ -78,7 +80,7 @@ pub async fn write_dimensions(
         &request,
         payload.into_inner(),
         |state, payload| async move {
-            core::instances::write_dimensions(state, channel, announcement, payload).await
+            core::instances::save_dimensions(state, channel, announcement, payload).await
         },
         &auth::InternalApiKeyAuth,
     )

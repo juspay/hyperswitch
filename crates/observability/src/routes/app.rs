@@ -158,8 +158,8 @@ impl AlertsInstances {
         web::scope("/instances").service(
             web::scope("/{channel}").service(
                 web::resource("/{announcement_id}")
-                    .route(web::get().to(instances::read_instances))
-                    .route(web::post().to(instances::write_instances)),
+                    .route(web::get().to(instances::instances_retrieve))
+                    .route(web::post().to(instances::instances_save)),
             ),
         )
     }
@@ -172,8 +172,8 @@ impl AlertsDimensions {
         web::scope("/dimensions").service(
             web::scope("/{channel}").service(
                 web::resource("/{announcement_id}")
-                    .route(web::get().to(instances::read_dimensions))
-                    .route(web::post().to(instances::write_dimensions)),
+                    .route(web::get().to(instances::dimensions_retrieve))
+                    .route(web::post().to(instances::dimensions_save)),
             ),
         )
     }

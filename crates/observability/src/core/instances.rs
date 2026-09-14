@@ -26,7 +26,7 @@ const MAX_MERCHANTS: usize = 500;
 
 const MAX_DIMENSIONS: usize = 500;
 
-pub async fn read_instances(
+pub async fn retrieve_instances(
     state: AppState,
     channel: Channel,
     announcement: uuid::Uuid,
@@ -59,7 +59,7 @@ pub async fn read_instances(
     })
 }
 
-pub async fn write_instances(
+pub async fn save_instances(
     state: AppState,
     channel: Channel,
     announcement: uuid::Uuid,
@@ -132,7 +132,7 @@ pub async fn write_instances(
     })
 }
 
-pub async fn read_dimensions(
+pub async fn retrieve_dimensions(
     state: AppState,
     channel: Channel,
     announcement: uuid::Uuid,
@@ -165,7 +165,7 @@ pub async fn read_dimensions(
     })
 }
 
-pub async fn write_dimensions(
+pub async fn save_dimensions(
     state: AppState,
     channel: Channel,
     announcement: uuid::Uuid,
