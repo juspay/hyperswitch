@@ -4,7 +4,7 @@ use std::{collections::HashMap, sync::Arc};
 
 use common_utils::{external_service::NoOpEventEmitter, DbConnectionParams};
 use diesel_models::{DatabaseConnectionWithContext, DejaPgConnection};
-use error_stack::report;
+use error_stack::ResultExt;
 use external_services::{
     chat_service::{slack::SlackClient, xyne::XyneClient},
     email::{
@@ -47,6 +47,7 @@ pub struct AppState {
     /// Email destinations, by the id a request names.
     pub email: Arc<Registry<dyn EmailNotifier>>,
     pub database: DatabasePool,
+    pub request_id: Option<String>,
 }
 
 impl AppState {
@@ -100,20 +101,23 @@ impl AppState {
             chat: Arc::new(chat),
             email: Arc::new(email),
             database,
+            request_id: None,
         }
     }
 
     pub async fn database_connection(
         &self,
     ) -> error_stack::Result<DatabaseConnectionWithContext<'_>, ObservabilityError> {
-        let connection = self.database.get().await.map_err(|error| {
-            report!(ObservabilityError::StorageUnavailable)
-                .attach_printable(format!("Failed to lease a database connection: {error}"))
-        })?;
+        let connection = self
+            .database
+            .get()
+            .await
+            .change_context(ObservabilityError::StorageUnavailable)
+            .attach_printable("Failed to lease a database connection")?;
 
         Ok(DatabaseConnectionWithContext::new(
             connection,
-            None,
+            self.request_id.clone(),
             Arc::new(NoOpEventEmitter),
         ))
     }

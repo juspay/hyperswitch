@@ -4,7 +4,7 @@ use diesel_models::observability::{
         SnoozeEntry, ThresholdEntry, Thresholds,
     },
     merchants_alert_external_config::{
-        effective_is_enabled, MerchantsAlertExternalConfig, MerchantsAlertExternalConfigNew,
+        MerchantsAlertExternalConfig, MerchantsAlertExternalConfigNew,
     },
 };
 use serde::{Deserialize, Deserializer, Serialize};
@@ -22,47 +22,20 @@ where
 #[serde(deny_unknown_fields)]
 pub struct AlertDefinitionCreateRequest {
     pub name: String,
-
     pub product: String,
-
     pub is_enabled: bool,
-
     pub author: String,
-
-    #[serde(default)]
     pub approver: Option<String>,
-
-    #[serde(default)]
     pub dimensions: Option<String>,
-
-    #[serde(default)]
     pub period: Option<i32>,
-
-    #[serde(default)]
     pub default_channel: Option<String>,
-
-    #[serde(default)]
     pub default_critical: Option<bool>,
-
-    #[serde(default)]
     pub blacklist: Option<Vec<BlacklistEntry>>,
-
-    #[serde(default)]
     pub snooze: Option<Vec<SnoozeEntry>>,
-
-    #[serde(default)]
     pub history_window: Option<i32>,
-
-    #[serde(default)]
     pub thresholds: Option<Vec<ThresholdEntry>>,
-
-    #[serde(default)]
     pub metadata: Option<serde_json::Value>,
-
-    #[serde(default)]
     pub comments: Option<serde_json::Value>,
-
-    #[serde(default)]
     pub call_period: Option<i32>,
 }
 
@@ -93,49 +66,36 @@ impl AlertDefinitionCreateRequest {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct AlertDefinitionUpdateRequest {
-    #[serde(default)]
     pub is_enabled: Option<bool>,
-
     #[serde(default, deserialize_with = "double_option")]
     pub approver: Option<Option<String>>,
-
     #[serde(default, deserialize_with = "double_option")]
     pub dimensions: Option<Option<String>>,
-
     #[serde(default, deserialize_with = "double_option")]
     pub period: Option<Option<i32>>,
-
     #[serde(default, deserialize_with = "double_option")]
     pub default_channel: Option<Option<String>>,
-
     #[serde(default, deserialize_with = "double_option")]
     pub default_critical: Option<Option<bool>>,
-
     #[serde(default, deserialize_with = "double_option")]
     pub blacklist: Option<Option<Vec<BlacklistEntry>>>,
-
     #[serde(default, deserialize_with = "double_option")]
     pub snooze: Option<Option<Vec<SnoozeEntry>>>,
-
     #[serde(default, deserialize_with = "double_option")]
     pub history_window: Option<Option<i32>>,
-
     #[serde(default, deserialize_with = "double_option")]
     pub thresholds: Option<Option<Vec<ThresholdEntry>>>,
-
     #[serde(default, deserialize_with = "double_option")]
     pub metadata: Option<Option<serde_json::Value>>,
-
     #[serde(default, deserialize_with = "double_option")]
     pub comments: Option<Option<serde_json::Value>>,
-
     #[serde(default, deserialize_with = "double_option")]
     pub call_period: Option<Option<i32>>,
 }
 
 impl AlertDefinitionUpdateRequest {
     pub fn into_changeset(self, now: PrimitiveDateTime) -> AlertsInfoUpdate {
-        AlertsInfoUpdate {
+        AlertsInfoUpdate::Update {
             dimensions: self.dimensions,
             period: self.period,
             default_channel: self.default_channel,
@@ -179,7 +139,7 @@ pub struct AlertDefinitionResponse {
 
 impl From<AlertsInfo> for AlertDefinitionResponse {
     fn from(definition: AlertsInfo) -> Self {
-        let is_enabled = definition.is_enabled();
+        let is_enabled = definition.is_enabled.unwrap_or(false);
 
         Self {
             id: definition.id,
@@ -234,11 +194,7 @@ impl FromIterator<AlertsInfo> for AlertDefinitionListResponse {
 #[serde(deny_unknown_fields)]
 pub struct AlertEnablementUpsertRequest {
     pub is_enabled: bool,
-
-    #[serde(default)]
     pub category: Option<String>,
-
-    #[serde(default)]
     pub metadata: Option<serde_json::Value>,
 }
 
@@ -293,4 +249,8 @@ impl AlertEnablementResponse {
 pub struct AlertEnablementListResponse {
     pub count: usize,
     pub enablements: Vec<AlertEnablementResponse>,
+}
+
+fn effective_is_enabled(definition_is_enabled: bool, config_is_enabled: Option<bool>) -> bool {
+    definition_is_enabled && config_is_enabled.unwrap_or(true)
 }
