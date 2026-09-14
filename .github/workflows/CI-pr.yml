@@ -90,10 +90,7 @@ jobs:
       RUSTFLAGS: "-D warnings"
       RUSTC_WRAPPER: sccache
       SCCACHE_GHA_ENABLED: "true"
-      # TEMPORARY - REMOVE BEFORE MERGE.
-      # Lets this branch exercise a real sccache write without waiting for a merge to
-      # main. Guarded by branch name, so it stays inert for every other PR even if it leaks.
-      SCCACHE_GHA_RW_MODE: READ_WRITE
+      SCCACHE_GHA_RW_MODE: READ_ONLY
 
     strategy:
       fail-fast: false
@@ -131,11 +128,7 @@ jobs:
         uses: Swatinem/rust-cache@v2.9.1
         with:
           shared-key: msrv
-          # TEMPORARY - REMOVE BEFORE MERGE.
-          # Lets this branch exercise save+restore without waiting for a merge to main.
-          # Guarded by branch name, so it stays inert for every other PR even if it leaks.
-          save-if: ${{ github.head_ref == 'ci/sccache-gha-backend' }}
-          cache-on-failure: true
+          save-if: false
 
       - name: Set up sccache
         uses: mozilla-actions/sccache-action@v0.0.11
