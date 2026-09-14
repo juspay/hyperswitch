@@ -446,7 +446,8 @@ impl MerchantThresholdUpsertRequest {
         within_width("name", Some(&self.name), NAME_MAX_CHARS)?;
         within_width("product", Some(&self.product), NAME_MAX_CHARS)?;
         within_width("merchant_id", Some(&self.merchant_id), NAME_MAX_CHARS)?;
-        within_width("author", Some(&self.author), NAME_MAX_CHARS)
+        within_width("author", Some(&self.author), NAME_MAX_CHARS)?;
+        metadata_is_object(self.metadata.as_ref())
     }
 
     pub fn to_insertable(&self, id: uuid::Uuid, now: PrimitiveDateTime) -> MerchantThresholdNew {
@@ -539,19 +540,7 @@ impl MerchantThresholdUpdateRequest {
             .map(|author| not_blank("author", author))
             .transpose()?;
         within_width("author", self.author.as_deref(), NAME_MAX_CHARS)?;
-
-        common_utils::fp_utils::when(
-            self.metadata
-                .as_ref()
-                .and_then(Option::as_ref)
-                .is_some_and(|metadata| !metadata.is_object()),
-            || {
-                Err(report!(ObservabilityError::InvalidRequestData {
-                    message: "metadata must be an object to merge into the stored metadata"
-                        .to_owned(),
-                }))
-            },
-        )
+        metadata_is_object(self.metadata.as_ref().and_then(Option::as_ref))
     }
 }
 
@@ -654,6 +643,17 @@ fn not_blank(field_name: &'static str, value: &str) -> ObservabilityApiResult<()
     common_utils::fp_utils::when(value.trim().is_empty(), || {
         Err(report!(ObservabilityError::InvalidDataValue { field_name }))
     })
+}
+
+fn metadata_is_object(metadata: Option<&serde_json::Value>) -> ObservabilityApiResult<()> {
+    common_utils::fp_utils::when(
+        metadata.is_some_and(|metadata| !metadata.is_object()),
+        || {
+            Err(report!(ObservabilityError::InvalidRequestData {
+                message: "metadata must be an object".to_owned(),
+            }))
+        },
+    )
 }
 
 fn valid_documents(validations: [Option<Result<(), String>>; 3]) -> ObservabilityApiResult<()> {
