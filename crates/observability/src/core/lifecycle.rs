@@ -3,14 +3,12 @@ use std::collections::HashSet;
 use async_bb8_diesel::AsyncConnection;
 use diesel_models::observability::{
     alerts_intermediate::{AlertsIntermediate, AlertsIntermediateNew, AlertsIntermediateUpdate},
-    alerts_main::{AlertsMain, AlertsMainNew, AlertsMainUpdate},
-    raw_json::RawJson,
+    alerts_main::{AlertsMain, AlertsMainUpdate},
 };
 use error_stack::{report, ResultExt};
 use time::PrimitiveDateTime;
 
 use crate::{
-    core::utils,
     errors::{ObservabilityApiResult, ObservabilityError, StorageErrorExt},
     state::AppState,
     types::lifecycle::{
@@ -19,10 +17,6 @@ use crate::{
         LifecycleStateResponse, LifecycleStateSaveResponse, LifecycleStateWriteRequest,
     },
 };
-
-const NAME_MAX_CHARS: usize = 64;
-
-const TS_SLACK_MAX_CHARS: usize = 255;
 
 const ALERTS_PER_STATEMENT: usize = 1_000;
 
@@ -160,37 +154,21 @@ pub async fn record_announcement(
     request: AnnouncementRequest,
 ) -> ObservabilityApiResult<AnnouncementEntry> {
     let channel = <&'static str>::from(channel);
+    request.validate()?;
 
-    utils::within_width(&request.name, "name", NAME_MAX_CHARS)?;
-    utils::within_width(&request.product, "product", NAME_MAX_CHARS)?;
-    within_width(request.ts_slack.as_deref(), "ts_slack", TS_SLACK_MAX_CHARS)?;
-
-    let now = truncate_to_millisecond(common_utils::date_time::now());
+    let announcement = request.into_insertable(
+        common_utils::generate_uuid_v7(),
+        channel,
+        truncate_to_millisecond(common_utils::date_time::now()),
+    )?;
     let connection = state.database_connection().await?;
 
-    let announcement = AlertsMainNew {
-        id: common_utils::generate_uuid_v7(),
-        channel: channel.to_owned(),
-        name: request.name,
-        product: request.product,
-        dimensions: utils::or_empty_list(request.dimensions.map(RawJson::from))?,
-        ts_slack: request.ts_slack,
-        ts_alert: now,
-        duration: request.duration.unwrap_or_default(),
-        sent: request.sent.unwrap_or_default(),
-        critical: request.critical.unwrap_or_default(),
-        rca_metadata: request
-            .rca_metadata
-            .unwrap_or_else(|| serde_json::Value::Object(serde_json::Map::new())),
-        metadata: request.metadata.map(RawJson::from),
-        last_updated_at: now,
-    }
-    .insert(&connection)
-    .await
-    .change_context(ObservabilityError::InternalServerError)
-    .attach_printable("Failed to record an announcement")?;
-
-    Ok(AnnouncementEntry::from(announcement))
+    announcement
+        .insert(&connection)
+        .await
+        .change_context(ObservabilityError::InternalServerError)
+        .attach_printable("Failed to record an announcement")
+        .map(AnnouncementEntry::from)
 }
 
 pub async fn list_announcements(
@@ -199,9 +177,7 @@ pub async fn list_announcements(
     request: AnnouncementListRequest,
 ) -> ObservabilityApiResult<AnnouncementListResponse> {
     let channel = <&'static str>::from(channel);
-
-    not_before_unix_epoch(request.start, "start")?;
-    not_before_unix_epoch(request.end, "end")?;
+    request.validate()?;
 
     let end = request
         .end
@@ -240,13 +216,8 @@ pub async fn update_announcement(
 ) -> ObservabilityApiResult<AnnouncementEntry> {
     let channel = <&'static str>::from(channel);
 
-    let patch =
-        serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(request.metadata.get())
-            .change_context(ObservabilityError::InvalidDataValue {
-                field_name: "metadata",
-            })
-            .attach_printable("The announcement metadata is not a JSON object")?;
-    let metadata = RawJson::from(request.metadata);
+    let patch = request.metadata_patch()?;
+    let metadata = request.metadata;
 
     let now = truncate_to_millisecond(common_utils::date_time::now());
     let connection = state.database_connection().await?;
@@ -332,15 +303,7 @@ impl WritePlan {
         let mut referenced = HashSet::new();
 
         for alert in alerts {
-            utils::within_width(&alert.name, "name", NAME_MAX_CHARS)?;
-            utils::within_width(&alert.product, "product", NAME_MAX_CHARS)?;
-            within_width(alert.group_id.as_deref(), "group_id", NAME_MAX_CHARS)?;
-            within_width(alert.priority.as_deref(), "priority", NAME_MAX_CHARS)?;
-            within_width(alert.ts_slack.as_deref(), "ts_slack", TS_SLACK_MAX_CHARS)?;
-
-            not_before_unix_epoch(alert.ts_alert, "ts_alert")?;
-            not_before_unix_epoch(alert.latest_ts_alert, "latest_ts_alert")?;
-            not_before_unix_epoch(alert.recovered_ts, "recovered_ts")?;
+            alert.validate()?;
 
             let id_intermediate = alert
                 .id_intermediate
@@ -359,30 +322,7 @@ impl WritePlan {
             keep.push(id_intermediate);
             referenced.extend(alert.announcement_id);
 
-            rows.push(AlertsIntermediateNew {
-                id_intermediate,
-                channel: channel.to_owned(),
-                id: alert.announcement_id,
-                name: alert.name,
-                product: alert.product,
-                dimensions: alert
-                    .dimensions
-                    .unwrap_or_else(|| serde_json::Value::Array(Vec::new())),
-                ts_slack: alert.ts_slack,
-                ts_alert: alert.ts_alert.unwrap_or(now),
-                latest_ts_alert: alert.latest_ts_alert.unwrap_or(now),
-                max_duration: alert.max_duration.unwrap_or_default(),
-                other_metrics: alert.other_metrics,
-                metadata: alert.metadata,
-                metadata_alert_details: alert.metadata_alert_details,
-                rca_metadata: alert
-                    .rca_metadata
-                    .unwrap_or_else(|| serde_json::Value::Object(serde_json::Map::new())),
-                group_id: alert.group_id.unwrap_or_default(),
-                priority: alert.priority.unwrap_or_default(),
-                last_updated_at: now,
-                recovered_ts: alert.recovered_ts,
-            });
+            rows.push(alert.into_insertable(id_intermediate, channel, now));
         }
 
         Ok(Self {
@@ -425,25 +365,4 @@ fn truncate_to_millisecond(value: PrimitiveDateTime) -> PrimitiveDateTime {
     value
         .replace_millisecond(value.millisecond())
         .unwrap_or(value)
-}
-
-fn within_width(
-    value: Option<&str>,
-    field_name: &'static str,
-    max_chars: usize,
-) -> ObservabilityApiResult<()> {
-    value.map_or(Ok(()), |value| {
-        utils::within_width(value, field_name, max_chars)
-    })
-}
-
-fn not_before_unix_epoch(
-    value: Option<PrimitiveDateTime>,
-    field_name: &'static str,
-) -> ObservabilityApiResult<()> {
-    if value.is_some_and(|value| value.assume_utc() < time::OffsetDateTime::UNIX_EPOCH) {
-        Err(report!(ObservabilityError::InvalidDataValue { field_name }))?;
-    }
-
-    Ok(())
 }

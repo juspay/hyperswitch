@@ -11,4 +11,3 @@ pub mod lifecycle;
 pub mod mappers;
 pub mod notifications;
 pub mod notifier;
-pub mod utils;
