@@ -1,6 +1,6 @@
 use async_bb8_diesel::AsyncRunQueryDsl;
-use diesel::{associations::HasTable, ExpressionMethods, QueryDsl};
-use error_stack::{report, ResultExt};
+use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, QueryDsl};
+use error_stack::ResultExt;
 
 use crate::{
     errors,
@@ -11,10 +11,10 @@ use crate::{
 
 impl AnnouncementRow {
     pub async fn insert(self, conn: &DatabaseConnectionWithContext<'_>) -> StorageResult<Self> {
-        generics::generic_insert::<<Self as HasTable>::Table, Self, Self>(conn, self).await
+        generics::generic_insert(conn, self).await
     }
 
-    pub async fn existing_ids(
+    pub async fn list_ids_by_channel_and_ids(
         conn: &DatabaseConnectionWithContext<'_>,
         channel: &str,
         ids: Vec<uuid::Uuid>,
@@ -25,8 +25,7 @@ impl AnnouncementRow {
 
         let query = <Self as HasTable>::table()
             .select(dsl::id)
-            .filter(dsl::channel.eq(channel.to_owned()))
-            .filter(dsl::id.eq_any(ids));
+            .filter(dsl::channel.eq(channel.to_owned()).and(dsl::id.eq_any(ids)));
 
         generics::db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
             conn.request_id(),
@@ -35,7 +34,8 @@ impl AnnouncementRow {
             query.load_async::<uuid::Uuid>(conn.raw_connection()),
         )
         .await
-        .map_err(|error| report!(error).change_context(errors::DatabaseError::Others))
-        .attach_printable("Error while checking which announcements exist")
+        .map_err(|e| error_stack::report!(e))
+        .change_context(errors::DatabaseError::Others)
+        .attach_printable("Failed to list announcement ids by channel")
     }
 }

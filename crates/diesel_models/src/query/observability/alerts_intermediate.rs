@@ -1,8 +1,9 @@
 use async_bb8_diesel::AsyncRunQueryDsl;
 use diesel::{
-    associations::HasTable, sql_types::Integer, upsert::excluded, ExpressionMethods, QueryDsl,
+    associations::HasTable, sql_types::Integer, upsert::excluded, BoolExpressionMethods,
+    ExpressionMethods, PgSortExpressionMethods, QueryDsl,
 };
-use error_stack::{report, ResultExt};
+use error_stack::ResultExt;
 use time::PrimitiveDateTime;
 
 use crate::{
@@ -14,29 +15,28 @@ use crate::{
 
 const LIFECYCLE_LOCK_NAMESPACE: i32 = 23_404;
 
-const UPSERT_ROWS_PER_STATEMENT: usize = 1_000;
-
-pub async fn lock_lifecycle_state(
-    conn: &DatabaseConnectionWithContext<'_>,
-    channel: i32,
-) -> StorageResult<()> {
-    diesel::sql_query("SELECT pg_advisory_xact_lock($1, $2)")
-        .bind::<Integer, _>(LIFECYCLE_LOCK_NAMESPACE)
-        .bind::<Integer, _>(channel)
-        .execute_async(conn.raw_connection())
-        .await
-        .map_err(|error| report!(error).change_context(errors::DatabaseError::Others))
-        .attach_printable("Error while locking the lifecycle state")?;
-
-    Ok(())
-}
-
 impl AlertStateRow {
-    pub async fn list(
+    pub async fn lock_channel(
+        conn: &DatabaseConnectionWithContext<'_>,
+        lock_key: i32,
+    ) -> StorageResult<()> {
+        diesel::sql_query("SELECT pg_advisory_xact_lock($1, $2)")
+            .bind::<Integer, _>(LIFECYCLE_LOCK_NAMESPACE)
+            .bind::<Integer, _>(lock_key)
+            .execute_async(conn.raw_connection())
+            .await
+            .map_err(|e| error_stack::report!(e))
+            .change_context(errors::DatabaseError::Others)
+            .attach_printable("Failed to lock the lifecycle state of a channel")?;
+
+        Ok(())
+    }
+
+    pub async fn list_by_channel(
         conn: &DatabaseConnectionWithContext<'_>,
         channel: &str,
     ) -> StorageResult<Vec<Self>> {
-        generics::generic_filter::<<Self as HasTable>::Table, _, _, Self>(
+        generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
             conn,
             dsl::channel.eq(channel.to_owned()),
             None,
@@ -46,34 +46,32 @@ impl AlertStateRow {
         .await
     }
 
-    pub async fn latest_last_updated_at(
+    pub async fn find_latest_last_updated_at_by_channel(
         conn: &DatabaseConnectionWithContext<'_>,
         channel: &str,
     ) -> StorageResult<Option<PrimitiveDateTime>> {
-        let query = <Self as HasTable>::table()
-            .filter(dsl::channel.eq(channel.to_owned()))
-            .select(diesel::dsl::max(dsl::last_updated_at));
-
-        generics::db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
-            generics::db_metrics::DatabaseOperation::Filter,
-            query.get_result_async::<Option<PrimitiveDateTime>>(conn.raw_connection()),
+        generics::generic_filter::<<Self as HasTable>::Table, _, _, Self>(
+            conn,
+            dsl::channel.eq(channel.to_owned()),
+            Some(1),
+            None,
+            Some(dsl::last_updated_at.desc().nulls_last()),
         )
         .await
-        .map_err(|error| report!(error).change_context(errors::DatabaseError::Others))
-        .attach_printable("Error while reading the lifecycle state watermark")
+        .map(|rows| rows.into_iter().next().and_then(|row| row.last_updated_at))
     }
 
-    pub async fn delete_absent(
+    pub async fn delete_by_channel_excluding_ids(
         conn: &DatabaseConnectionWithContext<'_>,
         channel: &str,
-        keep: Vec<uuid::Uuid>,
+        ids: Vec<uuid::Uuid>,
     ) -> StorageResult<usize> {
         let query = diesel::delete(
-            <Self as HasTable>::table()
-                .filter(dsl::channel.eq(channel.to_owned()))
-                .filter(dsl::id_intermediate.ne_all(keep)),
+            <Self as HasTable>::table().filter(
+                dsl::channel
+                    .eq(channel.to_owned())
+                    .and(dsl::id_intermediate.ne_all(ids)),
+            ),
         );
 
         generics::db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
@@ -83,30 +81,18 @@ impl AlertStateRow {
             query.execute_async(conn.raw_connection()),
         )
         .await
-        .map_err(|error| report!(error).change_context(errors::DatabaseError::Others))
-        .attach_printable("Error while removing lifecycle state rows")
+        .map_err(|e| error_stack::report!(e))
+        .change_context(errors::DatabaseError::Others)
+        .attach_printable("Failed to delete lifecycle state rows")
     }
 
-    pub async fn upsert_all(
-        conn: &DatabaseConnectionWithContext<'_>,
-        mut rows: Vec<Self>,
-    ) -> StorageResult<usize> {
-        let mut written = 0;
-
-        while !rows.is_empty() {
-            let rest = rows.split_off(rows.len().min(UPSERT_ROWS_PER_STATEMENT));
-            let batch = std::mem::replace(&mut rows, rest);
-            written += Self::upsert_batch(conn, batch).await?;
-        }
-
-        Ok(written)
-    }
-
-    async fn upsert_batch(
+    pub async fn bulk_upsert_within_channel(
         conn: &DatabaseConnectionWithContext<'_>,
         rows: Vec<Self>,
     ) -> StorageResult<usize> {
-        let upsert = diesel::insert_into(<Self as HasTable>::table())
+        use diesel::query_dsl::methods::FilterDsl;
+
+        let query = diesel::insert_into(<Self as HasTable>::table())
             .values(rows)
             .on_conflict(dsl::id_intermediate)
             .do_update()
@@ -127,11 +113,8 @@ impl AlertStateRow {
                 dsl::priority.eq(excluded(dsl::priority)),
                 dsl::last_updated_at.eq(excluded(dsl::last_updated_at)),
                 dsl::recovered_ts.eq(excluded(dsl::recovered_ts)),
-            ));
-        let query = diesel::query_dsl::methods::FilterDsl::filter(
-            upsert,
-            dsl::channel.eq(excluded(dsl::channel)),
-        );
+            ))
+            .filter(dsl::channel.eq(excluded(dsl::channel)));
 
         generics::db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
             conn.request_id(),
@@ -140,7 +123,8 @@ impl AlertStateRow {
             query.execute_async(conn.raw_connection()),
         )
         .await
-        .map_err(|error| report!(error).change_context(errors::DatabaseError::Others))
-        .attach_printable("Error while saving lifecycle state rows")
+        .map_err(|e| error_stack::report!(e))
+        .change_context(errors::DatabaseError::Others)
+        .attach_printable("Failed to upsert lifecycle state rows")
     }
 }

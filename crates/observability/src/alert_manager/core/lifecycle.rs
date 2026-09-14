@@ -1,9 +1,6 @@
 use async_bb8_diesel::AsyncConnection;
-use diesel_models::{
-    observability::{
-        alerts_intermediate::AlertStateRow, alerts_main::AnnouncementRow, raw_json::RawJson,
-    },
-    query::observability::alerts_intermediate::lock_lifecycle_state,
+use diesel_models::observability::{
+    alerts_intermediate::AlertStateRow, alerts_main::AnnouncementRow, raw_json::RawJson,
 };
 use error_stack::{report, ResultExt};
 use time::PrimitiveDateTime;
@@ -29,13 +26,15 @@ const NAME_MAX_BYTES: usize = 64;
 
 const TS_SLACK_MAX_BYTES: usize = 255;
 
+const ALERTS_PER_STATEMENT: usize = 1_000;
+
 pub async fn read_state(
     state: AppState,
     channel: Channel,
 ) -> ObservabilityApiResult<LifecycleStateResponse> {
     let connection = state.database_connection().await?;
 
-    let rows = AlertStateRow::list(&connection, channel.as_str())
+    let rows = AlertStateRow::list_by_channel(&connection, channel.as_str())
         .await
         .map_err(|error| escalate(error, unrecognised))
         .attach_printable("Failed to read the lifecycle state")?;
@@ -79,16 +78,21 @@ pub async fn write_state(
     let applied = borrowed
         .raw_connection()
         .transaction_async(move |_| async move {
-            lock_lifecycle_state(borrowed, channel.lock_key()).await?;
+            AlertStateRow::lock_channel(borrowed, channel.lock_key()).await?;
 
-            let found = AlertStateRow::latest_last_updated_at(borrowed, channel.as_str()).await?;
+            let found =
+                AlertStateRow::find_latest_last_updated_at_by_channel(borrowed, channel.as_str())
+                    .await?;
             if found != expected {
                 Err(WriteFailure::Stale { expected, found })?;
             }
 
-            let existing =
-                AnnouncementRow::existing_ids(borrowed, channel.as_str(), plan.referenced.clone())
-                    .await?;
+            let existing = AnnouncementRow::list_ids_by_channel_and_ids(
+                borrowed,
+                channel.as_str(),
+                plan.referenced.clone(),
+            )
+            .await?;
             if let Some(missing) = plan
                 .referenced
                 .iter()
@@ -98,13 +102,21 @@ pub async fn write_state(
                 Err(WriteFailure::UnknownAnnouncement(missing))?;
             }
 
-            let removed =
-                AlertStateRow::delete_absent(borrowed, channel.as_str(), plan.keep).await?;
-            let expected = plan.rows.len();
-            let alerts = AlertStateRow::upsert_all(borrowed, plan.rows).await?;
-            if alerts != expected {
+            let removed = AlertStateRow::delete_by_channel_excluding_ids(
+                borrowed,
+                channel.as_str(),
+                plan.keep,
+            )
+            .await?;
+
+            let mut alerts = 0;
+            for batch in plan.rows.chunks(ALERTS_PER_STATEMENT) {
+                alerts +=
+                    AlertStateRow::bulk_upsert_within_channel(borrowed, batch.to_vec()).await?;
+            }
+            if alerts != plan.rows.len() {
                 Err(WriteFailure::ForeignRows {
-                    expected,
+                    expected: plan.rows.len(),
                     written: alerts,
                 })?;
             }
