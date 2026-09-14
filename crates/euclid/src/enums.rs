@@ -267,6 +267,7 @@ pub enum RoutableConnectors {
     Ebanx,
     Elavon,
     Envoy,
+    Etisalat,
     Facilitapay,
     Finix,
     Fiserv,
@@ -333,6 +334,7 @@ pub enum RoutableConnectors {
     Redsys,
     Revolv3,
     Riskified,
+    SanlamPayshield,
     Santander,
     Shift4,
     Signifyd,
@@ -441,6 +443,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Ebanx => Ok(Self::Ebanx),
             Connector::Elavon => Ok(Self::Elavon),
             Connector::Envoy => Ok(Self::Envoy),
+            Connector::Etisalat => Ok(Self::Etisalat),
             Connector::Facilitapay => Ok(Self::Facilitapay),
             Connector::Finix => Ok(Self::Finix),
             Connector::Fiserv => Ok(Self::Fiserv),
@@ -496,6 +499,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Santander => Ok(Self::Santander),
             Connector::Shift4 => Ok(Self::Shift4),
             Connector::Signifyd => Ok(Self::Signifyd),
+            Connector::SanlamPayshield => Ok(Self::SanlamPayshield),
             Connector::Silverflow => Ok(Self::Silverflow),
             Connector::Square => Ok(Self::Square),
             Connector::Stax => Ok(Self::Stax),
@@ -612,6 +616,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Ebanx => Self::Ebanx,
             RoutableConnectors::Elavon => Self::Elavon,
             RoutableConnectors::Envoy => Self::Envoy,
+            RoutableConnectors::Etisalat => Self::Etisalat,
             RoutableConnectors::Facilitapay => Self::Facilitapay,
             RoutableConnectors::Finix => Self::Finix,
             RoutableConnectors::Fiserv => Self::Fiserv,
@@ -715,6 +720,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Vgs => Self::Vgs,
             RoutableConnectors::Cardinal => Self::Cardinal,
             RoutableConnectors::Threedsecureio => Self::Threedsecureio,
+            RoutableConnectors::SanlamPayshield => Self::SanlamPayshield,
         }
     }
 }

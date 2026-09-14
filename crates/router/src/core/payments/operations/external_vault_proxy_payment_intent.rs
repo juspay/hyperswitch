@@ -392,6 +392,7 @@ impl<F: Clone + Send + Sync> Domain<F, ExternalVaultProxyPaymentsRequest, Paymen
                     req,
                     platform,
                     business_profile,
+                    None,
                 ))
                 .await?;
 

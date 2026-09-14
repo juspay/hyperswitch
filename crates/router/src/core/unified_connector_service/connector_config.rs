@@ -126,7 +126,7 @@ pub struct WorldpayxmlMetadata {
 
 /// Paysafe payment method details for account_id configuration.
 /// Contains per-currency account IDs for card, ACH, Apple Pay, Interac,
-/// Skrill and paysafecard.
+/// Skrill, paysafecard and Neteller.
 /// This struct is compatible with the UCS Paysafe connector expectations
 /// (proto `PaysafePaymentMethodDetails` in the UCS `PaysafeConfig`).
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -150,6 +150,9 @@ pub struct PaysafePaymentMethodDetails {
     /// paysafecard account IDs by currency
     #[serde(default)]
     pub pay_safe_card: HashMap<Currency, PaysafeRedirectAccountId>,
+    /// Neteller wallet account IDs by currency
+    #[serde(default)]
+    pub neteller: HashMap<Currency, PaysafeRedirectAccountId>,
 }
 
 /// Paysafe card account ID configuration for a specific currency
@@ -192,6 +195,11 @@ pub struct PaysafeRedirectAccountId {
     /// Processing account ID (native metadata key: `three_ds`)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub three_ds: Option<Secret<String>>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct GlobalpayMetadata {
+    account_name: Option<Secret<String>>,
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -362,6 +370,8 @@ pub enum ConnectorSpecificConfig {
     Globalpay {
         app_id: Secret<String>,
         app_key: Secret<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        account_name: Option<Secret<String>>,
     },
     /// Fiserv connector configuration
     Fiserv {
@@ -392,6 +402,13 @@ pub enum ConnectorSpecificConfig {
         client_secret: Secret<String>,
         client_id: Secret<String>,
         merchant_id: Secret<String>,
+    },
+    /// Etisalat Payment Gateway (EPG). All requests carry auth in the JSON body:
+    /// `user_name`, `password`, and `customer` (merchant identifier).
+    Etisalat {
+        user_name: Secret<String>,
+        password: Secret<String>,
+        customer: Secret<String>,
     },
     /// Merchante (MerchantE by Omise) — credentials are sent inside the
     /// urlencoded request body (`profile_id` + `profile_key`), not headers.
@@ -1040,10 +1057,20 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 _ => Err(err("Datatrans requires BodyKey auth type")),
             },
             Connector::Globalpay => match auth {
-                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Globalpay {
-                    app_id: key1.clone(),
-                    app_key: api_key.clone(),
-                }),
+                ConnectorAuthType::BodyKey { api_key, key1 } => {
+                    let globalpay_meta = metadata
+                        .map(|m| {
+                            serde_json::from_value::<GlobalpayMetadata>(m.clone())
+                                .map_err(|_| err("Invalid Globalpay metadata format"))
+                        })
+                        .transpose()?;
+
+                    Ok(Self::Globalpay {
+                        app_id: key1.clone(),
+                        app_key: api_key.clone(),
+                        account_name: globalpay_meta.and_then(|m| m.account_name),
+                    })
+                }
                 _ => Err(err("Globalpay requires BodyKey auth type")),
             },
             Connector::Hipay => match auth {
@@ -1401,6 +1428,20 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     merchant_id: api_secret.clone(),
                 }),
                 _ => Err(err("Moneris requires SignatureKey auth type")),
+            },
+            Connector::Etisalat => match auth {
+                // api_key -> EPG Password, key1 -> EPG UserName,
+                // api_secret -> EPG Customer (merchant identifier).
+                ConnectorAuthType::SignatureKey {
+                    api_key,
+                    key1,
+                    api_secret,
+                } => Ok(Self::Etisalat {
+                    user_name: api_key.clone(),
+                    password: key1.clone(),
+                    customer: api_secret.clone(),
+                }),
+                _ => Err(err("Etisalat requires SignatureKey auth type")),
             },
             Connector::Merchante => match auth {
                 // api_key -> Merchante Profile Key (32-char secret),
