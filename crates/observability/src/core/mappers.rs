@@ -1,6 +1,8 @@
-use diesel_models::observability::{
-    alerts_dicts::{AlertsDict, AlertsDictNew},
-    raw_json::RawJson,
+use async_bb8_diesel::AsyncConnection;
+use common_utils::errors::ErrorSwitchFrom;
+use diesel_models::{
+    errors::DatabaseError,
+    observability::alerts_dicts::{AlertsDict, AlertsDictUpdate},
 };
 use error_stack::{report, ResultExt};
 
@@ -10,18 +12,14 @@ use crate::{
     state::AppState,
     types::{
         mappers::{
-            MapperEntry, MapperListResponse, MapperRetireResponse, MapperSaveResponse,
-            MapperUpsertRequest,
+            MapperEntry, MapperEntryDeleteResponse, MapperEntrySaveRequest, MapperListResponse,
+            MapperSaveResponse,
         },
         ReadStatus, WriteStatus,
     },
 };
 
-const NAME_MAX_CHARS: usize = 64;
-
-const KEY_MAX_CHARS: usize = 255;
-
-const MAX_ENTRY_BYTES: usize = 1024 * 1024;
+const SUPERSEDED_ENTRIES_KEPT: i64 = 1;
 
 pub async fn list_mappers(state: AppState) -> ObservabilityApiResult<MapperListResponse> {
     let connection = state.database_connection().await?;
@@ -43,12 +41,12 @@ pub async fn list_mappers(state: AppState) -> ObservabilityApiResult<MapperListR
 
 pub async fn read_mapper(
     state: AppState,
-    name: &str,
-    key: &str,
+    name: String,
+    key: String,
 ) -> ObservabilityApiResult<MapperEntry> {
     let connection = state.database_connection().await?;
 
-    AlertsDict::find_enabled_by_name_and_key(&connection, name, key)
+    AlertsDict::find_enabled_by_name_and_key(&connection, &name, &key)
         .await
         .change_context(ObservabilityError::InternalServerError)
         .attach_printable("Failed to read a mapper entry")?
@@ -56,97 +54,84 @@ pub async fn read_mapper(
         .ok_or_else(|| report!(ObservabilityError::MapperEntryNotFound))
 }
 
-pub async fn upsert_mapper(
+pub async fn save_mapper(
     state: AppState,
-    request: MapperUpsertRequest,
+    request: MapperEntrySaveRequest,
     user_name: Option<UserName>,
 ) -> ObservabilityApiResult<MapperSaveResponse> {
-    let name = trimmed_within(&request.name, "name", NAME_MAX_CHARS)?;
-    let key = trimmed_within(&request.key, "key", KEY_MAX_CHARS)?;
-
-    within_entry_cap([
-        request.product.as_ref(),
-        request.values.as_ref(),
-        request.metadata.as_ref(),
-    ])?;
+    request.validate()?;
 
     let connection = state.database_connection().await?;
+    let entry = request.into_insertable(
+        common_utils::generate_uuid_v7(),
+        user_name,
+        common_utils::date_time::now(),
+    );
+    let name = entry.name.clone();
+    let key = entry.key_.clone();
 
-    let entry = AlertsDictNew {
-        name,
-        key_: key,
-        product: request.product,
-        values_: request.values,
-        ts_created: common_utils::date_time::now(),
-        username: user_name.map(UserName::get_secret),
-        metadata: request.metadata,
-    }
-    .upsert(&connection)
-    .await
-    .change_context(ObservabilityError::InternalServerError)
-    .attach_printable("Failed to save a mapper entry")?;
+    let borrowed = &connection;
+    borrowed
+        .raw_connection()
+        .transaction_async(move |_| async move {
+            AlertsDict::lock_by_name_and_key(borrowed, &name, &key).await?;
 
-    Ok(MapperSaveResponse {
-        status: WriteStatus::Saved,
-        entry: MapperEntry::from(entry),
-    })
+            AlertsDict::update_enabled_by_name_and_key(
+                borrowed,
+                &name,
+                &key,
+                AlertsDictUpdate::Demote,
+            )
+            .await?;
+
+            let saved = entry.insert(borrowed).await?;
+
+            AlertsDict::delete_superseded_by_name_and_key(
+                borrowed,
+                &name,
+                &key,
+                SUPERSEDED_ENTRIES_KEPT,
+            )
+            .await?;
+
+            Ok::<_, SaveFailure>(saved)
+        })
+        .await
+        .map_err(|SaveFailure(error)| error)
+        .change_context(ObservabilityError::InternalServerError)
+        .attach_printable("Failed to save a mapper entry")
+        .map(|entry| MapperSaveResponse {
+            status: WriteStatus::Saved,
+            entry: MapperEntry::from(entry),
+        })
 }
 
-pub async fn retire_mapper(
+pub async fn delete_mapper(
     state: AppState,
-    name: &str,
-    key: &str,
-) -> ObservabilityApiResult<MapperRetireResponse> {
+    name: String,
+    key: String,
+) -> ObservabilityApiResult<MapperEntryDeleteResponse> {
     let connection = state.database_connection().await?;
 
-    AlertsDict::retire(&connection, name, key)
+    let deleted = AlertsDict::delete_enabled_by_name_and_key(&connection, &name, &key)
         .await
         .to_not_found_response(ObservabilityError::MapperEntryNotFound)
-        .attach_printable("Failed to retire a mapper entry")?;
+        .attach_printable("Failed to delete a mapper entry")?;
 
-    Ok(MapperRetireResponse {
-        status: WriteStatus::Retired,
-    })
+    Ok(MapperEntryDeleteResponse { name, key, deleted })
 }
 
-fn trimmed_within(
-    value: &str,
-    field: &'static str,
-    max_chars: usize,
-) -> ObservabilityApiResult<String> {
-    let value = value.trim();
+struct SaveFailure(error_stack::Report<DatabaseError>);
 
-    if value.is_empty() {
-        Err(report!(ObservabilityError::MissingRequiredField {
-            field_name: field
-        }))?;
+impl From<diesel::result::Error> for SaveFailure {
+    fn from(error: diesel::result::Error) -> Self {
+        let database_error = DatabaseError::switch_from(&error);
+        Self(report!(error).change_context(database_error))
     }
-
-    let chars = value.chars().count();
-    if chars > max_chars {
-        Err(
-            report!(ObservabilityError::InvalidDataValue { field_name: field }).attach_printable(
-                format!("The {field} is {chars} characters, over the {max_chars} the column holds"),
-            ),
-        )?;
-    }
-
-    Ok(value.to_owned())
 }
 
-fn within_entry_cap(columns: [Option<&RawJson>; 3]) -> ObservabilityApiResult<()> {
-    let bytes = columns
-        .into_iter()
-        .flatten()
-        .map(|column| column.get().len())
-        .sum::<usize>();
-
-    if bytes > MAX_ENTRY_BYTES {
-        Err(report!(ObservabilityError::EntryTooLarge {
-            bytes,
-            limit: MAX_ENTRY_BYTES,
-        }))?;
+impl From<error_stack::Report<DatabaseError>> for SaveFailure {
+    fn from(error: error_stack::Report<DatabaseError>) -> Self {
+        Self(error)
     }
-
-    Ok(())
 }

@@ -20,21 +20,23 @@ pub struct AlertsDict {
     pub metadata: Option<RawJson>,
 }
 
-#[derive(Clone, Debug, Insertable, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Insertable)]
 #[diesel(table_name = alerts_dicts)]
 pub struct AlertsDictNew {
+    pub id: uuid::Uuid,
     pub name: String,
     pub key_: String,
     pub product: Option<RawJson>,
     pub values_: Option<RawJson>,
     pub ts_created: PrimitiveDateTime,
+    pub is_enabled: bool,
     pub username: Option<Secret<String>>,
     pub metadata: Option<RawJson>,
 }
 
 #[derive(Debug)]
 pub enum AlertsDictUpdate {
-    Retire,
+    Demote,
 }
 
 #[derive(Clone, Debug, AsChangeset)]
@@ -46,7 +48,7 @@ pub struct AlertsDictUpdateInternal {
 impl From<AlertsDictUpdate> for AlertsDictUpdateInternal {
     fn from(update: AlertsDictUpdate) -> Self {
         match update {
-            AlertsDictUpdate::Retire => Self {
+            AlertsDictUpdate::Demote => Self {
                 is_enabled: Some(false),
             },
         }

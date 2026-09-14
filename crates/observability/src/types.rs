@@ -246,7 +246,6 @@ pub enum ReadStatus {
 #[serde(rename_all = "snake_case")]
 pub enum WriteStatus {
     Saved,
-    Retired,
 }
 
 #[cfg(test)]

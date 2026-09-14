@@ -78,12 +78,12 @@ impl AlertsConfig {
                     .service(
                         web::resource("")
                             .route(web::get().to(mappers::list_mappers))
-                            .route(web::post().to(mappers::upsert_mapper)),
+                            .route(web::post().to(mappers::save_mapper)),
                     )
                     .service(
                         web::resource("/{name}/{key}")
                             .route(web::get().to(mappers::read_mapper))
-                            .route(web::delete().to(mappers::retire_mapper)),
+                            .route(web::delete().to(mappers::delete_mapper)),
                     ),
             )
             .service(
