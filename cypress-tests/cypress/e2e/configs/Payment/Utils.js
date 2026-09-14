@@ -98,6 +98,7 @@ import { connectorDetails as worldpayvantivConnectorDetails } from "./Worldpayva
 import { connectorDetails as worldpayxmlConnectorDetails } from "./Worldpayxml.js";
 import { connectorDetails as xenditConnectorDetails } from "./Xendit.js";
 import { connectorDetails as ziftConnectorDetails } from "./Zift.js";
+import { connectorDetails as dwollaConnectorDetails } from "./Dwolla.js";
 const connectorDetails = {
   aci: aciConnectorDetails,
   adyen: adyenConnectorDetails,
@@ -195,6 +196,7 @@ const connectorDetails = {
   zift: ziftConnectorDetails,
   loonio: loonioConnectorDetails,
   mifinity: mifinityConnectorDetails,
+  dwolla: dwollaConnectorDetails,
 };
 
 /**
@@ -686,6 +688,7 @@ export const CONNECTOR_LISTS = {
       "stripe",
       "wellsfargo",
     ], // payload verified as working
+    BANK_DEBIT_ERROR_PATH: ["dwolla"],
     BANK_REDIRECT_BANCONTACT: ["adyen", "stripe"],
     BANK_REDIRECT_MANDATE: ["adyen", "stripe"],
     CARD_REDIRECT: ["prophetpay"],
