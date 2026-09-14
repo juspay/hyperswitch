@@ -227,8 +227,8 @@ merchant threshold's `author`, leaves it alone. The two upserts are described wi
 #### Definitions
 
 A definition is one `alerts_info` row, with an id the service generates. `name`, `product`,
-`is_enabled` and `author` are required on create; `name` and `product` must not be blank and cannot
-be changed afterwards.
+`is_enabled` and `author` are required on create; `name`, `product` and `author` must not be blank,
+and `name` and `product` cannot be changed afterwards.
 
 `blacklist`, `snooze` and `thresholds` hold r-apps' documents and are stored exactly as sent, except
 that an empty list, an empty object or a blank string is stored as `{}`, as r-apps' `createAlertInfo`
@@ -243,7 +243,8 @@ does, and `null` is stored as `NULL`. Each is checked for its shape first:
   carries the dimension values it covers and `snooze_end_time`, optionally `snooze_start_time`, as
   `YYYY-MM-DD HH:MM:SS`.
 
-`metadata` and `comments` are free-form JSON.
+`metadata` is free-form JSON, except that an empty list, an empty object or a blank string is
+stored as `{}`, as `createAlertInfo` does for it. `comments` is free-form JSON, stored as sent.
 
 ```http
 POST /alerts/config/definitions
@@ -289,18 +290,21 @@ numbers `thresholds_min_volume`, `thresholds_min_impacted_volume`, `thresholds_t
 `thresholds_current_min_volume`. `name`, `product`, `merchant_id` and `author` must not be blank.
 
 `GET /alerts/config/merchant-thresholds` takes `name`, `product`, `merchant_id`, `is_enabled` and
-`author` as query parameters, each an exact match, the columns r-apps' `getMerchantThresholds`
-filters on; with none it lists every row.
+`author` as query parameters, each an exact match; with none it lists every row. r-apps'
+`getMerchantThresholds` filters on every column, with lists of values, ranges and metadata keys; this
+service supports only these five exact-match filters.
 
 `POST /alerts/config/merchant-thresholds` upserts on `(name, product, merchant_id, is_enabled,
 author)`, the key r-apps' `addMerchantThresholds` uses, so the same five values update one row and
 any other combination adds a row. As in r-apps, a threshold or `metadata` that is absent or `null`
-keeps the stored value when the row exists and is stored as `NULL` when the row is added.
+keeps the stored value when the row exists and is stored as `NULL` when the row is added. `metadata`,
+when given, must be an object and replaces the stored one.
 
 `POST /alerts/config/merchant-thresholds/{id}` changes the thresholds, `metadata`, `author` and
 `is_enabled`; `name`, `product` and `merchant_id` cannot be changed. `metadata` must be an object and
-is merged into the stored one, `COALESCE(metadata, '{}') || patch`, as r-apps' merchant threshold
-update merges it; `null` clears it.
+is merged into the stored one with `COALESCE(metadata, '{}') || patch`, so a row without metadata
+takes the patch; `null` clears it. This differs from r-apps, whose `metadata || patch` leaves a
+`NULL` metadata `NULL` and drops the patch.
 
 ```http
 POST /alerts/config/merchant-thresholds
@@ -322,7 +326,7 @@ that matches no route. The configuration errors, added to the table above:
 | | Status | Code |
 |---|---|---|
 | A field is longer than its column holds, or a name, product, merchant id or author is blank | 400 | `IR_07` |
-| `blacklist`, `snooze` or `thresholds` is not in r-apps' shape, or a merchant threshold update's `metadata` is not an object | 400 | `IR_06` |
+| `blacklist`, `snooze` or `thresholds` is not in r-apps' shape, or a merchant threshold's `metadata` is not an object | 400 | `IR_06` |
 | The merchant thresholds query string does not parse or names another parameter | 400 | `IR_06` |
 | A definition already exists for this name and product | 400 | `HE_01` |
 | An update gives a merchant threshold the name, product, merchant, author and `is_enabled` of another | 400 | `HE_01` |
