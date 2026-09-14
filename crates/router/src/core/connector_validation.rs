@@ -292,8 +292,18 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 ilixium::transformers::IlixiumAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::JpmorganOrbital => {
+                jpmorgan_orbital::transformers::JpmorganOrbitalAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Givepayments => {
                 givepayments::transformers::GivepaymentsAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
+            api_enums::Connector::GlobalpaymentsHeartland => {
+                globalpayments_heartland::transformers::GlobalpaymentsHeartlandAuthType::try_from(
+                    self.auth_type,
+                )?;
                 Ok(())
             }
             api_enums::Connector::Globalpay => {
@@ -444,6 +454,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 paybox::transformers::PayboxAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Paydotcom => {
+                paydotcom::PaydotcomAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Payload => {
                 payload::transformers::PayloadAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -519,6 +533,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             }
             api_enums::Connector::Revolv3 => {
                 revolv3::transformers::Revolv3AuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
+            api_enums::Connector::Saferpay => {
+                saferpay::transformers::SaferpayAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
             api_enums::Connector::Santander => {
@@ -686,8 +704,16 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 citigate::transformers::CitigateAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::D24 => {
+                d24::transformers::D24AuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Worldpayraft => {
                 worldpayraft::transformers::WorldpayraftAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
+            api_enums::Connector::Paynearme => {
+                paynearme::transformers::PaynearmeAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
             api_enums::Connector::Finix => {
