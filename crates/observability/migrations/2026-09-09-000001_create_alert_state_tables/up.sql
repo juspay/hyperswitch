@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS alerts_info (
     last_updated_at  TIMESTAMP
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_alerts_info_name_product_unique
+CREATE UNIQUE INDEX IF NOT EXISTS alerts_info_name_product_index
     ON alerts_info USING btree (name, product);
 
 -- Announcements actually sent, one row per alert per delivery. `sent` and
@@ -61,9 +61,9 @@ CREATE TABLE IF NOT EXISTS alerts_main (
     last_updated_at TIMESTAMP
 );
 
-CREATE INDEX IF NOT EXISTS idx_ts_alert
+CREATE INDEX IF NOT EXISTS alerts_main_channel_ts_alert_index
     ON alerts_main USING btree (channel, ts_alert);
-CREATE INDEX IF NOT EXISTS idx_alerts_last_updated_at
+CREATE INDEX IF NOT EXISTS alerts_main_last_updated_at_index
     ON alerts_main USING btree (last_updated_at);
 
 -- Current lifecycle state: what is firing now, since when, and what recovered.
@@ -90,9 +90,9 @@ CREATE TABLE IF NOT EXISTS alerts_intermediate (
     recovered_ts           TIMESTAMP
 );
 
-CREATE INDEX IF NOT EXISTS idx_ts
+CREATE INDEX IF NOT EXISTS alerts_intermediate_channel_ts_alert_latest_ts_alert_index
     ON alerts_intermediate USING btree (channel, ts_alert, latest_ts_alert);
-CREATE INDEX IF NOT EXISTS idx_alerts_intermediate_id
+CREATE INDEX IF NOT EXISTS alerts_intermediate_id_index
     ON alerts_intermediate USING btree (id);
 
 -- The mappers screen. product and values_ are `json` rather than `jsonb`: the
@@ -111,10 +111,10 @@ CREATE TABLE IF NOT EXISTS alerts_dicts (
 );
 
 -- One enabled entry per name and key; superseded rows stay for history.
-CREATE UNIQUE INDEX IF NOT EXISTS idx_alerts_dicts_enabled_unique
+CREATE UNIQUE INDEX IF NOT EXISTS alerts_dicts_name_key_enabled_index
     ON alerts_dicts USING btree (name, key_) WHERE is_enabled IS TRUE;
 
-CREATE INDEX IF NOT EXISTS idx_alerts_dicts_latest
+CREATE INDEX IF NOT EXISTS alerts_dicts_name_key_ts_created_index
     ON alerts_dicts USING btree (name, key_, ts_created DESC);
 
 -- Per-merchant alert instances. current_metric against expected_metric is the
@@ -149,11 +149,11 @@ CREATE TABLE IF NOT EXISTS merchants_alert_external (
     tenant_id              VARCHAR(64)
 );
 
-CREATE INDEX IF NOT EXISTS idx_alerts_external
+CREATE INDEX IF NOT EXISTS merchants_alert_external_channel_merchant_id_index
     ON merchants_alert_external (channel, merchant_id);
-CREATE INDEX IF NOT EXISTS idx_ts_alerts_external
+CREATE INDEX IF NOT EXISTS merchants_alert_external_ts_alert_index
     ON merchants_alert_external USING btree (ts_alert);
-CREATE INDEX IF NOT EXISTS idx_alerts_external_id
+CREATE INDEX IF NOT EXISTS merchants_alert_external_id_index
     ON merchants_alert_external USING btree (id);
 
 -- One row per dimension of an instance, so a single alert can be broken down by
@@ -188,11 +188,11 @@ CREATE TABLE IF NOT EXISTS merchants_alert_external_dimension (
     tenant_id              VARCHAR(64)
 );
 
-CREATE INDEX IF NOT EXISTS idx_dimension_alerts_external
+CREATE INDEX IF NOT EXISTS merchants_alert_external_dimension_value_key_index
     ON merchants_alert_external_dimension (dimension_value, dimension_key);
-CREATE INDEX IF NOT EXISTS idx_dimension_ts_alerts_external
+CREATE INDEX IF NOT EXISTS merchants_alert_external_dimension_ts_alert_index
     ON merchants_alert_external_dimension USING btree (ts_alert);
-CREATE INDEX IF NOT EXISTS idx_dimension_alerts_external_id
+CREATE INDEX IF NOT EXISTS merchants_alert_external_dimension_id_index
     ON merchants_alert_external_dimension USING btree (id);
 
 -- Which alerts are on, per name and product.
