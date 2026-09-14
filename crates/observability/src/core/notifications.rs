@@ -4,7 +4,7 @@ use error_stack::{report, ResultExt};
 use crate::{
     errors::{ObservabilityApiResult, ObservabilityError},
     state::AppState,
-    types::{notifications::WatermarkResponse, ReadStatus, UserName},
+    types::{notifications::WatermarkResponse, ReadStatus, UserName, X_USER_NAME},
 };
 
 const USER_NAME_MAX_CHARS: usize = 255;
@@ -60,11 +60,12 @@ fn within_width(user: &UserName) -> ObservabilityApiResult<&str> {
 
     let chars = user_name.chars().count();
     if chars > USER_NAME_MAX_CHARS {
-        Err(
-            report!(ObservabilityError::InvalidRequest).attach_printable(format!(
-                "The user name is {chars} characters, over the {USER_NAME_MAX_CHARS} the column holds"
-            )),
-        )?;
+        Err(report!(ObservabilityError::InvalidDataValue {
+            field_name: X_USER_NAME,
+        })
+        .attach_printable(format!(
+            "The user name is {chars} characters, over the {USER_NAME_MAX_CHARS} the column holds"
+        )))?;
     }
 
     Ok(user_name)

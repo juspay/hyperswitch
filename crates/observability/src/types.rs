@@ -253,8 +253,9 @@ impl UserName {
                 std::str::from_utf8(value.as_bytes())
                     .map(|name| Self(name.trim().to_owned()))
                     .map_err(|_| {
-                        report!(ObservabilityError::InvalidRequest)
-                            .attach_printable("The user name header is not valid UTF-8")
+                        report!(ObservabilityError::InvalidRequestData {
+                            message: format!("{X_USER_NAME} is not valid UTF-8"),
+                        })
                     })
             },
         )

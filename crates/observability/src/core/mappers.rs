@@ -12,7 +12,7 @@ use crate::{
             MapperEntry, MapperListResponse, MapperRetireResponse, MapperSaveResponse,
             MapperUpsertRequest,
         },
-        ReadStatus, UserName, WriteStatus,
+        ReadStatus, UserName, WriteStatus, X_USER_NAME,
     },
 };
 
@@ -67,7 +67,7 @@ pub async fn upsert_mapper(
     let username = user.to_option();
 
     if let Some(username) = username.as_deref() {
-        trimmed_within(username, "user name", USERNAME_MAX_CHARS)?;
+        trimmed_within(username, X_USER_NAME, USERNAME_MAX_CHARS)?;
     }
 
     within_entry_cap([
@@ -123,16 +123,17 @@ fn trimmed_within(
     let value = value.trim();
 
     if value.is_empty() {
-        Err(report!(ObservabilityError::InvalidRequest)
-            .attach_printable(format!("The mapper {field} is empty")))?;
+        Err(report!(ObservabilityError::MissingRequiredField {
+            field_name: field
+        }))?;
     }
 
     let chars = value.chars().count();
     if chars > max_chars {
         Err(
-            report!(ObservabilityError::InvalidRequest).attach_printable(format!(
-                "The mapper {field} is {chars} characters, over the {max_chars} the column holds"
-            )),
+            report!(ObservabilityError::InvalidDataValue { field_name: field }).attach_printable(
+                format!("The {field} is {chars} characters, over the {max_chars} the column holds"),
+            ),
         )?;
     }
 
