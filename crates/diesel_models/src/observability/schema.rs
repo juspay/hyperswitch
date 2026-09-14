@@ -53,9 +53,9 @@ diesel::table! {
         channel -> Varchar,
         id -> Nullable<Uuid>,
         #[max_length = 64]
-        name -> Nullable<Varchar>,
+        name -> Varchar,
         #[max_length = 64]
-        product -> Nullable<Varchar>,
+        product -> Varchar,
         dimensions -> Jsonb,
         #[max_length = 255]
         ts_slack -> Nullable<Varchar>,
@@ -81,9 +81,9 @@ diesel::table! {
         #[max_length = 64]
         channel -> Varchar,
         #[max_length = 64]
-        name -> Nullable<Varchar>,
+        name -> Varchar,
         #[max_length = 64]
-        product -> Nullable<Varchar>,
+        product -> Varchar,
         dimensions -> Json,
         #[max_length = 255]
         ts_slack -> Nullable<Varchar>,
