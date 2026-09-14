@@ -207,8 +207,13 @@ Two resources, backed by the observability database.
 
 **A definition is one row, not four resources.** Suppression, snooze and thresholds are `json`
 columns of `alerts_info` rather than side tables, so they are fields of this resource. All three are
-typed — a list of entries with named fields — so every value written through this API has a shape
-this plane reads back. The cost is that the bytes are not preserved: a value read back has been through
+typed, so every value written through this API has a shape the alert manager reads back. Blacklist
+and thresholds are lists of entries with named fields. Snooze is r-apps' own document, because that
+is what the alert manager evaluates: an object keyed `snooze_entry_<time>` or
+`custom_snooze_entry_<time>`, each entry carrying the dimension values it covers and
+`snooze_end_time` (optionally `snooze_start_time`) as `YYYY-MM-DD HH:MM:SS` in IST. An entry that is
+keyed otherwise, has no end time, or has a time in any other format is `400` `HE_03`: r-apps' reader
+fails on an entry without an end time, so the plane refuses to store one. The cost is that the bytes are not preserved: a value read back has been through
 `serde_json` twice, so an entry written without its optional fields comes back with their defaults
 filled in. Storing the columns as opaque strings would preserve them exactly, and was rejected: the
 failure it avoids is cosmetic, and the one it introduces — a dashboard writing a key nothing reads,
@@ -249,25 +254,23 @@ switch on it to turn on or off.
 **There is no delete route.** `is_enabled` is how an alert is turned off; unlike a delete it is
 reversible.
 
-#### Two switches, and which wins
+#### Two switches, and what each one gates
 
-`alerts_info.is_enabled` and `merchants_alert_external_config.is_enabled` are both switches on the
-same alert. **The definition is the master switch; the enablement row can only narrow it.**
+`alerts_info.is_enabled` and `merchants_alert_external_config.is_enabled` switch different things,
+as they do in r-apps. **The definition decides whether a detector runs; the enablement row decides
+whether its alerts are delivered to merchants.** A missing enablement row delivers nothing, matching
+r-apps' inner join on the enabled rows.
 
 ```
-effective = definition.is_enabled AND coalesce(enablement.is_enabled, true)
+effective = definition.is_enabled AND coalesce(enablement.is_enabled, false)
 ```
 
-The definition decides whether a detector runs at all, so with it off there is no result for an
-enablement row to publish. Letting the narrower table win would mean an operator disabling a
-definition could be silently overridden from a screen they were not looking at, which is what a
-master switch exists to prevent. A missing enablement row narrows nothing, matching the column's
-`DEFAULT TRUE`, so adding a definition is enough to make it run. Most-recently-updated-wins was the
-alternative and was rejected: it makes the answer depend on clock skew between two writers and
-offers no way to say "off, and stay off".
+The definition decides whether a detector runs at all, so with it off there is no result to deliver
+anywhere. The enablement row is the second gate, on merchant-facing delivery only; internal channels
+ignore it. `effective_is_enabled` is therefore "this alert reaches merchants".
 
-Both values are reported, because a caller that saw only the stored one could not tell "on" from
-"on, but the definition is off":
+Both values are reported, because a caller that saw only the stored one could not tell "delivered to
+merchants" from "switched on, but the definition is off":
 
 ```http
 POST /alerts/config/enablement/sr_drop/payments
