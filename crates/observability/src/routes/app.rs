@@ -12,10 +12,9 @@ use actix_multipart::form::MultipartFormConfig;
 use actix_web::{web, Scope};
 
 use crate::{
-    alert_manager::routes::config,
     errors::types::{ApiError, ApiErrorResponse},
     logger,
-    routes::{health_check, notify},
+    routes::{config, health_check, notify},
     state::AppState,
 };
 
@@ -52,34 +51,38 @@ impl Alerts {
             .service(web::scope("/email").service(
                 web::resource("/notify/{destination}").route(web::post().to(notify::email)),
             ))
-            .service(config_scope())
+            .service(AlertsConfig::server())
     }
 }
 
-fn config_scope() -> Scope {
-    web::scope("/config")
-        .service(
-            web::scope("/definitions")
-                .service(
-                    web::resource("")
-                        .route(web::get().to(config::list_definitions))
-                        .route(web::post().to(config::create_definition)),
-                )
-                .service(
-                    web::resource("/{id}")
-                        .route(web::get().to(config::read_definition))
-                        .route(web::post().to(config::update_definition)),
-                ),
-        )
-        .service(
-            web::scope("/enablement")
-                .service(web::resource("").route(web::get().to(config::list_enablements)))
-                .service(
-                    web::resource("/{name}/{product}")
-                        .route(web::get().to(config::read_enablement))
-                        .route(web::post().to(config::upsert_enablement)),
-                ),
-        )
+pub struct AlertsConfig;
+
+impl AlertsConfig {
+    pub fn server() -> Scope {
+        web::scope("/config")
+            .service(
+                web::scope("/definitions")
+                    .service(
+                        web::resource("")
+                            .route(web::get().to(config::list_definitions))
+                            .route(web::post().to(config::create_definition)),
+                    )
+                    .service(
+                        web::resource("/{id}")
+                            .route(web::get().to(config::read_definition))
+                            .route(web::post().to(config::update_definition)),
+                    ),
+            )
+            .service(
+                web::scope("/enablement")
+                    .service(web::resource("").route(web::get().to(config::list_enablements)))
+                    .service(
+                        web::resource("/{name}/{product}")
+                            .route(web::get().to(config::read_enablement))
+                            .route(web::post().to(config::upsert_enablement)),
+                    ),
+            )
+    }
 }
 
 /// Make a malformed body render like every other error this service returns.

@@ -7,13 +7,13 @@ use diesel_models::{
 use error_stack::report;
 
 use crate::{
-    alert_manager::types::config::{
+    errors::{ObservabilityApiResult, ObservabilityError},
+    state::AppState,
+    types::config::{
         AlertDefinitionCreateRequest, AlertDefinitionListResponse, AlertDefinitionResponse,
         AlertDefinitionUpdateRequest, AlertEnablementListResponse, AlertEnablementResponse,
         AlertEnablementUpsertRequest,
     },
-    errors::{ObservabilityApiResult, ObservabilityError},
-    state::AppState,
 };
 
 fn escalate(
