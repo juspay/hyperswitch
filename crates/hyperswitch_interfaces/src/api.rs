@@ -593,12 +593,15 @@ pub trait ConnectorSpecifications {
         payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
         is_config_enabled_to_send_payment_id_as_connector_request_id: bool,
     ) -> String {
-        // Send payment_id if config is enabled for a merchant, else send attempt_id
-        if is_config_enabled_to_send_payment_id_as_connector_request_id {
+        // FIXTURE (never merge): perturb the reference id the connector receives.
+        // This is the field tail-capture traced for the redsys divergence, so it
+        // reaches the outbound body and is compared.
+        let __deja_fixture = if is_config_enabled_to_send_payment_id_as_connector_request_id {
             payment_attempt.payment_id.get_string_repr().to_owned()
         } else {
             payment_attempt.attempt_id.to_owned()
-        }
+        };
+        format!("djfix{__deja_fixture}")
     }
 
     #[cfg(feature = "v2")]
