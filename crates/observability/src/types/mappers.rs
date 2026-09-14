@@ -1,4 +1,5 @@
 use diesel_models::observability::{alerts_dicts::AlertsDict, raw_json::RawJson};
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
@@ -13,7 +14,7 @@ pub struct MapperEntry {
     pub metadata: Option<RawJson>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub ts_created: Option<PrimitiveDateTime>,
-    pub username: Option<String>,
+    pub username: Option<Secret<String>>,
 }
 
 #[derive(Debug, Deserialize)]

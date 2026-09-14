@@ -1,4 +1,5 @@
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
+use hyperswitch_masking::Secret;
 use time::PrimitiveDateTime;
 
 use crate::observability::{raw_json::RawJson, schema::alerts_dicts};
@@ -15,7 +16,7 @@ pub struct AlertsDict {
     pub values_: Option<RawJson>,
     pub ts_created: Option<PrimitiveDateTime>,
     pub is_enabled: Option<bool>,
-    pub username: Option<String>,
+    pub username: Option<Secret<String>>,
     pub metadata: Option<RawJson>,
 }
 
@@ -27,7 +28,7 @@ pub struct AlertsDictNew {
     pub product: Option<RawJson>,
     pub values_: Option<RawJson>,
     pub ts_created: PrimitiveDateTime,
-    pub username: Option<String>,
+    pub username: Option<Secret<String>>,
     pub metadata: Option<RawJson>,
 }
 

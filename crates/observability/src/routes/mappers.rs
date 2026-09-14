@@ -1,10 +1,6 @@
 use actix_web::{web, HttpRequest, HttpResponse};
 
-use crate::{
-    auth, core, services,
-    state::AppState,
-    types::{mappers::MapperUpsertRequest, UserName},
-};
+use crate::{auth, core, services, state::AppState, types::mappers::MapperUpsertRequest};
 
 pub async fn list_mappers(state: web::Data<AppState>, request: HttpRequest) -> HttpResponse {
     services::server_wrap(
@@ -39,13 +35,13 @@ pub async fn upsert_mapper(
     request: HttpRequest,
     payload: web::Json<MapperUpsertRequest>,
 ) -> HttpResponse {
-    let user = UserName::from_headers(request.headers());
+    let user_name = auth::get_user_name(request.headers());
 
     services::server_wrap(
         state.get_ref().clone(),
         &request,
         payload.into_inner(),
-        |state, payload| async move { core::mappers::upsert_mapper(state, payload, user?).await },
+        |state, payload| async move { core::mappers::upsert_mapper(state, payload, user_name?).await },
         &auth::InternalApiKeyAuth,
     )
     .await

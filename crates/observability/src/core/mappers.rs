@@ -5,6 +5,7 @@ use diesel_models::observability::{
 use error_stack::{report, ResultExt};
 
 use crate::{
+    auth::UserName,
     errors::{ObservabilityApiResult, ObservabilityError, StorageErrorExt},
     state::AppState,
     types::{
@@ -12,15 +13,13 @@ use crate::{
             MapperEntry, MapperListResponse, MapperRetireResponse, MapperSaveResponse,
             MapperUpsertRequest,
         },
-        ReadStatus, UserName, WriteStatus, X_USER_NAME,
+        ReadStatus, WriteStatus,
     },
 };
 
 const NAME_MAX_CHARS: usize = 64;
 
 const KEY_MAX_CHARS: usize = 255;
-
-const USERNAME_MAX_CHARS: usize = 64;
 
 const MAX_ENTRY_BYTES: usize = 1024 * 1024;
 
@@ -60,15 +59,10 @@ pub async fn read_mapper(
 pub async fn upsert_mapper(
     state: AppState,
     request: MapperUpsertRequest,
-    user: UserName,
+    user_name: Option<UserName>,
 ) -> ObservabilityApiResult<MapperSaveResponse> {
     let name = trimmed_within(&request.name, "name", NAME_MAX_CHARS)?;
     let key = trimmed_within(&request.key, "key", KEY_MAX_CHARS)?;
-    let username = user.to_option();
-
-    if let Some(username) = username.as_deref() {
-        trimmed_within(username, X_USER_NAME, USERNAME_MAX_CHARS)?;
-    }
 
     within_entry_cap([
         request.product.as_ref(),
@@ -84,7 +78,7 @@ pub async fn upsert_mapper(
         product: request.product,
         values_: request.values,
         ts_created: common_utils::date_time::now(),
-        username,
+        username: user_name.map(UserName::get_secret),
         metadata: request.metadata,
     }
     .upsert(&connection)
