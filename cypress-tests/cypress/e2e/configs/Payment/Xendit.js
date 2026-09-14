@@ -24,6 +24,9 @@ const paymentMethodData3ds = {
   card: {
     last4: "1091",
     card_type: "CREDIT",
+    card_subtype: "VISA TRADITIONAL",
+    card_segment_type: "consumer",
+    funding_source: "CREDIT",
     card_network: "Visa",
     card_issuer: "Intl Hdqtrs Center Owned",
     card_issuing_country: "UNITED STATES OF AMERICA",

@@ -250,7 +250,7 @@ impl TryFrom<&UnifiedAuthenticationServiceRouterData<&UasPreAuthenticationRouter
     ) -> Result<Self, Self::Error> {
         let authentication_id = item.router_data.authentication_id.clone().ok_or(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "authentication_id",
+                field_name: "authentication_id".into(),
             },
         )?;
         let authentication_info = item.router_data.request.authentication_info.clone();
@@ -360,11 +360,11 @@ impl TryFrom<&UnifiedAuthenticationServiceRouterData<&UasPreAuthenticationRouter
                     .transaction_details
                     .clone()
                     .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "transaction_details",
+                        field_name: "transaction_details".into(),
                     })?
                     .currency
                     .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "currency",
+                        field_name: "currency".into(),
                     })?,
                 date: None,
                 pan_source: None,
@@ -519,7 +519,7 @@ impl TryFrom<&UasPostAuthenticationRouterData>
             authenticate_by: item.connector.clone(),
             source_authentication_id: item.authentication_id.clone().ok_or(
                 errors::ConnectorError::MissingRequiredField {
-                    field_name: "authentication_id",
+                    field_name: "authentication_id".into(),
                 },
             )?,
             auth_creds: item.connector_auth_type.clone(),
@@ -602,7 +602,7 @@ impl TryFrom<&UnifiedAuthenticationServiceRouterData<&UasAuthenticationConfirmat
     ) -> Result<Self, Self::Error> {
         let authentication_id = item.router_data.authentication_id.clone().ok_or(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "authentication_id",
+                field_name: "authentication_id".into(),
             },
         )?;
         let auth_type =
@@ -643,12 +643,12 @@ impl TryFrom<&UasPreAuthenticationRouterData>
             item.authentication_id
                 .clone()
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "authentication_id",
+                    field_name: "authentication_id".into(),
                 })?;
 
         let merchant_data = item.request.merchant_details.clone().ok_or(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "merchant_details",
+                field_name: "merchant_details".into(),
             },
         )?;
 
@@ -966,7 +966,7 @@ impl TryFrom<&UnifiedAuthenticationServiceRouterData<&UasAuthenticationRouterDat
     ) -> Result<Self, Self::Error> {
         let authentication_id = item.router_data.authentication_id.clone().ok_or(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "authentication_id",
+                field_name: "authentication_id".into(),
             },
         )?;
 
@@ -1020,7 +1020,7 @@ impl TryFrom<&UnifiedAuthenticationServiceRouterData<&UasAuthenticationRouterDat
                 .device_channel
                 .clone()
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "device_channel",
+                    field_name: "device_channel".into(),
                 })?,
             browser_info: Some(browser_info),
             sdk_info: item.router_data.request.sdk_information.clone(),

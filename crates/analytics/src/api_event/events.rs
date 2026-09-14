@@ -54,6 +54,7 @@ where
                         Flow::PaymentsUpdate,
                         Flow::RefundsCreate,
                         Flow::RefundsUpdate,
+                        Flow::RefundsReverse,
                         Flow::DisputesEvidenceSubmit,
                         Flow::AttachDisputeEvidence,
                         Flow::RetrieveDisputeEvidence,
@@ -81,6 +82,7 @@ where
                     &[
                         Flow::RefundsCreate,
                         Flow::RefundsUpdate,
+                        Flow::RefundsReverse,
                         Flow::IncomingWebhookReceive,
                     ],
                 )

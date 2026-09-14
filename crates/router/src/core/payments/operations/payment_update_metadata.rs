@@ -327,7 +327,7 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsUpdateMetadataReque
     )> {
         request.validate().change_context(
             payment_methods::errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "metadata",
+                field_name: "metadata".into(),
             },
         )?;
         //payment id is already generated and should be sent in the request
