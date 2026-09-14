@@ -109,7 +109,9 @@ The whole surface, guarded and not:
 | `POST` | `/alerts/config/notifications/read` | `X-Internal-Api-Key` |
 | `GET` | `/alerts/lifecycle/{channel}/state` | `X-Internal-Api-Key` |
 | `POST` | `/alerts/lifecycle/{channel}/state` | `X-Internal-Api-Key` |
+| `GET` | `/alerts/lifecycle/{channel}/announcements` | `X-Internal-Api-Key` |
 | `POST` | `/alerts/lifecycle/{channel}/announcements` | `X-Internal-Api-Key` |
+| `POST` | `/alerts/lifecycle/{channel}/announcements/{id}` | `X-Internal-Api-Key` |
 | `GET` | `/health` | none — liveness |
 | `GET` | `/health/ready` | none — readiness |
 
@@ -436,6 +438,16 @@ is no `DELETE` on either, and a state write never touches `alerts_main` — a st
 announcement `ON DELETE CASCADE`, so a replace that reached the announcement table would delete
 state rows pointing at it, including ones the same request is writing.
 
+**The dashboard's alert list is the announcement log.** `GET .../announcements?start=&end=` lists the
+announcements whose `ts_alert` falls in the window, newest first, as r-apps' `getAlerts` reads
+`alerts_main`. With no bounds the window is the last 7 days; a window that ends before it starts or
+spans more than 30 days is refused, matching r-apps' `DEFAULT_DAYS` and `DAYS_LIMIT`.
+`POST .../announcements/{id}` with `{"metadata": {...}}` is r-apps' `updateAlert`: it replaces the
+announcement's `metadata` (resolution, comments and the rest) and merges the same keys, except
+`is_visible_to_merchant`, into the state rows that reference it, in one transaction. It does not
+touch `last_updated_at` on those state rows, so an edit from the dashboard never turns the alert
+manager's next state write into a `409`.
+
 **Rows are addressed by `id_intermediate`, and a caller echoes back the ids it read.** A row whose
 id is not echoed back is removed and, if it is still firing, written again as a new row — which
 loses the episode's start and its thread. An alert the caller has just detected has no id to send,
@@ -492,6 +504,8 @@ The lifecycle errors, added to the tables above:
 | A state row's `id_intermediate` belongs to the other channel | 400 | `HE_03` |
 | A state row references an announcement this channel does not have | 404 | `HE_02` |
 | The state changed after it was read | 409 | `IR_16` |
+| Announcement window ends before it starts or spans more than 30 days | 400 | `HE_03` |
+| Unknown announcement id on this channel | 404 | `HE_02` |
 
 A value wider than its column — `name`, `product`, `group_id` and `priority` are `VARCHAR(64)`,
 `ts_slack` is `VARCHAR(255)` — and the same `id_intermediate` sent twice in one write are `IR_04`,
