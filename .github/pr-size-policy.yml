@@ -1,0 +1,23 @@
+# PR size policy for selected authors.
+#
+# This check applies only to the GitHub usernames listed under target_authors.
+# Usernames are matched case-insensitively.
+enabled: true
+
+# Size metric to enforce. Supported values:
+# - changed_lines: additions + deletions
+# - additions: added lines only
+# - changed_files: number of changed files
+metric: changed_lines
+
+# Maximum allowed value for the selected metric before an admin bypass is required.
+threshold: 1000
+
+# Add GitHub usernames here to opt authors into the PR size policy.
+target_authors: []
+
+bypass:
+  # Adding this label lets an oversized PR pass when the label was applied by
+  # a member of label_actor_team.
+  label: pr-size/bypass
+  label_actor_team: hyperswitch-admins
