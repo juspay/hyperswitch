@@ -1,53 +1,5 @@
-//! The wire contract: what a caller sends and what it gets back.
-//!
-//! Lives here rather than in an API-models crate for the same reason [`crate::errors::types`] does
-//! — `observability` has none — and moves wholesale if one ever appears.
-//!
-//! ## The URL says where, the body says what
-//!
-//! `POST /alerts/chat/notify/{destination}`. The path names the channel and the destination; the
-//! body carries only content. That keeps the destination visible to access logs, metrics labels and
-//! tracing spans without anyone parsing a body, so "which destination is failing" is answerable from
-//! the ops view.
-//!
-//! A single `/notify/{destination}` over a channel-tagged body was considered and rejected: the
-//! destination already resolves the channel through configuration, so a tag in the body is a second
-//! authority on the same fact and the two can disagree.
-//!
-//! ## Status answers "did the notifier work", the body answers "did the message arrive"
-//!
-//! A provider that refuses is a `200` carrying [`NotifyStatus::Refused`], not an HTTP error. It was
-//! reached, it answered, and the notifier did its job. Only a request we cannot act on (`4xx`), an
-//! unreachable provider (`502`) or our own fault (`500`) is an error — so an alert on `5xx` fires
-//! when this service is genuinely broken and at no other time.
-//!
-//! This is the same line payments draws between a connector declining a transaction and a connector
-//! being unreachable, and it is drawn deliberately rather than by fault. Whether `channel_not_found`
-//! is our mistake or a merchant's depends on who owns the destination, and that moves from a config
-//! file to a database row without a status code being able to move with it.
-//!
-//! **`status` is required, and that is load-bearing.** A caller cannot deserialize a response
-//! without confronting whether the message arrived. `external_services` uses the same trick on the
-//! provider's own `ok` field, for the same reason: this shape's failure mode is a caller that reads
-//! `200` and stops looking.
-//!
-//! ## Content is `Secret`, so redaction is the type's job
-//!
-//! `text`, `subject` and `body` are `Secret<String>`. A subject carries merchant ids and a body
-//! carries payment volumes, and `services::server_wrap` takes `T: Debug`, so one added log line
-//! would otherwise put both in the log stream. A hand-written `Debug` would do the same job until
-//! somebody adds a field and forgets; the type cannot forget.
-//!
-//! Sizes are logged where they are useful — the chat client already emits `chars` per request — so
-//! nothing diagnostic is lost by redacting here.
-//!
-//! ## Nothing here renders
-//!
-//! `text`, `subject` and `body` are delivered exactly as they arrive. The caller decides what its
-//! message looks like, in whatever markup its destination reads. `body` is HTML, because both email
-//! backends in `external_services` hardcode an HTML body and there is no plain-text path to reach.
-
 use actix_multipart::form::{bytes::Bytes, text::Text, MultipartForm};
+use external_services::chat_service::ChatSeverity;
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
@@ -57,20 +9,39 @@ use crate::domain::notifier::{
     Outcome, Refusal,
 };
 
-/// The body of `POST /alerts/chat/notify/{destination}`.
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ChatNotifyRequest {
-    /// The message, in the markup the destination reads. Delivered unchanged.
     pub text: Secret<String>,
 
-    /// Post this as a reply in the thread of an earlier message, identified by the `message_id`
-    /// that message's response returned.
     #[serde(default)]
     pub reply_to: Option<String>,
+
+    #[serde(default)]
+    pub heading: Option<Secret<String>>,
+
+    #[serde(default)]
+    pub severity: Option<NotifySeverity>,
 }
 
-/// Multipart fields accepted by `POST /alerts/chat/upload/{destination}`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum NotifySeverity {
+    Critical,
+    Warning,
+    Resolved,
+}
+
+impl From<NotifySeverity> for ChatSeverity {
+    fn from(severity: NotifySeverity) -> Self {
+        match severity {
+            NotifySeverity::Critical => Self::Critical,
+            NotifySeverity::Warning => Self::Warning,
+            NotifySeverity::Resolved => Self::Resolved,
+        }
+    }
+}
+
 #[derive(Debug, MultipartForm)]
 #[multipart(deny_unknown_fields, duplicate_field = "deny")]
 pub struct ChatUploadForm {
@@ -81,7 +52,6 @@ pub struct ChatUploadForm {
     pub reply_to: Option<Text<String>>,
 }
 
-/// Parsed multipart body passed through the authenticated request wrapper.
 #[derive(Debug)]
 pub struct ChatUploadRequest {
     pub bytes: Secret<Vec<u8>>,
@@ -91,56 +61,35 @@ pub struct ChatUploadRequest {
     pub reply_to: Option<String>,
 }
 
-/// The body of `POST /alerts/email/notify/{destination}`.
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct EmailNotifyRequest {
-    /// The subject line, delivered unchanged.
     pub subject: Secret<String>,
 
-    /// The body, as HTML. See the module docs: the transport offers nothing else today.
     pub body: Secret<String>,
 }
 
-/// Whether the message arrived.
-///
-/// Not a bool, so a third outcome can be added without breaking a caller's match, and so the two
-/// states read the same in a log line as they do in code.
 #[derive(Debug, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum NotifyStatus {
-    /// The provider accepted the message.
     Delivered,
-    /// The provider was reached and refused it.
     Refused,
 }
 
-/// What `/alerts/chat/notify/{destination}` returns.
 #[derive(Debug, Serialize)]
 pub struct ChatNotifyResponse {
-    /// Whether the message arrived. Always present.
     pub status: NotifyStatus,
 
-    /// The provider's id for the message, when it named one. Hand it back as
-    /// [`ChatNotifyRequest::reply_to`] to thread under it.
-    ///
-    /// `null` on a refusal, and also on the rare delivery where the provider accepted the message
-    /// without naming an id — the alert went out, but nothing can be threaded under it.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub message_id: Option<String>,
 
-    /// Why the provider refused, as a stable snake_case code — `msg_too_long`,
-    /// `channel_not_found`, `rate_limited`. Absent on delivery.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error_code: Option<String>,
 
-    /// How long the provider asked us to wait, when it said. Only set alongside a rate-limiting
-    /// code.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub retry_after_seconds: Option<u64>,
 }
 
-/// What `/alerts/chat/upload/{destination}` returns.
 #[derive(Debug, Serialize)]
 pub struct ChatUploadResponse {
     pub status: NotifyStatus,
@@ -152,17 +101,13 @@ pub struct ChatUploadResponse {
     pub retry_after_seconds: Option<u64>,
 }
 
-/// What `/alerts/email/notify/{destination}` returns.
 #[derive(Debug, Serialize)]
 pub struct EmailNotifyResponse {
-    /// Whether the mail was sent. Always present.
     pub status: NotifyStatus,
 
-    /// Why the provider refused, as a stable snake_case code. Absent on delivery.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error_code: Option<String>,
 
-    /// How long the provider asked us to wait, when it said.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub retry_after_seconds: Option<u64>,
 }
@@ -264,8 +209,6 @@ mod tests {
         assert!(body.get("message_id").is_none());
     }
 
-    /// The alert went out; only the ability to thread under it was lost. It must not look like a
-    /// failure, because a retry would post the alert twice.
     #[test]
     fn a_delivery_without_an_id_is_still_a_delivery() {
         let body = body_of(&ChatNotifyResponse::from(Outcome::Delivered(ChatReceipt {
@@ -288,7 +231,6 @@ mod tests {
         assert!(body.get("message_id").is_none());
     }
 
-    /// `status` is what stops a caller reading `200` and assuming delivery, so it is never skipped.
     #[test]
     fn status_is_always_present() {
         for outcome in [
@@ -309,8 +251,46 @@ mod tests {
         assert_eq!(request.reply_to.as_deref(), Some("cmtk931s1"));
     }
 
-    /// Threading against a mailing list is a caller bug. `deny_unknown_fields` makes it a rejection
-    /// rather than a field that quietly goes nowhere.
+    #[test]
+    fn chat_request_reads_a_banner() {
+        let request: ChatNotifyRequest = serde_json::from_value(serde_json::json!({
+            "text": "45 of 45 payments failed",
+            "heading": "🔴 SEV1 · Zero SR",
+            "severity": "critical",
+        }))
+        .unwrap();
+
+        assert_eq!(
+            request
+                .heading
+                .as_ref()
+                .map(hyperswitch_masking::PeekInterface::peek),
+            Some(&"🔴 SEV1 · Zero SR".to_owned())
+        );
+        assert_eq!(request.severity, Some(NotifySeverity::Critical));
+    }
+
+    #[test]
+    fn every_severity_has_a_wire_spelling() {
+        for (wire, expected) in [
+            ("critical", NotifySeverity::Critical),
+            ("warning", NotifySeverity::Warning),
+            ("resolved", NotifySeverity::Resolved),
+        ] {
+            let severity: NotifySeverity = serde_json::from_value(serde_json::json!(wire)).unwrap();
+            assert_eq!(severity, expected);
+        }
+    }
+
+    #[test]
+    fn chat_request_needs_no_banner() {
+        let request: ChatNotifyRequest =
+            serde_json::from_value(serde_json::json!({ "text": "hi" })).unwrap();
+
+        assert!(request.heading.is_none());
+        assert!(request.severity.is_none());
+    }
+
     #[test]
     fn email_request_rejects_reply_to() {
         let error = serde_json::from_value::<EmailNotifyRequest>(serde_json::json!({
@@ -323,13 +303,13 @@ mod tests {
         assert!(error.to_string().contains("reply_to"));
     }
 
-    /// The property is now the type's, not a hand-written `Debug`'s: a field added later cannot
-    /// leak by someone forgetting to update an impl.
     #[test]
     fn debug_never_prints_the_message() {
         let chat = ChatNotifyRequest {
             text: "acquirer_declined for merchant_1234".to_owned().into(),
             reply_to: None,
+            heading: Some("zero SR on merchant_1234".to_owned().into()),
+            severity: Some(NotifySeverity::Critical),
         };
         assert!(!format!("{chat:?}").contains("merchant_1234"));
 
