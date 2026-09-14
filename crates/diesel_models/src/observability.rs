@@ -2,6 +2,6 @@
 //!
 //! These tables are not part of `hyperswitch_db`. They live in a database the observability plane
 //! owns, with its own migration lineage under `crates/observability/migrations` and its own diesel
-//! configuration in `diesel_observability.toml`.
+//! configuration in `crates/observability/diesel.toml`.
 
 pub mod schema;
