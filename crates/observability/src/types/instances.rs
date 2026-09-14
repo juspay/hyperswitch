@@ -5,11 +5,12 @@ use diesel_models::observability::{
         MerchantsAlertExternalDimension, MerchantsAlertExternalDimensionNew,
     },
 };
+use error_stack::report;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use super::within_width;
-use crate::errors::ObservabilityApiResult;
+use crate::errors::{ObservabilityApiResult, ObservabilityError};
 
 const NAME_MAX_CHARS: usize = 64;
 
@@ -54,7 +55,10 @@ impl MerchantInstanceWrite {
         within_width("priority", self.priority.as_deref(), NAME_MAX_CHARS)?;
         within_width("tenant_id", self.tenant_id.as_deref(), NAME_MAX_CHARS)?;
         within_width("attribution", self.attribution.as_deref(), VALUE_MAX_CHARS)?;
-        within_width("ts_slack", self.ts_slack.as_deref(), VALUE_MAX_CHARS)
+        within_width("ts_slack", self.ts_slack.as_deref(), VALUE_MAX_CHARS)?;
+        not_before_unix_epoch("start_time", self.start_time)?;
+        not_before_unix_epoch("recovered_ts", self.recovered_ts)?;
+        not_before_unix_epoch("latest_ts_alert", self.latest_ts_alert)
     }
 
     pub fn into_insertable(
@@ -146,7 +150,10 @@ impl DimensionInstanceWrite {
             VALUE_MAX_CHARS,
         )?;
         within_width("attribution", self.attribution.as_deref(), VALUE_MAX_CHARS)?;
-        within_width("ts_slack", self.ts_slack.as_deref(), VALUE_MAX_CHARS)
+        within_width("ts_slack", self.ts_slack.as_deref(), VALUE_MAX_CHARS)?;
+        not_before_unix_epoch("start_time", self.start_time)?;
+        not_before_unix_epoch("recovered_ts", self.recovered_ts)?;
+        not_before_unix_epoch("latest_ts_alert", self.latest_ts_alert)
     }
 
     pub fn into_insertable(
@@ -380,4 +387,14 @@ fn empty_object() -> serde_json::Value {
 
 fn empty_document_text() -> serde_json::Value {
     serde_json::Value::String(EMPTY_DOCUMENT.to_owned())
+}
+
+fn not_before_unix_epoch(
+    field_name: &'static str,
+    value: Option<PrimitiveDateTime>,
+) -> ObservabilityApiResult<()> {
+    common_utils::fp_utils::when(
+        value.is_some_and(|value| value.assume_utc() < time::OffsetDateTime::UNIX_EPOCH),
+        || Err(report!(ObservabilityError::InvalidDataValue { field_name })),
+    )
 }
