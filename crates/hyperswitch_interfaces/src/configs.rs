@@ -149,6 +149,13 @@ impl MerchantConnectorAccountType {
         None
     }
 
+    pub fn get_merchant_id(&self) -> Option<id_type::MerchantId> {
+        match self {
+            Self::DbVal(db_val) => Some(db_val.merchant_id.clone()),
+            Self::CacheVal(_) => None,
+        }
+    }
+
     pub fn get_mca_id(&self) -> Option<id_type::MerchantConnectorAccountId> {
         match self {
             Self::DbVal(db_val) => Some(db_val.get_id()),

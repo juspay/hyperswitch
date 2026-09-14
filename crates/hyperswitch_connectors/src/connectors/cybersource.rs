@@ -12,6 +12,7 @@ use common_utils::{
 };
 use error_stack::{report, Report, ResultExt};
 use hyperswitch_domain_models::{
+    payment_method_data::{PaymentMethodData, WalletData},
     router_data::{AccessToken, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -81,7 +82,7 @@ use crate::{
     types::ResponseRouterData,
     utils::{
         self, convert_amount, PaymentsAuthorizeRequestData, PaymentsPreAuthenticateRequestData,
-        RefundsRequestData, RouterData as OtherRouterData,
+        RefundsRequestData,
     },
 };
 
@@ -333,7 +334,7 @@ where
         req: &RouterData<Flow, Request, Response>,
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
-        let date = OffsetDateTime::now_utc();
+        let date = common_utils::date_time::now().assume_utc();
         let cybersource_req = self.get_request_body(req, connectors)?;
         let auth = cybersource::CybersourceAuthType::try_from(&req.connector_auth_type)?;
         let merchant_account = auth.merchant_account.clone();
@@ -677,7 +678,7 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
     ) -> CustomResult<String, errors::ConnectorError> {
         let redirect_response = req.request.redirect_response.clone().ok_or(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "redirect_response",
+                field_name: "redirect_response".into(),
             },
         )?;
         match redirect_response.params {
@@ -701,7 +702,7 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
             req.request
                 .currency
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "currency",
+                    field_name: "currency".into(),
                 })?;
         let amount = convert_amount(self.amount_converter, minor_amount, currency)?;
         let connector_router_data = cybersource::CybersourceRouterData::from((amount, req));
@@ -874,13 +875,13 @@ impl ConnectorIntegration<Authenticate, PaymentsAuthenticateData, PaymentsRespon
             req.request
                 .minor_amount
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "minor_amount",
+                    field_name: "minor_amount".into(),
                 })?;
         let currency =
             req.request
                 .currency
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "currency",
+                    field_name: "currency".into(),
                 })?;
         let amount = convert_amount(self.amount_converter, minor_amount, currency)?;
         let connector_router_data = cybersource::CybersourceRouterData::from((amount, req));
@@ -968,13 +969,13 @@ impl ConnectorIntegration<PostAuthenticate, PaymentsPostAuthenticateData, Paymen
             req.request
                 .minor_amount
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "minor_amount",
+                    field_name: "minor_amount".into(),
                 })?;
         let currency =
             req.request
                 .currency
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "currency",
+                    field_name: "currency".into(),
                 })?;
         let amount = convert_amount(self.amount_converter, minor_amount, currency)?;
         let connector_router_data = cybersource::CybersourceRouterData::from((amount, req));
@@ -1275,12 +1276,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        if req.is_three_ds()
-            && req.request.is_card()
-            && (req.request.connector_mandate_id().is_none()
-                && req.request.get_optional_network_transaction_id().is_none())
-            && req.request.authentication_data.is_none()
-        {
+        if self.is_3ds_setup_required(&req.request, req.auth_type) {
             Ok(format!(
                 "{}risk/v1/authentication-setups",
                 ConnectorCommon::base_url(self, connectors)
@@ -1304,12 +1300,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             req.request.currency,
         )?;
         let connector_router_data = cybersource::CybersourceRouterData::from((amount, req));
-        if req.is_three_ds()
-            && req.request.is_card()
-            && (req.request.connector_mandate_id().is_none()
-                && req.request.get_optional_network_transaction_id().is_none())
-            && req.request.authentication_data.is_none()
-        {
+        if self.is_3ds_setup_required(&req.request, req.auth_type) {
             let connector_req =
                 cybersource::CybersourceAuthSetupRequest::try_from(&connector_router_data)?;
             Ok(RequestContent::Json(Box::new(connector_req)))
@@ -1342,12 +1333,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        if data.is_three_ds()
-            && data.request.is_card()
-            && (data.request.connector_mandate_id().is_none()
-                && data.request.get_optional_network_transaction_id().is_none())
-            && data.request.authentication_data.is_none()
-        {
+        if self.is_3ds_setup_required(&data.request, data.auth_type) {
             let response: cybersource::CybersourceAuthSetupResponse = res
                 .response
                 .parse_struct("Cybersource AuthSetupResponse")
@@ -1950,13 +1936,13 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Cy
             req.request
                 .minor_amount
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "Amount",
+                    field_name: "Amount".into(),
                 })?;
         let currency =
             req.request
                 .currency
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "Currency",
+                    field_name: "Currency".into(),
                 })?;
         let amount = convert_amount(self.amount_converter, minor_amount, currency)?;
         let connector_router_data = cybersource::CybersourceRouterData::from((amount, req));
@@ -2612,11 +2598,19 @@ impl Cybersource {
         request: &PaymentsAuthorizeData,
         auth_type: common_enums::AuthenticationType,
     ) -> bool {
-        router_env::logger::info!(router_data_request=?request, auth_type=?auth_type, "Checking if 3DS setup is required for Cybersource");
         auth_type.is_three_ds()
-            && request.is_card()
+            && (request.is_card() || Self::is_google_pay_pan_only(request))
             && (request.connector_mandate_id().is_none()
                 && request.get_optional_network_transaction_id().is_none())
             && request.authentication_data.is_none()
+    }
+
+    pub fn is_google_pay_pan_only(request: &PaymentsAuthorizeData) -> bool {
+        let PaymentMethodData::Wallet(WalletData::GooglePay(gpay_data)) =
+            &request.payment_method_data
+        else {
+            return false;
+        };
+        gpay_data.is_pan_only()
     }
 }

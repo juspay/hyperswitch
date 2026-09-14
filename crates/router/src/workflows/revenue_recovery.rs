@@ -37,8 +37,6 @@ use hyperswitch_domain_models::{
 };
 #[cfg(feature = "v2")]
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
-#[cfg(feature = "v2")]
-use rand::Rng;
 use router_env::{
     logger,
     tracing::{self, instrument},
@@ -254,6 +252,23 @@ pub(crate) async fn get_schedule_time_to_retry_mit_payments(
     scheduler_utils::get_time_from_delta(time_delta)
 }
 
+/// Static ladder time for the adaptive retry algorithm.
+#[cfg(feature = "v2")]
+pub(crate) async fn get_schedule_time_to_retry_adaptive_payments(
+    db: &dyn StorageInterface,
+    superposition_client: &external_services::superposition::SuperpositionClient,
+    dimensions: &crate::core::configs::dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
+    retry_count: i32,
+) -> Option<time::PrimitiveDateTime> {
+    let mapping = dimensions
+        .get_pt_mapping_adaptive_retries(db, superposition_client, None)
+        .await;
+
+    let time_delta = scheduler_utils::get_pcr_payments_retry_schedule_time(mapping, retry_count);
+
+    scheduler_utils::get_time_from_delta(time_delta)
+}
+
 #[derive(Debug, Clone)]
 pub struct RetryDecision {
     pub retry_time: time::PrimitiveDateTime,
@@ -461,7 +476,7 @@ async fn should_force_schedule_due_to_missed_slots(
                 .max_retry_count_for_thirty_day;
 
         // Calculate time difference since last retry and compare with threshold
-        (time::OffsetDateTime::now_utc() - most_recent_date.assume_utc()).whole_hours()
+        (common_utils::date_time::now().assume_utc() - most_recent_date.assume_utc()).whole_hours()
             > threshold_hours.into()
     })
     // Default to false if no valid retry history found (either none exists or all have retry_count = 0)
@@ -580,7 +595,7 @@ struct TokenProcessResult {
 
 #[cfg(feature = "v2")]
 pub fn calculate_difference_in_seconds(scheduled_time: time::PrimitiveDateTime) -> i64 {
-    let now_utc = time::OffsetDateTime::now_utc();
+    let now_utc = common_utils::date_time::now().assume_utc();
 
     let scheduled_offset_dt = scheduled_time.assume_utc();
     let difference = scheduled_offset_dt - now_utc;
@@ -637,7 +652,85 @@ pub enum PaymentProcessorTokenResponse {
     None,
 }
 
+/// The two allowances the math model needs: how much of the invoice's grace window is left, and
+/// how many retries remain of the merchant's budget. The grace window comes from Superposition,
+/// the budget from the billing connector's account.
 #[cfg(feature = "v2")]
+async fn get_adaptive_retry_allowances(
+    state: &SessionState,
+    dimensions: &crate::core::configs::dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
+    payment_intent: &PaymentIntent,
+    max_retry_count: u16,
+    retry_count: i32,
+    now: time::PrimitiveDateTime,
+) -> Result<(u32, u32), errors::ProcessTrackerError> {
+    let grace_period_days = dimensions
+        .get_recovery_grace_period_days(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            None,
+        )
+        .await;
+
+    let grace_window_start = payment_intent
+        .feature_metadata
+        .as_ref()
+        .and_then(|feature_metadata| feature_metadata.payment_revenue_recovery_metadata.as_ref())
+        .and_then(|revenue_recovery_metadata| {
+            revenue_recovery_metadata.invoice_billing_started_at_time
+        })
+        .ok_or_else(|| {
+            logger::error!(
+                payment_id = %payment_intent.id.get_string_repr(),
+                "adaptive retry: the invoice has no billing start time, so its grace window \
+                 cannot be established"
+            );
+            errors::ProcessTrackerError::EApiErrorResponse
+        })?;
+
+    let grace_window_end = grace_window_start
+        .checked_add(time::Duration::days(grace_period_days))
+        .ok_or_else(|| {
+            logger::error!(
+                payment_id = %payment_intent.id.get_string_repr(),
+                grace_period_days,
+                %grace_window_start,
+                "adaptive retry: failed to calculate the grace window end time"
+            );
+            errors::ProcessTrackerError::EApiErrorResponse
+        })?;
+
+    let days_left_in_grace_window = (grace_window_end - now).whole_days().max(0);
+
+    let remaining_grace_days: u32 = days_left_in_grace_window.try_into().map_err(|error| {
+        logger::error!(
+            ?error,
+            payment_id = %payment_intent.id.get_string_repr(),
+            days_left_in_grace_window,
+            "adaptive retry: the days left in the grace window do not fit the model's day count"
+        );
+        errors::ProcessTrackerError::EApiErrorResponse
+    })?;
+
+    let retries_already_made: u32 = retry_count.try_into().map_err(|error| {
+        logger::error!(
+            ?error,
+            payment_id = %payment_intent.id.get_string_repr(),
+            retry_count,
+            "adaptive retry: failed to read how many retries have already been made"
+        );
+        errors::ProcessTrackerError::EApiErrorResponse
+    })?;
+
+    // Saturating so an invoice already past its ceiling reads as no budget left rather than
+    // wrapping to an enormous one.
+    let remaining_budget = u32::from(max_retry_count).saturating_sub(retries_already_made);
+
+    Ok((remaining_grace_days, remaining_budget))
+}
+
+#[cfg(feature = "v2")]
+#[allow(clippy::too_many_arguments)]
 pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
     state: &SessionState,
     connector_customer_id: &str,
@@ -645,7 +738,9 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
     billing_connector: common_enums::connector_enums::Connector,
     retry_algorithm_type: RevenueRecoveryAlgorithmType,
     retry_count: i32,
+    tracking_data: &pcr_storage_types::RevenueRecoveryWorkflowTrackingData,
     static_ladder_progress: &pcr::schedule::StaticLadderProgress,
+    max_retry_count: u16,
 ) -> CustomResult<
     (
         PaymentProcessorTokenResponse,
@@ -656,7 +751,7 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
     let mut payment_processor_token_response = PaymentProcessorTokenResponse::None;
     // Updated scheduling state, set only when a retry is actually scheduled by the adaptive
     // path. The other responses reschedule the CALCULATE job without making an attempt, so
-    // persisting there would consume a pinned static time for a retry that never happened.
+    // persisting there would consume a ladder position for a retry that never happened.
     let mut next_static_ladder_progress = None;
     match retry_algorithm_type {
         RevenueRecoveryAlgorithmType::Monitoring => {
@@ -708,31 +803,83 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                 // Same shape as the cascading arm — compute the schedule time, then gate on
                 // the token. The only additions are the adaptive candidate and the choice
                 // between the two.
+                let now = common_utils::date_time::now();
                 let queried_rung = static_ladder_progress.next_rung();
-                let static_time = get_schedule_time_to_retry_mit_payments(
+
+                let static_time = get_schedule_time_to_retry_adaptive_payments(
                     state.store.as_ref(),
                     state.superposition_service.as_ref(),
                     &dimensions,
                     queried_rung,
                 )
-                .await
-                .ok_or(errors::ProcessTrackerError::EApiErrorResponse)?;
+                .await;
 
-                // The one extra call. `None` whenever the algorithm has no opinion, in which
-                // case the decision resolves to the static time exactly as cascading would.
-                let adaptive_time: Option<time::PrimitiveDateTime> = None;
+                let (remaining_grace_days, remaining_budget) = get_adaptive_retry_allowances(
+                    state,
+                    &dimensions,
+                    payment_intent,
+                    max_retry_count,
+                    retry_count,
+                    now,
+                )
+                .await?;
+
+                let adaptive_time = match tracking_data.prev_attempt_error_code {
+                    Some(error_code) => compute_adaptive_retry_time(
+                        state,
+                        error_code,
+                        remaining_grace_days,
+                        remaining_budget,
+                    )
+                    .await
+                    .map(common_utils::date_time::convert_to_pdt),
+                    None => None,
+                };
+
+                // Neither algorithm has a time to offer: the adaptive ladder is spent and the
+                // model declined. Only then is the MIT cascading ladder consulted, so the
+                // lookup costs nothing on the paths that never reach it.
+                let fallback_time = match (static_time, adaptive_time) {
+                    (None, None) => {
+                        get_schedule_time_to_retry_mit_payments(
+                            state.store.as_ref(),
+                            state.superposition_service.as_ref(),
+                            &dimensions,
+                            retry_count,
+                        )
+                        .await
+                    }
+                    _ => None,
+                };
 
                 let decision = pcr::schedule::decide_next_retry(
                     static_ladder_progress,
                     queried_rung,
                     static_time,
                     adaptive_time,
-                );
+                    fallback_time,
+                )
+                .ok_or_else(|| {
+                    logger::error!(
+                        queried_rung = queried_rung,
+                        error_code = ?tracking_data.prev_attempt_error_code,
+                        remaining_grace_days = remaining_grace_days,
+                        remaining_budget = remaining_budget,
+                        "No retry time available — the static ladder is exhausted, the adaptive \
+                         algorithm declined and the MIT ladder had nothing left"
+                    );
+                    errors::ProcessTrackerError::EApiErrorResponse
+                })?;
 
                 logger::info!(
                     source = ?decision.source,
                     queried_rung = queried_rung,
                     static_time = ?static_time,
+                    adaptive_time = ?adaptive_time,
+                    fallback_time = ?fallback_time,
+                    error_code = ?tracking_data.prev_attempt_error_code,
+                    remaining_grace_days = remaining_grace_days,
+                    remaining_budget = remaining_budget,
                     schedule_time = ?decision.schedule_time,
                     "Adaptive retry decision"
                 );
@@ -807,6 +954,22 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
     ))
 }
 
+#[cfg(feature = "v2")]
+pub(crate) fn get_invoice_payment_processor_token(
+    payment_intent: &PaymentIntent,
+) -> Option<String> {
+    payment_intent
+        .feature_metadata
+        .as_ref()
+        .and_then(|metadata| metadata.payment_revenue_recovery_metadata.as_ref())
+        .map(|recovery_metadata| {
+            recovery_metadata
+                .billing_connector_payment_details
+                .payment_processor_token
+                .clone()
+        })
+}
+
 /// Check the invoice's payment processor token against a schedule time already decided.
 /// Shared by the cascading and adaptive paths so both gate on the same conditions
 #[cfg(feature = "v2")]
@@ -816,16 +979,7 @@ async fn get_token_availability_for_schedule_time(
     payment_intent: &PaymentIntent,
     scheduled_time: time::PrimitiveDateTime,
 ) -> CustomResult<PaymentProcessorTokenResponse, errors::ProcessTrackerError> {
-    let payment_processor_token = payment_intent
-        .feature_metadata
-        .as_ref()
-        .and_then(|metadata| metadata.payment_revenue_recovery_metadata.as_ref())
-        .map(|recovery_metadata| {
-            recovery_metadata
-                .billing_connector_payment_details
-                .payment_processor_token
-                .clone()
-        });
+    let payment_processor_token = get_invoice_payment_processor_token(payment_intent);
 
     let payment_processor_tokens_details =
         RedisTokenManager::get_payment_processor_metadata_for_connector_customer(
@@ -852,7 +1006,8 @@ async fn get_token_availability_for_schedule_time(
             if payment_token.token_status.is_hard_decline.unwrap_or(false) {
                 PaymentProcessorTokenResponse::HardDecline
             } else if payment_token.retry_wait_time_hours > 0 {
-                let utc_schedule_time: time::OffsetDateTime = time::OffsetDateTime::now_utc()
+                let utc_schedule_time: time::OffsetDateTime = common_utils::date_time::now()
+                    .assume_utc()
                     + time::Duration::hours(payment_token.retry_wait_time_hours);
                 let next_available_time = time::PrimitiveDateTime::new(
                     utc_schedule_time.date(),
@@ -983,7 +1138,7 @@ pub async fn calculate_smart_retry_time(
     token_with_retry_info: &PaymentProcessorTokenWithRetryInfo,
 ) -> Result<(Option<RetryDecision>, bool), errors::ProcessTrackerError> {
     let wait_hours = token_with_retry_info.retry_wait_time_hours;
-    let current_time = time::OffsetDateTime::now_utc();
+    let current_time = common_utils::date_time::now().assume_utc();
     let future_time = current_time + time::Duration::hours(wait_hours);
 
     // Timestamp after which retry can be done without penalty
@@ -1018,7 +1173,7 @@ pub async fn calculate_smart_retry_time(
             .recovery_timestamp
             .unretried_invoice_schedule_time_offset_seconds;
         let scheduled_time =
-            time::OffsetDateTime::now_utc() + time::Duration::seconds(schedule_offset);
+            common_utils::date_time::now().assume_utc() + time::Duration::seconds(schedule_offset);
         logger::info!(
             "Skipping Decider call, forcing a schedule for the token:- '{:?}' to time:- {}",
             masked_token,
@@ -1108,7 +1263,8 @@ pub async fn call_decider_for_payment_processor_tokens_select_closest_time(
                 .token_status
                 .payment_processor_token_details;
 
-            let utc_schedule_time = time::OffsetDateTime::now_utc() + time::Duration::minutes(1);
+            let utc_schedule_time =
+                common_utils::date_time::now().assume_utc() + time::Duration::minutes(1);
             let schedule_time =
                 time::PrimitiveDateTime::new(utc_schedule_time.date(), utc_schedule_time.time());
 
@@ -1277,13 +1433,12 @@ pub fn add_random_delay_to_schedule_time(
     state: &SessionState,
     schedule_time: time::PrimitiveDateTime,
 ) -> time::PrimitiveDateTime {
-    let mut rng = rand::thread_rng();
     let delay_limit = state
         .conf
         .revenue_recovery
         .recovery_timestamp
         .max_random_schedule_delay_in_seconds;
-    let random_secs = rng.gen_range(1..=delay_limit);
+    let random_secs = common_utils::generate_random_number_in_range(1, delay_limit);
     logger::info!("Adding random delay of {random_secs} seconds to schedule time");
     schedule_time + time::Duration::seconds(random_secs)
 }
@@ -1505,7 +1660,7 @@ fn pick_index<T: Copy + std::fmt::Debug>(
             (f64::from(budget) * w / s).min(1.0)
         };
         // Draw the (unseeded) random value into a variable so the per-step decision is fully logged.
-        let draw = rand::random::<f64>();
+        let draw = common_utils::generate_random_f64_unit();
         let fired = draw < p;
         logger::debug!(
             context = context,
@@ -1665,7 +1820,7 @@ pub fn compute_mathmodel_retry_time(
         );
         return None;
     }
-    let now = time::OffsetDateTime::now_utc();
+    let now = common_utils::date_time::now().assume_utc();
     let dow_scores = slot_scores(&stats.dow);
     let dom_scores = slot_scores(&stats.dom);
 
@@ -1918,7 +2073,7 @@ mod mathmodel_retry_time_tests {
         let grace: u32 = 14;
         for stats in [sample(), StatsDocument::default()] {
             for _ in 0..200 {
-                let before = time::OffsetDateTime::now_utc();
+                let before = common_utils::date_time::now().assume_utc();
                 let dt = compute_mathmodel_retry_time(&stats, 3, grace, DEFAULT_RETRY_HOUR)
                     .expect("grace > 1 => Some");
                 let last = (before + time::Duration::days(i64::from(grace) + 1)).date();
@@ -1936,7 +2091,7 @@ mod mathmodel_retry_time_tests {
     fn window_starts_next_day() {
         // Failure day is excluded: the earliest candidate is tomorrow. grace COUNTS today, so grace 2
         // = today + 1 future day (tomorrow) — assert the pick is that next day, not the failure day.
-        let before = time::OffsetDateTime::now_utc();
+        let before = common_utils::date_time::now().assume_utc();
         let dt = compute_mathmodel_retry_time(&sample(), 3, 2, DEFAULT_RETRY_HOUR)
             .expect("grace 2 => Some");
         assert!(
@@ -2002,7 +2157,7 @@ mod mathmodel_retry_time_tests {
         // Every slot corrupt (k > n) on all three axes -> all dropped -> uniform -> still a valid
         // in-window datetime, never a panic or a skipped retry.
         let corrupt = doc_with(&[(0, 1, 100), (3, 2, 50)], &[(5, 1, 80)], &[(9, 1, 30)]);
-        let before = time::OffsetDateTime::now_utc();
+        let before = common_utils::date_time::now().assume_utc();
         for _ in 0..50 {
             let dt = compute_mathmodel_retry_time(&corrupt, 3, 14, DEFAULT_RETRY_HOUR)
                 .expect("grace > 1 => Some");
@@ -2020,7 +2175,7 @@ mod mathmodel_retry_time_tests {
 
     #[test]
     fn grace_is_capped_at_max() {
-        let before = time::OffsetDateTime::now_utc();
+        let before = common_utils::date_time::now().assume_utc();
         let dt = compute_mathmodel_retry_time(&sample(), 3, 365, DEFAULT_RETRY_HOUR)
             .expect("grace > 1 => Some");
         let last = (before + time::Duration::days(i64::from(MAX_GRACE_DAYS) + 1)).date();
