@@ -9,7 +9,7 @@ use error_stack::report;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use super::within_width;
+use super::{not_blank, within_width};
 use crate::errors::{ObservabilityApiResult, ObservabilityError};
 
 const NAME_MAX_CHARS: usize = 64;
@@ -22,8 +22,8 @@ const EMPTY_DOCUMENT: &str = "{}";
 #[serde(deny_unknown_fields)]
 pub struct MerchantInstanceWrite {
     pub id_intermediate: Option<uuid::Uuid>,
-    pub name: Option<String>,
-    pub product: Option<String>,
+    pub name: String,
+    pub product: String,
     pub merchant_id: Option<String>,
     pub dimensions: Option<serde_json::Value>,
     pub auxiliary_dimensions: Option<serde_json::Value>,
@@ -49,8 +49,10 @@ pub struct MerchantInstanceWrite {
 
 impl MerchantInstanceWrite {
     pub fn validate(&self) -> ObservabilityApiResult<()> {
-        within_width("name", self.name.as_deref(), NAME_MAX_CHARS)?;
-        within_width("product", self.product.as_deref(), NAME_MAX_CHARS)?;
+        not_blank("name", &self.name)?;
+        not_blank("product", &self.product)?;
+        within_width("name", Some(&self.name), NAME_MAX_CHARS)?;
+        within_width("product", Some(&self.product), NAME_MAX_CHARS)?;
         within_width("merchant_id", self.merchant_id.as_deref(), NAME_MAX_CHARS)?;
         within_width("priority", self.priority.as_deref(), NAME_MAX_CHARS)?;
         within_width("tenant_id", self.tenant_id.as_deref(), NAME_MAX_CHARS)?;
@@ -72,8 +74,8 @@ impl MerchantInstanceWrite {
             channel: announcement.channel.clone(),
             id_merchant_table,
             id_intermediate: self.id_intermediate,
-            name: self.name.unwrap_or_default(),
-            product: self.product.unwrap_or_default(),
+            name: self.name,
+            product: self.product,
             merchant_id: self.merchant_id.unwrap_or_default(),
             dimensions: self.dimensions.unwrap_or_else(empty_document_text),
             auxiliary_dimensions: self
@@ -86,10 +88,7 @@ impl MerchantInstanceWrite {
             start_time: self.start_time,
             is_visible: self.is_visible.unwrap_or(true),
             recovered_ts: self.recovered_ts,
-            ts_slack: self
-                .ts_slack
-                .or_else(|| announcement.ts_slack.clone())
-                .unwrap_or_default(),
+            ts_slack: self.ts_slack.unwrap_or_default(),
             ts_alert: now,
             latest_ts_alert: self.latest_ts_alert,
             last_updated_at: now,
@@ -107,8 +106,8 @@ impl MerchantInstanceWrite {
 #[serde(deny_unknown_fields)]
 pub struct DimensionInstanceWrite {
     pub id_intermediate: Option<uuid::Uuid>,
-    pub name: Option<String>,
-    pub product: Option<String>,
+    pub name: String,
+    pub product: String,
     pub dimension_key: Option<String>,
     pub dimension_value: Option<String>,
     pub dimensions: Option<serde_json::Value>,
@@ -135,8 +134,10 @@ pub struct DimensionInstanceWrite {
 
 impl DimensionInstanceWrite {
     pub fn validate(&self) -> ObservabilityApiResult<()> {
-        within_width("name", self.name.as_deref(), NAME_MAX_CHARS)?;
-        within_width("product", self.product.as_deref(), NAME_MAX_CHARS)?;
+        not_blank("name", &self.name)?;
+        not_blank("product", &self.product)?;
+        within_width("name", Some(&self.name), NAME_MAX_CHARS)?;
+        within_width("product", Some(&self.product), NAME_MAX_CHARS)?;
         within_width(
             "dimension_key",
             self.dimension_key.as_deref(),
@@ -167,8 +168,8 @@ impl DimensionInstanceWrite {
             channel: announcement.channel.clone(),
             id_merchant_table,
             id_intermediate: self.id_intermediate,
-            name: self.name.unwrap_or_default(),
-            product: self.product.unwrap_or_default(),
+            name: self.name,
+            product: self.product,
             dimension_key: self.dimension_key.unwrap_or_default(),
             dimension_value: self.dimension_value.unwrap_or_default(),
             dimensions: self.dimensions.unwrap_or_else(empty_document_text),
@@ -182,10 +183,7 @@ impl DimensionInstanceWrite {
             is_visible: self.is_visible.unwrap_or(true),
             start_time: self.start_time,
             recovered_ts: self.recovered_ts,
-            ts_slack: self
-                .ts_slack
-                .or_else(|| announcement.ts_slack.clone())
-                .unwrap_or_default(),
+            ts_slack: self.ts_slack.unwrap_or_default(),
             ts_alert: now,
             latest_ts_alert: self.latest_ts_alert,
             last_updated_at: now,
