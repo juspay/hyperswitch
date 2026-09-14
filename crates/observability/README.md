@@ -474,9 +474,9 @@ Rows and their queries are not here at all: `alerts_info`, `merchants_alert_exte
 every other table this database owns, so the alert manager and this service read one definition of
 them rather than two.
 
-`alert_manager` has no `domain/`: a row is a row, and its types are `diesel_models::observability`
-on one side and `alert_manager/types/` on the other. A trait between them would abstract over one
-implementation.
+The configuration areas have no `domain` types: a row is a row, and its types are
+`diesel_models::observability` on one side and `types/` on the other. A trait between them would
+abstract over one implementation.
 
 `domain` holds no HTTP. `core` holds no traits. A handler that grows logic belongs in `core`; a
 concept that a background job would also need belongs in `domain`.
