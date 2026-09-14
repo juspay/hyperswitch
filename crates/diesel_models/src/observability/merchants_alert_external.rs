@@ -1,6 +1,4 @@
-#![allow(clippy::misnamed_getters)]
-
-use diesel::{Identifiable, Insertable, Queryable, Selectable};
+use diesel::{Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
@@ -37,8 +35,8 @@ pub struct MerchantsAlertExternalNew {
     pub tenant_id: String,
 }
 
-#[derive(Clone, Debug, Identifiable, Queryable, Selectable, Serialize, Deserialize)]
-#[diesel(table_name = merchants_alert_external, primary_key(id_merchant_table), check_for_backend(diesel::pg::Pg))]
+#[derive(Clone, Debug, Queryable, Selectable, Serialize, Deserialize)]
+#[diesel(table_name = merchants_alert_external, check_for_backend(diesel::pg::Pg))]
 pub struct MerchantsAlertExternal {
     pub id: uuid::Uuid,
     pub channel: String,

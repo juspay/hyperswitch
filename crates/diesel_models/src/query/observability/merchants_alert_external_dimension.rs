@@ -1,7 +1,5 @@
 use async_bb8_diesel::AsyncRunQueryDsl;
-use diesel::{
-    associations::HasTable, query_dsl::methods::FilterDsl, BoolExpressionMethods, ExpressionMethods,
-};
+use diesel::{query_dsl::methods::FilterDsl, BoolExpressionMethods, ExpressionMethods};
 use error_stack::ResultExt;
 
 use crate::{
@@ -10,7 +8,7 @@ use crate::{
         merchants_alert_external_dimension::{
             MerchantsAlertExternalDimension, MerchantsAlertExternalDimensionNew,
         },
-        schema::merchants_alert_external_dimension::dsl,
+        schema::merchants_alert_external_dimension::{self, dsl},
     },
     query::{
         generics,
@@ -28,11 +26,10 @@ impl MerchantsAlertExternalDimensionNew {
             return Ok(0);
         }
 
-        let query = diesel::insert_into(<MerchantsAlertExternalDimension as HasTable>::table())
-            .values(rows);
+        let query = diesel::insert_into(merchants_alert_external_dimension::table).values(rows);
 
         generics::db_metrics::track_database_call::<
-            <MerchantsAlertExternalDimension as HasTable>::Table,
+            merchants_alert_external_dimension::table,
             _,
             _,
         >(
@@ -53,7 +50,7 @@ impl MerchantsAlertExternalDimension {
         conn: &DatabaseConnectionWithContext<'_>,
         announcement: uuid::Uuid,
     ) -> StorageResult<()> {
-        advisory_xact_lock::<<Self as HasTable>::Table>(
+        advisory_xact_lock::<merchants_alert_external_dimension::table>(
             conn,
             DIMENSIONS_LOCK_NAMESPACE,
             &announcement.to_string(),
@@ -66,7 +63,7 @@ impl MerchantsAlertExternalDimension {
         channel: &str,
         announcement: uuid::Uuid,
     ) -> StorageResult<Vec<Self>> {
-        generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
+        generics::generic_filter::<merchants_alert_external_dimension::table, _, _, _>(
             conn,
             dsl::channel
                 .eq(channel.to_owned())
@@ -88,14 +85,14 @@ impl MerchantsAlertExternalDimension {
         announcement: uuid::Uuid,
     ) -> StorageResult<usize> {
         let query = diesel::delete(
-            <Self as HasTable>::table().filter(
+            merchants_alert_external_dimension::table.filter(
                 dsl::channel
                     .eq(channel.to_owned())
                     .and(dsl::id.eq(announcement)),
             ),
         );
 
-        generics::db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
+        generics::db_metrics::track_database_call::<merchants_alert_external_dimension::table, _, _>(
             conn.request_id(),
             conn.event_emitter(),
             generics::db_metrics::DatabaseOperation::Delete,
