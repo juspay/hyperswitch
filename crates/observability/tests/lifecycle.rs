@@ -20,10 +20,8 @@ use actix_web::{
     App,
 };
 use async_bb8_diesel::AsyncRunQueryDsl;
-use diesel::QueryDsl;
-use diesel_models::observability::schema::{
-    alerts_intermediate, alerts_intermediate_xyne, alerts_main, alerts_main_xyne,
-};
+use diesel::{ExpressionMethods, QueryDsl};
+use diesel_models::observability::schema::{alerts_intermediate, alerts_main};
 use observability::{
     auth::X_INTERNAL_API_KEY,
     domain::notifier::Registry,
@@ -223,41 +221,28 @@ async fn clear(state: &AppState, channel: &str) {
     let connection = state.database_connection().await.expect("a connection");
     let raw = connection.raw_connection();
 
-    match channel {
-        "slack" => {
-            diesel::delete(alerts_intermediate::table)
-                .execute_async(raw)
-                .await
-                .expect("the state cleanup should run");
-            diesel::delete(alerts_main::table)
-                .execute_async(raw)
-                .await
-                .expect("the announcement cleanup should run");
-        }
-        "xyne" => {
-            diesel::delete(alerts_intermediate_xyne::table)
-                .execute_async(raw)
-                .await
-                .expect("the state cleanup should run");
-            diesel::delete(alerts_main_xyne::table)
-                .execute_async(raw)
-                .await
-                .expect("the announcement cleanup should run");
-        }
-        other => panic!("no such channel: {other}"),
-    }
+    diesel::delete(
+        alerts_intermediate::table.filter(alerts_intermediate::channel.eq(channel.to_owned())),
+    )
+    .execute_async(raw)
+    .await
+    .expect("the state cleanup should run");
+    diesel::delete(alerts_main::table.filter(alerts_main::channel.eq(channel.to_owned())))
+        .execute_async(raw)
+        .await
+        .expect("the announcement cleanup should run");
 }
 
 async fn announcement_count(state: &AppState, channel: &str) -> i64 {
     let connection = state.database_connection().await.expect("a connection");
     let raw = connection.raw_connection();
 
-    match channel {
-        "slack" => alerts_main::table.count().get_result_async(raw).await,
-        "xyne" => alerts_main_xyne::table.count().get_result_async(raw).await,
-        other => panic!("no such channel: {other}"),
-    }
-    .expect("the count should run")
+    alerts_main::table
+        .filter(alerts_main::channel.eq(channel.to_owned()))
+        .count()
+        .get_result_async(raw)
+        .await
+        .expect("the count should run")
 }
 
 async fn announce(state: &AppState, channel: &str, name: &str, sent: bool, thread: &str) -> String {

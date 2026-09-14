@@ -263,6 +263,7 @@ mod tests {
     fn a_state_row_carries_every_field_even_when_the_columns_are_null() {
         let body = body_of(&AlertStateEntry::from(AlertStateRow {
             id_intermediate: uuid::Uuid::nil(),
+            channel: None,
             id: None,
             name: None,
             product: None,
@@ -311,6 +312,7 @@ mod tests {
         let announcement = uuid::Uuid::now_v7();
         let body = body_of(&AlertStateEntry::from(AlertStateRow {
             id_intermediate: uuid::Uuid::nil(),
+            channel: None,
             id: Some(announcement),
             name: None,
             product: None,
@@ -361,6 +363,7 @@ mod tests {
 
         let entry = AnnouncementEntry::from(AnnouncementRow {
             id: uuid::Uuid::nil(),
+            channel: None,
             name: None,
             product: None,
             dimensions: Some(stored),

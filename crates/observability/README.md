@@ -418,9 +418,10 @@ firing now**; `alerts_main` records **what was actually said**, one row per anno
 `sent` flag and the thread it opened. Collapsing them is why the service this replaces cannot say
 whether an alert was delivered.
 
-`{channel}` is `slack` or `xyne`. The tables come once per delivery channel — `alerts_main` and
-`alerts_main_xyne`, and their `alerts_intermediate` twins — so the channel is a path segment. A
-segment that is neither is a `404` rather than a fallback to one of them.
+`{channel}` is `slack` or `xyne`. Both channels share `alerts_main` and `alerts_intermediate`, each
+row carrying its `channel`, and every read, replace and lock is scoped to the channel in the path.
+A segment that is neither is a `404` rather than a fallback to one of them. A state write whose
+`id_intermediate` belongs to the other channel is a `400` and changes nothing.
 
 **Two write shapes, deliberately not alike.** A state write is a replacement: what it does not
 carry is removed. An announcement write is an append: it adds a row and takes nothing away. There

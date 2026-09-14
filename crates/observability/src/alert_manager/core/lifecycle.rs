@@ -1,24 +1,24 @@
 use async_bb8_diesel::AsyncConnection;
 use diesel_models::{
     observability::{
-        alerts_intermediate::{slack as slack_state, xyne as xyne_state, AlertStateRow},
-        alerts_main::{slack as slack_main, xyne as xyne_main, AnnouncementRow},
-        raw_json::RawJson,
+        alerts_intermediate::AlertStateRow, alerts_main::AnnouncementRow, raw_json::RawJson,
     },
     query::observability::alerts_intermediate::lock_lifecycle_state,
-    DatabaseConnectionWithContext, StorageResult,
 };
 use error_stack::{report, ResultExt};
 use time::PrimitiveDateTime;
 
 use crate::{
-    alert_manager::types::{
-        lifecycle::{
-            AlertStateEntry, AlertStateWrite, AnnouncementEntry, AnnouncementRequest,
-            AnnouncementSaveResponse, Channel, LifecycleStateResponse, LifecycleStateSaveResponse,
-            LifecycleStateWriteRequest,
+    alert_manager::{
+        core::{escalate, unrecognised},
+        types::{
+            lifecycle::{
+                AlertStateEntry, AlertStateWrite, AnnouncementEntry, AnnouncementRequest,
+                AnnouncementSaveResponse, Channel, LifecycleStateResponse,
+                LifecycleStateSaveResponse, LifecycleStateWriteRequest,
+            },
+            ReadStatus, WriteStatus,
         },
-        ReadStatus, WriteStatus,
     },
     errors::{ObservabilityApiResult, ObservabilityError},
     logger,
@@ -35,9 +35,9 @@ pub async fn read_state(
 ) -> ObservabilityApiResult<LifecycleStateResponse> {
     let connection = state.database_connection().await?;
 
-    let rows = store::list(&connection, channel)
+    let rows = AlertStateRow::list(&connection, channel.as_str())
         .await
-        .change_context(ObservabilityError::StorageUnavailable)
+        .map_err(|error| escalate(error, unrecognised))
         .attach_printable("Failed to read the lifecycle state")?;
 
     Ok(LifecycleStateResponse {
@@ -71,7 +71,7 @@ pub async fn write_state(
     }
 
     let now = stamp();
-    let plan = WritePlan::build(request.alerts, now)?;
+    let plan = WritePlan::build(request.alerts, channel, now)?;
     let expected = request.expected_last_updated_at;
     let connection = state.database_connection().await?;
 
@@ -81,13 +81,14 @@ pub async fn write_state(
         .transaction_async(move |_| async move {
             lock_lifecycle_state(borrowed, channel.lock_key()).await?;
 
-            let found = store::watermark(borrowed, channel).await?;
+            let found = AlertStateRow::latest_last_updated_at(borrowed, channel.as_str()).await?;
             if found != expected {
                 Err(WriteFailure::Stale { expected, found })?;
             }
 
             let existing =
-                store::existing_announcements(borrowed, channel, plan.referenced.clone()).await?;
+                AnnouncementRow::existing_ids(borrowed, channel.as_str(), plan.referenced.clone())
+                    .await?;
             if let Some(missing) = plan
                 .referenced
                 .iter()
@@ -97,8 +98,16 @@ pub async fn write_state(
                 Err(WriteFailure::UnknownAnnouncement(missing))?;
             }
 
-            let removed = store::delete_absent(borrowed, channel, plan.keep).await?;
-            let alerts = store::upsert_all(borrowed, channel, plan.rows).await?;
+            let removed =
+                AlertStateRow::delete_absent(borrowed, channel.as_str(), plan.keep).await?;
+            let expected = plan.rows.len();
+            let alerts = AlertStateRow::upsert_all(borrowed, plan.rows).await?;
+            if alerts != expected {
+                Err(WriteFailure::ForeignRows {
+                    expected,
+                    written: alerts,
+                })?;
+            }
 
             Ok::<_, WriteFailure>(Applied { alerts, removed })
         })
@@ -125,26 +134,24 @@ pub async fn record_announcement(
     let now = stamp();
     let connection = state.database_connection().await?;
 
-    let announcement = store::insert_announcement(
-        &connection,
-        channel,
-        AnnouncementRow {
-            id: uuid::Uuid::now_v7(),
-            name: request.name,
-            product: request.product,
-            dimensions: request.dimensions.map(RawJson::from),
-            ts_slack: request.ts_slack,
-            ts_alert: Some(now),
-            duration: request.duration,
-            sent: request.sent,
-            critical: request.critical,
-            rca_metadata: request.rca_metadata,
-            metadata: request.metadata.map(RawJson::from),
-            last_updated_at: Some(now),
-        },
-    )
+    let announcement = AnnouncementRow {
+        id: uuid::Uuid::now_v7(),
+        channel: Some(channel.as_str().to_owned()),
+        name: request.name,
+        product: request.product,
+        dimensions: request.dimensions.map(RawJson::from),
+        ts_slack: request.ts_slack,
+        ts_alert: Some(now),
+        duration: request.duration,
+        sent: request.sent,
+        critical: request.critical,
+        rca_metadata: request.rca_metadata,
+        metadata: request.metadata.map(RawJson::from),
+        last_updated_at: Some(now),
+    }
+    .insert(&connection)
     .await
-    .change_context(ObservabilityError::InternalServerError)
+    .map_err(|error| escalate(error, unrecognised))
     .attach_printable("Failed to record an announcement")?;
 
     Ok(AnnouncementSaveResponse {
@@ -166,7 +173,11 @@ struct WritePlan {
 }
 
 impl WritePlan {
-    fn build(alerts: Vec<AlertStateWrite>, now: PrimitiveDateTime) -> ObservabilityApiResult<Self> {
+    fn build(
+        alerts: Vec<AlertStateWrite>,
+        channel: Channel,
+        now: PrimitiveDateTime,
+    ) -> ObservabilityApiResult<Self> {
         let mut rows = Vec::with_capacity(alerts.len());
         let mut keep = Vec::with_capacity(alerts.len());
         let mut referenced = Vec::new();
@@ -197,6 +208,7 @@ impl WritePlan {
 
             rows.push(AlertStateRow {
                 id_intermediate,
+                channel: Some(channel.as_str().to_owned()),
                 id: alert.announcement_id,
                 name: alert.name,
                 product: alert.product,
@@ -230,6 +242,10 @@ enum WriteFailure {
         found: Option<PrimitiveDateTime>,
     },
     UnknownAnnouncement(uuid::Uuid),
+    ForeignRows {
+        expected: usize,
+        written: usize,
+    },
     Storage(error_stack::Report<diesel_models::errors::DatabaseError>),
     Transaction(diesel::result::Error),
 }
@@ -249,10 +265,14 @@ impl WriteFailure {
             Self::UnknownAnnouncement(id) => {
                 report!(ObservabilityError::UnknownAnnouncement { id: id.to_string() })
             }
-            Self::Storage(error) => error
-                .change_context(ObservabilityError::StorageUnavailable)
+            Self::ForeignRows { expected, written } => report!(ObservabilityError::InvalidRequest)
+                .attach_printable(format!(
+                    "{} of the {expected} alerts carry an id_intermediate owned by another channel",
+                    expected - written
+                )),
+            Self::Storage(error) => escalate(error, unrecognised)
                 .attach_printable("Failed to write the lifecycle state"),
-            Self::Transaction(error) => report!(ObservabilityError::StorageUnavailable)
+            Self::Transaction(error) => report!(ObservabilityError::InternalServerError)
                 .attach_printable(format!("The lifecycle write transaction failed: {error}")),
         }
     }
@@ -289,77 +309,6 @@ fn fits(value: Option<&str>, field: &'static str, max_bytes: usize) -> Observabi
     }
 
     Ok(())
-}
-
-mod store {
-    use super::{
-        slack_main, slack_state, xyne_main, xyne_state, AlertStateRow, AnnouncementRow, Channel,
-        DatabaseConnectionWithContext, PrimitiveDateTime, StorageResult,
-    };
-
-    pub(super) async fn list(
-        conn: &DatabaseConnectionWithContext<'_>,
-        channel: Channel,
-    ) -> StorageResult<Vec<AlertStateRow>> {
-        match channel {
-            Channel::Slack => slack_state::AlertState::list(conn).await,
-            Channel::Xyne => xyne_state::AlertState::list(conn).await,
-        }
-    }
-
-    pub(super) async fn watermark(
-        conn: &DatabaseConnectionWithContext<'_>,
-        channel: Channel,
-    ) -> StorageResult<Option<PrimitiveDateTime>> {
-        match channel {
-            Channel::Slack => slack_state::AlertState::latest_last_updated_at(conn).await,
-            Channel::Xyne => xyne_state::AlertState::latest_last_updated_at(conn).await,
-        }
-    }
-
-    pub(super) async fn delete_absent(
-        conn: &DatabaseConnectionWithContext<'_>,
-        channel: Channel,
-        keep: Vec<uuid::Uuid>,
-    ) -> StorageResult<usize> {
-        match channel {
-            Channel::Slack => slack_state::AlertState::delete_absent(conn, keep).await,
-            Channel::Xyne => xyne_state::AlertState::delete_absent(conn, keep).await,
-        }
-    }
-
-    pub(super) async fn upsert_all(
-        conn: &DatabaseConnectionWithContext<'_>,
-        channel: Channel,
-        rows: Vec<AlertStateRow>,
-    ) -> StorageResult<usize> {
-        match channel {
-            Channel::Slack => slack_state::AlertState::upsert_all(conn, rows).await,
-            Channel::Xyne => xyne_state::AlertState::upsert_all(conn, rows).await,
-        }
-    }
-
-    pub(super) async fn existing_announcements(
-        conn: &DatabaseConnectionWithContext<'_>,
-        channel: Channel,
-        ids: Vec<uuid::Uuid>,
-    ) -> StorageResult<Vec<uuid::Uuid>> {
-        match channel {
-            Channel::Slack => slack_main::Announcement::existing_ids(conn, ids).await,
-            Channel::Xyne => xyne_main::Announcement::existing_ids(conn, ids).await,
-        }
-    }
-
-    pub(super) async fn insert_announcement(
-        conn: &DatabaseConnectionWithContext<'_>,
-        channel: Channel,
-        row: AnnouncementRow,
-    ) -> StorageResult<AnnouncementRow> {
-        match channel {
-            Channel::Slack => slack_main::Announcement::insert(conn, row).await,
-            Channel::Xyne => xyne_main::Announcement::insert(conn, row).await,
-        }
-    }
 }
 
 #[cfg(test)]
@@ -404,6 +353,7 @@ mod tests {
                 alert(None, Some(first)),
                 alert(None, None),
             ],
+            Channel::Slack,
             now(),
         )
         .unwrap();
@@ -415,7 +365,7 @@ mod tests {
 
     #[test]
     fn a_write_carrying_nothing_keeps_nothing() {
-        let plan = WritePlan::build(Vec::new(), now()).unwrap();
+        let plan = WritePlan::build(Vec::new(), Channel::Slack, now()).unwrap();
 
         assert!(plan.keep.is_empty());
         assert!(plan.rows.is_empty());
@@ -425,7 +375,12 @@ mod tests {
     #[test]
     fn every_row_is_stamped_with_the_servers_clock() {
         let at = now();
-        let plan = WritePlan::build(vec![alert(None, None), alert(None, None)], at).unwrap();
+        let plan = WritePlan::build(
+            vec![alert(None, None), alert(None, None)],
+            Channel::Slack,
+            at,
+        )
+        .unwrap();
 
         for row in &plan.rows {
             assert_eq!(row.last_updated_at, Some(at));
@@ -434,7 +389,7 @@ mod tests {
 
     #[test]
     fn a_row_without_an_id_is_given_one() {
-        let plan = WritePlan::build(vec![alert(None, None)], now()).unwrap();
+        let plan = WritePlan::build(vec![alert(None, None)], Channel::Slack, now()).unwrap();
 
         assert_ne!(plan.rows[0].id_intermediate, uuid::Uuid::nil());
         assert_eq!(plan.keep[0], plan.rows[0].id_intermediate);
@@ -443,7 +398,7 @@ mod tests {
     #[test]
     fn a_row_with_an_id_keeps_it() {
         let id = uuid::Uuid::now_v7();
-        let plan = WritePlan::build(vec![alert(Some(id), None)], now()).unwrap();
+        let plan = WritePlan::build(vec![alert(Some(id), None)], Channel::Slack, now()).unwrap();
 
         assert_eq!(plan.rows[0].id_intermediate, id);
         assert_eq!(plan.keep, vec![id]);
@@ -452,8 +407,12 @@ mod tests {
     #[test]
     fn the_same_row_twice_in_one_write_is_rejected() {
         let id = uuid::Uuid::now_v7();
-        let error = WritePlan::build(vec![alert(Some(id), None), alert(Some(id), None)], now())
-            .unwrap_err();
+        let error = WritePlan::build(
+            vec![alert(Some(id), None), alert(Some(id), None)],
+            Channel::Slack,
+            now(),
+        )
+        .unwrap_err();
 
         assert!(matches!(
             error.current_context(),
@@ -466,12 +425,12 @@ mod tests {
         let mut wide = alert(None, None);
         wide.group_id = Some("g".repeat(NAME_MAX_BYTES + 1));
 
-        assert!(WritePlan::build(vec![wide], now()).is_err());
+        assert!(WritePlan::build(vec![wide], Channel::Slack, now()).is_err());
 
         let mut long_thread = alert(None, None);
         long_thread.ts_slack = Some("t".repeat(TS_SLACK_MAX_BYTES + 1));
 
-        assert!(WritePlan::build(vec![long_thread], now()).is_err());
+        assert!(WritePlan::build(vec![long_thread], Channel::Slack, now()).is_err());
     }
 
     #[test]
@@ -494,6 +453,6 @@ mod tests {
         bare.name = None;
         bare.group_id = None;
 
-        assert!(WritePlan::build(vec![bare], now()).is_ok());
+        assert!(WritePlan::build(vec![bare], Channel::Slack, now()).is_ok());
     }
 }
