@@ -114,6 +114,7 @@ impl AlertsLifecycle {
     pub fn server() -> Scope {
         web::scope("/lifecycle")
             .app_data(json_config().limit(MAX_LIFECYCLE_BODY_BYTES))
+            .app_data(query_config())
             .service(
                 web::scope("/{channel}")
                     .service(
@@ -123,7 +124,12 @@ impl AlertsLifecycle {
                     )
                     .service(
                         web::resource("/announcements")
+                            .route(web::get().to(lifecycle::list_announcements))
                             .route(web::post().to(lifecycle::record_announcement)),
+                    )
+                    .service(
+                        web::resource("/announcements/{id}")
+                            .route(web::post().to(lifecycle::update_announcement)),
                     ),
             )
     }
@@ -149,6 +155,23 @@ fn json_config() -> web::JsonConfig {
             "IR",
             4,
             "The request body could not be parsed",
+        ))
+        .into()
+    })
+}
+
+fn query_config() -> web::QueryConfig {
+    web::QueryConfig::default().error_handler(|error, request| {
+        logger::warn!(
+            path = %request.path(),
+            error = %error,
+            "Request rejected: the query could not be parsed"
+        );
+
+        ApiErrorResponse::BadRequest(ApiError::new(
+            "IR",
+            4,
+            "The request query could not be parsed",
         ))
         .into()
     })

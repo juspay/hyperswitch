@@ -1,4 +1,4 @@
-use diesel::{Identifiable, Insertable, Queryable, Selectable};
+use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
@@ -48,4 +48,25 @@ pub struct AlertsIntermediate {
     pub priority: Option<String>,
     pub last_updated_at: Option<PrimitiveDateTime>,
     pub recovered_ts: Option<PrimitiveDateTime>,
+}
+
+#[derive(Debug)]
+pub enum AlertsIntermediateUpdate {
+    Metadata { metadata: serde_json::Value },
+}
+
+#[derive(Clone, Debug, AsChangeset)]
+#[diesel(table_name = alerts_intermediate)]
+pub struct AlertsIntermediateUpdateInternal {
+    pub metadata: Option<serde_json::Value>,
+}
+
+impl From<AlertsIntermediateUpdate> for AlertsIntermediateUpdateInternal {
+    fn from(update: AlertsIntermediateUpdate) -> Self {
+        match update {
+            AlertsIntermediateUpdate::Metadata { metadata } => Self {
+                metadata: Some(metadata),
+            },
+        }
+    }
 }

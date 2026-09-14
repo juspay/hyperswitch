@@ -144,6 +144,27 @@ pub struct AnnouncementEntry {
     pub last_updated_at: Option<PrimitiveDateTime>,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AnnouncementListRequest {
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub start: Option<PrimitiveDateTime>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub end: Option<PrimitiveDateTime>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct AnnouncementListResponse {
+    pub count: usize,
+    pub announcements: Vec<AnnouncementEntry>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AnnouncementUpdateRequest {
+    pub metadata: Box<RawValue>,
+}
+
 #[derive(Debug, Serialize)]
 pub struct AnnouncementSaveResponse {
     pub status: WriteStatus,

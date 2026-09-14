@@ -12,7 +12,10 @@ use time::PrimitiveDateTime;
 use crate::{
     errors,
     observability::{
-        alerts_intermediate::{AlertsIntermediate, AlertsIntermediateNew},
+        alerts_intermediate::{
+            AlertsIntermediate, AlertsIntermediateNew, AlertsIntermediateUpdate,
+            AlertsIntermediateUpdateInternal,
+        },
         schema::alerts_intermediate::dsl,
     },
     query::generics,
@@ -95,6 +98,41 @@ impl AlertsIntermediate {
             None,
             None,
             Some((dsl::ts_alert.asc(), dsl::id_intermediate.asc())),
+        )
+        .await
+    }
+
+    pub async fn list_by_channel_and_announcement(
+        conn: &DatabaseConnectionWithContext<'_>,
+        channel: &str,
+        announcement: uuid::Uuid,
+    ) -> StorageResult<Vec<Self>> {
+        generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
+            conn,
+            dsl::channel
+                .eq(channel.to_owned())
+                .and(dsl::id.eq(announcement)),
+            None,
+            None,
+            Some(dsl::id_intermediate.asc()),
+        )
+        .await
+    }
+
+    pub async fn update_by_id_intermediate(
+        conn: &DatabaseConnectionWithContext<'_>,
+        id_intermediate: uuid::Uuid,
+        update: AlertsIntermediateUpdate,
+    ) -> StorageResult<Self> {
+        generics::generic_update_with_unique_predicate_get_result::<
+            <Self as HasTable>::Table,
+            _,
+            _,
+            _,
+        >(
+            conn,
+            dsl::id_intermediate.eq(id_intermediate),
+            AlertsIntermediateUpdateInternal::from(update),
         )
         .await
     }

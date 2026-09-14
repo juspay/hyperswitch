@@ -2,8 +2,8 @@ use std::collections::HashSet;
 
 use async_bb8_diesel::AsyncConnection;
 use diesel_models::observability::{
-    alerts_intermediate::{AlertsIntermediate, AlertsIntermediateNew},
-    alerts_main::{AlertsMain, AlertsMainNew},
+    alerts_intermediate::{AlertsIntermediate, AlertsIntermediateNew, AlertsIntermediateUpdate},
+    alerts_main::{AlertsMain, AlertsMainNew, AlertsMainUpdate},
     raw_json::RawJson,
 };
 use error_stack::{report, ResultExt};
@@ -15,8 +15,9 @@ use crate::{
     state::AppState,
     types::{
         lifecycle::{
-            AlertStateEntry, AlertStateWrite, AnnouncementEntry, AnnouncementRequest,
-            AnnouncementSaveResponse, Channel, LifecycleStateResponse, LifecycleStateSaveResponse,
+            AlertStateEntry, AlertStateWrite, AnnouncementEntry, AnnouncementListRequest,
+            AnnouncementListResponse, AnnouncementRequest, AnnouncementSaveResponse,
+            AnnouncementUpdateRequest, Channel, LifecycleStateResponse, LifecycleStateSaveResponse,
             LifecycleStateWriteRequest,
         },
         ReadStatus, WriteStatus,
@@ -30,6 +31,12 @@ const TS_SLACK_MAX_CHARS: usize = 255;
 const ALERTS_PER_STATEMENT: usize = 1_000;
 
 const MAX_ALERTS: usize = 5_000;
+
+const DEFAULT_ANNOUNCEMENT_WINDOW_DAYS: i64 = 7;
+
+const MAX_ANNOUNCEMENT_WINDOW_DAYS: i64 = 30;
+
+const MERCHANT_VISIBILITY_KEY: &str = "is_visible_to_merchant";
 
 pub async fn read_state(
     state: AppState,
@@ -173,6 +180,119 @@ pub async fn record_announcement(
     .await
     .change_context(ObservabilityError::InternalServerError)
     .attach_printable("Failed to record an announcement")?;
+
+    Ok(AnnouncementSaveResponse {
+        status: WriteStatus::Saved,
+        announcement: AnnouncementEntry::from(announcement),
+    })
+}
+
+pub async fn list_announcements(
+    state: AppState,
+    channel: Channel,
+    request: AnnouncementListRequest,
+) -> ObservabilityApiResult<AnnouncementListResponse> {
+    let channel = <&'static str>::from(channel);
+
+    let end = request
+        .end
+        .unwrap_or_else(|| truncate_to_millisecond(common_utils::date_time::now()));
+    let start = request
+        .start
+        .unwrap_or(end - time::Duration::days(DEFAULT_ANNOUNCEMENT_WINDOW_DAYS));
+    if end < start || end - start > time::Duration::days(MAX_ANNOUNCEMENT_WINDOW_DAYS) {
+        Err(report!(ObservabilityError::InvalidAnnouncementWindow {
+            max_days: MAX_ANNOUNCEMENT_WINDOW_DAYS,
+        }))?;
+    }
+
+    let connection = state.database_connection().await?;
+
+    let announcements =
+        AlertsMain::list_by_channel_and_ts_alert_window(&connection, channel, start, end)
+            .await
+            .change_context(ObservabilityError::InternalServerError)
+            .attach_printable("Failed to list announcements")?
+            .into_iter()
+            .map(AnnouncementEntry::from)
+            .collect::<Vec<_>>();
+
+    Ok(AnnouncementListResponse {
+        count: announcements.len(),
+        announcements,
+    })
+}
+
+pub async fn update_announcement(
+    state: AppState,
+    channel: Channel,
+    id: uuid::Uuid,
+    request: AnnouncementUpdateRequest,
+) -> ObservabilityApiResult<AnnouncementSaveResponse> {
+    let channel = <&'static str>::from(channel);
+
+    let patch =
+        serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(request.metadata.get())
+            .change_context(ObservabilityError::InvalidRequest)
+            .attach_printable("The announcement metadata is not a JSON object")?;
+    let metadata = RawJson::from(request.metadata);
+
+    let now = truncate_to_millisecond(common_utils::date_time::now());
+    let connection = state.database_connection().await?;
+
+    let borrowed = &connection;
+    let announcement = borrowed
+        .raw_connection()
+        .transaction_async(move |_| async move {
+            let announcement = AlertsMain::update_by_channel_and_id(
+                borrowed,
+                channel,
+                id,
+                AlertsMainUpdate::Metadata {
+                    metadata,
+                    last_updated_at: now,
+                },
+            )
+            .await?;
+
+            for row in
+                AlertsIntermediate::list_by_channel_and_announcement(borrowed, channel, id).await?
+            {
+                let mut merged = match row.metadata {
+                    Some(serde_json::Value::Object(existing)) => existing,
+                    _ => serde_json::Map::new(),
+                };
+                merged.extend(
+                    patch
+                        .iter()
+                        .filter(|(key, _)| key.as_str() != MERCHANT_VISIBILITY_KEY)
+                        .map(|(key, value)| (key.clone(), value.clone())),
+                );
+
+                AlertsIntermediate::update_by_id_intermediate(
+                    borrowed,
+                    row.id_intermediate,
+                    AlertsIntermediateUpdate::Metadata {
+                        metadata: serde_json::Value::Object(merged),
+                    },
+                )
+                .await?;
+            }
+
+            Ok::<_, WriteFailure>(announcement)
+        })
+        .await
+        .map_err(|failure| match failure {
+            WriteFailure::Storage(error)
+                if matches!(
+                    error.current_context(),
+                    diesel_models::errors::DatabaseError::NotFound
+                ) =>
+            {
+                error.change_context(ObservabilityError::UnknownAnnouncement { id: id.to_string() })
+            }
+            failure => failure.into_report(),
+        })?;
 
     Ok(AnnouncementSaveResponse {
         status: WriteStatus::Saved,

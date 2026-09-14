@@ -113,6 +113,9 @@ pub enum ObservabilityError {
     #[error("{alerts} alerts in the lifecycle write belong to another channel")]
     ForeignAlertState { alerts: usize },
 
+    #[error("The announcement window must end after it starts and span at most {max_days} days")]
+    InvalidAnnouncementWindow { max_days: i64 },
+
     /// The path named a destination that is not configured.
     #[error("No destination is configured under `{destination}`")]
     UnknownDestination {
@@ -249,6 +252,11 @@ impl ErrorSwitch<ApiErrorResponse> for ObservabilityError {
                 "HE",
                 3,
                 "The lifecycle write names alert state that belongs to another channel",
+            )),
+            Self::InvalidAnnouncementWindow { .. } => ApiErrorResponse::BadRequest(ApiError::new(
+                "HE",
+                3,
+                "The announcement window must end after it starts and span at most 30 days",
             )),
             // 502 rather than 500: the failure is on the far side of a hop we made. Note this is
             // the *only* provider-shaped error left, because every answer the provider gives is a
