@@ -409,28 +409,17 @@ pub struct MerchantThresholdUpsertRequest {
     pub merchant_id: String,
     pub author: String,
     pub is_enabled: bool,
-    #[serde(default, with = "serde_with::rust::double_option")]
-    pub thresholds_min_volume: Option<Option<f64>>,
-    #[serde(default, with = "serde_with::rust::double_option")]
-    pub thresholds_min_impacted_volume: Option<Option<f64>>,
-    #[serde(default, with = "serde_with::rust::double_option")]
-    pub thresholds_tolerance: Option<Option<f64>>,
-    #[serde(default, with = "serde_with::rust::double_option")]
-    pub thresholds_diff_threshold: Option<Option<f64>>,
-    #[serde(default, with = "serde_with::rust::double_option")]
-    pub thresholds_merchant_impact: Option<Option<f64>>,
-    #[serde(default, with = "serde_with::rust::double_option")]
-    pub thresholds_alert_period: Option<Option<f64>>,
-    #[serde(default, with = "serde_with::rust::double_option")]
-    pub thresholds_min_observations: Option<Option<f64>>,
-    #[serde(default, with = "serde_with::rust::double_option")]
-    pub thresholds_min_history_volume: Option<Option<f64>>,
-    #[serde(default, with = "serde_with::rust::double_option")]
-    pub thresholds_filter_percentile: Option<Option<f64>>,
-    #[serde(default, with = "serde_with::rust::double_option")]
-    pub thresholds_current_min_volume: Option<Option<f64>>,
-    #[serde(default, with = "serde_with::rust::double_option")]
-    pub metadata: Option<Option<serde_json::Value>>,
+    pub thresholds_min_volume: Option<f64>,
+    pub thresholds_min_impacted_volume: Option<f64>,
+    pub thresholds_tolerance: Option<f64>,
+    pub thresholds_diff_threshold: Option<f64>,
+    pub thresholds_merchant_impact: Option<f64>,
+    pub thresholds_alert_period: Option<f64>,
+    pub thresholds_min_observations: Option<f64>,
+    pub thresholds_min_history_volume: Option<f64>,
+    pub thresholds_filter_percentile: Option<f64>,
+    pub thresholds_current_min_volume: Option<f64>,
+    pub metadata: Option<serde_json::Value>,
 }
 
 impl MerchantThresholdUpsertRequest {
@@ -451,17 +440,17 @@ impl MerchantThresholdUpsertRequest {
             name: self.name.clone(),
             product: self.product.clone(),
             merchant_id: self.merchant_id.clone(),
-            thresholds_min_volume: self.thresholds_min_volume.flatten(),
-            thresholds_min_impacted_volume: self.thresholds_min_impacted_volume.flatten(),
-            thresholds_tolerance: self.thresholds_tolerance.flatten(),
-            thresholds_diff_threshold: self.thresholds_diff_threshold.flatten(),
-            thresholds_merchant_impact: self.thresholds_merchant_impact.flatten(),
-            thresholds_alert_period: self.thresholds_alert_period.flatten(),
-            thresholds_min_observations: self.thresholds_min_observations.flatten(),
-            thresholds_min_history_volume: self.thresholds_min_history_volume.flatten(),
-            thresholds_filter_percentile: self.thresholds_filter_percentile.flatten(),
-            thresholds_current_min_volume: self.thresholds_current_min_volume.flatten(),
-            metadata: self.metadata.clone().flatten(),
+            thresholds_min_volume: self.thresholds_min_volume,
+            thresholds_min_impacted_volume: self.thresholds_min_impacted_volume,
+            thresholds_tolerance: self.thresholds_tolerance,
+            thresholds_diff_threshold: self.thresholds_diff_threshold,
+            thresholds_merchant_impact: self.thresholds_merchant_impact,
+            thresholds_alert_period: self.thresholds_alert_period,
+            thresholds_min_observations: self.thresholds_min_observations,
+            thresholds_min_history_volume: self.thresholds_min_history_volume,
+            thresholds_filter_percentile: self.thresholds_filter_percentile,
+            thresholds_current_min_volume: self.thresholds_current_min_volume,
+            metadata: self.metadata.clone(),
             author: self.author.clone(),
             is_enabled: self.is_enabled,
             last_updated_at: now,
@@ -472,17 +461,17 @@ impl MerchantThresholdUpsertRequest {
 impl From<MerchantThresholdUpsertRequest> for MerchantThresholdUpdate {
     fn from(request: MerchantThresholdUpsertRequest) -> Self {
         Self::Update {
-            thresholds_min_volume: request.thresholds_min_volume,
-            thresholds_min_impacted_volume: request.thresholds_min_impacted_volume,
-            thresholds_tolerance: request.thresholds_tolerance,
-            thresholds_diff_threshold: request.thresholds_diff_threshold,
-            thresholds_merchant_impact: request.thresholds_merchant_impact,
-            thresholds_alert_period: request.thresholds_alert_period,
-            thresholds_min_observations: request.thresholds_min_observations,
-            thresholds_min_history_volume: request.thresholds_min_history_volume,
-            thresholds_filter_percentile: request.thresholds_filter_percentile,
-            thresholds_current_min_volume: request.thresholds_current_min_volume,
-            metadata: request.metadata,
+            thresholds_min_volume: request.thresholds_min_volume.map(Some),
+            thresholds_min_impacted_volume: request.thresholds_min_impacted_volume.map(Some),
+            thresholds_tolerance: request.thresholds_tolerance.map(Some),
+            thresholds_diff_threshold: request.thresholds_diff_threshold.map(Some),
+            thresholds_merchant_impact: request.thresholds_merchant_impact.map(Some),
+            thresholds_alert_period: request.thresholds_alert_period.map(Some),
+            thresholds_min_observations: request.thresholds_min_observations.map(Some),
+            thresholds_min_history_volume: request.thresholds_min_history_volume.map(Some),
+            thresholds_filter_percentile: request.thresholds_filter_percentile.map(Some),
+            thresholds_current_min_volume: request.thresholds_current_min_volume.map(Some),
+            metadata: request.metadata.map(Some),
             author: None,
             is_enabled: None,
         }
