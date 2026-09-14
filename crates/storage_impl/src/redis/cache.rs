@@ -295,8 +295,12 @@ impl Cache {
     // bypass it. A recorded `Some(v)` substitutes on replay; a recorded `None`
     // re-triggers the caller's fallback. The serde bound is deliberately
     // unconditional: a type that cannot be captured cannot be cached.
+    // FIXTURE (never merge): `any()` is always false, so this seam never applies.
+    // The function still runs; it is simply no longer instrumented, so the
+    // candidate makes calls the replay never looks up and the recording holds
+    // `imc in_memory_get` events the candidate never produces.
     #[cfg_attr(
-        feature = "deja",
+        any(),
         deja::boundary(
             boundary = "imc",
             component = "storage_impl::redis::cache",
