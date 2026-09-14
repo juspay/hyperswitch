@@ -11,7 +11,7 @@ use error_stack::ResultExt;
 use serde::{Deserialize, Deserializer, Serialize};
 use time::PrimitiveDateTime;
 
-use crate::errors::ObservabilityError;
+use crate::{errors::ObservabilityError, logger};
 
 fn double_option<'de, T, D>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
 where
@@ -234,18 +234,22 @@ pub struct AlertDefinitionListResponse {
 }
 
 impl AlertDefinitionListResponse {
-    pub fn build<I: IntoIterator<Item = AlertsInfo>>(
-        definitions: I,
-    ) -> Result<Self, error_stack::Report<ObservabilityError>> {
+    pub fn build<I: IntoIterator<Item = AlertsInfo>>(definitions: I) -> Self {
         let definitions = definitions
             .into_iter()
-            .map(AlertDefinitionResponse::try_from)
-            .collect::<Result<Vec<_>, _>>()?;
+            .filter_map(|definition| {
+                AlertDefinitionResponse::try_from(definition)
+                    .inspect_err(|error| {
+                        logger::error!(?error, "Skipping an unusable alert definition")
+                    })
+                    .ok()
+            })
+            .collect::<Vec<_>>();
 
-        Ok(Self {
+        Self {
             count: definitions.len(),
             definitions,
-        })
+        }
     }
 }
 
@@ -469,9 +473,10 @@ mod tests {
 
     #[test]
     fn a_definition_list_reports_how_many_it_found() {
-        let body = serde_json::to_value(
-            AlertDefinitionListResponse::build([definition(Some(true)), definition(None)]).unwrap(),
-        )
+        let body = serde_json::to_value(AlertDefinitionListResponse::build([
+            definition(Some(true)),
+            definition(None),
+        ]))
         .unwrap();
 
         assert_eq!(body["count"], 2);
@@ -480,9 +485,9 @@ mod tests {
 
     #[test]
     fn an_empty_definition_list_is_an_object_with_a_zero_count() {
-        let body = serde_json::to_value(
-            AlertDefinitionListResponse::build(std::iter::empty::<AlertsInfo>()).unwrap(),
-        )
+        let body = serde_json::to_value(AlertDefinitionListResponse::build(std::iter::empty::<
+            AlertsInfo,
+        >()))
         .unwrap();
 
         assert_eq!(body["count"], 0);

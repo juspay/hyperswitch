@@ -1,3 +1,18 @@
+//! Errors, in three layers.
+//!
+//! This mirrors the router's layering, which separates errors by *lifetime* and by *audience*:
+//!
+//! | Layer | Type | Rendered to HTTP? |
+//! |---|---|---|
+//! | Boot / configuration | [`ConfigurationError`] | never — the process exits instead |
+//! | Internal, semantic | [`ObservabilityError`] | no — carried in an [`error_stack::Report`] |
+//! | Wire | [`types::ApiErrorResponse`] | yes — via its `ResponseError` impl in [`actix`] |
+//!
+//! The two request-side layers are bridged by [`common_utils::errors::ErrorSwitch`], which
+//! escalates the internal error into the wire error *without consuming the report*. That is the
+//! whole point of the split: the full `error_stack` context reaches the log while the client sees
+//! only the wire shape, so internal detail cannot leak into a response by accident.
+
 pub mod actix;
 pub mod types;
 
@@ -6,14 +21,21 @@ use thiserror::Error;
 
 use crate::errors::types::{ApiError, ApiErrorResponse};
 
+/// Errors raised while the application is starting up.
+///
+/// These are never rendered to a client — by the time a request can arrive, startup has already
+/// succeeded. A variant here means the process refuses to start.
 #[derive(Debug, Error)]
 pub enum ConfigurationError {
+    /// A configuration value was present but unusable.
     #[error("Error in parsing config: {0}")]
     ConfigParsingError(String),
 
+    /// The configuration file could not be read or deserialized.
     #[error("Application configuration error: {0}")]
     ConfigurationError(config::ConfigError),
 
+    /// Binding the listener failed, or another I/O error occurred during startup.
     #[error("I/O: {0}")]
     IoError(std::io::Error),
 }
@@ -30,16 +52,30 @@ impl From<config::ConfigError> for ConfigurationError {
     }
 }
 
+/// The result type for anything that runs during startup.
 pub type ObservabilityResult<T> = error_stack::Result<T, ConfigurationError>;
 
+/// Errors raised while handling a request.
+///
+/// Semantic rather than HTTP-shaped: a variant says what went wrong, not what status code the
+/// client should see. The mapping happens once, in the [`ErrorSwitch`] impl below, so a handler
+/// never has to think about HTTP.
+///
+/// **A provider refusing a message is not in here.** That is an outcome, reported through
+/// [`crate::domain::notifier::Outcome`] and answered with a `200`. What remains is a request we
+/// cannot act on, and a notifier that did not work — which is exactly what a `4xx`/`5xx` from this
+/// service should mean, so an alert on 5xx pages someone only when the service is genuinely broken.
 #[derive(Debug, Error)]
 pub enum ObservabilityError {
+    /// Something failed that the client can do nothing about.
     #[error("Internal server error")]
     InternalServerError,
 
+    /// The internal API key was missing, malformed, or did not match.
     #[error("Authentication failed")]
     Unauthorized,
 
+    /// The request body was structurally valid but contained unusable values.
     #[error("The request body is invalid")]
     InvalidRequest,
 
@@ -73,13 +109,23 @@ pub enum ObservabilityError {
     #[error("No announcement exists with id `{id}`")]
     UnknownAnnouncement { id: String },
 
+    /// The path named a destination that is not configured.
     #[error("No destination is configured under `{destination}`")]
-    UnknownDestination { destination: String },
+    UnknownDestination {
+        /// The id the request asked for.
+        destination: String,
+    },
 
+    /// The provider could not be reached, or answered outside its documented envelope. Nothing is
+    /// known about whether the message was delivered, which is what separates this from a refusal.
     #[error("The destination `{destination}` could not be reached")]
-    ProviderUnavailable { destination: String },
+    ProviderUnavailable {
+        /// The destination that could not be reached.
+        destination: String,
+    },
 }
 
+/// The result type for request handling.
 pub type ObservabilityApiResult<T> = error_stack::Result<T, ObservabilityError>;
 
 impl ErrorSwitch<ApiErrorResponse> for ObservabilityError {
@@ -90,6 +136,8 @@ impl ErrorSwitch<ApiErrorResponse> for ObservabilityError {
                 0,
                 "Something went wrong",
             )),
+            // Deliberately vague. A caller that failed to authenticate learns only that it
+            // failed — never whether the header was absent, malformed, or simply wrong.
             Self::Unauthorized => ApiErrorResponse::Unauthorized(ApiError::new(
                 "IR",
                 1,
@@ -123,6 +171,8 @@ impl ErrorSwitch<ApiErrorResponse> for ObservabilityError {
                 12,
                 "No announcement exists with that id",
             )),
+            // The id is already in the path the caller sent, so there is nothing to echo back, and
+            // the configured ids are deliberately not listed.
             Self::UnknownDestination { .. } => {
                 ApiErrorResponse::NotFound(ApiError::new("IR", 2, "Unknown destination"))
             }
@@ -147,6 +197,9 @@ impl ErrorSwitch<ApiErrorResponse> for ObservabilityError {
                 7,
                 "No alert is defined for this name and product",
             )),
+            // 502 rather than 500: the failure is on the far side of a hop we made. Note this is
+            // the *only* provider-shaped error left, because every answer the provider gives is a
+            // 200 outcome instead.
             Self::ProviderUnavailable { .. } => ApiErrorResponse::BadGateway(ApiError::new(
                 "HE",
                 3,
@@ -169,6 +222,8 @@ mod tests {
             .as_u16()
     }
 
+    /// The rule this service is built on: a 5xx means the notifier did not work. Anything the
+    /// provider actually said is a 200 and never reaches here.
     #[test]
     fn only_our_own_failures_are_5xx() {
         assert_eq!(
@@ -308,6 +363,7 @@ mod tests {
         assert!(!body.contains("typo"));
     }
 
+    /// A caller that guessed an id should not be handed the registry.
     #[test]
     fn an_unknown_destination_does_not_leak_the_configured_ids() {
         let body =

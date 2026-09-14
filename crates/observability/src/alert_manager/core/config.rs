@@ -60,7 +60,7 @@ pub async fn list_definitions(
     AlertsInfo::list(&connection)
         .await
         .map_err(|error| escalate(error, unrecognised))
-        .and_then(AlertDefinitionListResponse::build)
+        .map(AlertDefinitionListResponse::build)
 }
 
 pub async fn update_definition(

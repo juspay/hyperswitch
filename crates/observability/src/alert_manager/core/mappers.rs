@@ -1,9 +1,6 @@
-use diesel_models::{
-    errors::DatabaseError,
-    observability::{
-        alerts_dicts::{AlertsDict, AlertsDictNew, DEFAULT_USERNAME},
-        raw_json::RawJson,
-    },
+use diesel_models::observability::{
+    alerts_dicts::{AlertsDict, AlertsDictNew, DEFAULT_USERNAME},
+    raw_json::RawJson,
 };
 use error_stack::{report, ResultExt};
 
@@ -37,16 +34,22 @@ pub async fn list_mappers(state: AppState) -> ObservabilityApiResult<MapperListR
         .map_err(|error| escalate(error, unrecognised))
         .attach_printable("Failed to list mapper entries")?;
 
+    let entries = entries
+        .into_iter()
+        .filter_map(|entry| {
+            MapperEntry::try_from(entry)
+                .inspect_err(|error| logger::error!(?error, "Skipping an unusable mapper entry"))
+                .ok()
+        })
+        .collect::<Vec<_>>();
+
     Ok(MapperListResponse {
         status: if entries.is_empty() {
             ReadStatus::Absent
         } else {
             ReadStatus::Found
         },
-        entries: entries
-            .into_iter()
-            .map(MapperEntry::try_from)
-            .collect::<Result<Vec<_>, _>>()?,
+        entries,
     })
 }
 
@@ -106,12 +109,7 @@ pub async fn upsert_mapper(
     }
     .upsert(&connection)
     .await
-    .map_err(|error| {
-        escalate(error, |context| {
-            matches!(context, DatabaseError::UniqueViolation)
-                .then_some(ObservabilityError::InternalServerError)
-        })
-    })
+    .map_err(|error| escalate(error, unrecognised))
     .attach_printable("Failed to save a mapper entry")?;
 
     Ok(MapperSaveResponse {
