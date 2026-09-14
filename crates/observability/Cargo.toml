@@ -37,6 +37,7 @@ reqwest = { version = "0.11.27" }
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = { version = "1.0.140", features = ["raw_value"] }
 serde_path_to_error = "0.1.17"
+strum = { version = "0.26", features = ["derive"] }
 thiserror = "1.0.69"
 time = { version = "0.3.41", features = ["serde", "serde-well-known", "std"] }
 tokio = { version = "1.48.0", features = ["macros", "rt-multi-thread"] }

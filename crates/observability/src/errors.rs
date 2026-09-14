@@ -101,9 +101,6 @@ pub enum ObservabilityError {
     #[error("No alert is defined as `{name}` / `{product}`")]
     NotAnAlert { name: String, product: String },
 
-    #[error("No alert channel is named `{channel}`")]
-    UnknownChannel { channel: String },
-
     #[error("The lifecycle write carries {alerts} alerts, over the {limit} allowed")]
     StateTooLarge { alerts: usize, limit: usize },
 
@@ -112,6 +109,9 @@ pub enum ObservabilityError {
 
     #[error("No announcement exists with id `{id}`")]
     UnknownAnnouncement { id: String },
+
+    #[error("{alerts} alerts in the lifecycle write belong to another channel")]
+    ForeignAlertState { alerts: usize },
 
     /// The path named a destination that is not configured.
     #[error("No destination is configured under `{destination}`")]
@@ -230,23 +230,25 @@ impl ErrorSwitch<ApiErrorResponse> for ObservabilityError {
                 3,
                 "No alert is defined for this name and product",
             )),
-            Self::UnknownChannel { .. } => {
-                ApiErrorResponse::NotFound(ApiError::new("IR", 9, "Unknown alert channel"))
-            }
             Self::StateTooLarge { .. } => ApiErrorResponse::BadRequest(ApiError::new(
-                "IR",
-                10,
+                "HE",
+                3,
                 "The lifecycle write carries more alerts than this service stores",
             )),
             Self::StateChanged => ApiErrorResponse::Conflict(ApiError::new(
                 "IR",
-                11,
+                16,
                 "The lifecycle state changed after it was read",
             )),
-            Self::UnknownAnnouncement { .. } => ApiErrorResponse::BadRequest(ApiError::new(
-                "IR",
-                12,
-                "No announcement exists with that id",
+            Self::UnknownAnnouncement { .. } => ApiErrorResponse::NotFound(ApiError::new(
+                "HE",
+                2,
+                "Announcement does not exist in our records",
+            )),
+            Self::ForeignAlertState { .. } => ApiErrorResponse::BadRequest(ApiError::new(
+                "HE",
+                3,
+                "The lifecycle write names alert state that belongs to another channel",
             )),
             // 502 rather than 500: the failure is on the far side of a hop we made. Note this is
             // the *only* provider-shaped error left, because every answer the provider gives is a

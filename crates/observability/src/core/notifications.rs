@@ -1,7 +1,8 @@
 use diesel_models::observability::notification_reads::NotificationRead;
-use error_stack::{report, ResultExt};
+use error_stack::ResultExt;
 
 use crate::{
+    core::utils,
     errors::{ObservabilityApiResult, ObservabilityError},
     state::AppState,
     types::{notifications::WatermarkResponse, ReadStatus, UserName},
@@ -57,15 +58,7 @@ pub async fn mark_read(
 
 fn within_width(user: &UserName) -> ObservabilityApiResult<&str> {
     let user_name = user.as_str();
-
-    let chars = user_name.chars().count();
-    if chars > USER_NAME_MAX_CHARS {
-        Err(
-            report!(ObservabilityError::InvalidRequest).attach_printable(format!(
-                "The user name is {chars} characters, over the {USER_NAME_MAX_CHARS} the column holds"
-            )),
-        )?;
-    }
+    utils::within_width(user_name, "user name", USER_NAME_MAX_CHARS)?;
 
     Ok(user_name)
 }

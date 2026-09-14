@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use async_bb8_diesel::AsyncConnection;
 use diesel_models::observability::{
     alerts_intermediate::{AlertsIntermediate, AlertsIntermediateNew},
@@ -10,7 +12,6 @@ use time::PrimitiveDateTime;
 use crate::{
     core::utils,
     errors::{ObservabilityApiResult, ObservabilityError},
-    logger,
     state::AppState,
     types::{
         lifecycle::{
@@ -22,9 +23,9 @@ use crate::{
     },
 };
 
-const NAME_MAX_BYTES: usize = 64;
+const NAME_MAX_CHARS: usize = 64;
 
-const TS_SLACK_MAX_BYTES: usize = 255;
+const TS_SLACK_MAX_CHARS: usize = 255;
 
 const ALERTS_PER_STATEMENT: usize = 1_000;
 
@@ -34,9 +35,10 @@ pub async fn read_state(
     state: AppState,
     channel: Channel,
 ) -> ObservabilityApiResult<LifecycleStateResponse> {
+    let channel = <&'static str>::from(channel);
     let connection = state.database_connection().await?;
 
-    let rows = AlertsIntermediate::list_by_channel(&connection, channel.as_str())
+    let rows = AlertsIntermediate::list_by_channel(&connection, channel)
         .await
         .change_context(ObservabilityError::InternalServerError)
         .attach_printable("Failed to read the lifecycle state")?;
@@ -57,46 +59,45 @@ pub async fn write_state(
     channel: Channel,
     request: LifecycleStateWriteRequest,
 ) -> ObservabilityApiResult<LifecycleStateSaveResponse> {
-    let limit = MAX_ALERTS;
-    if request.alerts.len() > limit {
-        logger::warn!(
-            alerts = request.alerts.len(),
-            limit = limit,
-            channel = channel.as_str(),
-            "Lifecycle write rejected: over the configured alert cap"
-        );
+    let channel = <&'static str>::from(channel);
+
+    if request.alerts.len() > MAX_ALERTS {
         Err(report!(ObservabilityError::StateTooLarge {
             alerts: request.alerts.len(),
-            limit,
+            limit: MAX_ALERTS,
         }))?;
     }
 
-    let now = stamp();
+    let now = truncate_to_millisecond(common_utils::date_time::now());
     let plan = WritePlan::build(request.alerts, channel, now)?;
-    let expected = request.expected_last_updated_at;
+    let id_intermediates = plan.keep.clone();
+    let expected = request
+        .expected_last_updated_at
+        .map(truncate_to_millisecond);
     let connection = state.database_connection().await?;
 
     let borrowed = &connection;
     let applied = borrowed
         .raw_connection()
         .transaction_async(move |_| async move {
-            AlertsIntermediate::lock_channel(borrowed, channel.as_str()).await?;
+            AlertsIntermediate::lock_channel(borrowed, channel).await?;
 
-            let found = AlertsIntermediate::find_latest_last_updated_at_by_channel(
-                borrowed,
-                channel.as_str(),
-            )
-            .await?;
+            let found =
+                AlertsIntermediate::find_latest_last_updated_at_by_channel(borrowed, channel)
+                    .await?
+                    .map(truncate_to_millisecond);
             if found != expected {
                 Err(WriteFailure::Stale { expected, found })?;
             }
 
             let existing = AlertsMain::list_ids_by_channel_and_ids(
                 borrowed,
-                channel.as_str(),
-                plan.referenced.clone(),
+                channel,
+                plan.referenced.iter().copied().collect(),
             )
-            .await?;
+            .await?
+            .into_iter()
+            .collect::<HashSet<_>>();
             if let Some(missing) = plan
                 .referenced
                 .iter()
@@ -106,12 +107,9 @@ pub async fn write_state(
                 Err(WriteFailure::UnknownAnnouncement(missing))?;
             }
 
-            let removed = AlertsIntermediate::delete_by_channel_excluding_ids(
-                borrowed,
-                channel.as_str(),
-                plan.keep,
-            )
-            .await?;
+            let removed =
+                AlertsIntermediate::delete_by_channel_excluding_ids(borrowed, channel, plan.keep)
+                    .await?;
 
             let mut alerts = 0;
             for batch in plan.rows.chunks(ALERTS_PER_STATEMENT) {
@@ -129,13 +127,14 @@ pub async fn write_state(
             Ok::<_, WriteFailure>(Applied { alerts, removed })
         })
         .await
-        .map_err(|failure| failure.into_report(channel))?;
+        .map_err(WriteFailure::into_report)?;
 
     Ok(LifecycleStateSaveResponse {
         status: WriteStatus::Saved,
         last_updated_at: (applied.alerts > 0).then_some(now),
         alerts: applied.alerts,
         removed: applied.removed,
+        id_intermediates,
     })
 }
 
@@ -144,16 +143,18 @@ pub async fn record_announcement(
     channel: Channel,
     request: AnnouncementRequest,
 ) -> ObservabilityApiResult<AnnouncementSaveResponse> {
-    fits(request.name.as_deref(), "name", NAME_MAX_BYTES)?;
-    fits(request.product.as_deref(), "product", NAME_MAX_BYTES)?;
-    fits(request.ts_slack.as_deref(), "ts_slack", TS_SLACK_MAX_BYTES)?;
+    let channel = <&'static str>::from(channel);
 
-    let now = stamp();
+    within_width(request.name.as_deref(), "name", NAME_MAX_CHARS)?;
+    within_width(request.product.as_deref(), "product", NAME_MAX_CHARS)?;
+    within_width(request.ts_slack.as_deref(), "ts_slack", TS_SLACK_MAX_CHARS)?;
+
+    let now = truncate_to_millisecond(common_utils::date_time::now());
     let connection = state.database_connection().await?;
 
     let announcement = AlertsMainNew {
         id: uuid::Uuid::now_v7(),
-        channel: channel.as_str().to_owned(),
+        channel: channel.to_owned(),
         name: request.name,
         product: request.product,
         dimensions: utils::or_empty_list(request.dimensions.map(RawJson::from))?,
@@ -184,33 +185,33 @@ struct Applied {
     removed: usize,
 }
 
-#[derive(Debug)]
 struct WritePlan {
     rows: Vec<AlertsIntermediateNew>,
     keep: Vec<uuid::Uuid>,
-    referenced: Vec<uuid::Uuid>,
+    referenced: HashSet<uuid::Uuid>,
 }
 
 impl WritePlan {
     fn build(
         alerts: Vec<AlertStateWrite>,
-        channel: Channel,
+        channel: &str,
         now: PrimitiveDateTime,
     ) -> ObservabilityApiResult<Self> {
         let mut rows = Vec::with_capacity(alerts.len());
         let mut keep = Vec::with_capacity(alerts.len());
-        let mut referenced = Vec::new();
+        let mut seen = HashSet::with_capacity(alerts.len());
+        let mut referenced = HashSet::new();
 
         for alert in alerts {
-            fits(alert.name.as_deref(), "name", NAME_MAX_BYTES)?;
-            fits(alert.product.as_deref(), "product", NAME_MAX_BYTES)?;
-            fits(alert.group_id.as_deref(), "group_id", NAME_MAX_BYTES)?;
-            fits(alert.priority.as_deref(), "priority", NAME_MAX_BYTES)?;
-            fits(alert.ts_slack.as_deref(), "ts_slack", TS_SLACK_MAX_BYTES)?;
+            within_width(alert.name.as_deref(), "name", NAME_MAX_CHARS)?;
+            within_width(alert.product.as_deref(), "product", NAME_MAX_CHARS)?;
+            within_width(alert.group_id.as_deref(), "group_id", NAME_MAX_CHARS)?;
+            within_width(alert.priority.as_deref(), "priority", NAME_MAX_CHARS)?;
+            within_width(alert.ts_slack.as_deref(), "ts_slack", TS_SLACK_MAX_CHARS)?;
 
             let id_intermediate = alert.id_intermediate.unwrap_or_else(uuid::Uuid::now_v7);
 
-            if keep.contains(&id_intermediate) {
+            if !seen.insert(id_intermediate) {
                 Err(
                     report!(ObservabilityError::InvalidRequest).attach_printable(format!(
                         "The lifecycle write carries id_intermediate {id_intermediate} twice"
@@ -219,15 +220,11 @@ impl WritePlan {
             }
 
             keep.push(id_intermediate);
-            if let Some(announcement) = alert.announcement_id {
-                if !referenced.contains(&announcement) {
-                    referenced.push(announcement);
-                }
-            }
+            referenced.extend(alert.announcement_id);
 
             rows.push(AlertsIntermediateNew {
                 id_intermediate,
-                channel: channel.as_str().to_owned(),
+                channel: channel.to_owned(),
                 id: alert.announcement_id,
                 name: alert.name,
                 product: alert.product,
@@ -274,25 +271,20 @@ enum WriteFailure {
 }
 
 impl WriteFailure {
-    fn into_report(self, channel: Channel) -> error_stack::Report<ObservabilityError> {
+    fn into_report(self) -> error_stack::Report<ObservabilityError> {
         match self {
-            Self::Stale { expected, found } => {
-                logger::warn!(
-                    channel = channel.as_str(),
-                    expected = ?expected,
-                    found = ?found,
-                    "Lifecycle write rejected: the state changed after it was read"
-                );
-                report!(ObservabilityError::StateChanged)
-            }
+            Self::Stale { expected, found } => report!(ObservabilityError::StateChanged)
+                .attach_printable(format!(
+                    "Expected the lifecycle state at {expected:?}, found it at {found:?}"
+                )),
             Self::UnknownAnnouncement(id) => {
                 report!(ObservabilityError::UnknownAnnouncement { id: id.to_string() })
             }
-            Self::ForeignRows { expected, written } => report!(ObservabilityError::InvalidRequest)
-                .attach_printable(format!(
-                    "{} of the {expected} alerts carry an id_intermediate owned by another channel",
-                    expected - written
-                )),
+            Self::ForeignRows { expected, written } => {
+                report!(ObservabilityError::ForeignAlertState {
+                    alerts: expected - written,
+                })
+            }
             Self::Storage(error) => error
                 .change_context(ObservabilityError::InternalServerError)
                 .attach_printable("Failed to write the lifecycle state"),
@@ -314,23 +306,12 @@ impl From<error_stack::Report<diesel_models::errors::DatabaseError>> for WriteFa
     }
 }
 
-fn stamp() -> PrimitiveDateTime {
-    let now = common_utils::date_time::now();
-
-    now.replace_millisecond(now.millisecond()).unwrap_or(now)
+fn truncate_to_millisecond(value: PrimitiveDateTime) -> PrimitiveDateTime {
+    value
+        .replace_millisecond(value.millisecond())
+        .unwrap_or(value)
 }
 
-fn fits(value: Option<&str>, field: &'static str, max_bytes: usize) -> ObservabilityApiResult<()> {
-    if let Some(value) = value {
-        if value.len() > max_bytes {
-            Err(
-                report!(ObservabilityError::InvalidRequest).attach_printable(format!(
-                    "The lifecycle {field} is {} bytes, over the {max_bytes} the column holds",
-                    value.len()
-                )),
-            )?;
-        }
-    }
-
-    Ok(())
+fn within_width(value: Option<&str>, field: &str, max_chars: usize) -> ObservabilityApiResult<()> {
+    value.map_or(Ok(()), |value| utils::within_width(value, field, max_chars))
 }

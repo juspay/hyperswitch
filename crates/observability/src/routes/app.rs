@@ -18,6 +18,8 @@ use crate::{
     state::AppState,
 };
 
+const MAX_LIFECYCLE_BODY_BYTES: usize = 16 * 1024 * 1024;
+
 /// The service's routes, all of them behind the internal API key.
 pub struct Alerts;
 
@@ -52,7 +54,7 @@ impl Alerts {
                 web::resource("/notify/{destination}").route(web::post().to(notify::email)),
             ))
             .service(AlertsConfig::server())
-            .service(lifecycle_scope())
+            .service(AlertsLifecycle::server())
     }
 }
 
@@ -106,19 +108,25 @@ impl AlertsConfig {
     }
 }
 
-fn lifecycle_scope() -> Scope {
-    web::scope("/lifecycle").service(
-        web::scope("/{channel}")
+pub struct AlertsLifecycle;
+
+impl AlertsLifecycle {
+    pub fn server() -> Scope {
+        web::scope("/lifecycle")
+            .app_data(json_config().limit(MAX_LIFECYCLE_BODY_BYTES))
             .service(
-                web::resource("/state")
-                    .route(web::get().to(lifecycle::read_state))
-                    .route(web::post().to(lifecycle::write_state)),
+                web::scope("/{channel}")
+                    .service(
+                        web::resource("/state")
+                            .route(web::get().to(lifecycle::read_state))
+                            .route(web::post().to(lifecycle::write_state)),
+                    )
+                    .service(
+                        web::resource("/announcements")
+                            .route(web::post().to(lifecycle::record_announcement)),
+                    ),
             )
-            .service(
-                web::resource("/announcements")
-                    .route(web::post().to(lifecycle::record_announcement)),
-            ),
-    )
+    }
 }
 
 /// Make a malformed body render like every other error this service returns.

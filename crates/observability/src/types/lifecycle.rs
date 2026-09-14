@@ -1,38 +1,18 @@
 use diesel_models::observability::{
     alerts_intermediate::AlertsIntermediate, alerts_main::AlertsMain, raw_json::RawJson,
 };
-use error_stack::report;
 use serde::{Deserialize, Serialize};
 use serde_json::value::RawValue;
 use time::PrimitiveDateTime;
 
 use super::{ReadStatus, WriteStatus};
-use crate::errors::{ObservabilityApiResult, ObservabilityError};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, Deserialize, strum::IntoStaticStr)]
 #[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum Channel {
     Slack,
     Xyne,
-}
-
-impl Channel {
-    pub fn from_path(segment: &str) -> ObservabilityApiResult<Self> {
-        match segment {
-            "slack" => Ok(Self::Slack),
-            "xyne" => Ok(Self::Xyne),
-            other => Err(report!(ObservabilityError::UnknownChannel {
-                channel: other.to_owned(),
-            }))?,
-        }
-    }
-
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::Slack => "slack",
-            Self::Xyne => "xyne",
-        }
-    }
 }
 
 #[derive(Debug, Serialize)]
@@ -120,6 +100,7 @@ pub struct LifecycleStateSaveResponse {
     pub last_updated_at: Option<PrimitiveDateTime>,
     pub alerts: usize,
     pub removed: usize,
+    pub id_intermediates: Vec<uuid::Uuid>,
 }
 
 #[derive(Debug, Deserialize)]

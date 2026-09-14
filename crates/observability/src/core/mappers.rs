@@ -142,14 +142,7 @@ fn trimmed_within(
             .attach_printable(format!("The mapper {field} is empty")))?;
     }
 
-    let chars = value.chars().count();
-    if chars > max_chars {
-        Err(
-            report!(ObservabilityError::InvalidRequest).attach_printable(format!(
-                "The mapper {field} is {chars} characters, over the {max_chars} the column holds"
-            )),
-        )?;
-    }
+    utils::within_width(value, field, max_chars)?;
 
     Ok(value.to_owned())
 }
