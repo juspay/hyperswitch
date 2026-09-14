@@ -503,7 +503,7 @@ it just sent, which is the stale one.
 
 One whole-state write carries at most 5,000 alerts. Because a write replaces everything, the same
 number bounds the stored state and the read that returns all of it. `POST .../state` accepts a body
-of up to 16 MiB, rather than the 2 MiB every other route keeps, announcements included, so a write at
+of up to 16 MiB, rather than the 2 MiB every other JSON route keeps, announcements included, so a write at
 the cap fits. A larger body is refused like one that does not parse.
 
 **Over the cap the whole write is refused and nothing is applied.** Truncating it would drop alerts
