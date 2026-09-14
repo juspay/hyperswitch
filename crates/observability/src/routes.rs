@@ -2,7 +2,10 @@
 //! module per area holds the handlers.
 
 pub mod app;
+pub mod config;
 pub mod health_check;
+pub mod mappers;
+pub mod notifications;
 pub mod notify;
 
 pub use self::app::{Alerts, Health};

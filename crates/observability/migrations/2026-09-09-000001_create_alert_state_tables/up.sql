@@ -39,6 +39,9 @@ CREATE TABLE IF NOT EXISTS alerts_info (
     last_updated_at  TIMESTAMP DEFAULT date_trunc('second', CURRENT_TIMESTAMP)
 );
 
+CREATE UNIQUE INDEX IF NOT EXISTS idx_alerts_info_name_product_unique
+    ON alerts_info USING btree (name, product);
+
 -- Announcements actually sent, one row per alert per delivery. `sent` and
 -- `ts_slack` are the record that an alert reached a channel; without them a
 -- failed delivery is indistinguishable from a successful one on the next run.

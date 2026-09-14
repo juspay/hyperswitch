@@ -2,9 +2,9 @@
 
 use std::{collections::HashMap, sync::Arc};
 
-use common_utils::external_service::NoOpEventEmitter;
+use common_utils::{external_service::NoOpEventEmitter, DbConnectionParams};
 use diesel_models::{DatabaseConnectionWithContext, DejaPgConnection};
-use error_stack::report;
+use error_stack::ResultExt;
 use external_services::{
     chat_service::{slack::SlackClient, xyne::XyneClient},
     email::{
@@ -28,6 +28,8 @@ use crate::{
     settings::{ChatDestination, ChatSettings, DatabaseSettings, EmailSettings, Settings},
 };
 
+const APPLICATION_NAME: &str = "observability";
+
 pub type DatabasePool = bb8::Pool<async_bb8_diesel::ConnectionManager<DejaPgConnection>>;
 
 /// Everything a request handler needs, cloned per worker.
@@ -45,6 +47,7 @@ pub struct AppState {
     /// Email destinations, by the id a request names.
     pub email: Arc<Registry<dyn EmailNotifier>>,
     pub database: DatabasePool,
+    pub request_id: Option<String>,
 }
 
 impl AppState {
@@ -78,9 +81,7 @@ impl AppState {
             .await
             .expect("Failed to build the email destinations");
 
-        #[allow(clippy::expect_used)]
-        let database = build_database_pool(raw_conf.database.get_inner())
-            .expect("Failed to build the database connection pool");
+        let database = build_database_pool(raw_conf.database.get_inner());
 
         if chat.is_empty() && email.is_empty() {
             logger::warn!(
@@ -100,20 +101,23 @@ impl AppState {
             chat: Arc::new(chat),
             email: Arc::new(email),
             database,
+            request_id: None,
         }
     }
 
     pub async fn database_connection(
         &self,
     ) -> error_stack::Result<DatabaseConnectionWithContext<'_>, ObservabilityError> {
-        let connection = self.database.get().await.map_err(|error| {
-            report!(ObservabilityError::StorageUnavailable)
-                .attach_printable(format!("Failed to lease a database connection: {error}"))
-        })?;
+        let connection = self
+            .database
+            .get()
+            .await
+            .change_context(ObservabilityError::StorageUnavailable)
+            .attach_printable("Failed to lease a database connection")?;
 
         Ok(DatabaseConnectionWithContext::new(
             connection,
-            None,
+            self.request_id.clone(),
             Arc::new(NoOpEventEmitter),
         ))
     }
@@ -210,17 +214,16 @@ impl<E: std::fmt::Display> bb8::ErrorSink<E> for LogConnectionErrors {
     }
 }
 
-pub fn build_database_pool(
-    database: &DatabaseSettings,
-) -> Result<DatabasePool, ConfigurationError> {
-    let manager =
-        async_bb8_diesel::ConnectionManager::<DejaPgConnection>::new(database.database_url());
+pub fn build_database_pool(database: &DatabaseSettings) -> DatabasePool {
+    let manager = async_bb8_diesel::ConnectionManager::<DejaPgConnection>::new(
+        database.get_database_url(APPLICATION_NAME),
+    );
 
-    Ok(bb8::Pool::builder()
+    bb8::Pool::builder()
         .max_size(database.pool_size)
         .connection_timeout(std::time::Duration::from_secs(database.connection_timeout))
         .error_sink(Box::new(LogConnectionErrors))
-        .build_unchecked(manager))
+        .build_unchecked(manager)
 }
 
 /// Build the email transport named in configuration.

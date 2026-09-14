@@ -1,15 +1,11 @@
 use actix_web::{web, HttpRequest, HttpResponse};
 
 use crate::{
-    alert_manager::{
-        core,
-        types::config::{
-            AlertDefinitionCreateRequest, AlertDefinitionUpdateRequest,
-            AlertEnablementUpsertRequest,
-        },
-    },
-    auth, services,
+    auth, core, services,
     state::AppState,
+    types::config::{
+        AlertDefinitionCreateRequest, AlertDefinitionUpdateRequest, AlertEnablementUpsertRequest,
+    },
 };
 
 pub async fn list_definitions(state: web::Data<AppState>, request: HttpRequest) -> HttpResponse {

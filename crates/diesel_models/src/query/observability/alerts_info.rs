@@ -2,7 +2,7 @@ use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
 
 use crate::{
     observability::{
-        alerts_info::{AlertsInfo, AlertsInfoNew, AlertsInfoUpdate},
+        alerts_info::{AlertsInfo, AlertsInfoNew, AlertsInfoUpdate, AlertsInfoUpdateInternal},
         schema::alerts_info::dsl,
     },
     query::generics,
@@ -23,17 +23,19 @@ impl AlertsInfo {
         conn: &DatabaseConnectionWithContext<'_>,
         id: uuid::Uuid,
     ) -> StorageResult<Self> {
-        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(conn, dsl::id.eq(id)).await
+        generics::generic_find_by_id::<<Self as HasTable>::Table, _, _>(conn, id).await
     }
 
     pub async fn find_optional_by_name_and_product(
         conn: &DatabaseConnectionWithContext<'_>,
-        name: String,
-        product: String,
+        name: &str,
+        product: &str,
     ) -> StorageResult<Option<Self>> {
         generics::generic_find_one_optional::<<Self as HasTable>::Table, _, _>(
             conn,
-            dsl::name.eq(name).and(dsl::product.eq(product)),
+            dsl::name
+                .eq(name.to_owned())
+                .and(dsl::product.eq(product.to_owned())),
         )
         .await
     }
@@ -41,7 +43,7 @@ impl AlertsInfo {
     pub async fn list(conn: &DatabaseConnectionWithContext<'_>) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
             conn,
-            dsl::name.is_not_null(),
+            dsl::name.ne_all(vec![""]),
             None,
             None,
             Some((dsl::product.asc(), dsl::name.asc())),
@@ -59,7 +61,7 @@ impl AlertsInfo {
             _,
             _,
             _,
-        >(conn, dsl::id.eq(id), update)
+        >(conn, dsl::id.eq(id), AlertsInfoUpdateInternal::from(update))
         .await
     }
 }

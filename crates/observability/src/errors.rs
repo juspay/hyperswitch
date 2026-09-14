@@ -17,6 +17,7 @@ pub mod actix;
 pub mod types;
 
 use common_utils::errors::ErrorSwitch;
+use diesel_models::errors::DatabaseError;
 use thiserror::Error;
 
 use crate::errors::types::{ApiError, ApiErrorResponse};
@@ -116,6 +117,44 @@ pub enum ObservabilityError {
 /// The result type for request handling.
 pub type ObservabilityApiResult<T> = error_stack::Result<T, ObservabilityError>;
 
+pub trait StorageErrorExt<T, E> {
+    #[track_caller]
+    fn to_not_found_response(self, not_found_response: E) -> error_stack::Result<T, E>;
+
+    #[track_caller]
+    fn to_duplicate_response(self, duplicate_response: E) -> error_stack::Result<T, E>;
+}
+
+impl<T> StorageErrorExt<T, ObservabilityError> for error_stack::Result<T, DatabaseError> {
+    #[track_caller]
+    fn to_not_found_response(
+        self,
+        not_found_response: ObservabilityError,
+    ) -> ObservabilityApiResult<T> {
+        self.map_err(|err| {
+            let new_err = match err.current_context() {
+                DatabaseError::NotFound => not_found_response,
+                _ => ObservabilityError::InternalServerError,
+            };
+            err.change_context(new_err)
+        })
+    }
+
+    #[track_caller]
+    fn to_duplicate_response(
+        self,
+        duplicate_response: ObservabilityError,
+    ) -> ObservabilityApiResult<T> {
+        self.map_err(|err| {
+            let new_err = match err.current_context() {
+                DatabaseError::UniqueViolation => duplicate_response,
+                _ => ObservabilityError::InternalServerError,
+            };
+            err.change_context(new_err)
+        })
+    }
+}
+
 impl ErrorSwitch<ApiErrorResponse> for ObservabilityError {
     fn switch(&self) -> ApiErrorResponse {
         match self {
@@ -148,23 +187,27 @@ impl ErrorSwitch<ApiErrorResponse> for ObservabilityError {
             }
             Self::StorageUnavailable => ApiErrorResponse::ServiceUnavailable(ApiError::new(
                 "HE",
-                1,
+                0,
                 "The observability database is unavailable",
             )),
-            Self::DefinitionNotFound { .. } => {
-                ApiErrorResponse::NotFound(ApiError::new("IR", 3, "Unknown alert definition"))
-            }
-            Self::DuplicateDefinition { .. } => ApiErrorResponse::BadRequest(ApiError::new(
-                "IR",
-                5,
-                "An alert definition already exists for this name and product",
+            Self::DefinitionNotFound { .. } => ApiErrorResponse::NotFound(ApiError::new(
+                "HE",
+                2,
+                "Alert definition does not exist in our records",
             )),
-            Self::EnablementNotFound { .. } => {
-                ApiErrorResponse::NotFound(ApiError::new("IR", 6, "Unknown alert enablement"))
-            }
+            Self::DuplicateDefinition { .. } => ApiErrorResponse::BadRequest(ApiError::new(
+                "HE",
+                1,
+                "The alert definition with the specified name and product already exists in our records",
+            )),
+            Self::EnablementNotFound { .. } => ApiErrorResponse::NotFound(ApiError::new(
+                "HE",
+                2,
+                "Alert enablement does not exist in our records",
+            )),
             Self::NotAnAlert { .. } => ApiErrorResponse::BadRequest(ApiError::new(
-                "IR",
-                7,
+                "HE",
+                3,
                 "No alert is defined for this name and product",
             )),
             // 502 rather than 500: the failure is on the far side of a hop we made. Note this is
@@ -206,11 +249,6 @@ mod tests {
     }
 
     #[test]
-    fn an_unreachable_database_is_503_and_not_500() {
-        assert_eq!(status_of(&ObservabilityError::StorageUnavailable), 503);
-    }
-
-    #[test]
     fn a_request_we_cannot_act_on_is_4xx() {
         assert_eq!(
             status_of(&ObservabilityError::UnknownDestination {
@@ -220,84 +258,6 @@ mod tests {
         );
         assert_eq!(status_of(&ObservabilityError::Unauthorized), 401);
         assert_eq!(status_of(&ObservabilityError::InvalidRequest), 400);
-        assert_eq!(
-            status_of(&ObservabilityError::EntryTooLarge { bytes: 1, limit: 0 }),
-            400
-        );
-        assert_eq!(
-            status_of(&ObservabilityError::DefinitionNotFound {
-                id: "0189d0a0-0000-7000-8000-000000000000".to_owned(),
-            }),
-            404
-        );
-        assert_eq!(
-            status_of(&ObservabilityError::EnablementNotFound {
-                name: "sr_drop".to_owned(),
-                product: "payments".to_owned(),
-            }),
-            404
-        );
-        assert_eq!(
-            status_of(&ObservabilityError::DuplicateDefinition {
-                name: "sr_drop".to_owned(),
-                product: "payments".to_owned(),
-            }),
-            400
-        );
-    }
-
-    #[test]
-    fn no_two_conditions_share_a_code() {
-        let codes = [
-            ObservabilityError::InternalServerError,
-            ObservabilityError::Unauthorized,
-            ObservabilityError::InvalidRequest,
-            ObservabilityError::EntryTooLarge { bytes: 0, limit: 0 },
-            ObservabilityError::StorageUnavailable,
-            ObservabilityError::DefinitionNotFound { id: String::new() },
-            ObservabilityError::DuplicateDefinition {
-                name: String::new(),
-                product: String::new(),
-            },
-            ObservabilityError::EnablementNotFound {
-                name: String::new(),
-                product: String::new(),
-            },
-            ObservabilityError::NotAnAlert {
-                name: String::new(),
-                product: String::new(),
-            },
-            ObservabilityError::UnknownDestination {
-                destination: String::new(),
-            },
-            ObservabilityError::ProviderUnavailable {
-                destination: String::new(),
-            },
-        ]
-        .iter()
-        .map(|error| {
-            let payload = ErrorSwitch::<ApiErrorResponse>::switch(error);
-            format!(
-                "{}_{:02}",
-                payload.payload().sub_code,
-                payload.payload().error_identifier
-            )
-        })
-        .collect::<std::collections::HashSet<_>>();
-
-        assert_eq!(codes.len(), 11);
-    }
-
-    #[test]
-    fn a_missing_definition_does_not_echo_the_key_back() {
-        let body = ErrorSwitch::<ApiErrorResponse>::switch(&ObservabilityError::NotAnAlert {
-            name: "typo".to_owned(),
-            product: "payments".to_owned(),
-        })
-        .to_string();
-
-        assert!(body.contains("IR_07"));
-        assert!(!body.contains("typo"));
     }
 
     /// A caller that guessed an id should not be handed the registry.

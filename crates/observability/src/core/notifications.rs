@@ -2,9 +2,9 @@ use diesel_models::observability::notification_reads::NotificationRead;
 use error_stack::{report, ResultExt};
 
 use crate::{
-    alert_manager::types::{notifications::WatermarkResponse, ReadStatus, UserName},
     errors::{ObservabilityApiResult, ObservabilityError},
     state::AppState,
+    types::{notifications::WatermarkResponse, ReadStatus, UserName},
 };
 
 const USER_NAME_MAX_BYTES: usize = 255;

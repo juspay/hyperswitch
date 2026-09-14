@@ -21,14 +21,6 @@ pub(super) trait CompositeKey {
 mod composite_key {
     use super::{observability_schema, schema, schema_v2, CompositeKey};
 
-    impl CompositeKey
-        for <observability_schema::merchants_alert_external_config::table as diesel::Table>::PrimaryKey
-    {
-        type UK = observability_schema::merchants_alert_external_config::dsl::name;
-        fn get_local_unique_key(&self) -> Self::UK {
-            self.0
-        }
-    }
     impl CompositeKey for <schema::payment_attempt::table as diesel::Table>::PrimaryKey {
         type UK = schema::payment_attempt::dsl::attempt_id;
         fn get_local_unique_key(&self) -> Self::UK {
@@ -81,6 +73,14 @@ mod composite_key {
         type UK = schema::payouts::dsl::payout_id;
         fn get_local_unique_key(&self) -> Self::UK {
             self.1
+        }
+    }
+    impl CompositeKey
+        for <observability_schema::merchants_alert_external_config::table as diesel::Table>::PrimaryKey
+    {
+        type UK = observability_schema::merchants_alert_external_config::dsl::name;
+        fn get_local_unique_key(&self) -> Self::UK {
+            self.0
         }
     }
 }
@@ -160,7 +160,6 @@ macro_rules! impl_get_primary_key_for_composite {
 }
 
 impl_get_primary_key_for_composite!(
-    observability_schema::merchants_alert_external_config::table,
     schema::payment_attempt::table,
     schema::refund::table,
     schema::customers::table,
@@ -169,5 +168,6 @@ impl_get_primary_key_for_composite!(
     schema::hyperswitch_ai_interaction::table,
     schema_v2::incremental_authorization::table,
     schema::payout_attempt::table,
-    schema::payouts::table
+    schema::payouts::table,
+    observability_schema::merchants_alert_external_config::table
 );

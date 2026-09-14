@@ -11,7 +11,7 @@
 
 use std::{collections::HashMap, path::PathBuf};
 
-use common_utils::{ext_traits::ConfigExt, pii};
+use common_utils::{ext_traits::ConfigExt, pii, DbConnectionParams};
 use config::{Environment, File};
 use external_services::{
     chat_service::{slack::SlackConfig, xyne::XyneConfig},
@@ -321,18 +321,6 @@ pub struct DatabaseSettings {
     pub connection_timeout: u64,
 }
 
-fn encode(value: &str) -> String {
-    value
-        .bytes()
-        .map(|byte| match byte {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' => {
-                char::from(byte).to_string()
-            }
-            other => format!("%{other:02X}"),
-        })
-        .collect()
-}
-
 impl Default for DatabaseSettings {
     fn default() -> Self {
         Self {
@@ -347,18 +335,36 @@ impl Default for DatabaseSettings {
     }
 }
 
-impl DatabaseSettings {
-    pub fn database_url(&self) -> String {
+impl DbConnectionParams for DatabaseSettings {
+    fn get_username(&self) -> &str {
+        &self.username
+    }
+    fn get_password(&self) -> Secret<String> {
+        self.password.clone()
+    }
+    fn get_host(&self) -> &str {
+        &self.host
+    }
+    fn get_port(&self) -> u16 {
+        self.port
+    }
+    fn get_dbname(&self) -> &str {
+        &self.dbname
+    }
+    fn get_database_url(&self, application_name: &str) -> String {
         format!(
-            "postgres://{}:{}@{}:{}/{}?application_name=observability",
-            encode(&self.username),
-            encode(self.password.peek()),
-            self.host,
-            self.port,
-            self.dbname,
+            "postgres://{}:{}@{}:{}/{}?application_name={}",
+            urlencoding::encode(self.get_username()),
+            urlencoding::encode(self.get_password().peek()),
+            self.get_host(),
+            self.get_port(),
+            self.get_dbname(),
+            application_name,
         )
     }
+}
 
+impl DatabaseSettings {
     pub fn validate(&self) -> Result<(), errors::ConfigurationError> {
         common_utils::fp_utils::when(self.host.is_default_or_empty(), || {
             Err(errors::ConfigurationError::ConfigParsingError(
