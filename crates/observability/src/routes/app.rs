@@ -14,7 +14,7 @@ use actix_web::{error::InternalError, web, HttpResponse, Scope};
 use crate::{
     errors::types::{ApiError, ApiErrorResponse},
     logger,
-    routes::{config, health_check, lifecycle, mappers, notifications, notify},
+    routes::{config, health_check, instances, lifecycle, mappers, notifications, notify},
     state::AppState,
 };
 
@@ -57,6 +57,8 @@ impl Alerts {
             ))
             .service(AlertsConfig::server())
             .service(AlertsLifecycle::server())
+            .service(AlertsInstances::server())
+            .service(AlertsDimensions::server())
     }
 }
 
@@ -145,6 +147,34 @@ impl AlertsLifecycle {
                     web::resource("/announcements/{id}")
                         .route(web::post().to(lifecycle::announcement_update)),
                 ),
+        )
+    }
+}
+
+pub struct AlertsInstances;
+
+impl AlertsInstances {
+    pub fn server() -> Scope {
+        web::scope("/instances").service(
+            web::scope("/{channel}").service(
+                web::resource("/{announcement_id}")
+                    .route(web::get().to(instances::instances_retrieve))
+                    .route(web::post().to(instances::instances_save)),
+            ),
+        )
+    }
+}
+
+pub struct AlertsDimensions;
+
+impl AlertsDimensions {
+    pub fn server() -> Scope {
+        web::scope("/dimensions").service(
+            web::scope("/{channel}").service(
+                web::resource("/{announcement_id}")
+                    .route(web::get().to(instances::dimensions_retrieve))
+                    .route(web::post().to(instances::dimensions_save)),
+            ),
         )
     }
 }

@@ -3,7 +3,9 @@ pub mod alerts_info;
 pub mod alerts_intermediate;
 pub mod alerts_main;
 pub mod merchant_thresholds;
+pub mod merchants_alert_external;
 pub mod merchants_alert_external_config;
+pub mod merchants_alert_external_dimension;
 pub mod notification_reads;
 
 use async_bb8_diesel::AsyncRunQueryDsl;
@@ -16,6 +18,10 @@ use error_stack::ResultExt;
 use crate::{errors, query::generics, DatabaseConnectionWithContext, StorageResult};
 
 const LIFECYCLE_STATE_LOCK_NAMESPACE: i32 = 23_404;
+
+const INSTANCES_LOCK_NAMESPACE: i32 = 23_405;
+
+const DIMENSIONS_LOCK_NAMESPACE: i32 = 23_406;
 
 async fn advisory_xact_lock<T: Table>(
     conn: &DatabaseConnectionWithContext<'_>,

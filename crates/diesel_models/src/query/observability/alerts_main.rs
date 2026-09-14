@@ -27,6 +27,18 @@ impl AlertsMainNew {
 }
 
 impl AlertsMain {
+    pub async fn find_by_channel_and_id(
+        conn: &DatabaseConnectionWithContext<'_>,
+        channel: &str,
+        id: uuid::Uuid,
+    ) -> StorageResult<Self> {
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::channel.eq(channel.to_owned()).and(dsl::id.eq(id)),
+        )
+        .await
+    }
+
     pub async fn list_by_channel_and_ts_alert_window(
         conn: &DatabaseConnectionWithContext<'_>,
         channel: &str,

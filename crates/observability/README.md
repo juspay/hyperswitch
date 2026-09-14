@@ -84,11 +84,13 @@ reach the logs from the client, which emits `chars` per request.
 
 ## The API
 
-Three surfaces under one scope. **Delivery** sends a message; **configuration** reads and writes the
+Four surfaces under one scope. **Delivery** sends a message; **configuration** reads and writes the
 rows this plane owns — what an alert is, whether it runs, its per-merchant thresholds, the mappers the
 dashboard reads, and how far a user has read their notifications; **lifecycle** holds the alert
-manager's working state and the announcements it made. Routes under `/alerts/config` and
-`/alerts/lifecycle`, and `/health/ready`, touch the database; delivery routes do not.
+manager's working state and the announcements it made; **instances** record the merchants and
+dimension values each announcement was about. Routes under `/alerts/config`, `/alerts/lifecycle`,
+`/alerts/instances` and `/alerts/dimensions`, and `/health/ready`, touch the database; delivery
+routes do not.
 
 ### Delivery
 
@@ -507,6 +509,66 @@ the tables above:
 | The announcement window ends before it starts or spans more than 30 days | 400 | `HE_03` |
 | A state row references an announcement this channel does not have, or the announcement id is unknown | 404 | `HE_02` |
 
+### Instances
+
+Two resources per announcement, backed by the observability database.
+
+| Method | Path | |
+|---|---|---|
+| `GET` | `/alerts/instances/{channel}/{announcement_id}` | the merchants the announcement was about |
+| `POST` | `/alerts/instances/{channel}/{announcement_id}` | replace them |
+| `GET` | `/alerts/dimensions/{channel}/{announcement_id}` | the dimension values behind it |
+| `POST` | `/alerts/dimensions/{channel}/{announcement_id}` | replace them |
+
+`merchants_alert_external` holds one row per merchant and `merchants_alert_external_dimension` one
+row per dimension value (connector, payment method, ...). Both reference `alerts_main` `ON DELETE
+CASCADE`, so removing an announcement removes its rows; no route here removes one. `{channel}` is
+`slack` or `xyne`. Both channels share both tables, every row carries its `channel`, and every read,
+write and announcement lookup is scoped to the channel in the path. Another channel, or an
+announcement id that is not a UUID, gets the same empty `404` as a path that matches no route.
+
+A read answers `{"count": n, "merchants": [...]}` or `{"count": n, "dimensions": [...]}`, each row
+carrying its `announcement_id`; merchants are ordered by `merchant_id`, dimensions by
+`dimension_key` then `dimension_value`, both then by `id_merchant_table`.
+
+A write replaces every row the announcement has on that channel in that table and answers
+`{"stored": n, "removed": n, "ts_alert": …}`: the rows inserted, the rows deleted, and the
+`ts_alert` the new rows carry, `null` when it stored none. An empty write clears them. The delete
+and the insert run in one transaction that first takes a transaction-level Postgres advisory lock on
+the announcement, one lock per table, so two writes for one announcement run one after the other and
+the second replaces what the first stored. A write carries at most 500 rows and is one insert
+statement.
+
+`id_merchant_table` is a UUIDv7, and `ts_alert` and `last_updated_at` are this service's clock,
+truncated to the millisecond. `name` and `product` are required on every row and must not be
+blank. Left out or `null`, `merchant_id`, `dimension_key`, `dimension_value`, `attribution`,
+`ts_slack`, `priority` and `tenant_id` are stored as `''`; `slack_info`, `communication_info` and
+`metadata_alert_details` as `{}`; `dimensions`, `auxiliary_dimensions` and `metadata` as the JSON
+string `"{}"`; and `is_visible` as true. These are r-apps' defaults for the two tables.
+`current_metric`, `expected_metric`, `max_duration`, `start_time`, `latest_ts_alert`,
+`recovered_ts` and `id_intermediate` are stored as sent. Both write routes keep the 2 MiB body
+limit of the other JSON routes, which 500 rows fit while they average under about 4 KiB each.
+
+```http
+POST /alerts/instances/slack/0199…
+{ "merchants": [{ "name": "sr_drop", "product": "payments", "merchant_id": "merchant_1234", "current_metric": 41.5, "expected_metric": 90.0 }] }
+→ 200 { "stored": 1, "removed": 0, "ts_alert": "2026-09-15T10:00:00.123Z" }
+```
+
+#### Instance errors
+
+The row count, blank values, widths and times are checked before a database connection is taken. A
+body that does not parse or is over 2 MiB, including a row missing `name` or `product` or giving it
+`null`, is the `IR_04` above. Added to the tables above:
+
+| | Status | Code |
+|---|---|---|
+| `name` or `product` is blank | 400 | `IR_07` |
+| A field is longer than its column holds (`name`, `product`, `merchant_id`, `dimension_key`, `priority`, `tenant_id` 64; `attribution`, `dimension_value`, `ts_slack` 255) | 400 | `IR_07` |
+| A row's `start_time`, `latest_ts_alert` or `recovered_ts` is before 1970 | 400 | `IR_07` |
+| A write carries more than 500 merchants or 500 dimensions | 400 | `HE_03` |
+| The announcement id is unknown on this channel | 404 | `HE_02` |
+
 ## Destinations
 
 Configured under `chat.destinations.<id>` and `email.destinations.<id>`, resolved once at boot.
@@ -548,8 +610,8 @@ unverified sender all arrive as one variant — so email only ever reports `deli
 ## Layout
 
 ```
-routes/          the route tree, and one module of handlers per area: notify, config, mappers, notifications and lifecycle
-core/            what one request does, per area: deliver a message, read and write configuration, or keep the alert lifecycle
+routes/          the route tree, and one module of handlers per area: notify, config, mappers, notifications, lifecycle and instances
+core/            what one request does, per area: deliver a message, read and write configuration, keep the alert lifecycle, or record instances
 domain/          what delivering an alert is: the notifier traits and the types they exchange
 types/           the wire contract, per area
 ```
@@ -557,9 +619,11 @@ types/           the wire contract, per area
 Configuration requests are handled in `routes/config.rs` and `core/config.rs`, with their request
 and response types and validation in `types/config.rs`; mapper and watermark requests in the
 `mappers.rs` and `notifications.rs` of the same three modules, with `X-User-Name` read in `auth.rs`.
-Lifecycle requests are handled in the `lifecycle.rs` of the same three modules. The rows are
-`alerts_info`, `merchants_alert_external_config`, `merchant_thresholds`, `alerts_dicts`,
-`notification_reads`, `alerts_main` and `alerts_intermediate` in `diesel_models::observability`,
+Lifecycle requests are handled in the `lifecycle.rs` of the same three modules, and instance and
+dimension requests in their `instances.rs`. The rows are `alerts_info`,
+`merchants_alert_external_config`, `merchant_thresholds`, `alerts_dicts`, `notification_reads`,
+`alerts_main`, `alerts_intermediate`, `merchants_alert_external` and
+`merchants_alert_external_dimension` in `diesel_models::observability`,
 their queries are in `diesel_models::query::observability`, and the tables are created by
 `migrations/`.
 

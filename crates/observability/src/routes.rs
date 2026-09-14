@@ -4,6 +4,7 @@
 pub mod app;
 pub mod config;
 pub mod health_check;
+pub mod instances;
 pub mod lifecycle;
 pub mod mappers;
 pub mod notifications;
