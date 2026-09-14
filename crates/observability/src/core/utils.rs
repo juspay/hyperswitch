@@ -63,3 +63,31 @@ pub fn truncate_to_millisecond(value: PrimitiveDateTime) -> PrimitiveDateTime {
         .replace_millisecond(value.millisecond())
         .unwrap_or(value)
 }
+
+pub enum TransactionError {
+    Observability(error_stack::Report<ObservabilityError>),
+    Database(diesel::result::Error),
+}
+
+impl TransactionError {
+    pub fn into_report(self, message: &'static str) -> error_stack::Report<ObservabilityError> {
+        match self {
+            Self::Observability(error) => error,
+            Self::Database(error) => report!(error)
+                .change_context(ObservabilityError::InternalServerError)
+                .attach_printable(message),
+        }
+    }
+}
+
+impl From<diesel::result::Error> for TransactionError {
+    fn from(error: diesel::result::Error) -> Self {
+        Self::Database(error)
+    }
+}
+
+impl From<error_stack::Report<ObservabilityError>> for TransactionError {
+    fn from(error: error_stack::Report<ObservabilityError>) -> Self {
+        Self::Observability(error)
+    }
+}

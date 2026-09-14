@@ -10,7 +10,7 @@ use error_stack::{report, ResultExt};
 use time::PrimitiveDateTime;
 
 use crate::{
-    core::utils::{self, NAME_MAX_CHARS, VALUE_MAX_CHARS},
+    core::utils::{self, TransactionError, NAME_MAX_CHARS, VALUE_MAX_CHARS},
     errors::{ObservabilityApiResult, ObservabilityError, StorageErrorExt},
     state::AppState,
     types::lifecycle::{
@@ -140,7 +140,7 @@ pub async fn write_state(
             Ok::<_, TransactionError>(Applied { stored, removed })
         })
         .await
-        .map_err(TransactionError::into_report)?;
+        .map_err(|error| error.into_report("Failed to run the lifecycle transaction"))?;
 
     Ok(LifecycleStateSaveResponse {
         last_updated_at: (applied.stored > 0).then_some(now),
@@ -298,7 +298,7 @@ pub async fn update_announcement(
             Ok::<_, TransactionError>(announcement)
         })
         .await
-        .map_err(TransactionError::into_report)?;
+        .map_err(|error| error.into_report("Failed to run the lifecycle transaction"))?;
 
     Ok(AnnouncementEntry::from(announcement))
 }
@@ -382,34 +382,6 @@ impl WritePlan {
             keep,
             referenced,
         })
-    }
-}
-
-enum TransactionError {
-    Observability(error_stack::Report<ObservabilityError>),
-    Database(diesel::result::Error),
-}
-
-impl TransactionError {
-    fn into_report(self) -> error_stack::Report<ObservabilityError> {
-        match self {
-            Self::Observability(error) => error,
-            Self::Database(error) => report!(error)
-                .change_context(ObservabilityError::InternalServerError)
-                .attach_printable("Failed to run the lifecycle transaction"),
-        }
-    }
-}
-
-impl From<diesel::result::Error> for TransactionError {
-    fn from(error: diesel::result::Error) -> Self {
-        Self::Database(error)
-    }
-}
-
-impl From<error_stack::Report<ObservabilityError>> for TransactionError {
-    fn from(error: error_stack::Report<ObservabilityError>) -> Self {
-        Self::Observability(error)
     }
 }
 

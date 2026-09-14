@@ -9,7 +9,7 @@ use diesel_models::observability::{
 use error_stack::{report, ResultExt};
 
 use crate::{
-    core::utils::{self, NAME_MAX_CHARS, VALUE_MAX_CHARS},
+    core::utils::{self, TransactionError, NAME_MAX_CHARS, VALUE_MAX_CHARS},
     errors::{ObservabilityApiResult, ObservabilityError, StorageErrorExt},
     state::AppState,
     types::{
@@ -163,11 +163,11 @@ pub async fn write_instances(
                 .change_context(ObservabilityError::InternalServerError)
                 .attach_printable("Failed to insert the merchant alert instances")?;
 
-            Ok::<_, WriteFailure>((stored, removed))
+            Ok::<_, TransactionError>((stored, removed))
         })
         .await
-        .map_err(|failure| {
-            failure.into_report("Failed to run the merchant alert instance write transaction")
+        .map_err(|error| {
+            error.into_report("Failed to run the merchant alert instance write transaction")
         })?;
 
     Ok(InstanceSaveResponse {
@@ -320,11 +320,11 @@ pub async fn write_dimensions(
                 .change_context(ObservabilityError::InternalServerError)
                 .attach_printable("Failed to insert the alert dimensions")?;
 
-            Ok::<_, WriteFailure>((stored, removed))
+            Ok::<_, TransactionError>((stored, removed))
         })
         .await
-        .map_err(|failure| {
-            failure.into_report("Failed to run the alert dimension write transaction")
+        .map_err(|error| {
+            error.into_report("Failed to run the alert dimension write transaction")
         })?;
 
     Ok(InstanceSaveResponse {
@@ -332,32 +332,4 @@ pub async fn write_dimensions(
         removed,
         ts_alert: (stored > 0).then_some(now),
     })
-}
-
-enum WriteFailure {
-    Api(error_stack::Report<ObservabilityError>),
-    Transaction(diesel::result::Error),
-}
-
-impl WriteFailure {
-    fn into_report(self, message: &'static str) -> error_stack::Report<ObservabilityError> {
-        match self {
-            Self::Api(error) => error,
-            Self::Transaction(error) => report!(error)
-                .change_context(ObservabilityError::InternalServerError)
-                .attach_printable(message),
-        }
-    }
-}
-
-impl From<diesel::result::Error> for WriteFailure {
-    fn from(error: diesel::result::Error) -> Self {
-        Self::Transaction(error)
-    }
-}
-
-impl From<error_stack::Report<ObservabilityError>> for WriteFailure {
-    fn from(error: error_stack::Report<ObservabilityError>) -> Self {
-        Self::Api(error)
-    }
 }
