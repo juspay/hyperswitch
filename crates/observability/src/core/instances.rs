@@ -9,35 +9,28 @@ use diesel_models::observability::{
 use error_stack::{report, ResultExt};
 
 use crate::{
-    core::utils,
+    core::utils::{self, NAME_MAX_CHARS, VALUE_MAX_CHARS},
     errors::{ObservabilityApiResult, ObservabilityError, StorageErrorExt},
     state::AppState,
     types::{
         instances::{
-            DimensionInstanceEntry, DimensionReadResponse, DimensionSaveResponse,
-            DimensionWriteRequest, InstanceReadResponse, InstanceSaveResponse,
-            InstanceWriteRequest, MerchantInstanceEntry,
+            DimensionInstanceEntry, DimensionListResponse, DimensionWriteRequest,
+            InstanceListResponse, InstanceSaveResponse, InstanceWriteRequest,
+            MerchantInstanceEntry,
         },
         lifecycle::Channel,
-        ReadStatus, WriteStatus,
     },
 };
-
-const NAME_MAX_CHARS: usize = 64;
-
-const VALUE_MAX_CHARS: usize = 255;
 
 const MAX_MERCHANTS: usize = 500;
 
 const MAX_DIMENSIONS: usize = 500;
 
-const EMPTY_JSON_TEXT: &str = "{}";
-
 pub async fn read_instances(
     state: AppState,
     channel: Channel,
     announcement: uuid::Uuid,
-) -> ObservabilityApiResult<InstanceReadResponse> {
+) -> ObservabilityApiResult<InstanceListResponse> {
     let channel = <&'static str>::from(channel);
     let connection = state.database_connection().await?;
 
@@ -45,20 +38,24 @@ pub async fn read_instances(
         .await
         .to_not_found_response(ObservabilityError::UnknownAnnouncement {
             id: announcement.to_string(),
-        })?;
+        })
+        .attach_printable("Failed to find the announcement of the merchant alert instances")?;
 
-    let rows = MerchantsAlertExternal::list_by_channel_and_announcement(
+    let merchants = MerchantsAlertExternal::list_by_channel_and_announcement(
         &connection,
         channel,
         announcement,
     )
     .await
     .change_context(ObservabilityError::InternalServerError)
-    .attach_printable("Failed to read the merchant alert instances")?;
+    .attach_printable("Failed to list the merchant alert instances")?
+    .into_iter()
+    .map(MerchantInstanceEntry::from)
+    .collect::<Vec<_>>();
 
-    Ok(InstanceReadResponse {
-        status: found_or_absent(rows.len()),
-        merchants: rows.into_iter().map(MerchantInstanceEntry::from).collect(),
+    Ok(InstanceListResponse {
+        count: merchants.len(),
+        merchants,
     })
 }
 
@@ -78,33 +75,46 @@ pub async fn write_instances(
     }
 
     for write in &request.merchants {
-        within_width(write.name.as_deref(), "name", NAME_MAX_CHARS)?;
-        within_width(write.product.as_deref(), "product", NAME_MAX_CHARS)?;
-        within_width(write.merchant_id.as_deref(), "merchant_id", NAME_MAX_CHARS)?;
-        within_width(write.priority.as_deref(), "priority", NAME_MAX_CHARS)?;
-        within_width(write.tenant_id.as_deref(), "tenant_id", NAME_MAX_CHARS)?;
-        within_width(write.attribution.as_deref(), "attribution", VALUE_MAX_CHARS)?;
-        within_width(write.ts_slack.as_deref(), "ts_slack", VALUE_MAX_CHARS)?;
+        utils::optional_within_width(write.name.as_deref(), "name", NAME_MAX_CHARS)?;
+        utils::optional_within_width(write.product.as_deref(), "product", NAME_MAX_CHARS)?;
+        utils::optional_within_width(write.merchant_id.as_deref(), "merchant_id", NAME_MAX_CHARS)?;
+        utils::optional_within_width(write.priority.as_deref(), "priority", NAME_MAX_CHARS)?;
+        utils::optional_within_width(write.tenant_id.as_deref(), "tenant_id", NAME_MAX_CHARS)?;
+        utils::optional_within_width(write.attribution.as_deref(), "attribution", VALUE_MAX_CHARS)?;
+        utils::optional_within_width(write.ts_slack.as_deref(), "ts_slack", VALUE_MAX_CHARS)?;
     }
 
     let now = utils::truncate_to_millisecond(common_utils::date_time::now());
     let connection = state.database_connection().await?;
 
     let borrowed = &connection;
-    let applied = borrowed
+    let (stored, removed) = borrowed
         .raw_connection()
         .transaction_async(move |_| async move {
-            MerchantsAlertExternal::lock_announcement(borrowed, announcement).await?;
+            MerchantsAlertExternal::lock_announcement(borrowed, announcement)
+                .await
+                .change_context(ObservabilityError::InternalServerError)
+                .attach_printable(
+                    "Failed to lock the announcement for a merchant alert instance write",
+                )?;
 
-            let parent =
-                AlertsMain::find_by_channel_and_id(borrowed, channel, announcement).await?;
+            let parent = AlertsMain::find_by_channel_and_id(borrowed, channel, announcement)
+                .await
+                .to_not_found_response(ObservabilityError::UnknownAnnouncement {
+                    id: announcement.to_string(),
+                })
+                .attach_printable(
+                    "Failed to find the announcement of the merchant alert instances",
+                )?;
 
             let removed = MerchantsAlertExternal::delete_by_channel_and_announcement(
                 borrowed,
                 channel,
                 announcement,
             )
-            .await?;
+            .await
+            .change_context(ObservabilityError::InternalServerError)
+            .attach_printable("Failed to delete the merchant alert instances")?;
 
             let rows = request
                 .merchants
@@ -112,15 +122,15 @@ pub async fn write_instances(
                 .map(|write| MerchantsAlertExternalNew {
                     id: announcement,
                     channel: channel.to_owned(),
-                    id_merchant_table: uuid::Uuid::now_v7(),
+                    id_merchant_table: common_utils::generate_uuid_v7(),
                     id_intermediate: write.id_intermediate,
                     name: write.name.unwrap_or_default(),
                     product: write.product.unwrap_or_default(),
                     merchant_id: write.merchant_id.unwrap_or_default(),
-                    dimensions: write.dimensions.unwrap_or_else(empty_json_text),
+                    dimensions: write.dimensions.unwrap_or_else(utils::empty_json_text),
                     auxiliary_dimensions: write
                         .auxiliary_dimensions
-                        .unwrap_or_else(empty_json_text),
+                        .unwrap_or_else(utils::empty_json_text),
                     current_metric: write.current_metric,
                     expected_metric: write.expected_metric,
                     attribution: write.attribution.unwrap_or_default(),
@@ -135,29 +145,35 @@ pub async fn write_instances(
                     ts_alert: now,
                     latest_ts_alert: write.latest_ts_alert,
                     last_updated_at: now,
-                    slack_info: write.slack_info.unwrap_or_else(empty_object),
-                    communication_info: write.communication_info.unwrap_or_else(empty_object),
-                    metadata: write.metadata.unwrap_or_else(empty_json_text),
+                    slack_info: write.slack_info.unwrap_or_else(utils::empty_object),
+                    communication_info: write
+                        .communication_info
+                        .unwrap_or_else(utils::empty_object),
+                    metadata: write.metadata.unwrap_or_else(utils::empty_json_text),
                     metadata_alert_details: write
                         .metadata_alert_details
-                        .unwrap_or_else(empty_object),
+                        .unwrap_or_else(utils::empty_object),
                     priority: write.priority.unwrap_or_default(),
                     tenant_id: write.tenant_id.unwrap_or_default(),
                 })
                 .collect();
 
-            let stored = MerchantsAlertExternalNew::bulk_insert(borrowed, rows).await?;
+            let stored = MerchantsAlertExternalNew::bulk_insert(borrowed, rows)
+                .await
+                .change_context(ObservabilityError::InternalServerError)
+                .attach_printable("Failed to insert the merchant alert instances")?;
 
-            Ok::<_, WriteFailure>(Applied { stored, removed })
+            Ok::<_, WriteFailure>((stored, removed))
         })
         .await
-        .map_err(|failure| failure.into_report(announcement))?;
+        .map_err(|failure| {
+            failure.into_report("Failed to run the merchant alert instance write transaction")
+        })?;
 
     Ok(InstanceSaveResponse {
-        status: WriteStatus::Saved,
-        ts_alert: (applied.stored > 0).then_some(now),
-        merchants: applied.stored,
-        removed: applied.removed,
+        stored,
+        removed,
+        ts_alert: (stored > 0).then_some(now),
     })
 }
 
@@ -165,7 +181,7 @@ pub async fn read_dimensions(
     state: AppState,
     channel: Channel,
     announcement: uuid::Uuid,
-) -> ObservabilityApiResult<DimensionReadResponse> {
+) -> ObservabilityApiResult<DimensionListResponse> {
     let channel = <&'static str>::from(channel);
     let connection = state.database_connection().await?;
 
@@ -173,20 +189,24 @@ pub async fn read_dimensions(
         .await
         .to_not_found_response(ObservabilityError::UnknownAnnouncement {
             id: announcement.to_string(),
-        })?;
+        })
+        .attach_printable("Failed to find the announcement of the alert dimensions")?;
 
-    let rows = MerchantsAlertExternalDimension::list_by_channel_and_announcement(
+    let dimensions = MerchantsAlertExternalDimension::list_by_channel_and_announcement(
         &connection,
         channel,
         announcement,
     )
     .await
     .change_context(ObservabilityError::InternalServerError)
-    .attach_printable("Failed to read the alert dimension breakdown")?;
+    .attach_printable("Failed to list the alert dimensions")?
+    .into_iter()
+    .map(DimensionInstanceEntry::from)
+    .collect::<Vec<_>>();
 
-    Ok(DimensionReadResponse {
-        status: found_or_absent(rows.len()),
-        dimensions: rows.into_iter().map(DimensionInstanceEntry::from).collect(),
+    Ok(DimensionListResponse {
+        count: dimensions.len(),
+        dimensions,
     })
 }
 
@@ -195,7 +215,7 @@ pub async fn write_dimensions(
     channel: Channel,
     announcement: uuid::Uuid,
     request: DimensionWriteRequest,
-) -> ObservabilityApiResult<DimensionSaveResponse> {
+) -> ObservabilityApiResult<InstanceSaveResponse> {
     let channel = <&'static str>::from(channel);
 
     if request.dimensions.len() > MAX_DIMENSIONS {
@@ -206,42 +226,51 @@ pub async fn write_dimensions(
     }
 
     for write in &request.dimensions {
-        within_width(write.name.as_deref(), "name", NAME_MAX_CHARS)?;
-        within_width(write.product.as_deref(), "product", NAME_MAX_CHARS)?;
-        within_width(
+        utils::optional_within_width(write.name.as_deref(), "name", NAME_MAX_CHARS)?;
+        utils::optional_within_width(write.product.as_deref(), "product", NAME_MAX_CHARS)?;
+        utils::optional_within_width(
             write.dimension_key.as_deref(),
             "dimension_key",
             NAME_MAX_CHARS,
         )?;
-        within_width(write.priority.as_deref(), "priority", NAME_MAX_CHARS)?;
-        within_width(write.tenant_id.as_deref(), "tenant_id", NAME_MAX_CHARS)?;
-        within_width(
+        utils::optional_within_width(write.priority.as_deref(), "priority", NAME_MAX_CHARS)?;
+        utils::optional_within_width(write.tenant_id.as_deref(), "tenant_id", NAME_MAX_CHARS)?;
+        utils::optional_within_width(
             write.dimension_value.as_deref(),
             "dimension_value",
             VALUE_MAX_CHARS,
         )?;
-        within_width(write.attribution.as_deref(), "attribution", VALUE_MAX_CHARS)?;
-        within_width(write.ts_slack.as_deref(), "ts_slack", VALUE_MAX_CHARS)?;
+        utils::optional_within_width(write.attribution.as_deref(), "attribution", VALUE_MAX_CHARS)?;
+        utils::optional_within_width(write.ts_slack.as_deref(), "ts_slack", VALUE_MAX_CHARS)?;
     }
 
     let now = utils::truncate_to_millisecond(common_utils::date_time::now());
     let connection = state.database_connection().await?;
 
     let borrowed = &connection;
-    let applied = borrowed
+    let (stored, removed) = borrowed
         .raw_connection()
         .transaction_async(move |_| async move {
-            MerchantsAlertExternalDimension::lock_announcement(borrowed, announcement).await?;
+            MerchantsAlertExternalDimension::lock_announcement(borrowed, announcement)
+                .await
+                .change_context(ObservabilityError::InternalServerError)
+                .attach_printable("Failed to lock the announcement for an alert dimension write")?;
 
-            let parent =
-                AlertsMain::find_by_channel_and_id(borrowed, channel, announcement).await?;
+            let parent = AlertsMain::find_by_channel_and_id(borrowed, channel, announcement)
+                .await
+                .to_not_found_response(ObservabilityError::UnknownAnnouncement {
+                    id: announcement.to_string(),
+                })
+                .attach_printable("Failed to find the announcement of the alert dimensions")?;
 
             let removed = MerchantsAlertExternalDimension::delete_by_channel_and_announcement(
                 borrowed,
                 channel,
                 announcement,
             )
-            .await?;
+            .await
+            .change_context(ObservabilityError::InternalServerError)
+            .attach_printable("Failed to delete the alert dimensions")?;
 
             let rows = request
                 .dimensions
@@ -249,16 +278,16 @@ pub async fn write_dimensions(
                 .map(|write| MerchantsAlertExternalDimensionNew {
                     id: announcement,
                     channel: channel.to_owned(),
-                    id_merchant_table: uuid::Uuid::now_v7(),
+                    id_merchant_table: common_utils::generate_uuid_v7(),
                     id_intermediate: write.id_intermediate,
                     name: write.name.unwrap_or_default(),
                     product: write.product.unwrap_or_default(),
                     dimension_key: write.dimension_key.unwrap_or_default(),
                     dimension_value: write.dimension_value.unwrap_or_default(),
-                    dimensions: write.dimensions.unwrap_or_else(empty_json_text),
+                    dimensions: write.dimensions.unwrap_or_else(utils::empty_json_text),
                     auxiliary_dimensions: write
                         .auxiliary_dimensions
-                        .unwrap_or_else(empty_json_text),
+                        .unwrap_or_else(utils::empty_json_text),
                     current_metric: write.current_metric,
                     expected_metric: write.expected_metric,
                     attribution: write.attribution.unwrap_or_default(),
@@ -273,78 +302,50 @@ pub async fn write_dimensions(
                     ts_alert: now,
                     latest_ts_alert: write.latest_ts_alert,
                     last_updated_at: now,
-                    slack_info: write.slack_info.unwrap_or_else(empty_object),
-                    communication_info: write.communication_info.unwrap_or_else(empty_object),
-                    metadata: write.metadata.unwrap_or_else(empty_json_text),
+                    slack_info: write.slack_info.unwrap_or_else(utils::empty_object),
+                    communication_info: write
+                        .communication_info
+                        .unwrap_or_else(utils::empty_object),
+                    metadata: write.metadata.unwrap_or_else(utils::empty_json_text),
                     metadata_alert_details: write
                         .metadata_alert_details
-                        .unwrap_or_else(empty_object),
+                        .unwrap_or_else(utils::empty_object),
                     priority: write.priority.unwrap_or_default(),
                     tenant_id: write.tenant_id.unwrap_or_default(),
                 })
                 .collect();
 
-            let stored = MerchantsAlertExternalDimensionNew::bulk_insert(borrowed, rows).await?;
+            let stored = MerchantsAlertExternalDimensionNew::bulk_insert(borrowed, rows)
+                .await
+                .change_context(ObservabilityError::InternalServerError)
+                .attach_printable("Failed to insert the alert dimensions")?;
 
-            Ok::<_, WriteFailure>(Applied { stored, removed })
+            Ok::<_, WriteFailure>((stored, removed))
         })
         .await
-        .map_err(|failure| failure.into_report(announcement))?;
+        .map_err(|failure| {
+            failure.into_report("Failed to run the alert dimension write transaction")
+        })?;
 
-    Ok(DimensionSaveResponse {
-        status: WriteStatus::Saved,
-        ts_alert: (applied.stored > 0).then_some(now),
-        dimensions: applied.stored,
-        removed: applied.removed,
+    Ok(InstanceSaveResponse {
+        stored,
+        removed,
+        ts_alert: (stored > 0).then_some(now),
     })
 }
 
-struct Applied {
-    stored: usize,
-    removed: usize,
-}
-
-fn found_or_absent(rows: usize) -> ReadStatus {
-    if rows == 0 {
-        ReadStatus::Absent
-    } else {
-        ReadStatus::Found
-    }
-}
-
-fn empty_object() -> serde_json::Value {
-    serde_json::Value::Object(serde_json::Map::new())
-}
-
-fn empty_json_text() -> serde_json::Value {
-    serde_json::Value::String(EMPTY_JSON_TEXT.to_owned())
-}
-
 enum WriteFailure {
-    Storage(error_stack::Report<diesel_models::errors::DatabaseError>),
+    Api(error_stack::Report<ObservabilityError>),
     Transaction(diesel::result::Error),
 }
 
 impl WriteFailure {
-    fn into_report(self, announcement: uuid::Uuid) -> error_stack::Report<ObservabilityError> {
+    fn into_report(self, message: &'static str) -> error_stack::Report<ObservabilityError> {
         match self {
-            Self::Storage(error)
-                if matches!(
-                    error.current_context(),
-                    diesel_models::errors::DatabaseError::NotFound
-                ) =>
-            {
-                error.change_context(ObservabilityError::UnknownAnnouncement {
-                    id: announcement.to_string(),
-                })
-            }
-            Self::Storage(error) => error
+            Self::Api(error) => error,
+            Self::Transaction(error) => report!(error)
                 .change_context(ObservabilityError::InternalServerError)
-                .attach_printable("Failed to write the alert instances"),
-            Self::Transaction(error) => report!(ObservabilityError::InternalServerError)
-                .attach_printable(format!(
-                    "The alert instance write transaction failed: {error}"
-                )),
+                .attach_printable(message),
         }
     }
 }
@@ -355,12 +356,8 @@ impl From<diesel::result::Error> for WriteFailure {
     }
 }
 
-impl From<error_stack::Report<diesel_models::errors::DatabaseError>> for WriteFailure {
-    fn from(error: error_stack::Report<diesel_models::errors::DatabaseError>) -> Self {
-        Self::Storage(error)
+impl From<error_stack::Report<ObservabilityError>> for WriteFailure {
+    fn from(error: error_stack::Report<ObservabilityError>) -> Self {
+        Self::Api(error)
     }
-}
-
-fn within_width(value: Option<&str>, field: &str, max_chars: usize) -> ObservabilityApiResult<()> {
-    value.map_or(Ok(()), |value| utils::within_width(value, field, max_chars))
 }

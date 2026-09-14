@@ -280,15 +280,15 @@ impl ErrorSwitch<ApiErrorResponse> for ObservabilityError {
                 3,
                 "The announcement window must end after it starts and span at most 30 days",
             )),
-            Self::InstancesTooLarge { .. } => ApiErrorResponse::BadRequest(ApiError::new(
+            Self::InstancesTooLarge { limit, .. } => ApiErrorResponse::BadRequest(ApiError::new(
                 "HE",
                 3,
-                "The instance write carries more merchants than this service stores",
+                format!("The instance write carries more than {limit} merchants"),
             )),
-            Self::DimensionsTooLarge { .. } => ApiErrorResponse::BadRequest(ApiError::new(
+            Self::DimensionsTooLarge { limit, .. } => ApiErrorResponse::BadRequest(ApiError::new(
                 "HE",
                 3,
-                "The dimension write carries more dimensions than this service stores",
+                format!("The dimension write carries more than {limit} dimensions"),
             )),
             // 502 rather than 500: the failure is on the far side of a hop we made. Note this is
             // the *only* provider-shaped error left, because every answer the provider gives is a

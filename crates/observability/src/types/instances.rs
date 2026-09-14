@@ -5,101 +5,62 @@ use diesel_models::observability::{
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use super::{ReadStatus, WriteStatus};
-
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct MerchantInstanceWrite {
-    #[serde(default)]
     pub id_intermediate: Option<uuid::Uuid>,
-    #[serde(default)]
     pub name: Option<String>,
-    #[serde(default)]
     pub product: Option<String>,
-    #[serde(default)]
     pub merchant_id: Option<String>,
-    #[serde(default)]
     pub dimensions: Option<serde_json::Value>,
-    #[serde(default)]
     pub auxiliary_dimensions: Option<serde_json::Value>,
-    #[serde(default)]
     pub current_metric: Option<f64>,
-    #[serde(default)]
     pub expected_metric: Option<f64>,
-    #[serde(default)]
     pub attribution: Option<String>,
-    #[serde(default)]
     pub max_duration: Option<i32>,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub start_time: Option<PrimitiveDateTime>,
-    #[serde(default)]
     pub is_visible: Option<bool>,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub recovered_ts: Option<PrimitiveDateTime>,
-    #[serde(default)]
     pub ts_slack: Option<String>,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub latest_ts_alert: Option<PrimitiveDateTime>,
-    #[serde(default)]
     pub slack_info: Option<serde_json::Value>,
-    #[serde(default)]
     pub communication_info: Option<serde_json::Value>,
-    #[serde(default)]
     pub metadata: Option<serde_json::Value>,
-    #[serde(default)]
     pub metadata_alert_details: Option<serde_json::Value>,
-    #[serde(default)]
     pub priority: Option<String>,
-    #[serde(default)]
     pub tenant_id: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct DimensionInstanceWrite {
-    #[serde(default)]
     pub id_intermediate: Option<uuid::Uuid>,
-    #[serde(default)]
     pub name: Option<String>,
-    #[serde(default)]
     pub product: Option<String>,
-    #[serde(default)]
     pub dimension_key: Option<String>,
-    #[serde(default)]
     pub dimension_value: Option<String>,
-    #[serde(default)]
     pub dimensions: Option<serde_json::Value>,
-    #[serde(default)]
     pub auxiliary_dimensions: Option<serde_json::Value>,
-    #[serde(default)]
     pub current_metric: Option<f64>,
-    #[serde(default)]
     pub expected_metric: Option<f64>,
-    #[serde(default)]
     pub attribution: Option<String>,
-    #[serde(default)]
     pub max_duration: Option<i32>,
-    #[serde(default)]
     pub is_visible: Option<bool>,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub start_time: Option<PrimitiveDateTime>,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub recovered_ts: Option<PrimitiveDateTime>,
-    #[serde(default)]
     pub ts_slack: Option<String>,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub latest_ts_alert: Option<PrimitiveDateTime>,
-    #[serde(default)]
     pub slack_info: Option<serde_json::Value>,
-    #[serde(default)]
     pub communication_info: Option<serde_json::Value>,
-    #[serde(default)]
     pub metadata: Option<serde_json::Value>,
-    #[serde(default)]
     pub metadata_alert_details: Option<serde_json::Value>,
-    #[serde(default)]
     pub priority: Option<String>,
-    #[serde(default)]
     pub tenant_id: Option<String>,
 }
 
@@ -118,100 +79,90 @@ pub struct DimensionWriteRequest {
 #[derive(Debug, Serialize)]
 pub struct MerchantInstanceEntry {
     pub id_merchant_table: uuid::Uuid,
-    pub announcement_id: Option<uuid::Uuid>,
+    pub announcement_id: uuid::Uuid,
     pub id_intermediate: Option<uuid::Uuid>,
-    pub name: Option<String>,
-    pub product: Option<String>,
-    pub merchant_id: Option<String>,
-    pub dimensions: Option<serde_json::Value>,
-    pub auxiliary_dimensions: Option<serde_json::Value>,
+    pub name: String,
+    pub product: String,
+    pub merchant_id: String,
+    pub dimensions: serde_json::Value,
+    pub auxiliary_dimensions: serde_json::Value,
     pub current_metric: Option<f64>,
     pub expected_metric: Option<f64>,
-    pub attribution: Option<String>,
+    pub attribution: String,
     pub max_duration: Option<i32>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub start_time: Option<PrimitiveDateTime>,
-    pub is_visible: Option<bool>,
+    pub is_visible: bool,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub recovered_ts: Option<PrimitiveDateTime>,
-    pub ts_slack: Option<String>,
-    #[serde(with = "common_utils::custom_serde::iso8601::option")]
-    pub ts_alert: Option<PrimitiveDateTime>,
+    pub ts_slack: String,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub ts_alert: PrimitiveDateTime,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub latest_ts_alert: Option<PrimitiveDateTime>,
-    #[serde(with = "common_utils::custom_serde::iso8601::option")]
-    pub last_updated_at: Option<PrimitiveDateTime>,
-    pub slack_info: Option<serde_json::Value>,
-    pub communication_info: Option<serde_json::Value>,
-    pub metadata: Option<serde_json::Value>,
-    pub metadata_alert_details: Option<serde_json::Value>,
-    pub priority: Option<String>,
-    pub tenant_id: Option<String>,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub last_updated_at: PrimitiveDateTime,
+    pub slack_info: serde_json::Value,
+    pub communication_info: serde_json::Value,
+    pub metadata: serde_json::Value,
+    pub metadata_alert_details: serde_json::Value,
+    pub priority: String,
+    pub tenant_id: String,
 }
 
 #[derive(Debug, Serialize)]
 pub struct DimensionInstanceEntry {
     pub id_merchant_table: uuid::Uuid,
-    pub announcement_id: Option<uuid::Uuid>,
+    pub announcement_id: uuid::Uuid,
     pub id_intermediate: Option<uuid::Uuid>,
-    pub name: Option<String>,
-    pub product: Option<String>,
-    pub dimension_key: Option<String>,
-    pub dimension_value: Option<String>,
-    pub dimensions: Option<serde_json::Value>,
-    pub auxiliary_dimensions: Option<serde_json::Value>,
+    pub name: String,
+    pub product: String,
+    pub dimension_key: String,
+    pub dimension_value: String,
+    pub dimensions: serde_json::Value,
+    pub auxiliary_dimensions: serde_json::Value,
     pub current_metric: Option<f64>,
     pub expected_metric: Option<f64>,
-    pub attribution: Option<String>,
+    pub attribution: String,
     pub max_duration: Option<i32>,
-    pub is_visible: Option<bool>,
+    pub is_visible: bool,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub start_time: Option<PrimitiveDateTime>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub recovered_ts: Option<PrimitiveDateTime>,
-    pub ts_slack: Option<String>,
-    #[serde(with = "common_utils::custom_serde::iso8601::option")]
-    pub ts_alert: Option<PrimitiveDateTime>,
+    pub ts_slack: String,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub ts_alert: PrimitiveDateTime,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub latest_ts_alert: Option<PrimitiveDateTime>,
-    #[serde(with = "common_utils::custom_serde::iso8601::option")]
-    pub last_updated_at: Option<PrimitiveDateTime>,
-    pub slack_info: Option<serde_json::Value>,
-    pub communication_info: Option<serde_json::Value>,
-    pub metadata: Option<serde_json::Value>,
-    pub metadata_alert_details: Option<serde_json::Value>,
-    pub priority: Option<String>,
-    pub tenant_id: Option<String>,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub last_updated_at: PrimitiveDateTime,
+    pub slack_info: serde_json::Value,
+    pub communication_info: serde_json::Value,
+    pub metadata: serde_json::Value,
+    pub metadata_alert_details: serde_json::Value,
+    pub priority: String,
+    pub tenant_id: String,
 }
 
 #[derive(Debug, Serialize)]
-pub struct InstanceReadResponse {
-    pub status: ReadStatus,
+pub struct InstanceListResponse {
+    pub count: usize,
     pub merchants: Vec<MerchantInstanceEntry>,
 }
 
 #[derive(Debug, Serialize)]
-pub struct DimensionReadResponse {
-    pub status: ReadStatus,
+pub struct DimensionListResponse {
+    pub count: usize,
     pub dimensions: Vec<DimensionInstanceEntry>,
 }
 
 #[derive(Debug, Serialize)]
 pub struct InstanceSaveResponse {
-    pub status: WriteStatus,
+    pub stored: usize,
+    pub removed: usize,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub ts_alert: Option<PrimitiveDateTime>,
-    pub merchants: usize,
-    pub removed: usize,
-}
-
-#[derive(Debug, Serialize)]
-pub struct DimensionSaveResponse {
-    pub status: WriteStatus,
-    #[serde(with = "common_utils::custom_serde::iso8601::option")]
-    pub ts_alert: Option<PrimitiveDateTime>,
-    pub dimensions: usize,
-    pub removed: usize,
 }
 
 impl From<MerchantsAlertExternal> for MerchantInstanceEntry {
