@@ -7,7 +7,6 @@ use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use super::{ReadStatus, WriteStatus};
 use crate::{
     auth::UserName,
     errors::{ObservabilityApiResult, ObservabilityError},
@@ -70,7 +69,8 @@ impl MapperEntrySaveRequest {
 }
 
 #[derive(Debug, Serialize)]
-pub struct MapperEntry {
+pub struct MapperEntryResponse {
+    pub id: uuid::Uuid,
     pub name: String,
     pub key: String,
     pub product: Option<RawJson>,
@@ -81,21 +81,10 @@ pub struct MapperEntry {
     pub username: Option<Secret<String>>,
 }
 
-#[derive(Debug, Serialize)]
-pub struct MapperListResponse {
-    pub status: ReadStatus,
-    pub entries: Vec<MapperEntry>,
-}
-
-#[derive(Debug, Serialize)]
-pub struct MapperSaveResponse {
-    pub status: WriteStatus,
-    pub entry: MapperEntry,
-}
-
-impl From<AlertsDict> for MapperEntry {
+impl From<AlertsDict> for MapperEntryResponse {
     fn from(entry: AlertsDict) -> Self {
         Self {
+            id: entry.id,
             name: entry.name,
             key: entry.key_,
             product: entry.product,
@@ -105,6 +94,12 @@ impl From<AlertsDict> for MapperEntry {
             username: entry.username,
         }
     }
+}
+
+#[derive(Debug, Serialize)]
+pub struct MapperEntryListResponse {
+    pub count: usize,
+    pub entries: Vec<MapperEntryResponse>,
 }
 
 #[derive(Debug, Serialize)]

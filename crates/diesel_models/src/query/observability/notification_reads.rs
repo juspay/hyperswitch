@@ -45,8 +45,7 @@ impl NotificationRead {
     pub async fn find_by_user_name(
         conn: &DatabaseConnectionWithContext<'_>,
         user_name: Secret<String>,
-    ) -> StorageResult<Option<Self>> {
-        generics::generic_find_by_id_optional::<<Self as HasTable>::Table, _, _>(conn, user_name)
-            .await
+    ) -> StorageResult<Self> {
+        generics::generic_find_by_id::<<Self as HasTable>::Table, _, _>(conn, user_name).await
     }
 }

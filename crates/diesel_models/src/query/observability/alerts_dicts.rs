@@ -69,8 +69,8 @@ impl AlertsDict {
         conn: &DatabaseConnectionWithContext<'_>,
         name: &str,
         key: &str,
-    ) -> StorageResult<Option<Self>> {
-        generics::generic_find_one_optional::<<Self as HasTable>::Table, _, _>(
+    ) -> StorageResult<Self> {
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::name
                 .eq(name.to_owned())

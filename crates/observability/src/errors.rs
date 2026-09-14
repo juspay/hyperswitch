@@ -113,6 +113,9 @@ pub enum ObservabilityError {
     #[error("No mapper entry exists for this name and key")]
     MapperEntryNotFound,
 
+    #[error("No notification watermark exists for this user")]
+    NotificationWatermarkNotFound,
+
     /// The path named a destination that is not configured.
     #[error("No destination is configured under `{destination}`")]
     UnknownDestination {
@@ -245,6 +248,11 @@ impl ErrorSwitch<ApiErrorResponse> for ObservabilityError {
                 "HE",
                 2,
                 "Mapper entry does not exist in our records",
+            )),
+            Self::NotificationWatermarkNotFound => ApiErrorResponse::NotFound(ApiError::new(
+                "HE",
+                2,
+                "Notification watermark does not exist in our records",
             )),
             // 502 rather than 500: the failure is on the far side of a hop we made. Note this is
             // the *only* provider-shaped error left, because every answer the provider gives is a

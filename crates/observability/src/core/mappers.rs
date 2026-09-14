@@ -10,32 +10,28 @@ use crate::{
     auth::UserName,
     errors::{ObservabilityApiResult, ObservabilityError, StorageErrorExt},
     state::AppState,
-    types::{
-        mappers::{
-            MapperEntry, MapperEntryDeleteResponse, MapperEntrySaveRequest, MapperListResponse,
-            MapperSaveResponse,
-        },
-        ReadStatus, WriteStatus,
+    types::mappers::{
+        MapperEntryDeleteResponse, MapperEntryListResponse, MapperEntryResponse,
+        MapperEntrySaveRequest,
     },
 };
 
 const SUPERSEDED_ENTRIES_KEPT: i64 = 1;
 
-pub async fn list_mappers(state: AppState) -> ObservabilityApiResult<MapperListResponse> {
+pub async fn list_mappers(state: AppState) -> ObservabilityApiResult<MapperEntryListResponse> {
     let connection = state.database_connection().await?;
 
     let entries = AlertsDict::list_enabled(&connection)
         .await
         .change_context(ObservabilityError::InternalServerError)
-        .attach_printable("Failed to list mapper entries")?;
+        .attach_printable("Failed to list mapper entries")?
+        .into_iter()
+        .map(MapperEntryResponse::from)
+        .collect::<Vec<_>>();
 
-    Ok(MapperListResponse {
-        status: if entries.is_empty() {
-            ReadStatus::Absent
-        } else {
-            ReadStatus::Found
-        },
-        entries: entries.into_iter().map(MapperEntry::from).collect(),
+    Ok(MapperEntryListResponse {
+        count: entries.len(),
+        entries,
     })
 }
 
@@ -43,22 +39,21 @@ pub async fn read_mapper(
     state: AppState,
     name: String,
     key: String,
-) -> ObservabilityApiResult<MapperEntry> {
+) -> ObservabilityApiResult<MapperEntryResponse> {
     let connection = state.database_connection().await?;
 
     AlertsDict::find_enabled_by_name_and_key(&connection, &name, &key)
         .await
-        .change_context(ObservabilityError::InternalServerError)
-        .attach_printable("Failed to read a mapper entry")?
-        .map(MapperEntry::from)
-        .ok_or_else(|| report!(ObservabilityError::MapperEntryNotFound))
+        .to_not_found_response(ObservabilityError::MapperEntryNotFound)
+        .attach_printable("Failed to find a mapper entry")
+        .map(MapperEntryResponse::from)
 }
 
 pub async fn save_mapper(
     state: AppState,
     request: MapperEntrySaveRequest,
     user_name: Option<UserName>,
-) -> ObservabilityApiResult<MapperSaveResponse> {
+) -> ObservabilityApiResult<MapperEntryResponse> {
     request.validate()?;
 
     let connection = state.database_connection().await?;
@@ -100,10 +95,7 @@ pub async fn save_mapper(
         .map_err(|SaveFailure(error)| error)
         .change_context(ObservabilityError::InternalServerError)
         .attach_printable("Failed to save a mapper entry")
-        .map(|entry| MapperSaveResponse {
-            status: WriteStatus::Saved,
-            entry: MapperEntry::from(entry),
-        })
+        .map(MapperEntryResponse::from)
 }
 
 pub async fn delete_mapper(

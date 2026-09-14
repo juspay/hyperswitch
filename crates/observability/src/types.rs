@@ -235,19 +235,6 @@ impl From<EmailOutcome> for EmailNotifyResponse {
     }
 }
 
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ReadStatus {
-    Found,
-    Absent,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum WriteStatus {
-    Saved,
-}
-
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::expect_used, clippy::indexing_slicing)]
 mod tests {
