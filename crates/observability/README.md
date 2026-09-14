@@ -320,12 +320,14 @@ DELETE /alerts/config/mappers/dashboard/unknown      → 404 HE_02
 **A save writes a new version, as r-apps' `insert_dictionary_version` does.** One transaction sets
 `is_enabled = false` on the live row, inserts the new row as the live one, and deletes every
 disabled row for the same `name` and `key` except the newest, so an entry keeps at most two rows:
-the live one and the one it replaced. The transaction first takes a Postgres advisory lock on the
-`name` and `key`, so overlapping saves of one entry run one after the other and the last to commit
-is live. Reads and the list return live rows only.
+the live one and the newest disabled one. The transaction first takes a Postgres advisory lock on
+the `name` and `key`, so overlapping saves of one entry run one after the other and the last to
+commit is live. Reads and the list return live rows only.
 
-**A delete removes the live row**, as r-apps' `dropDictionary` removes the row it names. The row it
-replaced stays disabled and is not brought back; the next save writes a new live row.
+**A delete removes the live row**, as r-apps' `dropDictionary` removes the row it names. It takes
+the same lock, so a delete and a save of one entry run one after the other and the delete answers
+for the live row as it stands once it holds the lock. The disabled row stays disabled and is not
+brought back; the next save writes a new live row.
 
 `product`, `values` and `metadata` are `json` columns carried as raw text in both directions
 (`diesel_models::observability::raw_json`), so the portal reads back exactly what it saved. Together
