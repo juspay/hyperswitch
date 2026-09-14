@@ -28,7 +28,10 @@ pub async fn create_definition(
     let product = request.product.clone();
 
     request
-        .into_insertable(common_utils::date_time::now())
+        .into_insertable(
+            common_utils::generate_uuid_v7(),
+            common_utils::date_time::now(),
+        )
         .insert(&connection)
         .await
         .to_duplicate_response(ObservabilityError::DuplicateDefinition { name, product })

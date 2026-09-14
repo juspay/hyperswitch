@@ -133,8 +133,9 @@ impl AlertDefinitionCreateRequest {
         ])
     }
 
-    pub fn into_insertable(self, now: PrimitiveDateTime) -> AlertsInfoNew {
+    pub fn into_insertable(self, id: uuid::Uuid, now: PrimitiveDateTime) -> AlertsInfoNew {
         AlertsInfoNew {
+            id,
             name: self.name,
             product: self.product,
             dimensions: self.dimensions,

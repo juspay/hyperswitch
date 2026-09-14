@@ -30,6 +30,7 @@ pub struct AlertsInfo {
 #[derive(Clone, Debug, Insertable)]
 #[diesel(table_name = alerts_info)]
 pub struct AlertsInfoNew {
+    pub id: uuid::Uuid,
     pub name: String,
     pub product: String,
     pub dimensions: Option<String>,
