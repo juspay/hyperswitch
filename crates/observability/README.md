@@ -236,10 +236,10 @@ free-form, because nothing in this plane interprets them.
 
 **An update mentions only what it changes.** Three portal screens edit different parts of one row,
 so a whole-row `PUT` from any of them would discard what the other two just saved. An absent field
-is left alone, an explicit `null` clears it, and a value sets it; `is_enabled` cannot be cleared, so a
-`null` for it leaves it unchanged. Optimistic concurrency was the
-alternative and was rejected: two screens editing *different* columns are not in conflict, and
-making them retry against each other is worse than the lost update it prevents.
+is left alone, an explicit `null` clears it, and a value sets it; `is_enabled`, `dimensions`, `period`
+and `default_critical` cannot be cleared, so a `null` for any of them leaves it unchanged. Optimistic
+concurrency was the alternative and was rejected: two screens editing *different* columns are not in
+conflict, and making them retry against each other is worse than the lost update it prevents.
 
 ```http
 POST /alerts/config/definitions
@@ -252,12 +252,14 @@ POST /alerts/config/definitions/0189…
 → 200 the whole definition, with blacklist and snooze untouched
 ```
 
-`is_enabled` and `author` are **required** on create. The column has no default, so a definition
-created without saying would be off — which reads as "the alert is broken" rather than "nobody enabled
-it"; and the internal API key names the calling service, not a person, so if the body does not say
-who is asking then nothing does. `name` and `product` cannot be changed afterwards: they are the
-alert's identity, referenced by the enablement table and matched by name in the alert manager, so a
-rename through an update would orphan those references rather than failing.
+`is_enabled` and `author` are **required** on create. r-apps defaults `is_enabled` to false, so a
+definition created there without saying is off — which reads as "the alert is broken" rather than
+"nobody enabled it"; and the internal API key names the calling service, not a person, so if the
+body does not say who is asking then nothing does. `name` and `product` cannot be changed
+afterwards: they are the alert's identity, referenced by the enablement table and matched by name in
+the alert manager, so a rename through an update would orphan those references rather than failing.
+A field the caller leaves out is stored as r-apps stores it rather than as `NULL`: `dimensions` as
+`''`, `period` as `0` and `default_critical` as false.
 
 `name` reserves one value. **`all` is the definition carrying suppression that applies to every
 detector**, which is the only way to express "mute this merchant everywhere" now that suppression is
@@ -297,7 +299,8 @@ conflict target — so a repeated call updates rather than adding a second row d
 first. r-apps leaves this table keyless and permits exactly that. It also validates the pair against
 `alerts_info` with a database trigger this schema does not have, so **the API checks the definition
 exists**; without the check a switch can be wired to an alert nobody defined and looks on the screen
-exactly like one that works.
+exactly like one that works. A field the caller leaves out is stored as r-apps stores it rather than
+as `NULL`: `category` as `''` and `metadata` as `{}`.
 
 #### The mappers
 
@@ -331,7 +334,8 @@ this service as raw bytes in both directions — see `diesel_models::observabili
 Parsing into a `serde_json::Value` and serializing it again would hand the screen back a document it
 did not save. A definition takes the opposite trade for the opposite reason: its `json` columns are
 typed because the alert manager reads them, and nothing reads a mapper entry but the screen that
-wrote it.
+wrote it. A field the caller leaves out is stored as r-apps stores it rather than as `NULL`:
+`product`, `values` and `metadata` as `[]`.
 
 An entry's JSON is capped at 1 MiB. The dashboard decides
 how large an entry is, and one oversized save becomes a row nothing can read back — a broken page

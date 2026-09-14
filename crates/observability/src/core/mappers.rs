@@ -7,7 +7,6 @@ use serde_json::value::RawValue;
 
 use crate::{
     errors::{ObservabilityApiResult, ObservabilityError, StorageErrorExt},
-    logger,
     state::AppState,
     types::{
         mappers::{
@@ -38,22 +37,13 @@ pub async fn list_mappers(state: AppState) -> ObservabilityApiResult<MapperListR
         .change_context(ObservabilityError::InternalServerError)
         .attach_printable("Failed to list mapper entries")?;
 
-    let entries = entries
-        .into_iter()
-        .filter_map(|entry| {
-            MapperEntry::try_from(entry)
-                .inspect_err(|error| logger::error!(?error, "Skipping an unusable mapper entry"))
-                .ok()
-        })
-        .collect::<Vec<_>>();
-
     Ok(MapperListResponse {
         status: if entries.is_empty() {
             ReadStatus::Absent
         } else {
             ReadStatus::Found
         },
-        entries,
+        entries: entries.into_iter().map(MapperEntry::from).collect(),
     })
 }
 
@@ -68,8 +58,7 @@ pub async fn read_mapper(
         .await
         .change_context(ObservabilityError::InternalServerError)
         .attach_printable("Failed to read a mapper entry")?
-        .map(MapperEntry::try_from)
-        .transpose()?
+        .map(MapperEntry::from)
         .ok_or_else(|| report!(ObservabilityError::MapperEntryNotFound))
 }
 
@@ -111,7 +100,7 @@ pub async fn upsert_mapper(
 
     Ok(MapperSaveResponse {
         status: WriteStatus::Saved,
-        entry: MapperEntry::try_from(entry)?,
+        entry: MapperEntry::from(entry),
     })
 }
 
@@ -179,6 +168,7 @@ fn or_empty_list(column: Option<RawJson>) -> ObservabilityApiResult<RawJson> {
             RawValue::from_string(EMPTY_LIST.to_owned())
                 .map(RawJson::from)
                 .change_context(ObservabilityError::InternalServerError)
+                .attach_printable("Failed to build an empty JSON list")
         },
         Ok,
     )

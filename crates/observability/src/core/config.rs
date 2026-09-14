@@ -7,7 +7,6 @@ use time::PrimitiveDateTime;
 
 use crate::{
     errors::{ObservabilityApiResult, ObservabilityError, StorageErrorExt},
-    logger,
     state::AppState,
     types::config::{
         AlertDefinitionCreateRequest, AlertDefinitionListResponse, AlertDefinitionResponse,
@@ -41,7 +40,7 @@ pub async fn create_definition(
         .insert(&connection)
         .await
         .to_duplicate_response(ObservabilityError::DuplicateDefinition { name, product })
-        .and_then(AlertDefinitionResponse::try_from)
+        .map(AlertDefinitionResponse::from)
 }
 
 pub async fn read_definition(
@@ -53,7 +52,7 @@ pub async fn read_definition(
     AlertsInfo::find_by_id(&connection, id)
         .await
         .to_not_found_response(ObservabilityError::DefinitionNotFound { id: id.to_string() })
-        .and_then(AlertDefinitionResponse::try_from)
+        .map(AlertDefinitionResponse::from)
 }
 
 pub async fn list_definitions(
@@ -64,18 +63,7 @@ pub async fn list_definitions(
     AlertsInfo::list(&connection)
         .await
         .change_context(ObservabilityError::InternalServerError)
-        .map(|definitions| {
-            definitions
-                .into_iter()
-                .filter_map(|definition| {
-                    AlertDefinitionResponse::try_from(definition)
-                        .inspect_err(|error| {
-                            logger::error!(?error, "Skipping an unusable alert definition")
-                        })
-                        .ok()
-                })
-                .collect()
-        })
+        .map(|definitions| definitions.into_iter().collect())
 }
 
 pub async fn update_definition(
@@ -99,7 +87,7 @@ pub async fn update_definition(
     )
     .await
     .to_not_found_response(ObservabilityError::DefinitionNotFound { id: id.to_string() })
-    .and_then(AlertDefinitionResponse::try_from)
+    .map(AlertDefinitionResponse::from)
 }
 
 pub async fn upsert_enablement(
@@ -112,9 +100,7 @@ pub async fn upsert_enablement(
 
     let definition = find_definition_for(&connection, &name, &product).await?;
     let definition_is_enabled = match definition {
-        Some(definition) if definition.name.as_deref() != Some(ALL_DEFINITIONS) => {
-            definition.is_enabled.unwrap_or(false)
-        }
+        Some(definition) if definition.name != ALL_DEFINITIONS => definition.is_enabled,
         _ => Err(report!(ObservabilityError::NotAnAlert {
             name: name.clone(),
             product: product.clone(),
@@ -145,7 +131,7 @@ pub async fn read_enablement(
 
     let definition_is_enabled = find_definition_for(&connection, &name, &product)
         .await?
-        .map(|definition| definition.is_enabled.unwrap_or(false));
+        .map(|definition| definition.is_enabled);
 
     Ok(AlertEnablementResponse::new(row, definition_is_enabled))
 }
@@ -163,13 +149,7 @@ pub async fn list_enablements(
         .await
         .change_context(ObservabilityError::InternalServerError)?
         .into_iter()
-        .filter_map(|definition| {
-            let is_enabled = definition.is_enabled.unwrap_or(false);
-            definition
-                .name
-                .zip(definition.product)
-                .map(|key| (key, is_enabled))
-        })
+        .map(|definition| ((definition.name, definition.product), definition.is_enabled))
         .collect::<std::collections::HashMap<_, _>>();
 
     let enablements = rows
