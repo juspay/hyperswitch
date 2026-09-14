@@ -61,6 +61,12 @@ export default defineConfig({
         getGlobalState: () => {
           return globalState || {};
         },
+        resetCustomerId: () => {
+          if (globalState && "customerId" in globalState) {
+            delete globalState.customerId;
+          }
+          return null;
+        },
         readFileOrNull: (filePath) => {
           if (!fs.existsSync(filePath)) return null;
           try {
