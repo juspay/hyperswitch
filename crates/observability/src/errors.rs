@@ -104,8 +104,11 @@ pub enum ObservabilityError {
     #[error("No alert is defined as `{name}` / `{product}`")]
     NotAnAlert { name: String, product: String },
 
-    #[error("The snooze entry `{key}` is not in the shape the alert manager reads")]
-    InvalidSnooze { key: String },
+    #[error("No merchant threshold exists with id `{id}`")]
+    MerchantThresholdNotFound { id: String },
+
+    #[error("A merchant threshold already exists for this name, product, merchant, author and is_enabled")]
+    DuplicateMerchantThreshold,
 
     #[error("The mapper entry is {bytes} bytes, over the {limit} byte limit")]
     EntryTooLarge { bytes: usize, limit: usize },
@@ -193,6 +196,11 @@ impl ErrorSwitch<ApiErrorResponse> for ObservabilityError {
                 4,
                 "The request body could not be parsed",
             )),
+            // The id is already in the path the caller sent, so there is nothing to echo back, and
+            // the configured ids are deliberately not listed.
+            Self::UnknownDestination { .. } => {
+                ApiErrorResponse::NotFound(ApiError::new("IR", 2, "Unknown destination"))
+            }
             Self::MissingRequiredField { field_name } => ApiErrorResponse::BadRequest(
                 ApiError::new("IR", 4, format!("Missing required param: {field_name}")),
             ),
@@ -204,11 +212,6 @@ impl ErrorSwitch<ApiErrorResponse> for ObservabilityError {
                 7,
                 format!("Invalid value provided: {field_name}"),
             )),
-            // The id is already in the path the caller sent, so there is nothing to echo back, and
-            // the configured ids are deliberately not listed.
-            Self::UnknownDestination { .. } => {
-                ApiErrorResponse::NotFound(ApiError::new("IR", 2, "Unknown destination"))
-            }
             Self::StorageUnavailable => ApiErrorResponse::ServiceUnavailable(ApiError::new(
                 "HE",
                 0,
@@ -234,10 +237,15 @@ impl ErrorSwitch<ApiErrorResponse> for ObservabilityError {
                 3,
                 "No alert is defined for this name and product",
             )),
-            Self::InvalidSnooze { .. } => ApiErrorResponse::BadRequest(ApiError::new(
+            Self::MerchantThresholdNotFound { .. } => ApiErrorResponse::NotFound(ApiError::new(
                 "HE",
-                3,
-                "Snooze entries must be keyed snooze_entry_<time> or custom_snooze_entry_<time> and carry snooze_end_time as YYYY-MM-DD HH:MM:SS",
+                2,
+                "Merchant threshold does not exist in our records",
+            )),
+            Self::DuplicateMerchantThreshold => ApiErrorResponse::BadRequest(ApiError::new(
+                "HE",
+                1,
+                "The merchant threshold with the specified name, product, merchant_id, author and is_enabled already exists in our records",
             )),
             Self::EntryTooLarge { .. } => ApiErrorResponse::BadRequest(ApiError::new(
                 "HE",

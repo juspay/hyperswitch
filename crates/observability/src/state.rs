@@ -2,7 +2,10 @@
 
 use std::{collections::HashMap, sync::Arc};
 
-use common_utils::{external_service::NoOpEventEmitter, DbConnectionParams};
+use common_utils::{
+    external_service::{ExternalServiceEventEmitter, NoOpEventEmitter},
+    DbConnectionParams,
+};
 use diesel_models::{DatabaseConnectionWithContext, DejaPgConnection};
 use error_stack::ResultExt;
 use external_services::{
@@ -28,7 +31,7 @@ use crate::{
     settings::{ChatDestination, ChatSettings, DatabaseSettings, EmailSettings, Settings},
 };
 
-const APPLICATION_NAME: &str = "observability";
+const DATABASE_SCHEMA: &str = "public";
 
 pub type DatabasePool = bb8::Pool<async_bb8_diesel::ConnectionManager<DejaPgConnection>>;
 
@@ -47,6 +50,7 @@ pub struct AppState {
     /// Email destinations, by the id a request names.
     pub email: Arc<Registry<dyn EmailNotifier>>,
     pub database: DatabasePool,
+    pub event_emitter: Arc<dyn ExternalServiceEventEmitter>,
     pub request_id: Option<String>,
 }
 
@@ -101,6 +105,7 @@ impl AppState {
             chat: Arc::new(chat),
             email: Arc::new(email),
             database,
+            event_emitter: Arc::new(NoOpEventEmitter),
             request_id: None,
         }
     }
@@ -118,7 +123,7 @@ impl AppState {
         Ok(DatabaseConnectionWithContext::new(
             connection,
             self.request_id.clone(),
-            Arc::new(NoOpEventEmitter),
+            self.event_emitter.clone(),
         ))
     }
 }
@@ -216,7 +221,7 @@ impl<E: std::fmt::Display> bb8::ErrorSink<E> for LogConnectionErrors {
 
 pub fn build_database_pool(database: &DatabaseSettings) -> DatabasePool {
     let manager = async_bb8_diesel::ConnectionManager::<DejaPgConnection>::new(
-        database.get_database_url(APPLICATION_NAME),
+        database.get_database_url(DATABASE_SCHEMA),
     );
 
     bb8::Pool::builder()

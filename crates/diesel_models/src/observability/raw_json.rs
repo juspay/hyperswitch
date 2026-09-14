@@ -7,9 +7,10 @@ use diesel::{
     serialize::{self, IsNull, Output, ToSql},
     sql_types::Json,
 };
+use serde::{Deserialize, Serialize};
 use serde_json::value::RawValue;
 
-#[derive(Debug, Clone, AsExpression, FromSqlRow, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, AsExpression, FromSqlRow, Deserialize, Serialize)]
 #[diesel(sql_type = Json)]
 #[serde(transparent)]
 pub struct RawJson(Box<RawValue>);

@@ -52,13 +52,17 @@ pub mod mappers;
 pub mod notifications;
 
 use actix_multipart::form::{bytes::Bytes, text::Text, MultipartForm};
+use error_stack::report;
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
-use crate::domain::notifier::{
-    chat::{ChatFileOutcome, ChatFileReceipt, ChatOutcome, ChatReceipt},
-    email::EmailOutcome,
-    Outcome, Refusal,
+use crate::{
+    domain::notifier::{
+        chat::{ChatFileOutcome, ChatFileReceipt, ChatOutcome, ChatReceipt},
+        email::EmailOutcome,
+        Outcome, Refusal,
+    },
+    errors::{ObservabilityApiResult, ObservabilityError},
 };
 
 /// The body of `POST /alerts/chat/notify/{destination}`.
@@ -233,6 +237,23 @@ impl From<EmailOutcome> for EmailNotifyResponse {
             },
         }
     }
+}
+
+fn within_width(
+    field_name: &'static str,
+    value: Option<&str>,
+    max_chars: usize,
+) -> ObservabilityApiResult<()> {
+    common_utils::fp_utils::when(
+        value.is_some_and(|value| value.chars().count() > max_chars),
+        || Err(report!(ObservabilityError::InvalidDataValue { field_name })),
+    )
+}
+
+fn not_blank(field_name: &'static str, value: &str) -> ObservabilityApiResult<()> {
+    common_utils::fp_utils::when(value.trim().is_empty(), || {
+        Err(report!(ObservabilityError::InvalidDataValue { field_name }))
+    })
 }
 
 #[cfg(test)]

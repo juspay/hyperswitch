@@ -7,6 +7,7 @@ use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
+use super::{not_blank, within_width};
 use crate::{
     auth::UserName,
     errors::{ObservabilityApiResult, ObservabilityError},
@@ -30,8 +31,10 @@ pub struct MapperEntrySaveRequest {
 
 impl MapperEntrySaveRequest {
     pub fn validate(&self) -> ObservabilityApiResult<()> {
-        required_within_width(&self.name, "name", NAME_MAX_CHARS)?;
-        required_within_width(&self.key, "key", KEY_MAX_CHARS)?;
+        not_blank("name", &self.name)?;
+        not_blank("key", &self.key)?;
+        within_width("name", Some(&self.name), NAME_MAX_CHARS)?;
+        within_width("key", Some(&self.key), KEY_MAX_CHARS)?;
 
         let bytes = [&self.product, &self.values, &self.metadata]
             .into_iter()
@@ -107,27 +110,4 @@ pub struct MapperEntryDeleteResponse {
     pub name: String,
     pub key: String,
     pub deleted: bool,
-}
-
-fn required_within_width(
-    value: &str,
-    field_name: &'static str,
-    max_chars: usize,
-) -> ObservabilityApiResult<()> {
-    if value.trim().is_empty() {
-        Err(report!(ObservabilityError::MissingRequiredField {
-            field_name
-        }))?;
-    }
-
-    let chars = value.chars().count();
-    if chars > max_chars {
-        Err(
-            report!(ObservabilityError::InvalidDataValue { field_name }).attach_printable(format!(
-                "The {field_name} is {chars} characters, over the {max_chars} the column holds"
-            )),
-        )?;
-    }
-
-    Ok(())
 }

@@ -263,18 +263,6 @@ impl AuthSettings {
     }
 }
 
-const DEFAULT_POOL_SIZE: u32 = 5;
-
-const DEFAULT_CONNECTION_TIMEOUT: u64 = 10;
-
-fn default_pool_size() -> u32 {
-    DEFAULT_POOL_SIZE
-}
-
-fn default_connection_timeout() -> u64 {
-    DEFAULT_CONNECTION_TIMEOUT
-}
-
 #[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
 pub struct DatabaseSettings {
@@ -283,22 +271,20 @@ pub struct DatabaseSettings {
     pub dbname: String,
     pub username: String,
     pub password: Secret<String>,
-    #[serde(default = "default_pool_size")]
     pub pool_size: u32,
-    #[serde(default = "default_connection_timeout")]
     pub connection_timeout: u64,
 }
 
 impl Default for DatabaseSettings {
     fn default() -> Self {
         Self {
-            host: String::default(),
-            port: u16::default(),
-            dbname: String::default(),
-            username: String::default(),
+            host: "localhost".into(),
+            port: 5432,
+            dbname: String::new(),
+            username: String::new(),
             password: Secret::default(),
-            pool_size: default_pool_size(),
-            connection_timeout: default_connection_timeout(),
+            pool_size: 5,
+            connection_timeout: 10,
         }
     }
 }
@@ -319,17 +305,6 @@ impl DbConnectionParams for DatabaseSettings {
     fn get_dbname(&self) -> &str {
         &self.dbname
     }
-    fn get_database_url(&self, application_name: &str) -> String {
-        format!(
-            "postgres://{}:{}@{}:{}/{}?application_name={}",
-            urlencoding::encode(self.get_username()),
-            urlencoding::encode(self.get_password().peek()),
-            self.get_host(),
-            self.get_port(),
-            self.get_dbname(),
-            application_name,
-        )
-    }
 }
 
 impl DatabaseSettings {
@@ -342,25 +317,25 @@ impl DatabaseSettings {
 
         common_utils::fp_utils::when(self.dbname.is_default_or_empty(), || {
             Err(errors::ConfigurationError::ConfigParsingError(
-                "database dbname must not be empty".into(),
+                "database name must not be empty".into(),
             ))
         })?;
 
         common_utils::fp_utils::when(self.username.is_default_or_empty(), || {
             Err(errors::ConfigurationError::ConfigParsingError(
-                "database username must not be empty".into(),
+                "database user username must not be empty".into(),
             ))
         })?;
 
-        common_utils::fp_utils::when(self.password.peek().is_default_or_empty(), || {
+        common_utils::fp_utils::when(self.password.is_default_or_empty(), || {
             Err(errors::ConfigurationError::ConfigParsingError(
-                "database password must not be empty".into(),
+                "database user password must not be empty".into(),
             ))
         })?;
 
         common_utils::fp_utils::when(self.port == 0, || {
             Err(errors::ConfigurationError::ConfigParsingError(
-                "database port must be set".into(),
+                "database port must be greater than zero".into(),
             ))
         })?;
 
