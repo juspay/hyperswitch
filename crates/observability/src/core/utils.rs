@@ -17,12 +17,16 @@ pub fn or_empty_list(column: Option<RawJson>) -> ObservabilityApiResult<RawJson>
     )
 }
 
-pub fn within_width(value: &str, field: &str, max_chars: usize) -> ObservabilityApiResult<()> {
+pub fn within_width(
+    value: &str,
+    field_name: &'static str,
+    max_chars: usize,
+) -> ObservabilityApiResult<()> {
     let chars = value.chars().count();
     if chars > max_chars {
         Err(
-            report!(ObservabilityError::InvalidRequest).attach_printable(format!(
-                "The {field} is {chars} characters, over the {max_chars} the column holds"
+            report!(ObservabilityError::InvalidDataValue { field_name }).attach_printable(format!(
+                "The {field_name} is {chars} characters, over the {max_chars} the column holds"
             )),
         )?;
     }

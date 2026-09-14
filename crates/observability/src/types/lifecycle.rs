@@ -5,8 +5,6 @@ use serde::{Deserialize, Serialize};
 use serde_json::value::RawValue;
 use time::PrimitiveDateTime;
 
-use super::{ReadStatus, WriteStatus};
-
 #[derive(Debug, Clone, Copy, Deserialize, strum::IntoStaticStr)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
@@ -79,7 +77,7 @@ pub struct AlertStateWrite {
 
 #[derive(Debug, Serialize)]
 pub struct LifecycleStateResponse {
-    pub status: ReadStatus,
+    pub count: usize,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub last_updated_at: Option<PrimitiveDateTime>,
     pub alerts: Vec<AlertStateEntry>,
@@ -95,10 +93,9 @@ pub struct LifecycleStateWriteRequest {
 
 #[derive(Debug, Serialize)]
 pub struct LifecycleStateSaveResponse {
-    pub status: WriteStatus,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub last_updated_at: Option<PrimitiveDateTime>,
-    pub alerts: usize,
+    pub stored: usize,
     pub removed: usize,
     pub id_intermediates: Vec<uuid::Uuid>,
 }
@@ -163,12 +160,6 @@ pub struct AnnouncementListResponse {
 #[serde(deny_unknown_fields)]
 pub struct AnnouncementUpdateRequest {
     pub metadata: Box<RawValue>,
-}
-
-#[derive(Debug, Serialize)]
-pub struct AnnouncementSaveResponse {
-    pub status: WriteStatus,
-    pub announcement: AnnouncementEntry,
 }
 
 impl From<AlertsIntermediate> for AlertStateEntry {

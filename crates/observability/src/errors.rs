@@ -80,6 +80,12 @@ pub enum ObservabilityError {
     #[error("The request body is invalid")]
     InvalidRequest,
 
+    #[error("{message}")]
+    InvalidRequestData { message: String },
+
+    #[error("Invalid value provided: {field_name}")]
+    InvalidDataValue { field_name: &'static str },
+
     #[error("The mapper entry is {bytes} bytes, over the {limit} byte limit")]
     EntryTooLarge { bytes: usize, limit: usize },
 
@@ -196,6 +202,14 @@ impl ErrorSwitch<ApiErrorResponse> for ObservabilityError {
                 4,
                 "The request body could not be parsed",
             )),
+            Self::InvalidRequestData { message } => {
+                ApiErrorResponse::BadRequest(ApiError::new("IR", 6, message))
+            }
+            Self::InvalidDataValue { field_name } => ApiErrorResponse::BadRequest(ApiError::new(
+                "IR",
+                7,
+                format!("Invalid value provided: {field_name}"),
+            )),
             Self::EntryTooLarge { .. } => ApiErrorResponse::BadRequest(ApiError::new(
                 "HE",
                 3,
@@ -246,7 +260,7 @@ impl ErrorSwitch<ApiErrorResponse> for ObservabilityError {
                 3,
                 "The lifecycle write carries more alerts than this service stores",
             )),
-            Self::StateChanged => ApiErrorResponse::Conflict(ApiError::new(
+            Self::StateChanged => ApiErrorResponse::BadRequest(ApiError::new(
                 "IR",
                 16,
                 "The lifecycle state changed after it was read",
@@ -261,11 +275,15 @@ impl ErrorSwitch<ApiErrorResponse> for ObservabilityError {
                 3,
                 "The lifecycle write names alert state that belongs to another channel",
             )),
-            Self::InvalidAnnouncementWindow { .. } => ApiErrorResponse::BadRequest(ApiError::new(
-                "HE",
-                3,
-                "The announcement window must end after it starts and span at most 30 days",
-            )),
+            Self::InvalidAnnouncementWindow { max_days } => {
+                ApiErrorResponse::BadRequest(ApiError::new(
+                    "HE",
+                    3,
+                    format!(
+                        "The announcement window must end after it starts and span at most {max_days} days"
+                    ),
+                ))
+            }
             // 502 rather than 500: the failure is on the far side of a hop we made. Note this is
             // the *only* provider-shaped error left, because every answer the provider gives is a
             // 200 outcome instead.
