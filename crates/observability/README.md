@@ -79,8 +79,8 @@ reach the logs from the client, which emits `chars` per request.
 ## The API
 
 Two surfaces under one scope. **Delivery** sends a message; **configuration** reads and writes the
-rows that say what an alert is and whether it runs. A route under `/alerts/config` touches the
-database and nothing else does.
+rows that say what an alert is and whether it runs. Routes under `/alerts/config`, and
+`/health/ready`, touch the database; delivery routes do not.
 
 ### Delivery
 
@@ -207,8 +207,8 @@ Two resources, backed by the observability database.
 
 **A definition is one row, not four resources.** Suppression, snooze and thresholds are `json`
 columns of `alerts_info` rather than side tables, so they are fields of this resource. All three are
-typed — a list of entries with named fields — so a caller cannot store a shape the alert manager
-will fail to read. The cost is that the bytes are not preserved: a value read back has been through
+typed — a list of entries with named fields — so every value written through this API has a shape
+this plane reads back. The cost is that the bytes are not preserved: a value read back has been through
 `serde_json` twice, so an entry written without its optional fields comes back with their defaults
 filled in. Storing the columns as opaque strings would preserve them exactly, and was rejected: the
 failure it avoids is cosmetic, and the one it introduces — a dashboard writing a key nothing reads,
@@ -217,7 +217,8 @@ free-form, because nothing in this plane interprets them.
 
 **An update mentions only what it changes.** Three portal screens edit different parts of one row,
 so a whole-row `PUT` from any of them would discard what the other two just saved. An absent field
-is left alone, an explicit `null` clears it, and a value sets it. Optimistic concurrency was the
+is left alone, an explicit `null` clears it, and a value sets it; `is_enabled` cannot be cleared, so a
+`null` for it leaves it unchanged. Optimistic concurrency was the
 alternative and was rejected: two screens editing *different* columns are not in conflict, and
 making them retry against each other is worse than the lost update it prevents.
 
@@ -246,8 +247,7 @@ one thing that cannot have an enablement row — it is not a detector, so there 
 switch on it to turn on or off.
 
 **There is no delete route.** `is_enabled` is how an alert is turned off; unlike a delete it is
-reversible, and deleting an `alerts_info` row cascades to every `alerts_main` row referencing it,
-destroying the record of what was announced in order to stop announcing it.
+reversible.
 
 #### Two switches, and which wins
 
@@ -287,20 +287,23 @@ exactly like one that works.
 A store that answered nothing and a store that could not be asked must not look the same: the alert
 manager's own outage rule reads "no alerts" as "nothing is wrong", so collapsing the two would
 report all-clear during exactly the incident this plane exists to notice. A list with no rows is a
-`200` with a count of zero; a list that could not be read is a `503`.
+`200` with a count of zero; a list that could not be read is a `500`, or a `503` when no database
+connection could be taken at all.
 
 The configuration errors, added to the table above:
 
 | | Status | Code |
 |---|---|---|
-| Definition already exists for this name and product | 400 | `IR_05` |
-| Name and product do not identify an alert (or name the reserved `all` row) | 400 | `IR_07` |
-| Unknown definition id | 404 | `IR_03` |
-| Unknown enablement key | 404 | `IR_06` |
-| Observability database unreachable | 503 | `HE_01` |
+| Definition already exists for this name and product | 400 | `HE_01` |
+| Name and product do not identify an alert (or name the reserved `all` row) | 400 | `HE_03` |
+| Unknown definition id | 404 | `HE_02` |
+| Unknown enablement key | 404 | `HE_02` |
+| A query against the observability database failed | 500 | `HE_00` |
+| Observability database unreachable | 503 | `HE_00` |
 
-`503` rather than `500`, for the reason `/health/ready` uses it: the service is fine, and the
-condition is expected to clear without anyone touching it. The failing host, database and role
+`503` only when no connection can be taken, for the reason `/health/ready` uses it: the service is
+fine, and the condition is expected to clear without anyone touching it. A query that fails once
+connected is a `500`. The failing host, database and role
 reach the log and never the response.
 
 ## Destinations
@@ -344,16 +347,15 @@ unverified sender all arrive as one variant — so email only ever reports `deli
 ## Layout
 
 ```
-routes/          the route tree, and the notifier's handlers
-core/            what one notify request does: resolve a destination and deliver
+routes/          the route tree, and one module of handlers per area: notify and config
+core/            what one request does, per area: deliver a message, or read and write configuration
 domain/          what delivering an alert is: the notifier traits and the types they exchange
-alert_manager/   the alert manager's own state, with its own core/, routes/ and types/
+types/           the wire contract, per area
 ```
 
-The two concerns are separated by that last directory rather than by a filename. Everything outside
-`alert_manager/` delivers a message and keeps nothing; everything inside it reads and writes a
-configuration row and sends nothing. They share the HTTP server and the database pool, and nothing
-else. The one deliberate exception is `routes/app.rs`, which holds *every* route this service
+The two concerns are separated by module rather than by directory. `notify` delivers a message and
+keeps nothing; `config` reads and writes a configuration row and sends nothing. They share the HTTP
+server, the database pool, authentication, `server_wrap` and the error types. The one deliberate exception is `routes/app.rs`, which holds *every* route this service
 serves — both concerns' — so the tree and its guards are one file rather than a search.
 
 Rows and their queries are not here at all: `alerts_info` and `merchants_alert_external_config` are
