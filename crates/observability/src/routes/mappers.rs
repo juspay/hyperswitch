@@ -1,12 +1,9 @@
 use actix_web::{web, HttpRequest, HttpResponse};
 
 use crate::{
-    alert_manager::{
-        core,
-        types::{mappers::MapperUpsertRequest, UserName},
-    },
-    auth, services,
+    auth, core, services,
     state::AppState,
+    types::{mappers::MapperUpsertRequest, UserName},
 };
 
 pub async fn list_mappers(state: web::Data<AppState>, request: HttpRequest) -> HttpResponse {

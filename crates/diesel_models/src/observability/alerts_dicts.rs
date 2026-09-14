@@ -35,8 +35,23 @@ pub struct AlertsDictNew {
     pub metadata: Option<RawJson>,
 }
 
+#[derive(Debug)]
+pub enum AlertsDictUpdate {
+    Retire,
+}
+
 #[derive(Clone, Debug, AsChangeset)]
 #[diesel(table_name = alerts_dicts)]
-pub struct AlertsDictRetire {
+pub struct AlertsDictUpdateInternal {
     pub is_enabled: Option<bool>,
+}
+
+impl From<AlertsDictUpdate> for AlertsDictUpdateInternal {
+    fn from(update: AlertsDictUpdate) -> Self {
+        match update {
+            AlertsDictUpdate::Retire => Self {
+                is_enabled: Some(false),
+            },
+        }
+    }
 }

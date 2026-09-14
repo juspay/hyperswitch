@@ -3,12 +3,12 @@ use diesel::{
     associations::HasTable, query_builder::DecoratableTarget, sql_types::Bool, upsert::excluded,
     BoolExpressionMethods, ExpressionMethods,
 };
-use error_stack::{report, ResultExt};
+use error_stack::ResultExt;
 
 use crate::{
     errors,
     observability::{
-        alerts_dicts::{AlertsDict, AlertsDictNew, AlertsDictRetire},
+        alerts_dicts::{AlertsDict, AlertsDictNew, AlertsDictUpdate, AlertsDictUpdateInternal},
         schema::alerts_dicts::dsl,
     },
     query::generics,
@@ -42,13 +42,8 @@ impl AlertsDictNew {
             query.get_result_async(conn.raw_connection()),
         )
         .await
-        .map_err(|error| match error {
-            diesel::result::Error::DatabaseError(
-                diesel::result::DatabaseErrorKind::UniqueViolation,
-                _,
-            ) => report!(error).change_context(errors::DatabaseError::UniqueViolation),
-            _ => report!(error).change_context(errors::DatabaseError::Others),
-        })
+        .map_err(|error| error_stack::report!(error))
+        .change_context(errors::DatabaseError::Others)
         .attach_printable("Error while saving a dictionary entry")
     }
 }
@@ -86,20 +81,20 @@ impl AlertsDict {
         conn: &DatabaseConnectionWithContext<'_>,
         name: &str,
         key: &str,
-    ) -> StorageResult<Option<Self>> {
-        let retired =
-            generics::generic_update_with_results::<<Self as HasTable>::Table, _, _, Self>(
-                conn,
-                dsl::name
-                    .eq(name.to_owned())
-                    .and(dsl::key_.eq(key.to_owned()))
-                    .and(dsl::is_enabled.eq(true)),
-                AlertsDictRetire {
-                    is_enabled: Some(false),
-                },
-            )
-            .await?;
-
-        Ok(retired.into_iter().next())
+    ) -> StorageResult<Self> {
+        generics::generic_update_with_unique_predicate_get_result::<
+            <Self as HasTable>::Table,
+            _,
+            _,
+            _,
+        >(
+            conn,
+            dsl::name
+                .eq(name.to_owned())
+                .and(dsl::key_.eq(key.to_owned()))
+                .and(dsl::is_enabled.eq(true)),
+            AlertsDictUpdateInternal::from(AlertsDictUpdate::Retire),
+        )
+        .await
     }
 }

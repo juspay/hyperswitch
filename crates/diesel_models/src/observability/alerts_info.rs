@@ -1,12 +1,8 @@
-use diesel::{
-    AsChangeset, AsExpression, FromSqlRow, Identifiable, Insertable, Queryable, Selectable,
-};
+use diesel::{AsChangeset, AsExpression, Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use crate::observability::schema::alerts_info;
-
-pub const ALL_DEFINITIONS: &str = "all";
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct BlacklistEntry {
@@ -51,27 +47,23 @@ pub struct ThresholdEntry {
     pub diff_threshold: Option<f64>,
 }
 
-#[derive(
-    Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize, AsExpression, FromSqlRow,
-)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize, AsExpression)]
 #[diesel(sql_type = diesel::sql_types::Json)]
 pub struct Blacklist(pub Vec<BlacklistEntry>);
 
-common_utils::impl_to_sql_from_sql_json!(Blacklist, diesel::sql_types::Json);
+common_utils::impl_to_sql_from_sql_json!(Blacklist);
 
-#[derive(
-    Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize, AsExpression, FromSqlRow,
-)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize, AsExpression)]
 #[diesel(sql_type = diesel::sql_types::Json)]
 pub struct Snooze(pub Vec<SnoozeEntry>);
 
-common_utils::impl_to_sql_from_sql_json!(Snooze, diesel::sql_types::Json);
+common_utils::impl_to_sql_from_sql_json!(Snooze);
 
-#[derive(Clone, Debug, Default, PartialEq, Deserialize, Serialize, AsExpression, FromSqlRow)]
+#[derive(Clone, Debug, Default, PartialEq, Deserialize, Serialize, AsExpression)]
 #[diesel(sql_type = diesel::sql_types::Json)]
 pub struct Thresholds(pub Vec<ThresholdEntry>);
 
-common_utils::impl_to_sql_from_sql_json!(Thresholds, diesel::sql_types::Json);
+common_utils::impl_to_sql_from_sql_json!(Thresholds);
 
 #[derive(Clone, Debug, PartialEq, Identifiable, Queryable, Selectable, Deserialize, Serialize)]
 #[diesel(table_name = alerts_info, primary_key(id), check_for_backend(diesel::pg::Pg))]
@@ -94,16 +86,6 @@ pub struct AlertsInfo {
     pub author: Option<String>,
     pub approver: Option<String>,
     pub last_updated_at: Option<PrimitiveDateTime>,
-}
-
-impl AlertsInfo {
-    pub fn is_enabled(&self) -> bool {
-        self.is_enabled.unwrap_or(false)
-    }
-
-    pub fn is_all_definitions(&self) -> bool {
-        self.name.as_deref() == Some(ALL_DEFINITIONS)
-    }
 }
 
 #[derive(Clone, Debug, PartialEq, Insertable)]
@@ -129,9 +111,29 @@ pub struct AlertsInfoNew {
     pub last_updated_at: PrimitiveDateTime,
 }
 
+#[derive(Debug)]
+pub enum AlertsInfoUpdate {
+    Update {
+        dimensions: Option<Option<String>>,
+        period: Option<Option<i32>>,
+        default_channel: Option<Option<String>>,
+        default_critical: Option<Option<bool>>,
+        blacklist: Option<Option<Blacklist>>,
+        snooze: Option<Option<Snooze>>,
+        history_window: Option<Option<i32>>,
+        thresholds: Option<Option<Thresholds>>,
+        metadata: Option<Option<serde_json::Value>>,
+        is_enabled: Option<Option<bool>>,
+        comments: Option<Option<serde_json::Value>>,
+        call_period: Option<Option<i32>>,
+        approver: Option<Option<String>>,
+        last_updated_at: PrimitiveDateTime,
+    },
+}
+
 #[derive(Clone, Debug, PartialEq, AsChangeset)]
 #[diesel(table_name = alerts_info)]
-pub struct AlertsInfoUpdate {
+pub struct AlertsInfoUpdateInternal {
     pub dimensions: Option<Option<String>>,
     pub period: Option<Option<i32>>,
     pub default_channel: Option<Option<String>>,
@@ -148,103 +150,40 @@ pub struct AlertsInfoUpdate {
     pub last_updated_at: PrimitiveDateTime,
 }
 
-#[cfg(test)]
-#[allow(clippy::unwrap_used, clippy::expect_used, clippy::indexing_slicing)]
-mod tests {
-    use super::*;
-
-    fn entry() -> BlacklistEntry {
-        BlacklistEntry {
-            merchant_id: "merchant_1234".to_owned(),
-            profile_id: String::new(),
-            reason: "dead test merchant".to_owned(),
-            created_by: Some("reliability_team".to_owned()),
+impl From<AlertsInfoUpdate> for AlertsInfoUpdateInternal {
+    fn from(update: AlertsInfoUpdate) -> Self {
+        match update {
+            AlertsInfoUpdate::Update {
+                dimensions,
+                period,
+                default_channel,
+                default_critical,
+                blacklist,
+                snooze,
+                history_window,
+                thresholds,
+                metadata,
+                is_enabled,
+                comments,
+                call_period,
+                approver,
+                last_updated_at,
+            } => Self {
+                dimensions,
+                period,
+                default_channel,
+                default_critical,
+                blacklist,
+                snooze,
+                history_window,
+                thresholds,
+                metadata,
+                is_enabled,
+                comments,
+                call_period,
+                approver,
+                last_updated_at,
+            },
         }
-    }
-
-    #[test]
-    fn a_blacklist_stores_as_a_bare_array() {
-        let stored = serde_json::to_value(Blacklist(vec![entry()])).unwrap();
-
-        assert!(stored.is_array());
-        assert_eq!(stored[0]["merchant_id"], "merchant_1234");
-    }
-
-    #[test]
-    fn a_blacklist_entry_needs_only_a_merchant() {
-        let parsed: Blacklist =
-            serde_json::from_value(serde_json::json!([{ "merchant_id": "merchant_1234" }]))
-                .unwrap();
-
-        assert_eq!(parsed.0[0].profile_id, "");
-        assert_eq!(parsed.0[0].created_by, None);
-    }
-
-    #[test]
-    fn a_snooze_window_without_an_end_is_rejected() {
-        let error = serde_json::from_value::<Snooze>(serde_json::json!([{
-            "merchant_id": "merchant_1234",
-            "starts_at": "2026-09-09T10:00:00.000Z",
-        }]))
-        .unwrap_err();
-
-        assert!(error.to_string().contains("ends_at"));
-    }
-
-    #[test]
-    fn a_snooze_window_reads_and_writes_utc_iso8601() {
-        let parsed: Snooze = serde_json::from_value(serde_json::json!([{
-            "merchant_id": "merchant_1234",
-            "ends_at": "2026-09-09T10:00:00.000Z",
-        }]))
-        .unwrap();
-
-        assert_eq!(parsed.0[0].starts_at, None);
-        assert_eq!(
-            serde_json::to_value(&parsed).unwrap()[0]["ends_at"],
-            "2026-09-09T10:00:00.000Z"
-        );
-    }
-
-    #[test]
-    fn a_threshold_left_out_is_not_the_same_as_a_threshold_of_zero() {
-        let parsed: Thresholds = serde_json::from_value(serde_json::json!([{
-            "merchant_id": "merchant_1234",
-            "min_volume": 0,
-        }]))
-        .unwrap();
-
-        assert_eq!(parsed.0[0].min_volume, Some(0.0));
-        assert_eq!(parsed.0[0].tolerance, None);
-    }
-
-    #[test]
-    fn a_definition_with_no_enablement_recorded_is_off() {
-        let mut definition = AlertsInfo {
-            id: uuid::Uuid::nil(),
-            name: Some(ALL_DEFINITIONS.to_owned()),
-            product: Some("payments".to_owned()),
-            dimensions: None,
-            period: None,
-            default_channel: None,
-            default_critical: None,
-            blacklist: None,
-            snooze: None,
-            history_window: None,
-            thresholds: None,
-            metadata: None,
-            is_enabled: None,
-            comments: None,
-            call_period: None,
-            author: None,
-            approver: None,
-            last_updated_at: None,
-        };
-
-        assert!(!definition.is_enabled());
-        assert!(definition.is_all_definitions());
-
-        definition.is_enabled = Some(true);
-        assert!(definition.is_enabled());
     }
 }

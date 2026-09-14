@@ -62,14 +62,14 @@ async fn state_with_max(max_upload_bytes: usize) -> AppState {
             "password": "unused"
         }))
         .expect("the test database configuration should deserialize"),
-    )
-    .expect("an unchecked pool should build without connecting");
+    );
 
     AppState {
         conf: Arc::new(conf),
         chat: Arc::new(Registry::new(HashMap::from([(CHAT.to_owned(), chat)]))),
         email: Arc::new(Registry::new(HashMap::from([(EMAIL.to_owned(), email)]))),
         database,
+        request_id: None,
     }
 }
 

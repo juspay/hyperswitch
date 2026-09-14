@@ -28,7 +28,7 @@ use crate::{
 /// default and no way to leave it out.
 #[instrument(skip_all)]
 pub async fn server_wrap<T, Q, F, Fut>(
-    state: AppState,
+    mut state: AppState,
     request: &HttpRequest,
     payload: T,
     handler: F,
@@ -58,6 +58,8 @@ where
         );
         return ErrorSwitch::<ApiErrorResponse>::switch(error.current_context()).error_response();
     }
+
+    state.request_id = Some(request_id.clone()).filter(|id| !id.is_empty());
 
     match handler(state, payload).await {
         Ok(response) => HttpResponse::Ok().json(response),

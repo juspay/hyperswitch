@@ -1,10 +1,6 @@
 use actix_web::{web, HttpRequest, HttpResponse};
 
-use crate::{
-    alert_manager::{core, types::UserName},
-    auth, services,
-    state::AppState,
-};
+use crate::{auth, core, services, state::AppState, types::UserName};
 
 pub async fn read_watermark(state: web::Data<AppState>, request: HttpRequest) -> HttpResponse {
     let user = UserName::from_headers(request.headers());
