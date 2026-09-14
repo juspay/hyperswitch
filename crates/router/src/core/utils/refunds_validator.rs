@@ -299,3 +299,115 @@ pub fn validate_xendit_charge_refund(
         }
     }
 }
+
+#[cfg(all(test, feature = "v1"))]
+mod refund_amount_validation_tests {
+    use common_utils::types::{ConnectorTransactionId, MinorUnit};
+    use diesel_models::refund as diesel_refund;
+
+    use super::*;
+
+    /// Builds a `Refund` row with the given amount and status; all other fields are irrelevant to
+    /// `validate_refund_amount` and are filled with placeholders.
+    fn refund(amount: i64, status: enums::RefundStatus) -> diesel_refund::Refund {
+        let now = common_utils::date_time::now();
+        diesel_refund::Refund {
+            internal_reference_id: "ref_internal".to_string(),
+            refund_id: "ref_1".to_string(),
+            payment_id: common_utils::id_type::PaymentId::default(),
+            merchant_id: common_utils::id_type::MerchantId::default(),
+            connector_transaction_id: ConnectorTransactionId::from("txn_1".to_string()),
+            connector: "stripe".to_string(),
+            connector_refund_id: None,
+            external_reference_id: None,
+            refund_type: enums::RefundType::InstantRefund,
+            total_amount: MinorUnit::new(amount),
+            currency: enums::Currency::USD,
+            refund_amount: MinorUnit::new(amount),
+            refund_status: status,
+            sent_to_gateway: false,
+            refund_error_message: None,
+            metadata: None,
+            refund_arn: None,
+            created_at: now,
+            modified_at: now,
+            description: None,
+            attempt_id: "att_1".to_string(),
+            refund_reason: None,
+            refund_error_code: None,
+            profile_id: None,
+            updated_by: String::new(),
+            merchant_connector_id: None,
+            charges: None,
+            organization_id: common_utils::id_type::OrganizationId::default(),
+            connector_refund_data: None,
+            connector_transaction_data: None,
+            split_refunds: None,
+            unified_code: None,
+            unified_message: None,
+            processor_refund_data: None,
+            processor_transaction_data: None,
+            issuer_error_code: None,
+            issuer_error_message: None,
+            processor_merchant_id: None,
+            created_by: None,
+        }
+    }
+
+    #[test]
+    fn full_refund_at_boundary_is_allowed() {
+        // captured 100, nothing refunded yet, refund exactly 100 -> allowed
+        assert!(validate_refund_amount(100, &[], 100).is_ok());
+    }
+
+    #[test]
+    fn refund_one_over_captured_is_rejected() {
+        // captured 100, refund 101 -> rejected
+        assert!(validate_refund_amount(100, &[], 101).is_err());
+    }
+
+    #[test]
+    fn partial_refunds_summing_to_captured_are_allowed() {
+        // captured 100, already refunded 70 (Success), refund remaining 30 -> allowed
+        let existing = [refund(70, enums::RefundStatus::Success)];
+        assert!(validate_refund_amount(100, &existing, 30).is_ok());
+    }
+
+    #[test]
+    fn partial_refund_exceeding_remaining_is_rejected() {
+        // captured 100, already refunded 70, refund 31 (>30 remaining) -> rejected
+        let existing = [refund(70, enums::RefundStatus::Success)];
+        assert!(validate_refund_amount(100, &existing, 31).is_err());
+    }
+
+    #[test]
+    fn pending_refunds_count_toward_the_total() {
+        // A not-yet-settled (Pending) refund must still reserve balance, otherwise concurrent
+        // in-flight refunds could both pass. captured 100, pending 100, refund 1 -> rejected.
+        let existing = [refund(100, enums::RefundStatus::Pending)];
+        assert!(validate_refund_amount(100, &existing, 1).is_err());
+    }
+
+    #[test]
+    fn failed_refunds_are_excluded_from_the_total() {
+        // Failed and TransactionFailure refunds free up balance again.
+        let existing = [
+            refund(100, enums::RefundStatus::Failure),
+            refund(100, enums::RefundStatus::TransactionFailure),
+        ];
+        assert!(validate_refund_amount(100, &existing, 100).is_ok());
+    }
+
+    #[test]
+    fn mixed_statuses_only_non_failed_reserve_balance() {
+        // captured 100: 40 Success + 100 Failure(excluded) + 30 Pending => reserved 70,
+        // remaining 30. Refund 30 -> allowed, 31 -> rejected.
+        let existing = [
+            refund(40, enums::RefundStatus::Success),
+            refund(100, enums::RefundStatus::Failure),
+            refund(30, enums::RefundStatus::Pending),
+        ];
+        assert!(validate_refund_amount(100, &existing, 30).is_ok());
+        assert!(validate_refund_amount(100, &existing, 31).is_err());
+    }
+}
