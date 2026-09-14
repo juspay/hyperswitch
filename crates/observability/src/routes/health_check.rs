@@ -1,8 +1,9 @@
 //! Health handlers. The route tree that mounts them is in [`crate::routes::app`].
 //!
-//! Liveness only. A readiness check that dials the chat provider and the mail backend sounds
-//! thorough and turns every third-party blip into a restart loop; the point of this service is to
-//! be up when its dependencies are flaky.
+//! Liveness, and readiness that takes a database connection. A readiness check that dials the chat
+//! provider and the mail backend sounds thorough and turns every third-party blip into a restart
+//! loop; the point of this service is to be up when those dependencies are flaky.
+
 use std::time::Duration;
 
 use actix_web::web;
@@ -21,24 +22,14 @@ pub async fn health() -> impl actix_web::Responder {
 #[instrument(skip_all)]
 pub async fn deep_health_check(state: web::Data<AppState>) -> impl actix_web::Responder {
     match tokio::time::timeout(PROBE_BUDGET, state.database.get()).await {
-        Err(_elapsed) => {
-            logger::error!("Observability deep health check timed out taking a connection");
-            return actix_web::HttpResponse::ServiceUnavailable()
-                .body("Observability database is unreachable");
+        Ok(Ok(_connection)) => {
+            logger::info!("Observability deep health check passed");
+            actix_web::HttpResponse::Ok().body("Observability deep health is good")
         }
-        Ok(result) => match result {
-            Ok(_connection) => {
-                logger::info!("Observability deep health check passed");
-                actix_web::HttpResponse::Ok().body("Observability deep health is good")
-            }
-            Err(error) => {
-                logger::error!(
-                    ?error,
-                    "Observability deep health check failed: database unreachable"
-                );
-                actix_web::HttpResponse::ServiceUnavailable()
-                    .body("Observability database is unreachable")
-            }
-        },
+        Ok(Err(_)) | Err(_) => {
+            logger::error!("Observability deep health check failed: database unreachable");
+            actix_web::HttpResponse::ServiceUnavailable()
+                .body("Observability database is unreachable")
+        }
     }
 }
