@@ -534,7 +534,20 @@ impl MerchantThresholdUpdateRequest {
             .as_deref()
             .map(|author| not_blank("author", author))
             .transpose()?;
-        within_width("author", self.author.as_deref(), NAME_MAX_CHARS)
+        within_width("author", self.author.as_deref(), NAME_MAX_CHARS)?;
+
+        common_utils::fp_utils::when(
+            self.metadata
+                .as_ref()
+                .and_then(Option::as_ref)
+                .is_some_and(|metadata| !metadata.is_object()),
+            || {
+                Err(report!(ObservabilityError::InvalidRequestData {
+                    message: "metadata must be an object to merge into the stored metadata"
+                        .to_owned(),
+                }))
+            },
+        )
     }
 }
 

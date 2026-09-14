@@ -1,6 +1,12 @@
 use async_bb8_diesel::AsyncRunQueryDsl;
 use common_utils::errors::ReportSwitchExt;
-use diesel::{associations::HasTable, ExpressionMethods, QueryDsl};
+use diesel::{
+    associations::HasTable,
+    dsl::sql,
+    expression::SqlLiteral,
+    sql_types::{Jsonb, Nullable},
+    ExpressionMethods, PgJsonbExpressionMethods, QueryDsl,
+};
 use error_stack::ResultExt;
 
 use crate::{
@@ -99,9 +105,15 @@ impl MerchantThreshold {
         id: uuid::Uuid,
         update: MerchantThresholdUpdate,
     ) -> StorageResult<Self> {
+        let mut changeset = MerchantThresholdUpdateInternal::from(update);
+        let metadata = changeset
+            .metadata
+            .take()
+            .map(|patch| dsl::metadata.eq(stored_metadata().concat(patch)));
+
         let query = diesel::update(<Self as HasTable>::table())
             .filter(dsl::id.eq(id))
-            .set(MerchantThresholdUpdateInternal::from(update));
+            .set((changeset, metadata));
 
         generics::db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
             conn.request_id(),
@@ -120,4 +132,8 @@ impl MerchantThreshold {
     ) -> StorageResult<bool> {
         generics::generic_delete::<<Self as HasTable>::Table, _>(conn, dsl::id.eq(id)).await
     }
+}
+
+fn stored_metadata() -> SqlLiteral<Nullable<Jsonb>> {
+    sql::<Nullable<Jsonb>>("COALESCE(metadata, '{}'::jsonb)")
 }
