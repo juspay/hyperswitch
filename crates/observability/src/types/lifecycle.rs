@@ -41,33 +41,22 @@ pub struct AlertStateEntry {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct AlertStateWrite {
-    #[serde(default)]
     pub id_intermediate: Option<uuid::Uuid>,
-    #[serde(default)]
     pub announcement_id: Option<uuid::Uuid>,
     pub name: String,
     pub product: String,
-    #[serde(default)]
     pub dimensions: Option<serde_json::Value>,
-    #[serde(default)]
     pub ts_slack: Option<String>,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub ts_alert: Option<PrimitiveDateTime>,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub latest_ts_alert: Option<PrimitiveDateTime>,
-    #[serde(default)]
     pub max_duration: Option<i32>,
-    #[serde(default)]
     pub other_metrics: Option<serde_json::Value>,
-    #[serde(default)]
     pub metadata: Option<serde_json::Value>,
-    #[serde(default)]
     pub metadata_alert_details: Option<serde_json::Value>,
-    #[serde(default)]
     pub rca_metadata: Option<serde_json::Value>,
-    #[serde(default)]
     pub group_id: Option<String>,
-    #[serde(default)]
     pub priority: Option<String>,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub recovered_ts: Option<PrimitiveDateTime>,
@@ -103,19 +92,12 @@ pub struct LifecycleStateSaveResponse {
 pub struct AnnouncementRequest {
     pub name: String,
     pub product: String,
-    #[serde(default)]
     pub dimensions: Option<Box<RawValue>>,
-    #[serde(default)]
     pub ts_slack: Option<String>,
-    #[serde(default)]
     pub duration: Option<i32>,
-    #[serde(default)]
     pub sent: Option<bool>,
-    #[serde(default)]
     pub critical: Option<bool>,
-    #[serde(default)]
     pub rca_metadata: Option<serde_json::Value>,
-    #[serde(default)]
     pub metadata: Option<Box<RawValue>>,
 }
 
