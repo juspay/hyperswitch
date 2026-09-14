@@ -455,7 +455,8 @@ channel, compares that value with the stored latest `last_updated_at` to the mil
 mismatch is refused with `IR_16` and changes nothing. `IR_16` is a `400`, as hyperswitch's
 `PreconditionFailed` is. The caller reads the state again rather than retrying the same write.
 
-`name` and `product` are required on every row and must not be blank. Left out or `null`,
+`name` and `product` are required on every row and must not be blank. A row links to the
+announcement recorded for it through `announcement_id` (the `id` column). Left out or `null`,
 `dimensions` is stored as `[]`, `rca_metadata` as `{}`, `max_duration` as `0`, `group_id` and
 `priority` as `''`, and `ts_alert` and `latest_ts_alert` as the time of the write. `last_updated_at`
 is always this service's clock, truncated to the millisecond. A write carries at most 5,000 rows,
@@ -499,7 +500,7 @@ the tables above:
 
 | | Status | Code |
 |---|---|---|
-| `name` or `product` is blank, a field is longer than its column holds, or a time is before 1970 | 400 | `IR_07` |
+| `name` or `product` is blank, a field is longer than its column holds, or a row's `ts_alert`, `latest_ts_alert` or `recovered_ts`, or the window's `start` or `end`, is before 1970 | 400 | `IR_07` |
 | The same `id_intermediate` twice in one write, or announcement `metadata` that is not an object | 400 | `IR_06` |
 | The state changed after it was read | 400 | `IR_16` |
 | A write carries more than 5,000 rows, or an `id_intermediate` of the other channel | 400 | `HE_03` |
