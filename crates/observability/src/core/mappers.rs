@@ -94,7 +94,7 @@ pub async fn upsert_mapper(
     let connection = state.database_connection().await?;
 
     let entry = AlertsDictNew {
-        id: uuid::Uuid::now_v7(),
+        id: common_utils::generate_uuid_v7(),
         name,
         key_: key,
         product: or_empty_list(product)?,
