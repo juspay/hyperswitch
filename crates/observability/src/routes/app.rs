@@ -9,12 +9,12 @@
 //! and a future in-router mount share one definition and cannot drift.
 
 use actix_multipart::form::MultipartFormConfig;
-use actix_web::{web, Scope};
+use actix_web::{error::InternalError, web, HttpResponse, Scope};
 
 use crate::{
     errors::types::{ApiError, ApiErrorResponse},
     logger,
-    routes::{health_check, notify},
+    routes::{config, health_check, notify},
     state::AppState,
 };
 
@@ -37,6 +37,8 @@ impl Alerts {
         web::scope("/alerts")
             .app_data(web::Data::new(state))
             .app_data(json_config())
+            .app_data(path_config())
+            .app_data(query_config())
             .app_data(multipart_config(max_upload_bytes))
             .service(
                 web::scope("/chat")
@@ -51,6 +53,51 @@ impl Alerts {
             .service(web::scope("/email").service(
                 web::resource("/notify/{destination}").route(web::post().to(notify::email)),
             ))
+            .service(AlertsConfig::server())
+    }
+}
+
+pub struct AlertsConfig;
+
+impl AlertsConfig {
+    pub fn server() -> Scope {
+        web::scope("/config")
+            .service(
+                web::scope("/definitions")
+                    .service(
+                        web::resource("")
+                            .route(web::get().to(config::definition_list))
+                            .route(web::post().to(config::definition_create)),
+                    )
+                    .service(
+                        web::resource("/{id}")
+                            .route(web::get().to(config::definition_retrieve))
+                            .route(web::post().to(config::definition_update)),
+                    ),
+            )
+            .service(
+                web::scope("/enablement")
+                    .service(web::resource("").route(web::get().to(config::enablement_list)))
+                    .service(
+                        web::resource("/{name}/{product}")
+                            .route(web::get().to(config::enablement_retrieve))
+                            .route(web::post().to(config::enablement_upsert)),
+                    ),
+            )
+            .service(
+                web::scope("/merchant-thresholds")
+                    .service(
+                        web::resource("")
+                            .route(web::get().to(config::merchant_threshold_list))
+                            .route(web::post().to(config::merchant_threshold_upsert)),
+                    )
+                    .service(
+                        web::resource("/{id}")
+                            .route(web::get().to(config::merchant_threshold_retrieve))
+                            .route(web::post().to(config::merchant_threshold_update))
+                            .route(web::delete().to(config::merchant_threshold_delete)),
+                    ),
+            )
     }
 }
 
@@ -74,6 +121,35 @@ fn json_config() -> web::JsonConfig {
             "IR",
             4,
             "The request body could not be parsed",
+        ))
+        .into()
+    })
+}
+
+fn path_config() -> web::PathConfig {
+    web::PathConfig::default().error_handler(|error, request| {
+        logger::warn!(
+            path = %request.path(),
+            error = %error,
+            "Request rejected: a path segment could not be parsed"
+        );
+
+        InternalError::from_response(error, HttpResponse::NotFound().finish()).into()
+    })
+}
+
+fn query_config() -> web::QueryConfig {
+    web::QueryConfig::default().error_handler(|error, request| {
+        logger::warn!(
+            path = %request.path(),
+            error = %error,
+            "Request rejected: the query string could not be parsed"
+        );
+
+        ApiErrorResponse::BadRequest(ApiError::new(
+            "IR",
+            6,
+            "The query string could not be parsed",
         ))
         .into()
     })

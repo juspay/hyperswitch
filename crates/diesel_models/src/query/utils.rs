@@ -1,4 +1,4 @@
-use crate::{schema, schema_v2};
+use crate::{observability::schema as observability_schema, schema, schema_v2};
 
 /// This trait will return a single column as primary key even in case of composite primary key.
 ///
@@ -19,7 +19,7 @@ pub(super) trait CompositeKey {
 
 /// implementation of `CompositeKey` trait for all the composite keys must be done here.
 mod composite_key {
-    use super::{schema, schema_v2, CompositeKey};
+    use super::{observability_schema, schema, schema_v2, CompositeKey};
     impl CompositeKey for <schema::payment_attempt::table as diesel::Table>::PrimaryKey {
         type UK = schema::payment_attempt::dsl::attempt_id;
         fn get_local_unique_key(&self) -> Self::UK {
@@ -66,6 +66,14 @@ mod composite_key {
         type UK = schema::payouts::dsl::payout_id;
         fn get_local_unique_key(&self) -> Self::UK {
             self.1
+        }
+    }
+    impl CompositeKey
+        for <observability_schema::merchants_alert_external_config::table as diesel::Table>::PrimaryKey
+    {
+        type UK = observability_schema::merchants_alert_external_config::dsl::name;
+        fn get_local_unique_key(&self) -> Self::UK {
+            self.0
         }
     }
 }
@@ -126,6 +134,11 @@ impl_get_primary_key!(
     schema_v2::payment_attempt::table
 );
 
+impl_get_primary_key!(
+    observability_schema::alerts_info::table,
+    observability_schema::merchant_thresholds::table
+);
+
 /// This macro will implement the `GetPrimaryKey` trait for all the tables with composite key.
 macro_rules! impl_get_primary_key_for_composite {
     ($($table:ty),*) => {
@@ -151,3 +164,5 @@ impl_get_primary_key_for_composite!(
     schema::payout_attempt::table,
     schema::payouts::table
 );
+
+impl_get_primary_key_for_composite!(observability_schema::merchants_alert_external_config::table);

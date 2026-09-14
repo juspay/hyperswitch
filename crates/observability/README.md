@@ -83,6 +83,12 @@ reach the logs from the client, which emits `chars` per request.
 
 ## The API
 
+Two surfaces under one scope. **Delivery** sends a message; **configuration** reads and writes the
+rows that say what an alert is and whether it runs. Routes under `/alerts/config`, and
+`/health/ready`, touch the database; delivery routes do not.
+
+### Delivery
+
 Three delivery routes across two channels. **The path says where, the body says what** — the URL names the
 channel and the destination, the body carries only content. Channel ids, recipient addresses and
 credentials live in configuration, so a caller cannot address a channel that was not set up for it
@@ -191,6 +197,146 @@ One case is deliberately *not* an error: a provider that accepts the message wit
 returns `{"status": "delivered", "message_id": null}`. The alert went out, and only the ability to
 thread under it was lost — reporting a failure there would invite a retry that posts it twice.
 
+### Configuration
+
+Three resources, backed by the observability database.
+
+| Method | Path | |
+|---|---|---|
+| `GET` | `/alerts/config/definitions` | every definition |
+| `POST` | `/alerts/config/definitions` | create one |
+| `GET` | `/alerts/config/definitions/{id}` | read one |
+| `POST` | `/alerts/config/definitions/{id}` | change part of one |
+| `GET` | `/alerts/config/enablement` | every enablement row |
+| `GET` | `/alerts/config/enablement/{name}/{product}` | read one |
+| `POST` | `/alerts/config/enablement/{name}/{product}` | upsert one |
+| `GET` | `/alerts/config/merchant-thresholds` | every merchant threshold, or those matching the query |
+| `POST` | `/alerts/config/merchant-thresholds` | upsert one |
+| `GET` | `/alerts/config/merchant-thresholds/{id}` | read one |
+| `POST` | `/alerts/config/merchant-thresholds/{id}` | change part of one |
+| `DELETE` | `/alerts/config/merchant-thresholds/{id}` | delete one |
+
+A list answers `{"count": n, "<resource>": [...]}` under `definitions`, `enablements` or
+`merchant_thresholds`, and a table with no rows is a `200` with a count of zero. A read, create,
+upsert or update answers the row. A delete answers `{"id": "…", "deleted": true}`.
+
+An update (`POST` to a definition or merchant threshold id) changes only what the body mentions: an
+absent field is left alone, `null` clears it, and a value sets it. `null` for `is_enabled`, or for a
+merchant threshold's `author`, leaves it alone. The two upserts are described with their resources.
+
+#### Definitions
+
+A definition is one `alerts_info` row, with an id the service generates. `name`, `product`,
+`is_enabled` and `author` are required on create; `name`, `product` and `author` must not be blank,
+and `name` and `product` cannot be changed afterwards.
+
+`blacklist`, `snooze` and `thresholds` hold r-apps' documents and are stored exactly as sent, except
+that an empty list, an empty object or a blank string is stored as `{}`, as r-apps' `createAlertInfo`
+does, and `null` is stored as `NULL`. Each is checked for its shape first:
+
+- `blacklist` is a list, or an object, of groups; a group maps one or more dimensions to a value or
+  a list of values, as in `{"ignored_paths": {"path": ["/health", "/ecr"]}}` or
+  `[{"merchant_id": "merchant_1234", "payment_method": ["card", "upi"]}]`.
+- `thresholds` is one object for the definition, as in
+  `{"min_volume": 100, "tolerance": 0.9, "prop_thresholds": {"C030KGG9ZJ9": 0.2}}`.
+- `snooze` is an object keyed `snooze_entry_<time>` or `custom_snooze_entry_<time>`; each entry
+  carries the dimension values it covers and `snooze_end_time`, optionally `snooze_start_time`, as
+  `YYYY-MM-DD HH:MM:SS`.
+
+`metadata` is free-form JSON, except that an empty list, an empty object or a blank string is
+stored as `{}`, as `createAlertInfo` does for it. `comments` is free-form JSON, stored as sent.
+
+```http
+POST /alerts/config/definitions
+{ "name": "sr_drop", "product": "payments", "is_enabled": true, "author": "reliability_team",
+  "blacklist": {"test_merchants": {"merchant_id": ["merchant_1234"]}} }
+→ 200 { "id": "0199…", "name": "sr_drop", "is_enabled": true, "blacklist": {"test_merchants": …}, … }
+
+POST /alerts/config/definitions/0199…
+{ "thresholds": {"min_volume": 100, "tolerance": 2.5} }
+→ 200 the whole definition, with blacklist and snooze untouched
+```
+
+`all` names the definition for suppression that applies to every detector; it cannot have an
+enablement row. There is no delete route for definitions.
+
+#### Enablement
+
+`alerts_info.is_enabled` says whether a detector runs, and `merchants_alert_external_config.is_enabled`
+whether its alerts are delivered to merchants. A response carries the stored `is_enabled` and
+
+```
+effective_is_enabled = definition.is_enabled AND coalesce(enablement.is_enabled, false)
+```
+
+The upsert is one statement with `(name, product)` as its conflict target, and requires
+`is_enabled` as a boolean. When the row exists, `category` and `metadata` change only if the body
+mentions them, and `null` clears them. It is refused unless a definition with that name and product
+exists and the name is not `all`.
+
+```http
+POST /alerts/config/enablement/sr_drop/payments
+{ "is_enabled": true }
+→ 200 { "name": "sr_drop", "is_enabled": true, "effective_is_enabled": false, … }
+```
+
+#### Merchant thresholds
+
+A merchant threshold is one `merchant_thresholds` row, r-apps' per-merchant override: `name`,
+`product`, `merchant_id`, `author` and `is_enabled`, all required, `metadata`, and ten nullable
+numbers `thresholds_min_volume`, `thresholds_min_impacted_volume`, `thresholds_tolerance`,
+`thresholds_diff_threshold`, `thresholds_merchant_impact`, `thresholds_alert_period`,
+`thresholds_min_observations`, `thresholds_min_history_volume`, `thresholds_filter_percentile` and
+`thresholds_current_min_volume`. `name`, `product`, `merchant_id` and `author` must not be blank.
+
+`GET /alerts/config/merchant-thresholds` takes `name`, `product`, `merchant_id`, `is_enabled` and
+`author` as query parameters, each an exact match; with none it lists every row. r-apps'
+`getMerchantThresholds` filters on every column, with lists of values, ranges and metadata keys; this
+service supports only these five exact-match filters.
+
+`POST /alerts/config/merchant-thresholds` upserts on `(name, product, merchant_id, is_enabled,
+author)`, the key r-apps' `addMerchantThresholds` uses, so the same five values update one row and
+any other combination adds a row. As in r-apps, a threshold or `metadata` that is absent or `null`
+keeps the stored value when the row exists and is stored as `NULL` when the row is added. `metadata`,
+when given, must be an object and replaces the stored one.
+
+`POST /alerts/config/merchant-thresholds/{id}` changes the thresholds, `metadata`, `author` and
+`is_enabled`; `name`, `product` and `merchant_id` cannot be changed. `metadata` must be an object and
+is merged into the stored one with `COALESCE(metadata, '{}') || patch`, so a row without metadata
+takes the patch; `null` clears it. This differs from r-apps, whose `metadata || patch` leaves a
+`NULL` metadata `NULL` and drops the patch.
+
+```http
+POST /alerts/config/merchant-thresholds
+{ "name": "sr_drop", "product": "payments", "merchant_id": "merchant_1234",
+  "author": "reliability_team", "is_enabled": true, "thresholds_tolerance": 2.5 }
+→ 200 { "id": "0199…", "merchant_id": "merchant_1234", "thresholds_tolerance": 2.5, "thresholds_min_volume": null, … }
+
+DELETE /alerts/config/merchant-thresholds/0199…
+→ 200 { "id": "0199…", "deleted": true }
+```
+
+#### Errors
+
+Blank values, widths and document shapes are checked before a database connection is taken. A
+configuration body that does not parse, including one missing a required field or giving it `null`,
+is the `IR_04` above. A path id that is not a UUID is answered with the same empty `404` as a path
+that matches no route. The configuration errors, added to the table above:
+
+| | Status | Code |
+|---|---|---|
+| A field is longer than its column holds, or a name, product, merchant id or author is blank | 400 | `IR_07` |
+| `blacklist`, `snooze` or `thresholds` is not in r-apps' shape, or a merchant threshold's `metadata` is not an object | 400 | `IR_06` |
+| The merchant thresholds query string does not parse or names another parameter | 400 | `IR_06` |
+| A definition already exists for this name and product | 400 | `HE_01` |
+| An update gives a merchant threshold the name, product, merchant, author and `is_enabled` of another | 400 | `HE_01` |
+| Name and product do not identify an alert, or name `all` | 400 | `HE_03` |
+| Unknown definition id, enablement key or merchant threshold id | 404 | `HE_02` |
+| A query against the observability database failed | 500 | `HE_00` |
+| No connection to the observability database could be taken | 503 | `HE_00` |
+
+The failing host, database and role reach the log and never the response.
+
 ## Destinations
 
 Configured under `chat.destinations.<id>` and `email.destinations.<id>`, resolved once at boot.
@@ -232,10 +378,16 @@ unverified sender all arrive as one variant — so email only ever reports `deli
 ## Layout
 
 ```
-routes/   the route tree and handlers; deserialize, call core, serialize
-core/     what one request does: resolve a destination, hand the message over
-domain/   what delivering an alert is: the notifier traits and the types they exchange
+routes/          the route tree, and one module of handlers per area: notify and config
+core/            what one request does, per area: deliver a message, or read and write configuration
+domain/          what delivering an alert is: the notifier traits and the types they exchange
+types/           the wire contract, per area
 ```
+
+Configuration requests are handled in `routes/config.rs` and `core/config.rs`, with their request
+and response types and validation in `types/config.rs`; the rows and their queries are
+`diesel_models::observability::{alerts_info, merchants_alert_external_config, merchant_thresholds}`
+and `diesel_models::query::observability`, and the tables are created by `migrations/`.
 
 `domain` holds no HTTP. `core` holds no traits. A handler that grows logic belongs in `core`; a
 concept that a background job would also need belongs in `domain`.

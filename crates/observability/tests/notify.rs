@@ -15,6 +15,7 @@ use actix_web::{
     test::{self, TestRequest},
     App,
 };
+use common_utils::external_service::NoOpEventEmitter;
 use external_services::email::no_email::NoEmailClient;
 use observability::{
     auth::X_INTERNAL_API_KEY,
@@ -69,6 +70,8 @@ async fn state_with_max(max_upload_bytes: usize) -> AppState {
         chat: Arc::new(Registry::new(HashMap::from([(CHAT.to_owned(), chat)]))),
         email: Arc::new(Registry::new(HashMap::from([(EMAIL.to_owned(), email)]))),
         database,
+        event_emitter: Arc::new(NoOpEventEmitter),
+        request_id: None,
     }
 }
 
