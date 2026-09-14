@@ -114,13 +114,8 @@ impl AlertsIntermediate {
         conn: &DatabaseConnectionWithContext<'_>,
         id_intermediate: uuid::Uuid,
         update: AlertsIntermediateUpdate,
-    ) -> StorageResult<Self> {
-        generics::generic_update_with_unique_predicate_get_result::<
-            <Self as HasTable>::Table,
-            _,
-            _,
-            _,
-        >(
+    ) -> StorageResult<usize> {
+        generics::generic_update::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::id_intermediate.eq(id_intermediate),
             AlertsIntermediateUpdateInternal::from(update),
