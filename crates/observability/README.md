@@ -247,8 +247,8 @@ POST /alerts/config/definitions/0189…
 → 200 the whole definition, with blacklist and snooze untouched
 ```
 
-`is_enabled` and `author` are **required** on create. The column defaults to false, so a definition
-created without saying is off — which reads as "the alert is broken" rather than "nobody enabled
+`is_enabled` and `author` are **required** on create. The column has no default, so a definition
+created without saying would be off — which reads as "the alert is broken" rather than "nobody enabled
 it"; and the internal API key names the calling service, not a person, so if the body does not say
 who is asking then nothing does. `name` and `product` cannot be changed afterwards: they are the
 alert's identity, referenced by the enablement table and matched by name in the alert manager, so a
@@ -275,8 +275,8 @@ effective = definition.is_enabled AND coalesce(enablement.is_enabled, true)
 The definition decides whether a detector runs at all, so with it off there is no result for an
 enablement row to publish. Letting the narrower table win would mean an operator disabling a
 definition could be silently overridden from a screen they were not looking at, which is what a
-master switch exists to prevent. A missing enablement row narrows nothing, matching the column's
-`DEFAULT TRUE`, so adding a definition is enough to make it run. Most-recently-updated-wins was the
+master switch exists to prevent. A missing enablement row narrows nothing, so adding a definition
+is enough to make it run. Most-recently-updated-wins was the
 alternative and was rejected: it makes the answer depend on clock skew between two writers and
 offers no way to say "off, and stay off".
 
@@ -361,7 +361,7 @@ looking at it.
 
 That is the honest shape of the deployment. Local accounts are disabled in sandbox and production
 alike (`localUsers: false`), so every request arrives with no name, the watermark table holds one
-shared row, and mapper saves are attributed to the `username` column's default. Keeping the name
+shared row, and mapper saves are attributed to `reliability_team`. Keeping the name
 on the request anyway is what makes that a data fact rather than a schema one: the day the portal
 authenticates, the alert manager forwards the name and rows appear per person with no route and no
 migration to change.
