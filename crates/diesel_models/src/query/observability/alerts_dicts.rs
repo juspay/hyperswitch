@@ -18,7 +18,9 @@ use crate::{
 
 const MAPPER_ENTRY_LOCK_NAMESPACE: i32 = 23_403;
 
-diesel::alias!(alerts_dicts as superseded_dicts: SupersededDicts);
+diesel::alias! {
+    const SUPERSEDED_DICTS: Alias<SupersededDicts> = alerts_dicts as superseded_dicts;
+}
 
 impl AlertsDictNew {
     pub async fn insert(
@@ -42,7 +44,7 @@ impl AlertsDict {
         generics::db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
             conn.request_id(),
             conn.event_emitter(),
-            generics::db_metrics::DatabaseOperation::Update,
+            generics::db_metrics::DatabaseOperation::FindOne,
             query.execute_async(conn.raw_connection()),
         )
         .await
@@ -118,18 +120,18 @@ impl AlertsDict {
         key: &str,
         kept: i64,
     ) -> StorageResult<usize> {
-        let superseded = superseded_dicts
-            .select(superseded_dicts.field(dsl::id))
+        let superseded = SUPERSEDED_DICTS
+            .select(SUPERSEDED_DICTS.field(dsl::id))
             .filter(
-                superseded_dicts
+                SUPERSEDED_DICTS
                     .field(dsl::name)
                     .eq(name.to_owned())
-                    .and(superseded_dicts.field(dsl::key_).eq(key.to_owned()))
-                    .and(superseded_dicts.field(dsl::is_enabled).eq(false)),
+                    .and(SUPERSEDED_DICTS.field(dsl::key_).eq(key.to_owned()))
+                    .and(SUPERSEDED_DICTS.field(dsl::is_enabled).eq(false)),
             )
             .order((
-                superseded_dicts.field(dsl::ts_created).desc().nulls_last(),
-                superseded_dicts.field(dsl::id).desc(),
+                SUPERSEDED_DICTS.field(dsl::ts_created).desc().nulls_last(),
+                SUPERSEDED_DICTS.field(dsl::id).desc(),
             ))
             .offset(kept);
 
