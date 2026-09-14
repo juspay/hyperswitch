@@ -67,6 +67,8 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: "24"
+          cache: "npm"
+          cache-dependency-path: cypress-tests/package-lock.json
 
       - name: Install Cypress and dependencies
         run: |
@@ -185,7 +187,7 @@ jobs:
 
       - name: Build project
         if: ${{ env.RUN_TESTS == 'true' }}
-        run: cargo build --package router --bin router --jobs 2
+        run: cargo build --package router --bin router --jobs 12
 
       - name: Upload binary artifact
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -365,6 +367,8 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: "24"
+          cache: "npm"
+          cache-dependency-path: cypress-tests/package-lock.json
 
       - name: Install Cypress and dependencies
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -417,13 +421,13 @@ jobs:
            # Wait for the server to start in port 8080
           COUNT=0
           while ! nc -z localhost 8080; do
-            if [ $COUNT -gt 12 ]; then # Wait for up to 2 minutes (12 * 10 seconds)
+            if [ $COUNT -gt 60 ]; then # Wait for up to 2 minutes (60 * 2 seconds)
               echo "Server did not start within a reasonable time. Exiting."
               kill ${SERVER_PID}
               exit 1
             else
               COUNT=$((COUNT+1))
-              sleep 10
+              sleep 2
             fi
           done
 
@@ -456,6 +460,7 @@ jobs:
           name: ${{ matrix.batch.report_artifact_name }}
           path: |
             cypress-tests/cypress/reports/
+          if-no-files-found: ignore
           retention-days: 1
 
   mandatory-cypress-tests-consolidated-result:
@@ -645,6 +650,8 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: "24"
+          cache: "npm"
+          cache-dependency-path: cypress-tests/package-lock.json
 
       - name: Install Cypress and dependencies
         run: |
@@ -683,13 +690,13 @@ jobs:
            # Wait for the server to start in port 8080
           COUNT=0
           while ! nc -z localhost 8080; do
-            if [ $COUNT -gt 12 ]; then # Wait for up to 2 minutes (12 * 10 seconds)
+            if [ $COUNT -gt 60 ]; then # Wait for up to 2 minutes (60 * 2 seconds)
               echo "Server did not start within a reasonable time. Exiting."
               kill ${SERVER_PID}
               exit 1
             else
               COUNT=$((COUNT+1))
-              sleep 10
+              sleep 2
             fi
           done
 
@@ -721,6 +728,7 @@ jobs:
           name: ${{ matrix.batch.report_artifact_name }}
           path: |
             cypress-tests/cypress/reports/
+          if-no-files-found: ignore
           retention-days: 1
 
   extended-cypress-tests-consolidated-result:
@@ -937,6 +945,8 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: "24"
+          cache: "npm"
+          cache-dependency-path: cypress-tests/package-lock.json
 
       - name: Install Cypress and dependencies
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -1103,13 +1113,13 @@ jobs:
 
           COUNT=0
           while ! nc -z localhost 8080; do
-            if [ $COUNT -gt 12 ]; then
+            if [ $COUNT -gt 60 ]; then
               echo "Server did not start within a reasonable time. Exiting."
               kill ${SERVER_PID}
               exit 1
             fi
             COUNT=$((COUNT+1))
-            sleep 10
+            sleep 2
           done
 
       - name: Start mitmproxy replay
@@ -1182,6 +1192,7 @@ jobs:
           name: ${{ matrix.batch.report_artifact_name }}
           path: |
             cypress-tests/cypress/reports/
+          if-no-files-found: ignore
           retention-days: 1
 
   mitm-cassette-replay-cypress-tests-consolidated-result:
@@ -1368,6 +1379,8 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: "24"
+          cache: "npm"
+          cache-dependency-path: cypress-tests/package-lock.json
 
       - name: Install Cypress and dependencies
         run: |
@@ -1414,13 +1427,13 @@ jobs:
            # Wait for the server to start in port 8080
           COUNT=0
           while ! nc -z localhost 8080; do
-            if [ $COUNT -gt 12 ]; then # Wait for up to 2 minutes (12 * 10 seconds)
+            if [ $COUNT -gt 60 ]; then # Wait for up to 2 minutes (60 * 2 seconds)
               echo "Server did not start within a reasonable time. Exiting."
               kill ${SERVER_PID}
               exit 1
             else
               COUNT=$((COUNT+1))
-              sleep 10
+              sleep 2
             fi
           done
 
@@ -1451,6 +1464,7 @@ jobs:
           name: ${{ matrix.batch.report_artifact_name }}
           path: |
             cypress-tests/cypress/reports/
+          if-no-files-found: ignore
           retention-days: 1
 
   runner_alpha:
@@ -1561,6 +1575,8 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: "24"
+          cache: "npm"
+          cache-dependency-path: cypress-tests/package-lock.json
 
       - name: Install Cypress and dependencies
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -1608,12 +1624,12 @@ jobs:
           # Wait for mock server to be ready
           COUNT=0
           while ! nc -z localhost 3010; do
-            if [ $COUNT -gt 6 ]; then # Wait for up to 1 minute (6 * 10 seconds)
+            if [ $COUNT -gt 30 ]; then # Wait for up to 1 minute (30 * 2 seconds)
               echo "Mock server for ${connector} did not start within a reasonable time."
               exit 1
             else
               COUNT=$((COUNT+1))
-              sleep 10
+              sleep 2
             fi
           done
           echo "Mock server for ${connector} is ready"
@@ -1644,13 +1660,13 @@ jobs:
           # Wait for the server to start in port 8080
           COUNT=0
           while ! nc -z localhost 8080; do
-            if [ $COUNT -gt 12 ]; then # Wait for up to 2 minutes (12 * 10 seconds)
+            if [ $COUNT -gt 60 ]; then # Wait for up to 2 minutes (60 * 2 seconds)
               echo "Server did not start within a reasonable time. Exiting."
               kill ${SERVER_PID}
               exit 1
             else
               COUNT=$((COUNT+1))
-              sleep 10
+              sleep 2
             fi
           done
 
@@ -1676,6 +1692,7 @@ jobs:
           name: cypress-test-results-alpha
           path: |
             cypress-tests/cypress/reports/
+          if-no-files-found: ignore
           retention-days: 1
 
   runner_v2:
@@ -1816,6 +1833,8 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: "24"
+          cache: "npm"
+          cache-dependency-path: cypress-tests/package-lock.json
 
       - name: Install Cypress and dependencies
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -1871,13 +1890,13 @@ jobs:
           # Wait for the server to start in port 8080
           COUNT=0
           while ! nc -z localhost 8080; do
-            if [ $COUNT -gt 12 ]; then # Wait for up to 2 minutes (12 * 10 seconds)
+            if [ $COUNT -gt 60 ]; then # Wait for up to 2 minutes (60 * 2 seconds)
               echo "Server did not start within a reasonable time. Exiting."
               kill ${SERVER_PID}
               exit 1
             else
               COUNT=$((COUNT+1))
-              sleep 10
+              sleep 2
             fi
           done
 
