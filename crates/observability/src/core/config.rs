@@ -1,11 +1,9 @@
 use std::collections::HashMap;
 
 use diesel_models::observability::{
-    alerts_info::{AlertsInfo, Snooze},
-    merchants_alert_external_config::MerchantsAlertExternalConfig,
+    alerts_info::AlertsInfo, merchants_alert_external_config::MerchantsAlertExternalConfig,
 };
 use error_stack::{report, ResultExt};
-use time::PrimitiveDateTime;
 
 use crate::{
     errors::{ObservabilityApiResult, ObservabilityError, StorageErrorExt},
@@ -19,16 +17,11 @@ use crate::{
 
 const ALL_DEFINITIONS: &str = "all";
 
-const SNOOZE_ENTRY_PREFIXES: [&str; 2] = ["snooze_entry_", "custom_snooze_entry_"];
-
-const SNOOZE_TIME_FORMAT: &[time::format_description::FormatItem<'static>] =
-    time::macros::format_description!("[year]-[month]-[day] [hour]:[minute]:[second]");
-
 pub async fn create_definition(
     state: AppState,
     request: AlertDefinitionCreateRequest,
 ) -> ObservabilityApiResult<AlertDefinitionResponse> {
-    request.snooze.as_ref().map(validate_snooze).transpose()?;
+    request.validate()?;
 
     let connection = state.database_connection().await?;
     let name = request.name.clone();
@@ -80,12 +73,7 @@ pub async fn update_definition(
     id: uuid::Uuid,
     request: AlertDefinitionUpdateRequest,
 ) -> ObservabilityApiResult<AlertDefinitionResponse> {
-    request
-        .snooze
-        .as_ref()
-        .and_then(Option::as_ref)
-        .map(validate_snooze)
-        .transpose()?;
+    request.validate()?;
 
     let connection = state.database_connection().await?;
 
@@ -188,26 +176,4 @@ pub async fn list_enablements(
         count: enablements.len(),
         enablements,
     })
-}
-
-fn validate_snooze(snooze: &Snooze) -> ObservabilityApiResult<()> {
-    for (key, entry) in &snooze.0 {
-        let keyed = SNOOZE_ENTRY_PREFIXES
-            .iter()
-            .any(|prefix| key.starts_with(prefix));
-        let end_readable =
-            PrimitiveDateTime::parse(&entry.snooze_end_time, SNOOZE_TIME_FORMAT).is_ok();
-        let start_readable = entry
-            .snooze_start_time
-            .as_deref()
-            .is_none_or(|start| PrimitiveDateTime::parse(start, SNOOZE_TIME_FORMAT).is_ok());
-
-        if !(keyed && end_readable && start_readable) {
-            Err(report!(ObservabilityError::InvalidSnooze {
-                key: key.clone()
-            }))?;
-        }
-    }
-
-    Ok(())
 }

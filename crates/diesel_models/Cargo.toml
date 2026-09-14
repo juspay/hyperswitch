@@ -22,7 +22,7 @@ bb8 = "0.8.6"
 diesel = { version = "2.2.10", features = ["postgres", "serde_json", "time", "uuid", "128-column-tables", "i-implement-a-third-party-backend-and-opt-into-breaking-changes"] }
 error-stack = "0.4.1"
 serde = { version = "1.0.219", features = ["derive"] }
-serde_json = "1.0.140"
+serde_json = { version = "1.0.140", features = ["raw_value"] }
 strum = { version = "0.26.3", features = ["derive"] }
 thiserror = "1.0.69"
 time = { version = "0.3.41", features = ["serde", "serde-well-known", "std"] }

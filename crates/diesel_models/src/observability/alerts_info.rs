@@ -1,64 +1,10 @@
-use diesel::{AsChangeset, AsExpression, Identifiable, Insertable, Queryable, Selectable};
+use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use crate::observability::schema::alerts_info;
+use crate::observability::{raw_json::RawJson, schema::alerts_info};
 
-#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
-pub struct BlacklistEntry {
-    pub merchant_id: String,
-    #[serde(default)]
-    pub profile_id: String,
-    #[serde(default)]
-    pub reason: String,
-    #[serde(default)]
-    pub created_by: Option<String>,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
-pub struct SnoozeEntry {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub snooze_start_time: Option<String>,
-    #[serde(default)]
-    pub snooze_end_time: String,
-    #[serde(flatten)]
-    pub dimensions: std::collections::BTreeMap<String, serde_json::Value>,
-}
-
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct ThresholdEntry {
-    pub merchant_id: String,
-    #[serde(default)]
-    pub profile_id: String,
-    #[serde(default)]
-    pub min_volume: Option<f64>,
-    #[serde(default)]
-    pub min_impacted_volume: Option<f64>,
-    #[serde(default)]
-    pub tolerance: Option<f64>,
-    #[serde(default)]
-    pub diff_threshold: Option<f64>,
-}
-
-#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize, AsExpression)]
-#[diesel(sql_type = diesel::sql_types::Json)]
-pub struct Blacklist(pub Vec<BlacklistEntry>);
-
-common_utils::impl_to_sql_from_sql_json!(Blacklist);
-
-#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize, AsExpression)]
-#[diesel(sql_type = diesel::sql_types::Json)]
-pub struct Snooze(pub std::collections::BTreeMap<String, SnoozeEntry>);
-
-common_utils::impl_to_sql_from_sql_json!(Snooze);
-
-#[derive(Clone, Debug, Default, PartialEq, Deserialize, Serialize, AsExpression)]
-#[diesel(sql_type = diesel::sql_types::Json)]
-pub struct Thresholds(pub Vec<ThresholdEntry>);
-
-common_utils::impl_to_sql_from_sql_json!(Thresholds);
-
-#[derive(Clone, Debug, PartialEq, Identifiable, Queryable, Selectable, Deserialize, Serialize)]
+#[derive(Clone, Debug, Identifiable, Queryable, Selectable, Deserialize, Serialize)]
 #[diesel(table_name = alerts_info, primary_key(id), check_for_backend(diesel::pg::Pg))]
 pub struct AlertsInfo {
     pub id: uuid::Uuid,
@@ -68,10 +14,10 @@ pub struct AlertsInfo {
     pub period: Option<i32>,
     pub default_channel: Option<String>,
     pub default_critical: Option<bool>,
-    pub blacklist: Option<Blacklist>,
-    pub snooze: Option<Snooze>,
+    pub blacklist: Option<RawJson>,
+    pub snooze: Option<RawJson>,
     pub history_window: Option<i32>,
-    pub thresholds: Option<Thresholds>,
+    pub thresholds: Option<RawJson>,
     pub metadata: Option<serde_json::Value>,
     pub is_enabled: Option<bool>,
     pub comments: Option<serde_json::Value>,
@@ -81,7 +27,7 @@ pub struct AlertsInfo {
     pub last_updated_at: Option<PrimitiveDateTime>,
 }
 
-#[derive(Clone, Debug, PartialEq, Insertable)]
+#[derive(Clone, Debug, Insertable)]
 #[diesel(table_name = alerts_info)]
 pub struct AlertsInfoNew {
     pub name: String,
@@ -90,10 +36,10 @@ pub struct AlertsInfoNew {
     pub period: Option<i32>,
     pub default_channel: Option<String>,
     pub default_critical: Option<bool>,
-    pub blacklist: Option<Blacklist>,
-    pub snooze: Option<Snooze>,
+    pub blacklist: Option<RawJson>,
+    pub snooze: Option<RawJson>,
     pub history_window: Option<i32>,
-    pub thresholds: Option<Thresholds>,
+    pub thresholds: Option<RawJson>,
     pub metadata: Option<serde_json::Value>,
     pub is_enabled: Option<bool>,
     pub comments: Option<serde_json::Value>,
@@ -110,10 +56,10 @@ pub enum AlertsInfoUpdate {
         period: Option<Option<i32>>,
         default_channel: Option<Option<String>>,
         default_critical: Option<Option<bool>>,
-        blacklist: Option<Option<Blacklist>>,
-        snooze: Option<Option<Snooze>>,
+        blacklist: Option<Option<RawJson>>,
+        snooze: Option<Option<RawJson>>,
         history_window: Option<Option<i32>>,
-        thresholds: Option<Option<Thresholds>>,
+        thresholds: Option<Option<RawJson>>,
         metadata: Option<Option<serde_json::Value>>,
         is_enabled: Option<bool>,
         comments: Option<Option<serde_json::Value>>,
@@ -122,17 +68,17 @@ pub enum AlertsInfoUpdate {
     },
 }
 
-#[derive(Clone, Debug, PartialEq, AsChangeset)]
+#[derive(Clone, Debug, AsChangeset)]
 #[diesel(table_name = alerts_info)]
 pub struct AlertsInfoUpdateInternal {
     pub dimensions: Option<Option<String>>,
     pub period: Option<Option<i32>>,
     pub default_channel: Option<Option<String>>,
     pub default_critical: Option<Option<bool>>,
-    pub blacklist: Option<Option<Blacklist>>,
-    pub snooze: Option<Option<Snooze>>,
+    pub blacklist: Option<Option<RawJson>>,
+    pub snooze: Option<Option<RawJson>>,
     pub history_window: Option<Option<i32>>,
-    pub thresholds: Option<Option<Thresholds>>,
+    pub thresholds: Option<Option<RawJson>>,
     pub metadata: Option<Option<serde_json::Value>>,
     pub is_enabled: Option<bool>,
     pub comments: Option<Option<serde_json::Value>>,
