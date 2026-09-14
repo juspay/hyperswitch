@@ -31,7 +31,7 @@ pub struct AlertDefinitionCreateRequest {
     pub default_channel: Option<String>,
     pub default_critical: Option<bool>,
     pub blacklist: Option<Vec<BlacklistEntry>>,
-    pub snooze: Option<Vec<SnoozeEntry>>,
+    pub snooze: Option<Snooze>,
     pub history_window: Option<i32>,
     pub thresholds: Option<Vec<ThresholdEntry>>,
     pub metadata: Option<serde_json::Value>,
@@ -49,7 +49,7 @@ impl AlertDefinitionCreateRequest {
             default_channel: self.default_channel,
             default_critical: self.default_critical,
             blacklist: self.blacklist.map(Blacklist),
-            snooze: self.snooze.map(Snooze),
+            snooze: self.snooze,
             history_window: self.history_window,
             thresholds: self.thresholds.map(Thresholds),
             metadata: self.metadata,
@@ -80,7 +80,7 @@ pub struct AlertDefinitionUpdateRequest {
     #[serde(default, deserialize_with = "double_option")]
     pub blacklist: Option<Option<Vec<BlacklistEntry>>>,
     #[serde(default, deserialize_with = "double_option")]
-    pub snooze: Option<Option<Vec<SnoozeEntry>>>,
+    pub snooze: Option<Option<Snooze>>,
     #[serde(default, deserialize_with = "double_option")]
     pub history_window: Option<Option<i32>>,
     #[serde(default, deserialize_with = "double_option")]
@@ -101,7 +101,7 @@ impl AlertDefinitionUpdateRequest {
             default_channel: self.default_channel,
             default_critical: self.default_critical,
             blacklist: self.blacklist.map(|entries| entries.map(Blacklist)),
-            snooze: self.snooze.map(|entries| entries.map(Snooze)),
+            snooze: self.snooze,
             history_window: self.history_window,
             thresholds: self.thresholds.map(|entries| entries.map(Thresholds)),
             metadata: self.metadata,
@@ -125,7 +125,7 @@ pub struct AlertDefinitionResponse {
     pub default_channel: Option<String>,
     pub default_critical: Option<bool>,
     pub blacklist: Vec<BlacklistEntry>,
-    pub snooze: Vec<SnoozeEntry>,
+    pub snooze: std::collections::BTreeMap<String, SnoozeEntry>,
     pub history_window: Option<i32>,
     pub thresholds: Vec<ThresholdEntry>,
     pub metadata: Option<serde_json::Value>,
@@ -238,7 +238,7 @@ impl AlertEnablementResponse {
             name: row.name,
             product: row.product,
             category: row.category,
-            is_enabled: row.is_enabled.unwrap_or(true),
+            is_enabled: row.is_enabled.unwrap_or(false),
             metadata: row.metadata,
             last_updated_at: row.last_updated_at,
         }
@@ -252,5 +252,5 @@ pub struct AlertEnablementListResponse {
 }
 
 fn effective_is_enabled(definition_is_enabled: bool, config_is_enabled: Option<bool>) -> bool {
-    definition_is_enabled && config_is_enabled.unwrap_or(true)
+    definition_is_enabled && config_is_enabled.unwrap_or(false)
 }

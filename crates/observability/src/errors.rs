@@ -95,6 +95,9 @@ pub enum ObservabilityError {
     #[error("No alert is defined as `{name}` / `{product}`")]
     NotAnAlert { name: String, product: String },
 
+    #[error("The snooze entry `{key}` is not in the shape the alert manager reads")]
+    InvalidSnooze { key: String },
+
     /// The path named a destination that is not configured.
     #[error("No destination is configured under `{destination}`")]
     UnknownDestination {
@@ -201,6 +204,11 @@ impl ErrorSwitch<ApiErrorResponse> for ObservabilityError {
                 "HE",
                 3,
                 "No alert is defined for this name and product",
+            )),
+            Self::InvalidSnooze { .. } => ApiErrorResponse::BadRequest(ApiError::new(
+                "HE",
+                3,
+                "Snooze entries must be keyed snooze_entry_<time> or custom_snooze_entry_<time> and carry snooze_end_time as YYYY-MM-DD HH:MM:SS",
             )),
             // 502 rather than 500: the failure is on the far side of a hop we made. Note this is
             // the *only* provider-shaped error left, because every answer the provider gives is a
