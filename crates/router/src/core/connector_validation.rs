@@ -392,6 +392,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 etisalat::transformers::EtisalatAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Paynearme => {
+                paynearme::transformers::PaynearmeAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Multisafepay => {
                 multisafepay::transformers::MultisafepayAuthType::try_from(self.auth_type)?;
                 Ok(())

@@ -312,6 +312,7 @@ pub enum RoutableConnectors {
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
     Paybox,
     Payme,
+    Paynearme,
     Payload,
     Payone,
     Paypal,
@@ -482,6 +483,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Paybox => Ok(Self::Paybox),
             Connector::Payload => Ok(Self::Payload),
             Connector::Payme => Ok(Self::Payme),
+            Connector::Paynearme => Ok(Self::Paynearme),
             Connector::Payone => Ok(Self::Payone),
             Connector::Paypal => Ok(Self::Paypal),
             Connector::Paysafe => Ok(Self::Paysafe),
@@ -657,6 +659,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Paybox => Self::Paybox,
             RoutableConnectors::Payload => Self::Payload,
             RoutableConnectors::Payme => Self::Payme,
+            RoutableConnectors::Paynearme => Self::Paynearme,
             RoutableConnectors::Payone => Self::Payone,
             RoutableConnectors::Paypal => Self::Paypal,
             RoutableConnectors::Paysafe => Self::Paysafe,

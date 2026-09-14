@@ -410,6 +410,13 @@ pub enum ConnectorSpecificConfig {
         password: Secret<String>,
         customer: Secret<String>,
     },
+    /// PayNearMe API v3.0 (JSON). No auth header: every request body carries
+    /// `site_identifier` plus an HMAC-SHA256 `signature` computed with the API
+    /// secret key. `api_key` = API Secret Key, `key1` = Site Identifier.
+    Paynearme {
+        api_key: Secret<String>,
+        key1: Secret<String>,
+    },
     /// Nuvei connector configuration
     Nuvei {
         merchant_id: Secret<String>,
@@ -1434,6 +1441,15 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     customer: api_secret.clone(),
                 }),
                 _ => Err(err("Etisalat requires SignatureKey auth type")),
+            },
+            Connector::Paynearme => match auth {
+                // api_key -> API Secret Key (HMAC signing key, never transmitted),
+                // key1 -> Site Identifier (`site_identifier` body field).
+                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Paynearme {
+                    api_key: api_key.clone(),
+                    key1: key1.clone(),
+                }),
+                _ => Err(err("Paynearme requires BodyKey auth type")),
             },
             Connector::Noon => match auth {
                 ConnectorAuthType::SignatureKey {

@@ -321,6 +321,7 @@ pub struct ConnectorConfig {
     pub elavon: Option<ConnectorTomlConfig>,
     pub envoy: Option<ConnectorTomlConfig>,
     pub etisalat: Option<ConnectorTomlConfig>,
+    pub paynearme: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
     pub envoy_payout: Option<ConnectorTomlConfig>,
     pub facilitapay: Option<ConnectorTomlConfig>,
@@ -653,6 +654,7 @@ impl ConnectorConfig {
             Connector::Paybox => Ok(connector_data.paybox),
             Connector::Payload => Ok(connector_data.payload),
             Connector::Payme => Ok(connector_data.payme),
+            Connector::Paynearme => Ok(connector_data.paynearme),
             Connector::Payone => Err("Use get_payout_connector_config".to_string()),
             Connector::Paypal => Ok(connector_data.paypal),
             Connector::Paysafe => Ok(connector_data.paysafe),

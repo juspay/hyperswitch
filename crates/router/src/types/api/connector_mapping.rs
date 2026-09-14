@@ -353,6 +353,9 @@ impl ConnectorData {
                 enums::Connector::Etisalat => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Etisalat::new())))
                 }
+                enums::Connector::Paynearme => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Paynearme::new())))
+                }
                 enums::Connector::Nexixpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Nexixpay::new())))
                 }
