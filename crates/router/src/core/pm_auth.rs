@@ -162,7 +162,7 @@ pub async fn create_link_token(
             client_name: "HyperSwitch".to_string(),
             country_codes: Some(vec![billing_country.ok_or(
                 ApiErrorResponse::MissingRequiredField {
-                    field_name: "billing_country",
+                    field_name: "billing_country".into(),
                 },
             )?]),
             language: payload.language,

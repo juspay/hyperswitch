@@ -234,6 +234,8 @@ counter_metric!(TASKS_ADDED_COUNT, GLOBAL_METER); // Tasks added to process trac
 counter_metric!(TASK_ADDITION_FAILURES_COUNT, GLOBAL_METER); // Failures in task addition to process tracker
 counter_metric!(TASKS_RESET_COUNT, GLOBAL_METER); // Tasks reset in process tracker for requeue flow
 
+counter_metric!(OFFER_ENGINE_LIST_FAILURES, GLOBAL_METER);
+
 // Offer Engine notification (Process Tracker) metrics
 counter_metric!(OFFER_ENGINE_NOTIFY_TASKS_SCHEDULED, GLOBAL_METER);
 counter_metric!(OFFER_ENGINE_NOTIFY_SCHEDULE_FAILURES, GLOBAL_METER);
@@ -266,9 +268,6 @@ histogram_metric_f64!(FETCH_ALTID_TIME, GLOBAL_METER);
 
 // A counter to indicate allowed payment method types mismatch
 counter_metric!(PAYMENT_METHOD_TYPES_MISCONFIGURATION_METRIC, GLOBAL_METER);
-
-// AI chat metric to track number of chat request
-counter_metric!(CHAT_REQUEST_COUNT, GLOBAL_METER);
 
 // Merchant advice code config lookup metrics
 counter_metric!(MERCHANT_ADVICE_CODE_CONFIG_MISS, GLOBAL_METER);

@@ -193,6 +193,7 @@ const CURRENCY_MAP = {
   Przelewy24: "EUR",
   Sofort: "EUR",
   Trustly: "EUR",
+  Truelayer: "GBP",
   BancontactCard: "EUR",
   OpenBankingUk: "GBP", // Great British Pound payment method
   OnlineBankingFpx: "MYR", // Malaysian payment methods

@@ -865,7 +865,7 @@ async fn call_ucs_post_authenticate_proxy<F: Clone>(
         .map(|browser_information| browser_information.parse_value("BrowserInformation"))
         .transpose()
         .change_context(ApiErrorResponse::InvalidDataValue {
-            field_name: "browser_info",
+            field_name: "browser_info".into(),
         })?;
 
     let amount = payment_data.payment_attempt.get_total_amount();
@@ -1318,7 +1318,7 @@ async fn call_ucs_authenticate_proxy(
         .map(|browser_information| browser_information.parse_value("BrowserInformation"))
         .transpose()
         .change_context(ApiErrorResponse::InvalidDataValue {
-            field_name: "browser_info",
+            field_name: "browser_info".into(),
         })?;
 
     let authenticate_request_data = core_types::PaymentsAuthenticateData {
@@ -1336,6 +1336,7 @@ async fn call_ucs_authenticate_proxy(
         sdk_information: sdk_information.clone(),
         device_channel: Some(device_channel.clone()),
         webhook_url: None,
+        force_3ds_challenge: None,
     };
 
     let payment_address = hyperswitch_domain_models::payment_address::PaymentAddress::new(
