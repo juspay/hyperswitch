@@ -118,9 +118,3 @@ aws_region = ""
 # nowhere.
 [email.destinations.smoke]
 to = "alerts@example.com"
-
-[mappers]
-max_entry_bytes = 1048576
-
-[lifecycle]
-max_alerts = 5000

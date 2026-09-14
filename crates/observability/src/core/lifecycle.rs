@@ -6,20 +6,17 @@ use error_stack::{report, ResultExt};
 use time::PrimitiveDateTime;
 
 use crate::{
-    alert_manager::{
-        core::{escalate, unrecognised},
-        types::{
-            lifecycle::{
-                AlertStateEntry, AlertStateWrite, AnnouncementEntry, AnnouncementRequest,
-                AnnouncementSaveResponse, Channel, LifecycleStateResponse,
-                LifecycleStateSaveResponse, LifecycleStateWriteRequest,
-            },
-            ReadStatus, WriteStatus,
-        },
-    },
     errors::{ObservabilityApiResult, ObservabilityError},
     logger,
     state::AppState,
+    types::{
+        lifecycle::{
+            AlertStateEntry, AlertStateWrite, AnnouncementEntry, AnnouncementRequest,
+            AnnouncementSaveResponse, Channel, LifecycleStateResponse, LifecycleStateSaveResponse,
+            LifecycleStateWriteRequest,
+        },
+        ReadStatus, WriteStatus,
+    },
 };
 
 const NAME_MAX_BYTES: usize = 64;
@@ -27,6 +24,8 @@ const NAME_MAX_BYTES: usize = 64;
 const TS_SLACK_MAX_BYTES: usize = 255;
 
 const ALERTS_PER_STATEMENT: usize = 1_000;
+
+const MAX_ALERTS: usize = 5_000;
 
 pub async fn read_state(
     state: AppState,
@@ -36,7 +35,7 @@ pub async fn read_state(
 
     let rows = AlertStateRow::list_by_channel(&connection, channel.as_str())
         .await
-        .map_err(|error| escalate(error, unrecognised))
+        .change_context(ObservabilityError::InternalServerError)
         .attach_printable("Failed to read the lifecycle state")?;
 
     Ok(LifecycleStateResponse {
@@ -55,7 +54,7 @@ pub async fn write_state(
     channel: Channel,
     request: LifecycleStateWriteRequest,
 ) -> ObservabilityApiResult<LifecycleStateSaveResponse> {
-    let limit = state.conf.lifecycle.max_alerts;
+    let limit = MAX_ALERTS;
     if request.alerts.len() > limit {
         logger::warn!(
             alerts = request.alerts.len(),
@@ -163,7 +162,7 @@ pub async fn record_announcement(
     }
     .insert(&connection)
     .await
-    .map_err(|error| escalate(error, unrecognised))
+    .change_context(ObservabilityError::InternalServerError)
     .attach_printable("Failed to record an announcement")?;
 
     Ok(AnnouncementSaveResponse {
@@ -282,7 +281,8 @@ impl WriteFailure {
                     "{} of the {expected} alerts carry an id_intermediate owned by another channel",
                     expected - written
                 )),
-            Self::Storage(error) => escalate(error, unrecognised)
+            Self::Storage(error) => error
+                .change_context(ObservabilityError::InternalServerError)
                 .attach_printable("Failed to write the lifecycle state"),
             Self::Transaction(error) => report!(ObservabilityError::InternalServerError)
                 .attach_printable(format!("The lifecycle write transaction failed: {error}")),

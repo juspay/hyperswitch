@@ -3,8 +3,6 @@ use time::PrimitiveDateTime;
 
 use crate::observability::{raw_json::RawJson, schema::alerts_dicts};
 
-pub const DEFAULT_USERNAME: &str = "reliability_team";
-
 #[derive(
     Clone, Debug, Queryable, Identifiable, Selectable, serde::Serialize, serde::Deserialize,
 )]
@@ -27,16 +25,31 @@ pub struct AlertsDictNew {
     pub id: uuid::Uuid,
     pub name: String,
     pub key_: String,
-    pub product: Option<RawJson>,
-    pub values_: Option<RawJson>,
+    pub product: RawJson,
+    pub values_: RawJson,
     pub ts_created: PrimitiveDateTime,
-    pub is_enabled: Option<bool>,
-    pub username: Option<String>,
-    pub metadata: Option<RawJson>,
+    pub is_enabled: bool,
+    pub username: String,
+    pub metadata: RawJson,
+}
+
+#[derive(Debug)]
+pub enum AlertsDictUpdate {
+    Retire,
 }
 
 #[derive(Clone, Debug, AsChangeset)]
 #[diesel(table_name = alerts_dicts)]
-pub struct AlertsDictRetire {
+pub struct AlertsDictUpdateInternal {
     pub is_enabled: Option<bool>,
+}
+
+impl From<AlertsDictUpdate> for AlertsDictUpdateInternal {
+    fn from(update: AlertsDictUpdate) -> Self {
+        match update {
+            AlertsDictUpdate::Retire => Self {
+                is_enabled: Some(false),
+            },
+        }
+    }
 }

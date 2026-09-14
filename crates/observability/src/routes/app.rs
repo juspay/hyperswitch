@@ -12,10 +12,9 @@ use actix_multipart::form::MultipartFormConfig;
 use actix_web::{web, Scope};
 
 use crate::{
-    alert_manager::routes::{config, lifecycle, mappers, notifications},
     errors::types::{ApiError, ApiErrorResponse},
     logger,
-    routes::{health_check, notify},
+    routes::{config, health_check, lifecycle, mappers, notifications, notify},
     state::AppState,
 };
 
@@ -52,55 +51,59 @@ impl Alerts {
             .service(web::scope("/email").service(
                 web::resource("/notify/{destination}").route(web::post().to(notify::email)),
             ))
-            .service(config_scope())
+            .service(AlertsConfig::server())
             .service(lifecycle_scope())
     }
 }
 
-fn config_scope() -> Scope {
-    web::scope("/config")
-        .service(
-            web::scope("/definitions")
-                .service(
-                    web::resource("")
-                        .route(web::get().to(config::list_definitions))
-                        .route(web::post().to(config::create_definition)),
-                )
-                .service(
-                    web::resource("/{id}")
-                        .route(web::get().to(config::read_definition))
-                        .route(web::post().to(config::update_definition)),
+pub struct AlertsConfig;
+
+impl AlertsConfig {
+    pub fn server() -> Scope {
+        web::scope("/config")
+            .service(
+                web::scope("/definitions")
+                    .service(
+                        web::resource("")
+                            .route(web::get().to(config::list_definitions))
+                            .route(web::post().to(config::create_definition)),
+                    )
+                    .service(
+                        web::resource("/{id}")
+                            .route(web::get().to(config::read_definition))
+                            .route(web::post().to(config::update_definition)),
+                    ),
+            )
+            .service(
+                web::scope("/mappers")
+                    .service(
+                        web::resource("")
+                            .route(web::get().to(mappers::list_mappers))
+                            .route(web::post().to(mappers::upsert_mapper)),
+                    )
+                    .service(
+                        web::resource("/{name}/{key}")
+                            .route(web::get().to(mappers::read_mapper))
+                            .route(web::delete().to(mappers::retire_mapper)),
+                    ),
+            )
+            .service(
+                web::scope("/enablement")
+                    .service(web::resource("").route(web::get().to(config::list_enablements)))
+                    .service(
+                        web::resource("/{name}/{product}")
+                            .route(web::get().to(config::read_enablement))
+                            .route(web::post().to(config::upsert_enablement)),
+                    ),
+            )
+            .service(
+                web::scope("/notifications").service(
+                    web::resource("/read")
+                        .route(web::get().to(notifications::read_watermark))
+                        .route(web::post().to(notifications::mark_read)),
                 ),
-        )
-        .service(
-            web::scope("/mappers")
-                .service(
-                    web::resource("")
-                        .route(web::get().to(mappers::list_mappers))
-                        .route(web::post().to(mappers::upsert_mapper)),
-                )
-                .service(
-                    web::resource("/{name}/{key}")
-                        .route(web::get().to(mappers::read_mapper))
-                        .route(web::delete().to(mappers::retire_mapper)),
-                ),
-        )
-        .service(
-            web::scope("/enablement")
-                .service(web::resource("").route(web::get().to(config::list_enablements)))
-                .service(
-                    web::resource("/{name}/{product}")
-                        .route(web::get().to(config::read_enablement))
-                        .route(web::post().to(config::upsert_enablement)),
-                ),
-        )
-        .service(
-            web::scope("/notifications").service(
-                web::resource("/read")
-                    .route(web::get().to(notifications::read_watermark))
-                    .route(web::post().to(notifications::mark_read)),
-            ),
-        )
+            )
+    }
 }
 
 fn lifecycle_scope() -> Scope {

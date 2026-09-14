@@ -2,15 +2,12 @@ use diesel_models::observability::notification_reads::NotificationRead;
 use error_stack::{report, ResultExt};
 
 use crate::{
-    alert_manager::{
-        core::{escalate, unrecognised},
-        types::{notifications::WatermarkResponse, ReadStatus, UserName},
-    },
     errors::{ObservabilityApiResult, ObservabilityError},
     state::AppState,
+    types::{notifications::WatermarkResponse, ReadStatus, UserName},
 };
 
-const USER_NAME_MAX_BYTES: usize = 255;
+const USER_NAME_MAX_CHARS: usize = 255;
 
 pub async fn read_watermark(
     state: AppState,
@@ -21,7 +18,7 @@ pub async fn read_watermark(
 
     let watermark = NotificationRead::find_by_user_name(&connection, user_name)
         .await
-        .map_err(|error| escalate(error, unrecognised))
+        .change_context(ObservabilityError::InternalServerError)
         .attach_printable("Failed to read a notification watermark")?;
 
     Ok(match watermark {
@@ -49,7 +46,7 @@ pub async fn mark_read(
     }
     .upsert(&connection)
     .await
-    .map_err(|error| escalate(error, unrecognised))
+    .change_context(ObservabilityError::InternalServerError)
     .attach_printable("Failed to save a notification watermark")?;
 
     Ok(WatermarkResponse {
@@ -61,11 +58,11 @@ pub async fn mark_read(
 fn within_width(user: &UserName) -> ObservabilityApiResult<&str> {
     let user_name = user.as_str();
 
-    if user_name.len() > USER_NAME_MAX_BYTES {
+    let chars = user_name.chars().count();
+    if chars > USER_NAME_MAX_CHARS {
         Err(
             report!(ObservabilityError::InvalidRequest).attach_printable(format!(
-                "The user name is {} bytes, over the {USER_NAME_MAX_BYTES} the column holds",
-                user_name.len()
+                "The user name is {chars} characters, over the {USER_NAME_MAX_CHARS} the column holds"
             )),
         )?;
     }

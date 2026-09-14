@@ -1,37 +1,41 @@
 use diesel_models::observability::{
-    alerts_dicts::{AlertsDict, AlertsDictNew, DEFAULT_USERNAME},
+    alerts_dicts::{AlertsDict, AlertsDictNew},
     raw_json::RawJson,
 };
 use error_stack::{report, ResultExt};
+use serde_json::value::RawValue;
 
 use crate::{
-    alert_manager::{
-        core::{escalate, unrecognised},
-        types::{
-            mappers::{
-                MapperEntry, MapperListResponse, MapperReadResponse, MapperRetireResponse,
-                MapperSaveResponse, MapperUpsertRequest,
-            },
-            ReadStatus, UserName, WriteStatus,
-        },
-    },
-    errors::{ObservabilityApiResult, ObservabilityError},
+    errors::{ObservabilityApiResult, ObservabilityError, StorageErrorExt},
     logger,
     state::AppState,
+    types::{
+        mappers::{
+            MapperEntry, MapperListResponse, MapperRetireResponse, MapperSaveResponse,
+            MapperUpsertRequest,
+        },
+        ReadStatus, UserName, WriteStatus,
+    },
 };
 
-const NAME_MAX_BYTES: usize = 64;
+const NAME_MAX_CHARS: usize = 64;
 
-const KEY_MAX_BYTES: usize = 255;
+const KEY_MAX_CHARS: usize = 255;
 
-const USERNAME_MAX_BYTES: usize = 64;
+const USERNAME_MAX_CHARS: usize = 64;
+
+const MAX_ENTRY_BYTES: usize = 1024 * 1024;
+
+const DEFAULT_USERNAME: &str = "reliability_team";
+
+const EMPTY_LIST: &str = "[]";
 
 pub async fn list_mappers(state: AppState) -> ObservabilityApiResult<MapperListResponse> {
     let connection = state.database_connection().await?;
 
     let entries = AlertsDict::list_enabled(&connection)
         .await
-        .map_err(|error| escalate(error, unrecognised))
+        .change_context(ObservabilityError::InternalServerError)
         .attach_printable("Failed to list mapper entries")?;
 
     let entries = entries
@@ -57,20 +61,16 @@ pub async fn read_mapper(
     state: AppState,
     name: &str,
     key: &str,
-) -> ObservabilityApiResult<MapperReadResponse> {
+) -> ObservabilityApiResult<MapperEntry> {
     let connection = state.database_connection().await?;
 
-    let entry = AlertsDict::find_enabled_by_name_and_key(&connection, name, key)
+    AlertsDict::find_enabled_by_name_and_key(&connection, name, key)
         .await
-        .map_err(|error| escalate(error, unrecognised))
-        .attach_printable("Failed to read a mapper entry")?;
-
-    Ok(MapperReadResponse {
-        status: entry
-            .as_ref()
-            .map_or(ReadStatus::Absent, |_| ReadStatus::Found),
-        entry: entry.map(MapperEntry::try_from).transpose()?,
-    })
+        .change_context(ObservabilityError::InternalServerError)
+        .attach_printable("Failed to read a mapper entry")?
+        .map(MapperEntry::try_from)
+        .transpose()?
+        .ok_or_else(|| report!(ObservabilityError::MapperEntryNotFound))
 }
 
 pub async fn upsert_mapper(
@@ -78,21 +78,18 @@ pub async fn upsert_mapper(
     request: MapperUpsertRequest,
     user: UserName,
 ) -> ObservabilityApiResult<MapperSaveResponse> {
-    let name = trimmed_within(&request.name, "name", NAME_MAX_BYTES)?;
-    let key = trimmed_within(&request.key, "key", KEY_MAX_BYTES)?;
+    let name = trimmed_within(&request.name, "name", NAME_MAX_CHARS)?;
+    let key = trimmed_within(&request.key, "key", KEY_MAX_CHARS)?;
     let username = user.to_option();
 
     if let Some(username) = username.as_deref() {
-        trimmed_within(username, "user name", USERNAME_MAX_BYTES)?;
+        trimmed_within(username, "user name", USERNAME_MAX_CHARS)?;
     }
 
     let product = request.product.map(RawJson::from);
     let values = request.values.map(RawJson::from);
     let metadata = request.metadata.map(RawJson::from);
-    within_entry_cap(
-        state.conf.mappers.max_entry_bytes,
-        [product.as_ref(), values.as_ref(), metadata.as_ref()],
-    )?;
+    within_entry_cap([product.as_ref(), values.as_ref(), metadata.as_ref()])?;
 
     let connection = state.database_connection().await?;
 
@@ -100,16 +97,16 @@ pub async fn upsert_mapper(
         id: uuid::Uuid::now_v7(),
         name,
         key_: key,
-        product,
-        values_: values,
+        product: or_empty_list(product)?,
+        values_: or_empty_list(values)?,
         ts_created: common_utils::date_time::now(),
-        is_enabled: Some(true),
-        username: username.or_else(|| Some(DEFAULT_USERNAME.to_owned())),
-        metadata,
+        is_enabled: true,
+        username: username.unwrap_or_else(|| DEFAULT_USERNAME.to_owned()),
+        metadata: or_empty_list(metadata)?,
     }
     .upsert(&connection)
     .await
-    .map_err(|error| escalate(error, unrecognised))
+    .change_context(ObservabilityError::InternalServerError)
     .attach_printable("Failed to save a mapper entry")?;
 
     Ok(MapperSaveResponse {
@@ -125,20 +122,20 @@ pub async fn retire_mapper(
 ) -> ObservabilityApiResult<MapperRetireResponse> {
     let connection = state.database_connection().await?;
 
-    let retired = AlertsDict::retire(&connection, name, key)
+    AlertsDict::retire(&connection, name, key)
         .await
-        .map_err(|error| escalate(error, unrecognised))
+        .to_not_found_response(ObservabilityError::MapperEntryNotFound)
         .attach_printable("Failed to retire a mapper entry")?;
 
     Ok(MapperRetireResponse {
-        status: retired.map_or(WriteStatus::Absent, |_| WriteStatus::Retired),
+        status: WriteStatus::Retired,
     })
 }
 
 fn trimmed_within(
     value: &str,
     field: &'static str,
-    max_bytes: usize,
+    max_chars: usize,
 ) -> ObservabilityApiResult<String> {
     let value = value.trim();
 
@@ -147,11 +144,11 @@ fn trimmed_within(
             .attach_printable(format!("The mapper {field} is empty")))?;
     }
 
-    if value.len() > max_bytes {
+    let chars = value.chars().count();
+    if chars > max_chars {
         Err(
             report!(ObservabilityError::InvalidRequest).attach_printable(format!(
-                "The mapper {field} is {} bytes, over the {max_bytes} the column holds",
-                value.len()
+                "The mapper {field} is {chars} characters, over the {max_chars} the column holds"
             )),
         )?;
     }
@@ -159,21 +156,30 @@ fn trimmed_within(
     Ok(value.to_owned())
 }
 
-fn within_entry_cap(limit: usize, columns: [Option<&RawJson>; 3]) -> ObservabilityApiResult<()> {
+fn within_entry_cap(columns: [Option<&RawJson>; 3]) -> ObservabilityApiResult<()> {
     let bytes = columns
         .into_iter()
         .flatten()
         .map(RawJson::len)
         .sum::<usize>();
 
-    if bytes > limit {
-        logger::warn!(
-            bytes = bytes,
-            limit = limit,
-            "Mapper entry rejected: over the configured size cap"
-        );
-        Err(report!(ObservabilityError::EntryTooLarge { bytes, limit }))?;
+    if bytes > MAX_ENTRY_BYTES {
+        Err(report!(ObservabilityError::EntryTooLarge {
+            bytes,
+            limit: MAX_ENTRY_BYTES,
+        }))?;
     }
 
     Ok(())
+}
+
+fn or_empty_list(column: Option<RawJson>) -> ObservabilityApiResult<RawJson> {
+    column.map_or_else(
+        || {
+            RawValue::from_string(EMPTY_LIST.to_owned())
+                .map(RawJson::from)
+                .change_context(ObservabilityError::InternalServerError)
+        },
+        Ok,
+    )
 }

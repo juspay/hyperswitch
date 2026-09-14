@@ -13,7 +13,6 @@
 //! ([`routes::Alerts::server`], [`routes::Health::server`]) precisely so both paths will share one
 //! definition rather than drifting.
 
-pub mod alert_manager;
 pub mod auth;
 pub mod core;
 pub mod domain;

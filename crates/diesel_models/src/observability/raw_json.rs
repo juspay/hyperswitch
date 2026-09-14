@@ -15,10 +15,6 @@ use serde_json::value::RawValue;
 pub struct RawJson(Box<RawValue>);
 
 impl RawJson {
-    pub fn get(&self) -> &str {
-        self.0.get()
-    }
-
     pub fn len(&self) -> usize {
         self.0.get().len()
     }
@@ -40,8 +36,7 @@ impl From<Box<RawValue>> for RawJson {
 
 impl FromSql<Json, Pg> for RawJson {
     fn from_sql(value: PgValue<'_>) -> deserialize::Result<Self> {
-        let text = std::str::from_utf8(value.as_bytes())?;
-        Ok(Self(RawValue::from_string(text.to_owned())?))
+        Ok(Self(serde_json::from_slice(value.as_bytes())?))
     }
 }
 

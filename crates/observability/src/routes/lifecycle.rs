@@ -1,12 +1,9 @@
 use actix_web::{web, HttpRequest, HttpResponse};
 
 use crate::{
-    alert_manager::{
-        core,
-        types::lifecycle::{AnnouncementRequest, Channel, LifecycleStateWriteRequest},
-    },
-    auth, services,
+    auth, core, services,
     state::AppState,
+    types::lifecycle::{AnnouncementRequest, Channel, LifecycleStateWriteRequest},
 };
 
 pub async fn read_state(

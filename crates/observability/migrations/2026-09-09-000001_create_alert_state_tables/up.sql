@@ -36,9 +36,11 @@ CREATE TABLE IF NOT EXISTS alerts_info (
     call_period      INTEGER,
     author           VARCHAR(64),
     approver         VARCHAR(64),
-    last_updated_at  TIMESTAMP,
-    CONSTRAINT alerts_info_conflict UNIQUE (name, product, dimensions, is_enabled, author)
+    last_updated_at  TIMESTAMP
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_alerts_info_name_product_unique
+    ON alerts_info USING btree (name, product);
 
 -- Announcements actually sent, one row per alert per delivery. `sent` and
 -- `ts_slack` are the record that an alert reached a channel; without them a
@@ -90,6 +92,8 @@ CREATE TABLE IF NOT EXISTS alerts_intermediate (
 
 CREATE INDEX IF NOT EXISTS idx_ts
     ON alerts_intermediate USING btree (channel, ts_alert, latest_ts_alert);
+CREATE INDEX IF NOT EXISTS idx_alerts_intermediate_id
+    ON alerts_intermediate USING btree (id);
 
 -- The mappers screen. product and values_ are `json` rather than `jsonb`: the
 -- dashboard sends them already serialised and reads them back expecting the
@@ -149,6 +153,8 @@ CREATE INDEX IF NOT EXISTS idx_alerts_external
     ON merchants_alert_external (channel, merchant_id);
 CREATE INDEX IF NOT EXISTS idx_ts_alerts_external
     ON merchants_alert_external USING btree (ts_alert);
+CREATE INDEX IF NOT EXISTS idx_alerts_external_id
+    ON merchants_alert_external USING btree (id);
 
 -- One row per dimension of an instance, so a single alert can be broken down by
 -- connector, method or anything else without widening the instance table.
@@ -186,6 +192,8 @@ CREATE INDEX IF NOT EXISTS idx_dimension_alerts_external
     ON merchants_alert_external_dimension (dimension_value, dimension_key);
 CREATE INDEX IF NOT EXISTS idx_dimension_ts_alerts_external
     ON merchants_alert_external_dimension USING btree (ts_alert);
+CREATE INDEX IF NOT EXISTS idx_dimension_alerts_external_id
+    ON merchants_alert_external_dimension USING btree (id);
 
 -- Which alerts are on, per name and product.
 --
@@ -201,9 +209,6 @@ CREATE TABLE IF NOT EXISTS merchants_alert_external_config (
     last_updated_at TIMESTAMP,
     PRIMARY KEY (name, product)
 );
-
-CREATE INDEX IF NOT EXISTS idx_merchants_alert_external_config
-    ON merchants_alert_external_config (name, product);
 
 -- Notification bell read watermarks. Keyed by user, though with authentication
 -- disabled every read arrives under the same empty name and there is one row.
