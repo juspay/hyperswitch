@@ -13,9 +13,6 @@ host = "127.0.0.1"
 port = 8085
 workers = 1
 
-# The observability database. Local development points at a database created by
-# `just migrate_observability`; deployed environments override these from the environment, and the
-# password is resolved through `secrets_management`.
 [database]
 host = "localhost"
 port = 5432
@@ -121,36 +118,3 @@ aws_region = ""
 # nowhere.
 [email.destinations.smoke]
 to = "alerts@example.com"
-
-# The mappers behind the portal's Mappers screen: named key/value collections
-# scoped by product, holding the dropdown options and dimension labels the pages read.
-#
-# `max_entry_bytes` caps the JSON one entry may carry across `product`, `values_` and `metadata`
-# together. The dashboard decides how large an entry is, and one oversized save becomes a row the
-# screen cannot read back — a broken page long after the save that caused it. The cap makes that a
-# rejected request instead.
-[mappers]
-max_entry_bytes = 1048576
-
-# Alert lifecycle state, the alert manager's own record of what is firing and what was announced.
-#
-# `max_alerts` caps the alerts one whole-state write may carry. A whole-state write replaces
-# everything, so the same number bounds the stored state and the read that returns all of it. Over
-# the cap the whole write is refused rather than truncated: dropping alerts the caller believes are
-# recorded would re-announce them on the next run, which is the failure the cap exists to prevent.
-[lifecycle]
-max_alerts = 5000
-
-# Per-merchant alert instances and the per-dimension breakdown behind them.
-#
-# `max_merchants` and `max_dimensions` cap the rows one announcement may hold. Over the cap the
-# write is cut down to it and stored rather than refused: a broad outage is when these rows matter
-# most, and losing the whole write then would lose the record of who was affected. What survives is
-# the most impacted rows, and the cut is recorded on every row it kept as well as in the response,
-# so a shortened breakdown never reads as a narrower outage.
-#
-# Neither may exceed 2000. These tables are 25 and 26 columns wide and Postgres accepts 65535 bind
-# parameters in one statement, so a batch insert stops working above roughly 2500 rows.
-[instances]
-max_merchants = 500
-max_dimensions = 500

@@ -81,12 +81,12 @@ reach the logs from the client, which emits `chars` per request.
 
 ## The API
 
-Four surfaces under one scope. **Delivery** sends a message; **configuration** reads and writes
-the rows somebody edits — what an alert is, whether it runs, the mappers the dashboard reads, and
-how far a user has read their notifications; **lifecycle** is the alert manager's own working
-state, which nobody edits and which it rewrites every run; **instances** are the record of who
-each announcement was about. A route under `/alerts/config`, `/alerts/lifecycle`,
-`/alerts/instances` or `/alerts/dimensions` touches the database and nothing else does.
+Four surfaces under one scope. **Delivery** sends a message; **configuration** reads and writes the
+rows this plane owns — what an alert is, whether it runs, the mappers the dashboard reads, and how
+far a user has read their notifications; **lifecycle** is the alert manager's own working state,
+which nobody edits and which it rewrites every run; **instances** are the record of who each
+announcement was about. Routes under `/alerts/config`, `/alerts/lifecycle`, `/alerts/instances` and
+`/alerts/dimensions`, and `/health/ready`, touch the database; delivery routes do not.
 
 The whole surface, guarded and not:
 
@@ -110,12 +110,15 @@ The whole surface, guarded and not:
 | `POST` | `/alerts/config/notifications/read` | `X-Internal-Api-Key` |
 | `GET` | `/alerts/lifecycle/{channel}/state` | `X-Internal-Api-Key` |
 | `POST` | `/alerts/lifecycle/{channel}/state` | `X-Internal-Api-Key` |
+| `GET` | `/alerts/lifecycle/{channel}/announcements` | `X-Internal-Api-Key` |
 | `POST` | `/alerts/lifecycle/{channel}/announcements` | `X-Internal-Api-Key` |
+| `POST` | `/alerts/lifecycle/{channel}/announcements/{id}` | `X-Internal-Api-Key` |
 | `GET` | `/alerts/instances/{channel}/{announcement_id}` | `X-Internal-Api-Key` |
 | `POST` | `/alerts/instances/{channel}/{announcement_id}` | `X-Internal-Api-Key` |
 | `GET` | `/alerts/dimensions/{announcement_id}` | `X-Internal-Api-Key` |
 | `POST` | `/alerts/dimensions/{announcement_id}` | `X-Internal-Api-Key` |
 | `GET` | `/health` | none — liveness |
+| `GET` | `/health/ready` | none — readiness |
 
 The scope is `/alerts` rather than `/observability`: it names the resource being posted, not the
 service, so it stays correct as the crate widens past delivery.
@@ -229,8 +232,8 @@ caller cannot read a `200` and assume there was something there.
 
 **A definition is one row, not four resources.** Suppression, snooze and thresholds are `json`
 columns of `alerts_info` rather than side tables, so they are fields of this resource. All three are
-typed — a list of entries with named fields — so a caller cannot store a shape the alert manager
-will fail to read. The cost is that the bytes are not preserved: a value read back has been through
+typed — a list of entries with named fields — so every value written through this API has a shape
+this plane reads back. The cost is that the bytes are not preserved: a value read back has been through
 `serde_json` twice, so an entry written without its optional fields comes back with their defaults
 filled in. Storing the columns as opaque strings would preserve them exactly, and was rejected: the
 failure it avoids is cosmetic, and the one it introduces — a dashboard writing a key nothing reads,
@@ -239,7 +242,8 @@ free-form, because nothing in this plane interprets them.
 
 **An update mentions only what it changes.** Three portal screens edit different parts of one row,
 so a whole-row `PUT` from any of them would discard what the other two just saved. An absent field
-is left alone, an explicit `null` clears it, and a value sets it. Optimistic concurrency was the
+is left alone, an explicit `null` clears it, and a value sets it; `is_enabled` cannot be cleared, so a
+`null` for it leaves it unchanged. Optimistic concurrency was the
 alternative and was rejected: two screens editing *different* columns are not in conflict, and
 making them retry against each other is worse than the lost update it prevents.
 
@@ -254,8 +258,8 @@ POST /alerts/config/definitions/0189…
 → 200 the whole definition, with blacklist and snooze untouched
 ```
 
-`is_enabled` and `author` are **required** on create. The column defaults to false, so a definition
-created without saying is off — which reads as "the alert is broken" rather than "nobody enabled
+`is_enabled` and `author` are **required** on create. The column has no default, so a definition
+created without saying would be off — which reads as "the alert is broken" rather than "nobody enabled
 it"; and the internal API key names the calling service, not a person, so if the body does not say
 who is asking then nothing does. `name` and `product` cannot be changed afterwards: they are the
 alert's identity, referenced by the enablement table and matched by name in the alert manager, so a
@@ -268,8 +272,7 @@ one thing that cannot have an enablement row — it is not a detector, so there 
 switch on it to turn on or off.
 
 **A definition has no delete route.** `is_enabled` is how an alert is turned off; unlike a delete it
-is reversible, and deleting an `alerts_info` row cascades to every `alerts_main` row referencing it,
-destroying the record of what was announced in order to stop announcing it.
+is reversible.
 
 #### Two switches, and which wins
 
@@ -283,8 +286,8 @@ effective = definition.is_enabled AND coalesce(enablement.is_enabled, true)
 The definition decides whether a detector runs at all, so with it off there is no result for an
 enablement row to publish. Letting the narrower table win would mean an operator disabling a
 definition could be silently overridden from a screen they were not looking at, which is what a
-master switch exists to prevent. A missing enablement row narrows nothing, matching the column's
-`DEFAULT TRUE`, so adding a definition is enough to make it run. Most-recently-updated-wins was the
+master switch exists to prevent. A missing enablement row narrows nothing, so adding a definition
+is enough to make it run. Most-recently-updated-wins was the
 alternative and was rejected: it makes the answer depend on clock skew between two writers and
 offers no way to say "off, and stay off".
 
@@ -313,17 +316,19 @@ POST /alerts/config/mappers
 X-Internal-Api-Key: <key>
 X-User-Name: ops@example.com
 
-{ "name": "dashboard", "key_": "slack_users", "values_": "[]", "metadata": {"category": "dashboard"} }
-→ 200 { "status": "saved", "entry": { "name": "dashboard", "key_": "slack_users", … } }
+{ "name": "dashboard", "key": "slack_users", "values": "[]", "metadata": {"category": "dashboard"} }
+→ 200 { "status": "saved", "entry": { "name": "dashboard", "key": "slack_users", … } }
 
-GET    /alerts/config/mappers                    → 200 { "status": "found",  "entries": [ … ] }
-GET    /alerts/config/mappers/dashboard/unknown  → 200 { "status": "absent", "entry": null }
-DELETE /alerts/config/mappers/dashboard/unknown  → 200 { "status": "absent" }
+GET    /alerts/config/mappers                        → 200 { "status": "found", "entries": [ … ] }
+GET    /alerts/config/mappers/dashboard/slack_users  → 200 { "name": "dashboard", "key": "slack_users", … }
+GET    /alerts/config/mappers/dashboard/unknown      → 404 HE_02
+DELETE /alerts/config/mappers/dashboard/slack_users  → 200 { "status": "retired" }
+DELETE /alerts/config/mappers/dashboard/unknown      → 404 HE_02
 ```
 
-**`alerts_dicts` keeps history.** A delete retires the live row rather than removing it, and the
-table's unique index is *partial* — one enabled row per `(name, key_)`, superseded rows kept. A save
-is therefore a single `INSERT … ON CONFLICT (name, key_) WHERE is_enabled IS TRUE DO UPDATE`, which
+**A delete retires the live row rather than removing it.** The table's unique index is *partial* —
+one enabled row per `(name, key_)` — so a save updates the live row in place, and a retired row stays
+behind while a later save of the same key writes a new one. A save is therefore a single `INSERT … ON CONFLICT (name, key_) WHERE is_enabled IS TRUE DO UPDATE`, which
 names the index's own predicate so Postgres can infer it. Both halves of that matter: an upsert
 assuming a plain unique constraint fails outright, and one matching on `(name, key_)` without the
 predicate finds a retired row and brings it back with its old value.
@@ -336,7 +341,7 @@ did not save. A definition takes the opposite trade for the opposite reason: its
 typed because the alert manager reads them, and nothing reads a mapper entry but the screen that
 wrote it.
 
-An entry's JSON is capped by `mappers.max_entry_bytes` (1 MiB by default). The dashboard decides
+An entry's JSON is capped at 1 MiB. The dashboard decides
 how large an entry is, and one oversized save becomes a row nothing can read back — a broken page
 long after the save that caused it, rather than a rejected request naming the entry.
 
@@ -367,7 +372,7 @@ looking at it.
 
 That is the honest shape of the deployment. Local accounts are disabled in sandbox and production
 alike (`localUsers: false`), so every request arrives with no name, the watermark table holds one
-shared row, and mapper saves are attributed to the `username` column's default. Keeping the name
+shared row, and mapper saves are attributed to `reliability_team`. Keeping the name
 on the request anyway is what makes that a data fact rather than a schema one: the day the portal
 authenticates, the alert manager forwards the name and rows appear per person with no route and no
 migration to change.
@@ -379,40 +384,43 @@ is one, which a path would write into every access log. An absent header is the 
 that is not UTF-8 is a `400`, because falling back would file one person's watermark under the
 shared row.
 
-#### Nothing stored is an answer, not a `404`
+#### An empty list and an unset watermark are answers, not a `404`
 
-A mapper read or a watermark read that finds nothing is `200` with `status: "absent"`. Both
-screens have a defined behaviour for "nothing saved yet" — offer the built-in options, treat
-everything as unread — and making that an HTTP error would mean the caller has to treat an error
-response as normal, which is the habit that hides a real one.
+A mapper list with no entries is `200` with `status: "absent"`, and a watermark that was never set is
+`200` with `status: "absent"`. Both screens have a defined behaviour for "nothing saved yet" — offer
+the built-in options, treat everything as unread — and making that an HTTP error would mean the
+caller has to treat an error response as normal, which is the habit that hides a real one.
 
 `404` keeps its meaning: a path naming something this service does not have. An unconfigured
-destination, an unknown definition id and an unknown enablement key are all `404`, and none of them
-is a state a screen expects — a caller that sent an id got it from a list this service returned.
+destination, an unknown definition id, an unknown enablement key and a mapper entry that does not
+exist are all `404`.
 
 #### An empty answer is never an outage
 
 A store that answered nothing and a store that could not be asked must not look the same: the alert
 manager's own outage rule reads "no alerts" as "nothing is wrong", so collapsing the two would
 report all-clear during exactly the incident this plane exists to notice. A list with no rows is a
-`200` with a count of zero; a list that could not be read is a `503`.
+`200` with a count of zero; a list that could not be read is a `500`, or a `503` when no database
+connection could be taken at all.
 
 The configuration errors, added to the table above:
 
 | | Status | Code |
 |---|---|---|
-| Definition already exists for this name and product | 400 | `IR_05` |
-| Name and product do not identify an alert (or name the reserved `all` row) | 400 | `IR_07` |
-| Mapper entry over `mappers.max_entry_bytes` | 400 | `IR_08` |
-| Unknown definition id | 404 | `IR_03` |
-| Unknown enablement key | 404 | `IR_06` |
-| Observability database unreachable | 503 | `HE_01` |
+| Definition already exists for this name and product | 400 | `HE_01` |
+| Name and product do not identify an alert (or name the reserved `all` row) | 400 | `HE_03` |
+| Mapper entry larger than this service stores | 400 | `HE_03` |
+| Unknown definition id | 404 | `HE_02` |
+| Unknown enablement key | 404 | `HE_02` |
+| A query against the observability database failed | 500 | `HE_00` |
+| Observability database unreachable | 503 | `HE_00` |
 
-`503` rather than `500`, for the reason `/health/ready` uses it: the service is fine, and the
-condition is expected to clear without anyone touching it. The failing host, database and role
+`503` only when no connection can be taken, for the reason `/health/ready` uses it: the service is
+fine, and the condition is expected to clear without anyone touching it. A query that fails once
+connected is a `500`. The failing host, database and role
 reach the log and never the response.
 
-An empty `name` or `key_`, one wider than its column, and an unreadable `X-User-Name` are `IR_04`
+An empty `name` or `key`, one wider than its column, and an unreadable `X-User-Name` are `IR_04`
 alongside a body that did not parse. The column widths are checked here rather than left to
 Postgres, which rejects the same values as an opaque failure with a `500` attached.
 
@@ -423,9 +431,11 @@ firing now**; `alerts_main` records **what was actually said**, one row per anno
 `sent` flag and the thread it opened. Collapsing them is why the service this replaces cannot say
 whether an alert was delivered.
 
-`{channel}` is `slack` or `xyne`. The tables come once per delivery channel — `alerts_main` and
-`alerts_main_xyne`, and their `alerts_intermediate` twins — so the channel is a path segment. A
-segment that is neither is a `404` rather than a fallback to one of them.
+`{channel}` is `slack` or `xyne`. Both channels share `alerts_main` and `alerts_intermediate`, each
+row carrying its `channel`, and every read, replace and lock is scoped to the channel in the path.
+A segment that is neither is a `404` with no error body, the same answer as a path this service
+does not serve, rather than a fallback to one of them or an empty store. A state write whose
+`id_intermediate` belongs to the other channel is a `400` and changes nothing.
 
 **Two write shapes, deliberately not alike.** A state write is a replacement: what it does not
 carry is removed. An announcement write is an append: it adds a row and takes nothing away. There
@@ -433,15 +443,32 @@ is no `DELETE` on either, and a state write never touches `alerts_main` — a st
 announcement `ON DELETE CASCADE`, so a replace that reached the announcement table would delete
 state rows pointing at it, including ones the same request is writing.
 
+**The dashboard's alert list is the announcement log.** `GET .../announcements?start=&end=` lists the
+announcements whose `ts_alert` falls in the window, newest first, as r-apps' `getAlerts` reads
+`alerts_main`. With no bounds the window is the last 7 days; a window that ends before it starts or
+spans more than 30 days is refused, matching r-apps' `DEFAULT_DAYS` and `DAYS_LIMIT`.
+`POST .../announcements/{id}` with `{"metadata": {...}}` is r-apps' `updateAlert`: it replaces the
+announcement's `metadata` (resolution, comments and the rest) and merges the same keys, except
+`is_visible_to_merchant`, into the state rows that reference it, in one transaction. It does not
+touch `last_updated_at` on those state rows, so an edit from the dashboard never turns the alert
+manager's next state write into a `409`.
+
 **Rows are addressed by `id_intermediate`, and a caller echoes back the ids it read.** A row whose
 id is not echoed back is removed and, if it is still firing, written again as a new row — which
 loses the episode's start and its thread. An alert the caller has just detected has no id to send,
-and the handler mints one; the response and the next read carry it.
+and the handler mints one. The response's `id_intermediates` lists the id of every row written, in
+request order, so a second write in the same run can echo them back.
 
-**Every stored timestamp is this service's clock.** The columns carry no `DEFAULT`, so somebody has
-to choose, and durations here are computed by subtracting these timestamps from each other — a
-caller minutes out of step would report an episode as older than it is and then write that back.
-The one timestamp a caller sends is `expected_last_updated_at`, which is not stored.
+**Every write stamp is this service's clock.** `last_updated_at`, and an announcement's `ts_alert`,
+are set by the handler: the columns carry no `DEFAULT`, so somebody has to choose, and a caller
+minutes out of step would make an episode look older than it is. The episode times a caller sends —
+`ts_alert`, `latest_ts_alert`, `recovered_ts` — are stored as sent, and `expected_last_updated_at`
+is compared, never stored.
+
+A field the caller leaves out is stored as r-apps stores it rather than as `NULL`: `dimensions` as
+`[]`, `rca_metadata` as `{}`, `max_duration` and `duration` as `0`, `group_id` and `priority` as
+`''`, `sent` and `critical` as false, and a state row's `ts_alert` and `latest_ts_alert` as the time
+of the write.
 
 #### Two overlapping runs
 
@@ -449,7 +476,12 @@ The cron fires every fifteen minutes, so a slow run means two whole-state writes
 carries `expected_last_updated_at` — the value the read handed out — and is applied only if the
 stored state still matches it; a mismatch is `409` and nothing is written. Absent or `null` asserts
 that the state was empty at read time, so a forgotten precondition fails closed rather than
-overwriting whatever is there.
+overwriting whatever is there. A write that stores no alerts answers `last_updated_at: null`, and
+that is what the next write sends.
+
+Timestamps cross the wire in milliseconds, so the stored value is compared in milliseconds too. A
+row stamped with finer precision by anything else would otherwise never match what a read handed
+out, and every write would be refused.
 
 The precondition alone is not enough when the two writes genuinely overlap: both would read the
 same value before either wrote. Each write takes a Postgres advisory lock on its channel first, so
@@ -461,9 +493,9 @@ stale one.
 
 #### The size of a write
 
-`lifecycle.max_alerts` (5000 by default) caps the alerts one whole-state write may carry. Because a
-write replaces everything, the same number bounds the stored state and the read that returns all of
-it.
+One whole-state write carries at most 5,000 alerts. Because a write replaces everything, the same
+number bounds the stored state and the read that returns all of it. The lifecycle routes accept a
+body of up to 16 MiB, rather than the 2 MiB every other route keeps, so a write at the cap fits.
 
 **Over the cap the whole write is refused and nothing is applied.** Truncating it would drop alerts
 the caller believes are recorded and re-announce them on the next run, which is the failure the cap
@@ -473,11 +505,12 @@ The lifecycle errors, added to the tables above:
 
 | | Status | Code |
 |---|---|---|
-| Whole-state write over `lifecycle.max_alerts` | 400 | `IR_10` |
-| A state row references an announcement that does not exist | 400 | `IR_12` |
-| Unknown channel | 404 | `IR_09` |
-| The state changed after it was read | 409 | `IR_11` |
-| Lifecycle state unreadable | 503 | `HE_01` |
+| Whole-state write over 5,000 alerts | 400 | `HE_03` |
+| A state row's `id_intermediate` belongs to the other channel | 400 | `HE_03` |
+| A state row references an announcement this channel does not have | 404 | `HE_02` |
+| The state changed after it was read | 409 | `IR_16` |
+| Announcement window ends before it starts or spans more than 30 days | 400 | `HE_03` |
+| Unknown announcement id on this channel | 404 | `HE_02` |
 
 A value wider than its column — `name`, `product`, `group_id` and `priority` are `VARCHAR(64)`,
 `ts_slack` is `VARCHAR(255)` — and the same `id_intermediate` sent twice in one write are `IR_04`,
@@ -610,24 +643,21 @@ unverified sender all arrive as one variant — so email only ever reports `deli
 ## Layout
 
 ```
-routes/          the route tree, and the notifier's handlers
-core/            what one notify request does: resolve a destination and deliver
+routes/          the route tree, and one module of handlers per area: notify and config
+core/            what one request does, per area: deliver a message, or read and write configuration
 domain/          what delivering an alert is: the notifier traits and the types they exchange
-alert_manager/   the alert manager's own state, with its own core/, routes/ and types/
+types/           the wire contract, per area
 ```
 
-The two concerns are separated by that last directory rather than by a filename. Everything outside
-`alert_manager/` delivers a message and keeps nothing; everything inside it reads and writes a
-configuration row and sends nothing. They share the HTTP server and the database pool, and nothing
-else. The one deliberate exception is `routes/app.rs`, which holds *every* route this service
+The two concerns are separated by module rather than by directory. `notify` delivers a message and
+keeps nothing; `config` reads and writes a configuration row and sends nothing. They share the HTTP
+server, the database pool, authentication, `server_wrap` and the error types. The one deliberate exception is `routes/app.rs`, which holds *every* route this service
 serves — both concerns' — so the tree and its guards are one file rather than a search.
 
 Rows and their queries are not here at all: `alerts_info`, `merchants_alert_external_config`,
 `alerts_dicts`, `notification_reads`, `alerts_main` and `alerts_intermediate` are modelled in
 `diesel_models::observability`, alongside every other table this database owns, so the alert
-manager and this service read one definition of them rather than two. The two lifecycle tables come
-once per delivery channel, so their models are generated per table and hand back a
-channel-agnostic row — the handlers take the channel as an argument and are written once.
+manager and this service read one definition of them rather than two.
 
 `alert_manager` has no `domain/`: a row is a row, and its types are `diesel_models::observability`
 on one side and `alert_manager/types/` on the other. A trait between them would abstract over one

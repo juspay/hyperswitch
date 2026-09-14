@@ -1,15 +1,12 @@
 use actix_web::{web, HttpRequest, HttpResponse};
 
 use crate::{
-    alert_manager::{
-        core,
-        types::{
-            instances::{DimensionWriteRequest, InstanceWriteRequest},
-            lifecycle::Channel,
-        },
-    },
-    auth, services,
+    auth, core, services,
     state::AppState,
+    types::{
+        instances::{DimensionWriteRequest, InstanceWriteRequest},
+        lifecycle::Channel,
+    },
 };
 
 pub async fn read_instances(

@@ -1,23 +1,20 @@
-use diesel_models::{
-    errors::DatabaseError,
-    observability::{
-        alerts_info::AlertsInfo, merchants_alert_external_config::MerchantsAlertExternalConfig,
-    },
+use diesel_models::observability::{
+    alerts_info::AlertsInfo, merchants_alert_external_config::MerchantsAlertExternalConfig,
 };
-use error_stack::report;
+use error_stack::{report, ResultExt};
 
 use crate::{
-    alert_manager::{
-        core::{escalate, unrecognised},
-        types::config::{
-            AlertDefinitionCreateRequest, AlertDefinitionListResponse, AlertDefinitionResponse,
-            AlertDefinitionUpdateRequest, AlertEnablementListResponse, AlertEnablementResponse,
-            AlertEnablementUpsertRequest,
-        },
-    },
-    errors::{ObservabilityApiResult, ObservabilityError},
+    errors::{ObservabilityApiResult, ObservabilityError, StorageErrorExt},
+    logger,
     state::AppState,
+    types::config::{
+        AlertDefinitionCreateRequest, AlertDefinitionListResponse, AlertDefinitionResponse,
+        AlertDefinitionUpdateRequest, AlertEnablementListResponse, AlertEnablementResponse,
+        AlertEnablementUpsertRequest,
+    },
 };
+
+const ALL_DEFINITIONS: &str = "all";
 
 pub async fn create_definition(
     state: AppState,
@@ -31,12 +28,7 @@ pub async fn create_definition(
         .into_insertable(common_utils::date_time::now())
         .insert(&connection)
         .await
-        .map_err(|error| {
-            escalate(error, |context| {
-                matches!(context, DatabaseError::UniqueViolation)
-                    .then_some(ObservabilityError::DuplicateDefinition { name, product })
-            })
-        })
+        .to_duplicate_response(ObservabilityError::DuplicateDefinition { name, product })
         .and_then(AlertDefinitionResponse::try_from)
 }
 
@@ -48,7 +40,7 @@ pub async fn read_definition(
 
     AlertsInfo::find_by_id(&connection, id)
         .await
-        .map_err(|error| escalate(error, definition_not_found(id)))
+        .to_not_found_response(ObservabilityError::DefinitionNotFound { id: id.to_string() })
         .and_then(AlertDefinitionResponse::try_from)
 }
 
@@ -59,8 +51,19 @@ pub async fn list_definitions(
 
     AlertsInfo::list(&connection)
         .await
-        .map_err(|error| escalate(error, unrecognised))
-        .and_then(AlertDefinitionListResponse::build)
+        .change_context(ObservabilityError::InternalServerError)
+        .map(|definitions| {
+            definitions
+                .into_iter()
+                .filter_map(|definition| {
+                    AlertDefinitionResponse::try_from(definition)
+                        .inspect_err(|error| {
+                            logger::error!(?error, "Skipping an unusable alert definition")
+                        })
+                        .ok()
+                })
+                .collect()
+        })
 }
 
 pub async fn update_definition(
@@ -76,17 +79,8 @@ pub async fn update_definition(
         request.into_changeset(common_utils::date_time::now()),
     )
     .await
-    .map_err(|error| escalate(error, definition_not_found(id)))
+    .to_not_found_response(ObservabilityError::DefinitionNotFound { id: id.to_string() })
     .and_then(AlertDefinitionResponse::try_from)
-}
-
-fn definition_not_found(
-    id: uuid::Uuid,
-) -> impl FnOnce(DatabaseError) -> Option<ObservabilityError> {
-    move |context| {
-        matches!(context, DatabaseError::NotFound)
-            .then(|| ObservabilityError::DefinitionNotFound { id: id.to_string() })
-    }
 }
 
 pub async fn upsert_enablement(
@@ -99,7 +93,9 @@ pub async fn upsert_enablement(
 
     let definition = find_definition_for(&connection, &name, &product).await?;
     let definition_is_enabled = match definition {
-        Some(definition) if !definition.is_all_definitions() => definition.is_enabled(),
+        Some(definition) if definition.name.as_deref() != Some(ALL_DEFINITIONS) => {
+            definition.is_enabled.unwrap_or(false)
+        }
         _ => Err(report!(ObservabilityError::NotAnAlert {
             name: name.clone(),
             product: product.clone(),
@@ -110,7 +106,7 @@ pub async fn upsert_enablement(
         .into_upsertable(name, product, common_utils::date_time::now())
         .upsert(&connection)
         .await
-        .map_err(|error| escalate(error, unrecognised))
+        .change_context(ObservabilityError::InternalServerError)
         .map(|row| AlertEnablementResponse::new(row, Some(definition_is_enabled)))
 }
 
@@ -121,23 +117,16 @@ pub async fn read_enablement(
 ) -> ObservabilityApiResult<AlertEnablementResponse> {
     let connection = state.database_connection().await?;
 
-    let row = MerchantsAlertExternalConfig::find_by_name_and_product(
-        &connection,
-        name.clone(),
-        product.clone(),
-    )
-    .await
-    .map_err(|error| {
-        let (name, product) = (name.clone(), product.clone());
-        escalate(error, |context| {
-            matches!(context, DatabaseError::NotFound)
-                .then_some(ObservabilityError::EnablementNotFound { name, product })
-        })
-    })?;
+    let row = MerchantsAlertExternalConfig::find_by_name_and_product(&connection, &name, &product)
+        .await
+        .to_not_found_response(ObservabilityError::EnablementNotFound {
+            name: name.clone(),
+            product: product.clone(),
+        })?;
 
     let definition_is_enabled = find_definition_for(&connection, &name, &product)
         .await?
-        .map(|definition| definition.is_enabled());
+        .map(|definition| definition.is_enabled.unwrap_or(false));
 
     Ok(AlertEnablementResponse::new(row, definition_is_enabled))
 }
@@ -149,17 +138,18 @@ pub async fn list_enablements(
 
     let rows = MerchantsAlertExternalConfig::list(&connection)
         .await
-        .map_err(|error| escalate(error, unrecognised))?;
+        .change_context(ObservabilityError::InternalServerError)?;
 
     let definitions = AlertsInfo::list(&connection)
         .await
-        .map_err(|error| escalate(error, unrecognised))?
+        .change_context(ObservabilityError::InternalServerError)?
         .into_iter()
         .filter_map(|definition| {
-            Some((
-                definition.name.clone().zip(definition.product.clone())?,
-                definition.is_enabled(),
-            ))
+            let is_enabled = definition.is_enabled.unwrap_or(false);
+            definition
+                .name
+                .zip(definition.product)
+                .map(|key| (key, is_enabled))
         })
         .collect::<std::collections::HashMap<_, _>>();
 
@@ -184,7 +174,7 @@ async fn find_definition_for(
     name: &str,
     product: &str,
 ) -> ObservabilityApiResult<Option<AlertsInfo>> {
-    AlertsInfo::find_optional_by_name_and_product(connection, name.to_owned(), product.to_owned())
+    AlertsInfo::find_optional_by_name_and_product(connection, name, product)
         .await
-        .map_err(|error| escalate(error, unrecognised))
+        .change_context(ObservabilityError::InternalServerError)
 }

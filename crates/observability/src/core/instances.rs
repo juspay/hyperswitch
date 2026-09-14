@@ -14,9 +14,11 @@ use diesel_models::{
 use error_stack::{report, ResultExt};
 use time::PrimitiveDateTime;
 
-use super::stamp;
 use crate::{
-    alert_manager::types::{
+    errors::{ObservabilityApiResult, ObservabilityError},
+    logger,
+    state::AppState,
+    types::{
         instances::{
             DimensionInstanceEntry, DimensionInstanceWrite, DimensionReadResponse,
             DimensionSaveResponse, DimensionWriteRequest, InstanceReadResponse,
@@ -26,9 +28,6 @@ use crate::{
         lifecycle::Channel,
         ReadStatus, WriteStatus,
     },
-    errors::{ObservabilityApiResult, ObservabilityError},
-    logger,
-    state::AppState,
 };
 
 const NAME_MAX_BYTES: usize = 64;

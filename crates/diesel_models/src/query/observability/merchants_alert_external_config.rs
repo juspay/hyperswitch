@@ -1,5 +1,5 @@
 use async_bb8_diesel::AsyncRunQueryDsl;
-use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
+use diesel::{associations::HasTable, upsert::excluded, BoolExpressionMethods, ExpressionMethods};
 use error_stack::ResultExt;
 
 use crate::{
@@ -20,10 +20,15 @@ impl MerchantsAlertExternalConfigNew {
         conn: &DatabaseConnectionWithContext<'_>,
     ) -> StorageResult<MerchantsAlertExternalConfig> {
         let query = diesel::insert_into(<MerchantsAlertExternalConfig as HasTable>::table())
-            .values(self.clone())
+            .values(self)
             .on_conflict((dsl::name, dsl::product))
             .do_update()
-            .set(self);
+            .set((
+                dsl::category.eq(excluded(dsl::category)),
+                dsl::is_enabled.eq(excluded(dsl::is_enabled)),
+                dsl::metadata.eq(excluded(dsl::metadata)),
+                dsl::last_updated_at.eq(excluded(dsl::last_updated_at)),
+            ));
 
         generics::db_metrics::track_database_call::<
             <MerchantsAlertExternalConfig as HasTable>::Table,
@@ -45,12 +50,14 @@ impl MerchantsAlertExternalConfigNew {
 impl MerchantsAlertExternalConfig {
     pub async fn find_by_name_and_product(
         conn: &DatabaseConnectionWithContext<'_>,
-        name: String,
-        product: String,
+        name: &str,
+        product: &str,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
-            dsl::name.eq(name).and(dsl::product.eq(product)),
+            dsl::name
+                .eq(name.to_owned())
+                .and(dsl::product.eq(product.to_owned())),
         )
         .await
     }
@@ -58,7 +65,7 @@ impl MerchantsAlertExternalConfig {
     pub async fn list(conn: &DatabaseConnectionWithContext<'_>) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
             conn,
-            dsl::name.is_not_null(),
+            dsl::name.ne_all(vec![""]),
             None,
             None,
             Some((dsl::product.asc(), dsl::name.asc())),

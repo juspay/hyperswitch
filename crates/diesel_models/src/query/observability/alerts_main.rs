@@ -1,68 +1,92 @@
 use async_bb8_diesel::AsyncRunQueryDsl;
-use diesel::{associations::HasTable, ExpressionMethods, QueryDsl};
-use error_stack::{report, ResultExt};
+use diesel::{
+    associations::HasTable,
+    query_dsl::methods::{FilterDsl, SelectDsl},
+    BoolExpressionMethods, ExpressionMethods,
+};
+use error_stack::ResultExt;
+use time::PrimitiveDateTime;
 
-use crate::{errors, query::generics, DatabaseConnectionWithContext, StorageResult};
+use crate::{
+    errors,
+    observability::{
+        alerts_main::{AlertsMain, AlertsMainNew, AlertsMainUpdate, AlertsMainUpdateInternal},
+        schema::alerts_main::dsl,
+    },
+    query::generics,
+    DatabaseConnectionWithContext, StorageResult,
+};
 
-macro_rules! announcement_queries {
-    ($module:ident, $table:ident) => {
-        pub mod $module {
-            use super::*;
-            use crate::observability::{
-                alerts_main::{$module::Announcement, AnnouncementRow},
-                schema::$table::dsl,
-            };
-
-            impl Announcement {
-                pub async fn insert(
-                    conn: &DatabaseConnectionWithContext<'_>,
-                    row: AnnouncementRow,
-                ) -> StorageResult<AnnouncementRow> {
-                    generics::generic_insert::<<Self as HasTable>::Table, Self, Self>(
-                        conn,
-                        Self::from(row),
-                    )
-                    .await
-                    .map(AnnouncementRow::from)
-                }
-
-                pub async fn find_by_id(
-                    conn: &DatabaseConnectionWithContext<'_>,
-                    id: uuid::Uuid,
-                ) -> StorageResult<Option<AnnouncementRow>> {
-                    generics::generic_find_by_id_optional::<<Self as HasTable>::Table, _, Self>(
-                        conn, id,
-                    )
-                    .await
-                    .map(|found| found.map(AnnouncementRow::from))
-                }
-
-                pub async fn existing_ids(
-                    conn: &DatabaseConnectionWithContext<'_>,
-                    ids: Vec<uuid::Uuid>,
-                ) -> StorageResult<Vec<uuid::Uuid>> {
-                    if ids.is_empty() {
-                        return Ok(Vec::new());
-                    }
-
-                    let query = <Self as HasTable>::table()
-                        .select(dsl::id)
-                        .filter(dsl::id.eq_any(ids));
-
-                    generics::db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-                        conn.request_id(),
-                        conn.event_emitter(),
-                        generics::db_metrics::DatabaseOperation::Filter,
-                        query.load_async::<uuid::Uuid>(conn.raw_connection()),
-                    )
-                    .await
-                    .map_err(|error| report!(error).change_context(errors::DatabaseError::Others))
-                    .attach_printable("Error while checking which announcements exist")
-                }
-            }
-        }
-    };
+impl AlertsMainNew {
+    pub async fn insert(
+        self,
+        conn: &DatabaseConnectionWithContext<'_>,
+    ) -> StorageResult<AlertsMain> {
+        generics::generic_insert(conn, self).await
+    }
 }
 
-announcement_queries!(slack, alerts_main);
-announcement_queries!(xyne, alerts_main_xyne);
+impl AlertsMain {
+    pub async fn list_by_channel_and_ts_alert_window(
+        conn: &DatabaseConnectionWithContext<'_>,
+        channel: &str,
+        start: PrimitiveDateTime,
+        end: PrimitiveDateTime,
+    ) -> StorageResult<Vec<Self>> {
+        generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
+            conn,
+            dsl::channel
+                .eq(channel.to_owned())
+                .and(dsl::ts_alert.ge(start))
+                .and(dsl::ts_alert.le(end)),
+            None,
+            None,
+            Some((dsl::ts_alert.desc(), dsl::id.desc())),
+        )
+        .await
+    }
+
+    pub async fn update_by_channel_and_id(
+        conn: &DatabaseConnectionWithContext<'_>,
+        channel: &str,
+        id: uuid::Uuid,
+        update: AlertsMainUpdate,
+    ) -> StorageResult<Self> {
+        generics::generic_update_with_unique_predicate_get_result::<
+            <Self as HasTable>::Table,
+            _,
+            _,
+            _,
+        >(
+            conn,
+            dsl::channel.eq(channel.to_owned()).and(dsl::id.eq(id)),
+            AlertsMainUpdateInternal::from(update),
+        )
+        .await
+    }
+
+    pub async fn list_ids_by_channel_and_ids(
+        conn: &DatabaseConnectionWithContext<'_>,
+        channel: &str,
+        ids: Vec<uuid::Uuid>,
+    ) -> StorageResult<Vec<uuid::Uuid>> {
+        if ids.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let query = <Self as HasTable>::table()
+            .select(dsl::id)
+            .filter(dsl::channel.eq(channel.to_owned()).and(dsl::id.eq_any(ids)));
+
+        generics::db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
+            conn.request_id(),
+            conn.event_emitter(),
+            generics::db_metrics::DatabaseOperation::Filter,
+            query.load_async::<uuid::Uuid>(conn.raw_connection()),
+        )
+        .await
+        .map_err(|e| error_stack::report!(e))
+        .change_context(errors::DatabaseError::Others)
+        .attach_printable("Failed to list announcement ids by channel")
+    }
+}
