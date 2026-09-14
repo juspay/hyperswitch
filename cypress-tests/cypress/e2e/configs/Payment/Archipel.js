@@ -30,6 +30,9 @@ const paymentMethodDataNo3DSResponse = {
   card: {
     last4: "7102",
     card_type: "DEBIT",
+    card_subtype: null,
+    card_segment_type: null,
+    funding_source: null,
     card_network: "Visa",
     card_issuer: "MASTERCARD INTERNATIONAL",
     card_issuing_country: "UNITEDSTATES",

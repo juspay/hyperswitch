@@ -121,6 +121,13 @@ pub async fn upsert_calculate_pcr_task(
                 payment_id.get_string_repr()
             );
 
+            let max_hybrid_cascading_retry_count = billing_connector_account
+                .get_max_hybrid_cascading_retry_count()
+                .ok_or(errors::RevenueRecoveryError::RetryCountFetchFailed)
+                .attach_printable(
+                    "Failed to get max hybrid cascading retry count from billing merchant connector account",
+                )?;
+
             // Create tracking data
             let calculate_workflow_tracking_data = pcr::RevenueRecoveryWorkflowTrackingData {
                 billing_mca_id: billing_connector_account.get_id(),
@@ -131,7 +138,10 @@ pub async fn upsert_calculate_pcr_task(
                 payment_attempt_id,
                 revenue_recovery_retry,
                 invoice_scheduled_time: None,
-                static_ladder_progress: schedule::StaticLadderProgress::default(),
+                static_ladder_progress: Some(schedule::StaticLadderProgress::seed_for_new_invoice(
+                    intent_retry_count,
+                    max_hybrid_cascading_retry_count,
+                )),
             };
 
             let tag = ["PCR"];
@@ -295,21 +305,26 @@ pub async fn perform_execute_payment(
         types::Decision::Execute => {
             let connector_customer_id = revenue_recovery_metadata.get_connector_customer_id();
 
-            let last_token_used = payment_intent
-                .feature_metadata
-                .as_ref()
-                .and_then(|fm| fm.payment_revenue_recovery_metadata.as_ref())
-                .map(|rr| {
-                    rr.billing_connector_payment_details
-                        .payment_processor_token
-                        .clone()
-                });
+            let last_token_used =
+                revenue_recovery_workflow::get_invoice_payment_processor_token(payment_intent);
+
+            // Same dimensions calculate resolves the flag on
+            let adaptive_retry_enabled = crate::core::configs::dimension_state::Dimensions::new()
+                .with_processor_merchant_id(payment_intent.merchant_id.clone().into())
+                .with_connector(revenue_recovery_payment_data.billing_mca.connector_name)
+                .get_adaptive_retry_enabled(
+                    state.store.as_ref(),
+                    state.superposition_service.as_ref(),
+                    None,
+                )
+                .await;
 
             let processor_token = storage::revenue_recovery_redis_operation::RedisTokenManager::get_token_based_on_retry_type(
                 state,
                 &connector_customer_id,
                 tracking_data.revenue_recovery_retry,
                 last_token_used.as_deref(),
+                adaptive_retry_enabled,
             )
             .await
             .change_context(errors::ApiErrorResponse::GenericNotFoundError {
@@ -409,6 +424,7 @@ pub async fn perform_execute_payment(
                         storage::ProcessTrackerRunner::PassiveRecoveryWorkflow,
                         tracking_data.revenue_recovery_retry,
                         state.conf.application_source,
+                        tracking_data.static_ladder_progress.clone(),
                     )
                     .await?;
 
@@ -482,6 +498,7 @@ async fn insert_psync_pcr_task_to_pt(
     runner: storage::ProcessTrackerRunner,
     revenue_recovery_retry: diesel_enum::RevenueRecoveryAlgorithmType,
     application_source: common_enums::ApplicationSource,
+    static_ladder_progress: Option<schedule::StaticLadderProgress>,
 ) -> RouterResult<storage::ProcessTracker> {
     let task = PSYNC_WORKFLOW;
     let process_tracker_id = payment_attempt_id.get_psync_revenue_recovery_id(task, runner);
@@ -495,8 +512,7 @@ async fn insert_psync_pcr_task_to_pt(
         prev_attempt_error_code,
         revenue_recovery_retry,
         invoice_scheduled_time: Some(schedule_time),
-        // PSYNC has its own row; scheduling state lives on CALCULATE.
-        static_ladder_progress: schedule::StaticLadderProgress::default(),
+        static_ladder_progress,
     };
     let tag = ["REVENUE_RECOVERY"];
     let process_tracker_entry = storage::ProcessTrackerNew::new(
@@ -581,11 +597,9 @@ pub async fn perform_payments_sync(
 }
 
 /// `attempts_already_made` counts the initial charge, which is not a retry, so the retry about to
-/// be scheduled is retry number `attempts_already_made`. No ceiling configured means no gate.
-fn is_retry_budget_exhausted(attempts_already_made: i32, max_retry_count: Option<u16>) -> bool {
-    max_retry_count
-        .map(|max_retry_count| attempts_already_made > i32::from(max_retry_count))
-        .unwrap_or(false)
+/// be scheduled is retry number `attempts_already_made`.
+fn is_retry_budget_exhausted(attempts_already_made: i32, max_retry_count: u16) -> bool {
+    attempts_already_made > i32::from(max_retry_count)
 }
 
 pub async fn perform_calculate_workflow(
@@ -651,10 +665,37 @@ pub async fn perform_calculate_workflow(
     )
     .await?;
 
+    let static_ladder_progress = match tracking_data.static_ladder_progress.clone() {
+        Some(static_ladder_progress) => static_ladder_progress,
+        None => {
+            let max_hybrid_cascading_retry_count = revenue_recovery_payment_data
+                .billing_mca
+                .get_max_hybrid_cascading_retry_count()
+                .ok_or(errors::RecoveryError::ValueNotFound)
+                .attach_printable(
+                    "Failed to get max hybrid cascading retry count from billing merchant connector account",
+                )?;
+            let intent_retry_count = payment_intent
+                .get_revenue_recovery_retry_count()
+                .ok_or(errors::RecoveryError::ValueNotFound)
+                .attach_printable(
+                    "Failed to get the retry count from the payment intent's revenue recovery metadata",
+                )?;
+            schedule::StaticLadderProgress::seed_for_existing_invoice(
+                intent_retry_count,
+                max_hybrid_cascading_retry_count,
+            )
+        }
+    };
+
     // 2. Bound the invoice by the merchant's ceiling, independently of the retry ladder.
     let max_retry_count = revenue_recovery_payment_data
         .billing_mca
-        .get_max_retry_count();
+        .get_max_retry_count()
+        .ok_or(errors::RecoveryError::ValueNotFound)
+        .attach_printable(
+            "Failed to get max retry count from billing merchant connector account",
+        )?;
 
     let (payment_processor_token_response, next_static_ladder_progress) =
         if is_retry_budget_exhausted(process.retry_count, max_retry_count) {
@@ -677,8 +718,10 @@ pub async fn perform_calculate_workflow(
                 revenue_recovery_payment_data.billing_mca.connector_name,
                 retry_algorithm_type,
                 process.retry_count,
-                &tracking_data.static_ladder_progress,
-            )
+                tracking_data,
+                &static_ladder_progress,
+                max_retry_count,
+        )
             .await
             {
                 Ok(token_and_schedule) => token_and_schedule,
@@ -726,6 +769,7 @@ pub async fn perform_calculate_workflow(
                 storage::ProcessTrackerRunner::PassiveRecoveryWorkflow,
                 retry_algorithm_type,
                 scheduled_time,
+                next_static_ladder_progress.clone(),
             )
             .await?;
 
@@ -895,7 +939,7 @@ async fn finish_calculate_workflow_with_progress(
                         "Failed to deserialize the tracking data from process tracker",
                     )?;
 
-            tracking_data.static_ladder_progress = static_ladder_progress;
+            tracking_data.static_ladder_progress = Some(static_ladder_progress);
 
             let tracking_data = serde_json::to_value(tracking_data)
                 .change_context(errors::RecoveryError::ValueNotFound)
@@ -1006,6 +1050,7 @@ async fn insert_execute_pcr_task_to_pt(
     runner: storage::ProcessTrackerRunner,
     revenue_recovery_retry: diesel_enum::RevenueRecoveryAlgorithmType,
     schedule_time: time::PrimitiveDateTime,
+    static_ladder_progress: Option<schedule::StaticLadderProgress>,
 ) -> Result<storage::ProcessTracker, sch_errors::ProcessTrackerError> {
     let task = "EXECUTE_WORKFLOW";
 
@@ -1050,6 +1095,8 @@ async fn insert_execute_pcr_task_to_pt(
                     )?;
 
             tracking_data.revenue_recovery_retry = revenue_recovery_retry;
+            tracking_data.static_ladder_progress = static_ladder_progress;
+            tracking_data.prev_attempt_error_code = prev_attempt_error_code;
 
             let tracking_data_json = serde_json::to_value(&tracking_data)
                 .change_context(errors::RecoveryError::ValueNotFound)
@@ -1115,8 +1162,7 @@ async fn insert_execute_pcr_task_to_pt(
                 prev_attempt_error_code,
                 revenue_recovery_retry,
                 invoice_scheduled_time: Some(schedule_time),
-                // EXECUTE has its own row; scheduling state lives on CALCULATE.
-                static_ladder_progress: schedule::StaticLadderProgress::default(),
+                static_ladder_progress,
             };
 
             let tag = ["PCR"];
@@ -1396,6 +1442,7 @@ pub async fn resume_revenue_recovery_process_tracker(
                         runner,
                         tracking_data.revenue_recovery_retry,
                         state.conf.application_source,
+                        tracking_data.static_ladder_progress.clone(),
                     )
                     .await?
                 }
