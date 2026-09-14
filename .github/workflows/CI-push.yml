@@ -153,7 +153,6 @@ jobs:
 
     env:
       RUSTFLAGS: "-D warnings"
-      CARGO_BUILD_JOBS: 2
 
     steps:
       - name: Checkout repository
@@ -207,20 +206,28 @@ jobs:
 
       - name: Run clippy (redis-rs backend)
         shell: bash
+        env:
+          CARGO_BUILD_JOBS: 2
         run: just clippy
 
       - name: Run clippy (fred backend)
         shell: bash
+        env:
+          CARGO_BUILD_JOBS: 2
         run: just clippy fred
 
       - name: Cargo hack
         if: ${{ github.event_name == 'push' }}
         shell: bash
+        env:
+          CARGO_BUILD_JOBS: 2
         run: just ci_hack
 
       - name: Cargo build release
         if: ${{ github.event_name == 'merge_group' }}
         shell: bash
+        env:
+          CARGO_BUILD_JOBS: 2
         run: cargo check --features "release"
 
   typos:
