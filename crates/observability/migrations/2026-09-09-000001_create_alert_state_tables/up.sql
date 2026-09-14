@@ -258,8 +258,8 @@ CREATE TABLE IF NOT EXISTS merchants_alert_external_config (
     PRIMARY KEY (name, product)
 );
 
--- Notification bell read watermarks. Keyed by user, though with authentication
--- disabled every read arrives under the same empty name and there is one row.
+-- Notification bell read watermarks. Keyed by user, the name each read
+-- arrives under in X-User-Name.
 CREATE TABLE IF NOT EXISTS notification_reads (
     user_name    VARCHAR(255) PRIMARY KEY,
     last_read_at TIMESTAMP NOT NULL
