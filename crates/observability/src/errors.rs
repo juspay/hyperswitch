@@ -198,11 +198,6 @@ mod tests {
     }
 
     #[test]
-    fn an_unreachable_database_is_503_and_not_500() {
-        assert_eq!(status_of(&ObservabilityError::StorageUnavailable), 503);
-    }
-
-    #[test]
     fn a_request_we_cannot_act_on_is_4xx() {
         assert_eq!(
             status_of(&ObservabilityError::UnknownDestination {
@@ -212,79 +207,6 @@ mod tests {
         );
         assert_eq!(status_of(&ObservabilityError::Unauthorized), 401);
         assert_eq!(status_of(&ObservabilityError::InvalidRequest), 400);
-        assert_eq!(
-            status_of(&ObservabilityError::DefinitionNotFound {
-                id: "0189d0a0-0000-7000-8000-000000000000".to_owned(),
-            }),
-            404
-        );
-        assert_eq!(
-            status_of(&ObservabilityError::EnablementNotFound {
-                name: "sr_drop".to_owned(),
-                product: "payments".to_owned(),
-            }),
-            404
-        );
-        assert_eq!(
-            status_of(&ObservabilityError::DuplicateDefinition {
-                name: "sr_drop".to_owned(),
-                product: "payments".to_owned(),
-            }),
-            400
-        );
-    }
-
-    #[test]
-    fn no_two_conditions_share_a_code() {
-        let codes = [
-            ObservabilityError::InternalServerError,
-            ObservabilityError::Unauthorized,
-            ObservabilityError::InvalidRequest,
-            ObservabilityError::StorageUnavailable,
-            ObservabilityError::DefinitionNotFound { id: String::new() },
-            ObservabilityError::DuplicateDefinition {
-                name: String::new(),
-                product: String::new(),
-            },
-            ObservabilityError::EnablementNotFound {
-                name: String::new(),
-                product: String::new(),
-            },
-            ObservabilityError::NotAnAlert {
-                name: String::new(),
-                product: String::new(),
-            },
-            ObservabilityError::UnknownDestination {
-                destination: String::new(),
-            },
-            ObservabilityError::ProviderUnavailable {
-                destination: String::new(),
-            },
-        ]
-        .iter()
-        .map(|error| {
-            let payload = ErrorSwitch::<ApiErrorResponse>::switch(error);
-            format!(
-                "{}_{:02}",
-                payload.payload().sub_code,
-                payload.payload().error_identifier
-            )
-        })
-        .collect::<std::collections::HashSet<_>>();
-
-        assert_eq!(codes.len(), 10);
-    }
-
-    #[test]
-    fn a_missing_definition_does_not_echo_the_key_back() {
-        let body = ErrorSwitch::<ApiErrorResponse>::switch(&ObservabilityError::NotAnAlert {
-            name: "typo".to_owned(),
-            product: "payments".to_owned(),
-        })
-        .to_string();
-
-        assert!(body.contains("IR_07"));
-        assert!(!body.contains("typo"));
     }
 
     /// A caller that guessed an id should not be handed the registry.

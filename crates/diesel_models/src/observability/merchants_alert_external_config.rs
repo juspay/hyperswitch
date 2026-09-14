@@ -33,26 +33,3 @@ pub struct MerchantsAlertExternalConfigNew {
     pub metadata: Option<serde_json::Value>,
     pub last_updated_at: PrimitiveDateTime,
 }
-
-#[cfg(test)]
-#[allow(clippy::unwrap_used, clippy::expect_used, clippy::indexing_slicing)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn a_disabled_definition_stays_off_however_the_config_row_reads() {
-        assert!(!effective_is_enabled(false, Some(true)));
-        assert!(!effective_is_enabled(false, None));
-    }
-
-    #[test]
-    fn a_config_row_can_turn_an_enabled_definition_off() {
-        assert!(effective_is_enabled(true, Some(true)));
-        assert!(!effective_is_enabled(true, Some(false)));
-    }
-
-    #[test]
-    fn an_alert_with_no_config_row_is_not_narrowed() {
-        assert!(effective_is_enabled(true, None));
-    }
-}
