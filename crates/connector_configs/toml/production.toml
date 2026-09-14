@@ -8291,3 +8291,29 @@ payment_method_type = "payshap"
 payment_method_type = "payshap_proxy"
 [gotyme_sanlam_payout.connector_webhook_details]
 merchant_secret="Source verification key"
+
+[etisalat]
+[[etisalat.credit]]
+payment_method_type = "Visa"
+[[etisalat.credit]]
+payment_method_type = "Mastercard"
+[[etisalat.credit]]
+payment_method_type = "AmericanExpress"
+[[etisalat.credit]]
+payment_method_type = "JCB"
+[[etisalat.credit]]
+payment_method_type = "DinersClub"
+[[etisalat.debit]]
+payment_method_type = "Visa"
+[[etisalat.debit]]
+payment_method_type = "Mastercard"
+[[etisalat.debit]]
+payment_method_type = "AmericanExpress"
+[[etisalat.debit]]
+payment_method_type = "JCB"
+[[etisalat.debit]]
+payment_method_type = "DinersClub"
+[etisalat.connector_auth.SignatureKey]
+api_key = "EPG Password"
+key1 = "EPG UserName"
+api_secret = "EPG Customer"

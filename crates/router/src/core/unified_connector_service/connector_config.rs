@@ -403,6 +403,13 @@ pub enum ConnectorSpecificConfig {
         client_id: Secret<String>,
         merchant_id: Secret<String>,
     },
+    /// Etisalat Payment Gateway (EPG). All requests carry auth in the JSON body:
+    /// `user_name`, `password`, and `customer` (merchant identifier).
+    Etisalat {
+        user_name: Secret<String>,
+        password: Secret<String>,
+        customer: Secret<String>,
+    },
     /// Nuvei connector configuration
     Nuvei {
         merchant_id: Secret<String>,
@@ -1413,6 +1420,20 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     merchant_id: api_secret.clone(),
                 }),
                 _ => Err(err("Moneris requires SignatureKey auth type")),
+            },
+            Connector::Etisalat => match auth {
+                // api_key -> EPG Password, key1 -> EPG UserName,
+                // api_secret -> EPG Customer (merchant identifier).
+                ConnectorAuthType::SignatureKey {
+                    api_key,
+                    key1,
+                    api_secret,
+                } => Ok(Self::Etisalat {
+                    user_name: api_key.clone(),
+                    password: key1.clone(),
+                    customer: api_secret.clone(),
+                }),
+                _ => Err(err("Etisalat requires SignatureKey auth type")),
             },
             Connector::Noon => match auth {
                 ConnectorAuthType::SignatureKey {

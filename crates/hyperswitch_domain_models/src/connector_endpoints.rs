@@ -56,6 +56,7 @@ pub struct Connectors {
     pub ebanx: ConnectorParams,
     pub elavon: ConnectorParams,
     pub envoy: ConnectorParams,
+    pub etisalat: ConnectorParams,
     pub facilitapay: ConnectorParams,
     pub finix: ConnectorParams,
     pub fiserv: ConnectorParams,
