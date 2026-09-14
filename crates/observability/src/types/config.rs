@@ -131,6 +131,8 @@ pub struct AlertDefinitionCreateRequest {
 
 impl AlertDefinitionCreateRequest {
     pub fn validate(&self) -> ObservabilityApiResult<()> {
+        not_blank("name", &self.name)?;
+        not_blank("product", &self.product)?;
         within_width("name", Some(&self.name), NAME_MAX_CHARS)?;
         within_width("product", Some(&self.product), NAME_MAX_CHARS)?;
         within_width("author", Some(&self.author), NAME_MAX_CHARS)?;
@@ -431,6 +433,10 @@ pub struct MerchantThresholdUpsertRequest {
 
 impl MerchantThresholdUpsertRequest {
     pub fn validate(&self) -> ObservabilityApiResult<()> {
+        not_blank("name", &self.name)?;
+        not_blank("product", &self.product)?;
+        not_blank("merchant_id", &self.merchant_id)?;
+        not_blank("author", &self.author)?;
         within_width("name", Some(&self.name), NAME_MAX_CHARS)?;
         within_width("product", Some(&self.product), NAME_MAX_CHARS)?;
         within_width("merchant_id", Some(&self.merchant_id), NAME_MAX_CHARS)?;
@@ -512,6 +518,10 @@ pub struct MerchantThresholdUpdateRequest {
 
 impl MerchantThresholdUpdateRequest {
     pub fn validate(&self) -> ObservabilityApiResult<()> {
+        self.author
+            .as_deref()
+            .map(|author| not_blank("author", author))
+            .transpose()?;
         within_width("author", self.author.as_deref(), NAME_MAX_CHARS)
     }
 }
@@ -609,6 +619,12 @@ fn within_width(
         value.is_some_and(|value| value.chars().count() > max_chars),
         || Err(report!(ObservabilityError::InvalidDataValue { field_name })),
     )
+}
+
+fn not_blank(field_name: &'static str, value: &str) -> ObservabilityApiResult<()> {
+    common_utils::fp_utils::when(value.trim().is_empty(), || {
+        Err(report!(ObservabilityError::InvalidDataValue { field_name }))
+    })
 }
 
 fn valid_documents(validations: [Option<Result<(), String>>; 3]) -> ObservabilityApiResult<()> {

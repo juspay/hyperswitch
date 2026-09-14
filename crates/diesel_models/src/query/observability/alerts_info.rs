@@ -57,14 +57,17 @@ impl AlertsInfo {
     }
 
     pub async fn list(conn: &DatabaseConnectionWithContext<'_>) -> StorageResult<Vec<Self>> {
-        generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
-            conn,
-            dsl::name.ne_all(vec![""]),
-            None,
-            None,
-            Some((dsl::product.asc(), dsl::name.asc())),
+        let query = <Self as HasTable>::table().order((dsl::product.asc(), dsl::name.asc()));
+
+        generics::db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
+            conn.request_id(),
+            conn.event_emitter(),
+            generics::db_metrics::DatabaseOperation::Filter,
+            query.get_results_async(conn.raw_connection()),
         )
         .await
+        .attach_printable("Failed to list the alert definitions")
+        .switch()
     }
 
     pub async fn list_is_enabled(
