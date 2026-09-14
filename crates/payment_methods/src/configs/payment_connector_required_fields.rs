@@ -1914,6 +1914,9 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
             Connector::JpmorganOrbital,
             fields(vec![], card_basic(), vec![]),
         ),
+        // Pay.com needs only the raw card fields; billing details and address are all
+        // optional on `/v1/charges` and `/v1/holds`.
+        (Connector::Paydotcom, fields(vec![], card_basic(), vec![])),
         (
             Connector::Ilixium,
             // Everything here is `common`, not `non_mandate`: `non_mandate` is only merged when

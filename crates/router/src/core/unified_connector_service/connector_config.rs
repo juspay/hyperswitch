@@ -828,6 +828,9 @@ pub enum ConnectorSpecificConfig {
         /// body at Ver1.0/Header/SecretAPIKey
         api_key: Secret<String>,
     },
+    /// Pay.com connector configuration
+    /// `api_key` = the `x-paycom-api-key` value (`test_…` sandbox, `live_…` production)
+    Paydotcom { api_key: Secret<String> },
 }
 
 impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
@@ -1024,6 +1027,12 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     api_key: api_key.clone(),
                 }),
                 _ => Err(err("Celero requires HeaderKey auth type")),
+            },
+            Connector::Paydotcom => match auth {
+                ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Paydotcom {
+                    api_key: api_key.clone(),
+                }),
+                _ => Err(err("Paydotcom requires HeaderKey auth type")),
             },
             Connector::Helcim => match auth {
                 ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Helcim {
