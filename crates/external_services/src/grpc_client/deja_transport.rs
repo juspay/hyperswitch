@@ -304,30 +304,35 @@ where
         // here (replay + Substitute neither runs nor re-runs); an error rather
         // than an `unreachable!` so a broken invariant stays legible.
         None => {
-            deja::__private::dispatch_async_or_miss(
+            // Same seam as the arm above; the difference that used to be carried
+            // by a second dispatch function plus a declared `MissPolicy` now
+            // lives entirely in this arm's miss branch.
+            deja::__private::dispatch_async(
                 observation,
                 move || args_value,
                 move || async { Err(BoxError::from(AbsentTransportError)) },
-                reconstruct_from_recorded,
-                extract_envelope,
-                // `FailStop` because that is what the thunk below does: this arm
-                // has an `on_miss` only to give the stop its own reason, not to
-                // let the request continue. Labelling it `Absorb` would tell the
-                // scorecard a request survived that in fact died here.
-                deja::MissPolicy::FailStop,
-                // The absent-EXECUTOR fail-stop, not `fail_stop_substitute_miss`:
-                // that one offers `replay_strategy = Execute` as the remedy, and
-                // with nothing beneath the boundary there is nothing to run. The
-                // target names the rpc and authority because `BOUNDARY` and
-                // `OPERATION` are module constants shared by every transport this
-                // wrapper is installed on.
-                move || {
-                    let target = match authority.as_deref() {
-                        Some(authority) => format!("{rpc} at {authority}"),
-                        None => rpc.to_string(),
-                    };
-                    deja::__private::fail_stop_absent_executor(BOUNDARY, OPERATION, &target)
+                move |input| match input {
+                    deja::__private::ReconstructInput::Hit(recorded) => reconstruct_hit(recorded),
+                    // The absent-EXECUTOR fail-stop, not `fail_stop_substitute_miss`:
+                    // that one offers `replay_strategy = Execute` as the remedy, and
+                    // with nothing beneath the boundary there is nothing to run. The
+                    // target names the rpc and authority because `BOUNDARY` and
+                    // `OPERATION` are module constants shared by every transport this
+                    // wrapper is installed on.
+                    //
+                    // This diverges rather than returning, so the stop keeps its own
+                    // reason instead of collapsing into the generic one that
+                    // `NoValue` produces. That distinction used to be the whole
+                    // point of declaring `FailStop` here with a thunk beside it.
+                    deja::__private::ReconstructInput::Miss(_) => {
+                        let target = match authority.as_deref() {
+                            Some(authority) => format!("{rpc} at {authority}"),
+                            None => rpc.to_string(),
+                        };
+                        deja::__private::fail_stop_absent_executor(BOUNDARY, OPERATION, &target)
+                    }
                 },
+                extract_envelope,
             )
             .await
         }
@@ -400,6 +405,20 @@ fn extract_envelope(
 /// The `reconstruct` closure: recorded envelope → the identical wire response
 /// through tonic's own decoder, or the recorded transport failure.
 fn reconstruct_from_recorded(
+    input: deja::__private::ReconstructInput<'_>,
+) -> deja::__private::Reconstructed<Result<http::Response<TonicBody>, BoxError>> {
+    match input {
+        deja::__private::ReconstructInput::Hit(recorded) => reconstruct_hit(recorded),
+        // Transport PRESENT: a miss may be a genuine novel call, so this keeps
+        // the default substitute-miss fail-stop. `NoValue` is how a site now
+        // declines to answer a miss; it used to be the absence of an `on_miss`.
+        deja::__private::ReconstructInput::Miss(_) => deja::__private::Reconstructed::NoValue,
+    }
+}
+
+/// The hit path: recorded envelope -> the identical wire response through
+/// tonic's own decoder, or the recorded transport failure.
+fn reconstruct_hit(
     recorded: serde_json::Value,
 ) -> deja::__private::Reconstructed<Result<http::Response<TonicBody>, BoxError>> {
     let Ok(envelope) = serde_json::from_value::<GrpcResultEnvelope>(recorded) else {
