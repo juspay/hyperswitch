@@ -111,6 +111,18 @@ impl From<Thresholds> for RawJson {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(transparent)]
+pub struct DefinitionMetadata(
+    #[serde(deserialize_with = "empty_metadata_as_object")] serde_json::Value,
+);
+
+impl From<DefinitionMetadata> for serde_json::Value {
+    fn from(metadata: DefinitionMetadata) -> Self {
+        metadata.0
+    }
+}
+
+#[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct AlertDefinitionCreateRequest {
     pub name: String,
@@ -126,7 +138,7 @@ pub struct AlertDefinitionCreateRequest {
     pub snooze: Option<Snooze>,
     pub history_window: Option<i32>,
     pub thresholds: Option<Thresholds>,
-    pub metadata: Option<serde_json::Value>,
+    pub metadata: Option<DefinitionMetadata>,
     pub comments: Option<serde_json::Value>,
     pub call_period: Option<i32>,
 }
@@ -171,7 +183,7 @@ impl AlertDefinitionCreateRequest {
             snooze: self.snooze.map(RawJson::from),
             history_window: self.history_window,
             thresholds: self.thresholds.map(RawJson::from),
-            metadata: self.metadata,
+            metadata: self.metadata.map(serde_json::Value::from),
             is_enabled: Some(self.is_enabled),
             comments: self.comments,
             call_period: self.call_period,
@@ -205,7 +217,7 @@ pub struct AlertDefinitionUpdateRequest {
     #[serde(default, with = "serde_with::rust::double_option")]
     pub thresholds: Option<Option<Thresholds>>,
     #[serde(default, with = "serde_with::rust::double_option")]
-    pub metadata: Option<Option<serde_json::Value>>,
+    pub metadata: Option<Option<DefinitionMetadata>>,
     #[serde(default, with = "serde_with::rust::double_option")]
     pub comments: Option<Option<serde_json::Value>>,
     #[serde(default, with = "serde_with::rust::double_option")]
@@ -258,7 +270,9 @@ impl From<AlertDefinitionUpdateRequest> for AlertsInfoUpdate {
             snooze: request.snooze.map(|value| value.map(RawJson::from)),
             history_window: request.history_window,
             thresholds: request.thresholds.map(|value| value.map(RawJson::from)),
-            metadata: request.metadata,
+            metadata: request
+                .metadata
+                .map(|metadata| metadata.map(serde_json::Value::from)),
             is_enabled: request.is_enabled,
             comments: request.comments,
             call_period: request.call_period,
@@ -655,17 +669,35 @@ where
     D: Deserializer<'de>,
 {
     let document = RawJson::deserialize(deserializer)?;
-    let is_empty = match serde_json::from_str(document.get()) {
-        Ok(serde_json::Value::Array(values)) => values.is_empty(),
-        Ok(serde_json::Value::Object(entries)) => entries.is_empty(),
-        Ok(serde_json::Value::String(value)) => value.trim().is_empty(),
-        _ => false,
-    };
 
-    if is_empty {
+    if serde_json::from_str::<serde_json::Value>(document.get())
+        .is_ok_and(|value| is_empty_document(&value))
+    {
         serde_json::from_str(EMPTY_DOCUMENT).map_err(serde::de::Error::custom)
     } else {
         Ok(document)
+    }
+}
+
+fn empty_metadata_as_object<'de, D>(deserializer: D) -> Result<serde_json::Value, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    serde_json::Value::deserialize(deserializer).map(|metadata| {
+        if is_empty_document(&metadata) {
+            serde_json::Value::Object(serde_json::Map::new())
+        } else {
+            metadata
+        }
+    })
+}
+
+fn is_empty_document(document: &serde_json::Value) -> bool {
+    match document {
+        serde_json::Value::Array(values) => values.is_empty(),
+        serde_json::Value::Object(entries) => entries.is_empty(),
+        serde_json::Value::String(value) => value.trim().is_empty(),
+        _ => false,
     }
 }
 
