@@ -18,6 +18,10 @@ use crate::{errors, query::generics, DatabaseConnectionWithContext, StorageResul
 
 const LIFECYCLE_STATE_LOCK_NAMESPACE: i32 = 23_404;
 
+const INSTANCES_LOCK_NAMESPACE: i32 = 23_405;
+
+const DIMENSIONS_LOCK_NAMESPACE: i32 = 23_406;
+
 async fn advisory_xact_lock<T: Table>(
     conn: &DatabaseConnectionWithContext<'_>,
     namespace: i32,

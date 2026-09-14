@@ -1,9 +1,6 @@
 use async_bb8_diesel::AsyncRunQueryDsl;
 use diesel::{
-    associations::HasTable,
-    query_dsl::methods::FilterDsl,
-    sql_types::{Integer, Text},
-    BoolExpressionMethods, ExpressionMethods,
+    associations::HasTable, query_dsl::methods::FilterDsl, BoolExpressionMethods, ExpressionMethods,
 };
 use error_stack::ResultExt;
 
@@ -15,11 +12,12 @@ use crate::{
         },
         schema::merchants_alert_external_dimension::dsl,
     },
-    query::generics,
+    query::{
+        generics,
+        observability::{advisory_xact_lock, DIMENSIONS_LOCK_NAMESPACE},
+    },
     DatabaseConnectionWithContext, StorageResult,
 };
-
-const DIMENSIONS_LOCK_NAMESPACE: i32 = 23_406;
 
 impl MerchantsAlertExternalDimensionNew {
     pub async fn bulk_insert(
@@ -55,21 +53,12 @@ impl MerchantsAlertExternalDimension {
         conn: &DatabaseConnectionWithContext<'_>,
         announcement: uuid::Uuid,
     ) -> StorageResult<()> {
-        let query = diesel::sql_query("SELECT pg_advisory_xact_lock($1, hashtext($2))")
-            .bind::<Integer, _>(DIMENSIONS_LOCK_NAMESPACE)
-            .bind::<Text, _>(announcement.to_string());
-
-        generics::db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
-            generics::db_metrics::DatabaseOperation::Filter,
-            query.execute_async(conn.raw_connection()),
+        advisory_xact_lock::<<Self as HasTable>::Table>(
+            conn,
+            DIMENSIONS_LOCK_NAMESPACE,
+            &announcement.to_string(),
         )
         .await
-        .map(|_| ())
-        .map_err(|e| error_stack::report!(e))
-        .change_context(errors::DatabaseError::Others)
-        .attach_printable("Failed to lock the alert dimension rows of an announcement")
     }
 
     pub async fn list_by_channel_and_announcement(
