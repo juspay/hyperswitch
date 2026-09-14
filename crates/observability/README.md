@@ -305,17 +305,19 @@ POST /alerts/config/mappers
 X-Internal-Api-Key: <key>
 X-User-Name: ops@example.com
 
-{ "name": "dashboard", "key_": "slack_users", "values_": "[]", "metadata": {"category": "dashboard"} }
-→ 200 { "status": "saved", "entry": { "name": "dashboard", "key_": "slack_users", … } }
+{ "name": "dashboard", "key": "slack_users", "values": "[]", "metadata": {"category": "dashboard"} }
+→ 200 { "status": "saved", "entry": { "name": "dashboard", "key": "slack_users", … } }
 
-GET    /alerts/config/mappers                    → 200 { "status": "found",  "entries": [ … ] }
-GET    /alerts/config/mappers/dashboard/unknown  → 200 { "status": "absent", "entry": null }
-DELETE /alerts/config/mappers/dashboard/unknown  → 200 { "status": "absent" }
+GET    /alerts/config/mappers                        → 200 { "status": "found", "entries": [ … ] }
+GET    /alerts/config/mappers/dashboard/slack_users  → 200 { "name": "dashboard", "key": "slack_users", … }
+GET    /alerts/config/mappers/dashboard/unknown      → 404 HE_02
+DELETE /alerts/config/mappers/dashboard/slack_users  → 200 { "status": "retired" }
+DELETE /alerts/config/mappers/dashboard/unknown      → 404 HE_02
 ```
 
-**`alerts_dicts` keeps history.** A delete retires the live row rather than removing it, and the
-table's unique index is *partial* — one enabled row per `(name, key_)`, superseded rows kept. A save
-is therefore a single `INSERT … ON CONFLICT (name, key_) WHERE is_enabled IS TRUE DO UPDATE`, which
+**A delete retires the live row rather than removing it.** The table's unique index is *partial* —
+one enabled row per `(name, key_)` — so a save updates the live row in place, and a retired row stays
+behind while a later save of the same key writes a new one. A save is therefore a single `INSERT … ON CONFLICT (name, key_) WHERE is_enabled IS TRUE DO UPDATE`, which
 names the index's own predicate so Postgres can infer it. Both halves of that matter: an upsert
 assuming a plain unique constraint fails outright, and one matching on `(name, key_)` without the
 predicate finds a retired row and brings it back with its old value.
@@ -328,7 +330,7 @@ did not save. A definition takes the opposite trade for the opposite reason: its
 typed because the alert manager reads them, and nothing reads a mapper entry but the screen that
 wrote it.
 
-An entry's JSON is capped by `mappers.max_entry_bytes` (1 MiB by default). The dashboard decides
+An entry's JSON is capped at 1 MiB. The dashboard decides
 how large an entry is, and one oversized save becomes a row nothing can read back — a broken page
 long after the save that caused it, rather than a rejected request naming the entry.
 
@@ -371,16 +373,16 @@ is one, which a path would write into every access log. An absent header is the 
 that is not UTF-8 is a `400`, because falling back would file one person's watermark under the
 shared row.
 
-#### Nothing stored is an answer, not a `404`
+#### An empty list and an unset watermark are answers, not a `404`
 
-A mapper read or a watermark read that finds nothing is `200` with `status: "absent"`. Both
-screens have a defined behaviour for "nothing saved yet" — offer the built-in options, treat
-everything as unread — and making that an HTTP error would mean the caller has to treat an error
-response as normal, which is the habit that hides a real one.
+A mapper list with no entries is `200` with `status: "absent"`, and a watermark that was never set is
+`200` with `status: "absent"`. Both screens have a defined behaviour for "nothing saved yet" — offer
+the built-in options, treat everything as unread — and making that an HTTP error would mean the
+caller has to treat an error response as normal, which is the habit that hides a real one.
 
 `404` keeps its meaning: a path naming something this service does not have. An unconfigured
-destination, an unknown definition id and an unknown enablement key are all `404`, and none of them
-is a state a screen expects — a caller that sent an id got it from a list this service returned.
+destination, an unknown definition id, an unknown enablement key and a mapper entry that does not
+exist are all `404`.
 
 #### An empty answer is never an outage
 
@@ -407,7 +409,7 @@ fine, and the condition is expected to clear without anyone touching it. A query
 connected is a `500`. The failing host, database and role
 reach the log and never the response.
 
-An empty `name` or `key_`, one wider than its column, and an unreadable `X-User-Name` are `IR_04`
+An empty `name` or `key`, one wider than its column, and an unreadable `X-User-Name` are `IR_04`
 alongside a body that did not parse. The column widths are checked here rather than left to
 Postgres, which rejects the same values as an opaque failure with a `500` attached.
 
