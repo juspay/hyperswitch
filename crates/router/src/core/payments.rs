@@ -223,6 +223,10 @@ where
     PaymentResponse: Operation<F, FData, Data = D>,
     FData: Send + Sync + Clone,
 {
+    // FIXTURE (never merge): a seamed `deja::id` call the recording has no
+    // event for, so replay sees a NOVEL call at a Substitute boundary.
+    let _deja_fixture_novel = common_utils::generate_uuid_v4();
+
     let dimensions = Dimensions::new()
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
