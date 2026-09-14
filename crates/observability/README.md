@@ -230,8 +230,8 @@ read, create, save, upsert or update answers the row. A delete answers `{"id": "
 or `{"name": "…", "key": "…", "deleted": true}` for a mapper entry.
 
 An update (`POST` to a definition or merchant threshold id) changes only what the body mentions: an
-absent field is left alone, `null` clears it, and a value sets it. `null` for a definition's
-`is_enabled`, `dimensions`, `period` or `default_critical`, or for a merchant threshold's `author`,
+absent field is left alone, `null` clears it, and a value sets it. `null` for `is_enabled`, for a
+definition's `dimensions`, `period` or `default_critical`, or for a merchant threshold's `author`,
 leaves it alone. The two upserts are described with their resources.
 
 #### Definitions
@@ -239,7 +239,7 @@ leaves it alone. The two upserts are described with their resources.
 A definition is one `alerts_info` row, with an id the service generates. `name`, `product`,
 `is_enabled` and `author` are required on create; `name`, `product` and `author` must not be blank,
 and `name` and `product` cannot be changed afterwards. `dimensions`, `period` and
-`default_critical` left out are stored as r-apps stores them: `''`, `0` and false.
+`default_critical` left out or `null` are stored as r-apps stores them: `''`, `0` and false.
 
 `blacklist`, `snooze` and `thresholds` hold r-apps' documents and are stored exactly as sent, except
 that an empty list, an empty object or a blank string is stored as `{}`, as r-apps' `createAlertInfo`
@@ -364,7 +364,7 @@ brought back; the next save writes a new live row.
 
 `product`, `values` and `metadata` are `json` columns carried as raw text in both directions
 (`diesel_models::observability::raw_json`), so the portal reads back exactly what it saved. Together
-they are capped at 1 MiB. One left out is stored as `[]`, as r-apps stores it.
+they are capped at 1 MiB. One left out or `null` is stored as `[]`, as r-apps stores it.
 
 #### Notification watermark
 
