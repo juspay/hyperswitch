@@ -38,12 +38,10 @@ The binary keeps the crate's name, so the Dockerfile takes `BINARY=observability
 
 ## Versioning
 
-`observability` has **no `v1`/`v2` API semantics of its own** and uses no version-flavoured type.
-It carries the two features anyway, because the crates it reaches through — `hyperswitch_interfaces`
-for secrets management, `diesel_models` for its schema — do not build unless one is selected. The
-default is `v1`, matching the router, so nobody has to think about a choice this crate does not
-make. Keep it that way: a version-flavoured type in a signature here would drag the matrix in for
-real.
+`observability` has **no `v1`/`v2` feature flags**. The API version duality is the router's
+concern, and this crate stays out of it by not depending on any version-flavoured type. Keep it
+that way: adding a dependency on `diesel_models` or `hyperswitch_domain_models` would drag the
+feature matrix in with it.
 
 ## Configuration
 
@@ -212,10 +210,8 @@ thread under it was lost — reporting a failure there would invite a retry that
 ### Configuration
 
 Four resources, backed by the observability plane's own Postgres: the **definition** of an alert,
-the **enablement** switch that says whether it runs, the **mappers** the portal reads,
-and the **notification watermark** the bell reads. All four answer in the envelope the delivery
-routes use, and `status` carries the same weight on a state read as it does on a notification: a
-caller cannot read a `200` and assume there was something there.
+the **enablement** switch that says whether it runs, the **mappers** the portal reads, and the
+**notification watermark** the bell reads.
 
 #### Definitions
 
@@ -301,7 +297,8 @@ exactly like one that works.
 
 #### The mappers
 
-The option lists and labels behind the portal's mappers screen, keyed on `(name, key_)`.
+The option lists and labels behind the portal's mappers screen, stored in `alerts_dicts` and
+addressed by `name` and `key`.
 
 ```http
 POST /alerts/config/mappers
@@ -309,83 +306,57 @@ X-Internal-Api-Key: <key>
 X-User-Name: ops@example.com
 
 { "name": "dashboard", "key": "slack_users", "values": "[]", "metadata": {"category": "dashboard"} }
-→ 200 { "status": "saved", "entry": { "name": "dashboard", "key": "slack_users", … } }
+→ 200 { "id": "0192…", "name": "dashboard", "key": "slack_users", "product": null, "values": "[]",
+        "metadata": {"category": "dashboard"}, "ts_created": "2026-09-14T12:34:56.789Z",
+        "username": "ops@example.com" }
 
-GET    /alerts/config/mappers                        → 200 { "status": "found", "entries": [ … ] }
-GET    /alerts/config/mappers/dashboard/slack_users  → 200 { "name": "dashboard", "key": "slack_users", … }
+GET    /alerts/config/mappers                        → 200 { "count": 1, "entries": [ … ] }
+GET    /alerts/config/mappers/dashboard/slack_users  → 200 the live entry
 GET    /alerts/config/mappers/dashboard/unknown      → 404 HE_02
-DELETE /alerts/config/mappers/dashboard/slack_users  → 200 { "status": "retired" }
+DELETE /alerts/config/mappers/dashboard/slack_users  → 200 { "name": "dashboard", "key": "slack_users", "deleted": true }
 DELETE /alerts/config/mappers/dashboard/unknown      → 404 HE_02
 ```
 
-**A delete retires the live row rather than removing it.** The table's unique index is *partial* —
-one enabled row per `(name, key_)` — so a save updates the live row in place, and a retired row stays
-behind while a later save of the same key writes a new one. A save is therefore a single `INSERT … ON CONFLICT (name, key_) WHERE is_enabled IS TRUE DO UPDATE`, which
-names the index's own predicate so Postgres can infer it. Both halves of that matter: an upsert
-assuming a plain unique constraint fails outright, and one matching on `(name, key_)` without the
-predicate finds a retired row and brings it back with its old value.
+**A save writes a new version, as r-apps' `insert_dictionary_version` does.** One transaction sets
+`is_enabled = false` on the live row, inserts the new row as the live one, and deletes every
+disabled row for the same `name` and `key` except the newest, so an entry keeps at most two rows:
+the live one and the one it replaced. The transaction first takes a Postgres advisory lock on the
+`name` and `key`, so overlapping saves of one entry run one after the other and the last to commit
+is live. Reads and the list return live rows only.
 
-**`product`, `values_` and `metadata` are `json`, not `jsonb`, and are never re-encoded.** The
-dashboard serializes them itself and the mappers screen parses some of them twice, so they cross
-this service as raw bytes in both directions — see `diesel_models::observability::raw_json`.
-Parsing into a `serde_json::Value` and serializing it again would hand the screen back a document it
-did not save. A definition takes the opposite trade for the opposite reason: its `json` columns are
-typed because the alert manager reads them, and nothing reads a mapper entry but the screen that
-wrote it.
+**A delete removes the live row**, as r-apps' `dropDictionary` removes the row it names. The row it
+replaced stays disabled and is not brought back; the next save writes a new live row.
 
-An entry's JSON is capped at 1 MiB. The dashboard decides
-how large an entry is, and one oversized save becomes a row nothing can read back — a broken page
-long after the save that caused it, rather than a rejected request naming the entry.
+`product`, `values` and `metadata` are `json` columns carried as raw text in both directions
+(`diesel_models::observability::raw_json`), so the portal reads back exactly what it saved. Together
+they are capped at 1 MiB.
 
 #### The notification watermark
-
-The bell shows what happened after the watermark and hides what happened before it.
 
 ```http
 POST /alerts/config/notifications/read
 X-Internal-Api-Key: <key>
 X-User-Name: ops@example.com
 
-→ 200 { "status": "found", "last_read_at": "2026-09-09T12:34:56.789Z" }
+→ 200 { "last_read_at": "2026-09-14T12:34:56.789Z" }
 
-GET /alerts/config/notifications/read  → 200 { "status": "absent", "last_read_at": null }
+GET /alerts/config/notifications/read  → 200 { "last_read_at": "2026-09-14T12:34:56.789Z" }
+GET /alerts/config/notifications/read  → 404 HE_02 for a user who has never marked read
 ```
 
-The write takes no body: the instant is this service's clock, not the caller's, so a skewed
-dashboard cannot hide alerts nobody was shown — a watermark never moves backwards.
+The write takes no body and stamps this service's clock. It stores the later of the saved and the
+new instant, so a watermark never moves backwards. A user who has never marked read has no
+watermark, and reading it is a `404` like any other missing resource.
 
 #### Who a request is for
 
-The internal API key authenticates the **service**, not a person, so the two routes that need a user
-— a mapper save and the watermark — read `X-User-Name`. **Nothing authenticates it**; it is an
-assertion by a caller that has already decided who it is acting for. The definition resource asks
-instead for `author` in the body, because a definition records who wrote it rather than who is
-looking at it.
+The internal API key authenticates the calling service, not a person. A mapper save and both
+watermark routes take the user from `X-User-Name`, which nothing authenticates. The header is
+required on the watermark routes; on a mapper save it is optional, and without it `username` takes
+the column default.
 
-That is the honest shape of the deployment. Local accounts are disabled in sandbox and production
-alike (`localUsers: false`), so every request arrives with no name, the watermark table holds one
-shared row, and mapper saves are attributed to the `username` column's default. Keeping the name
-on the request anyway is what makes that a data fact rather than a schema one: the day the portal
-authenticates, the alert manager forwards the name and rows appear per person with no route and no
-migration to change.
-
-A header rather than a path segment, which is where this crate otherwise puts what a request is
-about. The empty name every caller sends today has no spelling as a path segment, so the path form
-could not express the state that actually exists, and a user name is an email address wherever there
-is one, which a path would write into every access log. An absent header is the empty name; a header
-that is not UTF-8 is a `400`, because falling back would file one person's watermark under the
-shared row.
-
-#### An empty list and an unset watermark are answers, not a `404`
-
-A mapper list with no entries is `200` with `status: "absent"`, and a watermark that was never set is
-`200` with `status: "absent"`. Both screens have a defined behaviour for "nothing saved yet" — offer
-the built-in options, treat everything as unread — and making that an HTTP error would mean the
-caller has to treat an error response as normal, which is the habit that hides a real one.
-
-`404` keeps its meaning: a path naming something this service does not have. An unconfigured
-destination, an unknown definition id, an unknown enablement key and a mapper entry that does not
-exist are all `404`.
+A user name must be visible ASCII, not blank, and at most 64 characters, the width of
+`alerts_dicts.username`. It is held as a `Secret`, so logs and error reports show it masked.
 
 #### An empty answer is never an outage
 
@@ -402,9 +373,14 @@ The configuration errors, added to the table above:
 | Definition already exists for this name and product | 400 | `HE_01` |
 | Name and product do not identify an alert (or name the reserved `all` row) | 400 | `HE_03` |
 | A snooze entry is not keyed `snooze_entry_`/`custom_snooze_entry_`, or has no readable end time | 400 | `HE_03` |
-| Mapper entry larger than this service stores | 400 | `HE_03` |
+| `name`, `key` or `X-User-Name` is blank, or `X-User-Name` is absent on a watermark route | 400 | `IR_04` |
+| `X-User-Name` is not visible ASCII | 400 | `IR_06` |
+| `name` over 64 characters, `key` over 255, or `X-User-Name` over 64 | 400 | `IR_07` |
+| Mapper entry JSON over 1 MiB | 400 | `HE_03` |
 | Unknown definition id | 404 | `HE_02` |
 | Unknown enablement key | 404 | `HE_02` |
+| No live mapper entry for this name and key | 404 | `HE_02` |
+| No notification watermark for this user | 404 | `HE_02` |
 | A query against the observability database failed | 500 | `HE_00` |
 | Observability database unreachable | 503 | `HE_00` |
 
@@ -413,9 +389,7 @@ fine, and the condition is expected to clear without anyone touching it. A query
 connected is a `500`. The failing host, database and role
 reach the log and never the response.
 
-An empty `name` or `key`, one wider than its column, and an unreadable `X-User-Name` are `IR_04`
-alongside a body that did not parse. The column widths are checked here rather than left to
-Postgres, which rejects the same values as an opaque failure with a `500` attached.
+Widths, counted in characters, and the entry cap are checked before a database connection is taken.
 
 ## Destinations
 
@@ -458,14 +432,14 @@ unverified sender all arrive as one variant — so email only ever reports `deli
 ## Layout
 
 ```
-routes/          the route tree, and one module of handlers per area: notify and config
+routes/          the route tree, and one module of handlers per area: notify, config, mappers and notifications
 core/            what one request does, per area: deliver a message, or read and write configuration
 domain/          what delivering an alert is: the notifier traits and the types they exchange
 types/           the wire contract, per area
 ```
 
 The two concerns are separated by module rather than by directory. `notify` delivers a message and
-keeps nothing; `config` reads and writes a configuration row and sends nothing. They share the HTTP
+keeps nothing; `config`, `mappers` and `notifications` read and write rows and send nothing. They share the HTTP
 server, the database pool, authentication, `server_wrap` and the error types. The one deliberate exception is `routes/app.rs`, which holds *every* route this service
 serves — both concerns' — so the tree and its guards are one file rather than a search.
 
@@ -473,10 +447,6 @@ Rows and their queries are not here at all: `alerts_info`, `merchants_alert_exte
 `alerts_dicts` and `notification_reads` are modelled in `diesel_models::observability`, alongside
 every other table this database owns, so the alert manager and this service read one definition of
 them rather than two.
-
-The configuration areas have no `domain` types: a row is a row, and its types are
-`diesel_models::observability` on one side and `types/` on the other. A trait between them would
-abstract over one implementation.
 
 `domain` holds no HTTP. `core` holds no traits. A handler that grows logic belongs in `core`; a
 concept that a background job would also need belongs in `domain`.
