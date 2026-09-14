@@ -210,7 +210,7 @@ Three resources, backed by the observability database.
 | `GET` | `/alerts/config/enablement` | every enablement row |
 | `GET` | `/alerts/config/enablement/{name}/{product}` | read one |
 | `POST` | `/alerts/config/enablement/{name}/{product}` | upsert one |
-| `GET` | `/alerts/config/merchant-thresholds` | every merchant threshold |
+| `GET` | `/alerts/config/merchant-thresholds` | every merchant threshold, or those matching the query |
 | `POST` | `/alerts/config/merchant-thresholds` | upsert one |
 | `GET` | `/alerts/config/merchant-thresholds/{id}` | read one |
 | `POST` | `/alerts/config/merchant-thresholds/{id}` | change part of one |
@@ -220,18 +220,19 @@ A list answers `{"count": n, "<resource>": [...]}` under `definitions`, `enablem
 `merchant_thresholds`, and a table with no rows is a `200` with a count of zero. A read, create,
 upsert or update answers the row. A delete answers `{"id": "…", "deleted": true}`.
 
-An update, and an upsert that finds its row, changes only what the body mentions: an absent field
-is left alone, `null` clears it, and a value sets it. `is_enabled` and a merchant threshold's
-`author` are never cleared: `null` leaves them alone.
+An update (`POST` to a definition or merchant threshold id) changes only what the body mentions: an
+absent field is left alone, `null` clears it, and a value sets it. `null` for `is_enabled`, or for a
+merchant threshold's `author`, leaves it alone. The two upserts are described with their resources.
 
 #### Definitions
 
 A definition is one `alerts_info` row, with an id the service generates. `name`, `product`,
-`is_enabled` and `author` are required on create, and `name` and `product` cannot be changed
-afterwards.
+`is_enabled` and `author` are required on create; `name` and `product` must not be blank and cannot
+be changed afterwards.
 
-`blacklist`, `snooze` and `thresholds` hold r-apps' documents and are stored exactly as sent. Each
-is checked for its shape first:
+`blacklist`, `snooze` and `thresholds` hold r-apps' documents and are stored exactly as sent, except
+that an empty list, an empty object or a blank string is stored as `{}`, as r-apps' `createAlertInfo`
+does, and `null` is stored as `NULL`. Each is checked for its shape first:
 
 - `blacklist` is a list, or an object, of groups; a group maps one or more dimensions to a value or
   a list of values, as in `{"ignored_paths": {"path": ["/health", "/ecr"]}}` or
@@ -268,8 +269,9 @@ effective_is_enabled = definition.is_enabled AND coalesce(enablement.is_enabled,
 ```
 
 The upsert is one statement with `(name, product)` as its conflict target, and requires
-`is_enabled`. It is refused unless a definition with that name and product exists and the name is
-not `all`.
+`is_enabled` as a boolean. When the row exists, `category` and `metadata` change only if the body
+mentions them, and `null` clears them. It is refused unless a definition with that name and product
+exists and the name is not `all`.
 
 ```http
 POST /alerts/config/enablement/sr_drop/payments
@@ -284,13 +286,21 @@ A merchant threshold is one `merchant_thresholds` row, r-apps' per-merchant over
 numbers `thresholds_min_volume`, `thresholds_min_impacted_volume`, `thresholds_tolerance`,
 `thresholds_diff_threshold`, `thresholds_merchant_impact`, `thresholds_alert_period`,
 `thresholds_min_observations`, `thresholds_min_history_volume`, `thresholds_filter_percentile` and
-`thresholds_current_min_volume`.
+`thresholds_current_min_volume`. `name`, `product`, `merchant_id` and `author` must not be blank.
+
+`GET /alerts/config/merchant-thresholds` takes `name`, `product`, `merchant_id`, `is_enabled` and
+`author` as query parameters, each an exact match, the columns r-apps' `getMerchantThresholds`
+filters on; with none it lists every row.
 
 `POST /alerts/config/merchant-thresholds` upserts on `(name, product, merchant_id, is_enabled,
 author)`, the key r-apps' `addMerchantThresholds` uses, so the same five values update one row and
-any other combination adds a row. `POST /alerts/config/merchant-thresholds/{id}` changes the
-thresholds, `metadata`, `author` and `is_enabled`; `name`, `product` and `merchant_id` cannot be
-changed.
+any other combination adds a row. As in r-apps, a threshold or `metadata` that is absent or `null`
+keeps the stored value when the row exists and is stored as `NULL` when the row is added.
+
+`POST /alerts/config/merchant-thresholds/{id}` changes the thresholds, `metadata`, `author` and
+`is_enabled`; `name`, `product` and `merchant_id` cannot be changed. `metadata` must be an object and
+is merged into the stored one, `COALESCE(metadata, '{}') || patch`, as r-apps' merchant threshold
+update merges it; `null` clears it.
 
 ```http
 POST /alerts/config/merchant-thresholds
@@ -304,14 +314,16 @@ DELETE /alerts/config/merchant-thresholds/0199…
 
 #### Errors
 
-Widths and document shapes are checked before a database connection is taken. A path id that is
-not a UUID is answered with the same empty `404` as a path that matches no route. The configuration
-errors, added to the table above:
+Blank values, widths and document shapes are checked before a database connection is taken. A
+configuration body that does not parse, including one missing a required field or giving it `null`,
+is the `IR_04` above. A path id that is not a UUID is answered with the same empty `404` as a path
+that matches no route. The configuration errors, added to the table above:
 
 | | Status | Code |
 |---|---|---|
-| A field is longer than its column holds | 400 | `IR_07` |
-| `blacklist`, `snooze` or `thresholds` is not in r-apps' shape | 400 | `IR_06` |
+| A field is longer than its column holds, or a name, product, merchant id or author is blank | 400 | `IR_07` |
+| `blacklist`, `snooze` or `thresholds` is not in r-apps' shape, or a merchant threshold update's `metadata` is not an object | 400 | `IR_06` |
+| The merchant thresholds query string does not parse or names another parameter | 400 | `IR_06` |
 | A definition already exists for this name and product | 400 | `HE_01` |
 | An update gives a merchant threshold the name, product, merchant, author and `is_enabled` of another | 400 | `HE_01` |
 | Name and product do not identify an alert, or name `all` | 400 | `HE_03` |
