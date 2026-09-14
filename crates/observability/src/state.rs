@@ -2,7 +2,10 @@
 
 use std::{collections::HashMap, sync::Arc};
 
-use common_utils::{external_service::NoOpEventEmitter, DbConnectionParams};
+use common_utils::{
+    external_service::{ExternalServiceEventEmitter, NoOpEventEmitter},
+    DbConnectionParams,
+};
 use diesel_models::{DatabaseConnectionWithContext, DejaPgConnection};
 use error_stack::ResultExt;
 use external_services::{
@@ -47,6 +50,7 @@ pub struct AppState {
     /// Email destinations, by the id a request names.
     pub email: Arc<Registry<dyn EmailNotifier>>,
     pub database: DatabasePool,
+    pub event_emitter: Arc<dyn ExternalServiceEventEmitter>,
     pub request_id: Option<String>,
 }
 
@@ -101,6 +105,7 @@ impl AppState {
             chat: Arc::new(chat),
             email: Arc::new(email),
             database,
+            event_emitter: Arc::new(NoOpEventEmitter),
             request_id: None,
         }
     }
@@ -118,7 +123,7 @@ impl AppState {
         Ok(DatabaseConnectionWithContext::new(
             connection,
             self.request_id.clone(),
-            Arc::new(NoOpEventEmitter),
+            self.event_emitter.clone(),
         ))
     }
 }
