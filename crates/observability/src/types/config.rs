@@ -5,6 +5,7 @@ use diesel_models::observability::{
     },
     merchants_alert_external_config::{
         MerchantsAlertExternalConfig, MerchantsAlertExternalConfigNew,
+        MerchantsAlertExternalConfigUpdate,
     },
 };
 use serde::{Deserialize, Serialize};
@@ -171,13 +172,15 @@ pub struct AlertDefinitionListResponse {
 #[serde(deny_unknown_fields)]
 pub struct AlertEnablementUpsertRequest {
     pub is_enabled: bool,
-    pub category: Option<String>,
-    pub metadata: Option<serde_json::Value>,
+    #[serde(default, with = "serde_with::rust::double_option")]
+    pub category: Option<Option<String>>,
+    #[serde(default, with = "serde_with::rust::double_option")]
+    pub metadata: Option<Option<serde_json::Value>>,
 }
 
 impl AlertEnablementUpsertRequest {
-    pub fn into_upsertable(
-        self,
+    pub fn to_insertable(
+        &self,
         name: String,
         product: String,
         now: PrimitiveDateTime,
@@ -185,10 +188,20 @@ impl AlertEnablementUpsertRequest {
         MerchantsAlertExternalConfigNew {
             name,
             product,
-            category: self.category,
+            category: self.category.clone().flatten(),
             is_enabled: Some(self.is_enabled),
-            metadata: self.metadata,
+            metadata: self.metadata.clone().flatten(),
             last_updated_at: now,
+        }
+    }
+}
+
+impl From<AlertEnablementUpsertRequest> for MerchantsAlertExternalConfigUpdate {
+    fn from(request: AlertEnablementUpsertRequest) -> Self {
+        Self::Update {
+            category: request.category,
+            is_enabled: request.is_enabled,
+            metadata: request.metadata,
         }
     }
 }

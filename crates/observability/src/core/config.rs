@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use diesel_models::observability::{
     alerts_info::{AlertsInfo, Snooze},
     merchants_alert_external_config::MerchantsAlertExternalConfig,
@@ -100,26 +102,34 @@ pub async fn upsert_enablement(
     product: String,
     request: AlertEnablementUpsertRequest,
 ) -> ObservabilityApiResult<AlertEnablementResponse> {
-    let connection = state.database_connection().await?;
-
-    let definition = find_definition_for(&connection, &name, &product).await?;
-    let definition_is_enabled = match definition {
-        Some(definition) if definition.name != ALL_DEFINITIONS => {
-            definition.is_enabled.unwrap_or(false)
-        }
-        _ => Err(report!(ObservabilityError::NotAnAlert {
+    common_utils::fp_utils::when(name == ALL_DEFINITIONS, || {
+        Err(report!(ObservabilityError::NotAnAlert {
             name: name.clone(),
             product: product.clone(),
-        }))?,
-    };
+        }))
+    })?;
+
+    let connection = state.database_connection().await?;
+
+    let definition_is_enabled =
+        AlertsInfo::find_optional_is_enabled_by_name_and_product(&connection, &name, &product)
+            .await
+            .change_context(ObservabilityError::InternalServerError)
+            .attach_printable("Failed to find the alert definition for the enablement row")?
+            .ok_or_else(|| {
+                report!(ObservabilityError::NotAnAlert {
+                    name: name.clone(),
+                    product: product.clone(),
+                })
+            })?;
 
     request
-        .into_upsertable(name, product, common_utils::date_time::now())
-        .upsert(&connection)
+        .to_insertable(name, product, common_utils::date_time::now())
+        .upsert(&connection, request.into())
         .await
         .change_context(ObservabilityError::InternalServerError)
         .attach_printable("Failed to upsert the alert enablement row")
-        .map(|row| AlertEnablementResponse::new(row, Some(definition_is_enabled)))
+        .map(|row| AlertEnablementResponse::new(row, definition_is_enabled))
 }
 
 pub async fn retrieve_enablement(
@@ -137,9 +147,12 @@ pub async fn retrieve_enablement(
         })
         .attach_printable("Failed to find the alert enablement row")?;
 
-    let definition_is_enabled = find_definition_for(&connection, &name, &product)
-        .await?
-        .map(|definition| definition.is_enabled.unwrap_or(false));
+    let definition_is_enabled =
+        AlertsInfo::find_optional_is_enabled_by_name_and_product(&connection, &name, &product)
+            .await
+            .change_context(ObservabilityError::InternalServerError)
+            .attach_printable("Failed to find the alert definition for the enablement row")?
+            .flatten();
 
     Ok(AlertEnablementResponse::new(row, definition_is_enabled))
 }
@@ -149,30 +162,24 @@ pub async fn list_enablements(
 ) -> ObservabilityApiResult<AlertEnablementListResponse> {
     let connection = state.database_connection().await?;
 
-    let rows = MerchantsAlertExternalConfig::list(&connection)
+    let definitions_enabled = AlertsInfo::list_is_enabled(&connection)
         .await
         .change_context(ObservabilityError::InternalServerError)
-        .attach_printable("Failed to list the alert enablement rows")?;
-
-    let definitions = AlertsInfo::list(&connection)
-        .await
-        .change_context(ObservabilityError::InternalServerError)
-        .attach_printable("Failed to list the alert definitions")?
+        .attach_printable("Failed to list whether each alert definition is enabled")?
         .into_iter()
-        .map(|definition| {
-            (
-                (definition.name.clone(), definition.product.clone()),
-                definition.is_enabled.unwrap_or(false),
-            )
-        })
-        .collect::<std::collections::HashMap<_, _>>();
+        .map(|(name, product, is_enabled)| ((name, product), is_enabled))
+        .collect::<HashMap<_, _>>();
 
-    let enablements = rows
+    let enablements = MerchantsAlertExternalConfig::list(&connection)
+        .await
+        .change_context(ObservabilityError::InternalServerError)
+        .attach_printable("Failed to list the alert enablement rows")?
         .into_iter()
         .map(|row| {
-            let definition_is_enabled = definitions
+            let definition_is_enabled = definitions_enabled
                 .get(&(row.name.clone(), row.product.clone()))
-                .copied();
+                .copied()
+                .flatten();
             AlertEnablementResponse::new(row, definition_is_enabled)
         })
         .collect::<Vec<_>>();
@@ -181,17 +188,6 @@ pub async fn list_enablements(
         count: enablements.len(),
         enablements,
     })
-}
-
-async fn find_definition_for(
-    connection: &diesel_models::DatabaseConnectionWithContext<'_>,
-    name: &str,
-    product: &str,
-) -> ObservabilityApiResult<Option<AlertsInfo>> {
-    AlertsInfo::find_optional_by_name_and_product(connection, name, product)
-        .await
-        .change_context(ObservabilityError::InternalServerError)
-        .attach_printable("Failed to find the alert definition for the enablement row")
 }
 
 fn validate_snooze(snooze: &Snooze) -> ObservabilityApiResult<()> {

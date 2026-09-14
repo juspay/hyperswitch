@@ -1,12 +1,13 @@
 use async_bb8_diesel::AsyncRunQueryDsl;
-use diesel::{associations::HasTable, upsert::excluded, BoolExpressionMethods, ExpressionMethods};
+use common_utils::errors::ReportSwitchExt;
+use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
 use error_stack::ResultExt;
 
 use crate::{
-    errors,
     observability::{
         merchants_alert_external_config::{
             MerchantsAlertExternalConfig, MerchantsAlertExternalConfigNew,
+            MerchantsAlertExternalConfigUpdate, MerchantsAlertExternalConfigUpdateInternal,
         },
         schema::merchants_alert_external_config::dsl,
     },
@@ -18,17 +19,13 @@ impl MerchantsAlertExternalConfigNew {
     pub async fn upsert(
         self,
         conn: &DatabaseConnectionWithContext<'_>,
+        update: MerchantsAlertExternalConfigUpdate,
     ) -> StorageResult<MerchantsAlertExternalConfig> {
         let query = diesel::insert_into(<MerchantsAlertExternalConfig as HasTable>::table())
             .values(self)
             .on_conflict((dsl::name, dsl::product))
             .do_update()
-            .set((
-                dsl::category.eq(excluded(dsl::category)),
-                dsl::is_enabled.eq(excluded(dsl::is_enabled)),
-                dsl::metadata.eq(excluded(dsl::metadata)),
-                dsl::last_updated_at.eq(excluded(dsl::last_updated_at)),
-            ));
+            .set(MerchantsAlertExternalConfigUpdateInternal::from(update));
 
         generics::db_metrics::track_database_call::<
             <MerchantsAlertExternalConfig as HasTable>::Table,
@@ -41,9 +38,8 @@ impl MerchantsAlertExternalConfigNew {
             query.get_result_async(conn.raw_connection()),
         )
         .await
-        .map_err(|error| error_stack::report!(error))
-        .change_context(errors::DatabaseError::Others)
         .attach_printable("Failed to upsert the alert enablement row")
+        .switch()
     }
 }
 
