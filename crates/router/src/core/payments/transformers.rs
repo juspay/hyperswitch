@@ -5001,10 +5001,20 @@ impl ForeignFrom<ephemeral_key::EphemeralKey> for api::ephemeral_key::EphemeralK
 pub fn bank_transfer_next_steps_check(
     payment_attempt: storage::PaymentAttempt,
 ) -> RouterResult<Option<api_models::payments::BankTransferNextStepsData>> {
+    // D24 (Directa24) stores its own deposit instructions (`payment_info`: SPEI CLABE, Pix QR
+    // code, ...) in `connector_metadata` via UCS. They are not `BankTransferNextStepsData`, and
+    // parsing them as such fails the whole payment response after a successful authorize.
+    let is_d24 = payment_attempt
+        .connector
+        .as_deref()
+        .and_then(|connector| api_models::enums::Connector::from_str(connector).ok())
+        == Some(api_models::enums::Connector::D24);
     let bank_transfer_next_step = if let Some(diesel_models::enums::PaymentMethod::BankTransfer) =
         payment_attempt.payment_method
     {
-        if payment_attempt.payment_method_type != Some(diesel_models::enums::PaymentMethodType::Pix)
+        if !is_d24
+            && payment_attempt.payment_method_type
+                != Some(diesel_models::enums::PaymentMethodType::Pix)
             && payment_attempt.payment_method_type
                 != Some(diesel_models::enums::PaymentMethodType::PixAutomaticoQr)
             && payment_attempt.payment_method_type
