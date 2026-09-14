@@ -352,10 +352,10 @@ watermark, and reading it is a `404` like any other missing resource.
 
 The internal API key authenticates the calling service, not a person. A mapper save and both
 watermark routes take the user from `X-User-Name`, which nothing authenticates. The header is
-required on the watermark routes; on a mapper save it is optional, and without it `username` takes
-the column default.
+required on the watermark routes; on a mapper save it is optional, and when it is absent or blank
+`username` takes the column default.
 
-A user name must be visible ASCII, not blank, and at most 64 characters, the width of
+A user name must be visible ASCII and at most 64 characters, the width of
 `alerts_dicts.username`. It is held as a `Secret`, so logs and error reports show it masked.
 
 #### An empty answer is never an outage
@@ -373,7 +373,7 @@ The configuration errors, added to the table above:
 | Definition already exists for this name and product | 400 | `HE_01` |
 | Name and product do not identify an alert (or name the reserved `all` row) | 400 | `HE_03` |
 | A snooze entry is not keyed `snooze_entry_`/`custom_snooze_entry_`, or has no readable end time | 400 | `HE_03` |
-| `name`, `key` or `X-User-Name` is blank, or `X-User-Name` is absent on a watermark route | 400 | `IR_04` |
+| `name` or `key` is blank, or `X-User-Name` is absent or blank on a watermark route | 400 | `IR_04` |
 | `X-User-Name` is not visible ASCII | 400 | `IR_06` |
 | `name` over 64 characters, `key` over 255, or `X-User-Name` over 64 | 400 | `IR_07` |
 | Mapper entry JSON over 1 MiB | 400 | `HE_03` |

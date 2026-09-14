@@ -129,17 +129,15 @@ pub fn get_user_name(request_headers: &HeaderMap) -> ObservabilityApiResult<Opti
     request_headers
         .get(X_USER_NAME)
         .map(|value| {
-            value
-                .to_str()
-                .map_err(|_| {
-                    report!(ObservabilityError::InvalidRequestData {
-                        message: format!(
-                            "{X_USER_NAME} must contain only visible ASCII characters"
-                        ),
-                    })
+            value.to_str().map_err(|_| {
+                report!(ObservabilityError::InvalidRequestData {
+                    message: format!("{X_USER_NAME} must contain only visible ASCII characters"),
                 })
-                .and_then(|name| UserName::new(Secret::new(name.to_owned())))
+            })
         })
+        .transpose()?
+        .filter(|name| !name.trim().is_empty())
+        .map(|name| UserName::new(Secret::new(name.to_owned())))
         .transpose()
 }
 
