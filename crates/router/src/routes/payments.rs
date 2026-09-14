@@ -134,14 +134,23 @@ pub async fn payments_create(
         ),
     };
 
+    let integration_type = update_context::integration_type_from_headers(req.headers());
+
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         payload,
-        |mut state, auth: auth::AuthenticationData, req, req_state| {
+        move |mut state, auth: auth::AuthenticationData, req, req_state| {
             let header_payload = header_payload.clone();
             async move {
+                let merchant_integration_type =
+                    update_context::merchant_integration_type(&state, &auth.platform).await;
+                update_context::validate_integration_type(
+                    integration_type,
+                    merchant_integration_type,
+                )?;
+
                 let metrics_start = req
                     .confirm
                     .is_some_and(|confirm| confirm)

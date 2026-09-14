@@ -52,7 +52,7 @@ pub enum MerchantAccountType {
 /// Which integration a merchant builds its checkout with, and therefore which
 /// `X-Integration-Type` header values its payment requests may carry.
 ///
-/// Resolved per merchant from Superposition (`payments.integration_type`). `client_and_server`
+/// Resolved per merchant from Superposition (`system.payment_integration_type`). `client_and_server`
 /// is the default: a merchant with no override keeps accepting either header value, exactly as
 /// it did before the setting existed.
 #[derive(

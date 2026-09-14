@@ -69,7 +69,7 @@ pub fn integration_type_from_headers(
 }
 
 /// Resolves the integration type the merchant is configured for: Superposition's
-/// `payments.integration_type`, keyed on the processor merchant, with the `configs` table as
+/// `system.payment_integration_type`, keyed on the processor merchant, with the `configs` table as
 /// fallback and `client_and_server` when neither has a value.
 pub async fn merchant_integration_type(
     state: &SessionState,

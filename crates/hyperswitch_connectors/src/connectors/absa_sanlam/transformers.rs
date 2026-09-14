@@ -12,6 +12,13 @@ use serde::{Deserialize, Serialize};
 
 use crate::{types::ResponseRouterData, utils};
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AbsaSanlamFrmMetadata {
+    pub profile_id: String,
+    pub connector_id: Option<String>,
+    pub created_at: time::PrimitiveDateTime,
+}
+
 pub struct AbsaSanlamAuthType {
     pub(super) api_key: Secret<String>,
     pub(super) merchant_id: Secret<String>,

@@ -121,7 +121,7 @@ where
             ),
             (
                 headers::IDEMPOTENCY_KEY.to_string(),
-                uuid::Uuid::new_v4().to_string().into(),
+                common_utils::generate_uuid_v4().to_string().into(),
             ),
             (X_VOLT_API_VERSION.to_string(), VOLT_VERSION.into()),
             (
