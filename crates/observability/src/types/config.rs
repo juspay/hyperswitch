@@ -491,6 +491,16 @@ impl From<MerchantThresholdUpsertRequest> for MerchantThresholdUpdate {
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
+pub struct MerchantThresholdListConstraints {
+    pub name: Option<String>,
+    pub product: Option<String>,
+    pub merchant_id: Option<String>,
+    pub is_enabled: Option<bool>,
+    pub author: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct MerchantThresholdUpdateRequest {
     pub author: Option<String>,
     pub is_enabled: Option<bool>,

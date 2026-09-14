@@ -16,8 +16,8 @@ use crate::{
         AlertDefinitionCreateRequest, AlertDefinitionListResponse, AlertDefinitionResponse,
         AlertDefinitionUpdateRequest, AlertEnablementListResponse, AlertEnablementResponse,
         AlertEnablementUpsertRequest, MerchantThresholdDeleteResponse,
-        MerchantThresholdListResponse, MerchantThresholdResponse, MerchantThresholdUpdateRequest,
-        MerchantThresholdUpsertRequest,
+        MerchantThresholdListConstraints, MerchantThresholdListResponse, MerchantThresholdResponse,
+        MerchantThresholdUpdateRequest, MerchantThresholdUpsertRequest,
     },
 };
 
@@ -223,16 +223,24 @@ pub async fn retrieve_merchant_threshold(
 
 pub async fn list_merchant_thresholds(
     state: AppState,
+    constraints: MerchantThresholdListConstraints,
 ) -> ObservabilityApiResult<MerchantThresholdListResponse> {
     let connection = state.database_connection().await?;
 
-    let merchant_thresholds = MerchantThreshold::list(&connection)
-        .await
-        .change_context(ObservabilityError::InternalServerError)
-        .attach_printable("Failed to list the merchant thresholds")?
-        .into_iter()
-        .map(MerchantThresholdResponse::from)
-        .collect::<Vec<_>>();
+    let merchant_thresholds = MerchantThreshold::filter_by_constraints(
+        &connection,
+        constraints.name,
+        constraints.product,
+        constraints.merchant_id,
+        constraints.is_enabled,
+        constraints.author,
+    )
+    .await
+    .change_context(ObservabilityError::InternalServerError)
+    .attach_printable("Failed to list the merchant thresholds")?
+    .into_iter()
+    .map(MerchantThresholdResponse::from)
+    .collect::<Vec<_>>();
 
     Ok(MerchantThresholdListResponse {
         count: merchant_thresholds.len(),

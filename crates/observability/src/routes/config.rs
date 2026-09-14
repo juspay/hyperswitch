@@ -5,7 +5,8 @@ use crate::{
     state::AppState,
     types::config::{
         AlertDefinitionCreateRequest, AlertDefinitionUpdateRequest, AlertEnablementUpsertRequest,
-        MerchantThresholdUpdateRequest, MerchantThresholdUpsertRequest,
+        MerchantThresholdListConstraints, MerchantThresholdUpdateRequest,
+        MerchantThresholdUpsertRequest,
     },
 };
 
@@ -121,12 +122,15 @@ pub async fn enablement_upsert(
 pub async fn merchant_threshold_list(
     state: web::Data<AppState>,
     request: HttpRequest,
+    query: web::Query<MerchantThresholdListConstraints>,
 ) -> HttpResponse {
     services::server_wrap(
         state.get_ref().clone(),
         &request,
-        (),
-        |state, ()| async move { core::config::list_merchant_thresholds(state).await },
+        query.into_inner(),
+        |state, constraints| async move {
+            core::config::list_merchant_thresholds(state, constraints).await
+        },
         &auth::InternalApiKeyAuth,
     )
     .await

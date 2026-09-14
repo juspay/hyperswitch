@@ -53,12 +53,35 @@ impl MerchantThreshold {
         generics::generic_find_by_id::<<Self as HasTable>::Table, _, _>(conn, id).await
     }
 
-    pub async fn list(conn: &DatabaseConnectionWithContext<'_>) -> StorageResult<Vec<Self>> {
-        let query = <Self as HasTable>::table().order((
+    pub async fn filter_by_constraints(
+        conn: &DatabaseConnectionWithContext<'_>,
+        name: Option<String>,
+        product: Option<String>,
+        merchant_id: Option<String>,
+        is_enabled: Option<bool>,
+        author: Option<String>,
+    ) -> StorageResult<Vec<Self>> {
+        let mut query = crate::list::into_boxed_list(<Self as HasTable>::table().order((
             dsl::product.asc(),
             dsl::name.asc(),
             dsl::merchant_id.asc(),
-        ));
+        )));
+
+        if let Some(name) = name {
+            query = query.filter(dsl::name.eq(name));
+        }
+        if let Some(product) = product {
+            query = query.filter(dsl::product.eq(product));
+        }
+        if let Some(merchant_id) = merchant_id {
+            query = query.filter(dsl::merchant_id.eq(merchant_id));
+        }
+        if let Some(is_enabled) = is_enabled {
+            query = query.filter(dsl::is_enabled.eq(is_enabled));
+        }
+        if let Some(author) = author {
+            query = query.filter(dsl::author.eq(author));
+        }
 
         generics::db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
             conn.request_id(),
@@ -67,7 +90,7 @@ impl MerchantThreshold {
             query.get_results_async(conn.raw_connection()),
         )
         .await
-        .attach_printable("Failed to list the merchant thresholds")
+        .attach_printable("Failed to filter the merchant thresholds by constraints")
         .switch()
     }
 
