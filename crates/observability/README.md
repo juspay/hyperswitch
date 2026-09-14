@@ -524,88 +524,60 @@ about the request, and either would fail the whole batch.
 
 ### Instances
 
-Who an announcement was about. `merchants_alert_external` holds one row per affected merchant and
-`merchants_alert_external_dimension` holds the breakdown behind it — one row per connector, payment
-method, or whatever the detector split on.
+`merchants_alert_external` holds one row per merchant an announcement was about, and
+`merchants_alert_external_dimension` one row per dimension value (connector, payment method, ...)
+behind it. Both reference `alerts_main` `ON DELETE CASCADE`, so removing an announcement removes its
+rows; no route here removes one.
 
-**The announcement is a path segment and is the only way to address these rows.** Both tables
-reference `alerts_main` `ON DELETE CASCADE`, so a caller records an announcement, gets an id back,
-and posts to that id. There is no route that takes the reference in a body, so a row pointing at an
-announcement that does not exist — or at none at all — is not expressible. An id that names no
-announcement on the channel in the path is `404` `HE_02`, on a read and on a write alike, checked
-before anything is written rather than left to arrive as an opaque constraint failure.
+The announcement is the `{announcement_id}` path segment and no body field names it. `{channel}` is
+`slack` or `xyne`; both channels share both tables, each row carrying its `channel`, and every read,
+replace and announcement lookup is scoped to the channel in the path. An id with no announcement on
+that channel is `404` `HE_02` on a read and on a write, and a write refused this way changes
+nothing. A segment that is not a known channel, or an id that is not a UUID, is an empty `404`, as
+under `/lifecycle`.
 
-Removing an announcement takes its instances and its breakdown with it. Nothing this service
-exposes removes one.
+A read answers `{count, merchants}` or `{count, dimensions}`: instances ordered by `merchant_id`,
+dimensions by `dimension_key` then `dimension_value`, both then by `id_merchant_table`.
 
-`{channel}` is `slack` or `xyne`, exactly as it is under `/lifecycle`, and the breakdown takes one
-too. Both channels share both tables, each row carrying its `channel`, and every read, replace and
-announcement lookup is scoped to the channel in the path. The foreign key names the announcement's
-`id` alone, so it is that lookup, not the database, that keeps a `xyne` write from attaching rows to
-a `slack` announcement. A segment that is neither is a `404` with no error body, as under
-`/lifecycle`.
+A write replaces every row its announcement carries on that channel in that table, and answers
+`{stored, removed, ts_alert}`: the rows inserted, the rows it deleted, and the `ts_alert` the new
+rows carry, or `null` when it stored none. An empty write clears the announcement's rows. The
+delete and the insert run in one transaction that first takes a Postgres advisory lock on the
+announcement, one lock per table, so two writes for one announcement run one after the other and
+the second replaces what the first stored.
 
-**A write replaces what its announcement carries on that channel.** A rerun of the same alert
-manager pass records the same merchants once rather than twice, and an empty write clears them. The
-response reports `removed` for the same reason the lifecycle write does: a replacement that removed
-far more than expected is the shape of a caller that lost its own copy. `ts_alert` in the response
-is the stamp the stored rows carry, and a write that stores nothing answers `ts_alert: null`.
-
-**Two writes for one announcement do not interleave.** A replacement is a delete followed by an
-insert, and two of them overlapping would each delete before either inserted, leaving both sets of
-rows stored. Each write takes a Postgres advisory lock on its announcement first, inside the
-transaction that then looks the announcement up, deletes and inserts, so the second waits and
-replaces what the first wrote. An instance write and a breakdown write take separate locks, since
-each replaces only its own table, and writes for different announcements do not wait on each other.
-
-#### What is wrong, generically
-
-`current_metric` against `expected_metric` is the generic form of "what is wrong", which holds for
-success rate, volume, refunds and anything later where `sr`/`failed`/`total` did not.
-
-**Absent is not zero.** The absolutes — zero volume, zero success — have no expected value and send
-none. Storing `0` for them would read as "observed 0, expected 0", which is a healthy row. Both
-columns are nullable and both are stored exactly as they arrive.
-
-`ts_slack` is taken from the announcement when a caller sends none, so nobody carries the thread
-around by hand; an announcement that never reached a channel has no thread to give, and the row
-stores `''`.
+`ts_alert` and `last_updated_at` are the time of the write, truncated to milliseconds, and
+`id_merchant_table` is minted with `common_utils::generate_uuid_v7()`. A field the caller leaves out
+is stored as r-apps stores it: `name`, `product`, `merchant_id`, `dimension_key`,
+`dimension_value`, `attribution`, `priority` and `tenant_id` as `''`; `slack_info`,
+`communication_info` and `metadata_alert_details` as `{}`; `dimensions`, `auxiliary_dimensions` and
+`metadata` as the JSON string `"{}"`; `is_visible` as `true`; and `ts_slack` as the announcement's
+`ts_slack`, or `''` when it has none. `current_metric`, `expected_metric`, `max_duration`,
+`start_time`, `latest_ts_alert`, `recovered_ts` and `id_intermediate` are stored as sent, `NULL` when
+absent.
 
 #### The size of a write
 
-One instance write carries at most 500 merchants, and one breakdown write at most 500 dimensions.
-Because a write replaces everything its announcement carries, the same numbers bound what one
-announcement holds and the read that returns it.
+One instance write carries at most 500 merchants and one dimension write at most 500 dimensions, so
+the same numbers bound what one announcement holds. A write over its cap is refused whole. At the
+cap a write is a single insert of 500 rows of 27 columns, inside Postgres' 65,535 bind parameters.
 
-**Over the cap the whole write is refused and nothing is applied**, as a lifecycle write over its
-cap is. At the cap one write is a single insert: 500 rows of at most 27 columns stays well inside
-the 65,535 bind parameters Postgres accepts in one statement.
+Both write routes take the `/alerts` scope's 2 MiB body limit, so 500 rows fit while they average
+under about 4 KiB of JSON each. A larger body is refused as `IR_06`, the same answer as a body that
+does not parse, before the caps or widths are checked.
+
+Column widths are counted in characters and checked on every row before a database connection is
+taken: `name`, `product`, `merchant_id`, `dimension_key`, `priority` and `tenant_id` are
+`VARCHAR(64)`; `attribution`, `dimension_value` and `ts_slack` are `VARCHAR(255)`.
 
 The instance errors, added to the tables above:
 
 | | Status | Code |
 |---|---|---|
-| Instance write over 500 merchants, or breakdown write over 500 dimensions | 400 | `HE_03` |
+| Body over 2 MiB, or did not parse | 400 | `IR_06` |
+| A value wider than its column | 400 | `IR_07` |
+| Instance write over 500 merchants, or dimension write over 500 dimensions | 400 | `HE_03` |
 | Unknown announcement id on this channel | 404 | `HE_02` |
-
-A value wider than its column — `name`, `product`, `merchant_id`, `dimension_key`, `priority` and
-`tenant_id` are `VARCHAR(64)`, `attribution`, `dimension_value` and `ts_slack` are `VARCHAR(255)` —
-is `IR_04`, alongside a body that did not parse. Widths are counted in characters and checked over
-every row before a database connection is taken, so a request that could never be stored is refused
-without touching the database.
-
-**Every write stamp is this service's clock.** `ts_alert` and `last_updated_at` are set by the
-handler, in milliseconds as they cross the wire, and `id_merchant_table` is minted with
-`uuid::Uuid::now_v7()`. `is_visible` is `true` unless the caller says otherwise, so a caller that
-said nothing does not store a row nobody can see.
-
-A field the caller leaves out is stored as r-apps stores it rather than as `NULL`: `name`,
-`product`, `merchant_id`, `dimension_key`, `dimension_value`, `attribution`, `ts_slack`, `priority`
-and `tenant_id` as `''`; `slack_info`, `communication_info` and `metadata_alert_details` as `{}`;
-and `dimensions`, `auxiliary_dimensions` and `metadata` as the JSON string `"{}"`, which is what
-r-apps' `"{}"` default becomes once it serialises it. `current_metric`, `expected_metric`,
-`max_duration`, `start_time`, `latest_ts_alert`, `recovered_ts` and `id_intermediate` have no
-r-apps default and stay `NULL` when absent.
 
 ## Destinations
 
