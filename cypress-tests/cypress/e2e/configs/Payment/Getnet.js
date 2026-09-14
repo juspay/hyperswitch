@@ -4,7 +4,7 @@ const successfulNo3DSCardDetails = {
   card_exp_year: "2027",
   card_holder_name: "John Doe",
   card_cvc: "006",
-  card_network: "Visa",
+  card_network: "Mastercard",
 };
 
 export const connectorDetails = {
@@ -39,6 +39,7 @@ export const connectorDetails = {
     PaymentConfirmWithShippingCost: {
       Request: {
         payment_method: "card",
+        payment_method_type: "credit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -46,13 +47,14 @@ export const connectorDetails = {
         setup_future_usage: "on_session",
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "succeeded",
-          shipping_cost: 50,
-          amount_received: 6050,
-          amount: 6000,
-          net_amount: 6050,
+          error: {
+            type: "invalid_request",
+            message:
+              "No eligible connector was found for the current payment method configuration",
+            code: "IR_39",
+          },
         },
       },
     },
@@ -67,13 +69,13 @@ export const connectorDetails = {
         setup_future_usage: "on_session",
       },
       Response: {
-        status: 501,
+        status: 400,
         body: {
           error: {
             type: "invalid_request",
-            message: "Payment method type not supported",
-            code: "IR_19",
-            reason: "3DS payments is not supported by Getnet",
+            message:
+              "No eligible connector was found for the current payment method configuration",
+            code: "IR_39",
           },
         },
       },
@@ -89,13 +91,13 @@ export const connectorDetails = {
         setup_future_usage: "on_session",
       },
       Response: {
-        status: 501,
+        status: 400,
         body: {
           error: {
             type: "invalid_request",
-            message: "Payment method type not supported",
-            code: "IR_19",
-            reason: "3DS payments is not supported by Getnet",
+            message:
+              "No eligible connector was found for the current payment method configuration",
+            code: "IR_39",
           },
         },
       },
@@ -104,6 +106,7 @@ export const connectorDetails = {
       Request: {
         currency: "GBP",
         payment_method: "card",
+        payment_method_type: "credit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -111,9 +114,14 @@ export const connectorDetails = {
         setup_future_usage: "on_session",
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "requires_capture",
+          error: {
+            type: "invalid_request",
+            message:
+              "No eligible connector was found for the current payment method configuration",
+            code: "IR_39",
+          },
         },
       },
     },
@@ -121,6 +129,7 @@ export const connectorDetails = {
       Request: {
         currency: "GBP",
         payment_method: "card",
+        payment_method_type: "credit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -128,15 +137,21 @@ export const connectorDetails = {
         setup_future_usage: "on_session",
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "succeeded",
+          error: {
+            type: "invalid_request",
+            message:
+              "No eligible connector was found for the current payment method configuration",
+            code: "IR_39",
+          },
         },
       },
     },
     Capture: {
       Request: {
         payment_method: "card",
+        payment_method_type: "credit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -182,6 +197,7 @@ export const connectorDetails = {
       Request: {
         amount: 6000,
         payment_method: "card",
+        payment_method_type: "credit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -232,12 +248,13 @@ export const connectorDetails = {
     },
     ZeroAuthMandate: {
       Response: {
-        status: 501,
+        status: 400,
         body: {
           error: {
             type: "invalid_request",
-            message: "Setup Mandate flow for Getnet is not implemented",
-            code: "IR_00",
+            message:
+              "No eligible connector was found for the current payment method configuration",
+            code: "IR_39",
           },
         },
       },
@@ -266,12 +283,13 @@ export const connectorDetails = {
         },
       },
       Response: {
-        status: 501,
+        status: 400,
         body: {
           error: {
             type: "invalid_request",
-            message: "Setup Mandate flow for Getnet is not implemented",
-            code: "IR_00",
+            message:
+              "No eligible connector was found for the current payment method configuration",
+            code: "IR_39",
           },
         },
       },
@@ -279,6 +297,7 @@ export const connectorDetails = {
     SaveCardUseNo3DSAutoCapture: {
       Request: {
         payment_method: "card",
+        payment_method_type: "credit",
         amount: 5000,
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -295,15 +314,21 @@ export const connectorDetails = {
         },
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "succeeded",
+          error: {
+            type: "invalid_request",
+            message:
+              "No eligible connector was found for the current payment method configuration",
+            code: "IR_39",
+          },
         },
       },
     },
     SaveCardUseNo3DSManualCapture: {
       Request: {
         payment_method: "card",
+        payment_method_type: "credit",
         amount: 5000,
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -320,9 +345,147 @@ export const connectorDetails = {
         },
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "requires_capture",
+          error: {
+            type: "invalid_request",
+            message:
+              "No eligible connector was found for the current payment method configuration",
+            code: "IR_39",
+          },
+        },
+      },
+    },
+    SaveCardUseNo3DSAutoCaptureOffSession: {
+      Request: {
+        payment_method: "card",
+        payment_method_type: "credit",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        setup_future_usage: "off_session",
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "127.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "No eligible connector was found for the current payment method configuration",
+            code: "IR_39",
+          },
+        },
+      },
+    },
+    SaveCardUse3DSAutoCaptureOffSession: {
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "No eligible connector was found for the current payment method configuration",
+            code: "IR_39",
+          },
+        },
+      },
+    },
+    SaveCardUseNo3DSManualCaptureOffSession: {
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "No eligible connector was found for the current payment method configuration",
+            code: "IR_39",
+          },
+        },
+      },
+    },
+    SaveCardConfirmAutoCaptureOffSession: {
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "No eligible connector was found for the current payment method configuration",
+            code: "IR_39",
+          },
+        },
+      },
+    },
+    SaveCardConfirmManualCaptureOffSession: {
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "No eligible connector was found for the current payment method configuration",
+            code: "IR_39",
+          },
+        },
+      },
+    },
+    PaymentMethodIdMandateNo3DSAutoCapture: {
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "No eligible connector was found for the current payment method configuration",
+            code: "IR_39",
+          },
+        },
+      },
+    },
+    PaymentMethodIdMandateNo3DSManualCapture: {
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "No eligible connector was found for the current payment method configuration",
+            code: "IR_39",
+          },
+        },
+      },
+    },
+    PaymentMethodIdMandate3DSAutoCapture: {
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "No eligible connector was found for the current payment method configuration",
+            code: "IR_39",
+          },
+        },
+      },
+    },
+    PaymentMethodIdMandate3DSManualCapture: {
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "No eligible connector was found for the current payment method configuration",
+            code: "IR_39",
+          },
         },
       },
     },
