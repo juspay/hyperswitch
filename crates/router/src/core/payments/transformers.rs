@@ -1971,10 +1971,6 @@ where
     error_stack::Report<errors::ApiErrorResponse>:
         From<<T as TryFrom<PaymentAdditionalData<'a, F>>>::Error>,
 {
-    fp_utils::when(merchant_connector_account.is_disabled(), || {
-        Err(errors::ApiErrorResponse::MerchantConnectorAccountDisabled)
-    })?;
-
     let test_mode = merchant_connector_account.is_test_mode_on();
 
     let auth_type: types::ConnectorAuthType = merchant_connector_account
@@ -4333,6 +4329,9 @@ where
             .attach_printable("Failed to parse recipient details")?
             .map(api_models::payments::MaskedRecipientDetails::from);
         let payments_response = api::PaymentsResponse {
+            // Populated only for server integrations, by the update-context enrichment.
+            payment_method_list: None,
+            session_tokens: None,
             payment_id: payment_intent.payment_id,
             merchant_id: payment_intent.merchant_id,
             status: payment_intent.status,
@@ -4745,6 +4744,9 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             .flatten()
             .map(api_models::payments::MaskedRecipientDetails::from);
         Self {
+            // Populated only for server integrations, by the update-context enrichment.
+            payment_method_list: None,
+            session_tokens: None,
             connector_response_metadata: pa.get_connector_response_metadata_from_attempt_metadata(),
             applied_offer: applied_offer_response(pa.applied_offer_details.clone()),
             payment_id: pi.payment_id,
@@ -7420,6 +7422,11 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             recipient_details,
             business_country: payment_data.payment_intent.business_country,
             connector_intent_metadata,
+            force_3ds_challenge: payment_data
+                .payment_intent
+                .force_3ds_challenge_trigger
+                .filter(|trigger| *trigger)
+                .or(payment_data.payment_intent.force_3ds_challenge),
         })
     }
 }
@@ -7502,6 +7509,9 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "browser_info".into(),
             })?;
+        let device_channel = Some(types::BrowserInformation::resolve_device_channel(
+            browser_info.as_ref(),
+        ));
         let amount = payment_data.payment_attempt.get_total_amount();
         Ok(Self {
             payment_method_data,
@@ -7517,6 +7527,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
             webhook_url,
             complete_authorize_url,
             browser_info,
+            device_channel,
             surcharge_details: payment_data.surcharge_details,
             connector_transaction_id: payment_data
                 .payment_attempt
@@ -7534,6 +7545,11 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
                 .setup_future_usage_applied
                 .or(payment_data.payment_intent.setup_future_usage),
             is_stored_credential: payment_data.payment_attempt.is_stored_credential,
+            force_3ds_challenge: payment_data
+                .payment_intent
+                .force_3ds_challenge_trigger
+                .filter(|trigger| *trigger)
+                .or(payment_data.payment_intent.force_3ds_challenge),
         })
     }
 }

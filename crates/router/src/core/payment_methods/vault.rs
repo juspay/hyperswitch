@@ -98,6 +98,7 @@ impl Vaultable for domain::Card {
             card_last_four: None,
             card_token: None,
             card_holder_name: self.card_holder_name.clone(),
+            card_network: self.card_network.clone(),
         };
 
         value1
@@ -146,11 +147,14 @@ impl Vaultable for domain::Card {
             card_exp_year: value1.exp_year.into(),
             card_cvc: value2.card_security_code.unwrap_or_default().into(),
             card_issuer: None,
-            card_network: None,
+            card_network: value1.card_network,
             bank_code: None,
             card_issuing_country: None,
             card_issuing_country_code: None,
             card_type: None,
+            card_subtype: None,
+            card_segment_type: None,
+            funding_source: None,
             nick_name: value1.nickname.map(hyperswitch_masking::Secret::new),
             card_holder_name: value1.card_holder_name,
             co_badged_card_data: None,

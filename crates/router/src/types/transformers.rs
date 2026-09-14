@@ -20,6 +20,8 @@ use hyperswitch_domain_models::{mandates, payments::payment_intent::CustomerData
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 
 use super::domain;
+#[cfg(feature = "olap")]
+use crate::core::webhooks::utils::redact_header_values;
 #[cfg(feature = "v2")]
 use crate::db::storage::revenue_recovery_redis_operation;
 use crate::{
@@ -317,6 +319,7 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::Venmo
             | api_enums::PaymentMethodType::Mifinity
             | api_enums::PaymentMethodType::RevolutPay
+            | api_enums::PaymentMethodType::Neteller
             | api_enums::PaymentMethodType::Bluecode => Self::Wallet,
             api_enums::PaymentMethodType::Affirm
             | api_enums::PaymentMethodType::Alma
@@ -2241,12 +2244,20 @@ impl TryFrom<domain::EventWithDeliverySuccessSource>
 }
 
 #[cfg(feature = "olap")]
-impl TryFrom<domain::EventWithDeliverySuccessSource>
-    for api_models::webhook_events::EventRetrieveResponse
+impl
+    ForeignTryFrom<(
+        domain::EventWithDeliverySuccessSource,
+        Option<&std::collections::HashSet<String>>,
+    )> for api_models::webhook_events::EventRetrieveResponse
 {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
-    fn try_from(value: domain::EventWithDeliverySuccessSource) -> Result<Self, Self::Error> {
+    fn foreign_try_from(
+        (value, sensitive_header_names): (
+            domain::EventWithDeliverySuccessSource,
+            Option<&std::collections::HashSet<String>>,
+        ),
+    ) -> Result<Self, Self::Error> {
         use crate::utils::OptionExt;
 
         let item = value.event.clone();
@@ -2256,7 +2267,7 @@ impl TryFrom<domain::EventWithDeliverySuccessSource>
         // We cannot retrieve events with only some of these fields populated.
         let event_information = api_models::webhook_events::EventListItemResponse::try_from(value)?;
 
-        let request = item
+        let mut request: api_models::webhook_events::OutgoingWebhookRequestContent = item
             .request
             .get_required_value("request")
             .change_context(errors::ApiErrorResponse::InternalServerError)?
@@ -2264,7 +2275,7 @@ impl TryFrom<domain::EventWithDeliverySuccessSource>
             .parse_struct("OutgoingWebhookRequestContent")
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse webhook event request information")?;
-        let response = item
+        let mut response: api_models::webhook_events::OutgoingWebhookResponseContent = item
             .response
             .get_required_value("response")
             .change_context(errors::ApiErrorResponse::InternalServerError)?
@@ -2272,6 +2283,13 @@ impl TryFrom<domain::EventWithDeliverySuccessSource>
             .parse_struct("OutgoingWebhookResponseContent")
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse webhook event response information")?;
+
+        // The persisted event retains the original header values, which webhook retries reuse.
+        // The keys are masked only in the response
+        redact_header_values(&mut request.headers, sensitive_header_names);
+        if let Some(headers) = response.headers.as_mut() {
+            redact_header_values(headers, sensitive_header_names);
+        }
 
         Ok(Self {
             event_information,
@@ -2544,6 +2562,9 @@ impl ForeignFrom<api_models::admin::WebhookDetails>
             payment_statuses_enabled: item.payment_statuses_enabled,
             refund_statuses_enabled: item.refund_statuses_enabled,
             payout_statuses_enabled: item.payout_statuses_enabled,
+            dispute_statuses_enabled: item.dispute_statuses_enabled,
+            mandate_statuses_enabled: item.mandate_statuses_enabled,
+            invoice_statuses_enabled: item.invoice_statuses_enabled,
             multiple_webhooks_list: None,
         }
     }
@@ -2564,6 +2585,9 @@ impl ForeignFrom<diesel_models::business_profile::WebhookDetails>
             payment_statuses_enabled: item.payment_statuses_enabled,
             refund_statuses_enabled: item.refund_statuses_enabled,
             payout_statuses_enabled: item.payout_statuses_enabled,
+            dispute_statuses_enabled: item.dispute_statuses_enabled,
+            mandate_statuses_enabled: item.mandate_statuses_enabled,
+            invoice_statuses_enabled: item.invoice_statuses_enabled,
         }
     }
 }
@@ -2860,6 +2884,9 @@ impl ForeignFrom<&revenue_recovery_redis_operation::PaymentProcessorTokenStatus>
             card_issuer: card_info.card_issuer.to_owned(),
             card_network: card_info.card_network.to_owned(),
             card_type: card_info.card_type.to_owned(),
+            card_subtype: None,
+            card_segment_type: None,
+            funding_source: None,
             card_issuing_country: None,
             card_issuing_country_code: None,
             bank_code: None,

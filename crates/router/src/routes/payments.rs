@@ -28,6 +28,8 @@ use router_env::{env, instrument, logger, tracing, types, Flow};
 use super::app::ReqState;
 #[cfg(feature = "v2")]
 use crate::core::payment_method_balance;
+#[cfg(feature = "v1")]
+use crate::core::payments::update_context;
 #[cfg(feature = "v2")]
 use crate::core::revenue_recovery::api as recovery;
 #[cfg(feature = "v1")]
@@ -40,7 +42,7 @@ use crate::{
         payments::{self, transformers::ToResponse, OperationSessionGetters, PaymentRedirectFlow},
     },
     routes::lock_utils,
-    services::{api, authentication as auth},
+    services::{self, api, authentication as auth},
     types::{
         api::{
             self as api_types, enums as api_enums,
@@ -927,33 +929,94 @@ pub async fn payments_update(
         }
     };
 
+    let integration_type = update_context::integration_type_from_headers(req.headers());
+
+    // Gated on merchant auth too: this route also accepts publishable-key + client-secret, and
+    // the enrichment runs as `AuthFlow::Merchant`, so a client caller must not opt in by header.
+    let enrich = integration_type.is_server() && auth_flow == api::AuthFlow::Merchant;
+
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         payload,
-        |state, auth: auth::AuthenticationData, req, req_state| {
-            payments::payments_core::<
-                api_types::UpdatePostConfirm,
-                payment_types::PaymentsResponse,
-                _,
-                _,
-                _,
-                payments::PaymentData<api_types::UpdatePostConfirm>,
-            >(
-                state,
-                req_state,
-                auth.platform,
-                auth.profile.map(|profile| profile.get_id().clone()),
-                payments::PaymentUpdate,
-                req,
-                auth_flow,
-                payments::CallConnectorAction::Trigger,
-                None,
-                None,
-                header_payload.clone(),
-                None,
-            )
+        move |state, auth: auth::AuthenticationData, req, req_state| {
+            let header_payload = header_payload.clone();
+            async move {
+                let profile_id = auth.profile.map(|profile| profile.get_id().clone());
+
+                // Only the enrichment path needs these afterwards. A client update — the vast
+                // majority — clones nothing.
+                let enrichment_inputs = enrich.then(|| {
+                    (
+                        state.clone(),
+                        req_state.clone(),
+                        auth.platform.clone(),
+                        profile_id.clone(),
+                        header_payload.clone(),
+                    )
+                });
+
+                let response = Box::pin(payments::payments_core::<
+                    api_types::UpdatePostConfirm,
+                    payment_types::PaymentsResponse,
+                    _,
+                    _,
+                    _,
+                    payments::PaymentData<api_types::UpdatePostConfirm>,
+                >(
+                    state,
+                    req_state,
+                    auth.platform,
+                    profile_id,
+                    payments::PaymentUpdate,
+                    req,
+                    auth_flow,
+                    payments::CallConnectorAction::Trigger,
+                    None,
+                    None,
+                    header_payload,
+                    None,
+                ))
+                .await?;
+
+                // Invoked directly, not through `server_wrap`: both flows map to
+                // `ApiIdentifier::Payments`, so a nested wrap would deadlock on the lock this
+                // request already holds.
+                let enrich_payment = |mut payment: payment_types::PaymentsResponse| async {
+                    if let Some((state, req_state, platform, profile_id, header_payload)) =
+                        enrichment_inputs
+                    {
+                        let id = payment.payment_id.clone();
+                        Box::pin(update_context::attach_server_context(
+                            state,
+                            req_state,
+                            platform,
+                            profile_id,
+                            &id,
+                            header_payload,
+                            &mut payment,
+                        ))
+                        .await;
+                    }
+                    payment
+                };
+
+                // `enrich_payment` is a no-op when `enrichment_inputs` is `None`, so the opt-in
+                // decision lives in exactly one place rather than being re-tested here.
+                match response {
+                    services::ApplicationResponse::JsonWithHeaders((payment, headers)) => {
+                        Ok(services::ApplicationResponse::JsonWithHeaders((
+                            enrich_payment(payment).await,
+                            headers,
+                        )))
+                    }
+                    services::ApplicationResponse::Json(payment) => Ok(
+                        services::ApplicationResponse::Json(enrich_payment(payment).await),
+                    ),
+                    response => Ok(response),
+                }
+            }
         },
         &*auth_type,
         locking_action,

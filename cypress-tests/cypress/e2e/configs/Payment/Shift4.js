@@ -45,6 +45,9 @@ const payment_method_data_3ds = {
   card: {
     last4: "0016",
     card_type: "DEBIT",
+    card_subtype: "CLASSIC",
+    card_segment_type: null,
+    funding_source: null,
     card_network: "Visa",
     card_issuer: "VISA PRODUCTION SUPPORT CLIENT BID 1",
     card_issuing_country: "UNITEDSTATES",
@@ -64,6 +67,9 @@ const payment_method_data_no3ds = {
   card: {
     last4: "4242",
     card_type: "CREDIT",
+    card_subtype: null,
+    card_segment_type: null,
+    funding_source: null,
     card_network: "Visa",
     card_issuer: "STRIPE PAYMENTS UK LIMITED",
     card_issuing_country: "UNITEDKINGDOM",

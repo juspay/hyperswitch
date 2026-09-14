@@ -36,6 +36,11 @@ use hyperswitch_domain_models::{
     address::Address,
     routing::{PreRoutingConnectorChoice, RoutingData},
 };
+#[cfg(feature = "v1")]
+use hyperswitch_domain_models::{
+    router_flow_types::payments::is_external_three_ds_retry_eligible_flow,
+    routing::PaymentRoutingInfo,
+};
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use hyperswitch_interfaces::events::routing_api_logs::{ApiMethod, RoutingEngine};
 use hyperswitch_masking::{PeekInterface, Secret};
@@ -75,6 +80,7 @@ use crate::{
         api::{self, routing as routing_types},
         domain, storage as oss_storage,
         transformers::{ForeignFrom, ForeignInto, ForeignTryFrom},
+        Connector,
     },
     utils::{OptionExt, ValueExt},
     SessionState,
@@ -1374,10 +1380,38 @@ where
         }))
 }
 
+#[cfg(feature = "v1")]
 pub fn try_get_pre_determined_connector<F, D>(
     connectors: &hyperswitch_interfaces::configs::Connectors,
     payment_data: &D,
     routing_data: &mut RoutingData,
+    business_profile: &domain::Profile,
+) -> errors::RouterResult<Option<api::ConnectorCallType>>
+where
+    F: Send + Clone + 'static,
+    D: OperationSessionGetters<F>,
+{
+    match try_get_attempt_connector::<F, D>(connectors, payment_data, routing_data)? {
+        Some(api::ConnectorCallType::PreDetermined(predetermined)) => Ok(Some(
+            try_expand_predetermined_connector_for_external_three_ds_retry::<F, D>(
+                connectors,
+                payment_data,
+                &predetermined,
+                business_profile,
+            )
+            .unwrap_or(api::ConnectorCallType::PreDetermined(predetermined)),
+        )),
+        Some(connector) => Ok(Some(connector)),
+        None => try_get_mandate_connector::<F, D>(connectors, payment_data, routing_data),
+    }
+}
+
+#[cfg(feature = "v2")]
+pub fn try_get_pre_determined_connector<F, D>(
+    connectors: &hyperswitch_interfaces::configs::Connectors,
+    payment_data: &D,
+    routing_data: &mut RoutingData,
+    _business_profile: &domain::Profile,
 ) -> errors::RouterResult<Option<api::ConnectorCallType>>
 where
     F: Send + Clone,
@@ -1387,6 +1421,97 @@ where
         Some(connector) => Ok(Some(connector)),
         None => try_get_mandate_connector::<F, D>(connectors, payment_data, routing_data),
     }
+}
+
+/// Lets the external-3DS authorize continuation fail over to the next acquirer on a
+/// post-authentication decline, by expanding its single `PreDetermined` connector into
+/// `Retryable([current, ...remaining_from_stored_algorithm])` when eligible. Every other caller
+/// of `try_get_pre_determined_connector` is unaffected: the gates below only ever hold for that
+/// one re-entrant confirm.
+#[cfg(feature = "v1")]
+fn try_expand_predetermined_connector_for_external_three_ds_retry<F, D>(
+    connectors: &hyperswitch_interfaces::configs::Connectors,
+    payment_data: &D,
+    predetermined: &api::ConnectorRoutingData,
+    business_profile: &domain::Profile,
+) -> Option<api::ConnectorCallType>
+where
+    F: Send + Clone + 'static,
+    D: OperationSessionGetters<F>,
+{
+    let attempt = payment_data.get_payment_attempt();
+
+    let is_eligible = is_external_three_ds_retry_eligible_flow::<F>()
+        && business_profile.is_auto_retries_enabled
+        && attempt.external_three_ds_authentication_attempted == Some(true);
+
+    let candidates = is_eligible
+        .then(|| attempt.straight_through_algorithm.clone())
+        .flatten()
+        .and_then(|straight_through_algorithm| {
+            straight_through_algorithm
+                .parse_value::<PaymentRoutingInfo>("PaymentRoutingInfo")
+                .inspect_err(|err| {
+                    logger::warn!(
+                        error = ?err,
+                        "euclid: failed to parse persisted straight_through_algorithm, skipping external-3ds retry expansion"
+                    );
+                })
+                .ok()
+        })
+        .and_then(|routing_info| routing_info.algorithm)
+        .and_then(|algorithm| match algorithm {
+            routing_types::StraightThroughAlgorithm::Priority(list) => Some(list),
+            routing_types::StraightThroughAlgorithm::VolumeSplit(splits) => {
+                Some(splits.into_iter().map(|split| split.connector).collect())
+            }
+            // Nothing to fail over to.
+            routing_types::StraightThroughAlgorithm::Single(_) => None,
+        })
+        .unwrap_or_default();
+
+    let mut ordered = vec![predetermined.clone()];
+    for choice in candidates {
+        // An unpinned plan entry (`None`) refers to the connector that just ran; skip it so
+        // it is not appended again and retried on the same connector.
+        let is_current_connector = choice.connector.to_string()
+            == predetermined.connector_data.connector_name.to_string()
+            && (choice.merchant_connector_id.is_none()
+                || choice.merchant_connector_id
+                    == predetermined.connector_data.merchant_connector_id);
+        if is_current_connector {
+            continue;
+        }
+
+        if !Connector::from(choice.connector).is_separate_authentication_supported() {
+            logger::warn!(
+                connector = %choice.connector,
+                "euclid: skipping retry candidate that does not support external 3ds authentication"
+            );
+            continue;
+        }
+
+        match api::ConnectorData::get_connector_by_name(
+            connectors,
+            &choice.connector.to_string(),
+            api::GetToken::Connector,
+            choice.merchant_connector_id,
+        ) {
+            Ok(connector_data) => ordered.push(connector_data.into()),
+            Err(err) => logger::warn!(
+                error = ?err,
+                connector = %choice.connector,
+                "euclid: skipping invalid retry candidate while expanding external-3ds retry list"
+            ),
+        }
+    }
+
+    (ordered.len() > 1).then(|| {
+        logger::debug!(
+            "euclid_routing: expanding predetermined connector into retryable list for external-3ds continuation"
+        );
+        api::ConnectorCallType::Retryable(ordered)
+    })
 }
 
 #[cfg(feature = "v1")]
@@ -2322,11 +2447,13 @@ pub fn perform_dynamic_routing_volume_split(
     rng_seed: Option<&str>,
 ) -> RoutingResult<api_models::routing::RoutingVolumeSplit> {
     let weights: Vec<u8> = splits.iter().map(|sp| sp.split).collect();
-    let weighted_index = distributions::WeightedIndex::new(weights)
-        .change_context(errors::RoutingError::VolumeSplitFailed)
-        .attach_printable("Error creating weighted distribution for volume split")?;
 
     let idx = if let Some(seed) = rng_seed {
+        // Already reproducible: the index is a pure function of the seed.
+        let weighted_index = distributions::WeightedIndex::new(&weights)
+            .change_context(errors::RoutingError::VolumeSplitFailed)
+            .attach_printable("Error creating weighted distribution for volume split")?;
+
         let mut hasher = hash_map::DefaultHasher::new();
         seed.hash(&mut hasher);
         let hash = hasher.finish();
@@ -2334,8 +2461,7 @@ pub fn perform_dynamic_routing_volume_split(
         let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(hash);
         weighted_index.sample(&mut rng)
     } else {
-        let mut rng = rand::thread_rng();
-        weighted_index.sample(&mut rng)
+        sample_volume_split_index(&weights)?
     };
 
     let routing_choice = *splits
@@ -2346,16 +2472,36 @@ pub fn perform_dynamic_routing_volume_split(
     Ok(routing_choice)
 }
 
-pub fn perform_volume_split(
-    mut splits: Vec<routing_types::ConnectorVolumeSplit>,
-) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
-    let weights: Vec<u8> = splits.iter().map(|sp| sp.split).collect();
+/// Draw the volume-split index for `weights`.
+///
+/// deja: this draw decides which connector a payment is routed to, so it changes
+/// the outbound request. It is seamed at the index rather than at the chosen
+/// connector because a `usize` records losslessly and the weights key the call —
+/// a candidate that changed the split therefore still diverges on the args.
+#[cfg_attr(feature = "deja", track_caller)]
+#[cfg_attr(
+    feature = "deja",
+    deja::id(
+        component = "router::routing",
+        operation = "volume_split_index",
+        codec = ResultOkCodec,
+    )
+)]
+fn sample_volume_split_index(weights: &[u8]) -> RoutingResult<usize> {
     let weighted_index = distributions::WeightedIndex::new(weights)
         .change_context(errors::RoutingError::VolumeSplitFailed)
         .attach_printable("Error creating weighted distribution for volume split")?;
 
+    #[allow(clippy::disallowed_methods, reason = "this function IS the seam")]
     let mut rng = rand::thread_rng();
-    let idx = weighted_index.sample(&mut rng);
+    Ok(weighted_index.sample(&mut rng))
+}
+
+pub fn perform_volume_split(
+    mut splits: Vec<routing_types::ConnectorVolumeSplit>,
+) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
+    let weights: Vec<u8> = splits.iter().map(|sp| sp.split).collect();
+    let idx = sample_volume_split_index(&weights)?;
 
     splits
         .get(idx)

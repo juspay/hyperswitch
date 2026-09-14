@@ -316,6 +316,14 @@ impl PaymentIntent {
             .unwrap_or(false)
     }
 
+    #[cfg(feature = "v1")]
+    pub fn is_post_capture_void_attempted(&self) -> bool {
+        self.state_metadata
+            .as_ref()
+            .map(|state_metadata| state_metadata.post_capture_void.is_some())
+            .unwrap_or(false)
+    }
+
     #[cfg(feature = "v2")]
     /// This is the url to which the customer will be redirected to, after completing the redirection flow
     pub fn create_finish_redirection_url(
@@ -1256,6 +1264,17 @@ impl PaymentIntent {
         self.feature_metadata
             .as_ref()
             .and_then(|feature_metadata| feature_metadata.payment_revenue_recovery_metadata.clone())
+    }
+
+    /// Retries already made against this invoice, by the billing connector and by recovery
+    /// together. Zero for an intent that has not entered recovery.
+    pub fn get_revenue_recovery_retry_count(&self) -> Option<u16> {
+        self.feature_metadata
+            .as_ref()
+            .and_then(|feature_metadata| {
+                feature_metadata.payment_revenue_recovery_metadata.as_ref()
+            })
+            .map(|revenue_recovery_metadata| revenue_recovery_metadata.total_retry_count)
     }
 
     pub fn get_feature_metadata(&self) -> Option<FeatureMetadata> {

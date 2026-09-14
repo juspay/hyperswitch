@@ -152,7 +152,7 @@ where
         req: &RouterData<Flow, Request, Response>,
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
-        let date = OffsetDateTime::now_utc();
+        let date = common_utils::date_time::now().assume_utc();
         let boa_req = self.get_request_body(req, connectors)?;
         let http_method = self.get_http_method();
         let auth = bankofamerica::BankOfAmericaAuthType::try_from(&req.connector_auth_type)?;
