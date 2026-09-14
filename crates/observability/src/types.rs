@@ -242,7 +242,7 @@ impl From<EmailOutcome> for EmailNotifyResponse {
 
 pub const X_USER_NAME: &str = "X-User-Name";
 
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default)]
 pub struct UserName(String);
 
 impl UserName {
@@ -269,19 +269,18 @@ impl UserName {
     }
 }
 
-#[derive(Debug, Serialize, PartialEq, Eq)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ReadStatus {
     Found,
     Absent,
 }
 
-#[derive(Debug, Serialize, PartialEq, Eq)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum WriteStatus {
     Saved,
     Retired,
-    Absent,
 }
 
 #[cfg(test)]

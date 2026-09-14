@@ -86,6 +86,9 @@ pub enum ObservabilityError {
     #[error("The observability database is unavailable")]
     StorageUnavailable,
 
+    #[error("No mapper entry exists for this name and key")]
+    MapperEntryNotFound,
+
     #[error("No alert definition exists with id `{id}`")]
     DefinitionNotFound { id: String },
 
@@ -176,9 +179,14 @@ impl ErrorSwitch<ApiErrorResponse> for ObservabilityError {
                 "The request body could not be parsed",
             )),
             Self::EntryTooLarge { .. } => ApiErrorResponse::BadRequest(ApiError::new(
-                "IR",
-                8,
+                "HE",
+                3,
                 "The mapper entry is larger than this service stores",
+            )),
+            Self::MapperEntryNotFound => ApiErrorResponse::NotFound(ApiError::new(
+                "HE",
+                2,
+                "Mapper entry does not exist in our records",
             )),
             // The id is already in the path the caller sent, so there is nothing to echo back, and
             // the configured ids are deliberately not listed.

@@ -7,7 +7,7 @@ use crate::{
     types::{notifications::WatermarkResponse, ReadStatus, UserName},
 };
 
-const USER_NAME_MAX_BYTES: usize = 255;
+const USER_NAME_MAX_CHARS: usize = 255;
 
 pub async fn read_watermark(
     state: AppState,
@@ -58,11 +58,11 @@ pub async fn mark_read(
 fn within_width(user: &UserName) -> ObservabilityApiResult<&str> {
     let user_name = user.as_str();
 
-    if user_name.len() > USER_NAME_MAX_BYTES {
+    let chars = user_name.chars().count();
+    if chars > USER_NAME_MAX_CHARS {
         Err(
             report!(ObservabilityError::InvalidRequest).attach_printable(format!(
-                "The user name is {} bytes, over the {USER_NAME_MAX_BYTES} the column holds",
-                user_name.len()
+                "The user name is {chars} characters, over the {USER_NAME_MAX_CHARS} the column holds"
             )),
         )?;
     }
