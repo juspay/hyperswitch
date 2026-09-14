@@ -299,6 +299,7 @@ The configuration errors, added to the table above:
 |---|---|---|
 | Definition already exists for this name and product | 400 | `HE_01` |
 | Name and product do not identify an alert (or name the reserved `all` row) | 400 | `HE_03` |
+| A snooze entry is not keyed `snooze_entry_`/`custom_snooze_entry_`, or has no readable end time | 400 | `HE_03` |
 | Unknown definition id | 404 | `HE_02` |
 | Unknown enablement key | 404 | `HE_02` |
 | A query against the observability database failed | 500 | `HE_00` |
