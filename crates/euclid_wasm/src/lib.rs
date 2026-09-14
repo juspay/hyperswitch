@@ -38,8 +38,8 @@ use api_models::payment_methods::CountryCodeWithName;
 use common_enums::PayoutStatus;
 use common_enums::{
     CardSegmentType, CardType, CountryAlpha2, DisputeStatus, EventClass, EventType, FundingSource,
-    IntentStatus, MandateStatus, MerchantCategoryCode, MerchantCategoryCodeWithName, RefundStatus,
-    SubscriptionStatus,
+    IntentStatus, InvoiceStatus, MandateStatus, MerchantCategoryCode, MerchantCategoryCodeWithName,
+    RefundStatus,
 };
 use strum::IntoEnumIterator;
 
@@ -573,41 +573,70 @@ pub fn get_valid_webhook_status(key: &str) -> JsResult {
         .map_err(|_| "Invalid webhook event type received".to_string())
         .err_to_js()?;
 
+    let statuses: Vec<String> = webhook_status_config(event_class)
+        .statuses
+        .into_iter()
+        .map(|status| status.value)
+        .collect();
+
+    Ok(serde_wasm_bindgen::to_value(&statuses)?)
+}
+
+#[wasm_bindgen(js_name = getWebhookStatusConfig)]
+pub fn get_webhook_status_config() -> JsResult {
+    let config: Vec<types::WebhookEventClassConfig> =
+        EventClass::iter().map(webhook_status_config).collect();
+
+    Ok(serde_wasm_bindgen::to_value(&config)?)
+}
+
+fn webhook_status_metadata<T>(
+    event_type_from_status: impl Fn(T) -> Option<EventType>,
+) -> Vec<types::WebhookStatusConfig>
+where
+    T: IntoEnumIterator + ToString,
+{
+    T::iter()
+        .filter_map(|status| {
+            let value = status.to_string();
+            event_type_from_status(status)
+                .map(|event_type| types::WebhookStatusConfig { value, event_type })
+        })
+        .collect()
+}
+
+fn webhook_status_config(event_class: EventClass) -> types::WebhookEventClassConfig {
     match event_class {
-        EventClass::Payments => {
-            let statuses: Vec<IntentStatus> = IntentStatus::iter()
-                .filter(|intent_status| Into::<Option<EventType>>::into(*intent_status).is_some())
-                .collect();
-            Ok(serde_wasm_bindgen::to_value(&statuses)?)
-        }
-        EventClass::Refunds => {
-            let statuses: Vec<RefundStatus> = RefundStatus::iter()
-                .filter(|status| Into::<Option<EventType>>::into(*status).is_some())
-                .collect();
-            Ok(serde_wasm_bindgen::to_value(&statuses)?)
-        }
-        EventClass::Disputes => {
-            let statuses: Vec<DisputeStatus> = DisputeStatus::iter().collect();
-            Ok(serde_wasm_bindgen::to_value(&statuses)?)
-        }
-        EventClass::Mandates => {
-            let statuses: Vec<MandateStatus> = MandateStatus::iter()
-                .filter(|status| Into::<Option<EventType>>::into(*status).is_some())
-                .collect();
-            Ok(serde_wasm_bindgen::to_value(&statuses)?)
-        }
+        EventClass::Payments => types::WebhookEventClassConfig {
+            event_class,
+            api_field: "payment_statuses_enabled",
+            statuses: webhook_status_metadata::<IntentStatus>(Into::<Option<EventType>>::into),
+        },
+        EventClass::Refunds => types::WebhookEventClassConfig {
+            event_class,
+            api_field: "refund_statuses_enabled",
+            statuses: webhook_status_metadata::<RefundStatus>(Into::<Option<EventType>>::into),
+        },
+        EventClass::Disputes => types::WebhookEventClassConfig {
+            event_class,
+            api_field: "dispute_statuses_enabled",
+            statuses: webhook_status_metadata::<DisputeStatus>(Into::<Option<EventType>>::into),
+        },
+        EventClass::Mandates => types::WebhookEventClassConfig {
+            event_class,
+            api_field: "mandate_statuses_enabled",
+            statuses: webhook_status_metadata::<MandateStatus>(Into::<Option<EventType>>::into),
+        },
         #[cfg(feature = "payouts")]
-        EventClass::Payouts => {
-            let statuses: Vec<PayoutStatus> = PayoutStatus::iter()
-                .filter(|status| Into::<Option<EventType>>::into(*status).is_some())
-                .collect();
-            Ok(serde_wasm_bindgen::to_value(&statuses)?)
-        }
-        EventClass::Subscriptions => {
-            let statuses: Vec<SubscriptionStatus> = SubscriptionStatus::iter()
-                .filter(|status| Into::<Option<EventType>>::into(*status).is_some())
-                .collect();
-            Ok(serde_wasm_bindgen::to_value(&statuses)?)
-        }
+        EventClass::Payouts => types::WebhookEventClassConfig {
+            event_class,
+            api_field: "payout_statuses_enabled",
+            statuses: webhook_status_metadata::<PayoutStatus>(Into::<Option<EventType>>::into),
+        },
+        EventClass::Subscriptions => types::WebhookEventClassConfig {
+            event_class,
+            api_field: "invoice_statuses_enabled",
+            statuses: webhook_status_metadata::<InvoiceStatus>(Into::<Option<EventType>>::into),
+        },
     }
 }
