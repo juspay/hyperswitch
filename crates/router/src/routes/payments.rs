@@ -29,7 +29,7 @@ use super::app::ReqState;
 #[cfg(feature = "v2")]
 use crate::core::payment_method_balance;
 #[cfg(feature = "v1")]
-use crate::core::payments::{create_intent, update_intent};
+use crate::core::payments::server_integration;
 #[cfg(feature = "v2")]
 use crate::core::revenue_recovery::api as recovery;
 #[cfg(feature = "v1")]
@@ -134,7 +134,7 @@ pub async fn payments_create(
         ),
     };
 
-    let integration_type = create_intent::integration_type_from_headers(req.headers());
+    let integration_type = server_integration::integration_type_from_headers(req.headers());
 
     // Merchant-only auth here, so the header alone opts in. A create-and-confirm has no use for
     // the enrichment, and the session core rejects the statuses it lands in.
@@ -199,7 +199,7 @@ pub async fn payments_create(
                         enrichment_inputs
                     {
                         let id = payment.payment_id.clone();
-                        Box::pin(create_intent::attach_server_context(
+                        Box::pin(server_integration::attach_server_context(
                             state,
                             req_state,
                             platform,
@@ -988,7 +988,7 @@ pub async fn payments_update(
         }
     };
 
-    let integration_type = update_intent::integration_type_from_headers(req.headers());
+    let integration_type = server_integration::integration_type_from_headers(req.headers());
 
     // Gated on merchant auth too: this route also accepts publishable-key + client-secret, and
     // the enrichment runs as `AuthFlow::Merchant`, so a client caller must not opt in by header.
@@ -1047,7 +1047,7 @@ pub async fn payments_update(
                         enrichment_inputs
                     {
                         let id = payment.payment_id.clone();
-                        Box::pin(update_intent::attach_server_context(
+                        Box::pin(server_integration::attach_server_context(
                             state,
                             req_state,
                             platform,
