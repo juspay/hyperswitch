@@ -92,7 +92,11 @@ impl MerchantsAlertExternalDimension {
             ),
         );
 
-        generics::db_metrics::track_database_call::<merchants_alert_external_dimension::table, _, _>(
+        generics::db_metrics::track_database_call::<
+            merchants_alert_external_dimension::table,
+            _,
+            _,
+        >(
             conn.request_id(),
             conn.event_emitter(),
             generics::db_metrics::DatabaseOperation::Delete,
