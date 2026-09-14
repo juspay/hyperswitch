@@ -80,6 +80,9 @@ pub enum ObservabilityError {
     #[error("The request body is invalid")]
     InvalidRequest,
 
+    #[error("Missing required param: {field_name}")]
+    MissingRequiredField { field_name: &'static str },
+
     #[error("{message}")]
     InvalidRequestData { message: String },
 
@@ -106,6 +109,15 @@ pub enum ObservabilityError {
 
     #[error("A merchant threshold already exists for this name, product, merchant, author and is_enabled")]
     DuplicateMerchantThreshold,
+
+    #[error("The mapper entry is {bytes} bytes, over the {limit} byte limit")]
+    EntryTooLarge { bytes: usize, limit: usize },
+
+    #[error("No mapper entry exists for this name and key")]
+    MapperEntryNotFound,
+
+    #[error("No notification watermark exists for this user")]
+    NotificationWatermarkNotFound,
 
     /// The path named a destination that is not configured.
     #[error("No destination is configured under `{destination}`")]
@@ -189,6 +201,9 @@ impl ErrorSwitch<ApiErrorResponse> for ObservabilityError {
             Self::UnknownDestination { .. } => {
                 ApiErrorResponse::NotFound(ApiError::new("IR", 2, "Unknown destination"))
             }
+            Self::MissingRequiredField { field_name } => ApiErrorResponse::BadRequest(
+                ApiError::new("IR", 4, format!("Missing required param: {field_name}")),
+            ),
             Self::InvalidRequestData { message } => {
                 ApiErrorResponse::BadRequest(ApiError::new("IR", 6, message))
             }
@@ -231,6 +246,21 @@ impl ErrorSwitch<ApiErrorResponse> for ObservabilityError {
                 "HE",
                 1,
                 "The merchant threshold with the specified name, product, merchant_id, author and is_enabled already exists in our records",
+            )),
+            Self::EntryTooLarge { .. } => ApiErrorResponse::BadRequest(ApiError::new(
+                "HE",
+                3,
+                "The mapper entry is larger than this service stores",
+            )),
+            Self::MapperEntryNotFound => ApiErrorResponse::NotFound(ApiError::new(
+                "HE",
+                2,
+                "Mapper entry does not exist in our records",
+            )),
+            Self::NotificationWatermarkNotFound => ApiErrorResponse::NotFound(ApiError::new(
+                "HE",
+                2,
+                "Notification watermark does not exist in our records",
             )),
             // 502 rather than 500: the failure is on the far side of a hop we made. Note this is
             // the *only* provider-shaped error left, because every answer the provider gives is a

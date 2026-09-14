@@ -13,6 +13,7 @@ use error_stack::report;
 use serde::{Deserialize, Deserializer, Serialize};
 use time::PrimitiveDateTime;
 
+use super::{not_blank, within_width};
 use crate::errors::{ObservabilityApiResult, ObservabilityError};
 
 const NAME_MAX_CHARS: usize = 64;
@@ -626,23 +627,6 @@ pub struct MerchantThresholdDeleteResponse {
 
 fn effective_is_enabled(definition_is_enabled: bool, config_is_enabled: Option<bool>) -> bool {
     definition_is_enabled && config_is_enabled.unwrap_or(false)
-}
-
-fn within_width(
-    field_name: &'static str,
-    value: Option<&str>,
-    max_chars: usize,
-) -> ObservabilityApiResult<()> {
-    common_utils::fp_utils::when(
-        value.is_some_and(|value| value.chars().count() > max_chars),
-        || Err(report!(ObservabilityError::InvalidDataValue { field_name })),
-    )
-}
-
-fn not_blank(field_name: &'static str, value: &str) -> ObservabilityApiResult<()> {
-    common_utils::fp_utils::when(value.trim().is_empty(), || {
-        Err(report!(ObservabilityError::InvalidDataValue { field_name }))
-    })
 }
 
 fn metadata_is_object(metadata: Option<&serde_json::Value>) -> ObservabilityApiResult<()> {

@@ -135,6 +135,7 @@ impl_get_primary_key!(
 );
 
 impl_get_primary_key!(
+    observability_schema::alerts_dicts::table,
     observability_schema::alerts_info::table,
     observability_schema::merchant_thresholds::table
 );

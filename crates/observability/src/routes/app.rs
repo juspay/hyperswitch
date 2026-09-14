@@ -14,7 +14,7 @@ use actix_web::{error::InternalError, web, HttpResponse, Scope};
 use crate::{
     errors::types::{ApiError, ApiErrorResponse},
     logger,
-    routes::{config, health_check, notify},
+    routes::{config, health_check, mappers, notifications, notify},
     state::AppState,
 };
 
@@ -76,6 +76,19 @@ impl AlertsConfig {
                     ),
             )
             .service(
+                web::scope("/mappers")
+                    .service(
+                        web::resource("")
+                            .route(web::get().to(mappers::mapper_list))
+                            .route(web::post().to(mappers::mapper_save)),
+                    )
+                    .service(
+                        web::resource("/{name}/{key}")
+                            .route(web::get().to(mappers::mapper_retrieve))
+                            .route(web::delete().to(mappers::mapper_delete)),
+                    ),
+            )
+            .service(
                 web::scope("/enablement")
                     .service(web::resource("").route(web::get().to(config::enablement_list)))
                     .service(
@@ -97,6 +110,13 @@ impl AlertsConfig {
                             .route(web::post().to(config::merchant_threshold_update))
                             .route(web::delete().to(config::merchant_threshold_delete)),
                     ),
+            )
+            .service(
+                web::scope("/notifications").service(
+                    web::resource("/read")
+                        .route(web::get().to(notifications::notification_watermark_retrieve))
+                        .route(web::post().to(notifications::notification_watermark_upsert)),
+                ),
             )
     }
 }

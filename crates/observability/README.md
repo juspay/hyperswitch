@@ -2,13 +2,14 @@
 
 The observability plane for Hyperswitch.
 
-`observability` is the home for alert *delivery*. Deciding what is alert-worthy — thresholds,
-detectors, suppression — is **not** done here; alerts arrive already decided and this crate routes
-them to a destination.
+`observability` is the home for alert *delivery* and for the alert manager's own *state*. Deciding
+what is alert-worthy — thresholds, detectors, suppression — is **not** done here; alerts arrive
+already decided, and storing a threshold is not applying it.
 
-Its first and currently only concern is the [`notifier`](src/domain/notifier.rs): the component that
-receives alert data over a webhook and delivers it to a channel. Further alerting concerns are
-expected to live alongside it rather than inside it.
+Two concerns live here today. The [`notifier`](src/domain/notifier.rs) receives alert data over a
+webhook and delivers it to a channel. The configuration routes own the rows the alert manager reads:
+what an alert is, whether it runs and its per-merchant thresholds, together with what it used to
+write into the application's ClickHouse — the mappers and the notification bell's read watermark.
 
 ## Shape
 
@@ -84,7 +85,8 @@ reach the logs from the client, which emits `chars` per request.
 ## The API
 
 Two surfaces under one scope. **Delivery** sends a message; **configuration** reads and writes the
-rows that say what an alert is and whether it runs. Routes under `/alerts/config`, and
+rows this plane owns — what an alert is, whether it runs, its per-merchant thresholds, the mappers the
+dashboard reads, and how far a user has read their notifications. Routes under `/alerts/config`, and
 `/health/ready`, touch the database; delivery routes do not.
 
 ### Delivery
@@ -199,7 +201,7 @@ thread under it was lost — reporting a failure there would invite a retry that
 
 ### Configuration
 
-Three resources, backed by the observability database.
+Five resources, backed by the observability database.
 
 | Method | Path | |
 |---|---|---|
@@ -215,10 +217,17 @@ Three resources, backed by the observability database.
 | `GET` | `/alerts/config/merchant-thresholds/{id}` | read one |
 | `POST` | `/alerts/config/merchant-thresholds/{id}` | change part of one |
 | `DELETE` | `/alerts/config/merchant-thresholds/{id}` | delete one |
+| `GET` | `/alerts/config/mappers` | every live mapper entry |
+| `POST` | `/alerts/config/mappers` | save a new version of one |
+| `GET` | `/alerts/config/mappers/{name}/{key}` | read the live one |
+| `DELETE` | `/alerts/config/mappers/{name}/{key}` | delete the live one |
+| `GET` | `/alerts/config/notifications/read` | read the caller's watermark |
+| `POST` | `/alerts/config/notifications/read` | mark read |
 
-A list answers `{"count": n, "<resource>": [...]}` under `definitions`, `enablements` or
-`merchant_thresholds`, and a table with no rows is a `200` with a count of zero. A read, create,
-upsert or update answers the row. A delete answers `{"id": "…", "deleted": true}`.
+A list answers `{"count": n, "<resource>": [...]}` under `definitions`, `enablements`,
+`merchant_thresholds` or `entries`, and a table with no rows is a `200` with a count of zero. A
+read, create, save, upsert or update answers the row. A delete answers `{"id": "…", "deleted": true}`,
+or `{"name": "…", "key": "…", "deleted": true}` for a mapper entry.
 
 An update (`POST` to a definition or merchant threshold id) changes only what the body mentions: an
 absent field is left alone, `null` clears it, and a value sets it. `null` for `is_enabled`, or for a
@@ -316,22 +325,92 @@ DELETE /alerts/config/merchant-thresholds/0199…
 → 200 { "id": "0199…", "deleted": true }
 ```
 
+#### Mappers
+
+The option lists and labels behind the portal's mappers screen, stored in `alerts_dicts` and
+addressed by `name` and `key`.
+
+```http
+POST /alerts/config/mappers
+X-Internal-Api-Key: <key>
+X-User-Name: ops@example.com
+
+{ "name": "dashboard", "key": "slack_users", "values": "[]", "metadata": {"category": "dashboard"} }
+→ 200 { "id": "0192…", "name": "dashboard", "key": "slack_users", "product": null, "values": "[]",
+        "metadata": {"category": "dashboard"}, "ts_created": "2026-09-14T12:34:56.789Z",
+        "username": "ops@example.com" }
+
+GET    /alerts/config/mappers                        → 200 { "count": 1, "entries": [ … ] }
+GET    /alerts/config/mappers/dashboard/slack_users  → 200 the live entry
+GET    /alerts/config/mappers/dashboard/unknown      → 404 HE_02
+DELETE /alerts/config/mappers/dashboard/slack_users  → 200 { "name": "dashboard", "key": "slack_users", "deleted": true }
+DELETE /alerts/config/mappers/dashboard/unknown      → 404 HE_02
+```
+
+**A save writes a new version, as r-apps' `insert_dictionary_version` does.** One transaction sets
+`is_enabled = false` on the live row, inserts the new row as the live one, and deletes every
+disabled row for the same `name` and `key` except the newest, so an entry keeps at most two rows:
+the live one and the newest disabled one. The transaction first takes a Postgres advisory lock on
+the `name` and `key`, so overlapping saves of one entry run one after the other and the last to
+commit is live. Reads and the list return live rows only.
+
+**A delete removes the live row**, as r-apps' `dropDictionary` removes the row it names. It takes
+the same lock, so a delete and a save of one entry run one after the other and the delete answers
+for the live row as it stands once it holds the lock. The disabled row stays disabled and is not
+brought back; the next save writes a new live row.
+
+`product`, `values` and `metadata` are `json` columns carried as raw text in both directions
+(`diesel_models::observability::raw_json`), so the portal reads back exactly what it saved. Together
+they are capped at 1 MiB.
+
+#### Notification watermark
+
+```http
+POST /alerts/config/notifications/read
+X-Internal-Api-Key: <key>
+X-User-Name: ops@example.com
+
+→ 200 { "last_read_at": "2026-09-14T12:34:56.789Z" }
+
+GET /alerts/config/notifications/read  → 200 { "last_read_at": "2026-09-14T12:34:56.789Z" }
+GET /alerts/config/notifications/read  → 404 HE_02 for a user who has never marked read
+```
+
+The write takes no body and stamps this service's clock. It stores the later of the saved and the
+new instant, so a watermark never moves backwards. A user who has never marked read has no
+watermark, and reading it is a `404` like any other missing resource.
+
+#### Who a request is for
+
+The internal API key authenticates the calling service, not a person. A mapper save and both
+watermark routes take the user from `X-User-Name`, which nothing authenticates. The header is
+required on the watermark routes; on a mapper save it is optional, and when it is absent or blank
+`username` takes the column default.
+
+A user name must be visible ASCII and at most 64 characters, the width of
+`alerts_dicts.username`. It is held as a `Secret`, so logs and error reports show it masked.
+
 #### Errors
 
-Blank values, widths and document shapes are checked before a database connection is taken. A
-configuration body that does not parse, including one missing a required field or giving it `null`,
-is the `IR_04` above. A path id that is not a UUID is answered with the same empty `404` as a path
+Blank values, widths, document shapes, `X-User-Name` and the mapper entry size are checked before a
+database connection is taken. A configuration body that does not parse, including one missing a
+required field or giving it `null`, is the `IR_04` above. A path id that is not a UUID is answered with the same empty `404` as a path
 that matches no route. The configuration errors, added to the table above:
 
 | | Status | Code |
 |---|---|---|
-| A field is longer than its column holds, or a name, product, merchant id or author is blank | 400 | `IR_07` |
+| A field is longer than its column holds, or a name, product, merchant id, author or mapper key is blank | 400 | `IR_07` |
+| `X-User-Name` is absent or blank on a watermark route | 400 | `IR_04` |
+| `X-User-Name` is not visible ASCII | 400 | `IR_06` |
+| `X-User-Name` is longer than 64 characters | 400 | `IR_07` |
 | `blacklist`, `snooze` or `thresholds` is not in r-apps' shape, or a merchant threshold's `metadata` is not an object | 400 | `IR_06` |
 | The merchant thresholds query string does not parse or names another parameter | 400 | `IR_06` |
 | A definition already exists for this name and product | 400 | `HE_01` |
 | An update gives a merchant threshold the name, product, merchant, author and `is_enabled` of another | 400 | `HE_01` |
 | Name and product do not identify an alert, or name `all` | 400 | `HE_03` |
+| A mapper entry's `product`, `values` and `metadata` together exceed 1 MiB | 400 | `HE_03` |
 | Unknown definition id, enablement key or merchant threshold id | 404 | `HE_02` |
+| No live mapper entry for the name and key, or no watermark for the user | 404 | `HE_02` |
 | A query against the observability database failed | 500 | `HE_00` |
 | No connection to the observability database could be taken | 503 | `HE_00` |
 
@@ -378,16 +457,18 @@ unverified sender all arrive as one variant — so email only ever reports `deli
 ## Layout
 
 ```
-routes/          the route tree, and one module of handlers per area: notify and config
+routes/          the route tree, and one module of handlers per area: notify, config, mappers and notifications
 core/            what one request does, per area: deliver a message, or read and write configuration
 domain/          what delivering an alert is: the notifier traits and the types they exchange
 types/           the wire contract, per area
 ```
 
 Configuration requests are handled in `routes/config.rs` and `core/config.rs`, with their request
-and response types and validation in `types/config.rs`; the rows and their queries are
-`diesel_models::observability::{alerts_info, merchants_alert_external_config, merchant_thresholds}`
-and `diesel_models::query::observability`, and the tables are created by `migrations/`.
+and response types and validation in `types/config.rs`; mapper and watermark requests in the
+`mappers.rs` and `notifications.rs` of the same three modules, with `X-User-Name` read in `auth.rs`.
+The rows are `alerts_info`, `merchants_alert_external_config`, `merchant_thresholds`, `alerts_dicts`
+and `notification_reads` in `diesel_models::observability`, their queries are in
+`diesel_models::query::observability`, and the tables are created by `migrations/`.
 
 `domain` holds no HTTP. `core` holds no traits. A handler that grows logic belongs in `core`; a
 concept that a background job would also need belongs in `domain`.

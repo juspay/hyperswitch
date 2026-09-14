@@ -7,4 +7,6 @@
 //! says what delivering an alert *is*, `core` says what one HTTP request does about it.
 
 pub mod config;
+pub mod mappers;
+pub mod notifications;
 pub mod notifier;
