@@ -14,6 +14,10 @@ use time::PrimitiveDateTime;
 
 use crate::errors::{ObservabilityApiResult, ObservabilityError};
 
+const NAME_MAX_CHARS: usize = 64;
+
+const DIMENSIONS_MAX_CHARS: usize = 255;
+
 const SNOOZE_ENTRY_PREFIXES: [&str; 2] = ["snooze_entry_", "custom_snooze_entry_"];
 
 const SNOOZE_TIME_FORMAT: &[time::format_description::FormatItem<'static>] =
@@ -126,6 +130,21 @@ pub struct AlertDefinitionCreateRequest {
 
 impl AlertDefinitionCreateRequest {
     pub fn validate(&self) -> ObservabilityApiResult<()> {
+        within_width("name", Some(&self.name), NAME_MAX_CHARS)?;
+        within_width("product", Some(&self.product), NAME_MAX_CHARS)?;
+        within_width("author", Some(&self.author), NAME_MAX_CHARS)?;
+        within_width("approver", self.approver.as_deref(), NAME_MAX_CHARS)?;
+        within_width(
+            "dimensions",
+            self.dimensions.as_deref(),
+            DIMENSIONS_MAX_CHARS,
+        )?;
+        within_width(
+            "default_channel",
+            self.default_channel.as_deref(),
+            NAME_MAX_CHARS,
+        )?;
+
         valid_documents([
             self.blacklist.as_ref().map(Blacklist::validate),
             self.snooze.as_ref().map(Snooze::validate),
@@ -189,6 +208,22 @@ pub struct AlertDefinitionUpdateRequest {
 
 impl AlertDefinitionUpdateRequest {
     pub fn validate(&self) -> ObservabilityApiResult<()> {
+        within_width(
+            "approver",
+            self.approver.as_ref().and_then(Option::as_deref),
+            NAME_MAX_CHARS,
+        )?;
+        within_width(
+            "dimensions",
+            self.dimensions.as_ref().and_then(Option::as_deref),
+            DIMENSIONS_MAX_CHARS,
+        )?;
+        within_width(
+            "default_channel",
+            self.default_channel.as_ref().and_then(Option::as_deref),
+            NAME_MAX_CHARS,
+        )?;
+
         valid_documents([
             self.blacklist
                 .as_ref()
@@ -291,6 +326,14 @@ pub struct AlertEnablementUpsertRequest {
 }
 
 impl AlertEnablementUpsertRequest {
+    pub fn validate(&self) -> ObservabilityApiResult<()> {
+        within_width(
+            "category",
+            self.category.as_ref().and_then(Option::as_deref),
+            NAME_MAX_CHARS,
+        )
+    }
+
     pub fn to_insertable(
         &self,
         name: String,
@@ -355,6 +398,17 @@ pub struct AlertEnablementListResponse {
 
 fn effective_is_enabled(definition_is_enabled: bool, config_is_enabled: Option<bool>) -> bool {
     definition_is_enabled && config_is_enabled.unwrap_or(false)
+}
+
+fn within_width(
+    field_name: &'static str,
+    value: Option<&str>,
+    max_chars: usize,
+) -> ObservabilityApiResult<()> {
+    common_utils::fp_utils::when(
+        value.is_some_and(|value| value.chars().count() > max_chars),
+        || Err(report!(ObservabilityError::InvalidDataValue { field_name })),
+    )
 }
 
 fn valid_documents(validations: [Option<Result<(), String>>; 3]) -> ObservabilityApiResult<()> {

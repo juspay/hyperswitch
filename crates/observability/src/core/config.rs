@@ -93,6 +93,7 @@ pub async fn upsert_enablement(
     product: String,
     request: AlertEnablementUpsertRequest,
 ) -> ObservabilityApiResult<AlertEnablementResponse> {
+    request.validate()?;
     common_utils::fp_utils::when(name == ALL_DEFINITIONS, || {
         Err(report!(ObservabilityError::NotAnAlert {
             name: name.clone(),

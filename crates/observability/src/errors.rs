@@ -83,6 +83,9 @@ pub enum ObservabilityError {
     #[error("{message}")]
     InvalidRequestData { message: String },
 
+    #[error("Invalid value provided: {field_name}")]
+    InvalidDataValue { field_name: &'static str },
+
     #[error("The observability database is unavailable")]
     StorageUnavailable,
 
@@ -183,6 +186,11 @@ impl ErrorSwitch<ApiErrorResponse> for ObservabilityError {
             Self::InvalidRequestData { message } => {
                 ApiErrorResponse::BadRequest(ApiError::new("IR", 6, message))
             }
+            Self::InvalidDataValue { field_name } => ApiErrorResponse::BadRequest(ApiError::new(
+                "IR",
+                7,
+                format!("Invalid value provided: {field_name}"),
+            )),
             Self::StorageUnavailable => ApiErrorResponse::ServiceUnavailable(ApiError::new(
                 "HE",
                 0,
