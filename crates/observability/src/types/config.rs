@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 
 use diesel_models::observability::{
     alerts_info::{AlertsInfo, AlertsInfoNew, AlertsInfoUpdate},
+    merchant_thresholds::{MerchantThreshold, MerchantThresholdNew, MerchantThresholdUpdate},
     merchants_alert_external_config::{
         MerchantsAlertExternalConfig, MerchantsAlertExternalConfigNew,
         MerchantsAlertExternalConfigUpdate,
@@ -394,6 +395,205 @@ impl AlertEnablementResponse {
 pub struct AlertEnablementListResponse {
     pub count: usize,
     pub enablements: Vec<AlertEnablementResponse>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct MerchantThresholdUpsertRequest {
+    pub name: String,
+    pub product: String,
+    pub merchant_id: String,
+    pub author: String,
+    pub is_enabled: bool,
+    #[serde(default, with = "serde_with::rust::double_option")]
+    pub thresholds_min_volume: Option<Option<f64>>,
+    #[serde(default, with = "serde_with::rust::double_option")]
+    pub thresholds_min_impacted_volume: Option<Option<f64>>,
+    #[serde(default, with = "serde_with::rust::double_option")]
+    pub thresholds_tolerance: Option<Option<f64>>,
+    #[serde(default, with = "serde_with::rust::double_option")]
+    pub thresholds_diff_threshold: Option<Option<f64>>,
+    #[serde(default, with = "serde_with::rust::double_option")]
+    pub thresholds_merchant_impact: Option<Option<f64>>,
+    #[serde(default, with = "serde_with::rust::double_option")]
+    pub thresholds_alert_period: Option<Option<f64>>,
+    #[serde(default, with = "serde_with::rust::double_option")]
+    pub thresholds_min_observations: Option<Option<f64>>,
+    #[serde(default, with = "serde_with::rust::double_option")]
+    pub thresholds_min_history_volume: Option<Option<f64>>,
+    #[serde(default, with = "serde_with::rust::double_option")]
+    pub thresholds_filter_percentile: Option<Option<f64>>,
+    #[serde(default, with = "serde_with::rust::double_option")]
+    pub thresholds_current_min_volume: Option<Option<f64>>,
+    #[serde(default, with = "serde_with::rust::double_option")]
+    pub metadata: Option<Option<serde_json::Value>>,
+}
+
+impl MerchantThresholdUpsertRequest {
+    pub fn validate(&self) -> ObservabilityApiResult<()> {
+        within_width("name", Some(&self.name), NAME_MAX_CHARS)?;
+        within_width("product", Some(&self.product), NAME_MAX_CHARS)?;
+        within_width("merchant_id", Some(&self.merchant_id), NAME_MAX_CHARS)?;
+        within_width("author", Some(&self.author), NAME_MAX_CHARS)
+    }
+
+    pub fn to_insertable(&self, id: uuid::Uuid, now: PrimitiveDateTime) -> MerchantThresholdNew {
+        MerchantThresholdNew {
+            id,
+            name: self.name.clone(),
+            product: self.product.clone(),
+            merchant_id: self.merchant_id.clone(),
+            thresholds_min_volume: self.thresholds_min_volume.flatten(),
+            thresholds_min_impacted_volume: self.thresholds_min_impacted_volume.flatten(),
+            thresholds_tolerance: self.thresholds_tolerance.flatten(),
+            thresholds_diff_threshold: self.thresholds_diff_threshold.flatten(),
+            thresholds_merchant_impact: self.thresholds_merchant_impact.flatten(),
+            thresholds_alert_period: self.thresholds_alert_period.flatten(),
+            thresholds_min_observations: self.thresholds_min_observations.flatten(),
+            thresholds_min_history_volume: self.thresholds_min_history_volume.flatten(),
+            thresholds_filter_percentile: self.thresholds_filter_percentile.flatten(),
+            thresholds_current_min_volume: self.thresholds_current_min_volume.flatten(),
+            metadata: self.metadata.clone().flatten(),
+            author: self.author.clone(),
+            is_enabled: self.is_enabled,
+            last_updated_at: now,
+        }
+    }
+}
+
+impl From<MerchantThresholdUpsertRequest> for MerchantThresholdUpdate {
+    fn from(request: MerchantThresholdUpsertRequest) -> Self {
+        Self::Update {
+            thresholds_min_volume: request.thresholds_min_volume,
+            thresholds_min_impacted_volume: request.thresholds_min_impacted_volume,
+            thresholds_tolerance: request.thresholds_tolerance,
+            thresholds_diff_threshold: request.thresholds_diff_threshold,
+            thresholds_merchant_impact: request.thresholds_merchant_impact,
+            thresholds_alert_period: request.thresholds_alert_period,
+            thresholds_min_observations: request.thresholds_min_observations,
+            thresholds_min_history_volume: request.thresholds_min_history_volume,
+            thresholds_filter_percentile: request.thresholds_filter_percentile,
+            thresholds_current_min_volume: request.thresholds_current_min_volume,
+            metadata: request.metadata,
+            author: None,
+            is_enabled: None,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct MerchantThresholdUpdateRequest {
+    pub author: Option<String>,
+    pub is_enabled: Option<bool>,
+    #[serde(default, with = "serde_with::rust::double_option")]
+    pub thresholds_min_volume: Option<Option<f64>>,
+    #[serde(default, with = "serde_with::rust::double_option")]
+    pub thresholds_min_impacted_volume: Option<Option<f64>>,
+    #[serde(default, with = "serde_with::rust::double_option")]
+    pub thresholds_tolerance: Option<Option<f64>>,
+    #[serde(default, with = "serde_with::rust::double_option")]
+    pub thresholds_diff_threshold: Option<Option<f64>>,
+    #[serde(default, with = "serde_with::rust::double_option")]
+    pub thresholds_merchant_impact: Option<Option<f64>>,
+    #[serde(default, with = "serde_with::rust::double_option")]
+    pub thresholds_alert_period: Option<Option<f64>>,
+    #[serde(default, with = "serde_with::rust::double_option")]
+    pub thresholds_min_observations: Option<Option<f64>>,
+    #[serde(default, with = "serde_with::rust::double_option")]
+    pub thresholds_min_history_volume: Option<Option<f64>>,
+    #[serde(default, with = "serde_with::rust::double_option")]
+    pub thresholds_filter_percentile: Option<Option<f64>>,
+    #[serde(default, with = "serde_with::rust::double_option")]
+    pub thresholds_current_min_volume: Option<Option<f64>>,
+    #[serde(default, with = "serde_with::rust::double_option")]
+    pub metadata: Option<Option<serde_json::Value>>,
+}
+
+impl MerchantThresholdUpdateRequest {
+    pub fn validate(&self) -> ObservabilityApiResult<()> {
+        within_width("author", self.author.as_deref(), NAME_MAX_CHARS)
+    }
+}
+
+impl From<MerchantThresholdUpdateRequest> for MerchantThresholdUpdate {
+    fn from(request: MerchantThresholdUpdateRequest) -> Self {
+        Self::Update {
+            thresholds_min_volume: request.thresholds_min_volume,
+            thresholds_min_impacted_volume: request.thresholds_min_impacted_volume,
+            thresholds_tolerance: request.thresholds_tolerance,
+            thresholds_diff_threshold: request.thresholds_diff_threshold,
+            thresholds_merchant_impact: request.thresholds_merchant_impact,
+            thresholds_alert_period: request.thresholds_alert_period,
+            thresholds_min_observations: request.thresholds_min_observations,
+            thresholds_min_history_volume: request.thresholds_min_history_volume,
+            thresholds_filter_percentile: request.thresholds_filter_percentile,
+            thresholds_current_min_volume: request.thresholds_current_min_volume,
+            metadata: request.metadata,
+            author: request.author,
+            is_enabled: request.is_enabled,
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct MerchantThresholdResponse {
+    pub id: uuid::Uuid,
+    pub name: String,
+    pub product: String,
+    pub merchant_id: String,
+    pub thresholds_min_volume: Option<f64>,
+    pub thresholds_min_impacted_volume: Option<f64>,
+    pub thresholds_tolerance: Option<f64>,
+    pub thresholds_diff_threshold: Option<f64>,
+    pub thresholds_merchant_impact: Option<f64>,
+    pub thresholds_alert_period: Option<f64>,
+    pub thresholds_min_observations: Option<f64>,
+    pub thresholds_min_history_volume: Option<f64>,
+    pub thresholds_filter_percentile: Option<f64>,
+    pub thresholds_current_min_volume: Option<f64>,
+    pub metadata: Option<serde_json::Value>,
+    pub author: String,
+    pub is_enabled: bool,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub last_updated_at: PrimitiveDateTime,
+}
+
+impl From<MerchantThreshold> for MerchantThresholdResponse {
+    fn from(threshold: MerchantThreshold) -> Self {
+        Self {
+            id: threshold.id,
+            name: threshold.name,
+            product: threshold.product,
+            merchant_id: threshold.merchant_id,
+            thresholds_min_volume: threshold.thresholds_min_volume,
+            thresholds_min_impacted_volume: threshold.thresholds_min_impacted_volume,
+            thresholds_tolerance: threshold.thresholds_tolerance,
+            thresholds_diff_threshold: threshold.thresholds_diff_threshold,
+            thresholds_merchant_impact: threshold.thresholds_merchant_impact,
+            thresholds_alert_period: threshold.thresholds_alert_period,
+            thresholds_min_observations: threshold.thresholds_min_observations,
+            thresholds_min_history_volume: threshold.thresholds_min_history_volume,
+            thresholds_filter_percentile: threshold.thresholds_filter_percentile,
+            thresholds_current_min_volume: threshold.thresholds_current_min_volume,
+            metadata: threshold.metadata,
+            author: threshold.author,
+            is_enabled: threshold.is_enabled,
+            last_updated_at: threshold.last_updated_at,
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct MerchantThresholdListResponse {
+    pub count: usize,
+    pub merchant_thresholds: Vec<MerchantThresholdResponse>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct MerchantThresholdDeleteResponse {
+    pub id: uuid::Uuid,
+    pub deleted: bool,
 }
 
 fn effective_is_enabled(definition_is_enabled: bool, config_is_enabled: Option<bool>) -> bool {

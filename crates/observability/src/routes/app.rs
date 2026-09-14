@@ -83,6 +83,20 @@ impl AlertsConfig {
                             .route(web::post().to(config::enablement_upsert)),
                     ),
             )
+            .service(
+                web::scope("/merchant-thresholds")
+                    .service(
+                        web::resource("")
+                            .route(web::get().to(config::merchant_threshold_list))
+                            .route(web::post().to(config::merchant_threshold_upsert)),
+                    )
+                    .service(
+                        web::resource("/{id}")
+                            .route(web::get().to(config::merchant_threshold_retrieve))
+                            .route(web::post().to(config::merchant_threshold_update))
+                            .route(web::delete().to(config::merchant_threshold_delete)),
+                    ),
+            )
     }
 }
 

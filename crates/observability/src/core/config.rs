@@ -1,7 +1,11 @@
 use std::collections::HashMap;
 
-use diesel_models::observability::{
-    alerts_info::AlertsInfo, merchants_alert_external_config::MerchantsAlertExternalConfig,
+use diesel_models::{
+    errors::DatabaseError,
+    observability::{
+        alerts_info::AlertsInfo, merchant_thresholds::MerchantThreshold,
+        merchants_alert_external_config::MerchantsAlertExternalConfig,
+    },
 };
 use error_stack::{report, ResultExt};
 
@@ -11,7 +15,9 @@ use crate::{
     types::config::{
         AlertDefinitionCreateRequest, AlertDefinitionListResponse, AlertDefinitionResponse,
         AlertDefinitionUpdateRequest, AlertEnablementListResponse, AlertEnablementResponse,
-        AlertEnablementUpsertRequest,
+        AlertEnablementUpsertRequest, MerchantThresholdDeleteResponse,
+        MerchantThresholdListResponse, MerchantThresholdResponse, MerchantThresholdUpdateRequest,
+        MerchantThresholdUpsertRequest,
     },
 };
 
@@ -180,4 +186,94 @@ pub async fn list_enablements(
         count: enablements.len(),
         enablements,
     })
+}
+
+pub async fn upsert_merchant_threshold(
+    state: AppState,
+    request: MerchantThresholdUpsertRequest,
+) -> ObservabilityApiResult<MerchantThresholdResponse> {
+    request.validate()?;
+
+    let connection = state.database_connection().await?;
+
+    request
+        .to_insertable(
+            common_utils::generate_uuid_v7(),
+            common_utils::date_time::now(),
+        )
+        .upsert(&connection, request.into())
+        .await
+        .change_context(ObservabilityError::InternalServerError)
+        .attach_printable("Failed to upsert the merchant threshold")
+        .map(MerchantThresholdResponse::from)
+}
+
+pub async fn retrieve_merchant_threshold(
+    state: AppState,
+    id: uuid::Uuid,
+) -> ObservabilityApiResult<MerchantThresholdResponse> {
+    let connection = state.database_connection().await?;
+
+    MerchantThreshold::find_by_id(&connection, id)
+        .await
+        .to_not_found_response(ObservabilityError::MerchantThresholdNotFound { id: id.to_string() })
+        .attach_printable("Failed to find the merchant threshold")
+        .map(MerchantThresholdResponse::from)
+}
+
+pub async fn list_merchant_thresholds(
+    state: AppState,
+) -> ObservabilityApiResult<MerchantThresholdListResponse> {
+    let connection = state.database_connection().await?;
+
+    let merchant_thresholds = MerchantThreshold::list(&connection)
+        .await
+        .change_context(ObservabilityError::InternalServerError)
+        .attach_printable("Failed to list the merchant thresholds")?
+        .into_iter()
+        .map(MerchantThresholdResponse::from)
+        .collect::<Vec<_>>();
+
+    Ok(MerchantThresholdListResponse {
+        count: merchant_thresholds.len(),
+        merchant_thresholds,
+    })
+}
+
+pub async fn update_merchant_threshold(
+    state: AppState,
+    id: uuid::Uuid,
+    request: MerchantThresholdUpdateRequest,
+) -> ObservabilityApiResult<MerchantThresholdResponse> {
+    request.validate()?;
+
+    let connection = state.database_connection().await?;
+
+    MerchantThreshold::update_by_id(&connection, id, request.into())
+        .await
+        .map_err(|error| {
+            let context = match error.current_context() {
+                DatabaseError::NotFound => {
+                    ObservabilityError::MerchantThresholdNotFound { id: id.to_string() }
+                }
+                DatabaseError::UniqueViolation => ObservabilityError::DuplicateMerchantThreshold,
+                _ => ObservabilityError::InternalServerError,
+            };
+            error.change_context(context)
+        })
+        .attach_printable("Failed to update the merchant threshold")
+        .map(MerchantThresholdResponse::from)
+}
+
+pub async fn delete_merchant_threshold(
+    state: AppState,
+    id: uuid::Uuid,
+) -> ObservabilityApiResult<MerchantThresholdDeleteResponse> {
+    let connection = state.database_connection().await?;
+
+    MerchantThreshold::delete_by_id(&connection, id)
+        .await
+        .to_not_found_response(ObservabilityError::MerchantThresholdNotFound { id: id.to_string() })
+        .attach_printable("Failed to delete the merchant threshold")
+        .map(|deleted| MerchantThresholdDeleteResponse { id, deleted })
 }

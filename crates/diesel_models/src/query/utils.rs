@@ -134,7 +134,10 @@ impl_get_primary_key!(
     schema_v2::payment_attempt::table
 );
 
-impl_get_primary_key!(observability_schema::alerts_info::table);
+impl_get_primary_key!(
+    observability_schema::alerts_info::table,
+    observability_schema::merchant_thresholds::table
+);
 
 /// This macro will implement the `GetPrimaryKey` trait for all the tables with composite key.
 macro_rules! impl_get_primary_key_for_composite {

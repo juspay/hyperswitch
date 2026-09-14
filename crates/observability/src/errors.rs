@@ -101,6 +101,12 @@ pub enum ObservabilityError {
     #[error("No alert is defined as `{name}` / `{product}`")]
     NotAnAlert { name: String, product: String },
 
+    #[error("No merchant threshold exists with id `{id}`")]
+    MerchantThresholdNotFound { id: String },
+
+    #[error("A merchant threshold already exists for this name, product, merchant, author and is_enabled")]
+    DuplicateMerchantThreshold,
+
     /// The path named a destination that is not configured.
     #[error("No destination is configured under `{destination}`")]
     UnknownDestination {
@@ -215,6 +221,16 @@ impl ErrorSwitch<ApiErrorResponse> for ObservabilityError {
                 "HE",
                 3,
                 "No alert is defined for this name and product",
+            )),
+            Self::MerchantThresholdNotFound { .. } => ApiErrorResponse::NotFound(ApiError::new(
+                "HE",
+                2,
+                "Merchant threshold does not exist in our records",
+            )),
+            Self::DuplicateMerchantThreshold => ApiErrorResponse::BadRequest(ApiError::new(
+                "HE",
+                1,
+                "The merchant threshold with the specified name, product, merchant_id, author and is_enabled already exists in our records",
             )),
             // 502 rather than 500: the failure is on the far side of a hop we made. Note this is
             // the *only* provider-shaped error left, because every answer the provider gives is a
