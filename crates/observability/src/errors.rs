@@ -101,6 +101,9 @@ pub enum ObservabilityError {
     #[error("No alert is defined as `{name}` / `{product}`")]
     NotAnAlert { name: String, product: String },
 
+    #[error("The snooze entry `{key}` is not in the shape the alert manager reads")]
+    InvalidSnooze { key: String },
+
     #[error("The lifecycle write carries {alerts} alerts, over the {limit} allowed")]
     StateTooLarge { alerts: usize, limit: usize },
 
@@ -238,6 +241,11 @@ impl ErrorSwitch<ApiErrorResponse> for ObservabilityError {
                 "HE",
                 3,
                 "No alert is defined for this name and product",
+            )),
+            Self::InvalidSnooze { .. } => ApiErrorResponse::BadRequest(ApiError::new(
+                "HE",
+                3,
+                "Snooze entries must be keyed snooze_entry_<time> or custom_snooze_entry_<time> and carry snooze_end_time as YYYY-MM-DD HH:MM:SS",
             )),
             Self::StateTooLarge { .. } => ApiErrorResponse::BadRequest(ApiError::new(
                 "HE",
