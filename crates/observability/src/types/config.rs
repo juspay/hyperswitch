@@ -135,6 +135,7 @@ impl AlertDefinitionCreateRequest {
     pub fn validate(&self) -> ObservabilityApiResult<()> {
         not_blank("name", &self.name)?;
         not_blank("product", &self.product)?;
+        not_blank("author", &self.author)?;
         within_width("name", Some(&self.name), NAME_MAX_CHARS)?;
         within_width("product", Some(&self.product), NAME_MAX_CHARS)?;
         within_width("author", Some(&self.author), NAME_MAX_CHARS)?;
