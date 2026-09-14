@@ -1769,6 +1769,43 @@ pub async fn get_payment_attempt_from_object_reference_id(
 }
 
 #[allow(clippy::too_many_arguments)]
+async fn update_dispute_object(
+    state: &SessionState,
+    dispute: diesel_models::dispute::Dispute,
+    dispute_details: api::disputes::DisputePayload,
+    dispute_status: common_enums::enums::DisputeStatus,
+    platform: &domain::Platform,
+) -> CustomResult<diesel_models::dispute::Dispute, errors::ApiErrorResponse> {
+    let db = &*state.store;
+    logger::info!("Dispute Already exists, Updating the dispute details");
+    metrics::INCOMING_DISPUTE_WEBHOOK_UPDATE_RECORD_METRIC.add(1, &[]);
+    core_utils::validate_dispute_stage_and_dispute_status(
+        dispute.dispute_stage,
+        dispute.dispute_status,
+        dispute_details.dispute_stage,
+        dispute_status,
+    )
+    .change_context(errors::ApiErrorResponse::WebhookBadRequest)
+    .attach_printable("dispute stage and status validation failed")?;
+    let update_dispute = diesel_models::dispute::DisputeUpdate::Update {
+        dispute_stage: dispute_details.dispute_stage,
+        dispute_status,
+        connector_status: dispute_details.connector_status,
+        connector_reason: dispute_details.connector_reason,
+        connector_reason_code: dispute_details.connector_reason_code,
+        challenge_required_by: dispute_details.challenge_required_by,
+        connector_updated_at: dispute_details.updated_at,
+    };
+    db.update_dispute(
+        dispute,
+        update_dispute,
+        platform.get_processor().get_account().storage_scheme,
+    )
+    .await
+    .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound)
+}
+
+#[allow(clippy::too_many_arguments)]
 pub async fn get_or_update_dispute_object(
     state: SessionState,
     option_dispute: Option<diesel_models::dispute::Dispute>,
@@ -1782,8 +1819,8 @@ pub async fn get_or_update_dispute_object(
     let db = &*state.store;
     match option_dispute {
         None => {
-            metrics::INCOMING_DISPUTE_WEBHOOK_NEW_RECORD_METRIC.add(1, &[]);
             let dispute_id = generate_id(consts::ID_LENGTH, "dp");
+            let dispute_merchant_id = platform.get_provider().get_account().get_id();
             let new_dispute = diesel_models::dispute::DisputeNew {
                 dispute_id,
                 amount: dispute_details.amount.clone(),
@@ -1793,11 +1830,11 @@ pub async fn get_or_update_dispute_object(
                 payment_id: payment_attempt.payment_id.to_owned(),
                 connector: connector_name.to_owned(),
                 attempt_id: payment_attempt.attempt_id.to_owned(),
-                merchant_id: platform.get_provider().get_account().get_id().to_owned(),
-                connector_status: dispute_details.connector_status,
-                connector_dispute_id: dispute_details.connector_dispute_id,
-                connector_reason: dispute_details.connector_reason,
-                connector_reason_code: dispute_details.connector_reason_code,
+                merchant_id: dispute_merchant_id.to_owned(),
+                connector_status: dispute_details.connector_status.clone(),
+                connector_dispute_id: dispute_details.connector_dispute_id.clone(),
+                connector_reason: dispute_details.connector_reason.clone(),
+                connector_reason_code: dispute_details.connector_reason_code.clone(),
                 challenge_required_by: dispute_details.challenge_required_by,
                 connector_created_at: dispute_details.created_at,
                 connector_updated_at: dispute_details.updated_at,
@@ -1806,7 +1843,7 @@ pub async fn get_or_update_dispute_object(
                 merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
                 dispute_amount: StringMinorUnitForConnector::convert_back(
                     &StringMinorUnitForConnector,
-                    dispute_details.amount,
+                    dispute_details.amount.clone(),
                     dispute_details.currency,
                 )
                 .change_context(
@@ -1830,42 +1867,57 @@ pub async fn get_or_update_dispute_object(
                 created_at: common_utils::date_time::now(),
                 modified_at: common_utils::date_time::now(),
             };
-            state
+            let insert_result = state
                 .store
                 .insert_dispute(
-                    new_dispute.clone(),
+                    new_dispute,
                     platform.get_processor().get_account().storage_scheme,
                 )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound)
+                .await;
+
+            match insert_result {
+                Ok(dispute) => {
+                    metrics::INCOMING_DISPUTE_WEBHOOK_NEW_RECORD_METRIC.add(1, &[]);
+                    Ok(dispute)
+                }
+                Err(err) if err.current_context().is_db_unique_violation() => {
+                    logger::info!("Dispute already exists in database due to concurrent insert, fetching existing record");
+                    let existing_dispute = db
+                        .find_by_processor_merchant_id_payment_id_connector_dispute_id(
+                            dispute_merchant_id,
+                            &payment_attempt.payment_id,
+                            &dispute_details.connector_dispute_id,
+                            platform.get_processor().get_account().storage_scheme,
+                        )
+                        .await
+                        .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound)?
+                        .ok_or_else(|| {
+                            errors::ApiErrorResponse::WebhookResourceNotFound
+                        })?;
+
+                    update_dispute_object(
+                        &state,
+                        existing_dispute,
+                        dispute_details,
+                        dispute_status,
+                        platform,
+                    )
+                    .await
+                }
+                Err(err) => {
+                    Err(err).to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound)
+                }
+            }
         }
         Some(dispute) => {
-            logger::info!("Dispute Already exists, Updating the dispute details");
-            metrics::INCOMING_DISPUTE_WEBHOOK_UPDATE_RECORD_METRIC.add(1, &[]);
-            core_utils::validate_dispute_stage_and_dispute_status(
-                dispute.dispute_stage,
-                dispute.dispute_status,
-                dispute_details.dispute_stage,
-                dispute_status,
-            )
-            .change_context(errors::ApiErrorResponse::WebhookBadRequest)
-            .attach_printable("dispute stage and status validation failed")?;
-            let update_dispute = diesel_models::dispute::DisputeUpdate::Update {
-                dispute_stage: dispute_details.dispute_stage,
-                dispute_status,
-                connector_status: dispute_details.connector_status,
-                connector_reason: dispute_details.connector_reason,
-                connector_reason_code: dispute_details.connector_reason_code,
-                challenge_required_by: dispute_details.challenge_required_by,
-                connector_updated_at: dispute_details.updated_at,
-            };
-            db.update_dispute(
+            update_dispute_object(
+                &state,
                 dispute,
-                update_dispute,
-                platform.get_processor().get_account().storage_scheme,
+                dispute_details,
+                dispute_status,
+                platform,
             )
             .await
-            .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound)
         }
     }
 }
