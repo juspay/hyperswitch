@@ -9,7 +9,7 @@
 #     --database-url "$OBSERVABILITY_DATABASE_URL"
 
 [print_schema]
-file = "crates/diesel_models/src/observability/schema.rs"
+file = "../diesel_models/src/observability/schema.rs"
 
 [migrations_directory]
-dir = "crates/observability/migrations"
+dir = "migrations"

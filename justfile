@@ -237,7 +237,7 @@ run_migration operation=default_operation migration_dir=v1_migration_dir config_
 migrate operation=default_operation *args='': (run_migration operation v1_migration_dir v1_config_file_dir database_url args)
 
 # The observability plane's state lives in its own database with its own lineage: these tables are
-# not part of hyperswitch_db and the two share no version table. See crates/observability/diesel.toml.
+# not part of hyperswitch_db and the two share no version table. See diesel_observability.toml.
 observability_db_name := env_var_or_default('OBSERVABILITY_DB_NAME', 'observability')
 observability_db_url := env_var_or_default('OBSERVABILITY_DATABASE_URL', 'postgresql://' + db_user + ':' + db_password + '@' + db_host + ':' + db_port / observability_db_name)
 observability_migration_dir := source_directory() / 'crates/observability/migrations'

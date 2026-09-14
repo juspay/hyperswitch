@@ -25,6 +25,7 @@ jobs:
 
     env:
       DATABASE_URL: postgres://postgres:postgres@localhost:5432/hyperswitch_db
+      OBSERVABILITY_DATABASE_URL: postgres://postgres:postgres@localhost:5432/observability
       PGUSER: postgres
       PGPASSWORD: postgres
       PGHOST: localhost
@@ -87,3 +88,15 @@ jobs:
       - name: Verify `diesel migration redo for v2`
         shell: bash
         run: just migrate_v2 redo --locked-schema --all
+
+      - name: Create observability database
+        shell: bash
+        run: just resurrect observability
+
+      - name: Verify `diesel migration run for observability`
+        shell: bash
+        run: just migrate_observability run --locked-schema
+
+      - name: Verify `diesel migration redo for observability`
+        shell: bash
+        run: just migrate_observability redo --locked-schema --all
