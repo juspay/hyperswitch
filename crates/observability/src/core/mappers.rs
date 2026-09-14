@@ -1,5 +1,5 @@
 use diesel_models::observability::{
-    alerts_dicts::{AlertsDict, AlertsDictNew, DEFAULT_USERNAME},
+    alerts_dicts::{AlertsDict, AlertsDictNew},
     raw_json::RawJson,
 };
 use error_stack::{report, ResultExt};
@@ -24,6 +24,8 @@ const KEY_MAX_CHARS: usize = 255;
 const USERNAME_MAX_CHARS: usize = 64;
 
 const MAX_ENTRY_BYTES: usize = 1024 * 1024;
+
+const DEFAULT_USERNAME: &str = "reliability_team";
 
 pub async fn list_mappers(state: AppState) -> ObservabilityApiResult<MapperListResponse> {
     let connection = state.database_connection().await?;
@@ -95,8 +97,8 @@ pub async fn upsert_mapper(
         product,
         values_: values,
         ts_created: common_utils::date_time::now(),
-        is_enabled: Some(true),
-        username: username.or_else(|| Some(DEFAULT_USERNAME.to_owned())),
+        is_enabled: true,
+        username: username.unwrap_or_else(|| DEFAULT_USERNAME.to_owned()),
         metadata,
     }
     .upsert(&connection)

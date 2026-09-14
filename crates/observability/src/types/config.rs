@@ -58,10 +58,10 @@ impl AlertDefinitionCreateRequest {
             history_window: self.history_window,
             thresholds: self.thresholds.map(Thresholds),
             metadata: self.metadata,
-            is_enabled: Some(self.is_enabled),
+            is_enabled: self.is_enabled,
             comments: self.comments,
             call_period: self.call_period,
-            author: Some(self.author),
+            author: self.author,
             approver: self.approver,
             last_updated_at: now,
         }
@@ -221,9 +221,11 @@ impl AlertEnablementUpsertRequest {
         MerchantsAlertExternalConfigNew {
             name,
             product,
-            category: self.category,
-            is_enabled: Some(self.is_enabled),
-            metadata: self.metadata,
+            category: self.category.unwrap_or_default(),
+            is_enabled: self.is_enabled,
+            metadata: self
+                .metadata
+                .unwrap_or_else(|| serde_json::Value::Object(serde_json::Map::new())),
             last_updated_at: now,
         }
     }

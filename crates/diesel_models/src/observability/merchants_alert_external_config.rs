@@ -24,8 +24,8 @@ pub struct MerchantsAlertExternalConfig {
 pub struct MerchantsAlertExternalConfigNew {
     pub name: String,
     pub product: String,
-    pub category: Option<String>,
-    pub is_enabled: Option<bool>,
-    pub metadata: Option<serde_json::Value>,
+    pub category: String,
+    pub is_enabled: bool,
+    pub metadata: serde_json::Value,
     pub last_updated_at: PrimitiveDateTime,
 }

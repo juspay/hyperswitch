@@ -3,8 +3,6 @@ use time::PrimitiveDateTime;
 
 use crate::observability::{raw_json::RawJson, schema::alerts_dicts};
 
-pub const DEFAULT_USERNAME: &str = "reliability_team";
-
 #[derive(
     Clone, Debug, Queryable, Identifiable, Selectable, serde::Serialize, serde::Deserialize,
 )]
@@ -30,8 +28,8 @@ pub struct AlertsDictNew {
     pub product: Option<RawJson>,
     pub values_: Option<RawJson>,
     pub ts_created: PrimitiveDateTime,
-    pub is_enabled: Option<bool>,
-    pub username: Option<String>,
+    pub is_enabled: bool,
+    pub username: String,
     pub metadata: Option<RawJson>,
 }
 

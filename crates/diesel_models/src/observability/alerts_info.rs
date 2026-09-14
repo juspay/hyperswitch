@@ -103,10 +103,10 @@ pub struct AlertsInfoNew {
     pub history_window: Option<i32>,
     pub thresholds: Option<Thresholds>,
     pub metadata: Option<serde_json::Value>,
-    pub is_enabled: Option<bool>,
+    pub is_enabled: bool,
     pub comments: Option<serde_json::Value>,
     pub call_period: Option<i32>,
-    pub author: Option<String>,
+    pub author: String,
     pub approver: Option<String>,
     pub last_updated_at: PrimitiveDateTime,
 }
