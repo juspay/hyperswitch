@@ -80,6 +80,9 @@ pub enum ObservabilityError {
     #[error("The request body is invalid")]
     InvalidRequest,
 
+    #[error("Invalid value provided: {field_name}")]
+    InvalidDataValue { field_name: String },
+
     #[error("The mapper entry is {bytes} bytes, over the {limit} byte limit")]
     EntryTooLarge { bytes: usize, limit: usize },
 
@@ -201,6 +204,11 @@ impl ErrorSwitch<ApiErrorResponse> for ObservabilityError {
                 "IR",
                 4,
                 "The request body could not be parsed",
+            )),
+            Self::InvalidDataValue { field_name } => ApiErrorResponse::BadRequest(ApiError::new(
+                "IR",
+                7,
+                format!("Invalid value provided: {field_name}"),
             )),
             Self::EntryTooLarge { .. } => ApiErrorResponse::BadRequest(ApiError::new(
                 "HE",

@@ -10,7 +10,7 @@ use error_stack::{report, ResultExt};
 use time::PrimitiveDateTime;
 
 use crate::{
-    core::utils,
+    core::utils::{self, NAME_MAX_CHARS, VALUE_MAX_CHARS},
     errors::{ObservabilityApiResult, ObservabilityError},
     state::AppState,
     types::{
@@ -23,10 +23,6 @@ use crate::{
         ReadStatus, WriteStatus,
     },
 };
-
-const NAME_MAX_CHARS: usize = 64;
-
-const TS_SLACK_MAX_CHARS: usize = 255;
 
 const ALERTS_PER_STATEMENT: usize = 1_000;
 
@@ -152,9 +148,9 @@ pub async fn record_announcement(
 ) -> ObservabilityApiResult<AnnouncementSaveResponse> {
     let channel = <&'static str>::from(channel);
 
-    within_width(request.name.as_deref(), "name", NAME_MAX_CHARS)?;
-    within_width(request.product.as_deref(), "product", NAME_MAX_CHARS)?;
-    within_width(request.ts_slack.as_deref(), "ts_slack", TS_SLACK_MAX_CHARS)?;
+    utils::optional_within_width(request.name.as_deref(), "name", NAME_MAX_CHARS)?;
+    utils::optional_within_width(request.product.as_deref(), "product", NAME_MAX_CHARS)?;
+    utils::optional_within_width(request.ts_slack.as_deref(), "ts_slack", VALUE_MAX_CHARS)?;
 
     let now = utils::truncate_to_millisecond(common_utils::date_time::now());
     let connection = state.database_connection().await?;
@@ -170,9 +166,7 @@ pub async fn record_announcement(
         duration: request.duration.unwrap_or_default(),
         sent: request.sent.unwrap_or_default(),
         critical: request.critical.unwrap_or_default(),
-        rca_metadata: request
-            .rca_metadata
-            .unwrap_or_else(|| serde_json::Value::Object(serde_json::Map::new())),
+        rca_metadata: request.rca_metadata.unwrap_or_else(utils::empty_object),
         metadata: request.metadata.map(RawJson::from),
         last_updated_at: now,
     }
@@ -323,11 +317,11 @@ impl WritePlan {
         let mut referenced = HashSet::new();
 
         for alert in alerts {
-            within_width(alert.name.as_deref(), "name", NAME_MAX_CHARS)?;
-            within_width(alert.product.as_deref(), "product", NAME_MAX_CHARS)?;
-            within_width(alert.group_id.as_deref(), "group_id", NAME_MAX_CHARS)?;
-            within_width(alert.priority.as_deref(), "priority", NAME_MAX_CHARS)?;
-            within_width(alert.ts_slack.as_deref(), "ts_slack", TS_SLACK_MAX_CHARS)?;
+            utils::optional_within_width(alert.name.as_deref(), "name", NAME_MAX_CHARS)?;
+            utils::optional_within_width(alert.product.as_deref(), "product", NAME_MAX_CHARS)?;
+            utils::optional_within_width(alert.group_id.as_deref(), "group_id", NAME_MAX_CHARS)?;
+            utils::optional_within_width(alert.priority.as_deref(), "priority", NAME_MAX_CHARS)?;
+            utils::optional_within_width(alert.ts_slack.as_deref(), "ts_slack", VALUE_MAX_CHARS)?;
 
             let id_intermediate = alert.id_intermediate.unwrap_or_else(uuid::Uuid::now_v7);
 
@@ -358,9 +352,7 @@ impl WritePlan {
                 other_metrics: alert.other_metrics,
                 metadata: alert.metadata,
                 metadata_alert_details: alert.metadata_alert_details,
-                rca_metadata: alert
-                    .rca_metadata
-                    .unwrap_or_else(|| serde_json::Value::Object(serde_json::Map::new())),
+                rca_metadata: alert.rca_metadata.unwrap_or_else(utils::empty_object),
                 group_id: alert.group_id.unwrap_or_default(),
                 priority: alert.priority.unwrap_or_default(),
                 last_updated_at: now,
@@ -424,8 +416,4 @@ impl From<error_stack::Report<diesel_models::errors::DatabaseError>> for WriteFa
     fn from(error: error_stack::Report<diesel_models::errors::DatabaseError>) -> Self {
         Self::Storage(error)
     }
-}
-
-fn within_width(value: Option<&str>, field: &str, max_chars: usize) -> ObservabilityApiResult<()> {
-    value.map_or(Ok(()), |value| utils::within_width(value, field, max_chars))
 }
