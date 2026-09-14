@@ -1,4 +1,4 @@
-use diesel_models::observability::notification_reads::NotificationRead;
+use diesel_models::observability::notification_reads::{NotificationRead, NotificationReadNew};
 use error_stack::ResultExt;
 
 use crate::{
@@ -25,7 +25,7 @@ pub async fn read_watermark(
     Ok(match watermark {
         Some(watermark) => WatermarkResponse {
             status: ReadStatus::Found,
-            last_read_at: watermark.last_read_at,
+            last_read_at: Some(watermark.last_read_at),
         },
         None => WatermarkResponse {
             status: ReadStatus::Absent,
@@ -41,9 +41,9 @@ pub async fn mark_read(
     let user_name = within_width(&user)?;
     let connection = state.database_connection().await?;
 
-    let watermark = NotificationRead {
+    let watermark = NotificationReadNew {
         user_name: user_name.to_owned(),
-        last_read_at: Some(common_utils::date_time::now()),
+        last_read_at: common_utils::date_time::now(),
     }
     .upsert(&connection)
     .await
@@ -52,7 +52,7 @@ pub async fn mark_read(
 
     Ok(WatermarkResponse {
         status: ReadStatus::Found,
-        last_read_at: watermark.last_read_at,
+        last_read_at: Some(watermark.last_read_at),
     })
 }
 

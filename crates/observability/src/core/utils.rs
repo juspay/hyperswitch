@@ -12,6 +12,7 @@ pub fn or_empty_list(column: Option<RawJson>) -> ObservabilityApiResult<RawJson>
             RawValue::from_string(EMPTY_LIST.to_owned())
                 .map(RawJson::from)
                 .change_context(ObservabilityError::InternalServerError)
+                .attach_printable("Failed to build an empty JSON list")
         },
         Ok,
     )

@@ -1,23 +1,20 @@
-use common_utils::ext_traits::OptionExt;
-use diesel_models::observability::{alerts_dicts::AlertsDict, raw_json::RawJson};
-use error_stack::ResultExt;
+use diesel_models::observability::alerts_dicts::AlertsDict;
 use serde::{Deserialize, Serialize};
 use serde_json::value::RawValue;
 use time::PrimitiveDateTime;
 
 use super::{ReadStatus, WriteStatus};
-use crate::errors::ObservabilityError;
 
 #[derive(Debug, Serialize)]
 pub struct MapperEntry {
     pub name: String,
     pub key: String,
-    pub product: Option<Box<RawValue>>,
-    pub values: Option<Box<RawValue>>,
-    pub metadata: Option<Box<RawValue>>,
-    #[serde(with = "common_utils::custom_serde::iso8601::option")]
-    pub ts_created: Option<PrimitiveDateTime>,
-    pub username: Option<String>,
+    pub product: Box<RawValue>,
+    pub values: Box<RawValue>,
+    pub metadata: Box<RawValue>,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub ts_created: PrimitiveDateTime,
+    pub username: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -50,28 +47,16 @@ pub struct MapperRetireResponse {
     pub status: WriteStatus,
 }
 
-impl TryFrom<AlertsDict> for MapperEntry {
-    type Error = error_stack::Report<ObservabilityError>;
-
-    fn try_from(entry: AlertsDict) -> Result<Self, Self::Error> {
-        let id = entry.id;
-
-        Ok(Self {
-            name: entry
-                .name
-                .get_required_value("name")
-                .change_context(ObservabilityError::InternalServerError)
-                .attach_printable_lazy(|| format!("Mapper entry {id} has no name"))?,
-            key: entry
-                .key_
-                .get_required_value("key_")
-                .change_context(ObservabilityError::InternalServerError)
-                .attach_printable_lazy(|| format!("Mapper entry {id} has no key"))?,
-            product: entry.product.map(RawJson::into_raw),
-            values: entry.values_.map(RawJson::into_raw),
-            metadata: entry.metadata.map(RawJson::into_raw),
+impl From<AlertsDict> for MapperEntry {
+    fn from(entry: AlertsDict) -> Self {
+        Self {
+            name: entry.name,
+            key: entry.key_,
+            product: entry.product.into_raw(),
+            values: entry.values_.into_raw(),
+            metadata: entry.metadata.into_raw(),
             ts_created: entry.ts_created,
             username: entry.username,
-        })
+        }
     }
 }

@@ -1,4 +1,3 @@
-use common_utils::ext_traits::OptionExt;
 use diesel_models::observability::{
     alerts_info::{
         AlertsInfo, AlertsInfoNew, AlertsInfoUpdate, Blacklist, BlacklistEntry, Snooze,
@@ -8,11 +7,8 @@ use diesel_models::observability::{
         MerchantsAlertExternalConfig, MerchantsAlertExternalConfigNew,
     },
 };
-use error_stack::ResultExt;
 use serde::{Deserialize, Deserializer, Serialize};
 use time::PrimitiveDateTime;
-
-use crate::errors::ObservabilityError;
 
 fn double_option<'de, T, D>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
 where
@@ -44,9 +40,9 @@ pub struct AlertDefinitionCreateRequest {
 }
 
 impl AlertDefinitionCreateRequest {
-    pub fn into_insertable(self, now: PrimitiveDateTime) -> AlertsInfoNew {
+    pub fn into_insertable(self, id: uuid::Uuid, now: PrimitiveDateTime) -> AlertsInfoNew {
         AlertsInfoNew {
-            id: uuid::Uuid::now_v7(),
+            id,
             name: self.name,
             product: self.product,
             dimensions: self.dimensions.unwrap_or_default(),
@@ -74,14 +70,11 @@ pub struct AlertDefinitionUpdateRequest {
     pub is_enabled: Option<bool>,
     #[serde(default, deserialize_with = "double_option")]
     pub approver: Option<Option<String>>,
-    #[serde(default, deserialize_with = "double_option")]
-    pub dimensions: Option<Option<String>>,
-    #[serde(default, deserialize_with = "double_option")]
-    pub period: Option<Option<i32>>,
+    pub dimensions: Option<String>,
+    pub period: Option<i32>,
     #[serde(default, deserialize_with = "double_option")]
     pub default_channel: Option<Option<String>>,
-    #[serde(default, deserialize_with = "double_option")]
-    pub default_critical: Option<Option<bool>>,
+    pub default_critical: Option<bool>,
     #[serde(default, deserialize_with = "double_option")]
     pub blacklist: Option<Option<Vec<BlacklistEntry>>>,
     #[serde(default, deserialize_with = "double_option")]
@@ -110,7 +103,7 @@ impl AlertDefinitionUpdateRequest {
             history_window: self.history_window,
             thresholds: self.thresholds.map(|entries| entries.map(Thresholds)),
             metadata: self.metadata,
-            is_enabled: self.is_enabled.map(Some),
+            is_enabled: self.is_enabled,
             comments: self.comments,
             call_period: self.call_period,
             approver: self.approver,
@@ -125,10 +118,10 @@ pub struct AlertDefinitionResponse {
     pub name: String,
     pub product: String,
     pub is_enabled: bool,
-    pub dimensions: Option<String>,
-    pub period: Option<i32>,
+    pub dimensions: String,
+    pub period: i32,
     pub default_channel: Option<String>,
-    pub default_critical: Option<bool>,
+    pub default_critical: bool,
     pub blacklist: Vec<BlacklistEntry>,
     pub snooze: std::collections::BTreeMap<String, SnoozeEntry>,
     pub history_window: Option<i32>,
@@ -136,32 +129,19 @@ pub struct AlertDefinitionResponse {
     pub metadata: Option<serde_json::Value>,
     pub comments: Option<serde_json::Value>,
     pub call_period: Option<i32>,
-    pub author: Option<String>,
+    pub author: String,
     pub approver: Option<String>,
-    #[serde(with = "common_utils::custom_serde::iso8601::option")]
-    pub last_updated_at: Option<PrimitiveDateTime>,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub last_updated_at: PrimitiveDateTime,
 }
 
-impl TryFrom<AlertsInfo> for AlertDefinitionResponse {
-    type Error = error_stack::Report<ObservabilityError>;
-
-    fn try_from(definition: AlertsInfo) -> Result<Self, Self::Error> {
-        let id = definition.id;
-        let is_enabled = definition.is_enabled.unwrap_or(false);
-
-        Ok(Self {
-            id,
-            name: definition
-                .name
-                .get_required_value("name")
-                .change_context(ObservabilityError::InternalServerError)
-                .attach_printable_lazy(|| format!("Alert definition {id} has no name"))?,
-            product: definition
-                .product
-                .get_required_value("product")
-                .change_context(ObservabilityError::InternalServerError)
-                .attach_printable_lazy(|| format!("Alert definition {id} has no product"))?,
-            is_enabled,
+impl From<AlertsInfo> for AlertDefinitionResponse {
+    fn from(definition: AlertsInfo) -> Self {
+        Self {
+            id: definition.id,
+            name: definition.name,
+            product: definition.product,
+            is_enabled: definition.is_enabled,
             dimensions: definition.dimensions,
             period: definition.period,
             default_channel: definition.default_channel,
@@ -182,7 +162,7 @@ impl TryFrom<AlertsInfo> for AlertDefinitionResponse {
             author: definition.author,
             approver: definition.approver,
             last_updated_at: definition.last_updated_at,
-        })
+        }
     }
 }
 
@@ -192,9 +172,12 @@ pub struct AlertDefinitionListResponse {
     pub definitions: Vec<AlertDefinitionResponse>,
 }
 
-impl FromIterator<AlertDefinitionResponse> for AlertDefinitionListResponse {
-    fn from_iter<I: IntoIterator<Item = AlertDefinitionResponse>>(definitions: I) -> Self {
-        let definitions = definitions.into_iter().collect::<Vec<_>>();
+impl FromIterator<AlertsInfo> for AlertDefinitionListResponse {
+    fn from_iter<I: IntoIterator<Item = AlertsInfo>>(definitions: I) -> Self {
+        let definitions = definitions
+            .into_iter()
+            .map(AlertDefinitionResponse::from)
+            .collect::<Vec<_>>();
 
         Self {
             count: definitions.len(),
@@ -235,25 +218,22 @@ impl AlertEnablementUpsertRequest {
 pub struct AlertEnablementResponse {
     pub name: String,
     pub product: String,
-    pub category: Option<String>,
+    pub category: String,
     pub is_enabled: bool,
     pub effective_is_enabled: bool,
-    pub metadata: Option<serde_json::Value>,
-    #[serde(with = "common_utils::custom_serde::iso8601::option")]
-    pub last_updated_at: Option<PrimitiveDateTime>,
+    pub metadata: serde_json::Value,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub last_updated_at: PrimitiveDateTime,
 }
 
 impl AlertEnablementResponse {
     pub fn new(row: MerchantsAlertExternalConfig, definition_is_enabled: Option<bool>) -> Self {
         Self {
-            effective_is_enabled: effective_is_enabled(
-                definition_is_enabled.unwrap_or(false),
-                row.is_enabled,
-            ),
+            effective_is_enabled: definition_is_enabled.unwrap_or(false) && row.is_enabled,
             name: row.name,
             product: row.product,
             category: row.category,
-            is_enabled: row.is_enabled.unwrap_or(false),
+            is_enabled: row.is_enabled,
             metadata: row.metadata,
             last_updated_at: row.last_updated_at,
         }
@@ -264,8 +244,4 @@ impl AlertEnablementResponse {
 pub struct AlertEnablementListResponse {
     pub count: usize,
     pub enablements: Vec<AlertEnablementResponse>,
-}
-
-fn effective_is_enabled(definition_is_enabled: bool, config_is_enabled: Option<bool>) -> bool {
-    definition_is_enabled && config_is_enabled.unwrap_or(false)
 }
