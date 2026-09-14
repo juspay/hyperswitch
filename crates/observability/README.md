@@ -585,11 +585,12 @@ absent.
 
 One instance write carries at most 500 merchants and one dimension write at most 500 dimensions, so
 the same numbers bound what one announcement holds. A write over its cap is refused whole. At the
-cap a write is a single insert of 500 rows of 27 columns, inside Postgres' 65,535 bind parameters.
+cap a write is a single insert of 500 rows of at most 27 columns, inside Postgres' 65,535 bind
+parameters.
 
-Both write routes take the `/alerts` scope's 2 MiB body limit, so 500 rows fit while they average
-under about 4 KiB of JSON each. A larger body is refused as `IR_06`, the same answer as a body that
-does not parse, before the caps or widths are checked.
+Both write routes keep the 2 MiB body limit of the other JSON routes, so 500 rows fit while they
+average under about 4 KiB of JSON each. A larger body is refused like one that does not parse,
+before the caps or widths are checked.
 
 Column widths are counted in characters and checked on every row before a database connection is
 taken: `name`, `product`, `merchant_id`, `dimension_key`, `priority` and `tenant_id` are
@@ -599,7 +600,6 @@ The instance errors, added to the tables above:
 
 | | Status | Code |
 |---|---|---|
-| Body over 2 MiB, or did not parse | 400 | `IR_06` |
 | A value wider than its column | 400 | `IR_07` |
 | Instance write over 500 merchants, or dimension write over 500 dimensions | 400 | `HE_03` |
 | Unknown announcement id on this channel | 404 | `HE_02` |
