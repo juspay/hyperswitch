@@ -133,7 +133,7 @@ CREATE TABLE IF NOT EXISTS alerts_dicts (
     metadata   JSON
 );
 
--- One enabled entry per name and key; superseded rows stay for history.
+-- One enabled entry per name and key; the previous version stays disabled.
 CREATE UNIQUE INDEX IF NOT EXISTS idx_alerts_dicts_enabled_unique
     ON alerts_dicts USING btree (name, key_) WHERE is_enabled IS TRUE;
 
