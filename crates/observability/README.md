@@ -471,7 +471,9 @@ minutes out of step would make an episode look older than it is. The episode tim
 `ts_alert`, `latest_ts_alert`, `recovered_ts` — are stored as sent, and `expected_last_updated_at`
 is compared, never stored.
 
-A field the caller leaves out is stored as r-apps stores it rather than as `NULL`: `dimensions` as
+`name` and `product` are required on an announcement and on every state row, as r-apps' columns
+are `NOT NULL`; a body without them is refused like one that does not parse. Any other field the
+caller leaves out is stored as r-apps stores it rather than as `NULL`: `dimensions` as
 `[]`, `rca_metadata` as `{}`, `max_duration` and `duration` as `0`, `group_id` and `priority` as
 `''`, `sent` and `critical` as false, and a state row's `ts_alert` and `latest_ts_alert` as the time
 of the write.

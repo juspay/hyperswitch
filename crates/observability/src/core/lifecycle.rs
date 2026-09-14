@@ -48,7 +48,7 @@ pub async fn read_state(
 
     Ok(LifecycleStateResponse {
         count: rows.len(),
-        last_updated_at: rows.iter().filter_map(|row| row.last_updated_at).max(),
+        last_updated_at: rows.iter().map(|row| row.last_updated_at).max(),
         alerts: rows.into_iter().map(AlertStateEntry::from).collect(),
     })
 }
@@ -161,8 +161,8 @@ pub async fn record_announcement(
 ) -> ObservabilityApiResult<AnnouncementEntry> {
     let channel = <&'static str>::from(channel);
 
-    within_width(request.name.as_deref(), "name", NAME_MAX_CHARS)?;
-    within_width(request.product.as_deref(), "product", NAME_MAX_CHARS)?;
+    utils::within_width(&request.name, "name", NAME_MAX_CHARS)?;
+    utils::within_width(&request.product, "product", NAME_MAX_CHARS)?;
     within_width(request.ts_slack.as_deref(), "ts_slack", TS_SLACK_MAX_CHARS)?;
 
     let now = truncate_to_millisecond(common_utils::date_time::now());
@@ -332,8 +332,8 @@ impl WritePlan {
         let mut referenced = HashSet::new();
 
         for alert in alerts {
-            within_width(alert.name.as_deref(), "name", NAME_MAX_CHARS)?;
-            within_width(alert.product.as_deref(), "product", NAME_MAX_CHARS)?;
+            utils::within_width(&alert.name, "name", NAME_MAX_CHARS)?;
+            utils::within_width(&alert.product, "product", NAME_MAX_CHARS)?;
             within_width(alert.group_id.as_deref(), "group_id", NAME_MAX_CHARS)?;
             within_width(alert.priority.as_deref(), "priority", NAME_MAX_CHARS)?;
             within_width(alert.ts_slack.as_deref(), "ts_slack", TS_SLACK_MAX_CHARS)?;
