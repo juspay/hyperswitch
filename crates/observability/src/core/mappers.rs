@@ -1,175 +1,140 @@
-use diesel_models::observability::{
-    alerts_dicts::{AlertsDict, AlertsDictNew},
-    raw_json::RawJson,
+use async_bb8_diesel::AsyncConnection;
+use common_utils::errors::ErrorSwitchFrom;
+use diesel_models::{
+    errors::DatabaseError,
+    observability::alerts_dicts::{AlertsDict, AlertsDictUpdate},
 };
 use error_stack::{report, ResultExt};
-use serde_json::value::RawValue;
 
 use crate::{
+    auth::UserName,
     errors::{ObservabilityApiResult, ObservabilityError, StorageErrorExt},
     state::AppState,
-    types::{
-        mappers::{
-            MapperEntry, MapperListResponse, MapperRetireResponse, MapperSaveResponse,
-            MapperUpsertRequest,
-        },
-        ReadStatus, UserName, WriteStatus,
+    types::mappers::{
+        MapperEntryDeleteResponse, MapperEntryListResponse, MapperEntryResponse,
+        MapperEntrySaveRequest,
     },
 };
 
-const NAME_MAX_CHARS: usize = 64;
+const SUPERSEDED_ENTRIES_KEPT: i64 = 1;
 
-const KEY_MAX_CHARS: usize = 255;
-
-const USERNAME_MAX_CHARS: usize = 64;
-
-const MAX_ENTRY_BYTES: usize = 1024 * 1024;
-
-const DEFAULT_USERNAME: &str = "reliability_team";
-
-const EMPTY_LIST: &str = "[]";
-
-pub async fn list_mappers(state: AppState) -> ObservabilityApiResult<MapperListResponse> {
+pub async fn list_mappers(state: AppState) -> ObservabilityApiResult<MapperEntryListResponse> {
     let connection = state.database_connection().await?;
 
     let entries = AlertsDict::list_enabled(&connection)
         .await
         .change_context(ObservabilityError::InternalServerError)
-        .attach_printable("Failed to list mapper entries")?;
+        .attach_printable("Failed to list mapper entries")?
+        .into_iter()
+        .map(MapperEntryResponse::from)
+        .collect::<Vec<_>>();
 
-    Ok(MapperListResponse {
-        status: if entries.is_empty() {
-            ReadStatus::Absent
-        } else {
-            ReadStatus::Found
-        },
-        entries: entries.into_iter().map(MapperEntry::from).collect(),
+    Ok(MapperEntryListResponse {
+        count: entries.len(),
+        entries,
     })
 }
 
-pub async fn read_mapper(
+pub async fn retrieve_mapper(
     state: AppState,
-    name: &str,
-    key: &str,
-) -> ObservabilityApiResult<MapperEntry> {
+    name: String,
+    key: String,
+) -> ObservabilityApiResult<MapperEntryResponse> {
     let connection = state.database_connection().await?;
 
-    AlertsDict::find_enabled_by_name_and_key(&connection, name, key)
-        .await
-        .change_context(ObservabilityError::InternalServerError)
-        .attach_printable("Failed to read a mapper entry")?
-        .map(MapperEntry::from)
-        .ok_or_else(|| report!(ObservabilityError::MapperEntryNotFound))
-}
-
-pub async fn upsert_mapper(
-    state: AppState,
-    request: MapperUpsertRequest,
-    user: UserName,
-) -> ObservabilityApiResult<MapperSaveResponse> {
-    let name = trimmed_within(&request.name, "name", NAME_MAX_CHARS)?;
-    let key = trimmed_within(&request.key, "key", KEY_MAX_CHARS)?;
-    let username = user.to_option();
-
-    if let Some(username) = username.as_deref() {
-        trimmed_within(username, "user name", USERNAME_MAX_CHARS)?;
-    }
-
-    let product = request.product.map(RawJson::from);
-    let values = request.values.map(RawJson::from);
-    let metadata = request.metadata.map(RawJson::from);
-    within_entry_cap([product.as_ref(), values.as_ref(), metadata.as_ref()])?;
-
-    let connection = state.database_connection().await?;
-
-    let entry = AlertsDictNew {
-        id: common_utils::generate_uuid_v7(),
-        name,
-        key_: key,
-        product: or_empty_list(product)?,
-        values_: or_empty_list(values)?,
-        ts_created: common_utils::date_time::now(),
-        is_enabled: true,
-        username: username.unwrap_or_else(|| DEFAULT_USERNAME.to_owned()),
-        metadata: or_empty_list(metadata)?,
-    }
-    .upsert(&connection)
-    .await
-    .change_context(ObservabilityError::InternalServerError)
-    .attach_printable("Failed to save a mapper entry")?;
-
-    Ok(MapperSaveResponse {
-        status: WriteStatus::Saved,
-        entry: MapperEntry::from(entry),
-    })
-}
-
-pub async fn retire_mapper(
-    state: AppState,
-    name: &str,
-    key: &str,
-) -> ObservabilityApiResult<MapperRetireResponse> {
-    let connection = state.database_connection().await?;
-
-    AlertsDict::retire(&connection, name, key)
+    AlertsDict::find_enabled_by_name_and_key(&connection, &name, &key)
         .await
         .to_not_found_response(ObservabilityError::MapperEntryNotFound)
-        .attach_printable("Failed to retire a mapper entry")?;
-
-    Ok(MapperRetireResponse {
-        status: WriteStatus::Retired,
-    })
+        .attach_printable("Failed to find a mapper entry")
+        .map(MapperEntryResponse::from)
 }
 
-fn trimmed_within(
-    value: &str,
-    field: &'static str,
-    max_chars: usize,
-) -> ObservabilityApiResult<String> {
-    let value = value.trim();
+pub async fn save_mapper(
+    state: AppState,
+    request: MapperEntrySaveRequest,
+    user_name: Option<UserName>,
+) -> ObservabilityApiResult<MapperEntryResponse> {
+    request.validate()?;
 
-    if value.is_empty() {
-        Err(report!(ObservabilityError::InvalidRequest)
-            .attach_printable(format!("The mapper {field} is empty")))?;
-    }
+    let connection = state.database_connection().await?;
+    let entry = request.into_insertable(
+        common_utils::generate_uuid_v7(),
+        user_name,
+        common_utils::date_time::now(),
+    )?;
+    let name = entry.name.clone();
+    let key = entry.key_.clone();
 
-    let chars = value.chars().count();
-    if chars > max_chars {
-        Err(
-            report!(ObservabilityError::InvalidRequest).attach_printable(format!(
-                "The mapper {field} is {chars} characters, over the {max_chars} the column holds"
-            )),
-        )?;
-    }
+    let borrowed = &connection;
+    borrowed
+        .raw_connection()
+        .transaction_async(move |_| async move {
+            AlertsDict::lock_by_name_and_key(borrowed, &name, &key).await?;
 
-    Ok(value.to_owned())
+            AlertsDict::update_enabled_by_name_and_key(
+                borrowed,
+                &name,
+                &key,
+                AlertsDictUpdate::Demote,
+            )
+            .await?;
+
+            let saved = entry.insert(borrowed).await?;
+
+            AlertsDict::delete_superseded_by_name_and_key(
+                borrowed,
+                &name,
+                &key,
+                SUPERSEDED_ENTRIES_KEPT,
+            )
+            .await?;
+
+            Ok::<_, TransactionFailure>(saved)
+        })
+        .await
+        .map_err(|TransactionFailure(error)| error)
+        .change_context(ObservabilityError::InternalServerError)
+        .attach_printable("Failed to save a mapper entry")
+        .map(MapperEntryResponse::from)
 }
 
-fn within_entry_cap(columns: [Option<&RawJson>; 3]) -> ObservabilityApiResult<()> {
-    let bytes = columns
-        .into_iter()
-        .flatten()
-        .map(RawJson::len)
-        .sum::<usize>();
+pub async fn delete_mapper(
+    state: AppState,
+    name: String,
+    key: String,
+) -> ObservabilityApiResult<MapperEntryDeleteResponse> {
+    let connection = state.database_connection().await?;
 
-    if bytes > MAX_ENTRY_BYTES {
-        Err(report!(ObservabilityError::EntryTooLarge {
-            bytes,
-            limit: MAX_ENTRY_BYTES,
-        }))?;
-    }
+    let borrowed = &connection;
+    let (entry_name, entry_key) = (&name, &key);
+    let deleted = borrowed
+        .raw_connection()
+        .transaction_async(move |_| async move {
+            AlertsDict::lock_by_name_and_key(borrowed, entry_name, entry_key).await?;
 
-    Ok(())
+            AlertsDict::delete_enabled_by_name_and_key(borrowed, entry_name, entry_key)
+                .await
+                .map_err(TransactionFailure::from)
+        })
+        .await
+        .map_err(|TransactionFailure(error)| error)
+        .to_not_found_response(ObservabilityError::MapperEntryNotFound)
+        .attach_printable("Failed to delete a mapper entry")?;
+
+    Ok(MapperEntryDeleteResponse { name, key, deleted })
 }
 
-fn or_empty_list(column: Option<RawJson>) -> ObservabilityApiResult<RawJson> {
-    column.map_or_else(
-        || {
-            RawValue::from_string(EMPTY_LIST.to_owned())
-                .map(RawJson::from)
-                .change_context(ObservabilityError::InternalServerError)
-                .attach_printable("Failed to build an empty JSON list")
-        },
-        Ok,
-    )
+struct TransactionFailure(error_stack::Report<DatabaseError>);
+
+impl From<diesel::result::Error> for TransactionFailure {
+    fn from(error: diesel::result::Error) -> Self {
+        let database_error = DatabaseError::switch_from(&error);
+        Self(report!(error).change_context(database_error))
+    }
+}
+
+impl From<error_stack::Report<DatabaseError>> for TransactionFailure {
+    fn from(error: error_stack::Report<DatabaseError>) -> Self {
+        Self(error)
+    }
 }

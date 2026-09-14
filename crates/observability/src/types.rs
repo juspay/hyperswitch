@@ -52,7 +52,6 @@ pub mod mappers;
 pub mod notifications;
 
 use actix_multipart::form::{bytes::Bytes, text::Text, MultipartForm};
-use actix_web::http::header::HeaderMap;
 use error_stack::report;
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -240,47 +239,21 @@ impl From<EmailOutcome> for EmailNotifyResponse {
     }
 }
 
-pub const X_USER_NAME: &str = "X-User-Name";
-
-#[derive(Debug, Clone, Default)]
-pub struct UserName(String);
-
-impl UserName {
-    pub fn from_headers(headers: &HeaderMap) -> ObservabilityApiResult<Self> {
-        headers.get(X_USER_NAME).map_or_else(
-            || Ok(Self::default()),
-            |value| {
-                std::str::from_utf8(value.as_bytes())
-                    .map(|name| Self(name.trim().to_owned()))
-                    .map_err(|_| {
-                        report!(ObservabilityError::InvalidRequest)
-                            .attach_printable("The user name header is not valid UTF-8")
-                    })
-            },
-        )
-    }
-
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-
-    pub fn to_option(&self) -> Option<String> {
-        Some(self.0.clone()).filter(|name| !name.is_empty())
-    }
+fn within_width(
+    field_name: &'static str,
+    value: Option<&str>,
+    max_chars: usize,
+) -> ObservabilityApiResult<()> {
+    common_utils::fp_utils::when(
+        value.is_some_and(|value| value.chars().count() > max_chars),
+        || Err(report!(ObservabilityError::InvalidDataValue { field_name })),
+    )
 }
 
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ReadStatus {
-    Found,
-    Absent,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum WriteStatus {
-    Saved,
-    Retired,
+fn not_blank(field_name: &'static str, value: &str) -> ObservabilityApiResult<()> {
+    common_utils::fp_utils::when(value.trim().is_empty(), || {
+        Err(report!(ObservabilityError::InvalidDataValue { field_name }))
+    })
 }
 
 #[cfg(test)]

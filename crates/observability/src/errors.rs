@@ -80,14 +80,17 @@ pub enum ObservabilityError {
     #[error("The request body is invalid")]
     InvalidRequest,
 
-    #[error("The mapper entry is {bytes} bytes, over the {limit} byte limit")]
-    EntryTooLarge { bytes: usize, limit: usize },
+    #[error("Missing required param: {field_name}")]
+    MissingRequiredField { field_name: &'static str },
+
+    #[error("{message}")]
+    InvalidRequestData { message: String },
+
+    #[error("Invalid value provided: {field_name}")]
+    InvalidDataValue { field_name: &'static str },
 
     #[error("The observability database is unavailable")]
     StorageUnavailable,
-
-    #[error("No mapper entry exists for this name and key")]
-    MapperEntryNotFound,
 
     #[error("No alert definition exists with id `{id}`")]
     DefinitionNotFound { id: String },
@@ -101,8 +104,20 @@ pub enum ObservabilityError {
     #[error("No alert is defined as `{name}` / `{product}`")]
     NotAnAlert { name: String, product: String },
 
-    #[error("The snooze entry `{key}` is not in the shape the alert manager reads")]
-    InvalidSnooze { key: String },
+    #[error("No merchant threshold exists with id `{id}`")]
+    MerchantThresholdNotFound { id: String },
+
+    #[error("A merchant threshold already exists for this name, product, merchant, author and is_enabled")]
+    DuplicateMerchantThreshold,
+
+    #[error("The mapper entry is {bytes} bytes, over the {limit} byte limit")]
+    EntryTooLarge { bytes: usize, limit: usize },
+
+    #[error("No mapper entry exists for this name and key")]
+    MapperEntryNotFound,
+
+    #[error("No notification watermark exists for this user")]
+    NotificationWatermarkNotFound,
 
     /// The path named a destination that is not configured.
     #[error("No destination is configured under `{destination}`")]
@@ -181,21 +196,22 @@ impl ErrorSwitch<ApiErrorResponse> for ObservabilityError {
                 4,
                 "The request body could not be parsed",
             )),
-            Self::EntryTooLarge { .. } => ApiErrorResponse::BadRequest(ApiError::new(
-                "HE",
-                3,
-                "The mapper entry is larger than this service stores",
-            )),
-            Self::MapperEntryNotFound => ApiErrorResponse::NotFound(ApiError::new(
-                "HE",
-                2,
-                "Mapper entry does not exist in our records",
-            )),
             // The id is already in the path the caller sent, so there is nothing to echo back, and
             // the configured ids are deliberately not listed.
             Self::UnknownDestination { .. } => {
                 ApiErrorResponse::NotFound(ApiError::new("IR", 2, "Unknown destination"))
             }
+            Self::MissingRequiredField { field_name } => ApiErrorResponse::BadRequest(
+                ApiError::new("IR", 4, format!("Missing required param: {field_name}")),
+            ),
+            Self::InvalidRequestData { message } => {
+                ApiErrorResponse::BadRequest(ApiError::new("IR", 6, message))
+            }
+            Self::InvalidDataValue { field_name } => ApiErrorResponse::BadRequest(ApiError::new(
+                "IR",
+                7,
+                format!("Invalid value provided: {field_name}"),
+            )),
             Self::StorageUnavailable => ApiErrorResponse::ServiceUnavailable(ApiError::new(
                 "HE",
                 0,
@@ -221,10 +237,30 @@ impl ErrorSwitch<ApiErrorResponse> for ObservabilityError {
                 3,
                 "No alert is defined for this name and product",
             )),
-            Self::InvalidSnooze { .. } => ApiErrorResponse::BadRequest(ApiError::new(
+            Self::MerchantThresholdNotFound { .. } => ApiErrorResponse::NotFound(ApiError::new(
+                "HE",
+                2,
+                "Merchant threshold does not exist in our records",
+            )),
+            Self::DuplicateMerchantThreshold => ApiErrorResponse::BadRequest(ApiError::new(
+                "HE",
+                1,
+                "The merchant threshold with the specified name, product, merchant_id, author and is_enabled already exists in our records",
+            )),
+            Self::EntryTooLarge { .. } => ApiErrorResponse::BadRequest(ApiError::new(
                 "HE",
                 3,
-                "Snooze entries must be keyed snooze_entry_<time> or custom_snooze_entry_<time> and carry snooze_end_time as YYYY-MM-DD HH:MM:SS",
+                "The mapper entry is larger than this service stores",
+            )),
+            Self::MapperEntryNotFound => ApiErrorResponse::NotFound(ApiError::new(
+                "HE",
+                2,
+                "Mapper entry does not exist in our records",
+            )),
+            Self::NotificationWatermarkNotFound => ApiErrorResponse::NotFound(ApiError::new(
+                "HE",
+                2,
+                "Notification watermark does not exist in our records",
             )),
             // 502 rather than 500: the failure is on the far side of a hop we made. Note this is
             // the *only* provider-shaped error left, because every answer the provider gives is a

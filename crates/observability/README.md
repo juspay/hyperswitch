@@ -8,8 +8,8 @@ already decided, and storing a threshold is not applying it.
 
 Two concerns live here today. The [`notifier`](src/domain/notifier.rs) receives alert data over a
 webhook and delivers it to a channel. The configuration routes own the rows the alert manager reads:
-what an alert is and whether it runs, together with what it used to write into the application's
-ClickHouse — the mappers and the notification bell's read watermark.
+what an alert is, whether it runs and its per-merchant thresholds, together with what it used to
+write into the application's ClickHouse — the mappers and the notification bell's read watermark.
 
 ## Shape
 
@@ -38,12 +38,9 @@ The binary keeps the crate's name, so the Dockerfile takes `BINARY=observability
 
 ## Versioning
 
-`observability` has **no `v1`/`v2` API semantics of its own** and uses no version-flavoured type.
-It carries the two features anyway, because the crates it reaches through — `hyperswitch_interfaces`
-for secrets management, `diesel_models` for its schema — do not build unless one is selected. The
-default is `v1`, matching the router, so nobody has to think about a choice this crate does not
-make. Keep it that way: a version-flavoured type in a signature here would drag the matrix in for
-real.
+`observability` uses no version-flavoured type. Its `v1` (default) and `v2` features only select
+the flavour its shared dependencies compile with: `common_utils`, `diesel_models`,
+`external_services` and `hyperswitch_interfaces`.
 
 ## Configuration
 
@@ -53,6 +50,12 @@ overridden by an environment variable prefixed `OBSERVABILITY__`, with `__` sepa
 
 Configuration is validated at boot and startup fails loudly on a missing internal API key, rather
 than on the first request.
+
+`[database]` is the Postgres database holding the observability tables. As with `drainer`, the
+service refuses to start without its `dbname`, `username` and `password`; `host` and `port` default
+to `localhost:5432`, `pool_size` to 5 and `connection_timeout` to 10 seconds. The pool connects
+lazily, so an unreachable database does not stop the service from starting; it shows as `503` on
+`/health/ready`.
 
 ## Authentication
 
@@ -82,9 +85,16 @@ reach the logs from the client, which emits `chars` per request.
 ## The API
 
 Two surfaces under one scope. **Delivery** sends a message; **configuration** reads and writes the
-rows this plane owns — what an alert is, whether it runs, the mappers the dashboard reads, and how
-far a user has read their notifications. Routes under `/alerts/config`, and `/health/ready`, touch
-the database; delivery routes do not.
+rows this plane owns — what an alert is, whether it runs, its per-merchant thresholds, the mappers the
+dashboard reads, and how far a user has read their notifications. Routes under `/alerts/config`, and
+`/health/ready`, touch the database; delivery routes do not.
+
+### Delivery
+
+Three delivery routes across two channels. **The path says where, the body says what** — the URL names the
+channel and the destination, the body carries only content. Channel ids, recipient addresses and
+credentials live in configuration, so a caller cannot address a channel that was not set up for it
+and no credential travels on the wire.
 
 The whole surface, guarded and not:
 
@@ -93,31 +103,11 @@ The whole surface, guarded and not:
 | `POST` | `/alerts/chat/notify/{destination}` | `X-Internal-Api-Key` |
 | `POST` | `/alerts/chat/upload/{destination}` | `X-Internal-Api-Key` |
 | `POST` | `/alerts/email/notify/{destination}` | `X-Internal-Api-Key` |
-| `GET` | `/alerts/config/definitions` | `X-Internal-Api-Key` |
-| `POST` | `/alerts/config/definitions` | `X-Internal-Api-Key` |
-| `GET` | `/alerts/config/definitions/{id}` | `X-Internal-Api-Key` |
-| `POST` | `/alerts/config/definitions/{id}` | `X-Internal-Api-Key` |
-| `GET` | `/alerts/config/mappers` | `X-Internal-Api-Key` |
-| `POST` | `/alerts/config/mappers` | `X-Internal-Api-Key` |
-| `GET` | `/alerts/config/mappers/{name}/{key}` | `X-Internal-Api-Key` |
-| `DELETE` | `/alerts/config/mappers/{name}/{key}` | `X-Internal-Api-Key` |
-| `GET` | `/alerts/config/enablement` | `X-Internal-Api-Key` |
-| `GET` | `/alerts/config/enablement/{name}/{product}` | `X-Internal-Api-Key` |
-| `POST` | `/alerts/config/enablement/{name}/{product}` | `X-Internal-Api-Key` |
-| `GET` | `/alerts/config/notifications/read` | `X-Internal-Api-Key` |
-| `POST` | `/alerts/config/notifications/read` | `X-Internal-Api-Key` |
 | `GET` | `/health` | none — liveness |
-| `GET` | `/health/ready` | none — readiness |
+| `GET` | `/health/ready` | none — readiness: `200` when a database connection is taken within 900 ms, otherwise `503` |
 
 The scope is `/alerts` rather than `/observability`: it names the resource being posted, not the
 service, so it stays correct as the crate widens past delivery.
-
-### Delivery
-
-Three delivery routes across two channels. **The path says where, the body says what** — the URL names the
-channel and the destination, the body carries only content. Channel ids, recipient addresses and
-credentials live in configuration, so a caller cannot address a channel that was not set up for it
-and no credential travels on the wire.
 
 ```http
 POST /alerts/chat/notify/{destination}
@@ -211,82 +201,90 @@ thread under it was lost — reporting a failure there would invite a retry that
 
 ### Configuration
 
-Four resources, backed by the observability plane's own Postgres: the **definition** of an alert,
-the **enablement** switch that says whether it runs, the **mappers** the portal reads,
-and the **notification watermark** the bell reads. All four answer in the envelope the delivery
-routes use, and `status` carries the same weight on a state read as it does on a notification: a
-caller cannot read a `200` and assume there was something there.
+Five resources, backed by the observability database.
+
+| Method | Path | |
+|---|---|---|
+| `GET` | `/alerts/config/definitions` | every definition |
+| `POST` | `/alerts/config/definitions` | create one |
+| `GET` | `/alerts/config/definitions/{id}` | read one |
+| `POST` | `/alerts/config/definitions/{id}` | change part of one |
+| `GET` | `/alerts/config/enablement` | every enablement row |
+| `GET` | `/alerts/config/enablement/{name}/{product}` | read one |
+| `POST` | `/alerts/config/enablement/{name}/{product}` | upsert one |
+| `GET` | `/alerts/config/merchant-thresholds` | every merchant threshold, or those matching the query |
+| `POST` | `/alerts/config/merchant-thresholds` | upsert one |
+| `GET` | `/alerts/config/merchant-thresholds/{id}` | read one |
+| `POST` | `/alerts/config/merchant-thresholds/{id}` | change part of one |
+| `DELETE` | `/alerts/config/merchant-thresholds/{id}` | delete one |
+| `GET` | `/alerts/config/mappers` | every live mapper entry |
+| `POST` | `/alerts/config/mappers` | save a new version of one |
+| `GET` | `/alerts/config/mappers/{name}/{key}` | read the live one |
+| `DELETE` | `/alerts/config/mappers/{name}/{key}` | delete the live one |
+| `GET` | `/alerts/config/notifications/read` | read the caller's watermark |
+| `POST` | `/alerts/config/notifications/read` | mark read |
+
+A list answers `{"count": n, "<resource>": [...]}` under `definitions`, `enablements`,
+`merchant_thresholds` or `entries`, and a table with no rows is a `200` with a count of zero. A
+read, create, save, upsert or update answers the row. A delete answers `{"id": "…", "deleted": true}`,
+or `{"name": "…", "key": "…", "deleted": true}` for a mapper entry.
+
+An update (`POST` to a definition or merchant threshold id) changes only what the body mentions: an
+absent field is left alone, `null` clears it, and a value sets it. `null` for a definition's
+`is_enabled`, `dimensions`, `period` or `default_critical`, or for a merchant threshold's `author`,
+leaves it alone. The two upserts are described with their resources.
 
 #### Definitions
 
-**A definition is one row, not four resources.** Suppression, snooze and thresholds are `json`
-columns of `alerts_info` rather than side tables, so they are fields of this resource. All three are
-typed, so every value written through this API has a shape the alert manager reads back. Blacklist
-and thresholds are lists of entries with named fields. Snooze is r-apps' own document, because that
-is what the alert manager evaluates: an object keyed `snooze_entry_<time>` or
-`custom_snooze_entry_<time>`, each entry carrying the dimension values it covers and
-`snooze_end_time` (optionally `snooze_start_time`) as `YYYY-MM-DD HH:MM:SS` in IST. An entry that is
-keyed otherwise, has no end time, or has a time in any other format is `400` `HE_03`: r-apps' reader
-fails on an entry without an end time, so the plane refuses to store one. The cost is that the bytes are not preserved: a value read back has been through
-`serde_json` twice, so an entry written without its optional fields comes back with their defaults
-filled in. Storing the columns as opaque strings would preserve them exactly, and was rejected: the
-failure it avoids is cosmetic, and the one it introduces — a dashboard writing a key nothing reads,
-discovered when an alert silently stops being suppressed — is not. `metadata` and `comments` stay
-free-form, because nothing in this plane interprets them.
+A definition is one `alerts_info` row, with an id the service generates. `name`, `product`,
+`is_enabled` and `author` are required on create; `name`, `product` and `author` must not be blank,
+and `name` and `product` cannot be changed afterwards. `dimensions`, `period` and
+`default_critical` left out are stored as r-apps stores them: `''`, `0` and false.
 
-**An update mentions only what it changes.** Three portal screens edit different parts of one row,
-so a whole-row `PUT` from any of them would discard what the other two just saved. An absent field
-is left alone, an explicit `null` clears it, and a value sets it; `is_enabled`, `dimensions`, `period`
-and `default_critical` cannot be cleared, so a `null` for any of them leaves it unchanged. Optimistic
-concurrency was the alternative and was rejected: two screens editing *different* columns are not in
-conflict, and making them retry against each other is worse than the lost update it prevents.
+`blacklist`, `snooze` and `thresholds` hold r-apps' documents and are stored exactly as sent, except
+that an empty list, an empty object or a blank string is stored as `{}`, as r-apps' `createAlertInfo`
+does, and `null` is stored as `NULL`. Each is checked for its shape first:
+
+- `blacklist` is a list, or an object, of groups; a group maps one or more dimensions to a value or
+  a list of values, as in `{"ignored_paths": {"path": ["/health", "/ecr"]}}` or
+  `[{"merchant_id": "merchant_1234", "payment_method": ["card", "upi"]}]`.
+- `thresholds` is one object for the definition, as in
+  `{"min_volume": 100, "tolerance": 0.9, "prop_thresholds": {"C030KGG9ZJ9": 0.2}}`.
+- `snooze` is an object keyed `snooze_entry_<time>` or `custom_snooze_entry_<time>`; each entry
+  carries the dimension values it covers and `snooze_end_time`, optionally `snooze_start_time`, as
+  `YYYY-MM-DD HH:MM:SS`.
+
+`metadata` is free-form JSON, except that an empty list, an empty object or a blank string is
+stored as `{}`, as `createAlertInfo` does for it. `comments` is free-form JSON, stored as sent.
 
 ```http
 POST /alerts/config/definitions
 { "name": "sr_drop", "product": "payments", "is_enabled": true, "author": "reliability_team",
-  "blacklist": [{ "merchant_id": "merchant_1234", "reason": "dead test merchant" }] }
-→ 200 { "id": "0189…", "name": "sr_drop", "is_enabled": true, "blacklist": [ … ], … }
+  "blacklist": {"test_merchants": {"merchant_id": ["merchant_1234"]}} }
+→ 200 { "id": "0199…", "name": "sr_drop", "is_enabled": true, "blacklist": {"test_merchants": …}, … }
 
-POST /alerts/config/definitions/0189…
-{ "thresholds": [{ "merchant_id": "merchant_1234", "tolerance": 2.5 }] }
+POST /alerts/config/definitions/0199…
+{ "thresholds": {"min_volume": 100, "tolerance": 2.5} }
 → 200 the whole definition, with blacklist and snooze untouched
 ```
 
-`is_enabled` and `author` are **required** on create. r-apps defaults `is_enabled` to false, so a
-definition created there without saying is off — which reads as "the alert is broken" rather than
-"nobody enabled it"; and the internal API key names the calling service, not a person, so if the
-body does not say who is asking then nothing does. `name` and `product` cannot be changed
-afterwards: they are the alert's identity, referenced by the enablement table and matched by name in
-the alert manager, so a rename through an update would orphan those references rather than failing.
-A field the caller leaves out is stored as r-apps stores it rather than as `NULL`: `dimensions` as
-`''`, `period` as `0` and `default_critical` as false.
+`all` names the definition for suppression that applies to every detector; it cannot have an
+enablement row. There is no delete route for definitions.
 
-`name` reserves one value. **`all` is the definition carrying suppression that applies to every
-detector**, which is the only way to express "mute this merchant everywhere" now that suppression is
-a column rather than a table. It is read, listed and edited like any other definition, and it is the
-one thing that cannot have an enablement row — it is not a detector, so there is nothing for a
-switch on it to turn on or off.
+#### Enablement
 
-**A definition has no delete route.** `is_enabled` is how an alert is turned off; unlike a delete it
-is reversible.
-
-#### Two switches, and what each one gates
-
-`alerts_info.is_enabled` and `merchants_alert_external_config.is_enabled` switch different things,
-as they do in r-apps. **The definition decides whether a detector runs; the enablement row decides
-whether its alerts are delivered to merchants.** A missing enablement row delivers nothing, matching
-r-apps' inner join on the enabled rows.
+`alerts_info.is_enabled` says whether a detector runs, and `merchants_alert_external_config.is_enabled`
+whether its alerts are delivered to merchants. A response carries the stored `is_enabled` and
 
 ```
-effective = definition.is_enabled AND coalesce(enablement.is_enabled, false)
+effective_is_enabled = definition.is_enabled AND coalesce(enablement.is_enabled, false)
 ```
 
-The definition decides whether a detector runs at all, so with it off there is no result to deliver
-anywhere. The enablement row is the second gate, on merchant-facing delivery only; internal channels
-ignore it. `effective_is_enabled` is therefore "this alert reaches merchants".
-
-Both values are reported, because a caller that saw only the stored one could not tell "delivered to
-merchants" from "switched on, but the definition is off":
+The upsert is one statement with `(name, product)` as its conflict target, and requires
+`is_enabled` as a boolean. When the row exists, `category` and `metadata` change only if the body
+gives them a value; absent or `null` leaves them alone. A new row stores them as r-apps does, `''`
+and `{}`, when the body does not give them. It is refused unless a definition with that name and product
+exists and the name is not `all`.
 
 ```http
 POST /alerts/config/enablement/sr_drop/payments
@@ -294,17 +292,46 @@ POST /alerts/config/enablement/sr_drop/payments
 → 200 { "name": "sr_drop", "is_enabled": true, "effective_is_enabled": false, … }
 ```
 
-The write is a real upsert — one statement with `(name, product)`, the table's primary key, as its
-conflict target — so a repeated call updates rather than adding a second row disagreeing with the
-first. r-apps leaves this table keyless and permits exactly that. It also validates the pair against
-`alerts_info` with a database trigger this schema does not have, so **the API checks the definition
-exists**; without the check a switch can be wired to an alert nobody defined and looks on the screen
-exactly like one that works. A field the caller leaves out is stored as r-apps stores it rather than
-as `NULL`: `category` as `''` and `metadata` as `{}`.
+#### Merchant thresholds
 
-#### The mappers
+A merchant threshold is one `merchant_thresholds` row, r-apps' per-merchant override: `name`,
+`product`, `merchant_id`, `author` and `is_enabled`, all required, `metadata`, and ten nullable
+numbers `thresholds_min_volume`, `thresholds_min_impacted_volume`, `thresholds_tolerance`,
+`thresholds_diff_threshold`, `thresholds_merchant_impact`, `thresholds_alert_period`,
+`thresholds_min_observations`, `thresholds_min_history_volume`, `thresholds_filter_percentile` and
+`thresholds_current_min_volume`. `name`, `product`, `merchant_id` and `author` must not be blank.
 
-The option lists and labels behind the portal's mappers screen, keyed on `(name, key_)`.
+`GET /alerts/config/merchant-thresholds` takes `name`, `product`, `merchant_id`, `is_enabled` and
+`author` as query parameters, each an exact match; with none it lists every row. r-apps'
+`getMerchantThresholds` filters on every column, with lists of values, ranges and metadata keys; this
+service supports only these five exact-match filters.
+
+`POST /alerts/config/merchant-thresholds` upserts on `(name, product, merchant_id, is_enabled,
+author)`, the key r-apps' `addMerchantThresholds` uses, so the same five values update one row and
+any other combination adds a row. As in r-apps, a threshold or `metadata` that is absent or `null`
+keeps the stored value when the row exists and is stored as `NULL` when the row is added. `metadata`,
+when given, must be an object and replaces the stored one.
+
+`POST /alerts/config/merchant-thresholds/{id}` changes the thresholds, `metadata`, `author` and
+`is_enabled`; `name`, `product` and `merchant_id` cannot be changed. `metadata` must be an object and
+is merged into the stored one with `COALESCE(metadata, '{}') || patch`, so a row without metadata
+takes the patch; `null` clears it. This differs from r-apps, whose `metadata || patch` leaves a
+`NULL` metadata `NULL` and drops the patch.
+
+```http
+POST /alerts/config/merchant-thresholds
+{ "name": "sr_drop", "product": "payments", "merchant_id": "merchant_1234",
+  "author": "reliability_team", "is_enabled": true, "thresholds_tolerance": 2.5 }
+→ 200 { "id": "0199…", "merchant_id": "merchant_1234", "thresholds_tolerance": 2.5, "thresholds_min_volume": null, … }
+
+DELETE /alerts/config/merchant-thresholds/0199…
+→ 200 { "id": "0199…", "deleted": true }
+```
+
+#### Mappers
+
+The option lists and labels behind the portal's mappers screen, stored in `alerts_dicts` and
+addressed by `name` and `key`.
 
 ```http
 POST /alerts/config/mappers
@@ -312,114 +339,85 @@ X-Internal-Api-Key: <key>
 X-User-Name: ops@example.com
 
 { "name": "dashboard", "key": "slack_users", "values": "[]", "metadata": {"category": "dashboard"} }
-→ 200 { "status": "saved", "entry": { "name": "dashboard", "key": "slack_users", … } }
+→ 200 { "id": "0192…", "name": "dashboard", "key": "slack_users", "product": [], "values": "[]",
+        "metadata": {"category": "dashboard"}, "ts_created": "2026-09-14T12:34:56.789Z",
+        "username": "ops@example.com" }
 
-GET    /alerts/config/mappers                        → 200 { "status": "found", "entries": [ … ] }
-GET    /alerts/config/mappers/dashboard/slack_users  → 200 { "name": "dashboard", "key": "slack_users", … }
+GET    /alerts/config/mappers                        → 200 { "count": 1, "entries": [ … ] }
+GET    /alerts/config/mappers/dashboard/slack_users  → 200 the live entry
 GET    /alerts/config/mappers/dashboard/unknown      → 404 HE_02
-DELETE /alerts/config/mappers/dashboard/slack_users  → 200 { "status": "retired" }
+DELETE /alerts/config/mappers/dashboard/slack_users  → 200 { "name": "dashboard", "key": "slack_users", "deleted": true }
 DELETE /alerts/config/mappers/dashboard/unknown      → 404 HE_02
 ```
 
-**A delete retires the live row rather than removing it.** The table's unique index is *partial* —
-one enabled row per `(name, key_)` — so a save updates the live row in place, and a retired row stays
-behind while a later save of the same key writes a new one. A save is therefore a single `INSERT … ON CONFLICT (name, key_) WHERE is_enabled IS TRUE DO UPDATE`, which
-names the index's own predicate so Postgres can infer it. Both halves of that matter: an upsert
-assuming a plain unique constraint fails outright, and one matching on `(name, key_)` without the
-predicate finds a retired row and brings it back with its old value.
+**A save writes a new version, as r-apps' `insert_dictionary_version` does.** One transaction sets
+`is_enabled = false` on the live row, inserts the new row as the live one, and deletes every
+disabled row for the same `name` and `key` except the newest, so an entry keeps at most two rows:
+the live one and the newest disabled one. The transaction first takes a Postgres advisory lock on
+the `name` and `key`, so overlapping saves of one entry run one after the other and the last to
+commit is live. Reads and the list return live rows only.
 
-**`product`, `values_` and `metadata` are `json`, not `jsonb`, and are never re-encoded.** The
-dashboard serializes them itself and the mappers screen parses some of them twice, so they cross
-this service as raw bytes in both directions — see `diesel_models::observability::raw_json`.
-Parsing into a `serde_json::Value` and serializing it again would hand the screen back a document it
-did not save. A definition takes the opposite trade for the opposite reason: its `json` columns are
-typed because the alert manager reads them, and nothing reads a mapper entry but the screen that
-wrote it. A field the caller leaves out is stored as r-apps stores it rather than as `NULL`:
-`product`, `values` and `metadata` as `[]`.
+**A delete removes the live row**, as r-apps' `dropDictionary` removes the row it names. It takes
+the same lock, so a delete and a save of one entry run one after the other and the delete answers
+for the live row as it stands once it holds the lock. The disabled row stays disabled and is not
+brought back; the next save writes a new live row.
 
-An entry's JSON is capped at 1 MiB. The dashboard decides
-how large an entry is, and one oversized save becomes a row nothing can read back — a broken page
-long after the save that caused it, rather than a rejected request naming the entry.
+`product`, `values` and `metadata` are `json` columns carried as raw text in both directions
+(`diesel_models::observability::raw_json`), so the portal reads back exactly what it saved. Together
+they are capped at 1 MiB. One left out is stored as `[]`, as r-apps stores it.
 
-#### The notification watermark
-
-The bell shows what happened after the watermark and hides what happened before it.
+#### Notification watermark
 
 ```http
 POST /alerts/config/notifications/read
 X-Internal-Api-Key: <key>
 X-User-Name: ops@example.com
 
-→ 200 { "status": "found", "last_read_at": "2026-09-09T12:34:56.789Z" }
+→ 200 { "last_read_at": "2026-09-14T12:34:56.789Z" }
 
-GET /alerts/config/notifications/read  → 200 { "status": "absent", "last_read_at": null }
+GET /alerts/config/notifications/read  → 200 { "last_read_at": "2026-09-14T12:34:56.789Z" }
+GET /alerts/config/notifications/read  → 404 HE_02 for a user who has never marked read
 ```
 
-The write takes no body: the instant is this service's clock, not the caller's, so a skewed
-dashboard cannot hide alerts nobody was shown — a watermark never moves backwards.
+The write takes no body and stamps this service's clock. It stores the later of the saved and the
+new instant, so a watermark never moves backwards. A user who has never marked read has no
+watermark, and reading it is a `404` like any other missing resource.
 
 #### Who a request is for
 
-The internal API key authenticates the **service**, not a person, so the two routes that need a user
-— a mapper save and the watermark — read `X-User-Name`. **Nothing authenticates it**; it is an
-assertion by a caller that has already decided who it is acting for. The definition resource asks
-instead for `author` in the body, because a definition records who wrote it rather than who is
-looking at it.
+The internal API key authenticates the calling service, not a person. A mapper save and both
+watermark routes take the user from `X-User-Name`, which nothing authenticates. The header is
+required on the watermark routes; on a mapper save it is optional, and when it is absent or blank
+`username` is stored as `reliability_team`, r-apps' default.
 
-That is the honest shape of the deployment. Local accounts are disabled in sandbox and production
-alike (`localUsers: false`), so every request arrives with no name, the watermark table holds one
-shared row, and mapper saves are attributed to `reliability_team`. Keeping the name
-on the request anyway is what makes that a data fact rather than a schema one: the day the portal
-authenticates, the alert manager forwards the name and rows appear per person with no route and no
-migration to change.
+A user name must be visible ASCII and at most 64 characters, the width of
+`alerts_dicts.username`. It is held as a `Secret`, so logs and error reports show it masked.
 
-A header rather than a path segment, which is where this crate otherwise puts what a request is
-about. The empty name every caller sends today has no spelling as a path segment, so the path form
-could not express the state that actually exists, and a user name is an email address wherever there
-is one, which a path would write into every access log. An absent header is the empty name; a header
-that is not UTF-8 is a `400`, because falling back would file one person's watermark under the
-shared row.
+#### Errors
 
-#### An empty list and an unset watermark are answers, not a `404`
-
-A mapper list with no entries is `200` with `status: "absent"`, and a watermark that was never set is
-`200` with `status: "absent"`. Both screens have a defined behaviour for "nothing saved yet" — offer
-the built-in options, treat everything as unread — and making that an HTTP error would mean the
-caller has to treat an error response as normal, which is the habit that hides a real one.
-
-`404` keeps its meaning: a path naming something this service does not have. An unconfigured
-destination, an unknown definition id, an unknown enablement key and a mapper entry that does not
-exist are all `404`.
-
-#### An empty answer is never an outage
-
-A store that answered nothing and a store that could not be asked must not look the same: the alert
-manager's own outage rule reads "no alerts" as "nothing is wrong", so collapsing the two would
-report all-clear during exactly the incident this plane exists to notice. A list with no rows is a
-`200` with a count of zero; a list that could not be read is a `500`, or a `503` when no database
-connection could be taken at all.
-
-The configuration errors, added to the table above:
+Blank values, widths, document shapes, `X-User-Name` and the mapper entry size are checked before a
+database connection is taken. A configuration body that does not parse, including one missing a
+required field or giving it `null`, is the `IR_04` above. A path id that is not a UUID is answered with the same empty `404` as a path
+that matches no route. The configuration errors, added to the table above:
 
 | | Status | Code |
 |---|---|---|
-| Definition already exists for this name and product | 400 | `HE_01` |
-| Name and product do not identify an alert (or name the reserved `all` row) | 400 | `HE_03` |
-| A snooze entry is not keyed `snooze_entry_`/`custom_snooze_entry_`, or has no readable end time | 400 | `HE_03` |
-| Mapper entry larger than this service stores | 400 | `HE_03` |
-| Unknown definition id | 404 | `HE_02` |
-| Unknown enablement key | 404 | `HE_02` |
+| A field is longer than its column holds, or a name, product, merchant id, author or mapper key is blank | 400 | `IR_07` |
+| `X-User-Name` is absent or blank on a watermark route | 400 | `IR_04` |
+| `X-User-Name` is not visible ASCII | 400 | `IR_06` |
+| `X-User-Name` is longer than 64 characters | 400 | `IR_07` |
+| `blacklist`, `snooze` or `thresholds` is not in r-apps' shape, or a merchant threshold's `metadata` is not an object | 400 | `IR_06` |
+| The merchant thresholds query string does not parse or names another parameter | 400 | `IR_06` |
+| A definition already exists for this name and product | 400 | `HE_01` |
+| An update gives a merchant threshold the name, product, merchant, author and `is_enabled` of another | 400 | `HE_01` |
+| Name and product do not identify an alert, or name `all` | 400 | `HE_03` |
+| A mapper entry's `product`, `values` and `metadata` together exceed 1 MiB | 400 | `HE_03` |
+| Unknown definition id, enablement key or merchant threshold id | 404 | `HE_02` |
+| No live mapper entry for the name and key, or no watermark for the user | 404 | `HE_02` |
 | A query against the observability database failed | 500 | `HE_00` |
-| Observability database unreachable | 503 | `HE_00` |
+| No connection to the observability database could be taken | 503 | `HE_00` |
 
-`503` only when no connection can be taken, for the reason `/health/ready` uses it: the service is
-fine, and the condition is expected to clear without anyone touching it. A query that fails once
-connected is a `500`. The failing host, database and role
-reach the log and never the response.
-
-An empty `name` or `key`, one wider than its column, and an unreadable `X-User-Name` are `IR_04`
-alongside a body that did not parse. The column widths are checked here rather than left to
-Postgres, which rejects the same values as an opaque failure with a `500` attached.
+The failing host, database and role reach the log and never the response.
 
 ## Destinations
 
@@ -462,25 +460,18 @@ unverified sender all arrive as one variant — so email only ever reports `deli
 ## Layout
 
 ```
-routes/          the route tree, and one module of handlers per area: notify and config
+routes/          the route tree, and one module of handlers per area: notify, config, mappers and notifications
 core/            what one request does, per area: deliver a message, or read and write configuration
 domain/          what delivering an alert is: the notifier traits and the types they exchange
 types/           the wire contract, per area
 ```
 
-The two concerns are separated by module rather than by directory. `notify` delivers a message and
-keeps nothing; `config` reads and writes a configuration row and sends nothing. They share the HTTP
-server, the database pool, authentication, `server_wrap` and the error types. The one deliberate exception is `routes/app.rs`, which holds *every* route this service
-serves — both concerns' — so the tree and its guards are one file rather than a search.
-
-Rows and their queries are not here at all: `alerts_info`, `merchants_alert_external_config`,
-`alerts_dicts` and `notification_reads` are modelled in `diesel_models::observability`, alongside
-every other table this database owns, so the alert manager and this service read one definition of
-them rather than two.
-
-The configuration areas have no `domain` types: a row is a row, and its types are
-`diesel_models::observability` on one side and `types/` on the other. A trait between them would
-abstract over one implementation.
+Configuration requests are handled in `routes/config.rs` and `core/config.rs`, with their request
+and response types and validation in `types/config.rs`; mapper and watermark requests in the
+`mappers.rs` and `notifications.rs` of the same three modules, with `X-User-Name` read in `auth.rs`.
+The rows are `alerts_info`, `merchants_alert_external_config`, `merchant_thresholds`, `alerts_dicts`
+and `notification_reads` in `diesel_models::observability`, their queries are in
+`diesel_models::query::observability`, and the tables are created by `migrations/`.
 
 `domain` holds no HTTP. `core` holds no traits. A handler that grows logic belongs in `core`; a
 concept that a background job would also need belongs in `domain`.
