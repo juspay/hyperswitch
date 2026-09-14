@@ -1,11 +1,14 @@
 use async_bb8_diesel::AsyncConnection;
 use diesel_models::observability::{
-    alerts_intermediate::AlertStateRow, alerts_main::AnnouncementRow, raw_json::RawJson,
+    alerts_intermediate::{AlertsIntermediate, AlertsIntermediateNew},
+    alerts_main::{AlertsMain, AlertsMainNew},
+    raw_json::RawJson,
 };
 use error_stack::{report, ResultExt};
 use time::PrimitiveDateTime;
 
 use crate::{
+    core::utils,
     errors::{ObservabilityApiResult, ObservabilityError},
     logger,
     state::AppState,
@@ -33,7 +36,7 @@ pub async fn read_state(
 ) -> ObservabilityApiResult<LifecycleStateResponse> {
     let connection = state.database_connection().await?;
 
-    let rows = AlertStateRow::list_by_channel(&connection, channel.as_str())
+    let rows = AlertsIntermediate::list_by_channel(&connection, channel.as_str())
         .await
         .change_context(ObservabilityError::InternalServerError)
         .attach_printable("Failed to read the lifecycle state")?;
@@ -77,16 +80,18 @@ pub async fn write_state(
     let applied = borrowed
         .raw_connection()
         .transaction_async(move |_| async move {
-            AlertStateRow::lock_channel(borrowed, channel.lock_key()).await?;
+            AlertsIntermediate::lock_channel(borrowed, channel.as_str()).await?;
 
-            let found =
-                AlertStateRow::find_latest_last_updated_at_by_channel(borrowed, channel.as_str())
-                    .await?;
+            let found = AlertsIntermediate::find_latest_last_updated_at_by_channel(
+                borrowed,
+                channel.as_str(),
+            )
+            .await?;
             if found != expected {
                 Err(WriteFailure::Stale { expected, found })?;
             }
 
-            let existing = AnnouncementRow::list_ids_by_channel_and_ids(
+            let existing = AlertsMain::list_ids_by_channel_and_ids(
                 borrowed,
                 channel.as_str(),
                 plan.referenced.clone(),
@@ -101,7 +106,7 @@ pub async fn write_state(
                 Err(WriteFailure::UnknownAnnouncement(missing))?;
             }
 
-            let removed = AlertStateRow::delete_by_channel_excluding_ids(
+            let removed = AlertsIntermediate::delete_by_channel_excluding_ids(
                 borrowed,
                 channel.as_str(),
                 plan.keep,
@@ -111,7 +116,8 @@ pub async fn write_state(
             let mut alerts = 0;
             for batch in plan.rows.chunks(ALERTS_PER_STATEMENT) {
                 alerts +=
-                    AlertStateRow::bulk_upsert_within_channel(borrowed, batch.to_vec()).await?;
+                    AlertsIntermediateNew::bulk_upsert_within_channel(borrowed, batch.to_vec())
+                        .await?;
             }
             if alerts != plan.rows.len() {
                 Err(WriteFailure::ForeignRows {
@@ -145,20 +151,22 @@ pub async fn record_announcement(
     let now = stamp();
     let connection = state.database_connection().await?;
 
-    let announcement = AnnouncementRow {
+    let announcement = AlertsMainNew {
         id: uuid::Uuid::now_v7(),
-        channel: Some(channel.as_str().to_owned()),
+        channel: channel.as_str().to_owned(),
         name: request.name,
         product: request.product,
-        dimensions: request.dimensions.map(RawJson::from),
+        dimensions: utils::or_empty_list(request.dimensions.map(RawJson::from))?,
         ts_slack: request.ts_slack,
-        ts_alert: Some(now),
-        duration: request.duration,
-        sent: request.sent,
-        critical: request.critical,
-        rca_metadata: request.rca_metadata,
+        ts_alert: now,
+        duration: request.duration.unwrap_or_default(),
+        sent: request.sent.unwrap_or_default(),
+        critical: request.critical.unwrap_or_default(),
+        rca_metadata: request
+            .rca_metadata
+            .unwrap_or_else(|| serde_json::Value::Object(serde_json::Map::new())),
         metadata: request.metadata.map(RawJson::from),
-        last_updated_at: Some(now),
+        last_updated_at: now,
     }
     .insert(&connection)
     .await
@@ -178,7 +186,7 @@ struct Applied {
 
 #[derive(Debug)]
 struct WritePlan {
-    rows: Vec<AlertStateRow>,
+    rows: Vec<AlertsIntermediateNew>,
     keep: Vec<uuid::Uuid>,
     referenced: Vec<uuid::Uuid>,
 }
@@ -217,24 +225,28 @@ impl WritePlan {
                 }
             }
 
-            rows.push(AlertStateRow {
+            rows.push(AlertsIntermediateNew {
                 id_intermediate,
-                channel: Some(channel.as_str().to_owned()),
+                channel: channel.as_str().to_owned(),
                 id: alert.announcement_id,
                 name: alert.name,
                 product: alert.product,
-                dimensions: alert.dimensions,
+                dimensions: alert
+                    .dimensions
+                    .unwrap_or_else(|| serde_json::Value::Array(Vec::new())),
                 ts_slack: alert.ts_slack,
-                ts_alert: alert.ts_alert,
-                latest_ts_alert: alert.latest_ts_alert,
-                max_duration: alert.max_duration,
+                ts_alert: alert.ts_alert.unwrap_or(now),
+                latest_ts_alert: alert.latest_ts_alert.unwrap_or(now),
+                max_duration: alert.max_duration.unwrap_or_default(),
                 other_metrics: alert.other_metrics,
                 metadata: alert.metadata,
                 metadata_alert_details: alert.metadata_alert_details,
-                rca_metadata: alert.rca_metadata,
-                group_id: alert.group_id,
-                priority: alert.priority,
-                last_updated_at: Some(now),
+                rca_metadata: alert
+                    .rca_metadata
+                    .unwrap_or_else(|| serde_json::Value::Object(serde_json::Map::new())),
+                group_id: alert.group_id.unwrap_or_default(),
+                priority: alert.priority.unwrap_or_default(),
+                last_updated_at: now,
                 recovered_ts: alert.recovered_ts,
             });
         }

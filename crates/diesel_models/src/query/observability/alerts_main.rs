@@ -1,19 +1,31 @@
 use async_bb8_diesel::AsyncRunQueryDsl;
-use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, QueryDsl};
+use diesel::{
+    associations::HasTable,
+    query_dsl::methods::{FilterDsl, SelectDsl},
+    BoolExpressionMethods, ExpressionMethods,
+};
 use error_stack::ResultExt;
 
 use crate::{
     errors,
-    observability::{alerts_main::AnnouncementRow, schema::alerts_main::dsl},
+    observability::{
+        alerts_main::{AlertsMain, AlertsMainNew},
+        schema::alerts_main::dsl,
+    },
     query::generics,
     DatabaseConnectionWithContext, StorageResult,
 };
 
-impl AnnouncementRow {
-    pub async fn insert(self, conn: &DatabaseConnectionWithContext<'_>) -> StorageResult<Self> {
+impl AlertsMainNew {
+    pub async fn insert(
+        self,
+        conn: &DatabaseConnectionWithContext<'_>,
+    ) -> StorageResult<AlertsMain> {
         generics::generic_insert(conn, self).await
     }
+}
 
+impl AlertsMain {
     pub async fn list_ids_by_channel_and_ids(
         conn: &DatabaseConnectionWithContext<'_>,
         channel: &str,

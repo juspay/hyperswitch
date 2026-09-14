@@ -4,9 +4,27 @@ use time::PrimitiveDateTime;
 
 use crate::observability::{raw_json::RawJson, schema::alerts_main};
 
-#[derive(Clone, Debug, Identifiable, Insertable, Queryable, Selectable, Deserialize, Serialize)]
+#[derive(Clone, Debug, Insertable, Serialize, Deserialize)]
+#[diesel(table_name = alerts_main)]
+pub struct AlertsMainNew {
+    pub id: uuid::Uuid,
+    pub channel: String,
+    pub name: Option<String>,
+    pub product: Option<String>,
+    pub dimensions: RawJson,
+    pub ts_slack: Option<String>,
+    pub ts_alert: PrimitiveDateTime,
+    pub duration: i32,
+    pub sent: bool,
+    pub critical: bool,
+    pub rca_metadata: serde_json::Value,
+    pub metadata: Option<RawJson>,
+    pub last_updated_at: PrimitiveDateTime,
+}
+
+#[derive(Clone, Debug, Identifiable, Queryable, Selectable, Serialize, Deserialize)]
 #[diesel(table_name = alerts_main, primary_key(id), check_for_backend(diesel::pg::Pg))]
-pub struct AnnouncementRow {
+pub struct AlertsMain {
     pub id: uuid::Uuid,
     pub channel: Option<String>,
     pub name: Option<String>,
@@ -20,10 +38,4 @@ pub struct AnnouncementRow {
     pub rca_metadata: Option<serde_json::Value>,
     pub metadata: Option<RawJson>,
     pub last_updated_at: Option<PrimitiveDateTime>,
-}
-
-impl AnnouncementRow {
-    pub fn was_delivered(&self) -> bool {
-        self.sent.unwrap_or(false)
-    }
 }

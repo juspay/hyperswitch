@@ -1,5 +1,5 @@
 use diesel_models::observability::{
-    alerts_intermediate::AlertStateRow, alerts_main::AnnouncementRow, raw_json::RawJson,
+    alerts_intermediate::AlertsIntermediate, alerts_main::AlertsMain, raw_json::RawJson,
 };
 use error_stack::report;
 use serde::{Deserialize, Serialize};
@@ -31,13 +31,6 @@ impl Channel {
         match self {
             Self::Slack => "slack",
             Self::Xyne => "xyne",
-        }
-    }
-
-    pub(crate) fn lock_key(self) -> i32 {
-        match self {
-            Self::Slack => 1,
-            Self::Xyne => 2,
         }
     }
 }
@@ -176,8 +169,8 @@ pub struct AnnouncementSaveResponse {
     pub announcement: AnnouncementEntry,
 }
 
-impl From<AlertStateRow> for AlertStateEntry {
-    fn from(row: AlertStateRow) -> Self {
+impl From<AlertsIntermediate> for AlertStateEntry {
+    fn from(row: AlertsIntermediate) -> Self {
         Self {
             id_intermediate: row.id_intermediate,
             announcement_id: row.id,
@@ -200,8 +193,8 @@ impl From<AlertStateRow> for AlertStateEntry {
     }
 }
 
-impl From<AnnouncementRow> for AnnouncementEntry {
-    fn from(row: AnnouncementRow) -> Self {
+impl From<AlertsMain> for AnnouncementEntry {
+    fn from(row: AlertsMain) -> Self {
         Self {
             id: row.id,
             name: row.name,

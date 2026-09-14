@@ -1,35 +1,88 @@
 use async_bb8_diesel::AsyncRunQueryDsl;
 use diesel::{
-    associations::HasTable, sql_types::Integer, upsert::excluded, BoolExpressionMethods,
-    ExpressionMethods, PgSortExpressionMethods, QueryDsl,
+    associations::HasTable,
+    query_dsl::methods::FilterDsl,
+    sql_types::{Integer, Text},
+    upsert::excluded,
+    BoolExpressionMethods, ExpressionMethods, PgSortExpressionMethods,
 };
 use error_stack::ResultExt;
 use time::PrimitiveDateTime;
 
 use crate::{
     errors,
-    observability::{alerts_intermediate::AlertStateRow, schema::alerts_intermediate::dsl},
+    observability::{
+        alerts_intermediate::{AlertsIntermediate, AlertsIntermediateNew},
+        schema::alerts_intermediate::dsl,
+    },
     query::generics,
     DatabaseConnectionWithContext, StorageResult,
 };
 
 const LIFECYCLE_LOCK_NAMESPACE: i32 = 23_404;
 
-impl AlertStateRow {
+impl AlertsIntermediateNew {
+    pub async fn bulk_upsert_within_channel(
+        conn: &DatabaseConnectionWithContext<'_>,
+        rows: Vec<Self>,
+    ) -> StorageResult<usize> {
+        let query = diesel::insert_into(<AlertsIntermediate as HasTable>::table())
+            .values(rows)
+            .on_conflict(dsl::id_intermediate)
+            .do_update()
+            .set((
+                dsl::id.eq(excluded(dsl::id)),
+                dsl::name.eq(excluded(dsl::name)),
+                dsl::product.eq(excluded(dsl::product)),
+                dsl::dimensions.eq(excluded(dsl::dimensions)),
+                dsl::ts_slack.eq(excluded(dsl::ts_slack)),
+                dsl::ts_alert.eq(excluded(dsl::ts_alert)),
+                dsl::latest_ts_alert.eq(excluded(dsl::latest_ts_alert)),
+                dsl::max_duration.eq(excluded(dsl::max_duration)),
+                dsl::other_metrics.eq(excluded(dsl::other_metrics)),
+                dsl::metadata.eq(excluded(dsl::metadata)),
+                dsl::metadata_alert_details.eq(excluded(dsl::metadata_alert_details)),
+                dsl::rca_metadata.eq(excluded(dsl::rca_metadata)),
+                dsl::group_id.eq(excluded(dsl::group_id)),
+                dsl::priority.eq(excluded(dsl::priority)),
+                dsl::last_updated_at.eq(excluded(dsl::last_updated_at)),
+                dsl::recovered_ts.eq(excluded(dsl::recovered_ts)),
+            ))
+            .filter(dsl::channel.eq(excluded(dsl::channel)));
+
+        generics::db_metrics::track_database_call::<<AlertsIntermediate as HasTable>::Table, _, _>(
+            conn.request_id(),
+            conn.event_emitter(),
+            generics::db_metrics::DatabaseOperation::Insert,
+            query.execute_async(conn.raw_connection()),
+        )
+        .await
+        .map_err(|e| error_stack::report!(e))
+        .change_context(errors::DatabaseError::Others)
+        .attach_printable("Failed to upsert lifecycle state rows")
+    }
+}
+
+impl AlertsIntermediate {
     pub async fn lock_channel(
         conn: &DatabaseConnectionWithContext<'_>,
-        lock_key: i32,
+        channel: &str,
     ) -> StorageResult<()> {
-        diesel::sql_query("SELECT pg_advisory_xact_lock($1, $2)")
+        let query = diesel::sql_query("SELECT pg_advisory_xact_lock($1, hashtext($2))")
             .bind::<Integer, _>(LIFECYCLE_LOCK_NAMESPACE)
-            .bind::<Integer, _>(lock_key)
-            .execute_async(conn.raw_connection())
-            .await
-            .map_err(|e| error_stack::report!(e))
-            .change_context(errors::DatabaseError::Others)
-            .attach_printable("Failed to lock the lifecycle state of a channel")?;
+            .bind::<Text, _>(channel.to_owned());
 
-        Ok(())
+        generics::db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
+            conn.request_id(),
+            conn.event_emitter(),
+            generics::db_metrics::DatabaseOperation::Filter,
+            query.execute_async(conn.raw_connection()),
+        )
+        .await
+        .map(|_| ())
+        .map_err(|e| error_stack::report!(e))
+        .change_context(errors::DatabaseError::Others)
+        .attach_printable("Failed to lock the lifecycle state of a channel")
     }
 
     pub async fn list_by_channel(
@@ -84,47 +137,5 @@ impl AlertStateRow {
         .map_err(|e| error_stack::report!(e))
         .change_context(errors::DatabaseError::Others)
         .attach_printable("Failed to delete lifecycle state rows")
-    }
-
-    pub async fn bulk_upsert_within_channel(
-        conn: &DatabaseConnectionWithContext<'_>,
-        rows: Vec<Self>,
-    ) -> StorageResult<usize> {
-        use diesel::query_dsl::methods::FilterDsl;
-
-        let query = diesel::insert_into(<Self as HasTable>::table())
-            .values(rows)
-            .on_conflict(dsl::id_intermediate)
-            .do_update()
-            .set((
-                dsl::id.eq(excluded(dsl::id)),
-                dsl::name.eq(excluded(dsl::name)),
-                dsl::product.eq(excluded(dsl::product)),
-                dsl::dimensions.eq(excluded(dsl::dimensions)),
-                dsl::ts_slack.eq(excluded(dsl::ts_slack)),
-                dsl::ts_alert.eq(excluded(dsl::ts_alert)),
-                dsl::latest_ts_alert.eq(excluded(dsl::latest_ts_alert)),
-                dsl::max_duration.eq(excluded(dsl::max_duration)),
-                dsl::other_metrics.eq(excluded(dsl::other_metrics)),
-                dsl::metadata.eq(excluded(dsl::metadata)),
-                dsl::metadata_alert_details.eq(excluded(dsl::metadata_alert_details)),
-                dsl::rca_metadata.eq(excluded(dsl::rca_metadata)),
-                dsl::group_id.eq(excluded(dsl::group_id)),
-                dsl::priority.eq(excluded(dsl::priority)),
-                dsl::last_updated_at.eq(excluded(dsl::last_updated_at)),
-                dsl::recovered_ts.eq(excluded(dsl::recovered_ts)),
-            ))
-            .filter(dsl::channel.eq(excluded(dsl::channel)));
-
-        generics::db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
-            generics::db_metrics::DatabaseOperation::Insert,
-            query.execute_async(conn.raw_connection()),
-        )
-        .await
-        .map_err(|e| error_stack::report!(e))
-        .change_context(errors::DatabaseError::Others)
-        .attach_printable("Failed to upsert lifecycle state rows")
     }
 }
