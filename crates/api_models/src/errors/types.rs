@@ -34,7 +34,7 @@ impl ApiError {
     }
 }
 
-#[derive(Debug, serde::Serialize, ToSchema, PolymorphicSchema)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, ToSchema, PolymorphicSchema)]
 #[generate_schemas(GenericErrorResponseOpenApi)]
 pub struct ErrorResponse {
     #[serde(rename = "type")]
@@ -70,7 +70,7 @@ impl From<&ApiErrorResponse> for ErrorResponse {
     }
 }
 
-#[derive(Debug, serde::Serialize, Default, Clone)]
+#[derive(Debug, serde::Serialize, Default, Clone, PartialEq)]
 pub struct Extra {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub payment_id: Option<common_utils::id_type::PaymentId>,

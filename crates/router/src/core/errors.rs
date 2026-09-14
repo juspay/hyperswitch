@@ -1,4 +1,3 @@
-pub mod chat;
 pub mod customers_error_response;
 pub mod error_handlers;
 #[cfg(feature = "olap")]
@@ -271,6 +270,8 @@ pub enum GooglePayDecryptionError {
     DecryptedTokenExpired,
     #[error("Failed to parse the given value")]
     ParsingFailed,
+    #[error("Gateway merchant id in the token does not match the merchant being paid")]
+    InvalidGatewayMerchantId,
 }
 
 #[derive(Debug, Clone, thiserror::Error)]

@@ -47,6 +47,7 @@ export const CONNECTOR_PAYMENT_METHODS = Object.freeze({
   facilitapay: ["bank_transfer"],
   fiservcommercehub: ["card"],
   gigadat: ["bank_redirect"],
+  givepayments: ["card"],
   globepay: ["wallet"],
   iatapay: ["bank_redirect", "real_time_payment", "upi"],
   inespay: ["bank_debit"],
@@ -59,8 +60,11 @@ export const CONNECTOR_PAYMENT_METHODS = Object.freeze({
   paystack: ["bank_redirect"],
   plaid: ["open_banking"],
   prophetpay: ["card_redirect"],
+  truelayer: ["bank_redirect"],
+  trustly: ["bank_redirect"],
   volt: ["bank_redirect"],
   tsys_transit: ["card"],
+  tesouro: ["card"],
 });
 
 /**
@@ -144,7 +148,6 @@ const PAYMENT_SPEC_METHODS = Object.freeze({
   "46-StepUpRetries.cy.js": ["card"],
   "47-ManualPaymentUpdate.cy.js": ["card"],
   "47-PollConfig.cy.js": ["card"],
-  "47-RefundManualUpdate.cy.js": ["card"],
   "47-StepUpAuth.cy.js": ["card"],
   "47-WalletMandates.cy.js": ["wallet"],
   "48-CardTestingGuard.cy.js": ["card"],

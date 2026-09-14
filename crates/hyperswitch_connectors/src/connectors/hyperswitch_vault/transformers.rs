@@ -92,7 +92,7 @@ impl TryFrom<&ConnectorCustomerRouterData> for HyperswitchVaultCustomerCreateReq
                 .clone()
                 .get_required_value("customer name")
                 .change_context(errors::ConnectorError::MissingRequiredField {
-                    field_name: "customer name",
+                    field_name: "customer name".into(),
                 })?,
             email: item.request.email.clone(),
         })

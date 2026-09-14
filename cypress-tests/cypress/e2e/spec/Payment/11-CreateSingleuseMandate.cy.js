@@ -3,6 +3,7 @@ import State from "../../../utils/State";
 import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 
 let globalState;
+let originalCustomerId;
 
 describe("Card - SingleUse Mandates flow test", () => {
   before(function () {
@@ -12,6 +13,7 @@ describe("Card - SingleUse Mandates flow test", () => {
     cy.task("getGlobalState")
       .then((state) => {
         globalState = new State(state);
+        originalCustomerId = globalState.get("customerId");
 
         // Skip running test against a connector that is added in the exclude list
         if (
@@ -31,6 +33,11 @@ describe("Card - SingleUse Mandates flow test", () => {
   });
 
   after("flush global state", () => {
+    // This spec's contexts create their own customers for local mandate
+    // testing, overwriting globalState.customerId. Restore the original
+    // customer before flushing so later specs don't inherit one scoped to
+    // this spec's own mandate tests.
+    globalState.set("customerId", originalCustomerId);
     cy.task("setGlobalState", globalState.data);
   });
 

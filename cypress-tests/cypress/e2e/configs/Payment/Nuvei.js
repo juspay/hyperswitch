@@ -1030,9 +1030,9 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action",
-          error_code: null,
-          error_message: null,
+          status: "failed",
+          error_code: "-1",
+          error_message: "System Error",
         },
       },
     },
