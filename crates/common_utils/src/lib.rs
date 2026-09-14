@@ -590,6 +590,10 @@ fn generate_ref_id_with_default_length<const MAX_LENGTH: u8, const MIN_LENGTH: u
 
 /// Generate a customer id with default length, with prefix as `cus`
 #[cfg_attr(feature = "deja", track_caller)]
+    // FIXTURE (never merge): a seam that did not exist when the tape was
+    // recorded, so every call to it is novel BY CONSTRUCTION.
+    #[cfg_attr(feature = "deja", deja::id(component = "common_utils",
+        operation = "fixture_seam_introduced_after_recording", codec = SerdeCodec,))]
 pub fn generate_customer_id_of_default_length() -> id_type::CustomerId {
     use id_type::GenerateId;
 
