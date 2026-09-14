@@ -100,6 +100,10 @@ async fn run_batch_job(
                 status: None,
                 succeeded_rows: Some(total_succeeded),
                 failed_rows: None,
+                total_rows: None,
+                file_key: None,
+                error_message: None,
+                expires_at: None,
                 updated_at: common_utils::date_time::now(),
             },
         )
@@ -178,6 +182,10 @@ impl ProcessTrackerWorkflow<SessionState> for BatchBlocklistUploadWorkflow {
                     status: Some(common_enums::BatchBlocklistJobStatus::Processing),
                     succeeded_rows: None,
                     failed_rows: None,
+                    total_rows: None,
+                    file_key: None,
+                    error_message: None,
+                    expires_at: None,
                     updated_at: common_utils::date_time::now(),
                 },
             )
@@ -197,6 +205,10 @@ impl ProcessTrackerWorkflow<SessionState> for BatchBlocklistUploadWorkflow {
                         status: Some(common_enums::BatchBlocklistJobStatus::Completed),
                         succeeded_rows: Some(succeeded_rows),
                         failed_rows: Some(failed_rows),
+                        total_rows: None,
+                        file_key: None,
+                        error_message: None,
+                        expires_at: None,
                         updated_at: common_utils::date_time::now(),
                     },
                 )
@@ -259,6 +271,10 @@ impl ProcessTrackerWorkflow<SessionState> for BatchBlocklistUploadWorkflow {
                                 status: Some(common_enums::BatchBlocklistJobStatus::Failed),
                                 succeeded_rows: None,
                                 failed_rows: Some(failed_rows),
+                                total_rows: None,
+                                file_key: None,
+                                error_message: None,
+                                expires_at: None,
                                 updated_at: common_utils::date_time::now(),
                             },
                         )
