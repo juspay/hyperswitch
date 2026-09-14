@@ -115,8 +115,8 @@ The whole surface, guarded and not:
 | `POST` | `/alerts/lifecycle/{channel}/announcements/{id}` | `X-Internal-Api-Key` |
 | `GET` | `/alerts/instances/{channel}/{announcement_id}` | `X-Internal-Api-Key` |
 | `POST` | `/alerts/instances/{channel}/{announcement_id}` | `X-Internal-Api-Key` |
-| `GET` | `/alerts/dimensions/{announcement_id}` | `X-Internal-Api-Key` |
-| `POST` | `/alerts/dimensions/{announcement_id}` | `X-Internal-Api-Key` |
+| `GET` | `/alerts/dimensions/{channel}/{announcement_id}` | `X-Internal-Api-Key` |
+| `POST` | `/alerts/dimensions/{channel}/{announcement_id}` | `X-Internal-Api-Key` |
 | `GET` | `/health` | none — liveness |
 | `GET` | `/health/ready` | none — readiness |
 
@@ -528,22 +528,31 @@ method, or whatever the detector split on.
 reference `alerts_main` `ON DELETE CASCADE`, so a caller records an announcement, gets an id back,
 and posts to that id. There is no route that takes the reference in a body, so a row pointing at an
 announcement that does not exist — or at none at all — is not expressible. An id that names no
-announcement is `IR_12`, the same code the lifecycle write answers for the same condition, checked
+announcement on the channel in the path is `404` `HE_02`, on a read and on a write alike, checked
 before anything is written rather than left to arrive as an opaque constraint failure.
 
 Removing an announcement takes its instances and its breakdown with it. Nothing this service
 exposes removes one.
 
-`{channel}` is `slack` or `xyne`, exactly as it is under `/lifecycle`. **The breakdown has no
-channel**: `merchants_alert_external_dimension` exists once and references `alerts_main`, unlike
-the instance table which comes once per delivery channel. Putting a channel in its path would
-promise a `_xyne` breakdown table that does not exist, and answering "none" for it would read as an
-alert that had no breakdown.
+`{channel}` is `slack` or `xyne`, exactly as it is under `/lifecycle`, and the breakdown takes one
+too. Both channels share both tables, each row carrying its `channel`, and every read, replace and
+announcement lookup is scoped to the channel in the path. The foreign key names the announcement's
+`id` alone, so it is that lookup, not the database, that keeps a `xyne` write from attaching rows to
+a `slack` announcement. A segment that is neither is a `404` with no error body, as under
+`/lifecycle`.
 
-**A write replaces what its announcement carries.** A rerun of the same alert manager pass records
-the same merchants once rather than twice, and an empty write clears them. The response reports
-`removed` for the same reason the lifecycle write does: a replacement that removed far more than
-expected is the shape of a caller that lost its own copy.
+**A write replaces what its announcement carries on that channel.** A rerun of the same alert
+manager pass records the same merchants once rather than twice, and an empty write clears them. The
+response reports `removed` for the same reason the lifecycle write does: a replacement that removed
+far more than expected is the shape of a caller that lost its own copy. `ts_alert` in the response
+is the stamp the stored rows carry, and a write that stores nothing answers `ts_alert: null`.
+
+**Two writes for one announcement do not interleave.** A replacement is a delete followed by an
+insert, and two of them overlapping would each delete before either inserted, leaving both sets of
+rows stored. Each write takes a Postgres advisory lock on its announcement first, inside the
+transaction that then looks the announcement up, deletes and inserts, so the second waits and
+replaces what the first wrote. An instance write and a breakdown write take separate locks, since
+each replaces only its own table, and writes for different announcements do not wait on each other.
 
 #### What is wrong, generically
 
@@ -554,53 +563,45 @@ success rate, volume, refunds and anything later where `sr`/`failed`/`total` did
 none. Storing `0` for them would read as "observed 0, expected 0", which is a healthy row. Both
 columns are nullable and both are stored exactly as they arrive.
 
-`ts_slack` is the other value that may honestly be absent. A caller that sends none takes the
-announcement's thread, so nobody carries it around by hand; an instance recorded before its
-announcement reached a channel has no thread anywhere and stores `null`. The column was `NOT NULL`
-in the schema this model came from, which is what made that unrepresentable.
+`ts_slack` is taken from the announcement when a caller sends none, so nobody carries the thread
+around by hand; an announcement that never reached a channel has no thread to give, and the row
+stores `''`.
 
 #### The size of a write
 
-`instances.max_merchants` and `instances.max_dimensions` (500 each by default) cap the rows one
-announcement may hold.
+One instance write carries at most 500 merchants, and one breakdown write at most 500 dimensions.
+Because a write replaces everything its announcement carries, the same numbers bound what one
+announcement holds and the read that returns it.
 
-**Over the cap the write is cut down to it and stored, not refused** — the opposite of
-`lifecycle.max_alerts`, and deliberately so. One alert across many connectors becomes many rows, so
-the cap is reached during a *broad* outage, which is exactly when the record of who was affected
-matters most; losing the whole write then is the wrong failure.
-
-Two things make the cut safe to reason about:
-
-* **What survives is the worst of it.** Rows are ordered by impact before the cut: an absolute
-  first, since it expected nothing and everything is gone, then by distance from what was expected,
-  and a row that reported no metrics at all last. Scoring the absolute as `expected - current` with
-  both defaulted to `0` would rank a total outage as *no impact* and drop it first.
-* **The cut is recorded on every row it kept**, under `truncated_by_impact` in
-  `metadata_alert_details`, as well as in the response's `truncated`. A row found on its own says
-  both that the breakdown is partial and by how much, so a shortened breakdown never reads as a
-  narrower outage. The caller's own document is added to, never replaced.
-
-Neither cap may exceed 2000: these tables are 25 and 26 columns wide and Postgres accepts 65535
-bind parameters in one statement, so a batch insert stops working above roughly 2500 rows whatever
-anyone configures. A cap outside the range fails the boot.
+**Over the cap the whole write is refused and nothing is applied**, as a lifecycle write over its
+cap is. At the cap one write is a single insert: 500 rows of at most 27 columns stays well inside
+the 65,535 bind parameters Postgres accepts in one statement.
 
 The instance errors, added to the tables above:
 
 | | Status | Code |
 |---|---|---|
-| The announcement in the path does not exist | 400 | `IR_12` |
-| Unknown channel | 404 | `IR_09` |
-| Instances unreadable | 503 | `HE_01` |
+| Instance write over 500 merchants, or breakdown write over 500 dimensions | 400 | `HE_03` |
+| Unknown announcement id on this channel | 404 | `HE_02` |
 
 A value wider than its column — `name`, `product`, `merchant_id`, `dimension_key`, `priority` and
 `tenant_id` are `VARCHAR(64)`, `attribution`, `dimension_value` and `ts_slack` are `VARCHAR(255)` —
-is `IR_04`, alongside a body that did not parse, and is checked over every row the request carried
-including ones the cap will drop.
+is `IR_04`, alongside a body that did not parse. Widths are counted in characters and checked over
+every row before a database connection is taken, so a request that could never be stored is refused
+without touching the database.
 
-**The defaults these columns lost, supplied here instead:** `id_merchant_table` had
-`gen_random_uuid()` and is minted with `uuid::Uuid::now_v7()`; `is_visible` had `DEFAULT TRUE` and
-is set explicitly, so a caller that said nothing does not store a row nobody can see; `ts_alert`
-had `CURRENT_TIMESTAMP` and is this service's clock, as `last_updated_at` is.
+**Every write stamp is this service's clock.** `ts_alert` and `last_updated_at` are set by the
+handler, in milliseconds as they cross the wire, and `id_merchant_table` is minted with
+`uuid::Uuid::now_v7()`. `is_visible` is `true` unless the caller says otherwise, so a caller that
+said nothing does not store a row nobody can see.
+
+A field the caller leaves out is stored as r-apps stores it rather than as `NULL`: `name`,
+`product`, `merchant_id`, `dimension_key`, `dimension_value`, `attribution`, `ts_slack`, `priority`
+and `tenant_id` as `''`; `slack_info`, `communication_info` and `metadata_alert_details` as `{}`;
+and `dimensions`, `auxiliary_dimensions` and `metadata` as the JSON string `"{}"`, which is what
+r-apps' `"{}"` default becomes once it serialises it. `current_metric`, `expected_metric`,
+`max_duration`, `start_time`, `latest_ts_alert`, `recovered_ts` and `id_intermediate` have no
+r-apps default and stay `NULL` when absent.
 
 ## Destinations
 
@@ -655,7 +656,8 @@ server, the database pool, authentication, `server_wrap` and the error types. Th
 serves — both concerns' — so the tree and its guards are one file rather than a search.
 
 Rows and their queries are not here at all: `alerts_info`, `merchants_alert_external_config`,
-`alerts_dicts`, `notification_reads`, `alerts_main` and `alerts_intermediate` are modelled in
+`alerts_dicts`, `notification_reads`, `alerts_main`, `alerts_intermediate`,
+`merchants_alert_external` and `merchants_alert_external_dimension` are modelled in
 `diesel_models::observability`, alongside every other table this database owns, so the alert
 manager and this service read one definition of them rather than two.
 
