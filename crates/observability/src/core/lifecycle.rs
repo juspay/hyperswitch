@@ -28,7 +28,7 @@ const MAX_ANNOUNCEMENT_WINDOW_DAYS: i64 = 30;
 
 const MERCHANT_VISIBILITY_KEY: &str = "is_visible_to_merchant";
 
-pub async fn read_state(
+pub async fn retrieve_lifecycle_state(
     state: AppState,
     channel: Channel,
 ) -> ObservabilityApiResult<LifecycleStateResponse> {
@@ -47,7 +47,7 @@ pub async fn read_state(
     })
 }
 
-pub async fn write_state(
+pub async fn save_lifecycle_state(
     state: AppState,
     channel: Channel,
     request: LifecycleStateWriteRequest,
@@ -148,7 +148,7 @@ pub async fn write_state(
     })
 }
 
-pub async fn record_announcement(
+pub async fn create_announcement(
     state: AppState,
     channel: Channel,
     request: AnnouncementRequest,

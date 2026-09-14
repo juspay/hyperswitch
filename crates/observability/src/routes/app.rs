@@ -133,17 +133,17 @@ impl AlertsLifecycle {
                 .service(
                     web::resource("/state")
                         .app_data(json_config().limit(MAX_LIFECYCLE_STATE_BODY_BYTES))
-                        .route(web::get().to(lifecycle::read_state))
-                        .route(web::post().to(lifecycle::write_state)),
+                        .route(web::get().to(lifecycle::lifecycle_state_retrieve))
+                        .route(web::post().to(lifecycle::lifecycle_state_save)),
                 )
                 .service(
                     web::resource("/announcements")
-                        .route(web::get().to(lifecycle::list_announcements))
-                        .route(web::post().to(lifecycle::record_announcement)),
+                        .route(web::get().to(lifecycle::announcement_list))
+                        .route(web::post().to(lifecycle::announcement_create)),
                 )
                 .service(
                     web::resource("/announcements/{id}")
-                        .route(web::post().to(lifecycle::update_announcement)),
+                        .route(web::post().to(lifecycle::announcement_update)),
                 ),
         )
     }
