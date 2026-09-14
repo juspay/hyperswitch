@@ -84,9 +84,10 @@ reach the logs from the client, which emits `chars` per request.
 Four surfaces under one scope. **Delivery** sends a message; **configuration** reads and writes the
 rows this plane owns — what an alert is, whether it runs, the mappers the dashboard reads, and how
 far a user has read their notifications; **lifecycle** is the alert manager's own working state,
-which nobody edits and which it rewrites every run; **instances** are the record of who each
-announcement was about. Routes under `/alerts/config`, `/alerts/lifecycle`, `/alerts/instances` and
-`/alerts/dimensions`, and `/health/ready`, touch the database; delivery routes do not.
+which it rewrites every run and of which the dashboard edits only an announcement's metadata;
+**instances** are the record of who each announcement was about. Routes under `/alerts/config`,
+`/alerts/lifecycle`, `/alerts/instances` and `/alerts/dimensions`, and `/health/ready`, touch the
+database; delivery routes do not.
 
 The whole surface, guarded and not:
 
@@ -247,10 +248,10 @@ free-form, because nothing in this plane interprets them.
 
 **An update mentions only what it changes.** Three portal screens edit different parts of one row,
 so a whole-row `PUT` from any of them would discard what the other two just saved. An absent field
-is left alone, an explicit `null` clears it, and a value sets it; `is_enabled` cannot be cleared, so a
-`null` for it leaves it unchanged. Optimistic concurrency was the
-alternative and was rejected: two screens editing *different* columns are not in conflict, and
-making them retry against each other is worse than the lost update it prevents.
+is left alone, an explicit `null` clears it, and a value sets it; `is_enabled`, `dimensions`, `period`
+and `default_critical` cannot be cleared, so a `null` for any of them leaves it unchanged. Optimistic
+concurrency was the alternative and was rejected: two screens editing *different* columns are not in
+conflict, and making them retry against each other is worse than the lost update it prevents.
 
 ```http
 POST /alerts/config/definitions
@@ -263,12 +264,14 @@ POST /alerts/config/definitions/0189…
 → 200 the whole definition, with blacklist and snooze untouched
 ```
 
-`is_enabled` and `author` are **required** on create. The column has no default, so a definition
-created without saying would be off — which reads as "the alert is broken" rather than "nobody enabled
-it"; and the internal API key names the calling service, not a person, so if the body does not say
-who is asking then nothing does. `name` and `product` cannot be changed afterwards: they are the
-alert's identity, referenced by the enablement table and matched by name in the alert manager, so a
-rename through an update would orphan those references rather than failing.
+`is_enabled` and `author` are **required** on create. r-apps defaults `is_enabled` to false, so a
+definition created there without saying is off — which reads as "the alert is broken" rather than
+"nobody enabled it"; and the internal API key names the calling service, not a person, so if the
+body does not say who is asking then nothing does. `name` and `product` cannot be changed
+afterwards: they are the alert's identity, referenced by the enablement table and matched by name in
+the alert manager, so a rename through an update would orphan those references rather than failing.
+A field the caller leaves out is stored as r-apps stores it rather than as `NULL`: `dimensions` as
+`''`, `period` as `0` and `default_critical` as false.
 
 `name` reserves one value. **`all` is the definition carrying suppression that applies to every
 detector**, which is the only way to express "mute this merchant everywhere" now that suppression is
@@ -308,7 +311,8 @@ conflict target — so a repeated call updates rather than adding a second row d
 first. r-apps leaves this table keyless and permits exactly that. It also validates the pair against
 `alerts_info` with a database trigger this schema does not have, so **the API checks the definition
 exists**; without the check a switch can be wired to an alert nobody defined and looks on the screen
-exactly like one that works.
+exactly like one that works. A field the caller leaves out is stored as r-apps stores it rather than
+as `NULL`: `category` as `''` and `metadata` as `{}`.
 
 #### The mappers
 
@@ -342,7 +346,8 @@ this service as raw bytes in both directions — see `diesel_models::observabili
 Parsing into a `serde_json::Value` and serializing it again would hand the screen back a document it
 did not save. A definition takes the opposite trade for the opposite reason: its `json` columns are
 typed because the alert manager reads them, and nothing reads a mapper entry but the screen that
-wrote it.
+wrote it. A field the caller leaves out is stored as r-apps stores it rather than as `NULL`:
+`product`, `values` and `metadata` as `[]`.
 
 An entry's JSON is capped at 1 MiB. The dashboard decides
 how large an entry is, and one oversized save becomes a row nothing can read back — a broken page
@@ -424,9 +429,9 @@ fine, and the condition is expected to clear without anyone touching it. A query
 connected is a `500`. The failing host, database and role
 reach the log and never the response.
 
-An empty `name` or `key`, one wider than its column, and an unreadable `X-User-Name` are `IR_04`
-alongside a body that did not parse. The column widths are checked here rather than left to
-Postgres, which rejects the same values as an opaque failure with a `500` attached.
+An empty `name` or `key` and an unreadable `X-User-Name` are `IR_04` alongside a body that did not
+parse; a value wider than its column is `IR_07`. The column widths are checked here rather than left
+to Postgres, which rejects the same values as an opaque failure with a `500` attached.
 
 ### Lifecycle
 
@@ -437,8 +442,8 @@ whether an alert was delivered.
 
 `{channel}` is `slack` or `xyne`. Both channels share `alerts_main` and `alerts_intermediate`, each
 row carrying its `channel`, and every read, replace and lock is scoped to the channel in the path.
-A segment that is neither is a `404` with no error body, the same answer as a path this service
-does not serve, rather than a fallback to one of them or an empty store. A state write whose
+A segment that is neither, like an announcement id that is not a UUID, is the empty `404` a path this
+service does not serve gets, rather than a fallback to one of them or an empty store. A state write whose
 `id_intermediate` belongs to the other channel is a `400` and changes nothing.
 
 **Two write shapes, deliberately not alike.** A state write is a replacement: what it does not
@@ -451,11 +456,14 @@ state rows pointing at it, including ones the same request is writing.
 announcements whose `ts_alert` falls in the window, newest first, as r-apps' `getAlerts` reads
 `alerts_main`. With no bounds the window is the last 7 days; a window that ends before it starts or
 spans more than 30 days is refused, matching r-apps' `DEFAULT_DAYS` and `DAYS_LIMIT`.
-`POST .../announcements/{id}` with `{"metadata": {...}}` is r-apps' `updateAlert`: it replaces the
-announcement's `metadata` (resolution, comments and the rest) and merges the same keys, except
-`is_visible_to_merchant`, into the state rows that reference it, in one transaction. It does not
-touch `last_updated_at` on those state rows, so an edit from the dashboard never turns the alert
-manager's next state write into a `409`.
+`POST .../announcements/{id}` with `{"metadata": {...}}` is the part of r-apps' `updateAlert` that
+touches these two tables: it replaces the announcement's `metadata` (resolution, comments and the
+rest) and merges the same keys, except `is_visible_to_merchant`, into the state rows that reference
+it, in one transaction that first takes the channel's lock, so it never interleaves with a state
+write. Unlike `updateAlert` it leaves `last_updated_at` on those state rows alone, so an edit from
+the dashboard never makes the alert manager's next state write stale, and it does not reach
+`merchants_alert_external`. The flip side: a run that read the state before the edit writes back the
+metadata it read, replacing the merge.
 
 **Rows are addressed by `id_intermediate`, and a caller echoes back the ids it read.** A row whose
 id is not echoed back is removed and, if it is still firing, written again as a new row — which
@@ -469,7 +477,9 @@ minutes out of step would make an episode look older than it is. The episode tim
 `ts_alert`, `latest_ts_alert`, `recovered_ts` — are stored as sent, and `expected_last_updated_at`
 is compared, never stored.
 
-A field the caller leaves out is stored as r-apps stores it rather than as `NULL`: `dimensions` as
+`name` and `product` are required on an announcement and on every state row, as r-apps' columns
+are `NOT NULL`; a body without them is refused like one that does not parse. Any other field the
+caller leaves out is stored as r-apps stores it rather than as `NULL`: `dimensions` as
 `[]`, `rca_metadata` as `{}`, `max_duration` and `duration` as `0`, `group_id` and `priority` as
 `''`, `sent` and `critical` as false, and a state row's `ts_alert` and `latest_ts_alert` as the time
 of the write.
@@ -478,7 +488,7 @@ of the write.
 
 The cron fires every fifteen minutes, so a slow run means two whole-state writes in flight. A write
 carries `expected_last_updated_at` — the value the read handed out — and is applied only if the
-stored state still matches it; a mismatch is `409` and nothing is written. Absent or `null` asserts
+stored state still matches it; a mismatch is `400` `IR_16` and nothing is written. Absent or `null` asserts
 that the state was empty at read time, so a forgotten precondition fails closed rather than
 overwriting whatever is there. A write that stores no alerts answers `last_updated_at: null`, and
 that is what the next write sends.
@@ -491,15 +501,16 @@ The precondition alone is not enough when the two writes genuinely overlap: both
 same value before either wrote. Each write takes a Postgres advisory lock on its channel first, so
 the check happens against state nothing else is changing. The loser waits, then is refused.
 
-A `409` is not a `400`: the body was fine and would have been accepted a moment earlier. The
-caller's move is to read the state again — never to retry the write it just sent, which is the
-stale one.
+`IR_16` is a `400`, as hyperswitch's `PreconditionFailed` is; the code, not the status, tells a stale
+write from a malformed one. The caller's move is to read the state again — never to retry the write
+it just sent, which is the stale one.
 
 #### The size of a write
 
 One whole-state write carries at most 5,000 alerts. Because a write replaces everything, the same
-number bounds the stored state and the read that returns all of it. The lifecycle routes accept a
-body of up to 16 MiB, rather than the 2 MiB every other route keeps, so a write at the cap fits.
+number bounds the stored state and the read that returns all of it. `POST .../state` accepts a body
+of up to 16 MiB, rather than the 2 MiB every other JSON route keeps, announcements included, so a write at
+the cap fits. A larger body is refused like one that does not parse.
 
 **Over the cap the whole write is refused and nothing is applied.** Truncating it would drop alerts
 the caller believes are recorded and re-announce them on the next run, which is the failure the cap
@@ -512,15 +523,29 @@ The lifecycle errors, added to the tables above:
 | Whole-state write over 5,000 alerts | 400 | `HE_03` |
 | A state row's `id_intermediate` belongs to the other channel | 400 | `HE_03` |
 | A state row references an announcement this channel does not have | 404 | `HE_02` |
-| The state changed after it was read | 409 | `IR_16` |
+| The state changed after it was read | 400 | `IR_16` |
 | Announcement window ends before it starts or spans more than 30 days | 400 | `HE_03` |
 | Unknown announcement id on this channel | 404 | `HE_02` |
 
 A value wider than its column — `name`, `product`, `group_id` and `priority` are `VARCHAR(64)`,
-`ts_slack` is `VARCHAR(255)` — and the same `id_intermediate` sent twice in one write are `IR_04`,
-alongside a body that did not parse. Both are checked before the query runs: Postgres rejects the
-first as an opaque `22001` and refuses the second with a message about the statement rather than
-about the request, and either would fail the whole batch.
+`ts_slack` is `VARCHAR(255)` — is `IR_07`, and so is announcement `metadata` that is not a JSON
+object, and a `start`, `end`, `ts_alert`, `latest_ts_alert` or `recovered_ts` before 1970: Postgres
+cannot store the earliest times the wire format accepts. The same `id_intermediate` sent twice in one
+write is `IR_06`, as is a query that does not parse. All are checked before a connection is taken:
+Postgres rejects a too-wide value as an opaque `22001` and refuses a repeated id with a message about
+the statement rather than about the request, and either would fail the whole batch.
+
+The responses:
+
+```
+GET  .../state                → 200 { "count": 2, "last_updated_at": "…", "alerts": [ … ] }
+POST .../state                → 200 { "last_updated_at": "…", "stored": 2, "removed": 0, "id_intermediates": [ … ] }
+GET  .../announcements        → 200 { "count": 1, "announcements": [ … ] }
+POST .../announcements        → 200 { "id": "…", "name": "sr_drop", … }
+POST .../announcements/{id}   → 200 { "id": "…", "metadata": { … }, … }
+```
+
+An empty state reads as `count: 0` with a `null` watermark.
 
 ### Instances
 

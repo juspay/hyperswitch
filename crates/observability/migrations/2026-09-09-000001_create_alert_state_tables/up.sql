@@ -20,26 +20,26 @@
 -- so everything about an alert is in one place.
 CREATE TABLE IF NOT EXISTS alerts_info (
     id               UUID PRIMARY KEY,
-    name             VARCHAR(64),
-    product          VARCHAR(64),
-    dimensions       VARCHAR(255),
-    period           INTEGER,
+    name             VARCHAR(64) NOT NULL,
+    product          VARCHAR(64) NOT NULL,
+    dimensions       VARCHAR(255) NOT NULL,
+    period           INTEGER NOT NULL,
     default_channel  VARCHAR(64),
-    default_critical BOOLEAN,
+    default_critical BOOLEAN NOT NULL,
     blacklist        JSON,
     snooze           JSON,
     history_window   INTEGER,
     thresholds       JSON,
     metadata         JSON,
-    is_enabled       BOOLEAN,
+    is_enabled       BOOLEAN NOT NULL,
     comments         JSON,
     call_period      INTEGER,
-    author           VARCHAR(64),
+    author           VARCHAR(64) NOT NULL,
     approver         VARCHAR(64),
-    last_updated_at  TIMESTAMP
+    last_updated_at  TIMESTAMP NOT NULL
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_alerts_info_name_product_unique
+CREATE UNIQUE INDEX IF NOT EXISTS alerts_info_name_product_index
     ON alerts_info USING btree (name, product);
 
 -- Announcements actually sent, one row per alert per delivery. `sent` and
@@ -47,23 +47,23 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_alerts_info_name_product_unique
 -- failed delivery is indistinguishable from a successful one on the next run.
 CREATE TABLE IF NOT EXISTS alerts_main (
     id              UUID PRIMARY KEY,
-    channel         VARCHAR(64),
-    name            VARCHAR(64),
-    product         VARCHAR(64),
-    dimensions      JSON,
+    channel         VARCHAR(64) NOT NULL,
+    name            VARCHAR(64) NOT NULL,
+    product         VARCHAR(64) NOT NULL,
+    dimensions      JSON NOT NULL,
     ts_slack        VARCHAR(255),
-    ts_alert        TIMESTAMP,
-    duration        INTEGER,
-    sent            BOOLEAN,
-    critical        BOOLEAN,
-    rca_metadata    JSONB,
+    ts_alert        TIMESTAMP NOT NULL,
+    duration        INTEGER NOT NULL,
+    sent            BOOLEAN NOT NULL,
+    critical        BOOLEAN NOT NULL,
+    rca_metadata    JSONB NOT NULL,
     metadata        JSON,
-    last_updated_at TIMESTAMP
+    last_updated_at TIMESTAMP NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_ts_alert
+CREATE INDEX IF NOT EXISTS alerts_main_channel_ts_alert_index
     ON alerts_main USING btree (channel, ts_alert);
-CREATE INDEX IF NOT EXISTS idx_alerts_last_updated_at
+CREATE INDEX IF NOT EXISTS alerts_main_last_updated_at_index
     ON alerts_main USING btree (last_updated_at);
 
 -- Current lifecycle state: what is firing now, since when, and what recovered.
@@ -71,28 +71,28 @@ CREATE INDEX IF NOT EXISTS idx_alerts_last_updated_at
 -- was said about it.
 CREATE TABLE IF NOT EXISTS alerts_intermediate (
     id_intermediate        UUID PRIMARY KEY,
-    channel                VARCHAR(64),
+    channel                VARCHAR(64) NOT NULL,
     id                     UUID REFERENCES alerts_main(id) ON DELETE CASCADE,
-    name                   VARCHAR(64),
-    product                VARCHAR(64),
-    dimensions             JSONB,
+    name                   VARCHAR(64) NOT NULL,
+    product                VARCHAR(64) NOT NULL,
+    dimensions             JSONB NOT NULL,
     ts_slack               VARCHAR(255),
-    ts_alert               TIMESTAMP,
-    latest_ts_alert        TIMESTAMP,
-    max_duration           INTEGER,
+    ts_alert               TIMESTAMP NOT NULL,
+    latest_ts_alert        TIMESTAMP NOT NULL,
+    max_duration           INTEGER NOT NULL,
     other_metrics          JSONB,
     metadata               JSONB,
     metadata_alert_details JSONB,
-    rca_metadata           JSONB,
-    group_id               VARCHAR(64),
-    priority               VARCHAR(64),
-    last_updated_at        TIMESTAMP,
+    rca_metadata           JSONB NOT NULL,
+    group_id               VARCHAR(64) NOT NULL,
+    priority               VARCHAR(64) NOT NULL,
+    last_updated_at        TIMESTAMP NOT NULL,
     recovered_ts           TIMESTAMP
 );
 
-CREATE INDEX IF NOT EXISTS idx_ts
+CREATE INDEX IF NOT EXISTS alerts_intermediate_channel_ts_alert_latest_ts_alert_index
     ON alerts_intermediate USING btree (channel, ts_alert, latest_ts_alert);
-CREATE INDEX IF NOT EXISTS idx_alerts_intermediate_id
+CREATE INDEX IF NOT EXISTS alerts_intermediate_id_index
     ON alerts_intermediate USING btree (id);
 
 -- The mappers screen. product and values_ are `json` rather than `jsonb`: the
@@ -100,99 +100,99 @@ CREATE INDEX IF NOT EXISTS idx_alerts_intermediate_id
 -- same bytes.
 CREATE TABLE IF NOT EXISTS alerts_dicts (
     id         UUID PRIMARY KEY,
-    name       VARCHAR(64),
-    key_       VARCHAR(255),
-    product    JSON,
-    values_    JSON,
-    ts_created TIMESTAMP,
-    is_enabled BOOLEAN,
-    username   VARCHAR(64),
-    metadata   JSON
+    name       VARCHAR(64) NOT NULL,
+    key_       VARCHAR(255) NOT NULL,
+    product    JSON NOT NULL,
+    values_    JSON NOT NULL,
+    ts_created TIMESTAMP NOT NULL,
+    is_enabled BOOLEAN NOT NULL,
+    username   VARCHAR(64) NOT NULL,
+    metadata   JSON NOT NULL
 );
 
 -- One enabled entry per name and key; superseded rows stay for history.
-CREATE UNIQUE INDEX IF NOT EXISTS idx_alerts_dicts_enabled_unique
+CREATE UNIQUE INDEX IF NOT EXISTS alerts_dicts_name_key_enabled_index
     ON alerts_dicts USING btree (name, key_) WHERE is_enabled IS TRUE;
 
-CREATE INDEX IF NOT EXISTS idx_alerts_dicts_latest
+CREATE INDEX IF NOT EXISTS alerts_dicts_name_key_ts_created_index
     ON alerts_dicts USING btree (name, key_, ts_created DESC);
 
 -- Per-merchant alert instances. current_metric against expected_metric is the
 -- generic form of "what is wrong", so a detector that is not about success rate
 -- needs no schema change.
 CREATE TABLE IF NOT EXISTS merchants_alert_external (
-    id                     UUID REFERENCES alerts_main(id) ON DELETE CASCADE,
-    channel                VARCHAR(64),
+    id                     UUID NOT NULL REFERENCES alerts_main(id) ON DELETE CASCADE,
+    channel                VARCHAR(64) NOT NULL,
     id_merchant_table      UUID PRIMARY KEY,
     id_intermediate        UUID,
-    name                   VARCHAR(64),
-    product                VARCHAR(64),
-    merchant_id            VARCHAR(64),
-    dimensions             JSONB,
-    auxiliary_dimensions   JSONB,
+    name                   VARCHAR(64) NOT NULL,
+    product                VARCHAR(64) NOT NULL,
+    merchant_id            VARCHAR(64) NOT NULL,
+    dimensions             JSONB NOT NULL,
+    auxiliary_dimensions   JSONB NOT NULL,
     current_metric         DOUBLE PRECISION,
     expected_metric        DOUBLE PRECISION,
-    attribution            VARCHAR(255),
+    attribution            VARCHAR(255) NOT NULL,
     max_duration           INTEGER,
     start_time             TIMESTAMP,
-    is_visible             BOOLEAN,
+    is_visible             BOOLEAN NOT NULL,
     recovered_ts           TIMESTAMP,
-    ts_slack               VARCHAR(255),
-    ts_alert               TIMESTAMP,
+    ts_slack               VARCHAR(255) NOT NULL,
+    ts_alert               TIMESTAMP NOT NULL,
     latest_ts_alert        TIMESTAMP,
-    last_updated_at        TIMESTAMP,
-    slack_info             JSONB,
-    communication_info     JSONB,
-    metadata               JSONB,
-    metadata_alert_details JSONB,
-    priority               VARCHAR(64),
-    tenant_id              VARCHAR(64)
+    last_updated_at        TIMESTAMP NOT NULL,
+    slack_info             JSONB NOT NULL,
+    communication_info     JSONB NOT NULL,
+    metadata               JSONB NOT NULL,
+    metadata_alert_details JSONB NOT NULL,
+    priority               VARCHAR(64) NOT NULL,
+    tenant_id              VARCHAR(64) NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_alerts_external
+CREATE INDEX IF NOT EXISTS merchants_alert_external_channel_merchant_id_index
     ON merchants_alert_external (channel, merchant_id);
-CREATE INDEX IF NOT EXISTS idx_ts_alerts_external
+CREATE INDEX IF NOT EXISTS merchants_alert_external_ts_alert_index
     ON merchants_alert_external USING btree (ts_alert);
-CREATE INDEX IF NOT EXISTS idx_alerts_external_id
+CREATE INDEX IF NOT EXISTS merchants_alert_external_id_index
     ON merchants_alert_external USING btree (id);
 
 -- One row per dimension of an instance, so a single alert can be broken down by
 -- connector, method or anything else without widening the instance table.
 CREATE TABLE IF NOT EXISTS merchants_alert_external_dimension (
-    id                     UUID REFERENCES alerts_main(id) ON DELETE CASCADE,
-    channel                VARCHAR(64),
+    id                     UUID NOT NULL REFERENCES alerts_main(id) ON DELETE CASCADE,
+    channel                VARCHAR(64) NOT NULL,
     id_merchant_table      UUID PRIMARY KEY,
     id_intermediate        UUID,
-    name                   VARCHAR(64),
-    product                VARCHAR(64),
-    dimension_key          VARCHAR(64),
-    dimension_value        VARCHAR(255),
-    dimensions             JSONB,
-    auxiliary_dimensions   JSONB,
+    name                   VARCHAR(64) NOT NULL,
+    product                VARCHAR(64) NOT NULL,
+    dimension_key          VARCHAR(64) NOT NULL,
+    dimension_value        VARCHAR(255) NOT NULL,
+    dimensions             JSONB NOT NULL,
+    auxiliary_dimensions   JSONB NOT NULL,
     current_metric         DOUBLE PRECISION,
     expected_metric        DOUBLE PRECISION,
-    attribution            VARCHAR(255),
+    attribution            VARCHAR(255) NOT NULL,
     max_duration           INTEGER,
-    is_visible             BOOLEAN,
+    is_visible             BOOLEAN NOT NULL,
     start_time             TIMESTAMP,
     recovered_ts           TIMESTAMP,
-    ts_slack               VARCHAR(255),
-    ts_alert               TIMESTAMP,
+    ts_slack               VARCHAR(255) NOT NULL,
+    ts_alert               TIMESTAMP NOT NULL,
     latest_ts_alert        TIMESTAMP,
-    last_updated_at        TIMESTAMP,
-    slack_info             JSONB,
-    communication_info     JSONB,
-    metadata               JSONB,
-    metadata_alert_details JSONB,
-    priority               VARCHAR(64),
-    tenant_id              VARCHAR(64)
+    last_updated_at        TIMESTAMP NOT NULL,
+    slack_info             JSONB NOT NULL,
+    communication_info     JSONB NOT NULL,
+    metadata               JSONB NOT NULL,
+    metadata_alert_details JSONB NOT NULL,
+    priority               VARCHAR(64) NOT NULL,
+    tenant_id              VARCHAR(64) NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_dimension_alerts_external
+CREATE INDEX IF NOT EXISTS merchants_alert_external_dimension_value_key_index
     ON merchants_alert_external_dimension (dimension_value, dimension_key);
-CREATE INDEX IF NOT EXISTS idx_dimension_ts_alerts_external
+CREATE INDEX IF NOT EXISTS merchants_alert_external_dimension_ts_alert_index
     ON merchants_alert_external_dimension USING btree (ts_alert);
-CREATE INDEX IF NOT EXISTS idx_dimension_alerts_external_id
+CREATE INDEX IF NOT EXISTS merchants_alert_external_dimension_id_index
     ON merchants_alert_external_dimension USING btree (id);
 
 -- Which alerts are on, per name and product.
@@ -201,12 +201,12 @@ CREATE INDEX IF NOT EXISTS idx_dimension_alerts_external_id
 -- whether the same alert is enabled. Diesel also refuses to model a table with
 -- no primary key, and this table has to be readable.
 CREATE TABLE IF NOT EXISTS merchants_alert_external_config (
-    name            VARCHAR(64),
-    product         VARCHAR(64),
-    category        VARCHAR(64),
-    is_enabled      BOOLEAN,
-    metadata        JSONB,
-    last_updated_at TIMESTAMP,
+    name            VARCHAR(64) NOT NULL,
+    product         VARCHAR(64) NOT NULL,
+    category        VARCHAR(64) NOT NULL,
+    is_enabled      BOOLEAN NOT NULL,
+    metadata        JSONB NOT NULL,
+    last_updated_at TIMESTAMP NOT NULL,
     PRIMARY KEY (name, product)
 );
 
@@ -214,5 +214,5 @@ CREATE TABLE IF NOT EXISTS merchants_alert_external_config (
 -- disabled every read arrives under the same empty name and there is one row.
 CREATE TABLE IF NOT EXISTS notification_reads (
     user_name    VARCHAR(255) PRIMARY KEY,
-    last_read_at TIMESTAMP
+    last_read_at TIMESTAMP NOT NULL
 );

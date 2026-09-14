@@ -62,23 +62,23 @@ common_utils::impl_to_sql_from_sql_json!(Thresholds);
 #[diesel(table_name = alerts_info, primary_key(id), check_for_backend(diesel::pg::Pg))]
 pub struct AlertsInfo {
     pub id: uuid::Uuid,
-    pub name: Option<String>,
-    pub product: Option<String>,
-    pub dimensions: Option<String>,
-    pub period: Option<i32>,
+    pub name: String,
+    pub product: String,
+    pub dimensions: String,
+    pub period: i32,
     pub default_channel: Option<String>,
-    pub default_critical: Option<bool>,
+    pub default_critical: bool,
     pub blacklist: Option<Blacklist>,
     pub snooze: Option<Snooze>,
     pub history_window: Option<i32>,
     pub thresholds: Option<Thresholds>,
     pub metadata: Option<serde_json::Value>,
-    pub is_enabled: Option<bool>,
+    pub is_enabled: bool,
     pub comments: Option<serde_json::Value>,
     pub call_period: Option<i32>,
-    pub author: Option<String>,
+    pub author: String,
     pub approver: Option<String>,
-    pub last_updated_at: Option<PrimitiveDateTime>,
+    pub last_updated_at: PrimitiveDateTime,
 }
 
 #[derive(Clone, Debug, PartialEq, Insertable)]
@@ -107,16 +107,16 @@ pub struct AlertsInfoNew {
 #[derive(Debug)]
 pub enum AlertsInfoUpdate {
     Update {
-        dimensions: Option<Option<String>>,
-        period: Option<Option<i32>>,
+        dimensions: Option<String>,
+        period: Option<i32>,
         default_channel: Option<Option<String>>,
-        default_critical: Option<Option<bool>>,
+        default_critical: Option<bool>,
         blacklist: Option<Option<Blacklist>>,
         snooze: Option<Option<Snooze>>,
         history_window: Option<Option<i32>>,
         thresholds: Option<Option<Thresholds>>,
         metadata: Option<Option<serde_json::Value>>,
-        is_enabled: Option<Option<bool>>,
+        is_enabled: Option<bool>,
         comments: Option<Option<serde_json::Value>>,
         call_period: Option<Option<i32>>,
         approver: Option<Option<String>>,
@@ -127,16 +127,16 @@ pub enum AlertsInfoUpdate {
 #[derive(Clone, Debug, PartialEq, AsChangeset)]
 #[diesel(table_name = alerts_info)]
 pub struct AlertsInfoUpdateInternal {
-    pub dimensions: Option<Option<String>>,
-    pub period: Option<Option<i32>>,
+    pub dimensions: Option<String>,
+    pub period: Option<i32>,
     pub default_channel: Option<Option<String>>,
-    pub default_critical: Option<Option<bool>>,
+    pub default_critical: Option<bool>,
     pub blacklist: Option<Option<Blacklist>>,
     pub snooze: Option<Option<Snooze>>,
     pub history_window: Option<Option<i32>>,
     pub thresholds: Option<Option<Thresholds>>,
     pub metadata: Option<Option<serde_json::Value>>,
-    pub is_enabled: Option<Option<bool>>,
+    pub is_enabled: Option<bool>,
     pub comments: Option<Option<serde_json::Value>>,
     pub call_period: Option<Option<i32>>,
     pub approver: Option<Option<String>>,

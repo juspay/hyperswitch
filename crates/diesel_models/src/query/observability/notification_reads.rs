@@ -4,7 +4,10 @@ use error_stack::ResultExt;
 
 use crate::{
     errors,
-    observability::{notification_reads::NotificationRead, schema::notification_reads::dsl},
+    observability::{
+        notification_reads::{NotificationRead, NotificationReadNew},
+        schema::notification_reads::dsl,
+    },
     query::generics,
     DatabaseConnectionWithContext, StorageResult,
 };
@@ -20,15 +23,20 @@ impl NotificationRead {
         )
         .await
     }
+}
 
-    pub async fn upsert(self, conn: &DatabaseConnectionWithContext<'_>) -> StorageResult<Self> {
-        let query = diesel::insert_into(<Self as HasTable>::table())
+impl NotificationReadNew {
+    pub async fn upsert(
+        self,
+        conn: &DatabaseConnectionWithContext<'_>,
+    ) -> StorageResult<NotificationRead> {
+        let query = diesel::insert_into(<NotificationRead as HasTable>::table())
             .values(self)
             .on_conflict(dsl::user_name)
             .do_update()
             .set(dsl::last_read_at.eq(excluded(dsl::last_read_at)));
 
-        generics::db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
+        generics::db_metrics::track_database_call::<<NotificationRead as HasTable>::Table, _, _>(
             conn.request_id(),
             conn.event_emitter(),
             generics::db_metrics::DatabaseOperation::Insert,

@@ -1,10 +1,9 @@
 use async_bb8_diesel::AsyncRunQueryDsl;
 use diesel::{
     associations::HasTable,
-    query_dsl::methods::FilterDsl,
-    sql_types::{Integer, Text},
+    query_dsl::methods::{FilterDsl, SelectDsl},
     upsert::excluded,
-    BoolExpressionMethods, ExpressionMethods, PgSortExpressionMethods,
+    BoolExpressionMethods, ExpressionMethods,
 };
 use error_stack::ResultExt;
 use time::PrimitiveDateTime;
@@ -18,11 +17,12 @@ use crate::{
         },
         schema::alerts_intermediate::dsl,
     },
-    query::generics,
+    query::{
+        generics,
+        observability::{advisory_xact_lock, LIFECYCLE_STATE_LOCK_NAMESPACE},
+    },
     DatabaseConnectionWithContext, StorageResult,
 };
-
-const LIFECYCLE_LOCK_NAMESPACE: i32 = 23_404;
 
 impl AlertsIntermediateNew {
     pub async fn bulk_upsert_within_channel(
@@ -71,21 +71,12 @@ impl AlertsIntermediate {
         conn: &DatabaseConnectionWithContext<'_>,
         channel: &str,
     ) -> StorageResult<()> {
-        let query = diesel::sql_query("SELECT pg_advisory_xact_lock($1, hashtext($2))")
-            .bind::<Integer, _>(LIFECYCLE_LOCK_NAMESPACE)
-            .bind::<Text, _>(channel.to_owned());
-
-        generics::db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
-            generics::db_metrics::DatabaseOperation::Filter,
-            query.execute_async(conn.raw_connection()),
+        advisory_xact_lock::<<Self as HasTable>::Table>(
+            conn,
+            LIFECYCLE_STATE_LOCK_NAMESPACE,
+            channel,
         )
         .await
-        .map(|_| ())
-        .map_err(|e| error_stack::report!(e))
-        .change_context(errors::DatabaseError::Others)
-        .attach_printable("Failed to lock the lifecycle state of a channel")
     }
 
     pub async fn list_by_channel(
@@ -141,15 +132,20 @@ impl AlertsIntermediate {
         conn: &DatabaseConnectionWithContext<'_>,
         channel: &str,
     ) -> StorageResult<Option<PrimitiveDateTime>> {
-        generics::generic_filter::<<Self as HasTable>::Table, _, _, Self>(
-            conn,
-            dsl::channel.eq(channel.to_owned()),
-            Some(1),
-            None,
-            Some(dsl::last_updated_at.desc().nulls_last()),
+        let query = <Self as HasTable>::table()
+            .filter(dsl::channel.eq(channel.to_owned()))
+            .select(diesel::dsl::max(dsl::last_updated_at));
+
+        generics::db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
+            conn.request_id(),
+            conn.event_emitter(),
+            generics::db_metrics::DatabaseOperation::FindOne,
+            query.get_result_async::<Option<PrimitiveDateTime>>(conn.raw_connection()),
         )
         .await
-        .map(|rows| rows.into_iter().next().and_then(|row| row.last_updated_at))
+        .map_err(|e| error_stack::report!(e))
+        .change_context(errors::DatabaseError::Others)
+        .attach_printable("Failed to find the latest lifecycle state watermark")
     }
 
     pub async fn delete_by_channel_excluding_ids(

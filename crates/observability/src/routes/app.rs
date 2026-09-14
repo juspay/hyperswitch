@@ -18,7 +18,7 @@ use crate::{
     state::AppState,
 };
 
-const MAX_LIFECYCLE_BODY_BYTES: usize = 16 * 1024 * 1024;
+const MAX_LIFECYCLE_STATE_BODY_BYTES: usize = 16 * 1024 * 1024;
 
 /// The service's routes, all of them behind the internal API key.
 pub struct Alerts;
@@ -114,26 +114,24 @@ pub struct AlertsLifecycle;
 
 impl AlertsLifecycle {
     pub fn server() -> Scope {
-        web::scope("/lifecycle")
-            .app_data(json_config().limit(MAX_LIFECYCLE_BODY_BYTES))
-            .app_data(query_config())
-            .service(
-                web::scope("/{channel}")
-                    .service(
-                        web::resource("/state")
-                            .route(web::get().to(lifecycle::read_state))
-                            .route(web::post().to(lifecycle::write_state)),
-                    )
-                    .service(
-                        web::resource("/announcements")
-                            .route(web::get().to(lifecycle::list_announcements))
-                            .route(web::post().to(lifecycle::record_announcement)),
-                    )
-                    .service(
-                        web::resource("/announcements/{id}")
-                            .route(web::post().to(lifecycle::update_announcement)),
-                    ),
-            )
+        web::scope("/lifecycle").app_data(query_config()).service(
+            web::scope("/{channel}")
+                .service(
+                    web::resource("/state")
+                        .app_data(json_config().limit(MAX_LIFECYCLE_STATE_BODY_BYTES))
+                        .route(web::get().to(lifecycle::read_state))
+                        .route(web::post().to(lifecycle::write_state)),
+                )
+                .service(
+                    web::resource("/announcements")
+                        .route(web::get().to(lifecycle::list_announcements))
+                        .route(web::post().to(lifecycle::record_announcement)),
+                )
+                .service(
+                    web::resource("/announcements/{id}")
+                        .route(web::post().to(lifecycle::update_announcement)),
+                ),
+        )
     }
 }
 
@@ -200,7 +198,7 @@ fn query_config() -> web::QueryConfig {
 
         ApiErrorResponse::BadRequest(ApiError::new(
             "IR",
-            4,
+            6,
             "The request query could not be parsed",
         ))
         .into()

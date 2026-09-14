@@ -19,6 +19,7 @@ pub fn or_empty_list(column: Option<RawJson>) -> ObservabilityApiResult<RawJson>
             RawValue::from_string(EMPTY_LIST.to_owned())
                 .map(RawJson::from)
                 .change_context(ObservabilityError::InternalServerError)
+                .attach_printable("Failed to build an empty JSON list")
         },
         Ok,
     )
@@ -32,15 +33,18 @@ pub fn empty_json_text() -> serde_json::Value {
     serde_json::Value::String(EMPTY_JSON_TEXT.to_owned())
 }
 
-pub fn within_width(value: &str, field: &str, max_chars: usize) -> ObservabilityApiResult<()> {
+pub fn within_width(
+    value: &str,
+    field_name: &'static str,
+    max_chars: usize,
+) -> ObservabilityApiResult<()> {
     let chars = value.chars().count();
     if chars > max_chars {
-        Err(report!(ObservabilityError::InvalidDataValue {
-            field_name: field.to_owned(),
-        })
-        .attach_printable(format!(
-            "The {field} is {chars} characters, over the {max_chars} the column holds"
-        )))?;
+        Err(
+            report!(ObservabilityError::InvalidDataValue { field_name }).attach_printable(format!(
+                "The {field_name} is {chars} characters, over the {max_chars} the column holds"
+            )),
+        )?;
     }
 
     Ok(())
@@ -48,10 +52,10 @@ pub fn within_width(value: &str, field: &str, max_chars: usize) -> Observability
 
 pub fn optional_within_width(
     value: Option<&str>,
-    field: &str,
+    field_name: &'static str,
     max_chars: usize,
 ) -> ObservabilityApiResult<()> {
-    value.map_or(Ok(()), |value| within_width(value, field, max_chars))
+    value.map_or(Ok(()), |value| within_width(value, field_name, max_chars))
 }
 
 pub fn truncate_to_millisecond(value: PrimitiveDateTime) -> PrimitiveDateTime {

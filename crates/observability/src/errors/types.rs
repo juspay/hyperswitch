@@ -74,7 +74,6 @@ pub enum ApiErrorResponse {
     Unauthorized(ApiError),
     /// 404 — the destination named in the path is not configured.
     NotFound(ApiError),
-    Conflict(ApiError),
     /// 500 — the service failed.
     InternalServerError(ApiError),
     /// 502 — the provider could not be reached, or answered outside its documented envelope, so
@@ -93,7 +92,6 @@ impl ApiErrorResponse {
             Self::BadRequest(error)
             | Self::Unauthorized(error)
             | Self::NotFound(error)
-            | Self::Conflict(error)
             | Self::InternalServerError(error)
             | Self::BadGateway(error)
             | Self::ServiceUnavailable(error) => error,
@@ -105,7 +103,7 @@ impl ApiErrorResponse {
     /// Mirrors `api_models::errors::types::ApiErrorResponse::error_type`.
     fn error_type(&self) -> &'static str {
         match self {
-            Self::BadRequest(_) | Self::Unauthorized(_) | Self::NotFound(_) | Self::Conflict(_) => {
+            Self::BadRequest(_) | Self::Unauthorized(_) | Self::NotFound(_) => {
                 ErrorType::InvalidRequestError.as_str()
             }
             Self::InternalServerError(_) | Self::BadGateway(_) | Self::ServiceUnavailable(_) => {
