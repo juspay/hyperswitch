@@ -1,5 +1,5 @@
 use common_enums::{Currency, FraudCheckStatus};
-use common_utils::{ext_traits::ValueExt, pii::SecretSerdeValue, types::MinorUnit};
+use common_utils::{ext_traits::ValueExt, pii::SecretSerdeValue, types::StringMinorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, RouterData},
@@ -14,6 +14,20 @@ use crate::{
     types::{FrmCheckoutRouterData, PoFrmRouterData, ResponseRouterData},
     utils::get_unimplemented_payment_method_error_message,
 };
+
+pub struct SanlamPayshieldRouterData<T> {
+    pub amount: StringMinorUnit,
+    pub router_data: T,
+}
+
+impl<T> From<(StringMinorUnit, T)> for SanlamPayshieldRouterData<T> {
+    fn from((amount, router_data): (StringMinorUnit, T)) -> Self {
+        Self {
+            amount,
+            router_data,
+        }
+    }
+}
 
 pub struct SanlamPayshieldAuthType {
     pub(super) api_key: Secret<String>,
@@ -47,6 +61,7 @@ pub struct SanlamPayshieldCheckoutRequest {
     connector_id: String,
     connector_type: ConnectorType,
     transaction: Transaction,
+    #[serde(skip_serializing_if = "Option::is_none")]
     metadata: Option<SecretSerdeValue>,
 }
 
@@ -61,7 +76,7 @@ pub enum ConnectorType {
 #[serde(rename_all = "camelCase")]
 pub struct Transaction {
     payment_id: String,
-    amount_in_cents: MinorUnit,
+    amount_in_cents: StringMinorUnit,
     currency: Currency,
     payment_method_type: PaymentMethodType,
     created_at: String,
@@ -92,10 +107,15 @@ impl TryFrom<&common_enums::PaymentMethodType> for PaymentMethodType {
     }
 }
 
-impl TryFrom<&FrmCheckoutRouterData> for SanlamPayshieldCheckoutRequest {
+impl TryFrom<&SanlamPayshieldRouterData<&FrmCheckoutRouterData>>
+    for SanlamPayshieldCheckoutRequest
+{
     type Error = error_stack::Report<ConnectorError>;
 
-    fn try_from(data: &FrmCheckoutRouterData) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: &SanlamPayshieldRouterData<&FrmCheckoutRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let data = item.router_data;
         let SanlamPayshieldFrmMetadata {
             profile_id,
             connector_id,
@@ -146,7 +166,7 @@ impl TryFrom<&FrmCheckoutRouterData> for SanlamPayshieldCheckoutRequest {
             connector_type: ConnectorType::Payin,
             transaction: Transaction {
                 payment_id: data.payment_id.clone(),
-                amount_in_cents: data.request.amount,
+                amount_in_cents: item.amount.clone(),
                 currency,
                 payment_method_type,
                 created_at,
@@ -156,10 +176,11 @@ impl TryFrom<&FrmCheckoutRouterData> for SanlamPayshieldCheckoutRequest {
     }
 }
 
-impl TryFrom<&PoFrmRouterData> for SanlamPayshieldCheckoutRequest {
+impl TryFrom<&SanlamPayshieldRouterData<&PoFrmRouterData>> for SanlamPayshieldCheckoutRequest {
     type Error = error_stack::Report<ConnectorError>;
 
-    fn try_from(data: &PoFrmRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &SanlamPayshieldRouterData<&PoFrmRouterData>) -> Result<Self, Self::Error> {
+        let data = item.router_data;
         let SanlamPayshieldFrmMetadata {
             profile_id,
             connector_id,
@@ -210,7 +231,7 @@ impl TryFrom<&PoFrmRouterData> for SanlamPayshieldCheckoutRequest {
             connector_type: ConnectorType::Payout,
             transaction: Transaction {
                 payment_id: payout_id,
-                amount_in_cents: data.request.amount,
+                amount_in_cents: item.amount.clone(),
                 currency: data.request.currency,
                 payment_method_type,
                 created_at,

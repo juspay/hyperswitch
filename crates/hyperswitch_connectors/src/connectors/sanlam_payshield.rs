@@ -4,6 +4,7 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
+    types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -50,14 +51,19 @@ use crate::{
     types::{
         FrmCheckoutRouterData, FrmCheckoutType, PoFrmRouterData, PoFrmType, ResponseRouterData,
     },
+    utils::convert_amount,
 };
 
 #[derive(Clone)]
-pub struct SanlamPayshield;
+pub struct SanlamPayshield {
+    amount_converter: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
+}
 
 impl SanlamPayshield {
     pub fn new() -> &'static Self {
-        &Self
+        &Self {
+            amount_converter: &StringMinorUnitForConnector,
+        }
     }
 }
 
@@ -173,9 +179,18 @@ impl ConnectorIntegration<Checkout, FraudCheckCheckoutData, FraudCheckResponseDa
         req: &FrmCheckoutRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, ConnectorError> {
-        Ok(RequestContent::Json(Box::new(
-            sanlam_payshield::SanlamPayshieldCheckoutRequest::try_from(req)?,
-        )))
+        let amount = convert_amount(
+            self.amount_converter,
+            req.request.amount,
+            req.request
+                .currency
+                .ok_or(ConnectorError::MissingRequiredField {
+                    field_name: "currency".into(),
+                })?,
+        )?;
+        let req_data = sanlam_payshield::SanlamPayshieldRouterData::from((amount, req));
+        let req_obj = sanlam_payshield::SanlamPayshieldCheckoutRequest::try_from(&req_data)?;
+        Ok(RequestContent::Json(Box::new(req_obj)))
     }
 
     fn build_request(
@@ -255,9 +270,14 @@ impl ConnectorIntegration<PoFrm, FraudCheckPayoutData, FraudCheckResponseData> f
         req: &PoFrmRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, ConnectorError> {
-        Ok(RequestContent::Json(Box::new(
-            sanlam_payshield::SanlamPayshieldCheckoutRequest::try_from(req)?,
-        )))
+        let amount = convert_amount(
+            self.amount_converter,
+            req.request.amount,
+            req.request.currency,
+        )?;
+        let req_data = sanlam_payshield::SanlamPayshieldRouterData::from((amount, req));
+        let req_obj = sanlam_payshield::SanlamPayshieldCheckoutRequest::try_from(&req_data)?;
+        Ok(RequestContent::Json(Box::new(req_obj)))
     }
 
     fn build_request(
