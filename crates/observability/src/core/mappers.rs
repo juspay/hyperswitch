@@ -3,6 +3,7 @@ use diesel_models::observability::{
     raw_json::RawJson,
 };
 use error_stack::{report, ResultExt};
+use serde_json::value::RawValue;
 
 use crate::{
     errors::{ObservabilityApiResult, ObservabilityError, StorageErrorExt},
@@ -26,6 +27,8 @@ const USERNAME_MAX_CHARS: usize = 64;
 const MAX_ENTRY_BYTES: usize = 1024 * 1024;
 
 const DEFAULT_USERNAME: &str = "reliability_team";
+
+const EMPTY_LIST: &str = "[]";
 
 pub async fn list_mappers(state: AppState) -> ObservabilityApiResult<MapperListResponse> {
     let connection = state.database_connection().await?;
@@ -94,12 +97,12 @@ pub async fn upsert_mapper(
         id: uuid::Uuid::now_v7(),
         name,
         key_: key,
-        product,
-        values_: values,
+        product: or_empty_list(product)?,
+        values_: or_empty_list(values)?,
         ts_created: common_utils::date_time::now(),
         is_enabled: true,
         username: username.unwrap_or_else(|| DEFAULT_USERNAME.to_owned()),
-        metadata,
+        metadata: or_empty_list(metadata)?,
     }
     .upsert(&connection)
     .await
@@ -168,4 +171,15 @@ fn within_entry_cap(columns: [Option<&RawJson>; 3]) -> ObservabilityApiResult<()
     }
 
     Ok(())
+}
+
+fn or_empty_list(column: Option<RawJson>) -> ObservabilityApiResult<RawJson> {
+    column.map_or_else(
+        || {
+            RawValue::from_string(EMPTY_LIST.to_owned())
+                .map(RawJson::from)
+                .change_context(ObservabilityError::InternalServerError)
+        },
+        Ok,
+    )
 }

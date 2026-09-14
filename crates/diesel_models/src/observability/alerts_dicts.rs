@@ -25,12 +25,12 @@ pub struct AlertsDictNew {
     pub id: uuid::Uuid,
     pub name: String,
     pub key_: String,
-    pub product: Option<RawJson>,
-    pub values_: Option<RawJson>,
+    pub product: RawJson,
+    pub values_: RawJson,
     pub ts_created: PrimitiveDateTime,
     pub is_enabled: bool,
     pub username: String,
-    pub metadata: Option<RawJson>,
+    pub metadata: RawJson,
 }
 
 #[derive(Debug)]
