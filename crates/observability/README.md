@@ -84,10 +84,11 @@ reach the logs from the client, which emits `chars` per request.
 
 ## The API
 
-Two surfaces under one scope. **Delivery** sends a message; **configuration** reads and writes the
+Three surfaces under one scope. **Delivery** sends a message; **configuration** reads and writes the
 rows this plane owns — what an alert is, whether it runs, its per-merchant thresholds, the mappers the
-dashboard reads, and how far a user has read their notifications. Routes under `/alerts/config`, and
-`/health/ready`, touch the database; delivery routes do not.
+dashboard reads, and how far a user has read their notifications; **lifecycle** holds the alert
+manager's working state and the announcements it made. Routes under `/alerts/config` and
+`/alerts/lifecycle`, and `/health/ready`, touch the database; delivery routes do not.
 
 ### Delivery
 
@@ -419,6 +420,93 @@ that matches no route. The configuration errors, added to the table above:
 
 The failing host, database and role reach the log and never the response.
 
+### Lifecycle
+
+Two resources per channel, backed by the observability database.
+
+| Method | Path | |
+|---|---|---|
+| `GET` | `/alerts/lifecycle/{channel}/state` | the channel's whole alert state |
+| `POST` | `/alerts/lifecycle/{channel}/state` | replace it |
+| `GET` | `/alerts/lifecycle/{channel}/announcements` | announcements in a `ts_alert` window |
+| `POST` | `/alerts/lifecycle/{channel}/announcements` | record one |
+| `POST` | `/alerts/lifecycle/{channel}/announcements/{id}` | update one's metadata |
+
+`alerts_intermediate` holds what is firing now; `alerts_main` records each announcement made about
+it, with its `sent` flag and thread. `{channel}` is `slack` or `xyne`. Both channels share the two
+tables, every row carries its `channel`, and every read, write and lock is scoped to the channel in
+the path. Another channel, or an announcement id that is not a UUID, gets the same empty `404` as a
+path that matches no route.
+
+#### State
+
+A read answers `{"count": n, "last_updated_at": …, "alerts": [...]}`, the rows ordered by `ts_alert`;
+`last_updated_at` is the latest row's, and `null` for an empty state.
+
+A write replaces the channel's state: rows it does not carry are deleted, and it never writes
+`alerts_main`. Rows are addressed by `id_intermediate`; a row sent without one gets a UUIDv7, and the
+response `{"last_updated_at": …, "stored": n, "removed": n, "id_intermediates": [...]}` lists every
+row's id in request order so the next write can send them back. A write that stores no rows answers
+`last_updated_at: null`. Rows are written 1,000 per statement in one transaction.
+
+A write carries `expected_last_updated_at`, the value the last read or write answered; absent or
+`null` means the state was empty. The write takes a transaction-level Postgres advisory lock on the
+channel, compares that value with the stored latest `last_updated_at` to the millisecond, and on a
+mismatch is refused with `IR_16` and changes nothing. `IR_16` is a `400`, as hyperswitch's
+`PreconditionFailed` is. The caller reads the state again rather than retrying the same write.
+
+`name` and `product` are required on every row and must not be blank. A row links to the
+announcement recorded for it through `announcement_id` (the `id` column). Left out or `null`,
+`dimensions` is stored as `[]`, `rca_metadata` as `{}`, `max_duration` as `0`, `group_id` and
+`priority` as `''`, and `ts_alert` and `latest_ts_alert` as the time of the write. `last_updated_at`
+is always this service's clock, truncated to the millisecond. A write carries at most 5,000 rows,
+and `POST .../state` accepts a body of up to 16 MiB rather than the 2 MiB of the other JSON routes.
+
+```http
+POST /alerts/lifecycle/slack/state
+{ "expected_last_updated_at": null,
+  "alerts": [{ "name": "sr_drop", "product": "payments", "group_id": "sr_drop|merchant_1234", "priority": "SEV2" }] }
+→ 200 { "last_updated_at": "2026-09-15T10:00:00.123Z", "stored": 1, "removed": 0, "id_intermediates": ["0199…"] }
+```
+
+#### Announcements
+
+A record appends one `alerts_main` row with a generated id and `ts_alert` and `last_updated_at` set
+to this service's clock, and answers the row. `name` and `product` are required and must not be
+blank; left out or `null`, `dimensions` is stored as `[]`, `rca_metadata` as `{}`, `duration` as
+`0`, and `sent` and `critical` as false.
+
+`GET .../announcements?start=&end=` lists the channel's announcements whose `ts_alert` is within the
+window, newest first, as `{"count": n, "announcements": [...]}`. Without `end` the window ends now,
+and without `start` it spans the 7 days before `end`; a window that ends before it starts or spans
+more than 30 days is refused. These are r-apps' `DEFAULT_DAYS` and `DAYS_LIMIT` for `getAlerts`.
+
+`POST .../announcements/{id}` with `{"metadata": {...}}` answers the announcement. In one
+transaction that first takes the channel's lock, it replaces the announcement's `metadata` with the
+body's and sets its `last_updated_at`, then merges the same keys, except `is_visible_to_merchant`,
+into the metadata of each state row referencing it. This differs from r-apps' `update_alert` in
+three ways: a state row whose `metadata` is `NULL` or not an object takes the patch, where r-apps'
+`metadata || patch` leaves a `NULL` metadata `NULL`; the state rows' `last_updated_at` is left alone,
+so the edit does not make the alert manager's next state write stale; and `merchants_alert_external`
+is not updated. A state write from a run that read the state before the edit stores the metadata it
+read.
+
+#### Lifecycle errors
+
+Blank values, widths, times and document shapes are checked before a database connection is taken.
+A body that does not parse or is over its size limit, including one missing `name` or `product` or
+giving it `null`, is the `IR_04` above; a query string that does not parse or names another parameter is `IR_06`. Added to
+the tables above:
+
+| | Status | Code |
+|---|---|---|
+| `name` or `product` is blank, a field is longer than its column holds, or a row's `ts_alert`, `latest_ts_alert` or `recovered_ts`, or the window's `start` or `end`, is before 1970 | 400 | `IR_07` |
+| The same `id_intermediate` twice in one write, or announcement `metadata` that is not an object | 400 | `IR_06` |
+| The state changed after it was read | 400 | `IR_16` |
+| A write carries more than 5,000 rows, or an `id_intermediate` of the other channel | 400 | `HE_03` |
+| The announcement window ends before it starts or spans more than 30 days | 400 | `HE_03` |
+| A state row references an announcement this channel does not have, or the announcement id is unknown | 404 | `HE_02` |
+
 ## Destinations
 
 Configured under `chat.destinations.<id>` and `email.destinations.<id>`, resolved once at boot.
@@ -460,8 +548,8 @@ unverified sender all arrive as one variant — so email only ever reports `deli
 ## Layout
 
 ```
-routes/          the route tree, and one module of handlers per area: notify, config, mappers and notifications
-core/            what one request does, per area: deliver a message, or read and write configuration
+routes/          the route tree, and one module of handlers per area: notify, config, mappers, notifications and lifecycle
+core/            what one request does, per area: deliver a message, read and write configuration, or keep the alert lifecycle
 domain/          what delivering an alert is: the notifier traits and the types they exchange
 types/           the wire contract, per area
 ```
@@ -469,9 +557,11 @@ types/           the wire contract, per area
 Configuration requests are handled in `routes/config.rs` and `core/config.rs`, with their request
 and response types and validation in `types/config.rs`; mapper and watermark requests in the
 `mappers.rs` and `notifications.rs` of the same three modules, with `X-User-Name` read in `auth.rs`.
-The rows are `alerts_info`, `merchants_alert_external_config`, `merchant_thresholds`, `alerts_dicts`
-and `notification_reads` in `diesel_models::observability`, their queries are in
-`diesel_models::query::observability`, and the tables are created by `migrations/`.
+Lifecycle requests are handled in the `lifecycle.rs` of the same three modules. The rows are
+`alerts_info`, `merchants_alert_external_config`, `merchant_thresholds`, `alerts_dicts`,
+`notification_reads`, `alerts_main` and `alerts_intermediate` in `diesel_models::observability`,
+their queries are in `diesel_models::query::observability`, and the tables are created by
+`migrations/`.
 
 `domain` holds no HTTP. `core` holds no traits. A handler that grows logic belongs in `core`; a
 concept that a background job would also need belongs in `domain`.

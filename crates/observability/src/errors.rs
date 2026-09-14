@@ -119,6 +119,21 @@ pub enum ObservabilityError {
     #[error("No notification watermark exists for this user")]
     NotificationWatermarkNotFound,
 
+    #[error("The lifecycle write carries {alerts} alerts, over the {limit} allowed")]
+    StateTooLarge { alerts: usize, limit: usize },
+
+    #[error("The lifecycle state changed after it was read")]
+    StateChanged,
+
+    #[error("No announcement exists with id `{id}`")]
+    UnknownAnnouncement { id: String },
+
+    #[error("{alerts} alerts in the lifecycle write belong to another channel")]
+    ForeignAlertState { alerts: usize },
+
+    #[error("The announcement window must end after it starts and span at most {max_days} days")]
+    InvalidAnnouncementWindow { max_days: i64 },
+
     /// The path named a destination that is not configured.
     #[error("No destination is configured under `{destination}`")]
     UnknownDestination {
@@ -262,6 +277,35 @@ impl ErrorSwitch<ApiErrorResponse> for ObservabilityError {
                 2,
                 "Notification watermark does not exist in our records",
             )),
+            Self::StateTooLarge { .. } => ApiErrorResponse::BadRequest(ApiError::new(
+                "HE",
+                3,
+                "The lifecycle write carries more alerts than this service stores",
+            )),
+            Self::StateChanged => ApiErrorResponse::BadRequest(ApiError::new(
+                "IR",
+                16,
+                "The lifecycle state changed after it was read",
+            )),
+            Self::UnknownAnnouncement { .. } => ApiErrorResponse::NotFound(ApiError::new(
+                "HE",
+                2,
+                "Announcement does not exist in our records",
+            )),
+            Self::ForeignAlertState { .. } => ApiErrorResponse::BadRequest(ApiError::new(
+                "HE",
+                3,
+                "The lifecycle write names alert state that belongs to another channel",
+            )),
+            Self::InvalidAnnouncementWindow { max_days } => {
+                ApiErrorResponse::BadRequest(ApiError::new(
+                    "HE",
+                    3,
+                    format!(
+                        "The announcement window must end after it starts and span at most {max_days} days"
+                    ),
+                ))
+            }
             // 502 rather than 500: the failure is on the far side of a hop we made. Note this is
             // the *only* provider-shaped error left, because every answer the provider gives is a
             // 200 outcome instead.

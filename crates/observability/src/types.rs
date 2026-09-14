@@ -48,6 +48,7 @@
 //! backends in `external_services` hardcode an HTML body and there is no plain-text path to reach.
 
 pub mod config;
+pub mod lifecycle;
 pub mod mappers;
 pub mod notifications;
 

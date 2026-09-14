@@ -14,9 +14,11 @@ use actix_web::{error::InternalError, web, HttpResponse, Scope};
 use crate::{
     errors::types::{ApiError, ApiErrorResponse},
     logger,
-    routes::{config, health_check, mappers, notifications, notify},
+    routes::{config, health_check, lifecycle, mappers, notifications, notify},
     state::AppState,
 };
+
+const MAX_LIFECYCLE_STATE_BODY_BYTES: usize = 16 * 1024 * 1024;
 
 /// The service's routes, all of them behind the internal API key.
 pub struct Alerts;
@@ -54,6 +56,7 @@ impl Alerts {
                 web::resource("/notify/{destination}").route(web::post().to(notify::email)),
             ))
             .service(AlertsConfig::server())
+            .service(AlertsLifecycle::server())
     }
 }
 
@@ -118,6 +121,31 @@ impl AlertsConfig {
                         .route(web::post().to(notifications::notification_watermark_upsert)),
                 ),
             )
+    }
+}
+
+pub struct AlertsLifecycle;
+
+impl AlertsLifecycle {
+    pub fn server() -> Scope {
+        web::scope("/lifecycle").service(
+            web::scope("/{channel}")
+                .service(
+                    web::resource("/state")
+                        .app_data(json_config().limit(MAX_LIFECYCLE_STATE_BODY_BYTES))
+                        .route(web::get().to(lifecycle::lifecycle_state_retrieve))
+                        .route(web::post().to(lifecycle::lifecycle_state_save)),
+                )
+                .service(
+                    web::resource("/announcements")
+                        .route(web::get().to(lifecycle::announcement_list))
+                        .route(web::post().to(lifecycle::announcement_create)),
+                )
+                .service(
+                    web::resource("/announcements/{id}")
+                        .route(web::post().to(lifecycle::announcement_update)),
+                ),
+        )
     }
 }
 
