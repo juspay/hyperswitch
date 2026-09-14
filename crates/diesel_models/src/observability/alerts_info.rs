@@ -115,11 +115,10 @@ pub enum AlertsInfoUpdate {
         history_window: Option<Option<i32>>,
         thresholds: Option<Option<Thresholds>>,
         metadata: Option<Option<serde_json::Value>>,
-        is_enabled: Option<Option<bool>>,
+        is_enabled: Option<bool>,
         comments: Option<Option<serde_json::Value>>,
         call_period: Option<Option<i32>>,
         approver: Option<Option<String>>,
-        last_updated_at: PrimitiveDateTime,
     },
 }
 
@@ -135,7 +134,7 @@ pub struct AlertsInfoUpdateInternal {
     pub history_window: Option<Option<i32>>,
     pub thresholds: Option<Option<Thresholds>>,
     pub metadata: Option<Option<serde_json::Value>>,
-    pub is_enabled: Option<Option<bool>>,
+    pub is_enabled: Option<bool>,
     pub comments: Option<Option<serde_json::Value>>,
     pub call_period: Option<Option<i32>>,
     pub approver: Option<Option<String>>,
@@ -159,7 +158,6 @@ impl From<AlertsInfoUpdate> for AlertsInfoUpdateInternal {
                 comments,
                 call_period,
                 approver,
-                last_updated_at,
             } => Self {
                 dimensions,
                 period,
@@ -174,7 +172,7 @@ impl From<AlertsInfoUpdate> for AlertsInfoUpdateInternal {
                 comments,
                 call_period,
                 approver,
-                last_updated_at,
+                last_updated_at: common_utils::date_time::now(),
             },
         }
     }

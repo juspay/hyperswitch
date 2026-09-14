@@ -37,10 +37,11 @@ pub async fn create_definition(
         .insert(&connection)
         .await
         .to_duplicate_response(ObservabilityError::DuplicateDefinition { name, product })
+        .attach_printable("Failed to insert the alert definition")
         .map(AlertDefinitionResponse::from)
 }
 
-pub async fn read_definition(
+pub async fn retrieve_definition(
     state: AppState,
     id: uuid::Uuid,
 ) -> ObservabilityApiResult<AlertDefinitionResponse> {
@@ -49,6 +50,7 @@ pub async fn read_definition(
     AlertsInfo::find_by_id(&connection, id)
         .await
         .to_not_found_response(ObservabilityError::DefinitionNotFound { id: id.to_string() })
+        .attach_printable("Failed to find the alert definition")
         .map(AlertDefinitionResponse::from)
 }
 
@@ -57,10 +59,18 @@ pub async fn list_definitions(
 ) -> ObservabilityApiResult<AlertDefinitionListResponse> {
     let connection = state.database_connection().await?;
 
-    AlertsInfo::list(&connection)
+    let definitions = AlertsInfo::list(&connection)
         .await
         .change_context(ObservabilityError::InternalServerError)
-        .map(|definitions| definitions.into_iter().collect())
+        .attach_printable("Failed to list the alert definitions")?
+        .into_iter()
+        .map(AlertDefinitionResponse::from)
+        .collect::<Vec<_>>();
+
+    Ok(AlertDefinitionListResponse {
+        count: definitions.len(),
+        definitions,
+    })
 }
 
 pub async fn update_definition(
@@ -77,14 +87,11 @@ pub async fn update_definition(
 
     let connection = state.database_connection().await?;
 
-    AlertsInfo::update_by_id(
-        &connection,
-        id,
-        request.into_changeset(common_utils::date_time::now()),
-    )
-    .await
-    .to_not_found_response(ObservabilityError::DefinitionNotFound { id: id.to_string() })
-    .map(AlertDefinitionResponse::from)
+    AlertsInfo::update_by_id(&connection, id, request.into())
+        .await
+        .to_not_found_response(ObservabilityError::DefinitionNotFound { id: id.to_string() })
+        .attach_printable("Failed to update the alert definition")
+        .map(AlertDefinitionResponse::from)
 }
 
 pub async fn upsert_enablement(
@@ -111,10 +118,11 @@ pub async fn upsert_enablement(
         .upsert(&connection)
         .await
         .change_context(ObservabilityError::InternalServerError)
+        .attach_printable("Failed to upsert the alert enablement row")
         .map(|row| AlertEnablementResponse::new(row, Some(definition_is_enabled)))
 }
 
-pub async fn read_enablement(
+pub async fn retrieve_enablement(
     state: AppState,
     name: String,
     product: String,
@@ -126,7 +134,8 @@ pub async fn read_enablement(
         .to_not_found_response(ObservabilityError::EnablementNotFound {
             name: name.clone(),
             product: product.clone(),
-        })?;
+        })
+        .attach_printable("Failed to find the alert enablement row")?;
 
     let definition_is_enabled = find_definition_for(&connection, &name, &product)
         .await?
@@ -142,11 +151,13 @@ pub async fn list_enablements(
 
     let rows = MerchantsAlertExternalConfig::list(&connection)
         .await
-        .change_context(ObservabilityError::InternalServerError)?;
+        .change_context(ObservabilityError::InternalServerError)
+        .attach_printable("Failed to list the alert enablement rows")?;
 
     let definitions = AlertsInfo::list(&connection)
         .await
-        .change_context(ObservabilityError::InternalServerError)?
+        .change_context(ObservabilityError::InternalServerError)
+        .attach_printable("Failed to list the alert definitions")?
         .into_iter()
         .map(|definition| {
             (
@@ -180,6 +191,7 @@ async fn find_definition_for(
     AlertsInfo::find_optional_by_name_and_product(connection, name, product)
         .await
         .change_context(ObservabilityError::InternalServerError)
+        .attach_printable("Failed to find the alert definition for the enablement row")
 }
 
 fn validate_snooze(snooze: &Snooze) -> ObservabilityApiResult<()> {

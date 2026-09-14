@@ -8,7 +8,7 @@ use crate::{
     },
 };
 
-pub async fn list_definitions(state: web::Data<AppState>, request: HttpRequest) -> HttpResponse {
+pub async fn definition_list(state: web::Data<AppState>, request: HttpRequest) -> HttpResponse {
     services::server_wrap(
         state.get_ref().clone(),
         &request,
@@ -19,7 +19,7 @@ pub async fn list_definitions(state: web::Data<AppState>, request: HttpRequest) 
     .await
 }
 
-pub async fn create_definition(
+pub async fn definition_create(
     state: web::Data<AppState>,
     request: HttpRequest,
     payload: web::Json<AlertDefinitionCreateRequest>,
@@ -34,7 +34,7 @@ pub async fn create_definition(
     .await
 }
 
-pub async fn read_definition(
+pub async fn definition_retrieve(
     state: web::Data<AppState>,
     request: HttpRequest,
     id: web::Path<uuid::Uuid>,
@@ -45,13 +45,13 @@ pub async fn read_definition(
         state.get_ref().clone(),
         &request,
         (),
-        |state, ()| async move { core::config::read_definition(state, id).await },
+        |state, ()| async move { core::config::retrieve_definition(state, id).await },
         &auth::InternalApiKeyAuth,
     )
     .await
 }
 
-pub async fn update_definition(
+pub async fn definition_update(
     state: web::Data<AppState>,
     request: HttpRequest,
     id: web::Path<uuid::Uuid>,
@@ -69,7 +69,7 @@ pub async fn update_definition(
     .await
 }
 
-pub async fn list_enablements(state: web::Data<AppState>, request: HttpRequest) -> HttpResponse {
+pub async fn enablement_list(state: web::Data<AppState>, request: HttpRequest) -> HttpResponse {
     services::server_wrap(
         state.get_ref().clone(),
         &request,
@@ -80,7 +80,7 @@ pub async fn list_enablements(state: web::Data<AppState>, request: HttpRequest) 
     .await
 }
 
-pub async fn read_enablement(
+pub async fn enablement_retrieve(
     state: web::Data<AppState>,
     request: HttpRequest,
     path: web::Path<(String, String)>,
@@ -91,13 +91,13 @@ pub async fn read_enablement(
         state.get_ref().clone(),
         &request,
         (),
-        |state, ()| async move { core::config::read_enablement(state, name, product).await },
+        |state, ()| async move { core::config::retrieve_enablement(state, name, product).await },
         &auth::InternalApiKeyAuth,
     )
     .await
 }
 
-pub async fn upsert_enablement(
+pub async fn enablement_upsert(
     state: web::Data<AppState>,
     request: HttpRequest,
     path: web::Path<(String, String)>,

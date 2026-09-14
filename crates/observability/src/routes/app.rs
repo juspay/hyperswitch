@@ -64,22 +64,22 @@ impl AlertsConfig {
                 web::scope("/definitions")
                     .service(
                         web::resource("")
-                            .route(web::get().to(config::list_definitions))
-                            .route(web::post().to(config::create_definition)),
+                            .route(web::get().to(config::definition_list))
+                            .route(web::post().to(config::definition_create)),
                     )
                     .service(
                         web::resource("/{id}")
-                            .route(web::get().to(config::read_definition))
-                            .route(web::post().to(config::update_definition)),
+                            .route(web::get().to(config::definition_retrieve))
+                            .route(web::post().to(config::definition_update)),
                     ),
             )
             .service(
                 web::scope("/enablement")
-                    .service(web::resource("").route(web::get().to(config::list_enablements)))
+                    .service(web::resource("").route(web::get().to(config::enablement_list)))
                     .service(
                         web::resource("/{name}/{product}")
-                            .route(web::get().to(config::read_enablement))
-                            .route(web::post().to(config::upsert_enablement)),
+                            .route(web::get().to(config::enablement_retrieve))
+                            .route(web::post().to(config::enablement_upsert)),
                     ),
             )
     }

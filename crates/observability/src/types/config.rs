@@ -7,16 +7,8 @@ use diesel_models::observability::{
         MerchantsAlertExternalConfig, MerchantsAlertExternalConfigNew,
     },
 };
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
-
-fn double_option<'de, T, D>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
-where
-    T: Deserialize<'de>,
-    D: Deserializer<'de>,
-{
-    Deserialize::deserialize(deserializer).map(Some)
-}
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -67,49 +59,48 @@ impl AlertDefinitionCreateRequest {
 #[serde(deny_unknown_fields)]
 pub struct AlertDefinitionUpdateRequest {
     pub is_enabled: Option<bool>,
-    #[serde(default, deserialize_with = "double_option")]
+    #[serde(default, with = "serde_with::rust::double_option")]
     pub approver: Option<Option<String>>,
-    #[serde(default, deserialize_with = "double_option")]
+    #[serde(default, with = "serde_with::rust::double_option")]
     pub dimensions: Option<Option<String>>,
-    #[serde(default, deserialize_with = "double_option")]
+    #[serde(default, with = "serde_with::rust::double_option")]
     pub period: Option<Option<i32>>,
-    #[serde(default, deserialize_with = "double_option")]
+    #[serde(default, with = "serde_with::rust::double_option")]
     pub default_channel: Option<Option<String>>,
-    #[serde(default, deserialize_with = "double_option")]
+    #[serde(default, with = "serde_with::rust::double_option")]
     pub default_critical: Option<Option<bool>>,
-    #[serde(default, deserialize_with = "double_option")]
+    #[serde(default, with = "serde_with::rust::double_option")]
     pub blacklist: Option<Option<Vec<BlacklistEntry>>>,
-    #[serde(default, deserialize_with = "double_option")]
+    #[serde(default, with = "serde_with::rust::double_option")]
     pub snooze: Option<Option<Snooze>>,
-    #[serde(default, deserialize_with = "double_option")]
+    #[serde(default, with = "serde_with::rust::double_option")]
     pub history_window: Option<Option<i32>>,
-    #[serde(default, deserialize_with = "double_option")]
+    #[serde(default, with = "serde_with::rust::double_option")]
     pub thresholds: Option<Option<Vec<ThresholdEntry>>>,
-    #[serde(default, deserialize_with = "double_option")]
+    #[serde(default, with = "serde_with::rust::double_option")]
     pub metadata: Option<Option<serde_json::Value>>,
-    #[serde(default, deserialize_with = "double_option")]
+    #[serde(default, with = "serde_with::rust::double_option")]
     pub comments: Option<Option<serde_json::Value>>,
-    #[serde(default, deserialize_with = "double_option")]
+    #[serde(default, with = "serde_with::rust::double_option")]
     pub call_period: Option<Option<i32>>,
 }
 
-impl AlertDefinitionUpdateRequest {
-    pub fn into_changeset(self, now: PrimitiveDateTime) -> AlertsInfoUpdate {
-        AlertsInfoUpdate::Update {
-            dimensions: self.dimensions,
-            period: self.period,
-            default_channel: self.default_channel,
-            default_critical: self.default_critical,
-            blacklist: self.blacklist.map(|entries| entries.map(Blacklist)),
-            snooze: self.snooze,
-            history_window: self.history_window,
-            thresholds: self.thresholds.map(|entries| entries.map(Thresholds)),
-            metadata: self.metadata,
-            is_enabled: self.is_enabled.map(Some),
-            comments: self.comments,
-            call_period: self.call_period,
-            approver: self.approver,
-            last_updated_at: now,
+impl From<AlertDefinitionUpdateRequest> for AlertsInfoUpdate {
+    fn from(request: AlertDefinitionUpdateRequest) -> Self {
+        Self::Update {
+            dimensions: request.dimensions,
+            period: request.period,
+            default_channel: request.default_channel,
+            default_critical: request.default_critical,
+            blacklist: request.blacklist.map(|entries| entries.map(Blacklist)),
+            snooze: request.snooze,
+            history_window: request.history_window,
+            thresholds: request.thresholds.map(|entries| entries.map(Thresholds)),
+            metadata: request.metadata,
+            is_enabled: request.is_enabled,
+            comments: request.comments,
+            call_period: request.call_period,
+            approver: request.approver,
         }
     }
 }
@@ -174,20 +165,6 @@ impl From<AlertsInfo> for AlertDefinitionResponse {
 pub struct AlertDefinitionListResponse {
     pub count: usize,
     pub definitions: Vec<AlertDefinitionResponse>,
-}
-
-impl FromIterator<AlertsInfo> for AlertDefinitionListResponse {
-    fn from_iter<I: IntoIterator<Item = AlertsInfo>>(definitions: I) -> Self {
-        let definitions = definitions
-            .into_iter()
-            .map(AlertDefinitionResponse::from)
-            .collect::<Vec<_>>();
-
-        Self {
-            count: definitions.len(),
-            definitions,
-        }
-    }
 }
 
 #[derive(Debug, Deserialize)]
