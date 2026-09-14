@@ -11,7 +11,7 @@
 
 use std::{collections::HashMap, path::PathBuf};
 
-use common_utils::{ext_traits::ConfigExt, pii};
+use common_utils::{ext_traits::ConfigExt, pii, DbConnectionParams};
 use config::{Environment, File};
 use external_services::{
     chat_service::{slack::SlackConfig, xyne::XyneConfig},
@@ -53,6 +53,7 @@ pub struct Settings<S: SecretState> {
     pub log: Log,
     /// Credentials guarding this service's routes.
     pub auth: SecretStateContainer<AuthSettings, S>,
+    pub database: SecretStateContainer<DatabaseSettings, S>,
     /// How secret values in this file are resolved at boot.
     pub secrets_management: SecretsManagementConfig,
     /// Outbound HTTP proxy. A deployment fact rather than a property of any destination, which is
@@ -262,6 +263,96 @@ impl AuthSettings {
     }
 }
 
+#[derive(Debug, Deserialize, Clone)]
+#[serde(default)]
+pub struct DatabaseSettings {
+    pub host: String,
+    pub port: u16,
+    pub dbname: String,
+    pub username: String,
+    pub password: Secret<String>,
+    pub pool_size: u32,
+    pub connection_timeout: u64,
+}
+
+impl Default for DatabaseSettings {
+    fn default() -> Self {
+        Self {
+            host: "localhost".into(),
+            port: 5432,
+            dbname: String::new(),
+            username: String::new(),
+            password: Secret::default(),
+            pool_size: 5,
+            connection_timeout: 10,
+        }
+    }
+}
+
+impl DbConnectionParams for DatabaseSettings {
+    fn get_username(&self) -> &str {
+        &self.username
+    }
+    fn get_password(&self) -> Secret<String> {
+        self.password.clone()
+    }
+    fn get_host(&self) -> &str {
+        &self.host
+    }
+    fn get_port(&self) -> u16 {
+        self.port
+    }
+    fn get_dbname(&self) -> &str {
+        &self.dbname
+    }
+}
+
+impl DatabaseSettings {
+    pub fn validate(&self) -> Result<(), errors::ConfigurationError> {
+        common_utils::fp_utils::when(self.host.is_default_or_empty(), || {
+            Err(errors::ConfigurationError::ConfigParsingError(
+                "database host must not be empty".into(),
+            ))
+        })?;
+
+        common_utils::fp_utils::when(self.dbname.is_default_or_empty(), || {
+            Err(errors::ConfigurationError::ConfigParsingError(
+                "database name must not be empty".into(),
+            ))
+        })?;
+
+        common_utils::fp_utils::when(self.username.is_default_or_empty(), || {
+            Err(errors::ConfigurationError::ConfigParsingError(
+                "database user username must not be empty".into(),
+            ))
+        })?;
+
+        common_utils::fp_utils::when(self.password.is_default_or_empty(), || {
+            Err(errors::ConfigurationError::ConfigParsingError(
+                "database user password must not be empty".into(),
+            ))
+        })?;
+
+        common_utils::fp_utils::when(self.port == 0, || {
+            Err(errors::ConfigurationError::ConfigParsingError(
+                "database port must be greater than zero".into(),
+            ))
+        })?;
+
+        common_utils::fp_utils::when(self.pool_size == 0, || {
+            Err(errors::ConfigurationError::ConfigParsingError(
+                "database pool_size must be greater than zero".into(),
+            ))
+        })?;
+
+        common_utils::fp_utils::when(self.connection_timeout == 0, || {
+            Err(errors::ConfigurationError::ConfigParsingError(
+                "database connection_timeout must be greater than zero".into(),
+            ))
+        })
+    }
+}
+
 /// Listener configuration for the standalone binary.
 #[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
@@ -347,6 +438,7 @@ impl Settings<SecuredSecret> {
     pub fn validate(&self) -> Result<(), errors::ConfigurationError> {
         self.server.validate()?;
         self.auth.get_inner().validate()?;
+        self.database.get_inner().validate()?;
         self.chat.get_inner().validate()?;
         self.email.validate()?;
         self.secrets_management

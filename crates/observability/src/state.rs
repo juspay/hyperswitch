@@ -2,6 +2,8 @@
 
 use std::{collections::HashMap, sync::Arc};
 
+use common_utils::DbConnectionParams;
+use diesel_models::DejaPgConnection;
 use external_services::{
     chat_service::{slack::SlackClient, xyne::XyneClient},
     email::{
@@ -22,8 +24,12 @@ use crate::{
     },
     errors::ConfigurationError,
     logger, secrets_transformers,
-    settings::{ChatDestination, ChatSettings, EmailSettings, Settings},
+    settings::{ChatDestination, ChatSettings, DatabaseSettings, EmailSettings, Settings},
 };
+
+const DATABASE_SCHEMA: &str = "public";
+
+pub type DatabasePool = bb8::Pool<async_bb8_diesel::ConnectionManager<DejaPgConnection>>;
 
 /// Everything a request handler needs, cloned per worker.
 ///
@@ -39,6 +45,7 @@ pub struct AppState {
     pub chat: Arc<Registry<dyn ChatNotifier>>,
     /// Email destinations, by the id a request names.
     pub email: Arc<Registry<dyn EmailNotifier>>,
+    pub database: DatabasePool,
 }
 
 impl AppState {
@@ -72,6 +79,8 @@ impl AppState {
             .await
             .expect("Failed to build the email destinations");
 
+        let database = build_database_pool(raw_conf.database.get_inner());
+
         if chat.is_empty() && email.is_empty() {
             logger::warn!(
                 "No chat or email destinations are configured; every notify request will be \
@@ -89,6 +98,7 @@ impl AppState {
             conf: Arc::new(raw_conf),
             chat: Arc::new(chat),
             email: Arc::new(email),
+            database,
         }
     }
 }
@@ -169,6 +179,31 @@ async fn build_email_registry(
             })
             .collect(),
     ))
+}
+
+#[derive(Debug, Clone, Copy)]
+struct LogConnectionErrors;
+
+impl<E: std::fmt::Display> bb8::ErrorSink<E> for LogConnectionErrors {
+    fn sink(&self, error: E) {
+        logger::error!(%error, "Observability database connection failed");
+    }
+
+    fn boxed_clone(&self) -> Box<dyn bb8::ErrorSink<E>> {
+        Box::new(*self)
+    }
+}
+
+pub fn build_database_pool(database: &DatabaseSettings) -> DatabasePool {
+    let manager = async_bb8_diesel::ConnectionManager::<DejaPgConnection>::new(
+        database.get_database_url(DATABASE_SCHEMA),
+    );
+
+    bb8::Pool::builder()
+        .max_size(database.pool_size)
+        .connection_timeout(std::time::Duration::from_secs(database.connection_timeout))
+        .error_sink(Box::new(LogConnectionErrors))
+        .build_unchecked(manager)
 }
 
 /// Build the email transport named in configuration.

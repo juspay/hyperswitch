@@ -24,7 +24,7 @@ use observability::{
         Registry,
     },
     routes::Alerts,
-    state::AppState,
+    state::{build_database_pool, AppState},
 };
 use serde_json::{json, Value};
 
@@ -53,10 +53,22 @@ async fn state_with_max(max_upload_bytes: usize) -> AppState {
         None,
     ));
 
+    let database = build_database_pool(
+        &serde_json::from_value(json!({
+            "host": "127.0.0.1",
+            "port": 1,
+            "dbname": "unused",
+            "username": "unused",
+            "password": "unused"
+        }))
+        .expect("the test database configuration should deserialize"),
+    );
+
     AppState {
         conf: Arc::new(conf),
         chat: Arc::new(Registry::new(HashMap::from([(CHAT.to_owned(), chat)]))),
         email: Arc::new(Registry::new(HashMap::from([(EMAIL.to_owned(), email)]))),
+        database,
     }
 }
 
