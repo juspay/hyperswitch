@@ -8426,3 +8426,31 @@ payment_method_type = "DinersClub"
 api_key = "EPG Password"
 key1 = "EPG UserName"
 api_secret = "EPG Customer"
+
+[globalpayments_heartland]
+[[globalpayments_heartland.credit]]
+payment_method_type = "Mastercard"
+[[globalpayments_heartland.credit]]
+payment_method_type = "Visa"
+[[globalpayments_heartland.credit]]
+payment_method_type = "AmericanExpress"
+[[globalpayments_heartland.credit]]
+payment_method_type = "JCB"
+[[globalpayments_heartland.credit]]
+payment_method_type = "Discover"
+[[globalpayments_heartland.credit]]
+payment_method_type = "DinersClub"
+[[globalpayments_heartland.debit]]
+payment_method_type = "Mastercard"
+[[globalpayments_heartland.debit]]
+payment_method_type = "Visa"
+[[globalpayments_heartland.debit]]
+payment_method_type = "AmericanExpress"
+[[globalpayments_heartland.debit]]
+payment_method_type = "JCB"
+[[globalpayments_heartland.debit]]
+payment_method_type = "Discover"
+[[globalpayments_heartland.debit]]
+payment_method_type = "DinersClub"
+[globalpayments_heartland.connector_auth.HeaderKey]
+api_key = "Secret API Key"
