@@ -116,6 +116,12 @@ pub enum ObservabilityError {
     #[error("The announcement window must end after it starts and span at most {max_days} days")]
     InvalidAnnouncementWindow { max_days: i64 },
 
+    #[error("The instance write carries {merchants} merchants, over the {limit} allowed")]
+    InstancesTooLarge { merchants: usize, limit: usize },
+
+    #[error("The dimension write carries {dimensions} dimensions, over the {limit} allowed")]
+    DimensionsTooLarge { dimensions: usize, limit: usize },
+
     /// The path named a destination that is not configured.
     #[error("No destination is configured under `{destination}`")]
     UnknownDestination {
@@ -257,6 +263,16 @@ impl ErrorSwitch<ApiErrorResponse> for ObservabilityError {
                 "HE",
                 3,
                 "The announcement window must end after it starts and span at most 30 days",
+            )),
+            Self::InstancesTooLarge { .. } => ApiErrorResponse::BadRequest(ApiError::new(
+                "HE",
+                3,
+                "The instance write carries more merchants than this service stores",
+            )),
+            Self::DimensionsTooLarge { .. } => ApiErrorResponse::BadRequest(ApiError::new(
+                "HE",
+                3,
+                "The dimension write carries more dimensions than this service stores",
             )),
             // 502 rather than 500: the failure is on the far side of a hop we made. Note this is
             // the *only* provider-shaped error left, because every answer the provider gives is a

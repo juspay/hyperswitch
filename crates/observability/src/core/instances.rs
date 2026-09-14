@@ -1,5 +1,3 @@
-use std::cmp::Ordering;
-
 use async_bb8_diesel::AsyncConnection;
 use diesel_models::observability::{
     alerts_main::AlertsMain,
@@ -9,19 +7,16 @@ use diesel_models::observability::{
     },
 };
 use error_stack::{report, ResultExt};
-use time::PrimitiveDateTime;
 
 use crate::{
     core::utils,
     errors::{ObservabilityApiResult, ObservabilityError, StorageErrorExt},
-    logger,
     state::AppState,
     types::{
         instances::{
-            DimensionInstanceEntry, DimensionInstanceWrite, DimensionReadResponse,
-            DimensionSaveResponse, DimensionWriteRequest, InstanceReadResponse,
-            InstanceSaveResponse, InstanceWriteRequest, MerchantInstanceEntry,
-            MerchantInstanceWrite, Truncation,
+            DimensionInstanceEntry, DimensionReadResponse, DimensionSaveResponse,
+            DimensionWriteRequest, InstanceReadResponse, InstanceSaveResponse,
+            InstanceWriteRequest, MerchantInstanceEntry,
         },
         lifecycle::Channel,
         ReadStatus, WriteStatus,
@@ -37,8 +32,6 @@ const MAX_MERCHANTS: usize = 500;
 const MAX_DIMENSIONS: usize = 500;
 
 const EMPTY_JSON_TEXT: &str = "{}";
-
-const TRUNCATION_KEY: &str = "truncated_by_impact";
 
 pub async fn read_instances(
     state: AppState,
@@ -77,6 +70,13 @@ pub async fn write_instances(
 ) -> ObservabilityApiResult<InstanceSaveResponse> {
     let channel = <&'static str>::from(channel);
 
+    if request.merchants.len() > MAX_MERCHANTS {
+        Err(report!(ObservabilityError::InstancesTooLarge {
+            merchants: request.merchants.len(),
+            limit: MAX_MERCHANTS,
+        }))?;
+    }
+
     for write in &request.merchants {
         within_width(write.name.as_deref(), "name", NAME_MAX_CHARS)?;
         within_width(write.product.as_deref(), "product", NAME_MAX_CHARS)?;
@@ -88,17 +88,13 @@ pub async fn write_instances(
     }
 
     let now = utils::truncate_to_millisecond(common_utils::date_time::now());
-    let (writes, truncated) = keep_the_worst(request.merchants, MAX_MERCHANTS, |write| {
-        impact(write.current_metric, write.expected_metric)
-    });
-    let marker = truncated.as_ref().map(marker_for);
     let connection = state.database_connection().await?;
 
     let borrowed = &connection;
     let applied = borrowed
         .raw_connection()
         .transaction_async(move |_| async move {
-            AlertsMain::lock_instances_by_id(borrowed, announcement).await?;
+            MerchantsAlertExternal::lock_announcement(borrowed, announcement).await?;
 
             let parent =
                 AlertsMain::find_by_channel_and_id(borrowed, channel, announcement).await?;
@@ -110,7 +106,8 @@ pub async fn write_instances(
             )
             .await?;
 
-            let rows = writes
+            let rows = request
+                .merchants
                 .into_iter()
                 .map(|write| MerchantsAlertExternalNew {
                     id: announcement,
@@ -141,10 +138,9 @@ pub async fn write_instances(
                     slack_info: write.slack_info.unwrap_or_else(empty_object),
                     communication_info: write.communication_info.unwrap_or_else(empty_object),
                     metadata: write.metadata.unwrap_or_else(empty_json_text),
-                    metadata_alert_details: record_truncation(
-                        write.metadata_alert_details.unwrap_or_else(empty_object),
-                        marker.as_ref(),
-                    ),
+                    metadata_alert_details: write
+                        .metadata_alert_details
+                        .unwrap_or_else(empty_object),
                     priority: write.priority.unwrap_or_default(),
                     tenant_id: write.tenant_id.unwrap_or_default(),
                 })
@@ -162,7 +158,6 @@ pub async fn write_instances(
         ts_alert: (applied.stored > 0).then_some(now),
         merchants: applied.stored,
         removed: applied.removed,
-        truncated,
     })
 }
 
@@ -203,6 +198,13 @@ pub async fn write_dimensions(
 ) -> ObservabilityApiResult<DimensionSaveResponse> {
     let channel = <&'static str>::from(channel);
 
+    if request.dimensions.len() > MAX_DIMENSIONS {
+        Err(report!(ObservabilityError::DimensionsTooLarge {
+            dimensions: request.dimensions.len(),
+            limit: MAX_DIMENSIONS,
+        }))?;
+    }
+
     for write in &request.dimensions {
         within_width(write.name.as_deref(), "name", NAME_MAX_CHARS)?;
         within_width(write.product.as_deref(), "product", NAME_MAX_CHARS)?;
@@ -223,17 +225,13 @@ pub async fn write_dimensions(
     }
 
     let now = utils::truncate_to_millisecond(common_utils::date_time::now());
-    let (writes, truncated) = keep_the_worst(request.dimensions, MAX_DIMENSIONS, |write| {
-        impact(write.current_metric, write.expected_metric)
-    });
-    let marker = truncated.as_ref().map(marker_for);
     let connection = state.database_connection().await?;
 
     let borrowed = &connection;
     let applied = borrowed
         .raw_connection()
         .transaction_async(move |_| async move {
-            AlertsMain::lock_instances_by_id(borrowed, announcement).await?;
+            MerchantsAlertExternalDimension::lock_announcement(borrowed, announcement).await?;
 
             let parent =
                 AlertsMain::find_by_channel_and_id(borrowed, channel, announcement).await?;
@@ -245,7 +243,8 @@ pub async fn write_dimensions(
             )
             .await?;
 
-            let rows = writes
+            let rows = request
+                .dimensions
                 .into_iter()
                 .map(|write| MerchantsAlertExternalDimensionNew {
                     id: announcement,
@@ -277,10 +276,9 @@ pub async fn write_dimensions(
                     slack_info: write.slack_info.unwrap_or_else(empty_object),
                     communication_info: write.communication_info.unwrap_or_else(empty_object),
                     metadata: write.metadata.unwrap_or_else(empty_json_text),
-                    metadata_alert_details: record_truncation(
-                        write.metadata_alert_details.unwrap_or_else(empty_object),
-                        marker.as_ref(),
-                    ),
+                    metadata_alert_details: write
+                        .metadata_alert_details
+                        .unwrap_or_else(empty_object),
                     priority: write.priority.unwrap_or_default(),
                     tenant_id: write.tenant_id.unwrap_or_default(),
                 })
@@ -298,7 +296,6 @@ pub async fn write_dimensions(
         ts_alert: (applied.stored > 0).then_some(now),
         dimensions: applied.stored,
         removed: applied.removed,
-        truncated,
     })
 }
 
@@ -321,90 +318,6 @@ fn empty_object() -> serde_json::Value {
 
 fn empty_json_text() -> serde_json::Value {
     serde_json::Value::String(EMPTY_JSON_TEXT.to_owned())
-}
-
-#[derive(Debug)]
-enum Impact {
-    Absolute,
-    Gap(f64),
-    Unknown,
-}
-
-fn impact(current: Option<f64>, expected: Option<f64>) -> Impact {
-    match (current, expected) {
-        (Some(current), Some(expected)) => Impact::Gap((expected - current).abs()),
-        (Some(_), None) => Impact::Absolute,
-        (None, _) => Impact::Unknown,
-    }
-}
-
-fn worst_first(left: &Impact, right: &Impact) -> Ordering {
-    match (left, right) {
-        (Impact::Absolute, Impact::Absolute) | (Impact::Unknown, Impact::Unknown) => {
-            Ordering::Equal
-        }
-        (Impact::Absolute, _) | (Impact::Gap(_), Impact::Unknown) => Ordering::Less,
-        (_, Impact::Absolute) | (Impact::Unknown, Impact::Gap(_)) => Ordering::Greater,
-        (Impact::Gap(left), Impact::Gap(right)) => right.total_cmp(left),
-    }
-}
-
-fn keep_the_worst<T>(
-    mut rows: Vec<T>,
-    limit: usize,
-    impact_of: impl Fn(&T) -> Impact,
-) -> (Vec<T>, Option<Truncation>) {
-    let received = rows.len();
-    if received <= limit {
-        return (rows, None);
-    }
-
-    rows.sort_by(|left, right| worst_first(&impact_of(left), &impact_of(right)));
-    rows.truncate(limit);
-
-    logger::warn!(
-        received = received,
-        stored = limit,
-        dropped = received - limit,
-        "An alert instance write was truncated at the row cap"
-    );
-
-    (
-        rows,
-        Some(Truncation {
-            received,
-            stored: limit,
-            dropped: received - limit,
-        }),
-    )
-}
-
-fn marker_for(truncation: &Truncation) -> serde_json::Value {
-    serde_json::json!({
-        "received": truncation.received,
-        "stored": truncation.stored,
-        "dropped": truncation.dropped,
-    })
-}
-
-fn record_truncation(
-    details: serde_json::Value,
-    marker: Option<&serde_json::Value>,
-) -> serde_json::Value {
-    let Some(marker) = marker else {
-        return details;
-    };
-
-    match details {
-        serde_json::Value::Object(mut fields) => {
-            fields.insert(TRUNCATION_KEY.to_owned(), marker.clone());
-            serde_json::Value::Object(fields)
-        }
-        other => serde_json::json!({
-            TRUNCATION_KEY: marker.clone(),
-            "details": other,
-        }),
-    }
 }
 
 enum WriteFailure {

@@ -7,13 +7,6 @@ use time::PrimitiveDateTime;
 
 use super::{ReadStatus, WriteStatus};
 
-#[derive(Debug, Serialize)]
-pub struct Truncation {
-    pub received: usize,
-    pub stored: usize,
-    pub dropped: usize,
-}
-
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct MerchantInstanceWrite {
@@ -210,7 +203,6 @@ pub struct InstanceSaveResponse {
     pub ts_alert: Option<PrimitiveDateTime>,
     pub merchants: usize,
     pub removed: usize,
-    pub truncated: Option<Truncation>,
 }
 
 #[derive(Debug, Serialize)]
@@ -220,7 +212,6 @@ pub struct DimensionSaveResponse {
     pub ts_alert: Option<PrimitiveDateTime>,
     pub dimensions: usize,
     pub removed: usize,
-    pub truncated: Option<Truncation>,
 }
 
 impl From<MerchantsAlertExternal> for MerchantInstanceEntry {
