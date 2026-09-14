@@ -15,22 +15,8 @@ use serde_json::value::RawValue;
 pub struct RawJson(Box<RawValue>);
 
 impl RawJson {
-    pub fn len(&self) -> usize {
-        self.0.get().len()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.0.get().is_empty()
-    }
-
-    pub fn into_raw(self) -> Box<RawValue> {
-        self.0
-    }
-}
-
-impl From<Box<RawValue>> for RawJson {
-    fn from(value: Box<RawValue>) -> Self {
-        Self(value)
+    pub fn get(&self) -> &str {
+        self.0.get()
     }
 }
 

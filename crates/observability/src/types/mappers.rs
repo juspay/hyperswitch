@@ -1,6 +1,5 @@
 use diesel_models::observability::{alerts_dicts::AlertsDict, raw_json::RawJson};
 use serde::{Deserialize, Serialize};
-use serde_json::value::RawValue;
 use time::PrimitiveDateTime;
 
 use super::{ReadStatus, WriteStatus};
@@ -9,9 +8,9 @@ use super::{ReadStatus, WriteStatus};
 pub struct MapperEntry {
     pub name: String,
     pub key: String,
-    pub product: Option<Box<RawValue>>,
-    pub values: Option<Box<RawValue>>,
-    pub metadata: Option<Box<RawValue>>,
+    pub product: Option<RawJson>,
+    pub values: Option<RawJson>,
+    pub metadata: Option<RawJson>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub ts_created: Option<PrimitiveDateTime>,
     pub username: Option<String>,
@@ -22,12 +21,9 @@ pub struct MapperEntry {
 pub struct MapperUpsertRequest {
     pub name: String,
     pub key: String,
-    #[serde(default)]
-    pub product: Option<Box<RawValue>>,
-    #[serde(default)]
-    pub values: Option<Box<RawValue>>,
-    #[serde(default)]
-    pub metadata: Option<Box<RawValue>>,
+    pub product: Option<RawJson>,
+    pub values: Option<RawJson>,
+    pub metadata: Option<RawJson>,
 }
 
 #[derive(Debug, Serialize)]
@@ -52,9 +48,9 @@ impl From<AlertsDict> for MapperEntry {
         Self {
             name: entry.name,
             key: entry.key_,
-            product: entry.product.map(RawJson::into_raw),
-            values: entry.values_.map(RawJson::into_raw),
-            metadata: entry.metadata.map(RawJson::into_raw),
+            product: entry.product,
+            values: entry.values_,
+            metadata: entry.metadata,
             ts_created: entry.ts_created,
             username: entry.username,
         }

@@ -70,21 +70,22 @@ pub async fn upsert_mapper(
         trimmed_within(username, "user name", USERNAME_MAX_CHARS)?;
     }
 
-    let product = request.product.map(RawJson::from);
-    let values = request.values.map(RawJson::from);
-    let metadata = request.metadata.map(RawJson::from);
-    within_entry_cap([product.as_ref(), values.as_ref(), metadata.as_ref()])?;
+    within_entry_cap([
+        request.product.as_ref(),
+        request.values.as_ref(),
+        request.metadata.as_ref(),
+    ])?;
 
     let connection = state.database_connection().await?;
 
     let entry = AlertsDictNew {
         name,
         key_: key,
-        product,
-        values_: values,
+        product: request.product,
+        values_: request.values,
         ts_created: common_utils::date_time::now(),
         username,
-        metadata,
+        metadata: request.metadata,
     }
     .upsert(&connection)
     .await
@@ -142,7 +143,7 @@ fn within_entry_cap(columns: [Option<&RawJson>; 3]) -> ObservabilityApiResult<()
     let bytes = columns
         .into_iter()
         .flatten()
-        .map(RawJson::len)
+        .map(|column| column.get().len())
         .sum::<usize>();
 
     if bytes > MAX_ENTRY_BYTES {
