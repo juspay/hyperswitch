@@ -50,11 +50,11 @@ overridden by an environment variable prefixed `OBSERVABILITY__`, with `__` sepa
 Configuration is validated at boot and startup fails loudly on a missing internal API key, rather
 than on the first request.
 
-`[database]` is the Postgres database holding the observability tables. It can be omitted: `host`
-and `port` default to `localhost:5432`, `pool_size` to 5, `connection_timeout` to 10 seconds, and
-`dbname`, `username` and `password` to empty. Boot fails only on an empty host or a zero port, pool
-size or connection timeout. The pool connects lazily, so an unreachable database does not stop the
-service from starting; it shows as `503` on `/health/ready`.
+`[database]` is the Postgres database holding the observability tables. As with `drainer`, the
+service refuses to start without its `dbname`, `username` and `password`; `host` and `port` default
+to `localhost:5432`, `pool_size` to 5 and `connection_timeout` to 10 seconds. The pool connects
+lazily, so an unreachable database does not stop the service from starting; it shows as `503` on
+`/health/ready`.
 
 ## Authentication
 

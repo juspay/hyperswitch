@@ -315,6 +315,24 @@ impl DatabaseSettings {
             ))
         })?;
 
+        common_utils::fp_utils::when(self.dbname.is_default_or_empty(), || {
+            Err(errors::ConfigurationError::ConfigParsingError(
+                "database name must not be empty".into(),
+            ))
+        })?;
+
+        common_utils::fp_utils::when(self.username.is_default_or_empty(), || {
+            Err(errors::ConfigurationError::ConfigParsingError(
+                "database user username must not be empty".into(),
+            ))
+        })?;
+
+        common_utils::fp_utils::when(self.password.is_default_or_empty(), || {
+            Err(errors::ConfigurationError::ConfigParsingError(
+                "database user password must not be empty".into(),
+            ))
+        })?;
+
         common_utils::fp_utils::when(self.port == 0, || {
             Err(errors::ConfigurationError::ConfigParsingError(
                 "database port must be greater than zero".into(),
