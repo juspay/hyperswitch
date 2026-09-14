@@ -22,12 +22,12 @@ use crate::{
 pub struct FraudCheckPrePayout;
 
 impl FraudCheckPrePayout {
-    pub async fn get_trackers(
+    pub async fn get_tracker(
         &self,
         state: &SessionState,
         payout_data: &PayoutData,
         connector_details: ConnectorDetailsCore,
-    ) -> RouterResult<Option<PayoutFrmData>> {
+    ) -> RouterResult<PayoutFrmData> {
         let db = &*state.store;
 
         let payout_id = payout_data.payouts.payout_id.clone();
@@ -57,7 +57,7 @@ impl FraudCheckPrePayout {
             .await
             .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayout { payout_id })?;
 
-        Ok(Some(PayoutFrmData {
+        Ok(PayoutFrmData {
             fraud_check: fraud_check_value,
             amount: payout_data.payouts.amount,
             currency: payout_data.payouts.destination_currency,
@@ -65,7 +65,7 @@ impl FraudCheckPrePayout {
             customer_details: payout_data.customer_details.clone(),
             payout_method_data: payout_data.payout_method_data.clone(),
             billing_address: payout_data.billing_address.clone(),
-        }))
+        })
     }
 
     pub async fn update_tracker(

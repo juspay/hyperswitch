@@ -294,10 +294,8 @@ pub async fn pre_payouts_frm_core(
                 };
 
                 let frm_data = fraud_check_operation
-                    .get_trackers(state, payout_data, frm_connector_details)
-                    .await?
-                    .ok_or(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to create fraud check tracker for payout")?;
+                    .get_tracker(state, payout_data, frm_connector_details)
+                    .await?;
 
                 payout_data.payout_attempt.active_frm_id =
                     Some(frm_data.fraud_check.frm_id.clone());
@@ -354,30 +352,6 @@ pub async fn pre_payouts_frm_core(
     }
 }
 
-#[cfg(all(feature = "payouts", feature = "v2"))]
-pub async fn should_call_payout_frm(
-    _state: &SessionState,
-    _platform: &domain::Platform,
-    _payout_data: &PayoutData,
-) -> RouterResult<PayoutFrmApplicability> {
-    // FRM routing algorithm is not present in the merchant account.
-    // It has to be fetched from the business profile.
-    todo!()
-}
-
-#[cfg(all(feature = "payouts", feature = "v2"))]
-pub async fn pre_payouts_frm_core(
-    _state: &SessionState,
-    _platform: &domain::Platform,
-    _payout_data: &mut PayoutData,
-    _connector_data: &ConnectorData,
-    _applicability: &PayoutFrmApplicability,
-    _failure_mode: &PreFrmFailureMode,
-) -> RouterResult<PayoutFrmOutcome> {
-    // Payout FRM execution for v2 will be implemented with v2 FRM routing.
-    todo!()
-}
-
 #[cfg(feature = "v2")]
 pub async fn should_call_frm<F, D>(
     _platform: &domain::Platform,
@@ -395,6 +369,27 @@ where
 {
     // Frm routing algorithm is not present in the merchant account
     // it has to be fetched from the business profile
+    todo!()
+}
+
+#[cfg(all(feature = "payouts", feature = "v2"))]
+pub async fn should_call_payout_frm(
+    _state: &SessionState,
+    _platform: &domain::Platform,
+    _payout_data: &PayoutData,
+) -> RouterResult<PayoutFrmApplicability> {
+    todo!()
+}
+
+#[cfg(all(feature = "payouts", feature = "v2"))]
+pub async fn pre_payouts_frm_core(
+    _state: &SessionState,
+    _platform: &domain::Platform,
+    _payout_data: &mut PayoutData,
+    _connector_data: &ConnectorData,
+    _applicability: &PayoutFrmApplicability,
+    _failure_mode: &PreFrmFailureMode,
+) -> RouterResult<PayoutFrmOutcome> {
     todo!()
 }
 

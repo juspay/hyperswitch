@@ -12,7 +12,6 @@ use crate::{
         utils::get_payout_gateway_frm_metadata,
     },
     errors, services,
-    services::connector_integration_interface::{ConnectorEnum, ConnectorIntegrationEnum},
     types::{
         api::fraud_check::{self as frm_api, FraudCheckConnectorData},
         domain,
@@ -163,17 +162,7 @@ async fn decide_frm_flow(
         frm_api::PoFrm,
         FraudCheckPayoutData,
         FraudCheckResponseData,
-    > = match &connector.connector {
-        ConnectorEnum::Old(connector) => Box::new(ConnectorIntegrationEnum::Old(
-            connector.get_connector_integration(),
-        )),
-        ConnectorEnum::New(_) => {
-            return Err(error_stack::report!(
-                errors::ApiErrorResponse::InternalServerError
-            ))
-            .attach_printable("Payout FRM requires a legacy connector integration")
-        }
-    };
+    > = connector.connector.get_connector_integration();
 
     services::execute_connector_processing_step(
         state,
