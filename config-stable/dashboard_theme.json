@@ -1,0 +1,28 @@
+{
+    "settings": {
+        "colors": {
+            "primary": "#FF0000"
+        },
+        "sidebar": {
+            "primary": "#FCFCFD",
+            "textColor": "#525866",
+            "textColorPrimary": "#1C6DEA"
+        },
+        "buttons": {
+            "primary": {
+                "backgroundColor": "#1272f9",
+                "textColor": "#ffffff",
+                "hoverBackgroundColor": "#0860dd"
+            },
+            "secondary": {
+                "backgroundColor": "#f3f3f3",
+                "textColor": "#626168",
+                "hoverBackgroundColor": "#fcfcfd"
+            }
+        }
+    },
+    "urls": {
+        "faviconUrl": "",
+        "logoUrl": ""
+    }
+}
