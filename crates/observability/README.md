@@ -426,7 +426,8 @@ whether an alert was delivered.
 
 `{channel}` is `slack` or `xyne`. Both channels share `alerts_main` and `alerts_intermediate`, each
 row carrying its `channel`, and every read, replace and lock is scoped to the channel in the path.
-A segment that is neither is a `404` rather than a fallback to one of them. A state write whose
+A segment that is neither is a `404` with no error body, the same answer as a path this service
+does not serve, rather than a fallback to one of them or an empty store. A state write whose
 `id_intermediate` belongs to the other channel is a `400` and changes nothing.
 
 **Two write shapes, deliberately not alike.** A state write is a replacement: what it does not
@@ -438,12 +439,19 @@ state rows pointing at it, including ones the same request is writing.
 **Rows are addressed by `id_intermediate`, and a caller echoes back the ids it read.** A row whose
 id is not echoed back is removed and, if it is still firing, written again as a new row — which
 loses the episode's start and its thread. An alert the caller has just detected has no id to send,
-and the handler mints one; the response and the next read carry it.
+and the handler mints one. The response's `id_intermediates` lists the id of every row written, in
+request order, so a second write in the same run can echo them back.
 
-**Every stored timestamp is this service's clock.** The columns carry no `DEFAULT`, so somebody has
-to choose, and durations here are computed by subtracting these timestamps from each other — a
-caller minutes out of step would report an episode as older than it is and then write that back.
-The one timestamp a caller sends is `expected_last_updated_at`, which is not stored.
+**Every write stamp is this service's clock.** `last_updated_at`, and an announcement's `ts_alert`,
+are set by the handler: the columns carry no `DEFAULT`, so somebody has to choose, and a caller
+minutes out of step would make an episode look older than it is. The episode times a caller sends —
+`ts_alert`, `latest_ts_alert`, `recovered_ts` — are stored as sent, and `expected_last_updated_at`
+is compared, never stored.
+
+A field the caller leaves out is stored as r-apps stores it rather than as `NULL`: `dimensions` as
+`[]`, `rca_metadata` as `{}`, `max_duration` and `duration` as `0`, `group_id` and `priority` as
+`''`, `sent` and `critical` as false, and a state row's `ts_alert` and `latest_ts_alert` as the time
+of the write.
 
 #### Two overlapping runs
 
@@ -451,7 +459,12 @@ The cron fires every fifteen minutes, so a slow run means two whole-state writes
 carries `expected_last_updated_at` — the value the read handed out — and is applied only if the
 stored state still matches it; a mismatch is `409` and nothing is written. Absent or `null` asserts
 that the state was empty at read time, so a forgotten precondition fails closed rather than
-overwriting whatever is there.
+overwriting whatever is there. A write that stores no alerts answers `last_updated_at: null`, and
+that is what the next write sends.
+
+Timestamps cross the wire in milliseconds, so the stored value is compared in milliseconds too. A
+row stamped with finer precision by anything else would otherwise never match what a read handed
+out, and every write would be refused.
 
 The precondition alone is not enough when the two writes genuinely overlap: both would read the
 same value before either wrote. Each write takes a Postgres advisory lock on its channel first, so
@@ -463,9 +476,9 @@ stale one.
 
 #### The size of a write
 
-`lifecycle.max_alerts` (5000 by default) caps the alerts one whole-state write may carry. Because a
-write replaces everything, the same number bounds the stored state and the read that returns all of
-it.
+One whole-state write carries at most 5,000 alerts. Because a write replaces everything, the same
+number bounds the stored state and the read that returns all of it. The lifecycle routes accept a
+body of up to 16 MiB, rather than the 2 MiB every other route keeps, so a write at the cap fits.
 
 **Over the cap the whole write is refused and nothing is applied.** Truncating it would drop alerts
 the caller believes are recorded and re-announce them on the next run, which is the failure the cap
@@ -475,11 +488,10 @@ The lifecycle errors, added to the tables above:
 
 | | Status | Code |
 |---|---|---|
-| Whole-state write over `lifecycle.max_alerts` | 400 | `IR_10` |
-| A state row references an announcement that does not exist | 400 | `IR_12` |
-| Unknown channel | 404 | `IR_09` |
-| The state changed after it was read | 409 | `IR_11` |
-| Lifecycle state unreadable | 503 | `HE_01` |
+| Whole-state write over 5,000 alerts | 400 | `HE_03` |
+| A state row's `id_intermediate` belongs to the other channel | 400 | `HE_03` |
+| A state row references an announcement this channel does not have | 404 | `HE_02` |
+| The state changed after it was read | 409 | `IR_16` |
 
 A value wider than its column — `name`, `product`, `group_id` and `priority` are `VARCHAR(64)`,
 `ts_slack` is `VARCHAR(255)` — and the same `id_intermediate` sent twice in one write are `IR_04`,
@@ -542,9 +554,7 @@ serves — both concerns' — so the tree and its guards are one file rather tha
 Rows and their queries are not here at all: `alerts_info`, `merchants_alert_external_config`,
 `alerts_dicts`, `notification_reads`, `alerts_main` and `alerts_intermediate` are modelled in
 `diesel_models::observability`, alongside every other table this database owns, so the alert
-manager and this service read one definition of them rather than two. The two lifecycle tables come
-once per delivery channel, so their models are generated per table and hand back a
-channel-agnostic row — the handlers take the channel as an argument and are written once.
+manager and this service read one definition of them rather than two.
 
 `alert_manager` has no `domain/`: a row is a row, and its types are `diesel_models::observability`
 on one side and `alert_manager/types/` on the other. A trait between them would abstract over one
