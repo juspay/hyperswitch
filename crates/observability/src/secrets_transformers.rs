@@ -131,12 +131,6 @@ pub async fn fetch_raw_secrets(
         .await
         .expect("Failed to decrypt the database password");
 
-    #[allow(clippy::expect_used)]
-    database
-        .get_inner()
-        .validate()
-        .expect("Decrypted database password is unusable");
-
     Settings {
         server: conf.server,
         log: conf.log,
