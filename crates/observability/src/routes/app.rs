@@ -9,7 +9,7 @@
 //! and a future in-router mount share one definition and cannot drift.
 
 use actix_multipart::form::MultipartFormConfig;
-use actix_web::{web, Scope};
+use actix_web::{error::InternalError, web, HttpResponse, Scope};
 
 use crate::{
     errors::types::{ApiError, ApiErrorResponse},
@@ -37,6 +37,7 @@ impl Alerts {
         web::scope("/alerts")
             .app_data(web::Data::new(state))
             .app_data(json_config())
+            .app_data(path_config())
             .app_data(multipart_config(max_upload_bytes))
             .service(
                 web::scope("/chat")
@@ -107,6 +108,18 @@ fn json_config() -> web::JsonConfig {
             "The request body could not be parsed",
         ))
         .into()
+    })
+}
+
+fn path_config() -> web::PathConfig {
+    web::PathConfig::default().error_handler(|error, request| {
+        logger::warn!(
+            path = %request.path(),
+            error = %error,
+            "Request rejected: a path segment could not be parsed"
+        );
+
+        InternalError::from_response(error, HttpResponse::NotFound().finish()).into()
     })
 }
 
