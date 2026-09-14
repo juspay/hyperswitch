@@ -1,7 +1,8 @@
 use async_bb8_diesel::AsyncRunQueryDsl;
 use diesel::{
-    associations::HasTable, query_builder::DecoratableTarget, sql_types::Bool, upsert::excluded,
-    BoolExpressionMethods, ExpressionMethods,
+    associations::HasTable,
+    sql_types::{Integer, Text},
+    BoolExpressionMethods, ExpressionMethods, QueryDsl,
 };
 use error_stack::ResultExt;
 
@@ -9,46 +10,50 @@ use crate::{
     errors,
     observability::{
         alerts_dicts::{AlertsDict, AlertsDictNew, AlertsDictUpdate, AlertsDictUpdateInternal},
-        schema::alerts_dicts::dsl,
+        schema::alerts_dicts::{self, dsl},
     },
     query::generics,
     DatabaseConnectionWithContext, StorageResult,
 };
 
-const ENABLED_INDEX_PREDICATE: &str = "is_enabled IS TRUE";
+const MAPPER_ENTRY_LOCK_NAMESPACE: i32 = 23_403;
+
+diesel::alias! {
+    const SUPERSEDED_DICTS: Alias<SupersededDicts> = alerts_dicts as superseded_dicts;
+}
 
 impl AlertsDictNew {
-    pub async fn upsert(
+    pub async fn insert(
         self,
         conn: &DatabaseConnectionWithContext<'_>,
     ) -> StorageResult<AlertsDict> {
-        let query = diesel::insert_into(<AlertsDict as HasTable>::table())
-            .values(self)
-            .on_conflict((dsl::name, dsl::key_))
-            .filter_target(diesel::dsl::sql::<Bool>(ENABLED_INDEX_PREDICATE))
-            .do_update()
-            .set((
-                dsl::product.eq(excluded(dsl::product)),
-                dsl::values_.eq(excluded(dsl::values_)),
-                dsl::ts_created.eq(excluded(dsl::ts_created)),
-                dsl::username.eq(excluded(dsl::username)),
-                dsl::metadata.eq(excluded(dsl::metadata)),
-            ));
-
-        generics::db_metrics::track_database_call::<<AlertsDict as HasTable>::Table, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
-            generics::db_metrics::DatabaseOperation::Insert,
-            query.get_result_async(conn.raw_connection()),
-        )
-        .await
-        .map_err(|error| error_stack::report!(error))
-        .change_context(errors::DatabaseError::Others)
-        .attach_printable("Error while saving a dictionary entry")
+        generics::generic_insert(conn, self).await
     }
 }
 
 impl AlertsDict {
+    pub async fn lock_by_name_and_key(
+        conn: &DatabaseConnectionWithContext<'_>,
+        name: &str,
+        key: &str,
+    ) -> StorageResult<()> {
+        let query = diesel::sql_query("SELECT pg_advisory_xact_lock($1, hashtext($2))")
+            .bind::<Integer, _>(MAPPER_ENTRY_LOCK_NAMESPACE)
+            .bind::<Text, _>(format!("{name}/{key}"));
+
+        generics::db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
+            conn.request_id(),
+            conn.event_emitter(),
+            generics::db_metrics::DatabaseOperation::FindOne,
+            query.execute_async(conn.raw_connection()),
+        )
+        .await
+        .map(|_| ())
+        .map_err(|error| error_stack::report!(error))
+        .change_context(errors::DatabaseError::Others)
+        .attach_printable("Failed to lock a mapper entry")
+    }
+
     pub async fn list_enabled(
         conn: &DatabaseConnectionWithContext<'_>,
     ) -> StorageResult<Vec<Self>> {
@@ -66,8 +71,8 @@ impl AlertsDict {
         conn: &DatabaseConnectionWithContext<'_>,
         name: &str,
         key: &str,
-    ) -> StorageResult<Option<Self>> {
-        generics::generic_find_one_optional::<<Self as HasTable>::Table, _, _>(
+    ) -> StorageResult<Self> {
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::name
                 .eq(name.to_owned())
@@ -77,24 +82,70 @@ impl AlertsDict {
         .await
     }
 
-    pub async fn retire(
+    pub async fn update_enabled_by_name_and_key(
         conn: &DatabaseConnectionWithContext<'_>,
         name: &str,
         key: &str,
-    ) -> StorageResult<Self> {
-        generics::generic_update_with_unique_predicate_get_result::<
-            <Self as HasTable>::Table,
-            _,
-            _,
-            _,
-        >(
+        update: AlertsDictUpdate,
+    ) -> StorageResult<usize> {
+        generics::generic_update::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::name
                 .eq(name.to_owned())
                 .and(dsl::key_.eq(key.to_owned()))
                 .and(dsl::is_enabled.eq(true)),
-            AlertsDictUpdateInternal::from(AlertsDictUpdate::Retire),
+            AlertsDictUpdateInternal::from(update),
         )
         .await
+    }
+
+    pub async fn delete_enabled_by_name_and_key(
+        conn: &DatabaseConnectionWithContext<'_>,
+        name: &str,
+        key: &str,
+    ) -> StorageResult<bool> {
+        generics::generic_delete::<<Self as HasTable>::Table, _>(
+            conn,
+            dsl::name
+                .eq(name.to_owned())
+                .and(dsl::key_.eq(key.to_owned()))
+                .and(dsl::is_enabled.eq(true)),
+        )
+        .await
+    }
+
+    pub async fn delete_superseded_by_name_and_key(
+        conn: &DatabaseConnectionWithContext<'_>,
+        name: &str,
+        key: &str,
+        kept: i64,
+    ) -> StorageResult<usize> {
+        let superseded = SUPERSEDED_DICTS
+            .select(SUPERSEDED_DICTS.field(dsl::id))
+            .filter(
+                SUPERSEDED_DICTS
+                    .field(dsl::name)
+                    .eq(name.to_owned())
+                    .and(SUPERSEDED_DICTS.field(dsl::key_).eq(key.to_owned()))
+                    .and(SUPERSEDED_DICTS.field(dsl::is_enabled).eq(false)),
+            )
+            .order((
+                SUPERSEDED_DICTS.field(dsl::ts_created).desc(),
+                SUPERSEDED_DICTS.field(dsl::id).desc(),
+            ))
+            .offset(kept);
+
+        let query = diesel::delete(<Self as HasTable>::table().filter(dsl::id.eq_any(superseded)));
+
+        generics::db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
+            conn.request_id(),
+            conn.event_emitter(),
+            generics::db_metrics::DatabaseOperation::Delete,
+            query.execute_async(conn.raw_connection()),
+        )
+        .await
+        .map_err(|error| error_stack::report!(error))
+        .change_context(errors::DatabaseError::Others)
+        .attach_printable("Failed to delete superseded mapper entries")
     }
 }

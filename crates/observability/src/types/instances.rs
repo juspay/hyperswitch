@@ -1,9 +1,21 @@
 use diesel_models::observability::{
-    merchants_alert_external::MerchantsAlertExternal,
-    merchants_alert_external_dimension::MerchantsAlertExternalDimension,
+    alerts_main::AlertsMain,
+    merchants_alert_external::{MerchantsAlertExternal, MerchantsAlertExternalNew},
+    merchants_alert_external_dimension::{
+        MerchantsAlertExternalDimension, MerchantsAlertExternalDimensionNew,
+    },
 };
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
+
+use super::within_width;
+use crate::errors::ObservabilityApiResult;
+
+const NAME_MAX_CHARS: usize = 64;
+
+const VALUE_MAX_CHARS: usize = 255;
+
+const EMPTY_DOCUMENT: &str = "{}";
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -32,6 +44,59 @@ pub struct MerchantInstanceWrite {
     pub metadata_alert_details: Option<serde_json::Value>,
     pub priority: Option<String>,
     pub tenant_id: Option<String>,
+}
+
+impl MerchantInstanceWrite {
+    pub fn validate(&self) -> ObservabilityApiResult<()> {
+        within_width("name", self.name.as_deref(), NAME_MAX_CHARS)?;
+        within_width("product", self.product.as_deref(), NAME_MAX_CHARS)?;
+        within_width("merchant_id", self.merchant_id.as_deref(), NAME_MAX_CHARS)?;
+        within_width("priority", self.priority.as_deref(), NAME_MAX_CHARS)?;
+        within_width("tenant_id", self.tenant_id.as_deref(), NAME_MAX_CHARS)?;
+        within_width("attribution", self.attribution.as_deref(), VALUE_MAX_CHARS)?;
+        within_width("ts_slack", self.ts_slack.as_deref(), VALUE_MAX_CHARS)
+    }
+
+    pub fn into_insertable(
+        self,
+        id_merchant_table: uuid::Uuid,
+        announcement: &AlertsMain,
+        now: PrimitiveDateTime,
+    ) -> MerchantsAlertExternalNew {
+        MerchantsAlertExternalNew {
+            id: announcement.id,
+            channel: announcement.channel.clone(),
+            id_merchant_table,
+            id_intermediate: self.id_intermediate,
+            name: self.name.unwrap_or_default(),
+            product: self.product.unwrap_or_default(),
+            merchant_id: self.merchant_id.unwrap_or_default(),
+            dimensions: self.dimensions.unwrap_or_else(empty_document_text),
+            auxiliary_dimensions: self
+                .auxiliary_dimensions
+                .unwrap_or_else(empty_document_text),
+            current_metric: self.current_metric,
+            expected_metric: self.expected_metric,
+            attribution: self.attribution.unwrap_or_default(),
+            max_duration: self.max_duration,
+            start_time: self.start_time,
+            is_visible: self.is_visible.unwrap_or(true),
+            recovered_ts: self.recovered_ts,
+            ts_slack: self
+                .ts_slack
+                .or_else(|| announcement.ts_slack.clone())
+                .unwrap_or_default(),
+            ts_alert: now,
+            latest_ts_alert: self.latest_ts_alert,
+            last_updated_at: now,
+            slack_info: self.slack_info.unwrap_or_else(empty_object),
+            communication_info: self.communication_info.unwrap_or_else(empty_object),
+            metadata: self.metadata.unwrap_or_else(empty_document_text),
+            metadata_alert_details: self.metadata_alert_details.unwrap_or_else(empty_object),
+            priority: self.priority.unwrap_or_default(),
+            tenant_id: self.tenant_id.unwrap_or_default(),
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -64,16 +129,95 @@ pub struct DimensionInstanceWrite {
     pub tenant_id: Option<String>,
 }
 
+impl DimensionInstanceWrite {
+    pub fn validate(&self) -> ObservabilityApiResult<()> {
+        within_width("name", self.name.as_deref(), NAME_MAX_CHARS)?;
+        within_width("product", self.product.as_deref(), NAME_MAX_CHARS)?;
+        within_width(
+            "dimension_key",
+            self.dimension_key.as_deref(),
+            NAME_MAX_CHARS,
+        )?;
+        within_width("priority", self.priority.as_deref(), NAME_MAX_CHARS)?;
+        within_width("tenant_id", self.tenant_id.as_deref(), NAME_MAX_CHARS)?;
+        within_width(
+            "dimension_value",
+            self.dimension_value.as_deref(),
+            VALUE_MAX_CHARS,
+        )?;
+        within_width("attribution", self.attribution.as_deref(), VALUE_MAX_CHARS)?;
+        within_width("ts_slack", self.ts_slack.as_deref(), VALUE_MAX_CHARS)
+    }
+
+    pub fn into_insertable(
+        self,
+        id_merchant_table: uuid::Uuid,
+        announcement: &AlertsMain,
+        now: PrimitiveDateTime,
+    ) -> MerchantsAlertExternalDimensionNew {
+        MerchantsAlertExternalDimensionNew {
+            id: announcement.id,
+            channel: announcement.channel.clone(),
+            id_merchant_table,
+            id_intermediate: self.id_intermediate,
+            name: self.name.unwrap_or_default(),
+            product: self.product.unwrap_or_default(),
+            dimension_key: self.dimension_key.unwrap_or_default(),
+            dimension_value: self.dimension_value.unwrap_or_default(),
+            dimensions: self.dimensions.unwrap_or_else(empty_document_text),
+            auxiliary_dimensions: self
+                .auxiliary_dimensions
+                .unwrap_or_else(empty_document_text),
+            current_metric: self.current_metric,
+            expected_metric: self.expected_metric,
+            attribution: self.attribution.unwrap_or_default(),
+            max_duration: self.max_duration,
+            is_visible: self.is_visible.unwrap_or(true),
+            start_time: self.start_time,
+            recovered_ts: self.recovered_ts,
+            ts_slack: self
+                .ts_slack
+                .or_else(|| announcement.ts_slack.clone())
+                .unwrap_or_default(),
+            ts_alert: now,
+            latest_ts_alert: self.latest_ts_alert,
+            last_updated_at: now,
+            slack_info: self.slack_info.unwrap_or_else(empty_object),
+            communication_info: self.communication_info.unwrap_or_else(empty_object),
+            metadata: self.metadata.unwrap_or_else(empty_document_text),
+            metadata_alert_details: self.metadata_alert_details.unwrap_or_else(empty_object),
+            priority: self.priority.unwrap_or_default(),
+            tenant_id: self.tenant_id.unwrap_or_default(),
+        }
+    }
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct InstanceWriteRequest {
     pub merchants: Vec<MerchantInstanceWrite>,
 }
 
+impl InstanceWriteRequest {
+    pub fn validate(&self) -> ObservabilityApiResult<()> {
+        self.merchants
+            .iter()
+            .try_for_each(MerchantInstanceWrite::validate)
+    }
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct DimensionWriteRequest {
     pub dimensions: Vec<DimensionInstanceWrite>,
+}
+
+impl DimensionWriteRequest {
+    pub fn validate(&self) -> ObservabilityApiResult<()> {
+        self.dimensions
+            .iter()
+            .try_for_each(DimensionInstanceWrite::validate)
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -228,4 +372,12 @@ impl From<MerchantsAlertExternalDimension> for DimensionInstanceEntry {
             tenant_id: row.tenant_id,
         }
     }
+}
+
+fn empty_object() -> serde_json::Value {
+    serde_json::Value::Object(serde_json::Map::new())
+}
+
+fn empty_document_text() -> serde_json::Value {
+    serde_json::Value::String(EMPTY_DOCUMENT.to_owned())
 }

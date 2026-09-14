@@ -7,9 +7,9 @@ use diesel_models::observability::{
     },
 };
 use error_stack::{report, ResultExt};
+use time::PrimitiveDateTime;
 
 use crate::{
-    core::utils::{self, TransactionError, NAME_MAX_CHARS, VALUE_MAX_CHARS},
     errors::{ObservabilityApiResult, ObservabilityError, StorageErrorExt},
     state::AppState,
     types::{
@@ -73,18 +73,9 @@ pub async fn write_instances(
             limit: MAX_MERCHANTS,
         }))?;
     }
+    request.validate()?;
 
-    for write in &request.merchants {
-        utils::optional_within_width(write.name.as_deref(), "name", NAME_MAX_CHARS)?;
-        utils::optional_within_width(write.product.as_deref(), "product", NAME_MAX_CHARS)?;
-        utils::optional_within_width(write.merchant_id.as_deref(), "merchant_id", NAME_MAX_CHARS)?;
-        utils::optional_within_width(write.priority.as_deref(), "priority", NAME_MAX_CHARS)?;
-        utils::optional_within_width(write.tenant_id.as_deref(), "tenant_id", NAME_MAX_CHARS)?;
-        utils::optional_within_width(write.attribution.as_deref(), "attribution", VALUE_MAX_CHARS)?;
-        utils::optional_within_width(write.ts_slack.as_deref(), "ts_slack", VALUE_MAX_CHARS)?;
-    }
-
-    let now = utils::truncate_to_millisecond(common_utils::date_time::now());
+    let now = truncate_to_millisecond(common_utils::date_time::now());
     let connection = state.database_connection().await?;
 
     let borrowed = &connection;
@@ -119,43 +110,7 @@ pub async fn write_instances(
             let rows = request
                 .merchants
                 .into_iter()
-                .map(|write| MerchantsAlertExternalNew {
-                    id: announcement,
-                    channel: channel.to_owned(),
-                    id_merchant_table: common_utils::generate_uuid_v7(),
-                    id_intermediate: write.id_intermediate,
-                    name: write.name.unwrap_or_default(),
-                    product: write.product.unwrap_or_default(),
-                    merchant_id: write.merchant_id.unwrap_or_default(),
-                    dimensions: write.dimensions.unwrap_or_else(utils::empty_json_text),
-                    auxiliary_dimensions: write
-                        .auxiliary_dimensions
-                        .unwrap_or_else(utils::empty_json_text),
-                    current_metric: write.current_metric,
-                    expected_metric: write.expected_metric,
-                    attribution: write.attribution.unwrap_or_default(),
-                    max_duration: write.max_duration,
-                    start_time: write.start_time,
-                    is_visible: write.is_visible.unwrap_or(true),
-                    recovered_ts: write.recovered_ts,
-                    ts_slack: write
-                        .ts_slack
-                        .or_else(|| parent.ts_slack.clone())
-                        .unwrap_or_default(),
-                    ts_alert: now,
-                    latest_ts_alert: write.latest_ts_alert,
-                    last_updated_at: now,
-                    slack_info: write.slack_info.unwrap_or_else(utils::empty_object),
-                    communication_info: write
-                        .communication_info
-                        .unwrap_or_else(utils::empty_object),
-                    metadata: write.metadata.unwrap_or_else(utils::empty_json_text),
-                    metadata_alert_details: write
-                        .metadata_alert_details
-                        .unwrap_or_else(utils::empty_object),
-                    priority: write.priority.unwrap_or_default(),
-                    tenant_id: write.tenant_id.unwrap_or_default(),
-                })
+                .map(|write| write.into_insertable(common_utils::generate_uuid_v7(), &parent, now))
                 .collect();
 
             let stored = MerchantsAlertExternalNew::bulk_insert(borrowed, rows)
@@ -224,27 +179,9 @@ pub async fn write_dimensions(
             limit: MAX_DIMENSIONS,
         }))?;
     }
+    request.validate()?;
 
-    for write in &request.dimensions {
-        utils::optional_within_width(write.name.as_deref(), "name", NAME_MAX_CHARS)?;
-        utils::optional_within_width(write.product.as_deref(), "product", NAME_MAX_CHARS)?;
-        utils::optional_within_width(
-            write.dimension_key.as_deref(),
-            "dimension_key",
-            NAME_MAX_CHARS,
-        )?;
-        utils::optional_within_width(write.priority.as_deref(), "priority", NAME_MAX_CHARS)?;
-        utils::optional_within_width(write.tenant_id.as_deref(), "tenant_id", NAME_MAX_CHARS)?;
-        utils::optional_within_width(
-            write.dimension_value.as_deref(),
-            "dimension_value",
-            VALUE_MAX_CHARS,
-        )?;
-        utils::optional_within_width(write.attribution.as_deref(), "attribution", VALUE_MAX_CHARS)?;
-        utils::optional_within_width(write.ts_slack.as_deref(), "ts_slack", VALUE_MAX_CHARS)?;
-    }
-
-    let now = utils::truncate_to_millisecond(common_utils::date_time::now());
+    let now = truncate_to_millisecond(common_utils::date_time::now());
     let connection = state.database_connection().await?;
 
     let borrowed = &connection;
@@ -275,44 +212,7 @@ pub async fn write_dimensions(
             let rows = request
                 .dimensions
                 .into_iter()
-                .map(|write| MerchantsAlertExternalDimensionNew {
-                    id: announcement,
-                    channel: channel.to_owned(),
-                    id_merchant_table: common_utils::generate_uuid_v7(),
-                    id_intermediate: write.id_intermediate,
-                    name: write.name.unwrap_or_default(),
-                    product: write.product.unwrap_or_default(),
-                    dimension_key: write.dimension_key.unwrap_or_default(),
-                    dimension_value: write.dimension_value.unwrap_or_default(),
-                    dimensions: write.dimensions.unwrap_or_else(utils::empty_json_text),
-                    auxiliary_dimensions: write
-                        .auxiliary_dimensions
-                        .unwrap_or_else(utils::empty_json_text),
-                    current_metric: write.current_metric,
-                    expected_metric: write.expected_metric,
-                    attribution: write.attribution.unwrap_or_default(),
-                    max_duration: write.max_duration,
-                    is_visible: write.is_visible.unwrap_or(true),
-                    start_time: write.start_time,
-                    recovered_ts: write.recovered_ts,
-                    ts_slack: write
-                        .ts_slack
-                        .or_else(|| parent.ts_slack.clone())
-                        .unwrap_or_default(),
-                    ts_alert: now,
-                    latest_ts_alert: write.latest_ts_alert,
-                    last_updated_at: now,
-                    slack_info: write.slack_info.unwrap_or_else(utils::empty_object),
-                    communication_info: write
-                        .communication_info
-                        .unwrap_or_else(utils::empty_object),
-                    metadata: write.metadata.unwrap_or_else(utils::empty_json_text),
-                    metadata_alert_details: write
-                        .metadata_alert_details
-                        .unwrap_or_else(utils::empty_object),
-                    priority: write.priority.unwrap_or_default(),
-                    tenant_id: write.tenant_id.unwrap_or_default(),
-                })
+                .map(|write| write.into_insertable(common_utils::generate_uuid_v7(), &parent, now))
                 .collect();
 
             let stored = MerchantsAlertExternalDimensionNew::bulk_insert(borrowed, rows)
@@ -332,4 +232,38 @@ pub async fn write_dimensions(
         removed,
         ts_alert: (stored > 0).then_some(now),
     })
+}
+
+enum TransactionError {
+    Observability(error_stack::Report<ObservabilityError>),
+    Database(diesel::result::Error),
+}
+
+impl TransactionError {
+    fn into_report(self, message: &'static str) -> error_stack::Report<ObservabilityError> {
+        match self {
+            Self::Observability(error) => error,
+            Self::Database(error) => report!(error)
+                .change_context(ObservabilityError::InternalServerError)
+                .attach_printable(message),
+        }
+    }
+}
+
+impl From<diesel::result::Error> for TransactionError {
+    fn from(error: diesel::result::Error) -> Self {
+        Self::Database(error)
+    }
+}
+
+impl From<error_stack::Report<ObservabilityError>> for TransactionError {
+    fn from(error: error_stack::Report<ObservabilityError>) -> Self {
+        Self::Observability(error)
+    }
+}
+
+fn truncate_to_millisecond(value: PrimitiveDateTime) -> PrimitiveDateTime {
+    value
+        .replace_millisecond(value.millisecond())
+        .unwrap_or(value)
 }

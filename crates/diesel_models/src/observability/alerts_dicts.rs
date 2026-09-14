@@ -1,4 +1,5 @@
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
+use hyperswitch_masking::Secret;
 use time::PrimitiveDateTime;
 
 use crate::observability::{raw_json::RawJson, schema::alerts_dicts};
@@ -15,11 +16,11 @@ pub struct AlertsDict {
     pub values_: RawJson,
     pub ts_created: PrimitiveDateTime,
     pub is_enabled: bool,
-    pub username: String,
+    pub username: Secret<String>,
     pub metadata: RawJson,
 }
 
-#[derive(Clone, Debug, Insertable, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Insertable)]
 #[diesel(table_name = alerts_dicts)]
 pub struct AlertsDictNew {
     pub id: uuid::Uuid,
@@ -29,13 +30,13 @@ pub struct AlertsDictNew {
     pub values_: RawJson,
     pub ts_created: PrimitiveDateTime,
     pub is_enabled: bool,
-    pub username: String,
+    pub username: Secret<String>,
     pub metadata: RawJson,
 }
 
 #[derive(Debug)]
 pub enum AlertsDictUpdate {
-    Retire,
+    Demote,
 }
 
 #[derive(Clone, Debug, AsChangeset)]
@@ -47,7 +48,7 @@ pub struct AlertsDictUpdateInternal {
 impl From<AlertsDictUpdate> for AlertsDictUpdateInternal {
     fn from(update: AlertsDictUpdate) -> Self {
         match update {
-            AlertsDictUpdate::Retire => Self {
+            AlertsDictUpdate::Demote => Self {
                 is_enabled: Some(false),
             },
         }

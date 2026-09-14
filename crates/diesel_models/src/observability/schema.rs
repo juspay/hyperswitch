@@ -98,6 +98,33 @@ diesel::table! {
 }
 
 diesel::table! {
+    merchant_thresholds (id) {
+        id -> Uuid,
+        #[max_length = 64]
+        name -> Varchar,
+        #[max_length = 64]
+        product -> Varchar,
+        #[max_length = 64]
+        merchant_id -> Varchar,
+        thresholds_min_volume -> Nullable<Float8>,
+        thresholds_min_impacted_volume -> Nullable<Float8>,
+        thresholds_tolerance -> Nullable<Float8>,
+        thresholds_diff_threshold -> Nullable<Float8>,
+        thresholds_merchant_impact -> Nullable<Float8>,
+        thresholds_alert_period -> Nullable<Float8>,
+        thresholds_min_observations -> Nullable<Float8>,
+        thresholds_min_history_volume -> Nullable<Float8>,
+        thresholds_filter_percentile -> Nullable<Float8>,
+        thresholds_current_min_volume -> Nullable<Float8>,
+        metadata -> Nullable<Jsonb>,
+        #[max_length = 64]
+        author -> Varchar,
+        is_enabled -> Bool,
+        last_updated_at -> Timestamp,
+    }
+}
+
+diesel::table! {
     merchants_alert_external (id_merchant_table) {
         id -> Uuid,
         #[max_length = 64]
@@ -208,6 +235,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     alerts_info,
     alerts_intermediate,
     alerts_main,
+    merchant_thresholds,
     merchants_alert_external,
     merchants_alert_external_config,
     merchants_alert_external_dimension,

@@ -9,7 +9,7 @@ use crate::{
     },
 };
 
-pub async fn read_state(
+pub async fn lifecycle_state_retrieve(
     state: web::Data<AppState>,
     request: HttpRequest,
     channel: web::Path<Channel>,
@@ -20,13 +20,13 @@ pub async fn read_state(
         state.get_ref().clone(),
         &request,
         (),
-        |state, ()| async move { core::lifecycle::read_state(state, channel).await },
+        |state, ()| async move { core::lifecycle::retrieve_lifecycle_state(state, channel).await },
         &auth::InternalApiKeyAuth,
     )
     .await
 }
 
-pub async fn write_state(
+pub async fn lifecycle_state_save(
     state: web::Data<AppState>,
     request: HttpRequest,
     channel: web::Path<Channel>,
@@ -38,13 +38,15 @@ pub async fn write_state(
         state.get_ref().clone(),
         &request,
         payload.into_inner(),
-        |state, payload| async move { core::lifecycle::write_state(state, channel, payload).await },
+        |state, payload| async move {
+            core::lifecycle::save_lifecycle_state(state, channel, payload).await
+        },
         &auth::InternalApiKeyAuth,
     )
     .await
 }
 
-pub async fn record_announcement(
+pub async fn announcement_create(
     state: web::Data<AppState>,
     request: HttpRequest,
     channel: web::Path<Channel>,
@@ -57,14 +59,14 @@ pub async fn record_announcement(
         &request,
         payload.into_inner(),
         |state, payload| async move {
-            core::lifecycle::record_announcement(state, channel, payload).await
+            core::lifecycle::create_announcement(state, channel, payload).await
         },
         &auth::InternalApiKeyAuth,
     )
     .await
 }
 
-pub async fn list_announcements(
+pub async fn announcement_list(
     state: web::Data<AppState>,
     request: HttpRequest,
     channel: web::Path<Channel>,
@@ -82,7 +84,7 @@ pub async fn list_announcements(
     .await
 }
 
-pub async fn update_announcement(
+pub async fn announcement_update(
     state: web::Data<AppState>,
     request: HttpRequest,
     path: web::Path<(Channel, uuid::Uuid)>,

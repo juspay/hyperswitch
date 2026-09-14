@@ -3,14 +3,12 @@ use std::collections::HashSet;
 use async_bb8_diesel::AsyncConnection;
 use diesel_models::observability::{
     alerts_intermediate::{AlertsIntermediate, AlertsIntermediateNew, AlertsIntermediateUpdate},
-    alerts_main::{AlertsMain, AlertsMainNew, AlertsMainUpdate},
-    raw_json::RawJson,
+    alerts_main::{AlertsMain, AlertsMainUpdate},
 };
 use error_stack::{report, ResultExt};
 use time::PrimitiveDateTime;
 
 use crate::{
-    core::utils::{self, TransactionError, NAME_MAX_CHARS, VALUE_MAX_CHARS},
     errors::{ObservabilityApiResult, ObservabilityError, StorageErrorExt},
     state::AppState,
     types::lifecycle::{
@@ -30,7 +28,7 @@ const MAX_ANNOUNCEMENT_WINDOW_DAYS: i64 = 30;
 
 const MERCHANT_VISIBILITY_KEY: &str = "is_visible_to_merchant";
 
-pub async fn read_state(
+pub async fn retrieve_lifecycle_state(
     state: AppState,
     channel: Channel,
 ) -> ObservabilityApiResult<LifecycleStateResponse> {
@@ -49,7 +47,7 @@ pub async fn read_state(
     })
 }
 
-pub async fn write_state(
+pub async fn save_lifecycle_state(
     state: AppState,
     channel: Channel,
     request: LifecycleStateWriteRequest,
@@ -63,12 +61,12 @@ pub async fn write_state(
         }))?;
     }
 
-    let now = utils::truncate_to_millisecond(common_utils::date_time::now());
+    let now = truncate_to_millisecond(common_utils::date_time::now());
     let plan = WritePlan::build(request.alerts, channel, now)?;
     let id_intermediates = plan.keep.clone();
     let expected = request
         .expected_last_updated_at
-        .map(utils::truncate_to_millisecond);
+        .map(truncate_to_millisecond);
     let connection = state.database_connection().await?;
 
     let borrowed = &connection;
@@ -85,7 +83,7 @@ pub async fn write_state(
                     .await
                     .change_context(ObservabilityError::InternalServerError)
                     .attach_printable("Failed to read the lifecycle state watermark")?
-                    .map(utils::truncate_to_millisecond);
+                    .map(truncate_to_millisecond);
             if found != expected {
                 Err(
                     report!(ObservabilityError::StateChanged).attach_printable(format!(
@@ -140,7 +138,7 @@ pub async fn write_state(
             Ok::<_, TransactionError>(Applied { stored, removed })
         })
         .await
-        .map_err(|error| error.into_report("Failed to run the lifecycle transaction"))?;
+        .map_err(TransactionError::into_report)?;
 
     Ok(LifecycleStateSaveResponse {
         last_updated_at: (applied.stored > 0).then_some(now),
@@ -150,41 +148,27 @@ pub async fn write_state(
     })
 }
 
-pub async fn record_announcement(
+pub async fn create_announcement(
     state: AppState,
     channel: Channel,
     request: AnnouncementRequest,
 ) -> ObservabilityApiResult<AnnouncementEntry> {
     let channel = <&'static str>::from(channel);
+    request.validate()?;
 
-    utils::within_width(&request.name, "name", NAME_MAX_CHARS)?;
-    utils::within_width(&request.product, "product", NAME_MAX_CHARS)?;
-    utils::optional_within_width(request.ts_slack.as_deref(), "ts_slack", VALUE_MAX_CHARS)?;
-
-    let now = utils::truncate_to_millisecond(common_utils::date_time::now());
+    let announcement = request.into_insertable(
+        common_utils::generate_uuid_v7(),
+        channel,
+        truncate_to_millisecond(common_utils::date_time::now()),
+    )?;
     let connection = state.database_connection().await?;
 
-    let announcement = AlertsMainNew {
-        id: common_utils::generate_uuid_v7(),
-        channel: channel.to_owned(),
-        name: request.name,
-        product: request.product,
-        dimensions: utils::or_empty_list(request.dimensions.map(RawJson::from))?,
-        ts_slack: request.ts_slack,
-        ts_alert: now,
-        duration: request.duration.unwrap_or_default(),
-        sent: request.sent.unwrap_or_default(),
-        critical: request.critical.unwrap_or_default(),
-        rca_metadata: request.rca_metadata.unwrap_or_else(utils::empty_object),
-        metadata: request.metadata.map(RawJson::from),
-        last_updated_at: now,
-    }
-    .insert(&connection)
-    .await
-    .change_context(ObservabilityError::InternalServerError)
-    .attach_printable("Failed to record an announcement")?;
-
-    Ok(AnnouncementEntry::from(announcement))
+    announcement
+        .insert(&connection)
+        .await
+        .change_context(ObservabilityError::InternalServerError)
+        .attach_printable("Failed to record an announcement")
+        .map(AnnouncementEntry::from)
 }
 
 pub async fn list_announcements(
@@ -193,13 +177,11 @@ pub async fn list_announcements(
     request: AnnouncementListRequest,
 ) -> ObservabilityApiResult<AnnouncementListResponse> {
     let channel = <&'static str>::from(channel);
-
-    not_before_unix_epoch(request.start, "start")?;
-    not_before_unix_epoch(request.end, "end")?;
+    request.validate()?;
 
     let end = request
         .end
-        .unwrap_or_else(|| utils::truncate_to_millisecond(common_utils::date_time::now()));
+        .unwrap_or_else(|| truncate_to_millisecond(common_utils::date_time::now()));
     let start = request.start.unwrap_or_else(|| {
         end.saturating_sub(time::Duration::days(DEFAULT_ANNOUNCEMENT_WINDOW_DAYS))
     });
@@ -234,15 +216,10 @@ pub async fn update_announcement(
 ) -> ObservabilityApiResult<AnnouncementEntry> {
     let channel = <&'static str>::from(channel);
 
-    let patch =
-        serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(request.metadata.get())
-            .change_context(ObservabilityError::InvalidDataValue {
-                field_name: "metadata",
-            })
-            .attach_printable("The announcement metadata is not a JSON object")?;
-    let metadata = RawJson::from(request.metadata);
+    let patch = request.metadata_patch()?;
+    let metadata = request.metadata;
 
-    let now = utils::truncate_to_millisecond(common_utils::date_time::now());
+    let now = truncate_to_millisecond(common_utils::date_time::now());
     let connection = state.database_connection().await?;
 
     let borrowed = &connection;
@@ -298,7 +275,7 @@ pub async fn update_announcement(
             Ok::<_, TransactionError>(announcement)
         })
         .await
-        .map_err(|error| error.into_report("Failed to run the lifecycle transaction"))?;
+        .map_err(TransactionError::into_report)?;
 
     Ok(AnnouncementEntry::from(announcement))
 }
@@ -326,15 +303,7 @@ impl WritePlan {
         let mut referenced = HashSet::new();
 
         for alert in alerts {
-            utils::within_width(&alert.name, "name", NAME_MAX_CHARS)?;
-            utils::within_width(&alert.product, "product", NAME_MAX_CHARS)?;
-            utils::optional_within_width(alert.group_id.as_deref(), "group_id", NAME_MAX_CHARS)?;
-            utils::optional_within_width(alert.priority.as_deref(), "priority", NAME_MAX_CHARS)?;
-            utils::optional_within_width(alert.ts_slack.as_deref(), "ts_slack", VALUE_MAX_CHARS)?;
-
-            not_before_unix_epoch(alert.ts_alert, "ts_alert")?;
-            not_before_unix_epoch(alert.latest_ts_alert, "latest_ts_alert")?;
-            not_before_unix_epoch(alert.recovered_ts, "recovered_ts")?;
+            alert.validate()?;
 
             let id_intermediate = alert
                 .id_intermediate
@@ -353,28 +322,7 @@ impl WritePlan {
             keep.push(id_intermediate);
             referenced.extend(alert.announcement_id);
 
-            rows.push(AlertsIntermediateNew {
-                id_intermediate,
-                channel: channel.to_owned(),
-                id: alert.announcement_id,
-                name: alert.name,
-                product: alert.product,
-                dimensions: alert
-                    .dimensions
-                    .unwrap_or_else(|| serde_json::Value::Array(Vec::new())),
-                ts_slack: alert.ts_slack,
-                ts_alert: alert.ts_alert.unwrap_or(now),
-                latest_ts_alert: alert.latest_ts_alert.unwrap_or(now),
-                max_duration: alert.max_duration.unwrap_or_default(),
-                other_metrics: alert.other_metrics,
-                metadata: alert.metadata,
-                metadata_alert_details: alert.metadata_alert_details,
-                rca_metadata: alert.rca_metadata.unwrap_or_else(utils::empty_object),
-                group_id: alert.group_id.unwrap_or_default(),
-                priority: alert.priority.unwrap_or_default(),
-                last_updated_at: now,
-                recovered_ts: alert.recovered_ts,
-            });
+            rows.push(alert.into_insertable(id_intermediate, channel, now));
         }
 
         Ok(Self {
@@ -385,13 +333,36 @@ impl WritePlan {
     }
 }
 
-fn not_before_unix_epoch(
-    value: Option<PrimitiveDateTime>,
-    field_name: &'static str,
-) -> ObservabilityApiResult<()> {
-    if value.is_some_and(|value| value.assume_utc() < time::OffsetDateTime::UNIX_EPOCH) {
-        Err(report!(ObservabilityError::InvalidDataValue { field_name }))?;
-    }
+enum TransactionError {
+    Observability(error_stack::Report<ObservabilityError>),
+    Database(diesel::result::Error),
+}
 
-    Ok(())
+impl TransactionError {
+    fn into_report(self) -> error_stack::Report<ObservabilityError> {
+        match self {
+            Self::Observability(error) => error,
+            Self::Database(error) => report!(error)
+                .change_context(ObservabilityError::InternalServerError)
+                .attach_printable("Failed to run the lifecycle transaction"),
+        }
+    }
+}
+
+impl From<diesel::result::Error> for TransactionError {
+    fn from(error: diesel::result::Error) -> Self {
+        Self::Database(error)
+    }
+}
+
+impl From<error_stack::Report<ObservabilityError>> for TransactionError {
+    fn from(error: error_stack::Report<ObservabilityError>) -> Self {
+        Self::Observability(error)
+    }
+}
+
+fn truncate_to_millisecond(value: PrimitiveDateTime) -> PrimitiveDateTime {
+    value
+        .replace_millisecond(value.millisecond())
+        .unwrap_or(value)
 }
