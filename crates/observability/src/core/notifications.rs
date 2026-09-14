@@ -2,63 +2,38 @@ use diesel_models::observability::notification_reads::{NotificationRead, Notific
 use error_stack::ResultExt;
 
 use crate::{
-    core::utils,
-    errors::{ObservabilityApiResult, ObservabilityError},
+    auth::UserName,
+    errors::{ObservabilityApiResult, ObservabilityError, StorageErrorExt},
     state::AppState,
-    types::{notifications::WatermarkResponse, ReadStatus, UserName},
+    types::notifications::NotificationWatermarkResponse,
 };
 
-const USER_NAME_MAX_CHARS: usize = 255;
-
-pub async fn read_watermark(
+pub async fn retrieve_notification_watermark(
     state: AppState,
-    user: UserName,
-) -> ObservabilityApiResult<WatermarkResponse> {
-    let user_name = within_width(&user)?;
+    user_name: UserName,
+) -> ObservabilityApiResult<NotificationWatermarkResponse> {
     let connection = state.database_connection().await?;
 
-    let watermark = NotificationRead::find_by_user_name(&connection, user_name)
+    NotificationRead::find_by_user_name(&connection, user_name.get_secret())
         .await
-        .change_context(ObservabilityError::InternalServerError)
-        .attach_printable("Failed to read a notification watermark")?;
-
-    Ok(match watermark {
-        Some(watermark) => WatermarkResponse {
-            status: ReadStatus::Found,
-            last_read_at: Some(watermark.last_read_at),
-        },
-        None => WatermarkResponse {
-            status: ReadStatus::Absent,
-            last_read_at: None,
-        },
-    })
+        .to_not_found_response(ObservabilityError::NotificationWatermarkNotFound)
+        .attach_printable("Failed to find a notification watermark")
+        .map(NotificationWatermarkResponse::from)
 }
 
-pub async fn mark_read(
+pub async fn upsert_notification_watermark(
     state: AppState,
-    user: UserName,
-) -> ObservabilityApiResult<WatermarkResponse> {
-    let user_name = within_width(&user)?;
+    user_name: UserName,
+) -> ObservabilityApiResult<NotificationWatermarkResponse> {
     let connection = state.database_connection().await?;
 
-    let watermark = NotificationReadNew {
-        user_name: user_name.to_owned(),
+    NotificationReadNew {
+        user_name: user_name.get_secret(),
         last_read_at: common_utils::date_time::now(),
     }
     .upsert(&connection)
     .await
     .change_context(ObservabilityError::InternalServerError)
-    .attach_printable("Failed to save a notification watermark")?;
-
-    Ok(WatermarkResponse {
-        status: ReadStatus::Found,
-        last_read_at: Some(watermark.last_read_at),
-    })
-}
-
-fn within_width(user: &UserName) -> ObservabilityApiResult<&str> {
-    let user_name = user.as_str();
-    utils::within_width(user_name, "user name", USER_NAME_MAX_CHARS)?;
-
-    Ok(user_name)
+    .attach_printable("Failed to save a notification watermark")
+    .map(NotificationWatermarkResponse::from)
 }

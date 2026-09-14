@@ -1,4 +1,5 @@
 use diesel::{Identifiable, Insertable, Queryable, Selectable};
+use hyperswitch_masking::Secret;
 use time::PrimitiveDateTime;
 
 use crate::observability::schema::notification_reads;
@@ -8,13 +9,13 @@ use crate::observability::schema::notification_reads;
 )]
 #[diesel(table_name = notification_reads, primary_key(user_name), check_for_backend(diesel::pg::Pg))]
 pub struct NotificationRead {
-    pub user_name: String,
+    pub user_name: Secret<String>,
     pub last_read_at: PrimitiveDateTime,
 }
 
 #[derive(Clone, Debug, Insertable)]
 #[diesel(table_name = notification_reads)]
 pub struct NotificationReadNew {
-    pub user_name: String,
+    pub user_name: Secret<String>,
     pub last_read_at: PrimitiveDateTime,
 }

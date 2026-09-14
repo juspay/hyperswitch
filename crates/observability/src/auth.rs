@@ -12,9 +12,12 @@
 
 use actix_web::http::header::HeaderMap;
 use error_stack::report;
-use hyperswitch_masking::PeekInterface;
+use hyperswitch_masking::{PeekInterface, Secret};
 
-use crate::{errors::ObservabilityError, state::AppState};
+use crate::{
+    errors::{ObservabilityApiResult, ObservabilityError},
+    state::AppState,
+};
 
 /// The header carrying the internal API key.
 ///
@@ -22,6 +25,10 @@ use crate::{errors::ObservabilityError, state::AppState};
 /// which each declare their own copy. It says "service-to-service" where the router's `api-key`
 /// says "merchant credential", and this is the former.
 pub const X_INTERNAL_API_KEY: &str = "X-Internal-Api-Key";
+
+const X_USER_NAME: &str = "X-User-Name";
+
+const USER_NAME_MAX_CHARS: usize = 64;
 
 /// A way of authenticating a request.
 ///
@@ -87,4 +94,57 @@ impl Authenticate for NoAuth {
     ) -> error_stack::Result<(), ObservabilityError> {
         Ok(())
     }
+}
+
+#[derive(Clone, Debug)]
+pub struct UserName(Secret<String>);
+
+impl UserName {
+    pub fn new(name: Secret<String>) -> ObservabilityApiResult<Self> {
+        if name.peek().trim().is_empty() {
+            Err(report!(ObservabilityError::MissingRequiredField {
+                field_name: X_USER_NAME,
+            }))?;
+        }
+
+        let chars = name.peek().chars().count();
+        if chars > USER_NAME_MAX_CHARS {
+            Err(report!(ObservabilityError::InvalidDataValue {
+                field_name: X_USER_NAME,
+            })
+            .attach_printable(format!(
+                "The user name is {chars} characters, over the {USER_NAME_MAX_CHARS} allowed"
+            )))?;
+        }
+
+        Ok(Self(name))
+    }
+
+    pub fn get_secret(self) -> Secret<String> {
+        self.0
+    }
+}
+
+pub fn get_user_name(request_headers: &HeaderMap) -> ObservabilityApiResult<Option<UserName>> {
+    request_headers
+        .get(X_USER_NAME)
+        .map(|value| {
+            value.to_str().map_err(|_| {
+                report!(ObservabilityError::InvalidRequestData {
+                    message: format!("{X_USER_NAME} must contain only visible ASCII characters"),
+                })
+            })
+        })
+        .transpose()?
+        .filter(|name| !name.trim().is_empty())
+        .map(|name| UserName::new(Secret::new(name.to_owned())))
+        .transpose()
+}
+
+pub fn get_required_user_name(request_headers: &HeaderMap) -> ObservabilityApiResult<UserName> {
+    get_user_name(request_headers)?.ok_or_else(|| {
+        report!(ObservabilityError::MissingRequiredField {
+            field_name: X_USER_NAME,
+        })
+    })
 }
