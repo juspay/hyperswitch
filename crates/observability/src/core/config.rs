@@ -127,7 +127,7 @@ pub async fn upsert_enablement(
         .await
         .change_context(ObservabilityError::InternalServerError)
         .attach_printable("Failed to upsert the alert enablement row")
-        .map(|row| AlertEnablementResponse::new(row, definition_is_enabled))
+        .map(|row| AlertEnablementResponse::new(row, Some(definition_is_enabled)))
 }
 
 pub async fn retrieve_enablement(
@@ -149,8 +149,7 @@ pub async fn retrieve_enablement(
         AlertsInfo::find_optional_is_enabled_by_name_product(&connection, &name, &product)
             .await
             .change_context(ObservabilityError::InternalServerError)
-            .attach_printable("Failed to find the alert definition for the enablement row")?
-            .flatten();
+            .attach_printable("Failed to find the alert definition for the enablement row")?;
 
     Ok(AlertEnablementResponse::new(row, definition_is_enabled))
 }
@@ -176,8 +175,7 @@ pub async fn list_enablements(
         .map(|row| {
             let definition_is_enabled = definitions_enabled
                 .get(&(row.name.clone(), row.product.clone()))
-                .copied()
-                .flatten();
+                .copied();
             AlertEnablementResponse::new(row, definition_is_enabled)
         })
         .collect::<Vec<_>>();

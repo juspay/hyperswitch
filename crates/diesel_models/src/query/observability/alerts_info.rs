@@ -35,7 +35,7 @@ impl AlertsInfo {
         conn: &DatabaseConnectionWithContext<'_>,
         name: &str,
         product: &str,
-    ) -> StorageResult<Option<Option<bool>>> {
+    ) -> StorageResult<Option<bool>> {
         let query = <Self as HasTable>::table()
             .filter(
                 dsl::name
@@ -72,7 +72,7 @@ impl AlertsInfo {
 
     pub async fn list_is_enabled(
         conn: &DatabaseConnectionWithContext<'_>,
-    ) -> StorageResult<Vec<(String, String, Option<bool>)>> {
+    ) -> StorageResult<Vec<(String, String, bool)>> {
         let query = <Self as HasTable>::table().select((dsl::name, dsl::product, dsl::is_enabled));
 
         generics::db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(

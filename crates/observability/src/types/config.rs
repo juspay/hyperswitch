@@ -176,19 +176,19 @@ impl AlertDefinitionCreateRequest {
             id,
             name: self.name,
             product: self.product,
-            dimensions: self.dimensions,
-            period: self.period,
+            dimensions: self.dimensions.unwrap_or_default(),
+            period: self.period.unwrap_or_default(),
             default_channel: self.default_channel,
-            default_critical: self.default_critical,
+            default_critical: self.default_critical.unwrap_or_default(),
             blacklist: self.blacklist.map(RawJson::from),
             snooze: self.snooze.map(RawJson::from),
             history_window: self.history_window,
             thresholds: self.thresholds.map(RawJson::from),
             metadata: self.metadata.map(serde_json::Value::from),
-            is_enabled: Some(self.is_enabled),
+            is_enabled: self.is_enabled,
             comments: self.comments,
             call_period: self.call_period,
-            author: Some(self.author),
+            author: self.author,
             approver: self.approver,
             last_updated_at: now,
         }
@@ -201,14 +201,11 @@ pub struct AlertDefinitionUpdateRequest {
     pub is_enabled: Option<bool>,
     #[serde(default, with = "serde_with::rust::double_option")]
     pub approver: Option<Option<String>>,
-    #[serde(default, with = "serde_with::rust::double_option")]
-    pub dimensions: Option<Option<String>>,
-    #[serde(default, with = "serde_with::rust::double_option")]
-    pub period: Option<Option<i32>>,
+    pub dimensions: Option<String>,
+    pub period: Option<i32>,
     #[serde(default, with = "serde_with::rust::double_option")]
     pub default_channel: Option<Option<String>>,
-    #[serde(default, with = "serde_with::rust::double_option")]
-    pub default_critical: Option<Option<bool>>,
+    pub default_critical: Option<bool>,
     #[serde(default, with = "serde_with::rust::double_option")]
     pub blacklist: Option<Option<Blacklist>>,
     #[serde(default, with = "serde_with::rust::double_option")]
@@ -234,7 +231,7 @@ impl AlertDefinitionUpdateRequest {
         )?;
         within_width(
             "dimensions",
-            self.dimensions.as_ref().and_then(Option::as_deref),
+            self.dimensions.as_deref(),
             DIMENSIONS_MAX_CHARS,
         )?;
         within_width(
@@ -288,10 +285,10 @@ pub struct AlertDefinitionResponse {
     pub name: String,
     pub product: String,
     pub is_enabled: bool,
-    pub dimensions: Option<String>,
-    pub period: Option<i32>,
+    pub dimensions: String,
+    pub period: i32,
     pub default_channel: Option<String>,
-    pub default_critical: Option<bool>,
+    pub default_critical: bool,
     pub blacklist: Option<RawJson>,
     pub snooze: Option<RawJson>,
     pub history_window: Option<i32>,
@@ -299,10 +296,10 @@ pub struct AlertDefinitionResponse {
     pub metadata: Option<serde_json::Value>,
     pub comments: Option<serde_json::Value>,
     pub call_period: Option<i32>,
-    pub author: Option<String>,
+    pub author: String,
     pub approver: Option<String>,
-    #[serde(with = "common_utils::custom_serde::iso8601::option")]
-    pub last_updated_at: Option<PrimitiveDateTime>,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub last_updated_at: PrimitiveDateTime,
 }
 
 impl From<AlertsInfo> for AlertDefinitionResponse {
@@ -311,7 +308,7 @@ impl From<AlertsInfo> for AlertDefinitionResponse {
             id: definition.id,
             name: definition.name,
             product: definition.product,
-            is_enabled: definition.is_enabled.unwrap_or(false),
+            is_enabled: definition.is_enabled,
             dimensions: definition.dimensions,
             period: definition.period,
             default_channel: definition.default_channel,
@@ -340,19 +337,13 @@ pub struct AlertDefinitionListResponse {
 #[serde(deny_unknown_fields)]
 pub struct AlertEnablementUpsertRequest {
     pub is_enabled: bool,
-    #[serde(default, with = "serde_with::rust::double_option")]
-    pub category: Option<Option<String>>,
-    #[serde(default, with = "serde_with::rust::double_option")]
-    pub metadata: Option<Option<serde_json::Value>>,
+    pub category: Option<String>,
+    pub metadata: Option<serde_json::Value>,
 }
 
 impl AlertEnablementUpsertRequest {
     pub fn validate(&self) -> ObservabilityApiResult<()> {
-        within_width(
-            "category",
-            self.category.as_ref().and_then(Option::as_deref),
-            NAME_MAX_CHARS,
-        )
+        within_width("category", self.category.as_deref(), NAME_MAX_CHARS)
     }
 
     pub fn to_insertable(
@@ -364,9 +355,12 @@ impl AlertEnablementUpsertRequest {
         MerchantsAlertExternalConfigNew {
             name,
             product,
-            category: self.category.clone().flatten(),
-            is_enabled: Some(self.is_enabled),
-            metadata: self.metadata.clone().flatten(),
+            category: self.category.clone().unwrap_or_default(),
+            is_enabled: self.is_enabled,
+            metadata: self
+                .metadata
+                .clone()
+                .unwrap_or_else(|| serde_json::Value::Object(serde_json::Map::new())),
             last_updated_at: now,
         }
     }
@@ -386,25 +380,22 @@ impl From<AlertEnablementUpsertRequest> for MerchantsAlertExternalConfigUpdate {
 pub struct AlertEnablementResponse {
     pub name: String,
     pub product: String,
-    pub category: Option<String>,
+    pub category: String,
     pub is_enabled: bool,
     pub effective_is_enabled: bool,
-    pub metadata: Option<serde_json::Value>,
-    #[serde(with = "common_utils::custom_serde::iso8601::option")]
-    pub last_updated_at: Option<PrimitiveDateTime>,
+    pub metadata: serde_json::Value,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub last_updated_at: PrimitiveDateTime,
 }
 
 impl AlertEnablementResponse {
     pub fn new(row: MerchantsAlertExternalConfig, definition_is_enabled: Option<bool>) -> Self {
         Self {
-            effective_is_enabled: effective_is_enabled(
-                definition_is_enabled.unwrap_or(false),
-                row.is_enabled,
-            ),
+            effective_is_enabled: definition_is_enabled.unwrap_or(false) && row.is_enabled,
             name: row.name,
             product: row.product,
             category: row.category,
-            is_enabled: row.is_enabled.unwrap_or(false),
+            is_enabled: row.is_enabled,
             metadata: row.metadata,
             last_updated_at: row.last_updated_at,
         }
@@ -623,10 +614,6 @@ pub struct MerchantThresholdListResponse {
 pub struct MerchantThresholdDeleteResponse {
     pub id: uuid::Uuid,
     pub deleted: bool,
-}
-
-fn effective_is_enabled(definition_is_enabled: bool, config_is_enabled: Option<bool>) -> bool {
-    definition_is_enabled && config_is_enabled.unwrap_or(false)
 }
 
 fn metadata_is_object(metadata: Option<&serde_json::Value>) -> ObservabilityApiResult<()> {

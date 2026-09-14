@@ -230,14 +230,16 @@ read, create, save, upsert or update answers the row. A delete answers `{"id": "
 or `{"name": "…", "key": "…", "deleted": true}` for a mapper entry.
 
 An update (`POST` to a definition or merchant threshold id) changes only what the body mentions: an
-absent field is left alone, `null` clears it, and a value sets it. `null` for `is_enabled`, or for a
-merchant threshold's `author`, leaves it alone. The two upserts are described with their resources.
+absent field is left alone, `null` clears it, and a value sets it. `null` for `is_enabled`, for a
+definition's `dimensions`, `period` or `default_critical`, or for a merchant threshold's `author`,
+leaves it alone. The two upserts are described with their resources.
 
 #### Definitions
 
 A definition is one `alerts_info` row, with an id the service generates. `name`, `product`,
 `is_enabled` and `author` are required on create; `name`, `product` and `author` must not be blank,
-and `name` and `product` cannot be changed afterwards.
+and `name` and `product` cannot be changed afterwards. `dimensions`, `period` and
+`default_critical` left out or `null` are stored as r-apps stores them: `''`, `0` and false.
 
 `blacklist`, `snooze` and `thresholds` hold r-apps' documents and are stored exactly as sent, except
 that an empty list, an empty object or a blank string is stored as `{}`, as r-apps' `createAlertInfo`
@@ -280,7 +282,8 @@ effective_is_enabled = definition.is_enabled AND coalesce(enablement.is_enabled,
 
 The upsert is one statement with `(name, product)` as its conflict target, and requires
 `is_enabled` as a boolean. When the row exists, `category` and `metadata` change only if the body
-mentions them, and `null` clears them. It is refused unless a definition with that name and product
+gives them a value; absent or `null` leaves them alone. A new row stores them as r-apps does, `''`
+and `{}`, when the body does not give them. It is refused unless a definition with that name and product
 exists and the name is not `all`.
 
 ```http
@@ -336,7 +339,7 @@ X-Internal-Api-Key: <key>
 X-User-Name: ops@example.com
 
 { "name": "dashboard", "key": "slack_users", "values": "[]", "metadata": {"category": "dashboard"} }
-→ 200 { "id": "0192…", "name": "dashboard", "key": "slack_users", "product": null, "values": "[]",
+→ 200 { "id": "0192…", "name": "dashboard", "key": "slack_users", "product": [], "values": "[]",
         "metadata": {"category": "dashboard"}, "ts_created": "2026-09-14T12:34:56.789Z",
         "username": "ops@example.com" }
 
@@ -361,7 +364,7 @@ brought back; the next save writes a new live row.
 
 `product`, `values` and `metadata` are `json` columns carried as raw text in both directions
 (`diesel_models::observability::raw_json`), so the portal reads back exactly what it saved. Together
-they are capped at 1 MiB.
+they are capped at 1 MiB. One left out or `null` is stored as `[]`, as r-apps stores it.
 
 #### Notification watermark
 
@@ -385,7 +388,7 @@ watermark, and reading it is a `404` like any other missing resource.
 The internal API key authenticates the calling service, not a person. A mapper save and both
 watermark routes take the user from `X-User-Name`, which nothing authenticates. The header is
 required on the watermark routes; on a mapper save it is optional, and when it is absent or blank
-`username` takes the column default.
+`username` is stored as `reliability_team`, r-apps' default.
 
 A user name must be visible ASCII and at most 64 characters, the width of
 `alerts_dicts.username`. It is held as a `Secret`, so logs and error reports show it masked.

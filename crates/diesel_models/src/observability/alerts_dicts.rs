@@ -12,12 +12,12 @@ pub struct AlertsDict {
     pub id: uuid::Uuid,
     pub name: String,
     pub key_: String,
-    pub product: Option<RawJson>,
-    pub values_: Option<RawJson>,
-    pub ts_created: Option<PrimitiveDateTime>,
-    pub is_enabled: Option<bool>,
-    pub username: Option<Secret<String>>,
-    pub metadata: Option<RawJson>,
+    pub product: RawJson,
+    pub values_: RawJson,
+    pub ts_created: PrimitiveDateTime,
+    pub is_enabled: bool,
+    pub username: Secret<String>,
+    pub metadata: RawJson,
 }
 
 #[derive(Clone, Debug, Insertable)]
@@ -26,12 +26,12 @@ pub struct AlertsDictNew {
     pub id: uuid::Uuid,
     pub name: String,
     pub key_: String,
-    pub product: Option<RawJson>,
-    pub values_: Option<RawJson>,
+    pub product: RawJson,
+    pub values_: RawJson,
     pub ts_created: PrimitiveDateTime,
     pub is_enabled: bool,
-    pub username: Option<Secret<String>>,
-    pub metadata: Option<RawJson>,
+    pub username: Secret<String>,
+    pub metadata: RawJson,
 }
 
 #[derive(Debug)]

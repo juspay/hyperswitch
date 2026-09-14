@@ -61,7 +61,7 @@ pub async fn save_mapper(
         common_utils::generate_uuid_v7(),
         user_name,
         common_utils::date_time::now(),
-    );
+    )?;
     let name = entry.name.clone();
     let key = entry.key_.clone();
 

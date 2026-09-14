@@ -2,7 +2,7 @@ use async_bb8_diesel::AsyncRunQueryDsl;
 use diesel::{
     associations::HasTable,
     sql_types::{Integer, Text},
-    BoolExpressionMethods, ExpressionMethods, PgSortExpressionMethods, QueryDsl,
+    BoolExpressionMethods, ExpressionMethods, QueryDsl,
 };
 use error_stack::ResultExt;
 
@@ -130,7 +130,7 @@ impl AlertsDict {
                     .and(SUPERSEDED_DICTS.field(dsl::is_enabled).eq(false)),
             )
             .order((
-                SUPERSEDED_DICTS.field(dsl::ts_created).desc().nulls_last(),
+                SUPERSEDED_DICTS.field(dsl::ts_created).desc(),
                 SUPERSEDED_DICTS.field(dsl::id).desc(),
             ))
             .offset(kept);

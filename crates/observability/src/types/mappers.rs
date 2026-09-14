@@ -2,7 +2,7 @@ use diesel_models::observability::{
     alerts_dicts::{AlertsDict, AlertsDictNew},
     raw_json::RawJson,
 };
-use error_stack::report;
+use error_stack::{report, ResultExt};
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -18,6 +18,10 @@ const NAME_MAX_CHARS: usize = 64;
 const KEY_MAX_CHARS: usize = 255;
 
 const MAX_ENTRY_BYTES: usize = 1024 * 1024;
+
+const DEFAULT_USER_NAME: &str = "reliability_team";
+
+const EMPTY_LIST: &str = "[]";
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -56,18 +60,21 @@ impl MapperEntrySaveRequest {
         id: uuid::Uuid,
         user_name: Option<UserName>,
         now: PrimitiveDateTime,
-    ) -> AlertsDictNew {
-        AlertsDictNew {
+    ) -> ObservabilityApiResult<AlertsDictNew> {
+        Ok(AlertsDictNew {
             id,
             name: self.name,
             key_: self.key,
-            product: self.product,
-            values_: self.values,
+            product: or_empty_list(self.product)?,
+            values_: or_empty_list(self.values)?,
             ts_created: now,
             is_enabled: true,
-            username: user_name.map(UserName::get_secret),
-            metadata: self.metadata,
-        }
+            username: user_name.map_or_else(
+                || Secret::new(DEFAULT_USER_NAME.to_owned()),
+                UserName::get_secret,
+            ),
+            metadata: or_empty_list(self.metadata)?,
+        })
     }
 }
 
@@ -76,12 +83,12 @@ pub struct MapperEntryResponse {
     pub id: uuid::Uuid,
     pub name: String,
     pub key: String,
-    pub product: Option<RawJson>,
-    pub values: Option<RawJson>,
-    pub metadata: Option<RawJson>,
-    #[serde(with = "common_utils::custom_serde::iso8601::option")]
-    pub ts_created: Option<PrimitiveDateTime>,
-    pub username: Option<Secret<String>>,
+    pub product: RawJson,
+    pub values: RawJson,
+    pub metadata: RawJson,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub ts_created: PrimitiveDateTime,
+    pub username: Secret<String>,
 }
 
 impl From<AlertsDict> for MapperEntryResponse {
@@ -110,4 +117,15 @@ pub struct MapperEntryDeleteResponse {
     pub name: String,
     pub key: String,
     pub deleted: bool,
+}
+
+fn or_empty_list(column: Option<RawJson>) -> ObservabilityApiResult<RawJson> {
+    column.map_or_else(
+        || {
+            serde_json::from_str(EMPTY_LIST)
+                .change_context(ObservabilityError::InternalServerError)
+                .attach_printable("Failed to build an empty JSON list")
+        },
+        Ok,
+    )
 }
