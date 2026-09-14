@@ -3047,7 +3047,9 @@ pub async fn fulfill_payout(
             }
         }
         Err(err) => {
-            let status = storage_enums::PayoutStatus::Failed;
+            // For ambiguous connector outcomes (5xx) let the payout
+            // sync task scheduled above reconcile the final connector status instead of marking as Failed.
+            let status = helpers::get_payout_fulfill_status_for_error(err.status_code);
             let (error_code, error_message) = (Some(err.code), Some(err.message));
             let (unified_code, unified_message) = helpers::get_gsm_record(
                 &updated_state,
