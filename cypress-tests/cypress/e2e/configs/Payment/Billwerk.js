@@ -96,6 +96,9 @@ const payment_method_data_no3ds = {
   card: {
     last4: "0009",
     card_type: "CREDIT",
+    card_subtype: null,
+    card_segment_type: null,
+    funding_source: null,
     card_network: "AmericanExpress",
     card_issuer: "AMERICAN EXPRESS COMPANY",
     card_issuing_country: "INDIA",

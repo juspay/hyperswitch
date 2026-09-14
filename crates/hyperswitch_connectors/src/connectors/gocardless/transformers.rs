@@ -339,13 +339,16 @@ impl TryFrom<common_enums::BankType> for AccountType {
         match item {
             common_enums::BankType::Checking => Ok(Self::Checking),
             common_enums::BankType::Savings => Ok(Self::Savings),
-            b_type @ (common_enums::BankType::Salary | common_enums::BankType::Payment) => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: format!("bank_type {b_type} is not supported"),
-                    connector: "gocardless",
-                }
-                .into())
+            b_type @ (common_enums::BankType::Salary
+            | common_enums::BankType::Payment
+            | common_enums::BankType::Bond
+            | common_enums::BankType::Current
+            | common_enums::BankType::SubscriptionShare
+            | common_enums::BankType::Transmission) => Err(errors::ConnectorError::NotSupported {
+                message: format!("bank_type {b_type} is not supported"),
+                connector: "gocardless",
             }
+            .into()),
         }
     }
 }

@@ -37,11 +37,8 @@ fn unique_test_id() -> String {
     use std::sync::atomic::{AtomicU64, Ordering};
     static COUNTER: AtomicU64 = AtomicU64::new(0);
     let counter = COUNTER.fetch_add(1, Ordering::SeqCst);
-    let pid = std::process::id();
-    let millis = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_millis())
-        .unwrap_or(0);
+    let pid = common_utils::process_id();
+    let millis = common_utils::date_time::now_unix_timestamp_millis();
     format!("{pid}_{millis}_{counter}")
 }
 
@@ -915,14 +912,7 @@ async fn test_set_expire_at_and_get_ttl() {
 
             let _ = pool.set_key(&key, "value".to_string()).await;
 
-            let future_ts = i64::try_from(
-                std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap()
-                    .as_secs(),
-            )
-            .unwrap()
-                + 120;
+            let future_ts = common_utils::date_time::now_unix_timestamp() + 120;
             let set_result = pool.set_expire_at(&key, future_ts).await;
             let ttl_result = pool.get_ttl(&key).await;
 

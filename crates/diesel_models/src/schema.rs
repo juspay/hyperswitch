@@ -204,6 +204,14 @@ diesel::table! {
         updated_at -> Timestamp,
         #[max_length = 64]
         profile_id -> Nullable<Varchar>,
+        #[max_length = 32]
+        job_type -> Nullable<Varchar>,
+        #[max_length = 255]
+        file_name -> Nullable<Varchar>,
+        #[max_length = 512]
+        file_key -> Nullable<Varchar>,
+        error_message -> Nullable<Text>,
+        expires_at -> Nullable<Timestamp>,
     }
 }
 
@@ -788,62 +796,6 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    hyperswitch_ai_interaction (id, created_at) {
-        #[max_length = 64]
-        id -> Varchar,
-        #[max_length = 64]
-        session_id -> Nullable<Varchar>,
-        #[max_length = 64]
-        user_id -> Nullable<Varchar>,
-        #[max_length = 64]
-        merchant_id -> Nullable<Varchar>,
-        #[max_length = 64]
-        profile_id -> Nullable<Varchar>,
-        #[max_length = 64]
-        org_id -> Nullable<Varchar>,
-        #[max_length = 64]
-        role_id -> Nullable<Varchar>,
-        user_query -> Nullable<Bytea>,
-        response -> Nullable<Bytea>,
-        database_query -> Nullable<Text>,
-        #[max_length = 64]
-        interaction_status -> Nullable<Varchar>,
-        created_at -> Timestamp,
-    }
-}
-
-diesel::table! {
-    use diesel::sql_types::*;
-    use crate::enums::diesel_exports::*;
-
-    hyperswitch_ai_interaction_default (id, created_at) {
-        #[max_length = 64]
-        id -> Varchar,
-        #[max_length = 64]
-        session_id -> Nullable<Varchar>,
-        #[max_length = 64]
-        user_id -> Nullable<Varchar>,
-        #[max_length = 64]
-        merchant_id -> Nullable<Varchar>,
-        #[max_length = 64]
-        profile_id -> Nullable<Varchar>,
-        #[max_length = 64]
-        org_id -> Nullable<Varchar>,
-        #[max_length = 64]
-        role_id -> Nullable<Varchar>,
-        user_query -> Nullable<Bytea>,
-        response -> Nullable<Bytea>,
-        database_query -> Nullable<Text>,
-        #[max_length = 64]
-        interaction_status -> Nullable<Varchar>,
-        created_at -> Timestamp,
-    }
-}
-
-diesel::table! {
-    use diesel::sql_types::*;
-    use crate::enums::diesel_exports::*;
-
     incremental_authorization (authorization_id, merchant_id) {
         #[max_length = 64]
         authorization_id -> Varchar,
@@ -1039,6 +991,7 @@ diesel::table! {
         network_tokenization_credentials -> Nullable<Bytea>,
         #[max_length = 128]
         fingerprint_secret -> Nullable<Varchar>,
+        offer_engine_config -> Nullable<Bytea>,
     }
 }
 
@@ -2030,8 +1983,6 @@ diesel::allow_tables_to_appear_in_same_query!(
     fraud_check,
     gateway_status_map,
     generic_link,
-    hyperswitch_ai_interaction,
-    hyperswitch_ai_interaction_default,
     incremental_authorization,
     invoice,
     locker_mock_up,

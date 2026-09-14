@@ -1151,6 +1151,36 @@ export const connectorDetails = {
         },
       },
     },
+    BlockImplicitCustomerCreationAllowed: {
+      Request: {
+        currency: "EUR",
+        amount: 6500,
+        email: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    BlockImplicitCustomerCreationBlocked: {
+      Request: {
+        currency: "EUR",
+        amount: 6500,
+        email: null,
+      },
+      Response: {
+        status: 404,
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "HE_02",
+            message: "Customer does not exist in our records",
+          },
+        },
+      },
+    },
   },
   bank_transfer_pm: {
     Pix: {
