@@ -1,78 +1,87 @@
 use async_bb8_diesel::AsyncRunQueryDsl;
-use diesel::{associations::HasTable, ExpressionMethods, QueryDsl};
-use error_stack::{report, ResultExt};
+use diesel::{
+    associations::HasTable, query_dsl::methods::FilterDsl, BoolExpressionMethods, ExpressionMethods,
+};
+use error_stack::ResultExt;
 
-use crate::{errors, query::generics, DatabaseConnectionWithContext, StorageResult};
+use crate::{
+    errors,
+    observability::{
+        merchants_alert_external::{MerchantsAlertExternal, MerchantsAlertExternalNew},
+        schema::merchants_alert_external::dsl,
+    },
+    query::generics,
+    DatabaseConnectionWithContext, StorageResult,
+};
 
-macro_rules! merchant_instance_queries {
-    ($module:ident, $table:ident) => {
-        pub mod $module {
-            use super::*;
-            use crate::observability::{
-                merchants_alert_external::{$module::MerchantInstance, MerchantInstanceRow},
-                schema::$table::dsl,
-            };
-
-            impl MerchantInstance {
-                pub async fn list_for_announcement(
-                    conn: &DatabaseConnectionWithContext<'_>,
-                    announcement: uuid::Uuid,
-                ) -> StorageResult<Vec<MerchantInstanceRow>> {
-                    generics::generic_filter::<<Self as HasTable>::Table, _, _, Self>(
-                        conn,
-                        dsl::id.eq(announcement),
-                        None,
-                        None,
-                        Some((dsl::merchant_id.asc(), dsl::id_merchant_table.asc())),
-                    )
-                    .await
-                    .map(|rows| rows.into_iter().map(MerchantInstanceRow::from).collect())
-                }
-
-                pub async fn delete_for_announcement(
-                    conn: &DatabaseConnectionWithContext<'_>,
-                    announcement: uuid::Uuid,
-                ) -> StorageResult<usize> {
-                    let query = diesel::delete(
-                        <Self as HasTable>::table().filter(dsl::id.eq(announcement)),
-                    );
-
-                    generics::db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-                        conn.request_id(),
-                        conn.event_emitter(),
-                        generics::db_metrics::DatabaseOperation::Delete,
-                        query.execute_async(conn.raw_connection()),
-                    )
-                    .await
-                    .map_err(|error| report!(error).change_context(errors::DatabaseError::Others))
-                    .attach_printable("Error while removing merchant alert instances")
-                }
-
-                pub async fn insert_all(
-                    conn: &DatabaseConnectionWithContext<'_>,
-                    rows: Vec<MerchantInstanceRow>,
-                ) -> StorageResult<usize> {
-                    if rows.is_empty() {
-                        return Ok(0);
-                    }
-
-                    let query = diesel::insert_into(<Self as HasTable>::table())
-                        .values(rows.into_iter().map(Self::from).collect::<Vec<_>>());
-
-                    generics::db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-                        conn.request_id(),
-                        conn.event_emitter(),
-                        generics::db_metrics::DatabaseOperation::Insert,
-                        query.execute_async(conn.raw_connection()),
-                    )
-                    .await
-                    .map_err(|error| report!(error).change_context(errors::DatabaseError::Others))
-                    .attach_printable("Error while saving merchant alert instances")
-                }
-            }
+impl MerchantsAlertExternalNew {
+    pub async fn bulk_insert(
+        conn: &DatabaseConnectionWithContext<'_>,
+        rows: Vec<Self>,
+    ) -> StorageResult<usize> {
+        if rows.is_empty() {
+            return Ok(0);
         }
-    };
+
+        let query = diesel::insert_into(<MerchantsAlertExternal as HasTable>::table()).values(rows);
+
+        generics::db_metrics::track_database_call::<
+            <MerchantsAlertExternal as HasTable>::Table,
+            _,
+            _,
+        >(
+            conn.request_id(),
+            conn.event_emitter(),
+            generics::db_metrics::DatabaseOperation::Insert,
+            query.execute_async(conn.raw_connection()),
+        )
+        .await
+        .map_err(|e| error_stack::report!(e))
+        .change_context(errors::DatabaseError::Others)
+        .attach_printable("Failed to insert merchant alert instances")
+    }
 }
 
-merchant_instance_queries!(slack, merchants_alert_external);
-merchant_instance_queries!(xyne, merchants_alert_external_xyne);
+impl MerchantsAlertExternal {
+    pub async fn list_by_channel_and_announcement(
+        conn: &DatabaseConnectionWithContext<'_>,
+        channel: &str,
+        announcement: uuid::Uuid,
+    ) -> StorageResult<Vec<Self>> {
+        generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
+            conn,
+            dsl::channel
+                .eq(channel.to_owned())
+                .and(dsl::id.eq(announcement)),
+            None,
+            None,
+            Some((dsl::merchant_id.asc(), dsl::id_merchant_table.asc())),
+        )
+        .await
+    }
+
+    pub async fn delete_by_channel_and_announcement(
+        conn: &DatabaseConnectionWithContext<'_>,
+        channel: &str,
+        announcement: uuid::Uuid,
+    ) -> StorageResult<usize> {
+        let query = diesel::delete(
+            <Self as HasTable>::table().filter(
+                dsl::channel
+                    .eq(channel.to_owned())
+                    .and(dsl::id.eq(announcement)),
+            ),
+        );
+
+        generics::db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
+            conn.request_id(),
+            conn.event_emitter(),
+            generics::db_metrics::DatabaseOperation::Delete,
+            query.execute_async(conn.raw_connection()),
+        )
+        .await
+        .map_err(|e| error_stack::report!(e))
+        .change_context(errors::DatabaseError::Others)
+        .attach_printable("Failed to delete merchant alert instances")
+    }
+}

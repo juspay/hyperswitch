@@ -75,12 +75,12 @@ pub async fn write_state(
         }))?;
     }
 
-    let now = truncate_to_millisecond(common_utils::date_time::now());
+    let now = utils::truncate_to_millisecond(common_utils::date_time::now());
     let plan = WritePlan::build(request.alerts, channel, now)?;
     let id_intermediates = plan.keep.clone();
     let expected = request
         .expected_last_updated_at
-        .map(truncate_to_millisecond);
+        .map(utils::truncate_to_millisecond);
     let connection = state.database_connection().await?;
 
     let borrowed = &connection;
@@ -92,7 +92,7 @@ pub async fn write_state(
             let found =
                 AlertsIntermediate::find_latest_last_updated_at_by_channel(borrowed, channel)
                     .await?
-                    .map(truncate_to_millisecond);
+                    .map(utils::truncate_to_millisecond);
             if found != expected {
                 Err(WriteFailure::Stale { expected, found })?;
             }
@@ -156,7 +156,7 @@ pub async fn record_announcement(
     within_width(request.product.as_deref(), "product", NAME_MAX_CHARS)?;
     within_width(request.ts_slack.as_deref(), "ts_slack", TS_SLACK_MAX_CHARS)?;
 
-    let now = truncate_to_millisecond(common_utils::date_time::now());
+    let now = utils::truncate_to_millisecond(common_utils::date_time::now());
     let connection = state.database_connection().await?;
 
     let announcement = AlertsMainNew {
@@ -196,7 +196,7 @@ pub async fn list_announcements(
 
     let end = request
         .end
-        .unwrap_or_else(|| truncate_to_millisecond(common_utils::date_time::now()));
+        .unwrap_or_else(|| utils::truncate_to_millisecond(common_utils::date_time::now()));
     let start = request
         .start
         .unwrap_or(end - time::Duration::days(DEFAULT_ANNOUNCEMENT_WINDOW_DAYS));
@@ -237,7 +237,7 @@ pub async fn update_announcement(
             .attach_printable("The announcement metadata is not a JSON object")?;
     let metadata = RawJson::from(request.metadata);
 
-    let now = truncate_to_millisecond(common_utils::date_time::now());
+    let now = utils::truncate_to_millisecond(common_utils::date_time::now());
     let connection = state.database_connection().await?;
 
     let borrowed = &connection;
@@ -424,12 +424,6 @@ impl From<error_stack::Report<diesel_models::errors::DatabaseError>> for WriteFa
     fn from(error: error_stack::Report<diesel_models::errors::DatabaseError>) -> Self {
         Self::Storage(error)
     }
-}
-
-fn truncate_to_millisecond(value: PrimitiveDateTime) -> PrimitiveDateTime {
-    value
-        .replace_millisecond(value.millisecond())
-        .unwrap_or(value)
 }
 
 fn within_width(value: Option<&str>, field: &str, max_chars: usize) -> ObservabilityApiResult<()> {

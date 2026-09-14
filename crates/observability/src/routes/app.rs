@@ -156,9 +156,11 @@ pub struct AlertsDimensions;
 impl AlertsDimensions {
     pub fn server() -> Scope {
         web::scope("/dimensions").service(
-            web::resource("/{announcement_id}")
-                .route(web::get().to(instances::read_dimensions))
-                .route(web::post().to(instances::write_dimensions)),
+            web::scope("/{channel}").service(
+                web::resource("/{announcement_id}")
+                    .route(web::get().to(instances::read_dimensions))
+                    .route(web::post().to(instances::write_dimensions)),
+            ),
         )
     }
 }

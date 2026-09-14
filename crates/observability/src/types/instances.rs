@@ -1,6 +1,6 @@
 use diesel_models::observability::{
-    merchants_alert_external::MerchantInstanceRow,
-    merchants_alert_external_dimension::DimensionInstance,
+    merchants_alert_external::MerchantsAlertExternal,
+    merchants_alert_external_dimension::MerchantsAlertExternalDimension,
 };
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -206,8 +206,8 @@ pub struct DimensionReadResponse {
 #[derive(Debug, Serialize)]
 pub struct InstanceSaveResponse {
     pub status: WriteStatus,
-    #[serde(with = "common_utils::custom_serde::iso8601")]
-    pub ts_alert: PrimitiveDateTime,
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    pub ts_alert: Option<PrimitiveDateTime>,
     pub merchants: usize,
     pub removed: usize,
     pub truncated: Option<Truncation>,
@@ -216,15 +216,15 @@ pub struct InstanceSaveResponse {
 #[derive(Debug, Serialize)]
 pub struct DimensionSaveResponse {
     pub status: WriteStatus,
-    #[serde(with = "common_utils::custom_serde::iso8601")]
-    pub ts_alert: PrimitiveDateTime,
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    pub ts_alert: Option<PrimitiveDateTime>,
     pub dimensions: usize,
     pub removed: usize,
     pub truncated: Option<Truncation>,
 }
 
-impl From<MerchantInstanceRow> for MerchantInstanceEntry {
-    fn from(row: MerchantInstanceRow) -> Self {
+impl From<MerchantsAlertExternal> for MerchantInstanceEntry {
+    fn from(row: MerchantsAlertExternal) -> Self {
         Self {
             id_merchant_table: row.id_merchant_table,
             announcement_id: row.id,
@@ -255,8 +255,8 @@ impl From<MerchantInstanceRow> for MerchantInstanceEntry {
     }
 }
 
-impl From<DimensionInstance> for DimensionInstanceEntry {
-    fn from(row: DimensionInstance) -> Self {
+impl From<MerchantsAlertExternalDimension> for DimensionInstanceEntry {
+    fn from(row: MerchantsAlertExternalDimension) -> Self {
         Self {
             id_merchant_table: row.id_merchant_table,
             announcement_id: row.id,

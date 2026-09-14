@@ -1,25 +1,61 @@
 use async_bb8_diesel::AsyncRunQueryDsl;
-use diesel::{associations::HasTable, ExpressionMethods, QueryDsl};
-use error_stack::{report, ResultExt};
+use diesel::{
+    associations::HasTable, query_dsl::methods::FilterDsl, BoolExpressionMethods, ExpressionMethods,
+};
+use error_stack::ResultExt;
 
 use crate::{
     errors,
     observability::{
-        merchants_alert_external_dimension::DimensionInstance,
+        merchants_alert_external_dimension::{
+            MerchantsAlertExternalDimension, MerchantsAlertExternalDimensionNew,
+        },
         schema::merchants_alert_external_dimension::dsl,
     },
     query::generics,
     DatabaseConnectionWithContext, StorageResult,
 };
 
-impl DimensionInstance {
-    pub async fn list_for_announcement(
+impl MerchantsAlertExternalDimensionNew {
+    pub async fn bulk_insert(
         conn: &DatabaseConnectionWithContext<'_>,
+        rows: Vec<Self>,
+    ) -> StorageResult<usize> {
+        if rows.is_empty() {
+            return Ok(0);
+        }
+
+        let query = diesel::insert_into(<MerchantsAlertExternalDimension as HasTable>::table())
+            .values(rows);
+
+        generics::db_metrics::track_database_call::<
+            <MerchantsAlertExternalDimension as HasTable>::Table,
+            _,
+            _,
+        >(
+            conn.request_id(),
+            conn.event_emitter(),
+            generics::db_metrics::DatabaseOperation::Insert,
+            query.execute_async(conn.raw_connection()),
+        )
+        .await
+        .map_err(|e| error_stack::report!(e))
+        .change_context(errors::DatabaseError::Others)
+        .attach_printable("Failed to insert alert dimension rows")
+    }
+}
+
+impl MerchantsAlertExternalDimension {
+    pub async fn list_by_channel_and_announcement(
+        conn: &DatabaseConnectionWithContext<'_>,
+        channel: &str,
         announcement: uuid::Uuid,
     ) -> StorageResult<Vec<Self>> {
-        generics::generic_filter::<<Self as HasTable>::Table, _, _, Self>(
+        generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
             conn,
-            dsl::id.eq(announcement),
+            dsl::channel
+                .eq(channel.to_owned())
+                .and(dsl::id.eq(announcement)),
             None,
             None,
             Some((
@@ -31,11 +67,18 @@ impl DimensionInstance {
         .await
     }
 
-    pub async fn delete_for_announcement(
+    pub async fn delete_by_channel_and_announcement(
         conn: &DatabaseConnectionWithContext<'_>,
+        channel: &str,
         announcement: uuid::Uuid,
     ) -> StorageResult<usize> {
-        let query = diesel::delete(<Self as HasTable>::table().filter(dsl::id.eq(announcement)));
+        let query = diesel::delete(
+            <Self as HasTable>::table().filter(
+                dsl::channel
+                    .eq(channel.to_owned())
+                    .and(dsl::id.eq(announcement)),
+            ),
+        );
 
         generics::db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
             conn.request_id(),
@@ -44,28 +87,8 @@ impl DimensionInstance {
             query.execute_async(conn.raw_connection()),
         )
         .await
-        .map_err(|error| report!(error).change_context(errors::DatabaseError::Others))
-        .attach_printable("Error while removing alert dimension rows")
-    }
-
-    pub async fn insert_all(
-        conn: &DatabaseConnectionWithContext<'_>,
-        rows: Vec<Self>,
-    ) -> StorageResult<usize> {
-        if rows.is_empty() {
-            return Ok(0);
-        }
-
-        let query = diesel::insert_into(<Self as HasTable>::table()).values(rows);
-
-        generics::db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
-            generics::db_metrics::DatabaseOperation::Insert,
-            query.execute_async(conn.raw_connection()),
-        )
-        .await
-        .map_err(|error| report!(error).change_context(errors::DatabaseError::Others))
-        .attach_printable("Error while saving alert dimension rows")
+        .map_err(|e| error_stack::report!(e))
+        .change_context(errors::DatabaseError::Others)
+        .attach_printable("Failed to delete alert dimension rows")
     }
 }

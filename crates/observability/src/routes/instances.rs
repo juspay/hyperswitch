@@ -12,16 +12,15 @@ use crate::{
 pub async fn read_instances(
     state: web::Data<AppState>,
     request: HttpRequest,
-    path: web::Path<(String, uuid::Uuid)>,
+    path: web::Path<(Channel, uuid::Uuid)>,
 ) -> HttpResponse {
     let (channel, announcement) = path.into_inner();
-    let channel = Channel::from_path(&channel);
 
     services::server_wrap(
         state.get_ref().clone(),
         &request,
         (),
-        |state, ()| async move { core::instances::read_instances(state, channel?, announcement).await },
+        |state, ()| async move { core::instances::read_instances(state, channel, announcement).await },
         &auth::InternalApiKeyAuth,
     )
     .await
@@ -30,18 +29,17 @@ pub async fn read_instances(
 pub async fn write_instances(
     state: web::Data<AppState>,
     request: HttpRequest,
-    path: web::Path<(String, uuid::Uuid)>,
+    path: web::Path<(Channel, uuid::Uuid)>,
     payload: web::Json<InstanceWriteRequest>,
 ) -> HttpResponse {
     let (channel, announcement) = path.into_inner();
-    let channel = Channel::from_path(&channel);
 
     services::server_wrap(
         state.get_ref().clone(),
         &request,
         payload.into_inner(),
         |state, payload| async move {
-            core::instances::write_instances(state, channel?, announcement, payload).await
+            core::instances::write_instances(state, channel, announcement, payload).await
         },
         &auth::InternalApiKeyAuth,
     )
@@ -51,15 +49,17 @@ pub async fn write_instances(
 pub async fn read_dimensions(
     state: web::Data<AppState>,
     request: HttpRequest,
-    path: web::Path<uuid::Uuid>,
+    path: web::Path<(Channel, uuid::Uuid)>,
 ) -> HttpResponse {
-    let announcement = path.into_inner();
+    let (channel, announcement) = path.into_inner();
 
     services::server_wrap(
         state.get_ref().clone(),
         &request,
         (),
-        |state, ()| async move { core::instances::read_dimensions(state, announcement).await },
+        |state, ()| async move {
+            core::instances::read_dimensions(state, channel, announcement).await
+        },
         &auth::InternalApiKeyAuth,
     )
     .await
@@ -68,17 +68,17 @@ pub async fn read_dimensions(
 pub async fn write_dimensions(
     state: web::Data<AppState>,
     request: HttpRequest,
-    path: web::Path<uuid::Uuid>,
+    path: web::Path<(Channel, uuid::Uuid)>,
     payload: web::Json<DimensionWriteRequest>,
 ) -> HttpResponse {
-    let announcement = path.into_inner();
+    let (channel, announcement) = path.into_inner();
 
     services::server_wrap(
         state.get_ref().clone(),
         &request,
         payload.into_inner(),
         |state, payload| async move {
-            core::instances::write_dimensions(state, announcement, payload).await
+            core::instances::write_dimensions(state, channel, announcement, payload).await
         },
         &auth::InternalApiKeyAuth,
     )

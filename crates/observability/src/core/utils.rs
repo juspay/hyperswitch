@@ -1,6 +1,7 @@
 use diesel_models::observability::raw_json::RawJson;
 use error_stack::{report, ResultExt};
 use serde_json::value::RawValue;
+use time::PrimitiveDateTime;
 
 use crate::errors::{ObservabilityApiResult, ObservabilityError};
 
@@ -28,4 +29,10 @@ pub fn within_width(value: &str, field: &str, max_chars: usize) -> Observability
     }
 
     Ok(())
+}
+
+pub fn truncate_to_millisecond(value: PrimitiveDateTime) -> PrimitiveDateTime {
+    value
+        .replace_millisecond(value.millisecond())
+        .unwrap_or(value)
 }

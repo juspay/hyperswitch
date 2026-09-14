@@ -1,21 +1,19 @@
 use std::cmp::Ordering;
 
 use async_bb8_diesel::AsyncConnection;
-use diesel_models::{
-    observability::{
-        alerts_main::{slack as slack_main, xyne as xyne_main, AnnouncementRow},
-        merchants_alert_external::{
-            slack as slack_instance, xyne as xyne_instance, MerchantInstanceRow,
-        },
-        merchants_alert_external_dimension::DimensionInstance,
+use diesel_models::observability::{
+    alerts_main::AlertsMain,
+    merchants_alert_external::{MerchantsAlertExternal, MerchantsAlertExternalNew},
+    merchants_alert_external_dimension::{
+        MerchantsAlertExternalDimension, MerchantsAlertExternalDimensionNew,
     },
-    DatabaseConnectionWithContext, StorageResult,
 };
 use error_stack::{report, ResultExt};
 use time::PrimitiveDateTime;
 
 use crate::{
-    errors::{ObservabilityApiResult, ObservabilityError},
+    core::utils,
+    errors::{ObservabilityApiResult, ObservabilityError, StorageErrorExt},
     logger,
     state::AppState,
     types::{
@@ -30,23 +28,40 @@ use crate::{
     },
 };
 
-const NAME_MAX_BYTES: usize = 64;
+const NAME_MAX_CHARS: usize = 64;
 
-const VALUE_MAX_BYTES: usize = 255;
+const VALUE_MAX_CHARS: usize = 255;
 
-pub const TRUNCATION_KEY: &str = "truncated_by_impact";
+const MAX_MERCHANTS: usize = 500;
+
+const MAX_DIMENSIONS: usize = 500;
+
+const EMPTY_JSON_TEXT: &str = "{}";
+
+const TRUNCATION_KEY: &str = "truncated_by_impact";
 
 pub async fn read_instances(
     state: AppState,
     channel: Channel,
     announcement: uuid::Uuid,
 ) -> ObservabilityApiResult<InstanceReadResponse> {
+    let channel = <&'static str>::from(channel);
     let connection = state.database_connection().await?;
 
-    let rows = store::list(&connection, channel, announcement)
+    AlertsMain::find_by_channel_and_id(&connection, channel, announcement)
         .await
-        .change_context(ObservabilityError::StorageUnavailable)
-        .attach_printable("Failed to read the merchant alert instances")?;
+        .to_not_found_response(ObservabilityError::UnknownAnnouncement {
+            id: announcement.to_string(),
+        })?;
+
+    let rows = MerchantsAlertExternal::list_by_channel_and_announcement(
+        &connection,
+        channel,
+        announcement,
+    )
+    .await
+    .change_context(ObservabilityError::InternalServerError)
+    .attach_printable("Failed to read the merchant alert instances")?;
 
     Ok(InstanceReadResponse {
         status: found_or_absent(rows.len()),
@@ -60,52 +75,119 @@ pub async fn write_instances(
     announcement: uuid::Uuid,
     request: InstanceWriteRequest,
 ) -> ObservabilityApiResult<InstanceSaveResponse> {
-    let connection = state.database_connection().await?;
-    let parent = store::announcement(&connection, channel, announcement).await?;
+    let channel = <&'static str>::from(channel);
 
-    let now = stamp();
-    let plan = InstancePlan::build(
-        request.merchants,
-        Parent {
-            announcement,
-            thread: parent.ts_slack,
-        },
-        now,
-        state.conf.instances.max_merchants,
-    )?;
+    for write in &request.merchants {
+        within_width(write.name.as_deref(), "name", NAME_MAX_CHARS)?;
+        within_width(write.product.as_deref(), "product", NAME_MAX_CHARS)?;
+        within_width(write.merchant_id.as_deref(), "merchant_id", NAME_MAX_CHARS)?;
+        within_width(write.priority.as_deref(), "priority", NAME_MAX_CHARS)?;
+        within_width(write.tenant_id.as_deref(), "tenant_id", NAME_MAX_CHARS)?;
+        within_width(write.attribution.as_deref(), "attribution", VALUE_MAX_CHARS)?;
+        within_width(write.ts_slack.as_deref(), "ts_slack", VALUE_MAX_CHARS)?;
+    }
+
+    let now = utils::truncate_to_millisecond(common_utils::date_time::now());
+    let (writes, truncated) = keep_the_worst(request.merchants, MAX_MERCHANTS, |write| {
+        impact(write.current_metric, write.expected_metric)
+    });
+    let marker = truncated.as_ref().map(marker_for);
+    let connection = state.database_connection().await?;
 
     let borrowed = &connection;
-    let rows = plan.rows;
     let applied = borrowed
         .raw_connection()
         .transaction_async(move |_| async move {
-            let removed = store::delete(borrowed, channel, announcement).await?;
-            let stored = store::insert(borrowed, channel, rows).await?;
+            AlertsMain::lock_instances_by_id(borrowed, announcement).await?;
+
+            let parent =
+                AlertsMain::find_by_channel_and_id(borrowed, channel, announcement).await?;
+
+            let removed = MerchantsAlertExternal::delete_by_channel_and_announcement(
+                borrowed,
+                channel,
+                announcement,
+            )
+            .await?;
+
+            let rows = writes
+                .into_iter()
+                .map(|write| MerchantsAlertExternalNew {
+                    id: announcement,
+                    channel: channel.to_owned(),
+                    id_merchant_table: uuid::Uuid::now_v7(),
+                    id_intermediate: write.id_intermediate,
+                    name: write.name.unwrap_or_default(),
+                    product: write.product.unwrap_or_default(),
+                    merchant_id: write.merchant_id.unwrap_or_default(),
+                    dimensions: write.dimensions.unwrap_or_else(empty_json_text),
+                    auxiliary_dimensions: write
+                        .auxiliary_dimensions
+                        .unwrap_or_else(empty_json_text),
+                    current_metric: write.current_metric,
+                    expected_metric: write.expected_metric,
+                    attribution: write.attribution.unwrap_or_default(),
+                    max_duration: write.max_duration,
+                    start_time: write.start_time,
+                    is_visible: write.is_visible.unwrap_or(true),
+                    recovered_ts: write.recovered_ts,
+                    ts_slack: write
+                        .ts_slack
+                        .or_else(|| parent.ts_slack.clone())
+                        .unwrap_or_default(),
+                    ts_alert: now,
+                    latest_ts_alert: write.latest_ts_alert,
+                    last_updated_at: now,
+                    slack_info: write.slack_info.unwrap_or_else(empty_object),
+                    communication_info: write.communication_info.unwrap_or_else(empty_object),
+                    metadata: write.metadata.unwrap_or_else(empty_json_text),
+                    metadata_alert_details: record_truncation(
+                        write.metadata_alert_details.unwrap_or_else(empty_object),
+                        marker.as_ref(),
+                    ),
+                    priority: write.priority.unwrap_or_default(),
+                    tenant_id: write.tenant_id.unwrap_or_default(),
+                })
+                .collect();
+
+            let stored = MerchantsAlertExternalNew::bulk_insert(borrowed, rows).await?;
 
             Ok::<_, WriteFailure>(Applied { stored, removed })
         })
         .await
-        .map_err(WriteFailure::into_report)?;
+        .map_err(|failure| failure.into_report(announcement))?;
 
     Ok(InstanceSaveResponse {
         status: WriteStatus::Saved,
-        ts_alert: now,
+        ts_alert: (applied.stored > 0).then_some(now),
         merchants: applied.stored,
         removed: applied.removed,
-        truncated: plan.truncated,
+        truncated,
     })
 }
 
 pub async fn read_dimensions(
     state: AppState,
+    channel: Channel,
     announcement: uuid::Uuid,
 ) -> ObservabilityApiResult<DimensionReadResponse> {
+    let channel = <&'static str>::from(channel);
     let connection = state.database_connection().await?;
 
-    let rows = DimensionInstance::list_for_announcement(&connection, announcement)
+    AlertsMain::find_by_channel_and_id(&connection, channel, announcement)
         .await
-        .change_context(ObservabilityError::StorageUnavailable)
-        .attach_printable("Failed to read the alert dimension breakdown")?;
+        .to_not_found_response(ObservabilityError::UnknownAnnouncement {
+            id: announcement.to_string(),
+        })?;
+
+    let rows = MerchantsAlertExternalDimension::list_by_channel_and_announcement(
+        &connection,
+        channel,
+        announcement,
+    )
+    .await
+    .change_context(ObservabilityError::InternalServerError)
+    .attach_printable("Failed to read the alert dimension breakdown")?;
 
     Ok(DimensionReadResponse {
         status: found_or_absent(rows.len()),
@@ -115,49 +197,109 @@ pub async fn read_dimensions(
 
 pub async fn write_dimensions(
     state: AppState,
+    channel: Channel,
     announcement: uuid::Uuid,
     request: DimensionWriteRequest,
 ) -> ObservabilityApiResult<DimensionSaveResponse> {
-    let connection = state.database_connection().await?;
-    let parent = store::announcement(&connection, Channel::Slack, announcement).await?;
+    let channel = <&'static str>::from(channel);
 
-    let now = stamp();
-    let plan = DimensionPlan::build(
-        request.dimensions,
-        Parent {
-            announcement,
-            thread: parent.ts_slack,
-        },
-        now,
-        state.conf.instances.max_dimensions,
-    )?;
+    for write in &request.dimensions {
+        within_width(write.name.as_deref(), "name", NAME_MAX_CHARS)?;
+        within_width(write.product.as_deref(), "product", NAME_MAX_CHARS)?;
+        within_width(
+            write.dimension_key.as_deref(),
+            "dimension_key",
+            NAME_MAX_CHARS,
+        )?;
+        within_width(write.priority.as_deref(), "priority", NAME_MAX_CHARS)?;
+        within_width(write.tenant_id.as_deref(), "tenant_id", NAME_MAX_CHARS)?;
+        within_width(
+            write.dimension_value.as_deref(),
+            "dimension_value",
+            VALUE_MAX_CHARS,
+        )?;
+        within_width(write.attribution.as_deref(), "attribution", VALUE_MAX_CHARS)?;
+        within_width(write.ts_slack.as_deref(), "ts_slack", VALUE_MAX_CHARS)?;
+    }
+
+    let now = utils::truncate_to_millisecond(common_utils::date_time::now());
+    let (writes, truncated) = keep_the_worst(request.dimensions, MAX_DIMENSIONS, |write| {
+        impact(write.current_metric, write.expected_metric)
+    });
+    let marker = truncated.as_ref().map(marker_for);
+    let connection = state.database_connection().await?;
 
     let borrowed = &connection;
-    let rows = plan.rows;
     let applied = borrowed
         .raw_connection()
         .transaction_async(move |_| async move {
-            let removed =
-                DimensionInstance::delete_for_announcement(borrowed, announcement).await?;
-            let stored = DimensionInstance::insert_all(borrowed, rows).await?;
+            AlertsMain::lock_instances_by_id(borrowed, announcement).await?;
+
+            let parent =
+                AlertsMain::find_by_channel_and_id(borrowed, channel, announcement).await?;
+
+            let removed = MerchantsAlertExternalDimension::delete_by_channel_and_announcement(
+                borrowed,
+                channel,
+                announcement,
+            )
+            .await?;
+
+            let rows = writes
+                .into_iter()
+                .map(|write| MerchantsAlertExternalDimensionNew {
+                    id: announcement,
+                    channel: channel.to_owned(),
+                    id_merchant_table: uuid::Uuid::now_v7(),
+                    id_intermediate: write.id_intermediate,
+                    name: write.name.unwrap_or_default(),
+                    product: write.product.unwrap_or_default(),
+                    dimension_key: write.dimension_key.unwrap_or_default(),
+                    dimension_value: write.dimension_value.unwrap_or_default(),
+                    dimensions: write.dimensions.unwrap_or_else(empty_json_text),
+                    auxiliary_dimensions: write
+                        .auxiliary_dimensions
+                        .unwrap_or_else(empty_json_text),
+                    current_metric: write.current_metric,
+                    expected_metric: write.expected_metric,
+                    attribution: write.attribution.unwrap_or_default(),
+                    max_duration: write.max_duration,
+                    is_visible: write.is_visible.unwrap_or(true),
+                    start_time: write.start_time,
+                    recovered_ts: write.recovered_ts,
+                    ts_slack: write
+                        .ts_slack
+                        .or_else(|| parent.ts_slack.clone())
+                        .unwrap_or_default(),
+                    ts_alert: now,
+                    latest_ts_alert: write.latest_ts_alert,
+                    last_updated_at: now,
+                    slack_info: write.slack_info.unwrap_or_else(empty_object),
+                    communication_info: write.communication_info.unwrap_or_else(empty_object),
+                    metadata: write.metadata.unwrap_or_else(empty_json_text),
+                    metadata_alert_details: record_truncation(
+                        write.metadata_alert_details.unwrap_or_else(empty_object),
+                        marker.as_ref(),
+                    ),
+                    priority: write.priority.unwrap_or_default(),
+                    tenant_id: write.tenant_id.unwrap_or_default(),
+                })
+                .collect();
+
+            let stored = MerchantsAlertExternalDimensionNew::bulk_insert(borrowed, rows).await?;
 
             Ok::<_, WriteFailure>(Applied { stored, removed })
         })
         .await
-        .map_err(WriteFailure::into_report)?;
+        .map_err(|failure| failure.into_report(announcement))?;
 
     Ok(DimensionSaveResponse {
         status: WriteStatus::Saved,
-        ts_alert: now,
+        ts_alert: (applied.stored > 0).then_some(now),
         dimensions: applied.stored,
         removed: applied.removed,
-        truncated: plan.truncated,
+        truncated,
     })
-}
-
-struct Parent {
-    announcement: uuid::Uuid,
-    thread: Option<String>,
 }
 
 struct Applied {
@@ -173,144 +315,12 @@ fn found_or_absent(rows: usize) -> ReadStatus {
     }
 }
 
-struct InstancePlan {
-    rows: Vec<MerchantInstanceRow>,
-    truncated: Option<Truncation>,
+fn empty_object() -> serde_json::Value {
+    serde_json::Value::Object(serde_json::Map::new())
 }
 
-impl InstancePlan {
-    fn build(
-        writes: Vec<MerchantInstanceWrite>,
-        parent: Parent,
-        now: PrimitiveDateTime,
-        limit: usize,
-    ) -> ObservabilityApiResult<Self> {
-        for write in &writes {
-            fits(write.name.as_deref(), "name", NAME_MAX_BYTES)?;
-            fits(write.product.as_deref(), "product", NAME_MAX_BYTES)?;
-            fits(write.merchant_id.as_deref(), "merchant_id", NAME_MAX_BYTES)?;
-            fits(write.priority.as_deref(), "priority", NAME_MAX_BYTES)?;
-            fits(write.tenant_id.as_deref(), "tenant_id", NAME_MAX_BYTES)?;
-            fits(write.attribution.as_deref(), "attribution", VALUE_MAX_BYTES)?;
-            fits(write.ts_slack.as_deref(), "ts_slack", VALUE_MAX_BYTES)?;
-        }
-
-        let (kept, truncated) = keep_the_worst(writes, limit, |write| {
-            impact(write.current_metric, write.expected_metric)
-        });
-        let marker = truncated.as_ref().map(marker_for);
-
-        let rows = kept
-            .into_iter()
-            .map(|write| MerchantInstanceRow {
-                id: Some(parent.announcement),
-                id_merchant_table: uuid::Uuid::now_v7(),
-                id_intermediate: write.id_intermediate,
-                name: write.name,
-                product: write.product,
-                merchant_id: write.merchant_id,
-                dimensions: write.dimensions,
-                auxiliary_dimensions: write.auxiliary_dimensions,
-                current_metric: write.current_metric,
-                expected_metric: write.expected_metric,
-                attribution: write.attribution,
-                max_duration: write.max_duration,
-                start_time: write.start_time,
-                is_visible: Some(write.is_visible.unwrap_or(true)),
-                recovered_ts: write.recovered_ts,
-                ts_slack: write.ts_slack.or_else(|| parent.thread.clone()),
-                ts_alert: Some(now),
-                latest_ts_alert: write.latest_ts_alert,
-                last_updated_at: Some(now),
-                slack_info: write.slack_info,
-                communication_info: write.communication_info,
-                metadata: write.metadata,
-                metadata_alert_details: record_truncation(
-                    write.metadata_alert_details,
-                    marker.as_ref(),
-                ),
-                priority: write.priority,
-                tenant_id: write.tenant_id,
-            })
-            .collect();
-
-        Ok(Self { rows, truncated })
-    }
-}
-
-struct DimensionPlan {
-    rows: Vec<DimensionInstance>,
-    truncated: Option<Truncation>,
-}
-
-impl DimensionPlan {
-    fn build(
-        writes: Vec<DimensionInstanceWrite>,
-        parent: Parent,
-        now: PrimitiveDateTime,
-        limit: usize,
-    ) -> ObservabilityApiResult<Self> {
-        for write in &writes {
-            fits(write.name.as_deref(), "name", NAME_MAX_BYTES)?;
-            fits(write.product.as_deref(), "product", NAME_MAX_BYTES)?;
-            fits(
-                write.dimension_key.as_deref(),
-                "dimension_key",
-                NAME_MAX_BYTES,
-            )?;
-            fits(write.priority.as_deref(), "priority", NAME_MAX_BYTES)?;
-            fits(write.tenant_id.as_deref(), "tenant_id", NAME_MAX_BYTES)?;
-            fits(
-                write.dimension_value.as_deref(),
-                "dimension_value",
-                VALUE_MAX_BYTES,
-            )?;
-            fits(write.attribution.as_deref(), "attribution", VALUE_MAX_BYTES)?;
-            fits(write.ts_slack.as_deref(), "ts_slack", VALUE_MAX_BYTES)?;
-        }
-
-        let (kept, truncated) = keep_the_worst(writes, limit, |write| {
-            impact(write.current_metric, write.expected_metric)
-        });
-        let marker = truncated.as_ref().map(marker_for);
-
-        let rows = kept
-            .into_iter()
-            .map(|write| DimensionInstance {
-                id: Some(parent.announcement),
-                id_merchant_table: uuid::Uuid::now_v7(),
-                id_intermediate: write.id_intermediate,
-                name: write.name,
-                product: write.product,
-                dimension_key: write.dimension_key,
-                dimension_value: write.dimension_value,
-                dimensions: write.dimensions,
-                auxiliary_dimensions: write.auxiliary_dimensions,
-                current_metric: write.current_metric,
-                expected_metric: write.expected_metric,
-                attribution: write.attribution,
-                max_duration: write.max_duration,
-                is_visible: Some(write.is_visible.unwrap_or(true)),
-                start_time: write.start_time,
-                recovered_ts: write.recovered_ts,
-                ts_slack: write.ts_slack.or_else(|| parent.thread.clone()),
-                ts_alert: Some(now),
-                latest_ts_alert: write.latest_ts_alert,
-                last_updated_at: Some(now),
-                slack_info: write.slack_info,
-                communication_info: write.communication_info,
-                metadata: write.metadata,
-                metadata_alert_details: record_truncation(
-                    write.metadata_alert_details,
-                    marker.as_ref(),
-                ),
-                priority: write.priority,
-                tenant_id: write.tenant_id,
-            })
-            .collect();
-
-        Ok(Self { rows, truncated })
-    }
+fn empty_json_text() -> serde_json::Value {
+    serde_json::Value::String(EMPTY_JSON_TEXT.to_owned())
 }
 
 #[derive(Debug)]
@@ -378,39 +388,23 @@ fn marker_for(truncation: &Truncation) -> serde_json::Value {
 }
 
 fn record_truncation(
-    details: Option<serde_json::Value>,
+    details: serde_json::Value,
     marker: Option<&serde_json::Value>,
-) -> Option<serde_json::Value> {
+) -> serde_json::Value {
     let Some(marker) = marker else {
         return details;
     };
 
     match details {
-        Some(serde_json::Value::Object(mut fields)) => {
+        serde_json::Value::Object(mut fields) => {
             fields.insert(TRUNCATION_KEY.to_owned(), marker.clone());
-            Some(serde_json::Value::Object(fields))
+            serde_json::Value::Object(fields)
         }
-        Some(other) => Some(serde_json::json!({
+        other => serde_json::json!({
             TRUNCATION_KEY: marker.clone(),
             "details": other,
-        })),
-        None => Some(serde_json::json!({ TRUNCATION_KEY: marker.clone() })),
+        }),
     }
-}
-
-fn fits(value: Option<&str>, field: &'static str, max_bytes: usize) -> ObservabilityApiResult<()> {
-    if let Some(value) = value {
-        if value.len() > max_bytes {
-            Err(
-                report!(ObservabilityError::InvalidRequest).attach_printable(format!(
-                    "The instance {field} is {} bytes, over the {max_bytes} the column holds",
-                    value.len()
-                )),
-            )?;
-        }
-    }
-
-    Ok(())
 }
 
 enum WriteFailure {
@@ -419,12 +413,22 @@ enum WriteFailure {
 }
 
 impl WriteFailure {
-    fn into_report(self) -> error_stack::Report<ObservabilityError> {
+    fn into_report(self, announcement: uuid::Uuid) -> error_stack::Report<ObservabilityError> {
         match self {
+            Self::Storage(error)
+                if matches!(
+                    error.current_context(),
+                    diesel_models::errors::DatabaseError::NotFound
+                ) =>
+            {
+                error.change_context(ObservabilityError::UnknownAnnouncement {
+                    id: announcement.to_string(),
+                })
+            }
             Self::Storage(error) => error
-                .change_context(ObservabilityError::StorageUnavailable)
+                .change_context(ObservabilityError::InternalServerError)
                 .attach_printable("Failed to write the alert instances"),
-            Self::Transaction(error) => report!(ObservabilityError::StorageUnavailable)
+            Self::Transaction(error) => report!(ObservabilityError::InternalServerError)
                 .attach_printable(format!(
                     "The alert instance write transaction failed: {error}"
                 )),
@@ -444,65 +448,6 @@ impl From<error_stack::Report<diesel_models::errors::DatabaseError>> for WriteFa
     }
 }
 
-mod store {
-    use super::{
-        report, slack_instance, slack_main, xyne_instance, xyne_main, AnnouncementRow, Channel,
-        DatabaseConnectionWithContext, MerchantInstanceRow, ObservabilityApiResult,
-        ObservabilityError, ResultExt, StorageResult,
-    };
-
-    pub(super) async fn announcement(
-        conn: &DatabaseConnectionWithContext<'_>,
-        channel: Channel,
-        id: uuid::Uuid,
-    ) -> ObservabilityApiResult<AnnouncementRow> {
-        match channel {
-            Channel::Slack => slack_main::Announcement::find_by_id(conn, id).await,
-            Channel::Xyne => xyne_main::Announcement::find_by_id(conn, id).await,
-        }
-        .change_context(ObservabilityError::StorageUnavailable)
-        .attach_printable("Failed to look up the announcement an instance write references")?
-        .ok_or_else(|| report!(ObservabilityError::UnknownAnnouncement { id: id.to_string() }))
-    }
-
-    pub(super) async fn list(
-        conn: &DatabaseConnectionWithContext<'_>,
-        channel: Channel,
-        announcement: uuid::Uuid,
-    ) -> StorageResult<Vec<MerchantInstanceRow>> {
-        match channel {
-            Channel::Slack => {
-                slack_instance::MerchantInstance::list_for_announcement(conn, announcement).await
-            }
-            Channel::Xyne => {
-                xyne_instance::MerchantInstance::list_for_announcement(conn, announcement).await
-            }
-        }
-    }
-
-    pub(super) async fn delete(
-        conn: &DatabaseConnectionWithContext<'_>,
-        channel: Channel,
-        announcement: uuid::Uuid,
-    ) -> StorageResult<usize> {
-        match channel {
-            Channel::Slack => {
-                slack_instance::MerchantInstance::delete_for_announcement(conn, announcement).await
-            }
-            Channel::Xyne => {
-                xyne_instance::MerchantInstance::delete_for_announcement(conn, announcement).await
-            }
-        }
-    }
-
-    pub(super) async fn insert(
-        conn: &DatabaseConnectionWithContext<'_>,
-        channel: Channel,
-        rows: Vec<MerchantInstanceRow>,
-    ) -> StorageResult<usize> {
-        match channel {
-            Channel::Slack => slack_instance::MerchantInstance::insert_all(conn, rows).await,
-            Channel::Xyne => xyne_instance::MerchantInstance::insert_all(conn, rows).await,
-        }
-    }
+fn within_width(value: Option<&str>, field: &str, max_chars: usize) -> ObservabilityApiResult<()> {
+    value.map_or(Ok(()), |value| utils::within_width(value, field, max_chars))
 }
