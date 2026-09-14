@@ -17,19 +17,12 @@ pub struct BlacklistEntry {
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct SnoozeEntry {
-    pub merchant_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub snooze_start_time: Option<String>,
     #[serde(default)]
-    pub profile_id: String,
-    #[serde(default)]
-    pub connector: Option<String>,
-    #[serde(default)]
-    pub payment_method: Option<String>,
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    pub starts_at: Option<PrimitiveDateTime>,
-    #[serde(with = "common_utils::custom_serde::iso8601")]
-    pub ends_at: PrimitiveDateTime,
-    #[serde(default)]
-    pub created_by: Option<String>,
+    pub snooze_end_time: String,
+    #[serde(flatten)]
+    pub dimensions: std::collections::BTreeMap<String, serde_json::Value>,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
@@ -55,7 +48,7 @@ common_utils::impl_to_sql_from_sql_json!(Blacklist);
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize, AsExpression)]
 #[diesel(sql_type = diesel::sql_types::Json)]
-pub struct Snooze(pub Vec<SnoozeEntry>);
+pub struct Snooze(pub std::collections::BTreeMap<String, SnoozeEntry>);
 
 common_utils::impl_to_sql_from_sql_json!(Snooze);
 
