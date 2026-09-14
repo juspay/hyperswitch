@@ -551,7 +551,7 @@ impl
                 res.headers
                     .as_ref()
                     .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "headers",
+                        field_name: "headers".into(),
                     })?;
             let location_header = headers
                 .get("Location")
@@ -567,7 +567,9 @@ impl
                 .query_pairs()
                 .find(|(key, _)| key == "code")
                 .map(|(_, value)| value.to_string())
-                .ok_or(errors::ConnectorError::MissingRequiredField { field_name: "code" })?;
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "code".into(),
+                })?;
 
             // Return auth code as "token" with short expiry
             Ok(RouterData {
@@ -884,7 +886,7 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
             req.request
                 .currency
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "currency",
+                    field_name: "currency".into(),
                 })?;
 
         let endpoint = match (country, currency) {
@@ -923,7 +925,7 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
             req.request
                 .currency
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "currency",
+                    field_name: "currency".into(),
                 })?;
 
         let amount = utils::convert_amount(self.amount_converter, minor_amount, currency)?;

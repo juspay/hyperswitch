@@ -87,15 +87,9 @@ async fn decision_engine_token_request(
     // a failure here costs a name in the dashboard and nothing else.
     let email = match state.global_store.find_user_by_user_id(&user.user_id).await {
         Ok(found) => {
-            // `Email` wraps a `Secret`, so it takes both traits to reach the string.
-            use hyperswitch_masking::{ExposeInterface, PeekInterface};
-            Some(
-                domain::UserFromStorage::from(found)
-                    .get_email()
-                    .expose()
-                    .peek()
-                    .to_string(),
-            )
+            // `Email` wraps the masked secret we want, so one unwrap reaches it.
+            use hyperswitch_masking::ExposeInterface;
+            Some(domain::UserFromStorage::from(found).get_email().expose())
         }
         Err(error) => {
             router_env::logger::warn!(
@@ -867,14 +861,16 @@ pub async fn create_routing_algorithm_under_profile(
     let name = request
         .name
         .get_required_value("name")
-        .change_context(errors::ApiErrorResponse::MissingRequiredField { field_name: "name" })
+        .change_context(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "name".into(),
+        })
         .attach_printable("Name of config not given")?;
 
     let description = request
         .description
         .get_required_value("description")
         .change_context(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "description",
+            field_name: "description".into(),
         })
         .attach_printable("Description of config not given")?;
 
@@ -883,7 +879,7 @@ pub async fn create_routing_algorithm_under_profile(
         .clone()
         .get_required_value("algorithm")
         .change_context(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "algorithm",
+            field_name: "algorithm".into(),
         })
         .attach_printable("Algorithm of config not given")?;
 
@@ -893,7 +889,7 @@ pub async fn create_routing_algorithm_under_profile(
         .profile_id
         .get_required_value("profile_id")
         .change_context(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "profile_id",
+            field_name: "profile_id".into(),
         })
         .attach_printable("Profile_id not provided")?;
 
@@ -1796,7 +1792,7 @@ pub async fn unlink_routing_config(
         .profile_id
         .get_required_value("profile_id")
         .change_context(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "profile_id",
+            field_name: "profile_id".into(),
         })
         .attach_printable("Profile_id not provided")?;
 
@@ -1893,6 +1889,12 @@ pub async fn unlink_routing_config(
                         )
                         .await
                         .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
+
+                    let decision_engine_rule_id = record
+                        .decision_engine_routing_id
+                        .clone()
+                        .unwrap_or_else(|| algorithm_id.get_string_repr().to_string());
+
                     let response = record.foreign_into();
                     helpers::update_profile_active_algorithm_ref(
                         db,
@@ -1918,6 +1920,28 @@ pub async fn unlink_routing_config(
                         business_profile.get_id(),
                     )
                     .await?;
+
+                    if state.conf.open_router.static_routing_enabled
+                        && transaction_type != enums::TransactionType::ThreeDsAuthentication
+                    {
+                        if let Err(error) = deactivate_de_euclid_routing_algorithm(
+                            &state,
+                            DeactivateRoutingConfigRequest {
+                                created_by: profile_id.get_string_repr().to_string(),
+                                routing_algorithm_id: decision_engine_rule_id,
+                            },
+                        )
+                        .await
+                        {
+                            router_env::logger::error!(
+                                decision_engine_error = ?error,
+                                routing_flow = ?"unlink_routing_algorithm",
+                                profile_id = ?profile_id.get_string_repr(),
+                                algorithm_id = ?algorithm_id.get_string_repr(),
+                                "decision_engine_euclid: rule deactivation failed on the Decision Engine for a Hyperswitch-routed profile"
+                            );
+                        }
+                    }
 
                     metrics::ROUTING_UNLINK_CONFIG_SUCCESS_RESPONSE.add(1, &[]);
                     Ok(service_api::ApplicationResponse::Json(response))
