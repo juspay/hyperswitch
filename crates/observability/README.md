@@ -540,15 +540,14 @@ the second replaces what the first stored. A write carries at most 500 rows and 
 statement.
 
 `id_merchant_table` is a UUIDv7, and `ts_alert` and `last_updated_at` are this service's clock,
-truncated to the millisecond. Left out or `null`, `name`, `product`, `merchant_id`,
-`dimension_key`, `dimension_value`, `attribution`, `priority` and `tenant_id` are stored as `''`;
-`slack_info`, `communication_info` and `metadata_alert_details` as `{}`; `dimensions`,
-`auxiliary_dimensions` and `metadata` as the JSON string `"{}"`; `is_visible` as true; and
-`ts_slack` as the announcement's `ts_slack`, or `''` when it has none. These are r-apps' defaults
-for the two tables. `current_metric`, `expected_metric`, `max_duration`, `start_time`,
-`latest_ts_alert`, `recovered_ts` and `id_intermediate` are stored as sent. Both write routes keep
-the 2 MiB body limit of the other JSON routes, which 500 rows fit while they average under about
-4 KiB each.
+truncated to the millisecond. `name` and `product` are required on every row and must not be
+blank. Left out or `null`, `merchant_id`, `dimension_key`, `dimension_value`, `attribution`,
+`ts_slack`, `priority` and `tenant_id` are stored as `''`; `slack_info`, `communication_info` and
+`metadata_alert_details` as `{}`; `dimensions`, `auxiliary_dimensions` and `metadata` as the JSON
+string `"{}"`; and `is_visible` as true. These are r-apps' defaults for the two tables.
+`current_metric`, `expected_metric`, `max_duration`, `start_time`, `latest_ts_alert`,
+`recovered_ts` and `id_intermediate` are stored as sent. Both write routes keep the 2 MiB body
+limit of the other JSON routes, which 500 rows fit while they average under about 4 KiB each.
 
 ```http
 POST /alerts/instances/slack/0199…
@@ -558,12 +557,15 @@ POST /alerts/instances/slack/0199…
 
 #### Instance errors
 
-The row count and widths are checked before a database connection is taken. A body that does not
-parse or is over 2 MiB is the `IR_04` above. Added to the tables above:
+The row count, blank values, widths and times are checked before a database connection is taken. A
+body that does not parse or is over 2 MiB, including a row missing `name` or `product` or giving it
+`null`, is the `IR_04` above. Added to the tables above:
 
 | | Status | Code |
 |---|---|---|
+| `name` or `product` is blank | 400 | `IR_07` |
 | A field is longer than its column holds (`name`, `product`, `merchant_id`, `dimension_key`, `priority`, `tenant_id` 64; `attribution`, `dimension_value`, `ts_slack` 255) | 400 | `IR_07` |
+| A row's `start_time`, `latest_ts_alert` or `recovered_ts` is before 1970 | 400 | `IR_07` |
 | A write carries more than 500 merchants or 500 dimensions | 400 | `HE_03` |
 | The announcement id is unknown on this channel | 404 | `HE_02` |
 
