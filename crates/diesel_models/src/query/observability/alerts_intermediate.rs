@@ -14,6 +14,8 @@ use crate::{
 
 const LIFECYCLE_LOCK_NAMESPACE: i32 = 23_404;
 
+const UPSERT_ROWS_PER_STATEMENT: usize = 1_000;
+
 pub async fn lock_lifecycle_state(
     conn: &DatabaseConnectionWithContext<'_>,
     channel: i32,
@@ -87,12 +89,23 @@ impl AlertStateRow {
 
     pub async fn upsert_all(
         conn: &DatabaseConnectionWithContext<'_>,
-        rows: Vec<Self>,
+        mut rows: Vec<Self>,
     ) -> StorageResult<usize> {
-        if rows.is_empty() {
-            return Ok(0);
+        let mut written = 0;
+
+        while !rows.is_empty() {
+            let rest = rows.split_off(rows.len().min(UPSERT_ROWS_PER_STATEMENT));
+            let batch = std::mem::replace(&mut rows, rest);
+            written += Self::upsert_batch(conn, batch).await?;
         }
 
+        Ok(written)
+    }
+
+    async fn upsert_batch(
+        conn: &DatabaseConnectionWithContext<'_>,
+        rows: Vec<Self>,
+    ) -> StorageResult<usize> {
         let upsert = diesel::insert_into(<Self as HasTable>::table())
             .values(rows)
             .on_conflict(dsl::id_intermediate)

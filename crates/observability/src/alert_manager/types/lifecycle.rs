@@ -123,8 +123,8 @@ pub struct LifecycleStateWriteRequest {
 #[derive(Debug, Serialize)]
 pub struct LifecycleStateSaveResponse {
     pub status: WriteStatus,
-    #[serde(with = "common_utils::custom_serde::iso8601")]
-    pub last_updated_at: PrimitiveDateTime,
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    pub last_updated_at: Option<PrimitiveDateTime>,
     pub alerts: usize,
     pub removed: usize,
 }

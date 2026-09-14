@@ -116,7 +116,7 @@ pub async fn write_state(
 
     Ok(LifecycleStateSaveResponse {
         status: WriteStatus::Saved,
-        last_updated_at: now,
+        last_updated_at: (applied.alerts > 0).then_some(now),
         alerts: applied.alerts,
         removed: applied.removed,
     })
