@@ -6489,7 +6489,6 @@ dependencies = [
  "clap 4.5.38",
  "common_utils",
  "config",
- "diesel",
  "diesel_models",
  "error-stack 0.4.1",
  "external_services",
@@ -6503,6 +6502,7 @@ dependencies = [
  "serde_path_to_error",
  "thiserror 1.0.69",
  "tokio 1.48.0",
+ "urlencoding",
 ]
 
 [[package]]

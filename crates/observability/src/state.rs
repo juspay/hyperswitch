@@ -2,6 +2,7 @@
 
 use std::{collections::HashMap, sync::Arc};
 
+use common_utils::DbConnectionParams;
 use diesel_models::DejaPgConnection;
 use external_services::{
     chat_service::{slack::SlackClient, xyne::XyneClient},
@@ -25,6 +26,8 @@ use crate::{
     logger, secrets_transformers,
     settings::{ChatDestination, ChatSettings, DatabaseSettings, EmailSettings, Settings},
 };
+
+const APPLICATION_NAME: &str = "observability";
 
 pub type DatabasePool = bb8::Pool<async_bb8_diesel::ConnectionManager<DejaPgConnection>>;
 
@@ -76,9 +79,7 @@ impl AppState {
             .await
             .expect("Failed to build the email destinations");
 
-        #[allow(clippy::expect_used)]
-        let database = build_database_pool(raw_conf.database.get_inner())
-            .expect("Failed to build the database connection pool");
+        let database = build_database_pool(raw_conf.database.get_inner());
 
         if chat.is_empty() && email.is_empty() {
             logger::warn!(
@@ -193,17 +194,16 @@ impl<E: std::fmt::Display> bb8::ErrorSink<E> for LogConnectionErrors {
     }
 }
 
-pub fn build_database_pool(
-    database: &DatabaseSettings,
-) -> Result<DatabasePool, ConfigurationError> {
-    let manager =
-        async_bb8_diesel::ConnectionManager::<DejaPgConnection>::new(database.database_url());
+pub fn build_database_pool(database: &DatabaseSettings) -> DatabasePool {
+    let manager = async_bb8_diesel::ConnectionManager::<DejaPgConnection>::new(
+        database.get_database_url(APPLICATION_NAME),
+    );
 
-    Ok(bb8::Pool::builder()
+    bb8::Pool::builder()
         .max_size(database.pool_size)
         .connection_timeout(std::time::Duration::from_secs(database.connection_timeout))
         .error_sink(Box::new(LogConnectionErrors))
-        .build_unchecked(manager))
+        .build_unchecked(manager)
 }
 
 /// Build the email transport named in configuration.
