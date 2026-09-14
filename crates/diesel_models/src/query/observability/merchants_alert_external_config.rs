@@ -44,7 +44,7 @@ impl MerchantsAlertExternalConfigNew {
 }
 
 impl MerchantsAlertExternalConfig {
-    pub async fn find_by_name_and_product(
+    pub async fn find_by_name_product(
         conn: &DatabaseConnectionWithContext<'_>,
         name: &str,
         product: &str,

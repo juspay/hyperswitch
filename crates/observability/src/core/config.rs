@@ -110,7 +110,7 @@ pub async fn upsert_enablement(
     let connection = state.database_connection().await?;
 
     let definition_is_enabled =
-        AlertsInfo::find_optional_is_enabled_by_name_and_product(&connection, &name, &product)
+        AlertsInfo::find_optional_is_enabled_by_name_product(&connection, &name, &product)
             .await
             .change_context(ObservabilityError::InternalServerError)
             .attach_printable("Failed to find the alert definition for the enablement row")?
@@ -137,7 +137,7 @@ pub async fn retrieve_enablement(
 ) -> ObservabilityApiResult<AlertEnablementResponse> {
     let connection = state.database_connection().await?;
 
-    let row = MerchantsAlertExternalConfig::find_by_name_and_product(&connection, &name, &product)
+    let row = MerchantsAlertExternalConfig::find_by_name_product(&connection, &name, &product)
         .await
         .to_not_found_response(ObservabilityError::EnablementNotFound {
             name: name.clone(),
@@ -146,7 +146,7 @@ pub async fn retrieve_enablement(
         .attach_printable("Failed to find the alert enablement row")?;
 
     let definition_is_enabled =
-        AlertsInfo::find_optional_is_enabled_by_name_and_product(&connection, &name, &product)
+        AlertsInfo::find_optional_is_enabled_by_name_product(&connection, &name, &product)
             .await
             .change_context(ObservabilityError::InternalServerError)
             .attach_printable("Failed to find the alert definition for the enablement row")?

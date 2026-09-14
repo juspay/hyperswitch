@@ -31,7 +31,7 @@ impl AlertsInfo {
         generics::generic_find_by_id::<<Self as HasTable>::Table, _, _>(conn, id).await
     }
 
-    pub async fn find_optional_is_enabled_by_name_and_product(
+    pub async fn find_optional_is_enabled_by_name_product(
         conn: &DatabaseConnectionWithContext<'_>,
         name: &str,
         product: &str,
