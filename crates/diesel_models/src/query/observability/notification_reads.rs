@@ -1,5 +1,5 @@
 use async_bb8_diesel::AsyncRunQueryDsl;
-use diesel::{associations::HasTable, upsert::excluded, ExpressionMethods};
+use diesel::{associations::HasTable, sql_types::Timestamp, upsert::excluded, ExpressionMethods};
 use error_stack::ResultExt;
 
 use crate::{
@@ -8,6 +8,10 @@ use crate::{
     query::generics,
     DatabaseConnectionWithContext, StorageResult,
 };
+
+diesel::define_sql_function! {
+    fn greatest(left: Timestamp, right: Timestamp) -> Timestamp;
+}
 
 impl NotificationRead {
     pub async fn find_by_user_name(
@@ -26,7 +30,7 @@ impl NotificationRead {
             .values(self)
             .on_conflict(dsl::user_name)
             .do_update()
-            .set(dsl::last_read_at.eq(excluded(dsl::last_read_at)));
+            .set(dsl::last_read_at.eq(greatest(dsl::last_read_at, excluded(dsl::last_read_at))));
 
         generics::db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
             conn.request_id(),
