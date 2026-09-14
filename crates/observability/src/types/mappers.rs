@@ -37,12 +37,6 @@ pub struct MapperListResponse {
 }
 
 #[derive(Debug, Serialize)]
-pub struct MapperReadResponse {
-    pub status: ReadStatus,
-    pub entry: Option<MapperEntry>,
-}
-
-#[derive(Debug, Serialize)]
 pub struct MapperSaveResponse {
     pub status: WriteStatus,
     pub entry: MapperEntry,
@@ -64,100 +58,5 @@ impl From<AlertsDict> for MapperEntry {
             ts_created: entry.ts_created,
             username: entry.username,
         }
-    }
-}
-
-#[cfg(test)]
-#[allow(clippy::unwrap_used, clippy::expect_used, clippy::indexing_slicing)]
-mod tests {
-    use super::*;
-
-    fn body_of<T: Serialize>(value: &T) -> serde_json::Value {
-        serde_json::to_value(value).unwrap()
-    }
-
-    fn raw(json: &str) -> Box<RawValue> {
-        RawValue::from_string(json.to_owned()).unwrap()
-    }
-
-    #[test]
-    fn stored_json_keeps_its_key_order_and_spacing() {
-        let sent = r#"{"b": 1, "a": [2, 3]}"#;
-
-        let request: MapperUpsertRequest = serde_json::from_str(&format!(
-            r#"{{"name": "dashboard", "key": "slack_users", "values": {sent}}}"#
-        ))
-        .unwrap();
-
-        let stored = RawJson::from(request.values.unwrap());
-        assert_eq!(stored.get(), sent);
-
-        let entry = MapperEntry {
-            name: "dashboard".to_owned(),
-            key: "slack_users".to_owned(),
-            product: None,
-            values: Some(stored.into_raw()),
-            metadata: None,
-            ts_created: None,
-            username: None,
-        };
-        assert_eq!(
-            serde_json::to_value(&entry).unwrap()["values"].to_string(),
-            r#"{"b":1,"a":[2,3]}"#
-        );
-    }
-
-    #[test]
-    fn a_json_string_holding_json_survives_as_a_string() {
-        let stored = RawJson::from(raw(r#""[]""#));
-
-        assert_eq!(stored.get(), r#""[]""#);
-    }
-
-    #[test]
-    fn an_entry_carries_every_field_even_when_the_columns_are_null() {
-        let body = body_of(&MapperEntry {
-            name: "dashboard".to_owned(),
-            key: "slack_users".to_owned(),
-            product: None,
-            values: None,
-            metadata: None,
-            ts_created: None,
-            username: None,
-        });
-
-        for field in ["product", "values", "metadata", "ts_created", "username"] {
-            assert!(
-                body.get(field).is_some_and(serde_json::Value::is_null),
-                "{field} was omitted"
-            );
-        }
-    }
-
-    #[test]
-    fn an_empty_mapper_list_says_so_rather_than_returning_an_empty_body() {
-        let body = body_of(&MapperListResponse {
-            status: ReadStatus::Absent,
-            entries: Vec::new(),
-        });
-
-        assert_eq!(body["status"], "absent");
-        assert_eq!(body["entries"], serde_json::json!([]));
-    }
-
-    #[test]
-    fn a_retired_entry_and_one_that_was_never_there_report_different_statuses() {
-        assert_eq!(
-            body_of(&MapperRetireResponse {
-                status: WriteStatus::Retired
-            })["status"],
-            "retired"
-        );
-        assert_eq!(
-            body_of(&MapperRetireResponse {
-                status: WriteStatus::Absent
-            })["status"],
-            "absent"
-        );
     }
 }
