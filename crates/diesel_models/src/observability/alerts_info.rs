@@ -1,12 +1,8 @@
-use diesel::{
-    AsChangeset, AsExpression, FromSqlRow, Identifiable, Insertable, Queryable, Selectable,
-};
+use diesel::{AsChangeset, AsExpression, Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use crate::observability::schema::alerts_info;
-
-pub const ALL_DEFINITIONS: &str = "all";
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct BlacklistEntry {
@@ -51,27 +47,23 @@ pub struct ThresholdEntry {
     pub diff_threshold: Option<f64>,
 }
 
-#[derive(
-    Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize, AsExpression, FromSqlRow,
-)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize, AsExpression)]
 #[diesel(sql_type = diesel::sql_types::Json)]
 pub struct Blacklist(pub Vec<BlacklistEntry>);
 
-common_utils::impl_to_sql_from_sql_json!(Blacklist, diesel::sql_types::Json);
+common_utils::impl_to_sql_from_sql_json!(Blacklist);
 
-#[derive(
-    Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize, AsExpression, FromSqlRow,
-)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize, AsExpression)]
 #[diesel(sql_type = diesel::sql_types::Json)]
 pub struct Snooze(pub Vec<SnoozeEntry>);
 
-common_utils::impl_to_sql_from_sql_json!(Snooze, diesel::sql_types::Json);
+common_utils::impl_to_sql_from_sql_json!(Snooze);
 
-#[derive(Clone, Debug, Default, PartialEq, Deserialize, Serialize, AsExpression, FromSqlRow)]
+#[derive(Clone, Debug, Default, PartialEq, Deserialize, Serialize, AsExpression)]
 #[diesel(sql_type = diesel::sql_types::Json)]
 pub struct Thresholds(pub Vec<ThresholdEntry>);
 
-common_utils::impl_to_sql_from_sql_json!(Thresholds, diesel::sql_types::Json);
+common_utils::impl_to_sql_from_sql_json!(Thresholds);
 
 #[derive(Clone, Debug, PartialEq, Identifiable, Queryable, Selectable, Deserialize, Serialize)]
 #[diesel(table_name = alerts_info, primary_key(id), check_for_backend(diesel::pg::Pg))]
@@ -96,16 +88,6 @@ pub struct AlertsInfo {
     pub last_updated_at: Option<PrimitiveDateTime>,
 }
 
-impl AlertsInfo {
-    pub fn is_enabled(&self) -> bool {
-        self.is_enabled.unwrap_or(false)
-    }
-
-    pub fn is_all_definitions(&self) -> bool {
-        self.name == ALL_DEFINITIONS
-    }
-}
-
 #[derive(Clone, Debug, PartialEq, Insertable)]
 #[diesel(table_name = alerts_info)]
 pub struct AlertsInfoNew {
@@ -128,9 +110,29 @@ pub struct AlertsInfoNew {
     pub last_updated_at: PrimitiveDateTime,
 }
 
+#[derive(Debug)]
+pub enum AlertsInfoUpdate {
+    Update {
+        dimensions: Option<Option<String>>,
+        period: Option<Option<i32>>,
+        default_channel: Option<Option<String>>,
+        default_critical: Option<Option<bool>>,
+        blacklist: Option<Option<Blacklist>>,
+        snooze: Option<Option<Snooze>>,
+        history_window: Option<Option<i32>>,
+        thresholds: Option<Option<Thresholds>>,
+        metadata: Option<Option<serde_json::Value>>,
+        is_enabled: Option<Option<bool>>,
+        comments: Option<Option<serde_json::Value>>,
+        call_period: Option<Option<i32>>,
+        approver: Option<Option<String>>,
+        last_updated_at: PrimitiveDateTime,
+    },
+}
+
 #[derive(Clone, Debug, PartialEq, AsChangeset)]
 #[diesel(table_name = alerts_info)]
-pub struct AlertsInfoUpdate {
+pub struct AlertsInfoUpdateInternal {
     pub dimensions: Option<Option<String>>,
     pub period: Option<Option<i32>>,
     pub default_channel: Option<Option<String>>,
@@ -145,4 +147,42 @@ pub struct AlertsInfoUpdate {
     pub call_period: Option<Option<i32>>,
     pub approver: Option<Option<String>>,
     pub last_updated_at: PrimitiveDateTime,
+}
+
+impl From<AlertsInfoUpdate> for AlertsInfoUpdateInternal {
+    fn from(update: AlertsInfoUpdate) -> Self {
+        match update {
+            AlertsInfoUpdate::Update {
+                dimensions,
+                period,
+                default_channel,
+                default_critical,
+                blacklist,
+                snooze,
+                history_window,
+                thresholds,
+                metadata,
+                is_enabled,
+                comments,
+                call_period,
+                approver,
+                last_updated_at,
+            } => Self {
+                dimensions,
+                period,
+                default_channel,
+                default_critical,
+                blacklist,
+                snooze,
+                history_window,
+                thresholds,
+                metadata,
+                is_enabled,
+                comments,
+                call_period,
+                approver,
+                last_updated_at,
+            },
+        }
+    }
 }

@@ -1,12 +1,8 @@
-use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
+use diesel::{Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use crate::observability::schema::merchants_alert_external_config;
-
-pub fn effective_is_enabled(definition_is_enabled: bool, config_is_enabled: Option<bool>) -> bool {
-    definition_is_enabled && config_is_enabled.unwrap_or(true)
-}
 
 #[derive(Clone, Debug, PartialEq, Identifiable, Queryable, Selectable, Deserialize, Serialize)]
 #[diesel(
@@ -23,7 +19,7 @@ pub struct MerchantsAlertExternalConfig {
     pub last_updated_at: Option<PrimitiveDateTime>,
 }
 
-#[derive(Clone, Debug, PartialEq, Insertable, AsChangeset)]
+#[derive(Clone, Debug, PartialEq, Insertable)]
 #[diesel(table_name = merchants_alert_external_config)]
 pub struct MerchantsAlertExternalConfigNew {
     pub name: String,
