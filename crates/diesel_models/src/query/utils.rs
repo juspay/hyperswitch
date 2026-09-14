@@ -140,8 +140,7 @@ impl_get_primary_key!(
     schema_v2::customers::table,
     schema_v2::payment_attempt::table,
     observability_schema::alerts_dicts::table,
-    observability_schema::alerts_info::table,
-    observability_schema::notification_reads::table
+    observability_schema::alerts_info::table
 );
 
 /// This macro will implement the `GetPrimaryKey` trait for all the tables with composite key.

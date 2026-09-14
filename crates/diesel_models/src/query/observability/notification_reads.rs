@@ -1,6 +1,6 @@
 use async_bb8_diesel::AsyncRunQueryDsl;
 use diesel::{associations::HasTable, upsert::excluded, ExpressionMethods};
-use error_stack::{report, ResultExt};
+use error_stack::ResultExt;
 
 use crate::{
     errors,
@@ -35,7 +35,8 @@ impl NotificationRead {
             query.get_result_async(conn.raw_connection()),
         )
         .await
-        .map_err(|error| report!(error).change_context(errors::DatabaseError::Others))
+        .map_err(|error| error_stack::report!(error))
+        .change_context(errors::DatabaseError::Others)
         .attach_printable("Error while saving a notification read watermark")
     }
 }
