@@ -10,7 +10,7 @@ use diesel_models::observability::{
     raw_json::RawJson,
 };
 use error_stack::report;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use time::PrimitiveDateTime;
 
 use crate::errors::{ObservabilityApiResult, ObservabilityError};
@@ -19,6 +19,8 @@ const NAME_MAX_CHARS: usize = 64;
 
 const DIMENSIONS_MAX_CHARS: usize = 255;
 
+const EMPTY_DOCUMENT: &str = "{}";
+
 const SNOOZE_ENTRY_PREFIXES: [&str; 2] = ["snooze_entry_", "custom_snooze_entry_"];
 
 const SNOOZE_TIME_FORMAT: &[time::format_description::FormatItem<'static>] =
@@ -26,7 +28,7 @@ const SNOOZE_TIME_FORMAT: &[time::format_description::FormatItem<'static>] =
 
 #[derive(Debug, Deserialize)]
 #[serde(transparent)]
-pub struct Blacklist(RawJson);
+pub struct Blacklist(#[serde(deserialize_with = "empty_document_as_object")] RawJson);
 
 impl Blacklist {
     pub fn validate(&self) -> Result<(), String> {
@@ -53,7 +55,7 @@ impl From<Blacklist> for RawJson {
 
 #[derive(Debug, Deserialize)]
 #[serde(transparent)]
-pub struct Snooze(RawJson);
+pub struct Snooze(#[serde(deserialize_with = "empty_document_as_object")] RawJson);
 
 #[derive(Deserialize)]
 struct SnoozeEntry {
@@ -92,7 +94,7 @@ impl From<Snooze> for RawJson {
 
 #[derive(Debug, Deserialize)]
 #[serde(transparent)]
-pub struct Thresholds(RawJson);
+pub struct Thresholds(#[serde(deserialize_with = "empty_document_as_object")] RawJson);
 
 impl Thresholds {
     pub fn validate(&self) -> Result<(), String> {
@@ -633,6 +635,25 @@ fn valid_documents(validations: [Option<Result<(), String>>; 3]) -> Observabilit
         .flatten()
         .collect::<Result<(), String>>()
         .map_err(|message| report!(ObservabilityError::InvalidRequestData { message }))
+}
+
+fn empty_document_as_object<'de, D>(deserializer: D) -> Result<RawJson, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let document = RawJson::deserialize(deserializer)?;
+    let is_empty = match serde_json::from_str(document.get()) {
+        Ok(serde_json::Value::Array(values)) => values.is_empty(),
+        Ok(serde_json::Value::Object(entries)) => entries.is_empty(),
+        Ok(serde_json::Value::String(value)) => value.trim().is_empty(),
+        _ => false,
+    };
+
+    if is_empty {
+        serde_json::from_str(EMPTY_DOCUMENT).map_err(serde::de::Error::custom)
+    } else {
+        Ok(document)
+    }
 }
 
 fn is_blacklist_group(group: &serde_json::Value) -> bool {
