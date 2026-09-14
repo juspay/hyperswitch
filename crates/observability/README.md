@@ -193,7 +193,7 @@ thread under it was lost — reporting a failure there would invite a retry that
 
 ### Configuration
 
-Two resources, backed by the observability database.
+Three resources, backed by the observability database.
 
 | Method | Path | |
 |---|---|---|
@@ -204,73 +204,66 @@ Two resources, backed by the observability database.
 | `GET` | `/alerts/config/enablement` | every enablement row |
 | `GET` | `/alerts/config/enablement/{name}/{product}` | read one |
 | `POST` | `/alerts/config/enablement/{name}/{product}` | upsert one |
+| `GET` | `/alerts/config/merchant-thresholds` | every merchant threshold |
+| `POST` | `/alerts/config/merchant-thresholds` | upsert one |
+| `GET` | `/alerts/config/merchant-thresholds/{id}` | read one |
+| `POST` | `/alerts/config/merchant-thresholds/{id}` | change part of one |
+| `DELETE` | `/alerts/config/merchant-thresholds/{id}` | delete one |
 
-**A definition is one row, not four resources.** Suppression, snooze and thresholds are `json`
-columns of `alerts_info` rather than side tables, so they are fields of this resource. All three are
-typed, so every value written through this API has a shape the alert manager reads back. Blacklist
-and thresholds are lists of entries with named fields. Snooze is r-apps' own document, because that
-is what the alert manager evaluates: an object keyed `snooze_entry_<time>` or
-`custom_snooze_entry_<time>`, each entry carrying the dimension values it covers and
-`snooze_end_time` (optionally `snooze_start_time`) as `YYYY-MM-DD HH:MM:SS` in IST. An entry that is
-keyed otherwise, has no end time, or has a time in any other format is `400` `HE_03`: r-apps' reader
-fails on an entry without an end time, so the plane refuses to store one. The cost is that the bytes are not preserved: a value read back has been through
-`serde_json` twice, so an entry written without its optional fields comes back with their defaults
-filled in. Storing the columns as opaque strings would preserve them exactly, and was rejected: the
-failure it avoids is cosmetic, and the one it introduces — a dashboard writing a key nothing reads,
-discovered when an alert silently stops being suppressed — is not. `metadata` and `comments` stay
-free-form, because nothing in this plane interprets them.
+A list answers `{"count": n, "<resource>": [...]}` under `definitions`, `enablements` or
+`merchant_thresholds`, and a table with no rows is a `200` with a count of zero. A read, create,
+upsert or update answers the row. A delete answers `{"id": "…", "deleted": true}`.
 
-**An update mentions only what it changes.** Three portal screens edit different parts of one row,
-so a whole-row `PUT` from any of them would discard what the other two just saved. An absent field
-is left alone, an explicit `null` clears it, and a value sets it; `is_enabled` cannot be cleared, so a
-`null` for it leaves it unchanged. Optimistic concurrency was the
-alternative and was rejected: two screens editing *different* columns are not in conflict, and
-making them retry against each other is worse than the lost update it prevents.
+An update, and an upsert that finds its row, changes only what the body mentions: an absent field
+is left alone, `null` clears it, and a value sets it. `is_enabled` and a merchant threshold's
+`author` are never cleared: `null` leaves them alone.
+
+#### Definitions
+
+A definition is one `alerts_info` row, with an id the service generates. `name`, `product`,
+`is_enabled` and `author` are required on create, and `name` and `product` cannot be changed
+afterwards.
+
+`blacklist`, `snooze` and `thresholds` hold r-apps' documents and are stored exactly as sent. Each
+is checked for its shape first:
+
+- `blacklist` is a list, or an object, of groups; a group maps one or more dimensions to a value or
+  a list of values, as in `{"ignored_paths": {"path": ["/health", "/ecr"]}}` or
+  `[{"merchant_id": "merchant_1234", "payment_method": ["card", "upi"]}]`.
+- `thresholds` is one object for the definition, as in
+  `{"min_volume": 100, "tolerance": 0.9, "prop_thresholds": {"C030KGG9ZJ9": 0.2}}`.
+- `snooze` is an object keyed `snooze_entry_<time>` or `custom_snooze_entry_<time>`; each entry
+  carries the dimension values it covers and `snooze_end_time`, optionally `snooze_start_time`, as
+  `YYYY-MM-DD HH:MM:SS`.
+
+`metadata` and `comments` are free-form JSON.
 
 ```http
 POST /alerts/config/definitions
 { "name": "sr_drop", "product": "payments", "is_enabled": true, "author": "reliability_team",
-  "blacklist": [{ "merchant_id": "merchant_1234", "reason": "dead test merchant" }] }
-→ 200 { "id": "0189…", "name": "sr_drop", "is_enabled": true, "blacklist": [ … ], … }
+  "blacklist": {"test_merchants": {"merchant_id": ["merchant_1234"]}} }
+→ 200 { "id": "0199…", "name": "sr_drop", "is_enabled": true, "blacklist": {"test_merchants": …}, … }
 
-POST /alerts/config/definitions/0189…
-{ "thresholds": [{ "merchant_id": "merchant_1234", "tolerance": 2.5 }] }
+POST /alerts/config/definitions/0199…
+{ "thresholds": {"min_volume": 100, "tolerance": 2.5} }
 → 200 the whole definition, with blacklist and snooze untouched
 ```
 
-`is_enabled` and `author` are **required** on create. The column defaults to false, so a definition
-created without saying is off — which reads as "the alert is broken" rather than "nobody enabled
-it"; and the internal API key names the calling service, not a person, so if the body does not say
-who is asking then nothing does. `name` and `product` cannot be changed afterwards: they are the
-alert's identity, referenced by the enablement table and matched by name in the alert manager, so a
-rename through an update would orphan those references rather than failing.
+`all` names the definition for suppression that applies to every detector; it cannot have an
+enablement row. There is no delete route for definitions.
 
-`name` reserves one value. **`all` is the definition carrying suppression that applies to every
-detector**, which is the only way to express "mute this merchant everywhere" now that suppression is
-a column rather than a table. It is read, listed and edited like any other definition, and it is the
-one thing that cannot have an enablement row — it is not a detector, so there is nothing for a
-switch on it to turn on or off.
+#### Enablement
 
-**There is no delete route.** `is_enabled` is how an alert is turned off; unlike a delete it is
-reversible.
-
-#### Two switches, and what each one gates
-
-`alerts_info.is_enabled` and `merchants_alert_external_config.is_enabled` switch different things,
-as they do in r-apps. **The definition decides whether a detector runs; the enablement row decides
-whether its alerts are delivered to merchants.** A missing enablement row delivers nothing, matching
-r-apps' inner join on the enabled rows.
+`alerts_info.is_enabled` says whether a detector runs, and `merchants_alert_external_config.is_enabled`
+whether its alerts are delivered to merchants. A response carries the stored `is_enabled` and
 
 ```
-effective = definition.is_enabled AND coalesce(enablement.is_enabled, false)
+effective_is_enabled = definition.is_enabled AND coalesce(enablement.is_enabled, false)
 ```
 
-The definition decides whether a detector runs at all, so with it off there is no result to deliver
-anywhere. The enablement row is the second gate, on merchant-facing delivery only; internal channels
-ignore it. `effective_is_enabled` is therefore "this alert reaches merchants".
-
-Both values are reported, because a caller that saw only the stored one could not tell "delivered to
-merchants" from "switched on, but the definition is off":
+The upsert is one statement with `(name, product)` as its conflict target, and requires
+`is_enabled`. It is refused unless a definition with that name and product exists and the name is
+not `all`.
 
 ```http
 POST /alerts/config/enablement/sr_drop/payments
@@ -278,37 +271,49 @@ POST /alerts/config/enablement/sr_drop/payments
 → 200 { "name": "sr_drop", "is_enabled": true, "effective_is_enabled": false, … }
 ```
 
-The write is a real upsert — one statement with `(name, product)`, the table's primary key, as its
-conflict target — so a repeated call updates rather than adding a second row disagreeing with the
-first. r-apps leaves this table keyless and permits exactly that. It also validates the pair against
-`alerts_info` with a database trigger this schema does not have, so **the API checks the definition
-exists**; without the check a switch can be wired to an alert nobody defined and looks on the screen
-exactly like one that works.
+#### Merchant thresholds
 
-#### An empty answer is never an outage
+A merchant threshold is one `merchant_thresholds` row, r-apps' per-merchant override: `name`,
+`product`, `merchant_id`, `author` and `is_enabled`, all required, `metadata`, and ten nullable
+numbers `thresholds_min_volume`, `thresholds_min_impacted_volume`, `thresholds_tolerance`,
+`thresholds_diff_threshold`, `thresholds_merchant_impact`, `thresholds_alert_period`,
+`thresholds_min_observations`, `thresholds_min_history_volume`, `thresholds_filter_percentile` and
+`thresholds_current_min_volume`.
 
-A store that answered nothing and a store that could not be asked must not look the same: the alert
-manager's own outage rule reads "no alerts" as "nothing is wrong", so collapsing the two would
-report all-clear during exactly the incident this plane exists to notice. A list with no rows is a
-`200` with a count of zero; a list that could not be read is a `500`, or a `503` when no database
-connection could be taken at all.
+`POST /alerts/config/merchant-thresholds` upserts on `(name, product, merchant_id, is_enabled,
+author)`, the key r-apps' `addMerchantThresholds` uses, so the same five values update one row and
+any other combination adds a row. `POST /alerts/config/merchant-thresholds/{id}` changes the
+thresholds, `metadata`, `author` and `is_enabled`; `name`, `product` and `merchant_id` cannot be
+changed.
 
-The configuration errors, added to the table above:
+```http
+POST /alerts/config/merchant-thresholds
+{ "name": "sr_drop", "product": "payments", "merchant_id": "merchant_1234",
+  "author": "reliability_team", "is_enabled": true, "thresholds_tolerance": 2.5 }
+→ 200 { "id": "0199…", "merchant_id": "merchant_1234", "thresholds_tolerance": 2.5, "thresholds_min_volume": null, … }
+
+DELETE /alerts/config/merchant-thresholds/0199…
+→ 200 { "id": "0199…", "deleted": true }
+```
+
+#### Errors
+
+Widths and document shapes are checked before a database connection is taken. A path id that is
+not a UUID is answered with the same empty `404` as a path that matches no route. The configuration
+errors, added to the table above:
 
 | | Status | Code |
 |---|---|---|
-| Definition already exists for this name and product | 400 | `HE_01` |
-| Name and product do not identify an alert (or name the reserved `all` row) | 400 | `HE_03` |
-| A snooze entry is not keyed `snooze_entry_`/`custom_snooze_entry_`, or has no readable end time | 400 | `HE_03` |
-| Unknown definition id | 404 | `HE_02` |
-| Unknown enablement key | 404 | `HE_02` |
+| A field is longer than its column holds | 400 | `IR_07` |
+| `blacklist`, `snooze` or `thresholds` is not in r-apps' shape | 400 | `IR_06` |
+| A definition already exists for this name and product | 400 | `HE_01` |
+| An update gives a merchant threshold the name, product, merchant, author and `is_enabled` of another | 400 | `HE_01` |
+| Name and product do not identify an alert, or name `all` | 400 | `HE_03` |
+| Unknown definition id, enablement key or merchant threshold id | 404 | `HE_02` |
 | A query against the observability database failed | 500 | `HE_00` |
-| Observability database unreachable | 503 | `HE_00` |
+| No connection to the observability database could be taken | 503 | `HE_00` |
 
-`503` only when no connection can be taken, for the reason `/health/ready` uses it: the service is
-fine, and the condition is expected to clear without anyone touching it. A query that fails once
-connected is a `500`. The failing host, database and role
-reach the log and never the response.
+The failing host, database and role reach the log and never the response.
 
 ## Destinations
 
@@ -357,14 +362,10 @@ domain/          what delivering an alert is: the notifier traits and the types 
 types/           the wire contract, per area
 ```
 
-The two concerns are separated by module rather than by directory. `notify` delivers a message and
-keeps nothing; `config` reads and writes a configuration row and sends nothing. They share the HTTP
-server, the database pool, authentication, `server_wrap` and the error types. The one deliberate exception is `routes/app.rs`, which holds *every* route this service
-serves — both concerns' — so the tree and its guards are one file rather than a search.
-
-Rows and their queries are not here at all: `alerts_info` and `merchants_alert_external_config` are
-modelled in `diesel_models::observability`, alongside every other table this database owns, so the
-alert manager and this service read one definition of them rather than two.
+Configuration requests are handled in `routes/config.rs` and `core/config.rs`, with their request
+and response types and validation in `types/config.rs`; the rows and their queries are
+`diesel_models::observability::{alerts_info, merchants_alert_external_config, merchant_thresholds}`
+and `diesel_models::query::observability`, and the tables are created by `migrations/`.
 
 `domain` holds no HTTP. `core` holds no traits. A handler that grows logic belongs in `core`; a
 concept that a background job would also need belongs in `domain`.
