@@ -2483,7 +2483,6 @@ async fn update_payment_attempt_associated_data(
     );
 
     match sender_payment_instrument_id {
-
         Some(sender_payment_instrument_id) => {
             let attempt_update = storage::PaymentAttemptUpdate::AssociatedDataUpdate {
                 sender_payment_instrument_id: Some(sender_payment_instrument_id),
