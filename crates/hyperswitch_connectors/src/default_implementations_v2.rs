@@ -4767,6 +4767,7 @@ default_imp_for_new_connector_integration_frm_payout!(
     connectors::Imerchantsolutions,
     connectors::Ilixium,
     connectors::Loonio,
+    connectors::Merchante,
     connectors::Gigadat,
     connectors::Givepayments,
     connectors::Affirm,

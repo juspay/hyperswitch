@@ -7056,6 +7056,7 @@ default_imp_for_po_frm!(
     connectors::Katapult,
     connectors::Klarna,
     connectors::Loonio,
+    connectors::Merchante,
     connectors::Netcetera,
     connectors::Nmi,
     connectors::Nomupay,
