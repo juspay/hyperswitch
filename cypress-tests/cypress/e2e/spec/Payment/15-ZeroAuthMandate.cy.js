@@ -50,6 +50,10 @@ describe("Card - SingleUse Mandates flow test", () => {
       }
     });
 
+    it("Create Customer", () => {
+      cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
+    });
+
     it("Create No 3DS Payment Intent", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
@@ -124,6 +128,10 @@ describe("Card - SingleUse Mandates flow test", () => {
       ]["SaveCardConfirmAutoCaptureOffSession"];
 
       cy.retrievePaymentCallTest({ globalState, data });
+    });
+
+    it("Customer delete call", () => {
+      cy.customerDeleteCall(globalState);
     });
   });
 
@@ -223,6 +231,10 @@ describe("Card - SingleUse Mandates flow test", () => {
 
         cy.retrievePaymentCallTest({ globalState, data });
       });
+
+      it("Customer delete call", () => {
+        cy.customerDeleteCall(globalState);
+      });
     }
   );
 
@@ -286,6 +298,10 @@ describe("Card - SingleUse Mandates flow test", () => {
       ]["MITAutoCapture"];
 
       cy.retrievePaymentCallTest({ globalState, data });
+    });
+
+    it("Customer delete call", () => {
+      cy.customerDeleteCall(globalState);
     });
   });
 
@@ -417,6 +433,19 @@ describe("Card - SingleUse Mandates flow test", () => {
         ]["Capture"];
 
         cy.retrievePaymentCallTest({ globalState, data });
+      });
+
+      it("Customer delete call", function () {
+        if (
+          utils.shouldIncludeConnector(
+            globalState.get("connectorId"),
+            utils.CONNECTOR_LISTS.INCLUDE.ZERO_AUTH_MANDATE
+          )
+        ) {
+          this.skip();
+        }
+
+        cy.customerDeleteCall(globalState);
       });
     }
   );
