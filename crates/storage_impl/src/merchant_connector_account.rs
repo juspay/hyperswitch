@@ -1378,6 +1378,8 @@ impl MerchantConnectorAccountInterface for MockDb {
             additional_merchant_data: t.additional_merchant_data.map(|data| data.into()),
             version: t.version,
             connector_webhook_registration_details: t.connector_webhook_registration_details,
+            apple_pay_certificates: None,
+            apple_pay_certificates_encrypted: None,
         };
         accounts.push(account.clone());
         account
@@ -1421,6 +1423,8 @@ impl MerchantConnectorAccountInterface for MockDb {
             version: t.version,
             feature_metadata: t.feature_metadata.map(From::from),
             connector_webhook_registration_details: None,
+            apple_pay_certificates: None,
+            apple_pay_certificates_encrypted: None,
         };
         accounts.push(account.clone());
         account
