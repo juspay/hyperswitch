@@ -320,6 +320,7 @@ pub struct ConnectorConfig {
     pub ebanx_payout: Option<ConnectorTomlConfig>,
     pub elavon: Option<ConnectorTomlConfig>,
     pub envoy: Option<ConnectorTomlConfig>,
+    pub etisalat: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
     pub envoy_payout: Option<ConnectorTomlConfig>,
     pub facilitapay: Option<ConnectorTomlConfig>,
@@ -352,6 +353,7 @@ pub struct ConnectorConfig {
     pub jpmorgan: Option<ConnectorTomlConfig>,
     pub klarna: Option<ConnectorTomlConfig>,
     pub loonio: Option<ConnectorTomlConfig>,
+    pub merchante: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
     pub loonio_payout: Option<ConnectorTomlConfig>,
     pub mifinity: Option<ConnectorTomlConfig>,
@@ -610,6 +612,7 @@ impl ConnectorConfig {
             Connector::Envoy => Ok(connector_data.envoy),
             Connector::Ebanx => Ok(connector_data.ebanx_payout),
             Connector::Elavon => Ok(connector_data.elavon),
+            Connector::Etisalat => Ok(connector_data.etisalat),
             Connector::Facilitapay => Ok(connector_data.facilitapay),
             Connector::Finix => Ok(connector_data.finix),
             Connector::Fiserv => Ok(connector_data.fiserv),
@@ -635,6 +638,7 @@ impl ConnectorConfig {
             Connector::Juspaythreedsserver => Ok(connector_data.juspaythreedsserver),
             Connector::Klarna => Ok(connector_data.klarna),
             Connector::Loonio => Ok(connector_data.loonio),
+            Connector::Merchante => Ok(connector_data.merchante),
             Connector::Mifinity => Ok(connector_data.mifinity),
             Connector::Mollie => Ok(connector_data.mollie),
             Connector::Moneris => Ok(connector_data.moneris),
