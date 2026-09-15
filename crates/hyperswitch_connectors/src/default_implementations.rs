@@ -7023,6 +7023,7 @@ default_imp_for_po_frm!(
     connectors::Ebanx,
     connectors::Elavon,
     connectors::Envoy,
+    connectors::Etisalat,
     connectors::Facilitapay,
     connectors::Finix,
     connectors::Fiserv,

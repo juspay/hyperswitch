@@ -4800,6 +4800,7 @@ default_imp_for_new_connector_integration_frm_payout!(
     connectors::Ebanx,
     connectors::Elavon,
     connectors::Envoy,
+    connectors::Etisalat,
     connectors::Facilitapay,
     connectors::Finix,
     connectors::Fiserv,
