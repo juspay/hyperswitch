@@ -477,3 +477,21 @@ impl ForeignTryFrom<&api_models::payments::ExternalThreeDsData> for Authenticati
         })
     }
 }
+
+/// What the internal PM service handed back for a freshly created payment-method vault session.
+#[cfg(feature = "v1")]
+pub struct CreatedPmVaultSession {
+    pub vault_details: Option<crate::types::api::VaultDetails>,
+    pub expires_at: Option<time::PrimitiveDateTime>,
+}
+
+/// The vault session cached per payment, so every call for that payment hands the SDK the same
+/// authorization. `customer_id` and `storage_type` travel with it so an intent update that
+/// changes either mints a fresh session instead of reusing one created under different terms.
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct CachedPmVaultSession {
+    pub customer_id: Option<common_utils::id_type::CustomerId>,
+    pub storage_type: common_enums::StorageType,
+    pub vault_details: crate::types::api::VaultDetails,
+}

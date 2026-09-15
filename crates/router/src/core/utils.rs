@@ -3216,3 +3216,51 @@ pub async fn cache_value_with_expiry<T>(
         ),
     }
 }
+
+/// Pins `candidate` under `redis_key` and returns whichever value is pinned there.
+///
+/// The first writer wins: its value is stored and returned, and every later caller — including
+/// one racing it right now — gets that value back instead of its own. This is what makes a value
+/// that is freshly generated on each build stable across concurrent calls without a lock.
+///
+/// Never fatal: if Redis cannot be reached the caller falls back to its own candidate, which is
+/// what it would have used had the pin not existed.
+pub async fn pin_value(
+    state: &SessionState,
+    redis_key: &str,
+    type_name: &'static str,
+    candidate: String,
+    ttl_seconds: i64,
+) -> String {
+    let pinned: CustomResult<Option<String>, RedisError> = async {
+        let redis = state.store.get_redis_conn()?;
+        match redis
+            .serialize_and_set_key_if_not_exist(&redis_key.into(), &candidate, Some(ttl_seconds))
+            .await?
+        {
+            redis_interface::SetnxReply::KeySet => Ok(None),
+            redis_interface::SetnxReply::KeyNotSet => redis
+                .get_and_deserialize_key::<String>(&redis_key.into(), type_name)
+                .await
+                .map(Some),
+        }
+    }
+    .await;
+
+    match pinned {
+        Ok(None) => candidate,
+        Ok(Some(existing)) => {
+            router_env::logger::debug!(redis_key, type_name, "Reusing the pinned value");
+            existing
+        }
+        Err(err) => {
+            router_env::logger::warn!(
+                ?err,
+                redis_key,
+                type_name,
+                "Failed to pin the value; using the freshly generated one"
+            );
+            candidate
+        }
+    }
+}

@@ -72,12 +72,17 @@ impl PaymentId {
         )
     }
 
-    /// Get the Redis key under which the combined payment-method list for this payment is cached
-    pub fn get_combined_pm_list_redis_key(&self, merchant_id: &super::MerchantId) -> String {
+    /// Get the Redis key under which this payment's token for one saved payment method is pinned
+    pub fn get_pm_token_redis_key(
+        &self,
+        merchant_id: &super::MerchantId,
+        payment_method_id: &str,
+    ) -> String {
         format!(
-            "{}_{}_combined_pm_list",
+            "{}_{}_{}_pm_token",
             merchant_id.get_string_repr(),
-            self.get_string_repr()
+            self.get_string_repr(),
+            payment_method_id
         )
     }
 

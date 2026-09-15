@@ -34,7 +34,13 @@ use crate::core::{
     utils as core_utils,
 };
 #[cfg(feature = "v1")]
-use crate::{consts, core::utils as core_utils};
+use crate::{
+    consts,
+    core::{
+        payments::types::{CachedPmVaultSession, CreatedPmVaultSession},
+        utils as core_utils,
+    },
+};
 use crate::{
     core::{
         errors::{self, RouterResult},
@@ -110,24 +116,6 @@ where
     Ok(())
 }
 
-/// What the internal PM service handed back for a freshly created session.
-#[cfg(feature = "v1")]
-struct CreatedPmVaultSession {
-    vault_details: Option<api::VaultDetails>,
-    expires_at: Option<time::PrimitiveDateTime>,
-}
-
-/// The vault session cached per payment, so every call for that payment hands the SDK the same
-/// authorization. `customer_id` and `storage_type` travel with it so an intent update that
-/// changes either mints a fresh session instead of reusing one created under different terms.
-#[cfg(feature = "v1")]
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-struct CachedPmVaultSession {
-    customer_id: Option<id_type::CustomerId>,
-    storage_type: common_enums::StorageType,
-    vault_details: api::VaultDetails,
-}
-
 /// Storage intent for the PM vault session.
 ///
 /// `setup_future_usage` on the intent carries the merchant's storage intent for the session: set
@@ -156,12 +144,12 @@ pub fn resolve_vault_storage_type(
 pub async fn get_or_create_pm_vault_session(
     state: &SessionState,
     external_vault_profile: &domain::Profile,
-    merchant_id: &id_type::MerchantId,
+    processor_merchant_id: &id_type::MerchantId,
     payment_id: &id_type::PaymentId,
     customer_id: Option<&id_type::CustomerId>,
     storage_type: common_enums::StorageType,
 ) -> RouterResult<Option<api::VaultDetails>> {
-    let redis_key = payment_id.get_pm_vault_session_redis_key(merchant_id);
+    let redis_key = payment_id.get_pm_vault_session_redis_key(processor_merchant_id);
 
     let cached = core_utils::read_cached_value::<CachedPmVaultSession>(
         state,
@@ -370,9 +358,14 @@ where
         let customer_id = customer.as_ref().map(|c| c.get_id());
 
         let payment_intent = payment_data.get_payment_intent();
-        let merchant_id = payment_intent.merchant_id.clone();
         let payment_id = payment_intent.payment_id.clone();
         let setup_future_usage = payment_intent.setup_future_usage;
+
+        // A payment is unique under its processor merchant — that is the pair every lookup of it
+        // uses — so that is what namespaces the cache. The intent's own `merchant_id` is the
+        // provider merchant, which in a platform flow is shared by every connected merchant under
+        // it: two of them picking the same `payment_id` would collide on one cached session.
+        let processor_merchant_id = platform.get_processor().get_account().get_id().clone();
 
         let storage_type = resolve_vault_storage_type(setup_future_usage, customer_id);
         router_env::logger::info!(
@@ -388,7 +381,7 @@ where
         let vault_details = get_or_create_pm_vault_session(
             state,
             &external_vault_profile,
-            &merchant_id,
+            &processor_merchant_id,
             &payment_id,
             customer_id,
             storage_type,
