@@ -1,4 +1,5 @@
 use diesel_models::enums::FraudCheckLastStep;
+use error_stack::ResultExt;
 use hyperswitch_connectors::types::PoFrmRouterData;
 
 use crate::{
@@ -77,42 +78,52 @@ impl FraudCheckPrePayout {
     ) -> RouterResult<PayoutFrmData> {
         let db = &*state.store;
 
-        let fraud_check_update = match router_data.response {
+        match router_data.response {
             Ok(FraudCheckResponseData::TransactionResponse {
                 resource_id,
                 status,
                 connector_metadata,
                 reason,
                 score,
-            }) => FraudCheckUpdate::ResponseUpdate {
-                frm_status: status,
-                frm_transaction_id: resource_id.get_optional_response_id(),
-                frm_reason: reason,
-                frm_score: score,
-                metadata: connector_metadata,
-                modified_at: common_utils::date_time::now(),
-                last_step: FraudCheckLastStep::PoFrm,
-                payment_capture_method: None,
-            },
-            Err(error) => FraudCheckUpdate::ErrorUpdate {
-                status: FraudCheckStatus::TransactionFailure,
-                error_message: Some(Some(error.message)),
-            },
-            Ok(_) => FraudCheckUpdate::ErrorUpdate {
-                status: FraudCheckStatus::TransactionFailure,
-                error_message: Some(Some(
-                    "Unexpected response type for payout fraud check".to_string(),
-                )),
-            },
-        };
+            }) => {
+                let fraud_check_update = FraudCheckUpdate::ResponseUpdate {
+                    frm_status: status,
+                    frm_transaction_id: resource_id.get_optional_response_id(),
+                    frm_reason: reason,
+                    frm_score: score,
+                    metadata: connector_metadata,
+                    modified_at: common_utils::date_time::now(),
+                    last_step: FraudCheckLastStep::PoFrm,
+                    payment_capture_method: None,
+                };
 
-        frm_data.fraud_check = db
-            .update_fraud_check_response_with_frm_id(
-                frm_data.fraud_check.clone(),
-                fraud_check_update,
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::FraudCheckNotFound)?;
+                frm_data.fraud_check = db
+                    .update_fraud_check_response_with_frm_id(
+                        frm_data.fraud_check.clone(),
+                        fraud_check_update,
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::FraudCheckNotFound)?;
+            }
+            Err(error) => {
+                let fraud_check_update = FraudCheckUpdate::ErrorUpdate {
+                    status: FraudCheckStatus::TransactionFailure,
+                    error_message: Some(Some(error.message)),
+                };
+
+                frm_data.fraud_check = db
+                    .update_fraud_check_response_with_frm_id(
+                        frm_data.fraud_check.clone(),
+                        fraud_check_update,
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::FraudCheckNotFound)?;
+            }
+            Ok(_) => {
+                Err(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Unexpected response in po_frm flow")?;
+            }
+        }
 
         Ok(frm_data)
     }

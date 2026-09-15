@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use std::fmt::Debug;
 
 use api_models::{self, enums as api_enums};
-use common_enums::{CaptureMethod, PreFrmFailureMode};
+use common_enums::{CaptureMethod, PaymentMethod, PreFrmFailureMode};
 use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, PeekInterface};
 use router_env::{
@@ -47,6 +47,7 @@ use crate::{
             fraud_check::{FraudCheck, FraudCheckUpdate},
             PaymentAttempt, PaymentIntent,
         },
+        transformers::ForeignFrom,
     },
     utils::ValueExt,
 };
@@ -250,6 +251,7 @@ pub async fn get_payout_frm_applicability(
     frm_routing_algorithm: FrmRoutingAlgorithm,
 ) -> RouterResult<PayoutFrmApplicability> {
     // Return NotApplicable if the FRM merchant connector account is disabled
+
     if frm_merchant_connector_account.is_disabled() {
         return Ok(PayoutFrmApplicability::NotApplicable);
     }
@@ -263,6 +265,8 @@ pub async fn get_payout_frm_applicability(
     let Some(payout_type) = payout_data.payouts.payout_type else {
         return Ok(PayoutFrmApplicability::NotApplicable);
     };
+
+    let payment_method = PaymentMethod::foreign_from(payout_type);
 
     // Parse the frm_configs JSON value into a Vec<FrmConfigs>
     let frm_configs = frm_configs_value
@@ -284,10 +288,10 @@ pub async fn get_payout_frm_applicability(
     // Iterate over the frm_configs and insert the gateways into the connectors HashSet if the payout_type matches
     for mut config in frm_configs {
         config
-            .payout_types
-            .retain(|payout_method| payout_method.payout_type == payout_type);
+            .payment_methods
+            .retain(|frm_payment_method| frm_payment_method.payment_method == Some(payment_method));
 
-        if !config.payout_types.is_empty() {
+        if !config.payment_methods.is_empty() {
             if let Some(gateway) = config.gateway {
                 connectors.insert(gateway);
             }

@@ -117,11 +117,14 @@ pub struct PayoutFrmData {
 #[cfg(all(feature = "payouts", feature = "v1"))]
 impl PayoutFrmData {
     pub fn should_cancel_payout(&self, failure_mode: &PreFrmFailureMode) -> bool {
-        matches!(self.fraud_check.frm_status, FraudCheckStatus::Fraud)
-            || (matches!(
-                self.fraud_check.frm_status,
-                FraudCheckStatus::TransactionFailure
-            ) && matches!(failure_mode, PreFrmFailureMode::FailClosed))
+        matches!(
+            (self.fraud_check.frm_status, failure_mode),
+            (FraudCheckStatus::Fraud, _)
+                | (
+                    FraudCheckStatus::TransactionFailure,
+                    PreFrmFailureMode::FailClosed
+                )
+        )
     }
 
     pub fn get_frm_outcome(&self, failure_mode: &PreFrmFailureMode) -> PayoutFrmOutcome {
