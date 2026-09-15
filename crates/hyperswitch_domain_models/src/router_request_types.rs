@@ -44,6 +44,8 @@ pub enum CurrentFlowInfo {
         auth_type: storage_enums::AuthenticationType,
         /// The payment authorize request data
         request_data: Box<PaymentsAuthorizeData>,
+        /// The metadata configured at the merchant connector account level
+        connector_meta_data: Option<pii::SecretSerdeValue>,
     },
     /// CompleteAuthorize flow information
     CompleteAuthorize {
@@ -890,6 +892,8 @@ pub struct PaymentsPreAuthenticateData {
     // New amount for amount frame work
     pub minor_amount: MinorUnit,
     pub webhook_url: Option<String>,
+    // Contains the connector specific metadata coming from payments request
+    pub connector_intent_metadata: Option<ConnectorMetadata>,
 }
 
 impl TryFrom<PaymentsAuthorizeData> for PaymentsPreAuthenticateData {
@@ -911,6 +915,7 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsPreAuthenticateData {
             browser_info: data.browser_info,
             enrolled_for_3ds: data.enrolled_for_3ds,
             webhook_url: data.webhook_url,
+            connector_intent_metadata: data.connector_intent_metadata,
         })
     }
 }
@@ -934,6 +939,7 @@ impl TryFrom<SetupMandateRequestData> for PaymentsPreAuthenticateData {
             browser_info: data.browser_info,
             enrolled_for_3ds: data.enrolled_for_3ds,
             webhook_url: data.webhook_url,
+            connector_intent_metadata: None,
         })
     }
 }
