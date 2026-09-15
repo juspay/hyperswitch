@@ -35,11 +35,18 @@ impl Default for PayoutRequiredFields {
             (
                 BankTransfer,
                 PaymentMethodTypeInfo(HashMap::from([
-                    // Adyen
-                    get_connector_payment_method_type_fields(
-                        PayoutConnectors::Adyenplatform,
-                        PaymentMethodType::SepaBankTransfer,
-                    ),
+                    {
+                        let (pmt, mut sepa_fields) = get_connector_payment_method_type_fields(
+                            PayoutConnectors::Adyenplatform,
+                            PaymentMethodType::SepaBankTransfer,
+                        );
+                        let (_, mifinity_fields) = get_connector_payment_method_type_fields(
+                            PayoutConnectors::Mifinity,
+                            PaymentMethodType::SepaBankTransfer,
+                        );
+                        sepa_fields.fields.extend(mifinity_fields.fields);
+                        (pmt, sepa_fields)
+                    },
                     // Ebanx
                     get_connector_payment_method_type_fields(
                         PayoutConnectors::Ebanx,
@@ -64,6 +71,10 @@ impl Default for PayoutRequiredFields {
                     get_connector_payment_method_type_fields(
                         PayoutConnectors::Adyenplatform,
                         PaymentMethodType::Paypal,
+                    ),
+                    get_connector_payment_method_type_fields(
+                        PayoutConnectors::Mifinity,
+                        PaymentMethodType::Mifinity,
                     ),
                 ])),
             ),
@@ -95,6 +106,9 @@ fn get_billing_details_for_payment_method(
     payment_method_type: PaymentMethodType,
 ) -> HashMap<String, RequiredFieldInfo> {
     match connector {
+        PayoutConnectors::Mifinity if payment_method_type == PaymentMethodType::Mifinity => {
+            HashMap::new()
+        }
         PayoutConnectors::Adyenplatform => {
             let mut fields = HashMap::from([
                 (
@@ -267,6 +281,22 @@ fn get_connector_payment_method_type_fields(
                 },
             )
         }
+        PaymentMethodType::Mifinity => {
+            common_fields.extend(get_mifinity_fields());
+            (
+                payment_method_type,
+                ConnectorFields {
+                    fields: HashMap::from([(
+                        connector.into(),
+                        RequiredFieldFinal {
+                            mandate: HashMap::new(),
+                            non_mandate: HashMap::new(),
+                            common: common_fields,
+                        },
+                    )]),
+                },
+            )
+        }
 
         // Bank Redirect
         PaymentMethodType::Interac => {
@@ -334,6 +364,18 @@ fn get_card_fields() -> HashMap<String, RequiredFieldInfo> {
             },
         ),
     ])
+}
+
+fn get_mifinity_fields() -> HashMap<String, RequiredFieldInfo> {
+    HashMap::from([(
+        "payout_method_data.wallet.mifinity.destination_account".to_string(),
+        RequiredFieldInfo {
+            required_field: "payout_method_data.wallet.mifinity.destination_account".to_string(),
+            display_name: "destination_account".to_string(),
+            field_type: FieldType::Text,
+            value: None,
+        },
+    )])
 }
 
 fn get_bacs_fields() -> HashMap<String, RequiredFieldInfo> {

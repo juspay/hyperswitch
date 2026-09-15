@@ -634,6 +634,16 @@ impl Vaultable for api::WalletPayout {
                 expiry_year: Some(google_pay_decrypt_data.expiry_year.clone()),
                 card_holder_name: google_pay_decrypt_data.card_holder_name.clone(),
             },
+            Self::Mifinity(mifinity_data) => TokenizedWalletSensitiveValues {
+                email: None,
+                telephone_number: None,
+                wallet_id: Some(mifinity_data.destination_account.clone()),
+                wallet_type: PaymentMethodType::Mifinity,
+                dpan: None,
+                expiry_month: None,
+                expiry_year: None,
+                card_holder_name: None,
+            },
         };
 
         value1
@@ -662,6 +672,10 @@ impl Vaultable for api::WalletPayout {
             Self::GooglePayDecrypt(google_pay_decrypt_data) => TokenizedWalletInsensitiveValues {
                 customer_id,
                 card_network: google_pay_decrypt_data.card_network.clone(),
+            },
+            Self::Mifinity(_) => TokenizedWalletInsensitiveValues {
+                customer_id,
+                card_network: None,
             },
         };
 
@@ -708,6 +722,11 @@ impl Vaultable for api::WalletPayout {
                     _ => Err(errors::VaultError::ResponseDeserializationFailed)?,
                 }
             }
+            PaymentMethodType::Mifinity => Self::Mifinity(api_models::payouts::Mifinity {
+                destination_account: value1
+                    .wallet_id
+                    .ok_or(errors::VaultError::ResponseDeserializationFailed)?,
+            }),
             _ => Err(errors::VaultError::PayoutMethodNotSupported)?,
         };
         let supp_data = SupplementaryVaultData {

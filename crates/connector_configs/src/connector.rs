@@ -356,6 +356,8 @@ pub struct ConnectorConfig {
     #[cfg(feature = "payouts")]
     pub loonio_payout: Option<ConnectorTomlConfig>,
     pub mifinity: Option<ConnectorTomlConfig>,
+    #[cfg(feature = "payouts")]
+    pub mifinity_payout: Option<ConnectorTomlConfig>,
     pub mollie: Option<ConnectorTomlConfig>,
     pub moneris: Option<ConnectorTomlConfig>,
     pub mpgs: Option<ConnectorTomlConfig>,
@@ -496,6 +498,7 @@ impl ConnectorConfig {
             PayoutConnectors::Itaubank => Ok(connector_data.itaubank_payout),
             PayoutConnectors::Santander => Ok(connector_data.santander_payout),
             PayoutConnectors::GotymeSanlam => Ok(connector_data.gotyme_sanlam_payout),
+            PayoutConnectors::Mifinity => Ok(connector_data.mifinity_payout),
         }
     }
 
