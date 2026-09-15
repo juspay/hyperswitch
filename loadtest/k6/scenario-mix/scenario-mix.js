@@ -832,8 +832,25 @@ function runFlow(merchant, plan, phaseInfo, startedAt) {
     );
     plan.trends.payment_method_list.add(response.timings.duration);
     token = json(response).customer_payment_methods?.[0]?.payment_token;
-    if (response.status < 200 || response.status >= 300 || !token) {
-      failIteration(merchant, plan, startedAt, `payment_method_list_${statusCode(response)}`, phaseInfo, response);
+    let listResponse = response;
+    // A 2xx with an empty customer_payment_methods means the baseline's v1
+    // CIT confirm hasn't synced into the v2 payment-method store this
+    // endpoint reads from yet — the same async
+    // PaymentMethodModularForwardCompatWorkflow race called out for mit's
+    // IR_39 above, just surfacing here as an empty list instead of a hard
+    // error. Poll briefly rather than failing on the first empty response
+    // (mirrors findSavedPaymentMethod above, and the "wait a moment and
+    // re-send this request" the nomod-saved-card-scenario Postman
+    // collection's own test script calls out for this exact request).
+    if (listResponse.status >= 200 && listResponse.status < 300 && !token) {
+      for (let attempt = 0; attempt < 50 && !token; attempt += 1) {
+        sleep(0.1);
+        listResponse = http.get(`${routerUrl}/payments/${payment.payment_id}/client`, requestParams(sdkAuthHeaders(merchant, payment), "payment_method_list_poll"));
+        token = json(listResponse).customer_payment_methods?.[0]?.payment_token;
+      }
+    }
+    if (listResponse.status < 200 || listResponse.status >= 300 || !token) {
+      failIteration(merchant, plan, startedAt, `payment_method_list_${statusCode(listResponse)}`, phaseInfo, listResponse);
       return;
     }
   }
