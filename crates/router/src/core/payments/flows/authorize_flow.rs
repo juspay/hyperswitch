@@ -5,7 +5,7 @@ use common_enums as enums;
 use common_types::payments as common_payments_types;
 #[cfg(feature = "v2")]
 use common_utils::types::MinorUnit;
-use common_utils::{errors, ext_traits::ValueExt, id_type, ucs_types};
+use common_utils::{errors, ext_traits::ValueExt, fp_utils, id_type, ucs_types};
 use error_stack::ResultExt;
 use external_services::grpc_client;
 use hyperswitch_connectors::constants as connector_consts;
@@ -157,6 +157,10 @@ impl
             types::PaymentsResponseData,
         >,
     > {
+        fp_utils::when(merchant_connector_account.is_disabled(), || {
+            Err(ApiErrorResponse::MerchantConnectorAccountDisabled)
+        })?;
+
         Box::pin(transformers::construct_payment_router_data::<
             api::Authorize,
             types::PaymentsAuthorizeData,

@@ -401,6 +401,7 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 | WalletData::AmazonPayRedirect(_)
                 | WalletData::Paysera(_)
                 | WalletData::Skrill(_)
+                | WalletData::Neteller(_)
                 | WalletData::BluecodeRedirect {}
                 | WalletData::MomoRedirect(_)
                 | WalletData::KakaoPayRedirect(_)
@@ -473,6 +474,7 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 | WalletData::AmazonPayRedirect(_)
                 | WalletData::Paysera(_)
                 | WalletData::Skrill(_)
+                | WalletData::Neteller(_)
                 | WalletData::BluecodeRedirect {}
                 | WalletData::MomoRedirect(_)
                 | WalletData::KakaoPayRedirect(_)
@@ -657,6 +659,7 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 | WalletData::AmazonPayRedirect(_)
                 | WalletData::Paysera(_)
                 | WalletData::Skrill(_)
+                | WalletData::Neteller(_)
                 | WalletData::BluecodeRedirect {}
                 | WalletData::MomoRedirect(_)
                 | WalletData::KakaoPayRedirect(_)

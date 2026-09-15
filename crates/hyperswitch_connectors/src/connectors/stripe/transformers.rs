@@ -975,6 +975,7 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             enums::PaymentMethodType::Boleto
             | enums::PaymentMethodType::Paysera
             | enums::PaymentMethodType::Skrill
+            | enums::PaymentMethodType::Neteller
             | enums::PaymentMethodType::CardRedirect
             | enums::PaymentMethodType::CryptoCurrency
             | enums::PaymentMethodType::Multibanco
@@ -1385,6 +1386,7 @@ fn get_stripe_payment_method_type_from_wallet_data(
         | WalletData::BluecodeRedirect {}
         | WalletData::Paysera(_)
         | WalletData::Skrill(_)
+        | WalletData::Neteller(_)
         | WalletData::AmazonPay(_)
         | WalletData::AliPayHkRedirect(_)
         | WalletData::MomoRedirect(_)
@@ -1923,6 +1925,7 @@ impl
             | WalletData::Paysera(_)
             | WalletData::BluecodeRedirect {}
             | WalletData::Skrill(_)
+            | WalletData::Neteller(_)
             | WalletData::AmazonPay(_)
             | WalletData::AliPayHkRedirect(_)
             | WalletData::MomoRedirect(_)
