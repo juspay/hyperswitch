@@ -643,8 +643,6 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                         "fs",
                     ))),
                     offer_engine_config: None,
-                    apple_pay_certificates: None,
-                    apple_pay_certificates_encrypted: None,
                 },
             )
         }

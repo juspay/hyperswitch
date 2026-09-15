@@ -2001,8 +2001,6 @@ mod tests {
             network_tokenization_credentials: None,
             fingerprint_secret: None,
             offer_engine_config: None,
-            apple_pay_certificates: None,
-            apple_pay_certificates_encrypted: None,
         });
         let merchant_account = state
             .store

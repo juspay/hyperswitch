@@ -1384,7 +1384,7 @@ impl Conversion for domain::MerchantAccount {
                 })?;
 
         async {
-            Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(
+            let mut merchant_account: Self = {
                 domain::MerchantAccountSetter {
                     merchant_id,
                     return_url: item.return_url,
@@ -1472,24 +1472,26 @@ impl Conversion for domain::MerchantAccount {
                             .and_then(|val| val.try_into_optionaloperation())
                         })
                         .await?,
-                    apple_pay_certificates: item.apple_pay_certificates,
-                    apple_pay_certificates_encrypted: item
-                        .apple_pay_certificates_encrypted
-                        .async_lift(|inner| async {
-                            crypto_operation(
-                                state,
-                                type_name!(Self::DstType),
-                                CryptoOperation::DecryptOptional(inner),
-                                key_manager_identifier.clone(),
-                                key.peek(),
-                            )
-                            .await
-                            .and_then(|val| val.try_into_optionaloperation())
-                        })
-                        .await?,
                 }
-                .into(),
-            )
+                .into()
+            };
+            let apple_pay_certificates_encrypted = item
+                .apple_pay_certificates_encrypted
+                .async_lift(|inner| async {
+                    crypto_operation(
+                        state,
+                        type_name!(Self::DstType),
+                        CryptoOperation::DecryptOptional(inner),
+                        key_manager_identifier.clone(),
+                        key.peek(),
+                    )
+                    .await
+                    .and_then(|val| val.try_into_optionaloperation())
+                })
+                .await?;
+            merchant_account.apple_pay_certificates = item.apple_pay_certificates;
+            merchant_account.apple_pay_certificates_encrypted = apple_pay_certificates_encrypted;
+            Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(merchant_account)
         }
         .await
         .change_context(ValidationError::InvalidValue {
