@@ -1,0 +1,28 @@
+# Static host for loadtest trace bundles. Render's Jaeger fetches these on every
+# cold start (its free tier has no persistent disk), so this is the durable copy.
+#
+# The trace JSON itself is gitignored -- it is large and regenerated often, so it
+# is published straight from a local directory rather than through the repo.
+
+[build]
+  publish = "."
+
+# Trace files are content-addressed by trace ID: a given ID's body never changes,
+# so it can be cached indefinitely.
+[[headers]]
+  for = "/traces/*.json"
+  [headers.values]
+    Content-Type = "application/json"
+    Cache-Control = "public, max-age=31536000, immutable"
+    Access-Control-Allow-Origin = "*"
+
+# The manifest is the one mutable file -- adding a trace rewrites it. Caching it
+# would mean new traces silently fail to appear on the next Render cold start,
+# with nothing in the logs to explain why. This rule must stay below the glob
+# above, which would otherwise match it and pin it for a year.
+[[headers]]
+  for = "/traces/manifest.json"
+  [headers.values]
+    Content-Type = "application/json"
+    Cache-Control = "public, max-age=0, must-revalidate"
+    Access-Control-Allow-Origin = "*"

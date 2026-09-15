@@ -23,6 +23,12 @@ extensions:
   jaeger_query:
     storage:
       traces: primary
+    # Render routes public traffic to whatever port it finds the process
+    # listening on, and this image opens five (4317, 4318, 16685, 16686, 8888).
+    # Rather than let it guess, the entrypoint substitutes Render's $PORT here so
+    # the UI is unambiguously the public one.
+    http:
+      endpoint: 0.0.0.0:__QUERY_PORT__
   jaeger_storage:
     backends:
       primary:

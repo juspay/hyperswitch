@@ -271,3 +271,10 @@ creds.json
 # Nix services data
 /data
 .pre-commit-config.yaml
+
+# Loadtest trace bundles are published straight to Netlify from a local
+# directory -- they are large, regenerated often, and carry no value in history.
+loadtest/deploy/netlify/traces/*.json
+
+# Netlify CLI link state (project id, not a secret, but machine-local).
+.netlify/

@@ -29,11 +29,18 @@ Two things this sidesteps that cost days otherwise:
 
 ## Deploy
 
-**Netlify** — publish `loadtest/deploy/netlify/`:
+**Netlify** — already live at `https://hs-loadtest-traces.netlify.app`. To
+republish after changing the traces:
 
 ```bash
-npx netlify-cli deploy --prod --dir loadtest/deploy/netlify
+cd loadtest/deploy/netlify && npx netlify-cli deploy --prod --dir .
 ```
+
+The trace bundles under `traces/` are **gitignored** — they are large and
+regenerated often, so they are published straight from this directory and never
+enter the repo. A fresh clone therefore cannot reproduce the site; regenerate
+the bundles with the recipe below, assuming the trace is still inside Tempo's
+retention window.
 
 **Render** — New → Web Service → this repo:
 
@@ -41,7 +48,16 @@ npx netlify-cli deploy --prod --dir loadtest/deploy/netlify
 |---|---|
 | Root directory | `loadtest/deploy/render/jaeger` |
 | Runtime | Docker |
-| `TRACE_MANIFEST` | `https://<your-site>.netlify.app/traces/manifest.json` |
+| Branch | `feat/jaeger-trace-hosting` |
+| `TRACE_MANIFEST` | `https://hs-loadtest-traces.netlify.app/traces/manifest.json` |
+
+Root directory is not optional here: left blank, Render builds the repo-root
+Dockerfile — the full Rust router — which cannot finish in a free instance.
+
+`TRACE_MANIFEST` is likewise easy to miss. The entrypoint treats it as optional
+and starts an empty Jaeger without it, so a forgotten variable looks like a
+healthy service serving no traces, with nothing in the logs pointing at the
+cause.
 
 ## Adding traces
 
