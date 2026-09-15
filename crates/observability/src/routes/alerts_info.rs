@@ -6,7 +6,7 @@ use api_models::observability::alerts_info::AlertsInfoCreateRequest;
 
 use crate::{auth, core, services, state::AppState};
 
-/// `POST /alerts/info`.
+/// `POST /alerts/alerts_manager/info`.
 pub async fn create(
     state: web::Data<AppState>,
     request: HttpRequest,

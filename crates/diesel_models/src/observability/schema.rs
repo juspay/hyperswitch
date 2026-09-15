@@ -19,7 +19,8 @@ diesel::table! {
 
 diesel::table! {
     alerts_info (id) {
-        id -> Uuid,
+        #[max_length = 64]
+        id -> Varchar,
         #[max_length = 64]
         name -> Varchar,
         #[max_length = 64]

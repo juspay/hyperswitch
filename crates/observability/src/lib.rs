@@ -18,6 +18,7 @@ pub mod auth;
 pub mod core;
 pub mod db;
 pub mod domain;
+pub mod domain_models;
 pub mod errors;
 pub mod logger;
 pub mod routes;

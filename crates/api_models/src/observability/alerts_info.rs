@@ -1,9 +1,10 @@
-//! Alert definitions, as the observability service's `/alerts/info` routes accept and return them.
+//! Alert definitions, as the observability service's `/alerts/alerts_manager/info` routes accept
+//! and return them.
 
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-/// The body of `POST /alerts/info`.
+/// The body of `POST /alerts/alerts_manager/info`.
 ///
 /// Only `name` and `product` are required. An omitted `is_enabled` or `author` takes the database
 /// default rather than being stored as `null`.
@@ -31,7 +32,7 @@ pub struct AlertsInfoCreateRequest {
 /// A stored alert definition.
 #[derive(Clone, Debug, Serialize)]
 pub struct AlertsInfoResponse {
-    pub id: uuid::Uuid,
+    pub id: String,
     pub name: String,
     pub product: String,
     pub dimensions: Option<String>,

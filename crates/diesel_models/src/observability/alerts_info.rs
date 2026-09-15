@@ -7,11 +7,12 @@ use crate::observability::schema::alerts_info;
 
 /// A new alert definition.
 ///
-/// `id` and `last_updated_at` are absent so the database assigns them. A `None` field is left out
-/// of the insert entirely, so `is_enabled` and `author` fall back to their column defaults.
+/// `last_updated_at` is absent so the database assigns it. A `None` field is left out of the insert
+/// entirely, so `is_enabled` and `author` fall back to their column defaults.
 #[derive(Clone, Debug, Insertable, serde::Serialize, serde::Deserialize)]
 #[diesel(table_name = alerts_info)]
 pub struct AlertsInfoNew {
+    pub id: String,
     pub name: String,
     pub product: String,
     pub dimensions: Option<String>,
@@ -36,7 +37,7 @@ pub struct AlertsInfoNew {
 )]
 #[diesel(table_name = alerts_info, primary_key(id), check_for_backend(diesel::pg::Pg))]
 pub struct AlertsInfo {
-    pub id: uuid::Uuid,
+    pub id: String,
     pub name: String,
     pub product: String,
     pub dimensions: Option<String>,

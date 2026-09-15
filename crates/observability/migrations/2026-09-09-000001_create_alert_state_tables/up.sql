@@ -19,7 +19,7 @@
 -- blacklist, snooze and thresholds live here as JSON rather than as side tables,
 -- so everything about an alert is in one place.
 CREATE TABLE IF NOT EXISTS alerts_info (
-    id               UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    id               VARCHAR(64) PRIMARY KEY,
     name             VARCHAR(64) NOT NULL,
     product          VARCHAR(64) NOT NULL,
     dimensions       VARCHAR(255),

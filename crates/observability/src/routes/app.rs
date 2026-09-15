@@ -56,7 +56,10 @@ impl Alerts {
                     .service(web::resource("/evaluate").route(web::get().to(cloudwatch::evaluate)))
                     .service(web::resource("/notify").route(web::post().to(cloudwatch::notify))),
             )
-            .service(web::resource("/info").route(web::post().to(alerts_info::create)))
+            .service(
+                web::scope("/alerts_manager")
+                    .service(web::resource("/info").route(web::post().to(alerts_info::create))),
+            )
     }
 }
 
