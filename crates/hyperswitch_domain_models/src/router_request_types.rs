@@ -708,8 +708,9 @@ pub struct CreateOrderRequestData {
     pub router_return_url: Option<String>,
     pub setup_mandate_details: Option<mandates::MandateData>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
-    /// Customer of the payment the order is created for. Must match the `customer_id` of the
-    /// request that consumes the order (Authorize / SetupMandate).
+    /// Customer of the payment the order is created for, taken from the consuming request
+    /// (Authorize, SetupMandate or ExternalVaultProxy), so a connector that binds an order to a
+    /// customer sees the same id on both calls.
     pub customer_id: Option<id_type::CustomerId>,
     /// Store-for-later intent effective for order creation: the consuming request's
     /// `setup_future_usage`, except that `OffSession` is kept only when that request sets up a
@@ -2223,5 +2224,87 @@ impl TryFrom<CompleteAuthorizeData> for GenerateQrRequestData {
             amount: None,
             mandate_id: None,
         })
+    }
+}
+
+#[cfg(test)]
+mod create_order_request_data_tests {
+    use super::{
+        common_payments_types::CustomerAcceptance, get_setup_future_usage_for_order_creation,
+        mandates::MandateData, storage_enums::FutureUsage,
+    };
+
+    #[test]
+    fn setup_future_usage_for_order_creation_keeps_off_session_only_for_mandate_setup() {
+        let acceptance = CustomerAcceptance::default();
+        let mandate_data = MandateData::default();
+
+        // (case, setup_future_usage, customer_acceptance, setup_mandate_details, expected)
+        let cases = [
+            ("one-off payment", None, None, None, None),
+            (
+                "on-session payment",
+                Some(FutureUsage::OnSession),
+                None,
+                None,
+                Some(FutureUsage::OnSession),
+            ),
+            (
+                "off-session without customer_acceptance or setup_mandate_details",
+                Some(FutureUsage::OffSession),
+                None,
+                None,
+                None,
+            ),
+            (
+                "CIT with customer_acceptance",
+                Some(FutureUsage::OffSession),
+                Some(&acceptance),
+                None,
+                Some(FutureUsage::OffSession),
+            ),
+            (
+                "CIT with setup_mandate_details",
+                Some(FutureUsage::OffSession),
+                None,
+                Some(&mandate_data),
+                Some(FutureUsage::OffSession),
+            ),
+            (
+                "CIT with customer_acceptance and setup_mandate_details",
+                Some(FutureUsage::OffSession),
+                Some(&acceptance),
+                Some(&mandate_data),
+                Some(FutureUsage::OffSession),
+            ),
+            (
+                "on-session with customer_acceptance passes through",
+                Some(FutureUsage::OnSession),
+                Some(&acceptance),
+                None,
+                Some(FutureUsage::OnSession),
+            ),
+            (
+                "no setup_future_usage with customer_acceptance stays unset",
+                None,
+                Some(&acceptance),
+                None,
+                None,
+            ),
+        ];
+
+        for (case, setup_future_usage, customer_acceptance, setup_mandate_details, expected) in
+            cases
+        {
+            assert_eq!(
+                get_setup_future_usage_for_order_creation(
+                    setup_future_usage,
+                    customer_acceptance,
+                    setup_mandate_details,
+                ),
+                expected,
+                "{case}"
+            );
+        }
     }
 }

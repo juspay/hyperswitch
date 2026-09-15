@@ -321,7 +321,6 @@ pub struct ConnectorConfig {
     pub elavon: Option<ConnectorTomlConfig>,
     pub envoy: Option<ConnectorTomlConfig>,
     pub etisalat: Option<ConnectorTomlConfig>,
-    pub paynearme: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
     pub envoy_payout: Option<ConnectorTomlConfig>,
     pub facilitapay: Option<ConnectorTomlConfig>,
@@ -375,6 +374,7 @@ pub struct ConnectorConfig {
     pub paybox: Option<ConnectorTomlConfig>,
     pub payload: Option<ConnectorTomlConfig>,
     pub payme: Option<ConnectorTomlConfig>,
+    pub paynearme: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
     pub payone_payout: Option<ConnectorTomlConfig>,
     pub paypal: Option<ConnectorTomlConfig>,

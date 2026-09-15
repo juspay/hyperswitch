@@ -392,10 +392,6 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 etisalat::transformers::EtisalatAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
-            api_enums::Connector::Paynearme => {
-                paynearme::transformers::PaynearmeAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
             api_enums::Connector::Multisafepay => {
                 multisafepay::transformers::MultisafepayAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -464,6 +460,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             }
             api_enums::Connector::Payme => {
                 payme::transformers::PaymeAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
+            api_enums::Connector::Paynearme => {
+                paynearme::transformers::PaynearmeAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
             api_enums::Connector::Paypal => {

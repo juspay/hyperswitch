@@ -43,7 +43,6 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
-use hyperswitch_masking::{ExposeInterface, Mask};
 use transformers as paynearme;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
@@ -124,24 +123,14 @@ impl ConnectorCommon for Paynearme {
         auth_type: &ConnectorAuthType,
     ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
     {
-        // PayNearMe has no Authorization header: every request body carries the
-        // `site_identifier` plus an HMAC-SHA256 `signature` computed with the API
-        // secret key. This connector is UCS-only, so prism makes the actual wire
-        // call and hyperswitch never sends these headers on its own. The
-        // credentials are still parsed here so merchant misconfiguration fails
-        // fast, and projected into masked headers so every field is read.
-        let auth = paynearme::PaynearmeAuthType::try_from(auth_type)
+        // PayNearMe has no auth header: every request body carries the `site_identifier`
+        // plus an HMAC-SHA256 `signature` computed with the API Secret Key, which is a
+        // signing key and must never be transmitted. This connector is UCS-only (prism
+        // makes the wire call), so no header is built here. The credentials are only
+        // parsed, so merchant misconfiguration still fails fast.
+        paynearme::PaynearmeAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![
-            (
-                "X-Paynearme-Site-Identifier".to_string(),
-                auth.site_identifier.expose().into_masked(),
-            ),
-            (
-                "X-Paynearme-Api-Secret-Key".to_string(),
-                auth.api_secret_key.expose().into_masked(),
-            ),
-        ])
+        Ok(vec![])
     }
 
     fn build_error_response(
@@ -220,18 +209,10 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
     fn get_request_body(
         &self,
-        req: &PaymentsAuthorizeRouterData,
+        _req: &PaymentsAuthorizeRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let amount = utils::convert_amount(
-            self.amount_converter,
-            req.request.minor_amount,
-            req.request.currency,
-        )?;
-
-        let connector_router_data = paynearme::PaynearmeRouterData::from((amount, req));
-        let connector_req = paynearme::PaynearmePaymentsRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
+        Err(errors::ConnectorError::NotImplemented("get_request_body method".to_string()).into())
     }
 
     fn build_request(
@@ -663,7 +644,7 @@ static PAYNEARME_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "PayNearMe",
     description: "PayNearMe is a US payments platform for bill pay and iGaming, offering card, ACH and cash payments.",
     connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
-    integration_status: enums::ConnectorIntegrationStatus::Live,
+    integration_status: enums::ConnectorIntegrationStatus::Alpha,
 };
 
 static PAYNEARME_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];

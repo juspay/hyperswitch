@@ -2708,7 +2708,9 @@ impl
             threeds_completion_indicator: None,
             redirection_response: None,
             continue_redirection_url: None,
-            connector_order_id: None,
+            // Set only when an order was created at the connector ahead of this call
+            // (`update_router_data_with_create_order_response` in the external vault proxy flow).
+            connector_order_id: router_data.request.order_id.clone(),
             l2_l3_data: None,
             merchant_request_id: None,
             partner_merchant_identifier_details: None,

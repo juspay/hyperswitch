@@ -1,12 +1,11 @@
 use common_enums::enums;
 use common_utils::types::StringMinorUnit;
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::ResponseId,
     router_response_types::{PaymentsResponseData, RefundsResponseData},
-    types::{PaymentsAuthorizeRouterData, RefundsRouterData},
+    types::RefundsRouterData,
 };
 use hyperswitch_interfaces::errors;
 use hyperswitch_masking::Secret;
@@ -14,49 +13,16 @@ use serde::{Deserialize, Serialize};
 
 use crate::types::{RefundsResponseRouterData, ResponseRouterData};
 
-//TODO: Fill the struct with respective fields
 pub struct PaynearmeRouterData<T> {
-    pub amount: StringMinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
+    pub amount: StringMinorUnit,
     pub router_data: T,
 }
 
 impl<T> From<(StringMinorUnit, T)> for PaynearmeRouterData<T> {
     fn from((amount, item): (StringMinorUnit, T)) -> Self {
-        //Todo :  use utils to convert the amount to the type of amount that a connector accepts
         Self {
             amount,
             router_data: item,
-        }
-    }
-}
-
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, PartialEq)]
-pub struct PaynearmePaymentsRequest {
-    amount: StringMinorUnit,
-    card: PaynearmeCard,
-}
-
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
-pub struct PaynearmeCard {
-    number: cards::CardNumber,
-    expiry_month: Secret<String>,
-    expiry_year: Secret<String>,
-    cvc: Secret<String>,
-    complete: bool,
-}
-
-impl TryFrom<&PaynearmeRouterData<&PaymentsAuthorizeRouterData>> for PaynearmePaymentsRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: &PaynearmeRouterData<&PaymentsAuthorizeRouterData>,
-    ) -> Result<Self, Self::Error> {
-        match item.router_data.request.payment_method_data.clone() {
-            PaymentMethodData::Card(_) => Err(errors::ConnectorError::NotImplemented(
-                "Card payment method not implemented".to_string(),
-            )
-            .into()),
-            _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
     }
 }
@@ -65,11 +31,11 @@ impl TryFrom<&PaynearmeRouterData<&PaymentsAuthorizeRouterData>> for PaynearmePa
 // used only as the HMAC-SHA256 signing key) and a Site Identifier (sent as the
 // `site_identifier` body field). Prism's ConnectorSpecificConfig maps
 // BodyKey -> { api_key = API Secret Key, key1 = Site Identifier }. Hyperswitch
-// only reaches this validator before delegating to UCS, so we mirror the same
-// field mapping here.
+// only parses these to validate the merchant connector account before
+// delegating to UCS, so no field is sent anywhere from here.
 pub struct PaynearmeAuthType {
-    pub(super) api_secret_key: Secret<String>,
-    pub(super) site_identifier: Secret<String>,
+    pub api_secret_key: Secret<String>,
+    pub site_identifier: Secret<String>,
 }
 
 impl TryFrom<&ConnectorAuthType> for PaynearmeAuthType {
@@ -84,8 +50,8 @@ impl TryFrom<&ConnectorAuthType> for PaynearmeAuthType {
         }
     }
 }
+
 // PaymentsResponse
-//TODO: Append the remaining status flags
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum PaynearmePaymentStatus {
@@ -105,7 +71,6 @@ impl From<PaynearmePaymentStatus> for common_enums::AttemptStatus {
     }
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PaynearmePaymentsResponse {
     status: PaynearmePaymentStatus,
@@ -139,7 +104,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, PaynearmePaymentsResponse, T, PaymentsR
     }
 }
 
-//TODO: Fill the struct with respective fields
 // REFUND :
 // Type definition for RefundRequest
 #[derive(Default, Debug, Serialize)]
@@ -173,12 +137,10 @@ impl From<RefundStatus> for enums::RefundStatus {
             RefundStatus::Succeeded => Self::Success,
             RefundStatus::Failed => Self::Failure,
             RefundStatus::Processing => Self::Pending,
-            //TODO: Review mapping
         }
     }
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct RefundResponse {
     id: String,
@@ -215,7 +177,6 @@ impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouter
     }
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct PaynearmeErrorResponse {
     pub status_code: u16,
