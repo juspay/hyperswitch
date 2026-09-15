@@ -1,0 +1,45 @@
+# Jaeger for the public Render instance.
+#
+# Memory storage, deliberately: Render's free tier has no persistent disk and
+# spins the service down after ~15 minutes idle, so anything on disk would be
+# lost anyway. Instead the entrypoint re-loads traces from Netlify on every cold
+# start, which makes the ephemeral filesystem a non-issue.
+service:
+  extensions: [jaeger_storage, jaeger_query]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [jaeger_storage_exporter]
+  telemetry:
+    logs:
+      level: warn
+    # Jaeger v2 otherwise exports its own traces to localhost:4317 before that
+    # receiver is listening, retries in a hot loop, and never finishes starting.
+    traces:
+      processors: []
+
+extensions:
+  jaeger_query:
+    storage:
+      traces: primary
+  jaeger_storage:
+    backends:
+      primary:
+        memory:
+          max_traces: 1000
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch:
+
+exporters:
+  jaeger_storage_exporter:
+    trace_storage: primary
