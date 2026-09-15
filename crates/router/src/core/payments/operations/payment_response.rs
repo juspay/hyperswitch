@@ -78,7 +78,7 @@ use crate::{
 /// Spawns work the payment response does not wait on, keeping the request's trace correlation
 /// under `deja`.
 #[cfg(any(feature = "v1", all(test, feature = "deja")))]
-fn spawn_detached<F>(future: F)
+fn spawn_save_payment_method<F>(future: F)
 where
     F: Future<Output = ()> + Send + 'static,
 {
@@ -406,7 +406,7 @@ where
                         if is_off_session {
                             update_payment_method.await;
                         } else {
-                            spawn_detached(update_payment_method);
+                            spawn_save_payment_method(update_payment_method);
                         }
                     } else {
                         logger::info!(
@@ -946,7 +946,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                     };
                 }
             };
-            spawn_detached(save_payment_method_future);
+            spawn_save_payment_method(save_payment_method_future);
             Ok(())
         }
     }
