@@ -228,7 +228,7 @@ pub async fn make_connector_decision(
         )
         .await;
 
-    let frm_merchant_connector_account = if payout_frm_call {
+    let frm_merchant_connector_account_and_routing_algorithm = if payout_frm_call {
         fraud_check::handle_pre_frm_result!(
             get_frm_merchant_connector_account_and_routing_algorithm(state, platform, payout_data)
                 .await,
@@ -240,7 +240,7 @@ pub async fn make_connector_decision(
         None
     };
 
-    let payout_frm_applicability = match frm_merchant_connector_account {
+    let payout_frm_applicability = match frm_merchant_connector_account_and_routing_algorithm {
         Some((mca, fra)) => fraud_check::handle_pre_frm_result!(
             get_payout_frm_applicability(payout_data, mca, fra).await,
             &pre_frm_failure_mode,
