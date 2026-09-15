@@ -106,6 +106,7 @@ pub enum Connector {
     Ebanx,
     Envoy,
     Elavon,
+    Etisalat,
     Facilitapay,
     Finix,
     Fiserv,
@@ -138,6 +139,7 @@ pub enum Connector {
     Juspaythreedsserver,
     Klarna,
     Loonio,
+    Merchante,
     Mifinity,
     Mollie,
     Moneris,
@@ -211,6 +213,7 @@ pub enum Connector {
     Signifyd,
     Plaid,
     Riskified,
+    SanlamPayshield,
     Xendit,
     Zen,
     Zift,
@@ -366,6 +369,7 @@ impl Connector {
             | Self::Envoy
             | Self::Ebanx
             | Self::Elavon
+            | Self::Etisalat
             | Self::Facilitapay
             | Self::Finix
             | Self::Fiserv
@@ -392,6 +396,7 @@ impl Connector {
             | Self::Juspaythreedsserver
             | Self::Klarna
             | Self::Loonio
+            | Self::Merchante
             | Self::Mifinity
             | Self::Mollie
             | Self::Moneris
@@ -452,6 +457,7 @@ impl Connector {
             | Self::Plaid
             | Self::Razorpay
             | Self::Riskified
+            | Self::SanlamPayshield
             | Self::Threedsecureio
             | Self::Netcetera
             | Self::CtpMastercard

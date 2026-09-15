@@ -1997,6 +1997,9 @@ impl Blocklist {
                 web::resource("/batch/{job_id}")
                     .route(web::get().to(blocklist::get_batch_blocklist_job_status)),
             )
+            .service(
+                web::resource("/export").route(web::post().to(blocklist::create_blocklist_export)),
+            )
     }
 }
 
@@ -2531,6 +2534,10 @@ impl PaymentLink {
         web::scope("/payment_link")
             .app_data(web::Data::new(state))
             .service(web::resource("/list").route(web::post().to(payment_link::payments_link_list)))
+            .service(
+                web::resource("/profile/list")
+                    .route(web::post().to(payment_link::profile_payment_link_list)),
+            )
             .service(
                 web::resource("/{payment_link_id}")
                     .route(web::get().to(payment_link::payment_link_retrieve)),
