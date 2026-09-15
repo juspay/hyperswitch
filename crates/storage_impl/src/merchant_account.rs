@@ -1102,7 +1102,8 @@ impl ForeignFrom<domain::MerchantAccountUpdate> for MerchantAccountUpdateInterna
                 network_tokenization_credentials: None,
                 offer_engine_config: None,
                 apple_pay_certificates,
-                apple_pay_certificates_encrypted: apple_pay_certificates_encrypted.map(Encryption::from),
+                apple_pay_certificates_encrypted: apple_pay_certificates_encrypted
+                    .map(Encryption::from),
             },
         }
     }
