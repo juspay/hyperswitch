@@ -7216,7 +7216,7 @@ dependencies = [
  "regex-cache",
  "serde",
  "serde_derive",
- "strum 0.26.3",
+ "strum 0.25.0",
  "thiserror 1.0.69",
 ]
 
