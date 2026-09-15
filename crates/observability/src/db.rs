@@ -18,11 +18,11 @@ pub mod alerts_info;
 
 use std::{sync::Arc, time::Duration};
 
-use common_utils::external_service::NoOpEventEmitter;
+use common_utils::{errors::ErrorSwitchFrom, external_service::NoOpEventEmitter};
 use diesel_models::{
     errors::DatabaseError, DatabaseConnectionWithContext, DejaPgConnection, StorageResult,
 };
-use error_stack::ResultExt;
+use error_stack::{report, ResultExt};
 use hyperswitch_masking::PeekInterface;
 
 use crate::{errors::ConfigurationError, settings::Database};
@@ -92,5 +92,21 @@ impl Store {
             None,
             Arc::new(NoOpEventEmitter),
         ))
+    }
+}
+
+#[derive(Debug)]
+pub struct TransactionError(pub error_stack::Report<DatabaseError>);
+
+impl From<diesel::result::Error> for TransactionError {
+    fn from(error: diesel::result::Error) -> Self {
+        let context = DatabaseError::switch_from(&error);
+        Self(report!(error).change_context(context))
+    }
+}
+
+impl From<error_stack::Report<DatabaseError>> for TransactionError {
+    fn from(report: error_stack::Report<DatabaseError>) -> Self {
+        Self(report)
     }
 }

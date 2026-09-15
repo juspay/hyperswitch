@@ -30,6 +30,7 @@ async-trait = "0.1.88"
 bb8 = "0.8.6"
 clap = { version = "4.5.38", default-features = false, features = ["std", "derive", "help", "usage"] }
 config = { version = "0.14.1", features = ["toml"] }
+diesel = { version = "2.2.10", features = ["postgres"] }
 error-stack = "0.4.1"
 mime = "0.3.17"
 reqwest = { version = "0.11.27" }
@@ -39,6 +40,7 @@ serde_path_to_error = "0.1.17"
 thiserror = "1.0.69"
 time = { version = "0.3.41", features = ["std"] }
 tokio = { version = "1.48.0", features = ["macros", "rt-multi-thread"] }
+uuid = "1.17.0"
 
 # First Party Crates
 api_models = { version = "0.1.0", path = "../api_models" }

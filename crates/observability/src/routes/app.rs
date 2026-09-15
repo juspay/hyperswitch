@@ -37,6 +37,7 @@ impl Alerts {
         web::scope("/alerts")
             .app_data(web::Data::new(state))
             .app_data(json_config())
+            .app_data(query_config())
             .app_data(multipart_config(max_upload_bytes))
             .service(
                 web::scope("/chat")
@@ -83,6 +84,23 @@ fn json_config() -> web::JsonConfig {
             "IR",
             4,
             "The request body could not be parsed",
+        ))
+        .into()
+    })
+}
+
+fn query_config() -> web::QueryConfig {
+    web::QueryConfig::default().error_handler(|error, request| {
+        logger::warn!(
+            path = %request.path(),
+            error = %error,
+            "Request rejected: the query string could not be parsed"
+        );
+
+        ApiErrorResponse::BadRequest(ApiError::new(
+            "IR",
+            4,
+            "The query string could not be parsed",
         ))
         .into()
     })

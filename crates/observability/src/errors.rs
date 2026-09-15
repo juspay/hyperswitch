@@ -17,6 +17,7 @@ pub mod actix;
 pub mod types;
 
 use common_utils::errors::ErrorSwitch;
+use diesel_models::errors::DatabaseError;
 use thiserror::Error;
 
 use crate::errors::types::{ApiError, ApiErrorResponse};
@@ -79,6 +80,12 @@ pub enum ObservabilityError {
     #[error("The request body is invalid")]
     InvalidRequest,
 
+    #[error("The requested resource does not exist")]
+    ResourceNotFound,
+
+    #[error("The resource already exists")]
+    DuplicateResource,
+
     /// The path named a destination that is not configured.
     #[error("No destination is configured under `{destination}`")]
     UnknownDestination {
@@ -118,6 +125,14 @@ impl ErrorSwitch<ApiErrorResponse> for ObservabilityError {
                 4,
                 "The request body could not be parsed",
             )),
+            Self::ResourceNotFound => ApiErrorResponse::NotFound(ApiError::new(
+                "HE",
+                2,
+                "The requested resource does not exist",
+            )),
+            Self::DuplicateResource => {
+                ApiErrorResponse::Conflict(ApiError::new("HE", 1, "The resource already exists"))
+            }
             // The id is already in the path the caller sent, so there is nothing to echo back, and
             // the configured ids are deliberately not listed.
             Self::UnknownDestination { .. } => {
@@ -135,10 +150,43 @@ impl ErrorSwitch<ApiErrorResponse> for ObservabilityError {
     }
 }
 
+pub trait StorageErrorExt<T, E> {
+    #[track_caller]
+    fn to_not_found_response(self, not_found_response: E) -> error_stack::Result<T, E>;
+
+    #[track_caller]
+    fn to_duplicate_response(self, duplicate_response: E) -> error_stack::Result<T, E>;
+}
+
+impl<T> StorageErrorExt<T, ObservabilityError> for diesel_models::StorageResult<T> {
+    #[track_caller]
+    fn to_not_found_response(
+        self,
+        not_found_response: ObservabilityError,
+    ) -> ObservabilityApiResult<T> {
+        self.map_err(|error| match error.current_context() {
+            DatabaseError::NotFound => error.change_context(not_found_response),
+            _ => error.change_context(ObservabilityError::InternalServerError),
+        })
+    }
+
+    #[track_caller]
+    fn to_duplicate_response(
+        self,
+        duplicate_response: ObservabilityError,
+    ) -> ObservabilityApiResult<T> {
+        self.map_err(|error| match error.current_context() {
+            DatabaseError::UniqueViolation => error.change_context(duplicate_response),
+            _ => error.change_context(ObservabilityError::InternalServerError),
+        })
+    }
+}
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::expect_used, clippy::indexing_slicing)]
 mod tests {
     use actix_web::ResponseError;
+    use error_stack::report;
 
     use super::*;
 
@@ -146,6 +194,17 @@ mod tests {
         ErrorSwitch::<ApiErrorResponse>::switch(error)
             .status_code()
             .as_u16()
+    }
+
+    fn code_of(error: &ObservabilityError) -> String {
+        let body: serde_json::Value =
+            serde_json::from_str(&ErrorSwitch::<ApiErrorResponse>::switch(error).to_string())
+                .unwrap();
+        body["error"]["code"].as_str().unwrap().to_owned()
+    }
+
+    fn storage_failure<T>(context: DatabaseError) -> diesel_models::StorageResult<T> {
+        Err(report!(context))
     }
 
     /// The rule this service is built on: a 5xx means the notifier did not work. Anything the
@@ -171,6 +230,57 @@ mod tests {
         );
         assert_eq!(status_of(&ObservabilityError::Unauthorized), 401);
         assert_eq!(status_of(&ObservabilityError::InvalidRequest), 400);
+        assert_eq!(status_of(&ObservabilityError::ResourceNotFound), 404);
+        assert_eq!(status_of(&ObservabilityError::DuplicateResource), 409);
+    }
+
+    #[test]
+    fn a_missing_row_and_a_duplicate_row_have_stable_codes() {
+        assert_eq!(code_of(&ObservabilityError::ResourceNotFound), "HE_02");
+        assert_eq!(code_of(&ObservabilityError::DuplicateResource), "HE_01");
+    }
+
+    #[test]
+    fn a_database_not_found_becomes_the_given_not_found_error() {
+        let error = storage_failure::<()>(DatabaseError::NotFound)
+            .to_not_found_response(ObservabilityError::ResourceNotFound)
+            .unwrap_err();
+
+        assert!(matches!(
+            error.current_context(),
+            ObservabilityError::ResourceNotFound
+        ));
+    }
+
+    #[test]
+    fn a_unique_violation_becomes_the_given_duplicate_error() {
+        let error = storage_failure::<()>(DatabaseError::UniqueViolation)
+            .to_duplicate_response(ObservabilityError::DuplicateResource)
+            .unwrap_err();
+
+        assert!(matches!(
+            error.current_context(),
+            ObservabilityError::DuplicateResource
+        ));
+    }
+
+    #[test]
+    fn any_other_database_error_becomes_an_internal_server_error() {
+        let not_found = storage_failure::<()>(DatabaseError::DatabaseConnectionError)
+            .to_not_found_response(ObservabilityError::ResourceNotFound)
+            .unwrap_err();
+        let duplicate = storage_failure::<()>(DatabaseError::NotFound)
+            .to_duplicate_response(ObservabilityError::DuplicateResource)
+            .unwrap_err();
+
+        assert!(matches!(
+            not_found.current_context(),
+            ObservabilityError::InternalServerError
+        ));
+        assert!(matches!(
+            duplicate.current_context(),
+            ObservabilityError::InternalServerError
+        ));
     }
 
     /// A caller that guessed an id should not be handed the registry.
