@@ -390,6 +390,14 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .setup_future_usage
             .or(payment_intent.setup_future_usage);
 
+        // An attempt created without setup_future_usage (create with confirm=false, then confirm
+        // with off_session) picks it up from the intent, as new retry attempts do. Connector
+        // requests already use `setup_future_usage_applied.or(intent)`; this lets decisions made
+        // before the connector call, such as connector customer creation, see the same value.
+        payment_attempt.setup_future_usage_applied = payment_attempt
+            .setup_future_usage_applied
+            .or(payment_intent.setup_future_usage);
+
         payment_intent.psd2_sca_exemption_type = request
             .psd2_sca_exemption_type
             .or(payment_intent.psd2_sca_exemption_type);
