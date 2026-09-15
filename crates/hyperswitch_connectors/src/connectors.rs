@@ -76,6 +76,7 @@ pub mod juspaythreedsserver;
 pub mod katapult;
 pub mod klarna;
 pub mod loonio;
+pub mod merchante;
 pub mod mifinity;
 pub mod mollie;
 pub mod moneris;
@@ -179,10 +180,10 @@ pub use self::{
     iatapay::Iatapay, ilixium::Ilixium, imerchantsolutions::Imerchantsolutions, inespay::Inespay,
     interpayments::Interpayments, itaubank::Itaubank, jpmorgan::Jpmorgan,
     juspaythreedsserver::Juspaythreedsserver, katapult::Katapult, klarna::Klarna, loonio::Loonio,
-    mifinity::Mifinity, mollie::Mollie, moneris::Moneris, mpgs::Mpgs, multisafepay::Multisafepay,
-    netcetera::Netcetera, nexinets::Nexinets, nexixpay::Nexixpay, nmi::Nmi, nomupay::Nomupay,
-    noon::Noon, nordea::Nordea, novalnet::Novalnet, nsure::Nsure, nuvei::Nuvei, opayo::Opayo,
-    opennode::Opennode, paybox::Paybox, payconex::Payconex, payeezy::Payeezy,
+    merchante::Merchante, mifinity::Mifinity, mollie::Mollie, moneris::Moneris, mpgs::Mpgs,
+    multisafepay::Multisafepay, netcetera::Netcetera, nexinets::Nexinets, nexixpay::Nexixpay,
+    nmi::Nmi, nomupay::Nomupay, noon::Noon, nordea::Nordea, novalnet::Novalnet, nsure::Nsure, nuvei::Nuvei,
+    opayo::Opayo, opennode::Opennode, paybox::Paybox, payconex::Payconex, payeezy::Payeezy,
     payjustnow::Payjustnow, payjustnowinstore::Payjustnowinstore, payload::Payload, payme::Payme,
     payone::Payone, paypal::Paypal, paysafe::Paysafe, paystack::Paystack, paytm::Paytm, payu::Payu,
     peachpayments::Peachpayments, phonepe::Phonepe, placetopay::Placetopay, plaid::Plaid,

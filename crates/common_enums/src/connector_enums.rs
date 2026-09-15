@@ -139,6 +139,7 @@ pub enum Connector {
     Juspaythreedsserver,
     Klarna,
     Loonio,
+    Merchante,
     Mifinity,
     Mollie,
     Moneris,
@@ -396,6 +397,7 @@ impl Connector {
             | Self::Juspaythreedsserver
             | Self::Klarna
             | Self::Loonio
+            | Self::Merchante
             | Self::Mifinity
             | Self::Mollie
             | Self::Moneris
