@@ -23,6 +23,8 @@ pub use hyperswitch_domain_models::{
     },
     types::OrderDetailsWithAmount,
 };
+#[cfg(feature = "payouts")]
+use hyperswitch_interfaces::configs::MerchantConnectorAccountType;
 use hyperswitch_masking::Serialize;
 use serde::Deserialize;
 use utoipa::ToSchema;
@@ -136,6 +138,7 @@ impl PayoutFrmData {
 pub enum PayoutFrmApplicability {
     Applicable {
         connectors: HashSet<api_enums::Connector>,
+        frm_merchant_connector_account: MerchantConnectorAccountType,
         frm_routing_algorithm: FrmRoutingAlgorithm,
     },
     NotApplicable,

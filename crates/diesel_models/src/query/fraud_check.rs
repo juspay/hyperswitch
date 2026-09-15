@@ -1,4 +1,4 @@
-use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
+use diesel::{associations::HasTable, ExpressionMethods};
 
 use crate::{
     errors, fraud_check::*, query::generics, schema::fraud_check::dsl,
@@ -27,9 +27,7 @@ impl FraudCheck {
             _,
         >(
             conn,
-            dsl::frm_id
-                .eq(self.frm_id.to_owned())
-                .and(dsl::merchant_id.eq(self.merchant_id.to_owned())),
+            dsl::frm_id.eq(self.frm_id.to_owned()),
             FraudCheckUpdateInternal::from(fraud_check),
         )
         .await
@@ -45,12 +43,8 @@ impl FraudCheck {
     pub async fn get_with_frm_id(
         conn: &DatabaseConnectionWithContext<'_>,
         frm_id: String,
-        merchant_id: common_utils::id_type::MerchantId,
     ) -> StorageResult<Self> {
-        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
-            conn,
-            dsl::frm_id.eq(frm_id).and(dsl::merchant_id.eq(merchant_id)),
-        )
-        .await
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(conn, dsl::frm_id.eq(frm_id))
+            .await
     }
 }

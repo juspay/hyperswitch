@@ -126,10 +126,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsCancelRequest
         #[cfg(feature = "frm")]
         let frm_response = match payment_attempt.active_frm_id.clone() {
             Some(frm_id) => Some(
-                db.find_fraud_check_by_frm_id(
-                    frm_id,
-                    platform.get_processor().get_account().get_id().clone(),
-                )
+                db.find_fraud_check_by_frm_id(frm_id)
                 .await
                 .change_context(errors::ApiErrorResponse::PaymentNotFound)
                 .attach_printable_lazy(|| {

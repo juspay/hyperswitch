@@ -7,7 +7,7 @@ ALTER TABLE fraud_check
 ALTER TABLE fraud_check
     DROP CONSTRAINT fraud_check_pkey;
 
-ALTER TABLE fraud_check ADD PRIMARY KEY (frm_id, merchant_id);
+ALTER TABLE fraud_check ADD PRIMARY KEY (frm_id);
 
 ALTER TABLE fraud_check
     ALTER COLUMN payment_id DROP NOT NULL;

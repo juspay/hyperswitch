@@ -4,7 +4,7 @@ use hyperswitch_connectors::types::PoFrmRouterData;
 use crate::{
     core::{
         errors::{RouterResult, StorageErrorExt},
-        fraud_check::{types::PayoutFrmData, ConnectorDetailsCore},
+        fraud_check::types::PayoutFrmData,
         payouts::PayoutData,
     },
     errors,
@@ -26,21 +26,22 @@ impl FraudCheckPrePayout {
         &self,
         state: &SessionState,
         payout_data: &PayoutData,
-        connector_details: ConnectorDetailsCore,
+        frm_connector_name: &String,
     ) -> RouterResult<PayoutFrmData> {
         let db = &*state.store;
 
         let payout_id = payout_data.payouts.payout_id.clone();
+        let frm_id = common_utils::generate_uuid_v4().to_string();
         let fraud_check_value = db
             .insert_fraud_check_response(FraudCheckNew {
-                frm_id: common_utils::generate_uuid_v4().to_string(),
+                frm_id: frm_id.clone(),
                 payment_id: None,
                 payout_id: Some(payout_id.clone()),
                 merchant_id: payout_data.payouts.merchant_id.clone(),
                 processor_merchant_id: payout_data.payouts.processor_merchant_id.clone(),
                 attempt_id: payout_data.payout_attempt.payout_attempt_id.clone(),
                 created_at: common_utils::date_time::now(),
-                frm_name: connector_details.connector_name.clone(),
+                frm_name: frm_connector_name.clone(),
                 frm_transaction_id: None,
                 frm_transaction_type: FraudCheckType::PreFrm,
                 frm_status: FraudCheckStatus::Pending,
@@ -55,7 +56,7 @@ impl FraudCheckPrePayout {
                 created_by: None,
             })
             .await
-            .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayout { payout_id })?;
+            .to_duplicate_response(errors::ApiErrorResponse::DuplicateFraudCheck { frm_id })?;
 
         Ok(PayoutFrmData {
             fraud_check: fraud_check_value,
@@ -111,7 +112,7 @@ impl FraudCheckPrePayout {
                 fraud_check_update,
             )
             .await
-            .map_err(|error| error.change_context(errors::ApiErrorResponse::InternalServerError))?;
+            .to_not_found_response(errors::ApiErrorResponse::FraudCheckNotFound)?;
 
         Ok(frm_data)
     }

@@ -18,7 +18,7 @@ use self::{
         PaymentDetails, PaymentToFrmData, PayoutFrmApplicability, PayoutFrmOutcome,
     },
 };
-use super::errors::{ConnectorErrorExt, RouterResponse};
+use super::errors::{ConnectorErrorExt, RouterResponse, StorageErrorExt};
 use crate::{
     core::{
         configs::dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
@@ -186,11 +186,16 @@ where
 }
 
 #[cfg(all(feature = "payouts", feature = "v1"))]
-pub async fn should_call_payout_frm(
+pub async fn get_frm_merchant_connector_account_and_routing_algorithm(
     state: &SessionState,
     platform: &domain::Platform,
     payout_data: &PayoutData,
-) -> RouterResult<PayoutFrmApplicability> {
+) -> RouterResult<
+    Option<(
+        payments::helpers::MerchantConnectorAccountType,
+        FrmRoutingAlgorithm,
+    )>,
+> {
     match &platform.get_processor().get_account().frm_routing_algorithm {
         Some(frm_routing_algorithm_value) => {
             let frm_routing_algorithm: FrmRoutingAlgorithm = frm_routing_algorithm_value
@@ -201,73 +206,81 @@ pub async fn should_call_payout_frm(
                     expected_format: r#"{ "type": "single", "data": "signifyd" }"#.to_string(),
                 })?;
 
-            let frm_merchant_connector_account = state
-                .store
-                .find_merchant_connector_account_by_profile_id_connector_name(
-                    &payout_data.profile_id,
-                    &frm_routing_algorithm.data,
-                    platform.get_processor().get_key_store(),
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                    id: frm_routing_algorithm.data.clone(),
-                })?;
+            let mca = get_merchant_connector_account(
+                state,
+                platform.get_processor(),
+                None,
+                &payout_data.profile_id,
+                &frm_routing_algorithm.data,
+                None,
+            )
+            .await?;
 
-            // Return NotApplicable if the FRM merchant connector account is disabled
-            if frm_merchant_connector_account.disabled.unwrap_or(false) {
-                return Ok(PayoutFrmApplicability::NotApplicable);
-            }
+            Ok(Some((mca, frm_routing_algorithm)))
+        }
+        None => Ok(None),
+    }
+}
 
-            // Return NotApplicable if the FRM merchant connector account has no frm_configs
-            let Some(frm_configs_value) = frm_merchant_connector_account.frm_configs.clone() else {
-                return Ok(PayoutFrmApplicability::NotApplicable);
-            };
+#[cfg(all(feature = "payouts", feature = "v1"))]
+pub async fn get_payout_frm_applicability(
+    payout_data: &PayoutData,
+    frm_merchant_connector_account: payments::helpers::MerchantConnectorAccountType,
+    frm_routing_algorithm: FrmRoutingAlgorithm,
+) -> RouterResult<PayoutFrmApplicability> {
+    // Return NotApplicable if the FRM merchant connector account is disabled
+    if frm_merchant_connector_account.is_disabled() {
+        return Ok(PayoutFrmApplicability::NotApplicable);
+    }
 
-            // Return NotApplicable if the payout_data has no payout_type
-            let Some(payout_type) = payout_data.payouts.payout_type else {
-                return Ok(PayoutFrmApplicability::NotApplicable);
-            };
+    // Return NotApplicable if the FRM merchant connector account has no frm_configs
+    let Some(frm_configs_value) = frm_merchant_connector_account.get_frm_configs() else {
+        return Ok(PayoutFrmApplicability::NotApplicable);
+    };
 
-            // Parse the frm_configs JSON value into a Vec<FrmConfigs>
-            let frm_configs = frm_configs_value
-                .into_iter()
-                .map(|config| {
-                    config
-                        .expose()
-                        .parse_value::<api_models::admin::FrmConfigs>("FrmConfigs")
-                        .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-                            field_name: "frm_configs".into(),
-                            expected_format: r#"[{ "gateway": "gotyme_sanlam", "payout_types": [{ "payout_type": "bank", "flow": "pre" }] }]"#.to_string(),
-                        })
+    // Return NotApplicable if the payout_data has no payout_type
+    let Some(payout_type) = payout_data.payouts.payout_type else {
+        return Ok(PayoutFrmApplicability::NotApplicable);
+    };
+
+    // Parse the frm_configs JSON value into a Vec<FrmConfigs>
+    let frm_configs = frm_configs_value
+        .into_iter()
+        .map(|config| {
+            config
+                .expose()
+                .parse_value::<api_models::admin::FrmConfigs>("FrmConfigs")
+                .change_context(errors::ApiErrorResponse::InvalidDataFormat {
+                    field_name: "frm_configs".into(),
+                    expected_format: r#"[{ "gateway": "gotyme_sanlam", "payout_types": [{ "payout_type": "bank", "flow": "pre" }] }]"#.to_string(),
                 })
-                .collect::<Result<Vec<_>, _>>()?;
+        })
+        .collect::<Result<Vec<_>, _>>()?;
 
-            // HashSet to store unique FRM check required connectors from the frm_configs
-            let mut connectors = HashSet::new();
+    // HashSet to store unique FRM check required connectors from the frm_configs
+    let mut connectors = HashSet::new();
 
-            // Iterate over the frm_configs and insert the gateways into the connectors HashSet if the payout_type matches
-            for mut config in frm_configs {
-                config
-                    .payout_types
-                    .retain(|payout_method| payout_method.payout_type == payout_type);
+    // Iterate over the frm_configs and insert the gateways into the connectors HashSet if the payout_type matches
+    for mut config in frm_configs {
+        config
+            .payout_types
+            .retain(|payout_method| payout_method.payout_type == payout_type);
 
-                if !config.payout_types.is_empty() {
-                    if let Some(gateway) = config.gateway {
-                        connectors.insert(gateway);
-                    }
-                }
-            }
-
-            if connectors.is_empty() {
-                Ok(PayoutFrmApplicability::NotApplicable)
-            } else {
-                Ok(PayoutFrmApplicability::Applicable {
-                    connectors,
-                    frm_routing_algorithm,
-                })
+        if !config.payout_types.is_empty() {
+            if let Some(gateway) = config.gateway {
+                connectors.insert(gateway);
             }
         }
-        None => Ok(PayoutFrmApplicability::NotApplicable),
+    }
+
+    if connectors.is_empty() {
+        Ok(PayoutFrmApplicability::NotApplicable)
+    } else {
+        Ok(PayoutFrmApplicability::Applicable {
+            connectors,
+            frm_merchant_connector_account,
+            frm_routing_algorithm,
+        })
     }
 }
 
@@ -283,32 +296,18 @@ pub async fn pre_payouts_frm_core(
     match applicability {
         PayoutFrmApplicability::Applicable {
             connectors,
+            frm_merchant_connector_account,
             frm_routing_algorithm,
         } => {
             let outcome = if connectors.contains(&connector_data.connector_name) {
                 let fraud_check_operation = operation::fraud_check_pre_payout::FraudCheckPrePayout;
 
-                let frm_connector_details = ConnectorDetailsCore {
-                    connector_name: frm_routing_algorithm.data.clone(),
-                    profile_id: payout_data.profile_id.clone(),
-                };
-
                 let frm_data = fraud_check_operation
-                    .get_tracker(state, payout_data, frm_connector_details)
+                    .get_tracker(state, payout_data, &frm_routing_algorithm.data)
                     .await?;
 
                 payout_data.payout_attempt.active_frm_id =
                     Some(frm_data.fraud_check.frm_id.clone());
-
-                let merchant_connector_account = get_merchant_connector_account(
-                    state,
-                    platform.get_processor(),
-                    None,
-                    &payout_data.profile_id,
-                    &frm_routing_algorithm.data,
-                    None,
-                )
-                .await?;
 
                 let frm_connector =
                     FraudCheckConnectorData::get_connector_by_name(&frm_routing_algorithm.data)?;
@@ -318,7 +317,7 @@ pub async fn pre_payouts_frm_core(
                         state,
                         &frm_routing_algorithm.data,
                         platform.get_processor(),
-                        &merchant_connector_account,
+                        frm_merchant_connector_account,
                         None,
                         None,
                         None,
@@ -373,10 +372,19 @@ where
 }
 
 #[cfg(all(feature = "payouts", feature = "v2"))]
-pub async fn should_call_payout_frm(
+pub async fn get_frm_merchant_connector_account(
     _state: &SessionState,
     _platform: &domain::Platform,
     _payout_data: &PayoutData,
+) -> RouterResult<Option<payments::helpers::MerchantConnectorAccountType>> {
+    todo!()
+}
+
+#[cfg(all(feature = "payouts", feature = "v2"))]
+pub async fn should_call_payout_frm(
+    _platform: &domain::Platform,
+    _payout_data: &PayoutData,
+    _frm_merchant_connector_account: payments::helpers::MerchantConnectorAccountType,
 ) -> RouterResult<PayoutFrmApplicability> {
     todo!()
 }
@@ -1071,10 +1079,7 @@ pub async fn frm_fulfillment_core(
             match payment_attempt.active_frm_id.clone() {
                 Some(frm_id) => {
                     let fraud_check = db
-                        .find_fraud_check_by_frm_id(
-                            frm_id,
-                            platform.get_processor().get_account().get_id().clone(),
-                        )
+                        .find_fraud_check_by_frm_id(frm_id)
                         .await
                         .change_context(invalid_request_error.to_owned())?;
 
@@ -1157,7 +1162,7 @@ pub async fn make_fulfillment_api_call(
     let _updated = db
         .update_fraud_check_response_with_frm_id(fraud_check_copy, fraud_check_update)
         .await
-        .map_err(|error| error.change_context(errors::ApiErrorResponse::PaymentNotFound))?;
+        .to_not_found_response(errors::ApiErrorResponse::FraudCheckNotFound)?;
     let fulfillment_response =
         response
             .response

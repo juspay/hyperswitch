@@ -56,7 +56,8 @@ use crate::{
             self, ConnectorErrorExt, CustomResult, RouterResponse, RouterResult, StorageErrorExt,
         },
         fraud_check::{
-            self, should_call_payout_frm,
+            self, get_frm_merchant_connector_account_and_routing_algorithm,
+            get_payout_frm_applicability,
             types::{PayoutFrmApplicability, PayoutFrmOutcome},
         },
         payments::{
@@ -227,15 +228,26 @@ pub async fn make_connector_decision(
         )
         .await;
 
-    let payout_frm_applicability = if payout_frm_call {
+    let frm_merchant_connector_account = if payout_frm_call {
         fraud_check::handle_pre_frm_result!(
-            should_call_payout_frm(state, platform, payout_data).await,
+            get_frm_merchant_connector_account_and_routing_algorithm(state, platform, payout_data)
+                .await,
+            &pre_frm_failure_mode,
+            platform,
+            None
+        )?
+    } else {
+        None
+    };
+
+    let payout_frm_applicability = match frm_merchant_connector_account {
+        Some((mca, fra)) => fraud_check::handle_pre_frm_result!(
+            get_payout_frm_applicability(payout_data, mca, fra).await,
             &pre_frm_failure_mode,
             platform,
             PayoutFrmApplicability::NotApplicable
-        )?
-    } else {
-        PayoutFrmApplicability::NotApplicable
+        )?,
+        None => PayoutFrmApplicability::NotApplicable,
     };
 
     match connector_call_type {
@@ -3047,9 +3059,13 @@ pub async fn fulfill_payout(
             }
         }
         Err(err) => {
-            // For ambiguous connector outcomes (5xx) let the payout
-            // sync task scheduled above reconcile the final connector status instead of marking as Failed.
-            let status = helpers::get_payout_fulfill_status_for_error(err.status_code);
+            // For ambiguous connector outcomes (5xx) dont mark the payout as Failed let the payout
+            // sync task scheduled above reconcile the final connector status.
+            let status = match err.status_code {
+                500..=511 => storage_enums::PayoutStatus::Pending,
+                // For other errors, we mark the payout as Failed, since these are definite failures
+                _ => storage_enums::PayoutStatus::Failed,
+            };
             let (error_code, error_message) = (Some(err.code), Some(err.message));
             let (unified_code, unified_message) = helpers::get_gsm_record(
                 &updated_state,
@@ -3855,7 +3871,7 @@ pub async fn make_payout_data(
 
     let fraud_check = match &payout_attempt.active_frm_id {
         Some(active_frm_id) => Some(
-            db.find_fraud_check_by_frm_id(active_frm_id.clone(), payouts.merchant_id.clone())
+            db.find_fraud_check_by_frm_id(active_frm_id.clone())
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Error fetching active fraud check from db")?,

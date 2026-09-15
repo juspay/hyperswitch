@@ -108,13 +108,7 @@ impl GetTracker<PaymentToFrmData> for FraudCheckPost {
             .encode_to_value()
             .ok();
         let fraud_check = match payment_data.payment_attempt.active_frm_id.clone() {
-            Some(frm_id) => {
-                db.find_fraud_check_by_frm_id(
-                    frm_id,
-                    payment_data.merchant_account.get_id().clone(),
-                )
-                .await
-            }
+            Some(frm_id) => db.find_fraud_check_by_frm_id(frm_id).await,
             None => {
                 db.insert_fraud_check_response(FraudCheckNew {
                     frm_id: utils::generate_id(consts::ID_LENGTH, "frm"),
@@ -640,7 +634,7 @@ where
                     fraud_check_update,
                 )
                 .await
-                .map_err(|error| error.change_context(errors::ApiErrorResponse::PaymentNotFound))?,
+                .to_not_found_response(errors::ApiErrorResponse::FraudCheckNotFound)?,
             None => frm_data.fraud_check.clone(),
         };
 

@@ -25,7 +25,6 @@ pub trait FraudCheckInterface {
     async fn find_fraud_check_by_frm_id(
         &self,
         frm_id: String,
-        merchant_id: common_utils::id_type::MerchantId,
     ) -> CustomResult<FraudCheck, errors::StorageError>;
 }
 
@@ -58,10 +57,9 @@ impl FraudCheckInterface for Store {
     async fn find_fraud_check_by_frm_id(
         &self,
         frm_id: String,
-        merchant_id: common_utils::id_type::MerchantId,
     ) -> CustomResult<FraudCheck, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        FraudCheck::get_with_frm_id(&conn, frm_id, merchant_id)
+        FraudCheck::get_with_frm_id(&conn, frm_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
@@ -87,7 +85,6 @@ impl FraudCheckInterface for MockDb {
     async fn find_fraud_check_by_frm_id(
         &self,
         _frm_id: String,
-        _merchant_id: common_utils::id_type::MerchantId,
     ) -> CustomResult<FraudCheck, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
     }

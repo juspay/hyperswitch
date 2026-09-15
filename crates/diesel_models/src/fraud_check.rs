@@ -8,7 +8,7 @@ use crate::{
     schema::fraud_check,
 };
 #[derive(Clone, Debug, Identifiable, Queryable, Selectable, Serialize, Deserialize)]
-#[diesel(table_name = fraud_check, primary_key(frm_id, merchant_id), check_for_backend(diesel::pg::Pg))]
+#[diesel(table_name = fraud_check, primary_key(frm_id), check_for_backend(diesel::pg::Pg))]
 pub struct FraudCheck {
     pub frm_id: String,
     pub payment_id: Option<common_utils::id_type::PaymentId>,

@@ -447,12 +447,8 @@ impl FraudCheckInterface for KafkaStore {
     async fn find_fraud_check_by_frm_id(
         &self,
         frm_id: String,
-        merchant_id: id_type::MerchantId,
     ) -> CustomResult<FraudCheck, StorageError> {
-        let frm = self
-            .diesel_store
-            .find_fraud_check_by_frm_id(frm_id, merchant_id)
-            .await?;
+        let frm = self.diesel_store.find_fraud_check_by_frm_id(frm_id).await?;
         if let Err(er) = self
             .kafka_producer
             .log_fraud_check(&frm, None, self.tenant_id.clone())

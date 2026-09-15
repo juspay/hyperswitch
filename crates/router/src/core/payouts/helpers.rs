@@ -1374,16 +1374,6 @@ pub fn is_payout_err_state(status: api_enums::PayoutStatus) -> bool {
     )
 }
 
-/// Connector 5xx responses, do not establish
-/// whether a payout was accepted by the connector. Keep fulfillment in Pending state so
-/// that the payout sync workflow can reconcile the final status instead of marking as Failed
-pub fn get_payout_fulfill_status_for_error(status_code: u16) -> api_enums::PayoutStatus {
-    match status_code {
-        500..=511 => api_enums::PayoutStatus::Pending,
-        _ => api_enums::PayoutStatus::Failed,
-    }
-}
-
 pub fn is_eligible_for_local_payout_cancellation(status: api_enums::PayoutStatus) -> bool {
     matches!(
         status,

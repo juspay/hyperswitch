@@ -7,7 +7,7 @@ use router_env::{instrument, tracing};
 use super::{Domain, FraudCheckOperation, GetTracker, UpdateTracker};
 use crate::{
     core::{
-        errors::RouterResult,
+        errors::{RouterResult, StorageErrorExt},
         fraud_check::{
             self as frm_core,
             types::{FrmData, PaymentDetails, PaymentToFrmData},
@@ -96,13 +96,7 @@ impl GetTracker<PaymentToFrmData> for FraudCheckPre {
             .ok();
 
         let fraud_check = match payment_data.payment_attempt.active_frm_id.clone() {
-            Some(frm_id) => {
-                db.find_fraud_check_by_frm_id(
-                    frm_id,
-                    payment_data.merchant_account.get_id().clone(),
-                )
-                .await
-            }
+            Some(frm_id) => db.find_fraud_check_by_frm_id(frm_id).await,
             None => {
                 db.insert_fraud_check_response(FraudCheckNew {
                     frm_id: common_utils::generate_uuid_v4().simple().to_string(),
@@ -399,7 +393,7 @@ where
                     fraud_check_update,
                 )
                 .await
-                .map_err(|error| error.change_context(errors::ApiErrorResponse::PaymentNotFound))?,
+                .to_not_found_response(errors::ApiErrorResponse::FraudCheckNotFound)?,
             None => frm_data.clone().fraud_check,
         };
 
