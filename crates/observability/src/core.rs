@@ -8,4 +8,5 @@
 
 pub mod alerts_info;
 pub mod cloudwatch;
+pub mod notification_reads;
 pub mod notifier;

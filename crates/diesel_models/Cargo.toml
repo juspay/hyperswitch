@@ -19,13 +19,14 @@ deja = ["dep:deja", "deja/diesel-pg"]
 async-bb8-diesel = "0.2.1"
 base64 = "0.22.1"
 bb8 = "0.8.6"
-diesel = { version = "2.2.10", features = ["postgres", "serde_json", "time", "128-column-tables", "i-implement-a-third-party-backend-and-opt-into-breaking-changes"] }
+diesel = { version = "2.2.10", features = ["postgres", "serde_json", "time", "uuid", "128-column-tables", "i-implement-a-third-party-backend-and-opt-into-breaking-changes"] }
 error-stack = "0.4.1"
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.140"
 strum = { version = "0.26.3", features = ["derive"] }
 thiserror = "1.0.69"
 time = { version = "0.3.41", features = ["serde", "serde-well-known", "std"] }
+uuid = { version = "1.17.0", features = ["serde"] }
 
 # First party crates
 common_enums = { version = "0.1.0", path = "../common_enums" }
