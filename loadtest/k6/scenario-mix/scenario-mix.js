@@ -878,14 +878,32 @@ function runFlow(merchant, plan, phaseInfo, startedAt) {
     );
   } else {
     const measuredCard = plan.metadataChanged ? { ...card, ...metadataUpdate } : card;
-    // usesPmService (modular) and savedCardCheckout (non-modular) both
-    // confirm against a previously obtained payment_token instead of raw
-    // card data — the token just comes from a different upstream call
-    // (pm_session_confirm vs. the combined payment-method list, Step 4c/5
-    // above).
-    const confirmBody = (plan.usesPmService || plan.savedCardCheckout)
-      ? { payment_token: token, payment_method: "card", payment_method_type: "credit" }
-      : { payment_method: "card", payment_method_type: "credit", payment_method_data: { card: measuredCard } };
+    let confirmBody;
+    if (plan.savedCardCheckout) {
+      // Repeat-customer confirm: payment_token references the locker-held
+      // PAN, payment_method_data.card_token supplies the fresh CVC (never
+      // stored server-side) plus the holder name — the currently-recommended
+      // shape (api_models::payments' top-level `card_cvc` field is being
+      // deprecated in favor of `payment_method_data.card_token`). This is a
+      // different request shape from the modular pm-session token confirm
+      // below on purpose: it's what drives router's make_pm_data /
+      // retrieve_payment_method_with_token merge (CardToken + locker PAN),
+      // not a bare payment_token + payment_method_type pair.
+      confirmBody = {
+        payment_token: token,
+        payment_method: "card",
+        payment_method_data: {
+          card_token: {
+            card_holder_name: card.card_holder_name,
+            card_cvc: card.card_cvc,
+          },
+        },
+      };
+    } else if (plan.usesPmService) {
+      confirmBody = { payment_token: token, payment_method: "card", payment_method_type: "credit" };
+    } else {
+      confirmBody = { payment_method: "card", payment_method_type: "credit", payment_method_data: { card: measuredCard } };
+    }
     if (plan.setupFutureUsage) {
       confirmBody.setup_future_usage = plan.setupFutureUsage;
       confirmBody.customer_acceptance = customerAcceptance();

@@ -83,7 +83,12 @@ defined in `SCENARIOS` (ported from `loadtest/runner/lib/scenarios.js`).
   payment-method-list endpoint (`GET /payments/{payment_id}/client` — the same
   SDK-facing call `sdk_checkout`'s `payment_method_list` step makes) to obtain the
   saved card's `payment_token` from its `customer_payment_methods`, then confirms
-  with that token — no card data on the wire for the measured confirm.
+  with `{ payment_token, payment_method: "card", payment_method_data: { card_token:
+  { card_holder_name, card_cvc } } }` — the repeat-customer shape: the PAN comes from
+  the locker via `payment_token`, only the (never-stored) CVC and holder name are
+  resupplied. This is the currently-recommended shape;
+  `api_models::payments`' older top-level `card_cvc` field is documented as being
+  deprecated in favor of `payment_method_data.card_token`.
 - Mirrors cypress-tests' `14-SaveCardFlow.cy.js` (`listCustomerPMCallTest` +
   `saveCardConfirmCallTest`), adapted to the combined list endpoint (the payment's
   own `customer_id` drives which customer's saved methods come back) rather than

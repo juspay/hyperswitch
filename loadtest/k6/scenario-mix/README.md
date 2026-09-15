@@ -329,9 +329,25 @@ Like `cit_metadata_changed`/`mit`, this is a two-stage iteration:
    `payment_token` from `customer_payment_methods[0]` (the intent's own
    `customer_id` is what scopes the response to this customer) →
    `payment_confirm` with
-   `{ payment_token, payment_method: "card", payment_method_type: "credit" }`
-   — no `payment_method_data`, no `setup_future_usage` (this payment spends a
-   previously saved card; it doesn't save a new one).
+   ```json
+   {
+     "payment_token": "<from payment_method_list>",
+     "payment_method": "card",
+     "payment_method_data": {
+       "card_token": {
+         "card_holder_name": "<payment.card.card_holder_name>",
+         "card_cvc": "<payment.card.card_cvc>"
+       }
+     }
+   }
+   ```
+   — the "repeat customer" shape: `payment_token` references the locker-held
+   PAN, `payment_method_data.card_token` supplies the fresh CVC (never stored
+   server-side) plus the holder name. This is the currently-recommended way
+   to do a saved-card-token confirm — `api_models::payments`' older top-level
+   `card_cvc` field is documented as being deprecated in favor of
+   `payment_method_data.card_token`. No `setup_future_usage` (this payment
+   spends a previously saved card; it doesn't save a new one).
 
 **Correctness risk:** same as `cit_metadata_changed`/`mit` — every VU reuses
 `payment.card` for its baseline save unless `payment.card_pool` has multiple
@@ -369,7 +385,7 @@ counter with a `reason` tag.
 | `session` | `sdk_checkout` only | `POST {router}/payments/session_tokens` with `wallets` from `sdk.wallets` (SDK Authorization header) |
 | `eligibility` | `sdk_checkout` only | `POST {router}/payments/{id}/eligibility` with the card (SDK Authorization header) |
 | `pm_session_confirm` | modular path | `POST {modular_pm}/payment-method-sessions/{id}/confirm` with the card; adds `customer_acceptance` when the scenario sets `setup_future_usage` |
-| `payment_confirm` | always | `POST {router}/payments/{id}/confirm` — modular and `saved_card_checkout`: `payment_token`; other non-modular: card data — plus `setup_future_usage` + `customer_acceptance` when applicable. **`mit`**: instead a single `POST {router}/payments` with `confirm: true`, `off_session: true`, and `recurring_details` pointing at the `payment_method_id` saved during the baseline step — no card data, no separate `payment_create` call |
+| `payment_confirm` | always | `POST {router}/payments/{id}/confirm` — modular: `payment_token` + `payment_method_type`; `saved_card_checkout`: `payment_token` + `payment_method_data.card_token` (holder name + fresh CVC); other non-modular: card data — plus `setup_future_usage` + `customer_acceptance` when applicable. **`mit`**: instead a single `POST {router}/payments` with `confirm: true`, `off_session: true`, and `recurring_details` pointing at the `payment_method_id` saved during the baseline step — no card data, no separate `payment_create` call |
 
 A measured confirm counts as **success** when HTTP status is 2xx and the
 payment status is one of `succeeded`, `requires_capture`, `processing`.
