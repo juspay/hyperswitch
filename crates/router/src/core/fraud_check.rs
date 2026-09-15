@@ -338,6 +338,7 @@ pub async fn pre_payouts_frm_core(
                         state,
                         &frm_routing_algorithm.data,
                         platform.get_processor(),
+                        &payout_data.business_profile,
                         frm_merchant_connector_account,
                         None,
                         None,
