@@ -68,9 +68,7 @@ pub fn integration_type_from_headers(
     integration_type
 }
 
-/// Resolves the integration type the merchant is configured for: Superposition's
-/// `system.payment_integration_type`, keyed on the processor merchant, with the `configs` table as
-/// fallback and `client_and_server` when neither has a value.
+/// The integration type the merchant is configured for, defaulting to `client`.
 pub async fn merchant_integration_type(
     state: &SessionState,
     platform: &domain::Platform,
@@ -86,12 +84,8 @@ pub async fn merchant_integration_type(
         .await
 }
 
-/// Rejects a request whose `X-Integration-Type` header does not match the integration the
-/// merchant is configured for.
-///
-/// A `client_and_server` merchant may send either value. A `client` or `server` merchant must
-/// send its own; an absent header reads as `client`, so a `server` merchant has to send the
-/// header on every request this check guards.
+/// Rejects a header that does not match the merchant's integration type. An absent header reads
+/// as `client`, so a `server` merchant must send it.
 pub fn validate_integration_type(
     header: IntegrationType,
     merchant: common_enums::MerchantIntegrationType,

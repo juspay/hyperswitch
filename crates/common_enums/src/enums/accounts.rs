@@ -49,12 +49,8 @@ pub enum MerchantAccountType {
     Connected,
 }
 
-/// Which integration a merchant builds its checkout with, and therefore which
-/// `X-Integration-Type` header values its payment requests may carry.
-///
-/// Resolved per merchant from Superposition (`system.payment_integration_type`). `client_and_server`
-/// is the default: a merchant with no override keeps accepting either header value, exactly as
-/// it did before the setting existed.
+/// Which `X-Integration-Type` header values a merchant may send, from Superposition
+/// (`system.payment_integration_type`). Defaults to `client`: the server shape is opt-in.
 #[derive(
     Clone,
     Copy,
@@ -70,12 +66,12 @@ pub enum MerchantAccountType {
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum MerchantIntegrationType {
-    /// Only client integrations: the header must be `client` or absent.
-    Client,
-    /// Only server integrations: the header must be `server`.
-    Server,
-    /// Either integration: any header value is accepted.
+    /// The default: the header must be `client` or absent.
     #[default]
+    Client,
+    /// The header must be `server`.
+    Server,
+    /// Any header value is accepted.
     ClientAndServer,
 }
 
