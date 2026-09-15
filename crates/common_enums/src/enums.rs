@@ -10,6 +10,7 @@ use std::{
 
 pub use accounts::{
     MerchantAccountRequestType, MerchantAccountType, MerchantProductType, OrganizationType,
+    ResourceRequestorType, ResourceType,
 };
 use diesel::{
     backend::Backend,
