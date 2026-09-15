@@ -27613,6 +27613,14 @@
             "example": "E0001",
             "nullable": true
           },
+          "frm_message": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FrmMessage"
+              }
+            ],
+            "nullable": true
+          },
           "profile_id": {
             "type": "string",
             "description": "The business profile that is associated with this payout"

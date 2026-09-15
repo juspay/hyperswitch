@@ -525,6 +525,8 @@ pub mod superposition {
     pub const SAVE_WALLET_DECRYPTED_DATA: &str = "vaulting.save_wallet_decrypted_data";
     /// Pre-FRM failure handling mode
     pub const PRE_FRM_FAILURE_MODE: &str = "frm.pre_frm_failure_mode";
+    /// Payout FRM call configuration key
+    pub const PAYOUT_FRM_CALL: &str = "payouts.payout_frm_call";
 }
 
 /// The value substituted for sensitive webhook header values in event retrieval responses.
