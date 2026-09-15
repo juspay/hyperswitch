@@ -19,7 +19,7 @@ pub struct Cursor(String);
 
 impl Cursor {
     /// Wrap a provider's continuation marker.
-    pub(crate) fn new(token: impl Into<String>) -> Self {
+    pub fn new(token: impl Into<String>) -> Self {
         Self(token.into())
     }
 
@@ -52,8 +52,8 @@ pub struct MetricSeries {
 }
 
 impl MetricSeries {
-    /// Build a series, for providers translating a response.
-    pub(crate) fn new(index: usize, status: SeriesStatus, values: Vec<Option<f64>>) -> Self {
+    /// Build a series, for a provider translating a response or a caller faking one.
+    pub fn new(index: usize, status: SeriesStatus, values: Vec<Option<f64>>) -> Self {
         Self {
             index,
             status,
@@ -96,8 +96,8 @@ pub struct MetricPage {
 }
 
 impl MetricPage {
-    /// Build a page, for providers translating a response.
-    pub(crate) fn new(series: Vec<MetricSeries>, cursor: Option<Cursor>) -> Self {
+    /// Build a page, for a provider translating a response or a caller faking one.
+    pub fn new(series: Vec<MetricSeries>, cursor: Option<Cursor>) -> Self {
         Self { series, cursor }
     }
 

@@ -372,3 +372,48 @@ mod tests {
         assert_eq!(evaluate(&memory, &[Some(900_000_000.0)]), Ok);
     }
 }
+
+/// Every definition's outcome, by id.
+#[derive(Debug, Default, PartialEq)]
+pub struct Catalogue {
+    pub definitions: Vec<Evaluation>,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct Evaluation {
+    pub id: String,
+    pub name: String,
+    pub classification: String,
+    pub metric_name: String,
+    pub period: u32,
+    pub outcome: Outcome,
+}
+
+#[derive(Debug, PartialEq)]
+pub enum Outcome {
+    Evaluated {
+        readings: Vec<Option<f64>>,
+        rules: Vec<RuleState>,
+    },
+    /// A definition we could not read is not a definition that is fine, so it carries no rule
+    /// states rather than states derived from an absence.
+    Unread { reason: Unread },
+}
+
+#[derive(Debug, PartialEq)]
+pub enum Unread {
+    /// The call covering this definition failed.
+    QueryFailed,
+    /// The series arrived, but the provider said it was incomplete.
+    SeriesIncomplete,
+    /// The provider said nothing about this query, which is not a series of gaps.
+    SeriesMissing,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct RuleState {
+    pub severity: String,
+    pub state: State,
+    pub threshold: f64,
+    pub description: String,
+}

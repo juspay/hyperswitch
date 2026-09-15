@@ -1,4 +1,4 @@
-//! Handler for the CloudWatch evaluation route. The route tree that mounts it is in
+//! Handlers for the CloudWatch routes. The route tree that mounts them is in
 //! [`crate::routes::app`].
 
 use actix_web::{web, HttpRequest, HttpResponse};
@@ -17,18 +17,8 @@ pub async fn evaluate(state: web::Data<AppState>, request: HttpRequest) -> HttpR
         &request,
         (),
         |state, ()| async move {
-            let catalogue = match state.metrics.as_deref() {
-                Some(provider) => {
-                    core::cloudwatch::evaluate_catalogue(
-                        provider,
-                        &state.conf.cloudwatch,
-                        date_time::now().assume_utc(),
-                    )
-                    .await
-                }
-                // Boot refuses a catalogue with no client, so there is nothing to evaluate.
-                None => core::cloudwatch::Catalogue::default(),
-            };
+            let catalogue =
+                core::cloudwatch::evaluate_catalogue(&state, date_time::now().assume_utc()).await;
 
             Ok(EvaluateResponse::from(catalogue))
         },

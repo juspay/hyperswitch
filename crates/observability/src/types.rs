@@ -51,15 +51,12 @@ use actix_multipart::form::{bytes::Bytes, text::Text, MultipartForm};
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    core::cloudwatch,
-    domain::{
-        cloudwatch::State,
-        notifier::{
-            chat::{ChatFileOutcome, ChatFileReceipt, ChatOutcome, ChatReceipt},
-            email::EmailOutcome,
-            Outcome, Refusal,
-        },
+use crate::domain::{
+    cloudwatch::{self, State},
+    notifier::{
+        chat::{ChatFileOutcome, ChatFileReceipt, ChatOutcome, ChatReceipt},
+        email::EmailOutcome,
+        Outcome, Refusal,
     },
 };
 
