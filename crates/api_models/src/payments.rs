@@ -10713,6 +10713,8 @@ pub struct SessionTokenForSimplifiedApplePay {
 
 /// Serializes the payment processing detail input type in its unwrapped form, so that the response
 /// always carries a concrete value even when it was not provided in the request.
+// serde's `serialize_with` requires the function to accept a reference to the field.
+#[allow(clippy::trivially_copy_pass_by_ref)]
 fn serialize_payment_processing_detail_input_type<S>(
     payment_processing_detail_input_type: &Option<PaymentProcessingDetailInputType>,
     serializer: S,
