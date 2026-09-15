@@ -3,9 +3,9 @@ use std::{collections::HashMap, str::FromStr};
 use api_models::payments::{
     AdditionalCardInfo, AdditionalPaymentData, AmountInfo, ApplePayAddressParameters,
     ApplePayPaymentRequest, ApplePaySessionResponse, ApplepaySessionTokenResponse,
-    GooglePaySessionResponse, GpayAllowedMethodsParameters, GpayAllowedPaymentMethods,
-    GpayBillingAddressFormat, GpayBillingAddressParameters, GpayMerchantInfo,
-    GpaySessionTokenResponse, GpayShippingAddressParameters, GpayTokenParameters,
+    GooglePaySessionResponse, GooglePayTokenizationSpecificationType, GpayAllowedMethodsParameters,
+    GpayAllowedPaymentMethods, GpayBillingAddressFormat, GpayBillingAddressParameters,
+    GpayMerchantInfo, GpaySessionTokenResponse, GpayShippingAddressParameters, GpayTokenParameters,
     GpayTokenizationSpecification, GpayTransactionInfo, NextActionCall, PaypalFlow,
     PaypalSessionTokenResponse, PaypalTransactionInfo, RecipientAccount, RecipientBankAccount,
     RecipientDetails, SdkNextAction, SecretInfoToInitiateSdk, SessionToken,
@@ -47,7 +47,7 @@ pub use hyperswitch_interfaces::{
 };
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::tracing;
-use time::{Duration, OffsetDateTime};
+use time::Duration;
 use unified_connector_service_cards::{CardNumber, NetworkToken};
 use unified_connector_service_client::payments::{
     self as payments_grpc, client_authentication_token_data,
@@ -239,7 +239,9 @@ fn build_ucs_l2_l3_data(l2_l3_data: Option<&L2L3Data>) -> Option<payments_grpc::
 
 pub fn build_upi_wait_screen_data(
 ) -> Result<serde_json::Value, error_stack::Report<UnifiedConnectorServiceError>> {
-    let current_time = OffsetDateTime::now_utc().unix_timestamp_nanos();
+    let current_time = common_utils::date_time::now()
+        .assume_utc()
+        .unix_timestamp_nanos();
 
     let wait_screen_data = api_models::payments::WaitScreenInstructions {
         display_from_timestamp: current_time,
@@ -1664,6 +1666,11 @@ impl
             .map(payments_grpc::CaptureMethod::foreign_try_from)
             .transpose()?;
 
+        let state = router_data
+            .access_token
+            .as_ref()
+            .map(ConnectorState::foreign_from);
+
         Ok(Self {
             merchant_order_id: Some(router_data.connector_request_reference_id.clone()),
             amount: router_data
@@ -1700,7 +1707,7 @@ impl
             metadata: None,
             return_url: None,
             continue_redirection_url: None,
-            state: None,
+            state,
             redirection_response: router_data
                 .request
                 .redirect_response
@@ -1716,7 +1723,7 @@ impl
                 .map(payments_grpc::BrowserInformation::foreign_try_from)
                 .transpose()?,
             connector_feature_data: None,
-            connector_order_reference_id: None,
+            connector_order_reference_id: router_data.request.connector_transaction_id.clone(),
             capture_method: capture_method.map(|capture_method| capture_method.into()),
         })
     }
@@ -4320,6 +4327,7 @@ impl transformers::ForeignTryFrom<common_enums::PaymentMethodType>
             common_enums::PaymentMethodType::PixQr => Ok(Self::PixQr),
             common_enums::PaymentMethodType::Qris => Ok(Self::Qris),
             common_enums::PaymentMethodType::SepaGuarenteedDebit => Ok(Self::SepaGuaranteedDebit),
+            common_enums::PaymentMethodType::Neteller => Ok(Self::Neteller),
         }
     }
 }
@@ -7165,7 +7173,11 @@ impl transformers::ForeignTryFrom<payments_grpc::GpayTokenizationSpecification>
         value: payments_grpc::GpayTokenizationSpecification,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            token_specification_type: value.token_specification_type,
+            token_specification_type: GooglePayTokenizationSpecificationType::from_str(
+                &value.token_specification_type,
+            )
+            .change_context(UnifiedConnectorServiceError::ParsingFailed)
+            .attach_printable("invalid gpay token_specification_type received from ucs")?,
             parameters: value
                 .parameters
                 .map(GpayTokenParameters::foreign_try_from)

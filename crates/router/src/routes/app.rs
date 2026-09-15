@@ -219,6 +219,13 @@ impl SessionState {
             request_id: self.request_id.as_ref().map(|req_id| req_id.to_string()),
         }
     }
+    /// Gateway identifier of Hyperswitch's own Google Pay gateway registration.
+    pub fn google_pay_gateway_id(&self) -> Option<String> {
+        self.conf
+            .google_pay_decrypt_keys
+            .as_ref()
+            .and_then(|google_pay_keys| google_pay_keys.get_inner().google_pay_gateway_id.clone())
+    }
 }
 
 pub trait SessionStateInfo {
@@ -1989,6 +1996,9 @@ impl Blocklist {
             .service(
                 web::resource("/batch/{job_id}")
                     .route(web::get().to(blocklist::get_batch_blocklist_job_status)),
+            )
+            .service(
+                web::resource("/export").route(web::post().to(blocklist::create_blocklist_export)),
             )
     }
 }

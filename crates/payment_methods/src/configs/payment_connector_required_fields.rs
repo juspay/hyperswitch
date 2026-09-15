@@ -1782,6 +1782,7 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
                         RequiredField::BillingAddressLine1,
                         RequiredField::BillingAddressZip,
                     ],
+                    billing_name(),
                 ]
                 .concat(),
             ),
@@ -2855,6 +2856,24 @@ fn get_wallet_required_fields() -> HashMap<enums::PaymentMethodType, ConnectorFi
                 (Connector::Airwallex, fields(vec![], vec![], vec![])),
                 (Connector::Authorizedotnet, fields(vec![], vec![], vec![])),
                 (Connector::Checkout, fields(vec![], vec![], vec![])),
+                (
+                    Connector::Datatrans,
+                    fields(
+                        vec![],
+                        vec![],
+                        vec![
+                            RequiredField::BillingFirstName(
+                                "billing_first_name",
+                                FieldType::UserBillingName,
+                            ),
+                            RequiredField::BillingLastName(
+                                "billing_last_name",
+                                FieldType::UserBillingName,
+                            ),
+                            RequiredField::BillingEmail,
+                        ],
+                    ),
+                ),
                 (Connector::Globalpay, fields(vec![], vec![], vec![])),
                 (
                     Connector::Multisafepay,
