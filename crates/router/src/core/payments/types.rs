@@ -19,6 +19,7 @@ use crate::{
     core::errors::{self, RouterResult},
     routes::SessionState,
     types::{
+        self,
         domain::Profile,
         storage::{self, enums as storage_enums},
         transformers::ForeignTryFrom,
@@ -481,7 +482,7 @@ impl ForeignTryFrom<&api_models::payments::ExternalThreeDsData> for Authenticati
 /// What the internal PM service handed back for a freshly created payment-method vault session.
 #[cfg(feature = "v1")]
 pub struct CreatedPmVaultSession {
-    pub vault_details: Option<crate::types::api::VaultDetails>,
+    pub vault_details: Option<types::api::VaultDetails>,
     pub expires_at: Option<time::PrimitiveDateTime>,
 }
 
@@ -493,5 +494,5 @@ pub struct CreatedPmVaultSession {
 pub struct CachedPmVaultSession {
     pub customer_id: Option<common_utils::id_type::CustomerId>,
     pub storage_type: common_enums::StorageType,
-    pub vault_details: crate::types::api::VaultDetails,
+    pub vault_details: types::api::VaultDetails,
 }
