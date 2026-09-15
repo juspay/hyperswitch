@@ -4004,6 +4004,9 @@ export const connectorDetails = {
       },
     }),
     ManualPaymentUpdateAmountCaptured: getCustomExchange({
+      Configs: {
+        skipBillingAssertion: true,
+      },
       Request: {
         attempt_status: "charged",
         amount_captured: 2500,
@@ -4014,6 +4017,9 @@ export const connectorDetails = {
           attempt_status: "charged",
           amount_captured: 2500,
           amount_capturable: 6000,
+          // Expected payment intent state on retrieve, verified by
+          // retrievePaymentCallTest (amount_captured -> amount_received)
+          status: "succeeded",
         },
       },
     }),
@@ -4052,6 +4058,9 @@ export const connectorDetails = {
       },
     }),
     ManualPaymentUpdateUpdateAmountCaptured: getCustomExchange({
+      Configs: {
+        skipBillingAssertion: true,
+      },
       Request: {
         attempt_status: "charged",
         update_amount_captured: true,
@@ -4062,6 +4071,9 @@ export const connectorDetails = {
           attempt_status: "charged",
           amount_captured: 6000,
           amount_capturable: 6000,
+          // Expected payment intent state on retrieve, verified by
+          // retrievePaymentCallTest (amount_captured -> amount_received)
+          status: "succeeded",
         },
       },
     }),

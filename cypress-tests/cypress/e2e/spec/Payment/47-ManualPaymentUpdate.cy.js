@@ -206,16 +206,14 @@ describe("Payment Manual Update Tests", () => {
           return;
         }
 
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["ManualPaymentUpdateAmountCaptured"];
+
         cy.retrievePaymentCallTest({
           globalState,
-          data: {
-            Configs: {
-              skipBillingAssertion: true,
-            },
-          },
+          data,
           unconfirmedPayment: true,
-          expectedIntentStatus: "succeeded",
-          expectedAmountReceived: 2500,
         });
       });
     });
@@ -272,16 +270,14 @@ describe("Payment Manual Update Tests", () => {
           return;
         }
 
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["ManualPaymentUpdateUpdateAmountCaptured"];
+
         cy.retrievePaymentCallTest({
           globalState,
-          data: {
-            Configs: {
-              skipBillingAssertion: true,
-            },
-          },
+          data,
           unconfirmedPayment: true,
-          expectedIntentStatus: "succeeded",
-          expectedAmountReceived: 6000,
         });
       });
     });

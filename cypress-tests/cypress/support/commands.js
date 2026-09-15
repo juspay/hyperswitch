@@ -4854,11 +4854,11 @@ Cypress.Commands.add(
     autoretries = false,
     attempt = 1,
     expectedIntentStatus,
-    expectedAmountReceived,
     connectedMerchantId,
     unconfirmedPayment = false,
   }) => {
     const { Configs: configs = {} } = data || {};
+    const resData = data?.Response?.body || {};
 
     const configInfo = execConfig(validateConfig(configs));
     const payment_id = globalState.get("paymentID");
@@ -4907,11 +4907,23 @@ Cypress.Commands.add(
             ).to.equal(expectedIntentStatus);
           }
 
-          if (typeof expectedAmountReceived !== "undefined") {
+          // Retrieve expectations for manual-update flows, driven by the
+          // connector config (Commons.js). Scoped to config keys that define
+          // `amount_captured` in their Response body (only the manual-update
+          // keys do) so flow-step keys (Capture / Confirm / ...) passed by
+          // other specs are unaffected.
+          if (typeof resData.amount_captured !== "undefined") {
             expect(
               response.body.amount_received,
               "amount_received should match the manually updated amount_captured"
-            ).to.equal(expectedAmountReceived);
+            ).to.equal(resData.amount_captured);
+
+            if (typeof resData.status !== "undefined") {
+              expect(
+                response.body.status,
+                "payment status should match the status configured for the manual update"
+              ).to.equal(resData.status);
+            }
           }
 
           if (
