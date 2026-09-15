@@ -17,6 +17,166 @@ use crate::{
     CustomResult, DatabaseStore, MockDb, RouterStore, StorageError,
 };
 
+/// Cache keys and invalidation for the merchant connector account list caches.
+///
+/// Every list query in this module is a row-subset of one of two supersets — all accounts
+/// of a merchant, or all accounts of a profile — so those are the only two things ever
+/// cached. A write touching a single account therefore invalidates every list entry that
+/// could contain it by redacting exactly two keys, both derivable from the account alone.
+///
+/// This is the only place list cache keys are constructed. Adding a new list query means
+/// adding a projection over one of the supersets; no write path needs to change for it.
+#[cfg(feature = "accounts_cache")]
+mod list_cache {
+    use common_utils::id_type;
+
+    use crate::redis::cache::CacheKind;
+
+    /// Key of the superset holding every account of a merchant, disabled included.
+    pub(super) fn merchant_scope_key(merchant_id: &id_type::MerchantId) -> String {
+        format!("mca_list_m_{}", merchant_id.get_string_repr())
+    }
+
+    /// Key of the superset holding every account of a merchant's profile, disabled
+    /// included. Scoped by merchant as well as profile so that one merchant's entries are
+    /// never addressable by another merchant's key.
+    pub(super) fn merchant_profile_scope_key(
+        merchant_id: &id_type::MerchantId,
+        profile_id: &id_type::ProfileId,
+    ) -> String {
+        format!(
+            "mca_list_mp_{}_{}",
+            merchant_id.get_string_repr(),
+            profile_id.get_string_repr()
+        )
+    }
+
+    /// The complete set of list cache entries a single account belongs to.
+    ///
+    /// `profile_id` is deliberately required rather than optional. An `Option` here would
+    /// conflate two different things — "this account has no profile", where there is no
+    /// profile superset to drop, and "the caller does not know this account's profile",
+    /// where one must be dropped but no key can be built for it. The second silently
+    /// leaves `mca_list_mp_*` serving pre-write rows, so a caller that lacks the profile
+    /// id has to go and fetch it (as the delete paths do) rather than pass `None`.
+    ///
+    /// Returning a fixed-size array keeps "always exactly these two" a property of the
+    /// type rather than of the body.
+    pub(super) fn invalidation_kinds<'a>(
+        merchant_id: &id_type::MerchantId,
+        profile_id: &id_type::ProfileId,
+    ) -> [CacheKind<'a>; 2] {
+        [
+            CacheKind::MerchantConnectorAccountList(merchant_scope_key(merchant_id).into()),
+            CacheKind::MerchantConnectorAccountList(
+                merchant_profile_scope_key(merchant_id, profile_id).into(),
+            ),
+        ]
+    }
+}
+
+/// Every merchant connector account of a merchant, disabled included, ordered by
+/// `created_at` ascending.
+///
+/// The merchant-scoped list queries are row-subsets of this and project from it, so this
+/// is the only place they touch the database or the cache.
+async fn list_all_by_merchant_id<T: DatabaseStore>(
+    store: &RouterStore<T>,
+    merchant_id: &common_utils::id_type::MerchantId,
+) -> CustomResult<Vec<storage::MerchantConnectorAccount>, StorageError> {
+    let find_call = || async {
+        let conn = pg_accounts_connection_read(store).await?;
+        storage::MerchantConnectorAccount::list_by_merchant_id(&conn, merchant_id)
+            .await
+            .map_err(|error| report!(StorageError::from(error)))
+    };
+
+    #[cfg(not(feature = "accounts_cache"))]
+    {
+        find_call().await
+    }
+
+    #[cfg(feature = "accounts_cache")]
+    {
+        cache::get_or_populate_in_memory(
+            store,
+            &list_cache::merchant_scope_key(merchant_id),
+            find_call,
+            &cache::MCA_LIST_CACHE,
+        )
+        .await
+    }
+}
+
+/// Every merchant connector account of a merchant's profile, disabled included, ordered
+/// by `created_at` ascending.
+///
+/// The profile-scoped list queries are row-subsets of this and project from it, so this
+/// is the only place they touch the database or the cache.
+async fn list_all_by_merchant_id_profile_id<T: DatabaseStore>(
+    store: &RouterStore<T>,
+    merchant_id: &common_utils::id_type::MerchantId,
+    profile_id: &common_utils::id_type::ProfileId,
+) -> CustomResult<Vec<storage::MerchantConnectorAccount>, StorageError> {
+    let find_call = || async {
+        let conn = pg_accounts_connection_read(store).await?;
+        storage::MerchantConnectorAccount::list_by_merchant_id_profile_id(
+            &conn,
+            merchant_id,
+            profile_id,
+        )
+        .await
+        .map_err(|error| report!(StorageError::from(error)))
+    };
+
+    #[cfg(not(feature = "accounts_cache"))]
+    {
+        find_call().await
+    }
+
+    #[cfg(feature = "accounts_cache")]
+    {
+        cache::get_or_populate_in_memory(
+            store,
+            &list_cache::merchant_profile_scope_key(merchant_id, profile_id),
+            find_call,
+            &cache::MCA_LIST_CACHE,
+        )
+        .await
+    }
+}
+
+/// Decrypt a batch of account rows into domain accounts, concurrently.
+///
+/// Each conversion is a `BatchDecrypt` which, when the encryption service is enabled, is
+/// its own HTTP round-trip to the keymanager — so decrypting a list of N accounts
+/// sequentially costs N round-trips. Falling back to application-local AES this is
+/// CPU-bound and merely interleaves, which costs nothing either way.
+///
+/// `try_join_all` preserves input order, which matters: the supersets these rows come
+/// from are ordered by `created_at`, and the queries projecting them rely on it.
+async fn decrypt_all<T: DatabaseStore>(
+    store: &RouterStore<T>,
+    accounts: Vec<storage::MerchantConnectorAccount>,
+    key_store: &MerchantKeyStore,
+) -> CustomResult<Vec<domain::MerchantConnectorAccount>, StorageError> {
+    let keymanager_state = store
+        .get_keymanager_state()
+        .attach_printable("Missing KeyManagerState")?;
+
+    futures::future::try_join_all(accounts.into_iter().map(|account| async move {
+        account
+            .convert(
+                keymanager_state,
+                key_store.key.get_inner(),
+                key_store.merchant_id.clone().into(),
+            )
+            .await
+            .change_context(StorageError::DecryptionError)
+    }))
+    .await
+}
+
 #[async_trait::async_trait]
 impl<T: DatabaseStore> MerchantConnectorAccountInterface for kv_router_store::KVRouterStore<T> {
     type Error = StorageError;
@@ -378,31 +538,13 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
         connector_name: &str,
         key_store: &MerchantKeyStore,
     ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, Self::Error> {
-        let conn = pg_accounts_connection_read(self).await?;
-        storage::MerchantConnectorAccount::find_by_merchant_id_connector_name(
-            &conn,
-            merchant_id,
-            connector_name,
-        )
-        .await
-        .map_err(|error| report!(Self::Error::from(error)))
-        .async_and_then(|items| async {
-            let mut output = Vec::with_capacity(items.len());
-            for item in items.into_iter() {
-                output.push(
-                    item.convert(
-                        self.get_keymanager_state()
-                            .attach_printable("Missing KeyManagerState")?,
-                        key_store.key.get_inner(),
-                        key_store.merchant_id.clone().into(),
-                    )
-                    .await
-                    .change_context(Self::Error::DecryptionError)?,
-                )
-            }
-            Ok(output)
-        })
-        .await
+        let accounts = list_all_by_merchant_id(self, merchant_id)
+            .await?
+            .into_iter()
+            .filter(|account| account.connector_name == connector_name)
+            .collect();
+
+        decrypt_all(self, accounts, key_store).await
     }
 
     #[instrument(skip_all)]
@@ -518,24 +660,46 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
         t: domain::MerchantConnectorAccount,
         key_store: &MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, Self::Error> {
-        let conn = pg_accounts_connection_write(self).await?;
-        t.construct_new()
-            .await
-            .change_context(Self::Error::EncryptionError)?
-            .insert(&conn)
-            .await
-            .map_err(|error| report!(Self::Error::from(error)))
-            .async_and_then(|item| async {
-                item.convert(
-                    self.get_keymanager_state()
-                        .attach_printable("Missing KeyManagerState")?,
-                    key_store.key.get_inner(),
-                    key_store.merchant_id.clone().into(),
-                )
+        let _merchant_id = t.merchant_id.clone();
+        let _profile_id = t.profile_id.clone();
+
+        let insert_call = || async {
+            let conn = pg_accounts_connection_write(self).await?;
+            t.construct_new()
                 .await
-                .change_context(Self::Error::DecryptionError)
-            })
+                .change_context(Self::Error::EncryptionError)?
+                .insert(&conn)
+                .await
+                .map_err(|error| report!(Self::Error::from(error)))
+                .async_and_then(|item| async {
+                    item.convert(
+                        self.get_keymanager_state()
+                            .attach_printable("Missing KeyManagerState")?,
+                        key_store.key.get_inner(),
+                        key_store.merchant_id.clone().into(),
+                    )
+                    .await
+                    .change_context(Self::Error::DecryptionError)
+                })
+                .await
+        };
+
+        #[cfg(feature = "accounts_cache")]
+        {
+            // A newly created account belongs to both list supersets, so any cached list
+            // that should now contain it has to go.
+            Box::pin(cache::publish_and_redact_multiple(
+                self,
+                list_cache::invalidation_kinds(&_merchant_id, &_profile_id),
+                insert_call,
+            ))
             .await
+        }
+
+        #[cfg(not(feature = "accounts_cache"))]
+        {
+            insert_call().await
+        }
     }
 
     async fn list_enabled_connector_accounts_by_profile_id(
@@ -544,32 +708,13 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
         key_store: &MerchantKeyStore,
         connector_type: common_enums::ConnectorType,
     ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, Self::Error> {
-        let conn = pg_accounts_connection_read(self).await?;
+        let accounts = list_all_by_merchant_id_profile_id(self, &key_store.merchant_id, profile_id)
+            .await?
+            .into_iter()
+            .filter(|account| account.is_enabled() && account.connector_type == connector_type)
+            .collect();
 
-        storage::MerchantConnectorAccount::list_enabled_by_profile_id(
-            &conn,
-            profile_id,
-            connector_type,
-        )
-        .await
-        .map_err(|error| report!(Self::Error::from(error)))
-        .async_and_then(|items| async {
-            let mut output = Vec::with_capacity(items.len());
-            for item in items.into_iter() {
-                output.push(
-                    item.convert(
-                        self.get_keymanager_state()
-                            .attach_printable("Missing KeyManagerState")?,
-                        key_store.key.get_inner(),
-                        key_store.merchant_id.clone().into(),
-                    )
-                    .await
-                    .change_context(Self::Error::DecryptionError)?,
-                )
-            }
-            Ok(output)
-        })
-        .await
+        decrypt_all(self, accounts, key_store).await
     }
 
     #[instrument(skip_all)]
@@ -579,32 +724,14 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
         get_disabled: bool,
         key_store: &MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccounts, Self::Error> {
-        let conn = pg_accounts_connection_read(self).await?;
-        let merchant_connector_account_vec =
-            storage::MerchantConnectorAccount::find_by_merchant_id(
-                &conn,
-                merchant_id,
-                get_disabled,
-            )
-            .await
-            .map_err(|error| report!(Self::Error::from(error)))
-            .async_and_then(|items| async {
-                let mut output = Vec::with_capacity(items.len());
-                for item in items.into_iter() {
-                    output.push(
-                        item.convert(
-                            self.get_keymanager_state()
-                                .attach_printable("Missing KeyManagerState")?,
-                            key_store.key.get_inner(),
-                            key_store.merchant_id.clone().into(),
-                        )
-                        .await
-                        .change_context(Self::Error::DecryptionError)?,
-                    )
-                }
-                Ok(output)
-            })
-            .await?;
+        let accounts = list_all_by_merchant_id(self, merchant_id)
+            .await?
+            .into_iter()
+            .filter(|account| get_disabled || account.is_enabled())
+            .collect();
+
+        let merchant_connector_account_vec = decrypt_all(self, accounts, key_store).await?;
+
         Ok(domain::MerchantConnectorAccounts::new(
             merchant_connector_account_vec,
         ))
@@ -616,17 +743,12 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
         merchant_id: &common_utils::id_type::MerchantId,
         get_disabled: bool,
     ) -> CustomResult<domain::MerchantConnectorAccountsWithoutEncrypted, Self::Error> {
-        let conn = pg_accounts_connection_read(self).await?;
-        let items = storage::MerchantConnectorAccount::find_by_merchant_id(
-            &conn,
-            merchant_id,
-            get_disabled,
-        )
-        .await
-        .map_err(|error| report!(Self::Error::from(error)))?;
-
-        let output = items
+        let accounts = list_all_by_merchant_id(self, merchant_id)
+            .await?
             .into_iter()
+            .filter(|account| get_disabled || account.is_enabled());
+
+        let output = accounts
             .map(domain::MerchantConnectorAccountWithoutEncrypted::try_from)
             .collect::<Result<Vec<_>, _>>()
             .change_context(Self::Error::DecryptionError)?;
@@ -642,17 +764,11 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
         merchant_id: &common_utils::id_type::MerchantId,
         profile_id: &common_utils::id_type::ProfileId,
     ) -> CustomResult<domain::MerchantConnectorAccountsWithoutEncrypted, Self::Error> {
-        let conn = pg_accounts_connection_read(self).await?;
-        let items = storage::MerchantConnectorAccount::list_merchant_connector_accounts_without_encrypted_including_disabled_by_merchant_id_profile_id(
-            &conn,
-            merchant_id,
-            profile_id,
-        )
-        .await
-        .map_err(|error| report!(Self::Error::from(error)))?;
+        let accounts = list_all_by_merchant_id_profile_id(self, merchant_id, profile_id)
+            .await?
+            .into_iter();
 
-        let output = items
-            .into_iter()
+        let output = accounts
             .map(domain::MerchantConnectorAccountWithoutEncrypted::try_from)
             .collect::<Result<Vec<_>, _>>()
             .change_context(Self::Error::DecryptionError)?;
@@ -668,17 +784,12 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
         merchant_id: &common_utils::id_type::MerchantId,
         profile_id: &common_utils::id_type::ProfileId,
     ) -> CustomResult<domain::MerchantConnectorAccountsWithoutEncrypted, Self::Error> {
-        let conn = pg_accounts_connection_read(self).await?;
-        let items = storage::MerchantConnectorAccount::list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
-            &conn,
-            merchant_id,
-            profile_id,
-        )
-        .await
-        .map_err(|error| report!(Self::Error::from(error)))?;
-
-        let output = items
+        let accounts = list_all_by_merchant_id_profile_id(self, merchant_id, profile_id)
+            .await?
             .into_iter()
+            .filter(|account| account.is_enabled());
+
+        let output = accounts
             .map(domain::MerchantConnectorAccountWithoutEncrypted::try_from)
             .collect::<Result<Vec<_>, _>>()
             .change_context(Self::Error::DecryptionError)?;
@@ -695,27 +806,10 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
         profile_id: &common_utils::id_type::ProfileId,
         key_store: &MerchantKeyStore,
     ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, Self::Error> {
-        let conn = pg_accounts_connection_read(self).await?;
-        storage::MerchantConnectorAccount::list_by_profile_id(&conn, profile_id)
-            .await
-            .map_err(|error| report!(Self::Error::from(error)))
-            .async_and_then(|items| async {
-                let mut output = Vec::with_capacity(items.len());
-                for item in items.into_iter() {
-                    output.push(
-                        item.convert(
-                            self.get_keymanager_state()
-                                .attach_printable("Missing KeyManagerState")?,
-                            key_store.key.get_inner(),
-                            key_store.merchant_id.clone().into(),
-                        )
-                        .await
-                        .change_context(Self::Error::DecryptionError)?,
-                    )
-                }
-                Ok(output)
-            })
-            .await
+        let accounts =
+            list_all_by_merchant_id_profile_id(self, &key_store.merchant_id, profile_id).await?;
+
+        decrypt_all(self, accounts, key_store).await
     }
 
     #[instrument(skip_all)]
@@ -796,7 +890,10 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
                                 )
                                 .into(),
                             ),
-                        ],
+                        ]
+                        .into_iter()
+                        .chain(list_cache::invalidation_kinds(&_merchant_id, &_profile_id))
+                        .collect::<Vec<_>>(),
                         || update,
                     ))
                     .await
@@ -901,7 +998,10 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
                         )
                         .into(),
                     ),
-                ],
+                ]
+                .into_iter()
+                .chain(list_cache::invalidation_kinds(&_merchant_id, &_profile_id))
+                .collect::<Vec<_>>(),
                 update_call,
             ))
             .await
@@ -978,7 +1078,10 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
                         )
                         .into(),
                     ),
-                ],
+                ]
+                .into_iter()
+                .chain(list_cache::invalidation_kinds(&_merchant_id, &_profile_id))
+                .collect::<Vec<_>>(),
                 update_call,
             ))
             .await
@@ -1054,7 +1157,13 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
                         )
                         .into(),
                     ),
-                ],
+                ]
+                .into_iter()
+                .chain(list_cache::invalidation_kinds(
+                    &mca.merchant_id,
+                    &_profile_id,
+                ))
+                .collect::<Vec<_>>(),
                 delete_call,
             )
             .await
@@ -1119,7 +1228,13 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
                         )
                         .into(),
                     ),
-                ],
+                ]
+                .into_iter()
+                .chain(list_cache::invalidation_kinds(
+                    &mca.merchant_id,
+                    &_profile_id,
+                ))
+                .collect::<Vec<_>>(),
                 delete_call,
             )
             .await
@@ -1735,5 +1850,37 @@ impl MerchantConnectorAccountInterface for MockDb {
                 .into())
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Any write to a single account has to drop both supersets that could contain it,
+    /// otherwise a cached list keeps serving the pre-write rows.
+    #[cfg(feature = "accounts_cache")]
+    #[test]
+    fn invalidation_covers_both_supersets() {
+        let merchant_id = common_utils::id_type::MerchantId::try_from(std::borrow::Cow::from(
+            "merchant_the_first",
+        ))
+        .expect("valid merchant id");
+        let profile_id =
+            common_utils::id_type::ProfileId::try_from(std::borrow::Cow::from("profile_the_first"))
+                .expect("valid profile id");
+
+        let keys = list_cache::invalidation_kinds(&merchant_id, &profile_id)
+            .into_iter()
+            .map(|kind| kind.get_key_without_prefix().to_owned())
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            keys,
+            vec![
+                "mca_list_m_merchant_the_first".to_string(),
+                "mca_list_mp_merchant_the_first_profile_the_first".to_string(),
+            ]
+        );
     }
 }
