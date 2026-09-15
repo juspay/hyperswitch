@@ -70,6 +70,8 @@ pub struct Settings<S: SecretState> {
     pub email: EmailSettings,
     /// The infrastructure alarm catalogue this service evaluates.
     pub cloudwatch: CloudWatchSettings,
+    /// The observability database, which holds alert state. Separate from `hyperswitch_db`.
+    pub database: SecretStateContainer<Database, S>,
 }
 
 const DEFAULT_MAX_UPLOAD_BYTES: usize = 25 * 1024 * 1024;
@@ -285,6 +287,70 @@ impl Server {
     }
 }
 
+/// Connection settings for the observability database.
+#[derive(Debug, Deserialize, Clone)]
+#[serde(default)]
+pub struct Database {
+    pub username: String,
+    pub password: Secret<String>,
+    pub host: String,
+    pub port: u16,
+    pub dbname: String,
+    /// Upper bound on open connections.
+    pub pool_size: u32,
+    /// Connections opened at boot and kept idle. At least one means an unreachable database stops
+    /// the boot rather than failing the first request.
+    pub min_idle_pool_size: u32,
+    /// Seconds to wait for a connection from the pool.
+    pub connection_timeout: u64,
+}
+
+impl Default for Database {
+    fn default() -> Self {
+        Self {
+            username: String::new(),
+            password: String::new().into(),
+            host: String::new(),
+            port: 5432,
+            dbname: String::new(),
+            pool_size: 5,
+            min_idle_pool_size: 1,
+            connection_timeout: 10,
+        }
+    }
+}
+
+impl Database {
+    /// Reject a database that cannot be connected to, or a pool that cannot hold a connection.
+    pub fn validate(&self) -> Result<(), errors::ConfigurationError> {
+        common_utils::fp_utils::when(self.host.is_default_or_empty(), || {
+            Err(errors::ConfigurationError::ConfigParsingError(
+                "database host must not be empty".into(),
+            ))
+        })?;
+        common_utils::fp_utils::when(self.username.is_default_or_empty(), || {
+            Err(errors::ConfigurationError::ConfigParsingError(
+                "database username must not be empty".into(),
+            ))
+        })?;
+        common_utils::fp_utils::when(self.dbname.is_default_or_empty(), || {
+            Err(errors::ConfigurationError::ConfigParsingError(
+                "database dbname must not be empty".into(),
+            ))
+        })?;
+        common_utils::fp_utils::when(self.pool_size == 0, || {
+            Err(errors::ConfigurationError::ConfigParsingError(
+                "database pool_size must be greater than zero".into(),
+            ))
+        })?;
+        common_utils::fp_utils::when(self.min_idle_pool_size > self.pool_size, || {
+            Err(errors::ConfigurationError::ConfigParsingError(
+                "database min_idle_pool_size must not exceed pool_size".into(),
+            ))
+        })
+    }
+}
+
 impl Settings<SecuredSecret> {
     /// Read configuration from the default location.
     pub fn new() -> Result<Self, errors::ConfigurationError> {
@@ -340,6 +406,7 @@ impl Settings<SecuredSecret> {
         self.chat.get_inner().validate()?;
         self.email.validate()?;
         self.cloudwatch.validate()?;
+        self.database.get_inner().validate()?;
         self.secrets_management
             .validate()
             .map_err(|error| errors::ConfigurationError::ConfigParsingError(error.into()))?;

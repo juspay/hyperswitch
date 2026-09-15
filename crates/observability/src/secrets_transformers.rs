@@ -15,7 +15,7 @@ use hyperswitch_interfaces::secrets_interface::{
     SecretManagementInterface, SecretsManagementError,
 };
 
-use crate::settings::{AuthSettings, ChatDestination, ChatSettings, Settings};
+use crate::settings::{AuthSettings, ChatDestination, ChatSettings, Database, Settings};
 
 #[async_trait::async_trait]
 impl SecretsHandler for AuthSettings {
@@ -77,6 +77,24 @@ impl SecretsHandler for ChatSettings {
     }
 }
 
+#[async_trait::async_trait]
+impl SecretsHandler for Database {
+    async fn convert_to_raw_secret(
+        value: SecretStateContainer<Self, SecuredSecret>,
+        secret_management_client: &dyn SecretManagementInterface,
+    ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
+        let secured_database = value.get_inner();
+        let raw_password = secret_management_client
+            .get_secret(secured_database.password.clone())
+            .await?;
+
+        Ok(value.transition_state(|database| Self {
+            password: raw_password,
+            ..database
+        }))
+    }
+}
+
 /// Resolve every secret in the configuration.
 ///
 /// # Panics
@@ -108,6 +126,11 @@ pub async fn fetch_raw_secrets(
         .await
         .expect("Failed to decrypt a chat destination credential");
 
+    #[allow(clippy::expect_used)]
+    let database = Database::convert_to_raw_secret(conf.database, secret_management_client)
+        .await
+        .expect("Failed to decrypt the database password");
+
     Settings {
         server: conf.server,
         log: conf.log,
@@ -117,5 +140,6 @@ pub async fn fetch_raw_secrets(
         chat,
         email: conf.email,
         cloudwatch: conf.cloudwatch,
+        database,
     }
 }
