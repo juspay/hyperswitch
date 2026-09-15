@@ -4003,6 +4003,80 @@ export const connectorDetails = {
         },
       },
     }),
+    ManualPaymentUpdateAmountCaptured: getCustomExchange({
+      Configs: {
+        skipBillingAssertion: true,
+      },
+      Request: {
+        attempt_status: "charged",
+        amount_captured: 2500,
+      },
+      Response: {
+        status: 200,
+        body: {
+          attempt_status: "charged",
+          amount_captured: 2500,
+          amount_capturable: 6000,
+          // Expected payment intent state on retrieve, verified by
+          // retrievePaymentCallTest (amount_captured -> amount_received)
+          status: "succeeded",
+        },
+      },
+    }),
+    ManualPaymentUpdateAmountCapturedExceedsAmount: getCustomExchange({
+      Request: {
+        attempt_status: "charged",
+        amount_captured: 6001,
+      },
+      Response: {
+        status: 422,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "amount_captured should be less than or equal to amount",
+            code: "IR_06",
+          },
+        },
+      },
+    }),
+    ManualPaymentUpdateAmountConflict: getCustomExchange({
+      Request: {
+        attempt_status: "charged",
+        amount_captured: 2500,
+        update_amount_captured: true,
+      },
+      Response: {
+        status: 422,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "amount_captured cannot be provided when update_amount_captured is true",
+            code: "IR_06",
+          },
+        },
+      },
+    }),
+    ManualPaymentUpdateUpdateAmountCaptured: getCustomExchange({
+      Configs: {
+        skipBillingAssertion: true,
+      },
+      Request: {
+        attempt_status: "charged",
+        update_amount_captured: true,
+      },
+      Response: {
+        status: 200,
+        body: {
+          attempt_status: "charged",
+          amount_captured: 6000,
+          amount_capturable: 6000,
+          // Expected payment intent state on retrieve, verified by
+          // retrievePaymentCallTest (amount_captured -> amount_received)
+          status: "succeeded",
+        },
+      },
+    }),
     OrderDetails: getCustomExchange({
       Request: {
         payment_method: "card",
