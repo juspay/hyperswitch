@@ -347,11 +347,9 @@ jobs:
 
       - name: Install Diesel CLI
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: baptiste0928/cargo-install@v3.4.0
+        uses: taiki-e/install-action@v2
         with:
-          crate: diesel_cli
-          features: postgres
-          args: --no-default-features
+          tool: diesel_cli
 
       - name: Install Just
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -629,11 +627,9 @@ jobs:
           echo "CYPRESS_ADMINAPIKEY=${LOCAL_ADMIN_API_KEY}" >> $GITHUB_ENV
 
       - name: Install Diesel CLI
-        uses: baptiste0928/cargo-install@v3.4.0
+        uses: taiki-e/install-action@v2
         with:
-          crate: diesel_cli
-          features: postgres
-          args: --no-default-features
+          tool: diesel_cli
 
       - name: Install Just
         uses: taiki-e/install-action@v2
@@ -919,11 +915,9 @@ jobs:
 
       - name: Install Diesel CLI
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: baptiste0928/cargo-install@v3.4.0
+        uses: taiki-e/install-action@v2
         with:
-          crate: diesel_cli
-          features: postgres
-          args: --no-default-features
+          tool: diesel_cli
 
       - name: Install Just
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -1352,11 +1346,9 @@ jobs:
           echo "CYPRESS_ADMINAPIKEY=${LOCAL_ADMIN_API_KEY}" >> $GITHUB_ENV
 
       - name: Install Diesel CLI
-        uses: baptiste0928/cargo-install@v3.4.0
+        uses: taiki-e/install-action@v2
         with:
-          crate: diesel_cli
-          features: postgres
-          args: --no-default-features
+          tool: diesel_cli
 
       - name: Install Just
         uses: taiki-e/install-action@v2
@@ -1543,11 +1535,9 @@ jobs:
 
       - name: Install Diesel CLI
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: baptiste0928/cargo-install@v3.4.0
+        uses: taiki-e/install-action@v2
         with:
-          crate: diesel_cli
-          features: postgres
-          args: --no-default-features
+          tool: diesel_cli
 
       - name: Install Just
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -1791,11 +1781,9 @@ jobs:
 
       - name: Install Diesel CLI
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: baptiste0928/cargo-install@v3.4.0
+        uses: taiki-e/install-action@v2
         with:
-          crate: diesel_cli
-          features: postgres
-          args: --no-default-features
+          tool: diesel_cli
 
       - name: Install grcov
         if: ${{ env.RUN_TESTS == 'true' }}

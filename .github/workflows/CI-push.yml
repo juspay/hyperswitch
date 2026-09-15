@@ -94,7 +94,11 @@ jobs:
       - name: Install rust cache
         uses: Swatinem/rust-cache@v2.9.1
         with:
+          shared-key: msrv
           save-if: ${{ github.event_name == 'push' }}
+          # `Cargo hack` currently fails on main; without this the post-step is
+          # skipped (post-if: success()) and no cache is ever saved for PRs to restore.
+          cache-on-failure: true
 
       - name: Install cargo-hack
         uses: taiki-e/install-action@v2
@@ -148,10 +152,7 @@ jobs:
     runs-on: hyperswitch-runners-merge
 
     env:
-      # Use `sccache` for caching compilation artifacts
-      RUSTC_WRAPPER: sccache
       RUSTFLAGS: "-D warnings"
-      CARGO_BUILD_JOBS: 2
 
     steps:
       - name: Checkout repository
@@ -174,11 +175,12 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-      # - name: Install sccache
-      #   uses: taiki-e/install-action@v2
-      #   with:
-      #     tool: sccache
-      #     checksum: true
+      - name: Install rust cache
+        uses: Swatinem/rust-cache@v2.9.1
+        with:
+          shared-key: stable-v1
+          save-if: ${{ github.event_name == 'push' }}
+          cache-on-failure: true
 
       - name: Install cargo-hack
         uses: taiki-e/install-action@v2.83.2
@@ -202,28 +204,30 @@ jobs:
       #     tool: cargo-nextest
       #     checksum: true
 
-      - name: Install sccache
-        uses: taiki-e/install-action@v2
-        with:
-          tool: sccache
-          checksum: true
-
       - name: Run clippy (redis-rs backend)
         shell: bash
+        env:
+          CARGO_BUILD_JOBS: 2
         run: just clippy
 
       - name: Run clippy (fred backend)
         shell: bash
+        env:
+          CARGO_BUILD_JOBS: 2
         run: just clippy fred
 
       - name: Cargo hack
         if: ${{ github.event_name == 'push' }}
         shell: bash
+        env:
+          CARGO_BUILD_JOBS: 2
         run: just ci_hack
 
       - name: Cargo build release
         if: ${{ github.event_name == 'merge_group' }}
         shell: bash
+        env:
+          CARGO_BUILD_JOBS: 2
         run: cargo check --features "release"
 
   typos:
@@ -262,10 +266,6 @@ jobs:
     name: Check compilation for V2 features
     runs-on: hyperswitch-runners-merge
 
-    env:
-      # Use `sccache` for caching compilation artifacts
-      RUSTC_WRAPPER: sccache
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -286,11 +286,12 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install sccache
-        uses: taiki-e/install-action@v2
+      - name: Install rust cache
+        uses: Swatinem/rust-cache@v2.9.1
         with:
-          tool: sccache
-          checksum: true
+          shared-key: stable-v2
+          save-if: ${{ github.event_name == 'push' }}
+          cache-on-failure: true
 
       - name: Run cargo check enabling only the release and v2 features (redis-rs backend)
         shell: bash
