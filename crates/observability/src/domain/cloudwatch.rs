@@ -418,3 +418,238 @@ pub struct RuleState {
     pub threshold: f64,
     pub description: String,
 }
+
+/// Two consecutive evaluations of the whole catalogue, and what changed between them.
+#[derive(Debug, Default, PartialEq)]
+pub struct Comparison {
+    pub current: Catalogue,
+    pub transitions: Vec<Transition>,
+}
+
+/// One rule saying something different from what it said a moment ago.
+#[derive(Debug, PartialEq)]
+pub struct Transition {
+    pub definition_id: String,
+    pub name: String,
+    pub metric_name: String,
+    pub dimensions: std::collections::BTreeMap<String, String>,
+    pub period: u32,
+    pub severity: String,
+    /// What the previous evaluation said, or `None` when it could not be read.
+    pub from: Option<State>,
+    pub to: State,
+    pub threshold: f64,
+    pub description: String,
+}
+
+impl Catalogue {
+    /// The rules whose state differs from what `previous` said about them.
+    ///
+    /// A definition `previous` could not read leaves `from` empty: nothing is known about whether
+    /// the rule changed. Those are announced only when the rule is *not* `Ok`, because a duplicate
+    /// alert costs a repeated message while a missed one costs an outage — but announcing an
+    /// unknown-to-healthy move would turn one failed CloudWatch call into a message per rule.
+    pub fn transitions_from(&self, previous: &Self) -> Vec<Transition> {
+        self.definitions
+            .iter()
+            .flat_map(|definition| definition.transitions_from(previous))
+            .collect()
+    }
+}
+
+impl Evaluation {
+    fn transitions_from(&self, previous: &Catalogue) -> Vec<Transition> {
+        let Outcome::Evaluated { rules, .. } = &self.outcome else {
+            return vec![];
+        };
+        let before = previous
+            .definitions
+            .iter()
+            .find(|candidate| candidate.id == self.id);
+
+        rules
+            .iter()
+            .filter_map(|rule| {
+                let from = before.and_then(|before| before.state_of(&rule.severity));
+
+                match from {
+                    Some(from) if from == rule.state => None,
+                    None if rule.state == State::Ok => None,
+                    _ => Some(self.transition(rule, from)),
+                }
+            })
+            .collect()
+    }
+
+    fn state_of(&self, severity: &str) -> Option<State> {
+        match &self.outcome {
+            Outcome::Evaluated { rules, .. } => rules
+                .iter()
+                .find(|rule| rule.severity == severity)
+                .map(|rule| rule.state),
+            Outcome::Unread { .. } => None,
+        }
+    }
+
+    fn transition(&self, rule: &RuleState, from: Option<State>) -> Transition {
+        Transition {
+            definition_id: self.id.clone(),
+            name: self.name.clone(),
+            metric_name: self.metric_name.clone(),
+            dimensions: self.dimensions.clone(),
+            period: self.period,
+            severity: rule.severity.clone(),
+            from,
+            to: rule.state,
+            threshold: rule.threshold,
+            description: rule.description.clone(),
+        }
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used, clippy::indexing_slicing)]
+mod transition_tests {
+    use super::*;
+
+    fn evaluated(id: &str, rules: Vec<(&str, State)>) -> Evaluation {
+        Evaluation {
+            id: id.to_owned(),
+            name: id.to_owned(),
+            classification: "rds-alerts".to_owned(),
+            metric_name: "CPUUtilization".to_owned(),
+            dimensions: std::collections::BTreeMap::new(),
+            period: 60,
+            outcome: Outcome::Evaluated {
+                readings: vec![Some(1.0)],
+                rules: rules
+                    .into_iter()
+                    .map(|(severity, state)| RuleState {
+                        severity: severity.to_owned(),
+                        state,
+                        threshold: 90.0,
+                        description: "SEV: something is wrong.".to_owned(),
+                    })
+                    .collect(),
+            },
+        }
+    }
+
+    fn unread(id: &str) -> Evaluation {
+        Evaluation {
+            outcome: Outcome::Unread {
+                reason: Unread::QueryFailed,
+            },
+            ..evaluated(id, vec![])
+        }
+    }
+
+    fn catalogue(definitions: Vec<Evaluation>) -> Catalogue {
+        Catalogue { definitions }
+    }
+
+    fn moves(current: &Catalogue, previous: &Catalogue) -> Vec<(String, Option<State>, State)> {
+        current
+            .transitions_from(previous)
+            .into_iter()
+            .map(|it| (it.severity, it.from, it.to))
+            .collect()
+    }
+
+    /// The whole point: a breach that is still breaching is not news.
+    #[test]
+    fn a_state_that_did_not_change_is_not_a_transition() {
+        let before = catalogue(vec![evaluated("cpu", vec![("sev1", State::Alarm)])]);
+        let after = catalogue(vec![evaluated("cpu", vec![("sev1", State::Alarm)])]);
+
+        assert!(moves(&after, &before).is_empty());
+    }
+
+    #[test]
+    fn a_breach_and_its_recovery_are_both_announced() {
+        let ok = catalogue(vec![evaluated("cpu", vec![("sev1", State::Ok)])]);
+        let alarm = catalogue(vec![evaluated("cpu", vec![("sev1", State::Alarm)])]);
+
+        assert_eq!(
+            moves(&alarm, &ok),
+            vec![("sev1".to_owned(), Some(State::Ok), State::Alarm)]
+        );
+        assert_eq!(
+            moves(&ok, &alarm),
+            vec![("sev1".to_owned(), Some(State::Alarm), State::Ok)]
+        );
+    }
+
+    #[test]
+    fn severities_move_independently() {
+        let before = catalogue(vec![evaluated(
+            "cpu",
+            vec![("sev1", State::Ok), ("sev2", State::Alarm)],
+        )]);
+        let after = catalogue(vec![evaluated(
+            "cpu",
+            vec![("sev1", State::Alarm), ("sev2", State::Alarm)],
+        )]);
+
+        assert_eq!(
+            moves(&after, &before),
+            vec![("sev1".to_owned(), Some(State::Ok), State::Alarm)],
+            "sev2 did not move, so only sev1 is announced"
+        );
+    }
+
+    #[test]
+    fn insufficient_data_is_a_transition_like_any_other() {
+        let ok = catalogue(vec![evaluated("cpu", vec![("sev1", State::Ok)])]);
+        let missing = catalogue(vec![evaluated(
+            "cpu",
+            vec![("sev1", State::InsufficientData)],
+        )]);
+
+        assert_eq!(
+            moves(&missing, &ok),
+            vec![("sev1".to_owned(), Some(State::Ok), State::InsufficientData)]
+        );
+    }
+
+    /// A definition we cannot read now says nothing at all, rather than a move to or from anywhere.
+    #[test]
+    fn an_unreadable_current_evaluation_announces_nothing() {
+        let before = catalogue(vec![evaluated("cpu", vec![("sev1", State::Ok)])]);
+        let after = catalogue(vec![unread("cpu")]);
+
+        assert!(moves(&after, &before).is_empty());
+    }
+
+    /// Nothing is known about whether it changed. A duplicate alert costs a repeated message; a
+    /// missed one costs an outage — but announcing every healthy rule would turn one failed call
+    /// into a message per rule.
+    #[test]
+    fn an_unreadable_previous_evaluation_announces_only_what_is_not_ok() {
+        let before = catalogue(vec![unread("cpu")]);
+        let after = catalogue(vec![evaluated(
+            "cpu",
+            vec![("sev1", State::Alarm), ("sev2", State::Ok)],
+        )]);
+
+        assert_eq!(
+            moves(&after, &before),
+            vec![("sev1".to_owned(), None, State::Alarm)]
+        );
+    }
+
+    /// A definition added to the catalogue between two evaluations has no previous state either.
+    #[test]
+    fn a_definition_absent_from_the_previous_evaluation_is_treated_the_same_way() {
+        let before = catalogue(vec![]);
+        let after = catalogue(vec![evaluated(
+            "cpu",
+            vec![("sev1", State::Alarm), ("sev2", State::Ok)],
+        )]);
+
+        assert_eq!(
+            moves(&after, &before),
+            vec![("sev1".to_owned(), None, State::Alarm)]
+        );
+    }
+}

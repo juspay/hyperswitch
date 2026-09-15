@@ -1,19 +1,24 @@
 //! Helpers with no home of their own.
 
 use external_services::metrics_service::Period;
-use time::OffsetDateTime;
+use time::{Duration, OffsetDateTime};
 
-/// The latest instant at or before `now` on which a period of `period` completed.
+/// How often CloudWatch re-evaluates a rule of this period, which is also how far apart two
+/// consecutive evaluations are.
 ///
-/// Capped at a minute because that is how often CloudWatch evaluates anything sampled per minute
-/// or slower: a 300-second window ends on the latest completed *minute*, not the latest completed
-/// five minutes, and slides with it. Below a minute the cadence is the period itself, so a
-/// ten-second rule is not left up to fifty-nine seconds stale.
+/// A minute for anything sampled per minute or slower: a 300-second window is re-evaluated every
+/// minute and slides with it rather than stepping five minutes at a time. Below a minute the
+/// cadence is the period itself.
+pub fn evaluation_cadence(period: Period) -> Duration {
+    Duration::seconds(i64::from(period.seconds()).clamp(1, 60))
+}
+
+/// The latest instant at or before `now` on which an evaluation of `period` could have run.
 pub fn latest_completed_period(now: OffsetDateTime, period: Period) -> OffsetDateTime {
-    let cadence = i64::from(period.seconds()).clamp(1, 60);
+    let cadence = evaluation_cadence(period).whole_seconds().max(1);
     let elapsed = now.unix_timestamp().rem_euclid(cadence);
 
-    (now - time::Duration::seconds(elapsed))
+    (now - Duration::seconds(elapsed))
         .replace_nanosecond(0)
         .unwrap_or(now)
 }
@@ -56,6 +61,21 @@ mod tests {
         assert_eq!(
             latest_completed_period(datetime!(2026-09-11 12:07:00 UTC), Period::ONE_MINUTE),
             datetime!(2026-09-11 12:07:00 UTC)
+        );
+    }
+
+    /// A five-minute rule is re-evaluated every minute, so its previous evaluation is a minute
+    /// back — not five.
+    #[test]
+    fn the_cadence_is_a_minute_unless_the_period_is_shorter() {
+        assert_eq!(
+            evaluation_cadence(Period::FIVE_MINUTES),
+            Duration::minutes(1)
+        );
+        assert_eq!(evaluation_cadence(Period::ONE_MINUTE), Duration::minutes(1));
+        assert_eq!(
+            evaluation_cadence(Period::from_seconds(10)),
+            Duration::seconds(10)
         );
     }
 }

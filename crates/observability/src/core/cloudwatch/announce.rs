@@ -1,27 +1,29 @@
-//! Turning breaching rules into messages and handing them to the Notifier.
+//! Turning state transitions into messages and handing them to the Notifier.
 //!
-//! Every rule currently in `Alarm` is announced, every time this runs. There is no memory of what
-//! was announced before, so a condition that stays breaching is announced again on the next call —
-//! transitions are [a separate ticket](https://github.com/juspay/hyperswitch-cloud/issues/23496)
-//! and until it lands the caller is a human, not a clock.
+//! Only a rule that says something *different* from what it said one evaluation ago is announced,
+//! which is what keeps a sustained breach from being reported every minute. Recovery and
+//! `InsufficientData` are transitions too, so they are announced alongside the breaches.
 //!
-//! Severities do not suppress one another. CPU at 92% breaches sev3, sev2 and sev1, and all three
-//! are announced, because that is what the AWS alarms we run alongside do today.
+//! Nothing is remembered between calls: the previous evaluation is fetched from CloudWatch rather
+//! than stored, so two callers running at once will both see the same transition and both announce
+//! it. Duplicates are accepted; a store to prevent them would be alert management, which belongs
+//! to a different effort.
 //!
-//! One failed send does not stop the rest. A definition is not retried and nothing is queued;
-//! delivery recovery is [its own
-//! ticket](https://github.com/juspay/hyperswitch-cloud/issues/23485).
+//! One failed send does not stop the rest. Nothing is retried or queued — delivery recovery is
+//! [its own ticket](https://github.com/juspay/hyperswitch-cloud/issues/23485).
+
 use hyperswitch_masking::Secret;
 use time::OffsetDateTime;
 
 use crate::{
     domain::{
-        cloudwatch::{Catalogue, Evaluation, Outcome, RuleState, State},
+        cloudwatch::{Comparison, State, Transition},
         notifier::{chat::ChatNotification, Outcome as DeliveryOutcome},
     },
     logger,
     state::AppState,
 };
+
 #[derive(Debug, PartialEq)]
 pub struct Announcement {
     pub definition_id: String,
@@ -30,6 +32,7 @@ pub struct Announcement {
     pub message: String,
     pub delivery: Delivery,
 }
+
 #[derive(Debug, PartialEq)]
 pub enum Delivery {
     Delivered {
@@ -44,71 +47,84 @@ pub enum Delivery {
     /// The severity names a destination the chat registry does not hold. Boot checks this, so it
     /// means configuration changed underneath a running process.
     UnknownDestination,
+    /// A dry run reached this point and stopped.
+    Skipped,
 }
-/// What one notify request produced: every rule's state, and what was said about the
-/// breaching ones.
+
+/// What one request produced: both evaluations, what changed, and what was said about it.
 pub struct Announced {
-    pub catalogue: Catalogue,
+    pub comparison: Comparison,
     pub announcements: Vec<Announcement>,
 }
-/// Evaluate the catalogue as of `now`, then announce every rule it found breaching.
-pub async fn evaluate_and_announce(state: &AppState, now: OffsetDateTime) -> Announced {
-    let catalogue = super::evaluate_catalogue(state, now).await;
-    let announcements = announce(state, &catalogue).await;
+
+/// Compare the catalogue against its previous evaluation and announce what changed.
+///
+/// `deliver` is what separates the notify route from its dry run: messages are rendered either
+/// way, so a dry run shows exactly what would have been sent.
+pub async fn evaluate_and_announce(
+    state: &AppState,
+    now: OffsetDateTime,
+    deliver: bool,
+) -> Announced {
+    let comparison = super::compare_catalogue(state, now).await;
+    let announcements = announce(state, &comparison.transitions, deliver).await;
+
     Announced {
-        catalogue,
+        comparison,
         announcements,
     }
 }
-/// Announce every rule the catalogue found breaching.
-pub async fn announce(state: &AppState, catalogue: &Catalogue) -> Vec<Announcement> {
-    let mut announcements = Vec::new();
-    for definition in &catalogue.definitions {
-        let Outcome::Evaluated { readings, rules } = &definition.outcome else {
-            continue;
-        };
-        for rule in rules.iter().filter(|rule| rule.state == State::Alarm) {
-            let message = render(definition, rule, readings.iter().rev().flatten().next());
-            let Some(destination) = state.conf.cloudwatch.destinations.get(&rule.severity) else {
+
+async fn announce(
+    state: &AppState,
+    transitions: &[Transition],
+    deliver: bool,
+) -> Vec<Announcement> {
+    let mut announcements = Vec::with_capacity(transitions.len());
+
+    for transition in transitions {
+        let message = render(transition);
+        let destination = state.conf.cloudwatch.destinations.get(&transition.severity);
+
+        let delivery = match (destination, deliver) {
+            (None, _) => {
                 logger::error!(
-                    definition = %definition.id,
-                    severity = %rule.severity,
-                    "A breaching rule has no destination configured"
+                    definition = %transition.definition_id,
+                    severity = %transition.severity,
+                    "A transition has no destination configured"
                 );
-                announcements.push(Announcement {
-                    definition_id: definition.id.clone(),
-                    severity: rule.severity.clone(),
-                    destination: String::new(),
-                    message,
-                    delivery: Delivery::UnknownDestination,
-                });
-                continue;
-            };
-            let delivery = deliver(state, destination, &message).await;
-            if delivery != (Delivery::Delivered { message_id: None }) {
-                logger::info!(
-                    definition = %definition.id,
-                    severity = %rule.severity,
-                    destination = %destination,
-                    delivery = ?delivery,
-                    "Announced a breaching rule"
-                );
+                Delivery::UnknownDestination
             }
-            announcements.push(Announcement {
-                definition_id: definition.id.clone(),
-                severity: rule.severity.clone(),
-                destination: destination.clone(),
-                message,
-                delivery,
-            });
-        }
+            (Some(_), false) => Delivery::Skipped,
+            (Some(destination), true) => deliver_to(state, destination, &message).await,
+        };
+
+        logger::info!(
+            definition = %transition.definition_id,
+            severity = %transition.severity,
+            from = ?transition.from,
+            to = ?transition.to,
+            delivery = ?delivery,
+            "CloudWatch rule changed state"
+        );
+
+        announcements.push(Announcement {
+            definition_id: transition.definition_id.clone(),
+            severity: transition.severity.clone(),
+            destination: destination.cloned().unwrap_or_default(),
+            message,
+            delivery,
+        });
     }
+
     announcements
 }
-async fn deliver(state: &AppState, destination: &str, message: &str) -> Delivery {
+
+async fn deliver_to(state: &AppState, destination: &str, message: &str) -> Delivery {
     let Some(notifier) = state.chat.get(destination) else {
         return Delivery::UnknownDestination;
     };
+
     match notifier
         .notify(ChatNotification {
             text: Secret::new(message.to_owned()),
@@ -130,89 +146,105 @@ async fn deliver(state: &AppState, destination: &str, message: &str) -> Delivery
         }
     }
 }
+
 /// The message an operator reads.
 ///
 /// The catalogue's `description` is hand-written for exactly this and leads. Everything after it is
-/// what the description cannot say: which stream, what the reading actually was, and what it was
+/// what the description cannot say: which way the rule moved, which stream, and what it was
 /// compared against.
-fn render(definition: &Evaluation, rule: &RuleState, observed: Option<&f64>) -> String {
-    let dimensions = definition
+fn render(transition: &Transition) -> String {
+    let dimensions = transition
         .dimensions
         .iter()
         .map(|(name, value)| format!("{name}={value}"))
         .collect::<Vec<_>>()
         .join(", ");
-    let observed = match observed {
-        Some(value) => format!("{value}"),
-        None => "no reading".to_owned(),
-    };
+
     format!(
-        "[{severity}] {name}\n{description}\n\n{metric} observed {observed} against a threshold of \
+        "[{severity}] {name} {movement}\n{description}\n\n{metric} against a threshold of \
          {threshold} ({dimensions}, {period}s periods)",
-        severity = rule.severity.to_uppercase(),
-        name = definition.name,
-        description = rule.description,
-        metric = definition.metric_name,
-        threshold = rule.threshold,
-        period = definition.period,
+        severity = transition.severity.to_uppercase(),
+        name = transition.name,
+        movement = movement(transition),
+        description = transition.description,
+        metric = transition.metric_name,
+        threshold = transition.threshold,
+        period = transition.period,
     )
 }
+
+fn movement(transition: &Transition) -> String {
+    match transition.from {
+        Some(from) => format!("{} → {}", label(from), label(transition.to)),
+        // The previous evaluation could not be read, so only the destination is known.
+        None => label(transition.to).to_owned(),
+    }
+}
+
+fn label(state: State) -> &'static str {
+    match state {
+        State::Ok => "OK",
+        State::Alarm => "ALARM",
+        State::InsufficientData => "INSUFFICIENT_DATA",
+    }
+}
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::expect_used, clippy::indexing_slicing)]
 mod tests {
     use std::collections::BTreeMap;
 
     use super::*;
-    fn evaluation() -> Evaluation {
-        Evaluation {
-            id: "rds_primary_cpu".to_owned(),
+
+    fn transition(from: Option<State>, to: State) -> Transition {
+        Transition {
+            definition_id: "rds_primary_cpu".to_owned(),
             name: "rds-primary-cpu".to_owned(),
-            classification: "rds-alerts".to_owned(),
             metric_name: "CPUUtilization".to_owned(),
             dimensions: BTreeMap::from([(
                 "DBInstanceIdentifier".to_owned(),
                 "hyperswitchdb-primary".to_owned(),
             )]),
             period: 60,
-            outcome: Outcome::Evaluated {
-                readings: vec![],
-                rules: vec![],
-            },
-        }
-    }
-    fn rule() -> RuleState {
-        RuleState {
             severity: "sev2".to_owned(),
-            state: State::Alarm,
+            from,
+            to,
             threshold: 85.0,
             description: "SEV2: RDS primary database CPU utilization is above 85%.".to_owned(),
         }
     }
+
     #[test]
-    fn a_message_leads_with_the_operators_own_words() {
-        let message = render(&evaluation(), &rule(), Some(&87.25));
+    fn a_message_leads_with_the_operators_own_words_and_says_which_way_it_moved() {
+        let message = render(&transition(Some(State::Ok), State::Alarm));
+
         assert_eq!(
             message,
-            "[SEV2] rds-primary-cpu\n\
+            "[SEV2] rds-primary-cpu OK → ALARM\n\
              SEV2: RDS primary database CPU utilization is above 85%.\n\n\
-             CPUUtilization observed 87.25 against a threshold of 85 \
+             CPUUtilization against a threshold of 85 \
              (DBInstanceIdentifier=hyperswitchdb-primary, 60s periods)"
         );
     }
-    /// A rule can alarm on missing data alone, so there may be no reading to quote.
+
     #[test]
-    fn a_breach_with_no_reading_says_so_rather_than_inventing_a_number() {
-        let message = render(&evaluation(), &rule(), None);
+    fn a_recovery_reads_as_one() {
+        let message = render(&transition(Some(State::Alarm), State::Ok));
+
         assert!(
-            message.contains("observed no reading against a threshold of 85"),
+            message.starts_with("[SEV2] rds-primary-cpu ALARM → OK"),
             "{message}"
         );
     }
-    /// The newest real reading, not the newest slot, which may be a gap.
+
+    /// Nothing is known about where it came from, so the message does not invent a previous state.
     #[test]
-    fn the_quoted_reading_is_the_most_recent_one_that_exists() {
-        let readings = [Some(10.0), Some(87.25), None];
-        let observed = readings.iter().rev().flatten().next();
-        assert_eq!(observed, Some(&87.25));
+    fn an_unknown_previous_state_names_only_where_the_rule_is_now() {
+        let message = render(&transition(None, State::Alarm));
+
+        assert!(
+            message.starts_with("[SEV2] rds-primary-cpu ALARM\n"),
+            "{message}"
+        );
     }
 }
