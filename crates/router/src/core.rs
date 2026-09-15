@@ -46,6 +46,7 @@ pub mod payments;
 #[cfg(feature = "v2")]
 pub mod split_payments;
 
+pub mod hierarchical_resources;
 #[cfg(feature = "payouts")]
 pub mod payout_link;
 #[cfg(feature = "payouts")]
