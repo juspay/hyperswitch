@@ -75,7 +75,8 @@ use crate::{
     utils,
 };
 
-/// Runs a detached tail of the payment: work whose result the payment does not wait on.
+/// Spawns work the payment response does not wait on, keeping the request's trace correlation
+/// under `deja`.
 #[cfg(any(feature = "v1", all(test, feature = "deja")))]
 fn spawn_detached<F>(future: F)
 where
@@ -356,17 +357,21 @@ where
                         || payload.network_transaction_id.is_some()
                         || payload.acknowledgement_status.is_some()
                     {
-                        // The response is discarded and the attempt takes the pm_id either way,
-                        // so the payment does not wait on this call: it runs as a detached tail
-                        // and a failure reaches the logs alone, as it did when awaited here.
                         payment_data.payment_attempt.payment_method_id = Some(pm_id.clone());
+
+                        // An off-session save carries the connector token and NTI that the next
+                        // MIT reads, so it is awaited; any other update is detached.
+                        let is_off_session = matches!(
+                            payment_data.payment_attempt.setup_future_usage_applied,
+                            Some(common_enums::FutureUsage::OffSession)
+                        );
 
                         let state = state.clone();
                         let processor_merchant_id =
                             payment_data.payment_attempt.processor_merchant_id.clone();
                         let profile_id = payment_data.payment_attempt.profile_id.clone();
 
-                        spawn_detached(async move {
+                        let update_payment_method = async move {
                             match call_modular_payment_method_update(
                                 &state,
                                 &processor_merchant_id,
@@ -396,7 +401,13 @@ where
                                     );
                                 }
                             }
-                        });
+                        };
+
+                        if is_off_session {
+                            update_payment_method.await;
+                        } else {
+                            spawn_detached(update_payment_method);
+                        }
                     } else {
                         logger::info!(
                             payment_method_id=%pm_id,
