@@ -10578,12 +10578,6 @@ pub enum ApplePayCombinedMetadata {
     Simplified {
         payment_request_data: PaymentRequestMetadata,
         session_token_data: SessionTokenForSimplifiedApplePay,
-        /// Optional in the request, always populated (defaults to `raw`) in the response
-        #[serde(
-            default,
-            serialize_with = "serialize_payment_processing_detail_input_type"
-        )]
-        payment_processing_detail_input_type: Option<PaymentProcessingDetailInputType>,
     },
     Manual {
         payment_request_data: PaymentRequestMetadata,
@@ -10647,6 +10641,11 @@ pub struct SessionTokenInfo {
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
     #[serde(flatten)]
     pub payment_processing_details_at: Option<PaymentProcessingDetailsAt>,
+    /// Optional in the request, always populated (defaults to `raw`) in the response
+    #[serde(serialize_with = "serialize_payment_processing_detail_input_type")]
+    #[schema(value_type = Option<PaymentProcessingDetailInputType>)]
+    #[smithy(value_type = "Option<PaymentProcessingDetailInputType>")]
+    pub payment_processing_detail_input_type: Option<PaymentProcessingDetailInputType>,
 }
 
 #[derive(
@@ -10682,7 +10681,7 @@ pub struct PaymentProcessingDetails {
     pub payment_processing_certificate_key: Secret<String>,
 }
 
-/// Specifies how the Apple Pay payment processing details are supplied for the simplified flow.
+/// Specifies how the Apple Pay payment processing details are supplied.
 #[derive(
     Debug,
     Clone,
