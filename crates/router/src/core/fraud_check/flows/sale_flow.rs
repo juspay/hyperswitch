@@ -45,6 +45,7 @@ impl ConstructFlowSpecificData<frm_api::Sale, FraudCheckSaleData, FraudCheckResp
         state: &SessionState,
         connector_id: &str,
         processor: &domain::Processor,
+        _business_profile: &domain::Profile,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         _merchant_recipient_data: Option<MerchantRecipientData>,
         header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
