@@ -350,6 +350,9 @@ impl ConnectorData {
                 enums::Connector::Moneris => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Moneris::new())))
                 }
+                enums::Connector::Etisalat => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Etisalat::new())))
+                }
                 enums::Connector::Nexixpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Nexixpay::new())))
                 }
@@ -520,6 +523,7 @@ impl ConnectorData {
                 }
                 enums::Connector::Signifyd
                 | enums::Connector::Riskified
+                | enums::Connector::SanlamPayshield
                 | enums::Connector::Cybersourcedecisionmanager
                 | enums::Connector::Gpayments
                 | enums::Connector::Threedsecureio

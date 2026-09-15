@@ -204,6 +204,7 @@ pub enum FrmConnectors {
     Signifyd,
     Riskified,
     Cybersourcedecisionmanager,
+    SanlamPayshield,
 }
 
 #[derive(
