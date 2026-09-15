@@ -2562,6 +2562,12 @@ impl ForeignFrom<api_models::admin::WebhookDetails>
             webhook_urls.replace_events_in_legacy_url(api_enums::EventClass::Payouts, events);
         }
 
+        if item.payment_created_enabled == Some(true) {
+            webhook_urls.merge_events_into_legacy_url(HashSet::from([
+                api_enums::EventType::PaymentCreated,
+            ]));
+        }
+
         Self {
             webhook_version: item.webhook_version,
             webhook_username: item.webhook_username,
@@ -2635,7 +2641,9 @@ impl ForeignFrom<hyperswitch_domain_models::business_profile::WebhookDetails>
             webhook_username: item.webhook_username,
             webhook_password: item.webhook_password,
             webhook_url,
-            payment_created_enabled: item.payment_created_enabled,
+            payment_created_enabled: Some(
+                legacy_events.contains(&api_enums::EventType::PaymentCreated),
+            ),
             payment_succeeded_enabled: Some(
                 legacy_events.contains(&api_enums::EventType::PaymentSucceeded),
             ),

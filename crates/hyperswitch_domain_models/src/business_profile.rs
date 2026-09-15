@@ -114,6 +114,19 @@ impl WebhookUrls {
         }
     }
 
+    pub fn retain_events_from_legacy_url(
+        &mut self,
+        predicate: impl Fn(&common_enums::EventType) -> bool,
+    ) {
+        if let Some(legacy_webhook) = self
+            .0
+            .iter_mut()
+            .find(|webhook_detail| webhook_detail.is_legacy_url)
+        {
+            legacy_webhook.events.retain(predicate);
+        }
+    }
+
     pub fn get_multiple_webhook_urls(
         legacy_url: Option<Secret<String>>,
         multiple_urls: Option<Vec<storage_types::MultipleWebhookDetail>>,
@@ -190,6 +203,11 @@ impl ForeignFrom<storage_types::WebhookDetails> for WebhookDetails {
                 payout_statuses.iter().filter_map(|s| (*s).into()).collect();
             webhook_urls.merge_events_into_legacy_url(events);
         }
+        if item.payment_created_enabled == Some(true) {
+            webhook_urls.merge_events_into_legacy_url(HashSet::from([
+                common_enums::EventType::PaymentCreated,
+            ]));
+        }
 
         Self {
             webhook_version: item.webhook_version,
@@ -249,6 +267,18 @@ impl WebhookDetails {
                 payout_statuses.iter().filter_map(|s| (*s).into()).collect();
             existing_webhook_urls
                 .replace_events_in_legacy_url(common_enums::EventClass::Payouts, events);
+        }
+
+        if let Some(payment_created) = api_webhook.payment_created_enabled {
+            if payment_created {
+                existing_webhook_urls.merge_events_into_legacy_url(HashSet::from([
+                    common_enums::EventType::PaymentCreated,
+                ]));
+            } else {
+                existing_webhook_urls.retain_events_from_legacy_url(|event| {
+                    *event != common_enums::EventType::PaymentCreated
+                });
+            }
         }
 
         let api_webhook_as_domain = Self {
@@ -330,7 +360,9 @@ impl ForeignFrom<WebhookDetails> for storage_types::WebhookDetails {
             webhook_username: item.webhook_username,
             webhook_password: item.webhook_password,
             webhook_url,
-            payment_created_enabled: item.payment_created_enabled,
+            payment_created_enabled: Some(
+                legacy_events.contains(&common_enums::EventType::PaymentCreated),
+            ),
             payment_succeeded_enabled: Some(
                 legacy_events.contains(&common_enums::EventType::PaymentSucceeded),
             ),

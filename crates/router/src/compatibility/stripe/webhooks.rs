@@ -270,6 +270,7 @@ impl From<DisputeStatus> for StripeDisputeStatus {
 
 fn get_stripe_event_type(event_type: api_models::enums::EventType) -> &'static str {
     match event_type {
+        api_models::enums::EventType::PaymentCreated => "payment_intent.created",
         api_models::enums::EventType::PaymentSucceeded => "payment_intent.succeeded",
         api_models::enums::EventType::PaymentFailed => "payment_intent.payment_failed",
         api_models::enums::EventType::PaymentProcessing

@@ -1887,6 +1887,7 @@ impl EventClass {
     pub fn event_types(self) -> HashSet<EventType> {
         match self {
             Self::Payments => HashSet::from([
+                EventType::PaymentCreated,
                 EventType::PaymentSucceeded,
                 EventType::PaymentFailed,
                 EventType::PaymentProcessing,
@@ -1949,6 +1950,7 @@ impl EventClass {
 #[strum(serialize_all = "snake_case")]
 // Reminder: Whenever an EventType variant is added or removed, make sure to update the `event_types` method in `EventClass`
 pub enum EventType {
+    PaymentCreated,
     /// Authorize + Capture success
     PaymentSucceeded,
     /// Authorize + Capture failed
