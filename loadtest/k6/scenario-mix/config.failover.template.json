@@ -1,0 +1,35 @@
+{
+  "services": {
+    "router": "${ROUTER_URL}",
+    "modular_pm": "${MODULAR_PM_URL}"
+  },
+  "merchant": {
+    "api_key": "${API_KEY}",
+    "publishable_key": "${PUBLISHABLE_KEY}",
+    "profile_id": "${PROFILE_ID}"
+  },
+  "load": {
+    "total_rps": ${FLAT_RPS},
+    "duration_seconds": ${DURATION_SECONDS},
+    "request_timeout_ms": ${REQUEST_TIMEOUT_MS},
+    "think_time_ms": 0,
+    "pre_allocated_vus_multiplier": 3,
+    "max_vus_multiplier": 8
+  },
+  "payment": {
+    "amount": 1000,
+    "currency": "USD",
+    "session_expiry": 900,
+    "card": {
+      "card_number": "4242424242424242",
+      "card_exp_month": "10",
+      "card_exp_year": "35",
+      "card_holder_name": "Load Test",
+      "card_cvc": "123"
+    }
+  },
+  "scenarios": [
+    { "name": "nomod_guest", "merchant_path": "non_modular", "scenario": "guest",           "weight": ${GUEST_WEIGHT} },
+    { "name": "mod_cit_off", "merchant_path": "modular",     "scenario": "cit_off_session", "weight": ${MODULAR_CIT_OFF_WEIGHT} }
+  ]
+}
