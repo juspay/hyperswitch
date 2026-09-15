@@ -1439,6 +1439,68 @@ static BRAINTREE_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 2] =
     [enums::EventClass::Payments, enums::EventClass::Refunds];
 
 impl ConnectorSpecifications for Braintree {
+    /// Braintree-hosted 3D Secure, leg 1 (`tokenizeCreditCard` + `createClientToken`).
+    ///
+    /// Without this override the trait default (`false`) makes `pre_authentication_step` in
+    /// `core/payments/flows/authorize_flow.rs` a no-op, and the UCS `PreAuthenticate`
+    /// implementation for Braintree is unreachable from Hyperswitch.
+    fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
+        match current_flow {
+            api::CurrentFlowInfo::Authorize {
+                auth_type,
+                request_data,
+            } => auth_type.is_three_ds() && request_data.is_card(),
+            // The challenge return is served by PostAuthenticate, not by a second lookup.
+            api::CurrentFlowInfo::CompleteAuthorize { .. }
+            | api::CurrentFlowInfo::SetupMandate { .. }
+            | api::CurrentFlowInfo::Psync { .. }
+            | api::CurrentFlowInfo::UpdatePostConfirm { .. }
+            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
+        }
+    }
+
+    /// Braintree-hosted 3D Secure, leg 2 (`performThreeDSecureLookup`).
+    ///
+    /// Runs inside the same Authorize call as leg 1: a frictionless lookup returns the CAVV/ECI
+    /// straight away and the Authorize continues, a challenge returns the ACS redirect form and
+    /// the Authorize breaks for the shopper.
+    fn is_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
+        match current_flow {
+            api::CurrentFlowInfo::Authorize {
+                auth_type,
+                request_data,
+            } => auth_type.is_three_ds() && request_data.is_card(),
+            api::CurrentFlowInfo::CompleteAuthorize { .. }
+            | api::CurrentFlowInfo::SetupMandate { .. }
+            | api::CurrentFlowInfo::Psync { .. }
+            | api::CurrentFlowInfo::UpdatePostConfirm { .. }
+            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
+        }
+    }
+
+    /// Braintree-hosted 3D Secure, leg 3 (`node(id:)` readback of the payment method).
+    ///
+    /// Braintree has no post-challenge completion mutation: the ACS posts its PaRes to Braintree's
+    /// own `termUrl`, so after the challenge return the authentication is read back off the
+    /// payment method. Only reachable from CompleteAuthorize.
+    fn is_post_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
+        match current_flow {
+            api::CurrentFlowInfo::CompleteAuthorize {
+                auth_type,
+                payment_method,
+                ..
+            } => {
+                auth_type.is_three_ds()
+                    && matches!(payment_method, Some(enums::PaymentMethod::Card))
+            }
+            api::CurrentFlowInfo::Authorize { .. }
+            | api::CurrentFlowInfo::SetupMandate { .. }
+            | api::CurrentFlowInfo::Psync { .. }
+            | api::CurrentFlowInfo::UpdatePostConfirm { .. }
+            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
+        }
+    }
+
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&BRAINTREE_CONNECTOR_INFO)
     }

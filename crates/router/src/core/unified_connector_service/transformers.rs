@@ -748,7 +748,21 @@ impl
                 .map(payments_grpc::PaymentChannel::foreign_try_from)
                 .transpose()?
                 .map(|payment_channel| payment_channel.into()),
-            connector_feature_data: None,
+            // Carry forward the connector-owned state minted by an earlier leg of the same
+            // attempt. `pre_authentication_step` / `authentication_step` copy the leg's
+            // `connector_metadata` — which is the parsed `connector_feature_data` UCS returned —
+            // onto `request.metadata`, and connectors whose Authorize must spend that state read
+            // it back off `connector_feature_data`. Without this the blob is dropped between the
+            // legs and Authorize runs as if no authentication had happened. Mirrors the
+            // CompleteAuthorize request builder.
+            connector_feature_data: router_data
+                .request
+                .metadata
+                .as_ref()
+                .map(serde_json::to_string)
+                .transpose()
+                .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
+                .map(|s| s.into()),
             locale: router_data.request.locale.clone(),
             continue_redirection_url: router_data.request.complete_authorize_url.clone(),
             redirection_response: None,

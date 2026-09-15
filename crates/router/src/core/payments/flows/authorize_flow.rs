@@ -578,6 +578,11 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 },
                 api_models::enums::Connector::Shift4 => true,
                 api_models::enums::Connector::Nuvei => true,
+                // Braintree card + 3DS: PreAuthenticate only mints the single-use payment-method
+                // nonce and the client token; it never redirects (redirection_data is always
+                // None). The decision to challenge belongs to the Authenticate leg below, so
+                // always continue from here.
+                api_models::enums::Connector::Braintree => true,
                 // Paysafe card + 3DS: PreAuthenticate mints the handle. When Paysafe returns no ACS
                 // redirect (frictionless / no challenge), continue straight to the settle Authorize
                 // in this flow; when it returns a redirect, break so the shopper completes the
@@ -726,6 +731,11 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                             && !has_hyperswitch_three_ds_invoke_data
                             && payment_status
                     }
+                    // Braintree card + 3DS: the lookup is frictionless when it comes back with no
+                    // ACS form, and the CAVV/ECI it carries is charged by the Authorize that
+                    // follows. A challenge returns a RedirectForm, so break and let the shopper
+                    // complete it; the settle then runs from CompleteAuthorize.
+                    api_models::enums::Connector::Braintree => redirection_data.is_none(),
                     _ => false,
                 },
                 _ => false,
