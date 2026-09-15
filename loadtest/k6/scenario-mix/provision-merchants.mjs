@@ -57,6 +57,13 @@ const STRIPE_TEST_CONNECTOR = {
   ],
 };
 
+// Router derives a merchant connector's connector_label as
+// `${connector_name}_${business_country}_${business_label}` and enforces
+// uniqueness per (profile_id, connector_label) — this is the label a create
+// against a merchant that already has this connector attached will collide
+// on (see createConnector's recovery path below).
+const CONNECTOR_LABEL = `${STRIPE_TEST_CONNECTOR.connector_name}_${STRIPE_TEST_CONNECTOR.business_country}_${STRIPE_TEST_CONNECTOR.business_label}`;
+
 function fail(message) {
   console.error(`provision-merchants: ${message}`);
   process.exit(1);
@@ -263,19 +270,38 @@ async function createApiKey(merchantId, cfg) {
   return res.json();
 }
 
-// Unlike account create/delete (admin auth), connector create is
+// Unlike account create/delete (admin auth), connector create AND list are
 // merchant-scoped auth (ApiKeyAuthWithMerchantIdFromRouteAllowPlatform —
-// crates/router/src/routes/admin.rs, connector_create) and checks the
-// api-key header against that merchant's own api_keys table entry, not the
-// admin key. Must use the key this merchant's createApiKey() just minted.
+// crates/router/src/routes/admin.rs, connector_create/connector_list) and
+// check the api-key header against that merchant's own api_keys table
+// entry, not the admin key. Must use the key this merchant's createApiKey()
+// just minted.
+async function findExistingConnector(merchantId, apiKey, cfg) {
+  const res = await fetch(`${cfg.router}/account/${merchantId}/connectors`, { headers: merchantHeaders(apiKey) });
+  if (!res.ok) throw new Error(`connector list failed (${res.status}): ${await safeText(res)}`);
+  const list = await res.json();
+  const match = Array.isArray(list) ? list.find((c) => c.connector_label === CONNECTOR_LABEL) : null;
+  if (!match) throw new Error(`connector list has no "${CONNECTOR_LABEL}" entry to recover`);
+  return match;
+}
+
+// A merchant recovered via GET in createOrRecoverAccount (left over from an
+// earlier partial run) may already have this connector attached — Router
+// rejects a second create for the same (profile_id, connector_label) with a
+// 400 rather than upserting. Recover the existing merchant_connector_id
+// instead of failing, same spirit as createOrRecoverAccount above.
 async function createConnector(merchantId, apiKey, cfg) {
   const res = await fetch(`${cfg.router}/account/${merchantId}/connectors`, {
     method: "POST",
     headers: merchantHeaders(apiKey),
     body: JSON.stringify(STRIPE_TEST_CONNECTOR),
   });
-  if (!res.ok) throw new Error(`connector create failed (${res.status}): ${await safeText(res)}`);
-  return res.json();
+  if (res.ok) return res.json();
+  const body = await safeText(res);
+  if (res.status === 400 && body.includes("already exists")) {
+    return findExistingConnector(merchantId, apiKey, cfg);
+  }
+  throw new Error(`connector create failed (${res.status}): ${body}`);
 }
 
 async function deleteAccount(merchantId, cfg) {
