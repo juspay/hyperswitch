@@ -1099,9 +1099,7 @@ pub async fn schedule_dispute_sync_task(
     )?;
 
     if core_utils::should_add_dispute_sync_task_to_pt(state, connector) {
-        let offset_date_time = time::OffsetDateTime::now_utc();
-        let created_from =
-            time::PrimitiveDateTime::new(offset_date_time.date(), offset_date_time.time());
+        let created_from = common_utils::date_time::now();
         let dispute_polling_interval = *business_profile
             .dispute_polling_interval
             .unwrap_or_default()
