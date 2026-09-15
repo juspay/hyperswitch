@@ -9,6 +9,9 @@
 //! configuration can be used to serve requests, so "did we remember to decrypt this?" is answered
 //! by the type checker rather than by review.
 
+pub mod cloudwatch;
+pub mod utils;
+
 use std::{collections::HashMap, path::PathBuf};
 
 use common_utils::{ext_traits::ConfigExt, pii};
@@ -27,7 +30,10 @@ pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use router_env::{env, logger};
 use serde::Deserialize;
 
-use crate::errors;
+use crate::{
+    errors,
+    settings::{cloudwatch::CloudWatchSettings, utils::validate_config_ids},
+};
 
 /// The default configuration file name, looked up inside the config directory.
 const CONFIG_FILE_NAME: &str = "observability.toml";
@@ -62,6 +68,8 @@ pub struct Settings<S: SecretState> {
     pub chat: SecretStateContainer<ChatSettings, S>,
     /// Email destinations this service can deliver to.
     pub email: EmailSettings,
+    /// The infrastructure alarm catalogue this service evaluates.
+    pub cloudwatch: CloudWatchSettings,
 }
 
 const DEFAULT_MAX_UPLOAD_BYTES: usize = 25 * 1024 * 1024;
@@ -150,28 +158,10 @@ pub struct EmailDestination {
     pub to: pii::Email,
 }
 
-/// Ids are addressed by callers and set from the environment, so they must survive both. `config`
-/// lowercases environment keys and splits on `__`; an id that would come back different is
-/// rejected at boot rather than silently failing to match at lookup time.
-fn validate_destination_ids<T>(
-    destinations: &HashMap<String, T>,
-    section: &str,
-) -> Result<(), errors::ConfigurationError> {
-    for id in destinations.keys() {
-        if id.is_empty() || id.contains("__") || id != &id.to_lowercase() {
-            Err(errors::ConfigurationError::ConfigParsingError(format!(
-                "{section} destination id `{id}` must be lowercase, non-empty and free of `__`, \
-                 so that it can be set from the environment"
-            )))?
-        }
-    }
-    Ok(())
-}
-
 impl ChatSettings {
     /// Reject destination ids that cannot be set from the environment.
     pub fn validate(&self) -> Result<(), errors::ConfigurationError> {
-        validate_destination_ids(&self.destinations, "chat")?;
+        validate_config_ids(&self.destinations, "chat destination")?;
         common_utils::fp_utils::when(self.max_upload_bytes == 0, || {
             Err(errors::ConfigurationError::ConfigParsingError(
                 "chat max_upload_bytes must be greater than zero".into(),
@@ -189,7 +179,7 @@ impl EmailSettings {
     /// nothing to misconfigure, and demanding a verified SES sender before anyone has asked for an
     /// email would make the service undeployable for no gain.
     pub fn validate(&self) -> Result<(), errors::ConfigurationError> {
-        validate_destination_ids(&self.destinations, "email")?;
+        validate_config_ids(&self.destinations, "email destination")?;
 
         if self.destinations.is_empty() {
             return Ok(());
@@ -349,6 +339,7 @@ impl Settings<SecuredSecret> {
         self.auth.get_inner().validate()?;
         self.chat.get_inner().validate()?;
         self.email.validate()?;
+        self.cloudwatch.validate()?;
         self.secrets_management
             .validate()
             .map_err(|error| errors::ConfigurationError::ConfigParsingError(error.into()))?;
