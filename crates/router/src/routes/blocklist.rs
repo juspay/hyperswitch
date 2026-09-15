@@ -188,6 +188,116 @@ pub async fn list_blocked_payment_methods(
 }
 
 #[utoipa::path(
+    get,
+    path = "/blocklist/count",
+    params (
+        ("data_kind" = BlocklistDataKind, Query, description = "Kind of blocklist entries to count"),
+        ("X-Profile-Id" = Option<String>, Header, description = "Restricts the count to entries \
+         belonging to this business profile, plus entries with no profile. If omitted, the \
+         merchant's default profile is used; merchants with more than one profile have no default \
+         and will receive an error asking for this header."),
+    ),
+    responses(
+        (status = 200, description = "Blocklist entry counts", body = BlocklistCountResponse),
+        (status = 400, description = "Invalid Data, or no profile could be resolved")
+    ),
+    tag = "Blocklist",
+    operation_id = "Count blocked fingerprints of a particular kind",
+    security(("api_key" = []))
+)]
+pub async fn get_blocklist_count(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query_payload: web::Query<api_blocklist::BlocklistCountQuery>,
+) -> HttpResponse {
+    let flow = Flow::GetBlocklistCount;
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        query_payload.into_inner(),
+        |state, auth: auth::AuthenticationData, query, _| {
+            let profile_id = auth.profile.map(|profile| profile.get_id().clone());
+            blocklist::get_blocklist_count(
+                state,
+                auth.platform.get_processor().clone(),
+                profile_id,
+                query,
+            )
+        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                allow_connected_scope_operation: true,
+                allow_platform_self_operation: false,
+            }),
+            &auth::JWTAuth {
+                permission: Permission::MerchantAccountRead,
+                allow_connected: true,
+                allow_platform: false,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[utoipa::path(
+    get,
+    path = "/blocklist/lookup",
+    params (
+        ("data" = String, Query, description = "The raw value to check against the blocklist, e.g. a card BIN"),
+        ("X-Profile-Id" = Option<String>, Header, description = "Restricts the lookup to entries \
+         belonging to this business profile, plus entries with no profile. If omitted, the \
+         merchant's default profile is used; merchants with more than one profile have no default \
+         and will receive an error asking for this header."),
+    ),
+    responses(
+        (status = 200, description = "Blocklist lookup result", body = BlocklistLookupResponse),
+        (status = 400, description = "Invalid Data, or no profile could be resolved")
+    ),
+    tag = "Blocklist",
+    operation_id = "Look up whether a value is blocked",
+    security(("api_key" = []))
+)]
+pub async fn lookup_blocklist_entry(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query_payload: web::Query<api_blocklist::BlocklistLookupQuery>,
+) -> HttpResponse {
+    let flow = Flow::LookupBlocklistEntry;
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        query_payload.into_inner(),
+        |state, auth: auth::AuthenticationData, query, _| {
+            let profile_id = auth.profile.map(|profile| profile.get_id().clone());
+            blocklist::lookup_blocklist_entry(
+                state,
+                auth.platform.get_processor().clone(),
+                profile_id,
+                query,
+            )
+        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                allow_connected_scope_operation: true,
+                allow_platform_self_operation: false,
+            }),
+            &auth::JWTAuth {
+                permission: Permission::MerchantAccountRead,
+                allow_connected: true,
+                allow_platform: false,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[utoipa::path(
     post,
     path = "/blocklist/toggle",
     params (
@@ -274,6 +384,7 @@ pub async fn upload_batch_blocklist(
 ) -> HttpResponse {
     let flow = Flow::BatchBlocklistUpload;
     let csv_bytes = bytes::Bytes::from(form.file.data.to_vec());
+    let file_name = form.file.file_name.clone();
 
     Box::pin(api::server_wrap(
         flow,
@@ -282,9 +393,17 @@ pub async fn upload_batch_blocklist(
         (),
         |state, auth: auth::AuthenticationData, _payload, _| {
             let csv_bytes = csv_bytes.clone();
+            let file_name = file_name.clone();
             let profile_id = auth.profile.map(|profile| profile.get_id().clone());
             async move {
-                blocklist::upload_batch_blocklist(state, auth.platform, profile_id, csv_bytes).await
+                blocklist::upload_batch_blocklist(
+                    state,
+                    auth.platform,
+                    profile_id,
+                    csv_bytes,
+                    file_name,
+                )
+                .await
             }
         },
         auth::auth_type(
@@ -331,7 +450,8 @@ pub async fn get_batch_blocklist_job_status(
         &req,
         job_id,
         |state, auth: auth::AuthenticationData, job_id, _| {
-            blocklist::get_batch_blocklist_job_status(state, auth.platform, job_id)
+            let profile_id = auth.profile.map(|profile| profile.get_id().clone());
+            blocklist::get_batch_blocklist_job_status(state, auth.platform, profile_id, job_id)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -356,6 +476,11 @@ pub async fn get_batch_blocklist_job_status(
     params(
         ("limit" = Option<u32>, Query, description = "Maximum number of jobs to return (default 10)"),
         ("offset" = Option<u32>, Query, description = "Zero-based offset for pagination (default 0)"),
+        ("job_type" = Option<BatchBlocklistJobType>, Query, description = "Restricts the listing to \
+         `upload` or `export` jobs. Both kinds are returned when omitted, newest first."),
+        ("X-Profile-Id" = Option<String>, Header, description = "Restricts the listing to jobs run \
+         for this business profile, plus jobs that predate profile scoping. When no profile can be \
+         resolved, all of the merchant's jobs are returned, as before."),
     ),
     responses(
         (status = 200, description = "List of batch blocklist jobs", body = ListBatchBlocklistJobsResponse),
@@ -376,7 +501,8 @@ pub async fn list_batch_blocklist_jobs(
         &req,
         query_payload.into_inner(),
         |state, auth: auth::AuthenticationData, query, _| {
-            blocklist::list_batch_blocklist_jobs(state, auth.platform, query)
+            let profile_id = auth.profile.map(|profile| profile.get_id().clone());
+            blocklist::list_batch_blocklist_jobs(state, auth.platform, profile_id, query)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -385,6 +511,51 @@ pub async fn list_batch_blocklist_jobs(
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantAccountRead,
+                allow_connected: true,
+                allow_platform: false,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+// ---- Blocklist CSV export route handlers ----
+
+#[utoipa::path(
+    post,
+    path = "/blocklist/export",
+    params (
+        ("X-Profile-Id" = Option<String>, Header, description = "The business profile whose \
+         blocklist is exported. Resolution follows the same rules as blocking a single entry."),
+    ),
+    responses(
+        (status = 202, description = "Blocklist export started", body = BlocklistExportResponse),
+        (status = 400, description = "No profile could be resolved"),
+    ),
+    tag = "Blocklist",
+    operation_id = "Start a blocklist CSV export",
+    security(("api_key" = []))
+)]
+pub async fn create_blocklist_export(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
+    let flow = Flow::CreateBlocklistExport;
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        |state, auth: auth::AuthenticationData, _payload, _| {
+            let profile_id = auth.profile.map(|profile| profile.get_id().clone());
+            blocklist::create_blocklist_export(state, auth.platform, profile_id)
+        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                allow_connected_scope_operation: true,
+                allow_platform_self_operation: false,
+            }),
+            &auth::JWTAuth {
+                permission: Permission::MerchantAccountWrite,
                 allow_connected: true,
                 allow_platform: false,
             },

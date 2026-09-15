@@ -255,7 +255,7 @@ impl WebhookPayload {
             &merchant_surcharge_connector.connector_name,
         )
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "connector",
+            field_name: "connector".into(),
         })?;
 
         Ok(payment_attempt

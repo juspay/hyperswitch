@@ -79,7 +79,7 @@ pub async fn refund_create_core(
 
     utils::when(amount <= common_utils_types::MinorUnit::new(0), || {
         Err(report!(errors::ApiErrorResponse::InvalidDataFormat {
-            field_name: "amount".to_string(),
+            field_name: "amount".into(),
             expected_format: "positive integer".to_string()
         })
         .attach_printable("amount less than or equal to zero"))
@@ -769,7 +769,7 @@ pub async fn refund_retrieve_core(
                 Some(details) => details,
                 None => {
                     return Err(report!(errors::ApiErrorResponse::MissingRequiredField {
-                        field_name: "merchant_connector_details"
+                        field_name: "merchant_connector_details".into()
                     }));
                 }
             };
@@ -1166,7 +1166,7 @@ pub async fn validate_and_create_refund(
 
     utils::when(predicate.unwrap_or(false), || {
         Err(report!(errors::ApiErrorResponse::InvalidDataFormat {
-            field_name: "merchant_id".to_string(),
+            field_name: "merchant_id".into(),
             expected_format: "merchant_id from merchant account".to_string()
         })
         .attach_printable("invalid merchant_id in request"))
@@ -1193,7 +1193,7 @@ pub async fn validate_and_create_refund(
         state.conf.refund.max_age,
     )
     .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-        field_name: "created_at".to_string(),
+        field_name: "created_at".into(),
         expected_format: format!(
             "created_at not older than {} days",
             state.conf.refund.max_age,
@@ -1335,7 +1335,7 @@ impl ForeignTryFrom<diesel_refund::Refund> for api::RefundResponse {
         let connector = Connector::from_str(&connector_name)
             .change_context(errors::ConnectorError::InvalidConnectorName)
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "connector",
+                field_name: "connector".into(),
             })
             .attach_printable_lazy(|| {
                 format!("unable to parse connector name {connector_name:?}")
@@ -1416,7 +1416,7 @@ pub async fn schedule_refund_execution(
                                             None => {
                                                 return Err(report!(
                                             errors::ApiErrorResponse::MissingRequiredField {
-                                                field_name: "merchant_connector_details"
+                                                field_name: "merchant_connector_details".into()
                                             }
                                         ));
                                             }

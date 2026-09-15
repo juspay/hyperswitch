@@ -95,7 +95,7 @@ impl ValidateStatusForOperation for PaymentAttemptRecord {
             | common_enums::IntentStatus::Review => {
                 Err(errors::ApiErrorResponse::PaymentUnexpectedState {
                     current_flow: format!("{self:?}"),
-                    field_name: "status".to_string(),
+                    field_name: "status".into(),
                     current_value: intent_status.to_string(),
                     states: [
                         common_enums::IntentStatus::RequiresPaymentMethod,
@@ -202,6 +202,7 @@ impl<F: Send + Clone + Sync>
             connector_customer_id: request.connector_customer_id.clone(),
             retry_count: request.retry_count,
             invoice_next_billing_time: request.invoice_next_billing_time,
+            invoice_billing_started_at_time: request.invoice_billing_started_at_time,
             triggered_by: request.triggered_by,
             card_network: request.card_network.clone(),
             card_issuer: request.card_issuer.clone(),

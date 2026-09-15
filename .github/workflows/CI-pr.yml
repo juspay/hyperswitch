@@ -46,7 +46,7 @@ jobs:
 
       - name: Checkout repository with token
         if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.ref }}
@@ -54,7 +54,7 @@ jobs:
 
       - name: Checkout repository for fork
         if: ${{ github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name }}
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
@@ -87,8 +87,6 @@ jobs:
     if: ${{ ! startsWith(github.event.pull_request.base.ref, 'hotfix-') }}
 
     env:
-      # Use `sccache` for caching compilation artifacts
-      # RUSTC_WRAPPER: sccache
       RUSTFLAGS: "-D warnings"
 
     strategy:
@@ -96,11 +94,10 @@ jobs:
       matrix:
         runner:
           - ubuntu-latest
-          - hyperswitch-runners
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Install mold linker
         uses: rui314/setup-mold@v1
@@ -135,19 +132,12 @@ jobs:
 
   test:
     name: Run tests on stable toolchain
-    runs-on: ${{ matrix.runner }}
+    runs-on: hyperswitch-runners
 
     env:
       # Use `sccache` for caching compilation artifacts
-      # RUSTC_WRAPPER: sccache
+      RUSTC_WRAPPER: sccache
       RUSTFLAGS: "-D warnings"
-
-    strategy:
-      fail-fast: false
-      matrix:
-        runner:
-          - ubuntu-latest
-          - hyperswitch-runners
 
     steps:
       - name: Generate a token
@@ -160,11 +150,11 @@ jobs:
 
       - name: Checkout repository for fork
         if: ${{ (github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name) }}
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Checkout repository with token
         if: ${{ (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name) }}
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.ref }}
@@ -187,10 +177,11 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install rust cache
-        uses: Swatinem/rust-cache@v2.9.1
+      - name: Install sccache
+        uses: taiki-e/install-action@v2
         with:
-          save-if: false
+          tool: sccache
+          checksum: true
 
       - name: Install just
         uses: taiki-e/install-action@v2
@@ -231,7 +222,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Spell check
         uses: crate-ci/typos@master
@@ -241,7 +232,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Spell check specific directories
         uses: crate-ci/typos@v1.48.0
@@ -260,11 +251,15 @@ jobs:
 
   check-v2:
     name: Check compilation for V2 features
-    runs-on: ubuntu-latest
+    runs-on: hyperswitch-runners
+
+    env:
+      # Use `sccache` for caching compilation artifacts
+      RUSTC_WRAPPER: sccache
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Install mold linker
         uses: rui314/setup-mold@v1
@@ -283,10 +278,11 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install rust cache
-        uses: Swatinem/rust-cache@v2.9.1
+      - name: Install sccache
+        uses: taiki-e/install-action@v2
         with:
-          save-if: false
+          tool: sccache
+          checksum: true
 
       - name: Install just
         uses: taiki-e/install-action@v2
