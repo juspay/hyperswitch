@@ -12,13 +12,13 @@ pub mod client_session;
 #[cfg(feature = "retry")]
 pub mod retry;
 pub mod routing;
+#[cfg(feature = "v1")]
+pub mod server_integration;
 #[cfg(feature = "v2")]
 pub mod session_operation;
 pub mod tokenization;
 pub mod transformers;
 pub mod types;
-#[cfg(feature = "v1")]
-pub mod update_context;
 pub mod vault_session;
 #[cfg(feature = "olap")]
 use std::collections::HashMap;
