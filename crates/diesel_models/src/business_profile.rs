@@ -649,6 +649,7 @@ pub struct PaymentLinkConfigRequest {
     pub color_icon_card_cvc_error: Option<String>,
     pub show_merchant_name: Option<bool>,
     pub payment_methods_separator_text: Option<String>,
+    pub redirect_delay_seconds: Option<u32>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq)]
