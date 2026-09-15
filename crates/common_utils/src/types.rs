@@ -1539,7 +1539,8 @@ pub struct PublishableKey(LengthString<PUBLISHABLE_KEY_LENGTH, PUBLISHABLE_KEY_L
 impl PublishableKey {
     /// Create a new PublishableKey Domain type without any length check from a static str
     pub fn generate(env_prefix: &'static str) -> Self {
-        let publishable_key_string = format!("pk_{env_prefix}_{}", uuid::Uuid::now_v7().simple());
+        let publishable_key_string =
+            format!("pk_{env_prefix}_{}", crate::generate_uuid_v7().simple());
         Self(LengthString::new_unchecked(publishable_key_string))
     }
 
