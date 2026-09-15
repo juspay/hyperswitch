@@ -12,7 +12,7 @@
 use api_models::payment_methods::{
     ClientPaymentMethodsListResponse, CustomerPaymentMethod, CustomerPaymentMethodDataForClient,
     CustomerPaymentMethodForClient, MaskedBankDetails, PaymentMethodListIntentDataInput,
-    PaymentMethodSubtypeSpecificDataForClient, ResponsePaymentMethodsEnabledForClient,
+    ResponsePaymentMethodsEnabledForClient,
 };
 use common_utils::{consts, ext_traits::AsyncExt, generate_id, id_type};
 use error_stack::ResultExt;
@@ -714,76 +714,51 @@ async fn fetch_customer_payment_methods(
 // list_payment_methods_client  — top-level orchestrator
 // ---------------------------------------------------------------------------
 
-/// Orders the enabled payment methods, and the lists inside them, deterministically.
-///
-/// They are consolidated through `HashMap`s, whose iteration order differs run to run, so two
-/// builds of one unchanged configuration would otherwise return the same entries in a different
-/// order — and a caller comparing the response across calls for a payment would see them differ.
-fn sort_enabled_payment_methods(payment_methods: &mut [ResponsePaymentMethodsEnabledForClient]) {
-    payment_methods.sort_by_key(|payment_method| {
-        (
-            payment_method.payment_method.to_string(),
-            payment_method.payment_method_type.to_string(),
-        )
-    });
+#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsList))]
+pub async fn list_payment_methods_client(
+    state: routes::SessionState,
+    platform: domain::Platform,
+    payment_id: id_type::PaymentId,
+    client_secret: Option<String>,
+) -> errors::RouterResponse<ClientPaymentMethodsListResponse> {
+    // 1. Load payment intent + related context
+    let payment_intent_context =
+        load_payment_intent_context(&state, &platform, &payment_id).await?;
 
-    payment_methods.iter_mut().for_each(|payment_method| {
-        payment_method
-            .payment_experience
-            .iter_mut()
-            .for_each(|experiences| experiences.sort_by_key(|experience| experience.to_string()));
+    if let Some(client_secret) = client_secret.as_ref() {
+        helpers::authenticate_client_secret(
+            Some(client_secret),
+            &payment_intent_context.payment_intent,
+        )?;
+    }
 
-        match payment_method.data.as_mut() {
-            Some(PaymentMethodSubtypeSpecificDataForClient::Card { card_networks }) => {
-                card_networks.sort_by_key(|card_network| card_network.to_string())
-            }
-            Some(PaymentMethodSubtypeSpecificDataForClient::Bank { bank_names }) => {
-                bank_names.sort_by_key(|bank_name| bank_name.to_string())
-            }
-            None => (),
-        }
-    });
-}
-
-/// Builds the combined list for the payment: enabled methods, the customer's saved methods
-/// (filtered to the enabled ones and past the blocklist) and the intent data.
-///
-/// Everything here is read fresh on every call, so a connector switched off, a saved method
-/// deleted or a payment method disabled shows up immediately. Only the payment tokens are held
-/// steady, by [`pinned_payment_token`].
-async fn build_client_payment_methods_list(
-    state: &routes::SessionState,
-    platform: &domain::Platform,
-    payment_intent_context: &PaymentIntentContext,
-) -> errors::RouterResult<ClientPaymentMethodsListResponse> {
-    // 1. Fetch enabled payment methods (Gate 1 + Gate 2 + consolidation)
+    // 2. Fetch enabled payment methods (Gate 1 + Gate 2 + consolidation)
     let EnabledPmsResult {
-        mut payment_methods_enabled,
+        payment_methods_enabled,
         sdk_next_action,
         connector_supports_installments,
-    } = fetch_enabled_payment_methods(state, platform, payment_intent_context).await?;
-    sort_enabled_payment_methods(&mut payment_methods_enabled);
+    } = fetch_enabled_payment_methods(&state, &platform, &payment_intent_context).await?;
 
-    // 2. Fetch saved customer payment methods
+    // 3. Fetch saved customer payment methods
     let customer_payment_methods =
-        fetch_customer_payment_methods(state, platform, payment_intent_context).await?;
+        fetch_customer_payment_methods(&state, &platform, &payment_intent_context).await?;
 
-    // 3. Filter customer PMs to only those whose (payment_method, payment_method_type)
+    // 4. Filter customer PMs to only those whose (payment_method, payment_method_type)
     //    combination is present in the merchant-enabled list.
     let customer_payment_methods_filtered =
         filter_customer_pms_by_enabled(customer_payment_methods, &payment_methods_enabled);
 
-    // 4. Drop saved cards whose BIN is blocklisted for this merchant/profile (no-op unless
+    // 5. Drop saved cards whose BIN is blocklisted for this merchant/profile (no-op unless
     //    the merchant has the blocklist guard enabled).
     let customer_payment_methods_filtered = filter_customer_pms_by_blocklist(
-        state,
-        platform,
+        &state,
+        &platform,
         payment_intent_context.business_profile.get_id(),
         customer_payment_methods_filtered,
     )
     .await;
 
-    // 5. Build intent_data
+    // 6. Build intent_data
     let net_amount = payment_intent_context
         .payment_attempt
         .net_amount
@@ -823,34 +798,12 @@ async fn build_client_payment_methods_list(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to build intent_data")?;
 
-    Ok(ClientPaymentMethodsListResponse {
-        payment_methods_enabled,
-        customer_payment_methods: customer_payment_methods_filtered,
-        sdk_next_action,
-        intent_data,
-    })
-}
-
-#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsList))]
-pub async fn list_payment_methods_client(
-    state: routes::SessionState,
-    platform: domain::Platform,
-    payment_id: id_type::PaymentId,
-    client_secret: Option<String>,
-) -> errors::RouterResponse<ClientPaymentMethodsListResponse> {
-    // Load payment intent + related context
-    let payment_intent_context =
-        load_payment_intent_context(&state, &platform, &payment_id).await?;
-
-    if let Some(client_secret) = client_secret.as_ref() {
-        helpers::authenticate_client_secret(
-            Some(client_secret),
-            &payment_intent_context.payment_intent,
-        )?;
-    }
-
-    let response =
-        build_client_payment_methods_list(&state, &platform, &payment_intent_context).await?;
-
-    Ok(services::ApplicationResponse::Json(response))
+    Ok(services::ApplicationResponse::Json(
+        ClientPaymentMethodsListResponse {
+            payment_methods_enabled,
+            customer_payment_methods: customer_payment_methods_filtered,
+            sdk_next_action,
+            intent_data,
+        },
+    ))
 }
