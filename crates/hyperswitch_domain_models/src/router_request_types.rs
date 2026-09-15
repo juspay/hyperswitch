@@ -708,6 +708,11 @@ pub struct CreateOrderRequestData {
     pub router_return_url: Option<String>,
     pub setup_mandate_details: Option<mandates::MandateData>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
+    /// Customer of the payment the order is created for. Must match the `customer_id` of the
+    /// request that consumes the order (Authorize / SetupMandate).
+    pub customer_id: Option<id_type::CustomerId>,
+    /// Store-for-later intent of the payment the order is created for.
+    pub setup_future_usage: Option<storage_enums::FutureUsage>,
 }
 
 impl CreateOrderRequestData {
@@ -737,6 +742,8 @@ impl TryFrom<PaymentsAuthorizeData> for CreateOrderRequestData {
             router_return_url: data.router_return_url,
             setup_mandate_details: data.setup_mandate_details,
             capture_method: data.capture_method,
+            customer_id: data.customer_id,
+            setup_future_usage: data.setup_future_usage,
         })
     }
 }
@@ -755,6 +762,8 @@ impl TryFrom<SetupMandateRequestData> for CreateOrderRequestData {
             router_return_url: data.router_return_url,
             setup_mandate_details: data.setup_mandate_details,
             capture_method: data.capture_method,
+            customer_id: data.customer_id,
+            setup_future_usage: data.setup_future_usage,
         })
     }
 }
@@ -773,6 +782,8 @@ impl TryFrom<ExternalVaultProxyPaymentsData> for CreateOrderRequestData {
             router_return_url: data.router_return_url,
             setup_mandate_details: data.setup_mandate_details,
             capture_method: data.capture_method,
+            customer_id: data.customer_id,
+            setup_future_usage: data.setup_future_usage,
         })
     }
 }

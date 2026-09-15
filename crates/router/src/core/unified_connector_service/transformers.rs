@@ -1101,6 +1101,32 @@ impl
                 .transpose()?
                 .map(|payment_method_type| payment_method_type.into()),
             order_details: build_ucs_order_details(router_data.request.order_details.as_deref()),
+            // `customer.id` comes from the same `request.customer_id` the Authorize and
+            // SetupRecurring builders use, so the order and the call consuming it carry the
+            // same customer.
+            customer: router_data
+                .request
+                .customer_id
+                .as_ref()
+                .map(|id| payments_grpc::Customer {
+                    first_name: None,
+                    last_name: None,
+                    salutation: None,
+                    name: None,
+                    email: None,
+                    id: Some(id.get_string_repr().to_string()),
+                    connector_customer_id: router_data.connector_customer.clone(),
+                    phone_number: None,
+                    phone_country_code: None,
+                    customer_document_details: None,
+                    date_of_birth: None,
+                }),
+            setup_future_usage: router_data
+                .request
+                .setup_future_usage
+                .map(payments_grpc::FutureUsage::foreign_try_from)
+                .transpose()?
+                .map(|setup_future_usage| setup_future_usage.into()),
         })
     }
 }

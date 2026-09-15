@@ -35,7 +35,8 @@ time = "0.3.41"
 tonic = "0.14"
 url = { version = "2.5.4", features = ["serde"] }
 
-unified-connector-service-client = { git = "https://github.com/juspay/connector-service", tag = "2026.09.08.0", package = "rust-grpc-client" }
+# TODO: bump to a UCS release tag containing juspay/hyperswitch-prism#2295 before merge
+unified-connector-service-client = { git = "https://github.com/juspay/connector-service", rev = "87e7260ec31254164d0f138b1697551da99b4c2d", package = "rust-grpc-client" }
 tokio = { version = "1.45.1", features = ["macros", "rt-multi-thread"] }
 
 # First party crates
