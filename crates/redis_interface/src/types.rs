@@ -8,6 +8,7 @@
 //! because Rust does not allow splitting a struct definition across files.
 
 use common_utils::errors::CustomResult;
+use hyperswitch_masking::{PeekInterface, Secret};
 
 use crate::errors;
 
@@ -35,7 +36,7 @@ pub struct RedisSettings {
     pub username: Option<String>,
     /// Password for Redis `AUTH` / ACL authentication.
     /// When unset, the connection handshake is unauthenticated.
-    pub password: Option<hyperswitch_masking::Secret<String>>,
+    pub password: Option<Secret<String>>,
     pub cluster_enabled: bool,
     pub cluster_urls: Vec<String>,
     pub use_legacy_version: bool,
@@ -78,8 +79,6 @@ impl RedisSettings {
 
     /// The configured password, treating an empty value as unset.
     pub(crate) fn auth_password(&self) -> Option<&str> {
-        use hyperswitch_masking::PeekInterface;
-
         self.password
             .as_ref()
             .map(|password| password.peek().as_str())
