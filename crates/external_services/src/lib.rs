@@ -22,6 +22,8 @@ pub mod http_client;
 /// hubspot_proxy module
 pub mod hubspot_proxy;
 pub mod managers;
+/// Reading metric datapoints from a monitoring provider
+pub mod metrics_service;
 pub mod no_encryption;
 #[cfg(feature = "superposition")]
 pub mod superposition;
