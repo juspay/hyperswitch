@@ -90,6 +90,16 @@ const SCENARIOS = {
   // Mirrors cypress-tests' create-pm-id-mit.json / MandatesUsingPMID flow.
   // Non-modular only (router recurring-payments API).
   mit: { requiresCustomer: true, requiresSavedCard: true, setupFutureUsage: null, storageType: "persistent", nonModularOnly: true, mitFlow: true },
+  // Returning-customer checkout: a baseline step first saves a card via a
+  // CIT confirm (off_session, like cit_metadata_changed/mit), then the
+  // measured request lists the customer's saved payment methods
+  // (GET /customers/{customer_id}/payment_methods) to obtain a payment_token
+  // and confirms a fresh payment intent with that token — no card data on
+  // the wire for the measured request. Mirrors cypress-tests'
+  // 14-SaveCardFlow.cy.js (listCustomerPMCallTest + saveCardConfirmCallTest).
+  // Non-modular only: the payment-method-list/token-confirm endpoints are
+  // router (v1) APIs.
+  saved_card_checkout: { requiresCustomer: true, requiresSavedCard: true, savedCardCheckout: true, setupFutureUsage: null, storageType: "persistent", nonModularOnly: true },
 };
 
 // Payment statuses considered a successful measured confirm (workload.js).
@@ -223,19 +233,25 @@ const merchantPoolConfig = config.merchant_pool || null;
 
 if (!services.router) fail("services.router is required");
 const routerUrl = services.router.replace(/\/$/, "");
-// modular_pm is only needed when an enabled scenario actually uses the
-// payment-method-session flow (merchant_path: "modular"). Scenarios that
-// merely require a customer on the non_modular path create it implicitly
-// instead (customer_id on the v1 payment create — see Step 1 in runFlow)
-// rather than through the payment-method service, so they don't need it.
-const needsModularPm = enabledPlans.some((plan) => plan.usesPmService);
+// Customers are created through the payment-method service even for
+// non-modular scenarios, matching the runner's fixture stage. Known
+// tradeoff (explicit choice, 2026-09-15): a customer created this way is
+// v2-native, and a card saved for it via a non-modular (v1) CIT confirm
+// only becomes usable for MIT through Router's async
+// PaymentMethodModularForwardCompatWorkflow process-tracker job
+// (crates/router/src/core/payment_methods.rs:704-724) — there's no inline
+// path for this direction. Running mit immediately after its baseline
+// confirm can race that job and intermittently fail with IR_39 ("no
+// eligible connector found for token-based MIT payment"); accepted as a
+// known limitation rather than adding retry/delay logic here.
+const needsModularPm = enabledPlans.some((plan) => plan.usesPmService || plan.requiresCustomer);
 // The modular path needs it for payment-method-session confirm auth; sdk_checkout
 // needs it to build the SDK Authorization header (see sdkAuthorizationHeader()).
 const needsPublishableKey = enabledPlans.some((plan) => plan.usesPmService || plan.sdkFlow);
 let modularPmUrl = null;
 if (needsModularPm) {
   if (!services.modular_pm) {
-    fail("services.modular_pm is required: an enabled scenario uses the modular merchant path");
+    fail("services.modular_pm is required: an enabled scenario uses the modular path or creates customers through the payment-method service");
   }
   modularPmUrl = services.modular_pm.replace(/\/$/, "");
 }
@@ -393,12 +409,10 @@ const globalPaymentConfirm = new Trend("payment_confirm_latency_ms", true);
 
 function stepNames(plan) {
   const steps = [];
-  // Non-modular scenarios create the customer implicitly (no separate call
-  // to time) — only the modular path's payment-method-session flow needs a
-  // pre-existing customer record, so only it gets its own step/trend.
-  if (plan.requiresCustomer && plan.usesPmService) steps.push("customer_create");
+  if (plan.requiresCustomer) steps.push("customer_create");
   if (plan.usesPmService) steps.push("pm_session_create");
   if (plan.requiresSavedCard) steps.push("baseline_create", "baseline_confirm");
+  if (plan.savedCardCheckout) steps.push("list_payment_methods");
   // mit's measured request is a single POST /payments with confirm:true —
   // there is no separate payment_create call to time.
   if (!plan.mitFlow) steps.push("payment_create");
@@ -627,45 +641,34 @@ function runFlow(merchant, plan, phaseInfo, startedAt) {
   const card = pickCard(iteration);
 
   // Step 1: customer (CIT and saved-card scenarios only; guests skip this).
+  // Always through the payment-method service, regardless of merchant_path
+  // — explicit choice (2026-09-15) accepting that mit/cit_metadata_changed's
+  // baseline card save (v1 confirm) then relies on Router's async
+  // PaymentMethodModularForwardCompatWorkflow process-tracker job to make
+  // the card usable for the measured MIT/recurring confirm; no inline path
+  // exists for that sync, so running the measured request immediately after
+  // the baseline can race it and intermittently return IR_39.
   let customerId = null;
   if (plan.requiresCustomer) {
     const reference = `customer_mix_${plan.name}_${iteration}_${__VU}_${Date.now()}`;
-    if (plan.usesPmService) {
-      // Modular merchant path: the payment-method-session flow needs a
-      // real, pre-existing modular customer record before it can create a
-      // session against it — there's no "implicit create" equivalent here.
-      const response = post(
-        `${modularPmUrl}/customers`,
-        {
-          merchant_reference_id: reference,
-          name: "Loadtest User",
-          phone: "6168205362",
-          email: `${reference}@example.com`,
-          phone_country_code: "+1",
-        },
-        modularApiKeyHeaders(merchant),
-        "customer_create",
-      );
-      plan.trends.customer_create.add(response.timings.duration);
-      const body = json(response);
-      customerId = body.id || body.customer_id;
-      if (response.status < 200 || response.status >= 300 || !customerId) {
-        failIteration(merchant, plan, startedAt, `customer_create_${statusCode(response)}`, phaseInfo, response);
-        return;
-      }
-    } else {
-      // Non-modular path: no separate call. Router creates the customer
-      // implicitly the first time this ID appears on a v1 payment create
-      // (payment_create.rs's create_customer_if_not_exist, for Standard-type
-      // merchant accounts), keeping it v1-native throughout. This matters
-      // for mit and cit_metadata_changed specifically: a customer created
-      // via the modular service produces a v2-native payment method whose
-      // connector_mandate_details a v1 confirm's mandate capture doesn't
-      // reach, which showed up as IR_39 "no eligible connector" on mit's
-      // measured confirm in a live log trace (2026-09-15) — see
-      // postman/mit-scenario.postman_collection.json's request 1 for the
-      // same fix with full source citations.
-      customerId = reference;
+    const response = post(
+      `${modularPmUrl}/customers`,
+      {
+        merchant_reference_id: reference,
+        name: "Loadtest User",
+        phone: "6168205362",
+        email: `${reference}@example.com`,
+        phone_country_code: "+1",
+      },
+      modularApiKeyHeaders(merchant),
+      "customer_create",
+    );
+    plan.trends.customer_create.add(response.timings.duration);
+    const body = json(response);
+    customerId = body.id || body.customer_id;
+    if (response.status < 200 || response.status >= 300 || !customerId) {
+      failIteration(merchant, plan, startedAt, `customer_create_${statusCode(response)}`, phaseInfo, response);
+      return;
     }
   }
 
@@ -693,10 +696,16 @@ function runFlow(merchant, plan, phaseInfo, startedAt) {
     }
   }
 
-  // Step 3: baseline saved card (cit_metadata_changed, mit). The measured
-  // confirm later either resubmits the same PAN with changed metadata
-  // (cit_metadata_changed) or charges the saved payment_method_id (mit).
+  // Step 3: baseline saved card (cit_metadata_changed, mit,
+  // saved_card_checkout). The measured confirm later either resubmits the
+  // same PAN with changed metadata (cit_metadata_changed), charges the saved
+  // payment_method_id directly (mit), or looks the card back up through the
+  // customer's payment-method list (saved_card_checkout, Step 3b below).
   let savedPaymentMethodId = null;
+  // Payment token the measured confirm's `payment_token` field uses —
+  // sourced from either Step 3b below (saved_card_checkout) or the modular
+  // pm-session confirm (Step 5).
+  let token = null;
   if (plan.requiresSavedCard) {
     const createResponse = post(
       `${routerUrl}/payments`,
@@ -728,6 +737,25 @@ function runFlow(merchant, plan, phaseInfo, startedAt) {
       || findSavedPaymentMethod(merchant, baseline.payment_id);
     if (confirmResponse.status < 200 || confirmResponse.status >= 300 || !savedPaymentMethodId) {
       failIteration(merchant, plan, startedAt, `baseline_confirm_${statusCode(confirmResponse)}`, phaseInfo, confirmResponse);
+      return;
+    }
+  }
+
+  // Step 3b: list the customer's saved payment methods to obtain the
+  // payment_token the measured confirm reuses (saved_card_checkout only) —
+  // mirrors cypress-tests' listCustomerPMCallTest / a returning customer
+  // picking a saved card at checkout. Non-modular only: this is a router
+  // (v1) endpoint.
+  if (plan.savedCardCheckout) {
+    const response = get(
+      `${routerUrl}/customers/${customerId}/payment_methods`,
+      apiKeyHeaders(merchant),
+      "list_payment_methods",
+    );
+    plan.trends.list_payment_methods.add(response.timings.duration);
+    token = json(response).customer_payment_methods?.[0]?.payment_token;
+    if (response.status < 200 || response.status >= 300 || !token) {
+      failIteration(merchant, plan, startedAt, `list_payment_methods_${statusCode(response)}`, phaseInfo, response);
       return;
     }
   }
@@ -800,7 +828,6 @@ function runFlow(merchant, plan, phaseInfo, startedAt) {
 
   // Step 5: confirm the payment-method session to obtain a payment token
   // (modular merchant path only).
-  let token = null;
   if (plan.usesPmService) {
     const body = {
       payment_method_data: { card },
@@ -839,7 +866,11 @@ function runFlow(merchant, plan, phaseInfo, startedAt) {
     );
   } else {
     const measuredCard = plan.metadataChanged ? { ...card, ...metadataUpdate } : card;
-    const confirmBody = plan.usesPmService
+    // usesPmService (modular) and savedCardCheckout (non-modular) both
+    // confirm against a previously obtained payment_token instead of raw
+    // card data — the token just comes from a different upstream call
+    // (pm_session_confirm vs. list_payment_methods, Step 3b/5 above).
+    const confirmBody = (plan.usesPmService || plan.savedCardCheckout)
       ? { payment_token: token, payment_method: "card", payment_method_type: "credit" }
       : { payment_method: "card", payment_method_type: "credit", payment_method_data: { card: measuredCard } };
     if (plan.setupFutureUsage) {

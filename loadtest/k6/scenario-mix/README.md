@@ -143,6 +143,7 @@ Quick reference:
 | `cit_metadata_changed` | non_modular only | yes | `off_session` | persistent + pre-saved card per iteration | 5 (+ baseline) / — |
 | `sdk_checkout` | non_modular only | no | — | volatile | 5 / — |
 | `mit` | non_modular only | yes | `off_session` (baseline only) | persistent + pre-saved card per iteration | 4 (+ baseline) / — |
+| `saved_card_checkout` | non_modular only | yes | `off_session` (baseline only) | persistent + pre-saved card per iteration | 6 (+ baseline) / — |
 
 ### `guest`
 
@@ -163,10 +164,9 @@ the *next* charge too (e.g. "remember my card" on a storefront). The card is
 vaulted **inline**, as part of the session-confirm/payment-confirm call
 itself — not after the fact.
 
-- `non_modular`: `payment_create` (`customer_id` — a client-generated ID that
-  Router creates implicitly on first use, no separate `customer_create`
-  call; see *What one iteration does* below) with `setup_future_usage:
-  on_session` → `payment_confirm` (with `customer_acceptance`).
+- `non_modular`: `customer_create` → `payment_create` (`customer_id`,
+  `setup_future_usage: on_session`) → `payment_confirm` (with
+  `customer_acceptance`).
 - `modular`: `customer_create` → `pm_session_create`
   (`storage_type: persistent`) → `payment_create` → `pm_session_confirm`
   (with `customer_acceptance`, since `setup_future_usage` is set) →
@@ -208,13 +208,12 @@ replace metadata" dedup logic rather than "create a new vault entry."
 
 This is the only scenario with a two-stage iteration:
 
-1. **Baseline (unmeasured prep, every iteration):** `baseline_create`
-   (`customer_id` implicitly creates the customer, no separate
-   `customer_create` call — see *What one iteration does* below) →
-   `baseline_confirm` (confirms with the *original* card, `setup_future_usage:
-   off_session`, saving it) → polls `GET /payments/{id}` up to 50×/5s until
-   `payment_method_id` appears, since card persistence can complete slightly
-   after the confirm response returns.
+1. **Baseline (unmeasured prep, every iteration):** `customer_create` →
+   `baseline_create` → `baseline_confirm` (confirms with the *original*
+   card, `setup_future_usage: off_session`, saving it) → polls
+   `GET /payments/{id}` up to 50×/5s until `payment_method_id` appears,
+   since card persistence can complete slightly after the confirm response
+   returns.
 2. **Measured:** `payment_create` → `payment_confirm`, resubmitting the
    **same `card_number`** but with `payment.metadata_update` fields (default:
    new `card_exp_month`/`card_exp_year`/`card_holder_name`) merged over it.
@@ -265,19 +264,23 @@ for later. Mirrors cypress-tests' `create-pm-id-mit.json` fixture and the
 
 Like `cit_metadata_changed`, this is a two-stage iteration:
 
-1. **Baseline (unmeasured prep, every iteration):** `baseline_create`
-   (`customer_id` implicitly creates the customer, no separate
-   `customer_create` call) → `baseline_confirm` (confirms with
-   `payment.card`, `setup_future_usage: off_session`, saving it) → polls
+1. **Baseline (unmeasured prep, every iteration):** `customer_create` →
+   `baseline_create` → `baseline_confirm` (confirms with `payment.card`,
+   `setup_future_usage: off_session`, saving it) → polls
    `GET /payments/{id}` up to 50×/5s until `payment_method_id` appears, same
-   as `cit_metadata_changed`'s baseline. Kept deliberately non-modular
-   end-to-end (not just the confirm): a customer created through the
-   modular payment-method service produces a v2-native payment method whose
-   `connector_mandate_details` a v1 confirm's mandate capture doesn't reach,
-   which surfaced as `IR_39` ("no eligible connector") on the measured MIT
-   confirm in a live log trace — see
-   `postman/mit-scenario.postman_collection.json`'s request 1 for the same
-   fix with full source citations.
+   as `cit_metadata_changed`'s baseline. **Known limitation** (explicit
+   choice, 2026-09-15): the customer is created through the modular
+   payment-method service (as for every scenario), so this card save
+   produces a v2-native payment method whose usability for the measured
+   MIT confirm below depends on Router's async
+   `PaymentMethodModularForwardCompatWorkflow` process-tracker job
+   (`crates/router/src/core/payment_methods.rs:704-724`) having already run
+   — there is no inline/synchronous path for that sync. Running the
+   measured confirm immediately after the baseline (as this script always
+   does) can race that job and intermittently return `IR_39` ("no eligible
+   connector found for token-based MIT payment"). Not a bug in this
+   script — accepted as a known limitation rather than adding retry/delay
+   logic that would distort the load test's own timing.
 2. **Measured:** a single `POST /payments` with `confirm: true`,
    `off_session: true`, `customer_id`, and
    `recurring_details: { type: "payment_method_id", data: <saved
@@ -291,6 +294,37 @@ Like `cit_metadata_changed`, this is a two-stage iteration:
    `crates/router/src/core/payments/operations/payment_confirm.rs`).
 
 **Correctness risk:** same as `cit_metadata_changed` — every VU reuses
+`payment.card` for its baseline save unless `payment.card_pool` has multiple
+cards; keep this scenario's weight low and/or configure several distinct test
+PANs in `card_pool`.
+
+### `saved_card_checkout` — non_modular only
+
+Returning-customer checkout: a shopper who already saved a card comes back,
+picks it from their saved payment methods, and pays without re-entering card
+data. Mirrors cypress-tests' `14-SaveCardFlow.cy.js`
+(`listCustomerPMCallTest` + `saveCardConfirmCallTest`).
+
+Like `cit_metadata_changed`/`mit`, this is a two-stage iteration:
+
+1. **Baseline (unmeasured prep, every iteration):** `customer_create` →
+   `baseline_create` → `baseline_confirm` (confirms with `payment.card`,
+   `setup_future_usage: off_session`, saving it) → polls
+   `GET /payments/{id}` up to 50×/5s until `payment_method_id` appears, same
+   as `cit_metadata_changed`/`mit`'s baseline. Unlike `mit`, the measured
+   step here (`list_payment_methods`) reads back through the same
+   non-modular (v1) API family that wrote the card, so `mit`'s
+   `PaymentMethodModularForwardCompatWorkflow`/`IR_39` known limitation
+   (see below) does not apply — by the time the baseline's own poll
+   returns, the card is already visible to this scenario's list call.
+2. **Measured:** `list_payment_methods`
+   (`GET /customers/{customer_id}/payment_methods`) to fetch the saved
+   card's `payment_token` → `payment_create` → `payment_confirm` with
+   `{ payment_token, payment_method: "card", payment_method_type: "credit" }`
+   — no `payment_method_data`, no `setup_future_usage` (this payment spends a
+   previously saved card; it doesn't save a new one).
+
+**Correctness risk:** same as `cit_metadata_changed`/`mit` — every VU reuses
 `payment.card` for its baseline save unless `payment.card_pool` has multiple
 cards; keep this scenario's weight low and/or configure several distinct test
 PANs in `card_pool`.
@@ -316,32 +350,33 @@ counter with a `reason` tag.
 
 | Step | When | Endpoint |
 | --- | --- | --- |
-| `customer_create` | scenario requires a customer **and** uses the modular path | `POST {modular_pm}/customers` |
+| `customer_create` | scenario requires a customer (always via the PM service, even for `non_modular` scenarios) | `POST {modular_pm}/customers` |
 | `pm_session_create` | modular path | `POST {modular_pm}/payment-method-sessions` (with the scenario's `storage_type`) |
-| `baseline_create` + `baseline_confirm` | `cit_metadata_changed`, `mit` | `POST {router}/payments` + `/payments/{id}/confirm` saving the card `off_session`, then polls `GET /payments/{id}` until `payment_method_id` appears |
+| `baseline_create` + `baseline_confirm` | `cit_metadata_changed`, `mit`, `saved_card_checkout` | `POST {router}/payments` + `/payments/{id}/confirm` saving the card `off_session`, then polls `GET /payments/{id}` until `payment_method_id` appears |
+| `list_payment_methods` | `saved_card_checkout` only | `GET {router}/customers/{customer_id}/payment_methods` — the measured request's `payment_token` comes from the first entry in `customer_payment_methods` |
 | *(think time)* | `load.think_time_ms > 0` | sleep between preparation and measured requests |
 | `payment_create` | always except `mit` | `POST {router}/payments` with `confirm: false` |
 | `payment_method_list` | `sdk_checkout` only | `GET {router}/payments/{id}/client` (SDK Authorization header) |
 | `session` | `sdk_checkout` only | `POST {router}/payments/session_tokens` with `wallets` from `sdk.wallets` (SDK Authorization header) |
 | `eligibility` | `sdk_checkout` only | `POST {router}/payments/{id}/eligibility` with the card (SDK Authorization header) |
 | `pm_session_confirm` | modular path | `POST {modular_pm}/payment-method-sessions/{id}/confirm` with the card; adds `customer_acceptance` when the scenario sets `setup_future_usage` |
-| `payment_confirm` | always | `POST {router}/payments/{id}/confirm` — modular: `payment_token`; non-modular: card data — plus `setup_future_usage` + `customer_acceptance` when applicable. **`mit`**: instead a single `POST {router}/payments` with `confirm: true`, `off_session: true`, and `recurring_details` pointing at the `payment_method_id` saved during the baseline step — no card data, no separate `payment_create` call |
+| `payment_confirm` | always | `POST {router}/payments/{id}/confirm` — modular and `saved_card_checkout`: `payment_token`; other non-modular: card data — plus `setup_future_usage` + `customer_acceptance` when applicable. **`mit`**: instead a single `POST {router}/payments` with `confirm: true`, `off_session: true`, and `recurring_details` pointing at the `payment_method_id` saved during the baseline step — no card data, no separate `payment_create` call |
 
 A measured confirm counts as **success** when HTTP status is 2xx and the
 payment status is one of `succeeded`, `requires_capture`, `processing`.
 
-Non-modular scenarios that need a customer (`cit_on_session`, `cit_off_session`,
-`cit_metadata_changed`, `mit`) don't call `customer_create` at all — a
-client-generated `customer_id` is sent straight on the first `POST
-{router}/payments` (`payment_create` or `baseline_create`), and Router
-creates the customer implicitly the first time that ID appears
-(`create_customer_if_not_exist` in
-`crates/router/src/core/payments/operations/payment_create.rs:774-793`, for
-`Standard`-type merchant accounts). This keeps the customer v1-native for the
-whole flow — required for `mit`: a customer created through the modular
-payment-method service produces a v2-native payment method whose
-`connector_mandate_details` a v1 confirm's mandate capture doesn't reach,
-which surfaces as `IR_39` on the MIT confirm otherwise.
+**Known limitation for `mit`/`cit_metadata_changed`** (explicit choice,
+2026-09-15): `customer_create` always goes through the modular
+payment-method service, even though those two scenarios are `non_modular`
+otherwise. A card saved via a non-modular (v1) confirm for a modular
+customer only becomes usable for the measured MIT/recurring confirm once
+Router's async `PaymentMethodModularForwardCompatWorkflow` process-tracker
+job (`crates/router/src/core/payment_methods.rs:704-724`) has run — there's
+no inline path for that sync. Since this script always runs the measured
+confirm immediately after the baseline, it can race that job and
+intermittently return `IR_39` ("no eligible connector found for token-based
+MIT payment"). Not a bug in this script; accepted rather than adding
+retry/delay logic that would distort the load test's own timing.
 
 `cit_metadata_changed` specifics: the measured confirm resubmits the same PAN
 but overrides the fields found in `payment.metadata_update`
@@ -360,7 +395,7 @@ k6); the file is plain JSON — no comments allowed.
 | Key | Meaning |
 | --- | --- |
 | `router` | Router base URL, e.g. `http://127.0.0.1:8080` or `https://sandbox.hyperswitch.io` |
-| `modular_pm` | Payment-method service base URL **including API prefix**, e.g. `http://127.0.0.1:8081/v2` locally or `https://sandbox.hyperswitch.io/v1` behind the sandbox ingress. Required only when at least one enabled entry uses `merchant_path: "modular"` — non-modular scenarios create their customer implicitly and never call it. |
+| `modular_pm` | Payment-method service base URL **including API prefix**, e.g. `http://127.0.0.1:8081/v2` locally or `https://sandbox.hyperswitch.io/v1` behind the sandbox ingress. Required unless every enabled entry is a `non_modular` guest. |
 
 ### `target_headers` (optional)
 
@@ -464,7 +499,7 @@ multipliers.
 | `currency` | `USD` | Payment currency |
 | `session_expiry` | `900` | Payment/PM session expiry in seconds |
 | `card` | — (required) | Test card used everywhere (`card_number` required) |
-| `card_pool` | `[card]` | Optional array of additional cards; each iteration picks one round-robin. Recommended for `cit_metadata_changed` and `mit`. |
+| `card_pool` | `[card]` | Optional array of additional cards; each iteration picks one round-robin. Recommended for `cit_metadata_changed`, `mit`, and `saved_card_checkout`. |
 | `metadata_update` | — | Fields merged over the card for the measured `cit_metadata_changed` confirm. Required when that scenario is enabled. |
 | `return_url` | `https://example.com` | `return_url` sent on `mit`'s single create+confirm call. Ignored unless `mit` is enabled. |
 

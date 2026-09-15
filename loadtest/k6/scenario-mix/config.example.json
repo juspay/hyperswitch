@@ -42,11 +42,12 @@
     "wallets": []
   },
   "scenarios": [
-    { "name": "nomod_guest",    "merchant_path": "non_modular", "scenario": "guest",                "weight": 40 },
-    { "name": "mod_cit_off",    "merchant_path": "modular",     "scenario": "cit_off_session",      "weight": 30 },
-    { "name": "nomod_meta_chg", "merchant_path": "non_modular", "scenario": "cit_metadata_changed", "weight": 10 },
-    { "name": "nomod_sdk",      "merchant_path": "non_modular", "scenario": "sdk_checkout",         "weight": 10 },
-    { "name": "nomod_mit",      "merchant_path": "non_modular", "scenario": "mit",                  "weight": 10 }
+    { "name": "nomod_guest",       "merchant_path": "non_modular", "scenario": "guest",                "weight": 30 },
+    { "name": "mod_cit_off",       "merchant_path": "modular",     "scenario": "cit_off_session",      "weight": 30 },
+    { "name": "nomod_meta_chg",    "merchant_path": "non_modular", "scenario": "cit_metadata_changed", "weight": 10 },
+    { "name": "nomod_sdk",         "merchant_path": "non_modular", "scenario": "sdk_checkout",         "weight": 10 },
+    { "name": "nomod_mit",         "merchant_path": "non_modular", "scenario": "mit",                  "weight": 10 },
+    { "name": "nomod_saved_card",  "merchant_path": "non_modular", "scenario": "saved_card_checkout",  "weight": 10 }
   ],
   "thresholds": {
     "payment_confirm_ms_nomod_guest": ["p(90)<500"],

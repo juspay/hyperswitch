@@ -75,8 +75,26 @@ defined in `SCENARIOS` (ported from `loadtest/runner/lib/scenarios.js`).
 - Customer is created; card is saved persistently in the baseline step.
 - Non-modular merchant path only (router's recurring-payments API).
 
+## `saved_card_checkout`
+
+- Two-stage iteration, like `cit_metadata_changed`/`mit`: a baseline step first saves a
+  card via a CIT confirm (`setup_future_usage: "off_session"`), then the measured
+  request lists the customer's saved payment methods
+  (`GET /customers/{customer_id}/payment_methods`) to obtain a `payment_token`, and
+  confirms a fresh payment intent with that token — no card data on the wire for the
+  measured request.
+- Mirrors cypress-tests' `14-SaveCardFlow.cy.js` (`listCustomerPMCallTest` +
+  `saveCardConfirmCallTest`).
+- Customer is created; card is saved persistently in the baseline step
+  (`requiresSavedCard: true`, `storageType: "persistent"`).
+- `setupFutureUsage: null` on the measured payment — it spends a previously saved
+  card, it doesn't save a new one.
+- Non-modular merchant path only — the payment-method-list/token-confirm endpoints
+  are router (v1) APIs.
+
 ## Merchant path constraints
 
 - `ptv_on_session` and `ptv_off_session` require `merchant_path: "modular"`.
-- `cit_metadata_changed`, `sdk_checkout`, and `mit` require `merchant_path: "non_modular"`.
+- `cit_metadata_changed`, `sdk_checkout`, `mit`, and `saved_card_checkout` require
+  `merchant_path: "non_modular"`.
 - `guest`, `cit_on_session`, and `cit_off_session` support both merchant paths.
