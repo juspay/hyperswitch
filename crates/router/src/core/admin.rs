@@ -644,6 +644,8 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                         "fs",
                     ))),
                     offer_engine_config: None,
+                    apple_pay_certificates: None,
+                    apple_pay_certificates_encrypted: None,
                 },
             )
         }
@@ -2265,6 +2267,7 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
                             )
                             .await?,
                         additional_merchant_data: merchant_recipient_data.map(Secret::new),
+                        apple_pay_certificates_encrypted: None,
                     },
                 ),
             ),
@@ -2613,6 +2616,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
                             )
                             .await?,
                         additional_merchant_data: merchant_recipient_data.map(Secret::new),
+                        apple_pay_certificates_encrypted: None,
                     },
                 ),
             ),
@@ -2665,6 +2669,8 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
             additional_merchant_data: encrypted_data.additional_merchant_data,
             version: common_types::consts::API_VERSION,
             connector_webhook_registration_details: None,
+            apple_pay_certificates: None,
+            apple_pay_certificates_encrypted: None,
         })
     }
 
