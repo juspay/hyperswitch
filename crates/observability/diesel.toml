@@ -4,12 +4,12 @@
 # observability database: the two lineages share no tables and no version table.
 #
 #   diesel migration run \
-#     --config-file crates/observability/diesel.toml \
+#     --config-file diesel_observability.toml \
 #     --migration-dir crates/observability/migrations \
 #     --database-url "$OBSERVABILITY_DATABASE_URL"
 
 [print_schema]
-file = "../diesel_models/src/observability/schema.rs"
+file = "crates/diesel_models/src/observability/schema.rs"
 
 [migrations_directory]
-dir = "migrations"
+dir = "crates/observability/migrations"
