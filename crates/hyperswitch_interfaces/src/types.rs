@@ -572,12 +572,12 @@ impl Proxy {
         self.http_url.is_some() || self.https_url.is_some()
     }
 }
-/// Proxy override configuration for rollout-based proxy switching
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+/// Proxy override used when a request is executed in UCS shadow mode
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub struct ProxyOverride {
     /// Override HTTP proxy URL
     pub http_url: Option<String>,
-    /// Override HTTPS proxy URL  
+    /// Override HTTPS proxy URL
     pub https_url: Option<String>,
 }
 
