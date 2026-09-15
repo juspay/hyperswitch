@@ -16,6 +16,7 @@
 
 pub mod auth;
 pub mod core;
+pub mod db;
 pub mod domain;
 pub mod errors;
 pub mod logger;

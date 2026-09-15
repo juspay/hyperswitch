@@ -486,6 +486,7 @@ dependencies = [
  "tracing",
  "url 2.5.4",
  "utoipa",
+ "uuid",
 ]
 
 [[package]]
@@ -3132,6 +3133,7 @@ dependencies = [
  "r2d2",
  "serde_json",
  "time 0.3.41",
+ "uuid",
 ]
 
 [[package]]
@@ -3179,6 +3181,7 @@ dependencies = [
  "strum 0.26.3",
  "thiserror 1.0.69",
  "time 0.3.41",
+ "uuid",
 ]
 
 [[package]]
@@ -6528,10 +6531,14 @@ version = "0.1.0"
 dependencies = [
  "actix-multipart",
  "actix-web",
+ "api_models",
+ "async-bb8-diesel",
  "async-trait",
+ "bb8",
  "clap 4.5.38",
  "common_utils",
  "config",
+ "diesel_models",
  "error-stack 0.4.1",
  "external_services",
  "hyperswitch_interfaces",
@@ -6545,6 +6552,7 @@ dependencies = [
  "thiserror 1.0.69",
  "time 0.3.41",
  "tokio 1.48.0",
+ "uuid",
 ]
 
 [[package]]

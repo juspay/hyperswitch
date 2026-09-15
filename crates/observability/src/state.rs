@@ -16,6 +16,7 @@ use hyperswitch_interfaces::{
 };
 
 use crate::{
+    db::{StorageInterface, Store},
     domain::notifier::{
         chat::{ChatClientNotifier, ChatNotifier, LogChatNotifier},
         email::{EmailNotifier, EmailServiceNotifier},
@@ -45,6 +46,8 @@ pub struct AppState {
     /// Reads the metrics the alarm catalogue is evaluated against. `None` when no catalogue is
     /// configured, which boot has already checked is the only way to have no client.
     pub metrics: Option<Arc<dyn MetricsProvider>>,
+    /// The observability database.
+    pub store: Arc<dyn StorageInterface>,
 }
 
 impl AppState {
@@ -52,9 +55,10 @@ impl AppState {
     ///
     /// # Panics
     ///
-    /// Panics if the secrets management client cannot be created, if a secret fails to resolve, or
-    /// if a configured destination cannot be built. All three mean the service cannot serve a
-    /// request correctly, so failing here is preferable to failing later under load.
+    /// Panics if the secrets management client cannot be created, if a secret fails to resolve, if
+    /// a configured destination cannot be built, or if the database cannot be reached. Each means
+    /// the service cannot serve a request correctly, so failing here is preferable to failing later
+    /// under load.
     ///
     /// Having *no* destinations is not one of those cases. It is warned about and started, because
     /// a first deployment has none until credentials exist and refusing to boot would make the
@@ -99,11 +103,19 @@ impl AppState {
         resolve_alarm_destinations(&raw_conf.cloudwatch, &chat)
             .expect("Failed to resolve the cloudwatch alarm destinations");
 
+        #[allow(clippy::expect_used)]
+        let store: Arc<dyn StorageInterface> = Arc::new(
+            Store::new(raw_conf.database.get_inner())
+                .await
+                .expect("Failed to connect to the observability database"),
+        );
+
         Self {
             conf: Arc::new(raw_conf),
             chat: Arc::new(chat),
             email: Arc::new(email),
             metrics,
+            store,
         }
     }
 }

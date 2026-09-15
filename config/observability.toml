@@ -38,6 +38,21 @@ internal_api_key = "observability_dev_key"
 [secrets_management]
 secrets_manager = "no_encryption"
 
+# The observability database, which holds alert state. Not `hyperswitch_db`: its tables come from
+# `crates/observability/migrations`. `password` is a secret and is resolved like the ones above.
+#
+# `min_idle_pool_size` connections are opened at boot, so an unreachable database stops the service
+# from starting.
+[database]
+username = "db_user"
+password = "db_pass"
+host = "localhost"
+port = 5432
+dbname = "observability_db"
+pool_size = 5
+min_idle_pool_size = 1
+connection_timeout = 10
+
 # Outbound HTTP proxy, if the pod cannot reach chat providers directly. A deployment fact, so it
 # lives here once rather than on each destination.
 [proxy]
