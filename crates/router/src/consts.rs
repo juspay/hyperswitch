@@ -511,6 +511,8 @@ pub mod superposition {
     pub const INCOMING_WEBHOOK_DISABLED_EVENTS: &str = "webhooks.incoming_webhook_disabled_events";
     /// save wallet decrypted data in locker
     pub const SAVE_WALLET_DECRYPTED_DATA: &str = "vaulting.save_wallet_decrypted_data";
+    /// checkout sdk configuration
+    pub const CHECKOUT_SDK: &str = "checkout_sdk";
 }
 
 /// The value substituted for sensitive webhook header values in event retrieval responses.
