@@ -1439,6 +1439,76 @@ static BRAINTREE_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 2] =
     [enums::EventClass::Payments, enums::EventClass::Refunds];
 
 impl ConnectorSpecifications for Braintree {
+    /// Braintree 3DS runs as three legs in the Unified Connector Service —
+    /// `PreAuthenticate` (device data collection: `createClientToken` +
+    /// `tokenizeCreditCard`), `Authenticate` (`performThreeDSecureLookup`) and
+    /// `PostAuthenticate` (a `node(id:)` readback of the authenticated payment
+    /// method). These three gates are what make the router call them; without
+    /// them `pre_authentication_step` short-circuits and Authorize runs straight
+    /// through with no authentication. The split mirrors Barclaycard's.
+    ///
+    /// Note this is the granular path only. UCS also has its own composite
+    /// authentication loop driven by `next_authentication_step`, but the router
+    /// does not use the composite RPC — it calls each leg itself.
+    fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
+        match current_flow {
+            api::CurrentFlowInfo::Authorize {
+                request_data,
+                auth_type,
+            } => auth_type == common_enums::AuthenticationType::ThreeDs && request_data.is_card(),
+            api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
+            api::CurrentFlowInfo::SetupMandate { .. } => false,
+            api::CurrentFlowInfo::Psync { .. }
+            | api::CurrentFlowInfo::UpdatePostConfirm { .. }
+            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
+        }
+    }
+
+    /// The cardholder came back from the ACS carrying redirect params, so the
+    /// challenge result still has to be submitted: run `Authenticate`.
+    fn is_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
+        match current_flow {
+            api::CurrentFlowInfo::Authorize { .. } => false,
+            api::CurrentFlowInfo::CompleteAuthorize { request_data, .. } => {
+                let redirection_params = request_data
+                    .redirect_response
+                    .as_ref()
+                    .and_then(|redirect_response| redirect_response.params.as_ref());
+                match redirection_params {
+                    Some(param) if !param.peek().is_empty() => true,
+                    Some(_) | None => false,
+                }
+            }
+            api::CurrentFlowInfo::SetupMandate { .. } => false,
+            api::CurrentFlowInfo::Psync { .. }
+            | api::CurrentFlowInfo::UpdatePostConfirm { .. }
+            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
+        }
+    }
+
+    /// The exact complement: no redirect params means the ACS posted its result
+    /// straight to Braintree's own `termUrl`, so the authentication outcome is
+    /// already recorded on the payment method and only needs reading back.
+    fn is_post_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
+        match current_flow {
+            api::CurrentFlowInfo::Authorize { .. } => false,
+            api::CurrentFlowInfo::CompleteAuthorize { request_data, .. } => {
+                let redirection_params = request_data
+                    .redirect_response
+                    .as_ref()
+                    .and_then(|redirect_response| redirect_response.params.as_ref());
+                match redirection_params {
+                    Some(param) if !param.peek().is_empty() => false,
+                    Some(_) | None => true,
+                }
+            }
+            api::CurrentFlowInfo::SetupMandate { .. } => false,
+            api::CurrentFlowInfo::Psync { .. }
+            | api::CurrentFlowInfo::UpdatePostConfirm { .. }
+            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
+        }
+    }
+
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&BRAINTREE_CONNECTOR_INFO)
     }
