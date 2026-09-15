@@ -142,6 +142,7 @@ Quick reference:
 | `ptv_off_session` | modular only | yes | `off_session` | volatile → persistent after authorization | — / 5 |
 | `cit_metadata_changed` | non_modular only | yes | `off_session` | persistent + pre-saved card per iteration | 5 (+ baseline) / — |
 | `sdk_checkout` | non_modular only | no | — | volatile | 5 / — |
+| `mit` | non_modular only | yes | `off_session` (baseline only) | persistent + pre-saved card per iteration | 4 (+ baseline) / — |
 
 ### `guest`
 
@@ -251,6 +252,39 @@ measured confirm at the end is a plain guest-style card charge.
   doesn't expose 1:1 equivalents of `payment_method_list`/`session`/`eligibility`
   yet.
 
+### `mit` — non_modular only
+
+Merchant-initiated transaction: a recurring/subscription-style charge where
+the customer is not present at all — the opposite end of the save-card
+lifecycle from `cit_on_session`/`cit_off_session`, which only *save* a card
+for later. Mirrors cypress-tests' `create-pm-id-mit.json` fixture and the
+`recurring_details.payment_method_id` flow exercised in
+`cypress-tests/cypress/e2e/spec/Payment/20-MandatesUsingPMID.cy.js`.
+
+Like `cit_metadata_changed`, this is a two-stage iteration:
+
+1. **Baseline (unmeasured prep, every iteration):** `customer_create` →
+   `baseline_create` → `baseline_confirm` (confirms with `payment.card`,
+   `setup_future_usage: off_session`, saving it) → polls
+   `GET /payments/{id}` up to 50×/5s until `payment_method_id` appears, same
+   as `cit_metadata_changed`'s baseline.
+2. **Measured:** a single `POST /payments` with `confirm: true`,
+   `off_session: true`, `customer_id`, and
+   `recurring_details: { type: "payment_method_id", data: <saved
+   payment_method_id> }` — no `payment_method_data`, no card, no
+   `setup_future_usage`. This is the only scenario whose measured step
+   creates and confirms in one call instead of two; there is no separate
+   `payment_create` request to time. Router requires `confirm: true`,
+   `off_session: true`, and `customer_id` together with `recurring_details`
+   for this combination — it responds `412 Precondition Failed` otherwise
+   (`validate_recurring_mandate` in
+   `crates/router/src/core/payments/operations/payment_confirm.rs`).
+
+**Correctness risk:** same as `cit_metadata_changed` — every VU reuses
+`payment.card` for its baseline save unless `payment.card_pool` has multiple
+cards; keep this scenario's weight low and/or configure several distinct test
+PANs in `card_pool`.
+
 ### SDK Authorization header
 
 `payment_method_list`, `session`, and `eligibility` are authenticated the way
@@ -274,14 +308,14 @@ counter with a `reason` tag.
 | --- | --- | --- |
 | `customer_create` | scenario requires a customer (always via the PM service, even for `non_modular` CIT) | `POST {modular_pm}/customers` |
 | `pm_session_create` | modular path | `POST {modular_pm}/payment-method-sessions` (with the scenario's `storage_type`) |
-| `baseline_create` + `baseline_confirm` | `cit_metadata_changed` only | `POST {router}/payments` + `/payments/{id}/confirm` saving the card `off_session`, then polls `GET /payments/{id}` until `payment_method_id` appears |
+| `baseline_create` + `baseline_confirm` | `cit_metadata_changed`, `mit` | `POST {router}/payments` + `/payments/{id}/confirm` saving the card `off_session`, then polls `GET /payments/{id}` until `payment_method_id` appears |
 | *(think time)* | `load.think_time_ms > 0` | sleep between preparation and measured requests |
-| `payment_create` | always | `POST {router}/payments` with `confirm: false` |
+| `payment_create` | always except `mit` | `POST {router}/payments` with `confirm: false` |
 | `payment_method_list` | `sdk_checkout` only | `GET {router}/payments/{id}/client` (SDK Authorization header) |
 | `session` | `sdk_checkout` only | `POST {router}/payments/session_tokens` with `wallets` from `sdk.wallets` (SDK Authorization header) |
 | `eligibility` | `sdk_checkout` only | `POST {router}/payments/{id}/eligibility` with the card (SDK Authorization header) |
 | `pm_session_confirm` | modular path | `POST {modular_pm}/payment-method-sessions/{id}/confirm` with the card; adds `customer_acceptance` when the scenario sets `setup_future_usage` |
-| `payment_confirm` | always | `POST {router}/payments/{id}/confirm` — modular: `payment_token`; non-modular: card data — plus `setup_future_usage` + `customer_acceptance` when applicable |
+| `payment_confirm` | always | `POST {router}/payments/{id}/confirm` — modular: `payment_token`; non-modular: card data — plus `setup_future_usage` + `customer_acceptance` when applicable. **`mit`**: instead a single `POST {router}/payments` with `confirm: true`, `off_session: true`, and `recurring_details` pointing at the `payment_method_id` saved during the baseline step — no card data, no separate `payment_create` call |
 
 A measured confirm counts as **success** when HTTP status is 2xx and the
 payment status is one of `succeeded`, `requires_capture`, `processing`.
@@ -317,7 +351,7 @@ ingress and for asking Router to report its internal latency:
 }
 ```
 
-### `merchant` (required)
+### `merchant` (required unless `merchant_pool` is set)
 
 Existing-merchant credentials; nothing is provisioned or mutated.
 
@@ -326,6 +360,43 @@ Existing-merchant credentials; nothing is provisioned or mutated.
 | `api_key` | always (Router `api-key` header; PM service `Authorization: api-key=...`) |
 | `profile_id` | always (sent on every payment create and as `x-profile-id` on PM calls) |
 | `publishable_key` | at least one enabled entry uses the modular path (session confirm auth: `Authorization: publishable-key=...,client-secret=...`), or `sdk_checkout` is enabled (SDK Authorization header, see above) |
+
+### `merchant_pool` (optional — load-testing against many merchants)
+
+Spreads traffic across many merchants instead of one. Provision the
+merchants first with [`provision-merchants.mjs`](#provisioning-a-merchant-pool-provision-merchantsmjs)
+below, then point `merchant_pool` at the manifest it writes:
+
+```json
+"merchant_pool": { "file": "merchants.json" }
+```
+
+When set, `merchant_pool.file` is loaded once at startup (a JSON array of
+`{ merchant_id, api_key, publishable_key, profile_id }`, one entry per
+merchant — see `provision-merchants.mjs`'s output). **Every iteration, of
+every scenario, picks one merchant uniformly at random from the pool** and
+uses its credentials for that iteration's entire flow (customer, payment,
+confirm) — so over a run, traffic converges to an even spread across all N
+merchants, and every merchant sees the same mix of scenario types the
+`scenarios` weights describe, rather than each merchant being pinned to one
+scenario. Failure records (`console.error` / `failures.log`) include the
+`merchant_id` that iteration used, so failures can be traced back to a
+specific merchant.
+
+The top-level `merchant` block becomes optional when `merchant_pool` is set
+(pool entries supply per-iteration credentials instead) — leaving both unset
+fails validation, same as any other missing required field.
+
+**Path resolution gotcha:** like the default `./config.json` path, `open()`
+calls inside `scenario-mix.js` — including the one that reads
+`merchant_pool.file` — resolve relative to **`scenario-mix.js`'s own
+directory**, not your shell's working directory and not the directory your
+`SCENARIO_MIX_CONFIG` file lives in. This only matters when the two diverge
+(e.g. running k6 from elsewhere with an absolute `SCENARIO_MIX_CONFIG`, or
+keeping `config.json` and `merchants.json` outside `loadtest/k6/scenario-mix/`).
+Safest options: keep `merchants.json` in `loadtest/k6/scenario-mix/` (the
+default `provision-merchants.mjs` also writes there when run from that
+directory), or set `merchant_pool.file` to an **absolute path**.
 
 ### `load`
 
@@ -370,8 +441,9 @@ multipliers.
 | `currency` | `USD` | Payment currency |
 | `session_expiry` | `900` | Payment/PM session expiry in seconds |
 | `card` | — (required) | Test card used everywhere (`card_number` required) |
-| `card_pool` | `[card]` | Optional array of additional cards; each iteration picks one round-robin. Recommended for `cit_metadata_changed`. |
+| `card_pool` | `[card]` | Optional array of additional cards; each iteration picks one round-robin. Recommended for `cit_metadata_changed` and `mit`. |
 | `metadata_update` | — | Fields merged over the card for the measured `cit_metadata_changed` confirm. Required when that scenario is enabled. |
+| `return_url` | `https://example.com` | `return_url` sent on `mit`'s single create+confirm call. Ignored unless `mit` is enabled. |
 
 ### `sdk` (optional)
 
@@ -399,6 +471,77 @@ Every metric name below can be referenced, including the per-scenario ones:
 ```
 
 Without thresholds the run always exits 0.
+
+## Provisioning a merchant pool (`provision-merchants.mjs`)
+
+To load-test against many merchants instead of one (see `merchant_pool`
+above), first create them with `provision-merchants.mjs` — a plain Node.js
+script (Node 18+, zero dependencies), **not** a k6 script. Merchant creation
+is one-time admin orchestration, not traffic: it makes a handful of
+sequential admin-API calls per merchant, needs to persist progress
+incrementally so a crash doesn't lose everything, and must never run inside
+a k6 VU (which can't write files until the very end, and would otherwise
+count as measured load). It is deliberately its own script, decoupled from
+`scenario-mix.js` by the manifest file it writes.
+
+```bash
+cd loadtest/k6/scenario-mix
+cp provision-config.example.json provision-config.json   # fill in admin_api_key
+node provision-merchants.mjs
+```
+
+For each merchant (default 1500, configurable) it calls, in order: `POST
+/accounts` (admin auth) to create the merchant account — the response's
+`default_profile` and `publishable_key` are used directly, no separate
+business-profile call needed; `POST /api_keys/{merchant_id}` for a scoped API
+key; `POST /account/{merchant_id}/connectors` to attach a **Stripe test-mode
+connector** so payments actually authorize (credentials are hardcoded near
+the top of the script rather than read from config — replace
+`STRIPE_TEST_CONNECTOR.connector_account_details.api_key` with a real test
+secret key before running). Successful merchants are appended to
+`merchants.json` (`{ merchant_id, api_key, publishable_key, profile_id,
+merchant_connector_id }` per entry) — this is the file `merchant_pool.file`
+in `scenario-mix.js`'s config points at.
+
+**Resumable and crash-safe:** merchant IDs are deterministic
+(`${merchant_id_prefix}_0001`, `_0002`, ...), so rerunning the script skips
+whatever's already in `merchants.json` and only tops up the rest. The
+manifest is rewritten (atomically — write-to-`.tmp` then rename) after every
+successful merchant, so killing the script mid-run loses at most the one
+merchant in flight, not the whole batch. If a merchant_id already exists on
+the server from a prior partial run (account created, but the process died
+before the api_key/connector steps or before the manifest write), the script
+recovers it via `GET /accounts/{merchant_id}` instead of failing.
+
+Merchants that fail after retries are logged to `provision-failures.json`
+and skipped rather than aborting the batch — rerun the script to retry them
+(they were never added to the manifest, so they aren't skipped).
+
+**Cleanup:** `node provision-merchants.mjs --mode=cleanup` deletes every
+merchant listed in `merchants.json` (`DELETE /accounts/{merchant_id}`),
+removing each from the manifest as it's deleted — also resumable if
+interrupted. Worth running when you're done, since 1500 merchants is a lot
+of clutter to leave behind in a shared sandbox.
+
+### `provision-config.json`
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `router` | — (required) | Same Router base URL as `scenario-mix.js`'s `services.router` |
+| `admin_api_key` | — (required) | Router's configured admin API key (`api-key` header, same header merchants use — just the admin secret instead of a merchant key) |
+| `merchant_count` | — (required) | How many merchants to provision. Rerun with a different value to grow or shrink the pool — `scenario-mix.js` doesn't need to know this number, it just uses however many entries end up in `merchants.json` |
+| `merchant_id_prefix` | `loadtest_mix` | Prefix for deterministic merchant IDs; also makes it easy to identify/filter this batch later |
+| `concurrency` | `20` | How many merchants to provision in parallel (each merchant's own 3 calls stay sequential) |
+| `output` | `merchants.json` | Manifest path — this is what `merchant_pool.file` should point at |
+| `retry.attempts` / `retry.backoff_ms` | `3` / `500` | Per-step retry on transient failures |
+
+`PROVISION_CONFIG=/path/to/provision-config.json node provision-merchants.mjs`
+overrides the default `./provision-config.json`, same convention as
+`SCENARIO_MIX_CONFIG`.
+
+**Do not commit `provision-config.json` or `merchants.json`** — the former
+holds the admin API key, the latter a live API key *per merchant* (1500 of
+them at full scale). Both are gitignored.
 
 ## Finding maximum RPS
 

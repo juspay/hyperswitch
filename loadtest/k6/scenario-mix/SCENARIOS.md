@@ -62,8 +62,21 @@ defined in `SCENARIOS` (ported from `loadtest/runner/lib/scenarios.js`).
 - Non-modular merchant path only (`nonModularOnly: true`) — the v2/modular
   payment-method service doesn't expose 1:1 equivalents of these endpoints yet.
 
+## `mit`
+
+- Merchant-initiated transaction: the customer is not present.
+- Two-stage iteration, like `cit_metadata_changed`: a baseline step first
+  saves a card via a CIT confirm (`setup_future_usage: "off_session"`),
+  then the measured request charges the saved payment method.
+- The measured request is a single `POST /payments` with `confirm: true`,
+  `off_session: true`, and `recurring_details: { type: "payment_method_id",
+  data: <saved payment_method_id> }` — no card data, no separate
+  `payment_create` call (unlike every other scenario here).
+- Customer is created; card is saved persistently in the baseline step.
+- Non-modular merchant path only (router's recurring-payments API).
+
 ## Merchant path constraints
 
 - `ptv_on_session` and `ptv_off_session` require `merchant_path: "modular"`.
-- `cit_metadata_changed` and `sdk_checkout` require `merchant_path: "non_modular"`.
+- `cit_metadata_changed`, `sdk_checkout`, and `mit` require `merchant_path: "non_modular"`.
 - `guest`, `cit_on_session`, and `cit_off_session` support both merchant paths.

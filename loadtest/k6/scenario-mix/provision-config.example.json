@@ -1,0 +1,12 @@
+{
+  "router": "http://127.0.0.1:8080",
+  "admin_api_key": "admin_api_key_here",
+  "merchant_count": 1500,
+  "merchant_id_prefix": "loadtest_mix",
+  "concurrency": 20,
+  "output": "merchants.json",
+  "retry": {
+    "attempts": 3,
+    "backoff_ms": 500
+  }
+}

@@ -1,0 +1,367 @@
+#!/usr/bin/env node
+/**
+ * provision-merchants.mjs — one-time/occasional admin job that creates N
+ * merchants (account + API key + Stripe connector) via the Hyperswitch admin
+ * API and writes their credentials to a manifest (merchants.json) that
+ * scenario-mix.js's `merchant_pool` config consumes.
+ *
+ * This is orchestration/setup work, not traffic — it is deliberately a
+ * separate, plain Node.js script rather than a k6 script, so merchant
+ * creation is never part of the measured load, and so progress can be
+ * persisted to disk incrementally (crash-safe, resumable) instead of only at
+ * the very end the way k6's handleSummary would force.
+ *
+ * Usage:
+ *   cp provision-config.example.json provision-config.json   # fill in admin_api_key
+ *   node provision-merchants.mjs                 # create/top-up up to merchant_count
+ *   node provision-merchants.mjs --mode=cleanup   # delete every merchant in the manifest
+ * or:
+ *   PROVISION_CONFIG=/path/to/provision-config.json node provision-merchants.mjs
+ *
+ * Rerunning in provision mode is safe: merchant IDs are deterministic
+ * (`${prefix}_0001` ...), entries already present in the manifest are
+ * skipped, and a merchant_id that already exists on the server (partial
+ * prior run) is recovered via GET instead of failing.
+ */
+import { existsSync, readFileSync } from "node:fs";
+import { writeFile, rename } from "node:fs/promises";
+import path from "node:path";
+
+// Real Stripe test-mode credentials — hardcoded per request rather than
+// pulled from config, since this script is meant to target one known sandbox.
+// Replace before pointing this at a different environment.
+const STRIPE_TEST_CONNECTOR = {
+  connector_type: "payment_processor",
+  connector_name: "stripe",
+  business_country: "US",
+  business_label: "default",
+  connector_account_details: {
+    auth_type: "HeaderKey",
+    api_key: "<STRIPE_TEST_SECRET_KEY>",
+  },
+  test_mode: false,
+  disabled: false,
+  payment_methods_enabled: [
+    {
+      payment_method: "card",
+      payment_method_types: [
+        { payment_method_type: "credit", minimum_amount: 1, maximum_amount: 68607706, recurring_enabled: true, installment_payment_enabled: true },
+      ],
+    },
+    {
+      payment_method: "card",
+      payment_method_types: [
+        { payment_method_type: "debit", minimum_amount: 1, maximum_amount: 68607706, recurring_enabled: true, installment_payment_enabled: true },
+      ],
+    },
+  ],
+};
+
+function fail(message) {
+  console.error(`provision-merchants: ${message}`);
+  process.exit(1);
+}
+
+function resolvePath(p) {
+  return path.resolve(process.cwd(), p);
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// ---------------------------------------------------------------------------
+// Config
+// ---------------------------------------------------------------------------
+
+function loadConfig() {
+  const configPath = process.env.PROVISION_CONFIG || "./provision-config.json";
+  let raw;
+  try {
+    raw = readFileSync(resolvePath(configPath), "utf8");
+  } catch (error) {
+    fail(`cannot read config at "${configPath}" (set PROVISION_CONFIG): ${error.message}`);
+  }
+  let cfg;
+  try {
+    cfg = JSON.parse(raw);
+  } catch (error) {
+    fail(`config at "${configPath}" is not valid JSON: ${error.message}`);
+  }
+  if (!cfg.router) fail("router is required");
+  if (!cfg.admin_api_key) fail("admin_api_key is required");
+  const merchantCount = Number(cfg.merchant_count);
+  if (!(merchantCount > 0)) fail("merchant_count must be a number > 0");
+  const prefix = cfg.merchant_id_prefix || "loadtest_mix";
+  if (!/^[A-Za-z0-9_]+$/.test(prefix)) fail("merchant_id_prefix must use only letters, digits and underscores");
+  const concurrency = Number(cfg.concurrency) || 20;
+  const output = cfg.output || "merchants.json";
+  return {
+    router: cfg.router.replace(/\/$/, ""),
+    admin_api_key: cfg.admin_api_key,
+    merchant_count: merchantCount,
+    merchant_id_prefix: prefix,
+    concurrency,
+    output,
+    retry: {
+      attempts: Number(cfg.retry?.attempts) || 3,
+      backoff_ms: Number(cfg.retry?.backoff_ms) || 500,
+    },
+  };
+}
+
+function merchantIdFor(cfg, index) {
+  const width = Math.max(4, String(cfg.merchant_count).length);
+  return `${cfg.merchant_id_prefix}_${String(index + 1).padStart(width, "0")}`;
+}
+
+// ---------------------------------------------------------------------------
+// Manifest (merchants.json): loaded once, rewritten atomically after every
+// successful merchant so a crash never loses more than the merchant in
+// flight. Writes are serialized through a promise chain — concurrent
+// provisioning workers all schedule onto the same chain rather than racing
+// to write the file at once.
+// ---------------------------------------------------------------------------
+
+function loadManifest(manifestPath) {
+  if (!existsSync(manifestPath)) return [];
+  let parsed;
+  try {
+    parsed = JSON.parse(readFileSync(manifestPath, "utf8"));
+  } catch (error) {
+    fail(`cannot read existing manifest at "${manifestPath}": ${error.message}`);
+  }
+  if (!Array.isArray(parsed)) fail(`existing manifest at "${manifestPath}" must be a JSON array`);
+  return parsed;
+}
+
+let writeChain = Promise.resolve();
+function scheduleWrite(manifestPath, manifest) {
+  const snapshot = manifest.slice();
+  writeChain = writeChain
+    .then(() => writeManifestAtomic(manifestPath, snapshot))
+    .catch((error) => console.error(`manifest write failed: ${error.message}`));
+  return writeChain;
+}
+async function writeManifestAtomic(manifestPath, manifest) {
+  const tmpPath = `${manifestPath}.tmp`;
+  await writeFile(tmpPath, JSON.stringify(manifest, null, 2));
+  await rename(tmpPath, manifestPath);
+}
+
+// ---------------------------------------------------------------------------
+// HTTP helpers
+// ---------------------------------------------------------------------------
+
+function adminHeaders(cfg) {
+  return { "api-key": cfg.admin_api_key, "content-type": "application/json" };
+}
+
+async function safeText(res) {
+  try {
+    return await res.text();
+  } catch (_) {
+    return "";
+  }
+}
+
+async function withRetry(fn, retry, label) {
+  let lastError;
+  for (let attempt = 1; attempt <= retry.attempts; attempt += 1) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      if (attempt < retry.attempts) await sleep(retry.backoff_ms * attempt);
+    }
+  }
+  throw new Error(`${label}: ${lastError.message}`);
+}
+
+function accountBody(merchantId) {
+  return {
+    merchant_id: merchantId,
+    merchant_name: `Loadtest Merchant ${merchantId}`,
+    primary_business_details: [{ country: "US", business: "default" }],
+  };
+}
+
+// A merchant_id that already exists on the server (left over from a prior
+// run that crashed between account creation and the manifest write) is
+// recovered via GET rather than treated as a failure, so reruns stay safe.
+async function createOrRecoverAccount(merchantId, cfg) {
+  const createRes = await fetch(`${cfg.router}/accounts`, {
+    method: "POST",
+    headers: adminHeaders(cfg),
+    body: JSON.stringify(accountBody(merchantId)),
+  });
+  if (createRes.ok) return createRes.json();
+  const recoverRes = await fetch(`${cfg.router}/accounts/${merchantId}`, { headers: adminHeaders(cfg) });
+  if (recoverRes.ok) return recoverRes.json();
+  throw new Error(`account create failed (${createRes.status}) and recovery GET also failed (${recoverRes.status}): ${await safeText(createRes)}`);
+}
+
+async function createApiKey(merchantId, cfg) {
+  const res = await fetch(`${cfg.router}/api_keys/${merchantId}`, {
+    method: "POST",
+    headers: adminHeaders(cfg),
+    body: JSON.stringify({ name: "scenario-mix loadtest", expiration: "2069-09-23T01:02:03.000Z" }),
+  });
+  if (!res.ok) throw new Error(`api_key create failed (${res.status}): ${await safeText(res)}`);
+  return res.json();
+}
+
+async function createConnector(merchantId, cfg) {
+  const res = await fetch(`${cfg.router}/account/${merchantId}/connectors`, {
+    method: "POST",
+    headers: adminHeaders(cfg),
+    body: JSON.stringify(STRIPE_TEST_CONNECTOR),
+  });
+  if (!res.ok) throw new Error(`connector create failed (${res.status}): ${await safeText(res)}`);
+  return res.json();
+}
+
+async function deleteAccount(merchantId, cfg) {
+  const res = await fetch(`${cfg.router}/accounts/${merchantId}`, { method: "DELETE", headers: adminHeaders(cfg) });
+  if (!res.ok) throw new Error(`delete failed (${res.status}): ${await safeText(res)}`);
+}
+
+// ---------------------------------------------------------------------------
+// Concurrency: a fixed-size worker pool pulling from a shared cursor. Each
+// merchant's own 3 calls (account -> api_key -> connector) stay sequential
+// since each depends on the last; merchants themselves run in parallel.
+// ---------------------------------------------------------------------------
+
+async function mapLimit(items, limit, worker) {
+  let cursor = 0;
+  async function run() {
+    while (cursor < items.length) {
+      const index = cursor;
+      cursor += 1;
+      await worker(items[index], index);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, run));
+}
+
+// ---------------------------------------------------------------------------
+// Provision mode
+// ---------------------------------------------------------------------------
+
+async function provisionOne(index, cfg, existing) {
+  const merchantId = merchantIdFor(cfg, index);
+  if (existing.has(merchantId)) return { status: "skipped", merchantId };
+  try {
+    const account = await withRetry(() => createOrRecoverAccount(merchantId, cfg), cfg.retry, `account ${merchantId}`);
+    const profileId = account.default_profile;
+    const publishableKey = account.publishable_key;
+    if (!profileId || !publishableKey) {
+      throw new Error(`account response missing default_profile/publishable_key: ${JSON.stringify(account)}`);
+    }
+
+    const apiKeyResp = await withRetry(() => createApiKey(merchantId, cfg), cfg.retry, `api_key ${merchantId}`);
+    if (!apiKeyResp.api_key) throw new Error(`api_key response missing api_key: ${JSON.stringify(apiKeyResp)}`);
+
+    const connectorResp = await withRetry(() => createConnector(merchantId, cfg), cfg.retry, `connector ${merchantId}`);
+    if (!connectorResp.merchant_connector_id) {
+      throw new Error(`connector response missing merchant_connector_id: ${JSON.stringify(connectorResp)}`);
+    }
+
+    return {
+      status: "created",
+      merchantId,
+      entry: {
+        merchant_id: merchantId,
+        api_key: apiKeyResp.api_key,
+        publishable_key: publishableKey,
+        profile_id: profileId,
+        merchant_connector_id: connectorResp.merchant_connector_id,
+      },
+    };
+  } catch (error) {
+    return { status: "failed", merchantId, error: error.message };
+  }
+}
+
+async function provision(cfg) {
+  const manifestPath = resolvePath(cfg.output);
+  const manifest = loadManifest(manifestPath);
+  const existing = new Map(manifest.map((entry) => [entry.merchant_id, entry]));
+  const failures = [];
+  let createdCount = 0;
+  let skippedCount = 0;
+
+  console.log(`provisioning up to ${cfg.merchant_count} merchants (${existing.size} already in manifest) at concurrency ${cfg.concurrency}...`);
+
+  const indices = Array.from({ length: cfg.merchant_count }, (_, i) => i);
+  await mapLimit(indices, cfg.concurrency, async (index) => {
+    const result = await provisionOne(index, cfg, existing);
+    if (result.status === "skipped") {
+      skippedCount += 1;
+      return;
+    }
+    if (result.status === "created") {
+      manifest.push(result.entry);
+      existing.set(result.merchantId, result.entry);
+      createdCount += 1;
+      await scheduleWrite(manifestPath, manifest);
+      if (createdCount % 50 === 0) console.log(`created ${createdCount}...`);
+      return;
+    }
+    failures.push({ merchant_id: result.merchantId, error: result.error });
+    console.error(`FAILED ${result.merchantId}: ${result.error}`);
+  });
+
+  await writeChain;
+  if (failures.length) {
+    await writeFile(resolvePath("provision-failures.json"), JSON.stringify(failures, null, 2));
+  }
+
+  console.log(`\ndone: created=${createdCount} skipped=${skippedCount} failed=${failures.length} total_in_manifest=${manifest.length}`);
+  if (failures.length) {
+    console.log(`failures written to provision-failures.json — rerun this script to retry them (they were never added to the manifest, so they won't be skipped).`);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Cleanup mode
+// ---------------------------------------------------------------------------
+
+async function cleanup(cfg) {
+  const manifestPath = resolvePath(cfg.output);
+  let manifest = loadManifest(manifestPath);
+  if (!manifest.length) {
+    console.log("nothing to clean up — manifest is empty or missing");
+    return;
+  }
+  console.log(`deleting ${manifest.length} merchants at concurrency ${cfg.concurrency}...`);
+  const failures = [];
+  let deletedCount = 0;
+
+  await mapLimit(manifest.slice(), cfg.concurrency, async (entry) => {
+    try {
+      await withRetry(() => deleteAccount(entry.merchant_id, cfg), cfg.retry, `delete ${entry.merchant_id}`);
+      deletedCount += 1;
+      manifest = manifest.filter((m) => m.merchant_id !== entry.merchant_id);
+      await scheduleWrite(manifestPath, manifest);
+      if (deletedCount % 50 === 0) console.log(`deleted ${deletedCount}...`);
+    } catch (error) {
+      failures.push({ merchant_id: entry.merchant_id, error: error.message });
+      console.error(`FAILED to delete ${entry.merchant_id}: ${error.message}`);
+    }
+  });
+
+  await writeChain;
+  console.log(`\ndone: deleted=${deletedCount} failed=${failures.length} remaining_in_manifest=${manifest.length}`);
+}
+
+// ---------------------------------------------------------------------------
+
+async function main() {
+  const cfg = loadConfig();
+  const mode = process.argv.includes("--mode=cleanup") ? "cleanup" : "provision";
+  if (mode === "cleanup") await cleanup(cfg);
+  else await provision(cfg);
+}
+
+main().catch((error) => fail(error.stack || error.message));

@@ -81,6 +81,15 @@ const SCENARIOS = {
   // confirm. Router (non_modular) only — the v2/modular payment-method
   // service does not expose 1:1 equivalents of these endpoints yet.
   sdk_checkout: { requiresCustomer: false, setupFutureUsage: null, storageType: "volatile", nonModularOnly: true, sdkFlow: true },
+  // Merchant-initiated transaction: the customer is not present. A baseline
+  // step first saves a card via a CIT confirm (off_session, like
+  // cit_metadata_changed), then the measured request is a single
+  // POST /payments with confirm:true, off_session:true, and
+  // recurring_details.payment_method_id pointing at the saved payment
+  // method — no card data on the wire, no separate payment_create call.
+  // Mirrors cypress-tests' create-pm-id-mit.json / MandatesUsingPMID flow.
+  // Non-modular only (router recurring-payments API).
+  mit: { requiresCustomer: true, requiresSavedCard: true, setupFutureUsage: null, storageType: "persistent", nonModularOnly: true, mitFlow: true },
 };
 
 // Payment statuses considered a successful measured confirm (workload.js).
@@ -210,6 +219,7 @@ if (!enabledPlans.length) fail("at least one scenario must have weight > 0");
 const services = config.services || {};
 const targetHeaders = config.target_headers || {};
 const merchant = config.merchant || {};
+const merchantPoolConfig = config.merchant_pool || null;
 
 if (!services.router) fail("services.router is required");
 const routerUrl = services.router.replace(/\/$/, "");
@@ -226,10 +236,52 @@ if (needsModularPm) {
   }
   modularPmUrl = services.modular_pm.replace(/\/$/, "");
 }
-if (!merchant.api_key) fail("merchant.api_key is required");
-if (!merchant.profile_id) fail("merchant.profile_id is required (set on every payment create)");
-if (needsPublishableKey && !merchant.publishable_key) {
-  fail("merchant.publishable_key is required for the modular merchant path (payment-method session confirm) and for sdk_checkout (SDK Authorization header)");
+
+// merchant_pool: an array of { merchant_id, api_key, publishable_key,
+// profile_id } entries (see provision-merchants.mjs), one picked at random
+// per iteration (pickMerchant() below) so traffic spreads evenly across
+// every merchant in the pool over the run — independent of VU/executor
+// topology, unlike trying to synthesize a cross-scenario global counter.
+// Falls back to the single top-level `merchant` block when merchant_pool
+// isn't configured (unchanged single-merchant behavior).
+let merchantPool = null;
+if (merchantPoolConfig) {
+  if (!merchantPoolConfig.file) fail("merchant_pool.file is required when merchant_pool is set");
+  let raw;
+  try {
+    raw = open(merchantPoolConfig.file);
+  } catch (error) {
+    fail(`cannot read merchant_pool.file at "${merchantPoolConfig.file}": ${error}`);
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (error) {
+    fail(`merchant_pool.file "${merchantPoolConfig.file}" is not valid JSON: ${error}`);
+  }
+  if (!Array.isArray(parsed) || !parsed.length) {
+    fail(`merchant_pool.file "${merchantPoolConfig.file}" must be a non-empty JSON array`);
+  }
+  parsed.forEach((entry, index) => {
+    if (!entry || !entry.api_key || !entry.profile_id) {
+      fail(`merchant_pool.file "${merchantPoolConfig.file}": entry [${index}] must have api_key and profile_id`);
+    }
+    if (needsPublishableKey && !entry.publishable_key) {
+      fail(`merchant_pool.file "${merchantPoolConfig.file}": entry [${index}] is missing publishable_key, required by the modular path and/or sdk_checkout`);
+    }
+  });
+  merchantPool = parsed;
+} else {
+  if (!merchant.api_key) fail("merchant.api_key is required (or configure merchant_pool)");
+  if (!merchant.profile_id) fail("merchant.profile_id is required (set on every payment create, or configure merchant_pool)");
+  if (needsPublishableKey && !merchant.publishable_key) {
+    fail("merchant.publishable_key is required for the modular merchant path (payment-method session confirm) and for sdk_checkout (SDK Authorization header), or configure merchant_pool");
+  }
+}
+
+function pickMerchant() {
+  if (!merchantPool) return merchant;
+  return merchantPool[Math.floor(Math.random() * merchantPool.length)];
 }
 
 if (!paymentConfig.card || !paymentConfig.card.card_number) fail("payment.card with card_number is required");
@@ -248,6 +300,10 @@ const metadataUpdate = paymentConfig.metadata_update || {};
 const paymentAmount = numberOr(paymentConfig.amount, 1000);
 const paymentCurrency = paymentConfig.currency || "USD";
 const sessionExpiry = numberOr(paymentConfig.session_expiry, 900);
+// mit's single create+confirm call passes a return_url the way cypress-tests'
+// MIT fixtures do, even though an off_session recurring charge won't
+// normally redirect anywhere.
+const mitReturnUrl = paymentConfig.return_url || "https://example.com";
 
 // Wallets requested by sdk_checkout's session call (POST /payments/session_tokens).
 // Empty is valid and is the default — most test merchants have no wallet connectors.
@@ -337,7 +393,9 @@ function stepNames(plan) {
   if (plan.requiresCustomer) steps.push("customer_create");
   if (plan.usesPmService) steps.push("pm_session_create");
   if (plan.requiresSavedCard) steps.push("baseline_create", "baseline_confirm");
-  steps.push("payment_create");
+  // mit's measured request is a single POST /payments with confirm:true —
+  // there is no separate payment_create call to time.
+  if (!plan.mitFlow) steps.push("payment_create");
   if (plan.sdkFlow) steps.push("payment_method_list", "session", "eligibility");
   if (plan.usesPmService) steps.push("pm_session_confirm");
   steps.push("payment_confirm");
@@ -387,7 +445,7 @@ function get(url, headers, operation) {
   return http.get(url, requestParams(headers, operation));
 }
 
-function apiKeyHeaders() {
+function apiKeyHeaders(merchant) {
   return {
     ...(targetHeaders.router || {}),
     "api-key": merchant.api_key,
@@ -395,7 +453,7 @@ function apiKeyHeaders() {
   };
 }
 
-function modularApiKeyHeaders() {
+function modularApiKeyHeaders(merchant) {
   return {
     ...(targetHeaders.modular_pm || {}),
     Authorization: `api-key=${merchant.api_key}`,
@@ -404,7 +462,7 @@ function modularApiKeyHeaders() {
   };
 }
 
-function modularSessionHeaders(clientSecret) {
+function modularSessionHeaders(merchant, clientSecret) {
   return {
     ...(targetHeaders.modular_pm || {}),
     Authorization: `publishable-key=${merchant.publishable_key},client-secret=${clientSecret}`,
@@ -418,7 +476,7 @@ function modularSessionHeaders(clientSecret) {
 // Replicates the Authorization header the Hyperswitch SDK sends on
 // payment_method_list / session / eligibility once it holds a payment_id and
 // client_secret from payment create.
-function sdkAuthorizationHeader(payment) {
+function sdkAuthorizationHeader(merchant, payment) {
   const parts = [
     `profile_id=${merchant.profile_id}`,
     `publishable_key=${merchant.publishable_key}`,
@@ -428,10 +486,10 @@ function sdkAuthorizationHeader(payment) {
   return encoding.b64encode(parts.join(","));
 }
 
-function sdkAuthHeaders(payment) {
+function sdkAuthHeaders(merchant, payment) {
   return {
     ...(targetHeaders.router || {}),
-    Authorization: sdkAuthorizationHeader(payment),
+    Authorization: sdkAuthorizationHeader(merchant, payment),
     "content-type": "application/json",
   };
 }
@@ -448,7 +506,7 @@ function pickCard(iteration) {
   return cardPool[iteration % cardPool.length];
 }
 
-function paymentCreateBody(plan, customerId, description) {
+function paymentCreateBody(merchant, plan, customerId, description) {
   return {
     amount: paymentAmount,
     currency: paymentCurrency,
@@ -462,18 +520,44 @@ function paymentCreateBody(plan, customerId, description) {
   };
 }
 
+// mit's measured request: a single create+confirm call against a previously
+// saved payment method, no card data on the wire. Mirrors cypress-tests'
+// create-pm-id-mit.json fixture and the recurring_details.payment_method_id
+// flow it exercises (cypress-tests/cypress/e2e/spec/Payment/20-MandatesUsingPMID.cy.js).
+// Router requires confirm:true, off_session:true and customer_id together
+// with recurring_details (validate_recurring_mandate in
+// crates/router/src/core/payments/operations/payment_confirm.rs).
+function mitConfirmBody(merchant, customerId, savedPaymentMethodId, description) {
+  return {
+    amount: paymentAmount,
+    currency: paymentCurrency,
+    confirm: true,
+    capture_method: "automatic",
+    profile_id: merchant.profile_id,
+    session_expiry: sessionExpiry,
+    description,
+    customer_id: customerId,
+    off_session: true,
+    recurring_details: { type: "payment_method_id", data: savedPaymentMethodId },
+    return_url: mitReturnUrl,
+  };
+}
+
 // One JSON record per failed iteration, via console.error. k6 VU code cannot
 // write files directly (open() is read-only, init-stage only), so the way to
 // get a durable failures file is k6's own console-output redirection: run
 // with `k6 run --console-output=failures.log` (or `K6_CONSOLE_OUTPUT=failures.log`)
 // and every console.error call below lands there as its own line instead of
 // the terminal — see README "Logging failures to a file".
-function logFailure(plan, phaseInfo, reason, response, errorMessage) {
+function logFailure(merchant, plan, phaseInfo, reason, response, errorMessage) {
   const record = {
     time: new Date().toISOString(),
     scenario: plan.name,
     merchant_path: plan.merchantPath,
     scenario_type: plan.scenarioName,
+    // Only meaningful (and present) in merchant_pool mode — the single
+    // top-level `merchant` config block has no merchant_id field.
+    merchant_id: merchant.merchant_id,
     phase: phaseInfo ? phaseInfo.index : undefined,
     vu: __VU,
     iteration: exec.scenario.iterationInTest,
@@ -490,18 +574,18 @@ function logFailure(plan, phaseInfo, reason, response, errorMessage) {
   console.error(JSON.stringify(record));
 }
 
-function failIteration(plan, startedAt, reason, phaseInfo, response, errorMessage) {
+function failIteration(merchant, plan, startedAt, reason, phaseInfo, response, errorMessage) {
   plan.failureCounter.add(1, { reason });
   if (phaseInfo) phaseInfo.failureCounter.add(1, { reason });
   plan.trends.total_flow.add(Date.now() - startedAt);
-  logFailure(plan, phaseInfo, reason, response, errorMessage);
+  logFailure(merchant, plan, phaseInfo, reason, response, errorMessage);
 }
 
 // Card persistence can complete shortly after a successful confirm. Poll the
 // payment until the saved payment method surfaces (fixtures.js behavior).
-function findSavedPaymentMethod(paymentId) {
+function findSavedPaymentMethod(merchant, paymentId) {
   for (let attempt = 0; attempt < 50; attempt += 1) {
-    const response = http.get(`${routerUrl}/payments/${paymentId}`, requestParams(apiKeyHeaders(), "baseline_poll"));
+    const response = http.get(`${routerUrl}/payments/${paymentId}`, requestParams(apiKeyHeaders(merchant), "baseline_poll"));
     const paymentMethodId = json(response).payment_method_id;
     if (paymentMethodId) return paymentMethodId;
     sleep(0.1);
@@ -517,17 +601,22 @@ export function runScenario() {
   const plan = planByName[__ENV.SCENARIO_NAME];
   const phaseInfo = plan.phases ? plan.phases[Number(__ENV.PHASE_INDEX || 0)] : null;
   const startedAt = Date.now();
+  // Resolved once per iteration (not per request) so every request in the
+  // flow — and a mid-flow exception's failure record — uses the same
+  // merchant, and so a merchant_pool run is a uniform-random pick over the
+  // whole pool per iteration rather than per request.
+  const merchant = pickMerchant();
   // Never let an unexpected exception kill an iteration invisibly: k6 would
   // count it as complete with no success/failure recorded, silently
   // understating the failure rate.
   try {
-    runFlow(plan, phaseInfo, startedAt);
+    runFlow(merchant, plan, phaseInfo, startedAt);
   } catch (error) {
-    failIteration(plan, startedAt, `exception_${(error && error.name) || "error"}`, phaseInfo, null, error && error.message);
+    failIteration(merchant, plan, startedAt, `exception_${(error && error.name) || "error"}`, phaseInfo, null, error && error.message);
   }
 }
 
-function runFlow(plan, phaseInfo, startedAt) {
+function runFlow(merchant, plan, phaseInfo, startedAt) {
   const iteration = exec.scenario.iterationInTest;
   const card = pickCard(iteration);
 
@@ -544,14 +633,14 @@ function runFlow(plan, phaseInfo, startedAt) {
         email: `${reference}@example.com`,
         phone_country_code: "+1",
       },
-      modularApiKeyHeaders(),
+      modularApiKeyHeaders(merchant),
       "customer_create",
     );
     plan.trends.customer_create.add(response.timings.duration);
     const body = json(response);
     customerId = body.id || body.customer_id;
     if (response.status < 200 || response.status >= 300 || !customerId) {
-      failIteration(plan, startedAt, `customer_create_${statusCode(response)}`, phaseInfo, response);
+      failIteration(merchant, plan, startedAt, `customer_create_${statusCode(response)}`, phaseInfo, response);
       return;
     }
   }
@@ -567,7 +656,7 @@ function runFlow(plan, phaseInfo, startedAt) {
         expires_in: sessionExpiry,
         storage_type: plan.storageType,
       },
-      modularApiKeyHeaders(),
+      modularApiKeyHeaders(merchant),
       "pm_session_create",
     );
     plan.trends.pm_session_create.add(response.timings.duration);
@@ -575,24 +664,26 @@ function runFlow(plan, phaseInfo, startedAt) {
     pmSessionId = body.id;
     pmSessionClientSecret = body.client_secret;
     if (response.status < 200 || response.status >= 300 || !pmSessionId || !pmSessionClientSecret) {
-      failIteration(plan, startedAt, `pm_session_create_${statusCode(response)}`, phaseInfo, response);
+      failIteration(merchant, plan, startedAt, `pm_session_create_${statusCode(response)}`, phaseInfo, response);
       return;
     }
   }
 
-  // Step 3: baseline saved card (cit_metadata_changed). The measured confirm
-  // later resubmits the same PAN with changed metadata.
+  // Step 3: baseline saved card (cit_metadata_changed, mit). The measured
+  // confirm later either resubmits the same PAN with changed metadata
+  // (cit_metadata_changed) or charges the saved payment_method_id (mit).
+  let savedPaymentMethodId = null;
   if (plan.requiresSavedCard) {
     const createResponse = post(
       `${routerUrl}/payments`,
-      paymentCreateBody(plan, customerId, `scenario-mix baseline ${plan.merchantPath}:${plan.scenarioName}`),
-      apiKeyHeaders(),
+      paymentCreateBody(merchant, plan, customerId, `scenario-mix baseline ${plan.merchantPath}:${plan.scenarioName}`),
+      apiKeyHeaders(merchant),
       "baseline_create",
     );
     plan.trends.baseline_create.add(createResponse.timings.duration);
     const baseline = json(createResponse);
     if (createResponse.status < 200 || createResponse.status >= 300 || !baseline.payment_id) {
-      failIteration(plan, startedAt, `baseline_create_${statusCode(createResponse)}`, phaseInfo, createResponse);
+      failIteration(merchant, plan, startedAt, `baseline_create_${statusCode(createResponse)}`, phaseInfo, createResponse);
       return;
     }
     const confirmResponse = post(
@@ -605,14 +696,14 @@ function runFlow(plan, phaseInfo, startedAt) {
         setup_future_usage: "off_session",
         customer_acceptance: customerAcceptance(),
       },
-      apiKeyHeaders(),
+      apiKeyHeaders(merchant),
       "baseline_confirm",
     );
     plan.trends.baseline_confirm.add(confirmResponse.timings.duration);
-    const savedPaymentMethodId = json(confirmResponse).payment_method_id
-      || findSavedPaymentMethod(baseline.payment_id);
+    savedPaymentMethodId = json(confirmResponse).payment_method_id
+      || findSavedPaymentMethod(merchant, baseline.payment_id);
     if (confirmResponse.status < 200 || confirmResponse.status >= 300 || !savedPaymentMethodId) {
-      failIteration(plan, startedAt, `baseline_confirm_${statusCode(confirmResponse)}`, phaseInfo, confirmResponse);
+      failIteration(merchant, plan, startedAt, `baseline_confirm_${statusCode(confirmResponse)}`, phaseInfo, confirmResponse);
       return;
     }
   }
@@ -620,18 +711,22 @@ function runFlow(plan, phaseInfo, startedAt) {
   // Optional settling pause between preparation and the measured requests.
   if (thinkTimeMs > 0) sleep(thinkTimeMs / 1000);
 
-  // Step 4: create the payment that the measured confirm operates on.
-  const createResponse = post(
-    `${routerUrl}/payments`,
-    paymentCreateBody(plan, customerId, `scenario-mix ${plan.merchantPath}:${plan.scenarioName}`),
-    apiKeyHeaders(),
-    "payment_create",
-  );
-  plan.trends.payment_create.add(createResponse.timings.duration);
-  const payment = json(createResponse);
-  if (createResponse.status < 200 || createResponse.status >= 300 || !payment.payment_id) {
-    failIteration(plan, startedAt, `payment_create_${statusCode(createResponse)}`, phaseInfo, createResponse);
-    return;
+  // Step 4: create the payment that the measured confirm operates on. mit
+  // skips this — its measured step is a single create+confirm call (Step 6).
+  let payment = null;
+  if (!plan.mitFlow) {
+    const createResponse = post(
+      `${routerUrl}/payments`,
+      paymentCreateBody(merchant, plan, customerId, `scenario-mix ${plan.merchantPath}:${plan.scenarioName}`),
+      apiKeyHeaders(merchant),
+      "payment_create",
+    );
+    plan.trends.payment_create.add(createResponse.timings.duration);
+    payment = json(createResponse);
+    if (createResponse.status < 200 || createResponse.status >= 300 || !payment.payment_id) {
+      failIteration(merchant, plan, startedAt, `payment_create_${statusCode(createResponse)}`, phaseInfo, createResponse);
+      return;
+    }
   }
 
   // Step 4b: SDK pre-confirm calls (sdk_checkout only) — replicates what the
@@ -641,24 +736,24 @@ function runFlow(plan, phaseInfo, startedAt) {
   if (plan.sdkFlow) {
     const pmListResponse = get(
       `${routerUrl}/payments/${payment.payment_id}/client`,
-      sdkAuthHeaders(payment),
+      sdkAuthHeaders(merchant, payment),
       "payment_method_list",
     );
     plan.trends.payment_method_list.add(pmListResponse.timings.duration);
     if (pmListResponse.status < 200 || pmListResponse.status >= 300) {
-      failIteration(plan, startedAt, `payment_method_list_${statusCode(pmListResponse)}`, phaseInfo, pmListResponse);
+      failIteration(merchant, plan, startedAt, `payment_method_list_${statusCode(pmListResponse)}`, phaseInfo, pmListResponse);
       return;
     }
 
     const sessionResponse = post(
       `${routerUrl}/payments/session_tokens`,
       { payment_id: payment.payment_id, client_secret: payment.client_secret, wallets: sdkWallets },
-      sdkAuthHeaders(payment),
+      sdkAuthHeaders(merchant, payment),
       "session",
     );
     plan.trends.session.add(sessionResponse.timings.duration);
     if (sessionResponse.status < 200 || sessionResponse.status >= 300) {
-      failIteration(plan, startedAt, `session_${statusCode(sessionResponse)}`, phaseInfo, sessionResponse);
+      failIteration(merchant, plan, startedAt, `session_${statusCode(sessionResponse)}`, phaseInfo, sessionResponse);
       return;
     }
 
@@ -669,12 +764,12 @@ function runFlow(plan, phaseInfo, startedAt) {
         payment_method_subtype: "credit",
         payment_method_data: { card },
       },
-      sdkAuthHeaders(payment),
+      sdkAuthHeaders(merchant, payment),
       "eligibility",
     );
     plan.trends.eligibility.add(eligibilityResponse.timings.duration);
     if (eligibilityResponse.status < 200 || eligibilityResponse.status >= 300) {
-      failIteration(plan, startedAt, `eligibility_${statusCode(eligibilityResponse)}`, phaseInfo, eligibilityResponse);
+      failIteration(merchant, plan, startedAt, `eligibility_${statusCode(eligibilityResponse)}`, phaseInfo, eligibilityResponse);
       return;
     }
   }
@@ -694,7 +789,7 @@ function runFlow(plan, phaseInfo, startedAt) {
     const response = post(
       `${modularPmUrl}/payment-method-sessions/${pmSessionId}/confirm`,
       body,
-      modularSessionHeaders(pmSessionClientSecret),
+      modularSessionHeaders(merchant, pmSessionClientSecret),
       "pm_session_confirm",
     );
     plan.trends.pm_session_confirm.add(response.timings.duration);
@@ -702,26 +797,38 @@ function runFlow(plan, phaseInfo, startedAt) {
     token = pmBody.associated_payment_methods?.[0]?.payment_method_token;
     if (token && typeof token === "object") token = token.data;
     if (response.status < 200 || response.status >= 300 || !token) {
-      failIteration(plan, startedAt, `pm_session_confirm_${statusCode(response)}`, phaseInfo, response);
+      failIteration(merchant, plan, startedAt, `pm_session_confirm_${statusCode(response)}`, phaseInfo, response);
       return;
     }
   }
 
-  // Step 6: measured payment confirm.
-  const measuredCard = plan.metadataChanged ? { ...card, ...metadataUpdate } : card;
-  const confirmBody = plan.usesPmService
-    ? { payment_token: token, payment_method: "card", payment_method_type: "credit" }
-    : { payment_method: "card", payment_method_type: "credit", payment_method_data: { card: measuredCard } };
-  if (plan.setupFutureUsage) {
-    confirmBody.setup_future_usage = plan.setupFutureUsage;
-    confirmBody.customer_acceptance = customerAcceptance();
+  // Step 6: measured payment confirm. mit is a single create+confirm call
+  // against the saved payment method (no payment.payment_id to confirm
+  // against, no card data) rather than confirming the Step 4 intent.
+  let confirmResponse;
+  if (plan.mitFlow) {
+    confirmResponse = post(
+      `${routerUrl}/payments`,
+      mitConfirmBody(merchant, customerId, savedPaymentMethodId, `scenario-mix ${plan.merchantPath}:${plan.scenarioName}`),
+      apiKeyHeaders(merchant),
+      "payment_confirm",
+    );
+  } else {
+    const measuredCard = plan.metadataChanged ? { ...card, ...metadataUpdate } : card;
+    const confirmBody = plan.usesPmService
+      ? { payment_token: token, payment_method: "card", payment_method_type: "credit" }
+      : { payment_method: "card", payment_method_type: "credit", payment_method_data: { card: measuredCard } };
+    if (plan.setupFutureUsage) {
+      confirmBody.setup_future_usage = plan.setupFutureUsage;
+      confirmBody.customer_acceptance = customerAcceptance();
+    }
+    confirmResponse = post(
+      `${routerUrl}/payments/${payment.payment_id}/confirm`,
+      confirmBody,
+      apiKeyHeaders(merchant),
+      "payment_confirm",
+    );
   }
-  const confirmResponse = post(
-    `${routerUrl}/payments/${payment.payment_id}/confirm`,
-    confirmBody,
-    apiKeyHeaders(),
-    "payment_confirm",
-  );
   plan.trends.payment_confirm.add(confirmResponse.timings.duration);
   globalPaymentConfirm.add(confirmResponse.timings.duration);
   if (phaseInfo) phaseInfo.confirmTrend.add(confirmResponse.timings.duration);
@@ -730,7 +837,7 @@ function runFlow(plan, phaseInfo, startedAt) {
     && confirmResponse.status < 300
     && SUCCESS_STATUSES.has(status);
   if (!succeeded) {
-    failIteration(plan, startedAt, `payment_confirm_${statusCode(confirmResponse)}_${status}`, phaseInfo, confirmResponse);
+    failIteration(merchant, plan, startedAt, `payment_confirm_${statusCode(confirmResponse)}_${status}`, phaseInfo, confirmResponse);
     return;
   }
   plan.successCounter.add(1);
