@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.09.14.0-hotfix1
+
+### Features
+
+- **applepay:** Add payment processing detail input type for simplified flow ([#14238](https://github.com/juspay/hyperswitch/pull/14238)) ([`32f7b7f`](https://github.com/juspay/hyperswitch/commit/32f7b7f2df758099af70153e8a3989f355894626))
+- **resources:** Org-scoped, reusable Apple Pay certificate management ([#14232](https://github.com/juspay/hyperswitch/pull/14232)) ([`0d2f4e3`](https://github.com/juspay/hyperswitch/commit/0d2f4e35cfcb420a350847699e703dade557ff81))
+
+**Full Changelog:** [`2026.09.14.0...2026.09.14.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2026.09.14.0...2026.09.14.0-hotfix1)
+
+- - -
+
 ## 2026.09.14.0
 
 ### Features
