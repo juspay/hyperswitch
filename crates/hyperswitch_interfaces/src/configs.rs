@@ -179,6 +179,16 @@ impl MerchantConnectorAccountType {
         }
     }
 
+    /// Returns the business details (business_country, business_label) configured on the
+    /// merchant connector account, if both are present
+    #[cfg(feature = "v1")]
+    pub fn get_business_details(&self) -> Option<(common_enums::CountryAlpha2, String)> {
+        match self {
+            Self::DbVal(db_val) => db_val.business_country.zip(db_val.business_label.clone()),
+            Self::CacheVal(_) => None,
+        }
+    }
+
     pub fn get_additional_merchant_data(&self) -> Option<Encryptable<Secret<serde_json::Value>>> {
         match self {
             Self::DbVal(db_val) => db_val.additional_merchant_data.clone(),
