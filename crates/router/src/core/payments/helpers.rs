@@ -2720,13 +2720,13 @@ impl From<RolloutConfig> for RolloutExecutionResult {
                         );
                         Self {
                             should_execute: true,
-                            // Proxy override is sourced from the env-configured comparison
-                            // service, not from the DB/Superposition rollout config — populated
-                            // by the caller after conversion.
-                            proxy_override: None,
                             execution_mode: config.execution_mode,
                             kill_switch_enabled: config.kill_switch_enabled,
                             kill_switch_threshold: config.kill_switch_threshold,
+                            // Proxy override is sourced from the env-configured comparison
+                            // service, not from the DB/Superposition rollout config — populated
+                            // by the caller after conversion.
+                            ..Default::default()
                         }
                     }
                     false => {
