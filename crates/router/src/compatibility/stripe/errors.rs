@@ -889,3 +889,29 @@ impl ErrorSwitch<StripeErrorCode> for CustomersErrorResponse {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn missing_mandate_amount_serializes_as_stripe_parameter_error() {
+        let stripe_error = StripeErrorCode::from(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "mandate_data.amount",
+        });
+
+        let serialized = stripe_error.to_string();
+        let body: serde_json::Value =
+            serde_json::from_str(&serialized).expect("Stripe error response should be valid JSON");
+
+        assert_eq!(body["error"]["code"], "parameter_missing", "{serialized}");
+        assert_eq!(
+            body["error"]["message"], "Missing required param: mandate_data.amount.",
+            "{serialized}"
+        );
+        assert_eq!(
+            body["error"]["type"], "invalid_request_error",
+            "{serialized}"
+        );
+    }
+}
