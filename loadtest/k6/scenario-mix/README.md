@@ -303,7 +303,13 @@ PANs in `card_pool`.
 Returning-customer checkout: a shopper who already saved a card comes back,
 picks it from their saved payment methods, and pays without re-entering card
 data. Mirrors cypress-tests' `14-SaveCardFlow.cy.js`
-(`listCustomerPMCallTest` + `saveCardConfirmCallTest`).
+(`listCustomerPMCallTest` + `saveCardConfirmCallTest`), but sources the
+`payment_token` from the **combined** payment-method-list endpoint
+(`GET /payments/{payment_id}/client`) instead of the merchant-facing
+`/customers/{customer_id}/payment_methods` endpoint — the same call
+`sdk_checkout`'s `payment_method_list` step makes, since that's what a real
+SDK integration uses to render a returning customer's saved cards alongside
+the merchant's enabled payment methods.
 
 Like `cit_metadata_changed`/`mit`, this is a two-stage iteration:
 
@@ -312,14 +318,17 @@ Like `cit_metadata_changed`/`mit`, this is a two-stage iteration:
    `setup_future_usage: off_session`, saving it) → polls
    `GET /payments/{id}` up to 50×/5s until `payment_method_id` appears, same
    as `cit_metadata_changed`/`mit`'s baseline. Unlike `mit`, the measured
-   step here (`list_payment_methods`) reads back through the same
-   non-modular (v1) API family that wrote the card, so `mit`'s
+   step here reads the card back through the same non-modular (v1) API
+   family that wrote it, so `mit`'s
    `PaymentMethodModularForwardCompatWorkflow`/`IR_39` known limitation
    (see below) does not apply — by the time the baseline's own poll
-   returns, the card is already visible to this scenario's list call.
-2. **Measured:** `list_payment_methods`
-   (`GET /customers/{customer_id}/payment_methods`) to fetch the saved
-   card's `payment_token` → `payment_create` → `payment_confirm` with
+   returns, the card is already visible to the combined list call.
+2. **Measured:** `payment_create` → `payment_method_list`
+   (`GET /payments/{payment_id}/client`, SDK Authorization header — see
+   *SDK Authorization header* below) to fetch the saved card's
+   `payment_token` from `customer_payment_methods[0]` (the intent's own
+   `customer_id` is what scopes the response to this customer) →
+   `payment_confirm` with
    `{ payment_token, payment_method: "card", payment_method_type: "credit" }`
    — no `payment_method_data`, no `setup_future_usage` (this payment spends a
    previously saved card; it doesn't save a new one).
@@ -331,9 +340,10 @@ PANs in `card_pool`.
 
 ### SDK Authorization header
 
-`payment_method_list`, `session`, and `eligibility` are authenticated the way
-the Hyperswitch SDK actually authenticates: an `Authorization` header holding
-base64-encoded (standard, padded), comma-separated `key=value` pairs —
+`payment_method_list` (`sdk_checkout` and `saved_card_checkout`), `session`,
+and `eligibility` are authenticated the way the Hyperswitch SDK actually
+authenticates: an `Authorization` header holding base64-encoded (standard,
+padded), comma-separated `key=value` pairs —
 `profile_id=...,publishable_key=...,client_secret=...,payment_id=...` — built
 fresh per iteration from `merchant.profile_id`, `merchant.publishable_key`,
 and the `payment_id`/`client_secret` returned by that iteration's
@@ -353,10 +363,9 @@ counter with a `reason` tag.
 | `customer_create` | scenario requires a customer (always via the PM service, even for `non_modular` scenarios) | `POST {modular_pm}/customers` |
 | `pm_session_create` | modular path | `POST {modular_pm}/payment-method-sessions` (with the scenario's `storage_type`) |
 | `baseline_create` + `baseline_confirm` | `cit_metadata_changed`, `mit`, `saved_card_checkout` | `POST {router}/payments` + `/payments/{id}/confirm` saving the card `off_session`, then polls `GET /payments/{id}` until `payment_method_id` appears |
-| `list_payment_methods` | `saved_card_checkout` only | `GET {router}/customers/{customer_id}/payment_methods` — the measured request's `payment_token` comes from the first entry in `customer_payment_methods` |
 | *(think time)* | `load.think_time_ms > 0` | sleep between preparation and measured requests |
 | `payment_create` | always except `mit` | `POST {router}/payments` with `confirm: false` |
-| `payment_method_list` | `sdk_checkout` only | `GET {router}/payments/{id}/client` (SDK Authorization header) |
+| `payment_method_list` | `sdk_checkout`, `saved_card_checkout` | `GET {router}/payments/{id}/client` (SDK Authorization header) — the combined merchant-enabled + customer-saved payment-method list; `saved_card_checkout`'s measured `payment_token` comes from the first entry in `customer_payment_methods` |
 | `session` | `sdk_checkout` only | `POST {router}/payments/session_tokens` with `wallets` from `sdk.wallets` (SDK Authorization header) |
 | `eligibility` | `sdk_checkout` only | `POST {router}/payments/{id}/eligibility` with the card (SDK Authorization header) |
 | `pm_session_confirm` | modular path | `POST {modular_pm}/payment-method-sessions/{id}/confirm` with the card; adds `customer_acceptance` when the scenario sets `setup_future_usage` |
@@ -417,7 +426,7 @@ Existing-merchant credentials; nothing is provisioned or mutated.
 | --- | --- |
 | `api_key` | always (Router `api-key` header; PM service `Authorization: api-key=...`) |
 | `profile_id` | always (sent on every payment create and as `x-profile-id` on PM calls) |
-| `publishable_key` | at least one enabled entry uses the modular path (session confirm auth: `Authorization: publishable-key=...,client-secret=...`), or `sdk_checkout` is enabled (SDK Authorization header, see above) |
+| `publishable_key` | at least one enabled entry uses the modular path (session confirm auth: `Authorization: publishable-key=...,client-secret=...`), or `sdk_checkout`/`saved_card_checkout` is enabled (SDK Authorization header, see above) |
 
 ### `merchant_pool` (optional — load-testing against many merchants)
 

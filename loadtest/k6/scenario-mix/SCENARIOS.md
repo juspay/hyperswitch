@@ -79,18 +79,22 @@ defined in `SCENARIOS` (ported from `loadtest/runner/lib/scenarios.js`).
 
 - Two-stage iteration, like `cit_metadata_changed`/`mit`: a baseline step first saves a
   card via a CIT confirm (`setup_future_usage: "off_session"`), then the measured
-  request lists the customer's saved payment methods
-  (`GET /customers/{customer_id}/payment_methods`) to obtain a `payment_token`, and
-  confirms a fresh payment intent with that token — no card data on the wire for the
-  measured request.
+  request creates a fresh payment intent and calls the **combined**
+  payment-method-list endpoint (`GET /payments/{payment_id}/client` — the same
+  SDK-facing call `sdk_checkout`'s `payment_method_list` step makes) to obtain the
+  saved card's `payment_token` from its `customer_payment_methods`, then confirms
+  with that token — no card data on the wire for the measured confirm.
 - Mirrors cypress-tests' `14-SaveCardFlow.cy.js` (`listCustomerPMCallTest` +
-  `saveCardConfirmCallTest`).
+  `saveCardConfirmCallTest`), adapted to the combined list endpoint (the payment's
+  own `customer_id` drives which customer's saved methods come back) rather than
+  the merchant-facing `/customers/{customer_id}/payment_methods` endpoint.
 - Customer is created; card is saved persistently in the baseline step
   (`requiresSavedCard: true`, `storageType: "persistent"`).
 - `setupFutureUsage: null` on the measured payment — it spends a previously saved
   card, it doesn't save a new one.
-- Non-modular merchant path only — the payment-method-list/token-confirm endpoints
-  are router (v1) APIs.
+- Non-modular merchant path only. Requires `merchant.publishable_key`, same as
+  `sdk_checkout`, for the SDK Authorization header the combined list endpoint
+  authenticates with.
 
 ## Merchant path constraints
 

@@ -92,13 +92,16 @@ const SCENARIOS = {
   mit: { requiresCustomer: true, requiresSavedCard: true, setupFutureUsage: null, storageType: "persistent", nonModularOnly: true, mitFlow: true },
   // Returning-customer checkout: a baseline step first saves a card via a
   // CIT confirm (off_session, like cit_metadata_changed/mit), then the
-  // measured request lists the customer's saved payment methods
-  // (GET /customers/{customer_id}/payment_methods) to obtain a payment_token
-  // and confirms a fresh payment intent with that token — no card data on
-  // the wire for the measured request. Mirrors cypress-tests'
-  // 14-SaveCardFlow.cy.js (listCustomerPMCallTest + saveCardConfirmCallTest).
-  // Non-modular only: the payment-method-list/token-confirm endpoints are
-  // router (v1) APIs.
+  // measured request creates a fresh payment intent and calls the combined
+  // payment-method-list endpoint (GET /payments/{payment_id}/client — the
+  // same SDK-facing call sdk_checkout's payment_method_list step makes) to
+  // obtain the saved card's payment_token from its customer_payment_methods,
+  // then confirms with that token — no card data on the wire for the
+  // measured confirm. Mirrors cypress-tests' 14-SaveCardFlow.cy.js
+  // (listCustomerPMCallTest + saveCardConfirmCallTest), adapted to the
+  // combined list endpoint. Non-modular only, and needs
+  // merchant.publishable_key for the SDK Authorization header, same as
+  // sdk_checkout.
   saved_card_checkout: { requiresCustomer: true, requiresSavedCard: true, savedCardCheckout: true, setupFutureUsage: null, storageType: "persistent", nonModularOnly: true },
 };
 
@@ -245,9 +248,11 @@ const routerUrl = services.router.replace(/\/$/, "");
 // eligible connector found for token-based MIT payment"); accepted as a
 // known limitation rather than adding retry/delay logic here.
 const needsModularPm = enabledPlans.some((plan) => plan.usesPmService || plan.requiresCustomer);
-// The modular path needs it for payment-method-session confirm auth; sdk_checkout
-// needs it to build the SDK Authorization header (see sdkAuthorizationHeader()).
-const needsPublishableKey = enabledPlans.some((plan) => plan.usesPmService || plan.sdkFlow);
+// The modular path needs it for payment-method-session confirm auth;
+// sdk_checkout and saved_card_checkout both need it to build the SDK
+// Authorization header (see sdkAuthorizationHeader()) for the combined
+// payment-method-list call.
+const needsPublishableKey = enabledPlans.some((plan) => plan.usesPmService || plan.sdkFlow || plan.savedCardCheckout);
 let modularPmUrl = null;
 if (needsModularPm) {
   if (!services.modular_pm) {
@@ -412,11 +417,14 @@ function stepNames(plan) {
   if (plan.requiresCustomer) steps.push("customer_create");
   if (plan.usesPmService) steps.push("pm_session_create");
   if (plan.requiresSavedCard) steps.push("baseline_create", "baseline_confirm");
-  if (plan.savedCardCheckout) steps.push("list_payment_methods");
   // mit's measured request is a single POST /payments with confirm:true —
   // there is no separate payment_create call to time.
   if (!plan.mitFlow) steps.push("payment_create");
   if (plan.sdkFlow) steps.push("payment_method_list", "session", "eligibility");
+  // saved_card_checkout calls the same combined list endpoint as
+  // sdk_checkout's payment_method_list step, but on its own (no session/
+  // eligibility calls) — see Step 4c in runFlow().
+  if (plan.savedCardCheckout) steps.push("payment_method_list");
   if (plan.usesPmService) steps.push("pm_session_confirm");
   steps.push("payment_confirm");
   return steps;
@@ -700,10 +708,11 @@ function runFlow(merchant, plan, phaseInfo, startedAt) {
   // saved_card_checkout). The measured confirm later either resubmits the
   // same PAN with changed metadata (cit_metadata_changed), charges the saved
   // payment_method_id directly (mit), or looks the card back up through the
-  // customer's payment-method list (saved_card_checkout, Step 3b below).
+  // combined payment-method-list endpoint (saved_card_checkout, Step 4c
+  // below).
   let savedPaymentMethodId = null;
   // Payment token the measured confirm's `payment_token` field uses —
-  // sourced from either Step 3b below (saved_card_checkout) or the modular
+  // sourced from either Step 4c below (saved_card_checkout) or the modular
   // pm-session confirm (Step 5).
   let token = null;
   if (plan.requiresSavedCard) {
@@ -737,25 +746,6 @@ function runFlow(merchant, plan, phaseInfo, startedAt) {
       || findSavedPaymentMethod(merchant, baseline.payment_id);
     if (confirmResponse.status < 200 || confirmResponse.status >= 300 || !savedPaymentMethodId) {
       failIteration(merchant, plan, startedAt, `baseline_confirm_${statusCode(confirmResponse)}`, phaseInfo, confirmResponse);
-      return;
-    }
-  }
-
-  // Step 3b: list the customer's saved payment methods to obtain the
-  // payment_token the measured confirm reuses (saved_card_checkout only) —
-  // mirrors cypress-tests' listCustomerPMCallTest / a returning customer
-  // picking a saved card at checkout. Non-modular only: this is a router
-  // (v1) endpoint.
-  if (plan.savedCardCheckout) {
-    const response = get(
-      `${routerUrl}/customers/${customerId}/payment_methods`,
-      apiKeyHeaders(merchant),
-      "list_payment_methods",
-    );
-    plan.trends.list_payment_methods.add(response.timings.duration);
-    token = json(response).customer_payment_methods?.[0]?.payment_token;
-    if (response.status < 200 || response.status >= 300 || !token) {
-      failIteration(merchant, plan, startedAt, `list_payment_methods_${statusCode(response)}`, phaseInfo, response);
       return;
     }
   }
@@ -826,6 +816,28 @@ function runFlow(merchant, plan, phaseInfo, startedAt) {
     }
   }
 
+  // Step 4c: combined payment-method list (saved_card_checkout only) — the
+  // same GET /payments/{id}/client endpoint sdk_checkout's payment_method_list
+  // step calls, but here the intent carries a customer_id, so the response's
+  // customer_payment_methods includes the card saved in the baseline step;
+  // its payment_token is what the measured confirm below spends. Mirrors
+  // cypress-tests' listCustomerPMCallTest, adapted to the combined list
+  // endpoint per SDK usage rather than the merchant-facing
+  // /customers/{id}/payment_methods endpoint.
+  if (plan.savedCardCheckout) {
+    const response = get(
+      `${routerUrl}/payments/${payment.payment_id}/client`,
+      sdkAuthHeaders(merchant, payment),
+      "payment_method_list",
+    );
+    plan.trends.payment_method_list.add(response.timings.duration);
+    token = json(response).customer_payment_methods?.[0]?.payment_token;
+    if (response.status < 200 || response.status >= 300 || !token) {
+      failIteration(merchant, plan, startedAt, `payment_method_list_${statusCode(response)}`, phaseInfo, response);
+      return;
+    }
+  }
+
   // Step 5: confirm the payment-method session to obtain a payment token
   // (modular merchant path only).
   if (plan.usesPmService) {
@@ -869,7 +881,8 @@ function runFlow(merchant, plan, phaseInfo, startedAt) {
     // usesPmService (modular) and savedCardCheckout (non-modular) both
     // confirm against a previously obtained payment_token instead of raw
     // card data — the token just comes from a different upstream call
-    // (pm_session_confirm vs. list_payment_methods, Step 3b/5 above).
+    // (pm_session_confirm vs. the combined payment-method list, Step 4c/5
+    // above).
     const confirmBody = (plan.usesPmService || plan.savedCardCheckout)
       ? { payment_token: token, payment_method: "card", payment_method_type: "credit" }
       : { payment_method: "card", payment_method_type: "credit", payment_method_data: { card: measuredCard } };
