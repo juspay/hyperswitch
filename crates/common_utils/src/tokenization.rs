@@ -11,6 +11,5 @@ use crate::consts::TOKEN_LENGTH;
 /// # Returns
 /// A randomly generated token string of length `TOKEN_LENGTH`
 pub fn generate_token() -> String {
-    use nanoid::nanoid;
-    nanoid!(TOKEN_LENGTH)
+    crate::generate_nanoid_with_default_alphabet(TOKEN_LENGTH)
 }

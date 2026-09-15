@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, str::FromStr};
 
 use api_models::payments::SessionToken;
 use cards::NetworkToken;
@@ -1581,8 +1581,8 @@ pub(crate) fn get_google_pay_session<F, T>(
                         allowed_payment_methods: google_pay_init_result
                             .allowed_payment_methods
                             .into_iter()
-                            .map(Into::into)
-                            .collect(),
+                            .map(TryInto::try_into)
+                            .collect::<Result<Vec<_>, _>>()?,
                         transaction_info: google_pay_init_result.transaction_info.into(),
                         secrets: Some((*secrets).clone().into()),
                         shipping_address_required: false,
@@ -1622,13 +1622,15 @@ impl From<GooglePayMerchantInfo> for api_models::payments::GpayMerchantInfo {
     }
 }
 
-impl From<GooglePayAllowedPaymentMethods> for api_models::payments::GpayAllowedPaymentMethods {
-    fn from(value: GooglePayAllowedPaymentMethods) -> Self {
-        Self {
+impl TryFrom<GooglePayAllowedPaymentMethods> for api_models::payments::GpayAllowedPaymentMethods {
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(value: GooglePayAllowedPaymentMethods) -> Result<Self, Self::Error> {
+        Ok(Self {
             payment_method_type: value.payment_method_type,
             parameters: value.parameters.into(),
-            tokenization_specification: value.tokenization_specification.into(),
-        }
+            tokenization_specification: value.tokenization_specification.try_into()?,
+        })
     }
 }
 
@@ -1645,12 +1647,23 @@ impl From<GpayAllowedMethodsParameters> for api_models::payments::GpayAllowedMet
     }
 }
 
-impl From<GpayTokenizationSpecification> for api_models::payments::GpayTokenizationSpecification {
-    fn from(value: GpayTokenizationSpecification) -> Self {
-        Self {
-            token_specification_type: value.token_specification_type,
+impl TryFrom<GpayTokenizationSpecification>
+    for api_models::payments::GpayTokenizationSpecification
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(value: GpayTokenizationSpecification) -> Result<Self, Self::Error> {
+        Ok(Self {
+            token_specification_type:
+                api_models::payments::GooglePayTokenizationSpecificationType::from_str(
+                    &value.token_specification_type,
+                )
+                .change_context(errors::ConnectorError::ParsingFailed)
+                .attach_printable(
+                    "unsupported google pay tokenization type received from trustpay",
+                )?,
             parameters: value.parameters.into(),
-        }
+        })
     }
 }
 

@@ -461,10 +461,7 @@ impl ForeignTryFrom<&api_models::payments::ExternalThreeDsData> for Authenticati
             threeds_server_transaction_id: Some(external_auth_data.ds_trans_id.clone()),
             message_version: Some(external_auth_data.version.clone()),
             ds_trans_id: Some(external_auth_data.ds_trans_id.clone()),
-            created_at: time::PrimitiveDateTime::new(
-                time::OffsetDateTime::now_utc().date(),
-                time::OffsetDateTime::now_utc().time(),
-            ),
+            created_at: common_utils::date_time::now(),
             challenge_code: None,
             challenge_cancel: None,
             challenge_code_reason: None,

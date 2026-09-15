@@ -1396,24 +1396,23 @@ impl webhooks::IncomingWebhook for Worldpayxml {
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        let body_str = std::str::from_utf8(request.body)
-            .map_err(|_| errors::ConnectorError::WebhookBodyDecodingFailed)?;
-
-        let body: worldpayxml::WorldpayFormWebhookBody = serde_urlencoded::from_str(body_str)
-            .map_err(|_| errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        let order_code = body.order_code.clone();
-        if worldpayxml::is_refund_event(body.payment_status) {
+        let body: worldpayxml::WorldpayXmlWebhookBody =
+            utils::deserialize_xml_to_struct(request.body)?;
+        let order_code = body.notify.order_status_event.order_code.clone();
+        if worldpayxml::is_refund_event(body.notify.order_status_event.payment.last_event) {
             return Ok(api_models::webhooks::ObjectReferenceId::RefundId(
                 api_models::webhooks::RefundIdType::ConnectorRefundId(order_code),
             ));
         }
-        if worldpayxml::is_transaction_event(body.payment_status) {
+        if worldpayxml::is_transaction_event(body.notify.order_status_event.payment.last_event)
+            || worldpayxml::is_dispute_event(body.notify.order_status_event.payment.last_event)
+        {
             return Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
                 api_models::payments::PaymentIdType::ConnectorTransactionId(order_code),
             ));
         }
         #[cfg(feature = "payouts")]
-        if worldpayxml::is_payout_event(body.payment_status) {
+        if worldpayxml::is_payout_event(body.notify.order_status_event.payment.last_event) {
             return Ok(api_models::webhooks::ObjectReferenceId::PayoutId(
                 api_models::webhooks::PayoutIdType::ConnectorPayoutId(order_code),
             ));
@@ -1430,24 +1429,26 @@ impl webhooks::IncomingWebhook for Worldpayxml {
             return Ok(api_models::webhooks::IncomingWebhookEvent::EndpointVerification);
         }
 
-        let body_str = std::str::from_utf8(request.body)
-            .map_err(|_| errors::ConnectorError::WebhookBodyDecodingFailed)?;
-
-        let webhook_body: worldpayxml::WorldpayFormWebhookBody =
-            serde_urlencoded::from_str(body_str)
-                .map_err(|_| errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let body: worldpayxml::WorldpayXmlWebhookBody =
+            utils::deserialize_xml_to_struct(request.body)?;
 
         #[cfg(feature = "payouts")]
         {
-            if worldpayxml::is_payout_event(webhook_body.payment_status) {
+            if worldpayxml::is_payout_event(body.notify.order_status_event.payment.last_event) {
                 return Ok(worldpayxml::get_payout_webhook_event(
-                    webhook_body.payment_status,
+                    body.notify.order_status_event.payment.last_event,
                 ));
             }
         }
 
+        if worldpayxml::is_dispute_event(body.notify.order_status_event.payment.last_event) {
+            return Ok(worldpayxml::get_dispute_webhook_event(
+                body.notify.order_status_event.payment.last_event,
+            ));
+        }
+
         Ok(worldpayxml::get_payment_webhook_event(
-            webhook_body.payment_status,
+            body.notify.order_status_event.payment.last_event,
         ))
     }
 
@@ -1456,13 +1457,22 @@ impl webhooks::IncomingWebhook for Worldpayxml {
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
     {
-        let body_str = std::str::from_utf8(request.body)
-            .map_err(|_| errors::ConnectorError::WebhookBodyDecodingFailed)?;
-
-        let body: worldpayxml::WorldpayFormWebhookBody = serde_urlencoded::from_str(body_str)
-            .map_err(|_| errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let body: worldpayxml::WorldpayXmlWebhookBody =
+            utils::deserialize_xml_to_struct(request.body)?;
 
         Ok(Box::new(body))
+    }
+
+    fn get_dispute_details(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
+    ) -> CustomResult<hyperswitch_interfaces::disputes::DisputePayload, errors::ConnectorError>
+    {
+        let body: worldpayxml::WorldpayXmlWebhookBody =
+            utils::deserialize_xml_to_struct(request.body)?;
+
+        hyperswitch_interfaces::disputes::DisputePayload::try_from(&body)
     }
 }
 

@@ -11,7 +11,6 @@ use diesel_models::user::sample_data::PaymentAttemptBatchNew;
 use diesel_models::{enums as storage_enums, DisputeNew, RefundNew};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payments::PaymentIntent;
-use rand::{prelude::SliceRandom, thread_rng, Rng};
 use time::OffsetDateTime;
 
 use crate::{
@@ -136,11 +135,12 @@ pub async fn generate_sample_data(
 
     let mut disputes_count = 0;
 
-    let mut random_array: Vec<usize> = (1..=sample_data_size).collect();
-
-    // Shuffle the array
-    let mut rng = thread_rng();
-    random_array.shuffle(&mut rng);
+    // A shuffle of `1..=n` is a permutation of `0..n` with one added, so it goes
+    // through the permutation seam rather than shuffling in place.
+    let random_array: Vec<usize> = common_utils::generate_random_permutation(sample_data_size)
+        .into_iter()
+        .map(|index| index + 1)
+        .collect();
 
     let mut res: Vec<(
         PaymentIntent,
@@ -199,16 +199,16 @@ pub async fn generate_sample_data(
         let payment_id = id_type::PaymentId::generate_test_payment_id_for_sample_data();
         let attempt_id = payment_id.get_attempt_id(1);
         let client_secret = payment_id.generate_client_secret();
-        let amount = thread_rng().gen_range(min_amount..=max_amount);
+        let amount = common_utils::generate_random_number_in_range(min_amount, max_amount);
 
-        let created_at @ modified_at @ last_synced =
-            OffsetDateTime::from_unix_timestamp(thread_rng().gen_range(start_time..=end_time))
-                .map(common_utils::date_time::convert_to_pdt)
-                .unwrap_or(
-                    req.start_time.unwrap_or_else(|| {
-                        common_utils::date_time::now() - time::Duration::days(7)
-                    }),
-                );
+        let created_at @ modified_at @ last_synced = OffsetDateTime::from_unix_timestamp(
+            common_utils::generate_random_number_in_range(start_time, end_time),
+        )
+        .map(common_utils::date_time::convert_to_pdt)
+        .unwrap_or(
+            req.start_time
+                .unwrap_or_else(|| common_utils::date_time::now() - time::Duration::days(7)),
+        );
         let session_expiry =
             created_at.saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY));
 
@@ -326,7 +326,9 @@ pub async fn generate_sample_data(
                 .to_string(),
             ),
             payment_method: Some(common_enums::PaymentMethod::Card),
-            payment_method_type: Some(get_payment_method_type(thread_rng().gen_range(1..=2))),
+            payment_method_type: Some(get_payment_method_type(
+                u8::try_from(common_utils::generate_random_number_in_range(1, 2)).unwrap_or(1),
+            )),
             authentication_type: Some(
                 *auth_type
                     .get((num - 1) % auth_type_len)
