@@ -85,18 +85,12 @@ pub async fn get_frm_access_token(
             .attach_printable(
                 "Could not create FRM access token request from connector credentials",
             )?;
-    let access_token_router_data = payments::helpers::router_data_type_conversion::<
-        _,
-        AccessTokenAuth,
-        _,
-        _,
-        _,
-        AccessToken,
-    >(
-        router_data.clone(),
-        access_token_request,
-        Err(hyperswitch_domain_models::router_data::ErrorResponse::default()),
-    );
+    let access_token_router_data =
+        payments::helpers::router_data_type_conversion::<_, AccessTokenAuth, _, _, _, AccessToken>(
+            router_data.clone(),
+            access_token_request,
+            Err(hyperswitch_domain_models::router_data::ErrorResponse::default()),
+        );
 
     let connector = FraudCheckConnectorData::get_connector_by_name(connector_name)?;
     let connector_integration: services::BoxedAccessTokenConnectorIntegrationInterface<
