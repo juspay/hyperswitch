@@ -33,8 +33,6 @@ import path from "node:path";
 const STRIPE_TEST_CONNECTOR = {
   connector_type: "payment_processor",
   connector_name: "stripe",
-  business_country: "US",
-  business_label: "default",
   connector_account_details: {
     auth_type: "HeaderKey",
     api_key: "<STRIPE_TEST_SECRET_KEY>",
@@ -45,16 +43,63 @@ const STRIPE_TEST_CONNECTOR = {
     {
       payment_method: "card",
       payment_method_types: [
-        { payment_method_type: "credit", minimum_amount: 1, maximum_amount: 68607706, recurring_enabled: true, installment_payment_enabled: true },
+        {
+          payment_method_type: "credit",
+          card_networks: ["Visa", "Mastercard"],
+          minimum_amount: 1,
+          maximum_amount: 68607706,
+          recurring_enabled: true,
+          installment_payment_enabled: true,
+        },
+        {
+          payment_method_type: "debit",
+          card_networks: ["Visa", "Mastercard"],
+          minimum_amount: 1,
+          maximum_amount: 68607706,
+          recurring_enabled: true,
+          installment_payment_enabled: true,
+        },
       ],
     },
     {
-      payment_method: "card",
+      payment_method: "pay_later",
       payment_method_types: [
-        { payment_method_type: "debit", minimum_amount: 1, maximum_amount: 68607706, recurring_enabled: true, installment_payment_enabled: true },
+        {
+          payment_method_type: "klarna",
+          payment_experience: "redirect_to_url",
+          minimum_amount: 1,
+          maximum_amount: 68607706,
+          recurring_enabled: true,
+          installment_payment_enabled: true,
+        },
+        {
+          payment_method_type: "affirm",
+          payment_experience: "redirect_to_url",
+          minimum_amount: 1,
+          maximum_amount: 68607706,
+          recurring_enabled: true,
+          installment_payment_enabled: true,
+        },
+        {
+          payment_method_type: "afterpay_clearpay",
+          payment_experience: "redirect_to_url",
+          minimum_amount: 1,
+          maximum_amount: 68607706,
+          recurring_enabled: true,
+          installment_payment_enabled: true,
+        },
       ],
     },
   ],
+  metadata: {
+    city: "NY",
+    unit: "245",
+  },
+  connector_webhook_details: {
+    merchant_secret: "MyWebhookSecret",
+  },
+  business_country: "US",
+  business_label: "default",
 };
 
 // Router derives a merchant connector's connector_label as
