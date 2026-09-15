@@ -526,12 +526,10 @@ fn build_checkout_recipient(
                     .clone()
                     .ok_or_else(utils::missing_field_err("recipient_details.address.city"))?,
             ),
-            state: Some(
-                address
-                    .state
-                    .clone()
-                    .ok_or_else(utils::missing_field_err("recipient_details.address.state"))?,
-            ),
+            // AFT state requirements vary by scheme, region and transaction category.
+            // Checkout validates those conditions; do not require state for every address.
+            // https://www.checkout.com/docs/payments/manage-payments/perform-an-account-funding-transaction
+            state: address.state.clone(),
             zip: Some(
                 address
                     .zip
@@ -557,7 +555,7 @@ fn build_checkout_sender(
             address_line1: Some(router_data.get_billing_line1()?),
             address_line2: router_data.get_optional_billing_line2(),
             city: Some(router_data.get_billing_city()?),
-            state: Some(router_data.get_billing_state()?),
+            state: router_data.get_optional_billing_state(),
             zip: Some(router_data.get_billing_zip()?),
             country: Some(router_data.get_billing_country()?),
         },
