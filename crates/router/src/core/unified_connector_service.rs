@@ -3087,8 +3087,6 @@ pub fn handle_unified_connector_service_response_for_frm_pre_risk_check(
     response: payments_grpc::FrmServicePreRiskCheckResponse,
 ) -> CustomResult<(Result<FraudCheckResponseData, ErrorResponse>, u16), UnifiedConnectorServiceError>
 {
-    use payments_grpc::FrmDecision;
-
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
     if let Some(error_info) = response.error.as_ref() {
@@ -3115,13 +3113,9 @@ pub fn handle_unified_connector_service_response_for_frm_pre_risk_check(
         ));
     }
 
-    let decision = response
-        .frm_decision
-        .and_then(|decision| FrmDecision::try_from(decision).ok())
-        .ok_or(UnifiedConnectorServiceError::ResponseDeserializationFailed)
-        .attach_printable("UCS FRM pre risk check succeeded but returned no decision")?;
-
-    let status = transformers::frm_status_from_ucs_decision(decision)?;
+    // `frm_decision()` yields `Unspecified` for both an absent and an unknown
+    // value; the mapping treats that as an error.
+    let status = transformers::frm_status_from_ucs_decision(response.frm_decision())?;
 
     Ok((
         Ok(FraudCheckResponseData::TransactionResponse {
