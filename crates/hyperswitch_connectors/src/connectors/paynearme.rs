@@ -607,17 +607,17 @@ impl webhooks::IncomingWebhook for Paynearme {
     }
 }
 
-static ETISALAT_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
+static PAYNEARME_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
     LazyLock::new(SupportedPaymentMethods::new);
 
-static ETISALAT_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+static PAYNEARME_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "PayNearMe",
     description: "PayNearMe is a US payments platform for bill pay and iGaming, offering card, ACH and cash payments.",
     connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
     integration_status: enums::ConnectorIntegrationStatus::Live,
 };
 
-static ETISALAT_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
+static PAYNEARME_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
 
 impl ConnectorSpecifications for Paynearme {
     /// PayNearMe attaches every payment and every stored payment method to an order
@@ -648,14 +648,14 @@ impl ConnectorSpecifications for Paynearme {
     }
 
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
-        Some(&ETISALAT_CONNECTOR_INFO)
+        Some(&PAYNEARME_CONNECTOR_INFO)
     }
 
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
-        Some(&*ETISALAT_SUPPORTED_PAYMENT_METHODS)
+        Some(&*PAYNEARME_SUPPORTED_PAYMENT_METHODS)
     }
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
-        Some(&ETISALAT_SUPPORTED_WEBHOOK_FLOWS)
+        Some(&PAYNEARME_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
