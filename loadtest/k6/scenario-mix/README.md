@@ -573,6 +573,15 @@ cp provision-config.example.json provision-config.json   # fill in admin_api_key
 node provision-merchants.mjs
 ```
 
+Every merchant is created under a single organization — `POST /accounts`
+takes an optional `organization_id`
+(`MerchantAccountCreate.organization_id`, `crates/api_models/src/admin.rs`);
+leaving it unset makes Router create a brand-new organization per merchant
+instead. If `organization_id` isn't set in `provision-config.json`, the
+script creates one organization via `POST /organization` (also admin auth)
+before the first merchant and caches its id in `merchants.json.org`, so
+reruns reuse the same org rather than minting a new one each time.
+
 For each merchant (default 1500, configurable) it calls, in order: `POST
 /accounts` (admin auth) to create the merchant account — the response's
 `default_profile` and `publishable_key` are used directly, no separate
@@ -614,6 +623,8 @@ of clutter to leave behind in a shared sandbox.
 | `admin_api_key` | — (required) | Router's configured admin API key (`api-key` header, same header merchants use — just the admin secret instead of a merchant key) |
 | `merchant_count` | — (required) | How many merchants to provision. Rerun with a different value to grow or shrink the pool — `scenario-mix.js` doesn't need to know this number, it just uses however many entries end up in `merchants.json` |
 | `merchant_id_prefix` | `loadtest_mix` | Prefix for deterministic merchant IDs; also makes it easy to identify/filter this batch later |
+| `organization_id` | — (auto-created) | Organization every merchant is created under. Leave unset to have the script create one org on first run and cache its id in `<output>.org` for reruns; set explicitly to reuse an org you already have |
+| `organization_name` | `${merchant_id_prefix} loadtest org` | Name for the auto-created organization. Ignored if `organization_id` is set |
 | `concurrency` | `20` | How many merchants to provision in parallel (each merchant's own 3 calls stay sequential) |
 | `output` | `merchants.json` | Manifest path — this is what `merchant_pool.file` should point at |
 | `retry.attempts` / `retry.backoff_ms` | `3` / `500` | Per-step retry on transient failures |

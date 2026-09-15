@@ -96,6 +96,9 @@ function loadConfig() {
   if (!/^[A-Za-z0-9_]+$/.test(prefix)) fail("merchant_id_prefix must use only letters, digits and underscores");
   const concurrency = Number(cfg.concurrency) || 20;
   const output = cfg.output || "merchants.json";
+  if (cfg.organization_id !== undefined && typeof cfg.organization_id !== "string") {
+    fail("organization_id must be a string when set");
+  }
   return {
     router: cfg.router.replace(/\/$/, ""),
     admin_api_key: cfg.admin_api_key,
@@ -103,6 +106,14 @@ function loadConfig() {
     merchant_id_prefix: prefix,
     concurrency,
     output,
+    // Every merchant this script creates is placed under one organization
+    // (accountBody's organization_id) so the pool reads as a single tenant
+    // rather than 1500 stray orgs. Leave unset to have the script create one
+    // organization on first run and cache its id next to the manifest (see
+    // resolveOrganizationId) — set it explicitly to reuse an org you already
+    // have, or to pin the same org across manifest files/output paths.
+    organization_id: cfg.organization_id || null,
+    organization_name: cfg.organization_name || `${prefix} loadtest org`,
     retry: {
       attempts: Number(cfg.retry?.attempts) || 3,
       backoff_ms: Number(cfg.retry?.backoff_ms) || 500,
@@ -182,22 +193,59 @@ async function withRetry(fn, retry, label) {
   throw new Error(`${label}: ${lastError.message}`);
 }
 
-function accountBody(merchantId) {
+function accountBody(merchantId, orgId) {
   return {
     merchant_id: merchantId,
     merchant_name: `Loadtest Merchant ${merchantId}`,
     primary_business_details: [{ country: "US", business: "default" }],
+    // Omitting this makes Router create a brand-new organization per
+    // merchant (MerchantAccountCreate.organization_id doc comment,
+    // crates/api_models/src/admin.rs) — passing the same orgId for every
+    // merchant in the batch is what keeps the whole pool under one org.
+    organization_id: orgId,
   };
+}
+
+async function createOrganization(cfg) {
+  const res = await fetch(`${cfg.router}/organization`, {
+    method: "POST",
+    headers: adminHeaders(cfg),
+    body: JSON.stringify({ organization_name: cfg.organization_name }),
+  });
+  if (!res.ok) throw new Error(`organization create failed (${res.status}): ${await safeText(res)}`);
+  return res.json();
+}
+
+// The org id must stay identical across reruns of this script (a rerun
+// that minted a second org would split the pool across two orgs instead of
+// growing one), so an auto-created org is cached in a sidecar file next to
+// the manifest rather than only printed for the user to copy by hand.
+function orgCachePath(manifestPath) {
+  return `${manifestPath}.org`;
+}
+
+async function resolveOrganizationId(cfg, manifestPath) {
+  if (cfg.organization_id) return cfg.organization_id;
+  const cachePath = orgCachePath(manifestPath);
+  if (existsSync(cachePath)) {
+    const cached = JSON.parse(readFileSync(cachePath, "utf8"));
+    if (cached.organization_id) return cached.organization_id;
+  }
+  console.log(`no organization_id configured — creating one organization ("${cfg.organization_name}") for this batch...`);
+  const org = await createOrganization(cfg);
+  await writeFile(cachePath, JSON.stringify({ organization_id: org.organization_id }, null, 2));
+  console.log(`created organization ${org.organization_id} (cached at ${cachePath}) — every merchant will be created under it. Set "organization_id" in provision-config.json to pin or reuse this value explicitly.`);
+  return org.organization_id;
 }
 
 // A merchant_id that already exists on the server (left over from a prior
 // run that crashed between account creation and the manifest write) is
 // recovered via GET rather than treated as a failure, so reruns stay safe.
-async function createOrRecoverAccount(merchantId, cfg) {
+async function createOrRecoverAccount(merchantId, orgId, cfg) {
   const createRes = await fetch(`${cfg.router}/accounts`, {
     method: "POST",
     headers: adminHeaders(cfg),
-    body: JSON.stringify(accountBody(merchantId)),
+    body: JSON.stringify(accountBody(merchantId, orgId)),
   });
   if (createRes.ok) return createRes.json();
   const recoverRes = await fetch(`${cfg.router}/accounts/${merchantId}`, { headers: adminHeaders(cfg) });
@@ -257,11 +305,11 @@ async function mapLimit(items, limit, worker) {
 // Provision mode
 // ---------------------------------------------------------------------------
 
-async function provisionOne(index, cfg, existing) {
+async function provisionOne(index, cfg, existing, orgId) {
   const merchantId = merchantIdFor(cfg, index);
   if (existing.has(merchantId)) return { status: "skipped", merchantId };
   try {
-    const account = await withRetry(() => createOrRecoverAccount(merchantId, cfg), cfg.retry, `account ${merchantId}`);
+    const account = await withRetry(() => createOrRecoverAccount(merchantId, orgId, cfg), cfg.retry, `account ${merchantId}`);
     const profileId = account.default_profile;
     const publishableKey = account.publishable_key;
     if (!profileId || !publishableKey) {
@@ -300,11 +348,12 @@ async function provision(cfg) {
   let createdCount = 0;
   let skippedCount = 0;
 
-  console.log(`provisioning up to ${cfg.merchant_count} merchants (${existing.size} already in manifest) at concurrency ${cfg.concurrency}...`);
+  const orgId = await resolveOrganizationId(cfg, manifestPath);
+  console.log(`provisioning up to ${cfg.merchant_count} merchants under organization ${orgId} (${existing.size} already in manifest) at concurrency ${cfg.concurrency}...`);
 
   const indices = Array.from({ length: cfg.merchant_count }, (_, i) => i);
   await mapLimit(indices, cfg.concurrency, async (index) => {
-    const result = await provisionOne(index, cfg, existing);
+    const result = await provisionOne(index, cfg, existing, orgId);
     if (result.status === "skipped") {
       skippedCount += 1;
       return;
