@@ -79,6 +79,7 @@ pub mod date_time {
         deja::time(component = "common_utils", operation = "date_time::now", codec = SerdeCodec,)
     )]
     pub fn now() -> PrimitiveDateTime {
+        #[allow(clippy::disallowed_methods, reason = "this function IS the seam")]
         let utc_date_time = OffsetDateTime::now_utc();
         PrimitiveDateTime::new(utc_date_time.date(), utc_date_time.time())
     }
@@ -99,12 +100,41 @@ pub mod date_time {
         )
     )]
     pub fn now_unix_timestamp() -> i64 {
+        #[allow(clippy::disallowed_methods, reason = "this function IS the seam")]
         OffsetDateTime::now_utc().unix_timestamp()
     }
 
     /// Return the UNIX timestamp in nanoseconds of the current date and time in UTC
+    ///
+    /// Reads through `now()`, which is already a seam, so this needs no seam and
+    /// no gate exception of its own and costs no extra event. `now()` keeps the
+    /// full nanosecond, so the value is unchanged. `track_caller` so a caller's
+    /// own location is what `now()` records.
+    #[cfg_attr(feature = "deja", track_caller)]
     pub fn now_unix_timestamp_nanos() -> i128 {
-        OffsetDateTime::now_utc().unix_timestamp_nanos()
+        now().assume_utc().unix_timestamp_nanos()
+    }
+
+    /// Return the UNIX timestamp in milliseconds of the current date and time in UTC.
+    ///
+    /// The seam for the millisecond timestamp several connectors sign into an
+    /// outbound request, previously open-coded as `now_utc()…nanos() / 1_000_000`.
+    #[cfg_attr(feature = "deja", track_caller)]
+    #[cfg_attr(
+        feature = "deja",
+        deja::time(
+            component = "common_utils",
+            operation = "date_time::now_unix_timestamp_millis",
+            codec = SerdeCodec,
+        )
+    )]
+    pub fn now_unix_timestamp_millis() -> i128 {
+        #[allow(
+            clippy::disallowed_methods,
+            reason = "this IS the seam for a millisecond timestamp"
+        )]
+        let now = OffsetDateTime::now_utc();
+        now.unix_timestamp_nanos() / 1_000_000
     }
 
     /// Calculate execution time for a async block in milliseconds
@@ -143,6 +173,7 @@ pub mod date_time {
             .encode();
         // Read the clock directly rather than via `now()`: both are instrumented seams, and
         // nesting them would record a redundant inner event for every outer call.
+        #[allow(clippy::disallowed_methods, reason = "this function IS the seam")]
         convert_to_pdt(OffsetDateTime::now_utc())
             .assume_utc()
             .format(&Iso8601::<ISO_CONFIG>)
@@ -158,6 +189,7 @@ pub mod date_time {
         )
     )]
     pub fn now_rfc7231_http_date() -> Result<String, time::error::Format> {
+        #[allow(clippy::disallowed_methods, reason = "this function IS the seam")]
         let now_utc = OffsetDateTime::now_utc();
         // Desired format: ddd, DD MMM YYYY HH:mm:ss GMT
         // Example: Fri, 23 May 2025 06:19:35 GMT
@@ -262,6 +294,280 @@ pub mod date_time {
     }
 }
 
+/// Generate a version 4 (random) UUID.
+///
+/// Nothing in the request determines a v4 UUID, so an unseamed read cannot be
+/// replayed. Connectors put it in idempotency keys, request references, and — for
+/// deutschebank, payeezy, authipay and the fiserv family — inside the signed
+/// string, so a raw read moves the outbound bytes. Returns the `Uuid` rather than
+/// a string so callers keep their own rendering.
+#[inline]
+#[cfg_attr(feature = "deja", track_caller)]
+#[cfg_attr(
+    feature = "deja",
+    deja::id(component = "common_utils", operation = "generate_uuid_v4", codec = SerdeCodec,)
+)]
+#[allow(clippy::disallowed_methods, reason = "this function IS the seam")]
+pub fn generate_uuid_v4() -> uuid::Uuid {
+    uuid::Uuid::new_v4()
+}
+
+/// Generate a random alphanumeric string of the given length.
+///
+/// This is the seam for the nonce-and-salt shape that connectors open-coded as
+/// `Alphanumeric.sample_string(&mut rand::thread_rng(), n)`.
+///
+/// Keeps the thread-local RNG deliberately: several of these are signed into
+/// outbound requests, and swapping the generator would be a security change riding
+/// on a determinism refactor. Use the `crypto` variant where unpredictability
+/// matters.
+#[inline]
+#[cfg_attr(feature = "deja", track_caller)]
+#[cfg_attr(
+    feature = "deja",
+    deja::id(
+        component = "common_utils",
+        operation = "generate_random_alphanumeric_string",
+        codec = SerdeCodec,
+    )
+)]
+pub fn generate_random_alphanumeric_string(length: usize) -> String {
+    use rand::distributions::DistString;
+
+    #[allow(clippy::disallowed_methods, reason = "this function IS the seam")]
+    let mut rng = rand::thread_rng();
+    rand::distributions::Alphanumeric.sample_string(&mut rng, length)
+}
+
+/// Generate a random string of decimal digits of the given length.
+///
+/// The digit counterpart of [`generate_random_alphanumeric_string`]; santander
+/// puts both on the wire. Draws once for the whole string rather than once per
+/// character, so a call costs one recorded event and not `length` of them.
+#[inline]
+#[cfg_attr(feature = "deja", track_caller)]
+#[cfg_attr(
+    feature = "deja",
+    deja::id(
+        component = "common_utils",
+        operation = "generate_random_numeric_string",
+        codec = SerdeCodec,
+    )
+)]
+pub fn generate_random_numeric_string(length: usize) -> String {
+    use rand::Rng;
+
+    #[allow(clippy::disallowed_methods, reason = "this function IS the seam")]
+    let mut rng = rand::thread_rng();
+    (0..length)
+        .map(|_| char::from(rng.gen_range(b'0'..=b'9')))
+        .collect()
+}
+
+/// Generate a version 7 (time-ordered) UUID.
+///
+/// A v7 UUID is a millisecond timestamp followed by 74 random bits, so it is a
+/// clock read and an entropy read at once — neither the raw-clock nor the
+/// `Uuid::new_v4` gate entry catches it, which is why it has its own seam and its
+/// own entry. razorpay and trustpay put one on the wire; vault ids, publishable
+/// keys and relay ids are stored under one.
+#[inline]
+#[cfg_attr(feature = "deja", track_caller)]
+#[cfg_attr(
+    feature = "deja",
+    deja::id(component = "common_utils", operation = "generate_uuid_v7", codec = SerdeCodec,)
+)]
+#[allow(clippy::disallowed_methods, reason = "this function IS the seam")]
+pub fn generate_uuid_v7() -> uuid::Uuid {
+    uuid::Uuid::now_v7()
+}
+
+/// Generate a nanoid of the given length using nanoid's own default alphabet.
+///
+/// Deliberately distinct from [`generate_id_with_len`], which uses
+/// `consts::ALPHABETS` — 62 characters, no `-` or `_`. nanoid's default alphabet
+/// has 64 and includes both. Five connectors put a default-alphabet nanoid on the
+/// wire as a payment reference, so routing them through `generate_id_with_len`
+/// would change the bytes they send; this seam keeps them byte-identical.
+#[inline]
+#[cfg_attr(feature = "deja", track_caller)]
+#[cfg_attr(
+    feature = "deja",
+    deja::id(
+        component = "common_utils",
+        operation = "generate_nanoid_with_default_alphabet",
+        codec = SerdeCodec,
+    )
+)]
+#[allow(clippy::disallowed_macros, reason = "this function IS the seam")]
+pub fn generate_nanoid_with_default_alphabet(length: usize) -> String {
+    nanoid::nanoid!(length)
+}
+
+/// Draw a uniform `f64` in `[0, 1)`.
+///
+/// This is the seam for a sampling decision: a value drawn here is compared
+/// against a rollout percentage or a firing probability, so it decides which
+/// branch the request takes. Unseamed, a replay takes a different branch from
+/// the recording and the divergence is nobody's bug.
+#[inline]
+#[cfg_attr(feature = "deja", track_caller)]
+#[cfg_attr(
+    feature = "deja",
+    deja::id(
+        component = "common_utils",
+        operation = "generate_random_f64_unit",
+        codec = SerdeCodec,
+    )
+)]
+pub fn generate_random_f64_unit() -> f64 {
+    use rand::Rng;
+
+    #[allow(clippy::disallowed_methods, reason = "this function IS the seam")]
+    let mut rng = rand::thread_rng();
+    rng.gen_range(0.0..1.0)
+}
+
+/// Draw a uniform integer in `min..=max`, both ends inclusive.
+///
+/// Panics on an empty range, exactly as `rand`'s `gen_range` does for the
+/// open-coded form this replaces.
+#[inline]
+#[cfg_attr(feature = "deja", track_caller)]
+#[cfg_attr(
+    feature = "deja",
+    deja::id(
+        component = "common_utils",
+        operation = "generate_random_number_in_range",
+        codec = SerdeCodec,
+    )
+)]
+pub fn generate_random_number_in_range(min: i64, max: i64) -> i64 {
+    use rand::Rng;
+
+    #[allow(clippy::disallowed_methods, reason = "this function IS the seam")]
+    let mut rng = rand::thread_rng();
+    rng.gen_range(min..=max)
+}
+
+/// Pick a uniform index into a collection of `length` items, or `None` if empty.
+///
+/// The seam for "choose one of these at random" where the choice decides what
+/// goes on the wire — which OIDC key signs a token, for instance.
+#[inline]
+#[cfg_attr(feature = "deja", track_caller)]
+#[cfg_attr(
+    feature = "deja",
+    deja::id(
+        component = "common_utils",
+        operation = "generate_random_index",
+        codec = SerdeCodec,
+    )
+)]
+pub fn generate_random_index(length: usize) -> Option<usize> {
+    use rand::Rng;
+
+    if length == 0 {
+        return None;
+    }
+
+    #[allow(clippy::disallowed_methods, reason = "this function IS the seam")]
+    let mut rng = rand::thread_rng();
+    Some(rng.gen_range(0..length))
+}
+
+/// The current process id.
+///
+/// Ambient state, not an input: a recording pod and a replay pod are different
+/// processes, so anything derived from this on a request path would diverge.
+/// There is no such caller today — this seam exists so that the gate on
+/// `std::process::id` has somewhere to send the first one.
+#[inline]
+#[cfg_attr(feature = "deja", track_caller)]
+#[cfg_attr(
+    feature = "deja",
+    deja::id(component = "common_utils", operation = "process_id", codec = SerdeCodec,)
+)]
+#[allow(clippy::disallowed_methods, reason = "this function IS the seam")]
+pub fn process_id() -> u32 {
+    std::process::id()
+}
+
+/// The host's name, read from the `HOSTNAME` environment variable.
+///
+/// Ambient state, like [`process_id`]: it differs between a recording host and a
+/// replay host, so anything derived from it on a request path would diverge.
+/// There is no such caller today; the seam exists so the gate on `gethostname`
+/// has somewhere to send the first one.
+///
+/// Reads the environment rather than calling `gethostname(2)` on purpose. Under
+/// Kubernetes `HOSTNAME` is the pod name, which is the identity that actually
+/// matters here and is the same convention deja already uses to resolve its own
+/// instance id (`identity.pod_name_env`). It also keeps `common_utils` free of a
+/// dependency that would not build for wasm32, which this crate is compiled for.
+/// Returns `None` when the variable is unset — a shell may set it without
+/// exporting it, so a caller must handle its absence.
+#[inline]
+#[cfg_attr(feature = "deja", track_caller)]
+#[cfg_attr(
+    feature = "deja",
+    deja::id(component = "common_utils", operation = "hostname", codec = SerdeCodec,)
+)]
+pub fn hostname() -> Option<String> {
+    std::env::var("HOSTNAME")
+        .ok()
+        .filter(|name| !name.is_empty())
+}
+
+/// Produce a random permutation of `0..length`.
+///
+/// The seam for "shuffle these", which has no single-value shape: recording the
+/// permutation costs one event where drawing it position by position would cost
+/// `length` of them.
+#[inline]
+#[cfg_attr(feature = "deja", track_caller)]
+#[cfg_attr(
+    feature = "deja",
+    deja::id(
+        component = "common_utils",
+        operation = "generate_random_permutation",
+        codec = SerdeCodec,
+    )
+)]
+pub fn generate_random_permutation(length: usize) -> Vec<usize> {
+    use rand::seq::SliceRandom;
+
+    let mut indices: Vec<usize> = (0..length).collect();
+
+    #[allow(clippy::disallowed_methods, reason = "this function IS the seam")]
+    let mut rng = rand::thread_rng();
+    indices.shuffle(&mut rng);
+    indices
+}
+
+/// Generate `length` random bytes.
+///
+/// Not cryptographically secure — it keeps the thread-local RNG the open-coded
+/// callers used. For key material use
+/// [`crypto::generate_cryptographically_secure_random_bytes`] instead.
+#[inline]
+#[cfg_attr(feature = "deja", track_caller)]
+#[cfg_attr(
+    feature = "deja",
+    deja::id(
+        component = "common_utils",
+        operation = "generate_random_bytes",
+        codec = SerdeCodec,
+    )
+)]
+pub fn generate_random_bytes(length: usize) -> Vec<u8> {
+    use rand::Rng;
+
+    #[allow(clippy::disallowed_methods, reason = "this function IS the seam")]
+    let mut rng = rand::thread_rng();
+    (0..length).map(|_| rng.gen()).collect()
+}
+
 /// Generate a nanoid with the given prefix and length
 #[inline]
 #[cfg_attr(feature = "deja", track_caller)]
@@ -269,6 +575,7 @@ pub mod date_time {
     feature = "deja",
     deja::id(component = "common_utils", operation = "generate_id", codec = SerdeCodec,)
 )]
+#[allow(clippy::disallowed_macros, reason = "this function IS the seam")]
 pub fn generate_id(length: usize, prefix: &str) -> String {
     format!("{}_{}", prefix, nanoid::nanoid!(length, &consts::ALPHABETS))
 }
@@ -340,6 +647,7 @@ pub fn generate_profile_acquirer_id_of_default_length() -> id_type::ProfileAcqui
         codec = SerdeCodec,
     )
 )]
+#[allow(clippy::disallowed_macros, reason = "this function IS the seam")]
 pub fn generate_id_with_default_len(prefix: &str) -> String {
     let len: usize = consts::ID_LENGTH;
     format!("{}_{}", prefix, nanoid::nanoid!(len, &consts::ALPHABETS))
@@ -356,6 +664,7 @@ pub fn generate_id_with_default_len(prefix: &str) -> String {
         codec = SerdeCodec,
     )
 )]
+#[allow(clippy::disallowed_methods, reason = "this function IS the seam")]
 pub fn generate_time_ordered_id(prefix: &str) -> String {
     format!("{prefix}_{}", uuid::Uuid::now_v7().as_simple())
 }
@@ -371,6 +680,7 @@ pub fn generate_time_ordered_id(prefix: &str) -> String {
         codec = SerdeCodec,
     )
 )]
+#[allow(clippy::disallowed_methods, reason = "this function IS the seam")]
 pub fn generate_time_ordered_id_without_prefix() -> String {
     uuid::Uuid::now_v7().as_simple().to_string()
 }
@@ -382,6 +692,7 @@ pub fn generate_time_ordered_id_without_prefix() -> String {
     feature = "deja",
     deja::id(component = "common_utils", operation = "generate_id_with_len", codec = SerdeCodec,)
 )]
+#[allow(clippy::disallowed_macros, reason = "this function IS the seam")]
 pub fn generate_id_with_len(length: usize) -> String {
     nanoid::nanoid!(length, &consts::ALPHABETS)
 }

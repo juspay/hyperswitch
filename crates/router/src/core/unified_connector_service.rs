@@ -2247,6 +2247,13 @@ pub fn build_unified_connector_service_payment_method(
                         )),
                     })
                 }
+                hyperswitch_domain_models::payment_method_data::WalletData::Neteller(_) => {
+                    Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::NetellerRedirect(
+                            payments_grpc::NetellerRedirectWallet {},
+                        )),
+                    })
+                }
                 _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
                     "Unimplemented payment method subtype: {payment_method_type:?}"
                 ))

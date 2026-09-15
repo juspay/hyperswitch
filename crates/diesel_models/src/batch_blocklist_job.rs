@@ -1,4 +1,4 @@
-use common_enums::BatchBlocklistJobStatus;
+use common_enums::{BatchBlocklistJobStatus, BatchBlocklistJobType};
 use common_utils::id_type;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
@@ -18,6 +18,13 @@ pub struct BatchBlocklistJob {
     pub created_at: PrimitiveDateTime,
     pub updated_at: PrimitiveDateTime,
     pub profile_id: Option<id_type::ProfileId>,
+    // Absent on rows written before exports existed; those are uploads.
+    pub job_type: Option<BatchBlocklistJobType>,
+    /// The merchant's own filename for an upload, or the name an export downloads as.
+    pub file_name: Option<String>,
+    pub file_key: Option<String>,
+    pub error_message: Option<String>,
+    pub expires_at: Option<PrimitiveDateTime>,
 }
 
 #[derive(Clone, Debug, Insertable, Deserialize, Serialize)]
@@ -32,6 +39,8 @@ pub struct BatchBlocklistJobNew {
     pub created_at: PrimitiveDateTime,
     pub updated_at: PrimitiveDateTime,
     pub profile_id: id_type::ProfileId,
+    pub job_type: BatchBlocklistJobType,
+    pub file_name: Option<String>,
 }
 
 #[derive(Clone, Debug, AsChangeset)]
@@ -40,5 +49,9 @@ pub struct BatchBlocklistJobUpdate {
     pub status: Option<BatchBlocklistJobStatus>,
     pub succeeded_rows: Option<i32>,
     pub failed_rows: Option<i32>,
+    pub total_rows: Option<i32>,
+    pub file_key: Option<String>,
+    pub error_message: Option<String>,
+    pub expires_at: Option<PrimitiveDateTime>,
     pub updated_at: PrimitiveDateTime,
 }
