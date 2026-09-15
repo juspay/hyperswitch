@@ -133,7 +133,7 @@ jobs:
 
   test:
     name: Run tests on stable toolchain
-    runs-on: ${{ matrix.runner }}
+    runs-on: hyperswitch-runners
 
     env:
       RUSTFLAGS: "-D warnings"
@@ -250,7 +250,7 @@ jobs:
 
   check-v2:
     name: Check compilation for V2 features
-    runs-on: ${{ matrix.runner }}
+    runs-on: hyperswitch-runners
 
     steps:
       - name: Checkout repository
