@@ -89,7 +89,9 @@ pub struct DynamicRoutingWrapper {
 pub struct HybridRoutingOutcome {
     pub connectors: Vec<RoutableConnectorChoice>,
     /// The static half's rule decision, for the shadow diff; see `DeRoutingShapes`.
-    pub diff_connectors: Vec<RoutableConnectorChoice>,
+    /// `None` when the response carried no static half: nothing to compare, so the caller
+    /// skips the diff. An empty `Some` is a real `de_empty` diff - the engine answered.
+    pub diff_connectors: Option<Vec<RoutableConnectorChoice>>,
     pub routing_approach: RoutingApproach,
 }
 
@@ -98,7 +100,7 @@ impl HybridRoutingOutcome {
     pub fn empty() -> Self {
         Self {
             connectors: Vec::new(),
-            diff_connectors: Vec::new(),
+            diff_connectors: Some(Vec::new()),
             routing_approach: RoutingApproach::Default,
         }
     }
@@ -527,16 +529,14 @@ pub fn normalize_hybrid_routing_response(
             .collect();
 
         HybridRoutingOutcome {
-            diff_connectors: static_shapes
-                .map(|shapes| shapes.for_diff)
-                .unwrap_or_else(|| connectors.clone()),
+            diff_connectors: static_shapes.map(|shapes| shapes.for_diff),
             connectors,
             routing_approach: infer_hybrid_routing_approach(response),
         }
     } else if let Some(shapes) = static_shapes {
         HybridRoutingOutcome {
             connectors: shapes.for_routing,
-            diff_connectors: shapes.for_diff,
+            diff_connectors: Some(shapes.for_diff),
             routing_approach: RoutingApproach::StaticRouting,
         }
     } else {

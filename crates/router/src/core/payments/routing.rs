@@ -1824,12 +1824,25 @@ impl RoutingStage for HybridRoutingStage {
 
                 // Diff logging only — no kill-switch counting: this stage runs solely for
                 // cut-over profiles, whose DE-only writes make the HS baseline stale by design.
-                utils::compare_and_log_result(
-                    hybrid_outcome.diff_connectors.clone(),
-                    input.static_connectors.to_vec(),
-                    "evaluate_routing".to_string(),
-                    input.static_is_volume_split,
-                );
+                // No static half means no rule decision to compare, so skip rather than
+                // diff the dynamic winner against the Hyperswitch rule result.
+                match hybrid_outcome.diff_connectors.clone() {
+                    Some(de_connectors) => {
+                        utils::compare_and_log_result(
+                            de_connectors,
+                            input.static_connectors.to_vec(),
+                            "evaluate_routing".to_string(),
+                            input.static_is_volume_split,
+                        );
+                    }
+                    None => {
+                        logger::warn!(
+                            routing_flow = ?"evaluate_routing",
+                            profile_id = ?input.business_profile.get_id().get_string_repr(),
+                            "decision_engine_euclid_no_static_response: hybrid response carried no static routing result; skipping diff"
+                        );
+                    }
+                }
 
                 RoutingConnectorOutcomeWithApproach {
                     connectors: hybrid_outcome.connectors,
