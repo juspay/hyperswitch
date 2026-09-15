@@ -434,7 +434,9 @@ impl<F, T>
                             redirection_data: Box::new(None),
                             mandate_reference: Box::new(mandate_reference),
                             connector_metadata: None,
-                            network_txn_id: None,
+                            network_txn_id: get_network_transaction_id(
+                                &info_response.processor_information,
+                            ),
                             network_txn_link_id: None,
                             connector_response_reference_id: Some(
                                 info_response
@@ -1634,6 +1636,15 @@ fn get_error_response_if_failure(
     }
 }
 
+fn get_network_transaction_id(
+    processor_information: &Option<ClientProcessorInformation>,
+) -> Option<String> {
+    processor_information
+        .as_ref()
+        .and_then(|processor_information| processor_information.network_transaction_id.clone())
+        .map(ExposeInterface::expose)
+}
+
 fn get_payment_response(
     (info_response, status, http_code): (
         &BankOfAmericaClientReferenceResponse,
@@ -1663,7 +1674,7 @@ fn get_payment_response(
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(mandate_reference),
                 connector_metadata: None,
-                network_txn_id: None,
+                network_txn_id: get_network_transaction_id(&info_response.processor_information),
                 network_txn_link_id: None,
                 connector_response_reference_id: Some(
                     info_response
@@ -2754,5 +2765,57 @@ pub fn get_error_reason(
         (None, Some(details), None) => Some(details),
         (None, None, Some(avs_message)) => Some(avs_message),
         (None, None, None) => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Returns `None` if the response could not be turned into a `TransactionResponse`,
+    /// otherwise the `network_txn_id` it carries.
+    fn network_txn_id_from(response: Value) -> Option<Option<String>> {
+        serde_json::from_value::<BankOfAmericaClientReferenceResponse>(response)
+            .ok()
+            .and_then(|info_response| {
+                get_payment_response((&info_response, enums::AttemptStatus::Authorized, 201)).ok()
+            })
+            .and_then(|payments_response| match payments_response {
+                PaymentsResponseData::TransactionResponse { network_txn_id, .. } => {
+                    Some(network_txn_id)
+                }
+                _ => None,
+            })
+    }
+
+    #[test]
+    fn payment_response_forwards_network_transaction_id() {
+        let response = serde_json::json!({
+            "id": "7771234567890123456789",
+            "status": "AUTHORIZED",
+            "clientReferenceInformation": { "code": "pay_boa_nti" },
+            "processorInformation": {
+                "approvalCode": "888888",
+                "networkTransactionId": "016153570198200",
+                "responseCode": "100"
+            }
+        });
+
+        assert_eq!(
+            network_txn_id_from(response),
+            Some(Some("016153570198200".to_string()))
+        );
+    }
+
+    #[test]
+    fn payment_response_without_network_transaction_id_is_none() {
+        let response = serde_json::json!({
+            "id": "7771234567890123456789",
+            "status": "AUTHORIZED",
+            "clientReferenceInformation": { "code": "pay_boa_nti" },
+            "processorInformation": { "approvalCode": "888888" }
+        });
+
+        assert_eq!(network_txn_id_from(response), Some(None));
     }
 }
