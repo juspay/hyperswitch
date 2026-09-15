@@ -45,6 +45,7 @@ use crate::{
     utils::ValueExt,
 };
 pub mod flows;
+#[cfg(feature = "v1")]
 pub mod gateway;
 pub mod operation;
 pub mod types;

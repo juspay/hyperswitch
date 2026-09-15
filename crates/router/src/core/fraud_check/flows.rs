@@ -40,6 +40,7 @@ pub trait FeatureFrm<F, T> {
     /// notify-style flows on the direct path. A UCS-backed provider has no
     /// in-process connector, so there is nothing to fall back to — the caller
     /// must already have decided the flow is routable to UCS.
+    #[cfg(feature = "v1")]
     async fn decide_frm_flows_via_ucs<'a>(
         self,
         _state: &SessionState,
