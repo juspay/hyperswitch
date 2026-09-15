@@ -1357,6 +1357,11 @@ pub async fn get_payout_filters_core(
 }
 
 // ********************************************** HELPERS **********************************************
+fn should_update_payout_attempt_routing(payout_attempt: &storage::PayoutAttempt) -> bool {
+    payout_attempt.connector_request_reference_id.is_none()
+        || payout_attempt.active_frm_id.is_some()
+}
+
 pub async fn call_connector_payout(
     state: &SessionState,
     platform: &domain::Platform,
@@ -1392,19 +1397,13 @@ pub async fn call_connector_payout(
         connector_data,
         &payout_data.payout_attempt,
     );
+    let connector_name = connector_data.connector_name.to_string();
 
     // Update routing and persist the request reference ID before calling the connector.
-    if payout_data.payout_attempt.connector.is_none()
-        || payout_data.payout_attempt.connector != Some(connector_data.connector_name.to_string())
-        || payout_data
-            .payout_attempt
-            .connector_request_reference_id
-            .is_none()
-        || payout_data.payout_attempt.active_frm_id.is_some()
-    {
-        payout_data.payout_attempt.connector = Some(connector_data.connector_name.to_string());
+    if should_update_payout_attempt_routing(&payout_data.payout_attempt) {
+        payout_data.payout_attempt.connector = Some(connector_name.clone());
         let updated_payout_attempt = storage::PayoutAttemptUpdate::UpdateRouting {
-            connector: connector_data.connector_name.to_string(),
+            connector: connector_name,
             routing_info: payout_data.payout_attempt.routing_info.clone(),
             merchant_connector_id: payout_data.payout_attempt.merchant_connector_id.clone(),
             connector_request_reference_id,

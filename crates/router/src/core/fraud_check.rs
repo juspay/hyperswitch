@@ -303,7 +303,7 @@ pub async fn get_payout_frm_applicability(
     } else {
         Ok(PayoutFrmApplicability::Applicable {
             connectors,
-            frm_merchant_connector_account,
+            frm_merchant_connector_account: Box::new(frm_merchant_connector_account),
             frm_routing_algorithm,
         })
     }
@@ -343,7 +343,7 @@ pub async fn pre_payouts_frm_core(
                         &frm_routing_algorithm.data,
                         platform.get_processor(),
                         &payout_data.business_profile,
-                        frm_merchant_connector_account,
+                        frm_merchant_connector_account.as_ref(),
                         None,
                         None,
                         None,

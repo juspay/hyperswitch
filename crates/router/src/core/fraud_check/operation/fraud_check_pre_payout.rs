@@ -27,7 +27,7 @@ impl FraudCheckPrePayout {
         &self,
         state: &SessionState,
         payout_data: &PayoutData,
-        frm_connector_name: &String,
+        frm_connector_name: &str,
     ) -> RouterResult<PayoutFrmData> {
         let db = &*state.store;
 
@@ -42,7 +42,7 @@ impl FraudCheckPrePayout {
                 processor_merchant_id: payout_data.payouts.processor_merchant_id.clone(),
                 attempt_id: payout_data.payout_attempt.payout_attempt_id.clone(),
                 created_at: common_utils::date_time::now(),
-                frm_name: frm_connector_name.clone(),
+                frm_name: frm_connector_name.to_owned(),
                 frm_transaction_id: None,
                 frm_transaction_type: FraudCheckType::PreFrm,
                 frm_status: FraudCheckStatus::Pending,

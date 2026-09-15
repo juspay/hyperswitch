@@ -141,7 +141,7 @@ impl PayoutFrmData {
 pub enum PayoutFrmApplicability {
     Applicable {
         connectors: HashSet<api_enums::Connector>,
-        frm_merchant_connector_account: MerchantConnectorAccountType,
+        frm_merchant_connector_account: Box<MerchantConnectorAccountType>,
         frm_routing_algorithm: FrmRoutingAlgorithm,
     },
     NotApplicable,
