@@ -735,12 +735,14 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
                 storage::MerchantConnectorAccountUpdateInternal,
             ),
         ) -> Result<(), error_stack::Report<StorageError>> {
-            Conversion::convert(merchant_connector_account)
-                .await
-                .change_context(StorageError::EncryptionError)?
-                .update(connection, mca_update)
-                .await
-                .map_err(|error| report!(StorageError::from(error)))?;
+            Box::pin(
+                Conversion::convert(merchant_connector_account)
+                    .await
+                    .change_context(StorageError::EncryptionError)?
+                    .update(connection, mca_update),
+            )
+            .await
+            .map_err(|error| report!(StorageError::from(error)))?;
             Ok(())
         }
 
@@ -849,12 +851,14 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
 
         let update_call = || async {
             let conn = pg_accounts_connection_write(self).await?;
-            Conversion::convert(this)
-                .await
-                .change_context(Self::Error::EncryptionError)?
-                .update(&conn, merchant_connector_account)
-                .await
-                .map_err(|error| report!(Self::Error::from(error)))
+            Box::pin(
+                Conversion::convert(this)
+                    .await
+                    .change_context(Self::Error::EncryptionError)?
+                    .update(&conn, merchant_connector_account),
+            )
+            .await
+            .map_err(|error| report!(Self::Error::from(error)))
                 .async_and_then(|item| async {
                     item.convert(
                         self.get_keymanager_state()
