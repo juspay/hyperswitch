@@ -150,6 +150,7 @@ mock_locker = true
 locker_enabled = true
 ttl_for_storage_in_secs = 220752000
 create_entity_on_merchant_create = false
+plain_fingerprint_response = true
 
 [forex_api]
 api_key = ""

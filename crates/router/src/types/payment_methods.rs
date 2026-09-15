@@ -24,6 +24,10 @@ pub trait VaultingInterface {
     fn get_vaulting_request_url() -> &'static str;
 
     fn get_vaulting_flow_name() -> &'static str;
+
+    fn supports_plain_response() -> bool {
+        false
+    }
 }
 
 #[cfg(feature = "v1")]
@@ -144,6 +148,11 @@ impl VaultingInterface for GetVaultFingerprint {
 
     fn get_vaulting_flow_name() -> &'static str {
         consts::V2_VAULT_GET_FINGERPRINT_FLOW_TYPE
+    }
+
+    // The response is only a fingerprint id.
+    fn supports_plain_response() -> bool {
+        true
     }
 }
 
