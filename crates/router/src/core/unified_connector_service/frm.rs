@@ -20,6 +20,7 @@ use hyperswitch_domain_models::{
     router_request_types::{fraud_check::FraudCheckCheckoutData, AccessTokenRequestData},
     router_response_types::fraud_check::FraudCheckResponseData,
 };
+use hyperswitch_interfaces::api::gateway;
 use unified_connector_service_client::payments as payments_grpc;
 
 use super::{build_unified_connector_service_auth_metadata, get_ucs_client};
@@ -29,7 +30,8 @@ use crate::{
         payments::{self, helpers::MerchantConnectorAccountType},
     },
     routes::SessionState,
-    types::transformers::ForeignTryFrom,
+    services,
+    types::{api::FraudCheckConnectorData, transformers::ForeignTryFrom},
 };
 
 /// Fetch (and cache) the OAuth token a bearer-authenticated FRM provider needs.
@@ -73,78 +75,59 @@ pub async fn get_frm_access_token(
         return Ok(Some(token));
     }
 
-    let ucs_client = get_ucs_client(state)?;
-    let connector_auth_metadata = build_unified_connector_service_auth_metadata(
-        merchant_connector_account.clone(),
-        merchant_id,
-        connector_name.to_string(),
-    )
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to build UCS auth metadata for the FRM access token")?;
-
-    let header_payload = state
-        .get_grpc_headers_ucs(execution_mode)
-        .lineage_ids(lineage_ids)
-        .external_vault_proxy_metadata(None)
-        .merchant_reference_id(None)
-        .resource_id(None);
-
-    // Same audit wrapper the payments access-token gateway uses, so an FRM
-    // token fetch produces the same request/response/timing event. The router
-    // data is re-typed to the access-token flow first (as `add_access_token`
-    // does) so the event is labelled `AccessTokenAuth`, not `Checkout`.
+    // Same gateway the payments path uses for `create_access_token`, so the
+    // FRM token fetch runs under `ucs_logging_wrapper_granular` and gets the
+    // same request/response/timing event. The router data is re-typed to the
+    // access-token flow first (as `add_access_token` does); the gateway picks
+    // the `PaymentVas` connector namespace from the FRM connector name.
     let access_token_request =
         AccessTokenRequestData::try_from(router_data.connector_auth_type.clone())
             .attach_printable(
                 "Could not create FRM access token request from connector credentials",
             )?;
-    let access_token_router_data =
-        payments::helpers::router_data_type_conversion::<_, AccessTokenAuth, _, _, _, AccessToken>(
-            router_data.clone(),
-            access_token_request,
-            Err(hyperswitch_domain_models::router_data::ErrorResponse::default()),
-        );
+    let access_token_router_data = payments::helpers::router_data_type_conversion::<
+        _,
+        AccessTokenAuth,
+        _,
+        _,
+        _,
+        AccessToken,
+    >(
+        router_data.clone(),
+        access_token_request,
+        Err(hyperswitch_domain_models::router_data::ErrorResponse::default()),
+    );
 
-    let (_, token_result) = Box::pin(super::ucs_logging_wrapper_granular(
-        access_token_router_data,
-        state,
-        payments_grpc::MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest::default(
-        ),
-        header_payload,
+    let connector = FraudCheckConnectorData::get_connector_by_name(connector_name)?;
+    let connector_integration: services::BoxedAccessTokenConnectorIntegrationInterface<
+        AccessTokenAuth,
+        AccessTokenRequestData,
+        AccessToken,
+    > = connector.connector.get_connector_integration();
+
+    let gateway_context = payments::gateway::context::RouterGatewayContext {
+        creds_identifier: None,
+        processor: processor.clone(),
+        header_payload: hyperswitch_domain_models::payments::HeaderPayload::default(),
+        lineage_ids,
+        merchant_connector_account: merchant_connector_account.clone(),
+        execution_path: common_enums::ExecutionPath::UnifiedConnectorService,
         execution_mode,
-        |router_data, request, grpc_headers| async move {
-            let response = ucs_client
-                .create_access_token(
-                    request,
-                    connector_auth_metadata,
-                    grpc_headers,
-                    common_enums::ConnectorType::PaymentVas,
-                )
-                .await
-                .attach_printable("UCS create_access_token gRPC call failed for FRM")?;
-
-            let create_access_token_response = response.into_inner();
-
-            let (token_result, _status) =
-                super::handle_unified_connector_service_response_for_create_access_token(
-                    create_access_token_response.clone(),
-                )
-                .attach_printable("Failed to parse the UCS FRM access token response")?;
-
-            Ok((
-                router_data,
-                Some(token_result),
-                create_access_token_response,
-            ))
-        },
-    ))
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)?;
-
-    let Some(token_result) = token_result else {
-        return Ok(None);
     };
 
+    let token_result = gateway::execute_payment_gateway(
+        state,
+        connector_integration,
+        &access_token_router_data,
+        payments::CallConnectorAction::Trigger,
+        None,
+        None,
+        gateway_context,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("UCS create_access_token gateway call failed for FRM")?
+    .response;
     match token_result {
         Ok(token) => {
             // Best-effort cache; a write failure only costs an extra token call.

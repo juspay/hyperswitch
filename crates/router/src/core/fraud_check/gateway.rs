@@ -151,18 +151,13 @@ where
 
                 let pre_risk_check_response = response.into_inner();
 
-                let frm_response =
+                let (frm_response, status_code) =
                     unified_connector_service::handle_unified_connector_service_response_for_frm_pre_risk_check(
                         pre_risk_check_response.clone(),
                     )
                     .attach_printable("Failed to deserialize UCS response")?;
 
-                let status_code =
-                    hyperswitch_interfaces::unified_connector_service::transformers::convert_connector_service_status_code(
-                        pre_risk_check_response.status_code,
-                    )?;
-
-                router_data.response = Ok(frm_response);
+                router_data.response = frm_response;
                 router_data.connector_http_status_code = Some(status_code);
 
                 Ok((router_data, (), pre_risk_check_response))
