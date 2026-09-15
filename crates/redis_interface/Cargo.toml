@@ -18,7 +18,6 @@ metrics = ["dep:router_env"]
 [dependencies]
 error-stack = "0.4.1"
 futures = "0.3"
-hyperswitch_masking = "0.0.1"
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = { version = "1.0.140", optional = true }
 thiserror = "1.0.69"
@@ -37,6 +36,7 @@ fred = { version = "8.0.6", optional = true, features = [
 # First party crates
 common_utils = { version = "0.1.0", path = "../common_utils", features = ["async_ext"] }
 deja = { git = "https://github.com/juspay/deja", rev = "de0a42a42248fc22722bc5a385d9fa6a39449e91", optional = true, default-features = false, features = ["error-stack"] }
+hyperswitch_masking = "0.0.1"
 router_env = { version = "0.1.0", path = "../router_env", optional = true }
 
 [dev-dependencies]

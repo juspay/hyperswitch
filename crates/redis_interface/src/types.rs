@@ -68,21 +68,20 @@ pub struct RedisSettings {
 }
 
 impl RedisSettings {
-    /// The configured ACL username, treating an empty or whitespace-only
-    /// value as unset.
+    /// The configured ACL username, if any.
+    ///
+    /// Emptiness is enforced by [`Self::validate`], not here.
     pub(crate) fn auth_username(&self) -> Option<&str> {
-        self.username
-            .as_deref()
-            .map(str::trim)
-            .filter(|username| !username.is_empty())
+        self.username.as_deref()
     }
 
-    /// The configured password, treating an empty value as unset.
+    /// The configured password, if any.
+    ///
+    /// Emptiness is enforced by [`Self::validate`], not here.
     pub(crate) fn auth_password(&self) -> Option<&str> {
         self.password
             .as_ref()
             .map(|password| password.peek().as_str())
-            .filter(|password| !password.is_empty())
     }
 
     /// Validates the Redis configuration provided.
@@ -94,6 +93,28 @@ impl RedisSettings {
                 "Redis `host` must be specified".into(),
             ))
         })?;
+
+        when(
+            self.username
+                .as_ref()
+                .is_some_and(|username| username.is_default_or_empty()),
+            || {
+                Err(errors::RedisError::InvalidConfiguration(
+                    "Redis `username` must not be empty when specified".into(),
+                ))
+            },
+        )?;
+
+        when(
+            self.password
+                .as_ref()
+                .is_some_and(|password| password.is_default_or_empty()),
+            || {
+                Err(errors::RedisError::InvalidConfiguration(
+                    "Redis `password` must not be empty when specified".into(),
+                ))
+            },
+        )?;
 
         when(
             self.auth_username().is_some() && self.auth_password().is_none(),
@@ -527,15 +548,32 @@ mod tests {
     }
 
     #[test]
-    fn test_redis_settings_empty_credentials_treated_as_unset() {
+    fn test_redis_settings_validate_empty_username_rejected() {
         let settings = RedisSettings {
             username: Some(String::new()),
+            password: Some("secret".to_string().into()),
+            ..RedisSettings::default()
+        };
+        assert!(settings.validate().is_err());
+    }
+
+    #[test]
+    fn test_redis_settings_validate_whitespace_username_rejected() {
+        let settings = RedisSettings {
+            username: Some("   ".to_string()),
+            password: Some("secret".to_string().into()),
+            ..RedisSettings::default()
+        };
+        assert!(settings.validate().is_err());
+    }
+
+    #[test]
+    fn test_redis_settings_validate_empty_password_rejected() {
+        let settings = RedisSettings {
             password: Some(String::new().into()),
             ..RedisSettings::default()
         };
-        assert!(settings.auth_username().is_none());
-        assert!(settings.auth_password().is_none());
-        assert!(settings.validate().is_ok());
+        assert!(settings.validate().is_err());
     }
 
     #[test]
