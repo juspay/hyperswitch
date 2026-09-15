@@ -372,7 +372,7 @@ where
 }
 
 #[cfg(all(feature = "payouts", feature = "v2"))]
-pub async fn get_frm_merchant_connector_account(
+pub async fn get_frm_merchant_connector_account_and_routing_algorithm(
     _state: &SessionState,
     _platform: &domain::Platform,
     _payout_data: &PayoutData,
@@ -381,10 +381,10 @@ pub async fn get_frm_merchant_connector_account(
 }
 
 #[cfg(all(feature = "payouts", feature = "v2"))]
-pub async fn should_call_payout_frm(
-    _platform: &domain::Platform,
+pub async fn get_payout_frm_applicability(
     _payout_data: &PayoutData,
     _frm_merchant_connector_account: payments::helpers::MerchantConnectorAccountType,
+    _frm_routing_algorithm: FrmRoutingAlgorithm,
 ) -> RouterResult<PayoutFrmApplicability> {
     todo!()
 }
