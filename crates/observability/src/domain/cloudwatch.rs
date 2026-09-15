@@ -385,6 +385,7 @@ pub struct Evaluation {
     pub name: String,
     pub classification: String,
     pub metric_name: String,
+    pub dimensions: std::collections::BTreeMap<String, String>,
     pub period: u32,
     pub outcome: Outcome,
 }
