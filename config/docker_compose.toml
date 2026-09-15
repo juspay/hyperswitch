@@ -155,6 +155,8 @@ vault_private_key = ""
 [redis]
 host = "redis-standalone"
 port = 6379
+# username = "default"  # Optional ACL username for authenticated Redis; requires `password`
+# password = ""         # Optional password for authenticated Redis (AUTH)
 cluster_enabled = false
 cluster_urls = ["redis-cluster:6379"]
 pool_size = 5

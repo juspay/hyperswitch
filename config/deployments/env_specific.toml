@@ -232,6 +232,8 @@ bypass_proxy_hosts = "localhost, cluster.local" # A comma-separated list of doma
 [redis]
 host = "127.0.0.1"
 port = 6379
+# username = "default" # Optional ACL username for authenticated Redis (Redis 6+ / Redis Cloud); requires `password`
+# password = ""        # Optional password for authenticated Redis (AUTH); leave unset for unauthenticated Redis
 pool_size = 5 # Number of connections to keep open
 reconnect_max_attempts = 5 # Maximum number of reconnection attempts to make before failing. Set to 0 to retry forever.
 reconnect_delay = 5 # Delay between reconnection attempts, in milliseconds
