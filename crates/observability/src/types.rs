@@ -349,14 +349,16 @@ mod tests {
     }
 }
 
-/// The body of `GET /alerts/cloudwatch/evaluate`.
+/// The body of both CloudWatch routes.
 ///
-/// Every definition appears, in id order, whether or not it could be read. A definition we failed
-/// to read carries no `rules` at all rather than states derived from an absence — the caller is
-/// meant to see the hole, not a row of `ok`.
+/// Every definition appears, in id order, whether or not it could be read: one that failed
+/// carries no `rules` at all rather than states derived from an absence. `announcements` holds
+/// only the rules that *changed* state, with the message each produced — on the dry run those
+/// messages are rendered and not sent, which is what `"delivery": "skipped"` says.
 #[derive(Debug, Serialize)]
 pub struct EvaluateResponse {
     pub definitions: Vec<DefinitionState>,
+    pub announcements: Vec<AnnouncementResponse>,
 }
 
 #[derive(Debug, Serialize)]
@@ -407,18 +409,6 @@ pub enum AlarmState {
     Ok,
     Alarm,
     InsufficientData,
-}
-
-impl From<cloudwatch::Catalogue> for EvaluateResponse {
-    fn from(catalogue: cloudwatch::Catalogue) -> Self {
-        Self {
-            definitions: catalogue
-                .definitions
-                .into_iter()
-                .map(DefinitionState::from)
-                .collect(),
-        }
-    }
 }
 
 impl From<cloudwatch::Evaluation> for DefinitionState {
@@ -483,12 +473,6 @@ impl From<State> for AlarmState {
 /// The body of `POST /alerts/cloudwatch/notify`.
 ///
 /// The same definitions the dry run returns, plus what was said about them and whether it arrived.
-/// An empty `announcements` with a full `definitions` means nothing was breaching.
-#[derive(Debug, Serialize)]
-pub struct NotifyResponse {
-    pub definitions: Vec<DefinitionState>,
-    pub announcements: Vec<AnnouncementResponse>,
-}
 
 #[derive(Debug, Serialize)]
 pub struct AnnouncementResponse {
@@ -507,13 +491,15 @@ pub enum DeliveryResponse {
     Refused { code: String },
     Failed,
     UnknownDestination,
+    Skipped,
 }
 
-impl From<announce::Announced> for NotifyResponse {
+impl From<announce::Announced> for EvaluateResponse {
     fn from(announced: announce::Announced) -> Self {
         Self {
             definitions: announced
-                .catalogue
+                .comparison
+                .current
                 .definitions
                 .into_iter()
                 .map(DefinitionState::from)
@@ -546,6 +532,7 @@ impl From<announce::Delivery> for DeliveryResponse {
             announce::Delivery::Refused { code } => Self::Refused { code },
             announce::Delivery::Failed => Self::Failed,
             announce::Delivery::UnknownDestination => Self::UnknownDestination,
+            announce::Delivery::Skipped => Self::Skipped,
         }
     }
 }

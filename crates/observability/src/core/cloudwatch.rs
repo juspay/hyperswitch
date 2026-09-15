@@ -12,12 +12,12 @@ use time::OffsetDateTime;
 
 use crate::{
     domain::cloudwatch::{
-        evaluate, evaluation_range, Catalogue, Evaluation, Outcome, RuleState, Unread,
+        evaluate, evaluation_range, Catalogue, Comparison, Evaluation, Outcome, RuleState, Unread,
     },
     logger,
     settings::cloudwatch::{AlarmDefinition, CloudWatchSettings},
     state::AppState,
-    utils::latest_completed_period,
+    utils::{evaluation_cadence, latest_completed_period},
 };
 
 /// What `GetMetricData` accepts in one call, mirroring the provider's own limit. Exceeding it
@@ -34,6 +34,34 @@ struct Batch<'a> {
 /// series but could not complete it; an absent index means it said nothing at all.
 type Readings = BTreeMap<usize, Option<Vec<Option<f64>>>>;
 
+/// Which of the two consecutive evaluations a request covers.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Window {
+    Current,
+    /// The evaluation one cadence earlier — what CloudWatch would have said a moment ago.
+    Previous,
+}
+
+/// Evaluate the catalogue as of `now`, and again as it stood one evaluation earlier.
+///
+/// Two reads rather than one wider one: a 300-second window ending a minute earlier sits on
+/// a different bucket grid, since buckets anchor at the request's start. One response cannot
+/// hold both.
+pub async fn compare_catalogue(state: &AppState, now: OffsetDateTime) -> Comparison {
+    let Some(provider) = state.metrics.as_deref() else {
+        return Comparison::default();
+    };
+    let settings = &state.conf.cloudwatch;
+
+    let current = read(provider, settings, now, Window::Current).await;
+    let previous = read(provider, settings, now, Window::Previous).await;
+
+    Comparison {
+        transitions: current.transitions_from(&previous),
+        current,
+    }
+}
+
 /// Evaluate every configured definition as of `now`.
 pub async fn evaluate_catalogue(state: &AppState, now: OffsetDateTime) -> Catalogue {
     let Some(provider) = state.metrics.as_deref() else {
@@ -41,17 +69,18 @@ pub async fn evaluate_catalogue(state: &AppState, now: OffsetDateTime) -> Catalo
         return Catalogue::default();
     };
 
-    read(provider, &state.conf.cloudwatch, now).await
+    read(provider, &state.conf.cloudwatch, now, Window::Current).await
 }
 
 async fn read(
     provider: &dyn MetricsProvider,
     settings: &CloudWatchSettings,
     now: OffsetDateTime,
+    window: Window,
 ) -> Catalogue {
     let mut definitions = Vec::with_capacity(settings.alarms.len());
 
-    for batch in plan(settings, now) {
+    for batch in plan(settings, now, window) {
         let readings = fetch(provider, &batch.request).await;
         definitions.extend(interpret(&batch, readings));
     }
@@ -61,7 +90,7 @@ async fn read(
 }
 
 /// The requests that cover `settings`: grouped by period, each as wide as its own widest rule.
-fn plan(settings: &CloudWatchSettings, now: OffsetDateTime) -> Vec<Batch<'_>> {
+fn plan(settings: &CloudWatchSettings, now: OffsetDateTime, window: Window) -> Vec<Batch<'_>> {
     settings
         .alarms
         .iter()
@@ -76,7 +105,7 @@ fn plan(settings: &CloudWatchSettings, now: OffsetDateTime) -> Vec<Batch<'_>> {
             },
         )
         .into_iter()
-        .flat_map(|(period, definitions)| batches(period, definitions, now))
+        .flat_map(|(period, definitions)| batches(period, definitions, now, window))
         .collect()
 }
 
@@ -84,6 +113,7 @@ fn batches<'a>(
     period: Period,
     mut definitions: Vec<(&'a String, &'a AlarmDefinition)>,
     now: OffsetDateTime,
+    window: Window,
 ) -> Vec<Batch<'a>> {
     definitions.sort_by(|(one, _), (other, _)| one.cmp(other));
 
@@ -93,7 +123,11 @@ fn batches<'a>(
         .map(evaluation_range)
         .max()
         .unwrap_or(1);
-    let range = TimeRange::ending_at(latest_completed_period(now, period), period, width);
+    let end = match window {
+        Window::Current => latest_completed_period(now, period),
+        Window::Previous => latest_completed_period(now, period) - evaluation_cadence(period),
+    };
+    let range = TimeRange::ending_at(end, period, width);
 
     definitions
         .chunks(MAX_QUERIES_PER_REQUEST)
@@ -390,7 +424,7 @@ mod tests {
         ]);
         let provider = StubProvider::answering(vec![]);
 
-        read(provider.as_ref(), &settings, NOW).await;
+        read(provider.as_ref(), &settings, NOW, Window::Current).await;
         let requests = provider.requests();
 
         assert_eq!(requests.len(), 2, "one per period, not one per definition");
@@ -411,7 +445,7 @@ mod tests {
         let settings = catalogue(vec![("cpu", definition(60, vec![("sev1", rule(1, 90.0))]))]);
         let provider = StubProvider::answering(vec![]);
 
-        read(provider.as_ref(), &settings, NOW).await;
+        read(provider.as_ref(), &settings, NOW, Window::Current).await;
         let query = &provider.requests()[0].queries[0];
 
         assert_eq!(query.namespace.as_deref(), Some("AWS/RDS"));
@@ -444,7 +478,7 @@ mod tests {
         };
         let provider = StubProvider::answering(vec![]);
 
-        read(provider.as_ref(), &settings, NOW).await;
+        read(provider.as_ref(), &settings, NOW, Window::Current).await;
 
         let sizes: Vec<usize> = provider
             .requests()
@@ -469,7 +503,7 @@ mod tests {
         )]);
         let provider = StubProvider::answering(vec![page(vec![complete(0, vec![Some(87.0)])])]);
 
-        let catalogue = read(provider.as_ref(), &settings, NOW).await;
+        let catalogue = read(provider.as_ref(), &settings, NOW, Window::Current).await;
 
         assert_eq!(
             provider.requests()[0].queries.len(),
@@ -506,7 +540,7 @@ mod tests {
             ],
         )])]);
 
-        let catalogue = read(provider.as_ref(), &settings, NOW).await;
+        let catalogue = read(provider.as_ref(), &settings, NOW, Window::Current).await;
 
         assert_eq!(
             states(&catalogue.definitions[0]),
@@ -526,7 +560,7 @@ mod tests {
             page(vec![complete(0, vec![None, None, Some(99.0), None, None])]),
         ]);
 
-        let catalogue = read(provider.as_ref(), &settings, NOW).await;
+        let catalogue = read(provider.as_ref(), &settings, NOW, Window::Current).await;
 
         assert_eq!(
             readings(&catalogue.definitions[0]),
@@ -551,7 +585,7 @@ mod tests {
             complete(1, vec![Some(10.0); 5]),
         ])]);
 
-        let catalogue = read(provider.as_ref(), &settings, NOW).await;
+        let catalogue = read(provider.as_ref(), &settings, NOW, Window::Current).await;
 
         assert_eq!(
             catalogue.definitions[0].outcome,
@@ -567,7 +601,7 @@ mod tests {
         let settings = catalogue(vec![("cpu", definition(60, vec![("sev1", rule(1, 90.0))]))]);
         let provider = StubProvider::answering(vec![page(vec![])]);
 
-        let catalogue = read(provider.as_ref(), &settings, NOW).await;
+        let catalogue = read(provider.as_ref(), &settings, NOW, Window::Current).await;
 
         assert_eq!(
             catalogue.definitions[0].outcome,
@@ -592,7 +626,7 @@ mod tests {
             page(vec![complete(0, vec![Some(99.0)])]),
         ]);
 
-        let catalogue = read(provider.as_ref(), &settings, NOW).await;
+        let catalogue = read(provider.as_ref(), &settings, NOW, Window::Current).await;
 
         assert_eq!(
             catalogue.definitions[1].outcome,
@@ -612,9 +646,51 @@ mod tests {
     async fn an_empty_catalogue_asks_for_nothing() {
         let provider = StubProvider::answering(vec![]);
 
-        let catalogue = read(provider.as_ref(), &catalogue(vec![]), NOW).await;
+        let catalogue = read(provider.as_ref(), &catalogue(vec![]), NOW, Window::Current).await;
 
         assert_eq!(catalogue, Catalogue::default());
         assert!(provider.requests().is_empty());
+    }
+
+    /// The previous evaluation is one cadence back — a minute, even for a five-minute period,
+    /// because that is how often CloudWatch re-evaluates it.
+    #[tokio::test]
+    async fn the_previous_window_ends_one_cadence_before_the_current_one() {
+        let settings = catalogue(vec![
+            ("minutely", definition(60, vec![("sev1", rule(1, 90.0))])),
+            (
+                "five_minutely",
+                definition(300, vec![("sev1", rule(3, 90.0))]),
+            ),
+        ]);
+        let provider = StubProvider::answering(vec![]);
+
+        read(provider.as_ref(), &settings, NOW, Window::Current).await;
+        read(provider.as_ref(), &settings, NOW, Window::Previous).await;
+
+        let seen = provider.requests();
+        let (minutely, five_minutely) = (&seen[0], &seen[1]);
+        let (minutely_before, five_minutely_before) = (&seen[2], &seen[3]);
+
+        assert_eq!(
+            minutely.range.end - minutely_before.range.end,
+            time::Duration::minutes(1)
+        );
+        assert_eq!(
+            five_minutely.range.end - five_minutely_before.range.end,
+            time::Duration::minutes(1),
+            "a five-minute period still steps a minute at a time"
+        );
+
+        // The shifted 300s window sits on a different bucket grid, which is why it cannot be
+        // sliced out of the current one.
+        assert_eq!(
+            five_minutely_before.range.start,
+            datetime!(2026-09-11 11:41:00 UTC)
+        );
+        assert_eq!(
+            five_minutely.range.start,
+            datetime!(2026-09-11 11:42:00 UTC)
+        );
     }
 }

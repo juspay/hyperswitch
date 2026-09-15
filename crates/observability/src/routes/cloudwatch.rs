@@ -4,38 +4,26 @@
 use actix_web::{web, HttpRequest, HttpResponse};
 use common_utils::date_time;
 
-use crate::{
-    auth, core, services,
-    state::AppState,
-    types::{EvaluateResponse, NotifyResponse},
-};
+use crate::{auth, core, services, state::AppState, types::EvaluateResponse};
 
 /// `GET /alerts/cloudwatch/evaluate`.
 ///
-/// Reads every configured definition and answers with what each of its rules currently says. It
-/// delivers nothing and remembers nothing, so two calls a second apart may disagree only because
-/// the metrics did.
+/// The dry run. Evaluates the catalogue twice, reports what each rule says and what changed since
+/// the previous evaluation, renders the messages those changes would produce — and sends none of
+/// them.
 pub async fn evaluate(state: web::Data<AppState>, request: HttpRequest) -> HttpResponse {
-    services::server_wrap(
-        state.get_ref().clone(),
-        &request,
-        (),
-        |state, ()| async move {
-            let catalogue =
-                core::cloudwatch::evaluate_catalogue(&state, date_time::now().assume_utc()).await;
-
-            Ok(EvaluateResponse::from(catalogue))
-        },
-        &auth::InternalApiKeyAuth,
-    )
-    .await
+    announce(state, request, false).await
 }
 
 /// `POST /alerts/cloudwatch/notify`.
 ///
-/// The same evaluation, followed by an announcement for every rule found breaching. `GET
-/// /alerts/cloudwatch/evaluate` is the dry run: identical states, nothing sent.
+/// The same evaluation, delivered. Only rules that changed state are announced, so a breach that
+/// stays breaching is reported once rather than on every call.
 pub async fn notify(state: web::Data<AppState>, request: HttpRequest) -> HttpResponse {
+    announce(state, request, true).await
+}
+
+async fn announce(state: web::Data<AppState>, request: HttpRequest, deliver: bool) -> HttpResponse {
     services::server_wrap(
         state.get_ref().clone(),
         &request,
@@ -44,10 +32,11 @@ pub async fn notify(state: web::Data<AppState>, request: HttpRequest) -> HttpRes
             let announced = core::cloudwatch::announce::evaluate_and_announce(
                 &state,
                 date_time::now().assume_utc(),
+                deliver,
             )
             .await;
 
-            Ok(NotifyResponse::from(announced))
+            Ok(EvaluateResponse::from(announced))
         },
         &auth::InternalApiKeyAuth,
     )
