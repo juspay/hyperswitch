@@ -42,6 +42,80 @@ use crate::{
     types::{self, api, api::enums as api_enums, domain},
 };
 
+/// Maps the response of a connector CreateOrder call, made ahead of a payment flow, to the
+/// order id to carry forward and whether the payment flow should continue.
+pub(crate) fn get_create_order_result(
+    order_create_response: &Result<types::PaymentsResponseData, types::ErrorResponse>,
+    should_continue_payment: bool,
+) -> RouterResult<types::CreateOrderResult> {
+    use error_stack::ResultExt;
+
+    match order_create_response {
+        Ok(types::PaymentsResponseData::PaymentsCreateOrderResponse {
+            order_id,
+            session_token,
+        }) => {
+            let should_continue_further = if session_token.is_some() {
+                // if SDK session token is returned in order create response, do not continue and return control to SDK
+                false
+            } else {
+                should_continue_payment
+            };
+            Ok(types::CreateOrderResult {
+                create_order_result: Ok(order_id.clone()),
+                should_continue_further,
+            })
+        }
+        // Some connector return PreProcessingResponse and TransactionResponse response type
+        // Rest of the match statements are temporary fixes for satisfying current connector side response handling
+        // Create Order response must always be PaymentsResponseData::PaymentsCreateOrderResponse only
+        Ok(types::PaymentsResponseData::PreProcessingResponse {
+            pre_processing_id,
+            session_token,
+            ..
+        }) => {
+            let should_continue_further = if session_token.is_some() {
+                // if SDK session token is returned in order create response, do not continue and return control to SDK
+                false
+            } else {
+                should_continue_payment
+            };
+            Ok(types::CreateOrderResult {
+                create_order_result: Ok(pre_processing_id.get_string_repr().clone()),
+                should_continue_further,
+            })
+        }
+        Ok(types::PaymentsResponseData::TransactionResponse {
+            resource_id,
+            redirection_data,
+            ..
+        }) => {
+            let order_id = resource_id
+                .get_connector_transaction_id()
+                .change_context(ApiErrorResponse::InternalServerError)
+                .attach_printable("unable to get connector_transaction_id during order create")?;
+            let should_continue_further = if redirection_data.is_some() {
+                // if redirection_data is returned in order create response, do not continue and return control to SDK
+                false
+            } else {
+                should_continue_payment
+            };
+            Ok(types::CreateOrderResult {
+                create_order_result: Ok(order_id),
+                should_continue_further,
+            })
+        }
+        Ok(res) => Err(error_stack::report!(ApiErrorResponse::InternalServerError)
+            .attach_printable(format!(
+                "Unexpected response format from connector: {res:?}",
+            ))),
+        Err(error) => Ok(types::CreateOrderResult {
+            create_order_result: Err(error.clone()),
+            should_continue_further: false,
+        }),
+    }
+}
+
 #[async_trait]
 #[allow(clippy::too_many_arguments)]
 pub trait ConstructFlowSpecificData<F, Req, Res> {

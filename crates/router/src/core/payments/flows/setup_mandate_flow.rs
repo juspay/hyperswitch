@@ -453,6 +453,80 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         .await
     }
 
+    async fn create_order_at_connector(
+        &mut self,
+        state: &SessionState,
+        connector: &api::ConnectorData,
+        should_continue_payment: bool,
+        gateway_context: &gateway_context::RouterGatewayContext,
+    ) -> RouterResult<Option<types::CreateOrderResult>> {
+        // Only the per-flow connector hook decides this. Unlike Authorize, the
+        // `requires_order_creation_before_payment` list is not consulted: the connectors on it
+        // have never created an order ahead of SetupMandate, and must not start doing so.
+        let is_order_create_flow_required = connector.connector.is_order_create_flow_required(
+            api_interface::CurrentFlowInfo::SetupMandate {
+                auth_type: self.auth_type,
+                request_data: Box::new(self.request.clone()),
+            },
+        );
+        if !(is_order_create_flow_required && should_continue_payment) {
+            return Ok(None);
+        }
+
+        logger::info!(
+            "Order create flow is required for connector: {} for Setup Mandate flow",
+            connector.connector_name
+        );
+        let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
+            api::CreateOrder,
+            types::CreateOrderRequestData,
+            types::PaymentsResponseData,
+        > = connector.connector.get_connector_integration();
+
+        let request_data = types::CreateOrderRequestData::try_from(self.request.clone())?;
+        let response_data: Result<types::PaymentsResponseData, types::ErrorResponse> =
+            Err(types::ErrorResponse::default());
+        let create_order_router_data =
+            helpers::router_data_type_conversion::<_, api::CreateOrder, _, _, _, _>(
+                self.clone(),
+                request_data,
+                response_data,
+            );
+
+        let order_create_response_router_data = gateway::execute_payment_gateway(
+            state,
+            connector_integration,
+            &create_order_router_data,
+            payments::CallConnectorAction::Trigger,
+            None,
+            None,
+            gateway_context.clone(),
+        )
+        .await
+        .to_payment_failed_response()?;
+
+        let order_create_response = order_create_response_router_data.response.clone();
+        let create_order_result =
+            super::get_create_order_result(&order_create_response, should_continue_payment)?;
+
+        // persist order create response
+        *self = helpers::router_data_type_conversion::<_, api::SetupMandate, _, _, _, _>(
+            order_create_response_router_data,
+            self.request.clone(),
+            order_create_response,
+        );
+        Ok(Some(create_order_result))
+    }
+
+    fn update_router_data_with_create_order_response(
+        &mut self,
+        create_order_result: types::CreateOrderResult,
+    ) {
+        if let Ok(order_id) = create_order_result.create_order_result {
+            self.request.order_id = Some(order_id);
+        }
+    }
+
     async fn generate_qr_step<'a>(
         self,
         state: &SessionState,

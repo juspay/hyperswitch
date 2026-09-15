@@ -715,7 +715,9 @@ impl
             metadata,
             test_mode: router_data.test_mode,
             state,
-            connector_order_id: None,
+            // Set only when an order was created at the connector ahead of this call
+            // (`update_router_data_with_create_order_response` in the authorize flow).
+            connector_order_id: router_data.request.order_id.clone(),
             description: router_data.description.clone(),
             setup_mandate_details: router_data
                 .request
@@ -2822,7 +2824,7 @@ impl
             browser_info,
             payment_experience: None,
             state,
-            order_id: None,
+            order_id: router_data.request.order_id.clone(),
             connector_feature_data: None,
             enable_partial_authorization: router_data
                 .request

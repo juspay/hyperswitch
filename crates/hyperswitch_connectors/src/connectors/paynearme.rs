@@ -11,6 +11,7 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
+    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -619,6 +620,33 @@ static ETISALAT_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
 static ETISALAT_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
 
 impl ConnectorSpecifications for Paynearme {
+    /// PayNearMe attaches every payment and every stored payment method to an order
+    /// (`/create_payment_method` and `/make_payment` both require one), and the UCS Authorize and
+    /// SetupRecurring handlers make a single connector call, so the order is created first.
+    fn is_order_create_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
+        match current_flow {
+            // A merchant-initiated payment is sent to UCS RecurringPaymentService.Charge (the
+            // router's UCS authorize gateway routes on this same condition), which charges the
+            // order carried inside `connector_mandate_id` and never reads a new order, so creating
+            // one would only leave an unused order at PayNearMe.
+            api::CurrentFlowInfo::Authorize {
+                auth_type: _,
+                request_data,
+            } => {
+                !(request_data.mandate_id.is_some()
+                    || matches!(
+                        request_data.payment_method_data,
+                        PaymentMethodData::MandatePayment
+                    ))
+            }
+            api::CurrentFlowInfo::SetupMandate { .. } => true,
+            api::CurrentFlowInfo::CompleteAuthorize { .. }
+            | api::CurrentFlowInfo::Psync { .. }
+            | api::CurrentFlowInfo::UpdatePostConfirm { .. }
+            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
+        }
+    }
+
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&ETISALAT_CONNECTOR_INFO)
     }
