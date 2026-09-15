@@ -3598,7 +3598,7 @@ dependencies = [
  "serde_json",
  "serde_urlencoded",
  "superposition_provider",
- "superposition_sdk 0.115.5",
+ "superposition_sdk",
  "superposition_types",
  "thiserror 1.0.69",
  "time 0.3.41",
@@ -8480,7 +8480,7 @@ dependencies = [
  "storage_impl",
  "strum 0.26.3",
  "subscriptions",
- "superposition_sdk 0.117.2",
+ "superposition_sdk",
  "tempfile",
  "tera",
  "test_utils",
@@ -10036,7 +10036,7 @@ dependencies = [
  "serde",
  "serde_json",
  "superposition_core",
- "superposition_sdk 0.115.5",
+ "superposition_sdk",
  "superposition_types",
  "thiserror 1.0.69",
  "tokio 1.48.0",
@@ -10049,24 +10049,6 @@ name = "superposition_sdk"
 version = "0.115.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "732c84601c078655a4ee6f7888ad4f6a1fef3e619027de03d94837c4df881094"
-dependencies = [
- "aws-smithy-async",
- "aws-smithy-http 0.62.1",
- "aws-smithy-json 0.61.3",
- "aws-smithy-runtime",
- "aws-smithy-runtime-api",
- "aws-smithy-types",
- "bytes 1.10.1",
- "fastrand",
- "http 0.2.12",
- "tracing",
-]
-
-[[package]]
-name = "superposition_sdk"
-version = "0.117.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2fa6f6130e7e6da746825f56b5581d005fc3d46ab76801c18cb684ae9340775d"
 dependencies = [
  "aws-smithy-async",
  "aws-smithy-http 0.62.1",
