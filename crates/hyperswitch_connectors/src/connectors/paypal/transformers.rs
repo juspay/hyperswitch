@@ -2259,10 +2259,30 @@ fn validate_liability_response(
                 .unwrap_or(AuthenticationStatus::Null),
         );
 
+        // The connector refuses to authorize for three distinct reasons; keep them apart so a
+        // failed challenge is never reported as an unavailable one, or as a liability-shift
+        // denial on an authentication that actually succeeded.
+        let (code, message) = match three_ds.authentication_status {
+            Some(AuthenticationStatus::Failed) | Some(AuthenticationStatus::Rejected) => (
+                constants::THREE_DS_AUTHENTICATION_FAILED_CODE,
+                constants::THREE_DS_AUTHENTICATION_FAILED_MESSAGE,
+            ),
+            Some(AuthenticationStatus::Success) | Some(AuthenticationStatus::Attempted) => (
+                constants::THREE_DS_LIABILITY_SHIFT_NOT_POSSIBLE_CODE,
+                constants::THREE_DS_LIABILITY_SHIFT_NOT_POSSIBLE_MESSAGE,
+            ),
+            // Unable, ChallengeRequired, InfoOnly, Decoupled, Null, Unknown or absent: the
+            // authentication never reached a verdict.
+            _ => (
+                constants::THREE_DS_AUTHENTICATION_UNAVAILABLE_CODE,
+                constants::THREE_DS_AUTHENTICATION_UNAVAILABLE_MESSAGE,
+            ),
+        };
+
         Err(Box::new(ErrorResponse {
             attempt_status: Some(enums::AttemptStatus::Failure),
-            code: NO_ERROR_CODE.to_string(),
-            message: NO_ERROR_MESSAGE.to_string(),
+            code: code.to_string(),
+            message: message.to_string(),
             connector_transaction_id: None,
             connector_response_reference_id: None,
             reason: Some(reason),
