@@ -452,7 +452,7 @@ impl
     ) -> Result<Self, Self::Error> {
         let currency = item.router_data.request.currency.ok_or(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "currency",
+                field_name: "currency".into(),
             },
         )?;
         Ok(Self {

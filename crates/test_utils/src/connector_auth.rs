@@ -55,6 +55,7 @@ pub struct ConnectorAuthentication {
     pub elavon: Option<HeaderKey>,
     pub elavon_pg: Option<BodyKey>,
     pub envoy: Option<HeaderKey>,
+    pub etisalat: Option<SignatureKey>,
     pub facilitapay: Option<BodyKey>,
     pub finix: Option<HeaderKey>,
     pub fiserv: Option<SignatureKey>,

@@ -1,4 +1,3 @@
-use rand::Rng;
 use serial_test::serial;
 use thirtyfour::{prelude::*, WebDriver};
 
@@ -14,7 +13,7 @@ impl SeleniumTest for AuthorizedotnetSeleniumTest {
 
 async fn should_make_gpay_payment(web_driver: WebDriver) -> Result<(), WebDriverError> {
     let conn = AuthorizedotnetSeleniumTest {};
-    let amount = rand::thread_rng().gen_range(1..1000); //This connector detects it as fraudulent payment if the same amount is used for multiple payments so random amount is passed for testing
+    let amount = common_utils::generate_random_number_in_range(1, 999); //This connector detects it as fraudulent payment if the same amount is used for multiple payments so random amount is passed for testing
     let pub_key = conn
         .get_configs()
         .automation_configs

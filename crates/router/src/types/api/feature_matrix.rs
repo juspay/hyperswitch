@@ -264,6 +264,9 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Moneris => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Moneris::new())))
                 }
+                enums::Connector::Etisalat => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Etisalat::new())))
+                }
                 enums::Connector::Nexixpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Nexixpay::new())))
                 }
@@ -457,6 +460,9 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Riskified => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Riskified::new())))
                 }
+                enums::Connector::SanlamPayshield => Ok(ConnectorEnum::Old(Box::new(
+                    connector::SanlamPayshield::new(),
+                ))),
                 enums::Connector::Cybersourcedecisionmanager => Ok(ConnectorEnum::Old(Box::new(
                     connector::Cybersourcedecisionmanager::new(),
                 ))),
