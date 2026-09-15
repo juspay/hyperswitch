@@ -716,6 +716,7 @@ export const connectorDetails = {
         },
       },
       Request: {
+        amount: 6000,
         payment_channel: "telephone_order",
       },
       Response: {
@@ -737,6 +738,7 @@ export const connectorDetails = {
         },
       },
       Request: {
+        amount: 6000,
         payment_channel: "telephone_order",
       },
       Response: {
@@ -759,6 +761,7 @@ export const connectorDetails = {
         },
       },
       Request: {
+        amount: 6000,
         payment_channel: "telephone_order",
         billing: null,
       },
@@ -782,6 +785,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_channel: "telephone_order",
         payment_method: "card",
         payment_method_data: {
@@ -808,6 +812,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_channel: "telephone_order",
         payment_method: "card",
         payment_method_data: {
@@ -834,6 +839,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_channel: "telephone_order",
         payment_method: "card",
         payment_method_data: {
@@ -860,6 +866,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_channel: "telephone_order",
         payment_method: "card",
         payment_method_data: {
@@ -887,6 +894,7 @@ export const connectorDetails = {
         },
       },
       Request: {
+        amount: 0,
         payment_channel: "telephone_order",
         payment_method: "card",
         payment_method_data: {
@@ -939,6 +947,7 @@ export const connectorDetails = {
         },
       },
       Request: {
+        amount: 0,
         payment_channel: "telephone_order",
         payment_type: "setup_mandate",
         payment_method: "card",
@@ -1246,6 +1255,7 @@ export const connectorDetails = {
         },
       },
       Request: {
+        amount: 6000,
         payment_channel: "telephone_order",
         payment_method: "card",
         payment_method_data: {
@@ -1271,6 +1281,7 @@ export const connectorDetails = {
         },
       },
       Request: {
+        amount: 6000,
         payment_channel: "telephone_order",
       },
       Response: {
