@@ -24,7 +24,8 @@ use hyperswitch_domain_models::{
         RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
-        ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods,
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
@@ -607,8 +608,56 @@ impl webhooks::IncomingWebhook for Paynearme {
     }
 }
 
+/// Mirrors the UCS PayNearMe declaration (hyperswitch-prism `connectors/paynearme.rs`,
+/// `PAYNEARME_SUPPORTED_PAYMENT_METHODS`), which is what actually processes these payments:
+/// sale / auto-capture only (PayNearMe has no capture endpoint), mandates (stored card charged
+/// with `/make_payment`) and refunds supported. UCS declares one `Card` entry because PayNearMe
+/// classifies credit vs debit from the BIN; v1 validates against the attempt's payment method type,
+/// so the entry is declared for credit and debit (and as `Card` for v2). UCS declares no
+/// card-specific features (card networks, 3DS), so none are declared here either; UCS refuses a
+/// `three_ds` authorize with NotSupported.
 static PAYNEARME_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
-    LazyLock::new(SupportedPaymentMethods::new);
+    LazyLock::new(|| {
+        let supported_capture_methods = vec![enums::CaptureMethod::Automatic];
+
+        let mut paynearme_supported_payment_methods = SupportedPaymentMethods::new();
+
+        paynearme_supported_payment_methods.add(
+            enums::PaymentMethod::Card,
+            enums::PaymentMethodType::Credit,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::Supported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            },
+        );
+
+        paynearme_supported_payment_methods.add(
+            enums::PaymentMethod::Card,
+            enums::PaymentMethodType::Debit,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::Supported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            },
+        );
+
+        #[cfg(feature = "v2")]
+        paynearme_supported_payment_methods.add(
+            enums::PaymentMethod::Card,
+            enums::PaymentMethodType::Card,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::Supported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods,
+                specific_features: None,
+            },
+        );
+
+        paynearme_supported_payment_methods
+    });
 
 static PAYNEARME_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "PayNearMe",

@@ -711,7 +711,10 @@ pub struct CreateOrderRequestData {
     /// Customer of the payment the order is created for. Must match the `customer_id` of the
     /// request that consumes the order (Authorize / SetupMandate).
     pub customer_id: Option<id_type::CustomerId>,
-    /// Store-for-later intent of the payment the order is created for.
+    /// Store-for-later intent effective for order creation: the consuming request's
+    /// `setup_future_usage`, except that `OffSession` is kept only when that request sets up a
+    /// mandate (a customer-initiated mandate payment, or a SetupMandate). An off-session payment
+    /// without customer acceptance or mandate details stores nothing, so it carries `None`.
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
 }
 
@@ -728,10 +731,38 @@ impl CreateOrderRequestData {
     }
 }
 
+/// `setup_future_usage` to send on the order created for a payment.
+///
+/// `OffSession` is kept only for a customer-initiated mandate payment: off-session with customer
+/// acceptance or mandate details. This is the condition of
+/// `PaymentsAuthorizeRequestData::is_customer_initiated_mandate_payment` (hyperswitch_connectors),
+/// and the one under which the router persists a mandate for the payment (`is_connector_mandate` /
+/// `is_legacy_mandate` in `payment_response.rs`). CreateOrder carries no customer acceptance, so a
+/// connector that shapes the order on this field (e.g. a reusable order for a stored card) would
+/// otherwise set up storage for a payment that stores nothing. Any other value, `OnSession`
+/// included, is passed through unchanged.
+fn get_setup_future_usage_for_order_creation(
+    setup_future_usage: Option<storage_enums::FutureUsage>,
+    customer_acceptance: Option<&common_payments_types::CustomerAcceptance>,
+    setup_mandate_details: Option<&mandates::MandateData>,
+) -> Option<storage_enums::FutureUsage> {
+    let is_mandate_setup_requested =
+        customer_acceptance.is_some() || setup_mandate_details.is_some();
+    setup_future_usage.filter(|setup_future_usage| {
+        !matches!(setup_future_usage, storage_enums::FutureUsage::OffSession)
+            || is_mandate_setup_requested
+    })
+}
+
 impl TryFrom<PaymentsAuthorizeData> for CreateOrderRequestData {
     type Error = error_stack::Report<ApiErrorResponse>;
 
     fn try_from(data: PaymentsAuthorizeData) -> Result<Self, Self::Error> {
+        let setup_future_usage = get_setup_future_usage_for_order_creation(
+            data.setup_future_usage,
+            data.customer_acceptance.as_ref(),
+            data.setup_mandate_details.as_ref(),
+        );
         Ok(Self {
             payment_method_type: data.payment_method_type,
             minor_amount: data.minor_amount,
@@ -743,7 +774,7 @@ impl TryFrom<PaymentsAuthorizeData> for CreateOrderRequestData {
             setup_mandate_details: data.setup_mandate_details,
             capture_method: data.capture_method,
             customer_id: data.customer_id,
-            setup_future_usage: data.setup_future_usage,
+            setup_future_usage,
         })
     }
 }
@@ -772,6 +803,11 @@ impl TryFrom<ExternalVaultProxyPaymentsData> for CreateOrderRequestData {
     type Error = error_stack::Report<ApiErrorResponse>;
 
     fn try_from(data: ExternalVaultProxyPaymentsData) -> Result<Self, Self::Error> {
+        let setup_future_usage = get_setup_future_usage_for_order_creation(
+            data.setup_future_usage,
+            data.customer_acceptance.as_ref(),
+            data.setup_mandate_details.as_ref(),
+        );
         Ok(Self {
             payment_method_type: data.payment_method_type,
             minor_amount: data.minor_amount,
@@ -783,7 +819,7 @@ impl TryFrom<ExternalVaultProxyPaymentsData> for CreateOrderRequestData {
             setup_mandate_details: data.setup_mandate_details,
             capture_method: data.capture_method,
             customer_id: data.customer_id,
-            setup_future_usage: data.setup_future_usage,
+            setup_future_usage,
         })
     }
 }

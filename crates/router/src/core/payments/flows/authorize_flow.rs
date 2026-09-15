@@ -1059,6 +1059,19 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             || is_order_create_bloated_connector)
             && should_continue_payment
         {
+            // Refuse a payment the connector declares it cannot process (payment method type,
+            // capture method) before an order is created for it. The same check runs again when
+            // the direct-gateway request is built, but that step is skipped on the UCS path, where
+            // the order would otherwise already exist at the gateway when UCS refuses the payment.
+            connector
+                .connector
+                .validate_connector_against_payment_request(
+                    self.request.capture_method,
+                    self.payment_method,
+                    self.request.payment_method_type,
+                )
+                .to_payment_failed_response()?;
+
             let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
                 api::CreateOrder,
                 types::CreateOrderRequestData,
