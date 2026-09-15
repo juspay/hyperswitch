@@ -1,3 +1,4 @@
+import { standardBillingAddress } from "./Commons";
 import { getCustomExchange } from "./Modifiers";
 
 const billingAddress = {
@@ -274,6 +275,342 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
+          },
+        },
+      },
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+    }),
+  },
+  bank_redirect_pm: {
+    Blik: getCustomExchange({
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "blik",
+        payment_method_data: {
+          bank_redirect: {
+            blik: {
+              blik_code: "777987",
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "PL",
+            first_name: "john",
+            last_name: "doe",
+          },
+        },
+      },
+      Response: {
+        status: 500,
+        body: {
+          error: {
+            type: "api",
+            code: "HE_00",
+          },
+        },
+      },
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+    }),
+    Eps: getCustomExchange({
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "eps",
+        payment_method_data: {
+          bank_redirect: {
+            eps: {
+              bank_name: "ing",
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "AT",
+            first_name: "john",
+            last_name: "doe",
+          },
+        },
+      },
+      Response: {
+        status: 500,
+        body: {
+          error: {
+            type: "api",
+            code: "HE_00",
+          },
+        },
+      },
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+    }),
+    Giropay: getCustomExchange({
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "giropay",
+        payment_method_data: {
+          bank_redirect: {
+            giropay: {
+              bank_name: "",
+              bank_account_bic: "",
+              bank_account_iban: "",
+              preferred_language: "en",
+              country: "DE",
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "DE",
+            first_name: "john",
+            last_name: "doe",
+          },
+        },
+      },
+      Response: {
+        status: 500,
+        body: {
+          error: {
+            type: "api",
+            code: "HE_00",
+          },
+        },
+      },
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+    }),
+    Ideal: getCustomExchange({
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "ideal",
+        payment_method_data: {
+          bank_redirect: {
+            ideal: {
+              bank_name: "ing",
+              country: "NL",
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "NL",
+            first_name: "john",
+            last_name: "doe",
+          },
+        },
+      },
+      Response: {
+        status: 500,
+        body: {
+          error: {
+            type: "api",
+            code: "HE_00",
+          },
+        },
+      },
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+    }),
+    Sofort: getCustomExchange({
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "sofort",
+        payment_method_data: {
+          bank_redirect: {
+            sofort: {
+              country: "DE",
+              preferred_language: "en",
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "DE",
+            first_name: "john",
+            last_name: "doe",
+          },
+        },
+      },
+      Response: {
+        status: 500,
+        body: {
+          error: {
+            type: "api",
+            code: "HE_00",
+          },
+        },
+      },
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+    }),
+    Przelewy24: getCustomExchange({
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "przelewy24",
+        payment_method_data: {
+          bank_redirect: {
+            przelewy24: {
+              bank_name: "citi",
+              billing_details: {
+                email: "guest@juspay.in",
+              },
+            },
+          },
+        },
+      },
+      Response: {
+        status: 500,
+        body: {
+          error: {
+            type: "api",
+            code: "HE_00",
+          },
+        },
+      },
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+    }),
+    OpenBankingUk: getCustomExchange({
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "open_banking_uk",
+        payment_method_data: {
+          bank_redirect: {
+            open_banking_uk: {
+              issuer: "citi",
+              country: "GB",
+            },
+          },
+        },
+        billing: standardBillingAddress,
+      },
+      Response: {
+        status: 500,
+        body: {
+          error: {
+            type: "api",
+            code: "HE_00",
+          },
+        },
+      },
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+    }),
+    OnlineBankingFpx: getCustomExchange({
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "online_banking_fpx",
+        payment_method_data: {
+          bank_redirect: {
+            online_banking_fpx: {
+              issuer: "affin_bank",
+            },
+          },
+        },
+        billing: standardBillingAddress,
+      },
+      Response: {
+        status: 500,
+        body: {
+          error: {
+            type: "api",
+            code: "HE_00",
+          },
+        },
+      },
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+    }),
+    Interac: getCustomExchange({
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "interac",
+        payment_method_data: {
+          bank_redirect: {
+            interac: {
+              bank_name: "ing",
+            },
+          },
+        },
+        billing: {
+          ...standardBillingAddress,
+          address: {
+            ...standardBillingAddress.address,
+            country: "CA",
+          },
+        },
+      },
+      Response: {
+        status: 500,
+        body: {
+          error: {
+            type: "api",
+            code: "HE_00",
+          },
+        },
+      },
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+    }),
+    Eft: getCustomExchange({
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "eft",
+        payment_method_data: {
+          bank_redirect: {
+            eft: {
+              provider: "ozow",
+            },
+          },
+        },
+      },
+      Response: {
+        status: 500,
+        body: {
+          error: {
+            type: "api",
+            code: "HE_00",
           },
         },
       },
