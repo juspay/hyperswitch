@@ -102,11 +102,14 @@ where
             )
             .change_context(ConnectorError::RequestEncodingFailed)
             .attach_printable("Failed to construct request metadata")?;
-        // A merchant-authentication (access-token) call can originate from either a
-        // payment or a payout. The connector type selects the UCS connector header
-        // namespace, while the ids below carry the payment/payout reference context.
+        // A merchant-authentication (access-token) call can originate from a
+        // payment, a payout, or an FRM pre-risk check. The connector type selects
+        // the UCS connector header namespace, while the ids below carry the
+        // payment/payout reference context.
         let connector_type = if router_data.payout_id.is_some() {
             ConnectorType::PayoutProcessor
+        } else if api_models::enums::FrmConnectors::from_str(&router_data.connector).is_ok() {
+            ConnectorType::PaymentVas
         } else {
             ConnectorType::PaymentProcessor
         };
