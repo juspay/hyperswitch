@@ -2510,7 +2510,7 @@ pub fn decide_payment_method_retrieval_action(
 
 pub async fn is_config_flag_enabled(state: &SessionState, config_key: &str) -> bool {
     let db = state.store.as_ref();
-    db.find_config_by_key_unwrap_or(config_key, Some("false".to_string()))
+    db.find_config_by_key_unwrap_or(config_key, "false".to_string())
         .await
         .inspect_err(|error| {
             logger::error!(?error, "Failed to fetch `{config_key}` config from DB");
@@ -2716,8 +2716,8 @@ where
 {
     let db = state.store.as_ref();
 
-    match db.find_config_by_key(config_key).await {
-        Ok(rollout_config) => {
+    match db.find_config_by_key_optional(config_key).await {
+        Ok(Some(rollout_config)) => {
             // Parse as JSON - log error if it fails but don't propagate
             Ok(serde_json::from_str::<C>(&rollout_config.config)
                 .map(R::from)
@@ -2731,23 +2731,19 @@ where
                 })
                 .unwrap_or_default())
         }
+        // ValueNotFound may be an expected outcome when a rollout configuration has not
+        // been provisioned. Treat it as a warning to avoid generating misleading errors.
+        Ok(None) => {
+            logger::warn!(
+                "Failed to fetch rollout config from DB. Defaulting to not execute and setting should_execute to false."
+            );
+            Ok(R::default())
+        }
         Err(err) => {
-            // ValueNotFound may be an expected outcome when a rollout configuration has not
-            // been provisioned. Treat it as a warning to avoid generating misleading errors.
-            match err.current_context() {
-                errors::StorageError::ValueNotFound(_) => {
-                    logger::warn!(
-                        error = ?err,
-                        "Failed to fetch rollout config from DB. Defaulting to not execute and setting should_execute to false."
-                    );
-                }
-                _ => {
-                    logger::error!(
-                        error = ?err,
-                        "Failed to fetch rollout config from DB. Defaulting to not execute and setting should_execute to false."
-                    );
-                }
-            }
+            logger::error!(
+                error = ?err,
+                "Failed to fetch rollout config from DB. Defaulting to not execute and setting should_execute to false."
+            );
             Ok(R::default())
         }
     }
@@ -2775,7 +2771,7 @@ pub async fn should_execute_based_on_rollout_with_precedence(
         // Box the future to avoid large stack frames from nested async in debug builds
         let result = Box::pin(state.store.find_config_by_key_unwrap_or(
             key,
-            Some(consts::UCS_ROLLOUT_CONFIG_NOT_CONFIGURED.to_string()),
+            consts::UCS_ROLLOUT_CONFIG_NOT_CONFIGURED.to_string(),
         ))
         .await
         .ok();
@@ -5273,13 +5269,21 @@ pub async fn get_merchant_connector_account(
             };
 
             let db_fetch = || async {
-                db.find_config_by_key(cloned_key.as_str())
+                let config_optional = db
+                    .find_config_by_key_optional(cloned_key.as_str())
                     .await
                     .to_not_found_response(
                         errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
                             id: cloned_key.to_owned(),
                         },
+                    )?;
+                config_optional.ok_or_else(|| {
+                    error_stack::Report::from(
+                        errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                            id: cloned_key.to_owned(),
+                        },
                     )
+                })
             };
 
             let mca_config: String = redis_fetch()
@@ -9288,7 +9292,7 @@ pub async fn config_skip_saving_wallet_at_connector(
     let config = db
         .find_config_by_key_unwrap_or(
             &merchant_id.get_skip_saving_wallet_at_connector_key(),
-            Some("[]".to_string()),
+            "[]".to_string(),
         )
         .await;
     Ok(match config {
@@ -9773,7 +9777,14 @@ async fn get_payment_update_enabled_for_client_auth(
 ) -> bool {
     let key = merchant_id.get_payment_update_enabled_for_client_auth_key();
     let db = &*state.store;
-    let update_enabled = db.find_config_by_key(key.as_str()).await;
+    let update_enabled =
+        db.find_config_by_key_optional(key.as_str())
+            .await
+            .and_then(|config_optional| {
+                config_optional.ok_or_else(|| {
+                    error_stack::Report::new(errors::StorageError::ValueNotFound(key.clone()))
+                })
+            });
 
     match update_enabled {
         Ok(conf) => conf.config.to_lowercase() == "true",

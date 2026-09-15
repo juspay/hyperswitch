@@ -249,7 +249,7 @@ pub async fn is_step_up_enabled_for_merchant_connector(
 ) -> bool {
     let key = merchant_id.get_step_up_enabled_key();
     let db = &*state.store;
-    db.find_config_by_key_unwrap_or(key.as_str(), Some("[]".to_string()))
+    db.find_config_by_key_unwrap_or(key.as_str(), "[]".to_string())
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .and_then(|step_up_config| {
@@ -272,8 +272,13 @@ pub async fn get_merchant_max_auto_retries_enabled(
 ) -> Option<i32> {
     let key = merchant_id.get_max_auto_retries_enabled();
 
-    db.find_config_by_key(key.as_str())
+    db.find_config_by_key_optional(key.as_str())
         .await
+        .and_then(|config_optional| {
+            config_optional.ok_or_else(|| {
+                error_stack::Report::new(errors::StorageError::ValueNotFound(key.clone()))
+            })
+        })
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .and_then(|retries_config| {
             retries_config
