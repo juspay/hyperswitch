@@ -318,6 +318,7 @@ async fn create_applepay_session_token(
                 Ok(payment_types::ApplePayCombinedMetadata::Simplified {
                     payment_request_data,
                     session_token_data,
+                    payment_processing_detail_input_type: _,
                 }) => {
                     logger::info!("Apple pay simplified flow");
 

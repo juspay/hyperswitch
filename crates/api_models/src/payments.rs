@@ -10578,6 +10578,12 @@ pub enum ApplePayCombinedMetadata {
     Simplified {
         payment_request_data: PaymentRequestMetadata,
         session_token_data: SessionTokenForSimplifiedApplePay,
+        /// Optional in the request, always populated (defaults to `raw`) in the response
+        #[serde(
+            default,
+            serialize_with = "serialize_payment_processing_detail_input_type"
+        )]
+        payment_processing_detail_input_type: Option<PaymentProcessingDetailInputType>,
     },
     Manual {
         payment_request_data: PaymentRequestMetadata,
@@ -10704,12 +10710,6 @@ pub struct SessionTokenForSimplifiedApplePay {
     pub initiative_context: String,
     #[schema(value_type = Option<CountryAlpha2>)]
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
-    /// Optional in the request, always populated (defaults to `raw`) in the response
-    #[serde(
-        default,
-        serialize_with = "serialize_payment_processing_detail_input_type"
-    )]
-    pub payment_processing_detail_input_type: Option<PaymentProcessingDetailInputType>,
 }
 
 /// Serializes the payment processing detail input type in its unwrapped form, so that the response
@@ -10725,13 +10725,6 @@ where
         &payment_processing_detail_input_type.unwrap_or_default(),
         serializer,
     )
-}
-
-impl SessionTokenForSimplifiedApplePay {
-    pub fn get_payment_processing_detail_input_type(&self) -> PaymentProcessingDetailInputType {
-        self.payment_processing_detail_input_type
-            .unwrap_or_default()
-    }
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
