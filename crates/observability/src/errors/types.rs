@@ -72,7 +72,7 @@ pub enum ApiErrorResponse {
     BadRequest(ApiError),
     /// 401 — authentication failed.
     Unauthorized(ApiError),
-    /// 404 — the destination named in the path is not configured.
+    /// 404 — the destination or resource named in the path is not configured.
     NotFound(ApiError),
     Conflict(ApiError),
     /// 500 — the service failed.

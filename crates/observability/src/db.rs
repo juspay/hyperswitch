@@ -15,6 +15,7 @@
 //! no encrypted columns.
 
 pub mod alerts_info;
+pub mod notification_reads;
 
 use std::{sync::Arc, time::Duration};
 
@@ -31,7 +32,10 @@ use crate::{errors::ConfigurationError, settings::Database};
 ///
 /// Held by [`crate::state::AppState`] as `Arc<dyn StorageInterface>`: one store shared by every
 /// worker, so a store never needs to be cloneable itself.
-pub trait StorageInterface: Send + Sync + alerts_info::AlertsInfoInterface {}
+pub trait StorageInterface:
+    Send + Sync + alerts_info::AlertsInfoInterface + notification_reads::NotificationReadsInterface
+{
+}
 
 impl StorageInterface for Store {}
 

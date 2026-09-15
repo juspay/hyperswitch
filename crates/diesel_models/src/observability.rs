@@ -5,5 +5,6 @@
 //! configuration in `diesel_observability.toml`.
 
 pub mod alerts_info;
+pub mod notification_reads;
 pub mod query;
 pub mod schema;

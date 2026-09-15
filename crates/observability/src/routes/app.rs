@@ -14,7 +14,7 @@ use actix_web::{web, Scope};
 use crate::{
     errors::types::{ApiError, ApiErrorResponse},
     logger,
-    routes::{alerts_info, cloudwatch, health_check, notify},
+    routes::{alerts_info, cloudwatch, health_check, notification_reads, notify},
     state::AppState,
 };
 
@@ -59,7 +59,12 @@ impl Alerts {
             )
             .service(
                 web::scope("/alerts_manager")
-                    .service(web::resource("/info").route(web::post().to(alerts_info::create))),
+                    .service(web::resource("/info").route(web::post().to(alerts_info::create)))
+                    .service(
+                        web::resource("/notification_reads")
+                            .route(web::get().to(notification_reads::retrieve))
+                            .route(web::post().to(notification_reads::upsert)),
+                    ),
             )
     }
 }
