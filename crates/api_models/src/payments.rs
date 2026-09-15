@@ -10676,11 +10676,62 @@ pub struct PaymentProcessingDetails {
     pub payment_processing_certificate_key: Secret<String>,
 }
 
+/// Specifies how the Apple Pay payment processing details are supplied for the simplified flow.
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    Default,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    ToSchema,
+    SmithyModel,
+)]
+#[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub enum PaymentProcessingDetailInputType {
+    /// The payment processing certificates are supplied as raw values.
+    #[default]
+    Raw,
+    /// The payment processing certificates are linked from an organization level resource.
+    LinkHierarchicalResource,
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct SessionTokenForSimplifiedApplePay {
     pub initiative_context: String,
     #[schema(value_type = Option<CountryAlpha2>)]
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
+    /// Optional in the request, always populated (defaults to `raw`) in the response
+    #[serde(
+        default,
+        serialize_with = "serialize_payment_processing_detail_input_type"
+    )]
+    pub payment_processing_detail_input_type: Option<PaymentProcessingDetailInputType>,
+}
+
+/// Serializes the payment processing detail input type in its unwrapped form, so that the response
+/// always carries a concrete value even when it was not provided in the request.
+fn serialize_payment_processing_detail_input_type<S>(
+    payment_processing_detail_input_type: &Option<PaymentProcessingDetailInputType>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    Serialize::serialize(
+        &payment_processing_detail_input_type.unwrap_or_default(),
+        serializer,
+    )
+}
+
+impl SessionTokenForSimplifiedApplePay {
+    pub fn get_payment_processing_detail_input_type(&self) -> PaymentProcessingDetailInputType {
+        self.payment_processing_detail_input_type
+            .unwrap_or_default()
+    }
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

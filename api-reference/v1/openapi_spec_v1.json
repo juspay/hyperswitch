@@ -33731,6 +33731,14 @@
         },
         "additionalProperties": false
       },
+      "PaymentProcessingDetailInputType": {
+        "type": "string",
+        "description": "Specifies how the Apple Pay payment processing details are supplied for the simplified flow.",
+        "enum": [
+          "raw",
+          "link_hierarchical_resource"
+        ]
+      },
       "PaymentProcessingDetails": {
         "type": "object",
         "required": [
