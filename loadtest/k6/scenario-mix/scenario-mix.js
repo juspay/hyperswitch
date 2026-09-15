@@ -223,16 +223,19 @@ const merchantPoolConfig = config.merchant_pool || null;
 
 if (!services.router) fail("services.router is required");
 const routerUrl = services.router.replace(/\/$/, "");
-// Customers are created through the payment-method service even for
-// non-modular CIT scenarios, matching the runner's fixture stage.
-const needsModularPm = enabledPlans.some((plan) => plan.usesPmService || plan.requiresCustomer);
+// modular_pm is only needed when an enabled scenario actually uses the
+// payment-method-session flow (merchant_path: "modular"). Scenarios that
+// merely require a customer on the non_modular path create it implicitly
+// instead (customer_id on the v1 payment create — see Step 1 in runFlow)
+// rather than through the payment-method service, so they don't need it.
+const needsModularPm = enabledPlans.some((plan) => plan.usesPmService);
 // The modular path needs it for payment-method-session confirm auth; sdk_checkout
 // needs it to build the SDK Authorization header (see sdkAuthorizationHeader()).
 const needsPublishableKey = enabledPlans.some((plan) => plan.usesPmService || plan.sdkFlow);
 let modularPmUrl = null;
 if (needsModularPm) {
   if (!services.modular_pm) {
-    fail("services.modular_pm is required: an enabled scenario uses the modular path or creates customers through the payment-method service");
+    fail("services.modular_pm is required: an enabled scenario uses the modular merchant path");
   }
   modularPmUrl = services.modular_pm.replace(/\/$/, "");
 }
@@ -390,7 +393,10 @@ const globalPaymentConfirm = new Trend("payment_confirm_latency_ms", true);
 
 function stepNames(plan) {
   const steps = [];
-  if (plan.requiresCustomer) steps.push("customer_create");
+  // Non-modular scenarios create the customer implicitly (no separate call
+  // to time) — only the modular path's payment-method-session flow needs a
+  // pre-existing customer record, so only it gets its own step/trend.
+  if (plan.requiresCustomer && plan.usesPmService) steps.push("customer_create");
   if (plan.usesPmService) steps.push("pm_session_create");
   if (plan.requiresSavedCard) steps.push("baseline_create", "baseline_confirm");
   // mit's measured request is a single POST /payments with confirm:true —
@@ -624,24 +630,42 @@ function runFlow(merchant, plan, phaseInfo, startedAt) {
   let customerId = null;
   if (plan.requiresCustomer) {
     const reference = `customer_mix_${plan.name}_${iteration}_${__VU}_${Date.now()}`;
-    const response = post(
-      `${modularPmUrl}/customers`,
-      {
-        merchant_reference_id: reference,
-        name: "Loadtest User",
-        phone: "6168205362",
-        email: `${reference}@example.com`,
-        phone_country_code: "+1",
-      },
-      modularApiKeyHeaders(merchant),
-      "customer_create",
-    );
-    plan.trends.customer_create.add(response.timings.duration);
-    const body = json(response);
-    customerId = body.id || body.customer_id;
-    if (response.status < 200 || response.status >= 300 || !customerId) {
-      failIteration(merchant, plan, startedAt, `customer_create_${statusCode(response)}`, phaseInfo, response);
-      return;
+    if (plan.usesPmService) {
+      // Modular merchant path: the payment-method-session flow needs a
+      // real, pre-existing modular customer record before it can create a
+      // session against it — there's no "implicit create" equivalent here.
+      const response = post(
+        `${modularPmUrl}/customers`,
+        {
+          merchant_reference_id: reference,
+          name: "Loadtest User",
+          phone: "6168205362",
+          email: `${reference}@example.com`,
+          phone_country_code: "+1",
+        },
+        modularApiKeyHeaders(merchant),
+        "customer_create",
+      );
+      plan.trends.customer_create.add(response.timings.duration);
+      const body = json(response);
+      customerId = body.id || body.customer_id;
+      if (response.status < 200 || response.status >= 300 || !customerId) {
+        failIteration(merchant, plan, startedAt, `customer_create_${statusCode(response)}`, phaseInfo, response);
+        return;
+      }
+    } else {
+      // Non-modular path: no separate call. Router creates the customer
+      // implicitly the first time this ID appears on a v1 payment create
+      // (payment_create.rs's create_customer_if_not_exist, for Standard-type
+      // merchant accounts), keeping it v1-native throughout. This matters
+      // for mit and cit_metadata_changed specifically: a customer created
+      // via the modular service produces a v2-native payment method whose
+      // connector_mandate_details a v1 confirm's mandate capture doesn't
+      // reach, which showed up as IR_39 "no eligible connector" on mit's
+      // measured confirm in a live log trace (2026-09-15) — see
+      // postman/mit-scenario.postman_collection.json's request 1 for the
+      // same fix with full source citations.
+      customerId = reference;
     }
   }
 
