@@ -310,6 +310,11 @@ where
                 move || async { Err(BoxError::from(AbsentTransportError)) },
                 reconstruct_from_recorded,
                 extract_envelope,
+                // `FailStop` because that is what the thunk below does: this arm
+                // has an `on_miss` only to give the stop its own reason, not to
+                // let the request continue. Labelling it `Absorb` would tell the
+                // scorecard a request survived that in fact died here.
+                deja::MissPolicy::FailStop,
                 // The absent-EXECUTOR fail-stop, not `fail_stop_substitute_miss`:
                 // that one offers `replay_strategy = Execute` as the remedy, and
                 // with nothing beneath the boundary there is nothing to run. The

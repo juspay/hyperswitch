@@ -174,22 +174,13 @@ impl deja::codec::ReplayCodec for HttpResponseCodec {
     }
 }
 
-/// Replay: reconstruct a `reqwest::Response` from a recorded `response_result`
-/// payload (`{status, response_headers, response_body: {raw_bytes: [...]}}`).
+/// Rebuilds a `reqwest::Response` from a recorded `response_result` payload, so
+/// a replayed connector call is served from the tape and touches no network.
 ///
-/// A recorded SUCCESS reconstructs verbatim: connectors read status, headers
-/// and body bytes, and all three come from the tape, so that call touches no
-/// network.
-///
-/// Returning `None` does not fall through to a live call. deja maps it to
-/// `Reconstructed::Failed`, which fail-stops the request with a named reason —
-/// so a recorded value this build cannot read halts the replay rather than
-/// quietly reaching the real endpoint.
-///
-/// Headers are read as an array of values per name and no other shape is
-/// accepted. A recording written before that capture stored a single string per
-/// name and had already lost every repeat; reading one would replay a tape that
-/// still carries the defect this fixes, so it fail-stops instead.
+/// Headers are read as an array of values per name; any other shape is a
+/// recording that predates that capture and had already lost its repeats, so it
+/// is refused rather than replayed. Refusing means returning `None`, which deja
+/// fail-stops with a named reason — it is not a fallback to a live call.
 pub(super) fn replay_response(recorded: &serde_json::Value) -> Option<reqwest::Response> {
     let status_code = u16::try_from(recorded.get("status")?.as_u64()?).ok()?;
     let status = http::StatusCode::from_u16(status_code).ok()?;
@@ -204,9 +195,6 @@ pub(super) fn replay_response(recorded: &serde_json::Value) -> Option<reqwest::R
     let mut builder = http::Response::builder().status(status);
     if let Some(headers) = recorded.get("response_headers").and_then(|h| h.as_object()) {
         for (name, values) in headers {
-            // `?` rather than a skip: a name whose values are not an array is a
-            // pre-fix recording, and replaying it with its headers dropped would
-            // be worse than refusing it.
             for value in values.as_array()?.iter().filter_map(|value| value.as_str()) {
                 // `Builder::header` is `try_append`, so a repeated name keeps
                 // every value rather than replacing the previous one.
@@ -214,7 +202,16 @@ pub(super) fn replay_response(recorded: &serde_json::Value) -> Option<reqwest::R
             }
         }
     }
-    let http_response = builder.body(bytes::Bytes::from(raw_bytes)).ok()?;
+    let body = bytes::Bytes::from(raw_bytes);
+    let mut http_response = builder.body(body.clone()).ok()?;
+    // Restore the extension the body is captured from. Without it, capturing a
+    // reconstructed response reports "body not captured (missing extension)"
+    // instead of the body just rebuilt, so `capture(reconstruct(v))` does not
+    // equal `v`. Nothing re-captures on a replay hit today, so this is inert at
+    // runtime; the codec should not depend on that staying true.
+    http_response
+        .extensions_mut()
+        .insert(CapturedResponseBody(body));
     Some(reqwest::Response::from(http_response))
 }
 
@@ -314,5 +311,41 @@ mod tests {
             replay_response(&recorded).is_none(),
             "a pre-fix recording must refuse rather than replay with its headers dropped"
         );
+    }
+
+    /// Capturing a reconstructed response must reproduce the recording it came
+    /// from.
+    ///
+    /// Fails without the extension restore in `replay_response`: the rebuilt
+    /// response carried the body but not the extension the capture reads it
+    /// from, so the second capture reported "body not captured" where the first
+    /// had reported the bytes. Stated over the whole payload rather than over
+    /// the body alone, because asserting only on the field under suspicion is
+    /// how this stayed hidden.
+    #[test]
+    fn capturing_a_reconstructed_response_reproduces_the_recording() {
+        const BODY: &[u8] = b"{\"ok\":true}";
+
+        let mut builder = http::Response::builder().status(200);
+        for (name, value) in [("content-type", "application/json"), ("set-cookie", "a=1")] {
+            builder = builder.header(name, value);
+        }
+        let mut source = builder
+            .body(bytes::Bytes::from_static(BODY))
+            .expect("failed to build the test response");
+        source
+            .extensions_mut()
+            .insert(CapturedResponseBody(bytes::Bytes::from_static(BODY)));
+
+        let first: CustomResult<reqwest::Response, HttpClientError> =
+            Ok(reqwest::Response::from(source));
+        let captured = response_result(&first).0.expose();
+
+        let reconstructed =
+            replay_response(&captured).expect("a captured response must reconstruct");
+        let second: CustomResult<reqwest::Response, HttpClientError> = Ok(reconstructed);
+        let recaptured = response_result(&second).0.expose();
+
+        assert_eq!(recaptured, captured, "capture(reconstruct(v)) must equal v");
     }
 }

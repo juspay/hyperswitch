@@ -211,6 +211,12 @@ mod deja_boundary {
             run,
             reconstruct::<T>,
             capture::<T>,
+            // `Absorb` because the thunk below hands the caller an error it
+            // already knows how to survive: the DB->default fallback runs and the
+            // correlation continues. The miss is still scored; only its name
+            // changes, so the scorecard can say the request carried on rather
+            // than reporting it beside misses that killed one.
+            deja::MissPolicy::Absorb,
             move || {
                 Err(report!(SuperpositionError::NotFound(format!(
                     "deja replay: no recorded Superposition value for `{operation}` (novel \
