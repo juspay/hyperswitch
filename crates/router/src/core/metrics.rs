@@ -99,6 +99,8 @@ counter_metric!(DECISION_ENGINE_KILL_SWITCH_TRIGGERED, GLOBAL_METER);
 counter_metric!(UCS_KILL_SWITCH_FAILURE, GLOBAL_METER);
 // Scopes tripped back to the direct integration.
 counter_metric!(UCS_KILL_SWITCH_TRIPPED, GLOBAL_METER);
+// Shadow executions skipped because the rollout did not provide a proxy override.
+counter_metric!(UCS_SHADOW_MISSING_PROXY, GLOBAL_METER);
 
 #[cfg(feature = "partial-auth")]
 counter_metric!(PARTIAL_AUTH_FAILURE, GLOBAL_METER);
