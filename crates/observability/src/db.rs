@@ -14,15 +14,16 @@
 //! applies here: there is one database, no tenants, no replica, no Redis-backed storage scheme and
 //! no encrypted columns.
 
+pub mod alerts_dicts;
 pub mod alerts_info;
 
 use std::{sync::Arc, time::Duration};
 
-use common_utils::external_service::NoOpEventEmitter;
+use common_utils::{errors::ErrorSwitchFrom, external_service::NoOpEventEmitter};
 use diesel_models::{
     errors::DatabaseError, DatabaseConnectionWithContext, DejaPgConnection, StorageResult,
 };
-use error_stack::ResultExt;
+use error_stack::{report, ResultExt};
 use hyperswitch_masking::PeekInterface;
 
 use crate::{errors::ConfigurationError, settings::Database};
@@ -31,7 +32,10 @@ use crate::{errors::ConfigurationError, settings::Database};
 ///
 /// Held by [`crate::state::AppState`] as `Arc<dyn StorageInterface>`: one store shared by every
 /// worker, so a store never needs to be cloneable itself.
-pub trait StorageInterface: Send + Sync + alerts_info::AlertsInfoInterface {}
+pub trait StorageInterface:
+    Send + Sync + alerts_info::AlertsInfoInterface + alerts_dicts::AlertsDictsInterface
+{
+}
 
 impl StorageInterface for Store {}
 
@@ -92,5 +96,21 @@ impl Store {
             None,
             Arc::new(NoOpEventEmitter),
         ))
+    }
+}
+
+#[derive(Debug)]
+pub struct TransactionError(pub error_stack::Report<DatabaseError>);
+
+impl From<diesel::result::Error> for TransactionError {
+    fn from(error: diesel::result::Error) -> Self {
+        let context = DatabaseError::switch_from(&error);
+        Self(report!(error).change_context(context))
+    }
+}
+
+impl From<error_stack::Report<DatabaseError>> for TransactionError {
+    fn from(report: error_stack::Report<DatabaseError>) -> Self {
+        Self(report)
     }
 }

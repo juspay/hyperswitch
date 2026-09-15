@@ -3,15 +3,12 @@
 use api_models::observability::alerts_info as api;
 use common_utils::generate_time_ordered_id;
 use diesel_models::observability::alerts_info as storage;
-use error_stack::{report, ResultExt};
 use time::PrimitiveDateTime;
 
+use super::{
+    non_negative, optional_text, required_text, LONG_TEXT_MAX_CHARS, SHORT_TEXT_MAX_CHARS,
+};
 use crate::errors::{ObservabilityApiResult, ObservabilityError};
-
-/// Longest value a `VARCHAR(64)` column holds.
-const SHORT_TEXT_MAX_CHARS: usize = 64;
-/// Longest value a `VARCHAR(255)` column holds.
-const LONG_TEXT_MAX_CHARS: usize = 255;
 
 /// An alert definition that has not been stored yet.
 #[derive(Clone, Debug)]
@@ -61,8 +58,8 @@ pub struct AlertsInfo {
 impl AlertsInfoNew {
     /// Reject what the table would refuse, so a bad value is a `400` rather than a database error.
     fn validate(&self) -> ObservabilityApiResult<()> {
-        required_text("name", &self.name)?;
-        required_text("product", &self.product)?;
+        required_text("name", &self.name, SHORT_TEXT_MAX_CHARS)?;
+        required_text("product", &self.product, SHORT_TEXT_MAX_CHARS)?;
 
         optional_text(
             "dimensions",
@@ -83,30 +80,6 @@ impl AlertsInfoNew {
 
         Ok(())
     }
-}
-
-fn required_text(field: &str, value: &str) -> ObservabilityApiResult<()> {
-    if value.trim().is_empty() {
-        Err(report!(ObservabilityError::InvalidRequest))
-            .attach_printable(format!("{field} must not be empty"))?
-    }
-    optional_text(field, Some(value), SHORT_TEXT_MAX_CHARS)
-}
-
-fn optional_text(field: &str, value: Option<&str>, max_chars: usize) -> ObservabilityApiResult<()> {
-    if value.is_some_and(|value| value.chars().count() > max_chars) {
-        Err(report!(ObservabilityError::InvalidRequest))
-            .attach_printable(format!("{field} must be at most {max_chars} characters"))?
-    }
-    Ok(())
-}
-
-fn non_negative(field: &str, value: Option<i32>) -> ObservabilityApiResult<()> {
-    if value.is_some_and(|value| value < 0) {
-        Err(report!(ObservabilityError::InvalidRequest))
-            .attach_printable(format!("{field} must not be negative"))?
-    }
-    Ok(())
 }
 
 impl TryFrom<api::AlertsInfoCreateRequest> for AlertsInfoNew {

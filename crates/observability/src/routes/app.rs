@@ -14,7 +14,7 @@ use actix_web::{web, Scope};
 use crate::{
     errors::types::{ApiError, ApiErrorResponse},
     logger,
-    routes::{alerts_info, cloudwatch, health_check, notify},
+    routes::{alerts_dicts, alerts_info, cloudwatch, health_check, notify},
     state::AppState,
 };
 
@@ -37,6 +37,7 @@ impl Alerts {
         web::scope("/alerts")
             .app_data(web::Data::new(state))
             .app_data(json_config())
+            .app_data(query_config())
             .app_data(multipart_config(max_upload_bytes))
             .service(
                 web::scope("/chat")
@@ -58,7 +59,17 @@ impl Alerts {
             )
             .service(
                 web::scope("/alerts_manager")
-                    .service(web::resource("/info").route(web::post().to(alerts_info::create))),
+                    .service(web::resource("/info").route(web::post().to(alerts_info::create)))
+                    .service(
+                        web::resource("/dicts")
+                            .route(web::get().to(alerts_dicts::list))
+                            .route(web::post().to(alerts_dicts::create)),
+                    )
+                    .service(
+                        web::resource("/dicts/{id}")
+                            .route(web::get().to(alerts_dicts::retrieve))
+                            .route(web::delete().to(alerts_dicts::delete)),
+                    ),
             )
     }
 }
@@ -83,6 +94,23 @@ fn json_config() -> web::JsonConfig {
             "IR",
             4,
             "The request body could not be parsed",
+        ))
+        .into()
+    })
+}
+
+fn query_config() -> web::QueryConfig {
+    web::QueryConfig::default().error_handler(|error, request| {
+        logger::warn!(
+            path = %request.path(),
+            error = %error,
+            "Request rejected: the query string could not be parsed"
+        );
+
+        ApiErrorResponse::BadRequest(ApiError::new(
+            "IR",
+            4,
+            "The query string could not be parsed",
         ))
         .into()
     })
