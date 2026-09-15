@@ -157,6 +157,10 @@ function adminHeaders(cfg) {
   return { "api-key": cfg.admin_api_key, "content-type": "application/json" };
 }
 
+function merchantHeaders(apiKey) {
+  return { "api-key": apiKey, "content-type": "application/json" };
+}
+
 async function safeText(res) {
   try {
     return await res.text();
@@ -211,10 +215,15 @@ async function createApiKey(merchantId, cfg) {
   return res.json();
 }
 
-async function createConnector(merchantId, cfg) {
+// Unlike account create/delete (admin auth), connector create is
+// merchant-scoped auth (ApiKeyAuthWithMerchantIdFromRouteAllowPlatform —
+// crates/router/src/routes/admin.rs, connector_create) and checks the
+// api-key header against that merchant's own api_keys table entry, not the
+// admin key. Must use the key this merchant's createApiKey() just minted.
+async function createConnector(merchantId, apiKey, cfg) {
   const res = await fetch(`${cfg.router}/account/${merchantId}/connectors`, {
     method: "POST",
-    headers: adminHeaders(cfg),
+    headers: merchantHeaders(apiKey),
     body: JSON.stringify(STRIPE_TEST_CONNECTOR),
   });
   if (!res.ok) throw new Error(`connector create failed (${res.status}): ${await safeText(res)}`);
@@ -262,7 +271,7 @@ async function provisionOne(index, cfg, existing) {
     const apiKeyResp = await withRetry(() => createApiKey(merchantId, cfg), cfg.retry, `api_key ${merchantId}`);
     if (!apiKeyResp.api_key) throw new Error(`api_key response missing api_key: ${JSON.stringify(apiKeyResp)}`);
 
-    const connectorResp = await withRetry(() => createConnector(merchantId, cfg), cfg.retry, `connector ${merchantId}`);
+    const connectorResp = await withRetry(() => createConnector(merchantId, apiKeyResp.api_key, cfg), cfg.retry, `connector ${merchantId}`);
     if (!connectorResp.merchant_connector_id) {
       throw new Error(`connector response missing merchant_connector_id: ${JSON.stringify(connectorResp)}`);
     }
