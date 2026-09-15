@@ -859,17 +859,17 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
             )
             .await
             .map_err(|error| report!(Self::Error::from(error)))
-                .async_and_then(|item| async {
-                    item.convert(
-                        self.get_keymanager_state()
-                            .attach_printable("Missing KeyManagerState")?,
-                        key_store.key.get_inner(),
-                        key_store.merchant_id.clone().into(),
-                    )
-                    .await
-                    .change_context(Self::Error::DecryptionError)
-                })
+            .async_and_then(|item| async {
+                item.convert(
+                    self.get_keymanager_state()
+                        .attach_printable("Missing KeyManagerState")?,
+                    key_store.key.get_inner(),
+                    key_store.merchant_id.clone().into(),
+                )
                 .await
+                .change_context(Self::Error::DecryptionError)
+            })
+            .await
         };
 
         #[cfg(feature = "accounts_cache")]
