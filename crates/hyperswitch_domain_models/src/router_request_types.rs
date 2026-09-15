@@ -708,6 +708,15 @@ pub struct CreateOrderRequestData {
     pub router_return_url: Option<String>,
     pub setup_mandate_details: Option<mandates::MandateData>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
+    /// Customer of the payment the order is created for, taken from the consuming request
+    /// (Authorize, SetupMandate or ExternalVaultProxy), so a connector that binds an order to a
+    /// customer sees the same id on both calls.
+    pub customer_id: Option<id_type::CustomerId>,
+    /// Store-for-later intent effective for order creation: the consuming request's
+    /// `setup_future_usage`, except that `OffSession` is kept only when that request sets up a
+    /// mandate (a customer-initiated mandate payment, or a SetupMandate). An off-session payment
+    /// without customer acceptance or mandate details stores nothing, so it carries `None`.
+    pub setup_future_usage: Option<storage_enums::FutureUsage>,
 }
 
 impl CreateOrderRequestData {
@@ -723,10 +732,38 @@ impl CreateOrderRequestData {
     }
 }
 
+/// `setup_future_usage` to send on the order created for a payment.
+///
+/// `OffSession` is kept only for a customer-initiated mandate payment: off-session with customer
+/// acceptance or mandate details. This is the condition of
+/// `PaymentsAuthorizeRequestData::is_customer_initiated_mandate_payment` (hyperswitch_connectors),
+/// and the one under which the router persists a mandate for the payment (`is_connector_mandate` /
+/// `is_legacy_mandate` in `payment_response.rs`). CreateOrder carries no customer acceptance, so a
+/// connector that shapes the order on this field (e.g. a reusable order for a stored card) would
+/// otherwise set up storage for a payment that stores nothing. Any other value, `OnSession`
+/// included, is passed through unchanged.
+fn get_setup_future_usage_for_order_creation(
+    setup_future_usage: Option<storage_enums::FutureUsage>,
+    customer_acceptance: Option<&common_payments_types::CustomerAcceptance>,
+    setup_mandate_details: Option<&mandates::MandateData>,
+) -> Option<storage_enums::FutureUsage> {
+    let is_mandate_setup_requested =
+        customer_acceptance.is_some() || setup_mandate_details.is_some();
+    setup_future_usage.filter(|setup_future_usage| {
+        !matches!(setup_future_usage, storage_enums::FutureUsage::OffSession)
+            || is_mandate_setup_requested
+    })
+}
+
 impl TryFrom<PaymentsAuthorizeData> for CreateOrderRequestData {
     type Error = error_stack::Report<ApiErrorResponse>;
 
     fn try_from(data: PaymentsAuthorizeData) -> Result<Self, Self::Error> {
+        let setup_future_usage = get_setup_future_usage_for_order_creation(
+            data.setup_future_usage,
+            data.customer_acceptance.as_ref(),
+            data.setup_mandate_details.as_ref(),
+        );
         Ok(Self {
             payment_method_type: data.payment_method_type,
             minor_amount: data.minor_amount,
@@ -737,6 +774,28 @@ impl TryFrom<PaymentsAuthorizeData> for CreateOrderRequestData {
             router_return_url: data.router_return_url,
             setup_mandate_details: data.setup_mandate_details,
             capture_method: data.capture_method,
+            customer_id: data.customer_id,
+            setup_future_usage,
+        })
+    }
+}
+
+impl TryFrom<SetupMandateRequestData> for CreateOrderRequestData {
+    type Error = error_stack::Report<ApiErrorResponse>;
+
+    fn try_from(data: SetupMandateRequestData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            payment_method_type: data.payment_method_type,
+            minor_amount: data.minor_amount,
+            currency: data.currency,
+            payment_method_data: Some(data.payment_method_data),
+            order_details: None,
+            webhook_url: data.webhook_url,
+            router_return_url: data.router_return_url,
+            setup_mandate_details: data.setup_mandate_details,
+            capture_method: data.capture_method,
+            customer_id: data.customer_id,
+            setup_future_usage: data.setup_future_usage,
         })
     }
 }
@@ -745,6 +804,11 @@ impl TryFrom<ExternalVaultProxyPaymentsData> for CreateOrderRequestData {
     type Error = error_stack::Report<ApiErrorResponse>;
 
     fn try_from(data: ExternalVaultProxyPaymentsData) -> Result<Self, Self::Error> {
+        let setup_future_usage = get_setup_future_usage_for_order_creation(
+            data.setup_future_usage,
+            data.customer_acceptance.as_ref(),
+            data.setup_mandate_details.as_ref(),
+        );
         Ok(Self {
             payment_method_type: data.payment_method_type,
             minor_amount: data.minor_amount,
@@ -755,6 +819,8 @@ impl TryFrom<ExternalVaultProxyPaymentsData> for CreateOrderRequestData {
             router_return_url: data.router_return_url,
             setup_mandate_details: data.setup_mandate_details,
             capture_method: data.capture_method,
+            customer_id: data.customer_id,
+            setup_future_usage,
         })
     }
 }
@@ -2030,6 +2096,9 @@ pub struct SetupMandateRequestData {
     /// The merchant's business country for this payment. Connectors use it for requirements that
     /// apply only to merchants in particular countries.
     pub business_country: Option<common_enums::CountryAlpha2>,
+    /// Order created at the connector ahead of this setup mandate call, for connectors that
+    /// store a payment method against an order (see `ConnectorSpecifications::is_order_create_flow_required`).
+    pub order_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -2155,5 +2224,87 @@ impl TryFrom<CompleteAuthorizeData> for GenerateQrRequestData {
             amount: None,
             mandate_id: None,
         })
+    }
+}
+
+#[cfg(test)]
+mod create_order_request_data_tests {
+    use super::{
+        common_payments_types::CustomerAcceptance, get_setup_future_usage_for_order_creation,
+        mandates::MandateData, storage_enums::FutureUsage,
+    };
+
+    #[test]
+    fn setup_future_usage_for_order_creation_keeps_off_session_only_for_mandate_setup() {
+        let acceptance = CustomerAcceptance::default();
+        let mandate_data = MandateData::default();
+
+        // (case, setup_future_usage, customer_acceptance, setup_mandate_details, expected)
+        let cases = [
+            ("one-off payment", None, None, None, None),
+            (
+                "on-session payment",
+                Some(FutureUsage::OnSession),
+                None,
+                None,
+                Some(FutureUsage::OnSession),
+            ),
+            (
+                "off-session without customer_acceptance or setup_mandate_details",
+                Some(FutureUsage::OffSession),
+                None,
+                None,
+                None,
+            ),
+            (
+                "CIT with customer_acceptance",
+                Some(FutureUsage::OffSession),
+                Some(&acceptance),
+                None,
+                Some(FutureUsage::OffSession),
+            ),
+            (
+                "CIT with setup_mandate_details",
+                Some(FutureUsage::OffSession),
+                None,
+                Some(&mandate_data),
+                Some(FutureUsage::OffSession),
+            ),
+            (
+                "CIT with customer_acceptance and setup_mandate_details",
+                Some(FutureUsage::OffSession),
+                Some(&acceptance),
+                Some(&mandate_data),
+                Some(FutureUsage::OffSession),
+            ),
+            (
+                "on-session with customer_acceptance passes through",
+                Some(FutureUsage::OnSession),
+                Some(&acceptance),
+                None,
+                Some(FutureUsage::OnSession),
+            ),
+            (
+                "no setup_future_usage with customer_acceptance stays unset",
+                None,
+                Some(&acceptance),
+                None,
+                None,
+            ),
+        ];
+
+        for (case, setup_future_usage, customer_acceptance, setup_mandate_details, expected) in
+            cases
+        {
+            assert_eq!(
+                get_setup_future_usage_for_order_creation(
+                    setup_future_usage,
+                    customer_acceptance,
+                    setup_mandate_details,
+                ),
+                expected,
+                "{case}"
+            );
+        }
     }
 }

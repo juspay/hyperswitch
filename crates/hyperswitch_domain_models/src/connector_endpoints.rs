@@ -114,6 +114,7 @@ pub struct Connectors {
     pub payjustnowinstore: ConnectorParams,
     pub payload: ConnectorParams,
     pub payme: ConnectorParams,
+    pub paynearme: ConnectorParams,
     pub payone: ConnectorParams,
     pub paypal: ConnectorParams,
     pub paysafe: ConnectorParams,

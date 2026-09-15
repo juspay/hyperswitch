@@ -715,7 +715,9 @@ impl
             metadata,
             test_mode: router_data.test_mode,
             state,
-            connector_order_id: None,
+            // Set only when an order was created at the connector ahead of this call
+            // (`update_router_data_with_create_order_response` in the authorize flow).
+            connector_order_id: router_data.request.order_id.clone(),
             description: router_data.description.clone(),
             setup_mandate_details: router_data
                 .request
@@ -1099,6 +1101,32 @@ impl
                 .transpose()?
                 .map(|payment_method_type| payment_method_type.into()),
             order_details: build_ucs_order_details(router_data.request.order_details.as_deref()),
+            // `customer.id` comes from the same `request.customer_id` the Authorize and
+            // SetupRecurring builders use, so the order and the call consuming it carry the
+            // same customer.
+            customer: router_data
+                .request
+                .customer_id
+                .as_ref()
+                .map(|id| payments_grpc::Customer {
+                    first_name: None,
+                    last_name: None,
+                    salutation: None,
+                    name: None,
+                    email: None,
+                    id: Some(id.get_string_repr().to_string()),
+                    connector_customer_id: router_data.connector_customer.clone(),
+                    phone_number: None,
+                    phone_country_code: None,
+                    customer_document_details: None,
+                    date_of_birth: None,
+                }),
+            setup_future_usage: router_data
+                .request
+                .setup_future_usage
+                .map(payments_grpc::FutureUsage::foreign_try_from)
+                .transpose()?
+                .map(|setup_future_usage| setup_future_usage.into()),
         })
     }
 }
@@ -2680,7 +2708,9 @@ impl
             threeds_completion_indicator: None,
             redirection_response: None,
             continue_redirection_url: None,
-            connector_order_id: None,
+            // Set only when an order was created at the connector ahead of this call
+            // (`update_router_data_with_create_order_response` in the external vault proxy flow).
+            connector_order_id: router_data.request.order_id.clone(),
             l2_l3_data: None,
             merchant_request_id: None,
             partner_merchant_identifier_details: None,
@@ -2822,7 +2852,7 @@ impl
             browser_info,
             payment_experience: None,
             state,
-            order_id: None,
+            order_id: router_data.request.order_id.clone(),
             connector_feature_data: None,
             enable_partial_authorization: router_data
                 .request

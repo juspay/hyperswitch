@@ -8317,3 +8317,24 @@ payment_method_type = "DinersClub"
 api_key = "EPG Password"
 key1 = "EPG UserName"
 api_secret = "EPG Customer"
+
+[paynearme]
+[[paynearme.credit]]
+payment_method_type = "Visa"
+[[paynearme.credit]]
+payment_method_type = "Mastercard"
+[[paynearme.credit]]
+payment_method_type = "AmericanExpress"
+[[paynearme.credit]]
+payment_method_type = "Discover"
+[[paynearme.debit]]
+payment_method_type = "Visa"
+[[paynearme.debit]]
+payment_method_type = "Mastercard"
+[[paynearme.debit]]
+payment_method_type = "AmericanExpress"
+[[paynearme.debit]]
+payment_method_type = "Discover"
+[paynearme.connector_auth.BodyKey]
+api_key = "API Secret Key"
+key1 = "Site Identifier"

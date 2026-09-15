@@ -21,6 +21,7 @@ pub mod update_post_confirm_flow;
 use async_trait::async_trait;
 use common_enums;
 use common_types::payments::CustomerAcceptance;
+use error_stack::ResultExt;
 use external_services::grpc_client;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::router_flow_types::{
@@ -41,6 +42,78 @@ use crate::{
     services, types as router_types,
     types::{self, api, api::enums as api_enums, domain},
 };
+
+/// Maps the response of a connector CreateOrder call, made ahead of a payment flow, to the
+/// order id to carry forward and whether the payment flow should continue.
+pub(crate) fn get_create_order_result(
+    order_create_response: &Result<types::PaymentsResponseData, types::ErrorResponse>,
+    should_continue_payment: bool,
+) -> RouterResult<types::CreateOrderResult> {
+    match order_create_response {
+        Ok(types::PaymentsResponseData::PaymentsCreateOrderResponse {
+            order_id,
+            session_token,
+        }) => {
+            let should_continue_further = if session_token.is_some() {
+                // if SDK session token is returned in order create response, do not continue and return control to SDK
+                false
+            } else {
+                should_continue_payment
+            };
+            Ok(types::CreateOrderResult {
+                create_order_result: Ok(order_id.clone()),
+                should_continue_further,
+            })
+        }
+        // Some connector return PreProcessingResponse and TransactionResponse response type
+        // Rest of the match statements are temporary fixes for satisfying current connector side response handling
+        // Create Order response must always be PaymentsResponseData::PaymentsCreateOrderResponse only
+        Ok(types::PaymentsResponseData::PreProcessingResponse {
+            pre_processing_id,
+            session_token,
+            ..
+        }) => {
+            let should_continue_further = if session_token.is_some() {
+                // if SDK session token is returned in order create response, do not continue and return control to SDK
+                false
+            } else {
+                should_continue_payment
+            };
+            Ok(types::CreateOrderResult {
+                create_order_result: Ok(pre_processing_id.get_string_repr().clone()),
+                should_continue_further,
+            })
+        }
+        Ok(types::PaymentsResponseData::TransactionResponse {
+            resource_id,
+            redirection_data,
+            ..
+        }) => {
+            let order_id = resource_id
+                .get_connector_transaction_id()
+                .change_context(ApiErrorResponse::InternalServerError)
+                .attach_printable("unable to get connector_transaction_id during order create")?;
+            let should_continue_further = if redirection_data.is_some() {
+                // if redirection_data is returned in order create response, do not continue and return control to SDK
+                false
+            } else {
+                should_continue_payment
+            };
+            Ok(types::CreateOrderResult {
+                create_order_result: Ok(order_id),
+                should_continue_further,
+            })
+        }
+        Ok(res) => Err(error_stack::report!(ApiErrorResponse::InternalServerError)
+            .attach_printable(format!(
+                "Unexpected response format from connector: {res:?}",
+            ))),
+        Err(error) => Ok(types::CreateOrderResult {
+            create_order_result: Err(error.clone()),
+            should_continue_further: false,
+        }),
+    }
+}
 
 #[async_trait]
 #[allow(clippy::too_many_arguments)]
@@ -470,5 +543,154 @@ fn handle_post_capture_response(
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod create_order_result_tests {
+    use api_models::payments::SessionToken;
+    use hyperswitch_domain_models::{
+        router_data::ErrorResponse,
+        router_request_types::ResponseId,
+        router_response_types::{PaymentsResponseData, PreprocessingResponseId, RedirectForm},
+    };
+
+    use super::get_create_order_result;
+    use crate::core::errors::ApiErrorResponse;
+
+    fn transaction_response(
+        resource_id: ResponseId,
+        redirection_data: Option<RedirectForm>,
+    ) -> PaymentsResponseData {
+        PaymentsResponseData::TransactionResponse {
+            resource_id,
+            redirection_data: Box::new(redirection_data),
+            mandate_reference: Box::new(None),
+            connector_metadata: None,
+            network_txn_id: None,
+            network_txn_link_id: None,
+            connector_response_reference_id: None,
+            payment_account_reference: None,
+            incremental_authorization_allowed: None,
+            authentication_data: None,
+            charges: None,
+        }
+    }
+
+    /// Asserts `Ok(CreateOrderResult { create_order_result: Ok(order_id), should_continue_further })`.
+    fn assert_order(
+        response: Result<PaymentsResponseData, ErrorResponse>,
+        should_continue_payment: bool,
+        expected_order_id: &str,
+        expected_continue: bool,
+    ) {
+        let result = get_create_order_result(&response, should_continue_payment);
+        assert!(
+            matches!(
+                &result,
+                Ok(create_order)
+                    if matches!(&create_order.create_order_result, Ok(order_id) if order_id == expected_order_id)
+                        && create_order.should_continue_further == expected_continue
+            ),
+            "response {response:?}, should_continue_payment {should_continue_payment}"
+        );
+    }
+
+    #[test]
+    fn create_order_response_passes_should_continue_through_without_session_token() {
+        let response = || {
+            Ok(PaymentsResponseData::PaymentsCreateOrderResponse {
+                order_id: "order_1".to_string(),
+                session_token: None,
+            })
+        };
+        assert_order(response(), true, "order_1", true);
+        assert_order(response(), false, "order_1", false);
+    }
+
+    #[test]
+    fn create_order_response_with_session_token_stops_the_flow() {
+        let response = Ok(PaymentsResponseData::PaymentsCreateOrderResponse {
+            order_id: "order_1".to_string(),
+            session_token: Some(SessionToken::NoSessionTokenReceived),
+        });
+        assert_order(response, true, "order_1", false);
+    }
+
+    #[test]
+    fn pre_processing_response_uses_pre_processing_id() {
+        let response = |session_token| {
+            Ok(PaymentsResponseData::PreProcessingResponse {
+                pre_processing_id: PreprocessingResponseId::PreProcessingId("pre_1".to_string()),
+                connector_metadata: None,
+                session_token,
+                connector_response_reference_id: None,
+            })
+        };
+        assert_order(response(None), true, "pre_1", true);
+        assert_order(
+            response(Some(SessionToken::NoSessionTokenReceived)),
+            true,
+            "pre_1",
+            false,
+        );
+    }
+
+    #[test]
+    fn transaction_response_with_redirection_data_stops_the_flow() {
+        let txn_id = || ResponseId::ConnectorTransactionId("txn_1".to_string());
+        assert_order(
+            Ok(transaction_response(txn_id(), None)),
+            true,
+            "txn_1",
+            true,
+        );
+        assert_order(
+            Ok(transaction_response(
+                txn_id(),
+                Some(RedirectForm::Html {
+                    html_data: "<html></html>".to_string(),
+                }),
+            )),
+            true,
+            "txn_1",
+            false,
+        );
+    }
+
+    #[test]
+    fn transaction_response_without_connector_transaction_id_is_an_error() {
+        let response = Ok(transaction_response(ResponseId::NoResponseId, None));
+        let result = get_create_order_result(&response, true);
+        assert!(matches!(
+            &result,
+            Err(report) if matches!(report.current_context(), ApiErrorResponse::InternalServerError)
+        ));
+    }
+
+    #[test]
+    fn unexpected_response_variant_is_an_error() {
+        let response = Ok(PaymentsResponseData::TokenizationResponse {
+            token: "token_1".to_string(),
+        });
+        let result = get_create_order_result(&response, true);
+        assert!(matches!(
+            &result,
+            Err(report) if matches!(report.current_context(), ApiErrorResponse::InternalServerError)
+        ));
+    }
+
+    #[test]
+    fn connector_error_stops_the_flow_and_keeps_the_error() {
+        let response = Err(ErrorResponse {
+            code: "E1".to_string(),
+            ..ErrorResponse::default()
+        });
+        let result = get_create_order_result(&response, true);
+        assert!(matches!(
+            &result,
+            Ok(create_order) if matches!(&create_order.create_order_result, Err(error) if error.code == "E1")
+                && !create_order.should_continue_further
+        ));
     }
 }
