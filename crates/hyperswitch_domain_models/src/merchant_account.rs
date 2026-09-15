@@ -1,5 +1,6 @@
 use common_utils::{
     crypto::{OptionalEncryptableName, OptionalEncryptableValue},
+    encryption::Encryption,
     errors::CustomResult,
     ext_traits::ValueExt,
     pii,
@@ -47,6 +48,8 @@ pub struct MerchantAccount {
     pub network_tokenization_credentials: OptionalEncryptableValue,
     pub fingerprint_secret: Option<Secret<String>>,
     pub offer_engine_config: OptionalEncryptableValue,
+    pub apple_pay_certificates: Option<serde_json::Value>,
+    pub apple_pay_certificates_encrypted: OptionalEncryptableValue,
 }
 
 #[cfg(feature = "v1")]
@@ -87,6 +90,8 @@ pub struct MerchantAccountSetter {
     pub network_tokenization_credentials: OptionalEncryptableValue,
     pub fingerprint_secret: Option<Secret<String>>,
     pub offer_engine_config: OptionalEncryptableValue,
+    pub apple_pay_certificates: Option<serde_json::Value>,
+    pub apple_pay_certificates_encrypted: OptionalEncryptableValue,
 }
 
 #[cfg(feature = "v1")]
@@ -127,6 +132,8 @@ impl From<MerchantAccountSetter> for MerchantAccount {
             network_tokenization_credentials: item.network_tokenization_credentials,
             fingerprint_secret: item.fingerprint_secret,
             offer_engine_config: item.offer_engine_config,
+            apple_pay_certificates: item.apple_pay_certificates,
+            apple_pay_certificates_encrypted: item.apple_pay_certificates_encrypted,
         }
     }
 }
@@ -305,6 +312,10 @@ pub enum MerchantAccountUpdate {
     },
     UnsetDefaultProfile,
     ModifiedAtUpdate,
+    ApplePayCertificateCacheUpdate {
+        apple_pay_certificates: Option<serde_json::Value>,
+        apple_pay_certificates_encrypted: Option<Encryption>,
+    },
 }
 
 #[cfg(feature = "v2")]
@@ -323,6 +334,10 @@ pub enum MerchantAccountUpdate {
         recon_status: diesel_models::enums::ReconStatus,
     },
     ModifiedAtUpdate,
+    ApplePayCertificateCacheUpdate {
+        apple_pay_certificates: Option<serde_json::Value>,
+        apple_pay_certificates_encrypted: Option<Encryption>,
+    },
 }
 
 impl MerchantAccount {
