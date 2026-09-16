@@ -1061,6 +1061,7 @@ pub async fn make_fulfillment_api_call(
 /// inform the provider must never fail the webhook. Errors are logged and
 /// swallowed, matching how the pre-connector FRM call is treated.
 #[cfg(all(feature = "v1", feature = "frm"))]
+#[allow(clippy::too_many_arguments)]
 pub async fn notify_frm_of_chargeback(
     state: &SessionState,
     platform: &domain::Platform,

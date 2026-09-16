@@ -125,13 +125,12 @@ where
             header_payload,
             execution_mode,
             |mut router_data, pre_risk_check_request, grpc_headers| async move {
-                let response = match client
-                    .frm_pre_risk_check(
-                        pre_risk_check_request,
-                        connector_auth_metadata,
-                        grpc_headers,
-                    )
-                    .await
+                let response = match Box::pin(client.frm_pre_risk_check(
+                    pre_risk_check_request,
+                    connector_auth_metadata,
+                    grpc_headers,
+                ))
+                .await
                 {
                     Ok(resp) => resp,
                     // UCS connector errors are handled by the wrapper — see `ucs_logging_wrapper_granular`.
