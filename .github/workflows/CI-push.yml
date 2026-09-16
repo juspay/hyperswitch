@@ -189,13 +189,14 @@ jobs:
 
   test:
     name: Run tests on stable toolchain
-    runs-on: ubuntu-latest
+    runs-on: hyperswitch-runners-merge
 
     env:
       # Use `sccache` for caching compilation artifacts
       RUSTC_WRAPPER: sccache
       RUSTFLAGS: "-D warnings"
       CARGO_BUILD_JOBS: 2
+      SCCACHE_DIR: ${{ github.workspace }}/.sccache
 
     steps:
       - name: Checkout repository
@@ -218,12 +219,6 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-      # - name: Install sccache
-      #   uses: taiki-e/install-action@v2
-      #   with:
-      #     tool: sccache
-      #     checksum: true
-
       - name: Install cargo-hack
         uses: taiki-e/install-action@v2.83.2
         with:
@@ -240,17 +235,35 @@ jobs:
         shell: bash
         run: .github/scripts/install-jq.sh
 
-      # - name: Install cargo-nextest
-      #   uses: taiki-e/install-action@v2
-      #   with:
-      #     tool: cargo-nextest
-      #     checksum: true
-
       - name: Install sccache
         uses: taiki-e/install-action@v2
         with:
           tool: sccache
           checksum: true
+
+      - name: Resolve S3 cache location, then disable sccache's native S3 backend
+        shell: bash
+        run: |
+          echo "S3_CACHE_BUCKET=${SCCACHE_BUCKET:-}" >> "$GITHUB_ENV"
+          echo "S3_CACHE_REGION=${SCCACHE_REGION:-}" >> "$GITHUB_ENV"
+          echo "S3_CACHE_PREFIX=${SCCACHE_S3_KEY_PREFIX:-}" >> "$GITHUB_ENV"
+          [ -n "${SCCACHE_BUCKET:-}" ] && echo "::add-mask::${SCCACHE_BUCKET}"
+          [ -n "${SCCACHE_REGION:-}" ] && echo "::add-mask::${SCCACHE_REGION}"
+          [ -n "${SCCACHE_S3_KEY_PREFIX:-}" ] && echo "::add-mask::${SCCACHE_S3_KEY_PREFIX}"
+          echo "SCCACHE_BUCKET=" >> "$GITHUB_ENV"
+          echo "SCCACHE_REGION=" >> "$GITHUB_ENV"
+          echo "SCCACHE_S3_KEY_PREFIX=" >> "$GITHUB_ENV"
+
+      - name: Restore sccache local cache from S3
+        continue-on-error: true
+        shell: bash
+        run: |
+          mkdir -p "$SCCACHE_DIR"
+          if [ -n "$S3_CACHE_BUCKET" ]; then
+            aws s3 sync "s3://${S3_CACHE_BUCKET}/${S3_CACHE_PREFIX}local-cache/test/" "$SCCACHE_DIR" --no-progress --only-show-errors
+          else
+            echo "::warning::S3 cache bucket not configured on this runner; sccache starts cold"
+          fi
 
       - name: Run clippy (redis-rs backend)
         shell: bash
@@ -274,6 +287,18 @@ jobs:
         if: always()
         shell: bash
         run: sccache --show-stats
+
+      # Only push (not merge_group) writes — same policy the old rust-cache
+      # `save-if: github.event_name == 'push'` used. S3 objects overwrite in
+      # place, so unlike actions/cache there's no stale-entry deletion needed.
+      - name: Save sccache local cache to S3
+        if: ${{ always() && github.event_name == 'push' }}
+        continue-on-error: true
+        shell: bash
+        run: |
+          if [ -n "$S3_CACHE_BUCKET" ]; then
+            aws s3 sync "$SCCACHE_DIR" "s3://${S3_CACHE_BUCKET}/${S3_CACHE_PREFIX}local-cache/test/" --no-progress --only-show-errors
+          fi
 
   typos:
     name: Spell check
@@ -309,11 +334,12 @@ jobs:
 
   check-v2:
     name: Check compilation for V2 features
-    runs-on: ubuntu-latest
+    runs-on: hyperswitch-runners-merge
 
     env:
       # Use `sccache` for caching compilation artifacts
       RUSTC_WRAPPER: sccache
+      SCCACHE_DIR: ${{ github.workspace }}/.sccache
 
     steps:
       - name: Checkout repository
@@ -341,6 +367,30 @@ jobs:
           tool: sccache
           checksum: true
 
+      - name: Resolve S3 cache location, then disable sccache's native S3 backend
+        shell: bash
+        run: |
+          echo "S3_CACHE_BUCKET=${SCCACHE_BUCKET:-}" >> "$GITHUB_ENV"
+          echo "S3_CACHE_REGION=${SCCACHE_REGION:-}" >> "$GITHUB_ENV"
+          echo "S3_CACHE_PREFIX=${SCCACHE_S3_KEY_PREFIX:-}" >> "$GITHUB_ENV"
+          [ -n "${SCCACHE_BUCKET:-}" ] && echo "::add-mask::${SCCACHE_BUCKET}"
+          [ -n "${SCCACHE_REGION:-}" ] && echo "::add-mask::${SCCACHE_REGION}"
+          [ -n "${SCCACHE_S3_KEY_PREFIX:-}" ] && echo "::add-mask::${SCCACHE_S3_KEY_PREFIX}"
+          echo "SCCACHE_BUCKET=" >> "$GITHUB_ENV"
+          echo "SCCACHE_REGION=" >> "$GITHUB_ENV"
+          echo "SCCACHE_S3_KEY_PREFIX=" >> "$GITHUB_ENV"
+
+      - name: Restore sccache local cache from S3
+        continue-on-error: true
+        shell: bash
+        run: |
+          mkdir -p "$SCCACHE_DIR"
+          if [ -n "$S3_CACHE_BUCKET" ]; then
+            aws s3 sync "s3://${S3_CACHE_BUCKET}/${S3_CACHE_PREFIX}local-cache/check-v2/" "$SCCACHE_DIR" --no-progress --only-show-errors
+          else
+            echo "::warning::S3 cache bucket not configured on this runner; sccache starts cold"
+          fi
+
       - name: Run cargo check enabling only the release and v2 features (redis-rs backend)
         shell: bash
         run: cargo check --no-default-features --features "release,v2,redis-rs"
@@ -353,3 +403,12 @@ jobs:
         if: always()
         shell: bash
         run: sccache --show-stats
+
+      - name: Save sccache local cache to S3
+        if: ${{ always() && github.event_name == 'push' }}
+        continue-on-error: true
+        shell: bash
+        run: |
+          if [ -n "$S3_CACHE_BUCKET" ]; then
+            aws s3 sync "$SCCACHE_DIR" "s3://${S3_CACHE_BUCKET}/${S3_CACHE_PREFIX}local-cache/check-v2/" --no-progress --only-show-errors
+          fi
