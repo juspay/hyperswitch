@@ -8481,6 +8481,7 @@ dependencies = [
  "storage_impl",
  "strum 0.26.3",
  "subscriptions",
+ "subtle",
  "superposition_sdk",
  "tempfile",
  "tera",

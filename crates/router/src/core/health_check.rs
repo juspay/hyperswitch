@@ -3,8 +3,15 @@ use analytics::health_check::HealthCheck;
 #[cfg(feature = "dynamic_routing")]
 use api_models::health_check::HealthCheckMap;
 use api_models::health_check::HealthState;
+use common_utils::{
+    crypto::{GenerateDigest, Sha256},
+    fp_utils,
+};
 use error_stack::ResultExt;
+use external_services::managers::secrets_management::SecretsManagementConfig;
+use hyperswitch_masking::PeekInterface;
 use router_env::logger;
+use subtle::ConstantTimeEq;
 
 use crate::{
     consts,
@@ -20,6 +27,10 @@ pub trait HealthCheckInterface {
     async fn health_check_locker(
         &self,
     ) -> CustomResult<HealthState, errors::HealthCheckLockerError>;
+    async fn health_check_kms(&self) -> CustomResult<HealthState, errors::HealthCheckKmsError>;
+    async fn health_check_encryption_service(
+        &self,
+    ) -> CustomResult<HealthState, errors::HealthCheckEncryptionServiceError>;
     async fn health_check_outgoing(&self)
         -> CustomResult<HealthState, errors::HealthCheckOutGoing>;
     #[cfg(feature = "olap")]
@@ -90,7 +101,7 @@ impl HealthCheckInterface for app::SessionState {
         let locker = &self.conf.locker;
         if !locker.mock_locker {
             let mut url = locker.host.to_owned();
-            url.push_str(consts::LOCKER_HEALTH_CALL_PATH);
+            url.push_str(consts::LOCKER_DEEP_HEALTH_CALL_PATH);
             let request = services::Request::new(services::Method::Get, &url);
             services::call_connector_api(self, request, "health_check_for_locker", None)
                 .await
@@ -100,6 +111,78 @@ impl HealthCheckInterface for app::SessionState {
                 })?;
             Ok(HealthState::Running)
         } else {
+            Ok(HealthState::NotApplicable)
+        }
+    }
+
+    async fn health_check_kms(&self) -> CustomResult<HealthState, errors::HealthCheckKmsError> {
+        if matches!(
+            self.conf.secrets_management,
+            SecretsManagementConfig::NoEncryption
+        ) {
+            logger::debug!("KMS health check not applicable; secrets manager is no_encryption");
+            Ok(HealthState::NotApplicable)
+        } else {
+            let decrypted = self
+                .secret_management_client
+                .get_secret(self.kms_health_check_probe.clone())
+                .await
+                .change_context(errors::HealthCheckKmsError::FailedToDecrypt)?;
+
+            logger::debug!("KMS decrypt call succeeded, verifying the decrypted value");
+
+            fp_utils::when(decrypted.peek().trim().is_empty(), || {
+                Err(error_stack::report!(
+                    errors::HealthCheckKmsError::EmptySecret
+                ))
+            })?;
+
+            let expected = self.conf.secrets.get_inner().admin_api_key.peek();
+            let expected_digest = Sha256
+                .generate_digest(expected.as_bytes())
+                .change_context(errors::HealthCheckKmsError::DigestFailed)?;
+            let actual_digest = Sha256
+                .generate_digest(decrypted.peek().as_bytes())
+                .change_context(errors::HealthCheckKmsError::DigestFailed)?;
+
+            let secrets_match = bool::from(expected_digest.ct_eq(&actual_digest));
+            fp_utils::when(!secrets_match, || {
+                Err(error_stack::report!(
+                    errors::HealthCheckKmsError::SecretMismatch
+                ))
+            })?;
+
+            logger::debug!("KMS decrypt health check successful");
+            Ok(HealthState::Running)
+        }
+    }
+
+    async fn health_check_encryption_service(
+        &self,
+    ) -> CustomResult<HealthState, errors::HealthCheckEncryptionServiceError> {
+        let key_manager = self.conf.key_manager.get_inner();
+        if cfg!(feature = "encryption_service") && key_manager.enabled {
+            let mut url = key_manager.url.clone();
+            url.push_str(consts::ENCRYPTION_SERVICE_HEALTH_CALL_PATH);
+            let request = services::Request::new(services::Method::Get, &url);
+            services::call_connector_api(
+                self,
+                request,
+                "health_check_for_encryption_service",
+                None,
+            )
+            .await
+            .change_context(
+                errors::HealthCheckEncryptionServiceError::FailedToCallEncryptionService,
+            )?
+            .map_err(|_| {
+                error_stack::report!(
+                    errors::HealthCheckEncryptionServiceError::FailedToCallEncryptionService
+                )
+            })?;
+            Ok(HealthState::Running)
+        } else {
+            logger::debug!("Encryption service is disabled, skipping its health check");
             Ok(HealthState::NotApplicable)
         }
     }

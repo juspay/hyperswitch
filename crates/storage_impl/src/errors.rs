@@ -311,3 +311,23 @@ pub enum HealthCheckUnifiedConnectorServiceError {
     #[error("Failed to establish Unified Connector Service connection")]
     FailedToCallUnifiedConnectorService,
 }
+
+#[derive(Debug, Clone, thiserror::Error)]
+pub enum HealthCheckKmsError {
+    #[error("Failed to decrypt the health check secret using the configured secrets manager")]
+    FailedToDecrypt,
+    #[error("Secrets manager returned an empty value for the health check secret")]
+    EmptySecret,
+    #[error("Failed to hash the health check secret for comparison")]
+    DigestFailed,
+    #[error(
+        "Secrets manager returned a value that does not match the one this process booted with"
+    )]
+    SecretMismatch,
+}
+
+#[derive(Debug, Clone, thiserror::Error)]
+pub enum HealthCheckEncryptionServiceError {
+    #[error("Failed to establish connection with the encryption service")]
+    FailedToCallEncryptionService,
+}

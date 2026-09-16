@@ -28,8 +28,10 @@ use hyperswitch_interfaces::{
     encryption_interface::EncryptionManagementInterface,
     helpers as interfaces_helpers,
     secrets_interface::secret_state::{RawSecret, SecuredSecret},
+    secrets_interface::SecretManagementInterface,
     types as interfaces_types,
 };
+use hyperswitch_masking::Secret;
 use router_env::RequestId;
 use scheduler::SchedulerInterface;
 use storage_impl::{redis::RedisStore, MockDb};
@@ -145,6 +147,8 @@ pub struct SessionState {
     pub opensearch_client: Option<Arc<OpenSearchClient>>,
     pub grpc_client: Arc<GrpcClients>,
     pub theme_storage_client: Arc<dyn FileStorageInterface>,
+    pub secret_management_client: Arc<dyn SecretManagementInterface>,
+    pub kms_health_check_probe: Secret<String>,
     pub locale: String,
     pub crm_client: Arc<dyn CrmInterface>,
     pub infra_components: Option<serde_json::Value>,
@@ -356,6 +360,8 @@ pub struct AppState {
     pub request_id: Option<RequestId>,
     pub file_storage_client: Arc<dyn FileStorageInterface>,
     pub encryption_client: Arc<dyn EncryptionManagementInterface>,
+    pub secret_management_client: Arc<dyn SecretManagementInterface>,
+    pub kms_health_check_probe: Secret<String>,
     pub grpc_client: Arc<GrpcClients>,
     pub theme_storage_client: Arc<dyn FileStorageInterface>,
     pub crm_client: Arc<dyn CrmInterface>,
@@ -446,11 +452,15 @@ impl AppState {
         service_name: &'static str,
     ) -> Self {
         #[allow(clippy::expect_used)]
-        let secret_management_client = conf
+        let secret_management_client: Arc<dyn SecretManagementInterface> = conf
             .secrets_management
             .get_secret_management_client()
             .await
-            .expect("Failed to create secret management client");
+            .expect("Failed to create secret management client")
+            .into();
+
+        // Captured before `fetch_raw_secrets` consumes `conf`
+        let kms_health_check_probe = conf.secrets.get_inner().admin_api_key.clone();
 
         let conf = Box::pin(secrets_transformers::fetch_raw_secrets(
             conf,
@@ -558,6 +568,8 @@ impl AppState {
                 request_id: None,
                 file_storage_client,
                 encryption_client,
+                secret_management_client,
+                kms_health_check_probe,
                 grpc_client,
                 theme_storage_client,
                 crm_client,
@@ -700,6 +712,8 @@ impl AppState {
             opensearch_client: self.opensearch_client.clone(),
             grpc_client: Arc::clone(&self.grpc_client),
             theme_storage_client: self.theme_storage_client.clone(),
+            secret_management_client: Arc::clone(&self.secret_management_client),
+            kms_health_check_probe: self.kms_health_check_probe.clone(),
             locale: locale.unwrap_or(common_utils::consts::DEFAULT_LOCALE.to_string()),
             crm_client: self.crm_client.clone(),
             infra_components: self.infra_components.clone(),

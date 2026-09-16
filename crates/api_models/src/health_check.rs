@@ -15,6 +15,10 @@ pub struct RouterHealthCheckResponse {
     #[cfg(feature = "dynamic_routing")]
     pub decision_engine: bool,
     pub unified_connector_service: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub kms_service: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub encryption_service: Option<bool>,
 }
 
 impl common_utils::events::ApiEventMetric for RouterHealthCheckResponse {}

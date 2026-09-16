@@ -82,6 +82,34 @@ async fn deep_health_check_func(
 
     logger::debug!("Locker health check end");
 
+    logger::debug!("KMS health check begin");
+
+    let kms_status = state.health_check_kms().await.map_err(|error| {
+        let message = error.to_string();
+        error.change_context(errors::ApiErrorResponse::HealthCheckError {
+            component: "KMS",
+            message,
+        })
+    })?;
+
+    logger::debug!("KMS health check end");
+
+    logger::debug!("Encryption Service health check begin");
+
+    let encryption_service_status =
+        state
+            .health_check_encryption_service()
+            .await
+            .map_err(|error| {
+                let message = error.to_string();
+                error.change_context(errors::ApiErrorResponse::HealthCheckError {
+                    component: "Encryption Service",
+                    message,
+                })
+            })?;
+
+    logger::debug!("Encryption Service health check end");
+
     logger::debug!("Analytics health check begin");
 
     #[cfg(feature = "olap")]
@@ -179,6 +207,8 @@ async fn deep_health_check_func(
         #[cfg(feature = "dynamic_routing")]
         decision_engine: decision_engine_health_check.into(),
         unified_connector_service: unified_connector_service_status.into(),
+        kms_service: kms_status.into(),
+        encryption_service: encryption_service_status.into(),
     };
 
     Ok(api::ApplicationResponse::Json(response))
