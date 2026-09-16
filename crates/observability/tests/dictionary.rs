@@ -1,4 +1,4 @@
-//! Rule-toggle tests through the authenticated Actix route tree.
+//! Alert dictionary tests through the authenticated Actix route tree.
 
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::indexing_slicing)]
 
@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex};
 use actix_web::{http::StatusCode, test, App};
 use diesel::{Connection, PgConnection, RunQueryDsl};
 use diesel_models::{
-    errors::DatabaseError, observability::schema::alert_rule_toggles, StorageResult,
+    errors::DatabaseError, observability::schema::alert_dictionary, StorageResult,
 };
 use error_stack::report;
 use observability::{
@@ -26,11 +26,11 @@ use observability::{
 use serde_json::{json, Value};
 use time::{macros::datetime, PrimitiveDateTime};
 
-const API_KEY: &str = "rule_toggle_test_key";
+const API_KEY: &str = "dictionary_test_key";
 
 #[derive(Default)]
 struct MemoryStore {
-    rows: Mutex<Vec<rule_toggles::RuleToggle>>,
+    rows: Mutex<Vec<dictionary::DictionaryEntry>>,
 }
 
 struct FailingStore;
@@ -79,17 +79,15 @@ macro_rules! impl_unused_interfaces {
         }
 
         #[async_trait::async_trait]
-        impl DictionaryInterface for $store {
-            async fn list_dictionary_entries(
-                &self,
-            ) -> StorageResult<Vec<dictionary::DictionaryEntry>> {
+        impl RuleTogglesInterface for $store {
+            async fn list_rule_toggles(&self) -> StorageResult<Vec<rule_toggles::RuleToggle>> {
                 Err(report!(DatabaseError::Others))
             }
 
-            async fn upsert_dictionary_entry(
+            async fn set_rule_toggle(
                 &self,
-                _new: dictionary::DictionaryEntryNew,
-            ) -> StorageResult<dictionary::DictionaryEntry> {
+                _new: rule_toggles::RuleToggleNew,
+            ) -> StorageResult<rule_toggles::RuleToggle> {
                 Err(report!(DatabaseError::Others))
             }
         }
@@ -124,25 +122,31 @@ impl_unused_interfaces!(MemoryStore);
 impl_unused_interfaces!(FailingStore);
 
 #[async_trait::async_trait]
-impl RuleTogglesInterface for MemoryStore {
-    async fn list_rule_toggles(&self) -> StorageResult<Vec<rule_toggles::RuleToggle>> {
+impl DictionaryInterface for MemoryStore {
+    async fn list_dictionary_entries(&self) -> StorageResult<Vec<dictionary::DictionaryEntry>> {
         let mut rows = self.rows.lock().unwrap().clone();
-        rows.sort_by(|a, b| a.rule_id.cmp(&b.rule_id));
+        rows.sort_by(|a, b| (&a.name, &a.key_).cmp(&(&b.name, &b.key_)));
         Ok(rows)
     }
 
-    async fn set_rule_toggle(
+    async fn upsert_dictionary_entry(
         &self,
-        new: rule_toggles::RuleToggleNew,
-    ) -> StorageResult<rule_toggles::RuleToggle> {
+        new: dictionary::DictionaryEntryNew,
+    ) -> StorageResult<dictionary::DictionaryEntry> {
         let mut rows = self.rows.lock().unwrap();
-        let stored = rule_toggles::RuleToggle {
-            rule_id: new.rule_id,
-            is_enabled: new.is_enabled,
+        let stored = dictionary::DictionaryEntry {
+            name: new.name,
+            key_: new.key_,
+            product: new.product,
+            values_: new.values_,
+            metadata: new.metadata,
             updated_by: new.updated_by,
             last_updated_at: now(),
         };
-        if let Some(row) = rows.iter_mut().find(|row| row.rule_id == stored.rule_id) {
+        if let Some(row) = rows
+            .iter_mut()
+            .find(|row| row.name == stored.name && row.key_ == stored.key_)
+        {
             *row = stored.clone();
         } else {
             rows.push(stored.clone());
@@ -152,15 +156,15 @@ impl RuleTogglesInterface for MemoryStore {
 }
 
 #[async_trait::async_trait]
-impl RuleTogglesInterface for FailingStore {
-    async fn list_rule_toggles(&self) -> StorageResult<Vec<rule_toggles::RuleToggle>> {
+impl DictionaryInterface for FailingStore {
+    async fn list_dictionary_entries(&self) -> StorageResult<Vec<dictionary::DictionaryEntry>> {
         Err(report!(DatabaseError::Others))
     }
 
-    async fn set_rule_toggle(
+    async fn upsert_dictionary_entry(
         &self,
-        _new: rule_toggles::RuleToggleNew,
-    ) -> StorageResult<rule_toggles::RuleToggle> {
+        _new: dictionary::DictionaryEntryNew,
+    ) -> StorageResult<dictionary::DictionaryEntry> {
         Err(report!(DatabaseError::Others))
     }
 }
@@ -186,12 +190,13 @@ fn state() -> AppState {
 async fn call(
     state: AppState,
     method: actix_web::http::Method,
-    uri: &str,
     key: Option<&str>,
     payload: Option<Value>,
 ) -> (StatusCode, Value) {
     let app = test::init_service(App::new().service(Alerts::server(state))).await;
-    let mut request = test::TestRequest::default().method(method).uri(uri);
+    let mut request = test::TestRequest::default()
+        .method(method)
+        .uri("/alerts/dictionary");
     if let Some(key) = key {
         request = request.insert_header((X_INTERNAL_API_KEY, key));
     }
@@ -210,132 +215,130 @@ async fn call(
 }
 
 #[actix_web::test]
-async fn disable_read_and_reenable_preserve_portal_contract() {
+async fn upsert_replaces_strings_verbatim_and_preserves_response_shape() {
     let state = state();
-    let uri = "/alerts/rule_toggles/webhook_rejected";
-
-    let (status, disabled) = call(
+    let first = json!({
+        "name": "dashboard",
+        "key_": "merchant_id",
+        "product": "[]",
+        "values_": "[\"m1\"]",
+        "metadata": "{\"category\":\"dashboard\"}",
+        "updated_by": "dashboard"
+    });
+    let (status, response) = call(
         state.clone(),
         actix_web::http::Method::PUT,
-        uri,
         Some(API_KEY),
-        Some(json!({"is_enabled": false, "updated_by": "dashboard"})),
+        Some(first),
     )
     .await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(
-        disabled,
-        json!({"ok": true, "id": "webhook_rejected", "is_enabled": false})
+        response,
+        json!({"ok": true, "name": "dashboard", "key_": "merchant_id"})
     );
 
-    let (_, listed) = call(
+    let replacement = json!({
+        "name": "dashboard",
+        "key_": "merchant_id",
+        "product": "[\"payments\"]",
+        "values_": "[\"m2\"]",
+        "metadata": "{ \"encoded\": true }",
+        "updated_by": "syntest"
+    });
+    call(
         state.clone(),
-        actix_web::http::Method::GET,
-        "/alerts/rule_toggles",
-        Some(API_KEY),
-        None,
-    )
-    .await;
-    assert_eq!(listed["toggles"].as_array().unwrap().len(), 1);
-    assert_eq!(listed["toggles"][0]["rule_id"], "webhook_rejected");
-    assert_eq!(listed["toggles"][0]["is_enabled"], false);
-    assert_eq!(listed["toggles"][0]["updated_by"], "dashboard");
-    assert_eq!(
-        listed["toggles"][0]["last_updated_at"],
-        "2026-09-15T09:45:00.000Z"
-    );
-
-    let (_, enabled) = call(
-        state,
         actix_web::http::Method::PUT,
-        uri,
         Some(API_KEY),
-        Some(json!({"is_enabled": true, "updated_by": "dashboard"})),
+        Some(replacement),
     )
     .await;
+
+    let (status, listed) = call(state, actix_web::http::Method::GET, Some(API_KEY), None).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(listed["entries"].as_array().unwrap().len(), 1);
+    assert_eq!(listed["entries"][0]["values_"], "[\"m2\"]");
+    assert_eq!(listed["entries"][0]["metadata"], "{ \"encoded\": true }");
+    assert_eq!(listed["entries"][0]["updated_by"], "syntest");
     assert_eq!(
-        enabled,
-        json!({"ok": true, "id": "webhook_rejected", "is_enabled": true})
+        listed["entries"][0]["last_updated_at"],
+        "2026-09-15T09:45:00.000Z"
     );
 }
 
 #[actix_web::test]
-async fn absence_means_no_toggle_and_composite_ids_persist_independently() {
+async fn omitted_payload_strings_replace_existing_values_with_defaults() {
     let state = state();
-    let (_, empty) = call(
-        state.clone(),
-        actix_web::http::Method::GET,
-        "/alerts/rule_toggles",
-        Some(API_KEY),
-        None,
-    )
-    .await;
-    assert_eq!(empty, json!({"toggles": []}));
-
-    let (_, response) = call(
+    call(
         state.clone(),
         actix_web::http::Method::PUT,
-        "/alerts/rule_toggles/webhook_rejected_merchant_profile",
         Some(API_KEY),
-        Some(json!({"is_enabled": false, "updated_by": "dashboard"})),
+        Some(json!({
+            "name": "dashboard", "key_": "merchant_id", "product": "[1]",
+            "values_": "[2]", "metadata": "{\"a\":1}", "updated_by": "dashboard"
+        })),
     )
     .await;
-    assert_eq!(response["id"], "webhook_rejected_merchant_profile");
+    call(
+        state.clone(),
+        actix_web::http::Method::PUT,
+        Some(API_KEY),
+        Some(json!({
+            "name": "dashboard", "key_": "merchant_id", "updated_by": "dashboard"
+        })),
+    )
+    .await;
+    let (_, listed) = call(state, actix_web::http::Method::GET, Some(API_KEY), None).await;
+    assert_eq!(listed["entries"][0]["product"], "[]");
+    assert_eq!(listed["entries"][0]["values_"], "[]");
+    assert_eq!(listed["entries"][0]["metadata"], "{}");
+}
 
-    let (_, listed) = call(
-        state,
-        actix_web::http::Method::GET,
-        "/alerts/rule_toggles",
-        Some(API_KEY),
-        None,
-    )
-    .await;
-    assert_eq!(listed["toggles"].as_array().unwrap().len(), 1);
-    assert_eq!(
-        listed["toggles"][0]["rule_id"],
-        "webhook_rejected_merchant_profile"
-    );
+#[actix_web::test]
+async fn entries_are_ordered_by_name_and_key() {
+    let state = state();
+    for (name, key_) in [("z", "a"), ("a", "z"), ("a", "a")] {
+        call(
+            state.clone(),
+            actix_web::http::Method::PUT,
+            Some(API_KEY),
+            Some(json!({"name": name, "key_": key_, "updated_by": "dashboard"})),
+        )
+        .await;
+    }
+    let (_, listed) = call(state, actix_web::http::Method::GET, Some(API_KEY), None).await;
+    let keys: Vec<_> = listed["entries"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|row| (row["name"].as_str().unwrap(), row["key_"].as_str().unwrap()))
+        .collect();
+    assert_eq!(keys, vec![("a", "a"), ("a", "z"), ("z", "a")]);
 }
 
 #[actix_web::test]
 async fn authentication_validation_and_unknown_fields_are_enforced() {
-    for (method, uri, payload) in [
-        (actix_web::http::Method::GET, "/alerts/rule_toggles", None),
-        (
-            actix_web::http::Method::PUT,
-            "/alerts/rule_toggles/a",
-            Some(json!({"is_enabled": false, "updated_by": "dashboard"})),
-        ),
-    ] {
+    for method in [actix_web::http::Method::GET, actix_web::http::Method::PUT] {
+        let payload = (method == actix_web::http::Method::PUT)
+            .then(|| json!({"name": "a", "key_": "b", "updated_by": "dashboard"}));
         for key in [None, Some("wrong")] {
             assert_eq!(
-                call(state(), method.clone(), uri, key, payload.clone())
-                    .await
-                    .0,
+                call(state(), method.clone(), key, payload.clone()).await.0,
                 StatusCode::UNAUTHORIZED
             );
         }
     }
 
-    for (uri, payload) in [
-        (
-            "/alerts/rule_toggles/%20%20",
-            json!({"is_enabled": false, "updated_by": "dashboard"}),
-        ),
-        (
-            "/alerts/rule_toggles/a",
-            json!({"is_enabled": false, "updated_by": "dashboard", "extra": true}),
-        ),
-        ("/alerts/rule_toggles/a", json!({"updated_by": "dashboard"})),
-        (
-            "/alerts/rule_toggles/a",
-            json!({"is_enabled": false, "updated_by": "  "}),
-        ),
+    for payload in [
+        json!({"name": "", "key_": "b", "updated_by": "dashboard"}),
+        json!({"name": "a", "key_": "   ", "updated_by": "dashboard"}),
+        json!({"name": "a", "key_": "b", "updated_by": "dashboard", "extra": true}),
+        json!({"name": "a", "updated_by": "dashboard"}),
+        json!({"name": "a", "key_": "b", "values_": ["m1"], "updated_by": "dashboard"}),
     ] {
         let (status, response) = call(
             state(),
             actix_web::http::Method::PUT,
-            uri,
             Some(API_KEY),
             Some(payload),
         )
@@ -348,15 +351,14 @@ async fn authentication_validation_and_unknown_fields_are_enforced() {
 #[actix_web::test]
 async fn storage_failures_return_500() {
     let state = state_with_store(Arc::new(FailingStore));
-    for (method, uri, payload) in [
-        (actix_web::http::Method::GET, "/alerts/rule_toggles", None),
+    for (method, payload) in [
+        (actix_web::http::Method::GET, None),
         (
             actix_web::http::Method::PUT,
-            "/alerts/rule_toggles/a",
-            Some(json!({"is_enabled": false, "updated_by": "dashboard"})),
+            Some(json!({"name": "a", "key_": "b", "updated_by": "dashboard"})),
         ),
     ] {
-        let (status, response) = call(state.clone(), method, uri, Some(API_KEY), payload).await;
+        let (status, response) = call(state.clone(), method, Some(API_KEY), payload).await;
         assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
         assert_eq!(response["error"]["type"], "observability_error");
     }
@@ -380,43 +382,38 @@ fn postgres_database(url: &str) -> Database {
 }
 
 /// Run after applying the observability migrations:
-/// `OBSERVABILITY_TEST_DATABASE_URL=postgres://... cargo test -p observability --test rule_toggles postgres_repository -- --ignored`
+/// `OBSERVABILITY_TEST_DATABASE_URL=postgres://... cargo test -p observability --test dictionary postgres_repository -- --ignored`
 #[actix_web::test]
 #[ignore = "requires OBSERVABILITY_TEST_DATABASE_URL and applied observability migrations"]
-async fn postgres_repository_replaces_and_lists_toggles() {
+async fn postgres_repository_replaces_and_lists_dictionary_entries() {
     let database_url = std::env::var("OBSERVABILITY_TEST_DATABASE_URL")
         .expect("OBSERVABILITY_TEST_DATABASE_URL is required");
     let database = postgres_database(&database_url);
     let mut connection = PgConnection::establish(&database_url).unwrap();
-    diesel::delete(alert_rule_toggles::table)
+    diesel::delete(alert_dictionary::table)
         .execute(&mut connection)
         .unwrap();
 
     let state = state_with_store(Arc::new(
         observability::db::Store::new(&database).await.unwrap(),
     ));
-    for enabled in [false, true] {
+    for values_ in ["[\"m1\"]", "[\"m2\"]"] {
         assert_eq!(
             call(
                 state.clone(),
                 actix_web::http::Method::PUT,
-                "/alerts/rule_toggles/webhook_rejected",
                 Some(API_KEY),
-                Some(json!({"is_enabled": enabled, "updated_by": "database-test"})),
+                Some(json!({
+                    "name": "dashboard", "key_": "merchant_id", "values_": values_,
+                    "updated_by": "database-test"
+                })),
             )
             .await
             .0,
             StatusCode::OK
         );
     }
-    let (_, listed) = call(
-        state,
-        actix_web::http::Method::GET,
-        "/alerts/rule_toggles",
-        Some(API_KEY),
-        None,
-    )
-    .await;
-    assert_eq!(listed["toggles"].as_array().unwrap().len(), 1);
-    assert_eq!(listed["toggles"][0]["is_enabled"], true);
+    let (_, listed) = call(state, actix_web::http::Method::GET, Some(API_KEY), None).await;
+    assert_eq!(listed["entries"].as_array().unwrap().len(), 1);
+    assert_eq!(listed["entries"][0]["values_"], "[\"m2\"]");
 }

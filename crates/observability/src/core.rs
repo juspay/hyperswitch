@@ -9,6 +9,7 @@
 pub mod alerts_info;
 pub mod blacklist;
 pub mod cloudwatch;
+pub mod dictionary;
 pub mod notifier;
 pub mod rule_toggles;
 pub mod thresholds;
