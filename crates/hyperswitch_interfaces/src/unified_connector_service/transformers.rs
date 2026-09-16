@@ -2302,10 +2302,13 @@ impl ErrorSwitch<ConnectorError> for UnifiedConnectorServiceError {
             Self::FailedToObtainAuthType => ConnectorError::FailedToObtainAuthType,
             // Not implemented
             Self::NotImplemented(msg) => ConnectorError::NotImplemented(msg.clone()),
-            // Not supported
+            // Not supported. The UCS message is already a complete, correctly attributed
+            // sentence (e.g. "... is not supported by worldpayxml"), so leave the connector
+            // empty rather than fabricating "unified_connector_service" — the render surfaces
+            // the message verbatim when the connector is empty.
             Self::NotSupported(msg) => ConnectorError::NotSupported {
                 message: msg.clone(),
-                connector: "unified_connector_service",
+                connector: "",
             },
             // Invalid connector name
             Self::InvalidConnectorName | Self::MissingConnectorName => {

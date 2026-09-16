@@ -2,6 +2,20 @@ use common_utils::errors::CustomResult;
 
 use crate::{core::errors, logger};
 
+/// Compose the reason for a `ConnectorError::NotSupported`.
+///
+/// Native connectors pass a bare message plus their own name, so the connector is
+/// appended. UCS passes a self-contained, already-attributed message (e.g.
+/// "... is not supported by worldpayxml") with an empty connector; in that case the
+/// message is surfaced verbatim rather than appending a second, fabricated attribution.
+fn not_supported_message(message: &str, connector: &str) -> String {
+    if connector.is_empty() {
+        message.to_string()
+    } else {
+        format!("{message} is not supported by {connector}")
+    }
+}
+
 pub trait StorageErrorExt<T, E> {
     #[track_caller]
     fn to_not_found_response(self, not_found_response: E) -> error_stack::Result<T, E>;
@@ -137,7 +151,7 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
             }
             errors::ConnectorError::NotSupported { message, connector } => {
                 errors::ApiErrorResponse::NotSupported {
-                    message: format!("{message} is not supported by {connector}"),
+                    message: not_supported_message(message, connector),
                 }
                 .into()
             }
@@ -248,7 +262,7 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                     }
                 },
                 errors::ConnectorError::NotSupported { message, connector } => {
-                    errors::ApiErrorResponse::NotSupported { message: format!("{message} is not supported by {connector}") }
+                    errors::ApiErrorResponse::NotSupported { message: not_supported_message(message, connector) }
                 },
                 errors::ConnectorError::FlowNotSupported{ flow, connector } => {
                     errors::ApiErrorResponse::FlowNotSupported { flow: flow.to_owned(), connector: connector.to_owned() }
@@ -518,7 +532,11 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 }
                 errors::ConnectorError::NotSupported { message, connector } => {
                     errors::ApiErrorResponse::NotSupported {
-                        message: format!("{message} by {connector}"),
+                        message: if connector.is_empty() {
+                            message.to_string()
+                        } else {
+                            format!("{message} by {connector}")
+                        },
                     }
                 }
                 errors::ConnectorError::NotImplemented(reason) => {
@@ -560,7 +578,11 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 }
                 errors::ConnectorError::NotSupported { message, connector } => {
                     errors::ApiErrorResponse::NotSupported {
-                        message: format!("{message} by {connector}"),
+                        message: if connector.is_empty() {
+                            message.to_string()
+                        } else {
+                            format!("{message} by {connector}")
+                        },
                     }
                 }
                 errors::ConnectorError::NotImplemented(reason) => {
@@ -599,7 +621,11 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 }
                 errors::ConnectorError::NotSupported { message, connector } => {
                     errors::ApiErrorResponse::NotSupported {
-                        message: format!("{message} by {connector}"),
+                        message: if connector.is_empty() {
+                            message.to_string()
+                        } else {
+                            format!("{message} by {connector}")
+                        },
                     }
                 }
                 errors::ConnectorError::NotImplemented(reason) => {
