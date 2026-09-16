@@ -402,9 +402,9 @@ impl EligibilityCardBin {
         self.card_bin.get_card_isin()
     }
 
-    /// The leading `len` digits of the BIN, or all of them when fewer were provided
-    pub fn get_bin_prefix(&self, len: usize) -> String {
-        self.card_bin.get_bin_prefix(len)
+    /// The BIN digits sent to Offer Engine, or all of them when fewer were provided
+    pub fn get_offer_card_bin(&self) -> String {
+        self.card_bin.get_offer_card_bin()
     }
 
     /// Every blocklist-relevant prefix derivable from this BIN (lengths 6 up to the
@@ -451,10 +451,10 @@ impl EligibilityPaymentMethodData {
         }
     }
 
-    pub fn get_bin_prefix(&self, len: usize) -> Option<String> {
+    pub fn get_offer_card_bin(&self) -> Option<String> {
         match self {
-            Self::Card(card) => Some(card.card_number.get_bin_prefix(len)),
-            Self::CardBin(card_bin) => Some(card_bin.get_bin_prefix(len)),
+            Self::Card(card) => Some(card.card_number.get_offer_card_bin()),
+            Self::CardBin(card_bin) => Some(card_bin.get_offer_card_bin()),
             _ => None,
         }
     }
