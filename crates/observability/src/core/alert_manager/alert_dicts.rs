@@ -8,7 +8,7 @@ use api_models::observability::alert_manager::alert_dicts::{
 use error_stack::ResultExt;
 
 use crate::{
-    domain_models::alert_manager::alert_dicts::domain_models::{
+    domain_models::alert_manager::alert_dicts::{
         parse_alert_dict_id, AlertsDictsFilter, AlertsDictsNew,
     },
     errors::{ObservabilityApiResult, ObservabilityError, StorageErrorExt},

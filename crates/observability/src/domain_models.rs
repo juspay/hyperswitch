@@ -7,7 +7,6 @@
 //!
 //! Distinct from [`crate::domain`], which holds the traits that say what delivering an alert *is*.
 
-#[path = "alert_manager.rs"]
 pub mod alert_manager;
 pub mod alerts_info;
 pub(crate) mod utils;

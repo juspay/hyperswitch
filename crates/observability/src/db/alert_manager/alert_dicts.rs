@@ -5,7 +5,7 @@ use diesel_models::{
     errors::TransactionError, observability::alert_manager::alert_dicts as storage, StorageResult,
 };
 
-use crate::{db::Store, domain_models::alert_manager::alert_dicts::domain_models};
+use crate::{db::Store, domain_models::alert_manager::alert_dicts as domain_models};
 
 /// r-apps' `OFFSET 2`: the live row plus one older version.
 const VERSIONS_KEPT: i64 = 2;

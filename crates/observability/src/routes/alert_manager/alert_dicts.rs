@@ -19,7 +19,7 @@ pub async fn create(
         state.get_ref().clone(),
         &request,
         payload.into_inner(),
-        crate::core::alert_manager::alert_dicts::core::create_alert_dict,
+        crate::core::alert_manager::alert_dicts::create_alert_dict,
         &auth::InternalApiKeyAuth,
     )
     .await
@@ -35,7 +35,7 @@ pub async fn list(
         state.get_ref().clone(),
         &request,
         query.into_inner(),
-        crate::core::alert_manager::alert_dicts::core::list_alert_dicts,
+        crate::core::alert_manager::alert_dicts::list_alert_dicts,
         &auth::InternalApiKeyAuth,
     )
     .await
@@ -53,7 +53,7 @@ pub async fn retrieve(
         AlertsDictsRetrieveRequest {
             id: id.into_inner(),
         },
-        crate::core::alert_manager::alert_dicts::core::retrieve_alert_dict,
+        crate::core::alert_manager::alert_dicts::retrieve_alert_dict,
         &auth::InternalApiKeyAuth,
     )
     .await
@@ -71,7 +71,7 @@ pub async fn delete(
         AlertsDictsDeleteRequest {
             id: id.into_inner(),
         },
-        crate::core::alert_manager::alert_dicts::core::delete_alert_dict,
+        crate::core::alert_manager::alert_dicts::delete_alert_dict,
         &auth::InternalApiKeyAuth,
     )
     .await

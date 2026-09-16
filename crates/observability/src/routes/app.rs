@@ -62,13 +62,13 @@ impl Alerts {
                     .service(web::resource("/info").route(web::post().to(alerts_info::create)))
                     .service(
                         web::resource("/dicts")
-                            .route(web::get().to(alert_manager::alert_dicts::routes::list))
-                            .route(web::post().to(alert_manager::alert_dicts::routes::create)),
+                            .route(web::get().to(alert_manager::alert_dicts::list))
+                            .route(web::post().to(alert_manager::alert_dicts::create)),
                     )
                     .service(
                         web::resource("/dicts/{id}")
-                            .route(web::get().to(alert_manager::alert_dicts::routes::retrieve))
-                            .route(web::delete().to(alert_manager::alert_dicts::routes::delete)),
+                            .route(web::get().to(alert_manager::alert_dicts::retrieve))
+                            .route(web::delete().to(alert_manager::alert_dicts::delete)),
                     ),
             )
     }
