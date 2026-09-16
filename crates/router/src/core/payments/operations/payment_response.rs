@@ -2591,6 +2591,11 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                     } else {
                         None
                     };
+                    // The connector-reported amount only reflects funds actually captured
+                    // when the connector charged the payment. Otherwise (e.g. a manual-capture
+                    // authorize that mismatched) nothing has been received yet, so the
+                    // connector's value belongs in amount_capturable, not amount_received.
+                    let amount_capturable = err.amount;
                     let field_name = err.field_names;
                     let connector_transaction_id = err.connector_transaction_id;
                     (
@@ -2603,7 +2608,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             error_reason: Some(Some(format!(
                                 "Integrity Check Failed! Value mismatched for fields {field_name}"
                             ))),
-                            amount_capturable: None,
+                            amount_capturable,
                             updated_by: processor.get_account().storage_scheme.to_string(),
                             unified_code: None,
                             unified_message: None,
@@ -4512,7 +4517,7 @@ fn get_total_amount_captured<F: Clone, T: types::Capturable>(
                 )
                 .map(MinorUnit::new);
             amount_captured.or_else(|| {
-                if router_data_status == enums::AttemptStatus::Charged {
+                if router_data_status == enums::AttemptStatus::Charged || router_data_status == enums::AttemptStatus::IntegrityFailure {
                     amount
                 } else {
                     None
