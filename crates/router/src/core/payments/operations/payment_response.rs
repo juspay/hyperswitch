@@ -3136,12 +3136,17 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
         };
     }
 
-    let amount_captured = get_total_amount_captured(
-        &router_data.request,
-        router_data.amount_captured.map(MinorUnit::new),
-        router_data.status,
-        &payment_data,
-    );
+    let reported_amount_captured = match router_data.integrity_check.clone() {
+        Err(err) => err.amount,
+        Ok(()) => router_data.amount_captured.map(MinorUnit::new),
+    };
+
+    let amount_captured =  get_total_amount_captured(
+            &router_data.request,
+            reported_amount_captured,
+            router_data.status,
+            &payment_data,
+        );
 
     let payment_intent_update = get_payment_intent_update_data::<_, _>(
         payment_data.clone(),

@@ -163,6 +163,10 @@ impl FlowIntegrity for RefundIntegrityObject {
             Err(IntegrityCheckError {
                 field_names,
                 connector_transaction_id,
+                // TODO: Currently the refund amount returned by the connector is
+                // not captured in the refund data. Hence validate_refund_amount keeps summing the originally
+                // requested amount for ManualReview/ VoidPostRefund flows instead of what was actually refunded.
+                amount: Some(res_integrity_object.refund_amount),
             })
         }
     }
@@ -201,6 +205,12 @@ impl FlowIntegrity for AuthoriseIntegrityObject {
             Err(IntegrityCheckError {
                 field_names,
                 connector_transaction_id,
+                // TODO: Handle amount when there is a currency mismatch.
+                // We store the amount actually received/reported by the connector even in case of a currency mismatch,
+                // so that further operations on the payment are not blocked.
+                // If the connector ignored the currency provided in the payment request, currently we assume the same behavior
+                // from the connector for subsequent operations.
+                amount: Some(res_integrity_object.amount),
             })
         }
     }
@@ -249,6 +259,7 @@ impl FlowIntegrity for SyncIntegrityObject {
             Err(IntegrityCheckError {
                 field_names,
                 connector_transaction_id,
+                amount: res_integrity_object.amount,
             })
         }
     }
@@ -292,6 +303,7 @@ impl FlowIntegrity for CaptureIntegrityObject {
             Err(IntegrityCheckError {
                 field_names,
                 connector_transaction_id,
+                amount: res_integrity_object.capture_amount,
             })
         }
     }
