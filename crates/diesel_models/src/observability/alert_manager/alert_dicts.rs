@@ -1,5 +1,5 @@
 //! The mappers dictionary: small named lists that alert jobs and the dashboard look up by
-//! `(name, key_)`. Every save is a new version.
+//! `(name, key)`. Every save is a new version.
 
 use diesel::{Identifiable, Insertable, Queryable, Selectable};
 use time::PrimitiveDateTime;
@@ -15,9 +15,9 @@ use crate::observability::schema::alerts_dicts;
 pub struct AlertsDictsNew {
     pub id: String,
     pub name: String,
-    pub key_: String,
+    pub key: String,
     pub product: serde_json::Value,
-    pub values_: serde_json::Value,
+    pub values: serde_json::Value,
     pub ts_created: PrimitiveDateTime,
     pub is_enabled: bool,
     pub username: Option<String>,
@@ -32,9 +32,9 @@ pub struct AlertsDictsNew {
 pub struct AlertsDicts {
     pub id: String,
     pub name: String,
-    pub key_: String,
+    pub key: String,
     pub product: Option<serde_json::Value>,
-    pub values_: Option<serde_json::Value>,
+    pub values: Option<serde_json::Value>,
     pub ts_created: Option<PrimitiveDateTime>,
     pub is_enabled: Option<bool>,
     pub username: Option<String>,

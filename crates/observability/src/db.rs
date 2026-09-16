@@ -14,7 +14,7 @@
 //! applies here: there is one database, no tenants, no replica, no Redis-backed storage scheme and
 //! no encrypted columns.
 
-#[path = "alert_manager/mod.rs"]
+#[path = "alert_manager.rs"]
 pub mod alert_manager;
 pub mod alerts_info;
 
@@ -22,7 +22,7 @@ use std::{sync::Arc, time::Duration};
 
 use common_utils::external_service::NoOpEventEmitter;
 use diesel_models::{
-    errors::{DatabaseError, TransactionError},
+    errors::DatabaseError,
     DatabaseConnectionWithContext, DejaPgConnection, StorageResult,
 };
 use error_stack::ResultExt;

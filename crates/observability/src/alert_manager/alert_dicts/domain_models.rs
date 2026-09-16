@@ -1,4 +1,4 @@
-//! The mappers dictionary: small named lists looked up by `(name, key_)`. Every save disables the
+//! The mappers dictionary: small named lists looked up by `(name, key)`. Every save disables the
 //! live row and inserts a new one, so a value here is always a version rather than an edit.
 
 use api_models::observability::alert_manager::alert_dicts as api;
@@ -24,7 +24,7 @@ pub struct AlertsDictsNew {
     pub name: String,
     pub key: String,
     pub product: Value,
-    pub values_: Value,
+    pub values: Value,
     pub ts_created: PrimitiveDateTime,
     pub is_enabled: bool,
     pub username: Option<String>,
@@ -38,7 +38,7 @@ pub struct AlertsDicts {
     pub name: String,
     pub key: String,
     pub product: Option<Value>,
-    pub values_: Option<Value>,
+    pub values: Option<Value>,
     pub ts_created: Option<PrimitiveDateTime>,
     pub is_enabled: Option<bool>,
     pub username: Option<String>,
@@ -85,7 +85,7 @@ impl TryFrom<api::AlertsDictsCreateRequest> for AlertsDictsNew {
             name: request.name,
             key: request.key,
             product: empty_array_if_null(request.product),
-            values_: empty_array_if_null(Some(request.values_)),
+            values: empty_array_if_null(Some(request.values)),
             ts_created: now.replace_millisecond(0).unwrap_or(now),
             is_enabled: true,
             username: request.username,
@@ -103,9 +103,9 @@ impl From<AlertsDictsNew> for storage::AlertsDictsNew {
         Self {
             id: new.id,
             name: new.name,
-            key_: new.key,
+            key: new.key,
             product: new.product,
-            values_: new.values_,
+            values: new.values,
             ts_created: new.ts_created,
             is_enabled: new.is_enabled,
             username: new.username,
@@ -119,9 +119,9 @@ impl From<storage::AlertsDicts> for AlertsDicts {
         Self {
             id: row.id,
             name: row.name,
-            key: row.key_,
+            key: row.key,
             product: row.product,
-            values_: row.values_,
+            values: row.values,
             ts_created: row.ts_created,
             is_enabled: row.is_enabled,
             username: row.username,
@@ -137,7 +137,7 @@ impl From<AlertsDicts> for api::AlertsDictsResponse {
             name: entry.name,
             key: entry.key,
             product: entry.product,
-            values_: entry.values_,
+            values: entry.values,
             ts_created: entry.ts_created,
             is_enabled: entry.is_enabled,
             username: entry.username,
@@ -177,7 +177,7 @@ mod tests {
             name: "dashboard".to_owned(),
             key: "slack_users".to_owned(),
             product: None,
-            values_: json!(["alice", "bob"]),
+            values: json!(["alice", "bob"]),
             username: None,
             metadata: None,
         }
@@ -186,28 +186,28 @@ mod tests {
     #[test]
     fn absent_or_null_json_fields_become_an_empty_array() {
         let new = AlertsDictsNew::try_from(api::AlertsDictsCreateRequest {
-            values_: Value::Null,
+            values: Value::Null,
             ..request()
         })
         .unwrap();
 
         assert_eq!(new.product, json!([]));
         assert_eq!(new.metadata, json!([]));
-        assert_eq!(new.values_, json!([]));
+        assert_eq!(new.values, json!([]));
     }
 
     #[test]
     fn json_is_kept_as_sent() {
         let new = AlertsDictsNew::try_from(api::AlertsDictsCreateRequest {
             product: Some(json!("a JSON-holding string")),
-            values_: json!(""),
+            values: json!(""),
             metadata: Some(json!({"updated_by": "reliability_team"})),
             ..request()
         })
         .unwrap();
 
         assert_eq!(new.product, json!("a JSON-holding string"));
-        assert_eq!(new.values_, json!(""));
+        assert_eq!(new.values, json!(""));
         assert_eq!(new.metadata, json!({"updated_by": "reliability_team"}));
     }
 
@@ -296,7 +296,7 @@ mod tests {
             name: "dashboard".to_owned(),
             key: "slack_users".to_owned(),
             product: Some(json!([])),
-            values_: Some(json!(["alice"])),
+            values: Some(json!(["alice"])),
             ts_created: Some(date_time::now()),
             is_enabled: Some(true),
             username: Some("reliability_team".to_owned()),

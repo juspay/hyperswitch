@@ -1,3 +1,5 @@
+use common_utils::errors::ErrorSwitchFrom;
+
 // Deja replay reconstructs a recorded DB error as the SAME typed context the
 // recording threw ("recording threw ⇒ replay throws"); the serde derives give
 // the fieldless variants a lossless wire form (the bare variant-name string).
@@ -18,7 +20,7 @@ pub enum DatabaseError {
     Others,
 }
 
-impl common_utils::errors::ErrorSwitchFrom<diesel::result::Error> for DatabaseError {
+impl ErrorSwitchFrom<diesel::result::Error> for DatabaseError {
     fn switch_from(error: &diesel::result::Error) -> Self {
         match *error {
             diesel::result::Error::DatabaseError(

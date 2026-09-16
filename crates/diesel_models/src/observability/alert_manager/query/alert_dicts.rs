@@ -31,13 +31,13 @@ impl AlertsDicts {
     pub async fn demote_enabled_by_name_key(
         conn: &DatabaseConnectionWithContext<'_>,
         name: &str,
-        key_: &str,
+        key: &str,
     ) -> StorageResult<usize> {
         generics::generic_update::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::name
                 .eq(name.to_owned())
-                .and(dsl::key_.eq(key_.to_owned()))
+                .and(dsl::key.eq(key.to_owned()))
                 .and(dsl::is_enabled.eq(true)),
             dsl::is_enabled.eq(false),
         )
@@ -47,7 +47,7 @@ impl AlertsDicts {
     pub async fn find_superseded_ids_by_name_key(
         conn: &DatabaseConnectionWithContext<'_>,
         name: &str,
-        key_: &str,
+        key: &str,
         keep: i64,
     ) -> StorageResult<Vec<String>> {
         let query = Self::table()
@@ -55,7 +55,7 @@ impl AlertsDicts {
             .filter(
                 dsl::name
                     .eq(name.to_owned())
-                    .and(dsl::key_.eq(key_.to_owned())),
+                    .and(dsl::key.eq(key.to_owned())),
             )
             .order((dsl::ts_created.desc(), dsl::id.desc()))
             .offset(keep);
@@ -102,7 +102,7 @@ impl AlertsDicts {
     pub async fn list_by_filter(
         conn: &DatabaseConnectionWithContext<'_>,
         name: Option<String>,
-        key_: Option<String>,
+        key: Option<String>,
         is_enabled: bool,
     ) -> StorageResult<Vec<Self>> {
         let mut query =
@@ -112,8 +112,8 @@ impl AlertsDicts {
             query = query.filter(dsl::name.eq(name));
         }
 
-        if let Some(key_) = key_ {
-            query = query.filter(dsl::key_.eq(key_));
+        if let Some(key) = key {
+            query = query.filter(dsl::key.eq(key));
         }
 
         logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());

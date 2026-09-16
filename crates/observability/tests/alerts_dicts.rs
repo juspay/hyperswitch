@@ -82,7 +82,7 @@ async fn all_routes_are_behind_the_guard() {
     for request in [
         TestRequest::post()
             .uri(BASE)
-            .set_json(json!({ "name": "t", "key": "k", "values_": ["v"] })),
+            .set_json(json!({ "name": "t", "key": "k", "values": ["v"] })),
         TestRequest::get().uri(BASE),
         TestRequest::get().uri(&format!("{BASE}/abc")),
         TestRequest::delete().uri(&format!("{BASE}/abc")),
@@ -107,7 +107,7 @@ fn a_save_ignores_ts_created() {
     let request: AlertsDictsCreateRequest = serde_json::from_value(json!({
         "name": "t",
         "key": "k",
-        "values_": ["v"],
+        "values": ["v"],
         "ts_created": "2026-09-15T06:00:00Z"
     }))
     .expect("unknown fields are ignored by the request model");
@@ -118,7 +118,7 @@ fn a_save_ignores_ts_created() {
 
 #[actix_web::test]
 async fn a_blank_name_is_refused_before_the_database() {
-    let (status, body) = call(post(json!({ "name": " ", "key": "k", "values_": ["v"] }))).await;
+    let (status, body) = call(post(json!({ "name": " ", "key": "k", "values": ["v"] }))).await;
 
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert_eq!(body["error"]["code"], "IR_04");

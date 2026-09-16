@@ -7,14 +7,14 @@ use time::PrimitiveDateTime;
 
 /// The body of `POST /alerts/alerts_manager/dicts`.
 ///
-/// `values_` is not `Option`, so a missing key fails to parse while `null` parses and is stored as
+/// `values` is not `Option`, so a missing key fails to parse while `null` parses and is stored as
 /// an empty array.
 #[derive(Clone, Debug, Deserialize)]
 pub struct AlertsDictsCreateRequest {
     pub name: String,
     pub key: String,
     pub product: Option<Value>,
-    pub values_: Value,
+    pub values: Value,
     pub username: Option<String>,
     pub metadata: Option<Value>,
 }
@@ -46,7 +46,7 @@ pub struct AlertsDictsResponse {
     pub name: String,
     pub key: String,
     pub product: Option<Value>,
-    pub values_: Option<Value>,
+    pub values: Option<Value>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub ts_created: Option<PrimitiveDateTime>,
     pub is_enabled: Option<bool>,
