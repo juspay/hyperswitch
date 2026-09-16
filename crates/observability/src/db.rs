@@ -16,7 +16,6 @@
 
 #[path = "alert_manager/mod.rs"]
 pub mod alert_manager;
-pub mod alerts_info;
 
 use std::{sync::Arc, time::Duration};
 
@@ -37,7 +36,7 @@ use crate::{errors::ConfigurationError, settings::Database};
 pub trait StorageInterface:
     Send
     + Sync
-    + alerts_info::AlertsInfoInterface
+    + alert_manager::alert_info::db::AlertsInfoInterface
     + alert_manager::alert_dicts::db::AlertsDictsInterface
 {
 }

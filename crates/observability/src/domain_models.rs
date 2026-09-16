@@ -9,7 +9,6 @@
 
 #[path = "alert_manager/mod.rs"]
 pub mod alert_manager;
-pub mod alerts_info;
 pub(crate) mod utils;
 
 pub(crate) const SHORT_TEXT_MAX_CHARS: usize = 64;

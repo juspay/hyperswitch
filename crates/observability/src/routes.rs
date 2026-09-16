@@ -3,7 +3,6 @@
 
 #[path = "alert_manager/mod.rs"]
 pub mod alert_manager;
-pub mod alerts_info;
 pub mod app;
 pub mod cloudwatch;
 pub mod health_check;

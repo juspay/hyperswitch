@@ -2,4 +2,3 @@
 
 #[path = "alert_manager/query/mod.rs"]
 pub mod alert_manager;
-pub mod alerts_info;
