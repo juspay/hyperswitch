@@ -1,8 +1,71 @@
-use common_utils::errors::IntegrityCheckError;
+use common_utils::{errors::IntegrityCheckError, types::MinorUnit};
 use hyperswitch_domain_models::router_request_types::{
     AuthoriseIntegrityObject, CaptureIntegrityObject, PaymentsAuthorizeData, PaymentsCaptureData,
     PaymentsSyncData, RefundIntegrityObject, RefundsData, SyncIntegrityObject,
 };
+
+/// Whether the connector may report a lower amount than requested (e.g. partial authorization).
+#[derive(Debug, Clone, Copy)]
+pub struct AllowLowerAmount(bool);
+impl AllowLowerAmount {
+    /// Creates a new instance of `AllowLowerAmount`
+    pub fn new(value: bool) -> Self {
+        Self(value)
+    }
+}
+impl std::ops::Deref for AllowLowerAmount {
+    type Target = bool;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+/// Whether the connector may report a higher amount than requested (e.g. overcapture).
+#[derive(Debug, Clone, Copy)]
+pub struct AllowHigherAmount(bool);
+impl AllowHigherAmount {
+    /// Creates a new instance of `AllowHigherAmount`
+    pub fn new(value: bool) -> Self {
+        Self(value)
+    }
+}
+impl std::ops::Deref for AllowHigherAmount {
+    type Target = bool;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+/// Governs whether a connector-reported amount that differs from the amount we requested
+/// should still be treated as an integrity failure. Some payment features intentionally
+/// authorize/capture a different amount than requested (e.g. partial authorization,
+/// overcapture), so those differences must not be conflated with genuine data-integrity
+/// mismatches.
+#[derive(Debug, Clone, Copy)]
+pub struct AmountMismatchTolerance {
+    /// The connector may report a lower amount than requested (e.g. partial authorization).
+    pub allow_lower: AllowLowerAmount,
+    /// The connector may report a higher amount than requested (e.g. overcapture).
+    pub allow_higher: AllowHigherAmount,
+}
+
+impl AmountMismatchTolerance {
+    /// No tolerance: the connector-reported amount must exactly match what was requested.
+    fn strict() -> Self {
+        Self {
+            allow_lower: AllowLowerAmount::new(false),
+            allow_higher: AllowHigherAmount::new(false),
+        }
+    }
+
+    fn permits(self, expected: MinorUnit, actual: MinorUnit) -> bool {
+        actual == expected
+            || (*self.allow_lower && actual < expected)
+            || (*self.allow_higher && actual > expected)
+    }
+}
 
 /// Connector Integrity trait to check connector data integrity
 pub trait FlowIntegrity {
@@ -13,6 +76,7 @@ pub trait FlowIntegrity {
         req_integrity_object: Self::IntegrityObject,
         res_integrity_object: Self::IntegrityObject,
         connector_transaction_id: Option<String>,
+        amount_tolerance: AmountMismatchTolerance,
     ) -> Result<(), IntegrityCheckError>;
 }
 
@@ -51,6 +115,7 @@ where
                     req_integrity_object,
                     res_integrity_object,
                     connector_refund_id,
+                    AmountMismatchTolerance::strict(),
                 )
             }
             None => Ok(()),
@@ -71,10 +136,20 @@ where
         match request.get_response_integrity_object() {
             Some(res_integrity_object) => {
                 let req_integrity_object = request.get_request_integrity_object();
+                // Partial authorization: the connector may legitimately authorize less than
+                // requested. It must never authorize more, so `allow_higher` stays false.
+                let amount_tolerance = AmountMismatchTolerance {
+                    allow_lower: AllowLowerAmount::new(
+                        self.enable_partial_authorization
+                            .is_some_and(|enabled| enabled.is_true()),
+                    ),
+                    allow_higher: AllowHigherAmount::new(false),
+                };
                 T::compare(
                     req_integrity_object,
                     res_integrity_object,
                     connector_transaction_id,
+                    amount_tolerance,
                 )
             }
             None => Ok(()),
@@ -95,10 +170,21 @@ where
         match request.get_response_integrity_object() {
             Some(res_integrity_object) => {
                 let req_integrity_object = request.get_request_integrity_object();
+                // Overcapture: the merchant may be allowed to capture more than the originally
+                // requested amount. Capturing less is a separate, unrelated concern, so
+                // `allow_lower` stays false.
+                let amount_tolerance = AmountMismatchTolerance {
+                    allow_lower: AllowLowerAmount::new(false),
+                    allow_higher: AllowHigherAmount::new(
+                        self.is_overcapture_enabled
+                            .is_some_and(|enabled| *enabled),
+                    ),
+                };
                 T::compare(
                     req_integrity_object,
                     res_integrity_object,
                     connector_transaction_id,
+                    amount_tolerance,
                 )
             }
             None => Ok(()),
@@ -119,10 +205,16 @@ where
         match request.get_response_integrity_object() {
             Some(res_integrity_object) => {
                 let req_integrity_object = request.get_request_integrity_object();
+                // TODO: `PaymentsSyncData` has no `enable_partial_authorization`/
+                // `is_overcapture_enabled` field today, so a payment left partially
+                // authorized or overcaptured will keep failing every subsequent sync's
+                // integrity check with strict tolerance. Needs the same plumbing added to
+                // `PaymentsSyncData` as was done for `PaymentsAuthorizeData`/`PaymentsCaptureData`.
                 T::compare(
                     req_integrity_object,
                     res_integrity_object,
                     connector_transaction_id,
+                    AmountMismatchTolerance::strict(),
                 )
             }
             None => Ok(()),
@@ -136,6 +228,7 @@ impl FlowIntegrity for RefundIntegrityObject {
         req_integrity_object: Self,
         res_integrity_object: Self,
         connector_transaction_id: Option<String>,
+        amount_tolerance: AmountMismatchTolerance,
     ) -> Result<(), IntegrityCheckError> {
         let mut mismatched_fields = Vec::new();
 
@@ -147,7 +240,10 @@ impl FlowIntegrity for RefundIntegrityObject {
             ));
         }
 
-        if req_integrity_object.refund_amount != res_integrity_object.refund_amount {
+        if !amount_tolerance.permits(
+            req_integrity_object.refund_amount,
+            res_integrity_object.refund_amount,
+        ) {
             mismatched_fields.push(format_mismatch(
                 "refund_amount",
                 &req_integrity_object.refund_amount.to_string(),
@@ -178,10 +274,11 @@ impl FlowIntegrity for AuthoriseIntegrityObject {
         req_integrity_object: Self,
         res_integrity_object: Self,
         connector_transaction_id: Option<String>,
+        amount_tolerance: AmountMismatchTolerance,
     ) -> Result<(), IntegrityCheckError> {
         let mut mismatched_fields = Vec::new();
 
-        if req_integrity_object.amount != res_integrity_object.amount {
+        if !amount_tolerance.permits(req_integrity_object.amount, res_integrity_object.amount) {
             mismatched_fields.push(format_mismatch(
                 "amount",
                 &req_integrity_object.amount.to_string(),
@@ -222,6 +319,7 @@ impl FlowIntegrity for SyncIntegrityObject {
         req_integrity_object: Self,
         res_integrity_object: Self,
         connector_transaction_id: Option<String>,
+        amount_tolerance: AmountMismatchTolerance,
     ) -> Result<(), IntegrityCheckError> {
         let mut mismatched_fields = Vec::new();
 
@@ -229,7 +327,7 @@ impl FlowIntegrity for SyncIntegrityObject {
             .amount
             .zip(req_integrity_object.amount)
             .map(|(res_amount, req_amount)| {
-                if res_amount != req_amount {
+                if !amount_tolerance.permits(req_amount, res_amount) {
                     mismatched_fields.push(format_mismatch(
                         "amount",
                         &req_amount.to_string(),
@@ -271,6 +369,7 @@ impl FlowIntegrity for CaptureIntegrityObject {
         req_integrity_object: Self,
         res_integrity_object: Self,
         connector_transaction_id: Option<String>,
+        amount_tolerance: AmountMismatchTolerance,
     ) -> Result<(), IntegrityCheckError> {
         let mut mismatched_fields = Vec::new();
 
@@ -278,7 +377,7 @@ impl FlowIntegrity for CaptureIntegrityObject {
             .capture_amount
             .zip(req_integrity_object.capture_amount)
             .map(|(res_amount, req_amount)| {
-                if res_amount != req_amount {
+                if !amount_tolerance.permits(req_amount, res_amount) {
                     mismatched_fields.push(format_mismatch(
                         "capture_amount",
                         &req_amount.to_string(),

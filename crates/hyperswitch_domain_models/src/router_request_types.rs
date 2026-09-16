@@ -351,6 +351,10 @@ pub struct PaymentsCaptureData {
     pub integrity_object: Option<CaptureIntegrityObject>,
     pub webhook_url: Option<String>,
     pub merchant_order_reference_id: Option<String>,
+    /// Whether the merchant is allowed to capture more than the originally authorized/requested
+    /// amount for this payment. Used to avoid treating a legitimate overcapture as an integrity
+    /// mismatch.
+    pub is_overcapture_enabled: Option<common_types::primitive_wrappers::OvercaptureEnabledBool>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -1165,6 +1169,7 @@ pub struct CompleteAuthorizeData {
     pub business_country: Option<common_enums::CountryAlpha2>,
     pub connector_intent_metadata: Option<ConnectorMetadata>,
     pub force_3ds_challenge: Option<bool>,
+    pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
 }
 
 #[derive(Debug, Clone, Serialize)]
