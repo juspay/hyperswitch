@@ -175,20 +175,6 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-      # Points Swatinem/rust-cache's underlying @actions/cache v2 client at our
-      # own S3-backed cache proxy instead of github.com's cache service. The
-      # proxy URL/token come from this pod's own environment under different
-      # names so they don't collide with anything the runner itself injects;
-      # masked since the proxy URL/token shouldn't land in job logs.
-      - name: Point rust-cache at the S3 cache proxy
-        shell: bash
-        run: |
-          echo "ACTIONS_CACHE_SERVICE_V2=true" >> "$GITHUB_ENV"
-          echo "ACTIONS_RESULTS_URL=${RUST_CACHE_S3_PROXY_URL:-}" >> "$GITHUB_ENV"
-          echo "ACTIONS_RUNTIME_TOKEN=${RUST_CACHE_S3_PROXY_TOKEN:-}" >> "$GITHUB_ENV"
-          [ -n "${RUST_CACHE_S3_PROXY_URL:-}" ] && echo "::add-mask::${RUST_CACHE_S3_PROXY_URL}"
-          [ -n "${RUST_CACHE_S3_PROXY_TOKEN:-}" ] && echo "::add-mask::${RUST_CACHE_S3_PROXY_TOKEN}"
-
       - name: Install rust cache
         uses: Swatinem/rust-cache@v2.9.1
         with:
@@ -299,17 +285,6 @@ jobs:
         uses: arduino/setup-protoc@v3
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-
-      # Points Swatinem/rust-cache's underlying @actions/cache v2 client at our
-      # own S3-backed cache proxy instead of github.com's cache service.
-      - name: Point rust-cache at the S3 cache proxy
-        shell: bash
-        run: |
-          echo "ACTIONS_CACHE_SERVICE_V2=true" >> "$GITHUB_ENV"
-          echo "ACTIONS_RESULTS_URL=${RUST_CACHE_S3_PROXY_URL:-}" >> "$GITHUB_ENV"
-          echo "ACTIONS_RUNTIME_TOKEN=${RUST_CACHE_S3_PROXY_TOKEN:-}" >> "$GITHUB_ENV"
-          [ -n "${RUST_CACHE_S3_PROXY_URL:-}" ] && echo "::add-mask::${RUST_CACHE_S3_PROXY_URL}"
-          [ -n "${RUST_CACHE_S3_PROXY_TOKEN:-}" ] && echo "::add-mask::${RUST_CACHE_S3_PROXY_TOKEN}"
 
       - name: Install rust cache
         uses: Swatinem/rust-cache@v2.9.1
