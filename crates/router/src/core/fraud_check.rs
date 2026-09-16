@@ -277,7 +277,7 @@ pub async fn get_payout_frm_applicability(
                 .parse_value::<api_models::admin::FrmConfigs>("FrmConfigs")
                 .change_context(errors::ApiErrorResponse::InvalidDataFormat {
                     field_name: "frm_configs".into(),
-                    expected_format: r#"[{ "gateway": "gotyme_sanlam", "payout_types": [{ "payout_type": "bank", "flow": "pre" }] }]"#.to_string(),
+                    expected_format: r#"[{ "gateway": "gotyme_sanlam", "payment_methods": [{ "payment_method": "bank_transfer", "flow": "pre" }] }]"#.to_string(),
                 })
         })
         .collect::<Result<Vec<_>, _>>()?;
