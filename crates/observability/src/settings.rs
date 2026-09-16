@@ -72,6 +72,23 @@ pub struct Settings<S: SecretState> {
     pub cloudwatch: CloudWatchSettings,
     /// The observability database, which holds alert state. Separate from `hyperswitch_db`.
     pub database: SecretStateContainer<Database, S>,
+    /// Caps on mutable observability state.
+    pub limits: Limits,
+}
+
+/// Limits applied by the storage transaction. Non-positive values disable the cap.
+#[derive(Debug, Deserialize, Clone)]
+#[serde(default)]
+pub struct Limits {
+    pub max_active_threshold_rules: i64,
+}
+
+impl Default for Limits {
+    fn default() -> Self {
+        Self {
+            max_active_threshold_rules: 5000,
+        }
+    }
 }
 
 const DEFAULT_MAX_UPLOAD_BYTES: usize = 25 * 1024 * 1024;

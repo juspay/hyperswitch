@@ -7,3 +7,4 @@
 pub mod alerts_info;
 pub mod query;
 pub mod schema;
+pub mod thresholds;
