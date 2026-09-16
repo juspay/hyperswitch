@@ -8,8 +8,10 @@ use error_stack::ResultExt;
 use serde_json::Value;
 use time::PrimitiveDateTime;
 
-use crate::domain_models::utils::{optional_text, required_text};
-use crate::errors::{ObservabilityApiResult, ObservabilityError};
+use crate::{
+    domain_models::utils::{optional_text, required_text},
+    errors::{ObservabilityApiResult, ObservabilityError},
+};
 
 const NAME_MAX_CHARS: usize = 64;
 const KEY_MAX_CHARS: usize = 255;
