@@ -158,6 +158,7 @@ jobs:
       # Use `sccache` for caching compilation artifacts
       RUSTC_WRAPPER: sccache
       RUSTFLAGS: "-D warnings"
+      SCCACHE_DIR: ${{ github.workspace }}/.sccache
 
     steps:
       - name: Generate a token
@@ -203,6 +204,31 @@ jobs:
           tool: sccache
           checksum: true
 
+      # Bucket/region/prefix come from this pod's own environment (managed
+      # outside this repo). Captured under new names here, then blanked below
+      # so sccache itself never makes a network call per compilation unit —
+      # only this job's own bulk restore/save talk to S3 (see PR #14253).
+      - name: Resolve S3 cache location, then disable sccache's native S3 backend
+        shell: bash
+        run: |
+          echo "S3_CACHE_BUCKET=${SCCACHE_BUCKET:-}" >> "$GITHUB_ENV"
+          echo "S3_CACHE_REGION=${SCCACHE_REGION:-}" >> "$GITHUB_ENV"
+          echo "S3_CACHE_PREFIX=${SCCACHE_S3_KEY_PREFIX:-}" >> "$GITHUB_ENV"
+          echo "SCCACHE_BUCKET=" >> "$GITHUB_ENV"
+          echo "SCCACHE_REGION=" >> "$GITHUB_ENV"
+          echo "SCCACHE_S3_KEY_PREFIX=" >> "$GITHUB_ENV"
+
+      - name: Restore sccache local cache from S3
+        continue-on-error: true
+        shell: bash
+        run: |
+          mkdir -p "$SCCACHE_DIR"
+          if [ -n "$S3_CACHE_BUCKET" ]; then
+            aws s3 sync "s3://${S3_CACHE_BUCKET}/${S3_CACHE_PREFIX}local-cache/test/" "$SCCACHE_DIR" --no-progress --only-show-errors
+          else
+            echo "::warning::S3 cache bucket not configured on this runner; sccache starts cold"
+          fi
+
       - name: Install just
         uses: taiki-e/install-action@v2
         with:
@@ -241,6 +267,18 @@ jobs:
         if: always()
         shell: bash
         run: sccache --show-stats
+
+      # TEMPORARY - REVERT BEFORE MERGE.
+      # Guarded to this branch name so this PR can save+restore its own local
+      # cache to measure cold vs. warm without waiting for a merge to main.
+      - name: Save sccache local cache to S3
+        if: ${{ always() && github.head_ref == 'ci/sccache-migration' }}
+        continue-on-error: true
+        shell: bash
+        run: |
+          if [ -n "$S3_CACHE_BUCKET" ]; then
+            aws s3 sync "$SCCACHE_DIR" "s3://${S3_CACHE_BUCKET}/${S3_CACHE_PREFIX}local-cache/test/" --no-progress --only-show-errors
+          fi
 
   typos:
     name: Spell check
@@ -281,6 +319,7 @@ jobs:
     env:
       # Use `sccache` for caching compilation artifacts
       RUSTC_WRAPPER: sccache
+      SCCACHE_DIR: ${{ github.workspace }}/.sccache
 
     steps:
       - name: Checkout repository
@@ -308,6 +347,27 @@ jobs:
         with:
           tool: sccache
           checksum: true
+
+      - name: Resolve S3 cache location, then disable sccache's native S3 backend
+        shell: bash
+        run: |
+          echo "S3_CACHE_BUCKET=${SCCACHE_BUCKET:-}" >> "$GITHUB_ENV"
+          echo "S3_CACHE_REGION=${SCCACHE_REGION:-}" >> "$GITHUB_ENV"
+          echo "S3_CACHE_PREFIX=${SCCACHE_S3_KEY_PREFIX:-}" >> "$GITHUB_ENV"
+          echo "SCCACHE_BUCKET=" >> "$GITHUB_ENV"
+          echo "SCCACHE_REGION=" >> "$GITHUB_ENV"
+          echo "SCCACHE_S3_KEY_PREFIX=" >> "$GITHUB_ENV"
+
+      - name: Restore sccache local cache from S3
+        continue-on-error: true
+        shell: bash
+        run: |
+          mkdir -p "$SCCACHE_DIR"
+          if [ -n "$S3_CACHE_BUCKET" ]; then
+            aws s3 sync "s3://${S3_CACHE_BUCKET}/${S3_CACHE_PREFIX}local-cache/check-v2/" "$SCCACHE_DIR" --no-progress --only-show-errors
+          else
+            echo "::warning::S3 cache bucket not configured on this runner; sccache starts cold"
+          fi
 
       - name: Install just
         uses: taiki-e/install-action@v2
@@ -343,3 +403,15 @@ jobs:
         if: always()
         shell: bash
         run: sccache --show-stats
+
+      # TEMPORARY - REVERT BEFORE MERGE.
+      # Guarded to this branch name so this PR can save+restore its own local
+      # cache to measure cold vs. warm without waiting for a merge to main.
+      - name: Save sccache local cache to S3
+        if: ${{ always() && github.head_ref == 'ci/sccache-migration' }}
+        continue-on-error: true
+        shell: bash
+        run: |
+          if [ -n "$S3_CACHE_BUCKET" ]; then
+            aws s3 sync "$SCCACHE_DIR" "s3://${S3_CACHE_BUCKET}/${S3_CACHE_PREFIX}local-cache/check-v2/" --no-progress --only-show-errors
+          fi
