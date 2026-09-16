@@ -532,11 +532,7 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 }
                 errors::ConnectorError::NotSupported { message, connector } => {
                     errors::ApiErrorResponse::NotSupported {
-                        message: if connector.is_empty() {
-                            message.to_string()
-                        } else {
-                            format!("{message} by {connector}")
-                        },
+                        message: not_supported_message(message, connector),
                     }
                 }
                 errors::ConnectorError::NotImplemented(reason) => {
@@ -578,11 +574,7 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 }
                 errors::ConnectorError::NotSupported { message, connector } => {
                     errors::ApiErrorResponse::NotSupported {
-                        message: if connector.is_empty() {
-                            message.to_string()
-                        } else {
-                            format!("{message} by {connector}")
-                        },
+                        message: not_supported_message(message, connector),
                     }
                 }
                 errors::ConnectorError::NotImplemented(reason) => {
@@ -621,11 +613,7 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 }
                 errors::ConnectorError::NotSupported { message, connector } => {
                     errors::ApiErrorResponse::NotSupported {
-                        message: if connector.is_empty() {
-                            message.to_string()
-                        } else {
-                            format!("{message} by {connector}")
-                        },
+                        message: not_supported_message(message, connector),
                     }
                 }
                 errors::ConnectorError::NotImplemented(reason) => {
