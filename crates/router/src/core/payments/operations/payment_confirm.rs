@@ -3367,7 +3367,7 @@ async fn apply_selected_offer<F: Clone + Send + Sync>(
         }),
         card_bin: offer_pmd
             .as_ref()
-            .and_then(|offer_pmd| offer_pmd.get_card_iin()),
+            .and_then(|offer_pmd| offer_pmd.get_bin_prefix(offer_engine::MAX_CARD_BIN_LENGTH)),
         card_type: offer_card.and_then(|card| card.card_type.clone()),
         bank_code: offer_card.and_then(|card| card.bank_code.clone()),
         card_country: offer_card.and_then(|card| card.card_issuing_country.clone()),

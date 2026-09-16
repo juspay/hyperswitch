@@ -45,6 +45,11 @@ impl CardBin {
         self.0.chars().take(6).collect()
     }
 
+    /// The leading `len` digits of the BIN, or all of them when fewer were provided
+    pub fn get_bin_prefix(&self, len: usize) -> String {
+        self.0.chars().take(len).collect()
+    }
+
     /// Every blocklist-relevant prefix derivable from this BIN: lengths
     /// [`MIN_CARD_BIN_LENGTH`] up to the number of digits actually provided
     /// (capped at [`MAX_CARD_BIN_LENGTH`]).
@@ -80,7 +85,8 @@ impl<'de> Deserialize<'de> for CardBin {
 }
 
 impl CardNumber {
-    fn get_bin_prefix(&self, len: usize) -> String {
+    /// The leading `len` digits of the card number
+    pub fn get_bin_prefix(&self, len: usize) -> String {
         self.0.peek().chars().take(len).collect::<String>()
     }
 
@@ -411,6 +417,21 @@ mod tests {
             CardNumber::from_str(s).unwrap_err().to_string(),
             "invalid card number length".to_string()
         );
+    }
+
+    #[test]
+    fn bin_prefix_from_card_number() {
+        let card_number = CardNumber::from_str("4111111111111111").unwrap();
+        assert_eq!(card_number.get_bin_prefix(6), "411111");
+        assert_eq!(card_number.get_bin_prefix(9), "411111111");
+    }
+
+    #[test]
+    fn bin_prefix_from_card_bin() {
+        let eight_digit_bin = CardBin::from_str("41111111").unwrap();
+        assert_eq!(eight_digit_bin.get_bin_prefix(6), "411111");
+        // capped by the digits actually provided
+        assert_eq!(eight_digit_bin.get_bin_prefix(9), "41111111");
     }
 
     #[test]

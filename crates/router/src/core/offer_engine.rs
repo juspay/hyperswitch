@@ -20,6 +20,10 @@ pub enum SupportedPaymentMethodType {
     Card,
 }
 
+/// Longest card BIN Offer Engine accepts. It matches any prefix from 6 digits up to the length
+/// we send, so sending the longest BIN lets 7-9 digit BIN filters match too.
+pub const MAX_CARD_BIN_LENGTH: usize = 9;
+
 pub fn is_supported_payment_method_type(payment_method_type: &str) -> bool {
     payment_method_type
         .parse::<SupportedPaymentMethodType>()

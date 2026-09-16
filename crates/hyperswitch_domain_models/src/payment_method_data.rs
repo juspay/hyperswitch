@@ -402,6 +402,11 @@ impl EligibilityCardBin {
         self.card_bin.get_card_isin()
     }
 
+    /// The leading `len` digits of the BIN, or all of them when fewer were provided
+    pub fn get_bin_prefix(&self, len: usize) -> String {
+        self.card_bin.get_bin_prefix(len)
+    }
+
     /// Every blocklist-relevant prefix derivable from this BIN (lengths 6 up to the
     /// number of digits provided)
     pub fn get_blocklist_bin_prefixes(&self) -> Vec<String> {
@@ -442,6 +447,14 @@ impl EligibilityPaymentMethodData {
         match self {
             Self::Card(card) => Some(card.card_number.get_card_isin()),
             Self::CardBin(card_bin) => Some(card_bin.get_card_isin()),
+            _ => None,
+        }
+    }
+
+    pub fn get_bin_prefix(&self, len: usize) -> Option<String> {
+        match self {
+            Self::Card(card) => Some(card.card_number.get_bin_prefix(len)),
+            Self::CardBin(card_bin) => Some(card_bin.get_bin_prefix(len)),
             _ => None,
         }
     }
