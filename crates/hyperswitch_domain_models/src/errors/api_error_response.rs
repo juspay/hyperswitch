@@ -735,7 +735,7 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
                 reason,
                 field_names,
                 connector_transaction_id
-            } => AER::InternalServerError(ApiError::new(
+            } => AER::DomainError(ApiError::new(
                 "IE",
                 0,
                 format!("{reason} as data mismatched for {field_names}"),

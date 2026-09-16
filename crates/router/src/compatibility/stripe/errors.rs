@@ -812,7 +812,7 @@ impl actix_web::ResponseError for StripeErrorCode {
             Self::ExternalConnectorError { status_code, .. } => {
                 StatusCode::from_u16(*status_code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)
             }
-            Self::IntegrityCheckFailed { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::IntegrityCheckFailed { .. } => StatusCode::OK,
             Self::PaymentBlockedError { code, .. } => {
                 StatusCode::from_u16(*code).unwrap_or(StatusCode::OK)
             }
