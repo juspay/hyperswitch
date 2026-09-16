@@ -645,6 +645,70 @@ where
     ))
 }
 
+/// Record a UCS pre-call rejection as a failed payment attempt.
+///
+/// UCS can reject a request before the connector is called (unsupported payment
+/// method, unimplemented flow). `complete_connector_service` returns the mapped API
+/// error without touching the trackers, so the attempt and intent would keep their
+/// in-flight state. Write the rejection through the normal `PaymentResponse`
+/// post-update tracker so the payment state moves; the caller then returns the API
+/// error. A tracker write failure is logged and swallowed — the API error is the
+/// contract and is returned regardless.
+#[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
+async fn record_ucs_rejected_attempt<F, FData, D>(
+    state: &SessionState,
+    processor: &domain::Processor,
+    payment_data: D,
+    failed_attempt_router_data: RouterData<F, FData, router_types::PaymentsResponseData>,
+    api_error: &error_stack::Report<errors::ApiErrorResponse>,
+    locale: &Option<String>,
+    #[cfg(feature = "dynamic_routing")] routable_connectors: Vec<
+        api_models::routing::RoutableConnectorChoice,
+    >,
+    #[cfg(feature = "dynamic_routing")] business_profile: &domain::Profile,
+    dimensions: &DimensionsWithProcessorAndProviderMerchantId,
+) -> RouterResult<()>
+where
+    F: Send + Clone + Sync + Debug + 'static,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+    PaymentResponse: Operation<F, FData, Data = D>,
+    FData: Send + Sync + Clone + router_types::Capturable + 'static + serde::Serialize,
+{
+    let status_code = {
+        use actix_web::ResponseError;
+        api_error.current_context().status_code().as_u16()
+    };
+    let mut error_response: hyperswitch_domain_models::router_data::ErrorResponse =
+        api_error.current_context().clone().into();
+    error_response.status_code = status_code;
+    let mut failed_router_data = failed_attempt_router_data;
+    failed_router_data.response = Err(error_response);
+    failed_router_data.connector_http_status_code = Some(status_code);
+
+    // Record through the same tracker the normal path uses.
+    let operation = Box::new(PaymentResponse);
+    if let Err(tracker_error) = operation
+        .to_post_update_tracker()?
+        .update_tracker(
+            state,
+            processor,
+            payment_data,
+            failed_router_data,
+            locale,
+            #[cfg(feature = "dynamic_routing")]
+            routable_connectors,
+            #[cfg(feature = "dynamic_routing")]
+            business_profile,
+            dimensions,
+        )
+        .await
+    {
+        logger::error!(?tracker_error, "failed to record the rejected attempt");
+    }
+    Ok(())
+}
+
 #[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
 #[instrument(skip_all, fields(payment_id, merchant_id))]
@@ -1099,39 +1163,20 @@ where
                         Err(api_error) => {
                             // Record the rejected attempt, then return the mapped error so the
                             // API returns the error response instead of a payment object.
-                            let status_code = {
-                                use actix_web::ResponseError;
-                                api_error.current_context().status_code().as_u16()
-                            };
-                            let mut error_response: hyperswitch_domain_models::router_data::ErrorResponse =
-                                api_error.current_context().clone().into();
-                            error_response.status_code = status_code;
-                            let mut failed_router_data = failed_attempt_router_data;
-                            failed_router_data.response = Err(error_response);
-                            failed_router_data.connector_http_status_code = Some(status_code);
-                            // Record through the same tracker the normal path uses.
-                            let operation = Box::new(PaymentResponse);
-                            if let Err(tracker_error) = operation
-                                .to_post_update_tracker()?
-                                .update_tracker(
-                                    state,
-                                    platform.get_processor(),
-                                    payment_data,
-                                    failed_router_data,
-                                    &locale,
-                                    #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
-                                    routable_connectors,
-                                    #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
-                                    &business_profile,
-                                    &dimensions.without_profile_id(),
-                                )
-                                .await
-                            {
-                                logger::error!(
-                                    ?tracker_error,
-                                    "failed to record the rejected attempt"
-                                );
-                            }
+                            record_ucs_rejected_attempt(
+                                state,
+                                platform.get_processor(),
+                                payment_data,
+                                failed_attempt_router_data,
+                                &api_error,
+                                &locale,
+                                #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+                                routable_connectors,
+                                #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+                                &business_profile,
+                                &dimensions.without_profile_id(),
+                            )
+                            .await?;
                             return Err(api_error);
                         }
                     };
@@ -1331,39 +1376,20 @@ where
                         Err(api_error) => {
                             // Record the rejected attempt, then return the mapped error so the
                             // API returns the error response instead of a payment object.
-                            let status_code = {
-                                use actix_web::ResponseError;
-                                api_error.current_context().status_code().as_u16()
-                            };
-                            let mut error_response: hyperswitch_domain_models::router_data::ErrorResponse =
-                                api_error.current_context().clone().into();
-                            error_response.status_code = status_code;
-                            let mut failed_router_data = failed_attempt_router_data;
-                            failed_router_data.response = Err(error_response);
-                            failed_router_data.connector_http_status_code = Some(status_code);
-                            // Record through the same tracker the normal path uses.
-                            let operation = Box::new(PaymentResponse);
-                            if let Err(tracker_error) = operation
-                                .to_post_update_tracker()?
-                                .update_tracker(
-                                    state,
-                                    platform.get_processor(),
-                                    payment_data,
-                                    failed_router_data,
-                                    &locale,
-                                    #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
-                                    routable_connectors,
-                                    #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
-                                    &business_profile,
-                                    &dimensions.without_profile_id(),
-                                )
-                                .await
-                            {
-                                logger::error!(
-                                    ?tracker_error,
-                                    "failed to record the rejected attempt"
-                                );
-                            }
+                            record_ucs_rejected_attempt(
+                                state,
+                                platform.get_processor(),
+                                payment_data,
+                                failed_attempt_router_data,
+                                &api_error,
+                                &locale,
+                                #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+                                routable_connectors,
+                                #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+                                &business_profile,
+                                &dimensions.without_profile_id(),
+                            )
+                            .await?;
                             return Err(api_error);
                         }
                     };
