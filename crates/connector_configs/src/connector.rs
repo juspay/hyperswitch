@@ -733,3 +733,54 @@ impl ConnectorConfig {
         }
     }
 }
+
+#[cfg(test)]
+mod toml_config_tests {
+    use super::ConnectorConfig;
+
+    /// Every environment's config, parsed in a single run.
+    ///
+    /// `ConnectorConfig::new` picks exactly one of these by cargo feature, so a
+    /// job that builds without `--features production` never parses
+    /// `production.toml` at all. That is how a dropped array header shipped: the
+    /// file compiles (it is `include_str!`, not parsed at build time), CI is
+    /// green, and the failure appears only when a production binary calls
+    /// `get_connector_config` — for *every* connector, because `new` parses the
+    /// whole file in one `toml::from_str` and both entry points propagate with
+    /// `?`. Listing the files explicitly is what makes one CI run cover all three.
+    const ENVIRONMENT_CONFIGS: [(&str, &str); 3] = [
+        ("development.toml", include_str!("../toml/development.toml")),
+        ("sandbox.toml", include_str!("../toml/sandbox.toml")),
+        ("production.toml", include_str!("../toml/production.toml")),
+    ];
+
+    /// Deserializing one of these files needs more stack than a test thread is
+    /// given by default: the configs are ~7k lines of deeply nested tables and a
+    /// debug build's serde frames are large, so parsing on the default 2 MiB
+    /// stack aborts with a stack overflow before any assertion runs. Release
+    /// frames are smaller, which is why `ConnectorConfig::new` is fine in the
+    /// binaries that call it. 16 MiB is generous and keeps the test honest —
+    /// shrinking the input to fit would stop it being the real file.
+    const PARSE_STACK_BYTES: usize = 16 * 1024 * 1024;
+
+    #[test]
+    fn every_environment_config_parses() {
+        let parse = std::thread::Builder::new()
+            .stack_size(PARSE_STACK_BYTES)
+            .spawn(|| {
+                for (file, contents) in ENVIRONMENT_CONFIGS {
+                    if let Err(err) = toml::from_str::<ConnectorConfig>(contents) {
+                        panic!(
+                            "crates/connector_configs/toml/{file} does not parse, so every \
+                             connector's config lookup fails in that environment: {err}"
+                        );
+                    }
+                }
+            })
+            .expect("spawning the parse thread");
+
+        if let Err(panic) = parse.join() {
+            std::panic::resume_unwind(panic);
+        }
+    }
+}
