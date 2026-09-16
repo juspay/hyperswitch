@@ -2,7 +2,8 @@
 
 diesel::table! {
     alerts_dicts (id) {
-        id -> Uuid,
+        #[max_length = 64]
+        id -> Varchar,
         #[max_length = 64]
         name -> Varchar,
         #[max_length = 255]

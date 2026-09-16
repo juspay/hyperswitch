@@ -40,7 +40,6 @@ serde_path_to_error = "0.1.17"
 thiserror = "1.0.69"
 time = { version = "0.3.41", features = ["std"] }
 tokio = { version = "1.48.0", features = ["macros", "rt-multi-thread"] }
-uuid = "1.17.0"
 
 # First Party Crates
 api_models = { version = "0.1.0", path = "../api_models" }

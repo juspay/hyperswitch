@@ -12,7 +12,7 @@ use time::PrimitiveDateTime;
 #[derive(Clone, Debug, Deserialize)]
 pub struct AlertsDictsCreateRequest {
     pub name: String,
-    pub key_: String,
+    pub key: String,
     pub product: Option<Value>,
     pub values_: Value,
     pub username: Option<String>,
@@ -23,7 +23,7 @@ pub struct AlertsDictsCreateRequest {
 #[derive(Clone, Debug, Deserialize)]
 pub struct AlertsDictsListRequest {
     pub name: Option<String>,
-    pub key_: Option<String>,
+    pub key: Option<String>,
     pub is_enabled: Option<bool>,
 }
 
@@ -44,7 +44,7 @@ pub struct AlertsDictsDeleteRequest {
 pub struct AlertsDictsResponse {
     pub id: String,
     pub name: String,
-    pub key_: String,
+    pub key: String,
     pub product: Option<Value>,
     pub values_: Option<Value>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]

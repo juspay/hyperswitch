@@ -49,7 +49,7 @@ impl AlertsDicts {
         name: &str,
         key_: &str,
         keep: i64,
-    ) -> StorageResult<Vec<uuid::Uuid>> {
+    ) -> StorageResult<Vec<String>> {
         let query = Self::table()
             .select(dsl::id)
             .filter(
@@ -75,7 +75,7 @@ impl AlertsDicts {
 
     pub async fn delete_by_ids(
         conn: &DatabaseConnectionWithContext<'_>,
-        ids: Vec<uuid::Uuid>,
+        ids: Vec<String>,
     ) -> StorageResult<usize> {
         let query = diesel::delete(Self::table().filter(dsl::id.eq_any(ids)));
 
@@ -94,7 +94,7 @@ impl AlertsDicts {
 
     pub async fn find_by_id(
         conn: &DatabaseConnectionWithContext<'_>,
-        id: uuid::Uuid,
+        id: String,
     ) -> StorageResult<Self> {
         generics::generic_find_by_id::<<Self as HasTable>::Table, _, _>(conn, id).await
     }
@@ -131,7 +131,7 @@ impl AlertsDicts {
 
     pub async fn delete_by_id(
         conn: &DatabaseConnectionWithContext<'_>,
-        id: uuid::Uuid,
+        id: String,
     ) -> StorageResult<bool> {
         generics::generic_delete::<<Self as HasTable>::Table, _>(conn, dsl::id.eq(id)).await
     }
