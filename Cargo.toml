@@ -8,6 +8,15 @@ package.license = "Apache-2.0"
 [workspace.dependencies]
 tracing = { version = "0.1.41" }
 
+# Patched at the workspace level, not via per-crate `git` deps, because
+# deja-diesel (pulled in by the `deja` feature) also depends on
+# `async-bb8-diesel = "0.3.0"` from crates.io. A per-crate git dep would leave
+# two distinct copies of the crate in the build graph - different Rust types
+# despite an identical version and `T` - and break wherever deja-diesel and
+# our own storage code meet (e.g. `diesel_models::query::generics`).
+[patch.crates-io]
+async-bb8-diesel = { git = "https://github.com/sai-harsha-vardhan/async-bb8-diesel", rev = "96e9895fb314f6af94897410f5fe30f9d2e18d4c" }
+
 # Most of the lint configuration is based on https://github.com/EmbarkStudios/rust-ecosystem/blob/main/lints.toml
 [workspace.lints.rust]
 unsafe_code = "forbid"
