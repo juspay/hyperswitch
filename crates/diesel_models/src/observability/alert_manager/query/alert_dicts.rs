@@ -8,7 +8,7 @@ use router_env::logger;
 use crate::{
     errors::DatabaseError,
     observability::{
-        alerts_dicts::{AlertsDicts, AlertsDictsNew},
+        alert_manager::alert_dicts::{AlertsDicts, AlertsDictsNew},
         schema::alerts_dicts::dsl,
     },
     query::{

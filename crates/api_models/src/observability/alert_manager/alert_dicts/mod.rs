@@ -10,7 +10,6 @@ use time::PrimitiveDateTime;
 /// `values_` is not `Option`, so a missing key fails to parse while `null` parses and is stored as
 /// an empty array.
 #[derive(Clone, Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct AlertsDictsCreateRequest {
     pub name: String,
     pub key_: String,
@@ -22,7 +21,6 @@ pub struct AlertsDictsCreateRequest {
 
 /// The query of `GET /alerts/alerts_manager/dicts`.
 #[derive(Clone, Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct AlertsDictsListRequest {
     pub name: Option<String>,
     pub key_: Option<String>,

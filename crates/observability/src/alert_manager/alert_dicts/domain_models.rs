@@ -1,14 +1,14 @@
 //! The mappers dictionary: small named lists looked up by `(name, key_)`. Every save disables the
 //! live row and inserts a new one, so a value here is always a version rather than an edit.
 
-use api_models::observability::alerts_dicts as api;
+use api_models::observability::alert_manager::alert_dicts as api;
 use common_utils::date_time;
-use diesel_models::observability::alerts_dicts as storage;
+use diesel_models::observability::alert_manager::alert_dicts as storage;
 use error_stack::ResultExt;
 use serde_json::Value;
 use time::PrimitiveDateTime;
 
-use super::{optional_text, required_text};
+use crate::domain_models::utils::{optional_text, required_text};
 use crate::errors::{ObservabilityApiResult, ObservabilityError};
 
 const NAME_MAX_CHARS: usize = 64;

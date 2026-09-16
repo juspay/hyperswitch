@@ -1,11 +1,11 @@
 //! Storage operations on `alerts_dicts`.
 
 use async_bb8_diesel::AsyncConnection;
-use diesel_models::{observability::alerts_dicts as storage, StorageResult};
+use diesel_models::{observability::alert_manager::alert_dicts as storage, StorageResult};
 
 use crate::{
     db::{Store, TransactionError},
-    domain_models::alerts_dicts as domain_models,
+    domain_models::alert_manager::alert_dicts::domain_models,
 };
 
 /// r-apps' `OFFSET 2`: the live row plus one older version.
