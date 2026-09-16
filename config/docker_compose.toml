@@ -147,6 +147,7 @@ mock_locker = true
 locker_enabled = true
 ttl_for_storage_in_secs = 220752000
 create_entity_on_merchant_create = false
+plain_fingerprint_response = true
 
 [jwekey]
 vault_encryption_key = ""
@@ -155,6 +156,8 @@ vault_private_key = ""
 [redis]
 host = "redis-standalone"
 port = 6379
+# username = "default"  # Optional ACL username for authenticated Redis; requires `password`
+# password = ""         # Optional password for authenticated Redis (AUTH)
 cluster_enabled = false
 cluster_urls = ["redis-cluster:6379"]
 pool_size = 5

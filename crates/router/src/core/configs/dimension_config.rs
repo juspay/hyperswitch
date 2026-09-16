@@ -962,6 +962,27 @@ impl DatabaseBackedConfig for OfferEngineCredentialSource {
     const KEY: &'static str = "offer_engine.credential_source";
 }
 
+config! {
+    superposition_key = MERCHANT_INTEGRATION_TYPE,
+    output = common_enums::MerchantIntegrationType,
+    default = common_enums::MerchantIntegrationType::Client,
+    string_enum = true,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+    targeting_key = id_type::PaymentId
+}
+
+impl DatabaseBackedConfig for MerchantIntegrationType {
+    const KEY: &'static str = "system.payment_integration_type";
+
+    // Superposition gets both merchant ids; this is only the `configs`-table fallback, keyed on
+    // the processor merchant like `requires_cvv` and `client_session_validation_enabled`.
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_processor_merchant_id()
+            .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
+    }
+}
+
 #[cfg(feature = "v2")]
 config! {
     superposition_key = ACCOUNT_UPDATER_ENABLED,
