@@ -345,6 +345,7 @@ export const connectorDetails = {
     }),
     PaymentMethodIdMandateNo3DSAutoCapture: getCustomExchange({
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: verifiedCardDetails,
@@ -367,6 +368,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: verifiedCardDetails,
@@ -378,6 +380,7 @@ export const connectorDetails = {
     }),
     PaymentMethodIdMandate3DSAutoCapture: getCustomExchange({
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: threeDsCardDetails,
@@ -400,6 +403,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: threeDsCardDetails,
