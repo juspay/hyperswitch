@@ -3132,7 +3132,6 @@ dependencies = [
  "r2d2",
  "serde_json",
  "time 0.3.41",
- "uuid",
 ]
 
 [[package]]
@@ -3180,7 +3179,6 @@ dependencies = [
  "strum 0.26.3",
  "thiserror 1.0.69",
  "time 0.3.41",
- "uuid",
 ]
 
 [[package]]
@@ -6537,7 +6535,6 @@ dependencies = [
  "clap 4.5.38",
  "common_utils",
  "config",
- "diesel",
  "diesel_models",
  "error-stack 0.4.1",
  "external_services",
