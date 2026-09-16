@@ -241,7 +241,7 @@ jobs:
       # TEMPORARY — guarded to this branch only so it's inert on every other
       # PR. Revert this commit for the warm run (restore-only, no re-save).
       - name: Save cargo/target cache to S3 (temporary experiment)
-        if: ${{ always() && github.head_ref == 'ci/fix-rust-build-cache' }}
+        if: false  # WARM RUN: save disabled, restore stays active — see cold-vs-warm experiment
         continue-on-error: true
         shell: bash
         run: |
@@ -365,7 +365,7 @@ jobs:
       # TEMPORARY — guarded to this branch only so it's inert on every other
       # PR. Revert this commit for the warm run (restore-only, no re-save).
       - name: Save cargo/target cache to S3 (temporary experiment)
-        if: ${{ always() && github.head_ref == 'ci/fix-rust-build-cache' }}
+        if: false  # WARM RUN: save disabled, restore stays active — see cold-vs-warm experiment
         continue-on-error: true
         shell: bash
         run: |
