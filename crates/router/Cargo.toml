@@ -74,7 +74,6 @@ release = [
     "encryption_service",
     "dynamic_routing",
     "payout_retry",
-    "deja",
 ]
 oltp = ["storage_impl/oltp"]
 kv_store = ["scheduler/kv_store"]
