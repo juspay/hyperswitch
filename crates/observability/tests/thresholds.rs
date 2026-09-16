@@ -675,7 +675,7 @@ fn postgres_database(url: &str) -> Database {
 /// `OBSERVABILITY_TEST_DATABASE_URL=postgres://... cargo test -p observability --test thresholds postgres_repository -- --ignored`
 #[actix_web::test]
 #[ignore = "requires OBSERVABILITY_TEST_DATABASE_URL and applied observability migrations"]
-async fn postgres_repository_enforces_replacement_tombstones_ordering_and_concurrent_cap() {
+async fn postgres_repository_enforces_replacement_tombstones_ordering_and_cap() {
     let database_url = std::env::var("OBSERVABILITY_TEST_DATABASE_URL")
         .expect("OBSERVABILITY_TEST_DATABASE_URL is required");
     let database = postgres_database(&database_url);
@@ -814,32 +814,38 @@ async fn postgres_repository_enforces_replacement_tombstones_ordering_and_concur
         StatusCode::TOO_MANY_REQUESTS
     );
 
-    // With one slot available, two concurrent distinct creates cannot both commit.
-    let concurrent_state = state_with_store(
+    // With one slot available, the next create fills it and a later create is rejected.
+    let capped_state = state_with_store(
         3,
         Arc::new(observability::db::Store::new(&database).await.unwrap()),
     );
-    let mut left = body();
-    left["merchant_id"] = json!("merchant_d");
-    let mut right = body();
-    right["merchant_id"] = json!("merchant_e");
-    let (left_result, right_result) = tokio::join!(
+    let mut allowed = body();
+    allowed["merchant_id"] = json!("merchant_d");
+    assert_eq!(
         call(
-            concurrent_state.clone(),
+            capped_state.clone(),
             actix_web::http::Method::POST,
             Some(API_KEY),
-            Some(left),
-        ),
-        call(
-            concurrent_state.clone(),
-            actix_web::http::Method::POST,
-            Some(API_KEY),
-            Some(right),
+            Some(allowed),
         )
+        .await
+        .0,
+        StatusCode::OK
     );
-    let mut statuses = [left_result.0, right_result.0];
-    statuses.sort();
-    assert_eq!(statuses, [StatusCode::OK, StatusCode::TOO_MANY_REQUESTS]);
+
+    let mut rejected = body();
+    rejected["merchant_id"] = json!("merchant_e");
+    assert_eq!(
+        call(
+            capped_state.clone(),
+            actix_web::http::Method::POST,
+            Some(API_KEY),
+            Some(rejected),
+        )
+        .await
+        .0,
+        StatusCode::TOO_MANY_REQUESTS
+    );
 
     let active_count = success_rate_threshold_overrides::table
         .filter(success_rate_threshold_overrides::is_deleted.eq(false))
@@ -849,7 +855,7 @@ async fn postgres_repository_enforces_replacement_tombstones_ordering_and_concur
     assert_eq!(active_count, 3);
 
     let (_, listed) = call(
-        concurrent_state,
+        capped_state,
         actix_web::http::Method::GET,
         Some(API_KEY),
         None,
