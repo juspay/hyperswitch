@@ -89,11 +89,11 @@ jobs:
     env:
       RUSTFLAGS: "-D warnings"
       RUSTC_WRAPPER: sccache
-      # EXPERIMENT: local-disk sccache backend (zero network calls per compile
-      # unit) instead of SCCACHE_GHA_ENABLED, persisted across runs with a
-      # single bulk actions/cache restore/save — same I/O shape as rust-cache,
-      # but content-addressed per compilation unit instead of one whole-tree
-      # blob keyed on Cargo.lock.
+      # sccache on local disk (zero network calls per compile unit), persisted
+      # across runs via a single bulk actions/cache restore — same I/O shape
+      # as rust-cache, but content-addressed per compilation unit instead of
+      # one whole-tree blob keyed on Cargo.lock. PRs restore-only; only the
+      # push build in CI-push.yml writes this key.
       SCCACHE_DIR: ${{ github.workspace }}/.sccache
 
     strategy:
@@ -136,11 +136,10 @@ jobs:
 
       - name: Restore sccache local cache
         uses: actions/cache/restore@v4
+        continue-on-error: true
         with:
           path: ${{ env.SCCACHE_DIR }}
-          key: sccache-local-check-msrv-${{ github.run_id }}
-          restore-keys: |
-            sccache-local-check-msrv-
+          key: sccache-local-check-msrv
 
       - name: Run cargo check
         shell: bash
@@ -150,16 +149,6 @@ jobs:
         if: always()
         shell: bash
         run: sccache --show-stats
-
-      # TEMPORARY - REVERT BEFORE MERGE.
-      # Guarded to this branch name so this PR can save+restore its own local
-      # cache to measure cold vs. warm without waiting for a merge to main.
-      - name: Save sccache local cache
-        if: ${{ always() && github.head_ref == 'ci/sccache-migration' }}
-        uses: actions/cache/save@v4
-        with:
-          path: ${{ env.SCCACHE_DIR }}
-          key: sccache-local-check-msrv-${{ github.run_id }}
 
   test:
     name: Run tests on stable toolchain
