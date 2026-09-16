@@ -88,6 +88,11 @@ jobs:
 
     env:
       RUSTFLAGS: "-D warnings"
+      RUSTC_WRAPPER: sccache
+      SCCACHE_GHA_ENABLED: "true"
+      # PRs restore from main's cache but never write to it, matching the old
+      # rust-cache `save-if: false` policy — only push/merge builds save.
+      SCCACHE_GHA_RW_MODE: READ_ONLY
 
     strategy:
       fail-fast: false
@@ -121,14 +126,17 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install rust cache
-        uses: Swatinem/rust-cache@v2.9.1
-        with:
-          save-if: false
+      - name: Install sccache
+        uses: mozilla-actions/sccache-action@v0.0.11
 
       - name: Run cargo check
         shell: bash
         run: cargo check --features "release"
+
+      - name: Show sccache stats
+        if: always()
+        shell: bash
+        run: sccache --show-stats
 
   test:
     name: Run tests on stable toolchain
@@ -216,6 +224,11 @@ jobs:
       - name: Run cargo check
         shell: bash
         run: cargo check --features "release"
+
+      - name: Show sccache stats
+        if: always()
+        shell: bash
+        run: sccache --show-stats
 
   typos:
     name: Spell check
@@ -313,3 +326,8 @@ jobs:
         env:
           RUSTFLAGS: "-A warnings"
         run: cargo check --no-default-features --features "release,v2,fred"
+
+      - name: Show sccache stats
+        if: always()
+        shell: bash
+        run: sccache --show-stats
