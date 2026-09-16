@@ -300,9 +300,11 @@ describe("Card - SingleUse Mandates flow test", () => {
       cy.retrievePaymentCallTest({ globalState, data });
     });
 
-    it("Customer delete call", () => {
-      cy.customerDeleteCall(globalState);
-    });
+    // No "Customer delete call" here: the CIT above uses payment_type
+    // "setup_mandate", which creates a Mandate record that stays Active.
+    // delete_customer refuses to delete a customer with an active mandate
+    // (crates/router/src/core/customers.rs), so this customer can't be
+    // cleaned up this way.
   });
 
   context(
@@ -435,18 +437,11 @@ describe("Card - SingleUse Mandates flow test", () => {
         cy.retrievePaymentCallTest({ globalState, data });
       });
 
-      it("Customer delete call", function () {
-        if (
-          utils.shouldIncludeConnector(
-            globalState.get("connectorId"),
-            utils.CONNECTOR_LISTS.INCLUDE.ZERO_AUTH_MANDATE
-          )
-        ) {
-          this.skip();
-        }
-
-        cy.customerDeleteCall(globalState);
-      });
+      // No "Customer delete call" here: the CIT above uses payment_type
+      // "setup_mandate", which creates a Mandate record that stays Active.
+      // delete_customer refuses to delete a customer with an active mandate
+      // (crates/router/src/core/customers.rs), so this customer can't be
+      // cleaned up this way.
     }
   );
 });
