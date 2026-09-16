@@ -22,6 +22,18 @@ impl DbPool {
             Self::AccountsReplica => "accounts_replica",
         }
     }
+
+    /// Whether this pool is expected to serve the writable primary instance.
+    ///
+    /// Used to decide whether connections should be validated with
+    /// `ConnectionManager::require_writer` (rejecting a connection that
+    /// turns out to be a read replica, e.g. right after a failover).
+    pub fn is_writer(self) -> bool {
+        match self {
+            Self::Master | Self::AccountsMaster => true,
+            Self::Replica | Self::AccountsReplica => false,
+        }
+    }
 }
 
 // The fields are underscore-prefixed because the handles are never read directly.

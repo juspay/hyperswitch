@@ -24,7 +24,10 @@ pub async fn diesel_make_pg_pool(
     tenant_id: &common_utils::id_type::TenantId,
 ) -> PgPool {
     let database_url = database.get_database_url(schema);
-    let manager = async_bb8_diesel::ConnectionManager::<DejaPgConnection>::new(database_url);
+    let mut manager = async_bb8_diesel::ConnectionManager::<DejaPgConnection>::new(database_url);
+    if db_pool.is_writer() {
+        manager = manager.require_writer();
+    }
     let pool = bb8::Pool::builder()
         .max_size(database.pool_size)
         .connection_timeout(std::time::Duration::from_secs(database.connection_timeout));

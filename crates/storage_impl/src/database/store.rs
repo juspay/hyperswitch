@@ -232,7 +232,10 @@ pub async fn diesel_make_pg_pool(
     tenant_id: &id_type::TenantId,
 ) -> StorageResult<PgPool> {
     let database_url = database.get_database_url(schema);
-    let manager = async_bb8_diesel::ConnectionManager::<DejaPgConnection>::new(database_url);
+    let mut manager = async_bb8_diesel::ConnectionManager::<DejaPgConnection>::new(database_url);
+    if db_pool.is_writer() {
+        manager = manager.require_writer();
+    }
     let mut pool = bb8::Pool::builder()
         .max_size(database.max_pool_size)
         .min_idle(Some(database.min_idle_pool_size))

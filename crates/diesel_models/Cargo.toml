@@ -16,7 +16,7 @@ tokenization_v2 = []
 deja = ["dep:deja", "deja/diesel-pg"]
 
 [dependencies]
-async-bb8-diesel = "0.3.0"
+async-bb8-diesel = { git = "https://github.com/sai-harsha-vardhan/async-bb8-diesel", rev = "96e9895fb314f6af94897410f5fe30f9d2e18d4c" }
 base64 = "0.22.1"
 bb8 = "0.9.1"
 diesel = { version = "2.3.12", features = ["postgres", "serde_json", "time", "128-column-tables", "i-implement-a-third-party-backend-and-opt-into-breaking-changes"] }
