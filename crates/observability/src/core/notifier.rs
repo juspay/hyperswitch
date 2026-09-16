@@ -1,13 +1,6 @@
-//! Per-request notification logic: resolve a destination, hand the message over, report what
-//! happened.
-//!
-//! The whole of it is "look up the id, call the notifier". That is deliberate — the crate is a
-//! pipe, and anything more here would be a decision the caller should have made. What the layer
-//! buys is a seam a handler can be tested against without HTTP, and one place where "unknown
-//! destination" is turned into an error rather than repeated per route.
-
 use error_stack::report;
-use hyperswitch_masking::PeekInterface;
+use external_services::chat_service::ChatBanner;
+use hyperswitch_masking::{ExposeInterface, PeekInterface};
 
 use crate::{
     domain::notifier::{
@@ -19,7 +12,6 @@ use crate::{
     types::{ChatNotifyRequest, ChatUploadRequest, EmailNotifyRequest},
 };
 
-/// Deliver a chat message to the named destination.
 pub async fn notify_chat(
     state: AppState,
     destination: &str,
@@ -36,11 +28,14 @@ pub async fn notify_chat(
         .notify(ChatNotification {
             text: request.text,
             reply_to: request.reply_to,
+            banner: request
+                .heading
+                .zip(request.severity)
+                .map(|(heading, severity)| ChatBanner::new(heading.expose(), severity.into())),
         })
         .await
 }
 
-/// Upload a file to the named chat destination.
 pub async fn upload_chat_file(
     state: AppState,
     destination: &str,
@@ -72,7 +67,6 @@ pub async fn upload_chat_file(
         .await
 }
 
-/// Deliver an email to the named destination.
 pub async fn notify_email(
     state: AppState,
     destination: &str,
