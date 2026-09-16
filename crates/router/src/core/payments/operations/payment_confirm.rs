@@ -257,7 +257,15 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 )
                 .await
             }
-            .in_current_span(),
+            // A DISTINCT span, not `.in_current_span()`. These two futures are
+            // spawned side by side and race, so the order their database calls
+            // land in is whatever the scheduler chose. Sharing the caller's span
+            // makes them indistinguishable to anything reading the trace: same
+            // call site, same span path, separable only by the order that is not
+            // stable. A record/replay comparison then pairs them positionally and
+            // reports a transposition as two behaviour changes. Naming each fork
+            // states the concurrency that is already there.
+            .instrument(tracing::info_span!("shipping_address")),
         );
 
         let m_merchant_id = processor_merchant_id.clone();
@@ -285,7 +293,15 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 )
                 .await
             }
-            .in_current_span(),
+            // A DISTINCT span, not `.in_current_span()`. These two futures are
+            // spawned side by side and race, so the order their database calls
+            // land in is whatever the scheduler chose. Sharing the caller's span
+            // makes them indistinguishable to anything reading the trace: same
+            // call site, same span path, separable only by the order that is not
+            // stable. A record/replay comparison then pairs them positionally and
+            // reports a transposition as two behaviour changes. Naming each fork
+            // states the concurrency that is already there.
+            .instrument(tracing::info_span!("billing_address")),
         );
 
         let store = state.clone().store;

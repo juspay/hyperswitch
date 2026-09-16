@@ -4675,7 +4675,16 @@ pub fn generate_mandate(
                 .set_connector_mandate_id(
                     mandate_reference.and_then(|reference| reference.connector_mandate_id),
                 )
-                .set_merchant_connector_id(merchant_connector_id);
+                .set_merchant_connector_id(merchant_connector_id)
+                // Supplied rather than left to the column's `DEFAULT now()`.
+                // `MandateNew::created_at` is an `Option`, so leaving it unset
+                // makes diesel omit the column and postgres fill it — a clock
+                // read that happens inside the database, after the statement has
+                // left this process, where no instrumentation can reach it. The
+                // row then reads back with the time it was inserted rather than
+                // the time it was recorded. Every other table whose default was
+                // dropped in 2023 supplies this field; `mandate` was missed.
+                .set_created_at(Some(common_utils::date_time::now()));
 
             Ok(Some(
                 match data.mandate_type.get_required_value("mandate_type")? {
