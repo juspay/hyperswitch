@@ -7,9 +7,9 @@ diesel::table! {
         #[max_length = 64]
         name -> Varchar,
         #[max_length = 255]
-        key_ -> Varchar,
+        key -> Varchar,
         product -> Nullable<Json>,
-        values_ -> Nullable<Json>,
+        values -> Nullable<Json>,
         ts_created -> Nullable<Timestamp>,
         is_enabled -> Nullable<Bool>,
         #[max_length = 64]

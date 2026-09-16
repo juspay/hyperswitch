@@ -1,12 +1,11 @@
 //! Storage operations on `alerts_dicts`.
 
 use async_bb8_diesel::AsyncConnection;
-use diesel_models::{observability::alert_manager::alert_dicts as storage, StorageResult};
-
-use crate::{
-    db::{Store, TransactionError},
-    domain_models::alert_manager::alert_dicts::domain_models,
+use diesel_models::{
+    errors::TransactionError, observability::alert_manager::alert_dicts as storage, StorageResult,
 };
+
+use crate::{db::Store, domain_models::alert_manager::alert_dicts::domain_models};
 
 /// r-apps' `OFFSET 2`: the live row plus one older version.
 const VERSIONS_KEPT: i64 = 2;
@@ -14,7 +13,7 @@ const VERSIONS_KEPT: i64 = 2;
 /// Storage operations on the mappers dictionary.
 #[async_trait::async_trait]
 pub trait AlertsDictsInterface {
-    /// Disable the live row for `(name, key_)`, insert the new one as the live row, and keep only
+    /// Disable the live row for `(name, key)`, insert the new one as the live row, and keep only
     /// the newest [`VERSIONS_KEPT`] versions. All in one transaction.
     async fn insert_alert_dict_version(
         &self,
@@ -41,7 +40,7 @@ impl AlertsDictsInterface for Store {
         new: domain_models::AlertsDictsNew,
     ) -> StorageResult<domain_models::AlertsDicts> {
         let connection = self.connection().await?;
-        let (name, key_, new) = (
+        let (name, key, new) = (
             new.name.clone(),
             new.key.clone(),
             storage::AlertsDictsNew::from(new),
@@ -52,12 +51,12 @@ impl AlertsDictsInterface for Store {
         connection
             .raw_connection()
             .transaction_async(move |_| async move {
-                storage::AlertsDicts::demote_enabled_by_name_key(connection, &name, &key_).await?;
+                storage::AlertsDicts::demote_enabled_by_name_key(connection, &name, &key).await?;
                 let stored = new.insert(connection).await?;
                 let superseded = storage::AlertsDicts::find_superseded_ids_by_name_key(
                     connection,
                     &name,
-                    &key_,
+                    &key,
                     VERSIONS_KEPT,
                 )
                 .await?;

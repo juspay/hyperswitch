@@ -6,7 +6,7 @@
 //! Distinct from [`crate::domain`], which holds the traits and the types they exchange: `domain`
 //! says what delivering an alert *is*, `core` says what one HTTP request does about it.
 
-#[path = "alert_manager/mod.rs"]
+#[path = "alert_manager.rs"]
 pub mod alert_manager;
 pub mod cloudwatch;
 pub mod notifier;
