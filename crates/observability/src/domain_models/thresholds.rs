@@ -1,7 +1,7 @@
 //! Validated threshold override domain models and layer conversions.
 
-use api_models::observability::thresholds as api;
-use diesel_models::observability::thresholds as storage;
+use api_models::observability::alert_manager::thresholds as api;
+use diesel_models::observability::alert_manager::thresholds as storage;
 use error_stack::{report, ResultExt};
 use time::PrimitiveDateTime;
 
@@ -42,24 +42,24 @@ pub enum ThresholdUpsertOutcome {
     ActiveRuleLimitReached,
 }
 
+fn validate_non_empty(field: &str, value: &str) -> ObservabilityApiResult<()> {
+    if value.trim().is_empty() {
+        return Err(report!(ObservabilityError::InvalidRequest))
+            .attach_printable(format!("{field} must not be empty"));
+    }
+    Ok(())
+}
+
 fn validate_key_and_actor(
     name: &str,
     product: &str,
     merchant_id: &str,
     updated_by: &str,
 ) -> ObservabilityApiResult<()> {
-    for (field, value) in [
-        ("name", name),
-        ("product", product),
-        ("merchant_id", merchant_id),
-        ("updated_by", updated_by),
-    ] {
-        if value.trim().is_empty() {
-            return Err(report!(ObservabilityError::InvalidRequest))
-                .attach_printable(format!("{field} must not be empty"));
-        }
-    }
-    Ok(())
+    validate_non_empty("name", name)?;
+    validate_non_empty("product", product)?;
+    validate_non_empty("merchant_id", merchant_id)?;
+    validate_non_empty("updated_by", updated_by)
 }
 
 fn validate_numbers(values: [Option<f64>; 4]) -> ObservabilityApiResult<()> {

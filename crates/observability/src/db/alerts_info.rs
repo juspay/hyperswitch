@@ -1,6 +1,6 @@
 //! Storage operations on `alerts_info`.
 
-use diesel_models::{observability::alerts_info as storage, StorageResult};
+use diesel_models::{observability::alert_manager::alerts_info as storage, StorageResult};
 
 use crate::{db::Store, domain_models::alerts_info as domain_models};
 

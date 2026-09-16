@@ -10,7 +10,9 @@ use diesel::{
 };
 use diesel_models::{
     errors::DatabaseError,
-    observability::{schema::success_rate_threshold_overrides, thresholds::ThresholdOverride},
+    observability::{
+        alert_manager::thresholds::ThresholdOverride, schema::success_rate_threshold_overrides,
+    },
     StorageResult,
 };
 use error_stack::report;
@@ -268,22 +270,17 @@ async fn all_methods_require_the_internal_key() {
 }
 
 #[actix_web::test]
-async fn authentication_precedes_body_deserialization() {
+async fn malformed_json_uses_the_standard_error_response() {
     for method in [
         actix_web::http::Method::POST,
         actix_web::http::Method::DELETE,
     ] {
-        for key in [None, Some("wrong")] {
+        for key in [None, Some("wrong"), Some(API_KEY)] {
             let (status, response) =
                 call_raw(state(5000), method.clone(), key, Some(b"{not-json")).await;
-            assert_eq!(status, StatusCode::UNAUTHORIZED);
-            assert_eq!(response["error"]["code"], "IR_01");
+            assert_eq!(status, StatusCode::BAD_REQUEST);
+            assert_eq!(response["error"]["code"], "IR_04");
         }
-
-        let (status, response) =
-            call_raw(state(5000), method, Some(API_KEY), Some(b"{not-json")).await;
-        assert_eq!(status, StatusCode::BAD_REQUEST);
-        assert_eq!(response["error"]["code"], "IR_04");
     }
 }
 

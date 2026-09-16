@@ -1,6 +1,8 @@
 //! Per-request logic for alert definitions.
 
-use api_models::observability::alerts_info::{AlertsInfoCreateRequest, AlertsInfoResponse};
+use api_models::observability::alert_manager::alerts_info::{
+    AlertsInfoCreateRequest, AlertsInfoResponse,
+};
 use error_stack::ResultExt;
 
 use crate::{

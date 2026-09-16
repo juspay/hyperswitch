@@ -1,22 +1,11 @@
 //! Authenticated threshold override handlers.
 
 use actix_web::{web, HttpRequest, HttpResponse};
-use api_models::observability::thresholds::{ThresholdDeleteRequest, ThresholdUpsertRequest};
-use error_stack::{report, ResultExt};
-use serde::de::DeserializeOwned;
-
-use crate::{
-    auth, core,
-    errors::{ObservabilityApiResult, ObservabilityError},
-    services,
-    state::AppState,
+use api_models::observability::alert_manager::thresholds::{
+    ThresholdDeleteRequest, ThresholdUpsertRequest,
 };
 
-fn deserialize<T: DeserializeOwned>(payload: &[u8]) -> ObservabilityApiResult<T> {
-    serde_json::from_slice(payload)
-        .map_err(|_| report!(ObservabilityError::InvalidRequest))
-        .attach_printable("The request body could not be parsed")
-}
+use crate::{auth, core, services, state::AppState};
 
 pub async fn list(state: web::Data<AppState>, request: HttpRequest) -> HttpResponse {
     services::server_wrap(
@@ -32,15 +21,13 @@ pub async fn list(state: web::Data<AppState>, request: HttpRequest) -> HttpRespo
 pub async fn upsert(
     state: web::Data<AppState>,
     request: HttpRequest,
-    payload: web::Bytes,
+    payload: web::Json<ThresholdUpsertRequest>,
 ) -> HttpResponse {
     services::server_wrap(
         state.get_ref().clone(),
         &request,
-        payload,
-        |state, payload| async move {
-            core::thresholds::upsert(state, deserialize::<ThresholdUpsertRequest>(&payload)?).await
-        },
+        payload.into_inner(),
+        core::thresholds::upsert,
         &auth::InternalApiKeyAuth,
     )
     .await
@@ -49,15 +36,13 @@ pub async fn upsert(
 pub async fn delete(
     state: web::Data<AppState>,
     request: HttpRequest,
-    payload: web::Bytes,
+    payload: web::Json<ThresholdDeleteRequest>,
 ) -> HttpResponse {
     services::server_wrap(
         state.get_ref().clone(),
         &request,
-        payload,
-        |state, payload| async move {
-            core::thresholds::delete(state, deserialize::<ThresholdDeleteRequest>(&payload)?).await
-        },
+        payload.into_inner(),
+        core::thresholds::delete,
         &auth::InternalApiKeyAuth,
     )
     .await

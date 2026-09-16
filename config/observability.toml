@@ -53,10 +53,6 @@ pool_size = 5
 min_idle_pool_size = 1
 connection_timeout = 10
 
-# Global cap across all active threshold names and products. Set to 0 or less to disable.
-[limits]
-max_active_threshold_rules = 5000
-
 # Outbound HTTP proxy, if the pod cannot reach chat providers directly. A deployment fact, so it
 # lives here once rather than on each destination.
 [proxy]

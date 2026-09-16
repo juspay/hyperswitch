@@ -1,6 +1,6 @@
 //! Per-request logic for threshold overrides.
 
-use api_models::observability::thresholds::{
+use api_models::observability::alert_manager::thresholds::{
     ThresholdDeleteRequest, ThresholdDeleteResponse, ThresholdListResponse, ThresholdResponse,
     ThresholdUpsertRequest, ThresholdUpsertResponse,
 };

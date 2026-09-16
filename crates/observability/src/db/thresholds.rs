@@ -1,6 +1,6 @@
 //! Storage operations for success-rate threshold overrides.
 
-use diesel_models::{observability::thresholds as storage, StorageResult};
+use diesel_models::{observability::alert_manager::thresholds as storage, StorageResult};
 
 use crate::{db::Store, domain_models::thresholds as domain};
 

@@ -10,6 +10,7 @@ pub struct ThresholdDeleteRequest {
     pub name: String,
     pub product: String,
     pub merchant_id: String,
+    /// Empty means the override applies to every profile for the merchant.
     #[serde(default)]
     pub profile_id: String,
     pub updated_by: String,
@@ -22,6 +23,7 @@ pub struct ThresholdUpsertRequest {
     pub name: String,
     pub product: String,
     pub merchant_id: String,
+    /// Empty means the override applies to every profile for the merchant.
     #[serde(default)]
     pub profile_id: String,
     pub min_volume: Option<f64>,

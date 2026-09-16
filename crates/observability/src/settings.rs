@@ -76,7 +76,9 @@ pub struct Settings<S: SecretState> {
     pub limits: Limits,
 }
 
-/// Limits applied by the storage transaction. Non-positive values disable the cap.
+const MAX_ACTIVE_THRESHOLD_RULES: i64 = 5000;
+
+/// Limits applied to mutable observability state.
 #[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
 pub struct Limits {
@@ -86,7 +88,7 @@ pub struct Limits {
 impl Default for Limits {
     fn default() -> Self {
         Self {
-            max_active_threshold_rules: 5000,
+            max_active_threshold_rules: MAX_ACTIVE_THRESHOLD_RULES,
         }
     }
 }

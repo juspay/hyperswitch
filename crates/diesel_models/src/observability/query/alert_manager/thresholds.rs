@@ -5,8 +5,10 @@ use error_stack::report;
 use crate::{
     errors::DatabaseError,
     observability::{
+        alert_manager::thresholds::{
+            ThresholdOverride, ThresholdOverrideNew, ThresholdUpsertOutcome,
+        },
         schema::success_rate_threshold_overrides::{self, dsl},
-        thresholds::{ThresholdOverride, ThresholdOverrideNew, ThresholdUpsertOutcome},
     },
     DatabaseConnectionWithContext, StorageResult,
 };
