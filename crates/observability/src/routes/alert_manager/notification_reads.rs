@@ -1,5 +1,5 @@
 use actix_web::{web, HttpRequest, HttpResponse};
-use api_models::observability::notification_reads::{
+use api_models::observability::alert_manager::notification_reads::{
     NotificationReadsRetrieveRequest, NotificationReadsUpsertRequest,
 };
 
@@ -14,7 +14,7 @@ pub async fn retrieve(
         state.get_ref().clone(),
         &request,
         query.into_inner(),
-        core::notification_reads::retrieve_notification_read,
+        core::alert_manager::notification_reads::retrieve_notification_read,
         &auth::InternalApiKeyAuth,
     )
     .await
@@ -29,7 +29,7 @@ pub async fn upsert(
         state.get_ref().clone(),
         &request,
         payload.into_inner(),
-        core::notification_reads::upsert_notification_read,
+        core::alert_manager::notification_reads::upsert_notification_read,
         &auth::InternalApiKeyAuth,
     )
     .await

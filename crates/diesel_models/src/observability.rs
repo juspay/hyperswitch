@@ -4,8 +4,8 @@
 //! owns, with its own migration lineage under `crates/observability/migrations` and its own diesel
 //! configuration in `diesel_observability.toml`.
 
+pub mod alert_manager;
 pub mod alerts_dicts;
 pub mod alerts_info;
-pub mod notification_reads;
 pub mod query;
 pub mod schema;

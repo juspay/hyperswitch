@@ -14,9 +14,9 @@
 //! applies here: there is one database, no tenants, no replica, no Redis-backed storage scheme and
 //! no encrypted columns.
 
+pub mod alert_manager;
 pub mod alerts_dicts;
 pub mod alerts_info;
-pub mod notification_reads;
 
 use std::{sync::Arc, time::Duration};
 
@@ -38,7 +38,7 @@ pub trait StorageInterface:
     + Sync
     + alerts_info::AlertsInfoInterface
     + alerts_dicts::AlertsDictsInterface
-    + notification_reads::NotificationReadsInterface
+    + alert_manager::notification_reads::NotificationReadsInterface
 {
 }
 

@@ -1,10 +1,10 @@
-use api_models::observability::notification_reads::{
+use api_models::observability::alert_manager::notification_reads::{
     NotificationReadsResponse, NotificationReadsRetrieveRequest, NotificationReadsUpsertRequest,
 };
 use error_stack::ResultExt;
 
 use crate::{
-    domain_models::notification_reads::NotificationReadsNew,
+    domain_models::alert_manager::notification_reads::NotificationReadsNew,
     errors::{ObservabilityApiResult, ObservabilityError, StorageErrorExt},
     state::AppState,
 };

@@ -5,7 +5,7 @@ use error_stack::ResultExt;
 use crate::{
     errors,
     observability::{
-        notification_reads::{NotificationReads, NotificationReadsNew},
+        alert_manager::notification_reads::{NotificationReads, NotificationReadsNew},
         schema::notification_reads::dsl,
     },
     query::generics,

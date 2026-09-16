@@ -1,6 +1,6 @@
-use diesel_models::{observability::notification_reads as storage, StorageResult};
+use diesel_models::{observability::alert_manager::notification_reads as storage, StorageResult};
 
-use crate::{db::Store, domain_models::notification_reads as domain_models};
+use crate::{db::Store, domain_models::alert_manager::notification_reads as domain_models};
 
 #[async_trait::async_trait]
 pub trait NotificationReadsInterface {

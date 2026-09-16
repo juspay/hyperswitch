@@ -7,9 +7,9 @@
 //!
 //! Distinct from [`crate::domain`], which holds the traits that say what delivering an alert *is*.
 
+pub mod alert_manager;
 pub mod alerts_dicts;
 pub mod alerts_info;
-pub mod notification_reads;
 
 use error_stack::{report, ResultExt};
 

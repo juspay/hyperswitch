@@ -1,9 +1,9 @@
-use api_models::observability::notification_reads as api;
+use api_models::observability::alert_manager::notification_reads as api;
 use common_utils::date_time;
-use diesel_models::observability::notification_reads as storage;
+use diesel_models::observability::alert_manager::notification_reads as storage;
 use time::PrimitiveDateTime;
 
-use super::{optional_text, LONG_TEXT_MAX_CHARS};
+use crate::domain_models::{optional_text, LONG_TEXT_MAX_CHARS};
 use crate::errors::{ObservabilityApiResult, ObservabilityError};
 
 #[derive(Clone, Debug)]
