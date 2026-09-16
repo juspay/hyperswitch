@@ -147,6 +147,7 @@ mock_locker = true
 locker_enabled = true
 ttl_for_storage_in_secs = 220752000
 create_entity_on_merchant_create = false
+plain_fingerprint_response = true
 
 [jwekey]
 vault_encryption_key = ""
@@ -155,6 +156,8 @@ vault_private_key = ""
 [redis]
 host = "redis-standalone"
 port = 6379
+# username = "default"  # Optional ACL username for authenticated Redis; requires `password`
+# password = ""         # Optional password for authenticated Redis (AUTH)
 cluster_enabled = false
 cluster_urls = ["redis-cluster:6379"]
 pool_size = 5
@@ -241,6 +244,7 @@ dwolla.base_url = "https://api-sandbox.dwolla.com"
 ebanx.base_url = "https://sandbox.ebanxpay.com/"
 elavon.base_url = "https://api.demo.convergepay.com/VirtualMerchantDemo/"
 envoy.base_url = "https://www.envoytx.com/MerchantAPI.asmx"
+etisalat.base_url = "https://demo-ipg.ctdev.comtrust.ae:2443"
 facilitapay.base_url = "https://sandbox-api.facilitapay.com/api/v1"
 finix.base_url = "https://finix.sandbox-payments-api.com"
 fiserv.base_url = "https://cert.api.fiservapps.com/"
@@ -277,6 +281,7 @@ katapult.base_url = "https://sandbox.katapult.com/api/v3"
 jpmorgan.secondary_base_url="https://id.payments.jpmorgan.com"
 klarna.base_url = "https://api{{klarna_region}}.playground.klarna.com/"
 loonio.base_url = "https://integration.loonio.ca/"
+merchante.base_url = "https://cert.merchante-solutions.com/mes-api/tridentApi"
 mifinity.base_url = "https://demo.mifinity.com/"
 mollie.base_url = "https://api.mollie.com/v2/"
 moneris.base_url = "https://api.sb.moneris.io"

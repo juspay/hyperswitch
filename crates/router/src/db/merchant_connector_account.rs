@@ -248,6 +248,8 @@ mod merchant_connector_account_cache_tests {
             additional_merchant_data: None,
             version: common_types::consts::API_VERSION,
             connector_webhook_registration_details: None,
+            apple_pay_certificates: None,
+            apple_pay_certificates_encrypted: None,
         };
 
         db.insert_merchant_connector_account(mca.clone(), &merchant_key)

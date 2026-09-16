@@ -43,6 +43,7 @@ pub mod dwolla;
 pub mod ebanx;
 pub mod elavon;
 pub mod envoy;
+pub mod etisalat;
 pub mod facilitapay;
 pub mod finix;
 pub mod fiserv;
@@ -75,6 +76,7 @@ pub mod juspaythreedsserver;
 pub mod katapult;
 pub mod klarna;
 pub mod loonio;
+pub mod merchante;
 pub mod mifinity;
 pub mod mollie;
 pub mod moneris;
@@ -168,21 +170,21 @@ pub use self::{
     custombilling::Custombilling, cybersource::Cybersource,
     cybersourcedecisionmanager::Cybersourcedecisionmanager, datatrans::Datatrans,
     deutschebank::Deutschebank, digitalvirgo::Digitalvirgo, dlocal::Dlocal, dwolla::Dwolla,
-    ebanx::Ebanx, elavon::Elavon, envoy::Envoy, facilitapay::Facilitapay, finix::Finix,
-    fiserv::Fiserv, fiservcommercehub::Fiservcommercehub, fiservemea::Fiservemea, fiuu::Fiuu,
-    flexiti::Flexiti, forte::Forte, getnet::Getnet, gigadat::Gigadat, givepayments::Givepayments,
-    globalpay::Globalpay, globepay::Globepay, gocardless::Gocardless, gotyme_sanlam::GotymeSanlam,
-    gpayments::Gpayments, helcim::Helcim, hipay::Hipay, hyperpg::Hyperpg,
-    hyperswitch_vault::HyperswitchVault, hyperwallet::Hyperwallet, iatapay::Iatapay,
-    ilixium::Ilixium, imerchantsolutions::Imerchantsolutions, inespay::Inespay,
+    ebanx::Ebanx, elavon::Elavon, envoy::Envoy, etisalat::Etisalat, facilitapay::Facilitapay,
+    finix::Finix, fiserv::Fiserv, fiservcommercehub::Fiservcommercehub, fiservemea::Fiservemea,
+    fiuu::Fiuu, flexiti::Flexiti, forte::Forte, getnet::Getnet, gigadat::Gigadat,
+    givepayments::Givepayments, globalpay::Globalpay, globepay::Globepay, gocardless::Gocardless,
+    gotyme_sanlam::GotymeSanlam, gpayments::Gpayments, helcim::Helcim, hipay::Hipay,
+    hyperpg::Hyperpg, hyperswitch_vault::HyperswitchVault, hyperwallet::Hyperwallet,
+    iatapay::Iatapay, ilixium::Ilixium, imerchantsolutions::Imerchantsolutions, inespay::Inespay,
     interpayments::Interpayments, itaubank::Itaubank, jpmorgan::Jpmorgan,
     juspaythreedsserver::Juspaythreedsserver, katapult::Katapult, klarna::Klarna, loonio::Loonio,
-    mifinity::Mifinity, mollie::Mollie, moneris::Moneris, mpgs::Mpgs, multisafepay::Multisafepay,
-    netcetera::Netcetera, nexinets::Nexinets, nexixpay::Nexixpay, nmi::Nmi, nomupay::Nomupay,
-    noon::Noon, nordea::Nordea, novalnet::Novalnet, nuvei::Nuvei, opayo::Opayo, opennode::Opennode,
-    paybox::Paybox, payconex::Payconex, payeezy::Payeezy, payjustnow::Payjustnow,
-    payjustnowinstore::Payjustnowinstore, payload::Payload, payme::Payme, payone::Payone,
-    paypal::Paypal, paysafe::Paysafe, paystack::Paystack, paytm::Paytm, payu::Payu,
+    merchante::Merchante, mifinity::Mifinity, mollie::Mollie, moneris::Moneris, mpgs::Mpgs,
+    multisafepay::Multisafepay, netcetera::Netcetera, nexinets::Nexinets, nexixpay::Nexixpay,
+    nmi::Nmi, nomupay::Nomupay, noon::Noon, nordea::Nordea, novalnet::Novalnet, nuvei::Nuvei,
+    opayo::Opayo, opennode::Opennode, paybox::Paybox, payconex::Payconex, payeezy::Payeezy,
+    payjustnow::Payjustnow, payjustnowinstore::Payjustnowinstore, payload::Payload, payme::Payme,
+    payone::Payone, paypal::Paypal, paysafe::Paysafe, paystack::Paystack, paytm::Paytm, payu::Payu,
     peachpayments::Peachpayments, phonepe::Phonepe, placetopay::Placetopay, plaid::Plaid,
     powertranz::Powertranz, prophetpay::Prophetpay, rapyd::Rapyd, razorpay::Razorpay,
     recurly::Recurly, redsys::Redsys, revolv3::Revolv3, riskified::Riskified,
