@@ -179,8 +179,9 @@ impl From<LifecycleEvent> for api::LifecycleEventResponse {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use time::macros::datetime;
+
+    use super::*;
 
     fn request() -> api::LifecycleEventRequest {
         api::LifecycleEventRequest {
