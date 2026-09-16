@@ -529,7 +529,6 @@ impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
             connector_details.and_then(|details| details.code.clone())
         {
             let attempt_status = match response.status() {
-                payments_grpc::PaymentStatus::Unspecified => None,
                 _ => Some(AttemptStatus::foreign_try_from((
                     response.status(),
                     prev_status,
