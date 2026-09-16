@@ -3086,6 +3086,9 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
         .transpose()?
         .unwrap_or(payment_attempt);
 
+    // Own span per fork, not the caller's: these are joined together, so a
+    // shared span leaves them separable only by scheduler order and a
+    // record/replay comparison reads a transposition as a behaviour change.
     let payment_attempt_fut = tokio::spawn(
         async move {
             Box::pin(async move {
@@ -3106,7 +3109,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             })
             .await
         }
-        .in_current_span(),
+        .instrument(tracing::debug_span!("payment_attempt")),
     );
 
     payment_data.payment_attempt = payment_attempt;
@@ -3166,7 +3169,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             .map(|x| x.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound))
             .await
         }
-        .in_current_span(),
+        .instrument(tracing::debug_span!("payment_intent")),
     );
 
     // When connector requires redirection for mandate creation it can update the connector mandate_id during Psync and CompleteAuthorize
@@ -3196,7 +3199,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             )
             .await
         }
-        .in_current_span(),
+        .instrument(tracing::debug_span!("mandate_update")),
     );
 
     let (payment_intent, _, payment_attempt) = futures::try_join!(
