@@ -214,6 +214,13 @@ jobs:
           echo "S3_CACHE_BUCKET=${SCCACHE_BUCKET:-}" >> "$GITHUB_ENV"
           echo "S3_CACHE_REGION=${SCCACHE_REGION:-}" >> "$GITHUB_ENV"
           echo "S3_CACHE_PREFIX=${SCCACHE_S3_KEY_PREFIX:-}" >> "$GITHUB_ENV"
+          # Not secrets (auth is via IAM role), but no reason to publish the
+          # bucket layout in a public repo's PR logs — including logs from
+          # fork PRs. Masking replaces this exact string everywhere in
+          # subsequent log output, including the runner's own step env dumps.
+          [ -n "${SCCACHE_BUCKET:-}" ] && echo "::add-mask::${SCCACHE_BUCKET}"
+          [ -n "${SCCACHE_REGION:-}" ] && echo "::add-mask::${SCCACHE_REGION}"
+          [ -n "${SCCACHE_S3_KEY_PREFIX:-}" ] && echo "::add-mask::${SCCACHE_S3_KEY_PREFIX}"
           echo "SCCACHE_BUCKET=" >> "$GITHUB_ENV"
           echo "SCCACHE_REGION=" >> "$GITHUB_ENV"
           echo "SCCACHE_S3_KEY_PREFIX=" >> "$GITHUB_ENV"
@@ -354,6 +361,13 @@ jobs:
           echo "S3_CACHE_BUCKET=${SCCACHE_BUCKET:-}" >> "$GITHUB_ENV"
           echo "S3_CACHE_REGION=${SCCACHE_REGION:-}" >> "$GITHUB_ENV"
           echo "S3_CACHE_PREFIX=${SCCACHE_S3_KEY_PREFIX:-}" >> "$GITHUB_ENV"
+          # Not secrets (auth is via IAM role), but no reason to publish the
+          # bucket layout in a public repo's PR logs — including logs from
+          # fork PRs. Masking replaces this exact string everywhere in
+          # subsequent log output, including the runner's own step env dumps.
+          [ -n "${SCCACHE_BUCKET:-}" ] && echo "::add-mask::${SCCACHE_BUCKET}"
+          [ -n "${SCCACHE_REGION:-}" ] && echo "::add-mask::${SCCACHE_REGION}"
+          [ -n "${SCCACHE_S3_KEY_PREFIX:-}" ] && echo "::add-mask::${SCCACHE_S3_KEY_PREFIX}"
           echo "SCCACHE_BUCKET=" >> "$GITHUB_ENV"
           echo "SCCACHE_REGION=" >> "$GITHUB_ENV"
           echo "SCCACHE_S3_KEY_PREFIX=" >> "$GITHUB_ENV"
