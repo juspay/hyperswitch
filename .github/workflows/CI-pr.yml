@@ -204,37 +204,21 @@ jobs:
           tool: sccache
           checksum: true
 
-      # Bucket/region/prefix come from this pod's own environment (managed
-      # outside this repo). Captured under new names here, then blanked below
-      # so sccache itself never makes a network call per compilation unit —
-      # only this job's own bulk restore/save talk to S3 (see PR #14253).
-      - name: Resolve S3 cache location, then disable sccache's native S3 backend
-        shell: bash
-        run: |
-          echo "S3_CACHE_BUCKET=${SCCACHE_BUCKET:-}" >> "$GITHUB_ENV"
-          echo "S3_CACHE_REGION=${SCCACHE_REGION:-}" >> "$GITHUB_ENV"
-          echo "S3_CACHE_PREFIX=${SCCACHE_S3_KEY_PREFIX:-}" >> "$GITHUB_ENV"
-          # Not secrets (auth is via IAM role), but no reason to publish the
-          # bucket layout in a public repo's PR logs — including logs from
-          # fork PRs. Masking replaces this exact string everywhere in
-          # subsequent log output, including the runner's own step env dumps.
-          [ -n "${SCCACHE_BUCKET:-}" ] && echo "::add-mask::${SCCACHE_BUCKET}"
-          [ -n "${SCCACHE_REGION:-}" ] && echo "::add-mask::${SCCACHE_REGION}"
-          [ -n "${SCCACHE_S3_KEY_PREFIX:-}" ] && echo "::add-mask::${SCCACHE_S3_KEY_PREFIX}"
-          echo "SCCACHE_BUCKET=" >> "$GITHUB_ENV"
-          echo "SCCACHE_REGION=" >> "$GITHUB_ENV"
-          echo "SCCACHE_S3_KEY_PREFIX=" >> "$GITHUB_ENV"
-
-      - name: Restore sccache local cache from S3
+      # EXPERIMENT: try GHA-backend bulk transfer on hyperswitch-runners too
+      # (like check-msrv, #14253), instead of the S3 aws-sync version this
+      # replaces. Same local-disk-during-compile idea, different transport —
+      # to sanity-check that transport isn't the reason test/check-v2 showed
+      # no net win over baseline (see SCCACHE_MIGRATION_REPORT.md), and
+      # because it sidesteps needing S3 write credentials on a pool that also
+      # runs fork PR code.
+      - name: Restore sccache local cache
         continue-on-error: true
-        shell: bash
-        run: |
-          mkdir -p "$SCCACHE_DIR"
-          if [ -n "$S3_CACHE_BUCKET" ]; then
-            aws s3 sync "s3://${S3_CACHE_BUCKET}/${S3_CACHE_PREFIX}local-cache/test/" "$SCCACHE_DIR" --no-progress --only-show-errors
-          else
-            echo "::warning::S3 cache bucket not configured on this runner; sccache starts cold"
-          fi
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ env.SCCACHE_DIR }}
+          key: sccache-gha-test-${{ github.run_id }}
+          restore-keys: |
+            sccache-gha-test-
 
       - name: Install just
         uses: taiki-e/install-action@v2
@@ -278,14 +262,13 @@ jobs:
       # TEMPORARY - REVERT BEFORE MERGE.
       # Guarded to this branch name so this PR can save+restore its own local
       # cache to measure cold vs. warm without waiting for a merge to main.
-      - name: Save sccache local cache to S3
+      - name: Save sccache local cache
         if: ${{ always() && github.head_ref == 'ci/sccache-migration' }}
         continue-on-error: true
-        shell: bash
-        run: |
-          if [ -n "$S3_CACHE_BUCKET" ]; then
-            aws s3 sync "$SCCACHE_DIR" "s3://${S3_CACHE_BUCKET}/${S3_CACHE_PREFIX}local-cache/test/" --no-progress --only-show-errors
-          fi
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ env.SCCACHE_DIR }}
+          key: sccache-gha-test-${{ github.run_id }}
 
   typos:
     name: Spell check
@@ -355,33 +338,16 @@ jobs:
           tool: sccache
           checksum: true
 
-      - name: Resolve S3 cache location, then disable sccache's native S3 backend
-        shell: bash
-        run: |
-          echo "S3_CACHE_BUCKET=${SCCACHE_BUCKET:-}" >> "$GITHUB_ENV"
-          echo "S3_CACHE_REGION=${SCCACHE_REGION:-}" >> "$GITHUB_ENV"
-          echo "S3_CACHE_PREFIX=${SCCACHE_S3_KEY_PREFIX:-}" >> "$GITHUB_ENV"
-          # Not secrets (auth is via IAM role), but no reason to publish the
-          # bucket layout in a public repo's PR logs — including logs from
-          # fork PRs. Masking replaces this exact string everywhere in
-          # subsequent log output, including the runner's own step env dumps.
-          [ -n "${SCCACHE_BUCKET:-}" ] && echo "::add-mask::${SCCACHE_BUCKET}"
-          [ -n "${SCCACHE_REGION:-}" ] && echo "::add-mask::${SCCACHE_REGION}"
-          [ -n "${SCCACHE_S3_KEY_PREFIX:-}" ] && echo "::add-mask::${SCCACHE_S3_KEY_PREFIX}"
-          echo "SCCACHE_BUCKET=" >> "$GITHUB_ENV"
-          echo "SCCACHE_REGION=" >> "$GITHUB_ENV"
-          echo "SCCACHE_S3_KEY_PREFIX=" >> "$GITHUB_ENV"
-
-      - name: Restore sccache local cache from S3
+      # EXPERIMENT: try GHA-backend bulk transfer here too (like check-msrv,
+      # #14253), instead of the S3 aws-sync version this replaces.
+      - name: Restore sccache local cache
         continue-on-error: true
-        shell: bash
-        run: |
-          mkdir -p "$SCCACHE_DIR"
-          if [ -n "$S3_CACHE_BUCKET" ]; then
-            aws s3 sync "s3://${S3_CACHE_BUCKET}/${S3_CACHE_PREFIX}local-cache/check-v2/" "$SCCACHE_DIR" --no-progress --only-show-errors
-          else
-            echo "::warning::S3 cache bucket not configured on this runner; sccache starts cold"
-          fi
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ env.SCCACHE_DIR }}
+          key: sccache-gha-check-v2-${{ github.run_id }}
+          restore-keys: |
+            sccache-gha-check-v2-
 
       - name: Install just
         uses: taiki-e/install-action@v2
@@ -421,11 +387,10 @@ jobs:
       # TEMPORARY - REVERT BEFORE MERGE.
       # Guarded to this branch name so this PR can save+restore its own local
       # cache to measure cold vs. warm without waiting for a merge to main.
-      - name: Save sccache local cache to S3
+      - name: Save sccache local cache
         if: ${{ always() && github.head_ref == 'ci/sccache-migration' }}
         continue-on-error: true
-        shell: bash
-        run: |
-          if [ -n "$S3_CACHE_BUCKET" ]; then
-            aws s3 sync "$SCCACHE_DIR" "s3://${S3_CACHE_BUCKET}/${S3_CACHE_PREFIX}local-cache/check-v2/" --no-progress --only-show-errors
-          fi
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ env.SCCACHE_DIR }}
+          key: sccache-gha-check-v2-${{ github.run_id }}
