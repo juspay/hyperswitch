@@ -10641,6 +10641,11 @@ pub struct SessionTokenInfo {
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
     #[serde(flatten)]
     pub payment_processing_details_at: Option<PaymentProcessingDetailsAt>,
+    /// Optional in the request, always populated (defaults to `raw`) in the response
+    #[serde(serialize_with = "serialize_payment_processing_detail_input_type")]
+    #[schema(value_type = Option<PaymentProcessingDetailInputType>)]
+    #[smithy(value_type = "Option<PaymentProcessingDetailInputType>")]
+    pub payment_processing_detail_input_type: Option<PaymentProcessingDetailInputType>,
 }
 
 #[derive(
@@ -10676,11 +10681,51 @@ pub struct PaymentProcessingDetails {
     pub payment_processing_certificate_key: Secret<String>,
 }
 
+/// Specifies how the Apple Pay payment processing details are supplied.
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    Default,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    ToSchema,
+    SmithyModel,
+)]
+#[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub enum PaymentProcessingDetailInputType {
+    /// The payment processing certificates are supplied as raw values.
+    #[default]
+    Raw,
+    /// The payment processing certificates are linked from an organization level resource.
+    LinkHierarchicalResource,
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct SessionTokenForSimplifiedApplePay {
     pub initiative_context: String,
     #[schema(value_type = Option<CountryAlpha2>)]
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
+}
+
+/// Serializes the payment processing detail input type in its unwrapped form, so that the response
+/// always carries a concrete value even when it was not provided in the request.
+// serde's `serialize_with` requires the function to accept a reference to the field.
+#[allow(clippy::trivially_copy_pass_by_ref)]
+fn serialize_payment_processing_detail_input_type<S>(
+    payment_processing_detail_input_type: &Option<PaymentProcessingDetailInputType>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    Serialize::serialize(
+        &payment_processing_detail_input_type.unwrap_or_default(),
+        serializer,
+    )
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -10839,7 +10884,7 @@ pub enum SessionToken {
 /// Top-level vault details returned in the session-tokens response.
 /// For v1: contains both internal vault (SDK authorization) and external vault details.
 /// For v2: contains only external vault details.
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct VaultDetails {
     /// Internal vault details containing the SDK authorization token (v1 only)
     pub internal_vault: Option<InternalVaultSessionDetails>,
@@ -10848,20 +10893,20 @@ pub struct VaultDetails {
 }
 
 /// Internal vault details for SDK authorization
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct InternalVaultSessionDetails {
     /// Base64-encoded SDK authorization token for the internal vault session
     pub sdk_authorization: String,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum VaultSessionDetails {
     Vgs(VgsSessionDetails),
     HyperswitchVault(HyperswitchVaultSessionDetails),
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct VgsSessionDetails {
     /// The identifier of the external vault
     #[schema(value_type = String)]
@@ -10870,7 +10915,7 @@ pub struct VgsSessionDetails {
     pub sdk_env: String,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct HyperswitchVaultSessionDetails {
     /// Base64-encoded SDK authorization token for the Hyperswitch Vault session
     #[schema(value_type = String)]
