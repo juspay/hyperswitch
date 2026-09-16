@@ -189,6 +189,9 @@ pub enum UnifiedConnectorServiceError {
         code: tonic::Code,
         /// Error message from UCS
         message: String,
+        /// Present only when the status was produced by the router's own transport layer
+        /// (the request never reached UCS). `None` for statuses returned by UCS.
+        transport: Option<Box<UcsTransportFailure>>,
     },
 
     /// Connector error received through UCS.
@@ -1935,7 +1938,128 @@ impl ForeignFrom<payments_grpc::UpiSource>
     }
 }
 
+/// Coarse class of a client-side gRPC transport failure toward UCS.
+///
+/// Derived from the `std::error::Error::source()` chain of the `tonic::Status`. Safe to expose in
+/// merchant-visible connector events: it carries no addresses or payload, only the failure kind.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum UcsTransportFailureClass {
+    /// Peer sent RST while we were writing: the connection was dead when the request was sent
+    ConnectionReset,
+    /// Write on a socket the peer had already closed
+    BrokenPipe,
+    /// hyper reported the connection closed before the request could be sent
+    ConnectionClosed,
+    /// HTTP/2 keepalive PING went unanswered and the connection was dropped
+    KeepAliveTimeout,
+    /// HTTP/2 protocol level error (GOAWAY with error, stream reset, framing)
+    H2ProtocolError,
+    /// A new dial was refused
+    ConnectRefused,
+    /// A new dial timed out
+    ConnectTimeout,
+    /// Name resolution failed while dialing
+    DnsFailure,
+    /// None of the above; see `source_chain`
+    Other,
+}
+
+impl UcsTransportFailureClass {
+    /// Stable snake_case label for events and metrics.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::ConnectionReset => "connection_reset",
+            Self::BrokenPipe => "broken_pipe",
+            Self::ConnectionClosed => "connection_closed",
+            Self::KeepAliveTimeout => "keepalive_timeout",
+            Self::H2ProtocolError => "h2_protocol_error",
+            Self::ConnectRefused => "connect_refused",
+            Self::ConnectTimeout => "connect_timeout",
+            Self::DnsFailure => "dns_failure",
+            Self::Other => "other",
+        }
+    }
+}
+
+/// Detail of a client-side transport failure toward UCS: what actually went wrong beneath the
+/// generic `transport error` that tonic surfaces.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UcsTransportFailure {
+    /// Coarse failure class; the only part meant for merchant-visible events
+    pub class: UcsTransportFailureClass,
+    /// Full `source()` chain, outermost first, root cause last. Internal logs only; may contain
+    /// internal addresses and OS error text.
+    pub source_chain: String,
+}
+
+impl UcsTransportFailure {
+    /// Builds from a `tonic::Status`. Returns `None` when the status has no error source, which is
+    /// the case for every status returned by UCS over the wire; only statuses produced by the local
+    /// transport (dial, write, keepalive) carry one.
+    pub fn from_status(status: &tonic::Status) -> Option<Self> {
+        let mut source: &(dyn std::error::Error + 'static) = std::error::Error::source(status)?;
+        let mut parts: Vec<String> = Vec::new();
+        let mut io_kind: Option<std::io::ErrorKind> = None;
+        loop {
+            if let Some(io_error) = source.downcast_ref::<std::io::Error>() {
+                io_kind = Some(io_error.kind());
+            }
+            parts.push(source.to_string());
+            match source.source() {
+                Some(next) => source = next,
+                None => break,
+            }
+        }
+        let source_chain = parts.join(" -> ");
+        let lowered = source_chain.to_ascii_lowercase();
+        let class = match io_kind {
+            Some(std::io::ErrorKind::ConnectionReset) => UcsTransportFailureClass::ConnectionReset,
+            Some(std::io::ErrorKind::BrokenPipe) => UcsTransportFailureClass::BrokenPipe,
+            Some(std::io::ErrorKind::ConnectionRefused) => UcsTransportFailureClass::ConnectRefused,
+            Some(std::io::ErrorKind::TimedOut) => UcsTransportFailureClass::ConnectTimeout,
+            _ if lowered.contains("keep-alive timed out") || lowered.contains("keepalive") => {
+                UcsTransportFailureClass::KeepAliveTimeout
+            }
+            _ if lowered.contains("dns error") || lowered.contains("failed to lookup") => {
+                UcsTransportFailureClass::DnsFailure
+            }
+            _ if lowered.contains("tcp connect error")
+                || lowered.contains("connection refused") =>
+            {
+                UcsTransportFailureClass::ConnectRefused
+            }
+            _ if lowered.contains("connection closed") || lowered.contains("closed before") => {
+                UcsTransportFailureClass::ConnectionClosed
+            }
+            _ if lowered.contains("connection reset") => UcsTransportFailureClass::ConnectionReset,
+            _ if lowered.contains("broken pipe") => UcsTransportFailureClass::BrokenPipe,
+            _ if lowered.contains("h2 protocol error")
+                || lowered.contains("http2 error")
+                || lowered.contains("goaway") =>
+            {
+                UcsTransportFailureClass::H2ProtocolError
+            }
+            _ => UcsTransportFailureClass::Other,
+        };
+        Some(Self {
+            class,
+            source_chain,
+        })
+    }
+}
+
 impl UnifiedConnectorServiceError {
+    /// Client-side transport failure detail, present only when the request never reached UCS.
+    pub fn transport_failure(&self) -> Option<&UcsTransportFailure> {
+        match self {
+            Self::TonicStatus {
+                transport: Some(transport),
+                ..
+            } => Some(transport.as_ref()),
+            _ => None,
+        }
+    }
+
     /// Converts tonic::Code to HTTP status code.
     pub fn tonic_to_http_status(code: tonic::Code) -> u16 {
         match code {
@@ -1999,6 +2123,7 @@ impl UnifiedConnectorServiceError {
             .unwrap_or_else(|| Self::TonicStatus {
                 code: status.code(),
                 message: status.message().to_string(),
+                transport: UcsTransportFailure::from_status(status).map(Box::new),
             })
     }
 
@@ -2187,7 +2312,7 @@ impl UnifiedConnectorServiceError {
 impl ErrorSwitch<ApiErrorResponse> for UnifiedConnectorServiceError {
     fn switch(&self) -> ApiErrorResponse {
         match self {
-            Self::TonicStatus { code, message } => match code {
+            Self::TonicStatus { code, message, .. } => match code {
                 tonic::Code::InvalidArgument | tonic::Code::FailedPrecondition => {
                     ApiErrorResponse::InvalidRequestData {
                         message: message.clone(),
@@ -2230,7 +2355,7 @@ impl ErrorSwitch<ConnectorError> for UnifiedConnectorServiceError {
             // recognize the error_code (or details were empty/undecodable).
             // Server errors → ResponseHandlingFailed, Unimplemented → NotImplemented,
             // anything else → RequestEncodingFailed as a safe client-error default.
-            Self::TonicStatus { code, message } => match code {
+            Self::TonicStatus { code, message, .. } => match code {
                 _ if Self::tonic_status_is_ucs_server_error(*code) => {
                     ConnectorError::ResponseHandlingFailed
                 }
@@ -2469,6 +2594,7 @@ mod ucs_kill_switch_reason_tests {
         UnifiedConnectorServiceError::TonicStatus {
             code,
             message: "from ucs".to_string(),
+            transport: None,
         }
     }
 

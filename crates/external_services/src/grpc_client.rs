@@ -136,7 +136,9 @@ impl GrpcClientSettings {
             .expect("Failed to build gRPC connections");
 
         let unified_connector_service_client =
-            UnifiedConnectorServiceClient::build_connections(self).await;
+            UnifiedConnectorServiceClient::build_connections(self)
+                .await
+                .expect("Failed to build the Unified Connector Service client from configuration");
 
         #[cfg(feature = "revenue_recovery")]
         let recovery_decider_client = {

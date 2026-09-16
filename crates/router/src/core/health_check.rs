@@ -223,15 +223,35 @@ impl HealthCheckInterface for app::SessionState {
     async fn health_check_unified_connector_service(
         &self,
     ) -> CustomResult<HealthState, errors::HealthCheckUnifiedConnectorServiceError> {
-        if let Some(_ucs_client) = &self.grpc_client.unified_connector_service_client {
-            // For now, we'll just check if the client exists and is configured
-            // In the future, this could be enhanced to make an actual health check call
-            // to the unified connector service if it supports health check endpoints
-            logger::debug!("Unified Connector Service client is configured and available");
-            Ok(HealthState::Running)
-        } else {
-            logger::debug!("Unified Connector Service client not configured");
-            Ok(HealthState::NotApplicable)
+        match &self.grpc_client.unified_connector_service_client {
+            Some(ucs_client) => {
+                let serving = ucs_client
+                    .health_check()
+                    .await
+                    .map_err(|status| {
+                        logger::error!(
+                            grpc_code = ?status.code(),
+                            grpc_message = %status.message(),
+                            "Unified Connector Service gRPC health check failed"
+                        );
+                        error_stack::report!(
+                            errors::HealthCheckUnifiedConnectorServiceError::FailedToCallUnifiedConnectorService
+                        )
+                    })?;
+                if serving {
+                    logger::debug!("Unified Connector Service reported SERVING");
+                    Ok(HealthState::Running)
+                } else {
+                    logger::error!("Unified Connector Service reported NOT_SERVING");
+                    Err(error_stack::report!(
+                        errors::HealthCheckUnifiedConnectorServiceError::FailedToCallUnifiedConnectorService
+                    ))
+                }
+            }
+            None => {
+                logger::debug!("Unified Connector Service client not configured");
+                Ok(HealthState::NotApplicable)
+            }
         }
     }
 }
