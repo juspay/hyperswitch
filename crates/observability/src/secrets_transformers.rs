@@ -141,6 +141,5 @@ pub async fn fetch_raw_secrets(
         email: conf.email,
         cloudwatch: conf.cloudwatch,
         database,
-        limits: conf.limits,
     }
 }

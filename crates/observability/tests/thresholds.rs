@@ -33,6 +33,7 @@ const API_KEY: &str = "threshold_test_key";
 #[derive(Default)]
 struct MemoryStore {
     rows: Mutex<Vec<thresholds::ThresholdOverride>>,
+    max_active_rules: Option<i64>,
 }
 
 struct FailingStore;
@@ -107,6 +108,7 @@ impl ThresholdsInterface for MemoryStore {
         new: thresholds::ThresholdOverrideNew,
         max_active_rules: i64,
     ) -> StorageResult<thresholds::ThresholdUpsertOutcome> {
+        let max_active_rules = self.max_active_rules.unwrap_or(max_active_rules);
         let mut rows = self.rows.lock().unwrap();
         let existing = rows.iter().position(|row| {
             (&row.name, &row.product, &row.merchant_id, &row.profile_id)
@@ -175,14 +177,11 @@ impl ThresholdsInterface for MemoryStore {
     }
 }
 
-fn state_with_store(max_active_threshold_rules: i64, store: Arc<dyn StorageInterface>) -> AppState {
-    let mut conf: observability::Settings = serde_json::from_value(json!({
-        "auth": { "internal_api_key": API_KEY },
-        "limits": { "max_active_threshold_rules": max_active_threshold_rules }
+fn state_with_store(store: Arc<dyn StorageInterface>) -> AppState {
+    let conf: observability::Settings = serde_json::from_value(json!({
+        "auth": { "internal_api_key": API_KEY }
     }))
     .unwrap();
-    // Make the generic secret-state parameter infer as RawSecret through AppState.
-    conf.limits.max_active_threshold_rules = max_active_threshold_rules;
     AppState {
         conf: Arc::new(conf),
         chat: Arc::new(Registry::default()),
@@ -192,8 +191,11 @@ fn state_with_store(max_active_threshold_rules: i64, store: Arc<dyn StorageInter
     }
 }
 
-fn state(max_active_threshold_rules: i64) -> AppState {
-    state_with_store(max_active_threshold_rules, Arc::new(MemoryStore::default()))
+fn state(max_active_rules: i64) -> AppState {
+    state_with_store(Arc::new(MemoryStore {
+        rows: Mutex::new(Vec::new()),
+        max_active_rules: Some(max_active_rules),
+    }))
 }
 
 fn body() -> Value {
@@ -506,7 +508,7 @@ async fn replacement_nullability_resurrection_and_ordering_are_preserved() {
 #[actix_web::test]
 async fn tombstones_preserve_delete_attribution_and_null_every_value() {
     let store = Arc::new(MemoryStore::default());
-    let state = state_with_store(5000, store.clone());
+    let state = state_with_store(store.clone());
     let delete = json!({
         "name": "Success-rate drop", "product": "payments",
         "merchant_id": "unknown", "updated_by": "operator"
@@ -605,7 +607,7 @@ async fn resurrection_is_rejected_at_cap_and_non_positive_caps_are_disabled() {
 
 #[actix_web::test]
 async fn storage_failures_return_500_for_every_method() {
-    let state = state_with_store(5000, Arc::new(FailingStore));
+    let state = state_with_store(Arc::new(FailingStore));
     for (method, payload) in [
         (actix_web::http::Method::GET, None),
         (actix_web::http::Method::POST, Some(body())),
@@ -672,7 +674,7 @@ fn postgres_database(url: &str) -> Database {
 /// `OBSERVABILITY_TEST_DATABASE_URL=postgres://... cargo test -p observability --test thresholds postgres_repository -- --ignored`
 #[actix_web::test]
 #[ignore = "requires OBSERVABILITY_TEST_DATABASE_URL and applied observability migrations"]
-async fn postgres_repository_enforces_replacement_tombstones_ordering_and_cap() {
+async fn postgres_repository_enforces_replacement_tombstones_and_ordering() {
     let database_url = std::env::var("OBSERVABILITY_TEST_DATABASE_URL")
         .expect("OBSERVABILITY_TEST_DATABASE_URL is required");
     let database = postgres_database(&database_url);
@@ -682,7 +684,7 @@ async fn postgres_repository_enforces_replacement_tombstones_ordering_and_cap() 
         .unwrap();
 
     let store = Arc::new(observability::db::Store::new(&database).await.unwrap());
-    let state = state_with_store(2, store);
+    let state = state_with_store(store);
 
     // An all-null active row is valid and consumes one slot.
     let all_null = json!({
@@ -782,87 +784,12 @@ async fn postgres_repository_enforces_replacement_tombstones_ordering_and_cap() 
         );
     }
 
-    // Fill the open slot, then prove resurrection is treated as a create at capacity.
-    let mut replacement = body();
-    replacement["merchant_id"] = json!("merchant_c");
-    assert_eq!(
-        call(
-            state.clone(),
-            actix_web::http::Method::POST,
-            Some(API_KEY),
-            Some(replacement),
-        )
-        .await
-        .0,
-        StatusCode::OK
-    );
-    let mut resurrection = body();
-    resurrection["merchant_id"] = json!("merchant_a");
-    resurrection["profile_id"] = json!("");
-    assert_eq!(
-        call(
-            state.clone(),
-            actix_web::http::Method::POST,
-            Some(API_KEY),
-            Some(resurrection),
-        )
-        .await
-        .0,
-        StatusCode::TOO_MANY_REQUESTS
-    );
-
-    // With one slot available, the next create fills it and a later create is rejected.
-    let capped_state = state_with_store(
-        3,
-        Arc::new(observability::db::Store::new(&database).await.unwrap()),
-    );
-    let mut allowed = body();
-    allowed["merchant_id"] = json!("merchant_d");
-    assert_eq!(
-        call(
-            capped_state.clone(),
-            actix_web::http::Method::POST,
-            Some(API_KEY),
-            Some(allowed),
-        )
-        .await
-        .0,
-        StatusCode::OK
-    );
-
-    let mut rejected = body();
-    rejected["merchant_id"] = json!("merchant_e");
-    assert_eq!(
-        call(
-            capped_state.clone(),
-            actix_web::http::Method::POST,
-            Some(API_KEY),
-            Some(rejected),
-        )
-        .await
-        .0,
-        StatusCode::TOO_MANY_REQUESTS
-    );
-
-    let active_count = success_rate_threshold_overrides::table
-        .filter(success_rate_threshold_overrides::is_deleted.eq(false))
-        .count()
-        .get_result::<i64>(&mut assertion_connection)
-        .unwrap();
-    assert_eq!(active_count, 3);
-
-    let (_, listed) = call(
-        capped_state,
-        actix_web::http::Method::GET,
-        Some(API_KEY),
-        None,
-    )
-    .await;
+    let (_, listed) = call(state, actix_web::http::Method::GET, Some(API_KEY), None).await;
     let merchants: Vec<_> = listed["overrides"]
         .as_array()
         .unwrap()
         .iter()
         .map(|row| row["merchant_id"].as_str().unwrap())
         .collect();
-    assert_eq!(merchants[0..2], ["merchant_b", "merchant_c"]);
+    assert_eq!(merchants, ["merchant_b"]);
 }

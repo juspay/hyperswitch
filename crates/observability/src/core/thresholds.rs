@@ -12,6 +12,8 @@ use crate::{
     state::AppState,
 };
 
+const MAX_ACTIVE_THRESHOLD_RULES: i64 = 5000;
+
 pub async fn list(state: AppState, _: ()) -> ObservabilityApiResult<ThresholdListResponse> {
     let overrides = state
         .store
@@ -32,7 +34,7 @@ pub async fn upsert(
     let new = ThresholdOverrideNew::try_from(request)?;
     match state
         .store
-        .upsert_threshold_override(new, state.conf.limits.max_active_threshold_rules)
+        .upsert_threshold_override(new, MAX_ACTIVE_THRESHOLD_RULES)
         .await
         .change_context(ObservabilityError::InternalServerError)
         .attach_printable("Failed to upsert threshold override")?
