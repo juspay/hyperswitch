@@ -14,11 +14,11 @@ use observability::{
     auth::X_INTERNAL_API_KEY,
     db::{
         alerts_info::AlertsInfoInterface, blacklist::BlacklistInterface,
-        dictionary::DictionaryInterface, rule_toggles::RuleTogglesInterface,
-        thresholds::ThresholdsInterface, StorageInterface,
+        dictionary::DictionaryInterface, metadata::AlertMetadataInterface,
+        rule_toggles::RuleTogglesInterface, thresholds::ThresholdsInterface, StorageInterface,
     },
     domain::notifier::Registry,
-    domain_models::{alerts_info, blacklist, dictionary, rule_toggles, thresholds},
+    domain_models::{alerts_info, blacklist, dictionary, metadata, rule_toggles, thresholds},
     routes::Alerts,
     settings::Database,
     state::AppState,
@@ -34,6 +34,29 @@ struct MemoryStore {
 }
 
 struct FailingStore;
+
+macro_rules! impl_unused_metadata {
+    ($store:ty) => {
+        #[async_trait::async_trait]
+        impl AlertMetadataInterface for $store {
+            async fn list_alert_metadata(
+                &self,
+            ) -> StorageResult<Vec<metadata::AlertMetadataEntry>> {
+                Err(report!(DatabaseError::Others))
+            }
+
+            async fn patch_alert_metadata(
+                &self,
+                _patch: metadata::AlertMetadataPatch,
+            ) -> StorageResult<metadata::AlertMetadataEntry> {
+                Err(report!(DatabaseError::Others))
+            }
+        }
+    };
+}
+
+impl_unused_metadata!(MemoryStore);
+impl_unused_metadata!(FailingStore);
 
 impl StorageInterface for MemoryStore {}
 impl StorageInterface for FailingStore {}
