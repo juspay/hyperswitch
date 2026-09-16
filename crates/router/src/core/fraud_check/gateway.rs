@@ -86,19 +86,15 @@ where
         // clear auth error rather than us guessing.
         let mut router_data = router_data.clone();
         if router_data.access_token.is_none() {
-            router_data.access_token = ucs_frm::get_frm_access_token(
-                state,
-                &router_data,
-                &context,
-            )
-            .await
-            .unwrap_or_else(|err| {
-                logger::warn!(
-                    error = ?err,
-                    "Failed to obtain an FRM access token; continuing without one"
-                );
-                None
-            });
+            router_data.access_token = ucs_frm::get_frm_access_token(state, &router_data, &context)
+                .await
+                .unwrap_or_else(|err| {
+                    logger::warn!(
+                        error = ?err,
+                        "Failed to obtain an FRM access token; continuing without one"
+                    );
+                    None
+                });
         }
 
         let pre_risk_check_request =

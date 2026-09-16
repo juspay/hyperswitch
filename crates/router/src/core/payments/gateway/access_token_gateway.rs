@@ -16,10 +16,7 @@ use hyperswitch_interfaces::{
 use unified_connector_service_client::payments as payments_grpc;
 
 use crate::{
-    core::{
-        payments::gateway::context::RouterGatewayContext,
-        unified_connector_service,
-    },
+    core::{payments::gateway::context::RouterGatewayContext, unified_connector_service},
     routes::SessionState,
     services::logger,
     types::transformers::ForeignTryFrom,
@@ -120,10 +117,12 @@ where
                 #[cfg(feature = "v1")]
                 {
                     match &merchant_connector_account {
-                        crate::core::payments::helpers::MerchantConnectorAccountType::DbVal(mca) => {
-                            Some(mca.connector_type)
-                        }
-                        crate::core::payments::helpers::MerchantConnectorAccountType::CacheVal(_) => None,
+                        crate::core::payments::helpers::MerchantConnectorAccountType::DbVal(
+                            mca,
+                        ) => Some(mca.connector_type),
+                        crate::core::payments::helpers::MerchantConnectorAccountType::CacheVal(
+                            _,
+                        ) => None,
                     }
                 }
                 #[cfg(feature = "v2")]
