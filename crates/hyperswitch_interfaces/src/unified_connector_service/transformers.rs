@@ -2134,7 +2134,7 @@ impl UnifiedConnectorServiceError {
     /// |-------------------------|---------------------------------|-------|
     /// | MissingRequiredField    | MissingRequiredField            | IR_04 |
     /// | MissingRequiredFields   | MissingRequiredFields           | IR_21 |
-    /// | InvalidDataFormat       | InvalidDataValue                | IR_06 |
+    /// | InvalidDataFormat       | InvalidDataFormat               | IR_05 |
     /// | NotImplemented          | NotImplemented                  | IR_00 |
     /// | FailedToObtainAuthType  | InvalidConnectorConfiguration  | IR_30 |
     /// | RequestEncodingFailed   | InternalServerError             | HE_00 |
@@ -2238,8 +2238,9 @@ impl ErrorSwitch<ApiErrorResponse> for UnifiedConnectorServiceError {
                     field_names: field_names.clone(),
                 }
             }
-            Self::InvalidDataFormat { field_name } => ApiErrorResponse::InvalidRequestData {
-                message: format!("Invalid data format: {field_name}"),
+            Self::InvalidDataFormat { field_name } => ApiErrorResponse::InvalidDataFormat {
+                field_name: field_name.to_string(),
+                expected_format: "a valid value".to_string(),
             },
             _ => ApiErrorResponse::InternalServerError,
         }
