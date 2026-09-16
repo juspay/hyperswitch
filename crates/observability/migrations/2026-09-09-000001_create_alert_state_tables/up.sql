@@ -115,15 +115,15 @@ CREATE TABLE IF NOT EXISTS alerts_intermediate_xyne (
     recovered_ts           TIMESTAMP
 );
 
--- The mappers screen. product and values_ are `json` rather than `jsonb`: the
+-- The mappers screen. product and values are `json` rather than `jsonb`: the
 -- dashboard sends them already serialised and reads them back expecting the
 -- same bytes.
 CREATE TABLE IF NOT EXISTS alerts_dicts (
-    id         UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    id         VARCHAR(64) PRIMARY KEY,
     name       VARCHAR(64) NOT NULL,
-    key_       VARCHAR(255) NOT NULL,
+    key        VARCHAR(255) NOT NULL,
     product    JSON,
-    values_    JSON,
+    values     JSON,
     ts_created TIMESTAMP,
     is_enabled BOOLEAN DEFAULT TRUE,
     username   VARCHAR(64) DEFAULT 'reliability_team',
@@ -132,10 +132,10 @@ CREATE TABLE IF NOT EXISTS alerts_dicts (
 
 -- One enabled entry per name and key; superseded rows stay for history.
 CREATE UNIQUE INDEX IF NOT EXISTS idx_alerts_dicts_enabled_unique
-    ON alerts_dicts USING btree (name, key_) WHERE is_enabled IS TRUE;
+    ON alerts_dicts USING btree (name, key) WHERE is_enabled IS TRUE;
 
 CREATE INDEX IF NOT EXISTS idx_alerts_dicts_latest
-    ON alerts_dicts USING btree (name, key_, ts_created DESC);
+    ON alerts_dicts USING btree (name, key, ts_created DESC);
 
 -- Per-merchant alert instances. current_metric against expected_metric is the
 -- generic form of "what is wrong", so a detector that is not about success rate
