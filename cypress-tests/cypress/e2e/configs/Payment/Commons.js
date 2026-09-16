@@ -4017,8 +4017,9 @@ export const connectorDetails = {
           attempt_status: "charged",
           amount_captured: 2500,
           amount_capturable: 6000,
-          // Expected payment intent state on retrieve, verified by
-          // retrievePaymentCallTest (amount_captured -> amount_received)
+          // Expected payment intent state on retrieve, asserted by
+          // 47-ManualPaymentUpdate.cy.js from this config
+          // (amount_captured -> amount_received)
           status: "succeeded",
         },
       },
@@ -4071,8 +4072,9 @@ export const connectorDetails = {
           attempt_status: "charged",
           amount_captured: 6000,
           amount_capturable: 6000,
-          // Expected payment intent state on retrieve, verified by
-          // retrievePaymentCallTest (amount_captured -> amount_received)
+          // Expected payment intent state on retrieve, asserted by
+          // 47-ManualPaymentUpdate.cy.js from this config
+          // (amount_captured -> amount_received)
           status: "succeeded",
         },
       },
