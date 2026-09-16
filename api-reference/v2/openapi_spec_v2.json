@@ -25071,6 +25071,14 @@
           }
         }
       },
+      "PaymentProcessingDetailInputType": {
+        "type": "string",
+        "description": "Specifies how the Apple Pay payment processing details are supplied.",
+        "enum": [
+          "raw",
+          "link_hierarchical_resource"
+        ]
+      },
       "PaymentProcessingDetails": {
         "type": "object",
         "required": [
@@ -33436,6 +33444,14 @@
                 "allOf": [
                   {
                     "$ref": "#/components/schemas/CountryAlpha2"
+                  }
+                ],
+                "nullable": true
+              },
+              "payment_processing_detail_input_type": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/PaymentProcessingDetailInputType"
                   }
                 ],
                 "nullable": true

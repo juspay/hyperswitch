@@ -4,6 +4,21 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.09.16.0
+
+### Features
+
+- **applepay:** Add payment processing detail input type for simplified flow ([#14225](https://github.com/juspay/hyperswitch/pull/14225)) ([`7c6512d`](https://github.com/juspay/hyperswitch/commit/7c6512d2b1658c6867edecaf921cf2506e67c541))
+- **connector:** Add merchante ucs only connector ([#14116](https://github.com/juspay/hyperswitch/pull/14116)) ([`306b68f`](https://github.com/juspay/hyperswitch/commit/306b68f6118dc3a91f35f1a2ed56d7fae64961c3))
+- **payment_link:** Add list API with offset pagination, time-range filtering, and JWT auth ([#14108](https://github.com/juspay/hyperswitch/pull/14108)) ([`ffdaf0c`](https://github.com/juspay/hyperswitch/commit/ffdaf0cef89e3a2227d0c7baa994ff456464f1fb))
+- **payments:** Keep the vault session and combined PML stable per payment ([#14174](https://github.com/juspay/hyperswitch/pull/14174)) ([`c9cfc23`](https://github.com/juspay/hyperswitch/commit/c9cfc23f16a11e8ba831cf2a9e3d22850d1b723f))
+- **pm:** Opt in for plain fingerprint response ([#14147](https://github.com/juspay/hyperswitch/pull/14147)) ([`e0467e2`](https://github.com/juspay/hyperswitch/commit/e0467e2f6dc1bc45aa206cde1e3c9917f6d43754))
+- **resources:** Org-scoped, reusable Apple Pay certificate management ([#14140](https://github.com/juspay/hyperswitch/pull/14140)) ([`02ba5ea`](https://github.com/juspay/hyperswitch/commit/02ba5ea0b4cc0ad8debea4cefd28a7de5916d9db))
+
+**Full Changelog:** [`2026.09.15.0...2026.09.16.0`](https://github.com/juspay/hyperswitch/compare/2026.09.15.0...2026.09.16.0)
+
+- - -
+
 ## 2026.09.15.0
 
 ### Features
