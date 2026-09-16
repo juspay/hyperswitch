@@ -14,7 +14,7 @@ use actix_web::{web, Scope};
 use crate::{
     errors::types::{ApiError, ApiErrorResponse},
     logger,
-    routes::{alerts_info, cloudwatch, health_check, notify},
+    routes::{alert_manager, alerts_info, cloudwatch, health_check, notify},
     state::AppState,
 };
 
@@ -59,7 +59,28 @@ impl Alerts {
             )
             .service(
                 web::scope("/alerts_manager")
-                    .service(web::resource("/info").route(web::post().to(alerts_info::create))),
+                    .service(web::resource("/info").route(web::post().to(alerts_info::create)))
+                    .service(web::resource("/external_config").route(
+                        web::post().to(alert_manager::merchants_alert_external_config::create),
+                    ))
+                    .service(web::resource("/external_config/list").route(
+                        web::post().to(alert_manager::merchants_alert_external_config::list),
+                    ))
+                    .service(
+                        web::resource("/external_config/{name}/{product}")
+                            .route(
+                                web::get()
+                                    .to(alert_manager::merchants_alert_external_config::retrieve),
+                            )
+                            .route(
+                                web::post()
+                                    .to(alert_manager::merchants_alert_external_config::update),
+                            )
+                            .route(
+                                web::delete()
+                                    .to(alert_manager::merchants_alert_external_config::delete),
+                            ),
+                    ),
             )
     }
 }
