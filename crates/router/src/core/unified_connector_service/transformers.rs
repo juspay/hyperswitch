@@ -1669,6 +1669,11 @@ impl
             .map(payments_grpc::CaptureMethod::foreign_try_from)
             .transpose()?;
 
+        let state = router_data
+            .access_token
+            .as_ref()
+            .map(ConnectorState::foreign_from);
+
         Ok(Self {
             merchant_order_id: Some(router_data.connector_request_reference_id.clone()),
             amount: router_data
@@ -1705,10 +1710,7 @@ impl
             metadata: None,
             return_url: None,
             continue_redirection_url: None,
-            state: router_data
-                .access_token
-                .as_ref()
-                .map(ConnectorState::foreign_from),
+            state,
             redirection_response: router_data
                 .request
                 .redirect_response

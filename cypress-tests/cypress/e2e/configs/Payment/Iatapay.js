@@ -126,6 +126,9 @@ export const connectorDetails = {
   },
   card_pm: {
     ZeroAuthMandate: {
+      Request: {
+        amount: 0,
+      },
       Response: {
         status: 501,
         body: {
@@ -153,6 +156,7 @@ export const connectorDetails = {
     },
     ZeroAuthConfirmPayment: {
       Request: {
+        amount: 0,
         payment_type: "setup_mandate",
         payment_method: "card",
         payment_method_type: "credit",
