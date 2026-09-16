@@ -36,7 +36,7 @@ use crate::{
 
 /// Fetch (and cache) the OAuth token a bearer-authenticated FRM provider needs.
 ///
-/// Kount's risk API is bearer-authenticated: prism reads the token from
+/// Kount's risk API is bearer-authenticated: the connector-service reads the token from
 /// `state.access_token` and cannot mint one itself on the plain FRM service.
 /// Reads Redis first, falling back to UCS `CreateServerAuthenticationToken`.
 /// Providers using a static key (nSure) never reach this — `should_do_access_token`
@@ -44,12 +44,11 @@ use crate::{
 #[cfg(feature = "v1")]
 pub async fn get_frm_access_token(
     state: &SessionState,
-    processor: &Processor,
     router_data: &RouterData<frm_api::Checkout, FraudCheckCheckoutData, FraudCheckResponseData>,
-    merchant_connector_account: &MerchantConnectorAccountType,
-    lineage_ids: LineageIds,
-    execution_mode: common_enums::ExecutionMode,
+    gateway_context: &payments::gateway::context::RouterGatewayContext,
 ) -> RouterResult<Option<AccessToken>> {
+    let processor = &gateway_context.processor;
+    let merchant_connector_account = &gateway_context.merchant_connector_account;
     let merchant_id = processor.get_account().get_id();
     let connector_name = router_data.connector.as_str();
 
@@ -99,16 +98,9 @@ pub async fn get_frm_access_token(
         AccessToken,
     > = connector.connector.get_connector_integration();
 
-    let gateway_context = payments::gateway::context::RouterGatewayContext {
-        creds_identifier: None,
-        processor: processor.clone(),
-        header_payload: hyperswitch_domain_models::payments::HeaderPayload::default(),
-        lineage_ids,
-        merchant_connector_account: merchant_connector_account.clone(),
-        execution_path: common_enums::ExecutionPath::UnifiedConnectorService,
-        execution_mode,
-    };
-
+    // The token fetch is a sub-step of the UCS pre-risk check, so it runs
+    // under the same gateway context that brought us here — same execution
+    // path, mode and account. Nothing to re-decide.
     let token_result = gateway::execute_payment_gateway(
         state,
         connector_integration,
@@ -116,7 +108,7 @@ pub async fn get_frm_access_token(
         payments::CallConnectorAction::Trigger,
         None,
         None,
-        gateway_context,
+        gateway_context.clone(),
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -147,19 +139,9 @@ pub async fn get_frm_access_token(
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Lifecycle notifications
-//
-// prism exposes four FRM notification events on a single `NotifyConnector` RPC:
-//
-//   FRM_PAYMENT_SUCCEEDED · FRM_PAYMENT_FAILURE
-//   FRM_REFUND_PROCESSED  · FRM_CHARGEBACK_RECEIVED
-//
-// They differ only in the event type and which `notification_type` variant is
-// populated; auth, headers, token and response handling are identical. The
-// generic sender below owns that shared work so each event is a thin caller.
-// Chargeback is wired here; the payment/refund events follow the same shape.
-// ─────────────────────────────────────────────────────────────────────────────
+// Lifecycle notifications: the connector-service exposes four FRM events
+// (payment succeeded/failure, refund processed, chargeback received) on one
+// `NotifyConnector` RPC, differing only in event type and payload variant.
 
 /// Which lifecycle event to report, plus the detail payload it carries.
 pub enum FrmNotification {
@@ -211,8 +193,13 @@ pub struct FrmNotificationContext<'a> {
 /// Send an FRM lifecycle notification to the connector-service.
 ///
 /// Generic over the event: the caller supplies the [`FrmNotification`] variant
-/// and this handles auth metadata, `x-frm-connector` routing, the access token
-/// for bearer-authenticated providers, and the gRPC call.
+/// and this handles auth metadata, `x-frm-connector` routing, and the gRPC
+/// call.
+///
+/// Not yet wired to a call site. Before it is, bearer-authenticated providers
+/// (Kount) need the access token threaded into `NotifyConnectorRequest.state`
+/// via [`get_frm_access_token`], the way the pre-risk-check gateway does —
+/// without it the notification reaches the provider unauthenticated.
 #[cfg(feature = "v1")]
 pub async fn call_unified_connector_service_for_frm_notification(
     state: &SessionState,

@@ -10108,17 +10108,21 @@ impl
             merchant_category_code: None,
         });
 
-        let browser_info =
-            request
-                .browser_info
-                .as_ref()
-                .map(|info| payments_grpc::BrowserInformation {
-                    user_agent: info.user_agent.clone(),
-                    ip_address: info.ip_address.map(|ip| ip.to_string()),
-                    language: info.language.clone(),
-                    accept_header: info.accept_header.clone(),
-                    ..Default::default()
-                });
+        // Same converter the payments flows use, so the provider gets the full
+        // device fingerprint (screen, timezone, OS, device model, referer) rather
+        // than a user-agent/IP subset. Fail-soft for the same reason as the
+        // payment method above: a malformed browser_info must not fail the check.
+        let browser_info = request.browser_info.as_ref().and_then(|info| {
+            payments_grpc::BrowserInformation::foreign_try_from(info.clone())
+                .inspect_err(|error| {
+                    router_env::logger::warn!(
+                        ?error,
+                        "Failed to encode browser info for the FRM pre risk check; \
+                         the provider will score this transaction without device details"
+                    )
+                })
+                .ok()
+        });
 
         let order_details = build_ucs_order_details(request.order_details.as_deref());
 
@@ -10138,7 +10142,7 @@ impl
                 .as_ref()
                 .map(|metadata| Secret::new(metadata.clone().expose().to_string())),
             // Bearer-authenticated providers read the token from
-            // `state.access_token`; prism threads it onto FrmFlowData.
+            // `state.access_token`; the connector-service threads it onto FrmFlowData.
             state: router_data
                 .access_token
                 .as_ref()

@@ -546,7 +546,9 @@ pub enum ConnectorSpecificConfig {
     /// unset.
     Nsure {
         api_key: Secret<String>,
-        app_id: Secret<String>,
+        /// Optional on the connector-service side; a header-key-only account
+        /// authenticates with `api_key` alone.
+        app_id: Option<Secret<String>>,
         api_version: Option<String>,
     },
     /// Gigadat connector configuration
@@ -1494,26 +1496,32 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 }),
                 _ => Err(err("Novalnet requires SignatureKey auth type")),
             },
-            Connector::Nsure => match auth {
-                // The portal issues an authorization key and an Application ID,
-                // which map onto BodyKey's two fields; `connector_validation`
-                // accepts exactly this shape for nSure.
-                ConnectorAuthType::BodyKey { api_key, key1 } => {
-                    let nsure_meta = metadata
-                        .map(|m| {
-                            serde_json::from_value::<NsureMetadata>(m.clone())
-                                .map_err(|_| err("Invalid Nsure metadata format"))
-                        })
-                        .transpose()?;
+            Connector::Nsure => {
+                // Mirrors `connector_validation`, which accepts both shapes:
+                // BodyKey carries the authorization key plus the portal
+                // Application ID; HeaderKey carries the key alone, which the
+                // connector-service accepts since `app_id` is optional there.
+                let (api_key, app_id) = match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => {
+                        (api_key.clone(), Some(key1.clone()))
+                    }
+                    ConnectorAuthType::HeaderKey { api_key } => (api_key.clone(), None),
+                    _ => return Err(err("Nsure requires BodyKey or HeaderKey auth type")),
+                };
 
-                    Ok(Self::Nsure {
-                        api_key: api_key.clone(),
-                        app_id: key1.clone(),
-                        api_version: nsure_meta.and_then(|m| m.api_version),
+                let nsure_meta = metadata
+                    .map(|m| {
+                        serde_json::from_value::<NsureMetadata>(m.clone())
+                            .map_err(|_| err("Invalid Nsure metadata format"))
                     })
-                }
-                _ => Err(err("Nsure requires BodyKey auth type")),
-            },
+                    .transpose()?;
+
+                Ok(Self::Nsure {
+                    api_key,
+                    app_id,
+                    api_version: nsure_meta.and_then(|m| m.api_version),
+                })
+            }
             Connector::Nuvei => match auth {
                 ConnectorAuthType::SignatureKey {
                     api_key,

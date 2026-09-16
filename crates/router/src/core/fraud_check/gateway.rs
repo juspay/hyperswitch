@@ -70,9 +70,7 @@ where
         RouterData<Self, FraudCheckCheckoutData, FraudCheckResponseData>,
         ConnectorError,
     > {
-        let merchant_connector_account = context.merchant_connector_account;
         let processor = &context.processor;
-        let lineage_ids = context.lineage_ids;
         let execution_mode = context.execution_mode;
 
         let client = state
@@ -90,11 +88,8 @@ where
         if router_data.access_token.is_none() {
             router_data.access_token = ucs_frm::get_frm_access_token(
                 state,
-                processor,
                 &router_data,
-                &merchant_connector_account,
-                lineage_ids.clone(),
-                execution_mode,
+                &context,
             )
             .await
             .unwrap_or_else(|err| {
@@ -113,7 +108,7 @@ where
 
         let connector_auth_metadata =
             unified_connector_service::build_unified_connector_service_auth_metadata(
-                merchant_connector_account,
+                context.merchant_connector_account,
                 processor.get_account().get_id(),
                 router_data.connector.clone(),
             )
@@ -125,7 +120,7 @@ where
             .external_vault_proxy_metadata(None)
             .merchant_reference_id(None)
             .resource_id(None)
-            .lineage_ids(lineage_ids);
+            .lineage_ids(context.lineage_ids);
 
         Box::pin(unified_connector_service::ucs_logging_wrapper_granular(
             router_data,

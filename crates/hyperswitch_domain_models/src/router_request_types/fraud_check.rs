@@ -24,6 +24,12 @@ pub struct FraudCheckSaleData {
     pub payment_method_data: Option<api_models::payments::AdditionalPaymentData>,
 }
 
+/// `Serialize` is here only to satisfy the `Req: Serialize` bound on
+/// `execute_payment_gateway`. `payment_method_data_full` carries the full
+/// instrument, and `Secret`/`CardNumber` mask **only** under
+/// `hyperswitch_masking::masked_serialize` — a plain serializer (e.g.
+/// `serde_json::to_string`, `json!`) emits the raw PAN. Never feed this type
+/// to a raw serializer or a `?`-formatted log.
 #[derive(Debug, Clone, Serialize)]
 pub struct FraudCheckCheckoutData {
     pub amount: MinorUnit,

@@ -7,10 +7,10 @@
 //! ship a stub. Every flow below falls through to the `ConnectorIntegration`
 //! defaults, which return `NotImplemented`.
 
-use common_utils::errors::CustomResult;
+use common_utils::{errors::CustomResult, request::Request};
 use error_stack::report;
 use hyperswitch_domain_models::{
-    router_data::AccessToken,
+    router_data::{AccessToken, RouterData},
     router_flow_types::{
         AccessTokenAuth, Authorize, Capture, Execute, PSync, PaymentMethodToken, RSync, Session,
         SetupMandate, Void,
@@ -112,25 +112,40 @@ impl FraudCheckFulfillment for Nsure {}
 #[cfg(feature = "frm")]
 impl FraudCheckRecordReturn for Nsure {}
 
+// The FRM flows must fail loudly on the direct path rather than inherit the
+// trait default, which returns `Ok(None)` and lets the flow complete as a no-op
+// with the seeded `Pending` status. That would let a payment through unscored
+// even under `PreFrmFailureMode::FailClosed`. Returning an error here routes
+// the case through the existing fail-open/fail-closed handling instead.
 #[cfg(feature = "frm")]
-impl ConnectorIntegration<Sale, FraudCheckSaleData, FraudCheckResponseData> for Nsure {}
-#[cfg(feature = "frm")]
-impl ConnectorIntegration<Checkout, FraudCheckCheckoutData, FraudCheckResponseData> for Nsure {}
-#[cfg(feature = "frm")]
-impl ConnectorIntegration<Transaction, FraudCheckTransactionData, FraudCheckResponseData>
-    for Nsure
-{
+macro_rules! ucs_only_frm_flow {
+    ($flow:ty, $request:ty) => {
+        impl ConnectorIntegration<$flow, $request, FraudCheckResponseData> for Nsure {
+            fn build_request(
+                &self,
+                _req: &RouterData<$flow, $request, FraudCheckResponseData>,
+                _connectors: &Connectors,
+            ) -> CustomResult<Option<Request>, ConnectorError> {
+                Err(ConnectorError::NotImplemented(
+                    "nsure runs on the Unified Connector Service and has no direct integration"
+                        .to_string(),
+                )
+                .into())
+            }
+        }
+    };
 }
+
 #[cfg(feature = "frm")]
-impl ConnectorIntegration<Fulfillment, FraudCheckFulfillmentData, FraudCheckResponseData>
-    for Nsure
-{
-}
+ucs_only_frm_flow!(Sale, FraudCheckSaleData);
 #[cfg(feature = "frm")]
-impl ConnectorIntegration<RecordReturn, FraudCheckRecordReturnData, FraudCheckResponseData>
-    for Nsure
-{
-}
+ucs_only_frm_flow!(Checkout, FraudCheckCheckoutData);
+#[cfg(feature = "frm")]
+ucs_only_frm_flow!(Transaction, FraudCheckTransactionData);
+#[cfg(feature = "frm")]
+ucs_only_frm_flow!(Fulfillment, FraudCheckFulfillmentData);
+#[cfg(feature = "frm")]
+ucs_only_frm_flow!(RecordReturn, FraudCheckRecordReturnData);
 
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for Nsure {

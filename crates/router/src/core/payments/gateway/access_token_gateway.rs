@@ -16,7 +16,10 @@ use hyperswitch_interfaces::{
 use unified_connector_service_client::payments as payments_grpc;
 
 use crate::{
-    core::{payments::gateway::context::RouterGatewayContext, unified_connector_service},
+    core::{
+        payments::gateway::context::RouterGatewayContext,
+        unified_connector_service,
+    },
     routes::SessionState,
     services::logger,
     types::transformers::ForeignTryFrom,
@@ -106,12 +109,43 @@ where
         // payment, a payout, or an FRM pre-risk check. The connector type selects
         // the UCS connector header namespace, while the ids below carry the
         // payment/payout reference context.
+        //
+        // The merchant declared the type when the connector account was created,
+        // so read it from there rather than inferring it from the connector name.
+        // Cached credentials carry no type; fall back to the name only then.
         let connector_type = if router_data.payout_id.is_some() {
             ConnectorType::PayoutProcessor
-        } else if api_models::enums::FrmConnectors::from_str(&router_data.connector).is_ok() {
-            ConnectorType::PaymentVas
         } else {
-            ConnectorType::PaymentProcessor
+            let declared = {
+                #[cfg(feature = "v1")]
+                {
+                    match &merchant_connector_account {
+                        crate::core::payments::helpers::MerchantConnectorAccountType::DbVal(mca) => {
+                            Some(mca.connector_type)
+                        }
+                        crate::core::payments::helpers::MerchantConnectorAccountType::CacheVal(_) => None,
+                    }
+                }
+                #[cfg(feature = "v2")]
+                {
+                    match &merchant_connector_account {
+                        hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(mca) => {
+                            Some(mca.connector_type)
+                        }
+                        hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(_) => None,
+                    }
+                }
+            };
+            match declared {
+                Some(ConnectorType::PaymentVas) => ConnectorType::PaymentVas,
+                Some(_) => ConnectorType::PaymentProcessor,
+                None if api_models::enums::FrmConnectors::from_str(&router_data.connector)
+                    .is_ok() =>
+                {
+                    ConnectorType::PaymentVas
+                }
+                None => ConnectorType::PaymentProcessor,
+            }
         };
 
         let (merchant_reference_id, resource_id) = if let Some(payout_id) =
