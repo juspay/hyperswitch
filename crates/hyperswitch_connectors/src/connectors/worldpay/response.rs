@@ -6,7 +6,7 @@ use url::Url;
 
 use super::requests::*;
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WorldpayPaymentsResponse {
     pub outcome: PaymentOutcome,
@@ -15,7 +15,35 @@ pub struct WorldpayPaymentsResponse {
     pub other_fields: Option<WorldpayPaymentResponseFields>,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+impl<'de> Deserialize<'de> for WorldpayPaymentsResponse {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        struct RawWorldpayPaymentsResponse {
+            outcome: PaymentOutcome,
+            transaction_reference: Option<String>,
+            #[serde(flatten)]
+            other_fields: serde_json::Map<String, serde_json::Value>,
+        }
+
+        let raw = RawWorldpayPaymentsResponse::deserialize(deserializer)?;
+        let other_fields = WorldpayPaymentResponseFields::from_outcome(
+            &raw.outcome,
+            serde_json::Value::Object(raw.other_fields),
+        );
+
+        Ok(Self {
+            outcome: raw.outcome,
+            transaction_reference: raw.transaction_reference,
+            other_fields,
+        })
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(untagged)]
 pub enum WorldpayPaymentResponseFields {
     RefusedResponse(RefusedResponse),
@@ -23,6 +51,35 @@ pub enum WorldpayPaymentResponseFields {
     ThreeDsChallenged(ThreeDsChallengedResponse),
     FraudHighRisk(FraudHighRiskResponse),
     AuthorizedResponse(Box<AuthorizedResponse>),
+}
+
+impl WorldpayPaymentResponseFields {
+    /// Picks the response shape from the payment `outcome` instead of trying each shape in turn,
+    /// so a refusal missing `refusalCode` or `refusalDescription` is still read as a refusal.
+    /// A body that does not match the shape of its outcome carries no extra fields, as before.
+    fn from_outcome(outcome: &PaymentOutcome, fields: serde_json::Value) -> Option<Self> {
+        match outcome {
+            PaymentOutcome::Refused => parse_fields(fields).map(Self::RefusedResponse),
+            PaymentOutcome::ThreeDsDeviceDataRequired => {
+                parse_fields(fields).map(Self::DDCResponse)
+            }
+            PaymentOutcome::ThreeDsChallenged => parse_fields(fields).map(Self::ThreeDsChallenged),
+            PaymentOutcome::FraudHighRisk => parse_fields(fields).map(Self::FraudHighRisk),
+            PaymentOutcome::Authorized
+            | PaymentOutcome::SentForSettlement
+            | PaymentOutcome::SentForRefund
+            | PaymentOutcome::SentForCancellation
+            | PaymentOutcome::SentForPartialRefund
+            | PaymentOutcome::ThreeDsAuthenticationFailed
+            | PaymentOutcome::ThreeDsUnavailable => {
+                parse_fields(fields).map(|response| Self::AuthorizedResponse(Box::new(response)))
+            }
+        }
+    }
+}
+
+fn parse_fields<T: serde::de::DeserializeOwned>(fields: serde_json::Value) -> Option<T> {
+    serde_json::from_value(fields).ok()
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -64,9 +121,9 @@ pub struct FraudHighRiskResponse {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RefusedResponse {
-    pub refusal_description: String,
+    pub refusal_description: Option<String>,
     // Access Worldpay returns a raw response code in the refusalCode field (if enabled) containing the unmodified response code received either directly from the card scheme for Worldpay-acquired transactions, or from third party acquirers.
-    pub refusal_code: String,
+    pub refusal_code: Option<String>,
     pub risk_factors: Option<Vec<RiskFactorsInner>>,
     pub fraud: Option<Fraud>,
     #[serde(rename = "threeDS")]
@@ -452,3 +509,188 @@ pub struct WorldpayWebhookEventType {
 
 /// Worldpay's unique reference ID for a request
 pub(super) const WP_CORRELATION_ID: &str = "WP-CorrelationId";
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::panic)]
+mod tests {
+    use super::*;
+
+    fn parse(body: serde_json::Value) -> WorldpayPaymentsResponse {
+        serde_json::from_value(body).unwrap()
+    }
+
+    fn refused_fields(response: WorldpayPaymentsResponse) -> RefusedResponse {
+        match response.other_fields {
+            Some(WorldpayPaymentResponseFields::RefusedResponse(res)) => res,
+            other => panic!("expected RefusedResponse, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn refused_with_code_and_description_is_parsed_as_refused_response() {
+        let response = parse(serde_json::json!({
+            "outcome": "refused",
+            "refusalCode": "5",
+            "refusalDescription": "Refused",
+            "advice": { "code": "03" },
+            "riskFactors": [{ "type": "cvc", "risk": "notMatched" }]
+        }));
+
+        assert_eq!(response.outcome, PaymentOutcome::Refused);
+        let refused = refused_fields(response);
+        assert_eq!(refused.refusal_code.as_deref(), Some("5"));
+        assert_eq!(refused.refusal_description.as_deref(), Some("Refused"));
+        assert_eq!(
+            refused.advice.and_then(|advice| advice.code).as_deref(),
+            Some("03")
+        );
+    }
+
+    #[test]
+    fn refused_with_only_description_is_parsed_as_refused_response() {
+        let refused = refused_fields(parse(serde_json::json!({
+            "outcome": "refused",
+            "refusalDescription": "Do not honour"
+        })));
+
+        assert_eq!(refused.refusal_code, None);
+        assert_eq!(
+            refused.refusal_description.as_deref(),
+            Some("Do not honour")
+        );
+    }
+
+    #[test]
+    fn refused_with_only_code_is_parsed_as_refused_response() {
+        let refused = refused_fields(parse(serde_json::json!({
+            "outcome": "refused",
+            "refusalCode": "51"
+        })));
+
+        assert_eq!(refused.refusal_code.as_deref(), Some("51"));
+        assert_eq!(refused.refusal_description, None);
+    }
+
+    #[test]
+    fn refused_without_code_or_description_is_parsed_as_refused_response() {
+        let refused = refused_fields(parse(serde_json::json!({ "outcome": "refused" })));
+
+        assert_eq!(refused.refusal_code, None);
+        assert_eq!(refused.refusal_description, None);
+    }
+
+    #[test]
+    fn authorized_is_parsed_as_authorized_response() {
+        let response = parse(serde_json::json!({
+            "outcome": "authorized",
+            "transactionReference": "ref-1",
+            "paymentInstrument": {
+                "type": "card/plain+masked",
+                "cardBin": "444433",
+                "lastFour": "1111"
+            },
+            "_links": {
+                "self": { "href": "https://try.access.worldpay.com/payments/authorizations/eyJrIjoi" }
+            },
+            "_actions": {
+                "cancelPayment": {
+                    "href": "https://try.access.worldpay.com/payments/authorizations/cancellations/eyJrIjoi",
+                    "method": "POST"
+                }
+            }
+        }));
+
+        assert_eq!(response.outcome, PaymentOutcome::Authorized);
+        assert_eq!(response.transaction_reference.as_deref(), Some("ref-1"));
+        assert!(matches!(
+            response.other_fields,
+            Some(WorldpayPaymentResponseFields::AuthorizedResponse(_))
+        ));
+    }
+
+    #[test]
+    fn device_data_required_is_parsed_as_ddc_response() {
+        let response = parse(serde_json::json!({
+            "outcome": "3dsDeviceDataRequired",
+            "deviceDataCollection": {
+                "jwt": "jwt-token",
+                "url": "https://ddc.example.com/collect",
+                "bin": "444433"
+            },
+            "_actions": {
+                "supply3dsDeviceData": {
+                    "href": "https://try.access.worldpay.com/verifications/customers/3ds/deviceDataInitialization/eyJrIjoi/devicedata",
+                    "method": "POST"
+                }
+            }
+        }));
+
+        assert_eq!(response.outcome, PaymentOutcome::ThreeDsDeviceDataRequired);
+        assert!(matches!(
+            response.other_fields,
+            Some(WorldpayPaymentResponseFields::DDCResponse(_))
+        ));
+    }
+
+    #[test]
+    fn challenged_is_parsed_as_three_ds_challenged_response() {
+        let response = parse(serde_json::json!({
+            "outcome": "3dsChallenged",
+            "authentication": { "version": "2.2.0" },
+            "challenge": {
+                "reference": "ch-1",
+                "url": "https://acs.example.com/challenge",
+                "jwt": "jwt-token",
+                "payload": "payload"
+            },
+            "_actions": {
+                "complete3dsChallenge": {
+                    "href": "https://try.access.worldpay.com/payments/authorizations/eyJrIjoi/3dsChallenges",
+                    "method": "POST"
+                }
+            }
+        }));
+
+        assert!(matches!(
+            response.other_fields,
+            Some(WorldpayPaymentResponseFields::ThreeDsChallenged(_))
+        ));
+    }
+
+    #[test]
+    fn fraud_high_risk_is_parsed_as_fraud_high_risk_response() {
+        let response = parse(serde_json::json!({
+            "outcome": "fraudHighRisk",
+            "score": 97.5,
+            "reason": ["Unusual transaction for merchant"]
+        }));
+
+        assert!(matches!(
+            response.other_fields,
+            Some(WorldpayPaymentResponseFields::FraudHighRisk(_))
+        ));
+    }
+
+    #[test]
+    fn outcome_without_extra_fields_has_no_other_fields() {
+        let response = parse(serde_json::json!({
+            "outcome": "sentForCancellation",
+            "_links": {
+                "self": { "href": "https://try.access.worldpay.com/payments/events/eyJrIjoi" }
+            }
+        }));
+
+        assert_eq!(response.outcome, PaymentOutcome::SentForCancellation);
+        assert_eq!(response.other_fields, None);
+    }
+
+    #[test]
+    fn missing_outcome_is_rejected() {
+        let result = serde_json::from_value::<WorldpayPaymentsResponse>(serde_json::json!({
+            "refusalCode": "5",
+            "refusalDescription": "Refused"
+        }));
+
+        assert!(result.is_err());
+    }
+}
