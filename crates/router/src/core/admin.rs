@@ -21,7 +21,6 @@ use hyperswitch_domain_models::merchant_connector_account::{
 };
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use pm_auth::types as pm_auth_types;
-use uuid::Uuid;
 #[cfg(feature = "olap")]
 use {
     base64::Engine,
@@ -80,7 +79,7 @@ pub fn create_merchant_publishable_key() -> String {
     format!(
         "pk_{}_{}",
         router_env::env::prefix_for_env(),
-        Uuid::new_v4().simple()
+        common_utils::generate_uuid_v4().simple()
     )
 }
 
@@ -644,6 +643,8 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                         "fs",
                     ))),
                     offer_engine_config: None,
+                    apple_pay_certificates: None,
+                    apple_pay_certificates_encrypted: None,
                 },
             )
         }
@@ -2265,6 +2266,7 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
                             )
                             .await?,
                         additional_merchant_data: merchant_recipient_data.map(Secret::new),
+                        apple_pay_certificates_encrypted: None,
                     },
                 ),
             ),
@@ -2613,6 +2615,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
                             )
                             .await?,
                         additional_merchant_data: merchant_recipient_data.map(Secret::new),
+                        apple_pay_certificates_encrypted: None,
                     },
                 ),
             ),
@@ -2665,6 +2668,8 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
             additional_merchant_data: encrypted_data.additional_merchant_data,
             version: common_types::consts::API_VERSION,
             connector_webhook_registration_details: None,
+            apple_pay_certificates: None,
+            apple_pay_certificates_encrypted: None,
         })
     }
 
