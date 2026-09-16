@@ -2,7 +2,7 @@
 //! [`crate::routes::app`].
 
 use actix_web::{web, HttpRequest, HttpResponse};
-use api_models::observability::alerts_info::AlertsInfoCreateRequest;
+use api_models::observability::alert_manager::alert_info::AlertsInfoCreateRequest;
 
 use crate::{auth, core, services, state::AppState};
 
@@ -16,7 +16,7 @@ pub async fn create(
         state.get_ref().clone(),
         &request,
         payload.into_inner(),
-        core::alerts_info::create_alert_info,
+        crate::core::alert_manager::alert_info::core::create_alert_info,
         &auth::InternalApiKeyAuth,
     )
     .await

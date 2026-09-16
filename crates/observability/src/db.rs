@@ -14,8 +14,9 @@
 //! applies here: there is one database, no tenants, no replica, no Redis-backed storage scheme and
 //! no encrypted columns.
 
+#[path = "alert_manager/mod.rs"]
+pub mod alert_manager;
 pub mod alerts_dicts;
-pub mod alerts_info;
 
 use std::{sync::Arc, time::Duration};
 
@@ -33,7 +34,10 @@ use crate::{errors::ConfigurationError, settings::Database};
 /// Held by [`crate::state::AppState`] as `Arc<dyn StorageInterface>`: one store shared by every
 /// worker, so a store never needs to be cloneable itself.
 pub trait StorageInterface:
-    Send + Sync + alerts_info::AlertsInfoInterface + alerts_dicts::AlertsDictsInterface
+    Send
+    + Sync
+    + alert_manager::alert_info::db::AlertsInfoInterface
+    + alerts_dicts::AlertsDictsInterface
 {
 }
 

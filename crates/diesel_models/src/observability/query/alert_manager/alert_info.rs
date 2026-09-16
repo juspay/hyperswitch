@@ -1,5 +1,5 @@
 use crate::{
-    observability::alerts_info::{AlertsInfo, AlertsInfoNew},
+    observability::alert_manager::alert_info::{AlertsInfo, AlertsInfoNew},
     query::generics,
     DatabaseConnectionWithContext, StorageResult,
 };
