@@ -402,7 +402,12 @@ pub async fn get_frm_merchant_connector_account_and_routing_algorithm(
     _state: &SessionState,
     _platform: &domain::Platform,
     _payout_data: &PayoutData,
-) -> RouterResult<Option<payments::helpers::MerchantConnectorAccountType>> {
+) -> RouterResult<
+    Option<(
+        payments::helpers::MerchantConnectorAccountType,
+        FrmRoutingAlgorithm,
+    )>,
+> {
     todo!()
 }
 
