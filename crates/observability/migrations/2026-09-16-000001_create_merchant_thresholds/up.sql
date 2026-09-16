@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS merchant_thresholds (
-    id                             UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    id                             VARCHAR(64) NOT NULL PRIMARY KEY,
     name                           VARCHAR(64),
     product                        VARCHAR(64),
     merchant_id                    VARCHAR(64),

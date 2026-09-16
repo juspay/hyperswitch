@@ -143,7 +143,8 @@ diesel::table! {
 
 diesel::table! {
     merchant_thresholds (id) {
-        id -> Uuid,
+        #[max_length = 64]
+        id -> Varchar,
         #[max_length = 64]
         name -> Nullable<Varchar>,
         #[max_length = 64]

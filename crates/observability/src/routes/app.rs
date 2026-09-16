@@ -14,7 +14,7 @@ use actix_web::{web, Scope};
 use crate::{
     errors::types::{ApiError, ApiErrorResponse},
     logger,
-    routes::{alerts_info, cloudwatch, health_check, notify},
+    routes::{alert_manager, alerts_info, cloudwatch, health_check, notify},
     state::AppState,
 };
 
@@ -59,7 +59,26 @@ impl Alerts {
             )
             .service(
                 web::scope("/alerts_manager")
-                    .service(web::resource("/info").route(web::post().to(alerts_info::create))),
+                    .service(web::resource("/info").route(web::post().to(alerts_info::create)))
+                    .service(
+                        web::resource("/merchant_thresholds")
+                            .route(web::post().to(alert_manager::merchant_thresholds::upsert)),
+                    )
+                    .service(
+                        web::resource("/merchant_thresholds/list")
+                            .route(web::post().to(alert_manager::merchant_thresholds::list)),
+                    )
+                    .service(
+                        web::resource("/merchant_thresholds/update")
+                            .route(web::post().to(alert_manager::merchant_thresholds::update)),
+                    )
+                    .service(web::resource("/merchant_thresholds/delete").route(
+                        web::post().to(alert_manager::merchant_thresholds::delete_by_filter),
+                    ))
+                    .service(
+                        web::resource("/merchant_thresholds/{id}")
+                            .route(web::delete().to(alert_manager::merchant_thresholds::delete)),
+                    ),
             )
     }
 }
