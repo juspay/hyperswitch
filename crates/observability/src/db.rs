@@ -16,6 +16,7 @@
 
 pub mod alerts_info;
 pub mod blacklist;
+pub mod rule_toggles;
 pub mod thresholds;
 
 use std::{sync::Arc, time::Duration};
@@ -38,6 +39,7 @@ pub trait StorageInterface:
     + Sync
     + alerts_info::AlertsInfoInterface
     + blacklist::BlacklistInterface
+    + rule_toggles::RuleTogglesInterface
     + thresholds::ThresholdsInterface
 {
 }
