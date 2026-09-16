@@ -211,6 +211,18 @@ jobs:
       # no net win over baseline (see SCCACHE_MIGRATION_REPORT.md), and
       # because it sidesteps needing S3 write credentials on a pool that also
       # runs fork PR code.
+      #
+      # This pod sets SCCACHE_BUCKET/SCCACHE_REGION/SCCACHE_S3_KEY_PREFIX,
+      # which sccache auto-detects and uses for its own native S3 backend
+      # (the exact per-object network pattern we're trying to avoid here) —
+      # blank them so sccache falls back to local disk instead.
+      - name: Disable sccache's native S3 backend
+        shell: bash
+        run: |
+          echo "SCCACHE_BUCKET=" >> "$GITHUB_ENV"
+          echo "SCCACHE_REGION=" >> "$GITHUB_ENV"
+          echo "SCCACHE_S3_KEY_PREFIX=" >> "$GITHUB_ENV"
+
       - name: Restore sccache local cache
         continue-on-error: true
         uses: actions/cache/restore@v4
@@ -340,6 +352,18 @@ jobs:
 
       # EXPERIMENT: try GHA-backend bulk transfer here too (like check-msrv,
       # #14253), instead of the S3 aws-sync version this replaces.
+      #
+      # This pod sets SCCACHE_BUCKET/SCCACHE_REGION/SCCACHE_S3_KEY_PREFIX,
+      # which sccache auto-detects for its own native S3 backend (the exact
+      # per-object network pattern we're avoiding) — blank them so sccache
+      # falls back to local disk instead.
+      - name: Disable sccache's native S3 backend
+        shell: bash
+        run: |
+          echo "SCCACHE_BUCKET=" >> "$GITHUB_ENV"
+          echo "SCCACHE_REGION=" >> "$GITHUB_ENV"
+          echo "SCCACHE_S3_KEY_PREFIX=" >> "$GITHUB_ENV"
+
       - name: Restore sccache local cache
         continue-on-error: true
         uses: actions/cache/restore@v4
