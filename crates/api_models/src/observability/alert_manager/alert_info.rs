@@ -29,6 +29,37 @@ pub struct AlertsInfoCreateRequest {
     pub approver: Option<String>,
 }
 
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AlertsInfoListRequest {
+    pub name: Option<String>,
+    pub product: Option<String>,
+    pub is_enabled: Option<bool>,
+}
+
+#[derive(Clone, Debug)]
+pub struct AlertsInfoRetrieveRequest {
+    pub id: String,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AlertsInfoEnableRequest {
+    pub approver: String,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct AlertsInfoListResponse {
+    pub count: usize,
+    pub data: Vec<AlertsInfoResponse>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct AlertsInfoDeleteResponse {
+    pub id: String,
+    pub deleted: bool,
+}
+
 /// A stored alert definition.
 #[derive(Clone, Debug, Serialize)]
 pub struct AlertsInfoResponse {

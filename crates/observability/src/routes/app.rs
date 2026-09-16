@@ -61,7 +61,21 @@ impl Alerts {
                 web::scope("/alerts_manager")
                     .service(
                         web::resource("/info")
+                            .route(web::get().to(alert_manager::alert_info::routes::list))
                             .route(web::post().to(alert_manager::alert_info::routes::create)),
+                    )
+                    .service(
+                        web::resource("/info/{id}")
+                            .route(web::get().to(alert_manager::alert_info::routes::retrieve))
+                            .route(web::delete().to(alert_manager::alert_info::routes::delete)),
+                    )
+                    .service(
+                        web::resource("/info/{id}/enable")
+                            .route(web::post().to(alert_manager::alert_info::routes::enable)),
+                    )
+                    .service(
+                        web::resource("/info/{id}/disable")
+                            .route(web::post().to(alert_manager::alert_info::routes::disable)),
                     )
                     .service(
                         web::resource("/dicts")

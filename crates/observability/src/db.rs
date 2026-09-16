@@ -21,8 +21,7 @@ use std::{sync::Arc, time::Duration};
 
 use common_utils::external_service::NoOpEventEmitter;
 use diesel_models::{
-    errors::DatabaseError,
-    DatabaseConnectionWithContext, DejaPgConnection, StorageResult,
+    errors::DatabaseError, DatabaseConnectionWithContext, DejaPgConnection, StorageResult,
 };
 use error_stack::ResultExt;
 use hyperswitch_masking::PeekInterface;

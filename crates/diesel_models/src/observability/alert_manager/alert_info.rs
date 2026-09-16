@@ -1,6 +1,6 @@
 //! Alert definitions: one row per alert, and the whole of its configuration.
 
-use diesel::{Identifiable, Insertable, Queryable, Selectable};
+use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use time::PrimitiveDateTime;
 
 use crate::observability::schema::alerts_info;
@@ -54,5 +54,14 @@ pub struct AlertsInfo {
     pub call_period: Option<i32>,
     pub author: Option<String>,
     pub approver: Option<String>,
+    pub last_updated_at: Option<PrimitiveDateTime>,
+}
+
+#[derive(Clone, Debug, AsChangeset)]
+#[diesel(table_name = alerts_info)]
+pub struct AlertsInfoUpdate {
+    pub is_enabled: Option<bool>,
+    pub approver: Option<String>,
+    pub author: Option<String>,
     pub last_updated_at: Option<PrimitiveDateTime>,
 }
