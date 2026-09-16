@@ -631,6 +631,18 @@ dependencies = [
 
 [[package]]
 name = "async-bb8-diesel"
+version = "0.1.0"
+source = "git+https://github.com/itsharshvb/async-bb8-diesel?rev=6e20864ee4e45d1d7c69ba4cd05f94ed318a741b#6e20864ee4e45d1d7c69ba4cd05f94ed318a741b"
+dependencies = [
+ "async-trait",
+ "bb8",
+ "diesel",
+ "thiserror 1.0.69",
+ "tokio 1.48.0",
+]
+
+[[package]]
+name = "async-bb8-diesel"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "433a78c27b116e74d1c773b4b2e76a83cde6dc1e7ca2b65345dcf597d34f16b4"
@@ -2952,7 +2964,7 @@ name = "deja-diesel"
 version = "0.1.0"
 source = "git+https://github.com/juspay/deja?rev=f9909673331a8f00a32da26e40573c1b0000043a#f9909673331a8f00a32da26e40573c1b0000043a"
 dependencies = [
- "async-bb8-diesel",
+ "async-bb8-diesel 0.3.0",
  "deja-runtime",
  "diesel",
 ]
@@ -3154,7 +3166,7 @@ dependencies = [
 name = "diesel_models"
 version = "0.1.0"
 dependencies = [
- "async-bb8-diesel",
+ "async-bb8-diesel 0.1.0",
  "base64 0.22.1",
  "bb8",
  "common_enums",
@@ -3253,7 +3265,7 @@ name = "drainer"
 version = "0.1.0"
 dependencies = [
  "actix-web",
- "async-bb8-diesel",
+ "async-bb8-diesel 0.1.0",
  "async-trait",
  "bb8",
  "clap 4.5.38",
@@ -8445,7 +8457,7 @@ dependencies = [
  "analytics",
  "api_models",
  "argon2",
- "async-bb8-diesel",
+ "async-bb8-diesel 0.1.0",
  "async-trait",
  "awc",
  "base64 0.22.1",
@@ -9887,7 +9899,7 @@ name = "storage_impl"
 version = "0.1.0"
 dependencies = [
  "api_models",
- "async-bb8-diesel",
+ "async-bb8-diesel 0.1.0",
  "async-trait",
  "bb8",
  "bytes 1.10.1",

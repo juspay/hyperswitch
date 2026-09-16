@@ -189,7 +189,7 @@ actix-multipart = "0.6.2"
 actix-rt = "2.10.0"
 actix-web = "4.11.0"
 argon2 = { version = "0.5.3", features = ["std"] }
-async-bb8-diesel = "0.3.0"
+async-bb8-diesel = { git = "https://github.com/itsharshvb/async-bb8-diesel", rev = "6e20864ee4e45d1d7c69ba4cd05f94ed318a741b" }
 async-trait = "0.1.88"
 base64 = "0.22.1"
 bb8 = "0.9.1"
@@ -308,6 +308,7 @@ currency_conversion = { version = "0.1.0", path = "../currency_conversion" }
 diesel_models = { version = "0.1.0", path = "../diesel_models", features = [
     "kv_store",
     "tokenization_v2",
+    "use_has_broken_as_valid_check",
 ], default-features = false }
 euclid = { version = "0.1.0", path = "../euclid", features = ["valued_jit"] }
 events = { version = "0.1.0", path = "../events" }

@@ -9,15 +9,16 @@ license.workspace = true
 
 [features]
 spanner = ["router_derive/spanner", "common_enums/spanner", "common_types/spanner"]
-default = ["kv_store"]
+default = ["kv_store", "use_has_broken_as_valid_check"]
 kv_store = []
 v1 = ["common_utils/v1", "common_types/v1"]
 v2 = ["common_utils/v2", "common_types/v2"]
 tokenization_v2 = []
 deja = ["dep:deja", "deja/diesel-pg"]
+use_has_broken_as_valid_check = ["async-bb8-diesel/use_has_broken_as_valid_check"]
 
 [dependencies]
-async-bb8-diesel = "0.3.0"
+async-bb8-diesel = { git = "https://github.com/itsharshvb/async-bb8-diesel", rev = "6e20864ee4e45d1d7c69ba4cd05f94ed318a741b" }
 base64 = "0.22.1"
 bb8 = "0.9.1"
 diesel = { version = "2.3.12", features = ["postgres", "serde_json", "time", "128-column-tables", "i-implement-a-third-party-backend-and-opt-into-breaking-changes"] }
