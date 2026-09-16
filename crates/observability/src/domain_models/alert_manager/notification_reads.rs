@@ -3,8 +3,10 @@ use common_utils::date_time;
 use diesel_models::observability::alert_manager::notification_reads as storage;
 use time::PrimitiveDateTime;
 
-use crate::domain_models::{optional_text, LONG_TEXT_MAX_CHARS};
-use crate::errors::{ObservabilityApiResult, ObservabilityError};
+use crate::{
+    domain_models::{optional_text, LONG_TEXT_MAX_CHARS},
+    errors::{ObservabilityApiResult, ObservabilityError},
+};
 
 #[derive(Clone, Debug)]
 pub struct NotificationReadsNew {
