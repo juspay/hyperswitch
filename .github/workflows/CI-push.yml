@@ -189,7 +189,7 @@ jobs:
 
   test:
     name: Run tests on stable toolchain
-    runs-on: hyperswitch-runners-merge
+    runs-on: ubuntu-latest
 
     env:
       # Use `sccache` for caching compilation artifacts
@@ -309,7 +309,7 @@ jobs:
 
   check-v2:
     name: Check compilation for V2 features
-    runs-on: hyperswitch-runners-merge
+    runs-on: ubuntu-latest
 
     env:
       # Use `sccache` for caching compilation artifacts
