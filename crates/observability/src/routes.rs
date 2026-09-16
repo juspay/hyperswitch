@@ -3,6 +3,7 @@
 
 pub mod alerts_info;
 pub mod app;
+pub mod blacklist;
 pub mod cloudwatch;
 pub mod health_check;
 pub mod notify;

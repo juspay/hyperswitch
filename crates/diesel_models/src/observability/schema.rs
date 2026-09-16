@@ -1,6 +1,24 @@
 // @generated automatically by Diesel CLI.
 
 diesel::table! {
+    alert_blacklist (rule_id, merchant_id, profile_id) {
+        rule_id -> Text,
+        merchant_id -> Text,
+        profile_id -> Text,
+        reason -> Text,
+        created_by -> Text,
+        last_updated_at -> Timestamp,
+        is_deleted -> Bool,
+    }
+}
+
+diesel::table! {
+    alert_blacklist_write_lock (lock_key) {
+        lock_key -> Int2,
+    }
+}
+
+diesel::table! {
     alerts_dicts (id) {
         id -> Uuid,
         #[max_length = 64]
@@ -299,6 +317,8 @@ diesel::joinable!(merchants_alert_external_dimension -> alerts_main (id));
 diesel::joinable!(merchants_alert_external_xyne -> alerts_main_xyne (id));
 
 diesel::allow_tables_to_appear_in_same_query!(
+    alert_blacklist,
+    alert_blacklist_write_lock,
     alerts_dicts,
     alerts_info,
     alerts_intermediate,
