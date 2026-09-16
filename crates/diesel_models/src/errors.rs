@@ -31,3 +31,19 @@ impl common_utils::errors::ErrorSwitchFrom<diesel::result::Error> for DatabaseEr
         }
     }
 }
+
+#[derive(Debug)]
+pub struct TransactionError(pub error_stack::Report<DatabaseError>);
+
+impl From<diesel::result::Error> for TransactionError {
+    fn from(error: diesel::result::Error) -> Self {
+        let context = DatabaseError::switch_from(&error);
+        Self(error_stack::report!(error).change_context(context))
+    }
+}
+
+impl From<error_stack::Report<DatabaseError>> for TransactionError {
+    fn from(report: error_stack::Report<DatabaseError>) -> Self {
+        Self(report)
+    }
+}

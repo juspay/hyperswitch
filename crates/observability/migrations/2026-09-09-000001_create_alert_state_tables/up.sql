@@ -119,7 +119,7 @@ CREATE TABLE IF NOT EXISTS alerts_intermediate_xyne (
 -- dashboard sends them already serialised and reads them back expecting the
 -- same bytes.
 CREATE TABLE IF NOT EXISTS alerts_dicts (
-    id         UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    id         VARCHAR(64) PRIMARY KEY,
     name       VARCHAR(64) NOT NULL,
     key_       VARCHAR(255) NOT NULL,
     product    JSON,

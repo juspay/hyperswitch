@@ -1,15 +1,17 @@
 //! The mappers dictionary: small named lists looked up by `(name, key_)`. Every save disables the
 //! live row and inserts a new one, so a value here is always a version rather than an edit.
 
-use api_models::observability::alerts_dicts as api;
-use common_utils::date_time;
-use diesel_models::observability::alerts_dicts as storage;
+use api_models::observability::alert_manager::alert_dicts as api;
+use common_utils::{date_time, generate_time_ordered_id};
+use diesel_models::observability::alert_manager::alert_dicts as storage;
 use error_stack::ResultExt;
 use serde_json::Value;
 use time::PrimitiveDateTime;
 
-use super::{optional_text, required_text};
-use crate::errors::{ObservabilityApiResult, ObservabilityError};
+use crate::{
+    domain_models::utils::{optional_text, required_text},
+    errors::{ObservabilityApiResult, ObservabilityError},
+};
 
 const NAME_MAX_CHARS: usize = 64;
 const KEY_MAX_CHARS: usize = 255;
@@ -18,8 +20,9 @@ const USERNAME_MAX_CHARS: usize = 64;
 /// A dictionary version that has not been stored yet.
 #[derive(Clone, Debug)]
 pub struct AlertsDictsNew {
+    pub id: String,
     pub name: String,
-    pub key_: String,
+    pub key: String,
     pub product: Value,
     pub values_: Value,
     pub ts_created: PrimitiveDateTime,
@@ -31,9 +34,9 @@ pub struct AlertsDictsNew {
 /// A stored dictionary version.
 #[derive(Clone, Debug)]
 pub struct AlertsDicts {
-    pub id: uuid::Uuid,
+    pub id: String,
     pub name: String,
-    pub key_: String,
+    pub key: String,
     pub product: Option<Value>,
     pub values_: Option<Value>,
     pub ts_created: Option<PrimitiveDateTime>,
@@ -46,7 +49,7 @@ pub struct AlertsDicts {
 #[derive(Clone, Debug)]
 pub struct AlertsDictsFilter {
     pub name: Option<String>,
-    pub key_: Option<String>,
+    pub key: Option<String>,
     pub is_enabled: bool,
 }
 
@@ -54,7 +57,7 @@ impl AlertsDictsNew {
     /// Reject what the table would refuse, so a bad value is a `400` rather than a database error.
     fn validate(&self) -> ObservabilityApiResult<()> {
         required_text("name", &self.name, NAME_MAX_CHARS)?;
-        required_text("key_", &self.key_, KEY_MAX_CHARS)?;
+        required_text("key", &self.key, KEY_MAX_CHARS)?;
         optional_text("username", self.username.as_deref(), USERNAME_MAX_CHARS)?;
 
         Ok(())
@@ -78,8 +81,9 @@ impl TryFrom<api::AlertsDictsCreateRequest> for AlertsDictsNew {
         let now = date_time::now();
 
         let new = Self {
+            id: generate_time_ordered_id("dict"),
             name: request.name,
-            key_: request.key_,
+            key: request.key,
             product: empty_array_if_null(request.product),
             values_: empty_array_if_null(Some(request.values_)),
             ts_created: now.replace_millisecond(0).unwrap_or(now),
@@ -97,8 +101,9 @@ impl TryFrom<api::AlertsDictsCreateRequest> for AlertsDictsNew {
 impl From<AlertsDictsNew> for storage::AlertsDictsNew {
     fn from(new: AlertsDictsNew) -> Self {
         Self {
+            id: new.id,
             name: new.name,
-            key_: new.key_,
+            key_: new.key,
             product: new.product,
             values_: new.values_,
             ts_created: new.ts_created,
@@ -114,7 +119,7 @@ impl From<storage::AlertsDicts> for AlertsDicts {
         Self {
             id: row.id,
             name: row.name,
-            key_: row.key_,
+            key: row.key_,
             product: row.product,
             values_: row.values_,
             ts_created: row.ts_created,
@@ -128,9 +133,9 @@ impl From<storage::AlertsDicts> for AlertsDicts {
 impl From<AlertsDicts> for api::AlertsDictsResponse {
     fn from(entry: AlertsDicts) -> Self {
         Self {
-            id: entry.id.to_string(),
+            id: entry.id,
             name: entry.name,
-            key_: entry.key_,
+            key: entry.key,
             product: entry.product,
             values_: entry.values_,
             ts_created: entry.ts_created,
@@ -145,18 +150,19 @@ impl From<api::AlertsDictsListRequest> for AlertsDictsFilter {
     fn from(request: api::AlertsDictsListRequest) -> Self {
         Self {
             name: request.name,
-            key_: request.key_,
+            key: request.key,
             is_enabled: request.is_enabled.unwrap_or(true),
         }
     }
 }
 
-/// Parse a path `id` into what the table's primary key actually is, so an id that is not a UUID is
-/// a `400` rather than a database error.
-pub fn parse_alert_dict_id(id: &str) -> ObservabilityApiResult<uuid::Uuid> {
-    uuid::Uuid::parse_str(id)
-        .change_context(ObservabilityError::InvalidRequest)
-        .attach_printable("id must be a UUID")
+/// Validate a path `id` before passing it to the database.
+pub fn parse_alert_dict_id(id: &str) -> ObservabilityApiResult<String> {
+    if id.trim().is_empty() {
+        Err(error_stack::report!(ObservabilityError::InvalidRequest))
+            .attach_printable("id must not be empty")?
+    }
+    Ok(id.to_owned())
 }
 
 #[cfg(test)]
@@ -169,7 +175,7 @@ mod tests {
     fn request() -> api::AlertsDictsCreateRequest {
         api::AlertsDictsCreateRequest {
             name: "dashboard".to_owned(),
-            key_: "slack_users".to_owned(),
+            key: "slack_users".to_owned(),
             product: None,
             values_: json!(["alice", "bob"]),
             username: None,
@@ -228,7 +234,7 @@ mod tests {
         })
         .is_err());
         assert!(AlertsDictsNew::try_from(api::AlertsDictsCreateRequest {
-            key_: "  ".to_owned(),
+            key: "  ".to_owned(),
             ..request()
         })
         .is_err());
@@ -242,7 +248,7 @@ mod tests {
         })
         .is_err());
         assert!(AlertsDictsNew::try_from(api::AlertsDictsCreateRequest {
-            key_: "a".repeat(256),
+            key: "a".repeat(256),
             ..request()
         })
         .is_err());
@@ -252,7 +258,7 @@ mod tests {
         })
         .is_err());
         assert!(AlertsDictsNew::try_from(api::AlertsDictsCreateRequest {
-            key_: "é".repeat(255),
+            key: "é".repeat(255),
             ..request()
         })
         .is_ok());
@@ -262,7 +268,7 @@ mod tests {
     fn the_list_filter_defaults_to_enabled_rows() {
         let filter = AlertsDictsFilter::from(api::AlertsDictsListRequest {
             name: Some("dashboard".to_owned()),
-            key_: None,
+            key: None,
             is_enabled: None,
         });
 
@@ -270,7 +276,7 @@ mod tests {
 
         let filter = AlertsDictsFilter::from(api::AlertsDictsListRequest {
             name: None,
-            key_: None,
+            key: None,
             is_enabled: Some(false),
         });
 
@@ -278,17 +284,17 @@ mod tests {
     }
 
     #[test]
-    fn only_a_uuid_is_an_id() {
-        assert!(parse_alert_dict_id("not-a-uuid").is_err());
-        assert!(parse_alert_dict_id("2ba90b3e-8b6a-4b6c-9c7e-4f7c6b9e2d3a").is_ok());
+    fn a_non_empty_string_is_an_id() {
+        assert!(parse_alert_dict_id("dict_123").is_ok());
+        assert!(parse_alert_dict_id("").is_err());
     }
 
     #[test]
     fn the_response_uses_column_names_and_iso8601() {
         let entry = AlertsDicts {
-            id: uuid::Uuid::nil(),
+            id: "dict_123".to_owned(),
             name: "dashboard".to_owned(),
-            key_: "slack_users".to_owned(),
+            key: "slack_users".to_owned(),
             product: Some(json!([])),
             values_: Some(json!(["alice"])),
             ts_created: Some(date_time::now()),
@@ -300,8 +306,8 @@ mod tests {
         let response = api::AlertsDictsResponse::from(entry);
         let serialized = serde_json::to_value(&response).unwrap();
 
-        assert_eq!(serialized["id"], uuid::Uuid::nil().to_string());
-        assert_eq!(serialized["key_"], "slack_users");
+        assert_eq!(serialized["id"], "dict_123");
+        assert_eq!(serialized["key"], "slack_users");
         assert!(serialized["ts_created"]
             .as_str()
             .is_some_and(|value| value.contains('T')));

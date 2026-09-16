@@ -6,7 +6,8 @@ use diesel_models::observability::alert_manager::alert_info as storage;
 use time::PrimitiveDateTime;
 
 use super::{
-    non_negative, optional_text, required_text, LONG_TEXT_MAX_CHARS, SHORT_TEXT_MAX_CHARS,
+    utils::{non_negative, optional_text, required_text},
+    LONG_TEXT_MAX_CHARS, SHORT_TEXT_MAX_CHARS,
 };
 use crate::errors::{ObservabilityApiResult, ObservabilityError};
 

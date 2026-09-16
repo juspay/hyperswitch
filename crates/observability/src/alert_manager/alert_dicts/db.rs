@@ -1,11 +1,11 @@
 //! Storage operations on `alerts_dicts`.
 
 use async_bb8_diesel::AsyncConnection;
-use diesel_models::{observability::alerts_dicts as storage, StorageResult};
+use diesel_models::{observability::alert_manager::alert_dicts as storage, StorageResult};
 
 use crate::{
     db::{Store, TransactionError},
-    domain_models::alerts_dicts as domain_models,
+    domain_models::alert_manager::alert_dicts::domain_models,
 };
 
 /// r-apps' `OFFSET 2`: the live row plus one older version.
@@ -22,10 +22,7 @@ pub trait AlertsDictsInterface {
     ) -> StorageResult<domain_models::AlertsDicts>;
 
     /// Find one dictionary entry by id, any version.
-    async fn find_alert_dict_by_id(
-        &self,
-        id: uuid::Uuid,
-    ) -> StorageResult<domain_models::AlertsDicts>;
+    async fn find_alert_dict_by_id(&self, id: String) -> StorageResult<domain_models::AlertsDicts>;
 
     /// List dictionary entries matching the given filter.
     async fn list_alert_dicts_by_filter(
@@ -34,7 +31,7 @@ pub trait AlertsDictsInterface {
     ) -> StorageResult<Vec<domain_models::AlertsDicts>>;
 
     /// Delete one dictionary entry by id, any version. Never re-enables another version.
-    async fn delete_alert_dict_by_id(&self, id: uuid::Uuid) -> StorageResult<bool>;
+    async fn delete_alert_dict_by_id(&self, id: String) -> StorageResult<bool>;
 }
 
 #[async_trait::async_trait]
@@ -46,7 +43,7 @@ impl AlertsDictsInterface for Store {
         let connection = self.connection().await?;
         let (name, key_, new) = (
             new.name.clone(),
-            new.key_.clone(),
+            new.key.clone(),
             storage::AlertsDictsNew::from(new),
         );
         // The closure's handle is the same connection, so these run in the transaction.
@@ -73,10 +70,7 @@ impl AlertsDictsInterface for Store {
             .map_err(|TransactionError(report)| report)
     }
 
-    async fn find_alert_dict_by_id(
-        &self,
-        id: uuid::Uuid,
-    ) -> StorageResult<domain_models::AlertsDicts> {
+    async fn find_alert_dict_by_id(&self, id: String) -> StorageResult<domain_models::AlertsDicts> {
         let connection = self.connection().await?;
 
         storage::AlertsDicts::find_by_id(&connection, id)
@@ -93,7 +87,7 @@ impl AlertsDictsInterface for Store {
         storage::AlertsDicts::list_by_filter(
             &connection,
             filter.name,
-            filter.key_,
+            filter.key,
             filter.is_enabled,
         )
         .await
@@ -104,7 +98,7 @@ impl AlertsDictsInterface for Store {
         })
     }
 
-    async fn delete_alert_dict_by_id(&self, id: uuid::Uuid) -> StorageResult<bool> {
+    async fn delete_alert_dict_by_id(&self, id: String) -> StorageResult<bool> {
         let connection = self.connection().await?;
 
         storage::AlertsDicts::delete_by_id(&connection, id).await

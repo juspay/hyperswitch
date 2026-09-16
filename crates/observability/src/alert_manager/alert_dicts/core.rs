@@ -1,6 +1,6 @@
 //! Per-request logic for the mappers dictionary.
 
-use api_models::observability::alerts_dicts::{
+use api_models::observability::alert_manager::alert_dicts::{
     AlertsDictsCreateRequest, AlertsDictsDeleteRequest, AlertsDictsDeleteResponse,
     AlertsDictsListRequest, AlertsDictsListResponse, AlertsDictsResponse,
     AlertsDictsRetrieveRequest,
@@ -8,7 +8,9 @@ use api_models::observability::alerts_dicts::{
 use error_stack::ResultExt;
 
 use crate::{
-    domain_models::alerts_dicts::{parse_alert_dict_id, AlertsDictsFilter, AlertsDictsNew},
+    domain_models::alert_manager::alert_dicts::domain_models::{
+        parse_alert_dict_id, AlertsDictsFilter, AlertsDictsNew,
+    },
     errors::{ObservabilityApiResult, ObservabilityError, StorageErrorExt},
     state::AppState,
 };

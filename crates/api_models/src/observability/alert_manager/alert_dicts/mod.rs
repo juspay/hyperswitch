@@ -10,10 +10,9 @@ use time::PrimitiveDateTime;
 /// `values_` is not `Option`, so a missing key fails to parse while `null` parses and is stored as
 /// an empty array.
 #[derive(Clone, Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct AlertsDictsCreateRequest {
     pub name: String,
-    pub key_: String,
+    pub key: String,
     pub product: Option<Value>,
     pub values_: Value,
     pub username: Option<String>,
@@ -22,10 +21,9 @@ pub struct AlertsDictsCreateRequest {
 
 /// The query of `GET /alerts/alerts_manager/dicts`.
 #[derive(Clone, Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct AlertsDictsListRequest {
     pub name: Option<String>,
-    pub key_: Option<String>,
+    pub key: Option<String>,
     pub is_enabled: Option<bool>,
 }
 
@@ -46,7 +44,7 @@ pub struct AlertsDictsDeleteRequest {
 pub struct AlertsDictsResponse {
     pub id: String,
     pub name: String,
-    pub key_: String,
+    pub key: String,
     pub product: Option<Value>,
     pub values_: Option<Value>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]

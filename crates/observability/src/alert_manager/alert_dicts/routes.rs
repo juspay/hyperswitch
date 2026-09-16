@@ -2,12 +2,12 @@
 //! [`crate::routes::app`].
 
 use actix_web::{web, HttpRequest, HttpResponse};
-use api_models::observability::alerts_dicts::{
+use api_models::observability::alert_manager::alert_dicts::{
     AlertsDictsCreateRequest, AlertsDictsDeleteRequest, AlertsDictsListRequest,
     AlertsDictsRetrieveRequest,
 };
 
-use crate::{auth, core, services, state::AppState};
+use crate::{auth, services, state::AppState};
 
 /// `POST /alerts/alerts_manager/dicts`.
 pub async fn create(
@@ -19,7 +19,7 @@ pub async fn create(
         state.get_ref().clone(),
         &request,
         payload.into_inner(),
-        core::alerts_dicts::create_alert_dict,
+        crate::core::alert_manager::alert_dicts::core::create_alert_dict,
         &auth::InternalApiKeyAuth,
     )
     .await
@@ -35,7 +35,7 @@ pub async fn list(
         state.get_ref().clone(),
         &request,
         query.into_inner(),
-        core::alerts_dicts::list_alert_dicts,
+        crate::core::alert_manager::alert_dicts::core::list_alert_dicts,
         &auth::InternalApiKeyAuth,
     )
     .await
@@ -53,7 +53,7 @@ pub async fn retrieve(
         AlertsDictsRetrieveRequest {
             id: id.into_inner(),
         },
-        core::alerts_dicts::retrieve_alert_dict,
+        crate::core::alert_manager::alert_dicts::core::retrieve_alert_dict,
         &auth::InternalApiKeyAuth,
     )
     .await
@@ -71,7 +71,7 @@ pub async fn delete(
         AlertsDictsDeleteRequest {
             id: id.into_inner(),
         },
-        core::alerts_dicts::delete_alert_dict,
+        crate::core::alert_manager::alert_dicts::core::delete_alert_dict,
         &auth::InternalApiKeyAuth,
     )
     .await

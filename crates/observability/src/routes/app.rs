@@ -14,7 +14,7 @@ use actix_web::{web, Scope};
 use crate::{
     errors::types::{ApiError, ApiErrorResponse},
     logger,
-    routes::{alert_manager, alerts_dicts, cloudwatch, health_check, notify},
+    routes::{alert_manager, cloudwatch, health_check, notify},
     state::AppState,
 };
 
@@ -65,13 +65,13 @@ impl Alerts {
                     )
                     .service(
                         web::resource("/dicts")
-                            .route(web::get().to(alerts_dicts::list))
-                            .route(web::post().to(alerts_dicts::create)),
+                            .route(web::get().to(alert_manager::alert_dicts::routes::list))
+                            .route(web::post().to(alert_manager::alert_dicts::routes::create)),
                     )
                     .service(
                         web::resource("/dicts/{id}")
-                            .route(web::get().to(alerts_dicts::retrieve))
-                            .route(web::delete().to(alerts_dicts::delete)),
+                            .route(web::get().to(alert_manager::alert_dicts::routes::retrieve))
+                            .route(web::delete().to(alert_manager::alert_dicts::routes::delete)),
                     ),
             )
     }

@@ -13,6 +13,7 @@ use actix_web::{
     test::{self, TestRequest},
     App,
 };
+use api_models::observability::alert_manager::alert_dicts::AlertsDictsCreateRequest;
 use observability::{
     auth::X_INTERNAL_API_KEY, db::Store, domain::notifier::Registry, routes::Alerts,
     settings::Database, state::AppState,
@@ -81,7 +82,7 @@ async fn all_routes_are_behind_the_guard() {
     for request in [
         TestRequest::post()
             .uri(BASE)
-            .set_json(json!({ "name": "t", "key_": "k", "values_": ["v"] })),
+            .set_json(json!({ "name": "t", "key": "k", "values_": ["v"] })),
         TestRequest::get().uri(BASE),
         TestRequest::get().uri(&format!("{BASE}/abc")),
         TestRequest::delete().uri(&format!("{BASE}/abc")),
@@ -95,41 +96,41 @@ async fn all_routes_are_behind_the_guard() {
 
 #[actix_web::test]
 async fn a_save_without_values_is_refused() {
-    let (status, body) = call(post(json!({ "name": "t", "key_": "k" }))).await;
+    let (status, body) = call(post(json!({ "name": "t", "key": "k" }))).await;
 
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert_eq!(body["error"]["code"], "IR_04");
 }
 
-#[actix_web::test]
-async fn a_save_cannot_set_ts_created() {
-    let (status, body) = call(post(json!({
+#[test]
+fn a_save_ignores_ts_created() {
+    let request: AlertsDictsCreateRequest = serde_json::from_value(json!({
         "name": "t",
-        "key_": "k",
+        "key": "k",
         "values_": ["v"],
         "ts_created": "2026-09-15T06:00:00Z"
-    })))
-    .await;
+    }))
+    .expect("unknown fields are ignored by the request model");
 
-    assert_eq!(status, StatusCode::BAD_REQUEST);
-    assert_eq!(body["error"]["code"], "IR_04");
+    assert_eq!(request.name, "t");
+    assert_eq!(request.key, "k");
 }
 
 #[actix_web::test]
 async fn a_blank_name_is_refused_before_the_database() {
-    let (status, body) = call(post(json!({ "name": " ", "key_": "k", "values_": ["v"] }))).await;
+    let (status, body) = call(post(json!({ "name": " ", "key": "k", "values_": ["v"] }))).await;
 
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert_eq!(body["error"]["code"], "IR_04");
 }
 
 #[actix_web::test]
-async fn a_non_uuid_id_is_refused() {
-    let (status, body) = call(get(&format!("{BASE}/abc"))).await;
+async fn an_empty_id_is_refused() {
+    let (status, body) = call(get(&format!("{BASE}/%20"))).await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert_eq!(body["error"]["code"], "IR_04");
 
-    let (status, body) = call(delete(&format!("{BASE}/abc"))).await;
+    let (status, body) = call(delete(&format!("{BASE}/%20"))).await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert_eq!(body["error"]["code"], "IR_04");
 }

@@ -8,11 +8,12 @@ use crate::observability::schema::alerts_dicts;
 
 /// A new version of a dictionary entry.
 ///
-/// `id` is absent so the column default (`gen_random_uuid()`) assigns it. A `None` `username`
-/// falls back to its column default rather than being stored as `null`.
+/// The application supplies `id`. A `None` `username` falls back to its column default rather than
+/// being stored as `null`.
 #[derive(Clone, Debug, Insertable, serde::Serialize, serde::Deserialize)]
 #[diesel(table_name = alerts_dicts)]
 pub struct AlertsDictsNew {
+    pub id: String,
     pub name: String,
     pub key_: String,
     pub product: serde_json::Value,
@@ -29,7 +30,7 @@ pub struct AlertsDictsNew {
 )]
 #[diesel(table_name = alerts_dicts, primary_key(id), check_for_backend(diesel::pg::Pg))]
 pub struct AlertsDicts {
-    pub id: uuid::Uuid,
+    pub id: String,
     pub name: String,
     pub key_: String,
     pub product: Option<serde_json::Value>,

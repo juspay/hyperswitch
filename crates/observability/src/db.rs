@@ -16,15 +16,15 @@
 
 #[path = "alert_manager/mod.rs"]
 pub mod alert_manager;
-pub mod alerts_dicts;
 
 use std::{sync::Arc, time::Duration};
 
-use common_utils::{errors::ErrorSwitchFrom, external_service::NoOpEventEmitter};
+use common_utils::external_service::NoOpEventEmitter;
 use diesel_models::{
-    errors::DatabaseError, DatabaseConnectionWithContext, DejaPgConnection, StorageResult,
+    errors::{DatabaseError, TransactionError},
+    DatabaseConnectionWithContext, DejaPgConnection, StorageResult,
 };
-use error_stack::{report, ResultExt};
+use error_stack::ResultExt;
 use hyperswitch_masking::PeekInterface;
 
 use crate::{errors::ConfigurationError, settings::Database};
@@ -37,7 +37,7 @@ pub trait StorageInterface:
     Send
     + Sync
     + alert_manager::alert_info::db::AlertsInfoInterface
-    + alerts_dicts::AlertsDictsInterface
+    + alert_manager::alert_dicts::db::AlertsDictsInterface
 {
 }
 
@@ -88,7 +88,7 @@ impl Store {
     ///
     /// No request id and no event emitter: this service does not report its database calls as
     /// external service calls.
-    async fn connection(&self) -> StorageResult<DatabaseConnectionWithContext<'_>> {
+    pub(crate) async fn connection(&self) -> StorageResult<DatabaseConnectionWithContext<'_>> {
         let connection = self
             .pool
             .get()
@@ -100,21 +100,5 @@ impl Store {
             None,
             Arc::new(NoOpEventEmitter),
         ))
-    }
-}
-
-#[derive(Debug)]
-pub struct TransactionError(pub error_stack::Report<DatabaseError>);
-
-impl From<diesel::result::Error> for TransactionError {
-    fn from(error: diesel::result::Error) -> Self {
-        let context = DatabaseError::switch_from(&error);
-        Self(report!(error).change_context(context))
-    }
-}
-
-impl From<error_stack::Report<DatabaseError>> for TransactionError {
-    fn from(report: error_stack::Report<DatabaseError>) -> Self {
-        Self(report)
     }
 }
