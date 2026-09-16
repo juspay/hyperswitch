@@ -31,6 +31,30 @@ diesel::table! {
 }
 
 diesel::table! {
+    alert_lifecycle_events (alert_key) {
+        #[max_length = 32]
+        alert_key -> Varchar,
+        detector -> Text,
+        merchant_id -> Text,
+        profile_id -> Text,
+        state -> Text,
+        first_seen -> Timestamp,
+        last_seen -> Timestamp,
+        recovered_at -> Timestamp,
+        runs -> Int8,
+        severity -> Text,
+        sr -> Float8,
+        failed -> Int8,
+        total -> Int8,
+        connector -> Text,
+        notified_at -> Timestamp,
+        ts_slack -> Text,
+        sent -> Bool,
+        last_updated_at -> Timestamp,
+    }
+}
+
+diesel::table! {
     alert_metadata (id) {
         id -> Text,
         metadata -> Text,
@@ -351,6 +375,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     alert_blacklist,
     alert_blacklist_write_lock,
     alert_dictionary,
+    alert_lifecycle_events,
     alert_metadata,
     alert_rule_toggles,
     alerts_dicts,
