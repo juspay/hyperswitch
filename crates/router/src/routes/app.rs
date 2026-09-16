@@ -1997,6 +1997,9 @@ impl Blocklist {
                 web::resource("/batch/{job_id}")
                     .route(web::get().to(blocklist::get_batch_blocklist_job_status)),
             )
+            .service(
+                web::resource("/export").route(web::post().to(blocklist::create_blocklist_export)),
+            )
     }
 }
 
@@ -2183,6 +2186,34 @@ impl MerchantConnectorAccount {
             );
         }
         route
+    }
+}
+
+pub struct HierarchicalResources;
+
+#[cfg(all(feature = "olap", feature = "v1"))]
+impl HierarchicalResources {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/hierarchical_resources")
+            .app_data(web::Data::new(state))
+            .service(web::resource("").route(
+                web::post().to(super::hierarchical_resources::generate_hierarchical_resource),
+            ))
+            .service(
+                web::resource("/list").route(
+                    web::post().to(super::hierarchical_resources::list_hierarchical_resources),
+                ),
+            )
+            .service(
+                web::resource("/apple_pay_certificate/{resource_id}").route(
+                    web::put().to(super::hierarchical_resources::upload_hierarchical_resource),
+                ),
+            )
+            .service(
+                web::resource("/{resource_id}/link").route(
+                    web::post().to(super::hierarchical_resources::link_hierarchical_resource),
+                ),
+            )
     }
 }
 
@@ -2531,6 +2562,10 @@ impl PaymentLink {
         web::scope("/payment_link")
             .app_data(web::Data::new(state))
             .service(web::resource("/list").route(web::post().to(payment_link::payments_link_list)))
+            .service(
+                web::resource("/profile/list")
+                    .route(web::post().to(payment_link::profile_payment_link_list)),
+            )
             .service(
                 web::resource("/{payment_link_id}")
                     .route(web::get().to(payment_link::payment_link_retrieve)),

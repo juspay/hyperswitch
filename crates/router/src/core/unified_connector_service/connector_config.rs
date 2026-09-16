@@ -198,6 +198,11 @@ pub struct PaysafeRedirectAccountId {
 }
 
 #[derive(Debug, serde::Deserialize)]
+pub struct GlobalpayMetadata {
+    account_name: Option<Secret<String>>,
+}
+
+#[derive(Debug, serde::Deserialize)]
 pub struct PeachpaymentsMetadata {
     client_merchant_reference_id: Secret<String>,
     merchant_payment_method_route_id: Secret<String>,
@@ -365,6 +370,8 @@ pub enum ConnectorSpecificConfig {
     Globalpay {
         app_id: Secret<String>,
         app_key: Secret<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        account_name: Option<Secret<String>>,
     },
     /// Fiserv connector configuration
     Fiserv {
@@ -395,6 +402,21 @@ pub enum ConnectorSpecificConfig {
         client_secret: Secret<String>,
         client_id: Secret<String>,
         merchant_id: Secret<String>,
+    },
+    /// Etisalat Payment Gateway (EPG). All requests carry auth in the JSON body:
+    /// `user_name`, `password`, and `customer` (merchant identifier).
+    Etisalat {
+        user_name: Secret<String>,
+        password: Secret<String>,
+        customer: Secret<String>,
+    },
+    /// Merchante (MerchantE by Omise) — credentials are sent inside the
+    /// urlencoded request body (`profile_id` + `profile_key`), not headers.
+    /// Field order and names must mirror hyperswitch-prism's
+    /// `ConnectorSpecificConfig::Merchante` variant.
+    Merchante {
+        profile_id: Secret<String>,
+        profile_key: Secret<String>,
     },
     /// Nuvei connector configuration
     Nuvei {
@@ -1035,10 +1057,20 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 _ => Err(err("Datatrans requires BodyKey auth type")),
             },
             Connector::Globalpay => match auth {
-                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Globalpay {
-                    app_id: key1.clone(),
-                    app_key: api_key.clone(),
-                }),
+                ConnectorAuthType::BodyKey { api_key, key1 } => {
+                    let globalpay_meta = metadata
+                        .map(|m| {
+                            serde_json::from_value::<GlobalpayMetadata>(m.clone())
+                                .map_err(|_| err("Invalid Globalpay metadata format"))
+                        })
+                        .transpose()?;
+
+                    Ok(Self::Globalpay {
+                        app_id: key1.clone(),
+                        app_key: api_key.clone(),
+                        account_name: globalpay_meta.and_then(|m| m.account_name),
+                    })
+                }
                 _ => Err(err("Globalpay requires BodyKey auth type")),
             },
             Connector::Hipay => match auth {
@@ -1396,6 +1428,30 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     merchant_id: api_secret.clone(),
                 }),
                 _ => Err(err("Moneris requires SignatureKey auth type")),
+            },
+            Connector::Etisalat => match auth {
+                // api_key -> EPG Password, key1 -> EPG UserName,
+                // api_secret -> EPG Customer (merchant identifier).
+                ConnectorAuthType::SignatureKey {
+                    api_key,
+                    key1,
+                    api_secret,
+                } => Ok(Self::Etisalat {
+                    user_name: api_key.clone(),
+                    password: key1.clone(),
+                    customer: api_secret.clone(),
+                }),
+                _ => Err(err("Etisalat requires SignatureKey auth type")),
+            },
+            Connector::Merchante => match auth {
+                // api_key -> Merchante Profile Key (32-char secret),
+                // key1    -> Merchante Profile ID  (20-digit merchant id).
+                // Mirrors the hyperswitch-prism `ConnectorEnum::Merchante` arm.
+                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Merchante {
+                    profile_key: api_key.clone(),
+                    profile_id: key1.clone(),
+                }),
+                _ => Err(err("Merchante requires BodyKey auth type")),
             },
             Connector::Noon => match auth {
                 ConnectorAuthType::SignatureKey {
