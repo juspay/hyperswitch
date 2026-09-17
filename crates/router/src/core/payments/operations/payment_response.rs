@@ -2591,10 +2591,6 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                     } else {
                         None
                     };
-                    // The connector-reported amount only reflects funds actually captured
-                    // when the connector charged the payment. Otherwise (e.g. a manual-capture
-                    // authorize that mismatched) nothing has been received yet, so the
-                    // connector's value belongs in amount_capturable, not amount_received.
                     let field_name = err.field_names;
                     let connector_transaction_id = err.connector_transaction_id;
                     (

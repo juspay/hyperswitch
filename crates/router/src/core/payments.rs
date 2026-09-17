@@ -14172,9 +14172,9 @@ fn get_eligible_manual_update_statuses(
                 _ => vec![Status::Succeeded, Status::Failed],
             }
         }
-        // SequentialAutomatic behaves like Manual capture for this purpose.
         enums::CaptureMethod::Manual | enums::CaptureMethod::SequentialAutomatic => {
             match amount_received {
+                // if amount_received is None and amount authorized (capturable) is less than amount requested to be authorized, then the payment is partially authorized and requires capture.
                 None if amount_capturable < amount_requested => {
                     vec![
                         Status::PartiallyAuthorizedAndRequiresCapture,
@@ -14182,7 +14182,11 @@ fn get_eligible_manual_update_statuses(
                     ]
                 }
                 None => vec![Status::RequiresCapture, Status::Failed],
-                Some(_) => vec![Status::PartiallyCaptured, Status::Failed],
+                // In case of Capture of the authorized payment
+                Some(received) if received < amount_requested => {
+                    vec![Status::PartiallyCaptured, Status::Failed]
+                }
+                Some(_) => vec![Status::Succeeded, Status::Failed],
             }
         }
         enums::CaptureMethod::ManualMultiple => match amount_received {
@@ -14196,12 +14200,9 @@ fn get_eligible_manual_update_statuses(
             Some(_) if amount_capturable == MinorUnit::zero() => {
                 vec![Status::Succeeded, Status::Failed]
             }
-            Some(received) if received < amount_requested => {
+            Some(_) => {
                 vec![Status::PartiallyCapturedAndCapturable, Status::Failed]
             }
-            // Capturable remains but received already meets the requested amount - follow
-            // the plain Manual capture outcome.
-            Some(_) => vec![Status::PartiallyCaptured, Status::Failed],
         },
     }
 }

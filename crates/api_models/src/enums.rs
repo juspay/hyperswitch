@@ -647,11 +647,8 @@ pub enum TokenStatus {
     Deleted,
 }
 
-/// Enum representing the allowed intent statuses for manual status update.
-/// From the `review` state, only Succeeded and Failed are valid transitions.
-/// From the `conflicted` state, the valid subset depends on the payment's capture method
-/// and amounts - see `/manual-status-update` (GET) for the statuses eligible for a specific
-/// payment.
+/// Enum representing the allowed intent statuses for manual status update
+/// Only Succeeded and Failed are valid transitions from Review state
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, Copy, PartialEq, Eq, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ManualUpdateIntentStatus {
