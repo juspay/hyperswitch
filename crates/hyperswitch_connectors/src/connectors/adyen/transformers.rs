@@ -68,7 +68,7 @@ use hyperswitch_interfaces::{
 };
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
-use time::{Duration, OffsetDateTime, PrimitiveDateTime};
+use time::{Duration, PrimitiveDateTime};
 use url::Url;
 
 #[cfg(feature = "payouts")]
@@ -284,9 +284,9 @@ pub struct RiskData {
     #[serde(rename = "riskdata.deliveryMethod")]
     delivery_method: Option<String>,
     #[serde(rename = "riskdata.emailName")]
-    email_name: Option<String>,
+    email_name: Option<Secret<String>>,
     #[serde(rename = "riskdata.emailDomain")]
-    email_domain: Option<String>,
+    email_domain: Option<Secret<String>>,
     #[serde(rename = "riskdata.lastOrderDate")]
     last_order_date: Option<String>,
     #[serde(rename = "riskdata.merchantReference")]
@@ -2602,6 +2602,7 @@ impl TryFrom<(&WalletData, &PaymentsAuthorizeRouterData)> for AdyenPaymentMethod
             | WalletData::AmazonPayRedirect(_)
             | WalletData::Paysera(_)
             | WalletData::Skrill(_)
+            | WalletData::Neteller(_)
             | WalletData::ApplePayRedirect(_)
             | WalletData::ApplePayThirdPartySdk(_)
             | WalletData::GooglePayRedirect(_)
@@ -3006,8 +3007,8 @@ pub fn get_risk_data(metadata: serde_json::Value) -> Option<RiskData> {
         affiliate_channel,
         avg_order_value,
         delivery_method,
-        email_name,
-        email_domain,
+        email_name: email_name.map(Secret::new),
+        email_domain: email_domain.map(Secret::new),
         last_order_date,
         merchant_reference,
         payment_method,
@@ -3639,7 +3640,11 @@ impl
             } => {
                 // Validate expiry_date doesn't exceed 5 days from now
                 if let Some(expiry) = expiry_date {
-                    let now = OffsetDateTime::now_utc();
+                    // The value never reaches the request, but it decides
+                    // whether the request is made at all: a recording whose
+                    // expiry_date was valid would fail this check when replayed
+                    // six days later. Substituting the clock is what stops that.
+                    let now = common_utils::date_time::now().assume_utc();
                     let max_expiry = now + Duration::days(5);
                     let max_expiry_primitive =
                         PrimitiveDateTime::new(max_expiry.date(), max_expiry.time());
@@ -5036,7 +5041,9 @@ pub fn get_wait_screen_metadata(
 ) -> CustomResult<Option<serde_json::Value>, errors::ConnectorError> {
     match next_action.action.payment_method_type {
         PaymentType::Blik => {
-            let current_time = OffsetDateTime::now_utc().unix_timestamp_nanos();
+            let current_time = common_utils::date_time::now()
+                .assume_utc()
+                .unix_timestamp_nanos();
             Ok(Some(serde_json::json!(WaitScreenData {
                 display_from_timestamp: current_time,
                 display_to_timestamp: Some(current_time + Duration::minutes(1).whole_nanoseconds()),
@@ -5044,7 +5051,9 @@ pub fn get_wait_screen_metadata(
             })))
         }
         PaymentType::Mbway => {
-            let current_time = OffsetDateTime::now_utc().unix_timestamp_nanos();
+            let current_time = common_utils::date_time::now()
+                .assume_utc()
+                .unix_timestamp_nanos();
             Ok(Some(serde_json::json!(WaitScreenData {
                 display_from_timestamp: current_time,
                 display_to_timestamp: None,
@@ -5587,7 +5596,7 @@ pub struct AdyenAdditionalDataWH {
     /// [only for cards] This is only available for Visa and Mastercard
     pub refusal_code_raw: Option<String>,
     #[serde(rename = "shopperEmail")]
-    pub shopper_email: Option<String>,
+    pub shopper_email: Option<Secret<String, common_utils::pii::EmailStrategy>>,
     #[serde(rename = "shopperReference")]
     pub shopper_reference: Option<String>,
     pub expiry_date: Option<Secret<String>>,

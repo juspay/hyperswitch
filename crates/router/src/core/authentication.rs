@@ -890,6 +890,7 @@ async fn call_ucs_post_authenticate_proxy<F: Clone>(
             }),
         metadata: None,
         complete_authorize_url: None,
+        order_id: None,
     };
 
     let psp_router_data: core_types::RouterData<
@@ -1336,6 +1337,7 @@ async fn call_ucs_authenticate_proxy(
         sdk_information: sdk_information.clone(),
         device_channel: Some(device_channel.clone()),
         webhook_url: None,
+        force_3ds_challenge: None,
     };
 
     let payment_address = hyperswitch_domain_models::payment_address::PaymentAddress::new(

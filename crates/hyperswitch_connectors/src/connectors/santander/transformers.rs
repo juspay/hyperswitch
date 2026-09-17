@@ -709,7 +709,7 @@ impl
             environment: Some(Environment::Producao),
             nsu_code,
             nsu_date: Some(
-                time::OffsetDateTime::now_utc()
+                common_utils::date_time::now()
                     .date()
                     .format(&time::macros::format_description!("[year]-[month]-[day]"))
                     .change_context(errors::ConnectorError::DateFormattingFailed)?,
@@ -719,7 +719,7 @@ impl
             client_number: order_id.clone(),
             due_date: Some(format_as_date_only(due_date)?),
             issue_date: Some(
-                time::OffsetDateTime::now_utc()
+                common_utils::date_time::now()
                     .date()
                     .format(&time::macros::format_description!("[year]-[month]-[day]"))
                     .change_context(errors::ConnectorError::DateFormattingFailed)?,
@@ -1117,7 +1117,8 @@ impl TryFrom<&SantanderRouterData<&PaymentsAuthorizeRouterData>>
         // Use mandate_execution_date from MIT data if provided, otherwise default to current date + 1 day
         let due_date = match mit_data.mandate_execution_date {
             Some(exec_date) => format_as_date_only(Some(exec_date))?,
-            None => time::OffsetDateTime::now_utc()
+            None => common_utils::date_time::now()
+                .assume_utc()
                 .checked_add(time::Duration::days(1))
                 .ok_or(errors::ConnectorError::DateFormattingFailed)?
                 .date()
@@ -2609,7 +2610,7 @@ impl
             .as_ref()
             .and_then(|token| token.parse::<i64>().ok());
 
-        let current_date = time::OffsetDateTime::now_utc().date();
+        let current_date = common_utils::date_time::now().date();
 
         let data_inicial = match mandate_details.as_ref().and_then(|md| md.start_date) {
             Some(start_date) => {
@@ -2808,7 +2809,8 @@ impl TryFrom<&PaymentsPushNotificationRouterData> for SantanderPixAutomaticSolic
             .attach_printable("Failed to get pix_automatico_push expiry time")?;
 
         let expiry_seconds = i64::from(expiry_time_seconds);
-        let offset_datetime = time::OffsetDateTime::now_utc()
+        let offset_datetime = common_utils::date_time::now()
+            .assume_utc()
             .checked_add(time::Duration::seconds(expiry_seconds))
             .ok_or(errors::ConnectorError::ParsingFailed)?;
 
@@ -2904,7 +2906,9 @@ impl TryFrom<&PaymentsPushNotificationRouterData> for SantanderPixAutomaticSolic
 fn get_wait_screen_metadata(
     expiry_in_secs: u64,
 ) -> CustomResult<Option<Value>, errors::ConnectorError> {
-    let current_time = time::OffsetDateTime::now_utc().unix_timestamp_nanos();
+    let current_time = common_utils::date_time::now()
+        .assume_utc()
+        .unix_timestamp_nanos();
     let expiry_duration_nanos = i128::from(expiry_in_secs) * 1_000_000_000;
     // confirm this value from sdk team
     let delay_in_secs: u16 = 5;
@@ -3245,7 +3249,7 @@ impl
                 identifier: item.data.request.scope.clone(),
                 connector_webhook_id: Some(santander_composite_webhook_id(
                     item.data.payment_method_type,
-                    &uuid::Uuid::new_v4().to_string(),
+                    &common_utils::generate_uuid_v4().to_string(),
                 )),
                 status: common_enums::WebhookRegistrationStatus::Success,
                 error_code: None,

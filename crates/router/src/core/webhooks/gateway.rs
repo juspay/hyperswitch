@@ -12,7 +12,6 @@ use hyperswitch_interfaces::webhooks::{
 };
 use hyperswitch_masking::{ErasedMaskSerialize, Secret};
 use router_env::{logger, tracing::Instrument};
-use time::OffsetDateTime;
 use unified_connector_service_client::payments as payments_grpc;
 
 #[cfg(feature = "v1")]
@@ -900,7 +899,7 @@ fn build_merchant_event_id(ctx: &WebhookGatewayContext) -> String {
             .get_id()
             .get_string_repr(),
         ctx.connector_name,
-        OffsetDateTime::now_utc().unix_timestamp()
+        common_utils::date_time::now_unix_timestamp()
     )
 }
 

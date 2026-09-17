@@ -9,7 +9,8 @@ use std::{
 };
 
 pub use accounts::{
-    MerchantAccountRequestType, MerchantAccountType, MerchantProductType, OrganizationType,
+    MerchantAccountRequestType, MerchantAccountType, MerchantIntegrationType, MerchantProductType,
+    OrganizationType, ResourceRequestorType, ResourceType,
 };
 use diesel::{
     backend::Backend,
@@ -582,6 +583,22 @@ pub enum FraudCheckStatus {
     Pending,
     Legit,
     TransactionFailure,
+}
+
+impl FraudCheckStatus {
+    pub fn should_stop_payment(&self, failure_mode: &PreFrmFailureMode) -> bool {
+        matches!(self, Self::Fraud)
+            || (matches!(self, Self::TransactionFailure)
+                && matches!(failure_mode, PreFrmFailureMode::FailClosed))
+    }
+}
+
+#[derive(Debug, Clone, Default, strum::Display, strum::EnumString)]
+#[strum(serialize_all = "snake_case")]
+pub enum PreFrmFailureMode {
+    #[default]
+    FailOpen,
+    FailClosed,
 }
 
 #[derive(
@@ -2578,6 +2595,7 @@ pub enum PaymentMethodType {
     Momo,
     MomoAtm,
     Multibanco,
+    Neteller,
     OnlineBankingThailand,
     OnlineBankingCzechRepublic,
     OnlineBankingFinland,
@@ -2737,6 +2755,7 @@ impl PaymentMethodType {
             Self::Momo => "MoMo",
             Self::MomoAtm => "MoMo ATM",
             Self::Multibanco => "Multibanco",
+            Self::Neteller => "Neteller",
             Self::OnlineBankingThailand => "Online Banking Thailand",
             Self::OnlineBankingCzechRepublic => "Online Banking Czech Republic",
             Self::OnlineBankingFinland => "Online Banking Finland",
@@ -3571,6 +3590,9 @@ pub enum CardSegmentType {
 pub enum CardType {
     Credit,
     Debit,
+    Prepaid,
+    Store,
+    ChargeCard,
 }
 
 impl CardType {
@@ -3578,6 +3600,9 @@ impl CardType {
         match self {
             Self::Credit => "Credit",
             Self::Debit => "Debit",
+            Self::Prepaid => "Prepaid",
+            Self::Store => "Store",
+            Self::ChargeCard => "Charge Card",
         }
     }
 }
@@ -9640,6 +9665,7 @@ pub enum ParentGroup {
 #[serde(rename_all = "snake_case")]
 pub enum Resource {
     Payment,
+    PaymentLink,
     Refund,
     ApiKey,
     Account,
@@ -11349,6 +11375,7 @@ pub enum ProcessTrackerRunner {
     BatchBlocklistUpload,
     NetworkTokenizationWorkflow,
     OfferEngineNotifyWorkflow,
+    BlocklistExportWorkflow,
 }
 
 #[derive(
@@ -12023,6 +12050,27 @@ pub enum BatchBlocklistJobStatus {
     Processing,
     Completed,
     Failed,
+}
+
+/// Distinguishes a bulk upload job from a CSV export job in the `batch_blocklist_jobs` table.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum BatchBlocklistJobType {
+    Upload,
+    Export,
 }
 
 #[derive(

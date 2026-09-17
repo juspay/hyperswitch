@@ -223,6 +223,11 @@ pub const X_CONFIG_OVERRIDE: &str = "x-config-override";
 /// Merchant ID Header
 pub const X_MERCHANT_ID: &str = "x-merchant-id";
 
+/// Selects the integration the caller is building. `server` opts a payments response into the
+/// combined shape that also carries the payment-method list and wallet session tokens; `client`
+/// or an absent header keeps the existing response untouched.
+pub const X_INTEGRATION_TYPE: &str = "x-integration-type";
+
 /// Default Tenant ID for the `Global` tenant
 pub const DEFAULT_GLOBAL_TENANT_ID: &str = "global";
 

@@ -247,6 +247,9 @@ fn build_new_card(
             .transpose()
             .ok()
             .flatten(),
+        card_subtype: stored.card_subtype.clone(),
+        card_segment_type: stored.card_segment_type,
+        funding_source: stored.funding_source,
         card_cvc: None,
     })
 }
