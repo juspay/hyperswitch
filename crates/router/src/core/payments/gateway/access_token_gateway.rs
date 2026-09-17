@@ -165,7 +165,7 @@ where
             header_payload,
             unified_connector_service_execution_mode,
             |mut router_data, create_access_token_request, grpc_headers| async move {
-                let response = client
+                let response = match client
                     .create_access_token(
                         create_access_token_request,
                         connector_auth_metadata,
@@ -173,7 +173,13 @@ where
                         connector_type,
                     )
                     .await
-                    .attach_printable("Failed to create access token")?;
+                {
+                    Ok(response) => response,
+                    // UCS connector errors are handled by the wrapper — see `ucs_logging_wrapper_granular`.
+                    Err(report) => {
+                        return Err(report.attach_printable("Failed to create access token"));
+                    }
+                };
 
                 let create_access_token_response = response.into_inner();
 
@@ -202,7 +208,7 @@ where
         ))
         .await
         .map(|(router_data, _)| router_data)
-        .change_context(ConnectorError::ResponseHandlingFailed)
+        .map_err(payment_gateway::convert_ucs_error_to_connector_error)
     }
 }
 

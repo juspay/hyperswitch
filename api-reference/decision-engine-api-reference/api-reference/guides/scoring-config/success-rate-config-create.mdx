@@ -1,0 +1,45 @@
+---
+title: "Create Success Rate Config"
+description: "Curl example for creating success-rate scoring config."
+---
+
+# Create Success Rate Config
+
+Success-rate (SR) routing is Decision Engine's default scoring strategy: for each payment it estimates how likely every eligible gateway is to authorise *right now* and sends the payment to the strongest one. The estimate is not a static number — it is learned continuously from the live outcomes (success/failure) the engine observes, so the routing follows real-time gateway health instead of a fixed priority list. The success-rate config is where you tune how that learning behaves.
+
+Three knobs do most of the work:
+
+- **`defaultBucketSize`** — how many of the most recent transactions per gateway the score is computed over. A small bucket reacts fast to a gateway going down but is noisier; a large bucket is stable but slower to notice change. This is a sliding window: new outcomes push old ones out, so the score always reflects recent behaviour.
+- **`defaultHedgingPercent`** — the share of traffic deliberately *explored* away from the current best gateway. Without exploration the engine would starve non-leading gateways of traffic and never learn that they have recovered; hedging keeps every candidate's score fresh. (This is the same dial [Autopilot](/decision-engine-api-reference/api-reference/guides/autopilot/merchant-features) tunes automatically.)
+- **`defaultLatencyThreshold`** — optional latency ceiling used when penalising slow gateways.
+
+You can override any of these per traffic segment via **`subLevelInputConfig`** — keyed by dimensions such as `paymentMethodType`, card network, currency, or country — so a merchant can, for example, run a larger bucket for high-volume card traffic and a smaller one for a thin wallet segment. Anything not overridden falls back to the `default*` values.
+
+```bash
+curl --location "$BASE_URL/rule/create" \
+  --header "$AUTH_HEADER" \
+  --header "Content-Type: application/json" \
+  --data '{
+    "merchant_id": "merchant_demo",
+    "config": {
+      "type": "successRate",
+      "data": {
+        "defaultBucketSize": 20,
+        "defaultLatencyThreshold": null,
+        "defaultHedgingPercent": null,
+        "margin": 0.20,
+        "subLevelInputConfig": {
+          "paymentMethodType": {
+            "CARD": { "bucketSize": 30, "hedgingPercent": 0.05 }
+          }
+        }
+      }
+    }
+  }'
+```
+
+```json
+{ "merchant_id": "merchant_demo", "config": { "type": "successRate" } }
+```
+
+`margin` is the merchant margin as a fraction of ticket (e.g. `0.20` for 20%). It feeds the [multi-objective routing](/decision-engine-api-reference/api-reference/guides/run-transactions/decide-gateway-multi-objective) economic-value ranking `EV = auth rate × settlement value` (settlement value = txn amount − cost of payment processing) by setting the merchant's share of the ticket, and defaults to `1.0` when unset.

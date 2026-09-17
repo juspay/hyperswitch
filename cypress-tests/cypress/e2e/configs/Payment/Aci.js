@@ -325,6 +325,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -344,6 +345,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -363,6 +365,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -382,6 +385,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -436,6 +440,7 @@ export const connectorDetails = {
     },
     ZeroAuthMandate: {
       Request: {
+        amount: 0,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -466,6 +471,8 @@ export const connectorDetails = {
     },
     ZeroAuthConfirmPayment: {
       Request: {
+        amount: 0,
+        currency: "EUR",
         payment_type: "setup_mandate",
         payment_method: "card",
         payment_method_type: "credit",
@@ -588,6 +595,7 @@ export const connectorDetails = {
     },
     PaymentMethodIdMandateNo3DSAutoCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -605,6 +613,7 @@ export const connectorDetails = {
     },
     PaymentMethodIdMandateNo3DSManualCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -622,6 +631,7 @@ export const connectorDetails = {
     },
     PaymentMethodIdMandate3DSAutoCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
@@ -640,6 +650,7 @@ export const connectorDetails = {
     },
     PaymentMethodIdMandate3DSManualCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
@@ -658,6 +669,7 @@ export const connectorDetails = {
     },
     MITManualCapture: {
       Request: {
+        amount: 6000,
         currency: "EUR",
       },
       Response: {
@@ -669,7 +681,28 @@ export const connectorDetails = {
     },
     MITAutoCapture: {
       Request: {
+        amount: 6000,
         currency: "EUR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    MITAutoCaptureWithCustomerAcceptance: {
+      Request: {
+        amount: 6000,
+        currency: "EUR",
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "127.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
       },
       Response: {
         status: 200,
@@ -844,8 +877,29 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_code: "800.900.300",
+          error_code: "600.200.500",
           error_message: "invalid authentication information",
+        },
+      },
+    },
+    Eft: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "eft",
+        payment_method_data: {
+          bank_redirect: {
+            eft: {
+              provider: "ozow",
+            },
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "200.300.404",
+          error_message: "invalid or missing parameter",
         },
       },
     },

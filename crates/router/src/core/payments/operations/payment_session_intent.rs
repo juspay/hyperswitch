@@ -275,20 +275,17 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsSessionRequest, payments::Payment
         payment_data: &mut payments::PaymentIntentData<F>,
     ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
         let db = &state.store;
+        let profile_id = business_profile.get_id();
         let all_connector_accounts = db
-            .find_merchant_connector_account_without_encrypted_by_merchant_id_and_disabled_list(
+            .list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
                 platform.get_processor().get_account().get_id(),
-                false,
+                profile_id,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Database error when querying for merchant connector accounts")?;
-        let profile_id = business_profile.get_id();
         let filtered_connector_accounts = all_connector_accounts
-            .filter_based_on_profile_and_connector_type(
-                profile_id,
-                common_enums::ConnectorType::PaymentProcessor,
-            );
+            .filter_by_connector_type(common_enums::ConnectorType::PaymentProcessor);
         let connector_and_supporting_payment_method_type = filtered_connector_accounts
             .get_connector_and_supporting_payment_method_type_for_session_call();
 

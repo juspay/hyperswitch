@@ -373,6 +373,38 @@ pub async fn refunds_update(
     .await
 }
 
+#[cfg(feature = "v1")]
+/// Refunds - Reverse
+///
+/// Reverse or void a successful refund before connector settlement.
+#[instrument(skip_all, fields(flow = ?Flow::RefundsReverse))]
+pub async fn refunds_reverse(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<refunds::RefundReverseRequest>,
+    path: web::Path<String>,
+) -> HttpResponse {
+    let flow = Flow::RefundsReverse;
+    let mut refund_reverse_request = json_payload.into_inner();
+    refund_reverse_request.refund_id = path.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        refund_reverse_request,
+        |state, auth: auth::AuthenticationData, request, _| {
+            refund_reverse_core(state, auth.platform, request)
+        },
+        &auth::HeaderAuth(auth::ApiKeyAuth {
+            allow_connected_scope_operation: true,
+            allow_platform_self_operation: false,
+        }),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 #[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::RefundsUpdate))]
 pub async fn refunds_metadata_update(

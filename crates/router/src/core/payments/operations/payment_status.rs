@@ -378,7 +378,7 @@ async fn get_tracker_for_sync<
         .attach_printable_lazy(|| {
             format!(
                 "Failed while getting refund list for, payment_id: {:?}, merchant_id: {:?}",
-                &payment_id,
+                payment_id,
                 platform.get_processor().get_account().get_id()
             )
         })?;
@@ -393,7 +393,7 @@ async fn get_tracker_for_sync<
         .attach_printable_lazy(|| {
             format!(
                 "Failed while getting authorizations list for, payment_id: {:?}, merchant_id: {:?}",
-                &payment_id,
+                payment_id,
                 platform.get_processor().get_account().get_id()
             )
         })?;
@@ -610,7 +610,7 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRetrieveRequest, Pa
         let request_merchant_id = request.merchant_id.as_ref();
         helpers::validate_merchant_id(processor.get_account().get_id(), request_merchant_id)
             .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-                field_name: "merchant_id".to_string(),
+                field_name: "merchant_id".into(),
                 expected_format: "merchant_id from merchant account".to_string(),
             })?;
 

@@ -101,7 +101,7 @@ pub async fn validate_create_request(
     let predicate = req.merchant_id.as_ref().map(|mid| mid != merchant_id);
     utils::when(predicate.unwrap_or(false), || {
         Err(report!(errors::ApiErrorResponse::InvalidDataFormat {
-            field_name: "merchant_id".to_string(),
+            field_name: "merchant_id".into(),
             expected_format: "merchant_id from merchant account".to_string(),
         })
         .attach_printable("invalid merchant_id in request"))
@@ -163,7 +163,7 @@ pub async fn validate_create_request(
         .profile_id
         .clone()
         .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "profile_id",
+            field_name: "profile_id".into(),
         })
         .attach_printable("Profile id is a mandatory parameter")?;
 
@@ -201,7 +201,7 @@ pub async fn validate_create_request(
                     Ok(Some(payment_method))
                 }
                 None => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "customer_id when payment_method_id is passed",
+                    field_name: "customer_id when payment_method_id is passed".into(),
                 })),
             },
             _ => Ok(None),
@@ -214,7 +214,7 @@ pub async fn validate_create_request(
         payment_method.as_ref(),
     ) {
         (Some(_), None, _) => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "customer or customer_id when payout_token is provided"
+            field_name: "customer or customer_id when payout_token is provided".into()
         })),
         (Some(payout_token), Some(customer), _) => {
             helpers::make_payout_method_data(
@@ -254,6 +254,9 @@ pub async fn validate_create_request(
                     false,
                     true,
                     platform.get_provider(),
+                    None,
+                    None,
+                    None,
                 )
                 .await?
                 {
@@ -341,7 +344,7 @@ pub fn validate_payout_link_request(
 
     if req.customer_id.is_none() {
         return Err(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "customer or customer_id when payout_link is true",
+            field_name: "customer or customer_id when payout_link is true".into(),
         });
     }
 
@@ -349,29 +352,12 @@ pub fn validate_payout_link_request(
 }
 
 #[cfg(feature = "olap")]
-pub(super) fn validate_payout_list_request(
-    req: &payouts::PayoutListConstraints,
-) -> CustomResult<(), errors::ApiErrorResponse> {
-    use common_utils::consts::PAYOUTS_LIST_MAX_LIMIT_GET;
-
-    utils::when(
-        req.limit > PAYOUTS_LIST_MAX_LIMIT_GET || req.limit < 1,
-        || {
-            Err(errors::ApiErrorResponse::InvalidRequestData {
-                message: format!("limit should be in between 1 and {PAYOUTS_LIST_MAX_LIMIT_GET}"),
-            })
-        },
-    )?;
-    Ok(())
-}
-
-#[cfg(feature = "olap")]
 pub(super) fn validate_payout_list_request_for_joins(
-    limit: u32,
+    limit: common_utils::types::list::PageSize,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     use common_utils::consts::PAYOUTS_LIST_MAX_LIMIT_POST;
 
-    utils::when(!(1..=PAYOUTS_LIST_MAX_LIMIT_POST).contains(&limit), || {
+    utils::when(limit.as_u32() > PAYOUTS_LIST_MAX_LIMIT_POST, || {
         Err(errors::ApiErrorResponse::InvalidRequestData {
             message: format!("limit should be in between 1 and {PAYOUTS_LIST_MAX_LIMIT_POST}"),
         })

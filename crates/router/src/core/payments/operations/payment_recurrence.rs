@@ -150,7 +150,12 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .payment_method_data
             .as_ref()
             .and_then(|pmd| pmd.payment_method_data.clone())
-            .map(domain::PaymentMethodData::from);
+            .map(domain::PaymentMethodData::from)
+            .or_else(|| {
+                payment_method_with_raw_data
+                    .as_ref()
+                    .and_then(|payment_method| payment_method.raw_payment_method_data.clone())
+            });
 
         let store = state.clone().store;
         let superposition_service = state.clone().superposition_service;
@@ -544,7 +549,15 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                 frm_message.map_or((None, None), |fraud_check| {
                     (
                         Some(Some(fraud_check.frm_status.to_string())),
-                        Some(fraud_check.frm_reason.map(|reason| reason.to_string())),
+                        Some(
+                            fraud_check
+                                .frm_reason
+                                .map(|reason| match reason {
+                                    serde_json::Value::String(s) => s,
+                                    other => other.to_string(),
+                                })
+                                .or(fraud_check.frm_error),
+                        ),
                     )
                 }),
             ),

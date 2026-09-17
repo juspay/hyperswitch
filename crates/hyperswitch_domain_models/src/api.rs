@@ -3,6 +3,7 @@ use std::{collections::HashSet, fmt::Display};
 use common_utils::{
     events::{ApiEventMetric, ApiEventsType},
     impl_api_event_type,
+    pii::SecretSerdeValue,
 };
 
 use super::payment_method_data::PaymentMethodData;
@@ -18,6 +19,42 @@ pub enum ApplicationResponse<R> {
     FileData((Vec<u8>, mime::Mime)),
     JsonWithHeaders((R, Vec<(String, hyperswitch_masking::Maskable<String>)>)),
     GenericLinkForm(Box<GenericLinks>),
+    /// `response` contains the HTTP response sent back to the connector; `metadata` is consumed
+    /// by `server_wrap_util` for the ApiEvent log.
+    IncomingWebhookEvent {
+        response: Box<WebhookResponse<R>>,
+        metadata: IncomingWebhookEventMetadata,
+    },
+}
+
+/// A narrowed subset of [`ApplicationResponse`] representing the valid HTTP responses
+/// that can be sent back to a connector as a webhook acknowledgement.
+#[derive(Debug, PartialEq)]
+pub enum WebhookResponse<R> {
+    Json(R),
+    StatusOk,
+    TextPlain(String),
+    FileData((Vec<u8>, mime::Mime)),
+    JsonWithHeaders((R, Vec<(String, hyperswitch_masking::Maskable<String>)>)),
+}
+
+impl<R> From<WebhookResponse<R>> for ApplicationResponse<R> {
+    fn from(resp: WebhookResponse<R>) -> Self {
+        match resp {
+            WebhookResponse::Json(r) => Self::Json(r),
+            WebhookResponse::StatusOk => Self::StatusOk,
+            WebhookResponse::TextPlain(s) => Self::TextPlain(s),
+            WebhookResponse::FileData((v, m)) => Self::FileData((v, m)),
+            WebhookResponse::JsonWithHeaders((r, h)) => Self::JsonWithHeaders((r, h)),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct IncomingWebhookEventMetadata {
+    pub event_type: ApiEventsType,
+    pub serialized_request: SecretSerdeValue,
+    pub webhook_tracker_data: Option<serde_json::Value>,
 }
 
 impl<R> ApplicationResponse<R> {
@@ -28,6 +65,7 @@ impl<R> ApplicationResponse<R> {
     ) -> common_utils::errors::CustomResult<R, common_utils::errors::ValidationError> {
         match self {
             Self::Json(body) | Self::JsonWithHeaders((body, _)) => Ok(body),
+            Self::IncomingWebhookEvent { response, .. } => Self::from(*response).get_json_body(),
             Self::TextPlain(_)
             | Self::JsonForRedirection(_)
             | Self::Form(_)
@@ -47,6 +85,7 @@ impl<T: ApiEventMetric> ApiEventMetric for ApplicationResponse<T> {
         match self {
             Self::Json(r) => r.get_api_event_type(),
             Self::JsonWithHeaders((r, _)) => r.get_api_event_type(),
+            Self::IncomingWebhookEvent { metadata, .. } => Some(metadata.event_type.clone()),
             _ => None,
         }
     }

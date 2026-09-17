@@ -1,0 +1,22 @@
+---
+title: "Get Merchant Account"
+description: "Curl example for retrieving a merchant account."
+---
+
+# Get Merchant Account
+
+## Request
+
+```bash
+curl "$BASE_URL/merchant-account/merchant_demo" \
+  --header "$AUTH_HEADER"
+```
+
+## Response
+
+```json
+{
+  "merchant_id": "merchant_demo",
+  "gateway_success_rate_based_decider_input": null
+}
+```

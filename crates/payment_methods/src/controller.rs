@@ -16,7 +16,7 @@ use hyperswitch_masking::{PeekInterface, Secret};
 #[cfg(feature = "v1")]
 use scheduler::errors as sch_errors;
 use serde::{Deserialize, Serialize};
-use storage_impl::{errors as storage_errors, payment_method};
+use storage_impl::errors as storage_errors;
 
 use crate::core::errors;
 
@@ -199,6 +199,18 @@ pub trait PaymentMethodsController {
     )>;
 
     #[cfg(feature = "v1")]
+    async fn add_bank_redirect_to_locker(
+        &self,
+        req: api::PaymentMethodCreate,
+        bank_redirect_data: api_models::payment_methods::BankRedirectData,
+        key_store: &merchant_key_store::MerchantKeyStore,
+        customer_id: &id_type::CustomerId,
+    ) -> errors::VaultResult<(
+        payment_methods::PaymentMethodResponse,
+        Option<DataDuplicationCheck>,
+    )>;
+
+    #[cfg(feature = "v1")]
     async fn get_or_insert_payment_method(
         &self,
         req: api::PaymentMethodCreate,
@@ -360,7 +372,7 @@ where
 
     let encrypted_data = type_encryption::crypto_operation(
         key_manager_state,
-        type_name!(payment_method::PaymentMethod),
+        type_name!(payment_methods::PaymentMethod),
         type_encryption::CryptoOperation::Encrypt(secret_data),
         identifier.clone(),
         key,

@@ -32,8 +32,13 @@ pub struct RevenueRecoveryRetriggerRequest {
     #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub schedule_time: Option<PrimitiveDateTime>,
-    /// Status of The Process Tracker Task
-    pub status: enums::ProcessTrackerStatus,
-    /// Business Status of The Process Tracker Task
-    pub business_status: String,
+    /// Status of The Process Tracker Task. If not provided, the existing
+    /// status is retained as is.
+    pub status: Option<enums::ProcessTrackerStatus>,
+    /// Business Status of The Process Tracker Task. If not provided, the
+    /// existing business status is retained as is.
+    pub business_status: Option<String>,
+    /// Retry count to set on the process tracker task. If not provided, the
+    /// existing retry count is retained as is.
+    pub retry_count: Option<i32>,
 }

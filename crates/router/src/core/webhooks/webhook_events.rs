@@ -102,7 +102,7 @@ pub async fn list_initial_delivery_attempts(
                     .is_none_or(|pid| event.business_profile_id.as_ref() == Some(pid));
                 matches_initiator
                     && matches_profile
-                    && event.initial_attempt_id.as_deref() == Some(&event.event_id)
+                    && event.initial_attempt_id.as_deref() == Some(event.event_id.as_str())
             });
 
             let (events, total_count) = event_opt.map_or((vec![], 0), |event| (vec![event], 1));
@@ -292,16 +292,38 @@ pub async fn list_delivery_attempts(
         ))
         .attach_printable("No delivery attempts found with the specified `initial_attempt_id`")
     } else {
+        // All events in a delivery attempt chain share an `initial_attempt_id`, and therefore the
+        // same business profile, so a single lookup covers the whole list.
+        let sensitive_header_names = match events
+            .first()
+            .and_then(|event| event.business_profile_id.clone())
+        {
+            Some(business_profile_id) => store
+                .find_business_profile_by_profile_id(&key_store, &business_profile_id)
+                .await
+                .inspect_err(|error| {
+                    router_env::logger::error!(
+                        ?error,
+                        "Failed to find business profile for webhook event delivery attempts, \
+                         redacting all webhook header values"
+                    )
+                })
+                .ok()
+                .and_then(|business_profile| business_profile.get_sensitive_webhook_header_names()),
+            None => None,
+        };
+
         Ok(ApplicationResponse::Json(
             events
                 .into_iter()
                 .map(|event| {
-                    api::webhook_events::EventRetrieveResponse::try_from(
+                    api::webhook_events::EventRetrieveResponse::foreign_try_from((
                         domain::EventWithDeliverySuccessSource {
                             event,
                             source: domain::DeliverySuccessSource::ListDeliveryAttempts,
                         },
-                    )
+                        sensitive_header_names.as_ref(),
+                    ))
                 })
                 .collect::<Result<Vec<_>, _>>()?,
         ))
@@ -417,6 +439,8 @@ pub async fn retry_delivery_attempt(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to parse webhook event request information")?;
 
+    let sensitive_header_names = business_profile.get_sensitive_webhook_header_names();
+
     Box::pin(super::outgoing::trigger_webhook_and_raise_event(
         state.clone(),
         business_profile,
@@ -438,12 +462,13 @@ pub async fn retry_delivery_attempt(
         .to_not_found_response(errors::ApiErrorResponse::EventNotFound)?;
 
     Ok(ApplicationResponse::Json(
-        api::webhook_events::EventRetrieveResponse::try_from(
+        api::webhook_events::EventRetrieveResponse::foreign_try_from((
             domain::EventWithDeliverySuccessSource {
                 event: updated_event,
                 source: domain::DeliverySuccessSource::ListDeliveryAttempts,
             },
-        )?,
+            sensitive_header_names.as_ref(),
+        ))?,
     ))
 }
 

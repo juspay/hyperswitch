@@ -83,8 +83,8 @@ pub trait RefundInterface {
         processor_merchant_id: &common_utils::id_type::MerchantId,
         refund_details: &refunds::RefundListConstraints,
         storage_scheme: enums::MerchantStorageScheme,
-        limit: i64,
-        offset: i64,
+        limit: diesel_models::list::PageSize,
+        offset: diesel_models::list::PageOffset,
     ) -> CustomResult<Vec<diesel_models::refund::Refund>, errors::StorageError>;
 
     #[cfg(all(feature = "v2", feature = "olap"))]
@@ -93,8 +93,8 @@ pub trait RefundInterface {
         merchant_id: &common_utils::id_type::MerchantId,
         refund_details: refunds::RefundListConstraints,
         storage_scheme: enums::MerchantStorageScheme,
-        limit: i64,
-        offset: i64,
+        limit: diesel_models::list::PageSize,
+        offset: diesel_models::list::PageOffset,
     ) -> CustomResult<Vec<diesel_models::refund::Refund>, errors::StorageError>;
 
     #[cfg(all(feature = "v1", feature = "olap"))]
@@ -395,8 +395,8 @@ mod storage {
             processor_merchant_id: &common_utils::id_type::MerchantId,
             refund_details: &refunds::RefundListConstraints,
             _storage_scheme: enums::MerchantStorageScheme,
-            limit: i64,
-            offset: i64,
+            limit: diesel_models::list::PageSize,
+            offset: diesel_models::list::PageOffset,
         ) -> CustomResult<Vec<diesel_models::refund::Refund>, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
             <diesel_models::refund::Refund as storage_types::RefundDbExt>::filter_by_constraints(
@@ -417,8 +417,8 @@ mod storage {
             merchant_id: &common_utils::id_type::MerchantId,
             refund_details: refunds::RefundListConstraints,
             _storage_scheme: enums::MerchantStorageScheme,
-            limit: i64,
-            offset: i64,
+            limit: diesel_models::list::PageSize,
+            offset: diesel_models::list::PageOffset,
         ) -> CustomResult<Vec<diesel_models::refund::Refund>, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
             <diesel_models::refund::Refund as storage_types::RefundDbExt>::filter_by_constraints(
@@ -715,7 +715,7 @@ mod storage {
 
                     let field = format!(
                         "pa_{}_ref_{}",
-                        &created_refund.attempt_id, &created_refund.refund_id
+                        created_refund.attempt_id, created_refund.refund_id
                     );
 
                     let mut reverse_lookups = vec![
@@ -898,7 +898,7 @@ mod storage {
                 merchant_id: &merchant_id,
                 payment_id: &payment_id,
             };
-            let field = format!("pa_{}_ref_{}", &this.attempt_id, &this.refund_id);
+            let field = format!("pa_{}_ref_{}", this.attempt_id, this.refund_id);
             let storage_scheme = Box::pin(decide_storage_scheme::<_, diesel_refund::Refund>(
                 self,
                 storage_scheme,
@@ -1257,8 +1257,8 @@ mod storage {
             processor_merchant_id: &common_utils::id_type::MerchantId,
             refund_details: &refunds::RefundListConstraints,
             _storage_scheme: enums::MerchantStorageScheme,
-            limit: i64,
-            offset: i64,
+            limit: diesel_models::list::PageSize,
+            offset: diesel_models::list::PageOffset,
         ) -> CustomResult<Vec<diesel_models::refund::Refund>, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
             <diesel_models::refund::Refund as storage_types::RefundDbExt>::filter_by_constraints(
@@ -1279,8 +1279,8 @@ mod storage {
             merchant_id: &common_utils::id_type::MerchantId,
             refund_details: refunds::RefundListConstraints,
             _storage_scheme: enums::MerchantStorageScheme,
-            limit: i64,
-            offset: i64,
+            limit: diesel_models::list::PageSize,
+            offset: diesel_models::list::PageOffset,
         ) -> CustomResult<Vec<diesel_models::refund::Refund>, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
             <diesel_models::refund::Refund as storage_types::RefundDbExt>::filter_by_constraints(
@@ -1727,8 +1727,8 @@ impl RefundInterface for MockDb {
         processor_merchant_id: &common_utils::id_type::MerchantId,
         refund_details: &refunds::RefundListConstraints,
         _storage_scheme: enums::MerchantStorageScheme,
-        limit: i64,
-        offset: i64,
+        limit: diesel_models::list::PageSize,
+        offset: diesel_models::list::PageOffset,
     ) -> CustomResult<Vec<diesel_models::refund::Refund>, errors::StorageError> {
         let mut unique_connectors = HashSet::new();
         let mut unique_merchant_connector_ids = HashSet::new();
@@ -1828,8 +1828,8 @@ impl RefundInterface for MockDb {
             .filter(|refund| {
                 unique_statuses.is_empty() || unique_statuses.contains(&refund.refund_status)
             })
-            .skip(usize::try_from(offset).unwrap_or_default())
-            .take(usize::try_from(limit).unwrap_or(MAX_LIMIT))
+            .skip(usize::try_from(offset.as_i64()).unwrap_or_default())
+            .take(usize::try_from(limit.as_i64()).unwrap_or(MAX_LIMIT))
             .cloned()
             .collect::<Vec<_>>();
 
@@ -1842,8 +1842,8 @@ impl RefundInterface for MockDb {
         merchant_id: &common_utils::id_type::MerchantId,
         refund_details: refunds::RefundListConstraints,
         _storage_scheme: enums::MerchantStorageScheme,
-        limit: i64,
-        offset: i64,
+        limit: diesel_models::list::PageSize,
+        offset: diesel_models::list::PageOffset,
     ) -> CustomResult<Vec<diesel_models::refund::Refund>, errors::StorageError> {
         let mut unique_connectors = HashSet::new();
         let mut unique_connector_ids = HashSet::new();
@@ -1933,8 +1933,8 @@ impl RefundInterface for MockDb {
             .filter(|refund| {
                 unique_statuses.is_empty() || unique_statuses.contains(&refund.refund_status)
             })
-            .skip(usize::try_from(offset).unwrap_or_default())
-            .take(usize::try_from(limit).unwrap_or(MAX_LIMIT))
+            .skip(usize::try_from(offset.as_i64()).unwrap_or_default())
+            .take(usize::try_from(limit.as_i64()).unwrap_or(MAX_LIMIT))
             .cloned()
             .collect::<Vec<_>>();
 

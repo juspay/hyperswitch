@@ -149,7 +149,9 @@ impl From<common_enums::PayoutStatus> for StripePayoutStatus {
     fn from(status: common_enums::PayoutStatus) -> Self {
         match status {
             common_enums::PayoutStatus::Success => Self::PayoutSuccess,
-            common_enums::PayoutStatus::Failed => Self::PayoutFailure,
+            common_enums::PayoutStatus::Failed | common_enums::PayoutStatus::NotPermitted => {
+                Self::PayoutFailure
+            }
             common_enums::PayoutStatus::Cancelled => Self::PayoutCancelled,
             common_enums::PayoutStatus::Initiated => Self::PayoutInitiated,
             common_enums::PayoutStatus::Expired => Self::PayoutExpired,
@@ -280,6 +282,7 @@ fn get_stripe_event_type(event_type: api_models::enums::EventType) -> &'static s
         api_models::enums::EventType::ActionRequired => "action.required",
         api_models::enums::EventType::RefundSucceeded => "refund.succeeded",
         api_models::enums::EventType::RefundFailed => "refund.failed",
+        api_models::enums::EventType::RefundReview => "refund.manual_review",
         api_models::enums::EventType::DisputeOpened => "dispute.failed",
         api_models::enums::EventType::DisputeExpired => "dispute.expired",
         api_models::enums::EventType::DisputeAccepted => "dispute.accepted",
@@ -305,6 +308,9 @@ fn get_stripe_event_type(event_type: api_models::enums::EventType) -> &'static s
         api_models::enums::EventType::PayoutProcessing => "payout.created",
         api_models::enums::EventType::PayoutExpired => "payout.failed",
         api_models::enums::EventType::PayoutReversed => "payout.reconciliation_completed",
+        // Stripe has no distinct "not permitted" payout event; a terminal refusal is
+        // reported to stripe-compat consumers as a failure.
+        api_models::enums::EventType::PayoutNotPermitted => "payout.failed",
         api_models::enums::EventType::InvoicePaid => "invoice.paid",
     }
 }

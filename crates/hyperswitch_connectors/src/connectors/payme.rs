@@ -941,13 +941,13 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Pa
             req.request
                 .minor_amount
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "amount",
+                    field_name: "amount".into(),
                 })?;
         let req_currency =
             req.request
                 .currency
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "amount",
+                    field_name: "amount".into(),
                 })?;
         let amount = utils::convert_amount(self.amount_converter, req_amount, req_currency)?;
         let connector_router_data = payme::PaymeRouterData::try_from((amount, req))?;
@@ -1471,8 +1471,10 @@ impl ConnectorSpecifications for Payme {
             api::CurrentFlowInfo::SetupMandate { .. } => false,
             api::CurrentFlowInfo::Psync { .. } => false,
             api::CurrentFlowInfo::UpdatePostConfirm { .. } => false,
+            api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
         }
     }
+
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&PAYME_CONNECTOR_INFO)
     }

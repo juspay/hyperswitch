@@ -288,6 +288,14 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 )?;
                 Ok(())
             }
+            api_enums::Connector::Ilixium => {
+                ilixium::transformers::IlixiumAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
+            api_enums::Connector::Givepayments => {
+                givepayments::transformers::GivepaymentsAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Globalpay => {
                 globalpay::transformers::GlobalpayAuthType::try_from(self.auth_type)?;
                 globalpay::transformers::GlobalPayMeta::try_from(self.connector_meta_data)?;
@@ -299,6 +307,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             }
             api_enums::Connector::Gocardless => {
                 gocardless::transformers::GocardlessAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
+            api_enums::Connector::GotymeSanlam => {
+                gotyme_sanlam::transformers::GotymeSanlamAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
             api_enums::Connector::Gpayments => {
@@ -349,7 +361,7 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 )?;
                 Ok(())
             }
-            api_enums::Connector::Juspaythreedsserver => Ok(()),
+            api_enums::Connector::Juspay | api_enums::Connector::Juspaythreedsserver => Ok(()),
             api_enums::Connector::Klarna => {
                 klarna::transformers::KlarnaAuthType::try_from(self.auth_type)?;
                 klarna::transformers::KlarnaConnectorMetadataObject::try_from(
@@ -374,6 +386,14 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             }
             api_enums::Connector::Moneris => {
                 moneris::transformers::MonerisAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
+            api_enums::Connector::Etisalat => {
+                etisalat::transformers::EtisalatAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
+            api_enums::Connector::Merchante => {
+                merchante::transformers::MerchanteAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
             api_enums::Connector::Multisafepay => {
@@ -638,6 +658,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 riskified::transformers::RiskifiedAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::SanlamPayshield => {
+                sanlam_payshield::transformers::SanlamPayshieldAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Cybersourcedecisionmanager => {
                 cybersourcedecisionmanager::transformers::CybersourcedecisionmanagerAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -660,6 +684,14 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             }
             api_enums::Connector::Payconex => {
                 payconex::transformers::PayconexAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
+            api_enums::Connector::Citigate => {
+                citigate::transformers::CitigateAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
+            api_enums::Connector::Worldpayraft => {
+                worldpayraft::transformers::WorldpayraftAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
             api_enums::Connector::Finix => {
@@ -726,7 +758,7 @@ impl ConnectorAuthTypeValidation<'_> {
             } => {
                 if auth_key_map.is_empty() {
                     Err(errors::ApiErrorResponse::InvalidDataFormat {
-                        field_name: "connector_account_details.auth_key_map".to_string(),
+                        field_name: "connector_account_details.auth_key_map".into(),
                         expected_format: "a non empty map".to_string(),
                     }
                     .into())
