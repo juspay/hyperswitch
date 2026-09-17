@@ -2108,6 +2108,10 @@ pub enum PaymentAttemptUpdate {
         tokenization: Option<common_enums::Tokenization>,
         updated_by: String,
     },
+    AssociatedDataUpdate {
+        sender_payment_instrument_id: Option<String>,
+        updated_by: String,
+    },
     VoidUpdate {
         status: storage_enums::AttemptStatus,
         cancellation_reason: Option<String>,
@@ -2373,6 +2377,13 @@ impl PaymentAttemptUpdate {
             } => DieselPaymentAttemptUpdate::ConnectorMandateDetailUpdate {
                 connector_mandate_detail,
                 tokenization,
+                updated_by,
+            },
+            Self::AssociatedDataUpdate {
+                sender_payment_instrument_id,
+                updated_by,
+            } => DieselPaymentAttemptUpdate::AssociatedDataUpdate {
+                sender_payment_instrument_id,
                 updated_by,
             },
             Self::PaymentMethodDetailsUpdate {
@@ -2886,6 +2897,7 @@ impl PaymentAttemptUpdate {
             | Self::BlocklistUpdate { .. }
             | Self::PaymentMethodDetailsUpdate { .. }
             | Self::ConnectorMandateDetailUpdate { .. }
+            | Self::AssociatedDataUpdate { .. }
             | Self::VoidUpdate { .. }
             | Self::UnresolvedResponseUpdate { .. }
             | Self::StatusUpdate { .. }
