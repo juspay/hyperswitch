@@ -133,7 +133,8 @@ fn get_current_time() -> Result<String, error_stack::Report<ConnectorError>> {
         "[year]-[month]-[day]T[hour]:[minute]:[second][offset_hour sign:mandatory]:[offset_minute]"
     );
 
-    let time = time::OffsetDateTime::now_utc()
+    let time = common_utils::date_time::now()
+        .assume_utc()
         .to_offset(time::macros::offset!(+2))
         .format(&format)
         .change_context(ConnectorError::RequestEncodingFailed)?;
