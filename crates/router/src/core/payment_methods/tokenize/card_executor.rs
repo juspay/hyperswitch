@@ -20,12 +20,9 @@ use super::{
     NetworkTokenizationResponse, State, StoreLockerResponse, TransitionTo,
 };
 use crate::{
-    core::{
-        customers,
-        payment_methods::{
-            cards::{add_card_to_vault, PmCards},
-            transformers as pm_transformers,
-        },
+    core::payment_methods::{
+        cards::{add_card_to_vault, PmCards},
+        transformers as pm_transformers,
     },
     errors::{self, RouterResult},
     types::{api, domain},
@@ -130,6 +127,25 @@ impl<'a> NetworkTokenizationBuilder<'a, CardRequestValidated> {
                     .map(|card_type| card_type.to_string()),
                 |card_info| card_info.card_type.clone(),
             ),
+            card_subtype: optional_card_info
+                .as_ref()
+                .map_or(card_req.card_subtype.clone(), |card_info| {
+                    card_info.card_subtype.clone()
+                }),
+            card_segment_type: optional_card_info.as_ref().map_or(
+                card_req.card_segment_type,
+                |card_info| {
+                    card_info
+                        .card_segment_type
+                        .as_deref()
+                        .and_then(|segment_type| segment_type.parse().ok())
+                },
+            ),
+            funding_source: optional_card_info
+                .as_ref()
+                .map_or(card_req.funding_source, |card_info| {
+                    card_info.funding_source
+                }),
             card_issuing_country: optional_card_info
                 .as_ref()
                 .map_or(card_req.card_issuing_country.clone(), |card_info| {
@@ -271,6 +287,9 @@ impl<'a> NetworkTokenizationBuilder<'a, CardTokenStored> {
             card_isin: Some(card.card_number.clone().get_card_isin()),
             card_issuer: card.card_issuer.clone(),
             card_type: card.card_type.clone(),
+            card_subtype: card.card_subtype.clone(),
+            card_segment_type: card.card_segment_type,
+            funding_source: card.funding_source,
             saved_to_locker: true,
         });
         let payment_method_response = api::PaymentMethodResponse {
@@ -334,7 +353,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
             .as_ref()
             .get_required_value("customer_id")
             .change_context(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "customer.customer_id",
+                field_name: "customer.customer_id".into(),
             })?;
 
         // Fetch customer details if present
@@ -357,13 +376,17 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
                 Ok(None)
             } else {
                 Err(report!(errors::ApiErrorResponse::MissingRequiredFields {
-                    field_names: vec!["customer.name", "customer.email", "customer.phone"],
+                    field_names: vec![
+                        "customer.name".into(),
+                        "customer.email".into(),
+                        "customer.phone".into()
+                    ],
                 }))
             },
             // If found, send back CustomerDetails from DB
             |optional_customer| {
                 Ok(optional_customer.map(|customer| api::CustomerDetails {
-                    id: Some(customer.customer_id.clone()),
+                    id: Some(customer.get_id().clone()),
                     name: customer.name.clone().map(|name| name.into_inner()),
                     email: customer.email.clone().map(Email::from),
                     phone: customer.phone.clone().map(|phone| phone.into_inner()),
@@ -373,6 +396,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
                         .clone()
                         .map(|tax_registration_id| tax_registration_id.into_inner()),
                     document_details: None,
+                    date_of_birth: None,
                 }))
             },
         )
@@ -389,7 +413,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
             .as_ref()
             .get_required_value("customer_id")
             .change_context(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "customer_id",
+                field_name: "customer_id".into(),
             })?;
         let key_manager_state: &KeyManagerState = &self.state.into();
 
@@ -443,7 +467,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
             None,
             initiator.and_then(|initiator| initiator.to_created_by()),
             initiator.and_then(|initiator| initiator.to_created_by()),
-            customers::generate_global_customer_id(&self.state.conf.cell_information.id),
+            id_type::GlobalCustomerId::generate(&self.state.conf.cell_information.id),
         );
 
         db.insert_customer(
@@ -470,6 +494,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
             phone_country_code: self.customer.phone_country_code.clone(),
             tax_registration_id: self.customer.tax_registration_id.clone(),
             document_details: self.customer.document_details.clone(),
+            date_of_birth: None,
         })
     }
 
@@ -566,6 +591,9 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
                 card_network: card_details.card_network.clone(),
                 card_issuer: card_details.card_issuer.clone(),
                 card_type: card_details.card_type.clone(),
+                card_subtype: card_details.card_subtype.clone(),
+                card_segment_type: card_details.card_segment_type,
+                funding_source: card_details.funding_source,
                 card_cvc: None, // DO NOT POPULATE CVC FOR ADDITIONAL PAYMENT METHOD DATA
             }),
             metadata: None,

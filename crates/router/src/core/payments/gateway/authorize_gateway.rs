@@ -64,7 +64,7 @@ where
         router_data: &RouterData<Self, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
         call_connector_action: CallConnectorAction,
         _connector_request: Option<Request>,
-        _return_raw_connector_response: Option<bool>,
+        return_raw_connector_response: Option<bool>,
         context: RouterGatewayContext,
     ) -> CustomResult<
         RouterData<Self, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
@@ -92,7 +92,7 @@ where
         let connector_auth_metadata =
             unified_connector_service::build_unified_connector_service_auth_metadata(
                 merchant_connector_account,
-                processor,
+                processor.get_account().get_id(),
                 router_data.connector.clone(),
             )
             .change_context(ConnectorError::RequestEncodingFailed)
@@ -144,48 +144,11 @@ where
                     .await
                     {
                         Ok(resp) => resp,
+                        // UCS connector errors are handled by the wrapper — see `ucs_logging_wrapper_granular`.
                         Err(report) => {
-                            // Check if this is a connector error (4xx/5xx from connector via UCS)
-                            if let UnifiedConnectorServiceError::ConnectorError(inner) =
-                                report.current_context()
-                            {
-                                let (code, message, status_code, reason,
-                                     network_decline_code, network_advice_code,
-                                     network_error_message, connector) = (
-                                    &inner.code, &inner.message, inner.status_code,
-                                    &inner.reason, &inner.network_decline_code,
-                                    &inner.network_advice_code, &inner.network_error_message,
-                                    &inner.connector,
-                                );
-                                logger::info!(
-                                    "Connector error via UCS for recurring charge (connector {}, status {}): {} - {}",
-                                    connector,
-                                    status_code,
-                                    code,
-                                    message
-                                );
-                                router_data.response =
-                                    Err(hyperswitch_domain_models::router_data::ErrorResponse {
-                                        code: code.clone(),
-                                        message: message.clone(),
-                                        reason: reason.clone(),
-                                        status_code,
-                                        attempt_status: None,
-                                        connector_transaction_id: None,
-                                        connector_response_reference_id: None,
-                                        network_decline_code: network_decline_code.clone(),
-                                        network_advice_code: network_advice_code.clone(),
-                                        network_error_message: network_error_message.clone(),
-                                        connector_metadata: None,
-                                    });
-                                return Ok((
-                                    router_data,
-                                    (),
-                                    payments_grpc::RecurringPaymentServiceChargeResponse::default(),
-                                ));
-                            }
-                            // Propagate as Err for proper HTTP error handling
-                            return Err(report.attach_printable("Failed to charge recurring payment"));
+                            return Err(
+                                report.attach_printable("Failed to charge recurring payment")
+                            );
                         }
                     };
 
@@ -217,10 +180,12 @@ where
                     router_data.minor_amount_captured = recurring_payment_charge_response
                         .captured_amount
                         .map(MinorUnit::new);
-                    router_data.raw_connector_response = recurring_payment_charge_response
-                        .raw_connector_response
-                        .clone()
-                        .map(|raw_connector_response| raw_connector_response.expose().into());
+                    if return_raw_connector_response.unwrap_or(false) {
+                        router_data.raw_connector_response = recurring_payment_charge_response
+                            .raw_connector_response
+                            .clone()
+                            .map(|raw_connector_response| raw_connector_response.expose().into());
+                    }
                     router_data.connector_http_status_code = Some(ucs_data.status_code);
 
                     ucs_data.connector_customer_id.map(|connector_customer_id| {
@@ -236,7 +201,7 @@ where
             ))
             .await
             .map(|(router_data, _)| router_data)
-            .map_err(super::convert_ucs_error_to_connector_error)?
+            .map_err(payment_gateway::convert_ucs_error_to_connector_error)?
         } else {
             logger::debug!("Granular Gateway: Regular authorize flow");
             let granular_authorize_request =
@@ -262,62 +227,8 @@ where
                     .await
                     {
                         Ok(resp) => resp,
+                        // UCS connector errors are handled by the wrapper — see `ucs_logging_wrapper_granular`.
                         Err(report) => {
-                            // Check if this is a connector error (4xx/5xx from connector via UCS)
-                            // If so, set it as router_data.response = Err(ErrorResponse) and return Ok
-                            // This matches how direct connector errors are handled
-                            if let UnifiedConnectorServiceError::ConnectorError(inner) =
-                                report.current_context()
-                            {
-                                let (
-                                    code,
-                                    message,
-                                    status_code,
-                                    reason,
-                                    network_decline_code,
-                                    network_advice_code,
-                                    network_error_message,
-                                    connector,
-                                ) = (
-                                    &inner.code,
-                                    &inner.message,
-                                    inner.status_code,
-                                    &inner.reason,
-                                    &inner.network_decline_code,
-                                    &inner.network_advice_code,
-                                    &inner.network_error_message,
-                                    &inner.connector,
-                                );
-                                logger::info!(
-                                    "Connector error via UCS (connector {}, status {}): {} - {}",
-                                    connector,
-                                    status_code,
-                                    code,
-                                    message
-                                );
-                                router_data.response =
-                                    Err(hyperswitch_domain_models::router_data::ErrorResponse {
-                                        code: code.clone(),
-                                        message: message.clone(),
-                                        reason: reason.clone(),
-                                        status_code,
-                                        attempt_status: None,
-                                        connector_transaction_id: None,
-                                        connector_response_reference_id: None,
-                                        network_decline_code: network_decline_code.clone(),
-                                        network_advice_code: network_advice_code.clone(),
-                                        network_error_message: network_error_message.clone(),
-                                        connector_metadata: None,
-                                    });
-                                // Return Ok with router_data containing the error response
-                                // This ensures the connector error flows through the normal
-                                // response handling path (same as direct connector errors)
-                                return Ok((
-                                    router_data,
-                                    (),
-                                    payments_grpc::PaymentServiceAuthorizeResponse::default(),
-                                ));
-                            }
                             return Err(report.attach_printable("Failed to authorize payment"));
                         }
                     };
@@ -368,13 +279,18 @@ where
                     router_data.minor_amount_captured = payment_authorize_response
                         .captured_amount
                         .map(MinorUnit::new);
+                    router_data.sender_payment_instrument_id = payment_authorize_response
+                        .sender_payment_instrument_id
+                        .clone();
                     router_data.minor_amount_capturable = payment_authorize_response
                         .capturable_amount
                         .map(MinorUnit::new);
-                    router_data.raw_connector_response = payment_authorize_response
-                        .raw_connector_response
-                        .clone()
-                        .map(|raw_connector_response| raw_connector_response.expose().into());
+                    if return_raw_connector_response.unwrap_or(false) {
+                        router_data.raw_connector_response = payment_authorize_response
+                            .raw_connector_response
+                            .clone()
+                            .map(|raw_connector_response| raw_connector_response.expose().into());
+                    }
                     router_data.connector_http_status_code = Some(ucs_data.status_code);
 
                     ucs_data.connector_response.map(|connector_response| {
@@ -386,7 +302,7 @@ where
             ))
             .await
             .map(|(router_data, _)| router_data)
-            .map_err(super::convert_ucs_error_to_connector_error)?
+            .map_err(payment_gateway::convert_ucs_error_to_connector_error)?
         };
 
         Ok(updated_router_data)

@@ -8,17 +8,19 @@ use hyperswitch_domain_models::{
         dispute::{Accept, Defend, Dsync, Evidence, Fetch},
         files::{Retrieve, Upload},
         mandate_revoke::MandateRevoke,
-        merchant_connector_webhook_management::ConnectorWebhookRegister,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateSecret, ConnectorWebhookRegister,
+        },
         payments::{
             Authorize, AuthorizeSessionToken, Balance, CalculateSurcharge, CalculateTax, Capture,
             CompleteAuthorize, CompleteRefundSurchrge, CompleteSurcharge, CreateConnectorCustomer,
             CreateOrder, ExtendAuthorization, GenerateQr, IncrementalAuthorization, InitPayment,
             PSync, PaymentMethodToken, PostCaptureVoid, PostCaptureVoidSync, PostProcessing,
             PostSessionTokens, PreAuthorizeVoid, PreProcessing, PushNotification, SdkSessionUpdate,
-            Session, SettlementSplitCreate, SetupMandate, UpdateMetadata, Void,
+            Session, SettlementSplitCreate, SetupMandate, UpdateMetadata, UpdatePostConfirm, Void,
         },
         refunds::{Execute, RSync},
-        revenue_recovery::{BillingConnectorPaymentsSync, InvoiceRecordBack},
+        revenue_recovery::{BillingConnectorPaymentsSync, DisputeRecordBack, InvoiceRecordBack},
         subscriptions::{
             GetSubscriptionEstimate, GetSubscriptionItemPrices, GetSubscriptionItems,
             SubscriptionCancel, SubscriptionCreate, SubscriptionPause, SubscriptionResume,
@@ -35,10 +37,12 @@ use hyperswitch_domain_models::{
         ProcessIncomingWebhook,
     },
     router_request_types::{
-        merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateSecretRequest, ConnectorWebhookRegisterRequest,
+        },
         revenue_recovery::{
             BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
-            InvoiceRecordBackRequest,
+            DisputeRecordBackRequest, InvoiceRecordBackRequest,
         },
         subscriptions::{
             GetSubscriptionEstimateRequest, GetSubscriptionItemPricesRequest,
@@ -62,16 +66,18 @@ use hyperswitch_domain_models::{
         PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreAuthenticateData,
         PaymentsPreAuthorizeCancelData, PaymentsPreProcessingData, PaymentsSessionData,
         PaymentsSurchargeCalculationData, PaymentsSyncData, PaymentsTaxCalculationData,
-        PaymentsUpdateMetadataData, PushNotificationRequestData, RefundsData,
-        RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SettlementSplitRequestData,
-        SetupMandateRequestData, SubmitEvidenceRequestData, UploadFileRequestData,
-        VaultRequestData, VerifyWebhookSourceRequestData,
+        PaymentsUpdateMetadataData, PaymentsUpdatePostConfirmData, PushNotificationRequestData,
+        RefundsData, RetrieveFileRequestData, SdkPaymentsSessionUpdateData,
+        SettlementSplitRequestData, SetupMandateRequestData, SubmitEvidenceRequestData,
+        UploadFileRequestData, VaultRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
-        merchant_connector_webhook_management::ConnectorWebhookRegisterResponse,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateSecretResponse, ConnectorWebhookRegisterResponse,
+        },
         revenue_recovery::{
             BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
-            InvoiceRecordBackResponse,
+            DisputeRecordBackResponse, InvoiceRecordBackResponse,
         },
         subscriptions::{
             GetSubscriptionEstimateResponse, GetSubscriptionItemPricesResponse,
@@ -116,6 +122,13 @@ pub type ConnectorWebhookRegisterType = dyn ConnectorIntegration<
     ConnectorWebhookRegisterResponse,
 >;
 
+/// Type alias for `ConnectorIntegration<ConnectorWebhookGenerateSecret, ConnectorWebhookGenerateSecretRequest, ConnectorWebhookGenerateSecretResponse>`
+pub type ConnectorWebhookGenerateSecretType = dyn ConnectorIntegration<
+    ConnectorWebhookGenerateSecret,
+    ConnectorWebhookGenerateSecretRequest,
+    ConnectorWebhookGenerateSecretResponse,
+>;
+
 /// Type alias for `ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData>`
 pub type PaymentsAuthorizeType =
     dyn ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData>;
@@ -149,6 +162,12 @@ pub type PaymentsPostSessionTokensType = dyn ConnectorIntegration<
 /// Type alias for `ConnectorIntegration<UpdateMetadata, PaymentsUpdateMetadataData, PaymentsResponseData>`
 pub type PaymentsUpdateMetadataType =
     dyn ConnectorIntegration<UpdateMetadata, PaymentsUpdateMetadataData, PaymentsResponseData>;
+/// Type alias for `ConnectorIntegration<UpdatePostConfirm, PaymentsUpdatePostConfirmData, PaymentsResponseData>`
+pub type PaymentsUpdatePostConfirmType = dyn ConnectorIntegration<
+    UpdatePostConfirm,
+    PaymentsUpdatePostConfirmData,
+    PaymentsResponseData,
+>;
 /// Type alias for `ConnectorIntegration<SdkSessionUpdate, SdkPaymentsSessionUpdateData, PaymentsResponseData>`
 pub type SdkSessionUpdateType =
     dyn ConnectorIntegration<SdkSessionUpdate, SdkPaymentsSessionUpdateData, PaymentsResponseData>;
@@ -331,6 +350,13 @@ pub type WebhookRegisterType = dyn ConnectorIntegration<
     ConnectorWebhookRegisterResponse,
 >;
 
+/// Type alias for `ConnectorIntegration<ConnectorWebhookGenerateSecret, ConnectorWebhookGenerateSecretRequest, ConnectorWebhookGenerateSecretResponse>`
+pub type WebhookGenerateSecretType = dyn ConnectorIntegration<
+    ConnectorWebhookGenerateSecret,
+    ConnectorWebhookGenerateSecretRequest,
+    ConnectorWebhookGenerateSecretResponse,
+>;
+
 /// Type alias for `ConnectorIntegration<Evidence, SubmitEvidenceRequestData, SubmitEvidenceResponse>`
 pub type SubmitEvidenceType =
     dyn ConnectorIntegration<Evidence, SubmitEvidenceRequestData, SubmitEvidenceResponse>;
@@ -390,6 +416,13 @@ pub type UasProcessWebhookType = dyn ConnectorIntegration<
 >;
 
 /// Type alias for `ConnectorIntegration<InvoiceRecordBack, InvoiceRecordBackRequest, InvoiceRecordBackResponse>`
+pub type DisputeRecordBackType = dyn ConnectorIntegration<
+    DisputeRecordBack,
+    DisputeRecordBackRequest,
+    DisputeRecordBackResponse,
+>;
+
+/// Type alias for `ConnectorIntegration<InvoiceRecordBack, InvoiceRecordBackRequest, InvoiceRecordBackResponse>`
 pub type InvoiceRecordBackType = dyn ConnectorIntegration<
     InvoiceRecordBack,
     InvoiceRecordBackRequest,
@@ -415,6 +448,14 @@ pub type BillingConnectorInvoiceSyncType = dyn ConnectorIntegration<
     BillingConnectorInvoiceSync,
     BillingConnectorInvoiceSyncRequest,
     BillingConnectorInvoiceSyncResponse,
+>;
+
+/// Type alias for `ConnectorIntegrationV2<InvoiceRecordBack, InvoiceRecordBackData, InvoiceRecordBackRequest, InvoiceRecordBackResponse>`
+pub type DisputeRecordBackTypeV2 = dyn ConnectorIntegrationV2<
+    DisputeRecordBack,
+    flow_common_types::DisputeRecordBackData,
+    DisputeRecordBackRequest,
+    DisputeRecordBackResponse,
 >;
 
 /// Type alias for `ConnectorIntegrationV2<InvoiceRecordBack, InvoiceRecordBackData, InvoiceRecordBackRequest, InvoiceRecordBackResponse>`

@@ -356,7 +356,7 @@ impl TryFrom<&SignifydRouterData<&FrmSaleRouterData>> for SignifydPaymentsSaleRe
             .request
             .currency
             .ok_or(ConnectorError::MissingRequiredField {
-                field_name: "currency",
+                field_name: "currency".into(),
             })?;
         let products = item
             .request
@@ -385,11 +385,11 @@ impl TryFrom<&SignifydRouterData<&FrmSaleRouterData>> for SignifydPaymentsSaleRe
             .frm_metadata
             .clone()
             .ok_or(ConnectorError::MissingRequiredField {
-                field_name: "frm_metadata",
+                field_name: "frm_metadata".into(),
             })?
             .parse_value("Signifyd Frm Metadata")
             .change_context(ConnectorError::InvalidDataFormat {
-                field_name: "frm_metadata",
+                field_name: "frm_metadata".into(),
             })?;
         let ship_address = item.get_shipping_address()?;
         let billing_address = item.get_billing()?;
@@ -506,7 +506,7 @@ impl From<SignifydPaymentStatus> for FraudCheckStatus {
 pub struct SignifydPaymentsResponse {
     signifyd_id: i64,
     order_id: String,
-    decision: Decision,
+    decision: Option<Decision>,
 }
 
 impl<F, T> TryFrom<ResponseRouterData<F, SignifydPaymentsResponse, T, FraudCheckResponseData>>
@@ -516,17 +516,23 @@ impl<F, T> TryFrom<ResponseRouterData<F, SignifydPaymentsResponse, T, FraudCheck
     fn try_from(
         item: ResponseRouterData<F, SignifydPaymentsResponse, T, FraudCheckResponseData>,
     ) -> Result<Self, Self::Error> {
+        let (status, score, reason) = match item.response.decision {
+            Some(decision) => (
+                FraudCheckStatus::from(decision.checkpoint_action),
+                decision.score.and_then(|data| data.to_i32()),
+                decision
+                    .checkpoint_action_reason
+                    .map(serde_json::Value::from),
+            ),
+            None => (FraudCheckStatus::Legit, None, None),
+        };
         Ok(Self {
             response: Ok(FraudCheckResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.order_id),
-                status: FraudCheckStatus::from(item.response.decision.checkpoint_action),
+                status,
                 connector_metadata: None,
-                score: item.response.decision.score.and_then(|data| data.to_i32()),
-                reason: item
-                    .response
-                    .decision
-                    .checkpoint_action_reason
-                    .map(serde_json::Value::from),
+                score,
+                reason,
             }),
             ..item.data
         })
@@ -636,7 +642,7 @@ impl TryFrom<&SignifydRouterData<&FrmCheckoutRouterData>> for SignifydPaymentsCh
             .request
             .currency
             .ok_or(ConnectorError::MissingRequiredField {
-                field_name: "currency",
+                field_name: "currency".into(),
             })?;
         let products = item
             .request
@@ -665,11 +671,11 @@ impl TryFrom<&SignifydRouterData<&FrmCheckoutRouterData>> for SignifydPaymentsCh
             .frm_metadata
             .clone()
             .ok_or(ConnectorError::MissingRequiredField {
-                field_name: "frm_metadata",
+                field_name: "frm_metadata".into(),
             })?
             .parse_value("Signifyd Frm Metadata")
             .change_context(ConnectorError::InvalidDataFormat {
-                field_name: "frm_metadata",
+                field_name: "frm_metadata".into(),
             })?;
         let ship_address = item.get_shipping_address()?;
         let billing_address = item.get_billing()?;
@@ -978,7 +984,7 @@ impl TryFrom<&FrmRecordReturnRouterData> for SignifydPaymentsRecordReturnRequest
             currency,
         };
         Ok(Self {
-            return_id: uuid::Uuid::new_v4().to_string(),
+            return_id: common_utils::generate_uuid_v4().to_string(),
             refund_transaction_id: item.request.refund_transaction_id.clone(),
             refund,
             order_id: item.attempt_id.clone(),

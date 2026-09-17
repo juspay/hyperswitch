@@ -21,6 +21,15 @@ pub struct SearchFilters {
     pub payment_method_type: Option<Vec<String>>,
     pub card_network: Option<Vec<String>>,
     pub card_last_4: Option<Vec<String>>,
+    pub active_attempt_id: Option<Vec<String>>,
+    pub merchant_connector_id: Option<Vec<String>>,
+    pub card_issuer: Option<Vec<String>>,
+    pub routing_approach: Option<Vec<String>>,
+    pub refunds_status: Option<Vec<String>>,
+    pub dispute_status: Option<Vec<String>>,
+    pub client_source: Option<Vec<String>>,
+    pub client_version: Option<Vec<String>>,
+    pub first_attempt: Option<Vec<bool>>,
     pub payment_id: Option<Vec<String>>,
     pub amount: Option<Vec<u64>>,
     pub amount_filter: Option<OpensearchRange>,
@@ -55,6 +64,28 @@ impl From<&crate::payments::PaymentListFilterConstraints> for SearchFilters {
                 .map(convert_to_strings),
             card_network: constraints.card_network.as_deref().map(convert_to_strings),
             connector: constraints.connector.as_deref().map(convert_to_strings),
+            merchant_connector_id: constraints.merchant_connector_id.as_ref().map(
+                |merchant_connector_ids| {
+                    merchant_connector_ids
+                        .iter()
+                        .map(|merchant_connector_id| {
+                            merchant_connector_id.get_string_repr().to_string()
+                        })
+                        .collect()
+                },
+            ),
+            card_last_4: constraints.card_last_4.clone(),
+            active_attempt_id: constraints.active_attempt_id.clone(),
+            card_issuer: constraints.card_issuer.clone(),
+            routing_approach: constraints
+                .routing_approach
+                .as_deref()
+                .map(convert_to_strings),
+            refunds_status: constraints.refunds_status.clone(),
+            dispute_status: constraints.dispute_status.clone(),
+            client_source: constraints.client_source.clone(),
+            client_version: constraints.client_version.clone(),
+            first_attempt: constraints.first_attempt.clone(),
             card_discovery: constraints
                 .card_discovery
                 .as_deref()
@@ -76,7 +107,6 @@ impl From<&crate::payments::PaymentListFilterConstraints> for SearchFilters {
                 .as_ref()
                 .map(|customer_email| vec![HashedString::from(customer_email.clone().expose())]),
             search_tags: None,
-            card_last_4: None,
             amount: None,
             amount_filter: constraints
                 .amount_filter
@@ -103,6 +133,15 @@ impl SearchFilters {
                 payment_method_type: None,
                 card_network: None,
                 card_last_4: None,
+                active_attempt_id: None,
+                merchant_connector_id: None,
+                card_issuer: None,
+                routing_approach: None,
+                refunds_status: None,
+                dispute_status: None,
+                client_source: None,
+                client_version: None,
+                first_attempt: None,
                 payment_id: None,
                 amount: None,
                 amount_filter: None,

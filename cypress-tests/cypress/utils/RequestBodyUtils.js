@@ -75,6 +75,16 @@ export function validateEnv(baseUrl, keyIdType) {
   return prefix;
 }
 
+export function isLocalhost(baseUrl) {
+  if (!baseUrl) {
+    return false;
+  }
+
+  return ["localhost", "127.0.0.1", "host.docker.internal", "::1"].some(
+    (host) => baseUrl.includes(host)
+  );
+}
+
 /**
  * Generates a random email address for testing purposes.
  * @returns {string} A randomly generated email address (e.g., "alex.smith123@example.com").

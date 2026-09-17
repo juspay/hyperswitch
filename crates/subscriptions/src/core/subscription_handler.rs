@@ -146,9 +146,10 @@ impl<'a> SubscriptionHandler<'a> {
         let merchant_id = platform.get_processor().get_account().get_id();
         let db = state.store.as_ref();
 
+        let customer_id = customer.get_id().clone();
         let updated_customer = db
             .update_customer_by_customer_id_merchant_id(
-                customer.customer_id.clone(),
+                customer_id,
                 merchant_id.clone(),
                 customer,
                 customer_update,
@@ -215,7 +216,7 @@ impl<'a> SubscriptionHandler<'a> {
             .clone()
             .get_required_value("client_secret")
             .change_context(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "client_secret",
+                field_name: "client_secret".into(),
             })
             .attach_printable("client secret not found in db")?;
 
@@ -445,13 +446,13 @@ impl ForeignTryFrom<&hyperswitch_domain_models::invoice::Invoice> for subscripti
             amount: invoice.amount,
             currency: api_enums::Currency::from_str(invoice.currency.as_str())
                 .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "currency",
+                    field_name: "currency".into(),
                 })
                 .attach_printable(format!(
                     "unable to parse currency name {currency:?}",
                     currency = invoice.currency
                 ))?,
-            status: invoice.status.clone(),
+            status: invoice.status,
             billing_processor_invoice_id: invoice
                 .connector_invoice_id
                 .as_ref()

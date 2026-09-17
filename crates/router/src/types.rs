@@ -35,14 +35,16 @@ use hyperswitch_domain_models::router_flow_types::{
     dispute::{Accept, Defend, Dsync, Evidence, Fetch},
     files::{Retrieve, Upload},
     mandate_revoke::MandateRevoke,
-    merchant_connector_webhook_management::ConnectorWebhookRegister,
+    merchant_connector_webhook_management::{
+        ConnectorWebhookGenerateSecret, ConnectorWebhookRegister,
+    },
     payments::{
         Approve, Authorize, AuthorizeSessionToken, Balance, CalculateSurcharge, CalculateTax,
         Capture, CompleteAuthorize, CompleteRefundSurchrge, CompleteSurcharge,
         CreateConnectorCustomer, CreateOrder, ExtendAuthorization, ExternalVaultProxy, GenerateQr,
         IncrementalAuthorization, InitPayment, PSync, PostCaptureVoid, PostCaptureVoidSync,
         PostProcessing, PostSessionTokens, PreAuthorizeVoid, PreProcessing, PushNotification,
-        Reject, SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, Void,
+        Reject, SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, UpdatePostConfirm, Void,
     },
     refunds::{Execute, RSync},
     webhooks::VerifyWebhookSource,
@@ -61,7 +63,9 @@ pub use hyperswitch_domain_models::{
         RefundFlowData, RouterDataV2, UasFlowData, WebhookSourceVerifyData,
     },
     router_request_types::{
-        merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateSecretRequest, ConnectorWebhookRegisterRequest,
+        },
         revenue_recovery::{
             BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
             InvoiceRecordBackRequest,
@@ -86,13 +90,15 @@ pub use hyperswitch_domain_models::{
         PaymentsPreAuthenticateData, PaymentsPreAuthorizeCancelData, PaymentsPreProcessingData,
         PaymentsRejectData, PaymentsSessionData, PaymentsSurchargeCalculationData,
         PaymentsSyncData, PaymentsTaxCalculationData, PaymentsUpdateMetadataData,
-        PushNotificationRequestData, RefundsData, ResponseId, RetrieveFileRequestData,
-        SdkPaymentsSessionUpdateData, SetupMandateRequestData, SplitRefundsRequest,
-        SubmitEvidenceRequestData, SyncRequestType, UploadFileRequestData, VaultRequestData,
-        VerifyWebhookSourceRequestData,
+        PaymentsUpdatePostConfirmData, PushNotificationRequestData, RefundsData, ResponseId,
+        RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
+        SplitRefundsRequest, SubmitEvidenceRequestData, SyncRequestType, UploadFileRequestData,
+        VaultRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
-        merchant_connector_webhook_management::ConnectorWebhookRegisterResponse,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateSecretResponse, ConnectorWebhookRegisterResponse,
+        },
         revenue_recovery::{
             BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
             InvoiceRecordBackResponse,
@@ -196,6 +202,9 @@ pub type PaymentsPostSessionTokensRouterData =
 pub type PaymentsUpdateMetadataRouterData =
     RouterData<UpdateMetadata, PaymentsUpdateMetadataData, PaymentsResponseData>;
 
+pub type PaymentsUpdatePostConfirmRouterData =
+    RouterData<UpdatePostConfirm, PaymentsUpdatePostConfirmData, PaymentsResponseData>;
+
 pub type PaymentsCancelRouterData = RouterData<Void, PaymentsCancelData, PaymentsResponseData>;
 pub type PaymentsPreAuthorizeVoidRouterData =
     RouterData<PreAuthorizeVoid, PaymentsPreAuthorizeCancelData, PaymentsResponseData>;
@@ -294,6 +303,12 @@ pub type ConnectorWebhookRegisterRouterData = RouterData<
     ConnectorWebhookRegister,
     ConnectorWebhookRegisterRequest,
     ConnectorWebhookRegisterResponse,
+>;
+
+pub type ConnectorWebhookGenerateSecretRouterData = RouterData<
+    ConnectorWebhookGenerateSecret,
+    ConnectorWebhookGenerateSecretRequest,
+    ConnectorWebhookGenerateSecretResponse,
 >;
 
 #[cfg(feature = "payouts")]
@@ -527,6 +542,7 @@ impl Capturable for PaymentsTaxCalculationData {}
 impl Capturable for SdkPaymentsSessionUpdateData {}
 impl Capturable for PaymentsPostSessionTokensData {}
 impl Capturable for PaymentsUpdateMetadataData {}
+impl Capturable for PaymentsUpdatePostConfirmData {}
 impl Capturable for PaymentsCancelData {
     fn get_captured_amount<F>(
         &self,
@@ -809,6 +825,12 @@ pub struct UcsPayoutCreateResponseData {
 
 #[cfg(feature = "payouts")]
 pub struct UcsPayoutTransferResponseData {
+    pub router_data_response: Result<PayoutsResponseData, ErrorResponse>,
+    pub status_code: u16,
+}
+
+#[cfg(feature = "payouts")]
+pub struct UcsPayoutEligibilityResponseData {
     pub router_data_response: Result<PayoutsResponseData, ErrorResponse>,
     pub status_code: u16,
 }
@@ -1400,6 +1422,7 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
             request_extended_authorization: None,
             authentication_data: None,
             ucs_authentication_data: None,
+            force_3ds_challenge: None,
             customer_acceptance: data.request.customer_acceptance.clone(),
             split_payments: None, // TODO: allow charges on mandates?
             guest_customer: None,
@@ -1418,12 +1441,14 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
             is_stored_credential: data.request.is_stored_credential,
             mit_category: None,
             billing_descriptor: data.request.billing_descriptor.clone(),
+            is_account_funded_transaction: data.request.is_account_funded_transaction,
+            recipient_details: data.request.recipient_details.clone(),
+            business_country: data.request.business_country,
             tokenization: None,
             partner_merchant_identifier_details: data
                 .request
                 .partner_merchant_identifier_details
                 .clone(),
-            rrn: None,
             feature_metadata: None,
             installment_details: None,
             connector_intent_metadata: None,
@@ -1498,6 +1523,8 @@ impl<F1, F2, T1, T2> ForeignFrom<(&RouterData<F1, T1, PaymentsResponseData>, T2)
             customer_document_details: data.customer_document_details.clone(),
             feature_data: data.feature_data.clone(),
             sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
+            customer_date_of_birth: data.customer_date_of_birth.clone(),
         }
     }
 }
@@ -1574,6 +1601,8 @@ impl<F1, F2>
             customer_document_details: None,
             feature_data: data.feature_data.clone(),
             sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
+            customer_date_of_birth: None,
         }
     }
 }
@@ -1591,6 +1620,8 @@ impl ForeignFrom<&domain::MerchantConnectorAccountFeatureMetadata>
                     max_retry_count: revenue_recovery_metadata.max_retry_count,
                     billing_connector_retry_threshold: revenue_recovery_metadata
                         .billing_connector_retry_threshold,
+                    max_hybrid_cascading_retry_count: revenue_recovery_metadata
+                        .max_hybrid_cascading_retry_count,
                     billing_account_reference: revenue_recovery_metadata
                         .mca_reference
                         .recovery_to_billing
@@ -1620,6 +1651,8 @@ impl ForeignTryFrom<&api_models::admin::MerchantConnectorAccountFeatureMetadata>
                     max_retry_count: revenue_recovery_metadata.max_retry_count,
                     billing_connector_retry_threshold: revenue_recovery_metadata
                         .billing_connector_retry_threshold,
+                    max_hybrid_cascading_retry_count: revenue_recovery_metadata
+                        .max_hybrid_cascading_retry_count,
                     mca_reference,
                 })
             })

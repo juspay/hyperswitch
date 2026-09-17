@@ -212,8 +212,8 @@ impl redis::FromRedisValue for DelReply {
 impl redis::FromRedisValue for SaddReply {
     fn from_redis_value(v: redis::Value) -> Result<Self, redis::ParsingError> {
         match v {
-            redis::Value::Int(1) => Ok(Self::KeySet),
             redis::Value::Int(0) => Ok(Self::KeyNotSet),
+            redis::Value::Int(n) => Ok(Self::KeySet(n)),
             _ => {
                 tracing::error!(received = ?v, "Unexpected SADD command reply from Redis");
                 Err(redis::ParsingError::from(format!(
@@ -512,7 +512,7 @@ mod tests {
     fn test_sadd_reply_key_set() {
         assert_eq!(
             SaddReply::from_redis_value(redis::Value::Int(1)).unwrap(),
-            SaddReply::KeySet
+            SaddReply::KeySet(1)
         );
     }
 

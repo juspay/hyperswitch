@@ -39,6 +39,8 @@ pub enum AnalyticsCollection {
     PaymentIntentSessionized,
     ConnectorEvents,
     ConnectorPayoutEvents,
+    PrismConnectorEvents,
+    PrismConnectorPayoutEvents,
     OutgoingWebhookEvent,
     OutgoingWebhookPayoutEvent,
     Authentications,

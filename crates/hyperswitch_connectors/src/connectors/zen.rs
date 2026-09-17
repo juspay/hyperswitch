@@ -11,7 +11,7 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    api::ApplicationResponse,
+    api::WebhookResponse,
     payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
@@ -49,7 +49,6 @@ use hyperswitch_interfaces::{
 };
 use hyperswitch_masking::{Mask, PeekInterface, Secret};
 use transformers::{self as zen, ZenPaymentStatus, ZenWebhookTxnType};
-use uuid::Uuid;
 
 use crate::{constants::headers, types::ResponseRouterData};
 
@@ -71,7 +70,10 @@ impl api::RefundSync for Zen {}
 
 impl Zen {
     fn get_default_header() -> (String, hyperswitch_masking::Maskable<String>) {
-        ("request-id".to_string(), Uuid::new_v4().to_string().into())
+        (
+            "request-id".to_string(),
+            common_utils::generate_uuid_v4().to_string().into(),
+        )
     }
 }
 
@@ -690,8 +692,8 @@ impl IncomingWebhook for Zen {
         _request: &IncomingWebhookRequestDetails<'_>,
         _error_kind: Option<IncomingWebhookFlowError>,
         _connector_authentication_type: Option<crypto::Encryptable<Secret<serde_json::Value>>>,
-    ) -> CustomResult<ApplicationResponse<serde_json::Value>, errors::ConnectorError> {
-        Ok(ApplicationResponse::Json(serde_json::json!({
+    ) -> CustomResult<WebhookResponse<serde_json::Value>, errors::ConnectorError> {
+        Ok(WebhookResponse::Json(serde_json::json!({
             "status": "ok"
         })))
     }

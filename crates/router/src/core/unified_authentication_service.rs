@@ -232,7 +232,7 @@ impl UnifiedAuthenticationService for ClickToPay {
             .attach_printable("Missing authentication id in tracker")?;
 
         let currency = currency.ok_or(ApiErrorResponse::MissingRequiredField {
-            field_name: "currency",
+            field_name: "currency".into(),
         })?;
 
         let current_time = common_utils::date_time::date_as_yyyymmddthhmmssmmmz()
@@ -430,12 +430,12 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
             pre_authentication_data: PreAuthenticationData {
                 threeds_server_transaction_id: authentication.threeds_server_transaction_id.ok_or(
                     ApiErrorResponse::MissingRequiredField {
-                        field_name: "authentication.threeds_server_transaction_id",
+                        field_name: "authentication.threeds_server_transaction_id".into(),
                     },
                 )?,
                 message_version: authentication.message_version.ok_or(
                     ApiErrorResponse::MissingRequiredField {
-                        field_name: "authentication.message_version",
+                        field_name: "authentication.message_version".into(),
                     },
                 )?,
                 acquirer_bin: authentication.acquirer_bin,
@@ -523,7 +523,7 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
                 authentication
                     .and_then(|auth| auth.threeds_server_transaction_id)
                     .ok_or(ApiErrorResponse::MissingRequiredField {
-                        field_name: "authentication.threeds_server_transaction_id",
+                        field_name: "authentication.threeds_server_transaction_id".into(),
                     })?,
             ),
             routing_region,
@@ -715,8 +715,8 @@ pub async fn authentication_create_core(
     req: AuthenticationCreateRequest,
 ) -> RouterResponse<AuthenticationResponse> {
     let db = &*state.store;
-    let merchant_account = platform.get_processor().get_account();
-    let merchant_id = merchant_account.get_id();
+    let processor_merchant_account = platform.get_processor().get_account();
+    let processor_merchant_id = processor_merchant_account.get_id();
     let key_manager_state = (&state).into();
     let profile_id = core_utils::get_profile_id_from_business_details(
         None,
@@ -734,7 +734,7 @@ pub async fn authentication_create_core(
         .to_not_found_response(ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
         })?;
-    let organization_id = merchant_account.organization_id.clone();
+    let organization_id = processor_merchant_account.organization_id.clone();
     let authentication_id = common_utils::id_type::AuthenticationId::generate_authentication_id(
         consts::AUTHENTICATION_ID_PREFIX,
     );
@@ -793,7 +793,7 @@ pub async fn authentication_create_core(
 
     let new_authentication = create_new_authentication(
         &state,
-        merchant_id.clone(),
+        processor_merchant_id.clone(),
         req.authentication_connector
             .map(|connector| connector.to_string()),
         profile_id.clone(),
@@ -932,6 +932,7 @@ impl
                 phone_country_code: details.phone_country_code,
                 tax_registration_id: details.tax_registration_id,
                 document_details: details.customer_document_details,
+                date_of_birth: details.date_of_birth,
             })
         } else {
             None
@@ -1040,22 +1041,22 @@ pub async fn authentication_eligibility_core(
     req: AuthenticationEligibilityRequest,
     authentication_id: common_utils::id_type::AuthenticationId,
 ) -> RouterResponse<AuthenticationEligibilityResponse> {
-    let merchant_account = platform.get_processor().get_account();
+    let processor_merchant_account = platform.get_processor().get_account();
     let key_manager_state = (&state).into();
-    let merchant_id = merchant_account.get_id();
+    let processor_merchant_id = processor_merchant_account.get_id();
     let db = &*state.store;
     let dimensions = dimension_state::Dimensions::new()
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
-        .with_organization_id(merchant_account.organization_id.clone());
+        .with_organization_id(processor_merchant_account.organization_id.clone());
 
     let authentication = db
-        .find_authentication_by_merchant_id_authentication_id(
-            merchant_id,
+        .find_authentication_by_processor_merchant_id_authentication_id(
+            processor_merchant_id,
             &authentication_id,
             platform.get_processor().get_key_store(),
             &key_manager_state,
-            merchant_account.storage_scheme,
+            processor_merchant_account.storage_scheme,
         )
         .await
         .to_not_found_response(ApiErrorResponse::AuthenticationNotFound {
@@ -1109,7 +1110,7 @@ pub async fn authentication_eligibility_core(
         None => Some(url::Url::parse(&format!(
             "{base_url}/authentication/{merchant_id}/{authentication_id}/redirect",
             base_url = state.base_url,
-            merchant_id = merchant_id.get_string_repr(),
+            merchant_id = processor_merchant_id.get_string_repr(),
             authentication_id = authentication_id.get_string_repr()
         )))
         .transpose()
@@ -1166,7 +1167,7 @@ pub async fn authentication_eligibility_core(
             let card_network = card_network
                 .get_required_value("card_network")
                 .change_context(ApiErrorResponse::MissingRequiredField {
-                    field_name: "card_network",
+                    field_name: "card_network".into(),
                 })
                 .attach_printable("Card network is mandatory for resolving acquirer details")?;
 
@@ -1201,17 +1202,17 @@ pub async fn authentication_eligibility_core(
 
             // If we resolved acquirer details from a bucket, persist them to the authentication record.
             let key_manager_state_ref = &key_manager_state;
-            db.update_authentication_by_merchant_id_authentication_id(
+            db.update_authentication_by_processor_merchant_id_authentication_id(
                 authentication.clone(),
                 hyperswitch_domain_models::authentication::AuthenticationUpdate::AcquirerDetailsUpdate {
                     acquirer_bin: acquirer_details.as_ref().and_then(|d| d.acquirer_bin.clone()),
                     acquirer_merchant_id: acquirer_details.as_ref().and_then(|d| d.acquirer_assigned_merchant_id.clone()),
                     acquirer_country_code: acquirer_details.as_ref().and_then(|d| d.acquirer_country_code.clone()),
-                    updated_by: merchant_account.storage_scheme.to_string(),
+                    updated_by: processor_merchant_account.storage_scheme.to_string(),
                 },
                 platform.get_processor().get_key_store(),
                 key_manager_state_ref,
-                merchant_account.storage_scheme,
+                processor_merchant_account.storage_scheme,
             )
             .await
             .change_context(ApiErrorResponse::InternalServerError)
@@ -1282,7 +1283,7 @@ pub async fn authentication_eligibility_core(
     let pre_auth_response =
         <ExternalAuthentication as UnifiedAuthenticationService>::pre_authentication(
             &state,
-            merchant_id,
+            processor_merchant_id,
             None,
             Some(&payment_method_data),
             req.payment_method_type,
@@ -1324,7 +1325,7 @@ pub async fn authentication_eligibility_core(
         None,
         merchant_category_code,
         merchant_country_code.clone(),
-        merchant_account.storage_scheme,
+        processor_merchant_account.storage_scheme,
     ))
     .await?;
 
@@ -1356,17 +1357,17 @@ pub async fn authentication_authenticate_core(
     auth_flow: AuthFlow,
 ) -> RouterResponse<AuthenticationAuthenticateResponse> {
     let authentication_id = req.authentication_id.clone();
-    let merchant_account = platform.get_processor().get_account();
-    let merchant_id = merchant_account.get_id();
+    let processor_merchant_account = platform.get_processor().get_account();
+    let processor_merchant_id = processor_merchant_account.get_id();
     let db = &*state.store;
     let key_manager_state = (&state).into();
     let authentication = db
-        .find_authentication_by_merchant_id_authentication_id(
-            merchant_id,
+        .find_authentication_by_processor_merchant_id_authentication_id(
+            processor_merchant_id,
             &authentication_id,
             platform.get_processor().get_key_store(),
             &key_manager_state,
-            merchant_account.storage_scheme,
+            processor_merchant_account.storage_scheme,
         )
         .await
         .to_not_found_response(ApiErrorResponse::AuthenticationNotFound {
@@ -1385,7 +1386,7 @@ pub async fn authentication_authenticate_core(
     let dimensions = dimension_state::Dimensions::new()
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
-        .with_organization_id(merchant_account.organization_id.clone());
+        .with_organization_id(processor_merchant_account.organization_id.clone());
 
     let profile_id = authentication.profile_id.clone();
 
@@ -1428,7 +1429,7 @@ pub async fn authentication_authenticate_core(
 
     let webhook_url = helpers::create_webhook_url(
         &state.base_url,
-        merchant_id,
+        processor_merchant_id,
         merchant_connector_account_id_or_connector_name,
     );
 
@@ -1475,7 +1476,7 @@ pub async fn authentication_authenticate_core(
             .and_then(|sdk_information| sdk_information.device_details),
         None,
         None,
-        merchant_account.storage_scheme,
+        processor_merchant_account.storage_scheme,
     ))
     .await?;
 
@@ -1687,20 +1688,20 @@ pub async fn authentication_eligibility_check_core(
 ) -> RouterResponse<AuthenticationEligibilityCheckResponse> {
     let authentication_id = req.authentication_id.clone();
     let db = &*state.store;
-    let merchant_account = platform.get_processor().get_account();
-    let merchant_id = merchant_account.get_id();
+    let processor_merchant_account = platform.get_processor().get_account();
+    let processor_merchant_id = processor_merchant_account.get_id();
     let key_manager_state = (&state).into();
     let dimensions = dimension_state::Dimensions::new()
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
 
     let authentication = db
-        .find_authentication_by_merchant_id_authentication_id(
-            merchant_id,
+        .find_authentication_by_processor_merchant_id_authentication_id(
+            processor_merchant_id,
             &authentication_id,
             platform.get_processor().get_key_store(),
             &key_manager_state,
-            merchant_account.storage_scheme,
+            processor_merchant_account.storage_scheme,
         )
         .await
         .to_not_found_response(ApiErrorResponse::AuthenticationNotFound {
@@ -2071,17 +2072,17 @@ pub async fn authentication_sync_core(
     req: AuthenticationSyncRequest,
 ) -> RouterResponse<AuthenticationSyncResponse> {
     let authentication_id = req.authentication_id;
-    let merchant_account = platform.get_processor().get_account();
-    let merchant_id = merchant_account.get_id();
+    let processor_merchant_account = platform.get_processor().get_account();
+    let processor_merchant_id = processor_merchant_account.get_id();
     let db = &*state.store;
     let key_manager_state = (&state).into();
     let authentication = db
-        .find_authentication_by_merchant_id_authentication_id(
-            merchant_id,
+        .find_authentication_by_processor_merchant_id_authentication_id(
+            processor_merchant_id,
             &authentication_id,
             platform.get_processor().get_key_store(),
             &key_manager_state,
-            merchant_account.storage_scheme,
+            processor_merchant_account.storage_scheme,
         )
         .await
         .to_not_found_response(ApiErrorResponse::AuthenticationNotFound {
@@ -2234,8 +2235,8 @@ pub async fn authentication_sync_core(
                     &authentication_connector,
                     &three_ds_connector_account,
                     &authentication_id,
-                    merchant_id,
-                    merchant_account,
+                    processor_merchant_id,
+                    processor_merchant_account,
                     should_disable_vault_tokenization,
                 ))
                 .await?
@@ -2323,7 +2324,7 @@ pub async fn authentication_sync_core(
 
     let response = AuthenticationSyncResponse {
         authentication_id: authentication_id.clone(),
-        merchant_id: merchant_id.clone(),
+        merchant_id: processor_merchant_id.clone(),
         status: updated_authentication.authentication_status,
         client_secret: updated_authentication
             .authentication_client_secret
@@ -2382,21 +2383,21 @@ pub async fn authentication_post_sync_core(
     req: AuthenticationSyncPostUpdateRequest,
 ) -> RouterResponse<()> {
     let authentication_id = req.authentication_id;
-    let merchant_account = platform.get_processor().get_account();
-    let merchant_id = merchant_account.get_id();
+    let processor_merchant_account = platform.get_processor().get_account();
+    let processor_merchant_id = processor_merchant_account.get_id();
     let db = &*state.store;
     let key_manager_state = (&state).into();
     let dimensions = dimension_state::Dimensions::new()
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
-        .with_organization_id(merchant_account.organization_id.clone());
+        .with_organization_id(processor_merchant_account.organization_id.clone());
     let authentication = db
-        .find_authentication_by_merchant_id_authentication_id(
-            merchant_id,
+        .find_authentication_by_processor_merchant_id_authentication_id(
+            processor_merchant_id,
             &authentication_id,
             platform.get_processor().get_key_store(),
             &key_manager_state,
-            merchant_account.storage_scheme,
+            processor_merchant_account.storage_scheme,
         )
         .await
         .to_not_found_response(ApiErrorResponse::AuthenticationNotFound {
@@ -2434,7 +2435,7 @@ pub async fn authentication_post_sync_core(
             &authentication_connector.to_string(),
             &authentication_id,
             common_enums::PaymentMethod::Card,
-            merchant_id,
+            processor_merchant_id,
             Some(&authentication),
             Some(routing_region),
         )
@@ -2453,7 +2454,7 @@ pub async fn authentication_post_sync_core(
         None,
         None,
         None,
-        merchant_account.storage_scheme,
+        processor_merchant_account.storage_scheme,
     )
     .await?;
 
@@ -2510,19 +2511,19 @@ pub async fn authentication_session_core(
     platform: domain::Platform,
     req: AuthenticationSessionTokenRequest,
 ) -> RouterResponse<api_models::authentication::AuthenticationSessionResponse> {
-    let merchant_account = platform.get_processor().get_account();
-    let merchant_id = merchant_account.get_id();
+    let processor_merchant_account = platform.get_processor().get_account();
+    let processor_merchant_id = processor_merchant_account.get_id();
     let key_manager_state = (&state).into();
 
     let authentication_id = req.authentication_id;
     let authentication = state
         .store
-        .find_authentication_by_merchant_id_authentication_id(
-            merchant_id,
+        .find_authentication_by_processor_merchant_id_authentication_id(
+            processor_merchant_id,
             &authentication_id,
             platform.get_processor().get_key_store(),
             &key_manager_state,
-            merchant_account.storage_scheme,
+            processor_merchant_account.storage_scheme,
         )
         .await
         .to_not_found_response(ApiErrorResponse::AuthenticationNotFound {
@@ -2584,7 +2585,7 @@ pub async fn get_session_token_for_click_to_pay(
     let click_to_pay_mca_id = authentication_product_ids
         .get_click_to_pay_connector_account_id()
         .change_context(ApiErrorResponse::MissingRequiredField {
-            field_name: "authentication_product_ids",
+            field_name: "authentication_product_ids".into(),
         })?;
     let key_manager_state = &state.into();
 

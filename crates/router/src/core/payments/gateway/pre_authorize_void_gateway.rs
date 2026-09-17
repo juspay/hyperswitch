@@ -87,7 +87,7 @@ where
         let connector_auth_metadata =
             unified_connector_service::build_unified_connector_service_auth_metadata(
                 merchant_connector_account,
-                processor,
+                processor.get_account().get_id(),
                 router_data.connector.clone(),
             )
             .change_context(ConnectorError::RequestEncodingFailed)
@@ -122,10 +122,16 @@ where
             header_payload,
             unified_connector_service_execution_mode,
             |mut router_data, payment_void_request, grpc_headers| async move {
-                let response = client
+                let response = match client
                     .payment_void(payment_void_request, connector_auth_metadata, grpc_headers)
                     .await
-                    .attach_printable("Failed to Cancel payment")?;
+                {
+                    Ok(response) => response,
+                    // UCS connector errors are handled by the wrapper — see `ucs_logging_wrapper_granular`.
+                    Err(report) => {
+                        return Err(report.attach_printable("Failed to Cancel payment"));
+                    }
+                };
 
                 let payment_void_response = response.into_inner();
 
@@ -157,7 +163,7 @@ where
         ))
         .await
         .map(|(router_data, _)| router_data)
-        .change_context(ConnectorError::ResponseHandlingFailed)
+        .map_err(payment_gateway::convert_ucs_error_to_connector_error)
     }
 }
 

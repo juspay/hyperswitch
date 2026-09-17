@@ -11,6 +11,8 @@ pub enum PayloadPaymentStatus {
     Processing,
     Rejected,
     Voided,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -28,11 +30,12 @@ pub struct PayloadPostCaptureVoidResponse(pub PayloadPaymentsResponse);
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum AvsResponse {
-    Unknown,
     NoMatch,
     Zip,
     Street,
     StreetAndZip,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -67,15 +70,8 @@ pub enum RefundStatus {
     #[default]
     Processing,
     Rejected,
-}
-
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub struct RefundsLedger {
-    pub amount: f64,
-    #[serde(rename = "assoc_transaction_id")]
-    pub associated_transaction_id: String, // Connector transaction id
-    #[serde(rename = "id")]
-    pub ledger_id: Secret<String>,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -83,7 +79,7 @@ pub struct PayloadRefundResponse {
     pub amount: Option<f64>,
     #[serde(rename = "id")]
     pub transaction_id: String,
-    pub ledger: Vec<RefundsLedger>,
+    pub ledger: Option<serde_json::Value>,
     #[serde(rename = "payment_method_id")]
     pub connector_payment_method_id: Option<Secret<String>>,
     pub processing_id: Option<Secret<String>>,
@@ -128,6 +124,8 @@ pub enum PayloadWebhooksTrigger {
     TransactionOperation,
     #[serde(rename = "transaction:operation:clear")]
     TransactionOperationClear,
+    #[serde(other)]
+    Unknown,
 }
 impl PayloadWebhooksTrigger {
     pub fn as_str(&self) -> &'static str {
@@ -151,6 +149,7 @@ impl PayloadWebhooksTrigger {
             Self::ChargebackReversal => "chargeback_reversal",
             Self::TransactionOperation => "transaction:operation",
             Self::TransactionOperationClear => "transaction:operation:clear",
+            Self::Unknown => "unknown",
         }
     }
 }
@@ -180,9 +179,9 @@ pub struct PayloadEventDetails {
 pub struct PayloadPaymentMethodResponse {
     pub id: String, // Payment method ID (pm_xxx)
     pub account_holder: Option<Secret<String>>,
-    pub customer_id: String, // Same as account_id sent
-    pub verification_status: PayloadVerificationStatus,
-    pub status: String, // "active"
+    pub customer_id: Option<String>, // Same as account_id sent
+    pub verification_status: Option<PayloadVerificationStatus>,
+    pub status: Option<String>, // "active"
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -199,4 +198,11 @@ impl PayloadVerificationStatus {
     pub fn is_verified(&self) -> bool {
         matches!(self, Self::Verified | Self::OwnerVerified)
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PayloadWebhookRegisterResponse {
+    pub id: String,
+    pub trigger: String,
+    pub url: String,
 }

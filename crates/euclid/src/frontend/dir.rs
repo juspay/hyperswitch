@@ -45,7 +45,7 @@ macro_rules! dirval {
     }};
 }
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq, serde::Serialize)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct DirKey {
     pub kind: DirKeyKind,
     pub value: Option<String>,
@@ -64,6 +64,7 @@ impl DirKey {
     PartialEq,
     Eq,
     serde::Serialize,
+    serde::Deserialize,
     strum::Display,
     strum::EnumIter,
     strum::VariantNames,
@@ -213,6 +214,13 @@ pub enum DirKeyKind {
     #[serde(rename = "amount")]
     PaymentAmount,
     #[strum(
+        serialize = "surcharge_amount",
+        detailed_message = "External surcharge amount computed during eligibility",
+        props(Category = "Payments")
+    )]
+    #[serde(rename = "surcharge_amount")]
+    SurchargeAmount,
+    #[strum(
         serialize = "currency",
         detailed_message = "Currency used for the payment",
         props(Category = "Payments")
@@ -248,7 +256,9 @@ pub enum DirKeyKind {
     )]
     #[serde(rename = "billing_country")]
     BillingCountry,
-    #[serde(skip_deserializing, rename = "connector")]
+    // No `skip_deserializing`: a recorded constraint graph substituted on
+    // replay is read back, and an unreadable variant fails the whole graph.
+    #[serde(rename = "connector")]
     Connector,
     #[strum(
         serialize = "business_label",
@@ -400,6 +410,7 @@ impl DirKeyKind {
             Self::CryptoType => types::DataType::EnumVariant,
             Self::RewardType => types::DataType::EnumVariant,
             Self::PaymentAmount => types::DataType::Number,
+            Self::SurchargeAmount => types::DataType::Number,
             Self::PaymentCurrency => types::DataType::EnumVariant,
             Self::AuthenticationType => types::DataType::EnumVariant,
             Self::CaptureMethod => types::DataType::EnumVariant,
@@ -498,6 +509,7 @@ impl DirKeyKind {
                     .collect(),
             ),
             Self::PaymentAmount => None,
+            Self::SurchargeAmount => None,
             Self::PaymentCurrency => Some(
                 enums::PaymentCurrency::iter()
                     .map(DirValue::PaymentCurrency)
@@ -608,7 +620,15 @@ impl DirKeyKind {
 }
 
 #[derive(
-    Debug, Clone, Hash, PartialEq, Eq, serde::Serialize, strum::Display, strum::VariantNames,
+    Debug,
+    Clone,
+    Hash,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::VariantNames,
 )]
 #[serde(tag = "key", content = "value")]
 pub enum DirValue {
@@ -652,6 +672,8 @@ pub enum DirValue {
     GiftCardType(enums::GiftCardType),
     #[serde(rename = "amount")]
     PaymentAmount(types::NumValue),
+    #[serde(rename = "surcharge_amount")]
+    SurchargeAmount(types::NumValue),
     #[serde(rename = "currency")]
     PaymentCurrency(enums::PaymentCurrency),
     #[serde(rename = "authentication_type")]
@@ -662,7 +684,9 @@ pub enum DirValue {
     BusinessCountry(enums::Country),
     #[serde(rename = "billing_country")]
     BillingCountry(enums::Country),
-    #[serde(skip_deserializing, rename = "connector")]
+    // No `skip_deserializing`: a recorded constraint graph substituted on
+    // replay is read back, and an unreadable variant fails the whole graph.
+    #[serde(rename = "connector")]
     Connector(Box<ast::ConnectorChoice>),
     #[serde(rename = "business_label")]
     BusinessLabel(types::StrValue),
@@ -719,6 +743,7 @@ impl DirValue {
             Self::AuthenticationType(_) => (DirKeyKind::AuthenticationType, None),
             Self::CaptureMethod(_) => (DirKeyKind::CaptureMethod, None),
             Self::PaymentAmount(_) => (DirKeyKind::PaymentAmount, None),
+            Self::SurchargeAmount(_) => (DirKeyKind::SurchargeAmount, None),
             Self::PaymentCurrency(_) => (DirKeyKind::PaymentCurrency, None),
             Self::Connector(_) => (DirKeyKind::Connector, None),
             Self::BankDebitType(_) => (DirKeyKind::BankDebitType, None),
@@ -763,6 +788,7 @@ impl DirValue {
             Self::CaptureMethod(_) => None,
             Self::GiftCardType(_) => None,
             Self::PaymentAmount(_) => None,
+            Self::SurchargeAmount(_) => None,
             Self::PaymentCurrency(_) => None,
             Self::BusinessCountry(_) => None,
             Self::BillingCountry(_) => None,
@@ -806,6 +832,7 @@ impl DirValue {
     pub fn get_num_value(&self) -> Option<types::NumValue> {
         match self {
             Self::PaymentAmount(val) => Some(val.clone()),
+            Self::SurchargeAmount(val) => Some(val.clone()),
             Self::AcquirerFraudRate(val) => Some(val.clone()),
             _ => None,
         }
@@ -1097,5 +1124,73 @@ mod test {
 
         let out = ast::lowering::lower_program::<DummyOutput>(program);
         assert!(out.is_err())
+    }
+}
+#[cfg(test)]
+mod serde_round_trip {
+    use strum::IntoEnumIterator;
+
+    use super::{ast, DirKey, DirKeyKind, DirValue};
+    use crate::enums as euclid_enums;
+
+    /// Every key kind must survive a serde round trip.
+    ///
+    /// A variant that serializes under a tag it refuses to deserialize is
+    /// invisible to the compiler and silent in every test that only ever
+    /// writes. `DirKeyKind::Connector` and `DirValue::Connector` carried
+    /// `skip_deserializing` for years, harmlessly, because nothing read these
+    /// back — until a recorded constraint graph was substituted on replay,
+    /// where reconstruction of the WHOLE graph failed on the one unreadable
+    /// variant and took the request down with it. Enumerating the variants
+    /// keeps the asymmetry from returning silently for any of them.
+    #[test]
+    fn every_key_kind_round_trips() {
+        for kind in DirKeyKind::iter() {
+            let wire = serde_json::to_value(&kind)
+                .unwrap_or_else(|e| panic!("{kind:?} does not serialize: {e}"));
+            let back: DirKeyKind = serde_json::from_value(wire.clone()).unwrap_or_else(|e| {
+                panic!("{kind:?} serializes as {wire} but does not read back: {e}")
+            });
+            assert_eq!(back, kind, "{kind:?} changed identity across a round trip");
+        }
+    }
+
+    /// The same for a full key, which is what a graph's key nodes carry.
+    #[test]
+    fn every_key_round_trips_inside_a_key() {
+        for kind in DirKeyKind::iter() {
+            let key = DirKey::new(kind.clone(), None);
+            let wire = serde_json::to_value(&key).expect("serializes");
+            let back: DirKey = serde_json::from_value(wire.clone()).unwrap_or_else(|e| {
+                panic!("DirKey({kind:?}) serializes as {wire} but does not read back: {e}")
+            });
+            assert_eq!(back, key);
+        }
+    }
+
+    /// `DirValue::Connector` specifically, because it is the variant that was
+    /// unreadable and the enumerating tests above cannot reach it.
+    ///
+    /// `DirValue`'s variants carry data, so it derives `VariantNames` rather
+    /// than `EnumIter` and cannot be iterated into values. The one variant the
+    /// fix was about therefore needs naming outright, or it is the only part
+    /// of the change with no test over it.
+    #[test]
+    fn the_connector_value_round_trips() {
+        let value = DirValue::Connector(Box::new(ast::ConnectorChoice {
+            connector: euclid_enums::RoutableConnectors::Adyen,
+        }));
+
+        let wire = serde_json::to_value(&value).expect("serializes");
+        assert_eq!(
+            wire.get("key").and_then(|k| k.as_str()),
+            Some("connector"),
+            "the tag must stay `connector`; a recorded graph names it that way, got {wire}"
+        );
+
+        let back: DirValue = serde_json::from_value(wire.clone()).unwrap_or_else(|e| {
+            panic!("DirValue::Connector serializes as {wire} but does not read back: {e}")
+        });
+        assert_eq!(back, value);
     }
 }

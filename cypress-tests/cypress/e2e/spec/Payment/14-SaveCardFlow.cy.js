@@ -4,15 +4,39 @@ import State from "../../../utils/State";
 import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 
 let globalState;
+let originalCustomerId;
 
 describe("Card - SaveCard payment flow test", () => {
-  before("seed global state", () => {
-    cy.task("getGlobalState").then((state) => {
-      globalState = new State(state);
-    });
+  before("seed global state", function () {
+    let skip = false;
+
+    cy.task("getGlobalState")
+      .then((state) => {
+        globalState = new State(state);
+        originalCustomerId = globalState.get("customerId");
+        const connector = globalState.get("connectorId");
+        if (
+          utils.shouldExcludeConnector(
+            connector,
+            utils.CONNECTOR_LISTS.EXCLUDE.SAVE_CARD
+          )
+        ) {
+          skip = true;
+        }
+      })
+      .then(() => {
+        if (skip) {
+          this.skip();
+        }
+      });
   });
 
   after("flush global state", () => {
+    // This spec's contexts create their own customers for local save-card
+    // testing, overwriting globalState.customerId. Restore the original
+    // customer before flushing so later specs don't inherit one scoped to
+    // this spec's own tests.
+    globalState.set("customerId", originalCustomerId);
     cy.task("setGlobalState", globalState.data);
   });
 

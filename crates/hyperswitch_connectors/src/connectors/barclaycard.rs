@@ -165,7 +165,7 @@ where
         req: &RouterData<Flow, Request, Response>,
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
-        let date = OffsetDateTime::now_utc();
+        let date = common_utils::date_time::now().assume_utc();
         let barclaycard_req = self.get_request_body(req, connectors)?;
         let http_method = self.get_http_method();
         let auth = barclaycard::BarclaycardAuthType::try_from(&req.connector_auth_type)?;
@@ -474,13 +474,13 @@ impl ConnectorIntegration<Authenticate, PaymentsAuthenticateData, PaymentsRespon
             req.request
                 .minor_amount
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "minor_amount",
+                    field_name: "minor_amount".into(),
                 })?;
         let currency =
             req.request
                 .currency
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "currency",
+                    field_name: "currency".into(),
                 })?;
         let amount = convert_amount(self.amount_converter, minor_amount, currency)?;
         let connector_router_data = barclaycard::BarclaycardRouterData::try_from((amount, req))?;
@@ -568,13 +568,13 @@ impl ConnectorIntegration<PostAuthenticate, PaymentsPostAuthenticateData, Paymen
             req.request
                 .minor_amount
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "minor_amount",
+                    field_name: "minor_amount".into(),
                 })?;
         let currency =
             req.request
                 .currency
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "currency",
+                    field_name: "currency".into(),
                 })?;
         let amount = convert_amount(self.amount_converter, minor_amount, currency)?;
         let connector_router_data = barclaycard::BarclaycardRouterData::try_from((amount, req))?;
@@ -654,7 +654,7 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
     ) -> CustomResult<String, errors::ConnectorError> {
         let redirect_response = req.request.redirect_response.clone().ok_or(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "redirect_response",
+                field_name: "redirect_response".into(),
             },
         )?;
         match redirect_response.params {
@@ -681,7 +681,7 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
             req.request
                 .currency
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "currency",
+                    field_name: "currency".into(),
                 })?,
         )?;
         let connector_router_data = barclaycard::BarclaycardRouterData::try_from((amount, req))?;
@@ -1128,7 +1128,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Ba
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let amount_in_minor_unit = MinorUnit::new(req.request.amount.ok_or(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "amount",
+                field_name: "amount".into(),
             },
         )?);
         let amount = convert_amount(
@@ -1137,7 +1137,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Ba
             req.request
                 .currency
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "currency",
+                    field_name: "currency".into(),
                 })?,
         )?;
         let connector_router_data = barclaycard::BarclaycardRouterData::try_from((amount, req))?;
@@ -1646,7 +1646,9 @@ impl ConnectorSpecifications for Barclaycard {
             // No alternate flow for complete authorize
             api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
             api::CurrentFlowInfo::SetupMandate { .. } => false,
-            api::CurrentFlowInfo::Psync { .. } => false,
+            api::CurrentFlowInfo::Psync { .. }
+            | api::CurrentFlowInfo::UpdatePostConfirm { .. }
+            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
         }
     }
     /// Check if authentication flow is required
@@ -1656,11 +1658,7 @@ impl ConnectorSpecifications for Barclaycard {
                 // during authorize flow, there is no post_authentication call needed
                 false
             }
-            api::CurrentFlowInfo::CompleteAuthorize {
-                request_data,
-                payment_method: _,
-                ..
-            } => {
+            api::CurrentFlowInfo::CompleteAuthorize { request_data, .. } => {
                 // TODO: add logic before deciding the pre processing flow Authenticate or PostAuthenticate
                 let redirection_params = request_data
                     .redirect_response
@@ -1672,7 +1670,9 @@ impl ConnectorSpecifications for Barclaycard {
                 }
             }
             api::CurrentFlowInfo::SetupMandate { .. } => false,
-            api::CurrentFlowInfo::Psync { .. } => false,
+            api::CurrentFlowInfo::Psync { .. }
+            | api::CurrentFlowInfo::UpdatePostConfirm { .. }
+            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
         }
     }
     /// Check if post-authentication flow is required
@@ -1682,11 +1682,7 @@ impl ConnectorSpecifications for Barclaycard {
                 // during authorize flow, there is no post_authentication call needed
                 false
             }
-            api::CurrentFlowInfo::CompleteAuthorize {
-                request_data,
-                payment_method: _,
-                ..
-            } => {
+            api::CurrentFlowInfo::CompleteAuthorize { request_data, .. } => {
                 // TODO: add logic before deciding the pre processing flow Authenticate or PostAuthenticate
                 let redirection_params = request_data
                     .redirect_response
@@ -1698,7 +1694,9 @@ impl ConnectorSpecifications for Barclaycard {
                 }
             }
             api::CurrentFlowInfo::SetupMandate { .. } => false,
-            api::CurrentFlowInfo::Psync { .. } => false,
+            api::CurrentFlowInfo::Psync { .. }
+            | api::CurrentFlowInfo::UpdatePostConfirm { .. }
+            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
         }
     }
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {

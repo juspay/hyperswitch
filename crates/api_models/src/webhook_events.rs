@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use common_enums::{EventClass, EventType, WebhookDeliveryAttempt};
+use common_enums::{EventClass, EventRecipient, EventType, WebhookDeliveryAttempt};
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -41,6 +41,8 @@ pub struct EventListConstraints {
     pub event_types: Option<HashSet<EventType>>,
     /// Filter all events by `is_overall_delivery_successful` field of the event.
     pub is_delivered: Option<bool>,
+    /// Filter all events by the recipient of the webhook.
+    pub recipient: Option<EventRecipient>,
 }
 
 #[derive(Debug)]
@@ -53,9 +55,11 @@ pub enum EventListConstraintsInternal {
         event_classes: Option<HashSet<EventClass>>,
         event_types: Option<HashSet<EventType>>,
         is_delivered: Option<bool>,
+        recipient: Option<EventRecipient>,
     },
     ObjectIdFilter {
         object_id: String,
+        recipient: Option<EventRecipient>,
     },
     EventIdFilter {
         event_id: String,
@@ -156,7 +160,7 @@ impl common_utils::events::ApiEventMetric for EventRetrieveResponse {
 }
 
 /// The request information (headers and body) sent in the webhook.
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct OutgoingWebhookRequestContent {
     /// The request body sent in the webhook.
     #[schema(value_type = String)]
@@ -172,7 +176,7 @@ pub struct OutgoingWebhookRequestContent {
 }
 
 /// The response information (headers, body and status code) received for the webhook sent.
-#[derive(Debug, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct OutgoingWebhookResponseContent {
     /// The response body received for the webhook sent.
     #[schema(value_type = Option<String>)]

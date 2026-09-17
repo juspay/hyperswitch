@@ -63,7 +63,7 @@ pub use hyperswitch_interfaces::{
             ConnectorPreAuthenticationVersionCallV2, ExternalAuthenticationV2,
         },
         fraud_check::FraudCheck,
-        merchant_connector_webhook_management::{ConfigureConnectorWebhook, WebhookRegister},
+        merchant_connector_webhook_management::WebhookRegister,
         revenue_recovery::{
             BillingConnectorInvoiceSyncIntegration, BillingConnectorPaymentsSyncIntegration,
             RevenueRecovery, RevenueRecoveryRecordBack,

@@ -95,6 +95,7 @@ export const connectorDetails = {
     PaymentConfirmWithShippingCost: {
       Request: {
         payment_method: "card",
+        payment_method_type: "credit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -164,6 +165,7 @@ export const connectorDetails = {
     No3DSManualCapture: {
       Request: {
         payment_method: "card",
+        payment_method_type: "credit",
         amount: 6000,
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -183,6 +185,7 @@ export const connectorDetails = {
     No3DSAutoCapture: {
       Request: {
         payment_method: "card",
+        payment_method_type: "credit",
         amount: 6000,
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -202,6 +205,7 @@ export const connectorDetails = {
     No3DSFailPayment: {
       Request: {
         payment_method: "card",
+        payment_method_type: "credit",
         payment_method_data: {
           card: failedNo3DSCardDetails,
         },
@@ -308,6 +312,9 @@ export const connectorDetails = {
       },
     },
     ZeroAuthMandate: {
+      Request: {
+        amount: 0,
+      },
       Response: {
         status: 501,
         body: {
@@ -334,6 +341,7 @@ export const connectorDetails = {
     },
     ZeroAuthConfirmPayment: {
       Request: {
+        amount: 0,
         payment_type: "setup_mandate",
         payment_method: "card",
         payment_method_type: "credit",
@@ -351,6 +359,50 @@ export const connectorDetails = {
             message: "Setup Mandate flow for Peachpayments is not implemented",
             code: "IR_00",
           },
+        },
+      },
+    },
+    ZeroAuthConfirmPaymentManual: {
+      Request: {
+        amount: 0,
+        payment_type: "setup_mandate",
+        payment_method: "card",
+        payment_method_type: "credit",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          setup_future_usage: "off_session",
+        },
+      },
+    },
+    MITManualCapture: {
+      // Peach sandbox rejects the generic fixture card (4242424242424242) for
+      // NTID MIT with "Server couldn't find that" / acquirer timeout; the
+      // registered peach test card (same as the CIT card) succeeds and the
+      // network_transaction_id is injected at runtime by mitUsingNTID.
+      Request: {
+        amount: 6000,
+        recurring_details: {
+          type: "network_transaction_id_and_card_details",
+          data: {
+            card_number: "5200000000000015",
+            card_exp_month: "01",
+            card_exp_year: "28",
+            card_holder_name: "John",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
         },
       },
     },
@@ -454,6 +506,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -473,6 +526,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -492,6 +546,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -511,6 +566,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -530,6 +586,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -549,7 +606,34 @@ export const connectorDetails = {
       config: {
         TRIGGER_SKIP: true,
       },
-      Request: {},
+      Request: { amount: 6000 },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            code: "IR_19",
+            message: "Payment method type not supported",
+            reason: "automatic is not supported by peachpayments",
+            type: "invalid_request",
+          },
+        },
+      },
+    },
+    MITAutoCaptureWithCustomerAcceptance: {
+      config: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        amount: 6000,
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "127.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
+      },
       Response: {
         status: 400,
         body: {
@@ -576,6 +660,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,

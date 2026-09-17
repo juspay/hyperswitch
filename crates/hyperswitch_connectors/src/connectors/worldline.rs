@@ -49,7 +49,6 @@ use hyperswitch_interfaces::{
 use hyperswitch_masking::{ExposeInterface, Mask, PeekInterface};
 use ring::hmac;
 use router_env::logger;
-use time::{format_description, OffsetDateTime};
 use transformers as worldline;
 
 use crate::{
@@ -89,12 +88,7 @@ impl Worldline {
     }
 
     pub fn get_current_date_time() -> CustomResult<String, errors::ConnectorError> {
-        let format = format_description::parse(
-            "[weekday repr:short], [day] [month repr:short] [year] [hour]:[minute]:[second] GMT",
-        )
-        .change_context(errors::ConnectorError::InvalidDateFormat)?;
-        OffsetDateTime::now_utc()
-            .format(&format)
+        common_utils::date_time::now_rfc7231_http_date()
             .change_context(errors::ConnectorError::InvalidDateFormat)
     }
 }
@@ -817,18 +811,18 @@ impl webhooks::IncomingWebhook for Worldline {
             crypto::Encryptable<hyperswitch_masking::Secret<serde_json::Value>>,
         >,
     ) -> CustomResult<
-        hyperswitch_domain_models::api::ApplicationResponse<serde_json::Value>,
+        hyperswitch_domain_models::api::WebhookResponse<serde_json::Value>,
         errors::ConnectorError,
     > {
         let verification_header = request.headers.get("x-gcs-webhooks-endpoint-verification");
         let response = match verification_header {
-            None => hyperswitch_domain_models::api::ApplicationResponse::StatusOk,
+            None => hyperswitch_domain_models::api::WebhookResponse::StatusOk,
             Some(header_value) => {
                 let verification_signature_value = header_value
                     .to_str()
                     .change_context(errors::ConnectorError::WebhookResponseEncodingFailed)?
                     .to_string();
-                hyperswitch_domain_models::api::ApplicationResponse::TextPlain(
+                hyperswitch_domain_models::api::WebhookResponse::TextPlain(
                     verification_signature_value,
                 )
             }

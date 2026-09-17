@@ -9,7 +9,7 @@ use super::{
     NetworkTokenizationResponse, State, TransitionTo,
 };
 use crate::{
-    core::payment_methods::transformers as pm_transformers,
+    core::payment_methods::{self, transformers as pm_transformers},
     errors::{self, RouterResult},
     types::{api, domain},
 };
@@ -146,6 +146,18 @@ impl<'a> NetworkTokenizationBuilder<'a, PmValidated> {
             card_type: optional_card_info
                 .as_ref()
                 .and_then(|card_info| card_info.card_type.clone()),
+            card_subtype: optional_card_info
+                .as_ref()
+                .and_then(|card_info| card_info.card_subtype.clone()),
+            card_segment_type: optional_card_info.as_ref().and_then(|card_info| {
+                card_info
+                    .card_segment_type
+                    .as_deref()
+                    .and_then(|segment_type| segment_type.parse().ok())
+            }),
+            funding_source: optional_card_info
+                .as_ref()
+                .and_then(|card_info| card_info.funding_source),
             card_issuing_country: optional_card_info
                 .as_ref()
                 .and_then(|card_info| card_info.card_issuing_country.clone()),
@@ -315,7 +327,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizePaymentMethodRequest> {
             .clone()
             .get_required_value("customer_id")
             .change_context(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "customer",
+                field_name: "customer".into(),
             })?;
 
         let customer_id = payment_method
@@ -323,7 +335,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizePaymentMethodRequest> {
             .clone()
             .get_required_value("customer_id")
             .change_context(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "customer",
+                field_name: "customer".into(),
             })
             .attach_printable("Missing customer_id in domain payment method")?;
 
@@ -377,7 +389,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizePaymentMethodRequest> {
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
         let customer_details = api::CustomerDetails {
-            id: Some(customer.customer_id.clone()),
+            id: Some(customer.get_id().clone()),
             name: customer.name.clone().map(|name| name.into_inner()),
             email: customer.email.clone().map(Email::from),
             phone: customer.phone.clone().map(|phone| phone.into_inner()),
@@ -387,6 +399,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizePaymentMethodRequest> {
                 .clone()
                 .map(|tax_registration_id| tax_registration_id.into_inner()),
             document_details: None,
+            date_of_birth: None,
         };
 
         Ok((locker_id, customer_details))
@@ -414,6 +427,13 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizePaymentMethodRequest> {
                 .map(|last_modified_by| last_modified_by.to_string()),
             network_tokenization_data: None,
         };
+        let compat_action = payment_methods::payment_method_modular_forward_compat_action(
+            self.state,
+            &payment_method.merchant_id,
+            &self.merchant_account.organization_id,
+            payment_method.customer_id.as_ref(),
+        )
+        .await;
         self.state
             .store
             .update_payment_method(
@@ -421,6 +441,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizePaymentMethodRequest> {
                 payment_method,
                 payment_method_update,
                 self.merchant_account.storage_scheme,
+                compat_action,
             )
             .await
             .inspect_err(|err| logger::info!("Error updating payment method: {:?}", err))

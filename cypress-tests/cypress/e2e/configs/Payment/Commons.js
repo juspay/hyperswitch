@@ -50,7 +50,7 @@ export const blockedPaymentErrorBodyForBinUnavailable = {
     error: {
       type: "blocked",
       message:
-        "We're unable to accept this card, please try another card or a different payment method",
+        "We couldn't verify this card's information, please try a different card",
       code: "HE_03",
       reason: "Blocked",
     },
@@ -93,7 +93,7 @@ export const cardCreditEnabled = [
   },
 ];
 
-const successfulNo3DSCardDetails = {
+export const successfulNo3DSCardDetails = {
   card_number: "4111111111111111",
   card_exp_month: "08",
   card_exp_year: "30",
@@ -207,12 +207,55 @@ export const fullNameRequiredField = {
 
 export const billingRequiredField = {};
 
+// Bank debit specific billing addresses - derived from standardBillingAddress
+export const sepaBillingAddress = {
+  address: {
+    ...standardBillingAddress.address,
+    city: "Amsterdam",
+    state: "North Holland",
+    zip: "1012",
+    country: "NL",
+  },
+  email: "test@example.com",
+};
+
+export const achBillingAddress = {
+  address: {
+    ...standardBillingAddress.address,
+    city: "San Francisco",
+    state: "California",
+  },
+  email: "test@example.com",
+};
+
+export const bacsBillingAddress = {
+  address: {
+    ...standardBillingAddress.address,
+    city: "London",
+    state: "England",
+    zip: "SW1A 1AA",
+    country: "GB",
+  },
+  email: "test@example.com",
+};
+
 export const payment_methods_enabled = [
   {
     payment_method: "bank_redirect",
     payment_method_types: [
       {
         payment_method_type: "blik",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+      {
+        payment_method_type: "trustly",
         payment_experience: null,
         card_networks: null,
         accepted_currencies: null,
@@ -289,6 +332,17 @@ export const payment_methods_enabled = [
         installment_payment_enabled: true,
       },
       {
+        payment_method_type: "open_banking",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+      {
         payment_method_type: "online_banking_fpx",
         payment_experience: null,
         card_networks: null,
@@ -311,6 +365,17 @@ export const payment_methods_enabled = [
         installment_payment_enabled: true,
       },
       {
+        payment_method_type: "trustly",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+      {
         payment_method_type: "interac",
         payment_experience: null,
         card_networks: null,
@@ -323,6 +388,17 @@ export const payment_methods_enabled = [
       },
       {
         payment_method_type: "bancontact_card",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+      {
+        payment_method_type: "eft",
         payment_experience: null,
         card_networks: null,
         accepted_currencies: null,
@@ -487,6 +563,14 @@ export const payment_methods_enabled = [
         installment_payment_enabled: true,
         payment_experience: "redirect_to_url",
       },
+      {
+        payment_method_type: "qris",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: false,
+        payment_experience: "redirect_to_url",
+      },
     ],
   },
   {
@@ -643,6 +727,30 @@ export const payment_methods_enabled = [
       },
       {
         payment_method_type: "mb_way",
+        payment_experience: "redirect_to_url",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
+      {
+        payment_method_type: "amazon_pay",
+        payment_experience: "redirect_to_url",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
+      {
+        payment_method_type: "cashapp",
+        payment_experience: "display_qr_code",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
+      {
+        payment_method_type: "revolut_pay",
         payment_experience: "redirect_to_url",
         minimum_amount: 1,
         maximum_amount: 68607706,
@@ -851,6 +959,23 @@ export const payment_methods_enabled = [
         installment_payment_enabled: false,
       },
       {
+        payment_method_type: "payjustnow",
+        payment_experience: "redirect_to_url",
+        card_networks: null,
+        accepted_currencies: {
+          type: "enable_only",
+          list: ["ZAR"],
+        },
+        accepted_countries: {
+          type: "enable_only",
+          list: ["ZA"],
+        },
+        minimum_amount: 100,
+        maximum_amount: 100000000,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
+      {
         payment_method_type: "affirm",
         payment_experience: "redirect_to_url",
         card_networks: null,
@@ -867,6 +992,67 @@ export const payment_methods_enabled = [
         card_networks: null,
         accepted_currencies: null,
         accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
+      {
+        payment_method_type: "afterpay_clearpay",
+        payment_experience: "redirect_to_url",
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
+      {
+        payment_method_type: "alma",
+        payment_experience: "redirect_to_url",
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
+      {
+        payment_method_type: "walley",
+        payment_experience: "redirect_to_url",
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
+    ],
+  },
+  {
+    payment_method: "card_redirect",
+    payment_method_types: [
+      {
+        payment_method_type: "card_redirect",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+    ],
+  },
+  {
+    payment_method: "open_banking",
+    payment_method_types: [
+      {
+        payment_method_type: "open_banking_pis",
         minimum_amount: 1,
         maximum_amount: 68607706,
         recurring_enabled: false,
@@ -1034,7 +1220,7 @@ export const connectorDetails = {
         },
       }),
       MandateSingleUseAutoCapture: getCustomExchange({
-        Request: {},
+        Request: { amount: 6540 },
         Response: {
           status: 200,
           body: {
@@ -1064,7 +1250,7 @@ export const connectorDetails = {
         },
       }),
       MandateSingleUseAutoCapture: getCustomExchange({
-        Request: {},
+        Request: { amount: 6540 },
         Response: {
           status: 200,
           body: {
@@ -1090,12 +1276,15 @@ export const connectorDetails = {
         },
       }),
       MandateSingleUseAutoCapture: getCustomExchange({
-        Request: {},
+        Request: { amount: 6540 },
         Response: {
           status: 200,
           body: {
             status: "requires_customer_action",
           },
+        },
+        Configs: {
+          TRIGGER_SKIP: true,
         },
       }),
     },
@@ -1276,7 +1465,32 @@ export const connectorDetails = {
           billing: standardBillingAddress,
         },
       }),
+      MandateSingleUseAutoCapture: getCustomExchange({
+        Configs: {
+          TRIGGER_SKIP: true,
+        },
+        Request: { amount: 6540 },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_customer_action",
+          },
+        },
+      }),
     },
+    Eft: getCustomExchange({
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "eft",
+        payment_method_data: {
+          bank_redirect: {
+            eft: {
+              provider: "ozow",
+            },
+          },
+        },
+      },
+    }),
   },
   bank_debit_pm: {
     PaymentIntent: (paymentMethodType) => {
@@ -1371,6 +1585,76 @@ export const connectorDetails = {
         billing: {
           address: {
             country: "GB",
+          },
+          email: "test@example.com",
+        },
+      },
+    }),
+    get MandateSingleUseSepa() {
+      return this.Sepa;
+    },
+    get MandateSingleUseBecs() {
+      return this.Becs;
+    },
+    get MandateSingleUseAch() {
+      return this.Ach;
+    },
+    get MandateSingleUseBacs() {
+      return this.Bacs;
+    },
+    MITAutoCaptureSepa: getCustomExchange({
+      Request: {
+        amount: 6540,
+        off_session: true,
+        confirm: true,
+        currency: "EUR",
+      },
+    }),
+    MITAutoCaptureBecs: getCustomExchange({
+      Request: {
+        amount: 6540,
+        off_session: true,
+        confirm: true,
+        currency: "AUD",
+      },
+    }),
+    MITAutoCaptureAch: getCustomExchange({
+      Request: {
+        amount: 6540,
+        off_session: true,
+        confirm: true,
+        currency: "USD",
+      },
+    }),
+    MITAutoCaptureBacs: getCustomExchange({
+      Request: {
+        amount: 6540,
+        off_session: true,
+        confirm: true,
+        currency: "GBP",
+      },
+    }),
+    BankdebitMIT: getCustomExchange({
+      Request: {
+        currency: "EUR",
+        off_session: true,
+      },
+    }),
+    SepaMandate: getCustomExchange({
+      Request: {
+        payment_method: "bank_debit",
+        payment_method_type: "sepa",
+        payment_method_data: {
+          bank_debit: {
+            sepa_bank_debit: {
+              iban: "DE89370400440532013000",
+              bank_account_holder_name: "Test Account",
+            },
+          },
+        },
+        billing: {
+          address: {
+            country: "DE",
           },
           email: "test@example.com",
         },
@@ -1678,7 +1962,268 @@ export const connectorDetails = {
       },
     }),
     SyncRefund: getCustomExchange({}),
+    Payjustnow: getCustomExchange({
+      Request: {
+        payment_method: "pay_later",
+        payment_method_type: "payjustnow",
+        payment_method_data: {
+          pay_later: {
+            payjustnow_redirect: {},
+          },
+        },
+        billing: {
+          email: "customer@payjustnow.co.za",
+          address: {
+            line1: "123 Main Street",
+            line2: "",
+            line3: "",
+            city: "Johannesburg",
+            state: "Gauteng",
+            zip: "2001",
+            country: "ZA",
+            first_name: "Test",
+            last_name: "Customer",
+          },
+        },
+      },
+    }),
+    Payjustnowinstore: getCustomExchange({
+      Request: {
+        payment_method: "pay_later",
+        payment_method_type: "payjustnow",
+        payment_method_data: {
+          pay_later: {
+            payjustnow_redirect: {},
+          },
+        },
+        billing: {
+          email: "customer@payjustnow.co.za",
+          address: {
+            line1: "123 Main Street",
+            line2: "",
+            line3: "",
+            city: "Johannesburg",
+            state: "Gauteng",
+            zip: "2001",
+            country: "ZA",
+            first_name: "Test",
+            last_name: "Customer",
+          },
+        },
+      },
+    }),
     SyncRefundScheduled: getCustomExchange({}),
+    AfterpayClearpay: getCustomExchange({
+      Request: {
+        payment_method: "pay_later",
+        payment_method_type: "afterpay_clearpay",
+        payment_experience: "redirect_to_url",
+        payment_method_data: {
+          pay_later: {
+            afterpay_clearpay_redirect: {},
+          },
+        },
+        billing: {
+          phone: {
+            number: "4155552671",
+            country_code: "+1",
+          },
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+        },
+        shipping: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+        },
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+      },
+    }),
+    Alma: getCustomExchange({
+      Request: {
+        payment_method: "pay_later",
+        payment_method_type: "alma",
+        payment_experience: "redirect_to_url",
+        payment_method_data: {
+          pay_later: {
+            alma_redirect: {},
+          },
+        },
+        billing: {
+          email: "test@test.com",
+          phone: {
+            number: "612345678",
+            country_code: "+33",
+          },
+          address: {
+            line1: "123 Rue de Test",
+            city: "Paris",
+            state: "Ile-de-France",
+            zip: "75001",
+            country: "FR",
+            first_name: "Jean",
+            last_name: "Dupont",
+          },
+        },
+        shipping: {
+          address: {
+            line1: "123 Rue de Test",
+            city: "Paris",
+            state: "Ile-de-France",
+            zip: "75001",
+            country: "FR",
+            first_name: "Jean",
+            last_name: "Dupont",
+          },
+        },
+      },
+    }),
+    Atome: getCustomExchange({
+      Request: {
+        payment_method: "pay_later",
+        payment_method_type: "atome",
+        payment_experience: "redirect_to_url",
+        payment_method_data: {
+          pay_later: {
+            atome_redirect: {},
+          },
+        },
+        billing: {
+          phone: {
+            number: "91234567",
+            country_code: "+65",
+          },
+          address: {
+            line1: "123 Test Street",
+            city: "Singapore",
+            state: "Singapore",
+            zip: "018956",
+            country: "SG",
+            first_name: "John",
+            last_name: "Doe",
+          },
+        },
+        shipping: {
+          address: {
+            line1: "123 Test Street",
+            city: "Singapore",
+            state: "Singapore",
+            zip: "018956",
+            country: "SG",
+            first_name: "John",
+            last_name: "Doe",
+          },
+        },
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+      },
+    }),
+    Walley: getCustomExchange({
+      Request: {
+        payment_method: "pay_later",
+        payment_method_type: "walley",
+        payment_experience: "redirect_to_url",
+        payment_method_data: {
+          pay_later: {
+            walley_redirect: {},
+          },
+        },
+        billing: {
+          email: "test@test.com",
+          phone: {
+            number: "0701234567",
+            country_code: "+46",
+          },
+          address: {
+            line1: "123 Test Street",
+            city: "Stockholm",
+            state: "Stockholm",
+            zip: "11122",
+            country: "SE",
+            first_name: "Lars",
+            last_name: "Eriksson",
+          },
+        },
+        shipping: {
+          address: {
+            line1: "123 Test Street",
+            city: "Stockholm",
+            state: "Stockholm",
+            zip: "11122",
+            country: "SE",
+            first_name: "Lars",
+            last_name: "Eriksson",
+          },
+        },
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+      },
+    }),
+    CaptureOnWrongStatus: getCustomExchange({
+      Request: {
+        amount_to_capture: 6000,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "This Payment could not be captured because it has a payment.status of requires_customer_action. The expected state is requires_capture, partially_captured_and_capturable, processing",
+            code: "IR_14",
+          },
+        },
+      },
+    }),
+    ConfirmWithoutPmData: getCustomExchange({
+      Request: {
+        payment_method: undefined,
+        payment_method_type: undefined,
+        payment_experience: undefined,
+        payment_method_data: undefined,
+        order_details: undefined,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "IR_04",
+          },
+        },
+      },
+    }),
   },
   real_time_payment_pm: {
     PaymentIntent: getCustomExchange({
@@ -1705,6 +2250,41 @@ export const connectorDetails = {
           },
         },
         billing: standardBillingAddress,
+      },
+    }),
+    Qris: getCustomExchange({
+      Request: {
+        payment_method: "real_time_payment",
+        payment_method_type: "qris",
+        payment_method_data: {
+          real_time_payment: {
+            qris: {},
+          },
+        },
+        billing: standardBillingAddress,
+      },
+    }),
+    QrisMandate: getCustomExchange({
+      Request: {
+        payment_method: "real_time_payment",
+        payment_method_type: "qris",
+        payment_method_data: {
+          real_time_payment: {
+            qris: {},
+          },
+        },
+        billing: standardBillingAddress,
+        setup_future_usage: "off_session",
+        mandate_data: {
+          customer_acceptance: {
+            acceptance_type: "online",
+            accepted_at: "2026-07-13T18:09:53Z",
+            online: {
+              ip_address: "127.0.0.1",
+              user_agent: "test-agent",
+            },
+          },
+        },
       },
     }),
   },
@@ -2065,7 +2645,7 @@ export const connectorDetails = {
     }),
     ManualRefundUpdate: getCustomExchange({
       Request: {
-        status: "failed",
+        status: "succeeded",
       },
       Response: {
         status: 200,
@@ -2074,7 +2654,7 @@ export const connectorDetails = {
     }),
     ManualRefundUpdateErrorCode: getCustomExchange({
       Request: {
-        status: "failed",
+        status: "succeeded",
         error_code: {
           set: "TEST_ERROR_CODE",
         },
@@ -2089,13 +2669,7 @@ export const connectorDetails = {
     }),
     ManualRefundUpdatePartialRefund: getCustomExchange({
       Request: {
-        status: "failed",
-        error_code: {
-          set: "PARTIAL_REFUND_FAILED",
-        },
-        error_message: {
-          set: "Partial refund failed via manual update",
-        },
+        status: "succeeded",
       },
       Response: {
         status: 200,
@@ -2104,7 +2678,7 @@ export const connectorDetails = {
     }),
     ManualRefundUpdateIdempotency: getCustomExchange({
       Request: {
-        status: "failed",
+        status: "succeeded",
         error_code: {
           set: "IDEMPOTENCY_TEST",
         },
@@ -2131,11 +2705,30 @@ export const connectorDetails = {
         body: {},
       },
     }),
-    SyncRefundManualUpdateFailed: getCustomExchange({
+    ManualRefundUpdateConnectorRefundId: getCustomExchange({
+      Request: {
+        connector_refund_id: "updated_refund_id",
+      },
+      Response: {
+        status: 200,
+        body: {},
+      },
+    }),
+    ManualRefundUpdateConnectorRefundIdWithStatus: getCustomExchange({
+      Request: {
+        connector_refund_id: "combined_refund_id",
+        status: "succeeded",
+      },
+      Response: {
+        status: 200,
+        body: {},
+      },
+    }),
+    SyncRefundManualUpdateSucceeded: getCustomExchange({
       Response: {
         status: 200,
         body: {
-          status: "failed",
+          status: "succeeded",
         },
       },
     }),
@@ -2143,7 +2736,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "failed",
+          status: "succeeded",
           error_code: "TEST_ERROR_CODE",
           error_message: "Test error message for manual update",
         },
@@ -2153,9 +2746,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "failed",
-          error_code: "PARTIAL_REFUND_FAILED",
-          error_message: "Partial refund failed via manual update",
+          status: "succeeded",
         },
       },
     }),
@@ -2163,7 +2754,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "failed",
+          status: "succeeded",
           error_code: "IDEMPOTENCY_TEST",
           error_message: "First manual update for idempotency test",
         },
@@ -2173,7 +2764,26 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "failed",
+          status: "succeeded",
+          error_code: null,
+          error_message: null,
+        },
+      },
+    }),
+    SyncRefundManualUpdateConnectorRefundId: getCustomExchange({
+      Response: {
+        status: 200,
+        body: {
+          connector_refund_id: "updated_refund_id",
+        },
+      },
+    }),
+    SyncRefundManualUpdateConnectorRefundIdWithStatus: getCustomExchange({
+      Response: {
+        status: 200,
+        body: {
+          connector_refund_id: "combined_refund_id",
+          status: "succeeded",
         },
       },
     }),
@@ -2241,6 +2851,7 @@ export const connectorDetails = {
     }),
     MandateSingleUseNo3DSAutoCapture: getCustomExchange({
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -2251,6 +2862,7 @@ export const connectorDetails = {
     }),
     MandateSingleUseNo3DSManualCapture: getCustomExchange({
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -2261,6 +2873,7 @@ export const connectorDetails = {
     }),
     MandateMultiUseNo3DSAutoCapture: getCustomExchange({
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -2271,6 +2884,7 @@ export const connectorDetails = {
     }),
     MandateMultiUseNo3DSManualCapture: getCustomExchange({
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -2301,6 +2915,7 @@ export const connectorDetails = {
     }),
     ZeroAuthMandate: getCustomExchange({
       Request: {
+        amount: 0,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -2319,6 +2934,19 @@ export const connectorDetails = {
     }),
     ZeroAuthConfirmPayment: getCustomExchange({
       Request: {
+        amount: 0,
+        payment_type: "setup_mandate",
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
+      },
+    }),
+    ZeroAuthConfirmPaymentManual: getCustomExchange({
+      Request: {
+        amount: 0,
         payment_type: "setup_mandate",
         payment_method: "card",
         payment_method_data: {
@@ -2428,6 +3056,7 @@ export const connectorDetails = {
     },
     PaymentMethodIdMandateNo3DSAutoCapture: getCustomExchange({
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -2439,6 +3068,7 @@ export const connectorDetails = {
     }),
     PaymentMethodIdMandateNo3DSManualCapture: getCustomExchange({
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -2450,6 +3080,7 @@ export const connectorDetails = {
     }),
     PaymentMethodIdMandate3DSAutoCapture: getCustomExchange({
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
@@ -2462,6 +3093,7 @@ export const connectorDetails = {
     }),
     PaymentMethodIdMandate3DSManualCapture: getCustomExchange({
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
@@ -2805,7 +3437,7 @@ export const connectorDetails = {
       },
     },
     MITAutoCapture: getCustomExchange({
-      Request: {},
+      Request: { amount: 6000 },
       Response: {
         status: 200,
         body: {
@@ -2825,6 +3457,7 @@ export const connectorDetails = {
     }),
     MITWithoutBillingAddress: getCustomExchange({
       Request: {
+        amount: 6000,
         billing: null,
       },
       Response: {
@@ -2834,8 +3467,50 @@ export const connectorDetails = {
         },
       },
     }),
+    MITAutoCaptureWithCustomerAcceptance: getCustomExchange({
+      Request: {
+        amount: 6000,
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "127.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+      ResponseCustom: {
+        status: 400,
+        body: {
+          error: {
+            message:
+              "No eligible connector was found for the current payment method configuration",
+            type: "invalid_request",
+          },
+        },
+      },
+    }),
     MITWithLimitedCardData: getCustomExchange({
       Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
+    // MIT whose amount exceeds the single use mandate amount, used to assert
+    // the mandate validation failure response
+    MITExceedingMandateAmount: getCustomExchange({
+      Request: {
+        amount: 60000,
+      },
       Response: {
         status: 200,
         body: {
@@ -3448,6 +4123,133 @@ export const connectorDetails = {
         },
       },
     }),
+    // WebhookConfig: webhook_username and webhook_password are masked
+    // placeholders — not real credentials. They are safe to use in any
+    // connector config as placeholder webhook auth data.
+    WebhookConfig: {
+      Create: getCustomExchange({
+        Request: {
+          webhook_details: {
+            webhook_version: "1.0.2",
+            webhook_username: "<WEBHOOK_USERNAME>",
+            webhook_password: "<WEBHOOK_PASSWORD>",
+            webhook_url: "https://example.com/webhook",
+            payment_created_enabled: true,
+            payment_succeeded_enabled: true,
+            payment_failed_enabled: false,
+            payment_statuses_enabled: ["succeeded", "failed"],
+            refund_statuses_enabled: ["success", "failure"],
+            payout_statuses_enabled: ["success", "failed"],
+            dispute_statuses_enabled: ["dispute_opened", "dispute_won"],
+            mandate_statuses_enabled: ["active"],
+            invoice_statuses_enabled: ["invoice_paid"],
+          },
+        },
+        Response: {
+          status: 200,
+          body: {
+            webhook_details: {
+              payment_failed_enabled: false,
+              payment_statuses_enabled: ["succeeded", "failed"],
+              refund_statuses_enabled: ["success", "failure"],
+              payout_statuses_enabled: ["success", "failed"],
+              dispute_statuses_enabled: ["dispute_opened", "dispute_won"],
+              mandate_statuses_enabled: ["active"],
+              invoice_statuses_enabled: ["invoice_paid"],
+            },
+          },
+        },
+      }),
+      Update: getCustomExchange({
+        Request: {
+          webhook_details: {
+            webhook_version: "1.0.2",
+            webhook_username: "<WEBHOOK_USERNAME_UPDATED>",
+            webhook_password: "<WEBHOOK_PASSWORD_UPDATED>",
+            webhook_url: "https://example.com/webhook_updated",
+            payment_created_enabled: true,
+            payment_succeeded_enabled: true,
+            payment_failed_enabled: true,
+            payment_statuses_enabled: [
+              "succeeded",
+              "failed",
+              "cancelled",
+              "processing",
+            ],
+            refund_statuses_enabled: ["success", "failure"],
+            payout_statuses_enabled: ["success", "failed", "initiated"],
+            dispute_statuses_enabled: [
+              "dispute_opened",
+              "dispute_expired",
+              "dispute_accepted",
+              "dispute_cancelled",
+              "dispute_challenged",
+              "dispute_won",
+              "dispute_lost",
+            ],
+            mandate_statuses_enabled: ["active", "revoked"],
+            invoice_statuses_enabled: ["invoice_paid"],
+          },
+        },
+        Response: {
+          status: 200,
+          body: {
+            webhook_details: {
+              payment_failed_enabled: true,
+              payment_statuses_enabled: [
+                "succeeded",
+                "failed",
+                "cancelled",
+                "processing",
+              ],
+              refund_statuses_enabled: ["success", "failure"],
+              payout_statuses_enabled: ["success", "failed", "initiated"],
+              dispute_statuses_enabled: [
+                "dispute_opened",
+                "dispute_expired",
+                "dispute_accepted",
+                "dispute_cancelled",
+                "dispute_challenged",
+                "dispute_won",
+                "dispute_lost",
+              ],
+              mandate_statuses_enabled: ["active", "revoked"],
+              invoice_statuses_enabled: ["invoice_paid"],
+            },
+          },
+        },
+      }),
+    },
+    BlockImplicitCustomerCreationAllowed: getCustomExchange({
+      Request: {
+        currency: "EUR",
+        amount: 6500,
+        email: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    BlockImplicitCustomerCreationBlocked: getCustomExchange({
+      Request: {
+        currency: "EUR",
+        amount: 6500,
+        email: null,
+      },
+      Response: {
+        status: 404,
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "HE_02",
+            message: "Customer does not exist in our records",
+          },
+        },
+      },
+    }),
   },
   upi_pm: {
     PaymentIntent: getCustomExchange({
@@ -3885,6 +4687,37 @@ export const connectorDetails = {
       },
     }),
   },
+  threeds_routing_region_uas: (() => {
+    // Region only selects which UAS deployment the pre/post-auth calls are
+    // routed to — it does not change the observable payment outcome. All
+    // scenarios below intentionally share one exchange definition, since a
+    // valid region, an invalid region (falls back to default), and no
+    // config at all (also falls back to default) are all expected to
+    // produce the same 3DS challenge.
+    const uasRoutingRegionExchange = getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "USD",
+        amount: 6500,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          authentication_type: "three_ds",
+        },
+      },
+    });
+    return {
+      Region1: uasRoutingRegionExchange,
+      Region2: uasRoutingRegionExchange,
+      InvalidRegion: uasRoutingRegionExchange,
+      NoConfigDefault: uasRoutingRegionExchange,
+    };
+  })(),
   Dispute: {
     ListDisputes: {
       Response: {
@@ -4742,6 +5575,24 @@ export const connectorDetails = {
         },
       },
     },
+  },
+  card_redirect_pm: {
+    PaymentIntent: getCustomExchange({
+      Request: {
+        currency: "USD",
+      },
+    }),
+    CardRedirect: getCustomExchange({
+      Request: {
+        payment_method: "card_redirect",
+        payment_method_type: "card_redirect",
+        payment_method_data: {
+          card_redirect: {
+            card_redirect: {},
+          },
+        },
+      },
+    }),
   },
   step_up_auth: {
     PaymentIntentOnly: getCustomExchange({

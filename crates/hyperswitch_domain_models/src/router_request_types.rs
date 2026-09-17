@@ -21,6 +21,7 @@ use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
+use self::merchant_connector_webhook_management::ConnectorWebhookRegisterRequest;
 use super::payment_method_data::PaymentMethodData;
 use crate::{
     address,
@@ -64,6 +65,15 @@ pub enum CurrentFlowInfo {
         /// The payment setup mandate request data
         request_data: Box<PaymentsSyncData>,
     },
+    /// UpdatePostConfirm flow information
+    UpdatePostConfirm {
+        /// The payment update post confirm request data
+        request_data: Box<PaymentsUpdatePostConfirmData>,
+    },
+    ConnectorWebhookRegister {
+        /// The payment setup mandate request data
+        request_data: Box<ConnectorWebhookRegisterRequest>,
+    },
 }
 
 impl CurrentFlowInfo {
@@ -73,6 +83,8 @@ impl CurrentFlowInfo {
             Self::CompleteAuthorize { .. } => None,
             Self::SetupMandate { .. } => None,
             Self::Psync { request_data } => request_data.feature_metadata.clone(),
+            Self::UpdatePostConfirm { request_data } => request_data.feature_metadata.clone(),
+            Self::ConnectorWebhookRegister { .. } => None,
         }
     }
 }
@@ -118,6 +130,8 @@ pub struct PaymentsAuthorizeData {
     pub metadata: Option<serde_json::Value>,
     pub authentication_data: Option<AuthenticationData>,
     pub ucs_authentication_data: Option<UcsAuthenticationData>,
+    /// Indicates whether a 3DS challenge must be forced for the transaction
+    pub force_3ds_challenge: Option<bool>,
     pub request_extended_authorization:
         Option<common_types::primitive_wrappers::RequestExtendedAuthorizationBool>,
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
@@ -150,11 +164,16 @@ pub struct PaymentsAuthorizeData {
     pub tokenization: Option<common_enums::Tokenization>,
     pub partner_merchant_identifier_details:
         Option<common_types::payments::PartnerMerchantIdentifierDetails>,
-    pub rrn: Option<String>,
     pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
     pub installment_details: Option<common_types::payments::InstallmentData>,
     // Contains the connector specific metadata coming from payments request
     pub connector_intent_metadata: Option<ConnectorMetadata>,
+    /// Indicates whether this payment is an account funded transaction.
+    pub is_account_funded_transaction: Option<bool>,
+    pub recipient_details: Option<api_models::payments::RecipientDetails>,
+    /// The merchant's business country for this payment. Connectors use it for requirements that
+    /// apply only to merchants in particular countries.
+    pub business_country: Option<common_enums::CountryAlpha2>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -279,10 +298,21 @@ pub struct PaymentsPostSessionTokensData {
 pub struct PaymentsUpdateMetadataData {
     pub metadata: Option<pii::SecretSerdeValue>,
     pub connector_transaction_id: String,
-    pub payment_method_type: Option<storage_enums::PaymentMethodType>,
-    pub connector_meta: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct PaymentsUpdatePostConfirmData {
     pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
-    pub payment_method_data: Option<PaymentMethodData>,
+    pub amount: Option<MinorUnit>,
+    pub currency: storage_enums::Currency,
+    pub connector_attempt_metadata: Option<serde_json::Value>,
+    pub connector_transaction_id: String,
+    pub description: Option<String>,
+    pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
+    pub billing_address: Option<AddressDetails>,
+    pub metadata: Option<serde_json::Value>,
+    pub merchant_order_reference_id: Option<String>,
+    pub customer_document_details: Option<api_models::customers::CustomerDocumentDetails>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -317,6 +347,7 @@ pub struct PaymentsCaptureData {
     // New amount for amount frame work
     pub minor_payment_amount: MinorUnit,
     pub minor_amount_to_capture: MinorUnit,
+    pub order_tax_amount: Option<MinorUnit>,
     pub integrity_object: Option<CaptureIntegrityObject>,
     pub webhook_url: Option<String>,
     pub merchant_order_reference_id: Option<String>,
@@ -397,6 +428,9 @@ impl TryFrom<SetupMandateRequestData> for PaymentsPreProcessingData {
     type Error = error_stack::Report<ApiErrorResponse>;
 
     fn try_from(data: SetupMandateRequestData) -> Result<Self, Self::Error> {
+        let device_channel = Some(BrowserInformation::resolve_device_channel(
+            data.browser_info.as_ref(),
+        ));
         Ok(Self {
             payment_method_data: Some(data.payment_method_data),
             amount: data.amount,
@@ -411,6 +445,7 @@ impl TryFrom<SetupMandateRequestData> for PaymentsPreProcessingData {
             webhook_url: data.webhook_url,
             complete_authorize_url: data.complete_authorize_url,
             browser_info: data.browser_info,
+            device_channel,
             surcharge_details: None,
             connector_transaction_id: None,
             mandate_id: data.mandate_id,
@@ -422,6 +457,7 @@ impl TryFrom<SetupMandateRequestData> for PaymentsPreProcessingData {
             customer_acceptance: data.customer_acceptance,
             setup_future_usage: data.setup_future_usage,
             is_stored_credential: data.is_stored_credential,
+            force_3ds_challenge: None,
         })
     }
 }
@@ -629,7 +665,7 @@ impl TryFrom<CompleteAuthorizeData> for PaymentMethodTokenizationData {
                 .payment_method_data
                 .get_required_value("payment_method_data")
                 .change_context(ApiErrorResponse::MissingRequiredField {
-                    field_name: "payment_method_data",
+                    field_name: "payment_method_data".into(),
                 })?,
             browser_info: data.browser_info,
             currency: data.currency,
@@ -738,6 +774,7 @@ pub struct PaymentsPreProcessingData {
     pub complete_authorize_url: Option<String>,
     pub surcharge_details: Option<SurchargeDetails>,
     pub browser_info: Option<BrowserInformation>,
+    pub device_channel: Option<api_models::payments::DeviceChannel>,
     pub connector_transaction_id: Option<String>,
     pub enrolled_for_3ds: bool,
     pub mandate_id: Option<mandates::MandateIds>,
@@ -750,6 +787,7 @@ pub struct PaymentsPreProcessingData {
     // New amount for amount frame work
     pub minor_amount: MinorUnit,
     pub is_stored_credential: Option<bool>,
+    pub force_3ds_challenge: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -778,7 +816,7 @@ impl TryFrom<CompleteAuthorizeData> for GiftCardBalanceCheckRequestData {
                 .payment_method_data
                 .get_required_value("payment_method_data")
                 .change_context(ApiErrorResponse::MissingRequiredField {
-                    field_name: "payment_method_data",
+                    field_name: "payment_method_data".into(),
                 })?,
             currency: Some(data.currency),
             minor_amount: Some(data.minor_amount),
@@ -801,6 +839,9 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsPreProcessingData {
     type Error = error_stack::Report<ApiErrorResponse>;
 
     fn try_from(data: PaymentsAuthorizeData) -> Result<Self, Self::Error> {
+        let device_channel = Some(BrowserInformation::resolve_device_channel(
+            data.browser_info.as_ref(),
+        ));
         Ok(Self {
             payment_method_data: Some(data.payment_method_data),
             amount: data.amount,
@@ -815,6 +856,7 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsPreProcessingData {
             webhook_url: data.webhook_url,
             complete_authorize_url: data.complete_authorize_url,
             browser_info: data.browser_info,
+            device_channel,
             surcharge_details: data.surcharge_details,
             connector_transaction_id: None,
             mandate_id: data.mandate_id,
@@ -826,6 +868,7 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsPreProcessingData {
             customer_acceptance: data.customer_acceptance,
             setup_future_usage: data.setup_future_usage,
             is_stored_credential: data.is_stored_credential,
+            force_3ds_challenge: None,
         })
     }
 }
@@ -899,6 +942,9 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsAuthenticateData {
     type Error = error_stack::Report<ApiErrorResponse>;
 
     fn try_from(data: PaymentsAuthorizeData) -> Result<Self, Self::Error> {
+        let device_channel = Some(BrowserInformation::resolve_device_channel(
+            data.browser_info.as_ref(),
+        ));
         Ok(Self {
             payment_method_data: Some(data.payment_method_data),
             payment_method_type: data.payment_method_type,
@@ -913,6 +959,10 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsAuthenticateData {
             // This is hard coded to None to avoid back and forth authentication_data conversion between UcsAuthenticationData and AuthenticationData.
             // This is handled within authentication_step function in authorize_flow.rs
             authentication_data: None,
+            sdk_information: None,
+            device_channel,
+            webhook_url: data.webhook_url,
+            force_3ds_challenge: data.force_3ds_challenge,
         })
     }
 }
@@ -930,12 +980,19 @@ pub struct PaymentsAuthenticateData {
     pub minor_amount: Option<MinorUnit>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
     pub authentication_data: Option<UcsAuthenticationData>,
+    pub sdk_information: Option<api_models::payments::SdkInformation>,
+    pub device_channel: Option<api_models::payments::DeviceChannel>,
+    pub webhook_url: Option<String>,
+    pub force_3ds_challenge: Option<bool>,
 }
 
 impl TryFrom<CompleteAuthorizeData> for PaymentsAuthenticateData {
     type Error = error_stack::Report<ApiErrorResponse>;
 
     fn try_from(data: CompleteAuthorizeData) -> Result<Self, Self::Error> {
+        let device_channel = Some(BrowserInformation::resolve_device_channel(
+            data.browser_info.as_ref(),
+        ));
         Ok(Self {
             payment_method_data: data.payment_method_data,
             payment_method_type: data.payment_method_type,
@@ -948,6 +1005,10 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsAuthenticateData {
             redirect_response: data.redirect_response,
             capture_method: data.capture_method,
             authentication_data: data.authentication_data,
+            sdk_information: None,
+            device_channel,
+            webhook_url: None,
+            force_3ds_challenge: data.force_3ds_challenge,
         })
     }
 }
@@ -967,6 +1028,7 @@ pub struct PaymentsPostAuthenticateData {
     pub minor_amount: Option<MinorUnit>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub complete_authorize_url: Option<String>,
+    pub order_id: Option<String>,
 }
 
 impl TryFrom<CompleteAuthorizeData> for PaymentsPostAuthenticateData {
@@ -986,6 +1048,7 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsPostAuthenticateData {
             redirect_response: data.redirect_response,
             metadata: data.connector_meta.map(Secret::new),
             complete_authorize_url: data.complete_authorize_url,
+            order_id: data.order_id,
         })
     }
 }
@@ -994,6 +1057,9 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsPreProcessingData {
     type Error = error_stack::Report<ApiErrorResponse>;
 
     fn try_from(data: CompleteAuthorizeData) -> Result<Self, Self::Error> {
+        let device_channel = Some(BrowserInformation::resolve_device_channel(
+            data.browser_info.as_ref(),
+        ));
         Ok(Self {
             payment_method_data: data.payment_method_data,
             amount: data.amount,
@@ -1008,6 +1074,7 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsPreProcessingData {
             webhook_url: None,
             complete_authorize_url: data.complete_authorize_url,
             browser_info: data.browser_info,
+            device_channel,
             surcharge_details: None,
             connector_transaction_id: data.connector_transaction_id,
             mandate_id: data.mandate_id,
@@ -1019,6 +1086,7 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsPreProcessingData {
             customer_acceptance: data.customer_acceptance,
             setup_future_usage: data.setup_future_usage,
             is_stored_credential: data.is_stored_credential,
+            force_3ds_challenge: data.force_3ds_challenge,
         })
     }
 }
@@ -1094,6 +1162,12 @@ pub struct CompleteAuthorizeData {
     pub tokenization: Option<common_enums::Tokenization>,
     pub router_return_url: Option<String>,
     pub merchant_order_reference_id: Option<String>,
+    pub is_account_funded_transaction: Option<bool>,
+    pub recipient_details: Option<api_models::payments::RecipientDetails>,
+    pub business_country: Option<common_enums::CountryAlpha2>,
+    pub connector_intent_metadata: Option<ConnectorMetadata>,
+    pub order_id: Option<String>,
+    pub force_3ds_challenge: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1216,6 +1290,17 @@ pub struct BrowserInformation {
     pub referer: Option<String>,
 }
 
+impl BrowserInformation {
+    pub fn resolve_device_channel(
+        browser_info: Option<&Self>,
+    ) -> api_models::payments::DeviceChannel {
+        match browser_info {
+            Some(_) => api_models::payments::DeviceChannel::Browser,
+            None => api_models::payments::DeviceChannel::App,
+        }
+    }
+}
+
 #[cfg(feature = "v2")]
 impl From<common_utils::types::BrowserInformation> for BrowserInformation {
     fn from(value: common_utils::types::BrowserInformation) -> Self {
@@ -1276,7 +1361,7 @@ impl ResponseId {
         match self {
             Self::ConnectorTransactionId(txn_id) => Ok(txn_id.to_string()),
             _ => Err(errors::ValidationError::IncorrectValueProvided {
-                field_name: "connector_transaction_id",
+                field_name: "connector_transaction_id".into(),
             })
             .attach_printable("Expected connector transaction ID not found"),
         }
@@ -1414,6 +1499,10 @@ pub struct UcsAuthenticationData {
     pub trans_status: Option<common_enums::TransactionStatus>,
     pub transaction_id: Option<String>,
     pub ucaf_collection_indicator: Option<String>,
+    pub challenge_code: Option<String>,
+    pub challenge_cancel: Option<String>,
+    pub challenge_code_reason: Option<String>,
+    pub message_extension: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1466,6 +1555,13 @@ pub struct RefundsData {
     pub merchant_config_currency: Option<storage_enums::Currency>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
     pub additional_payment_method_data: Option<AdditionalPaymentData>,
+    /// The `connector_request_reference_id` that was sent to the connector for the *original
+    /// payment* this refund targets.
+    ///
+    /// `RouterData::connector_request_reference_id` identifies the refund itself, and
+    /// `connector_transaction_id` holds the connector-generated identifier, so neither can be used
+    /// by connectors that bind a refund to the merchant-side reference of the original payment.
+    pub payment_connector_request_reference_id: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
@@ -1580,7 +1676,7 @@ impl TryFrom<router_data::ConnectorAuthType> for AccessTokenRequestData {
             }),
 
             _ => Err(ApiErrorResponse::InvalidDataValue {
-                field_name: "connector_account_details",
+                field_name: "connector_account_details".into(),
             }),
         }
     }
@@ -1638,7 +1734,7 @@ pub struct SubmitEvidenceRequestData {
     pub customer_communication: Option<Vec<u8>>,
     pub customer_communication_file_type: Option<String>,
     pub customer_communication_provider_file_id: Option<String>,
-    pub customer_email_address: Option<String>,
+    pub customer_email_address: Option<Secret<String, pii::EmailStrategy>>,
     pub customer_name: Option<String>,
     pub customer_purchase_ip: Option<String>,
     //customer signature
@@ -1732,6 +1828,8 @@ pub struct PayoutsData {
     pub payout_connector_metadata: Option<pii::SecretSerdeValue>,
     pub additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
     pub source_bank_data: Option<api_models::payouts::BankTransfer>,
+    pub billing_descriptor: Option<common_types::payouts::PayoutsBillingDescriptor>,
+    pub connector_eligibility_reference_id: Option<String>,
 }
 
 #[derive(Debug, Default, Clone, Serialize)]
@@ -1743,6 +1841,7 @@ pub struct CustomerDetails {
     pub phone_country_code: Option<String>,
     pub tax_registration_id: Option<Secret<String, hyperswitch_masking::WithType>>,
     pub document_details: Option<api_models::customers::CustomerDocumentDetails>,
+    pub date_of_birth: Option<Secret<time::Date>>,
 }
 
 impl CustomerDetails {
@@ -1753,6 +1852,7 @@ impl CustomerDetails {
             || self.phone_country_code.is_some()
             || self.tax_registration_id.is_some()
             || self.document_details.is_some()
+            || self.date_of_birth.is_some()
         {
             Some(payments::payment_intent::CustomerData {
                 name: self.name.clone(),
@@ -1761,6 +1861,7 @@ impl CustomerDetails {
                 phone_country_code: self.phone_country_code.clone(),
                 tax_registration_id: self.tax_registration_id.clone(),
                 customer_document_details: self.document_details.clone(),
+                date_of_birth: self.date_of_birth.clone(),
             })
         } else {
             None
@@ -1876,7 +1977,7 @@ impl TryFrom<PaymentsAuthorizeData> for SettlementSplitRequestData {
                 .split_payments
                 .get_required_value("split_payments")
                 .change_context(ApiErrorResponse::MissingRequiredField {
-                    field_name: "split_payments",
+                    field_name: "split_payments".into(),
                 })?,
             currency: item.currency,
         })
@@ -1926,6 +2027,12 @@ pub struct SetupMandateRequestData {
     pub authentication_data: Option<AuthenticationData>,
     pub connector_intent_metadata: Option<ConnectorMetadata>,
     pub merchant_order_reference_id: Option<String>,
+    pub mit_category: Option<common_enums::MitCategory>,
+    pub is_account_funded_transaction: Option<bool>,
+    pub recipient_details: Option<api_models::payments::RecipientDetails>,
+    /// The merchant's business country for this payment. Connectors use it for requirements that
+    /// apply only to merchants in particular countries.
+    pub business_country: Option<common_enums::CountryAlpha2>,
 }
 
 #[derive(Debug, Clone)]
@@ -1976,7 +2083,7 @@ impl PushNotificationRequestData {
                 }
                 Some(mandates::MandateReferenceId::NetworkMandateId(_))
                 | Some(mandates::MandateReferenceId::NetworkTokenWithNTI(_))
-                | Some(mandates::MandateReferenceId::CardWithLimitedData)
+                | Some(mandates::MandateReferenceId::CardWithLimitedData(_))
                 | None => None,
             })
     }
@@ -2004,7 +2111,7 @@ impl GenerateQrRequestData {
                 }
                 Some(mandates::MandateReferenceId::NetworkMandateId(_))
                 | Some(mandates::MandateReferenceId::NetworkTokenWithNTI(_))
-                | Some(mandates::MandateReferenceId::CardWithLimitedData)
+                | Some(mandates::MandateReferenceId::CardWithLimitedData(_))
                 | None => None,
             })
     }

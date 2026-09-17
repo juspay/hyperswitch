@@ -4,6 +4,7 @@ use hyperswitch_interfaces::secrets_interface::{
     secret_state::{RawSecret, SecretStateContainer, SecuredSecret},
     SecretManagementInterface, SecretsManagementError,
 };
+use hyperswitch_masking::PeekInterface;
 
 use crate::settings::{self, Settings};
 
@@ -193,6 +194,33 @@ impl SecretsHandler for settings::PazeDecryptConfig {
 }
 
 #[async_trait::async_trait]
+impl SecretsHandler for settings::GooglePayDecryptConfig {
+    async fn convert_to_raw_secret(
+        value: SecretStateContainer<Self, SecuredSecret>,
+        secret_management_client: &dyn SecretManagementInterface,
+    ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
+        let google_pay_decrypt_keys = value.get_inner();
+
+        // The private key is the only secret managed value here. The root signing keys are
+        // Google's public certificates, the gateway id is a plain identifier, and the common
+        // merchant id is sent to the SDK in the session response, so none of them are fetched.
+        let google_pay_private_key = google_pay_decrypt_keys
+            .google_pay_private_key
+            .clone()
+            .async_map(|private_key| async move {
+                secret_management_client.get_secret(private_key).await
+            })
+            .await
+            .transpose()?;
+
+        Ok(value.transition_state(|google_pay_decrypt_keys| Self {
+            google_pay_private_key,
+            ..google_pay_decrypt_keys
+        }))
+    }
+}
+
+#[async_trait::async_trait]
 impl SecretsHandler for settings::ApplepayMerchantConfigs {
     async fn convert_to_raw_secret(
         value: SecretStateContainer<Self, SecuredSecret>,
@@ -292,24 +320,25 @@ impl SecretsHandler for settings::UserAuthMethodSettings {
 }
 
 #[async_trait::async_trait]
-impl SecretsHandler for settings::ChatSettings {
+impl SecretsHandler for settings::SageSettings {
     async fn convert_to_raw_secret(
         value: SecretStateContainer<Self, SecuredSecret>,
         secret_management_client: &dyn SecretManagementInterface,
     ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
-        let chat_settings = value.get_inner();
+        let sage_settings = value.get_inner();
 
-        let encryption_key = if chat_settings.enabled {
+        // Skip the secret fetch when disabled — costs zero.
+        let infra_key = if sage_settings.enabled {
             secret_management_client
-                .get_secret(chat_settings.encryption_key.clone())
+                .get_secret(sage_settings.infra_key.clone())
                 .await?
         } else {
-            chat_settings.encryption_key.clone()
+            sage_settings.infra_key.clone()
         };
 
-        Ok(value.transition_state(|chat_settings| Self {
-            encryption_key,
-            ..chat_settings
+        Ok(value.transition_state(|sage_settings| Self {
+            infra_key,
+            ..sage_settings
         }))
     }
 }
@@ -340,6 +369,25 @@ impl SecretsHandler for settings::NetworkTokenizationService {
             token_service_api_key,
             webhook_source_verification_key,
             ..network_tokenization
+        }))
+    }
+}
+
+#[async_trait::async_trait]
+impl SecretsHandler for settings::OfferEngineConfig {
+    async fn convert_to_raw_secret(
+        value: SecretStateContainer<Self, SecuredSecret>,
+        secret_management_client: &dyn SecretManagementInterface,
+    ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
+        let offer_engine = value.get_inner();
+        let api_key = match offer_engine.api_key.clone() {
+            Some(api_key) => Some(secret_management_client.get_secret(api_key).await?),
+            None => None,
+        };
+
+        Ok(value.transition_state(|offer_engine| Self {
+            api_key,
+            ..offer_engine
         }))
     }
 }
@@ -388,6 +436,42 @@ impl SecretsHandler for settings::OidcSettings {
     }
 }
 
+impl settings::JuspayAccountUpdaterConfig {
+    async fn convert_to_raw_secret(
+        self,
+        secret_management_client: &dyn SecretManagementInterface,
+    ) -> CustomResult<Self, SecretsManagementError> {
+        let (api_key, euler_encryption_public_key, au_decryption_pvt_key) = tokio::try_join!(
+            secret_management_client.get_secret(self.api_key.clone()),
+            secret_management_client.get_secret(self.euler_encryption_public_key.clone()),
+            secret_management_client.get_secret(self.au_decryption_pvt_key.clone()),
+        )?;
+
+        Ok(Self {
+            api_key,
+            euler_encryption_public_key,
+            au_decryption_pvt_key,
+            ..self
+        })
+    }
+}
+
+#[async_trait::async_trait]
+impl SecretsHandler for settings::AccountUpdaterConfig {
+    async fn convert_to_raw_secret(
+        value: SecretStateContainer<Self, SecuredSecret>,
+        secret_management_client: &dyn SecretManagementInterface,
+    ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
+        let Self::Juspay(juspay) = value.get_inner().clone();
+
+        let juspay = juspay
+            .convert_to_raw_secret(secret_management_client)
+            .await?;
+
+        Ok(value.transition_state(|_| Self::Juspay(juspay)))
+    }
+}
+
 /// # Panics
 ///
 /// Will panic even if kms decryption fails for at least one field
@@ -400,6 +484,28 @@ pub(crate) async fn fetch_raw_secrets(
         settings::Database::convert_to_raw_secret(conf.master_database, secret_management_client)
             .await
             .expect("Failed to decrypt master database configuration");
+
+    #[allow(clippy::expect_used)]
+    let accounts_database = if let Some(accounts_database) = conf.accounts_database {
+        Some(
+            settings::Database::convert_to_raw_secret(accounts_database, secret_management_client)
+                .await
+                .expect("Failed to decrypt accounts database configuration"),
+        )
+    } else {
+        None
+    };
+
+    #[allow(clippy::expect_used)]
+    let global_database = if let Some(global_database) = conf.global_database {
+        Some(
+            settings::Database::convert_to_raw_secret(global_database, secret_management_client)
+                .await
+                .expect("Failed to decrypt global database configuration"),
+        )
+    } else {
+        None
+    };
 
     #[cfg(feature = "olap")]
     #[allow(clippy::expect_used)]
@@ -466,6 +572,20 @@ pub(crate) async fn fetch_raw_secrets(
     };
 
     #[allow(clippy::expect_used)]
+    let google_pay_decrypt_keys = if let Some(google_pay_keys) = conf.google_pay_decrypt_keys {
+        Some(
+            settings::GooglePayDecryptConfig::convert_to_raw_secret(
+                google_pay_keys,
+                secret_management_client,
+            )
+            .await
+            .expect("Failed to decrypt google pay decrypt configs"),
+        )
+    } else {
+        None
+    };
+
+    #[allow(clippy::expect_used)]
     let applepay_merchant_configs = settings::ApplepayMerchantConfigs::convert_to_raw_secret(
         conf.applepay_merchant_configs,
         secret_management_client,
@@ -511,9 +631,22 @@ pub(crate) async fn fetch_raw_secrets(
         .await;
 
     #[allow(clippy::expect_used)]
-    let chat = settings::ChatSettings::convert_to_raw_secret(conf.chat, secret_management_client)
+    let offer_engine = conf
+        .offer_engine
+        .async_map(|offer_engine| async {
+            settings::OfferEngineConfig::convert_to_raw_secret(
+                offer_engine,
+                secret_management_client,
+            )
+            .await
+            .expect("Failed to decrypt offer engine configs")
+        })
+        .await;
+
+    #[allow(clippy::expect_used)]
+    let sage = settings::SageSettings::convert_to_raw_secret(conf.sage, secret_management_client)
         .await
-        .expect("Failed to decrypt chat configs");
+        .expect("Failed to decrypt sage configs");
 
     #[allow(clippy::expect_used)]
     let superposition =
@@ -529,13 +662,43 @@ pub(crate) async fn fetch_raw_secrets(
         .await
         .expect("Failed to decrypt oidc configs");
 
+    #[allow(clippy::expect_used)]
+    let account_updater = if let Some(account_updater) = conf.account_updater {
+        Some(
+            settings::AccountUpdaterConfig::convert_to_raw_secret(
+                account_updater,
+                secret_management_client,
+            )
+            .await
+            .expect("Failed to decrypt account updater configuration"),
+        )
+    } else {
+        None
+    };
+
+    #[allow(clippy::expect_used)]
+    let open_router = {
+        let mut open_router = conf.open_router;
+        if !open_router.admin_secret.peek().is_empty() {
+            open_router.admin_secret = secret_management_client
+                .get_secret(open_router.admin_secret)
+                .await
+                .expect("Failed to decrypt open router admin secret");
+        }
+        open_router
+    };
+
     Settings {
         server: conf.server,
         application_source: conf.application_source,
-        chat,
+        sage,
         master_database,
+        accounts_database,
+        global_database,
         redis: conf.redis,
         log: conf.log,
+        #[cfg(feature = "deja")]
+        deja: conf.deja,
         #[cfg(feature = "kv_store")]
         drainer: conf.drainer,
         encryption_management: conf.encryption_management,
@@ -556,6 +719,7 @@ pub(crate) async fn fetch_raw_secrets(
         jwekey,
         webhooks: conf.webhooks,
         pm_filters: conf.pm_filters,
+        customer_acceptance_support: conf.customer_acceptance_support,
         payout_method_filters: conf.payout_method_filters,
         bank_config: conf.bank_config,
         api_keys,
@@ -582,13 +746,14 @@ pub(crate) async fn fetch_raw_secrets(
         webhook_source_verification_call: conf.webhook_source_verification_call,
         billing_connectors_payment_sync: conf.billing_connectors_payment_sync,
         billing_connectors_invoice_sync: conf.billing_connectors_invoice_sync,
+        billing_connectors_dispute_record_back: conf.billing_connectors_dispute_record_back,
         payment_method_auth,
         connector_request_reference_id_config: conf.connector_request_reference_id_config,
         #[cfg(feature = "payouts")]
         payouts: conf.payouts,
         applepay_decrypt_keys,
         paze_decrypt_keys,
-        google_pay_decrypt_keys: conf.google_pay_decrypt_keys,
+        google_pay_decrypt_keys,
         multiple_api_version_supported_connectors: conf.multiple_api_version_supported_connectors,
         applepay_merchant_configs,
         lock_settings: conf.lock_settings,
@@ -628,7 +793,7 @@ pub(crate) async fn fetch_raw_secrets(
         platform: conf.platform,
         l2_l3_data_config: conf.l2_l3_data_config,
         authentication_providers: conf.authentication_providers,
-        open_router: conf.open_router,
+        open_router,
         #[cfg(feature = "v2")]
         revenue_recovery: conf.revenue_recovery,
         merchant_advice_codes: conf.merchant_advice_codes,
@@ -643,8 +808,10 @@ pub(crate) async fn fetch_raw_secrets(
         internal_services: conf.internal_services,
         micro_services: conf.micro_services,
         superposition,
+        offer_engine,
         comparison_service: conf.comparison_service,
         authentication_service_enabled_connectors: conf.authentication_service_enabled_connectors,
         save_payment_method_on_session: conf.save_payment_method_on_session,
+        account_updater,
     }
 }

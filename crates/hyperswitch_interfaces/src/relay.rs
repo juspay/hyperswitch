@@ -13,6 +13,8 @@ use crate::errors::ConnectorError;
 pub struct UnreferencedRefundRouterData<'a> {
     /// Merchant-supplied request fields (amount, currency, card data, etc.)
     pub request: &'a UnreferencedRefundRequest,
+    /// Connector-side resource identifier to tag the outbound request with.
+    pub connector_resource_id: Option<&'a str>,
     /// Access token fetched from the Redis cache by Hyperswitch — never supplied by the merchant.
     pub access_token: Option<AccessToken>,
     /// Parsed connector credentials.
@@ -34,6 +36,8 @@ pub struct UnreferencedRefundResponse {
     pub error_message: Option<String>,
     /// Raw JSON response from the connector
     pub raw_response: Option<Secret<serde_json::Value>>,
+    /// Structured response fields for DB storage
+    pub response_data: Option<hyperswitch_domain_models::relay::RelayResponseData>,
 }
 
 /// Trait implemented by connectors that support relay operations (e.g. unreferenced refund).
@@ -77,6 +81,7 @@ pub trait ConnectorRelayIntegration {
             error_code: Some(status_code.to_string()),
             error_message: Some(format!("Server error: HTTP {status_code}")),
             raw_response: None,
+            response_data: None,
         })
     }
 

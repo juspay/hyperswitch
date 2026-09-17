@@ -1,0 +1,30 @@
+---
+title: "Update Gateway Score"
+description: "Curl example for /update-gateway-score."
+---
+
+# Update Gateway Score
+
+Call this after non-debit runtime payments so SR data stays current. Do not call it for `NTW_BASED_ROUTING` debit runs where `decided_gateway` is not the selected network.
+
+## Request
+
+```bash
+curl --location "$BASE_URL/update-gateway-score" \
+  --header "$AUTH_HEADER" \
+  --header "Content-Type: application/json" \
+  --data '{
+    "merchantId": "merchant_demo",
+    "gateway": "stripe",
+    "gatewayReferenceId": null,
+    "status": "CHARGED",
+    "paymentId": "sr_001",
+    "enforceDynamicRoutingFailure": null
+  }'
+```
+
+## Response
+
+```text
+Success
+```

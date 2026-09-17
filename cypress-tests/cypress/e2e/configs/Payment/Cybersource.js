@@ -60,6 +60,9 @@ const payment_method_data_no3ds = {
   card: {
     last4: "4242",
     card_type: "CREDIT",
+    card_subtype: null,
+    card_segment_type: null,
+    funding_source: null,
     card_network: "Visa",
     card_issuer: "STRIPE PAYMENTS UK LIMITED",
     card_issuing_country: "UNITEDKINGDOM",
@@ -85,6 +88,9 @@ const payment_method_data_3ds = {
   card: {
     last4: "2701",
     card_type: "CREDIT",
+    card_subtype: "VISA TRADITIONAL",
+    card_segment_type: "consumer",
+    funding_source: "CREDIT",
     card_network: "Visa",
     card_issuer: "INTL HDQTRS CENTER OWNED",
     card_issuing_country: "UNITED STATES OF AMERICA",
@@ -666,6 +672,7 @@ export const connectorDetails = {
         },
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -687,6 +694,7 @@ export const connectorDetails = {
         },
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -708,6 +716,7 @@ export const connectorDetails = {
         },
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -729,6 +738,7 @@ export const connectorDetails = {
         },
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -793,13 +803,21 @@ export const connectorDetails = {
       },
       ...commonConnectorDetails.card_pm.MITAutoCapture,
     }),
+    MITAutoCaptureWithCustomerAcceptance: getCustomExchange({
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          value: "connector_1",
+        },
+      },
+      ...commonConnectorDetails.card_pm.MITAutoCaptureWithCustomerAcceptance,
+    }),
     MITManualCapture: {
       Configs: {
         CONNECTOR_CREDENTIAL: {
           value: "connector_1",
         },
       },
-      Request: {},
+      Request: { amount: 6000 },
       Response: {
         status: 200,
         body: {
@@ -814,6 +832,7 @@ export const connectorDetails = {
         },
       },
       Request: {
+        amount: 0,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -849,6 +868,7 @@ export const connectorDetails = {
         },
       },
       Request: {
+        amount: 0,
         payment_type: "setup_mandate",
         payment_method: "card",
         payment_method_type: "credit",
@@ -1017,6 +1037,7 @@ export const connectorDetails = {
         },
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -1039,6 +1060,7 @@ export const connectorDetails = {
         },
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -1061,6 +1083,7 @@ export const connectorDetails = {
         },
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
@@ -1084,6 +1107,7 @@ export const connectorDetails = {
         },
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,

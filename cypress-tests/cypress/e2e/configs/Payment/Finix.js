@@ -43,7 +43,7 @@ const failedNo3DSCardDetails = {
 //     last4: "1111",
 //     card_type: "DEBIT",
 //     card_network: "Visa",
-//     card_issuer: "CONOTOXIA SP Z O.O.",
+//     card_issuer: "CONOTOXIA SP Z OO",
 //     card_issuing_country: "POLAND",
 //     card_isin: "411111",
 //     card_extended_bin: null,
@@ -176,6 +176,7 @@ export const connectorDetails = {
 
     MandateSingleUseNo3DSAutoCapture: getCustomExchange({
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -196,6 +197,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true, // Skip if Authipay doesn't support mandates
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -213,6 +215,7 @@ export const connectorDetails = {
 
     MandateMultiUseNo3DSAutoCapture: getCustomExchange({
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -230,6 +233,7 @@ export const connectorDetails = {
 
     MandateMultiUseNo3DSManualCapture: getCustomExchange({
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -249,6 +253,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         currency: "USD",
       },
       Response: {
@@ -263,7 +268,31 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         currency: "USD",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    MITAutoCaptureWithCustomerAcceptance: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        amount: 6000,
+        currency: "USD",
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "127.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
       },
       Response: {
         status: 200,
@@ -274,6 +303,7 @@ export const connectorDetails = {
     },
     PaymentMethodIdMandateNo3DSManualCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -400,6 +430,7 @@ export const connectorDetails = {
     },
     ZeroAuthConfirmPayment: {
       Request: {
+        amount: 0,
         payment_type: "setup_mandate",
         payment_method: "card",
         payment_method_type: "credit",
@@ -419,6 +450,7 @@ export const connectorDetails = {
     },
     ZeroAuthMandate: getCustomExchange({
       Request: {
+        amount: 0,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -596,6 +628,7 @@ export const connectorDetails = {
     },
     PaymentMethodIdMandateNo3DSAutoCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,

@@ -15,7 +15,7 @@ impl utils::Connector for {{project-name | downcase | pascal_case}}Test {
         use router::connector::{{project-name | downcase | pascal_case}};
         utils::construct_connector_data_old(
             Box::new({{project-name | downcase | pascal_case}}::new()),
-            types::Connector::Plaid,
+            types::Connector::{{project-name | downcase | pascal_case}},
             api::GetToken::Connector,
             None,
         )
@@ -300,6 +300,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
         .unwrap();
     assert_eq!(
         response.response.unwrap_err().message,
+        // TODO({{project-name | downcase}}): replace with your connector's actual error message
         "Your card's security code is invalid.".to_string(),
     );
 }
@@ -322,6 +323,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
         .unwrap();
     assert_eq!(
         response.response.unwrap_err().message,
+        // TODO({{project-name | downcase}}): replace with your connector's actual error message
         "Your card's expiration month is invalid.".to_string(),
     );
 }
@@ -344,6 +346,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
         .unwrap();
     assert_eq!(
         response.response.unwrap_err().message,
+        // TODO({{project-name | downcase}}): replace with your connector's actual error message
         "Your card's expiration year is invalid.".to_string(),
     );
 }
@@ -361,6 +364,7 @@ async fn should_fail_void_payment_for_auto_capture() {
         .unwrap();
     assert_eq!(
         void_response.response.unwrap_err().message,
+        // TODO({{project-name | downcase}}): replace with your connector's actual error message
         "You cannot cancel this PaymentIntent because it has a status of succeeded."
     );
 }
@@ -374,6 +378,7 @@ async fn should_fail_capture_for_invalid_payment() {
         .unwrap();
     assert_eq!(
         capture_response.response.unwrap_err().message,
+        // TODO({{project-name | downcase}}): replace with your connector's actual error message
         String::from("No such payment_intent: '123456789'")
     );
 }
@@ -394,6 +399,7 @@ async fn should_fail_for_refund_amount_higher_than_payment_amount() {
         .unwrap();
     assert_eq!(
         response.response.unwrap_err().message,
+        // TODO({{project-name | downcase}}): replace with your connector's actual error message
         "Refund amount (₹1.50) is greater than charge amount (₹1.00)",
     );
 }

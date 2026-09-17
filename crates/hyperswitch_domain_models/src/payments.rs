@@ -156,6 +156,9 @@ pub struct PaymentIntent {
     pub profile_acquirer_id: Option<id_type::ProfileAcquirerId>,
     pub external_surcharge_strategy: Option<common_enums::SurchargeStrategy>,
     pub external_surcharge_applicable: Option<bool>,
+    pub is_account_funded_transaction: Option<bool>,
+    #[encrypt]
+    pub recipient_details: Option<Encryptable<Secret<Value>>>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -313,6 +316,14 @@ impl PaymentIntent {
             .unwrap_or(false)
     }
 
+    #[cfg(feature = "v1")]
+    pub fn is_post_capture_void_attempted(&self) -> bool {
+        self.state_metadata
+            .as_ref()
+            .map(|state_metadata| state_metadata.post_capture_void.is_some())
+            .unwrap_or(false)
+    }
+
     #[cfg(feature = "v2")]
     /// This is the url to which the customer will be redirected to, after completing the redirection flow
     pub fn create_finish_redirection_url(
@@ -406,6 +417,25 @@ impl PaymentIntent {
                     None
                 }
             })
+    }
+
+    /// Decrypt and parse the recipient details
+    pub fn get_recipient_details(
+        &self,
+    ) -> CustomResult<
+        Option<api_models::payments::RecipientDetails>,
+        common_utils::errors::ParsingError,
+    > {
+        self.recipient_details
+            .as_ref()
+            .map(|details| {
+                let decrypted_value = details.clone().into_inner().expose();
+                ValueExt::parse_value::<api_models::payments::RecipientDetails>(
+                    decrypted_value,
+                    "RecipientDetails",
+                )
+            })
+            .transpose()
     }
 
     #[cfg(feature = "v1")]
@@ -537,13 +567,21 @@ impl PaymentIntent {
         show_installments: bool,
         extra: PaymentMethodListIntentDataInput,
         business_profile: &crate::business_profile::Profile,
+        customer: Option<&crate::customer::Customer>,
     ) -> CustomResult<PaymentMethodListIntentData, errors::api_error_response::ApiErrorResponse>
     {
         let request_ext_3ds = self.get_request_external_three_ds_authentication();
         let is_guest = self.is_guest_customer();
         let is_tax = business_profile.get_is_tax_calculation_enabled(&self);
 
-        let billing: Option<Address> = self
+        // Populating the email directly, for the cases where we have customer details stored in
+        // Payment Intent
+        let customer_details_from_pi = self
+            .get_intent_customer_details()
+            .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse customer_details")?;
+
+        let mut billing: Option<Address> = self
             .billing_details
             .map(|b| b.deserialize_inner_value(|value| value.parse_value("Address")))
             .transpose()
@@ -558,6 +596,46 @@ impl PaymentIntent {
             .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse shipping address")?
             .map(|enc| enc.into_inner());
+
+        if let Some(billing_address) = billing.as_mut() {
+            billing_address.email = billing_address.email.clone().or_else(|| {
+                customer_details_from_pi
+                    .as_ref()
+                    .and_then(|customer_details| customer_details.email.clone())
+                    .or_else(|| {
+                        customer.and_then(|cust| {
+                            cust.email
+                                .as_ref()
+                                .map(|email| pii::Email::from(email.clone()))
+                        })
+                    })
+            });
+        } else {
+            billing = Some(Address {
+                email: customer_details_from_pi
+                    .as_ref()
+                    .and_then(|customer_details| customer_details.email.clone())
+                    .or_else(|| {
+                        customer.and_then(|cust| {
+                            cust.email
+                                .as_ref()
+                                .map(|email| pii::Email::from(email.clone()))
+                        })
+                    }),
+                ..Default::default()
+            });
+        }
+
+        let email = customer_details_from_pi
+            .as_ref()
+            .and_then(|customer_details| customer_details.email.clone())
+            .or_else(|| {
+                customer.and_then(|cust| {
+                    cust.email
+                        .as_ref()
+                        .map(|email| pii::Email::from(email.clone()))
+                })
+            });
 
         let installment_options = match show_installments {
             false => None,
@@ -597,6 +675,7 @@ impl PaymentIntent {
             setup_future_usage: self.setup_future_usage,
             billing,
             shipping,
+            email,
             metadata: self.metadata.map(Secret::new),
             order_details: self.order_details,
             created: Some(self.created_at),
@@ -959,6 +1038,11 @@ pub struct PaymentIntent {
     /// Denotes the surcharge strategy for this payment.
     pub external_surcharge_strategy: Option<common_enums::SurchargeStrategy>,
     pub external_surcharge_applicable: Option<bool>,
+    /// Denotes whether this payment is an account funded transaction.
+    pub is_account_funded_transaction: Option<bool>,
+    /// The details of the party receiving the funds in an account funded transaction.
+    #[encrypt]
+    pub recipient_details: Option<Encryptable<Secret<Value>>>,
 }
 
 #[cfg(feature = "v2")]
@@ -978,7 +1062,7 @@ impl PaymentIntent {
             })
             .ok_or(
                 common_utils::errors::ValidationError::MissingRequiredField {
-                    field_name: "connector_customer_id".to_string(),
+                    field_name: "connector_customer_id".into(),
                 },
             )
     }
@@ -1169,6 +1253,8 @@ impl PaymentIntent {
             profile_acquirer_id: None,
             external_surcharge_strategy: None,
             external_surcharge_applicable: None,
+            is_account_funded_transaction: request.is_account_funded_transaction,
+            recipient_details: decrypted_payment_intent.recipient_details,
         })
     }
 
@@ -1178,6 +1264,17 @@ impl PaymentIntent {
         self.feature_metadata
             .as_ref()
             .and_then(|feature_metadata| feature_metadata.payment_revenue_recovery_metadata.clone())
+    }
+
+    /// Retries already made against this invoice, by the billing connector and by recovery
+    /// together. Zero for an intent that has not entered recovery.
+    pub fn get_revenue_recovery_retry_count(&self) -> Option<u16> {
+        self.feature_metadata
+            .as_ref()
+            .and_then(|feature_metadata| {
+                feature_metadata.payment_revenue_recovery_metadata.as_ref()
+            })
+            .map(|revenue_recovery_metadata| revenue_recovery_metadata.total_retry_count)
     }
 
     pub fn get_feature_metadata(&self) -> Option<FeatureMetadata> {
@@ -1504,6 +1601,7 @@ pub struct RevenueRecoveryData {
     pub connector_customer_id: String,
     pub retry_count: Option<u16>,
     pub invoice_next_billing_time: Option<PrimitiveDateTime>,
+    pub invoice_billing_started_at_time: Option<PrimitiveDateTime>,
     pub triggered_by: storage_enums::enums::TriggeredBy,
     pub card_network: Option<common_enums::CardNetwork>,
     pub card_issuer: Option<String>,
@@ -1560,11 +1658,16 @@ where
                 },
             );
 
+        // The bin derived details are enriched onto the attempt's payment method data rather than
+        // being sent by the billing connector, so they are read back from there.
         let billing_connector_payment_method_details = Some(
             diesel_models::types::BillingConnectorPaymentMethodDetails::Card(
                 diesel_models::types::BillingConnectorAdditionalCardInfo {
                     card_network: self.revenue_recovery_data.card_network.clone(),
                     card_issuer: self.revenue_recovery_data.card_issuer.clone(),
+                    card_type: self.payment_attempt.extract_card_type(),
+                    card_issuing_country: self.payment_attempt.extract_card_issuing_country(),
+                    card_isin: self.payment_attempt.extract_card_isin(),
                 },
             ),
         );
@@ -1607,10 +1710,17 @@ where
                     router_env::logger::error!(?err, "Failed to parse connector string to enum");
                     errors::api_error_response::ApiErrorResponse::InternalServerError
                 })?,
-                invoice_next_billing_time: self.revenue_recovery_data.invoice_next_billing_time,
-                invoice_billing_started_at_time: self
-                    .revenue_recovery_data
-                    .invoice_next_billing_time,
+                // Both billing times belong to the invoice rather than to an individual attempt,
+                // so the value recorded first is retained and later webhooks only seed it when it
+                // is still unset.
+                invoice_next_billing_time: revenue_recovery
+                    .as_ref()
+                    .and_then(|data| data.invoice_next_billing_time)
+                    .or(self.revenue_recovery_data.invoice_next_billing_time),
+                invoice_billing_started_at_time: revenue_recovery
+                    .as_ref()
+                    .and_then(|data| data.invoice_billing_started_at_time)
+                    .or(self.revenue_recovery_data.invoice_billing_started_at_time),
                 billing_connector_payment_method_details,
                 first_payment_attempt_network_advice_code: first_network_advice_code,
                 first_payment_attempt_network_decline_code: first_network_decline_code,

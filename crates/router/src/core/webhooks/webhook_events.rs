@@ -55,13 +55,17 @@ pub async fn list_initial_delivery_attempts(
         (now.date() - time::Duration::days(INITIAL_DELIVERY_ATTEMPTS_LIST_MAX_DAYS)).midnight();
 
     let (events, total_count) = match constraints {
-        api_models::webhook_events::EventListConstraintsInternal::ObjectIdFilter { object_id } => {
+        api_models::webhook_events::EventListConstraintsInternal::ObjectIdFilter {
+            object_id,
+            recipient,
+        } => {
             let events = store
                 .list_initial_events_by_initiator_merchant_id_primary_object_id(
                     &merchant_id,
                     object_id.as_str(),
                     profile_id.clone(),
                     &key_store,
+                    recipient,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -98,7 +102,7 @@ pub async fn list_initial_delivery_attempts(
                     .is_none_or(|pid| event.business_profile_id.as_ref() == Some(pid));
                 matches_initiator
                     && matches_profile
-                    && event.initial_attempt_id.as_deref() == Some(&event.event_id)
+                    && event.initial_attempt_id.as_deref() == Some(event.event_id.as_str())
             });
 
             let (events, total_count) = event_opt.map_or((vec![], 0), |event| (vec![event], 1));
@@ -112,6 +116,7 @@ pub async fn list_initial_delivery_attempts(
             event_classes,
             event_types,
             is_delivered,
+            recipient,
         } => {
             let limit = match limit {
                 Some(limit) if  limit <= INITIAL_DELIVERY_ATTEMPTS_LIST_MAX_LIMIT => Ok(Some(limit)),
@@ -177,6 +182,7 @@ pub async fn list_initial_delivery_attempts(
                             event_types.clone(),
                             is_delivered,
                             &key_store,
+                            recipient,
                         )
                         .await
                 }
@@ -191,6 +197,7 @@ pub async fn list_initial_delivery_attempts(
                             event_types.clone(),
                             is_delivered,
                             &key_store,
+                            recipient,
                         )
                         .await
                 }
@@ -207,6 +214,7 @@ pub async fn list_initial_delivery_attempts(
                             created_before,
                             event_types,
                             is_delivered,
+                            recipient,
                         )
                         .await
                 }
@@ -219,6 +227,7 @@ pub async fn list_initial_delivery_attempts(
                             created_before,
                             event_types,
                             is_delivered,
+                            recipient,
                         )
                         .await
                 }
@@ -232,7 +241,14 @@ pub async fn list_initial_delivery_attempts(
 
     let events = events
         .into_iter()
-        .map(api::webhook_events::EventListItemResponse::try_from)
+        .map(|event| {
+            api::webhook_events::EventListItemResponse::try_from(
+                domain::EventWithDeliverySuccessSource {
+                    event,
+                    source: domain::DeliverySuccessSource::ListInitialEvents,
+                },
+            )
+        })
         .collect::<Result<Vec<_>, _>>()?;
 
     Ok(ApplicationResponse::Json(
@@ -264,6 +280,7 @@ pub async fn list_delivery_attempts(
             &initial_attempt_id,
             &merchant_id,
             &key_store,
+            None,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -275,10 +292,39 @@ pub async fn list_delivery_attempts(
         ))
         .attach_printable("No delivery attempts found with the specified `initial_attempt_id`")
     } else {
+        // All events in a delivery attempt chain share an `initial_attempt_id`, and therefore the
+        // same business profile, so a single lookup covers the whole list.
+        let sensitive_header_names = match events
+            .first()
+            .and_then(|event| event.business_profile_id.clone())
+        {
+            Some(business_profile_id) => store
+                .find_business_profile_by_profile_id(&key_store, &business_profile_id)
+                .await
+                .inspect_err(|error| {
+                    router_env::logger::error!(
+                        ?error,
+                        "Failed to find business profile for webhook event delivery attempts, \
+                         redacting all webhook header values"
+                    )
+                })
+                .ok()
+                .and_then(|business_profile| business_profile.get_sensitive_webhook_header_names()),
+            None => None,
+        };
+
         Ok(ApplicationResponse::Json(
             events
                 .into_iter()
-                .map(api::webhook_events::EventRetrieveResponse::try_from)
+                .map(|event| {
+                    api::webhook_events::EventRetrieveResponse::foreign_try_from((
+                        domain::EventWithDeliverySuccessSource {
+                            event,
+                            source: domain::DeliverySuccessSource::ListDeliveryAttempts,
+                        },
+                        sensitive_header_names.as_ref(),
+                    ))
+                })
                 .collect::<Result<Vec<_>, _>>()?,
         ))
     }
@@ -373,6 +419,7 @@ pub async fn retry_delivery_attempt(
         is_overall_delivery_successful: Some(false),
         processor_merchant_id: Some(processor_merchant_id.clone()),
         initiator_merchant_id: Some(merchant_id.clone()),
+        recipient: event_to_retry.recipient,
     };
 
     let event = store
@@ -392,6 +439,8 @@ pub async fn retry_delivery_attempt(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to parse webhook event request information")?;
 
+    let sensitive_header_names = business_profile.get_sensitive_webhook_header_names();
+
     Box::pin(super::outgoing::trigger_webhook_and_raise_event(
         state.clone(),
         business_profile,
@@ -403,6 +452,7 @@ pub async fn retry_delivery_attempt(
         delivery_attempt,
         None,
         None,
+        super::types::WebhookRecipientData::Merchant { merchant_id },
     ))
     .await;
 
@@ -412,7 +462,13 @@ pub async fn retry_delivery_attempt(
         .to_not_found_response(errors::ApiErrorResponse::EventNotFound)?;
 
     Ok(ApplicationResponse::Json(
-        api::webhook_events::EventRetrieveResponse::try_from(updated_event)?,
+        api::webhook_events::EventRetrieveResponse::foreign_try_from((
+            domain::EventWithDeliverySuccessSource {
+                event: updated_event,
+                source: domain::DeliverySuccessSource::ListDeliveryAttempts,
+            },
+            sensitive_header_names.as_ref(),
+        ))?,
     ))
 }
 

@@ -26,10 +26,12 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::WebhooksView
             | Self::ApiKeysView
             | Self::ThemeView
+            | Self::ConfigurationsView
             | Self::ReconSourcesView
             | Self::ReconTransactionsView
             | Self::ReconExceptionsView
-            | Self::ReconRulesView => PermissionScope::Read,
+            | Self::ReconRulesView
+            | Self::OffersView => PermissionScope::Read,
 
             Self::OperationsManage
             | Self::ConnectorsManage
@@ -40,10 +42,12 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::ApiKeysManage
             | Self::CloneConnectorManage
             | Self::ThemeManage
+            | Self::ConfigurationsManage
             | Self::ReconSourcesManage
             | Self::ReconExceptionsManage
             | Self::ReconTransactionsManage
-            | Self::ReconRulesManage => PermissionScope::Write,
+            | Self::ReconRulesManage
+            | Self::OffersManage => PermissionScope::Write,
         }
     }
 
@@ -59,6 +63,7 @@ impl PermissionGroupExt for PermissionGroup {
             Self::ApiKeysView | Self::ApiKeysManage => ParentGroup::ApiKeys,
 
             Self::ThemeView | Self::ThemeManage => ParentGroup::Theme,
+            Self::ConfigurationsView | Self::ConfigurationsManage => ParentGroup::Configurations,
             Self::CloneConnectorManage => ParentGroup::CloneConnector,
             Self::ReconSourcesView | Self::ReconSourcesManage => ParentGroup::ReconSources,
             Self::ReconExceptionsView | Self::ReconExceptionsManage => ParentGroup::ReconExceptions,
@@ -66,6 +71,7 @@ impl PermissionGroupExt for PermissionGroup {
                 ParentGroup::ReconTransactions
             }
             Self::ReconRulesView | Self::ReconRulesManage => ParentGroup::ReconRules,
+            Self::OffersView | Self::OffersManage => ParentGroup::Offers,
         }
     }
 
@@ -114,6 +120,11 @@ impl PermissionGroupExt for PermissionGroup {
             Self::ThemeView => vec![Self::ThemeView, Self::AccountView],
             Self::ThemeManage => vec![Self::ThemeManage, Self::AccountView],
 
+            Self::ConfigurationsView => vec![Self::ConfigurationsView],
+            Self::ConfigurationsManage => {
+                vec![Self::ConfigurationsView, Self::ConfigurationsManage]
+            }
+
             Self::ReconSourcesView => vec![
                 Self::ReconSourcesView,
                 Self::ReconTransactionsView,
@@ -149,6 +160,9 @@ impl PermissionGroupExt for PermissionGroup {
                 Self::ReconRulesView,
                 Self::ReconTransactionsView,
             ],
+
+            Self::OffersView => vec![Self::OffersView],
+            Self::OffersManage => vec![Self::OffersView, Self::OffersManage],
         }
     }
 
@@ -173,7 +187,11 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::ApiKeysManage
             | Self::CloneConnectorManage
             | Self::ThemeView
-            | Self::ThemeManage => RoleProductCategory::Orchestration,
+            | Self::ThemeManage
+            | Self::ConfigurationsView
+            | Self::ConfigurationsManage
+            | Self::OffersView
+            | Self::OffersManage => RoleProductCategory::Orchestration,
 
             // Recon-only groups.
             Self::ReconSourcesView
@@ -210,10 +228,12 @@ impl ParentGroupExt for ParentGroup {
             Self::ApiKeys => API_KEYS.to_vec(),
             Self::CloneConnector => CLONE_CONNECTOR.to_vec(),
             Self::Theme => THEME.to_vec(),
+            Self::Configurations => CONFIGURATIONS.to_vec(),
             Self::ReconSources => RECON_SOURCES.to_vec(),
             Self::ReconExceptions => RECON_EXCEPTIONS.to_vec(),
             Self::ReconTransactions => RECON_TRANSACTIONS.to_vec(),
             Self::ReconRules => RECON_RULES.to_vec(),
+            Self::Offers => OFFERS.to_vec(),
         }
     }
 
@@ -253,8 +273,9 @@ impl ParentGroupExt for ParentGroup {
     }
 }
 
-pub static OPERATIONS: [Resource; 8] = [
+pub static OPERATIONS: [Resource; 9] = [
     Resource::Payment,
+    Resource::PaymentLink,
     Resource::Refund,
     Resource::Mandate,
     Resource::Dispute,
@@ -288,6 +309,8 @@ pub static CLONE_CONNECTOR: [Resource; 1] = [Resource::CloneConnector];
 
 pub static THEME: [Resource; 1] = [Resource::Theme];
 
+pub static CONFIGURATIONS: [Resource; 1] = [Resource::SuperpositionConfig];
+
 pub static RECON_SOURCES: [Resource; 3] = [
     Resource::ReconIngestion,
     Resource::ReconTransformation,
@@ -303,3 +326,5 @@ pub static RECON_TRANSACTIONS: [Resource; 3] = [
 ];
 
 pub static RECON_RULES: [Resource; 2] = [Resource::ReconRule, Resource::Account];
+
+pub static OFFERS: [Resource; 1] = [Resource::Offers];

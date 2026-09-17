@@ -2,7 +2,6 @@ use api_models::{enums::EventType as OutgoingWebhookEventType, webhooks::Outgoin
 use common_enums::WebhookDeliveryAttempt;
 use serde::Serialize;
 use serde_json::Value;
-use time::OffsetDateTime;
 
 use super::EventType;
 use crate::services::kafka::KafkaMessage;
@@ -79,6 +78,11 @@ pub enum OutgoingWebhookEventContent {
         invoice_id: Option<common_utils::id_type::InvoiceId>,
         payment_id: Option<common_utils::id_type::PaymentId>,
         content: Value,
+    },
+    #[cfg(feature = "v1")]
+    Surcharge {
+        payment_id: common_utils::id_type::PaymentId,
+        attempt_id: String,
     },
 }
 pub trait OutgoingWebhookEventMetric {
@@ -192,7 +196,7 @@ impl OutgoingWebhookEvent {
             content,
             is_error: error.is_some(),
             error,
-            created_at_timestamp: OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000,
+            created_at_timestamp: common_utils::date_time::now_unix_timestamp_millis(),
             initial_attempt_id,
             status_code,
             delivery_attempt,

@@ -156,13 +156,24 @@ impl Context {
             }
         }
 
-        let numeric_values: FxHashMap<EuclidKey, EuclidValue> = FxHashMap::from_iter([(
-            EuclidKey::PaymentAmount,
-            EuclidValue::PaymentAmount(types::NumValue {
-                number: payment.amount,
-                refinement: None,
-            }),
-        )]);
+        let numeric_values: FxHashMap<EuclidKey, EuclidValue> = FxHashMap::from_iter([
+            (
+                EuclidKey::PaymentAmount,
+                EuclidValue::PaymentAmount(types::NumValue {
+                    number: payment.amount,
+                    refinement: None,
+                }),
+            ),
+            (
+                EuclidKey::SurchargeAmount,
+                EuclidValue::SurchargeAmount(types::NumValue {
+                    number: payment
+                        .surcharge_amount
+                        .unwrap_or(common_utils::types::MinorUnit::zero()),
+                    refinement: None,
+                }),
+            ),
+        ]);
 
         Self {
             atomic_values: enum_values,

@@ -81,8 +81,11 @@ if [[ -t 1 ]]; then
   echo "    LIVE  = request arrived with no x-request-id"
   echo "    BLOCK = strict-mode synthetic 599 (only in --strict)"
   echo ""
-  echo "Optional, for log breadcrumbs in the Cypress terminal:"
+  echo "Set these in the Cypress terminal:"
   echo "    export CYPRESS_PROXY_ADMIN_URL=http://127.0.0.1:${ADMIN_PORT:-8001}"
+  echo "    export CYPRESS_IS_PROXY_ENABLED=true"
+  echo "    export CYPRESS_MOCK_SERVER=true"
+  echo "    (REDIRECT_PROXY_ADMIN_URL not needed for replay — cy.request goes direct)"
   echo ""
 fi
 
@@ -95,9 +98,19 @@ fi
 #   a permissive live-MISS still connects just-in-time.
 # upstream_cert=false: generate the client-facing cert from the SNI instead
 #   of fetching the real one, so replay never touches the network for certs.
-exec uv run --with-requirements "${SCRIPT_DIR}/requirements.txt" \
-  mitmdump \
-  -s "${SCRIPT_DIR}/mitm_replay.py" \
-  --listen-port "${PROXY_PORT}" \
-  --set connection_strategy=lazy \
-  --set upstream_cert=false
+# If mitmdump is already on PATH (e.g. CI pre-installed venv), use it directly.
+# Otherwise fall back to uv run so local dev works without a pre-built venv.
+if command -v mitmdump >/dev/null 2>&1 && mitmdump --version >/dev/null 2>&1; then
+  exec mitmdump \
+    -s "${SCRIPT_DIR}/mitm_replay.py" \
+    --listen-port "${PROXY_PORT}" \
+    --set connection_strategy=lazy \
+    --set upstream_cert=false
+else
+  exec uv run --with-requirements "${SCRIPT_DIR}/requirements.txt" \
+    mitmdump \
+    -s "${SCRIPT_DIR}/mitm_replay.py" \
+    --listen-port "${PROXY_PORT}" \
+    --set connection_strategy=lazy \
+    --set upstream_cert=false
+fi

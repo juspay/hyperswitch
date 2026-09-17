@@ -45,7 +45,7 @@ pub fn missing_field_err(
 ) -> Box<dyn Fn() -> error_stack::Report<errors::ConnectorError> + 'static> {
     Box::new(move || {
         errors::ConnectorError::MissingRequiredField {
-            field_name: message,
+            field_name: message.into(),
         }
         .into()
     })
@@ -856,7 +856,7 @@ impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
             .and_then(|res| res.payload.to_owned())
             .ok_or(
                 errors::ConnectorError::MissingConnectorRedirectionPayload {
-                    field_name: "request.redirect_response.payload",
+                    field_name: "request.redirect_response.payload".into(),
                 }
                 .into(),
             )
@@ -869,7 +869,7 @@ impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
                     connector_mandate_ids.get_connector_mandate_id()
                 }
                 Some(mandates::MandateReferenceId::NetworkMandateId(_))
-                | Some(mandates::MandateReferenceId::CardWithLimitedData)
+                | Some(mandates::MandateReferenceId::CardWithLimitedData(_))
                 | None
                 | Some(mandates::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
             })
@@ -1049,7 +1049,7 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
                     connector_mandate_ids.get_connector_mandate_id()
                 }
                 Some(mandates::MandateReferenceId::NetworkMandateId(_))
-                | Some(mandates::MandateReferenceId::CardWithLimitedData)
+                | Some(mandates::MandateReferenceId::CardWithLimitedData(_))
                 | None
                 | Some(mandates::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
             })
@@ -1062,8 +1062,10 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
                 Some(mandates::MandateReferenceId::NetworkMandateId(network_transaction_id)) => {
                     Some(network_transaction_id.network_transaction_id.clone())
                 }
+                Some(mandates::MandateReferenceId::CardWithLimitedData(ref_data)) => {
+                    ref_data.network_transaction_id.clone()
+                }
                 Some(mandates::MandateReferenceId::ConnectorMandateId(_))
-                | Some(mandates::MandateReferenceId::CardWithLimitedData)
                 | Some(mandates::MandateReferenceId::NetworkTokenWithNTI(_))
                 | None => None,
             })
@@ -1176,7 +1178,7 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
                     connector_mandate_ids.get_connector_mandate_request_reference_id()
                 }
                 Some(mandates::MandateReferenceId::NetworkMandateId(_))
-                | Some(mandates::MandateReferenceId::CardWithLimitedData)
+                | Some(mandates::MandateReferenceId::CardWithLimitedData(_))
                 | None
                 | Some(mandates::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
             })
@@ -1284,7 +1286,7 @@ impl PaymentsCompleteAuthorizeRequestData for types::CompleteAuthorizeData {
             .and_then(|res| res.payload.to_owned())
             .ok_or(
                 errors::ConnectorError::MissingConnectorRedirectionPayload {
-                    field_name: "request.redirect_response.payload",
+                    field_name: "request.redirect_response.payload".into(),
                 }
                 .into(),
             )
@@ -1316,7 +1318,7 @@ impl PaymentsCompleteAuthorizeRequestData for types::CompleteAuthorizeData {
                     connector_mandate_ids.get_connector_mandate_request_reference_id()
                 }
                 Some(mandates::MandateReferenceId::NetworkMandateId(_))
-                | Some(mandates::MandateReferenceId::CardWithLimitedData)
+                | Some(mandates::MandateReferenceId::CardWithLimitedData(_))
                 | None
                 | Some(mandates::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
             })
@@ -1343,7 +1345,7 @@ impl PaymentsSyncRequestData for types::PaymentsSyncData {
         match self.connector_transaction_id.clone() {
             ResponseId::ConnectorTransactionId(txn_id) => Ok(txn_id),
             _ => Err(errors::ValidationError::IncorrectValueProvided {
-                field_name: "connector_transaction_id",
+                field_name: "connector_transaction_id".into(),
             })
             .attach_printable("Expected connector transaction ID not found")
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)?,
@@ -1803,7 +1805,7 @@ impl ApplePay for domain::ApplePayWalletData {
             .payment_data
             .get_encrypted_apple_pay_payment_data_mandatory()
             .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "Apple pay encrypted data",
+                field_name: "Apple pay encrypted data".into(),
             })?;
         let token = Secret::new(
             String::from_utf8(
@@ -2141,7 +2143,7 @@ impl ForeignTryFrom<String> for UsStatesAbbreviation {
                     "wisconsin" => Ok(Self::WI),
                     "wyoming" => Ok(Self::WY),
                     _ => Err(errors::ConnectorError::InvalidDataFormat {
-                        field_name: "address.state",
+                        field_name: "address.state".into(),
                     }
                     .into()),
                 }
@@ -2175,7 +2177,7 @@ impl ForeignTryFrom<String> for CanadaStatesAbbreviation {
                     "saskatchewan" => Ok(Self::SK),
                     "yukon" => Ok(Self::YT),
                     _ => Err(errors::ConnectorError::InvalidDataFormat {
-                        field_name: "address.state",
+                        field_name: "address.state".into(),
                     }
                     .into()),
                 }
@@ -2281,11 +2283,11 @@ impl PaymentsAttemptData for PaymentAttempt {
         self.browser_info
             .clone()
             .ok_or(ApiErrorResponse::InvalidDataValue {
-                field_name: "browser_info",
+                field_name: "browser_info".into(),
             })?
             .parse_value::<BrowserInformation>("BrowserInformation")
             .change_context(ApiErrorResponse::InvalidDataValue {
-                field_name: "browser_info",
+                field_name: "browser_info".into(),
             })
     }
 }

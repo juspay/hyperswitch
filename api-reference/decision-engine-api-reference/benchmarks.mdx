@@ -1,0 +1,269 @@
+---
+title: "Performance Benchmarks"
+description: "Throughput and latency of the /decide-gateway and /routing/evaluate endpoints under sustained load"
+---
+
+## Overview
+
+The decision engine contributes **~6 ms** (server-side average) to a payment routing
+decision at typical load. A single 2-core pod sustains **835 req/s peak** with zero
+errors, and throughput scales linearly with additional pods — both routing modes are
+stateless and share no per-request mutable state.
+
+These figures are from k6 load tests against a single containerised pod. All latency
+numbers in the tables below represent the server-side processing time reported in each
+`/decide-gateway` response — the time the pod spends on the routing decision itself,
+excluding network distance to and from your application.
+
+| Endpoint | Algorithm | Use case |
+|----------|-----------|----------|
+| `POST /decide-gateway` | SR_BASED_ROUTING | Success-rate driven gateway selection |
+| `POST /routing/evaluate` | RULE_BASED_ROUTING | Priority-rule evaluation using the active configured routing rule |
+
+---
+
+## Test Environment
+
+**Cluster node**
+
+| Property | Value |
+|----------|-------|
+| vCPU capacity | 8 |
+| Memory capacity | 15.41 GiB |
+| Architecture | linux/amd64 |
+| Kernel | Amazon Linux 2023 (6.12.x) |
+
+**Pod provisioning**
+
+| Resource | Request | Limit |
+|----------|--------:|------:|
+| CPU | 1000m | 2000m |
+| Memory | 256 MiB | 512 MiB |
+
+**Log level:** `INFO`
+
+---
+
+## Test Methodology
+
+**Tool:** [k6](https://k6.io) — 30s steady load per VU step.
+
+**Metrics**
+- **Round-trip (RT)** — total time measured by the load generator, including local network.
+- **Server-side** — processing time reported by the pod in the `/decide-gateway` response
+  `latency` field, isolating pure compute. Not available for `/routing/evaluate`.
+- **HTTP overhead** — round-trip minus server-side: HTTP framing, request routing, and response
+  serialisation outside the handler's timer. Add your production network RTT on top of this.
+
+---
+
+## SR_BASED_ROUTING — `/decide-gateway`
+
+Payload: 3 card variants rotated across VUs (VISA Debit/AED, Mastercard Credit/USD,
+Amex Debit/EUR), 2–3 eligible gateways each.
+
+### Throughput and latency
+
+| VUs | Throughput | RT avg | RT p50 | RT p95 | Server avg | Server p50 | Server p95 | HTTP avg | HTTP p95 |
+|----:|-----------:|-------:|-------:|-------:|-----------:|-----------:|-----------:|--------:|--------:|
+| 5   | 38 req/s   | 8 ms   | 7 ms   | 15 ms  | 5 ms       | 4 ms       | 10 ms      | 3 ms    | 6 ms    |
+| 20  | 147 req/s  | 10 ms  | 8 ms   | 20 ms  | 6 ms       | 5 ms       | 14 ms      | 4 ms    | 9 ms    |
+| 50  | 345 req/s  | 15 ms  | 12 ms  | 33 ms  | 10 ms      | 8 ms       | 23 ms      | 6 ms    | 13 ms   |
+
+<Tip>
+Every `/decide-gateway` response includes a `latency` field (milliseconds) reporting
+the pod's own processing time. Use this in your monitoring to separate compute time
+from HTTP stack overhead in production.
+</Tip>
+
+**Key observations**
+- Server-side p95 holds at **14 ms up to 147 req/s** (20 VUs) — gateway outages and
+  payment-flow config are served from in-process caches, eliminating per-request DB queries.
+- At 50 VUs (345 req/s), server p95 is **23 ms**.
+- The HTTP overhead column (round-trip − server-side) reflects HTTP framing and serialisation
+  cost, not network distance. Add your production RTT on top of the round-trip figures.
+
+<Note>
+These figures model realistic client behaviour with a 100 ms pause between requests.
+They reflect sustainable throughput for a typical integration, not raw server capacity.
+See the saturation section below for the throughput ceiling.
+</Note>
+
+### Feedback path — `/update-gateway-score`
+
+Every `/decide-gateway` call is followed by a fire-and-forget feedback write to
+`/update-gateway-score`. This is what keeps SR scores current — it records the
+outcome of each routing decision back into Redis so the next decision reflects
+real gateway performance. It runs outside the routing response path and does not
+block the caller, but it does consume pod resources and contributes to Redis load.
+
+| VUs | Feedback avg | Feedback p95 |
+|----:|-------------:|-------------:|
+| 5   | 2 ms         | 4 ms         |
+| 20  | 3 ms         | 7 ms         |
+| 50  | 3 ms         | 6 ms         |
+
+Feedback latency stays flat under load because it is a single Redis write with no
+read dependencies. At 345 req/s (50 VUs) this means ~345 score updates per second
+— well within the Redis pool capacity at `pool_size = 5` with auto-pipelining.
+
+---
+
+### Saturation point
+
+To find the raw throughput ceiling, the same endpoint was driven with **no sleep**
+between requests — each VU fires as fast as the server can respond.
+
+Test conditions: release build (LTO, `codegen-units=1`), 2-CPU Docker limit,
+0% error rate throughout. CPU% captured via `docker stats` in parallel; 200% = 2 cores fully utilized.
+
+| VUs | Throughput    | CPU%     |
+|----:|--------------:|---------:|
+| 5   | 678 req/s     | 151%     |
+| 10  | 816 req/s     | 190%     |
+| **20**  | **835 req/s** | **195%** |
+| 30  | 831 req/s     | 198%     |
+| 50  | 815 req/s     | 198%     |
+| 75  | 792 req/s     | 196%     |
+| 100 | 789 req/s     | 198%     |
+| 150 | 779 req/s     | 197%     |
+| 200 | 741 req/s     | 197%     |
+| 300 | 725 req/s     | 199%     |
+
+**Interpretation**
+
+- **Peak: 835 req/s at 20 in-flight requests.** CPU crosses 190% at 10 VUs and stays
+  there — both cores are fully loaded from that point on.
+- **Sustained ceiling: 725–835 req/s** from 20 to 300 VUs with zero errors. The pod
+  does not shed requests under overload; it queues them.
+- The sleep-based figures (345 req/s at 50 VUs) represent 41% of this ceiling. The
+  gap is client think-time, not server capacity.
+
+```bash
+bash scripts/load-test/benchmark.sh --saturation --max-vus 300 --step-dur 20s
+```
+
+---
+
+## RULE_BASED_ROUTING — `/routing/evaluate`
+
+Payload: same 3 payment attribute variants (amount + authentication_type), evaluated
+against an active priority rule: **checkout → stripe → adyen**.
+
+### Throughput and latency
+
+| VUs | Throughput | RT avg | RT p50 | RT p95 | Error rate |
+|----:|-----------:|-------:|-------:|-------:|-----------:|
+| 5   | 39 req/s   | 6 ms   | 4 ms   | 17 ms  | 0.06%      |
+| 20  | 153 req/s  | 7 ms   | 4 ms   | 17 ms  | 0.01%      |
+| 50  | 389 req/s  | 6 ms   | 4 ms   | 14 ms  | 0.01%      |
+
+<Note>
+`/routing/evaluate` does not include a `latency` field in the response, so server-side
+and network latency cannot be separated for this endpoint.
+</Note>
+
+**Key observations**
+- p95 stays flat at **14–17 ms across all concurrency levels** and does not grow under load.
+- Throughput scales to **389 req/s on a single 2-core pod** — rule evaluation is pure
+  in-memory computation with no Redis or DB I/O.
+
+---
+
+## SR vs Rule-based
+
+| VUs | SR throughput | SR server p95 | Rule RT p95 |
+|----:|--------------:|--------------:|------------:|
+| 5   | 38 req/s      | 10 ms         | 17 ms       |
+| 20  | 147 req/s     | 14 ms         | 17 ms       |
+| 50  | 345 req/s     | 23 ms         | 14 ms       |
+
+SR server-side p95 climbs at 50 VUs as Redis round-trips grow under contention.
+This is well below the pod's CPU saturation point (~835 req/s peak with no-sleep
+load); the sleep-based test reaches Redis contention before it saturates CPU.
+Rule-based p95 stays flat because it issues no external I/O.
+
+---
+
+## Scaling Guide
+
+### SR_BASED_ROUTING
+
+Ceiling per 2-core pod: **~725–835 req/s** (835 req/s peak at 20 in-flight requests,
+sustained above 725 req/s all the way to 300 in-flight with zero errors).
+
+| Target throughput | Pods | CPU per pod | Notes |
+|------------------:|-----:|------------:|-------|
+| < 100 req/s  | 1 | 2 cores | Comfortable headroom — well below saturation |
+| 100 – 400 req/s | 1 | 2 cores | Pod within capacity; latency remains flat |
+| 400 – 800 req/s | 1 | 2 cores | Approaching ceiling; monitor server p95 |
+| > 800 req/s  | 2+ | 2 cores | Add pods; raise Redis `pool_size` proportionally |
+
+### RULE_BASED_ROUTING
+
+| Target throughput | Pods | CPU per pod | Notes |
+|------------------:|-----:|------------:|-------|
+| < 400 req/s | 1 | 2 cores | Single pod handles comfortably |
+| > 400 req/s | 2+ | 2 cores | Linear scale-out; p95 remains flat |
+
+<Note>
+Do not set CPU requests below 1000m. The Tokio async runtime sizes its worker thread
+pool based on available CPUs — a very small quota results in a single worker thread
+and elevated latency under concurrency.
+</Note>
+
+---
+
+## What Affects Performance
+
+**Log level — largest single factor**
+
+Running at `DEBUG` emits ~55 JSON-serialised log lines per request. At 345 req/s
+(50 VUs) this means ~19 000 extra serialisations per second and raises server-side p95
+significantly. Always set `INFO` or higher outside of active debugging.
+
+```toml
+[log.console]
+level = "INFO"
+```
+
+**Redis round-trips (SR routing only)**
+
+Each SR routing decision reads per-gateway SR scores from Redis, checks in-flight
+keys, and writes feedback scores. Gateway outage lists and per-merchant payment-flow
+config are served from in-process caches (30 s and 60 s TTL respectively) so only
+the SR score lookups reach Redis on the hot path. With `pool_size = 5` and
+auto-pipelining this handles the full ~835 req/s pod ceiling on a single 2-core pod.
+Raise `pool_size` proportionally when adding pods.
+
+```toml
+[redis]
+pool_size = 10          # default 5; raise when adding pods beyond the first
+auto_pipeline = true    # keep enabled
+```
+
+**CPU allocation**
+
+The runtime sizes its worker pool based on available CPUs. With a 2-core limit the pod
+runs 2 concurrent async workers, which is the binding constraint for SR routing throughput.
+
+---
+
+## Reproducing These Results
+
+```bash
+# SR + Rule-based routing (sleep-based, realistic think-time)
+bash scripts/load-test/benchmark.sh
+
+# Saturation test — find raw throughput ceiling (no sleep, ramps to max VUs)
+bash scripts/load-test/benchmark.sh --saturation
+bash scripts/load-test/benchmark.sh --saturation --max-vus 300 --step-dur 20s
+
+# Results are saved to scripts/load-test/profile_results/ after each run
+```
+
+## Related Docs
+
+- [Configuration](/decision-engine-api-reference/configuration) — log level and Redis pool settings referenced above.
+- [Local Setup Guide](/decision-engine-api-reference/local-setup) — bringing up the stack these benchmarks run against.
+- [API Guide](/decision-engine-api-reference/api-reference/guides/api-ref) — `/decide-gateway` and `/routing/evaluate` request examples.

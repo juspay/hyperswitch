@@ -136,7 +136,7 @@ impl ConnectorCommon for Signifyd {
             .change_context(ConnectorError::FailedToObtainAuthType)?;
         let auth_api_key = format!(
             "Basic {}",
-            consts::BASE64_ENGINE.encode(auth.api_key.peek())
+            consts::BASE64_ENGINE.encode(format!("{}:", auth.api_key.peek()))
         );
 
         Ok(vec![(
@@ -271,7 +271,7 @@ impl ConnectorIntegration<Sale, FraudCheckSaleData, FraudCheckResponseData> for 
             .request
             .currency
             .ok_or(ConnectorError::MissingRequiredField {
-                field_name: "currency",
+                field_name: "currency".into(),
             })?;
         let amount = convert_amount(self.amount_converter, req.request.amount, currency)?;
         let req_data = signifyd::SignifydRouterData::new(amount, req);
@@ -359,7 +359,7 @@ impl ConnectorIntegration<Checkout, FraudCheckCheckoutData, FraudCheckResponseDa
             .request
             .currency
             .ok_or(ConnectorError::MissingRequiredField {
-                field_name: "currency",
+                field_name: "currency".into(),
             })?;
         let amount = convert_amount(self.amount_converter, req.request.amount, currency)?;
         let req_data = signifyd::SignifydRouterData::new(amount, req);

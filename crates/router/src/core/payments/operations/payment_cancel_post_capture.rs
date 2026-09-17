@@ -204,6 +204,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelPo
             client_session_id: None,
             vault_session_details: None,
             external_vault_pmd: None,
+            update_request_fields: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -224,6 +225,19 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelPo
         payment_data: &mut PaymentData<F>,
         _business_profile: &domain::Profile,
     ) -> RouterResult<()> {
+        crate::utils::when(
+            payment_data.payment_intent.is_post_capture_void_attempted(),
+            || {
+                Err(error_stack::report!(
+                    errors::ApiErrorResponse::PreconditionFailed {
+                        message:
+                            "Multiple post capture void requests are not allowed for a payment"
+                                .into()
+                    }
+                ))
+            },
+        )?;
+
         // Validates that no refunds have been issued against the payment before allowing post-capture void
         let is_refund_issued = payment_data
             .refunds
