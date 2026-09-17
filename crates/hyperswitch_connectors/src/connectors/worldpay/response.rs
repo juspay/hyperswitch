@@ -59,27 +59,54 @@ impl WorldpayPaymentResponseFields {
     /// A body that does not match the shape of its outcome carries no extra fields, as before.
     fn from_outcome(outcome: &PaymentOutcome, fields: serde_json::Value) -> Option<Self> {
         match outcome {
-            PaymentOutcome::Refused => parse_fields(fields).map(Self::RefusedResponse),
+            PaymentOutcome::Refused => parse_fields(outcome, fields).map(Self::RefusedResponse),
             PaymentOutcome::ThreeDsDeviceDataRequired => {
-                parse_fields(fields).map(Self::DDCResponse)
+                parse_fields(outcome, fields).map(Self::DDCResponse)
             }
-            PaymentOutcome::ThreeDsChallenged => parse_fields(fields).map(Self::ThreeDsChallenged),
-            PaymentOutcome::FraudHighRisk => parse_fields(fields).map(Self::FraudHighRisk),
+            PaymentOutcome::ThreeDsChallenged => {
+                parse_fields(outcome, fields).map(Self::ThreeDsChallenged)
+            }
+            PaymentOutcome::FraudHighRisk => parse_fields(outcome, fields).map(Self::FraudHighRisk),
             PaymentOutcome::Authorized
             | PaymentOutcome::SentForSettlement
             | PaymentOutcome::SentForRefund
             | PaymentOutcome::SentForCancellation
             | PaymentOutcome::SentForPartialRefund
             | PaymentOutcome::ThreeDsAuthenticationFailed
-            | PaymentOutcome::ThreeDsUnavailable => {
-                parse_fields(fields).map(|response| Self::AuthorizedResponse(Box::new(response)))
-            }
+            | PaymentOutcome::ThreeDsUnavailable => parse_fields(outcome, fields)
+                .map(|response| Self::AuthorizedResponse(Box::new(response))),
         }
     }
 }
 
-fn parse_fields<T: serde::de::DeserializeOwned>(fields: serde_json::Value) -> Option<T> {
-    serde_json::from_value(fields).ok()
+/// Parses the fields accompanying `outcome`. A mismatch is logged and yields `None` rather than
+/// failing the whole response: capture, void and refund responses legitimately carry only
+/// `_links`, and a refusal must not turn into a parsing failure because of one unexpected value.
+fn parse_fields<T: serde::de::DeserializeOwned>(
+    outcome: &PaymentOutcome,
+    fields: serde_json::Value,
+) -> Option<T> {
+    serde_json::from_value(fields)
+        .map_err(|error| {
+            router_env::logger::warn!(
+                worldpay_outcome = %outcome,
+                expected_fields = std::any::type_name::<T>(),
+                error = deserialization_error_detail(&error),
+                "Worldpay response fields do not match the shape expected for the outcome"
+            );
+        })
+        .ok()
+}
+
+/// Describes a deserialization error without echoing response values, which serde includes in
+/// messages such as `invalid type: string "..."` and which may be sensitive.
+fn deserialization_error_detail(error: &serde_json::Error) -> String {
+    let message = error.to_string();
+    if message.starts_with("missing field") {
+        message
+    } else {
+        format!("{:?} error", error.classify())
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -682,6 +709,46 @@ mod tests {
 
         assert_eq!(response.outcome, PaymentOutcome::SentForCancellation);
         assert_eq!(response.other_fields, None);
+    }
+
+    #[test]
+    fn refused_with_mistyped_field_has_no_other_fields() {
+        let response = parse(serde_json::json!({
+            "outcome": "refused",
+            "refusalCode": 5,
+            "refusalDescription": "Refused"
+        }));
+
+        assert_eq!(response.outcome, PaymentOutcome::Refused);
+        assert_eq!(response.other_fields, None);
+    }
+
+    #[test]
+    fn deserialization_error_detail_keeps_missing_field_name() {
+        let error = serde_json::from_value::<FraudHighRiskResponse>(serde_json::json!({
+            "score": 97.5
+        }))
+        .unwrap_err();
+
+        assert_eq!(
+            deserialization_error_detail(&error),
+            "missing field `reason`"
+        );
+    }
+
+    #[test]
+    fn deserialization_error_detail_omits_response_values() {
+        let error = serde_json::from_value::<FraudHighRiskResponse>(serde_json::json!({
+            "score": "secret-value-123",
+            "reason": []
+        }))
+        .unwrap_err();
+
+        let detail = deserialization_error_detail(&error);
+        assert!(
+            !detail.contains("secret-value-123"),
+            "detail leaked a value: {detail}"
+        );
     }
 
     #[test]
