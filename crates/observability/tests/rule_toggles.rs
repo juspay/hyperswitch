@@ -58,7 +58,43 @@ macro_rules! impl_unused_metadata {
 impl_unused_metadata!(MemoryStore);
 impl_unused_metadata!(FailingStore);
 
+#[async_trait::async_trait]
+impl observability::db::lifecycle_events::LifecycleEventsInterface for MemoryStore {
+    async fn list_lifecycle_events(
+        &self,
+        _from: Option<PrimitiveDateTime>,
+        _to: Option<PrimitiveDateTime>,
+    ) -> StorageResult<Vec<observability::domain_models::lifecycle_events::LifecycleEvent>> {
+        Err(report!(DatabaseError::Others))
+    }
+
+    async fn replace_lifecycle_events(
+        &self,
+        _batch: observability::domain_models::lifecycle_events::LifecycleEventsBatch,
+    ) -> StorageResult<usize> {
+        Err(report!(DatabaseError::Others))
+    }
+}
+
 impl StorageInterface for MemoryStore {}
+#[async_trait::async_trait]
+impl observability::db::lifecycle_events::LifecycleEventsInterface for FailingStore {
+    async fn list_lifecycle_events(
+        &self,
+        _from: Option<PrimitiveDateTime>,
+        _to: Option<PrimitiveDateTime>,
+    ) -> StorageResult<Vec<observability::domain_models::lifecycle_events::LifecycleEvent>> {
+        Err(report!(DatabaseError::Others))
+    }
+
+    async fn replace_lifecycle_events(
+        &self,
+        _batch: observability::domain_models::lifecycle_events::LifecycleEventsBatch,
+    ) -> StorageResult<usize> {
+        Err(report!(DatabaseError::Others))
+    }
+}
+
 impl StorageInterface for FailingStore {}
 
 fn now() -> PrimitiveDateTime {
