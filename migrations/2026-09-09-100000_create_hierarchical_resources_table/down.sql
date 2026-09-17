@@ -1,0 +1,2 @@
+DROP INDEX IF EXISTS hierarchical_resources_scope_id_resource_type_index;
+DROP TABLE IF EXISTS hierarchical_resources;
