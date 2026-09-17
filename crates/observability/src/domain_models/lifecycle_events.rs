@@ -74,10 +74,6 @@ impl LifecycleEvent {
             return Err(report!(ObservabilityError::InvalidRequest))
                 .attach_printable("lifecycle counters must not be negative");
         }
-        if event.failed > event.total {
-            return Err(report!(ObservabilityError::InvalidRequest))
-                .attach_printable("failed must not exceed total");
-        }
         if !event.sr.is_finite() {
             return Err(report!(ObservabilityError::InvalidRequest))
                 .attach_printable("sr must be finite");
@@ -200,7 +196,7 @@ mod tests {
             runs: 4,
             severity: "critical".into(),
             sr: 0.0,
-            failed: 10,
+            failed: 11,
             total: 10,
             connector: String::new(),
             notified_at: datetime!(2026-09-15 09:45),
@@ -229,14 +225,13 @@ mod tests {
     }
 
     #[test]
-    fn rejects_invalid_identity_state_counters_and_version() {
-        for mutate in 0..4 {
+    fn rejects_invalid_identity_state_negative_counters_and_version() {
+        for mutate in 0..3 {
             let mut event = request();
             match mutate {
                 0 => event.alert_key = "short".into(),
                 1 => event.state = "unknown".into(),
-                2 => event.failed = -1,
-                _ => event.failed = event.total + 1,
+                _ => event.failed = -1,
             }
             assert!(LifecycleEventsBatch::try_from_request(
                 api::LifecycleEventsBatchRequest {

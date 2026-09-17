@@ -226,7 +226,7 @@ fn event(alert_key: &str, first_seen: &str, last_seen: &str) -> Value {
         "alert_key": alert_key, "detector": "webhook_rejected", "merchant_id": "m1",
         "profile_id": "", "state": "firing", "first_seen": first_seen, "last_seen": last_seen,
         "recovered_at": "1970-01-01T00:00:00Z", "runs": 4, "severity": "critical", "sr": 0.0,
-        "failed": 10, "total": 10, "connector": "", "notified_at": last_seen,
+        "failed": 11, "total": 10, "connector": "", "notified_at": last_seen,
         "ts_slack": "", "sent": false
     })
 }
@@ -339,6 +339,8 @@ async fn full_batch_round_trip_overlap_and_delivery_replacement() {
     assert_eq!(row["sent"], true);
     assert_eq!(row["ts_slack"], "1712345.678");
     assert_eq!(row["runs"], 4);
+    assert_eq!(row["failed"], 11);
+    assert_eq!(row["total"], 10);
 }
 
 #[actix_web::test]
@@ -375,7 +377,7 @@ async fn authentication_and_request_validation_are_enforced() {
         "2026-09-15T09:00:00Z",
         "2026-09-15T09:45:00Z",
     );
-    invalid_counters["failed"] = json!(11);
+    invalid_counters["failed"] = json!(-1);
 
     for body in [
         json!({"events": [event("short", "2026-09-15T09:00:00Z", "2026-09-15T09:45:00Z")], "snapshot_at": "2026-09-15T10:30:00Z", "version_bump_seconds": 0}),
