@@ -270,6 +270,8 @@ pub enum GooglePayDecryptionError {
     DecryptedTokenExpired,
     #[error("Failed to parse the given value")]
     ParsingFailed,
+    #[error("Gateway merchant id in the token does not match the merchant being paid")]
+    InvalidGatewayMerchantId,
 }
 
 #[derive(Debug, Clone, thiserror::Error)]

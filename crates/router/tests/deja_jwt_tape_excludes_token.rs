@@ -30,6 +30,10 @@ struct Claims {
     sub: String,
 }
 
+#[allow(
+    clippy::expect_used,
+    reason = "test helper: a free fn, so allow-expect-in-tests does not cover it; a failure to read the artifact dir should fail the test loudly"
+)]
 fn artifact_bytes(dir: &std::path::Path) -> Vec<u8> {
     let mut out = Vec::new();
     let mut stack = vec![dir.to_path_buf()];

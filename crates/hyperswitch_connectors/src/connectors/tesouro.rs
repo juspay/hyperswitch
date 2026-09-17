@@ -1021,7 +1021,7 @@ impl ConnectorSpecifications for Tesouro {
         } else {
             let max_payment_reference_id_length =
                 tesouro::tesouro_constants::MAX_PAYMENT_REFERENCE_ID_LENGTH;
-            nanoid::nanoid!(max_payment_reference_id_length)
+            common_utils::generate_nanoid_with_default_alphabet(max_payment_reference_id_length)
         }
     }
 }
