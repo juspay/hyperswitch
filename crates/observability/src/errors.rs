@@ -83,6 +83,10 @@ pub enum ObservabilityError {
     #[error("The active threshold rule limit has been reached")]
     ActiveRuleLimitReached,
 
+    /// Creating or reactivating a blacklist entry would exceed the active-rule cap.
+    #[error("The active blacklist rule limit has been reached")]
+    BlacklistActiveRuleLimitReached,
+
     /// The path named a destination that is not configured.
     #[error("No destination is configured under `{destination}`")]
     UnknownDestination {
@@ -127,6 +131,9 @@ impl ErrorSwitch<ApiErrorResponse> for ObservabilityError {
                 5,
                 "The active threshold rule limit has been reached",
             )),
+            Self::BlacklistActiveRuleLimitReached => ApiErrorResponse::TooManyRequests(
+                ApiError::new("IR", 5, "The active blacklist rule limit has been reached"),
+            ),
             // The id is already in the path the caller sent, so there is nothing to echo back, and
             // the configured ids are deliberately not listed.
             Self::UnknownDestination { .. } => {
@@ -181,6 +188,10 @@ mod tests {
         assert_eq!(status_of(&ObservabilityError::Unauthorized), 401);
         assert_eq!(status_of(&ObservabilityError::InvalidRequest), 400);
         assert_eq!(status_of(&ObservabilityError::ActiveRuleLimitReached), 429);
+        assert_eq!(
+            status_of(&ObservabilityError::BlacklistActiveRuleLimitReached),
+            429
+        );
     }
 
     /// A caller that guessed an id should not be handed the registry.

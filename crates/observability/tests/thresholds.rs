@@ -18,9 +18,12 @@ use diesel_models::{
 use error_stack::report;
 use observability::{
     auth::X_INTERNAL_API_KEY,
-    db::{alerts_info::AlertsInfoInterface, thresholds::ThresholdsInterface, StorageInterface},
+    db::{
+        alerts_info::AlertsInfoInterface, blacklist::BlacklistInterface,
+        thresholds::ThresholdsInterface, StorageInterface,
+    },
     domain::notifier::Registry,
-    domain_models::{alerts_info, thresholds},
+    domain_models::{alerts_info, blacklist, thresholds},
     routes::Alerts,
     settings::Database,
     state::AppState,
@@ -54,6 +57,37 @@ fn now() -> PrimitiveDateTime {
 
 impl StorageInterface for MemoryStore {}
 impl StorageInterface for FailingStore {}
+
+macro_rules! impl_unused_blacklist {
+    ($store:ty) => {
+        #[async_trait::async_trait]
+        impl BlacklistInterface for $store {
+            async fn list_blacklist_entries(
+                &self,
+            ) -> StorageResult<Vec<blacklist::BlacklistEntry>> {
+                Err(report!(DatabaseError::Others))
+            }
+
+            async fn upsert_blacklist_entry(
+                &self,
+                _new: blacklist::BlacklistEntryNew,
+                _max_active_rules: i64,
+            ) -> StorageResult<blacklist::BlacklistUpsertOutcome> {
+                Err(report!(DatabaseError::Others))
+            }
+
+            async fn delete_blacklist_entry(
+                &self,
+                _new: blacklist::BlacklistEntryNew,
+            ) -> StorageResult<blacklist::BlacklistEntry> {
+                Err(report!(DatabaseError::Others))
+            }
+        }
+    };
+}
+
+impl_unused_blacklist!(MemoryStore);
+impl_unused_blacklist!(FailingStore);
 
 #[async_trait::async_trait]
 impl AlertsInfoInterface for FailingStore {

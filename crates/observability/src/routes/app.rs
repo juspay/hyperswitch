@@ -14,7 +14,7 @@ use actix_web::{web, Scope};
 use crate::{
     errors::types::{ApiError, ApiErrorResponse},
     logger,
-    routes::{alerts_info, cloudwatch, health_check, notify, thresholds},
+    routes::{alerts_info, blacklist, cloudwatch, health_check, notify, thresholds},
     state::AppState,
 };
 
@@ -55,6 +55,12 @@ impl Alerts {
                 web::scope("/cloudwatch")
                     .service(web::resource("/evaluate").route(web::get().to(cloudwatch::evaluate)))
                     .service(web::resource("/notify").route(web::post().to(cloudwatch::notify))),
+            )
+            .service(
+                web::resource("/blacklist")
+                    .route(web::get().to(blacklist::list))
+                    .route(web::post().to(blacklist::upsert))
+                    .route(web::delete().to(blacklist::delete)),
             )
             .service(
                 web::resource("/thresholds")
