@@ -393,7 +393,6 @@ pub async fn make_connector_decision(
 }
 
 #[cfg(feature = "payout_retry")]
-#[allow(clippy::too_many_arguments)]
 async fn predetermined_call_connector_type_payout_retry(
     state: &SessionState,
     connector_data: api::ConnectorData,
@@ -426,7 +425,6 @@ async fn predetermined_call_connector_type_payout_retry(
 }
 
 #[cfg(feature = "payout_retry")]
-#[allow(clippy::too_many_arguments)]
 async fn retryable_call_connector_type_payout_retry(
     state: &SessionState,
     routing_data: IntoIter<api::ConnectorRoutingData>,
@@ -3959,7 +3957,7 @@ pub async fn make_payout_data(
             .find_fraud_check_by_frm_id(active_frm_id.clone())
             .await
             .to_not_found_response(errors::ApiErrorResponse::FraudCheckNotFound)
-            .inspect_err(|error| logger::error!(?error, "Failed to fetch fraud check"))
+            .inspect_err(|error| logger::error!(?error, "Failed to fetch fraud check record"))
             .ok(),
         None => None,
     };

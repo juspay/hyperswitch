@@ -155,7 +155,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCaptureR
                     format!("Error while retrieving frm_response, merchant_id: {:?}, payment_id: {payment_id:?}", platform.get_processor().get_account().get_id())
                 })
                 .inspect_err(|error| {
-                    logger::error!(?error, "Failed to fetch fraud check")
+                    logger::error!(?error, "Failed to fetch fraud check record")
                 })
                 .ok(),
             None => None,
