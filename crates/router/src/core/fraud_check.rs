@@ -1076,21 +1076,22 @@ pub async fn frm_fulfillment_core(
         )
         .await
         .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
-    let payment_attempt = db
-        .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
-            &payment_intent.payment_id,
-            platform.get_processor().get_account().get_id(),
-            &payment_intent.active_attempt.get_id(),
-            platform.get_processor().get_account().storage_scheme,
-            platform.get_processor().get_key_store(),
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
     match payment_intent.status {
         IntentStatus::Succeeded => {
             let invalid_request_error = errors::ApiErrorResponse::InvalidRequestData {
                 message: "no fraud check entry found for this payment_id".to_string(),
             };
+
+            let payment_attempt = db
+                .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
+                    &payment_intent.payment_id,
+                    platform.get_processor().get_account().get_id(),
+                    &payment_intent.active_attempt.get_id(),
+                    platform.get_processor().get_account().storage_scheme,
+                    platform.get_processor().get_key_store(),
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
             match payment_attempt.active_frm_id.clone() {
                 Some(frm_id) => {
