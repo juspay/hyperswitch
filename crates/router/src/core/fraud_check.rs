@@ -55,41 +55,6 @@ pub mod flows;
 pub mod operation;
 pub mod types;
 
-macro_rules! handle_pre_frm_result {
-    ($result:expr, $failure_mode:expr, $platform:expr, $fail_open_value:expr) => {{
-        match $result {
-            Ok(value) => Ok(value),
-            Err(error) => match $failure_mode {
-                common_enums::PreFrmFailureMode::FailOpen => {
-                    router_env::logger::info!(
-                        "Pre FRM actions failed, continuing due to FailOpen mode. Error: {:?}",
-                        error
-                    );
-                    metrics::FRM_FAILURE.add(
-                        1,
-                        router_env::metric_attributes!(
-                            (
-                                "merchant_id",
-                                $platform.get_processor().get_account().get_id().clone()
-                            ),
-                            ("error_type", error.current_context().to_string())
-                        ),
-                    );
-                    Ok($fail_open_value)
-                }
-                common_enums::PreFrmFailureMode::FailClosed => {
-                    router_env::logger::info!(
-                        "Pre FRM actions failed, propagating error due to FailClosed mode"
-                    );
-                    Err(error)
-                }
-            },
-        }
-    }};
-}
-
-pub(crate) use handle_pre_frm_result;
-
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
 pub async fn call_frm_service<D: Clone, F, Req, OperationData>(
@@ -249,63 +214,60 @@ pub async fn get_payout_frm_applicability(
     payout_data: &PayoutData,
     frm_merchant_connector_account: payments::helpers::MerchantConnectorAccountType,
     frm_routing_algorithm: FrmRoutingAlgorithm,
-) -> RouterResult<PayoutFrmApplicability> {
-    // Return NotApplicable if the FRM merchant connector account is disabled
+) -> RouterResult<Option<PayoutFrmApplicability>> {
+    if !frm_merchant_connector_account.is_disabled() {
+        let frm_configs_value = frm_merchant_connector_account.get_frm_configs().ok_or(
+            errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "frm_configs".into(),
+            },
+        )?;
 
-    if frm_merchant_connector_account.is_disabled() {
-        return Ok(PayoutFrmApplicability::NotApplicable);
-    }
+        let payment_method = payout_data
+            .payouts
+            .payout_type
+            .map(PaymentMethod::foreign_from);
 
-    // Return NotApplicable if the FRM merchant connector account has no frm_configs
-    let Some(frm_configs_value) = frm_merchant_connector_account.get_frm_configs() else {
-        return Ok(PayoutFrmApplicability::NotApplicable);
-    };
+        // Parse the frm_configs JSON value into a Vec<FrmConfigs>
+        let frm_configs = frm_configs_value
+            .into_iter()
+            .map(|config| {
+                config
+                    .expose()
+                    .parse_value::<api_models::admin::FrmConfigs>("FrmConfigs")
+                    .change_context(errors::ApiErrorResponse::InvalidDataFormat {
+                        field_name: "frm_configs".into(),
+                        expected_format: r#"[{ "gateway": "gotyme_sanlam", "payment_methods": [{ "payment_method": "bank_transfer", "flow": "pre" }] }]"#.to_string(),
+                    })
+            })
+            .collect::<Result<Vec<_>, _>>()?;
 
-    // Return NotApplicable if the payout_data has no payout_type
-    let Some(payout_type) = payout_data.payouts.payout_type else {
-        return Ok(PayoutFrmApplicability::NotApplicable);
-    };
+        // HashSet to store unique FRM check required connectors from the frm_configs
+        let mut connectors = HashSet::new();
 
-    let payment_method = PaymentMethod::foreign_from(payout_type);
+        // Iterate over the frm_configs and insert the gateways into the connectors HashSet if the payment_method matches
+        for mut config in frm_configs {
+            config.payment_methods.retain(|frm_payment_method| {
+                payment_method.is_some() && frm_payment_method.payment_method == payment_method
+            });
 
-    // Parse the frm_configs JSON value into a Vec<FrmConfigs>
-    let frm_configs = frm_configs_value
-        .into_iter()
-        .map(|config| {
-            config
-                .expose()
-                .parse_value::<api_models::admin::FrmConfigs>("FrmConfigs")
-                .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-                    field_name: "frm_configs".into(),
-                    expected_format: r#"[{ "gateway": "gotyme_sanlam", "payment_methods": [{ "payment_method": "bank_transfer", "flow": "pre" }] }]"#.to_string(),
-                })
-        })
-        .collect::<Result<Vec<_>, _>>()?;
-
-    // HashSet to store unique FRM check required connectors from the frm_configs
-    let mut connectors = HashSet::new();
-
-    // Iterate over the frm_configs and insert the gateways into the connectors HashSet if the payout_type matches
-    for mut config in frm_configs {
-        config
-            .payment_methods
-            .retain(|frm_payment_method| frm_payment_method.payment_method == Some(payment_method));
-
-        if !config.payment_methods.is_empty() {
-            if let Some(gateway) = config.gateway {
-                connectors.insert(gateway);
+            if !config.payment_methods.is_empty() {
+                if let Some(gateway) = config.gateway {
+                    connectors.insert(gateway);
+                }
             }
         }
-    }
 
-    if connectors.is_empty() {
-        Ok(PayoutFrmApplicability::NotApplicable)
+        if connectors.is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some(PayoutFrmApplicability {
+                connectors,
+                frm_merchant_connector_account: Box::new(frm_merchant_connector_account),
+                frm_routing_algorithm,
+            }))
+        }
     } else {
-        Ok(PayoutFrmApplicability::Applicable {
-            connectors,
-            frm_merchant_connector_account: Box::new(frm_merchant_connector_account),
-            frm_routing_algorithm,
-        })
+        Ok(None)
     }
 }
 
@@ -315,65 +277,63 @@ pub async fn pre_payouts_frm_core(
     platform: &domain::Platform,
     payout_data: &mut PayoutData,
     connector_data: &ConnectorData,
-    applicability: &PayoutFrmApplicability,
+    applicability: PayoutFrmApplicability,
     failure_mode: &PreFrmFailureMode,
 ) -> RouterResult<PayoutFrmOutcome> {
-    match applicability {
-        PayoutFrmApplicability::Applicable {
-            connectors,
-            frm_merchant_connector_account,
-            frm_routing_algorithm,
-        } => {
-            let outcome = if connectors.contains(&connector_data.connector_name) {
-                let fraud_check_operation = operation::fraud_check_pre_payout::FraudCheckPrePayout;
+    if applicability
+        .connectors
+        .contains(&connector_data.connector_name)
+    {
+        let fraud_check_operation = operation::fraud_check_pre_payout::FraudCheckPrePayout;
 
-                let frm_data = fraud_check_operation
-                    .get_tracker(state, payout_data, &frm_routing_algorithm.data)
-                    .await?;
+        let frm_data = fraud_check_operation
+            .get_tracker(
+                state,
+                payout_data,
+                &applicability.frm_routing_algorithm.data,
+            )
+            .await?;
 
-                payout_data.payout_attempt.active_frm_id =
-                    Some(frm_data.fraud_check.frm_id.clone());
+        payout_data.payout_attempt.active_frm_id = Some(frm_data.fraud_check.frm_id.clone());
 
-                let frm_connector =
-                    FraudCheckConnectorData::get_connector_by_name(&frm_routing_algorithm.data)?;
+        let frm_connector = FraudCheckConnectorData::get_connector_by_name(
+            &applicability.frm_routing_algorithm.data,
+        )?;
 
-                let mut router_data: hyperswitch_connectors::types::PoFrmRouterData = frm_data
-                    .construct_router_data(
-                        state,
-                        &frm_routing_algorithm.data,
-                        platform.get_processor(),
-                        &payout_data.business_profile,
-                        frm_merchant_connector_account.as_ref(),
-                        None,
-                        None,
-                        None,
-                        None,
-                    )
-                    .await?;
+        let mut router_data: hyperswitch_connectors::types::PoFrmRouterData = frm_data
+            .construct_router_data(
+                state,
+                &applicability.frm_routing_algorithm.data,
+                platform.get_processor(),
+                &payout_data.business_profile,
+                applicability.frm_merchant_connector_account.as_ref(),
+                None,
+                None,
+                None,
+                None,
+            )
+            .await?;
 
-                router_data = router_data
-                    .decide_frm_flows(
-                        state,
-                        &frm_connector,
-                        payments::CallConnectorAction::Trigger,
-                        platform,
-                    )
-                    .await?;
+        router_data = router_data
+            .decide_frm_flows(
+                state,
+                &frm_connector,
+                payments::CallConnectorAction::Trigger,
+                platform,
+            )
+            .await?;
 
-                let frm_data = fraud_check_operation
-                    .update_tracker(state, frm_data, router_data)
-                    .await?;
+        let frm_data = fraud_check_operation
+            .update_tracker(state, frm_data, router_data)
+            .await?;
 
-                payout_data.fraud_check = Some(frm_data.fraud_check.clone());
+        payout_data.fraud_check = Some(frm_data.fraud_check.clone());
 
-                frm_data.get_frm_outcome(failure_mode)
-            } else {
-                PayoutFrmOutcome::Continue
-            };
+        let outcome = frm_data.get_frm_outcome(failure_mode);
 
-            Ok(outcome)
-        }
-        PayoutFrmApplicability::NotApplicable => Ok(PayoutFrmOutcome::Continue),
+        Ok(outcome)
+    } else {
+        Ok(PayoutFrmOutcome::Continue)
     }
 }
 
@@ -416,7 +376,7 @@ pub async fn get_payout_frm_applicability(
     _payout_data: &PayoutData,
     _frm_merchant_connector_account: payments::helpers::MerchantConnectorAccountType,
     _frm_routing_algorithm: FrmRoutingAlgorithm,
-) -> RouterResult<PayoutFrmApplicability> {
+) -> RouterResult<Option<PayoutFrmApplicability>> {
     todo!()
 }
 
@@ -426,7 +386,7 @@ pub async fn pre_payouts_frm_core(
     _platform: &domain::Platform,
     _payout_data: &mut PayoutData,
     _connector_data: &ConnectorData,
-    _applicability: &PayoutFrmApplicability,
+    _applicability: PayoutFrmApplicability,
     _failure_mode: &PreFrmFailureMode,
 ) -> RouterResult<PayoutFrmOutcome> {
     todo!()
@@ -1009,22 +969,47 @@ where
         )
         .await;
 
-    let frm_configs = handle_pre_frm_result!(
-        Box::pin(decide_and_run_pre_frm(
-            operation,
-            platform,
-            payment_data,
-            state,
-            frm_info,
-            should_continue_transaction,
-            should_continue_capture,
-            &failure_mode,
-        ))
-        .await,
-        &failure_mode,
+    let frm_configs = match Box::pin(decide_and_run_pre_frm(
+        operation,
         platform,
-        None
-    )?;
+        payment_data,
+        state,
+        frm_info,
+        should_continue_transaction,
+        should_continue_capture,
+        &failure_mode,
+    ))
+    .await
+    {
+        Ok(frm_configs) => Ok(frm_configs),
+        Err(e) => {
+            match failure_mode {
+                PreFrmFailureMode::FailOpen => {
+                    // Log the error
+                    logger::info!(
+                        "FRM actions before connector call failed, continuing due to FailOpen mode. Error: {:?}",
+                        e
+                    );
+                    metrics::FRM_FAILURE.add(
+                        1,
+                        router_env::metric_attributes!(
+                            (
+                                "merchant_id",
+                                platform.get_processor().get_account().get_id().clone()
+                            ),
+                            ("error_type", e.current_context().to_string())
+                        ),
+                    );
+                    // Continue with default values
+                    Ok(None)
+                }
+                PreFrmFailureMode::FailClosed => {
+                    logger::info!("FRM actions before connector call failed, propagating error due to FailClosed mode");
+                    Err(e)
+                }
+            }
+        }
+    }?;
 
     let fraud_capture_method = frm_info.as_ref().and_then(|frm_info| {
         frm_info

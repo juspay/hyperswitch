@@ -138,13 +138,10 @@ impl PayoutFrmData {
 
 #[cfg(feature = "payouts")]
 #[derive(Debug, Clone)]
-pub enum PayoutFrmApplicability {
-    Applicable {
-        connectors: HashSet<api_enums::Connector>,
-        frm_merchant_connector_account: Box<MerchantConnectorAccountType>,
-        frm_routing_algorithm: FrmRoutingAlgorithm,
-    },
-    NotApplicable,
+pub struct PayoutFrmApplicability {
+    pub connectors: HashSet<api_enums::Connector>,
+    pub frm_merchant_connector_account: Box<MerchantConnectorAccountType>,
+    pub frm_routing_algorithm: FrmRoutingAlgorithm,
 }
 
 #[cfg(feature = "payouts")]
