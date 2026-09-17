@@ -177,7 +177,7 @@ jobs:
 
       # Swatinem/rust-cache has no S3 backend, so this replaces it entirely
       # for this job — see .github/scripts/s3-cache-restore.sh for the key
-      # scheme and fallback logic.
+      # scheme.
       - name: Restore cargo/target cache from S3
         continue-on-error: true
         shell: bash
@@ -232,14 +232,12 @@ jobs:
         run: cargo check --features "release"
 
       # Only push (not merge_group) writes — same policy the old rust-cache
-      # `save-if: github.event_name == 'push'` used. Writes both the exact
-      # CACHE_KEY generation and the "latest" pointer PRs fall back to on a
-      # miss.
+      # `save-if: github.event_name == 'push'` used.
       - name: Save cargo/target cache to S3
         if: ${{ always() && github.event_name == 'push' }}
         continue-on-error: true
         shell: bash
-        run: .github/scripts/s3-cache-save.sh test true
+        run: .github/scripts/s3-cache-save.sh test
 
   typos:
     name: Spell check
@@ -299,7 +297,7 @@ jobs:
 
       # Swatinem/rust-cache has no S3 backend, so this replaces it entirely
       # for this job — see .github/scripts/s3-cache-restore.sh for the key
-      # scheme and fallback logic.
+      # scheme.
       - name: Restore cargo/target cache from S3
         continue-on-error: true
         shell: bash
@@ -314,11 +312,9 @@ jobs:
         run: cargo check --no-default-features --features "release,v2,fred"
 
       # Only push (not merge_group) writes — same policy the old rust-cache
-      # `save-if: github.event_name == 'push'` used. Writes both the exact
-      # CACHE_KEY generation and the "latest" pointer PRs fall back to on a
-      # miss.
+      # `save-if: github.event_name == 'push'` used.
       - name: Save cargo/target cache to S3
         if: ${{ always() && github.event_name == 'push' }}
         continue-on-error: true
         shell: bash
-        run: .github/scripts/s3-cache-save.sh check-v2 true
+        run: .github/scripts/s3-cache-save.sh check-v2

@@ -178,7 +178,7 @@ jobs:
 
       # Swatinem/rust-cache has no S3 backend, so this replaces it entirely
       # for this job — see .github/scripts/s3-cache-restore.sh for the key
-      # scheme and fallback logic.
+      # scheme.
       - name: Restore cargo/target cache from S3
         continue-on-error: true
         shell: bash
@@ -218,17 +218,17 @@ jobs:
         shell: bash
         run: cargo check --features "release"
 
-      # A PR that bumps Cargo.lock misses the exact-key restore above (main
-      # hasn't built this lockfile yet), so without this every subsequent
-      # push to the same PR would redo the same cold build. Saving under
-      # this PR's own CACHE_KEY here means the next push hits it directly.
-      # Skipped once CACHE_HIT is true — no need to re-save unchanged state.
-      # Never updates "latest" — that's main's fallback, not this PR's.
+      # A PR that bumps Cargo.lock (or lands on a new rustc toolchain) misses
+      # the by-key restore above — main hasn't built this exact combo yet —
+      # so without this every subsequent push to the same PR would redo the
+      # same cold build. Saving under this PR's own CACHE_KEY here means the
+      # next push hits it directly. Skipped once CACHE_HIT is true — no need
+      # to re-save unchanged state.
       - name: Save cargo/target cache to S3 (first run for this Cargo.lock)
         if: ${{ always() && env.CACHE_HIT == 'false' }}
         continue-on-error: true
         shell: bash
-        run: .github/scripts/s3-cache-save.sh test false
+        run: .github/scripts/s3-cache-save.sh test
 
   typos:
     name: Spell check
@@ -289,7 +289,7 @@ jobs:
 
       # Swatinem/rust-cache has no S3 backend, so this replaces it entirely
       # for this job — see .github/scripts/s3-cache-restore.sh for the key
-      # scheme and fallback logic.
+      # scheme.
       - name: Restore cargo/target cache from S3
         continue-on-error: true
         shell: bash
@@ -325,14 +325,14 @@ jobs:
           RUSTFLAGS: "-A warnings"
         run: cargo check --no-default-features --features "release,v2,fred"
 
-      # A PR that bumps Cargo.lock misses the exact-key restore above (main
-      # hasn't built this lockfile yet), so without this every subsequent
-      # push to the same PR would redo the same cold build. Saving under
-      # this PR's own CACHE_KEY here means the next push hits it directly.
-      # Skipped once CACHE_HIT is true — no need to re-save unchanged state.
-      # Never updates "latest" — that's main's fallback, not this PR's.
+      # A PR that bumps Cargo.lock (or lands on a new rustc toolchain) misses
+      # the by-key restore above — main hasn't built this exact combo yet —
+      # so without this every subsequent push to the same PR would redo the
+      # same cold build. Saving under this PR's own CACHE_KEY here means the
+      # next push hits it directly. Skipped once CACHE_HIT is true — no need
+      # to re-save unchanged state.
       - name: Save cargo/target cache to S3 (first run for this Cargo.lock)
         if: ${{ always() && env.CACHE_HIT == 'false' }}
         continue-on-error: true
         shell: bash
-        run: .github/scripts/s3-cache-save.sh check-v2 false
+        run: .github/scripts/s3-cache-save.sh check-v2
