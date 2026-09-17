@@ -2595,7 +2595,6 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                     // when the connector charged the payment. Otherwise (e.g. a manual-capture
                     // authorize that mismatched) nothing has been received yet, so the
                     // connector's value belongs in amount_capturable, not amount_received.
-                    let amount_capturable = err.amount;
                     let field_name = err.field_names;
                     let connector_transaction_id = err.connector_transaction_id;
                     (
@@ -2608,7 +2607,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             error_reason: Some(Some(format!(
                                 "Integrity Check Failed! Value mismatched for fields {field_name}"
                             ))),
-                            amount_capturable,
+                            amount_capturable: None,
                             updated_by: processor.get_account().storage_scheme.to_string(),
                             unified_code: None,
                             unified_message: None,
@@ -3141,17 +3140,12 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
         };
     }
 
-    let reported_amount_captured = match router_data.integrity_check.clone() {
-        Err(err) => err.amount,
-        Ok(()) => router_data.amount_captured.map(MinorUnit::new),
-    };
-
-    let amount_captured =  get_total_amount_captured(
-            &router_data.request,
-            reported_amount_captured,
-            router_data.status,
-            &payment_data,
-        );
+    let amount_captured = get_total_amount_captured(
+        &router_data.request,
+        router_data.amount_captured.map(MinorUnit::new),
+        router_data.status,
+        &payment_data,
+    );
 
     let payment_intent_update = get_payment_intent_update_data::<_, _>(
         payment_data.clone(),
@@ -4518,7 +4512,9 @@ fn get_total_amount_captured<F: Clone, T: types::Capturable>(
                 )
                 .map(MinorUnit::new);
             amount_captured.or_else(|| {
-                if router_data_status == enums::AttemptStatus::Charged || router_data_status == enums::AttemptStatus::IntegrityFailure {
+                if router_data_status == enums::AttemptStatus::Charged
+                    || router_data_status == enums::AttemptStatus::IntegrityFailure
+                {
                     amount
                 } else {
                     None

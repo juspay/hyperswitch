@@ -1122,7 +1122,7 @@ pub async fn construct_payment_router_data_for_capture<'a>(
         split_payments: None,
         webhook_url: None,
         merchant_order_reference_id: None,
-        is_overcapture_enabled: None
+        is_overcapture_enabled: None,
     };
 
     // TODO: evaluate the fields in router data, if they are required or not
@@ -5829,7 +5829,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
             split_payments: None,
             webhook_url: None,
             merchant_order_reference_id: None,
-            is_overcapture_enabled: None
+            is_overcapture_enabled: None,
         })
     }
 }

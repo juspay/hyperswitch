@@ -41,10 +41,9 @@ use crate::{
         PaymentsExternalAuthenticationResponse, PaymentsIncrementalAuthorizationRequest,
         PaymentsManualStatusUpdateEligibleStatusesResponse, PaymentsManualStatusUpdateRequest,
         PaymentsManualStatusUpdateResponse, PaymentsManualUpdateRequest,
-        PaymentsManualUpdateResponse,
-        PaymentsPostSessionTokensRequest, PaymentsPostSessionTokensResponse, PaymentsRejectRequest,
-        PaymentsRetrieveRequest, PaymentsStartRequest, PaymentsUpdateMetadataRequest,
-        PaymentsUpdateMetadataResponse,
+        PaymentsManualUpdateResponse, PaymentsPostSessionTokensRequest,
+        PaymentsPostSessionTokensResponse, PaymentsRejectRequest, PaymentsRetrieveRequest,
+        PaymentsStartRequest, PaymentsUpdateMetadataRequest, PaymentsUpdateMetadataResponse,
     },
 };
 

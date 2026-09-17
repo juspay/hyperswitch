@@ -176,8 +176,7 @@ where
                 let amount_tolerance = AmountMismatchTolerance {
                     allow_lower: AllowLowerAmount::new(false),
                     allow_higher: AllowHigherAmount::new(
-                        self.is_overcapture_enabled
-                            .is_some_and(|enabled| *enabled),
+                        self.is_overcapture_enabled.is_some_and(|enabled| *enabled),
                     ),
                 };
                 T::compare(

@@ -14176,7 +14176,10 @@ fn get_eligible_manual_update_statuses(
         enums::CaptureMethod::Manual | enums::CaptureMethod::SequentialAutomatic => {
             match amount_received {
                 None if amount_capturable < amount_requested => {
-                    vec![Status::PartiallyAuthorizedAndRequiresCapture, Status::Failed]
+                    vec![
+                        Status::PartiallyAuthorizedAndRequiresCapture,
+                        Status::Failed,
+                    ]
                 }
                 None => vec![Status::RequiresCapture, Status::Failed],
                 Some(_) => vec![Status::PartiallyCaptured, Status::Failed],
@@ -14184,7 +14187,10 @@ fn get_eligible_manual_update_statuses(
         }
         enums::CaptureMethod::ManualMultiple => match amount_received {
             None if amount_capturable < amount_requested => {
-                vec![Status::PartiallyAuthorizedAndRequiresCapture, Status::Failed]
+                vec![
+                    Status::PartiallyAuthorizedAndRequiresCapture,
+                    Status::Failed,
+                ]
             }
             None => vec![Status::RequiresCapture, Status::Failed],
             Some(_) if amount_capturable == MinorUnit::zero() => {
@@ -14361,7 +14367,8 @@ pub async fn payments_manual_status_update(
             .into());
         }
     } else {
-        let eligible_statuses = get_eligible_manual_update_statuses(&payment_intent, &payment_attempt);
+        let eligible_statuses =
+            get_eligible_manual_update_statuses(&payment_intent, &payment_attempt);
         if !eligible_statuses.contains(&intent_status) {
             return Err(errors::ApiErrorResponse::InvalidRequestData {
                 message: format!(
