@@ -43,6 +43,6 @@ pub async fn upsert(
     Ok(DictionaryUpsertResponse {
         ok: true,
         name: entry.name,
-        key_: entry.key_,
+        key: entry.key,
     })
 }

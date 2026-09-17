@@ -20,11 +20,11 @@ fn default_metadata() -> String {
 #[serde(deny_unknown_fields)]
 pub struct DictionaryUpsertRequest {
     pub name: String,
-    pub key_: String,
+    pub key: String,
     #[serde(default = "default_product")]
     pub product: String,
     #[serde(default = "default_values")]
-    pub values_: String,
+    pub values: String,
     #[serde(default = "default_metadata")]
     pub metadata: String,
     pub updated_by: String,
@@ -34,9 +34,9 @@ pub struct DictionaryUpsertRequest {
 #[derive(Clone, Debug, Serialize)]
 pub struct DictionaryEntryResponse {
     pub name: String,
-    pub key_: String,
+    pub key: String,
     pub product: String,
-    pub values_: String,
+    pub values: String,
     pub metadata: String,
     pub updated_by: String,
     #[serde(with = "common_utils::custom_serde::iso8601")]
@@ -52,5 +52,5 @@ pub struct DictionaryListResponse {
 pub struct DictionaryUpsertResponse {
     pub ok: bool,
     pub name: String,
-    pub key_: String,
+    pub key: String,
 }

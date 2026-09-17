@@ -125,7 +125,7 @@ impl_unused_interfaces!(FailingStore);
 impl DictionaryInterface for MemoryStore {
     async fn list_dictionary_entries(&self) -> StorageResult<Vec<dictionary::DictionaryEntry>> {
         let mut rows = self.rows.lock().unwrap().clone();
-        rows.sort_by(|a, b| (&a.name, &a.key_).cmp(&(&b.name, &b.key_)));
+        rows.sort_by(|a, b| (&a.name, &a.key).cmp(&(&b.name, &b.key)));
         Ok(rows)
     }
 
@@ -136,16 +136,16 @@ impl DictionaryInterface for MemoryStore {
         let mut rows = self.rows.lock().unwrap();
         let stored = dictionary::DictionaryEntry {
             name: new.name,
-            key_: new.key_,
+            key: new.key,
             product: new.product,
-            values_: new.values_,
+            values: new.values,
             metadata: new.metadata,
             updated_by: new.updated_by,
             last_updated_at: now(),
         };
         if let Some(row) = rows
             .iter_mut()
-            .find(|row| row.name == stored.name && row.key_ == stored.key_)
+            .find(|row| row.name == stored.name && row.key == stored.key)
         {
             *row = stored.clone();
         } else {
@@ -219,9 +219,9 @@ async fn upsert_replaces_strings_verbatim_and_preserves_response_shape() {
     let state = state();
     let first = json!({
         "name": "dashboard",
-        "key_": "merchant_id",
+        "key": "merchant_id",
         "product": "[]",
-        "values_": "[\"m1\"]",
+        "values": "[\"m1\"]",
         "metadata": "{\"category\":\"dashboard\"}",
         "updated_by": "dashboard"
     });
@@ -235,14 +235,14 @@ async fn upsert_replaces_strings_verbatim_and_preserves_response_shape() {
     assert_eq!(status, StatusCode::OK);
     assert_eq!(
         response,
-        json!({"ok": true, "name": "dashboard", "key_": "merchant_id"})
+        json!({"ok": true, "name": "dashboard", "key": "merchant_id"})
     );
 
     let replacement = json!({
         "name": "dashboard",
-        "key_": "merchant_id",
+        "key": "merchant_id",
         "product": "[\"payments\"]",
-        "values_": "[\"m2\"]",
+        "values": "[\"m2\"]",
         "metadata": "{ \"encoded\": true }",
         "updated_by": "syntest"
     });
@@ -257,7 +257,7 @@ async fn upsert_replaces_strings_verbatim_and_preserves_response_shape() {
     let (status, listed) = call(state, actix_web::http::Method::GET, Some(API_KEY), None).await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(listed["entries"].as_array().unwrap().len(), 1);
-    assert_eq!(listed["entries"][0]["values_"], "[\"m2\"]");
+    assert_eq!(listed["entries"][0]["values"], "[\"m2\"]");
     assert_eq!(listed["entries"][0]["metadata"], "{ \"encoded\": true }");
     assert_eq!(listed["entries"][0]["updated_by"], "syntest");
     assert_eq!(
@@ -274,8 +274,8 @@ async fn omitted_payload_strings_replace_existing_values_with_defaults() {
         actix_web::http::Method::PUT,
         Some(API_KEY),
         Some(json!({
-            "name": "dashboard", "key_": "merchant_id", "product": "[1]",
-            "values_": "[2]", "metadata": "{\"a\":1}", "updated_by": "dashboard"
+            "name": "dashboard", "key": "merchant_id", "product": "[1]",
+            "values": "[2]", "metadata": "{\"a\":1}", "updated_by": "dashboard"
         })),
     )
     .await;
@@ -284,25 +284,25 @@ async fn omitted_payload_strings_replace_existing_values_with_defaults() {
         actix_web::http::Method::PUT,
         Some(API_KEY),
         Some(json!({
-            "name": "dashboard", "key_": "merchant_id", "updated_by": "dashboard"
+            "name": "dashboard", "key": "merchant_id", "updated_by": "dashboard"
         })),
     )
     .await;
     let (_, listed) = call(state, actix_web::http::Method::GET, Some(API_KEY), None).await;
     assert_eq!(listed["entries"][0]["product"], "[]");
-    assert_eq!(listed["entries"][0]["values_"], "[]");
+    assert_eq!(listed["entries"][0]["values"], "[]");
     assert_eq!(listed["entries"][0]["metadata"], "{}");
 }
 
 #[actix_web::test]
 async fn entries_are_ordered_by_name_and_key() {
     let state = state();
-    for (name, key_) in [("z", "a"), ("a", "z"), ("a", "a")] {
+    for (name, key) in [("z", "a"), ("a", "z"), ("a", "a")] {
         call(
             state.clone(),
             actix_web::http::Method::PUT,
             Some(API_KEY),
-            Some(json!({"name": name, "key_": key_, "updated_by": "dashboard"})),
+            Some(json!({"name": name, "key": key, "updated_by": "dashboard"})),
         )
         .await;
     }
@@ -311,7 +311,7 @@ async fn entries_are_ordered_by_name_and_key() {
         .as_array()
         .unwrap()
         .iter()
-        .map(|row| (row["name"].as_str().unwrap(), row["key_"].as_str().unwrap()))
+        .map(|row| (row["name"].as_str().unwrap(), row["key"].as_str().unwrap()))
         .collect();
     assert_eq!(keys, vec![("a", "a"), ("a", "z"), ("z", "a")]);
 }
@@ -320,7 +320,7 @@ async fn entries_are_ordered_by_name_and_key() {
 async fn authentication_validation_and_unknown_fields_are_enforced() {
     for method in [actix_web::http::Method::GET, actix_web::http::Method::PUT] {
         let payload = (method == actix_web::http::Method::PUT)
-            .then(|| json!({"name": "a", "key_": "b", "updated_by": "dashboard"}));
+            .then(|| json!({"name": "a", "key": "b", "updated_by": "dashboard"}));
         for key in [None, Some("wrong")] {
             assert_eq!(
                 call(state(), method.clone(), key, payload.clone()).await.0,
@@ -330,11 +330,11 @@ async fn authentication_validation_and_unknown_fields_are_enforced() {
     }
 
     for payload in [
-        json!({"name": "", "key_": "b", "updated_by": "dashboard"}),
-        json!({"name": "a", "key_": "   ", "updated_by": "dashboard"}),
-        json!({"name": "a", "key_": "b", "updated_by": "dashboard", "extra": true}),
+        json!({"name": "", "key": "b", "updated_by": "dashboard"}),
+        json!({"name": "a", "key": "   ", "updated_by": "dashboard"}),
+        json!({"name": "a", "key": "b", "updated_by": "dashboard", "extra": true}),
         json!({"name": "a", "updated_by": "dashboard"}),
-        json!({"name": "a", "key_": "b", "values_": ["m1"], "updated_by": "dashboard"}),
+        json!({"name": "a", "key": "b", "values": ["m1"], "updated_by": "dashboard"}),
     ] {
         let (status, response) = call(
             state(),
@@ -355,7 +355,7 @@ async fn storage_failures_return_500() {
         (actix_web::http::Method::GET, None),
         (
             actix_web::http::Method::PUT,
-            Some(json!({"name": "a", "key_": "b", "updated_by": "dashboard"})),
+            Some(json!({"name": "a", "key": "b", "updated_by": "dashboard"})),
         ),
     ] {
         let (status, response) = call(state.clone(), method, Some(API_KEY), payload).await;
@@ -397,14 +397,14 @@ async fn postgres_repository_replaces_and_lists_dictionary_entries() {
     let state = state_with_store(Arc::new(
         observability::db::Store::new(&database).await.unwrap(),
     ));
-    for values_ in ["[\"m1\"]", "[\"m2\"]"] {
+    for values in ["[\"m1\"]", "[\"m2\"]"] {
         assert_eq!(
             call(
                 state.clone(),
                 actix_web::http::Method::PUT,
                 Some(API_KEY),
                 Some(json!({
-                    "name": "dashboard", "key_": "merchant_id", "values_": values_,
+                    "name": "dashboard", "key": "merchant_id", "values": values,
                     "updated_by": "database-test"
                 })),
             )
@@ -415,5 +415,5 @@ async fn postgres_repository_replaces_and_lists_dictionary_entries() {
     }
     let (_, listed) = call(state, actix_web::http::Method::GET, Some(API_KEY), None).await;
     assert_eq!(listed["entries"].as_array().unwrap().len(), 1);
-    assert_eq!(listed["entries"][0]["values_"], "[\"m2\"]");
+    assert_eq!(listed["entries"][0]["values"], "[\"m2\"]");
 }

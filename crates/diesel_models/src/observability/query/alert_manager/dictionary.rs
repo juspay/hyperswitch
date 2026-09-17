@@ -14,7 +14,7 @@ use crate::{
 impl DictionaryEntry {
     pub async fn list(conn: &DatabaseConnectionWithContext<'_>) -> StorageResult<Vec<Self>> {
         dsl::alert_dictionary
-            .order((dsl::name, dsl::key_))
+            .order((dsl::name, dsl::key))
             .select(Self::as_select())
             .load_async(conn.raw_connection())
             .await
@@ -29,11 +29,11 @@ impl DictionaryEntryNew {
     ) -> StorageResult<DictionaryEntry> {
         diesel::insert_into(alert_dictionary::table)
             .values(self)
-            .on_conflict((dsl::name, dsl::key_))
+            .on_conflict((dsl::name, dsl::key))
             .do_update()
             .set((
                 dsl::product.eq(diesel::upsert::excluded(dsl::product)),
-                dsl::values_.eq(diesel::upsert::excluded(dsl::values_)),
+                dsl::values.eq(diesel::upsert::excluded(dsl::values)),
                 dsl::metadata.eq(diesel::upsert::excluded(dsl::metadata)),
                 dsl::updated_by.eq(diesel::upsert::excluded(dsl::updated_by)),
                 dsl::last_updated_at.eq(diesel::upsert::excluded(dsl::last_updated_at)),

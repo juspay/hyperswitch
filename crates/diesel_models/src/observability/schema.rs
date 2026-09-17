@@ -19,11 +19,11 @@ diesel::table! {
 }
 
 diesel::table! {
-    alert_dictionary (name, key_) {
+    alert_dictionary (name, key) {
         name -> Text,
-        key_ -> Text,
+        key -> Text,
         product -> Text,
-        values_ -> Text,
+        values -> Text,
         metadata -> Text,
         updated_by -> Text,
         last_updated_at -> Timestamp,

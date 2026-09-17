@@ -9,9 +9,9 @@ use crate::observability::schema::alert_dictionary;
 #[diesel(table_name = alert_dictionary)]
 pub struct DictionaryEntryNew {
     pub name: String,
-    pub key_: String,
+    pub key: String,
     pub product: String,
-    pub values_: String,
+    pub values: String,
     pub metadata: String,
     pub updated_by: String,
 }
@@ -19,14 +19,14 @@ pub struct DictionaryEntryNew {
 #[derive(Clone, Debug, Identifiable, Queryable, Selectable)]
 #[diesel(
     table_name = alert_dictionary,
-    primary_key(name, key_),
+    primary_key(name, key),
     check_for_backend(diesel::pg::Pg)
 )]
 pub struct DictionaryEntry {
     pub name: String,
-    pub key_: String,
+    pub key: String,
     pub product: String,
-    pub values_: String,
+    pub values: String,
     pub metadata: String,
     pub updated_by: String,
     pub last_updated_at: PrimitiveDateTime,
