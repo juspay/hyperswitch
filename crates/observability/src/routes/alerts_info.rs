@@ -2,7 +2,7 @@
 //! [`crate::routes::app`].
 
 use actix_web::{web, HttpRequest, HttpResponse};
-use api_models::observability::alerts_info::AlertsInfoCreateRequest;
+use api_models::observability::alert_manager::alerts_info::AlertsInfoCreateRequest;
 
 use crate::{auth, core, services, state::AppState};
 

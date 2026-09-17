@@ -9,3 +9,4 @@
 pub mod alerts_info;
 pub mod cloudwatch;
 pub mod notifier;
+pub mod thresholds;

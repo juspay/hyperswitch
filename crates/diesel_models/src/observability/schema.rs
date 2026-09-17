@@ -276,6 +276,22 @@ diesel::table! {
     }
 }
 
+diesel::table! {
+    success_rate_threshold_overrides (name, product, merchant_id, profile_id) {
+        name -> Text,
+        product -> Text,
+        merchant_id -> Text,
+        profile_id -> Text,
+        min_volume -> Nullable<Float8>,
+        min_impacted_volume -> Nullable<Float8>,
+        tolerance -> Nullable<Float8>,
+        diff_threshold -> Nullable<Float8>,
+        updated_by -> Text,
+        last_updated_at -> Timestamp,
+        is_deleted -> Bool,
+    }
+}
+
 diesel::joinable!(alerts_intermediate -> alerts_main (id));
 diesel::joinable!(alerts_intermediate_xyne -> alerts_main_xyne (id));
 diesel::joinable!(merchants_alert_external -> alerts_main (id));
@@ -294,4 +310,5 @@ diesel::allow_tables_to_appear_in_same_query!(
     merchants_alert_external_dimension,
     merchants_alert_external_xyne,
     notification_reads,
+    success_rate_threshold_overrides,
 );

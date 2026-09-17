@@ -6,5 +6,6 @@ pub mod app;
 pub mod cloudwatch;
 pub mod health_check;
 pub mod notify;
+pub mod thresholds;
 
 pub use self::app::{Alerts, Health};

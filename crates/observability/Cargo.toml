@@ -56,5 +56,7 @@ router_env = { version = "0.1.0", path = "../router_env", default-features = fal
 workspace = true
 
 [dev-dependencies]
+diesel = { version = "2.2.10", features = ["postgres", "time"] }
 time = { version = "0.3.41", features = ["macros", "std"] }
+url = "2.5.4"
 external_services = { version = "0.1.0", path = "../external_services", features = ["email"] }

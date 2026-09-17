@@ -1,8 +1,8 @@
 //! Alert definitions: what an alert is configured to watch, and how.
 
-use api_models::observability::alerts_info as api;
+use api_models::observability::alert_manager::alerts_info as api;
 use common_utils::generate_time_ordered_id;
-use diesel_models::observability::alerts_info as storage;
+use diesel_models::observability::alert_manager::alerts_info as storage;
 use error_stack::{report, ResultExt};
 use time::PrimitiveDateTime;
 
