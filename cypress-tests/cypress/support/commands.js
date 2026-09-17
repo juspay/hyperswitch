@@ -12142,14 +12142,19 @@ Cypress.Commands.add(
   (globalState, overrides, context) => {
     const superpositionBaseUrl = globalState.get("superpositionBaseUrl");
     const superpositionSecret = globalState.get("superpositionSecret");
+    const superpositionAuthToken = globalState.get("superpositionAuthToken");
     const orgId = globalState.get("superpositionOrgId") || "hyperswitch";
     const workspaceId =
       globalState.get("superpositionWorkspaceId") || "hyperswitch";
 
-    if (!superpositionBaseUrl || !superpositionSecret) {
+    if (
+      !superpositionBaseUrl ||
+      !superpositionSecret ||
+      !superpositionAuthToken
+    ) {
       cy.task(
         "cli_log",
-        "Superposition credentials not set (SUPERPOSITION_BASE_URL, SUPERPOSITION_SECRET) — skipping config set"
+        "Superposition credentials not set (SUPERPOSITION_BASE_URL, SUPERPOSITION_SECRET, SUPERPOSITION_AUTH_TOKEN) — skipping config set"
       );
       return;
     }
@@ -12162,6 +12167,7 @@ Cypress.Commands.add(
         "x-org-id": orgId,
         "x-workspace": workspaceId,
         "X-Superposition-Secret": superpositionSecret,
+        Authorization: `Bearer ${superpositionAuthToken}`,
         "Content-Type": "application/json",
       },
       body: {
@@ -12204,11 +12210,16 @@ Cypress.Commands.add(
 Cypress.Commands.add("deleteSuperpositionContext", (globalState, context) => {
   const superpositionBaseUrl = globalState.get("superpositionBaseUrl");
   const superpositionSecret = globalState.get("superpositionSecret");
+  const superpositionAuthToken = globalState.get("superpositionAuthToken");
   const orgId = globalState.get("superpositionOrgId") || "hyperswitch";
   const workspaceId =
     globalState.get("superpositionWorkspaceId") || "hyperswitch";
 
-  if (!superpositionBaseUrl || !superpositionSecret) {
+  if (
+    !superpositionBaseUrl ||
+    !superpositionSecret ||
+    !superpositionAuthToken
+  ) {
     cy.task(
       "cli_log",
       "Superposition credentials not set — skipping context delete"
@@ -12224,6 +12235,7 @@ Cypress.Commands.add("deleteSuperpositionContext", (globalState, context) => {
       "x-org-id": orgId,
       "x-workspace": workspaceId,
       "X-Superposition-Secret": superpositionSecret,
+      Authorization: `Bearer ${superpositionAuthToken}`,
       "Content-Type": "application/json",
     },
     body: { context },
@@ -12289,6 +12301,10 @@ Cypress.Commands.add(
           `Superposition config did not propagate within ${(maxAttempts * intervalMs) / 1000}s`
         );
       }
+      const suffix = `_${Date.now()}_${attempt}`;
+      const idPrefix = `config_poll_${label}`
+        .replace(/[^a-zA-Z0-9_-]/g, "_")
+        .slice(0, 64 - suffix.length);
       cy.request({
         method: "POST",
         url: `${globalState.get("baseUrl")}/payments`,
@@ -12299,7 +12315,7 @@ Cypress.Commands.add(
         body: {
           currency: "USD",
           amount: 100,
-          customer_id: `config_poll_${label}_${Date.now()}_${attempt}`,
+          customer_id: `${idPrefix}${suffix}`,
           authentication_type: "no_three_ds",
           capture_method: "automatic",
           profile_id: globalState.get("profileId"),
