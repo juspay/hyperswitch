@@ -137,8 +137,8 @@ pub struct BitpayPaymentResponseData {
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct BitpayPaymentsResponse {
-    data: BitpayPaymentResponseData,
-    facade: Option<String>,
+    pub data: BitpayPaymentResponseData,
+    pub facade: Option<String>,
 }
 
 impl<F, T> TryFrom<ResponseRouterData<F, BitpayPaymentsResponse, T, PaymentsResponseData>>
