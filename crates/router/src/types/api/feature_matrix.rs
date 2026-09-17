@@ -270,6 +270,9 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Etisalat => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Etisalat::new())))
                 }
+                enums::Connector::Merchante => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Merchante::new())))
+                }
                 enums::Connector::Nexixpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Nexixpay::new())))
                 }
