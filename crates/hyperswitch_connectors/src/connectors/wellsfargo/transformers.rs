@@ -131,7 +131,7 @@ impl TryFrom<&SetupMandateRouterData> for WellsfargoZeroMandateRequest {
                         PaymentMethodToken::ApplePayDecrypt(decrypt_data) => {
                             let expiration_month = decrypt_data.get_expiry_month().change_context(
                                 errors::ConnectorError::InvalidDataFormat {
-                                    field_name: "expiration_month",
+                                    field_name: "expiration_month".into(),
                                 },
                             )?;
                             let expiration_year = decrypt_data.get_four_digit_expiry_year();
@@ -169,7 +169,7 @@ impl TryFrom<&SetupMandateRouterData> for WellsfargoZeroMandateRequest {
                             .payment_data
                             .get_encrypted_apple_pay_payment_data_mandatory()
                             .change_context(errors::ConnectorError::MissingRequiredField {
-                                field_name: "Apple pay encrypted data",
+                                field_name: "Apple pay encrypted data".into(),
                             })?;
                         (
                             PaymentInformation::ApplePayToken(Box::new(
@@ -197,7 +197,7 @@ impl TryFrom<&SetupMandateRouterData> for WellsfargoZeroMandateRequest {
                                         .get_encrypted_google_pay_token()
                                         .change_context(
                                             errors::ConnectorError::MissingRequiredField {
-                                                field_name: "gpay wallet_token",
+                                                field_name: "gpay wallet_token".into(),
                                             },
                                         )?,
                                 ),
@@ -213,6 +213,7 @@ impl TryFrom<&SetupMandateRouterData> for WellsfargoZeroMandateRequest {
                 | WalletData::AmazonPayRedirect(_)
                 | WalletData::Paysera(_)
                 | WalletData::Skrill(_)
+                | WalletData::Neteller(_)
                 | WalletData::MomoRedirect(_)
                 | WalletData::KakaoPayRedirect(_)
                 | WalletData::GoPayRedirect(_)
@@ -1027,7 +1028,7 @@ impl
         let client_reference_information = ClientReferenceInformation::from(item);
         let expiration_month = apple_pay_data.get_expiry_month().change_context(
             errors::ConnectorError::InvalidDataFormat {
-                field_name: "expiration_month",
+                field_name: "expiration_month".into(),
             },
         )?;
         let expiration_year = apple_pay_data.get_four_digit_expiry_year();
@@ -1102,7 +1103,7 @@ impl
                                 .tokenization_data
                                 .get_encrypted_google_pay_token()
                                 .change_context(errors::ConnectorError::MissingRequiredField {
-                                    field_name: "gpay wallet_token",
+                                    field_name: "gpay wallet_token".into(),
                                 })?,
                         ),
                     ),
@@ -1136,12 +1137,17 @@ impl TryFrom<Option<common_enums::BankType>> for AccountType {
     fn try_from(optional_bank_type: Option<common_enums::BankType>) -> Result<Self, Self::Error> {
         match optional_bank_type {
             None => Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "bank_type",
+                field_name: "bank_type".into(),
             })?,
             Some(bank_type) => match bank_type {
                 common_enums::BankType::Checking => Ok(Self::C),
                 common_enums::BankType::Savings => Ok(Self::S),
-                b_type @ (common_enums::BankType::Salary | common_enums::BankType::Payment) => {
+                b_type @ (common_enums::BankType::Salary
+                | common_enums::BankType::Payment
+                | common_enums::BankType::Bond
+                | common_enums::BankType::Current
+                | common_enums::BankType::SubscriptionShare
+                | common_enums::BankType::Transmission) => {
                     Err(errors::ConnectorError::NotSupported {
                         message: format!("bank_type {b_type} is not supported"),
                         connector: "wellsfargo",
@@ -1262,7 +1268,7 @@ impl TryFrom<&WellsfargoRouterData<&PaymentsAuthorizeRouterData>> for Wellsfargo
                                         .get_encrypted_apple_pay_payment_data_mandatory()
                                         .change_context(
                                             errors::ConnectorError::MissingRequiredField {
-                                                field_name: "Apple pay encrypted data",
+                                                field_name: "Apple pay encrypted data".into(),
                                             },
                                         )?;
                                     let payment_information = PaymentInformation::ApplePayToken(
@@ -1322,6 +1328,7 @@ impl TryFrom<&WellsfargoRouterData<&PaymentsAuthorizeRouterData>> for Wellsfargo
                         | WalletData::AmazonPayRedirect(_)
                         | WalletData::Paysera(_)
                         | WalletData::Skrill(_)
+                        | WalletData::Neteller(_)
                         | WalletData::MomoRedirect(_)
                         | WalletData::KakaoPayRedirect(_)
                         | WalletData::GoPayRedirect(_)
@@ -1358,7 +1365,7 @@ impl TryFrom<&WellsfargoRouterData<&PaymentsAuthorizeRouterData>> for Wellsfargo
                         let connector_mandate_id =
                             item.router_data.request.connector_mandate_id().ok_or(
                                 errors::ConnectorError::MissingRequiredField {
-                                    field_name: "connector_mandate_id",
+                                    field_name: "connector_mandate_id".into(),
                                 },
                             )?;
                         Self::try_from((item, connector_mandate_id))
@@ -1566,7 +1573,7 @@ impl TryFrom<&WellsfargoRouterData<&PaymentsCancelRouterData>> for WellsfargoVoi
                     total_amount: value.amount.to_owned(),
                     currency: value.router_data.request.currency.ok_or(
                         errors::ConnectorError::MissingRequiredField {
-                            field_name: "Currency",
+                            field_name: "Currency".into(),
                         },
                     )?,
                 },
@@ -1576,7 +1583,7 @@ impl TryFrom<&WellsfargoRouterData<&PaymentsCancelRouterData>> for WellsfargoVoi
                     .cancellation_reason
                     .clone()
                     .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "Cancellation Reason",
+                        field_name: "Cancellation Reason".into(),
                     })?,
             },
             merchant_defined_information,
@@ -1827,6 +1834,7 @@ fn get_payment_response(
                 incremental_authorization_allowed,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             })
         }
     }
@@ -2021,6 +2029,7 @@ impl
                     ),
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
             },
             connector_response,
@@ -2128,6 +2137,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<WellsfargoTransactionResponse>>
                             incremental_authorization_allowed,
                             authentication_data: None,
                             charges: None,
+                            payment_account_reference: None,
                         }),
                         ..item.data
                     })
@@ -2146,6 +2156,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<WellsfargoTransactionResponse>>
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             }),

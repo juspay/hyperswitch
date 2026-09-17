@@ -213,17 +213,19 @@ where
     );
 
     if is_eligible_pm {
-        let is_volatile = payment_data
+        // A volatile record with no customer is a guest flow: it is never promoted out of redis,
+        // so there is nothing for the modular update to acknowledge.
+        let is_guest_volatile_payment_method = payment_data
             .get_payment_method_info()
-            .map(|pm| pm.is_pm_volatile());
+            .is_some_and(|pm| pm.is_pm_volatile() && pm.customer_id.is_none());
 
         let payment_method_id = payment_data
             .payment_method_info
             .as_ref()
             .map(|pm_info| pm_info.get_id().clone());
 
-        match (is_volatile, payment_method_id) {
-            (Some(false), Some(pm_id)) => {
+        match (is_guest_volatile_payment_method, payment_method_id) {
+            (false, Some(pm_id)) => {
                 let should_update = resp.status.should_update_payment_method();
 
                 let payment_method_type = payment_data
@@ -365,25 +367,47 @@ where
                         .await
                         {
                             Ok(_) => {
-                                logger::info!("Successfully called modular payment method update");
+                                logger::info!(
+                                    payment_method_id=%pm_id,
+                                    "Successfully called modular payment method update"
+                                );
                             }
                             Err(err) => {
+                                // Non-fatal by design: the attempt still gets the pm_id below,
+                                // so this log is the only trace the modular update failed and
+                                // the payment method may be stale (missing connector token /
+                                // NTI / acknowledgement).
                                 logger::error!(
-                                    "Failed to call modular payment method update: {}",
-                                    err
+                                    error=%err,
+                                    payment_method_id=%pm_id,
+                                    merchant_id=%payment_data.payment_attempt.processor_merchant_id.get_string_repr(),
+                                    profile_id=%payment_data.payment_attempt.profile_id.get_string_repr(),
+                                    "Failed to call modular payment method update; continuing with possibly stale payment method"
                                 );
                             }
                         };
                         payment_data.payment_attempt.payment_method_id = Some(pm_id.clone());
                     } else {
-                        logger::info!("No updates found for modular payment method update call");
+                        logger::info!(
+                            payment_method_id=%pm_id,
+                            "No updates found for modular payment method update call"
+                        );
                     }
                 }
             }
-            (_, _) => {
-                logger::info!("Payment method is not eligible for modular update");
+            (is_guest_volatile_payment_method, payment_method_id) => {
+                logger::info!(
+                    ?is_guest_volatile_payment_method,
+                    ?payment_method_id,
+                    "Payment method is not eligible for modular update (guest volatile flow, or no payment method attached)"
+                );
             }
         }
+    } else {
+        logger::debug!(
+            payment_method=?payment_data.payment_attempt.payment_method,
+            "Payment method type is not eligible for modular update; skipping"
+        );
     }
     Ok(())
 }
@@ -637,7 +661,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             .ok_or_else(|| {
                 logger::error!("Missing required Param connector_name");
                 errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "connector_name",
+                    field_name: "connector_name".into(),
                 }
             })?;
         let merchant_connector_id = payment_data.payment_attempt.merchant_connector_id.clone();
@@ -932,14 +956,20 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                 .get_payment_method_info()
                 .map(|pm| pm.last_modified),
         ) {
-            let _ = update_pm_connector_mandate_details(
+            if let Err(err) = update_pm_connector_mandate_details(
                 state,
                 provider,
                 initiator,
                 payment_data,
                 router_data,
             )
-            .await;
+            .await
+            {
+                logger::error!(
+                    error=?err,
+                    "Failed to update legacy payment method connector mandate details"
+                );
+            }
         }
         Ok(())
     }
@@ -1255,14 +1285,20 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
                 .get_payment_method_info()
                 .map(|pm| pm.last_modified),
         ) {
-            let _ = update_pm_connector_mandate_details(
+            if let Err(err) = update_pm_connector_mandate_details(
                 state,
                 provider,
                 initiator,
                 payment_data,
                 router_data,
             )
-            .await;
+            .await
+            {
+                logger::error!(
+                    error=?err,
+                    "Failed to update legacy payment method connector mandate details"
+                );
+            }
         }
         Ok(())
     }
@@ -1991,7 +2027,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
             .ok_or_else(|| {
                 logger::error!("Missing required Param connector_name");
                 errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "connector_name",
+                    field_name: "connector_name".into(),
                 }
             })?;
         let connector_mandate_reference_id = payment_data
@@ -2108,14 +2144,20 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
                 .get_payment_method_info()
                 .map(|pm| pm.last_modified),
         ) {
-            let _ = update_pm_connector_mandate_details(
+            if let Err(err) = update_pm_connector_mandate_details(
                 state,
                 provider,
                 initiator,
                 payment_data,
                 router_data,
             )
-            .await;
+            .await
+            {
+                logger::error!(
+                    error=?err,
+                    "Failed to update legacy payment method connector mandate details"
+                );
+            }
         }
         Ok(())
     }
@@ -2259,14 +2301,20 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
                 .get_payment_method_info()
                 .map(|pm| pm.last_modified),
         ) {
-            let _ = update_pm_connector_mandate_details(
+            if let Err(err) = update_pm_connector_mandate_details(
                 state,
                 provider,
                 initiator,
                 payment_data,
                 router_data,
             )
-            .await;
+            .await
+            {
+                logger::error!(
+                    error=?err,
+                    "Failed to update legacy payment method connector mandate details"
+                );
+            }
         }
         Ok(())
     }
@@ -2681,6 +2729,12 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 .ok()
                                 .and_then(|resp| resp.get_network_transaction_link_id());
 
+                            let payment_account_reference = router_data
+                                .response
+                                .as_ref()
+                                .ok()
+                                .and_then(|resp| resp.get_payment_account_reference());
+
                             let encoded_data = payment_data.payment_attempt.encoded_data.clone();
 
                             let authentication_data = (*redirection_data)
@@ -2873,6 +2927,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                         sender_payment_instrument_id: router_data
                                             .sender_payment_instrument_id
                                             .clone(),
+                                        payment_account_reference,
                                     }),
                                 ),
                             };
@@ -4683,6 +4738,7 @@ impl<F: Clone + Send + Sync>
                                         phone_country_code: None,
                                         tax_registration_id: None,
                                         customer_document_details: Some(customer_document_details),
+                                        date_of_birth: None,
                                     });
                                 }
 

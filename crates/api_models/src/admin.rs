@@ -421,6 +421,17 @@ pub struct MerchantAccountMetadata {
     pub data: Option<pii::SecretSerdeValue>,
 }
 
+/// Merchant-level Offer Engine credentials (Offer Engine issues one account per merchant)
+#[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
+pub struct OfferEngineMerchantConfig {
+    /// API key issued by Offer Engine for this merchant
+    #[schema(value_type = String)]
+    pub api_key: Secret<String>,
+
+    /// The Offer Engine merchant id sent in Offer Engine request bodies
+    pub merchant_id: String,
+}
+
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -502,6 +513,10 @@ pub struct MerchantAccountUpdate {
     /// Network tokenization credentials for this merchant account
     #[schema(value_type = Option<NetworkTokeizationProviderCredentials>)]
     pub network_tokenization_credentials: Option<NetworkTokeizationProviderCredentials>,
+
+    /// Merchant-level Offer Engine credentials, used when the resolved credential source is `merchant`
+    #[schema(value_type = Option<OfferEngineMerchantConfig>)]
+    pub offer_engine_config: Option<OfferEngineMerchantConfig>,
 }
 
 #[cfg(feature = "v1")]
@@ -883,16 +898,28 @@ pub struct WebhookDetails {
 
     /// List of payment statuses that triggers a webhook for payment intents
     #[schema(value_type = Vec<IntentStatus>, example = json!(["succeeded", "failed", "partially_captured", "requires_merchant_action"]))]
-    pub payment_statuses_enabled: Option<Vec<api_enums::IntentStatus>>,
+    pub payment_statuses_enabled: Option<HashSet<api_enums::IntentStatus>>,
 
     /// List of refund statuses that triggers a webhook for refunds
-    #[schema(value_type = Vec<IntentStatus>, example = json!(["success", "failure"]))]
-    pub refund_statuses_enabled: Option<Vec<api_enums::RefundStatus>>,
+    #[schema(value_type = Vec<RefundStatus>, example = json!(["success", "failure"]))]
+    pub refund_statuses_enabled: Option<HashSet<api_enums::RefundStatus>>,
 
     /// List of payout statuses that triggers a webhook for payouts
     #[cfg(feature = "payouts")]
     #[schema(value_type = Option<Vec<PayoutStatus>>, example = json!(["success", "failed"]))]
-    pub payout_statuses_enabled: Option<Vec<api_enums::PayoutStatus>>,
+    pub payout_statuses_enabled: Option<HashSet<api_enums::PayoutStatus>>,
+
+    /// List of dispute statuses that trigger outgoing webhooks for disputes
+    #[schema(value_type = Option<Vec<DisputeStatus>>, example = json!(["dispute_opened", "dispute_won"]))]
+    pub dispute_statuses_enabled: Option<HashSet<api_enums::DisputeStatus>>,
+
+    /// List of mandate statuses that trigger outgoing webhooks for mandates
+    #[schema(value_type = Option<Vec<MandateStatus>>, example = json!(["active", "inactive"]))]
+    pub mandate_statuses_enabled: Option<HashSet<api_enums::MandateStatus>>,
+
+    /// List of invoice statuses that trigger outgoing webhooks for subscriptions
+    #[schema(value_type = Option<Vec<InvoiceStatus>>, example = json!(["invoice_paid"]))]
+    pub invoice_statuses_enabled: Option<HashSet<api_enums::InvoiceStatus>>,
 }
 
 impl WebhookDetails {
@@ -919,24 +946,33 @@ impl WebhookDetails {
             payout_statuses_enabled: other
                 .payout_statuses_enabled
                 .or(self.payout_statuses_enabled),
+            dispute_statuses_enabled: other
+                .dispute_statuses_enabled
+                .or(self.dispute_statuses_enabled),
+            mandate_statuses_enabled: other
+                .mandate_statuses_enabled
+                .or(self.mandate_statuses_enabled),
+            invoice_statuses_enabled: other
+                .invoice_statuses_enabled
+                .or(self.invoice_statuses_enabled),
         }
     }
 
-    fn validate_statuses<T>(statuses: &[T], status_type_name: &str) -> Result<(), String>
+    fn validate_statuses<T>(statuses: &HashSet<T>, status_type_name: &str) -> Result<(), String>
     where
-        T: strum::IntoEnumIterator + Copy + PartialEq + std::fmt::Debug,
+        T: strum::IntoEnumIterator + Copy + Eq + std::hash::Hash + std::fmt::Debug,
         T: Into<Option<api_enums::EventType>>,
     {
-        let valid_statuses: Vec<T> = T::iter().filter(|s| (*s).into().is_some()).collect();
+        let valid_statuses: HashSet<T> = T::iter().filter(|s| (*s).into().is_some()).collect();
 
-        for status in statuses {
-            if !valid_statuses.contains(status) {
-                return Err(format!(
+        statuses
+            .iter()
+            .find(|status| !valid_statuses.contains(status))
+            .map_or(Ok(()), |status| {
+                Err(format!(
                     "Invalid {status_type_name} webhook status provided: {status:?}"
-                ));
-            }
-        }
-        Ok(())
+                ))
+            })
     }
 
     pub fn validate(&self) -> Result<(), String> {
@@ -953,6 +989,18 @@ impl WebhookDetails {
             if let Some(payout_statuses) = &self.payout_statuses_enabled {
                 Self::validate_statuses(payout_statuses, "payout")?;
             }
+        }
+
+        if let Some(dispute_statuses) = &self.dispute_statuses_enabled {
+            Self::validate_statuses(dispute_statuses, "dispute")?;
+        }
+
+        if let Some(mandate_statuses) = &self.mandate_statuses_enabled {
+            Self::validate_statuses(mandate_statuses, "mandate")?;
+        }
+
+        if let Some(invoice_statuses) = &self.invoice_statuses_enabled {
+            Self::validate_statuses(invoice_statuses, "invoice")?;
         }
 
         Ok(())
@@ -1248,6 +1296,11 @@ pub struct RevenueRecoveryMetadata {
     /// Maximum number of `billing connector` retries before revenue recovery can start executing retries.
     #[schema(value_type = u16, example = "10")]
     pub billing_connector_retry_threshold: u16,
+    /// Number of cascading (static) retries an invoice may use under the hybrid static + adaptive
+    /// scheme.
+    #[serde(default)]
+    #[schema(value_type = u16, example = "5")]
+    pub max_hybrid_cascading_retry_count: u16,
     /// Billing account reference id is payment gateway id at billing connector end.
     /// Merchants need to provide a mapping between these merchant connector account and the corresponding account reference IDs for each `billing connector`.
     #[schema(value_type = u16, example = r#"{ "mca_vDSg5z6AxnisHq5dbJ6g": "stripe_123", "mca_vDSg5z6AumisHqh4x5m1": "adyen_123" }"#)]

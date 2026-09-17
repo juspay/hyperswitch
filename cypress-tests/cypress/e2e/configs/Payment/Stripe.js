@@ -155,6 +155,9 @@ const payment_method_data_3ds = {
   card: {
     last4: "3155",
     card_type: "CREDIT",
+    card_subtype: "VISA TRADITIONAL",
+    card_segment_type: "consumer",
+    funding_source: "CREDIT",
     card_network: "Visa",
     card_issuer: "INTL HDQTRS CENTER OWNED",
     card_issuing_country: "UNITED STATES OF AMERICA",
@@ -174,6 +177,9 @@ const payment_method_data_no3ds = {
   card: {
     last4: "0005",
     card_type: "CREDIT",
+    card_subtype: "CORPORATE",
+    card_segment_type: null,
+    funding_source: null,
     card_network: "AmericanExpress",
     card_issuer: "AMERICAN EXPRESS US CARS",
     card_issuing_country: "UNITED STATES OF AMERICA",
@@ -634,6 +640,7 @@ export const connectorDetails = {
     },
     MandateSingleUseNo3DSAutoCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -650,6 +657,7 @@ export const connectorDetails = {
     },
     MandateSingleUseNo3DSManualCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -666,6 +674,7 @@ export const connectorDetails = {
     },
     MandateMultiUseNo3DSAutoCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -682,6 +691,7 @@ export const connectorDetails = {
     },
     MandateMultiUseNo3DSManualCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -747,7 +757,7 @@ export const connectorDetails = {
       ...commonConnectorDetails.card_pm.MITAutoCaptureWithCustomerAcceptance,
     }),
     MITManualCapture: {
-      Request: {},
+      Request: { amount: 6000 },
       Response: {
         status: 200,
         body: {
@@ -757,6 +767,7 @@ export const connectorDetails = {
     },
     ZeroAuthMandate: {
       Request: {
+        amount: 0,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -787,6 +798,7 @@ export const connectorDetails = {
     },
     ZeroAuthConfirmPayment: {
       Request: {
+        amount: 0,
         payment_type: "setup_mandate",
         payment_method: "card",
         payment_method_type: "credit",
@@ -840,6 +852,7 @@ export const connectorDetails = {
     },
     PaymentMethodIdMandateNo3DSAutoCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -959,6 +972,7 @@ export const connectorDetails = {
     },
     PaymentMethodIdMandateNo3DSManualCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -976,6 +990,7 @@ export const connectorDetails = {
     },
     PaymentMethodIdMandate3DSAutoCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
@@ -994,6 +1009,7 @@ export const connectorDetails = {
     },
     PaymentMethodIdMandate3DSManualCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
@@ -1235,6 +1251,7 @@ export const connectorDetails = {
       },
       MandateSingleUseAutoCapture: {
         Request: {
+          amount: 6540,
           ...idealBaseRequest,
           billing: {
             ...idealBaseRequest.billing,
@@ -1379,6 +1396,7 @@ export const connectorDetails = {
       },
       MandateSingleUseAutoCapture: {
         Request: {
+          amount: 6540,
           ...bancontactBaseRequest,
           ...mandateSingleUseFields,
         },
@@ -2640,5 +2658,15 @@ export const connectorDetails = {
         },
       },
     }),
+  },
+  Dispute: {
+    AcceptDispute: {
+      Response: {
+        status: 200,
+        body: {
+          dispute_status: "dispute_accepted",
+        },
+      },
+    },
   },
 };

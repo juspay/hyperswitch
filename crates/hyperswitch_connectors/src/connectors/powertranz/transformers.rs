@@ -11,7 +11,6 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::{consts, errors};
 use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
@@ -163,7 +162,7 @@ impl TryFrom<&PowertranzRouterData<&PaymentsAuthorizeRouterData>> for Powertranz
             AuthenticationType::NoThreeDs => (false, None),
         };
         Ok(Self {
-            transaction_identifier: Uuid::new_v4().to_string(),
+            transaction_identifier: common_utils::generate_uuid_v4().to_string(),
             total_amount: item.amount,
             currency_code: item.router_data.request.currency.iso_4217().to_string(),
             three_d_secure,
@@ -363,6 +362,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PowertranzBaseResponse, T, PaymentsResp
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             Err,
         );

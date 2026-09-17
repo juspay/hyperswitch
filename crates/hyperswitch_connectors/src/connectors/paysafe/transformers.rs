@@ -76,6 +76,7 @@ pub struct PaysafePaymentMethodDetails {
     pub interac: Option<HashMap<Currency, RedirectAccountId>>,
     pub pay_safe_card: Option<HashMap<Currency, RedirectAccountId>>,
     pub skrill: Option<HashMap<Currency, RedirectAccountId>>,
+    pub neteller: Option<HashMap<Currency, RedirectAccountId>>,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -120,7 +121,7 @@ impl TryFrom<&ConnectorCustomerRouterData> for PaysafeCustomerDetails {
                 received_length: customer_id.get_string_repr().len(),
             }),
             None => Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "customer_id",
+                field_name: "customer_id".into(),
             }),
         }?;
 
@@ -241,6 +242,9 @@ pub enum PaysafePaymentMethod {
     },
     Skrill {
         skrill: SkrillWallet,
+    },
+    Neteller {
+        neteller: NetellerWallet,
     },
 }
 
@@ -363,6 +367,12 @@ pub struct SkrillWallet {
 
 #[derive(Debug, Serialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
+pub struct NetellerWallet {
+    pub consumer_id: Email,
+}
+
+#[derive(Debug, Serialize, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct InteracBankRedirect {
     pub consumer_id: Email,
 }
@@ -395,6 +405,7 @@ pub enum PaysafePaymentType {
     // For Apple Pay and Google Pay, paymentType is 'CARD' as per Paysafe docs and is not reserved for card payments only
     Card,
     Skrill,
+    Neteller,
     InteracEtransfer,
     Paysafecard,
 }
@@ -468,6 +479,19 @@ impl PaysafePaymentMethodDetails {
             .and_then(|skrill| skrill.three_ds.clone())
             .ok_or(errors::ConnectorError::InvalidConnectorConfig {
                 config: "Missing skrill account_id",
+            })
+    }
+
+    pub fn get_neteller_account_id(
+        &self,
+        currency: Currency,
+    ) -> Result<Secret<String>, errors::ConnectorError> {
+        self.neteller
+            .as_ref()
+            .and_then(|wallets| wallets.get(&currency))
+            .and_then(|neteller| neteller.three_ds.clone())
+            .ok_or(errors::ConnectorError::InvalidConnectorConfig {
+                config: "Missing neteller account_id",
             })
     }
 
@@ -645,6 +669,7 @@ impl TryFrom<&PaysafeRouterData<&PaymentsPreProcessingRouterData>> for PaysafePa
                     | WalletData::AmazonPayRedirect(_)
                     | WalletData::Paysera(_)
                     | WalletData::Skrill(_)
+                    | WalletData::Neteller(_)
                     | WalletData::BluecodeRedirect {}
                     | WalletData::MomoRedirect(_)
                     | WalletData::KakaoPayRedirect(_)
@@ -802,6 +827,7 @@ impl TryFrom<&PaysafeRouterData<&TokenizationRouterData>> for PaysafePaymentHand
                     | WalletData::AmazonPayRedirect(_)
                     | WalletData::Paysera(_)
                     | WalletData::Skrill(_)
+                    | WalletData::Neteller(_)
                     | WalletData::BluecodeRedirect {}
                     | WalletData::MomoRedirect(_)
                     | WalletData::KakaoPayRedirect(_)
@@ -940,6 +966,7 @@ impl TryFrom<PaymentsPreprocessingResponseRouterData<PaysafePaymentHandleRespons
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             payment_method_token: Some(PaymentMethodToken::Token(
                 item.response.payment_handle_token.clone(),
@@ -1015,6 +1042,7 @@ impl TryFrom<PaymentsResponseRouterData<PaysafePaymentsResponse>> for PaymentsAu
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -1054,6 +1082,7 @@ impl TryFrom<PaymentsResponseRouterData<PaysafePaymentHandleResponse>>
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -1161,7 +1190,7 @@ fn get_apple_pay_decrypt_data(
         application_expiration_date: apple_pay_predecrypt_data
             .get_expiry_date_as_yymm()
             .change_context(errors::ConnectorError::InvalidDataFormat {
-                field_name: "application_expiration_date",
+                field_name: "application_expiration_date".into(),
             })?,
         currency_code: Currency::iso_4217(currency).to_string(),
         transaction_amount: Some(amount),
@@ -1226,13 +1255,13 @@ impl
                             let decoded_data = base64::prelude::BASE64_STANDARD
                                 .decode(applepay_encrypt_data)
                                 .change_context(errors::ConnectorError::InvalidDataFormat {
-                                    field_name: "apple_pay_encrypted_data",
+                                    field_name: "apple_pay_encrypted_data".into(),
                                 })?;
 
                             let apple_pay_token: DecryptedApplePayTokenData =
                                 serde_json::from_slice(&decoded_data).change_context(
                                     errors::ConnectorError::InvalidDataFormat {
-                                        field_name: "apple_pay_token_json",
+                                        field_name: "apple_pay_token_json".into(),
                                     },
                                 )?;
 
@@ -1327,13 +1356,13 @@ impl
                             let decoded_data = base64::prelude::BASE64_STANDARD
                                 .decode(applepay_encrypt_data)
                                 .change_context(errors::ConnectorError::InvalidDataFormat {
-                                    field_name: "apple_pay_encrypted_data",
+                                    field_name: "apple_pay_encrypted_data".into(),
                                 })?;
 
                             let apple_pay_token: DecryptedApplePayTokenData =
                                 serde_json::from_slice(&decoded_data).change_context(
                                     errors::ConnectorError::InvalidDataFormat {
-                                        field_name: "apple_pay_token_json",
+                                        field_name: "apple_pay_token_json".into(),
                                     },
                                 )?;
 
@@ -1413,7 +1442,8 @@ impl TryFrom<&PaymentsAuthorizeRouterData> for PaysafeMandateData {
                             .get_payment_method_token()
                     })
                     .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "payment_token (preprocessing_id or payment_method_token)",
+                        field_name: "payment_token (preprocessing_id or payment_method_token)"
+                            .into(),
                     })?,
             }),
             (false, Some(mandate_data)) => {
@@ -1447,7 +1477,8 @@ impl TryFrom<&PaymentsAuthorizeRouterData> for PaysafeMandateData {
                             .get_payment_method_token()
                     })
                     .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "payment_token (preprocessing_id or payment_method_token)",
+                        field_name: "payment_token (preprocessing_id or payment_method_token)"
+                            .into(),
                     })?,
             }),
         }
@@ -1614,6 +1645,16 @@ impl TryFrom<&PaysafeRouterData<&PaymentsAuthorizeRouterData>> for PaysafePaymen
                     let account_id = metadata.account_id.get_skrill_account_id(currency_code)?;
                     (payment_method, payment_type, account_id, None, None)
                 }
+                PaymentMethodData::Wallet(WalletData::Neteller(_)) => {
+                    let payment_method = PaysafePaymentMethod::Neteller {
+                        neteller: NetellerWallet {
+                            consumer_id: item.router_data.get_billing_email()?,
+                        },
+                    };
+                    let payment_type = PaysafePaymentType::Neteller;
+                    let account_id = metadata.account_id.get_neteller_account_id(currency_code)?;
+                    (payment_method, payment_type, account_id, None, None)
+                }
                 PaymentMethodData::Wallet(_) => Err(errors::ConnectorError::NotImplemented(
                     "Payment Method".to_string(),
                 ))?,
@@ -1747,6 +1788,7 @@ impl<F>
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -1983,6 +2025,7 @@ impl<F> TryFrom<ResponseRouterData<F, PaysafeSyncResponse, PaymentsSyncData, Pay
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             })
         };
 
@@ -2060,6 +2103,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PaysafeSettlementResponse, T, PaymentsR
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -2130,6 +2174,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, VoidResponse, T, PaymentsResponseData>>
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })

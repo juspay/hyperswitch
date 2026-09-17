@@ -162,6 +162,64 @@ impl From<Secret<String>> for MaskedBankAccount {
     }
 }
 
+/// A generically masked value, for identifiers that have no more specific masked type.
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct MaskedValue<const UNMASKED_CHAR_COUNT: usize = 4, const MIN_MASKED_CHAR_COUNT: usize = 4>(
+    Secret<String>,
+);
+
+impl<const UNMASKED_CHAR_COUNT: usize, const MIN_MASKED_CHAR_COUNT: usize> From<String>
+    for MaskedValue<UNMASKED_CHAR_COUNT, MIN_MASKED_CHAR_COUNT>
+{
+    fn from(src: String) -> Self {
+        let masked_value = apply_mask(src.as_ref(), UNMASKED_CHAR_COUNT, MIN_MASKED_CHAR_COUNT);
+        Self(Secret::from(masked_value))
+    }
+}
+
+impl<const UNMASKED_CHAR_COUNT: usize, const MIN_MASKED_CHAR_COUNT: usize> From<Secret<String>>
+    for MaskedValue<UNMASKED_CHAR_COUNT, MIN_MASKED_CHAR_COUNT>
+{
+    fn from(secret: Secret<String>) -> Self {
+        Self::from(secret.expose())
+    }
+}
+
+/// Masked card number, revealing the first six and last four digits.
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct MaskedCardNumber(hyperswitch_masking::StrongSecret<String>);
+impl From<String> for MaskedCardNumber {
+    fn from(src: String) -> Self {
+        const UNMASKED_PREFIX_LEN: usize = 6;
+        const UNMASKED_SUFFIX_LEN: usize = 4;
+
+        let len = src.len();
+        let masked_value = if len <= UNMASKED_PREFIX_LEN + UNMASKED_SUFFIX_LEN {
+            apply_mask(src.as_ref(), UNMASKED_SUFFIX_LEN, UNMASKED_SUFFIX_LEN)
+        } else {
+            src.chars()
+                .enumerate()
+                .map(|(index, ch)| {
+                    if index >= UNMASKED_PREFIX_LEN
+                        && index < len - UNMASKED_SUFFIX_LEN
+                        && ch.is_alphanumeric()
+                    {
+                        '*'
+                    } else {
+                        ch
+                    }
+                })
+                .collect()
+        };
+        Self(hyperswitch_masking::StrongSecret::new(masked_value))
+    }
+}
+impl From<Secret<String>> for MaskedCardNumber {
+    fn from(secret: Secret<String>) -> Self {
+        Self::from(secret.expose())
+    }
+}
+
 /// Masked IBAN
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct MaskedIban(Secret<String>);

@@ -52,7 +52,6 @@ use hyperswitch_masking::{ExposeInterface, Mask};
 use lazy_static::lazy_static;
 use serde_json::Value;
 use transformers as nexixpay;
-use uuid::Uuid;
 
 use crate::{
     constants::headers,
@@ -159,7 +158,7 @@ impl ConnectorCommon for Nexixpay {
             ),
             (
                 headers::CORRELATION_ID.to_string(),
-                Uuid::new_v4().to_string().into_masked(),
+                common_utils::generate_uuid_v4().to_string().into_masked(),
             ),
         ])
     }
@@ -480,7 +479,7 @@ impl ConnectorIntegration<PreAuthenticate, PaymentsPreAuthenticateData, Payments
             req.request
                 .currency
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "currency",
+                    field_name: "currency".into(),
                 })?,
         )?;
 
@@ -882,7 +881,7 @@ fn get_payment_id(
     (metadata, payment_intent): (Option<Value>, Option<nexixpay::NexixpayPaymentIntent>),
 ) -> CustomResult<String, errors::ConnectorError> {
     let connector_metadata = metadata.ok_or(errors::ConnectorError::MissingRequiredField {
-        field_name: "connector_meta",
+        field_name: "connector_meta".into(),
     })?;
     let nexixpay_meta_data =
         serde_json::from_value::<nexixpay::NexixpayConnectorMetaData>(connector_metadata)
@@ -896,7 +895,7 @@ fn get_payment_id(
     };
     payment_id.ok_or_else(|| {
         errors::ConnectorError::MissingRequiredField {
-            field_name: "operation_id",
+            field_name: "operation_id".into(),
         }
         .into()
     })
@@ -911,7 +910,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     {
         let mut header = vec![(
             headers::IDEMPOTENCY_KEY.to_string(),
-            Uuid::new_v4().to_string().into_masked(),
+            common_utils::generate_uuid_v4().to_string().into_masked(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
@@ -1011,7 +1010,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Ne
     {
         let mut header = vec![(
             headers::IDEMPOTENCY_KEY.to_string(),
-            Uuid::new_v4().to_string().into_masked(),
+            common_utils::generate_uuid_v4().to_string().into_masked(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
@@ -1047,13 +1046,13 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Ne
             req.request
                 .minor_amount
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "amount",
+                    field_name: "amount".into(),
                 })?;
         let currency =
             req.request
                 .currency
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "currency",
+                    field_name: "currency".into(),
                 })?;
         let amount = utils::convert_amount(self.amount_converter, minor_amount, currency)?;
 
@@ -1118,7 +1117,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Nexixpa
     {
         let mut header = vec![(
             headers::IDEMPOTENCY_KEY.to_string(),
-            Uuid::new_v4().to_string().into_masked(),
+            common_utils::generate_uuid_v4().to_string().into_masked(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);

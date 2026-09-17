@@ -10,6 +10,7 @@ use crate::{
         errors::{ConnectorErrorExt, RouterResult},
         fraud_check::types::FrmData,
         payments::{self, helpers},
+        utils::get_gateway_frm_metadata,
     },
     errors, services,
     types::{
@@ -47,6 +48,7 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
         state: &SessionState,
         connector_id: &str,
         processor: &domain::Processor,
+        _business_profile: &domain::Profile,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         _merchant_recipient_data: Option<MerchantRecipientData>,
         header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
@@ -140,6 +142,7 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
                 email,
                 phone,
                 phone_country_code,
+                gateway_metadata: get_gateway_frm_metadata(&state.conf, &self.payment_attempt)?,
             },
             response: Ok(FraudCheckResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId("".to_string()),
@@ -154,7 +157,7 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
             payment_method_token: None,
             connector_customer: None,
             preprocessing_id: None,
-            connector_request_reference_id: uuid::Uuid::new_v4().to_string(),
+            connector_request_reference_id: common_utils::generate_uuid_v4().to_string(),
             test_mode: None,
             recurring_mandate_payment_data: None,
             #[cfg(feature = "payouts")]
@@ -192,6 +195,7 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
             feature_data: None,
             sender_payment_instrument_id: None,
             connector_returned_payment_method_details: None,
+            customer_date_of_birth: None,
         };
 
         Ok(router_data)
