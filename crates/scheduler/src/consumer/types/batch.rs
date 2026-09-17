@@ -82,7 +82,7 @@ impl ProcessTrackerBatch {
                     .change_context(errors::ParsingError::UnknownError)
                     .change_context(errors::ProcessTrackerError::DeserializationFailed)?,
             )
-            .attach_printable_lazy(|| format!("Unable to parse time {}", &created_time))
+            .attach_printable_lazy(|| format!("Unable to parse time {}", created_time))
             .change_context(errors::ProcessTrackerError::MissingRequiredField)?;
             PrimitiveDateTime::new(offset_date_time.date(), offset_date_time.time())
         };

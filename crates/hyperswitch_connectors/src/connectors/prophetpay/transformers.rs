@@ -207,6 +207,7 @@ impl TryFrom<PaymentsResponseRouterData<ProphetpayTokenResponse>>
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -222,7 +223,7 @@ fn get_redirect_url_form(
     form_fields.insert(
         String::from("redirectUrl"),
         complete_auth_url.ok_or(errors::ConnectorError::MissingRequiredField {
-            field_name: "complete_auth_url",
+            field_name: "complete_auth_url".into(),
         })?,
     );
 
@@ -273,7 +274,7 @@ fn get_card_token(
     response: Option<CompleteAuthorizeRedirectResponse>,
 ) -> CustomResult<String, errors::ConnectorError> {
     let res = response.ok_or(errors::ConnectorError::MissingRequiredField {
-        field_name: "redirect_response",
+        field_name: "redirect_response".into(),
     })?;
     let queries_params = res
         .params
@@ -303,7 +304,7 @@ fn get_card_token(
     }
 
     Err(errors::ConnectorError::MissingRequiredField {
-        field_name: "card_token",
+        field_name: "card_token".into(),
     }
     .into())
 }
@@ -407,6 +408,7 @@ impl<F>
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             })
@@ -462,6 +464,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, ProphetpaySyncResponse, T, PaymentsResp
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             })
@@ -517,6 +520,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, ProphetpayVoidResponse, T, PaymentsResp
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             })
@@ -626,7 +630,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, ProphetpayRefundResponse>>
                     // no refund id is generated, tranSeqNumber is kept for future usage
                     connector_refund_id: item.response.tran_seq_number.ok_or(
                         errors::ConnectorError::MissingRequiredField {
-                            field_name: "tran_seq_number",
+                            field_name: "tran_seq_number".into(),
                         },
                     )?,
                     refund_status: enums::RefundStatus::Success,

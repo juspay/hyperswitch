@@ -160,6 +160,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, StripebillingPaymentsResponse, T, Payme
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -510,7 +511,7 @@ pub enum StripebillingChargeStatus {
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 // This is the default hard coded mca Id to find the stripe account associated with the stripe biliing
 // Context : Since we dont have the concept of connector_reference_id in stripebilling because payments always go through stripe.
-// While creating stripebilling we will hard code the stripe account id to string "stripebilling" in mca featrue metadata. So we have to pass the same as account_reference_id here in response.
+// While creating stripebilling we will hard code the stripe account id to string "stripebilling" in mca feature metadata. So we have to pass the same as account_reference_id here in response.
 const MCA_ID_IDENTIFIER_FOR_STRIPE_IN_STRIPEBILLING_MCA_FEAATURE_METADATA: &str = "stripebilling";
 
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
@@ -537,7 +538,7 @@ impl
         let merchant_reference_id =
             id_type::PaymentReferenceId::from_str(charge_details.invoice_id.as_str())
                 .change_context(errors::ConnectorError::MissingRequiredField {
-                    field_name: "invoice_id",
+                    field_name: "invoice_id".into(),
                 })?;
         let connector_transaction_id = Some(common_utils::types::ConnectorTransactionId::from(
             charge_details.payment_intent,
@@ -575,6 +576,9 @@ impl
                         card_isin: None,
                         card_issuer: None,
                         card_type: None,
+                        card_subtype: None,
+                        card_segment_type: None,
+                        funding_source: None,
                         card_issuing_country: None,
                         card_issuing_country_code: None,
                         bank_code: None,
@@ -656,8 +660,10 @@ impl
                     item.response.id.as_str(),
                 )
                 .change_context(errors::ConnectorError::MissingRequiredField {
-                    field_name: "invoice_id in the response",
+                    field_name: "invoice_id in the response".into(),
                 })?,
+                // Stripe Billing's record-back does not return a usable transaction id.
+                connector_transaction_id: None,
             }),
             ..item.data
         })

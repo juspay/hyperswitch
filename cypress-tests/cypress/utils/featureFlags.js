@@ -4,6 +4,9 @@ const config_fields = [
   "DELAY",
   "TRIGGER_SKIP",
   "LOCAL_VAULT_REQUIRED",
+  "skipPaymentMethodStatusAssertion",
+  "POLL_BEFORE",
+  "POLL_AFTER",
 ];
 
 const DEFAULT_CONNECTOR = "connector_1";
@@ -82,6 +85,9 @@ function validateConfigValue(key, value) {
       case "TRIGGER_SKIP":
       case "LOCAL_VAULT_REQUIRED":
       case "DELAY.STATUS":
+      case "skipPaymentMethodStatusAssertion":
+      case "POLL_BEFORE":
+      case "POLL_AFTER":
         if (!validateType(value, "boolean")) return false;
         break;
 
@@ -194,8 +200,28 @@ export function determineConnectorConfig(config) {
 }
 
 export function execConfig(configs) {
-  if (configs?.DELAY?.STATUS) {
-    cy.wait(configs.DELAY.TIMEOUT);
+  if (configs?.DELAY?.STATUS && String(Cypress.env("MOCK_SERVER")) !== "true") {
+    // Chunk the cooldown into 5s increments (instead of one silent block)
+    // so progress is visible in the test log. Total wait time is unchanged.
+    const POLL_INTERVAL = 5000;
+    const totalTimeout = configs.DELAY.TIMEOUT;
+    const fullIntervals = Math.floor(totalTimeout / POLL_INTERVAL);
+    const remainder = totalTimeout % POLL_INTERVAL;
+
+    for (let i = 0; i < fullIntervals; i++) {
+      cy.wait(POLL_INTERVAL);
+      cy.task(
+        "cli_log",
+        `DELAY: waited ${(i + 1) * POLL_INTERVAL}ms of ${totalTimeout}ms`
+      );
+    }
+    if (remainder > 0) {
+      cy.wait(remainder);
+      cy.task(
+        "cli_log",
+        `DELAY: waited ${totalTimeout}ms of ${totalTimeout}ms`
+      );
+    }
   }
 
   const connectorType = determineConnectorConfig(configs);

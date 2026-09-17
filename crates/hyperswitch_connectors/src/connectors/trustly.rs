@@ -846,7 +846,7 @@ impl webhooks::IncomingWebhook for Trustly {
             common_utils::crypto::Encryptable<hyperswitch_masking::Secret<serde_json::Value>>,
         >,
     ) -> CustomResult<
-        hyperswitch_domain_models::api::ApplicationResponse<serde_json::Value>,
+        hyperswitch_domain_models::api::WebhookResponse<serde_json::Value>,
         ConnectorError,
     > {
         let request_body: trustly::TrustlyWebhookBody = request
@@ -884,7 +884,7 @@ impl webhooks::IncomingWebhook for Trustly {
 
         let response_value = serde_json::to_value(response)
             .change_context(ConnectorError::ResponseDeserializationFailed)?;
-        Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
+        Ok(hyperswitch_domain_models::api::WebhookResponse::Json(
             response_value,
         ))
     }
@@ -938,7 +938,7 @@ impl ConnectorSpecifications for Trustly {
         #[cfg(feature = "v1")]
         _payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     ) -> api::ConnectorCustomerAction {
-        let connector_customer_id = uuid::Uuid::new_v4().to_string();
+        let connector_customer_id = common_utils::generate_uuid_v4().to_string();
         api::ConnectorCustomerAction::GeneratedCustomerId(connector_customer_id)
     }
 }

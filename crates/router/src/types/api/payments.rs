@@ -92,7 +92,7 @@ impl PaymentIdTypeExt for PaymentIdType {
             Self::ConnectorTransactionId(_)
             | Self::PaymentAttemptId(_)
             | Self::PreprocessingId(_) => Err(errors::ValidationError::IncorrectValueProvided {
-                field_name: "payment_id",
+                field_name: "payment_id".into(),
             })
             .attach_printable("Expected payment intent ID but got connector transaction ID"),
         }
@@ -107,7 +107,7 @@ impl PaymentIdTypeExt for PaymentIdType {
             Self::ConnectorTransactionId(_)
             | Self::PaymentAttemptId(_)
             | Self::PreprocessingId(_) => Err(errors::ValidationError::IncorrectValueProvided {
-                field_name: "payment_id",
+                field_name: "payment_id".into(),
             })
             .attach_printable("Expected payment intent ID but got connector transaction ID"),
         }
@@ -156,6 +156,9 @@ mod payments_test {
             card_issuing_country: None,
             card_issuing_country_code: None,
             card_type: None,
+            card_subtype: None,
+            card_segment_type: None,
+            funding_source: None,
             nick_name: Some(hyperswitch_masking::Secret::new("nick_name".into())),
         }
     }

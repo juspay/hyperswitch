@@ -195,6 +195,27 @@ export const connectorDetails = {
         },
       },
     },
+    ExtendedCardBin: {
+      Request: {
+        payment_method: "card",
+        payment_method_type: "credit",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+      Configs: {
+        skipBillingAssertion: true,
+      },
+    },
     Capture: {
       Request: {
         amount_to_capture: 6000,
@@ -277,15 +298,6 @@ export const connectorDetails = {
         },
       },
     },
-    ManualRefundUpdate: {
-      Request: {
-        status: "failed",
-      },
-      Response: {
-        status: 200,
-        body: {},
-      },
-    },
     SyncRefund: {
       Response: {
         status: 200,
@@ -316,6 +328,7 @@ export const connectorDetails = {
     }),
     MandateSingleUseNo3DSAutoCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -332,6 +345,7 @@ export const connectorDetails = {
     },
     MandateSingleUseNo3DSManualCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -348,6 +362,7 @@ export const connectorDetails = {
     },
     MandateMultiUseNo3DSAutoCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -364,6 +379,7 @@ export const connectorDetails = {
     },
     MandateMultiUseNo3DSManualCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -399,7 +415,26 @@ export const connectorDetails = {
       },
     }),
     MITAutoCapture: {
-      Request: {},
+      Request: { amount: 6000 },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    MITAutoCaptureWithCustomerAcceptance: {
+      Request: {
+        amount: 6000,
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "127.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
+      },
       Response: {
         status: 200,
         body: {
@@ -408,7 +443,7 @@ export const connectorDetails = {
       },
     },
     MITManualCapture: {
-      Request: {},
+      Request: { amount: 6000 },
       Response: {
         status: 200,
         body: {
@@ -418,6 +453,7 @@ export const connectorDetails = {
     },
     ZeroAuthMandate: {
       Request: {
+        amount: 0,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -448,6 +484,7 @@ export const connectorDetails = {
     },
     ZeroAuthConfirmPayment: {
       Request: {
+        amount: 0,
         payment_type: "setup_mandate",
         payment_method: "card",
         payment_method_type: "credit",
@@ -567,6 +604,7 @@ export const connectorDetails = {
     },
     PaymentMethodIdMandateNo3DSAutoCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -584,6 +622,7 @@ export const connectorDetails = {
     },
     PaymentMethodIdMandateNo3DSManualCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -601,6 +640,7 @@ export const connectorDetails = {
     },
     PaymentMethodIdMandate3DSAutoCapture: getCustomExchange({
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
@@ -613,6 +653,7 @@ export const connectorDetails = {
     }),
     PaymentMethodIdMandate3DSManualCapture: getCustomExchange({
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
@@ -841,6 +882,186 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+        },
+      },
+    },
+    RequiresCVVOnSession: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: customerAcceptance,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+      Configs: {
+        // BofA sandbox returns billing=null in retrieve response for on-session flows — skip billing assertion
+        skipBillingAssertion: true,
+      },
+    },
+    RequiresCVVOffSessionMandate: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        setup_future_usage: "off_session",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    RequiresCVVSavedCardWithCVV: {
+      Request: {
+        card_cvc: "123",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    RequiresCVVSavedCardWithoutCVV: {
+      Request: {
+        setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    RequiresCVVInvalidCVVShort: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "4242424242424242",
+            card_exp_month: "12",
+            card_exp_year: "2030",
+            card_holder_name: "Test User",
+            card_cvc: "12",
+          },
+        },
+        currency: "USD",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "IR_16",
+            message: "Invalid card_cvc length",
+          },
+        },
+      },
+    },
+    RequiresCVVInvalidCVVLong: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "4242424242424242",
+            card_exp_month: "12",
+            card_exp_year: "2030",
+            card_holder_name: "Test User",
+            card_cvc: "12345",
+          },
+        },
+        currency: "USD",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "IR_16",
+            message: "Invalid card_cvc length",
+          },
+        },
+      },
+    },
+    RequiresCVVInvalidCVVNonNumeric: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "4242424242424242",
+            card_exp_month: "12",
+            card_exp_year: "2030",
+            card_holder_name: "Test User",
+            card_cvc: "abc",
+          },
+        },
+        currency: "USD",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "IR_07",
+            message: "Invalid value provided: card_cvc",
+          },
+        },
+      },
+    },
+    RequiresCVVListPMOnSession: {
+      Response: { status: 200, body: { requires_cvv: true } },
+    },
+    RequiresCVVListPMOffSession: {
+      Response: { status: 200, body: { requires_cvv: false } },
+    },
+    RequiresCVVFalsePaymentIntent: {
+      Request: {
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    RequiresCVVFalseSavedCardWithoutCVV: {
+      Request: {
+        setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    RequiresCVVPaymentIntent: {
+      Request: {
+        currency: "USD",
+        customer_acceptance: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
         },
       },
     },

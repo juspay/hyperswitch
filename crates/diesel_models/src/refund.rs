@@ -295,6 +295,7 @@ pub enum RefundUpdate {
         issuer_error_message: Option<String>,
     },
     ManualUpdate {
+        connector_refund_id: Option<ConnectorTransactionId>,
         refund_status: Option<storage_enums::RefundStatus>,
         refund_error_message: Option<Option<String>>,
         refund_error_code: Option<Option<String>>,
@@ -337,6 +338,7 @@ pub enum RefundUpdate {
         unified_message: Option<String>,
     },
     ManualUpdate {
+        connector_refund_id: Option<ConnectorTransactionId>,
         refund_status: Option<storage_enums::RefundStatus>,
         refund_error_message: Option<Option<String>>,
         refund_error_code: Option<Option<String>>,
@@ -532,6 +534,7 @@ impl From<RefundUpdate> for RefundUpdateInternal {
                 issuer_error_message,
             },
             RefundUpdate::ManualUpdate {
+                connector_refund_id,
                 refund_status,
                 refund_error_message,
                 refund_error_code,
@@ -541,7 +544,7 @@ impl From<RefundUpdate> for RefundUpdateInternal {
                 refund_error_message,
                 refund_error_code,
                 updated_by,
-                connector_refund_id: None,
+                connector_refund_id,
                 sent_to_gateway: None,
                 refund_arn: None,
                 metadata: None,
@@ -649,6 +652,7 @@ impl From<RefundUpdate> for RefundUpdateInternal {
                 unified_message,
             },
             RefundUpdate::ManualUpdate {
+                connector_refund_id,
                 refund_status,
                 refund_error_message,
                 refund_error_code,
@@ -658,7 +662,7 @@ impl From<RefundUpdate> for RefundUpdateInternal {
                 refund_error_message,
                 refund_error_code,
                 updated_by,
-                connector_refund_id: None,
+                connector_refund_id,
                 sent_to_gateway: None,
                 refund_arn: None,
                 metadata: None,

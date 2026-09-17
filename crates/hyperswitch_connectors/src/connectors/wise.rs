@@ -247,7 +247,7 @@ impl ConnectorIntegration<PoCancel, PayoutsData, PayoutsResponseData> for Wise {
     ) -> CustomResult<String, ConnectorError> {
         let transfer_id = req.request.connector_payout_id.clone().ok_or(
             ConnectorError::MissingRequiredField {
-                field_name: "transfer_id",
+                field_name: "transfer_id".into(),
             },
         )?;
         Ok(format!(
@@ -432,11 +432,11 @@ impl ConnectorIntegration<PoSync, PayoutsData, PayoutsResponseData> for Wise {
     ) -> CustomResult<String, ConnectorError> {
         let transfer_id = req.request.connector_payout_id.to_owned().ok_or(
             ConnectorError::MissingRequiredField {
-                field_name: "transfer_id",
+                field_name: "transfer_id".into(),
             },
         )?;
         Ok(format!(
-            "{}/v1/transfers/{}",
+            "{}v1/transfers/{}",
             connectors.wise.base_url, transfer_id
         ))
     }
@@ -585,7 +585,7 @@ impl ConnectorIntegration<PoCreate, PayoutsData, PayoutsResponseData> for Wise {
         _req: &PayoutsRouterData<PoCreate>,
         connectors: &Connectors,
     ) -> CustomResult<String, ConnectorError> {
-        Ok(format!("{}/v1/transfers", connectors.wise.base_url))
+        Ok(format!("{}v1/transfers", connectors.wise.base_url))
     }
 
     fn get_headers(
@@ -675,7 +675,7 @@ impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for Wise 
             .change_context(ConnectorError::FailedToObtainAuthType)?;
         let transfer_id = req.request.connector_payout_id.to_owned().ok_or(
             ConnectorError::MissingRequiredField {
-                field_name: "transfer_id",
+                field_name: "transfer_id".into(),
             },
         )?;
         Ok(format!(

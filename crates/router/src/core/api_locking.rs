@@ -52,6 +52,8 @@ impl LockingInput {
 }
 
 impl LockAction {
+    // deja: NO boundary — the lock outcome replays from the recorded redis reply.
+    // See `docs/design/deja-non-boundaries.md`.
     #[instrument(skip_all)]
     pub async fn perform_locking_action<A>(
         self,
@@ -168,6 +170,8 @@ impl LockAction {
         }
     }
 
+    // deja: NO boundary — the release is the inner redis delete_key.
+    // See `docs/design/deja-non-boundaries.md`.
     #[instrument(skip_all)]
     pub async fn free_lock_action<A>(
         self,

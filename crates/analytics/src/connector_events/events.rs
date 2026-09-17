@@ -93,10 +93,16 @@ pub struct ConnectorEventsResult {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
     pub method: Option<String>,
-    #[serde(default = "default_connector_event_destination")]
-    pub destination: common_enums::EventDestination,
+    pub destination: Option<String>,
+    /// Read to filter shadow-mode events out of the response; never surfaced to the caller.
+    #[serde(skip_serializing)]
+    pub execution_mode: Option<String>,
 }
 
-fn default_connector_event_destination() -> common_enums::EventDestination {
-    common_enums::EventDestination::Connector
+impl ConnectorEventsResult {
+    pub fn is_shadow(&self) -> bool {
+        self.execution_mode
+            .as_deref()
+            .is_some_and(|mode| mode.eq_ignore_ascii_case("shadow"))
+    }
 }

@@ -1,13 +1,10 @@
 use api_models::customers::CustomerDocumentDetails;
 use common_types::primitive_wrappers;
-#[cfg(feature = "v1")]
-use common_utils::consts::PAYMENTS_LIST_MAX_LIMIT_V2;
 #[cfg(feature = "v2")]
 use common_utils::errors::ParsingError;
 #[cfg(feature = "v2")]
 use common_utils::ext_traits::{Encode, ValueExt};
 use common_utils::{
-    consts::PAYMENTS_LIST_MAX_LIMIT_V1,
     crypto::Encryptable,
     encryption::Encryption,
     errors::{CustomResult, ValidationError},
@@ -182,6 +179,7 @@ pub struct CustomerData {
     pub phone_country_code: Option<String>,
     pub tax_registration_id: Option<Secret<String>>,
     pub customer_document_details: Option<CustomerDocumentDetails>,
+    pub date_of_birth: Option<Secret<time::Date>>,
 }
 
 impl CustomerData {
@@ -197,6 +195,10 @@ impl CustomerData {
             .tax_registration_id
             .clone()
             .or_else(|| other.tax_registration_id.clone());
+        self.date_of_birth = self
+            .date_of_birth
+            .clone()
+            .or_else(|| other.date_of_birth.clone());
     }
 }
 
@@ -295,6 +297,8 @@ pub struct PaymentIntentUpdateFields {
     pub profile_acquirer_id: Option<id_type::ProfileAcquirerId>,
     pub external_surcharge_strategy: Option<common_enums::SurchargeStrategy>,
     pub external_surcharge_applicable: Option<bool>,
+    pub is_account_funded_transaction: Option<bool>,
+    pub recipient_details: Option<Encryptable<Secret<serde_json::Value>>>,
 }
 
 #[cfg(feature = "v1")]
@@ -528,6 +532,8 @@ pub struct PaymentIntentUpdateInternal {
     pub profile_acquirer_id: Option<id_type::ProfileAcquirerId>,
     pub external_surcharge_strategy: Option<common_enums::SurchargeStrategy>,
     pub external_surcharge_applicable: Option<bool>,
+    pub is_account_funded_transaction: Option<bool>,
+    pub recipient_details: Option<Encryptable<Secret<serde_json::Value>>>,
 }
 
 // This conversion is used in the `update_payment_intent` function
@@ -1363,6 +1369,8 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 profile_acquirer_id: None,
                 external_surcharge_strategy: None,
                 external_surcharge_applicable: None,
+                is_account_funded_transaction: None,
+                recipient_details: None,
             },
             PaymentIntentUpdate::RecurrenceUpdate { status, updated_by } => Self {
                 status: Some(status),
@@ -1420,6 +1428,8 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 profile_acquirer_id: None,
                 external_surcharge_strategy: None,
                 external_surcharge_applicable: None,
+                is_account_funded_transaction: None,
+                recipient_details: None,
             },
         }
     }
@@ -1529,6 +1539,8 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                     profile_acquirer_id: value.profile_acquirer_id,
                     external_surcharge_strategy: None,
                     external_surcharge_applicable: None,
+                    is_account_funded_transaction: value.is_account_funded_transaction,
+                    recipient_details: value.recipient_details.map(Encryption::from),
                 }))
             }
             PaymentIntentUpdate::PaymentCreateUpdate {
@@ -1722,6 +1734,8 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             profile_acquirer_id,
             external_surcharge_strategy,
             external_surcharge_applicable,
+            is_account_funded_transaction,
+            recipient_details,
         } = value;
         Self {
             amount,
@@ -1781,6 +1795,8 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             profile_acquirer_id,
             external_surcharge_strategy,
             external_surcharge_applicable,
+            is_account_funded_transaction,
+            recipient_details: recipient_details.map(Encryption::from),
         }
     }
 }
@@ -1819,7 +1835,7 @@ impl PaymentIntentFetchConstraints {
 
 #[cfg(feature = "v1")]
 pub struct PaymentIntentListParams {
-    pub offset: u32,
+    pub offset: common_utils::types::list::PageOffset,
     pub starting_at: Option<PrimitiveDateTime>,
     pub ending_at: Option<PrimitiveDateTime>,
     pub amount_filter: Option<api_models::payments::AmountFilter>,
@@ -1834,7 +1850,7 @@ pub struct PaymentIntentListParams {
     pub customer_id: Option<id_type::CustomerId>,
     pub starting_after_id: Option<id_type::PaymentId>,
     pub ending_before_id: Option<id_type::PaymentId>,
-    pub limit: Option<u32>,
+    pub limit: common_utils::types::list::PageSize,
     pub order: api_models::payments::Order,
     pub card_network: Option<Vec<common_enums::CardNetwork>>,
     pub card_discovery: Option<Vec<common_enums::CardDiscovery>>,
@@ -1845,7 +1861,7 @@ pub struct PaymentIntentListParams {
 
 #[cfg(feature = "v2")]
 pub struct PaymentIntentListParams {
-    pub offset: u32,
+    pub offset: common_utils::types::list::PageOffset,
     pub starting_at: Option<PrimitiveDateTime>,
     pub ending_at: Option<PrimitiveDateTime>,
     pub amount_filter: Option<api_models::payments::AmountFilter>,
@@ -1860,7 +1876,7 @@ pub struct PaymentIntentListParams {
     pub customer_id: Option<id_type::GlobalCustomerId>,
     pub starting_after_id: Option<id_type::GlobalPaymentId>,
     pub ending_before_id: Option<id_type::GlobalPaymentId>,
-    pub limit: Option<u32>,
+    pub limit: common_utils::types::list::PageSize,
     pub order: api_models::payments::Order,
     pub card_network: Option<Vec<common_enums::CardNetwork>>,
     pub merchant_order_reference_id: Option<String>,
@@ -1882,7 +1898,7 @@ impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchCo
             created_gte,
         } = value;
         Self::List(Box::new(PaymentIntentListParams {
-            offset: 0,
+            offset: common_utils::types::list::PageOffset::default(),
             starting_at: created_gte.or(created_gt).or(created),
             ending_at: created_lte.or(created_lt).or(created),
             amount_filter: None,
@@ -1897,7 +1913,7 @@ impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchCo
             customer_id,
             starting_after_id: starting_after,
             ending_before_id: ending_before,
-            limit: Some(std::cmp::min(limit, PAYMENTS_LIST_MAX_LIMIT_V1)),
+            limit,
             order: Default::default(),
             card_network: None,
             card_discovery: None,
@@ -1939,7 +1955,7 @@ impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchCo
             offset,
         } = value;
         Self::List(Box::new(PaymentIntentListParams {
-            offset: offset.unwrap_or_default(),
+            offset,
             starting_at: created_gte.or(created_gt).or(created),
             ending_at: created_lte.or(created_lt).or(created),
             amount_filter: (start_amount.is_some() || end_amount.is_some()).then_some({
@@ -1959,7 +1975,7 @@ impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchCo
             customer_id,
             starting_after_id: starting_after,
             ending_before_id: ending_before,
-            limit: Some(std::cmp::min(limit, PAYMENTS_LIST_MAX_LIMIT_V1)),
+            limit,
             order: api_models::payments::Order {
                 on: order_on,
                 by: order_by,
@@ -1975,7 +1991,7 @@ impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchCo
 impl From<common_utils::types::TimeRange> for PaymentIntentFetchConstraints {
     fn from(value: common_utils::types::TimeRange) -> Self {
         Self::List(Box::new(PaymentIntentListParams {
-            offset: 0,
+            offset: common_utils::types::list::PageOffset::default(),
             starting_at: Some(value.start_time),
             ending_at: value.end_time,
             amount_filter: None,
@@ -1990,7 +2006,7 @@ impl From<common_utils::types::TimeRange> for PaymentIntentFetchConstraints {
             customer_id: None,
             starting_after_id: None,
             ending_before_id: None,
-            limit: None,
+            limit: common_utils::types::list::PageSize::default(),
             order: Default::default(),
             card_network: None,
             card_discovery: None,
@@ -2039,7 +2055,7 @@ impl From<api_models::payments::PaymentListFilterConstraints> for PaymentIntentF
             Self::Single { payment_intent_id }
         } else {
             Self::List(Box::new(PaymentIntentListParams {
-                offset: offset.unwrap_or_default(),
+                offset,
                 starting_at: time_range.map(|t| t.start_time),
                 ending_at: time_range.and_then(|t| t.end_time),
                 amount_filter,
@@ -2054,7 +2070,7 @@ impl From<api_models::payments::PaymentListFilterConstraints> for PaymentIntentF
                 customer_id,
                 starting_after_id: None,
                 ending_before_id: None,
-                limit: Some(std::cmp::min(limit, PAYMENTS_LIST_MAX_LIMIT_V2)),
+                limit,
                 order,
                 card_network,
                 card_discovery,
@@ -2246,6 +2262,8 @@ impl behaviour::Conversion for PaymentIntent {
             profile_acquirer_id,
             external_surcharge_strategy,
             external_surcharge_applicable,
+            is_account_funded_transaction,
+            recipient_details,
         } = self;
         Ok(DieselPaymentIntent {
             skip_external_tax_calculation: Some(amount_details.get_external_tax_action_as_bool()),
@@ -2360,6 +2378,8 @@ impl behaviour::Conversion for PaymentIntent {
             profile_acquirer_id,
             external_surcharge_strategy,
             external_surcharge_applicable,
+            is_account_funded_transaction,
+            recipient_details: recipient_details.map(Encryption::from),
         })
     }
     async fn convert_back(
@@ -2380,6 +2400,7 @@ impl behaviour::Conversion for PaymentIntent {
                         billing_address: storage_model.billing_address,
                         shipping_address: storage_model.shipping_address,
                         customer_details: storage_model.customer_details,
+                        recipient_details: storage_model.recipient_details,
                     },
                 )),
                 key_manager_identifier,
@@ -2516,6 +2537,8 @@ impl behaviour::Conversion for PaymentIntent {
                 profile_acquirer_id: storage_model.profile_acquirer_id,
                 external_surcharge_strategy: storage_model.external_surcharge_strategy,
                 external_surcharge_applicable: storage_model.external_surcharge_applicable,
+                is_account_funded_transaction: storage_model.is_account_funded_transaction,
+                recipient_details: data.recipient_details,
             })
         }
         .await
@@ -2630,6 +2653,8 @@ impl behaviour::Conversion for PaymentIntent {
             profile_acquirer_id: self.profile_acquirer_id,
             external_surcharge_strategy: self.external_surcharge_strategy,
             external_surcharge_applicable: self.external_surcharge_applicable,
+            is_account_funded_transaction: self.is_account_funded_transaction,
+            recipient_details: self.recipient_details.map(Encryption::from),
         })
     }
 }
@@ -2724,6 +2749,8 @@ impl behaviour::Conversion for PaymentIntent {
             profile_acquirer_id: self.profile_acquirer_id,
             external_surcharge_strategy: self.external_surcharge_strategy,
             external_surcharge_applicable: self.external_surcharge_applicable,
+            is_account_funded_transaction: self.is_account_funded_transaction,
+            recipient_details: self.recipient_details.map(Encryption::from),
         })
     }
 
@@ -2745,6 +2772,7 @@ impl behaviour::Conversion for PaymentIntent {
                         billing_details: storage_model.billing_details,
                         shipping_details: storage_model.shipping_details,
                         customer_details: storage_model.customer_details,
+                        recipient_details: storage_model.recipient_details,
                     },
                 )),
                 key_manager_identifier,
@@ -2843,6 +2871,8 @@ impl behaviour::Conversion for PaymentIntent {
                 profile_acquirer_id: storage_model.profile_acquirer_id,
                 external_surcharge_strategy: storage_model.external_surcharge_strategy,
                 external_surcharge_applicable: storage_model.external_surcharge_applicable,
+                is_account_funded_transaction: storage_model.is_account_funded_transaction,
+                recipient_details: data.recipient_details,
             })
         }
         .await
@@ -2935,6 +2965,8 @@ impl behaviour::Conversion for PaymentIntent {
             profile_acquirer_id: self.profile_acquirer_id,
             external_surcharge_strategy: self.external_surcharge_strategy,
             external_surcharge_applicable: self.external_surcharge_applicable,
+            is_account_funded_transaction: self.is_account_funded_transaction,
+            recipient_details: self.recipient_details.map(Encryption::from),
         })
     }
 }

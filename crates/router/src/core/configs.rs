@@ -2,8 +2,8 @@ pub mod dimension_config;
 pub mod dimension_state;
 use common_utils::errors::CustomResult;
 pub use dimension_config::{
-    EnableExtendedCardBin, ImplicitCustomerUpdate, RequiresCvv, ShouldCallGsm,
-    ShouldEnableMitWithLimitedCardData, ShouldPerformEligibility,
+    BlockImplicitCustomerCreation, EnableExtendedCardBin, ImplicitCustomerUpdate, RequiresCvv,
+    ShouldCallGsm, ShouldEnableMitWithLimitedCardData, ShouldPerformEligibility,
     ShouldStoreEligibilityCheckDataForAuthentication,
 };
 use error_stack::ResultExt;
@@ -151,6 +151,7 @@ pub async fn fetch_db_config_for_dimensions<C>(
 where
     C: DatabaseBackedConfig,
     C::Output: ConfigType,
+    C::Output: std::fmt::Debug,
     open_feature::Client: superposition::GetValue<C::Output>,
 {
     let db_keys = <C as DatabaseBackedConfig>::db_keys(dimensions);
@@ -205,6 +206,7 @@ pub async fn fetch_db_config<C>(
 where
     C: DatabaseBackedConfig,
     C::Output: ConfigType,
+    C::Output: std::fmt::Debug,
     open_feature::Client: superposition::GetValue<C::Output>,
 {
     let config_type = C::KEY;

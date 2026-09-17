@@ -179,7 +179,7 @@ impl TryFrom<&types::ConnectorCustomerRouterData> for StaxCustomerRequest {
     fn try_from(item: &types::ConnectorCustomerRouterData) -> Result<Self, Self::Error> {
         if item.request.email.is_none() && item.request.name.is_none() {
             Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "email or name",
+                field_name: "email or name".into(),
             }
             .into())
         } else {
@@ -404,6 +404,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, StaxPaymentsResponse, T, PaymentsRespon
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })

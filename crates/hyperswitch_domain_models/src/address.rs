@@ -26,13 +26,7 @@ impl Address {
             phone: {
                 self.phone
                     .clone()
-                    .and_then(|phone_details| {
-                        if phone_details.number.is_some() {
-                            Some(phone_details)
-                        } else {
-                            None
-                        }
-                    })
+                    .filter(|phone_details| phone_details.number.is_some())
                     .or_else(|| other.and_then(|other| other.phone.clone()))
             },
         }

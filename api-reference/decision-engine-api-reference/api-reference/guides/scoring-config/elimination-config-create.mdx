@@ -1,0 +1,26 @@
+---
+title: "Create Elimination Config"
+description: "Curl example for creating elimination config."
+---
+
+# Create Elimination Config
+
+```bash
+curl --location "$BASE_URL/rule/create" \
+  --header "$AUTH_HEADER" \
+  --header "Content-Type: application/json" \
+  --data '{
+    "merchant_id": "merchant_demo",
+    "config": {
+      "type": "elimination",
+      "data": {
+        "bucketSize": 5,
+        "eliminationThreshold": 0.2
+      }
+    }
+  }'
+```
+
+```json
+{ "merchant_id": "merchant_demo", "config": { "type": "elimination" } }
+```

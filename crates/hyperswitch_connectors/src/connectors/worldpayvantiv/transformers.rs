@@ -688,6 +688,7 @@ impl<F> TryFrom<ResponseRouterData<F, VantivSyncResponse, PaymentsSyncData, Paym
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 minor_amount_captured,
                 ..item.data
@@ -1632,6 +1633,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<CnpOnlineResponse>> for PaymentsC
                             incremental_authorization_allowed: None,
                             authentication_data: None,
                             charges: None,
+                            payment_account_reference: None,
                         }),
                         ..item.data
                     })
@@ -1677,13 +1679,9 @@ impl TryFrom<PaymentsCaptureResponseRouterData<CnpOnlineResponse>> for PaymentsC
 }
 
 fn get_vantiv_customer_reference(customer_id: &Option<String>) -> Option<String> {
-    customer_id.clone().and_then(|id| {
-        if id.len() <= worldpayvantiv_constants::CUSTOMER_REFERENCE_MAX_LENGTH {
-            Some(id)
-        } else {
-            None
-        }
-    })
+    customer_id
+        .clone()
+        .filter(|id| id.len() <= worldpayvantiv_constants::CUSTOMER_REFERENCE_MAX_LENGTH)
 }
 
 impl TryFrom<PaymentsCancelResponseRouterData<CnpOnlineResponse>> for PaymentsCancelRouterData {
@@ -1749,6 +1747,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<CnpOnlineResponse>> for PaymentsCa
                             incremental_authorization_allowed: None,
                             authentication_data: None,
                             charges: None,
+                            payment_account_reference: None,
                         }),
                         ..item.data
                     })
@@ -2137,6 +2136,7 @@ impl<F>
                             incremental_authorization_allowed: None,
                             authentication_data: None,
                             charges: None,
+                            payment_account_reference: None,
                         }),
                         connector_response,
                         amount_captured: sale_response.approved_amount.map(MinorUnit::get_amount_as_i64),
@@ -2233,6 +2233,7 @@ impl<F>
                             incremental_authorization_allowed: None,
                             authentication_data: None,
                             charges: None,
+                            payment_account_reference: None,
                         }),
                         connector_response,
                         amount_captured: if payment_flow_type == WorldpayvantivPaymentFlow::Sale {
@@ -2269,7 +2270,7 @@ impl<F>
                 ..item.data
             })},
             (_, _) => {  Err(errors::ConnectorError::UnexpectedResponseError(
-                bytes::Bytes::from("Only one of 'sale_response' or 'authorisation_response' is expected, but both were received".to_string()),           
+                bytes::Bytes::from("Only one of 'sale_response' or 'authorisation_response' is expected, but both were received".to_string()),
              ))?
             },
     }
@@ -2385,6 +2386,7 @@ impl<F>
                             incremental_authorization_allowed: None,
                             authentication_data: None,
                             charges: None,
+                            payment_account_reference: None,
                         }),
                         connector_response,
                         ..item.data
@@ -4672,7 +4674,7 @@ fn get_vantiv_card_data(
                     let exp_date = apple_pay_decrypted_data
                         .get_expiry_date_as_mmyy()
                         .change_context(errors::ConnectorError::InvalidDataFormat {
-                            field_name: "payment_method_data.card.card_exp_month",
+                            field_name: "payment_method_data.card.card_exp_month".into(),
                         })?;
 
                     let cardholder_authentication = CardholderAuthentication {
@@ -4725,7 +4727,7 @@ fn get_vantiv_card_data(
                     let exp_date = google_pay_decrypted_data
                         .get_expiry_date_as_mmyy()
                         .change_context(errors::ConnectorError::InvalidDataFormat {
-                            field_name: "payment_method_data.card.card_exp_month",
+                            field_name: "payment_method_data.card.card_exp_month".into(),
                         })?;
 
                     let cardholder_authentication = CardholderAuthentication {
@@ -4733,7 +4735,7 @@ fn get_vantiv_card_data(
                             .cryptogram
                             .clone()
                             .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
-                                field_name: "cryptogram",
+                                field_name: "cryptogram".into(),
                             })?,
                     };
                     let google_pay_network = google_pay_data
