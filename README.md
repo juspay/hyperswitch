@@ -114,9 +114,9 @@ scripts/setup.sh
     - **Minimal**: Standalone App server  
   - Provides access links when done
 
-  If you need further help, check out our [video tutorial](https://docs.hyperswitch.io/hyperswitch-open-source/overview/unified-local-setup-using-docker).  
+  If you need further help, check out our [video tutorial](https://docs.hyperswitch.io/self-hosting/hyperswitch-open-source/readme-1/unified-local-setup-using-docker).  
 
-  👉 After setup, [configure a connector](https://docs.hyperswitch.io/hyperswitch-open-source/account-setup/using-hyperswitch-control-center#add-a-payment-processor) and [test a payment](https://docs.hyperswitch.io/hyperswitch-open-source/account-setup/test-a-payment).
+  👉 After setup, [configure a connector](https://docs.hyperswitch.io/self-hosting/hyperswitch-open-source/account-setup/using-hyperswitch-control-center#add-a-payment-processor) and [test a payment](https://docs.hyperswitch.io/self-hosting/hyperswitch-open-source/account-setup/test-a-payment).
 </details>
 
 
@@ -142,7 +142,7 @@ Hyperswitch offers a fully hosted sandbox environment that requires no setup. Yo
 
 You can deploy to AWS, GCP, or Azure using Helm Charts.
 
-<a href="https://docs.hyperswitch.io/hyperswitch-open-source/deploy-on-kubernetes-using-helm">Cloud Deployment Instructions</a>.
+<a href="https://docs.hyperswitch.io/self-hosting/hyperswitch-open-source/readme">Cloud Deployment Instructions</a>.
 
 
 <a href="#architectural-overview">
