@@ -4,6 +4,18 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.09.09.1-hotfix4
+
+### Features
+
+- **connector:**
+  - [CYBERSOURCE] Implement step_up 3ds for GooglePay PAN_ONLY & CommerceIndicator for GooglePay ([#14216](https://github.com/juspay/hyperswitch/pull/14216)) ([`eafaf96`](https://github.com/juspay/hyperswitch/commit/eafaf96a32b43d8db3a616846d79467c7dd15306))
+  - [SANTANDER] Update Production Base URL for Boleto ([#14278](https://github.com/juspay/hyperswitch/pull/14278)) ([`f32add4`](https://github.com/juspay/hyperswitch/commit/f32add4e29a8eca0789be860cf18c9eb18bba846))
+
+**Full Changelog:** [`2026.09.09.1-hotfix3...2026.09.09.1-hotfix4`](https://github.com/juspay/hyperswitch/compare/2026.09.09.1-hotfix3...2026.09.09.1-hotfix4)
+
+- - -
+
 ## 2026.09.09.1-hotfix3
 
 ### Features
