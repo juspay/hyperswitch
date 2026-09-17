@@ -149,6 +149,13 @@ pub async fn payments_create(
         move |mut state, auth: auth::AuthenticationData, req, req_state| {
             let header_payload = header_payload.clone();
             async move {
+                let merchant_integration_type =
+                    server_integration::merchant_integration_type(&state, &auth.platform).await;
+                server_integration::validate_integration_type(
+                    integration_type,
+                    merchant_integration_type,
+                )?;
+
                 let metrics_start = req
                     .confirm
                     .is_some_and(|confirm| confirm)
@@ -1002,6 +1009,13 @@ pub async fn payments_update(
         move |state, auth: auth::AuthenticationData, req, req_state| {
             let header_payload = header_payload.clone();
             async move {
+                let merchant_integration_type =
+                    server_integration::merchant_integration_type(&state, &auth.platform).await;
+                server_integration::validate_integration_type(
+                    integration_type,
+                    merchant_integration_type,
+                )?;
+
                 let profile_id = auth.profile.map(|profile| profile.get_id().clone());
 
                 // Only the enrichment path needs these afterwards. A client update — the vast
