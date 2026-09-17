@@ -212,6 +212,7 @@ diesel::table! {
         file_key -> Nullable<Varchar>,
         error_message -> Nullable<Text>,
         expires_at -> Nullable<Timestamp>,
+        metadata -> Nullable<Jsonb>,
     }
 }
 
