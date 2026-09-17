@@ -1940,69 +1940,85 @@ impl ForeignFrom<payments_grpc::UpiSource>
 
 /// Coarse class of a client-side gRPC transport failure toward UCS.
 ///
-/// Derived from the `std::error::Error::source()` chain of the `tonic::Status`. Safe to expose in
-/// merchant-visible connector events: it carries no addresses or payload, only the failure kind.
+/// Read from [`std::io::Error::kind`] on the underlying I/O error, so it stays correct across
+/// hyper and tonic upgrades. Safe to expose in merchant-visible connector events: it names the
+/// failure kind only, never an address or payload.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UcsTransportFailureClass {
-    /// Peer sent RST while we were writing: the connection was dead when the request was sent
+    /// Peer reset the connection while the request was being written
     ConnectionReset,
-    /// Write on a socket the peer had already closed
+    /// Wrote to a connection the peer had already closed
     BrokenPipe,
-    /// hyper reported the connection closed before the request could be sent
-    ConnectionClosed,
-    /// HTTP/2 keepalive PING went unanswered and the connection was dropped
-    KeepAliveTimeout,
-    /// HTTP/2 protocol level error (GOAWAY with error, stream reset, framing)
-    H2ProtocolError,
-    /// A new dial was refused
+    /// Peer aborted the connection
+    ConnectionAborted,
+    /// A new connection was refused
     ConnectRefused,
-    /// A new dial timed out
+    /// A new connection timed out
     ConnectTimeout,
-    /// Name resolution failed while dialing
-    DnsFailure,
-    /// None of the above; see `source_chain`
+    /// The socket was not connected
+    NotConnected,
+    /// The connection ended before the message was complete
+    UnexpectedEof,
+    /// No underlying I/O error; see `source_chain` in the router logs
     Other,
 }
 
 impl UcsTransportFailureClass {
-    /// Stable snake_case label for events and metrics.
+    /// Stable snake_case label for connector events and metrics.
     pub fn as_str(self) -> &'static str {
         match self {
             Self::ConnectionReset => "connection_reset",
             Self::BrokenPipe => "broken_pipe",
-            Self::ConnectionClosed => "connection_closed",
-            Self::KeepAliveTimeout => "keepalive_timeout",
-            Self::H2ProtocolError => "h2_protocol_error",
+            Self::ConnectionAborted => "connection_aborted",
             Self::ConnectRefused => "connect_refused",
             Self::ConnectTimeout => "connect_timeout",
-            Self::DnsFailure => "dns_failure",
+            Self::NotConnected => "not_connected",
+            Self::UnexpectedEof => "unexpected_eof",
             Self::Other => "other",
         }
     }
 }
 
-/// Detail of a client-side transport failure toward UCS: what actually went wrong beneath the
-/// generic `transport error` that tonic surfaces.
+impl From<std::io::ErrorKind> for UcsTransportFailureClass {
+    fn from(kind: std::io::ErrorKind) -> Self {
+        match kind {
+            std::io::ErrorKind::ConnectionReset => Self::ConnectionReset,
+            std::io::ErrorKind::BrokenPipe => Self::BrokenPipe,
+            std::io::ErrorKind::ConnectionAborted => Self::ConnectionAborted,
+            std::io::ErrorKind::ConnectionRefused => Self::ConnectRefused,
+            std::io::ErrorKind::TimedOut => Self::ConnectTimeout,
+            std::io::ErrorKind::NotConnected => Self::NotConnected,
+            std::io::ErrorKind::UnexpectedEof => Self::UnexpectedEof,
+            _ => Self::Other,
+        }
+    }
+}
+
+/// Detail of a client-side transport failure toward UCS: what went wrong beneath the generic
+/// `transport error` that tonic surfaces when a request never reaches the server.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UcsTransportFailure {
     /// Coarse failure class; the only part meant for merchant-visible events
     pub class: UcsTransportFailureClass,
-    /// Full `source()` chain, outermost first, root cause last. Internal logs only; may contain
+    /// Full [`std::error::Error::source`] chain, outermost first. Router logs only: it may carry
     /// internal addresses and OS error text.
     pub source_chain: String,
 }
 
 impl UcsTransportFailure {
-    /// Builds from a `tonic::Status`. Returns `None` when the status has no error source, which is
-    /// the case for every status returned by UCS over the wire; only statuses produced by the local
-    /// transport (dial, write, keepalive) carry one.
+    /// Builds from a [`tonic::Status`].
+    ///
+    /// Returns `None` when the status carries no error source, which is every status UCS returns
+    /// over the wire. Only statuses produced by the local transport (dial, write, keepalive) carry
+    /// one, so a `Some` here means the request never reached UCS.
     pub fn from_status(status: &tonic::Status) -> Option<Self> {
         let mut source: &(dyn std::error::Error + 'static) = std::error::Error::source(status)?;
         let mut parts: Vec<String> = Vec::new();
-        let mut io_kind: Option<std::io::ErrorKind> = None;
+        let mut class = UcsTransportFailureClass::Other;
+
         loop {
             if let Some(io_error) = source.downcast_ref::<std::io::Error>() {
-                io_kind = Some(io_error.kind());
+                class = UcsTransportFailureClass::from(io_error.kind());
             }
             parts.push(source.to_string());
             match source.source() {
@@ -2010,40 +2026,10 @@ impl UcsTransportFailure {
                 None => break,
             }
         }
-        let source_chain = parts.join(" -> ");
-        let lowered = source_chain.to_ascii_lowercase();
-        let class = match io_kind {
-            Some(std::io::ErrorKind::ConnectionReset) => UcsTransportFailureClass::ConnectionReset,
-            Some(std::io::ErrorKind::BrokenPipe) => UcsTransportFailureClass::BrokenPipe,
-            Some(std::io::ErrorKind::ConnectionRefused) => UcsTransportFailureClass::ConnectRefused,
-            Some(std::io::ErrorKind::TimedOut) => UcsTransportFailureClass::ConnectTimeout,
-            _ if lowered.contains("keep-alive timed out") || lowered.contains("keepalive") => {
-                UcsTransportFailureClass::KeepAliveTimeout
-            }
-            _ if lowered.contains("dns error") || lowered.contains("failed to lookup") => {
-                UcsTransportFailureClass::DnsFailure
-            }
-            _ if lowered.contains("tcp connect error")
-                || lowered.contains("connection refused") =>
-            {
-                UcsTransportFailureClass::ConnectRefused
-            }
-            _ if lowered.contains("connection closed") || lowered.contains("closed before") => {
-                UcsTransportFailureClass::ConnectionClosed
-            }
-            _ if lowered.contains("connection reset") => UcsTransportFailureClass::ConnectionReset,
-            _ if lowered.contains("broken pipe") => UcsTransportFailureClass::BrokenPipe,
-            _ if lowered.contains("h2 protocol error")
-                || lowered.contains("http2 error")
-                || lowered.contains("goaway") =>
-            {
-                UcsTransportFailureClass::H2ProtocolError
-            }
-            _ => UcsTransportFailureClass::Other,
-        };
+
         Some(Self {
             class,
-            source_chain,
+            source_chain: parts.join(" -> "),
         })
     }
 }

@@ -73,8 +73,9 @@ pub mod consts {
     pub(crate) const DEFAULT_UCS_KEEP_ALIVE_INTERVAL_SECS: u64 = 30;
 
     /// Default time (seconds) to wait for a keepalive PING acknowledgement before the
-    /// connection to the unified connector service is treated as dead.
-    pub(crate) const DEFAULT_UCS_KEEP_ALIVE_TIMEOUT_SECS: u64 = 10;
+    /// connection to the unified connector service is treated as dead. Matches the gRPC-Go
+    /// client default; a tighter value drops connections during ordinary load spikes.
+    pub(crate) const DEFAULT_UCS_KEEP_ALIVE_TIMEOUT_SECS: u64 = 20;
 
     /// Default TCP keepalive idle time (seconds) on the shared channel to the unified connector
     /// service. OS-level backstop for the HTTP/2 PING keepalive.
