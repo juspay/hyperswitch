@@ -126,7 +126,7 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
             revenue_recovery_payment_data.key_store.clone(),
             None,
         );
-        let (payment_data, _, _) = payments::payments_intent_operation_core::<
+        let (mut payment_data, _, _) = payments::payments_intent_operation_core::<
             api_types::PaymentGetIntent,
             _,
             _,
@@ -177,7 +177,7 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
                     platform_from_revenue_recovery_payment_data,
                     &tracking_data,
                     &revenue_recovery_payment_data,
-                    &payment_data.payment_intent,
+                    &mut payment_data.payment_intent,
                 ))
                 .await
             }
@@ -734,7 +734,9 @@ async fn get_adaptive_retry_allowances(
 pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
     state: &SessionState,
     connector_customer_id: &str,
-    payment_intent: &PaymentIntent,
+    // Mutable so the A/B block can record its assignment on the feature metadata; the caller
+    // persists that edit on the path that pushes to EXECUTE.
+    payment_intent: &mut PaymentIntent,
     billing_connector: common_enums::connector_enums::Connector,
     retry_algorithm_type: RevenueRecoveryAlgorithmType,
     retry_count: i32,
@@ -799,7 +801,61 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                 )
                 .await;
 
-            if adaptive_retry_enabled {
+            let ab_enabled = dimensions
+                .get_revenue_recovery_ab_enabled(
+                    state.store.as_ref(),
+                    state.superposition_service.as_ref(),
+                    None,
+                )
+                .await;
+
+            if ab_enabled {
+                let stored_algorithm = payment_intent
+                    .feature_metadata
+                    .as_ref()
+                    .and_then(|feature_metadata| {
+                        feature_metadata.payment_revenue_recovery_metadata.as_ref()
+                    })
+                    .and_then(|revenue_recovery_metadata| {
+                        revenue_recovery_metadata.recovery_routing.clone()
+                    });
+
+                let algorithm = match stored_algorithm {
+                    Some(algorithm) => algorithm,
+                    None => {
+                        let resolved = dimensions
+                            .get_revenue_recovery_ab_algorithm(
+                                state.store.as_ref(),
+                                state.superposition_service.as_ref(),
+                                Some(&payment_intent.id),
+                            )
+                            .await;
+
+                        // Record the assignment so later retries replay it instead of resolving
+                        // again. This only edits the in-memory intent; it reaches the database
+                        // via `reset_connector_transmission_and_active_attempt_id_before_pushing_
+                        // to_execute_workflow`, which builds its update request from this object
+                        // — so nothing is stored on the paths that do not push to EXECUTE.
+                        if let Some(revenue_recovery_metadata) = payment_intent
+                            .feature_metadata
+                            .as_mut()
+                            .and_then(|feature_metadata| {
+                                feature_metadata.payment_revenue_recovery_metadata.as_mut()
+                            })
+                        {
+                            revenue_recovery_metadata.recovery_routing = Some(resolved.clone());
+                        }
+
+                        resolved
+                    }
+                };
+
+                logger::info!(
+                    payment_id = %payment_intent.id.get_string_repr(),
+                    algorithm = %algorithm,
+                    "A/B routing resolved the retry implementation for this invoice"
+                );
+            } else if adaptive_retry_enabled {
                 // Same shape as the cascading arm — compute the schedule time, then gate on
                 // the token. The only additions are the adaptive candidate and the choice
                 // between the two.
