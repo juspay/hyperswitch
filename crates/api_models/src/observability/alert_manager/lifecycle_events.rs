@@ -44,6 +44,8 @@ pub struct LifecycleEventRequest {
 #[serde(deny_unknown_fields)]
 pub struct LifecycleEventsBatchRequest {
     pub events: Vec<LifecycleEventRequest>,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub snapshot_at: PrimitiveDateTime,
     pub version_bump_seconds: i64,
 }
 

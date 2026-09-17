@@ -71,10 +71,10 @@ impl Alerts {
                     .route(web::put().to(dictionary::upsert)),
             )
             .service(
-                web::resource("/lifecycle-events").route(web::get().to(lifecycle_events::list)),
+                web::resource("/lifecycle_events").route(web::get().to(lifecycle_events::list)),
             )
             .service(
-                web::resource("/lifecycle-events/batch")
+                web::resource("/lifecycle_events/batch")
                     .route(web::post().to(lifecycle_events::replace_batch)),
             )
             .service(web::resource("/metadata").route(web::get().to(metadata::list)))

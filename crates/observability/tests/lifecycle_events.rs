@@ -268,11 +268,11 @@ async fn full_batch_round_trip_overlap_and_delivery_replacement() {
     let body = json!({"events": [
         event(key1, "2026-09-15T09:00:00Z", "2026-09-15T09:45:00Z"),
         event(key2, "2026-09-15T10:00:00Z", "2026-09-15T10:15:00Z")
-    ], "version_bump_seconds": 0});
+    ], "snapshot_at": "2026-09-15T10:30:00Z", "version_bump_seconds": 0});
     let (status, response) = call(
         state.clone(),
         actix_web::http::Method::POST,
-        "/alerts/lifecycle-events/batch",
+        "/alerts/lifecycle_events/batch",
         Some(API_KEY),
         Some(body),
     )
@@ -283,7 +283,7 @@ async fn full_batch_round_trip_overlap_and_delivery_replacement() {
     let (_, listed) = call(
         state.clone(),
         actix_web::http::Method::GET,
-        "/alerts/lifecycle-events?from=2026-09-15T09%3A30%3A00Z&to=2026-09-15T09%3A50%3A00Z",
+        "/alerts/lifecycle_events?from=2026-09-15T09%3A30%3A00Z&to=2026-09-15T09%3A50%3A00Z",
         Some(API_KEY),
         None,
     )
@@ -298,9 +298,13 @@ async fn full_batch_round_trip_overlap_and_delivery_replacement() {
     call(
         state.clone(),
         actix_web::http::Method::POST,
-        "/alerts/lifecycle-events/batch",
+        "/alerts/lifecycle_events/batch",
         Some(API_KEY),
-        Some(json!({"events": [delivered], "version_bump_seconds": 1})),
+        Some(json!({
+            "events": [delivered],
+            "snapshot_at": "2026-09-15T10:30:00Z",
+            "version_bump_seconds": 1
+        })),
     )
     .await;
 
@@ -308,10 +312,11 @@ async fn full_batch_round_trip_overlap_and_delivery_replacement() {
     call(
         state.clone(),
         actix_web::http::Method::POST,
-        "/alerts/lifecycle-events/batch",
+        "/alerts/lifecycle_events/batch",
         Some(API_KEY),
         Some(json!({
             "events": [event(key1, "2026-09-15T09:00:00Z", "2026-09-15T09:45:00Z")],
+            "snapshot_at": "2026-09-15T10:30:00Z",
             "version_bump_seconds": 0
         })),
     )
@@ -320,7 +325,7 @@ async fn full_batch_round_trip_overlap_and_delivery_replacement() {
     let (_, listed) = call(
         state,
         actix_web::http::Method::GET,
-        "/alerts/lifecycle-events",
+        "/alerts/lifecycle_events",
         Some(API_KEY),
         None,
     )
@@ -342,7 +347,7 @@ async fn authentication_and_request_validation_are_enforced() {
         call(
             state(),
             actix_web::http::Method::GET,
-            "/alerts/lifecycle-events",
+            "/alerts/lifecycle_events",
             None,
             None
         )
@@ -354,26 +359,36 @@ async fn authentication_and_request_validation_are_enforced() {
         call(
             state(),
             actix_web::http::Method::POST,
-            "/alerts/lifecycle-events/batch",
+            "/alerts/lifecycle_events/batch",
             Some("wrong"),
-            Some(json!({"events": [], "version_bump_seconds": 0}))
+            Some(json!({
+                "events": [], "snapshot_at": "2026-09-15T10:30:00Z", "version_bump_seconds": 0
+            }))
         )
         .await
         .0,
         StatusCode::UNAUTHORIZED
     );
 
+    let mut invalid_counters = event(
+        "0123456789abcdef0123456789abcdef",
+        "2026-09-15T09:00:00Z",
+        "2026-09-15T09:45:00Z",
+    );
+    invalid_counters["failed"] = json!(11);
+
     for body in [
-        json!({"events": [event("short", "2026-09-15T09:00:00Z", "2026-09-15T09:45:00Z")], "version_bump_seconds": 0}),
-        json!({"events": [event("0123456789abcdef0123456789abcdef", "bad", "2026-09-15T09:45:00Z")], "version_bump_seconds": 0}),
-        json!({"events": [], "version_bump_seconds": 2}),
-        json!({"events": [], "version_bump_seconds": 0, "unknown": true}),
+        json!({"events": [event("short", "2026-09-15T09:00:00Z", "2026-09-15T09:45:00Z")], "snapshot_at": "2026-09-15T10:30:00Z", "version_bump_seconds": 0}),
+        json!({"events": [event("0123456789abcdef0123456789abcdef", "bad", "2026-09-15T09:45:00Z")], "snapshot_at": "2026-09-15T10:30:00Z", "version_bump_seconds": 0}),
+        json!({"events": [], "snapshot_at": "2026-09-15T10:30:00Z", "version_bump_seconds": 2}),
+        json!({"events": [invalid_counters], "snapshot_at": "2026-09-15T10:30:00Z", "version_bump_seconds": 0}),
+        json!({"events": [], "snapshot_at": "2026-09-15T10:30:00Z", "version_bump_seconds": 0, "unknown": true}),
     ] {
         assert_eq!(
             call(
                 state(),
                 actix_web::http::Method::POST,
-                "/alerts/lifecycle-events/batch",
+                "/alerts/lifecycle_events/batch",
                 Some(API_KEY),
                 Some(body)
             )
@@ -386,7 +401,7 @@ async fn authentication_and_request_validation_are_enforced() {
         call(
             state(),
             actix_web::http::Method::GET,
-            "/alerts/lifecycle-events?unknown=x",
+            "/alerts/lifecycle_events?unknown=x",
             Some(API_KEY),
             None
         )
@@ -403,7 +418,7 @@ async fn storage_failures_return_500() {
         call(
             state.clone(),
             actix_web::http::Method::GET,
-            "/alerts/lifecycle-events",
+            "/alerts/lifecycle_events",
             Some(API_KEY),
             None
         )
@@ -415,9 +430,11 @@ async fn storage_failures_return_500() {
         call(
             state,
             actix_web::http::Method::POST,
-            "/alerts/lifecycle-events/batch",
+            "/alerts/lifecycle_events/batch",
             Some(API_KEY),
-            Some(json!({"events": [], "version_bump_seconds": 0}))
+            Some(json!({
+                "events": [], "snapshot_at": "2026-09-15T10:30:00Z", "version_bump_seconds": 0
+            }))
         )
         .await
         .0,

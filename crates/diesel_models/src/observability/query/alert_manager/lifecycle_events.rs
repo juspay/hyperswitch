@@ -18,7 +18,7 @@ impl LifecycleEvent {
         from: Option<PrimitiveDateTime>,
         to: Option<PrimitiveDateTime>,
     ) -> StorageResult<Vec<Self>> {
-        let mut query = dsl::alert_lifecycle_events.into_boxed();
+        let mut query = crate::list::into_boxed_list(dsl::alert_lifecycle_events);
         if let Some(from) = from {
             query = query.filter(dsl::last_seen.ge(from));
         }

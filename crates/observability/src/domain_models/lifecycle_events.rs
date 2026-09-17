@@ -43,7 +43,7 @@ impl LifecycleEventsBatch {
             return Err(report!(ObservabilityError::InvalidRequest))
                 .attach_printable("version_bump_seconds must be 0 or 1");
         }
-        let last_updated_at = now + Duration::seconds(request.version_bump_seconds);
+        let last_updated_at = request.snapshot_at + Duration::seconds(request.version_bump_seconds);
         let events = request
             .events
             .into_iter()
@@ -73,6 +73,10 @@ impl LifecycleEvent {
         if event.runs < 0 || event.failed < 0 || event.total < 0 {
             return Err(report!(ObservabilityError::InvalidRequest))
                 .attach_printable("lifecycle counters must not be negative");
+        }
+        if event.failed > event.total {
+            return Err(report!(ObservabilityError::InvalidRequest))
+                .attach_printable("failed must not exceed total");
         }
         if !event.sr.is_finite() {
             return Err(report!(ObservabilityError::InvalidRequest))
@@ -211,6 +215,7 @@ mod tests {
         let batch = LifecycleEventsBatch::try_from_request(
             api::LifecycleEventsBatchRequest {
                 events: vec![request()],
+                snapshot_at: datetime!(2026-09-15 08:30),
                 version_bump_seconds: 1,
             },
             now,
@@ -218,23 +223,25 @@ mod tests {
         .unwrap();
         assert_eq!(
             batch.events.first().map(|event| event.last_updated_at),
-            Some(now + Duration::seconds(1))
+            Some(datetime!(2026-09-15 08:30:01))
         );
         assert_eq!(batch.retention_cutoff, datetime!(2026-06-17 09:45));
     }
 
     #[test]
     fn rejects_invalid_identity_state_counters_and_version() {
-        for mutate in 0..3 {
+        for mutate in 0..4 {
             let mut event = request();
             match mutate {
                 0 => event.alert_key = "short".into(),
                 1 => event.state = "unknown".into(),
-                _ => event.failed = -1,
+                2 => event.failed = -1,
+                _ => event.failed = event.total + 1,
             }
             assert!(LifecycleEventsBatch::try_from_request(
                 api::LifecycleEventsBatchRequest {
                     events: vec![event],
+                    snapshot_at: datetime!(2026-09-15 09:45),
                     version_bump_seconds: 0,
                 },
                 datetime!(2026-09-15 09:45),
@@ -244,6 +251,7 @@ mod tests {
         assert!(LifecycleEventsBatch::try_from_request(
             api::LifecycleEventsBatchRequest {
                 events: vec![request()],
+                snapshot_at: datetime!(2026-09-15 09:45),
                 version_bump_seconds: 2,
             },
             datetime!(2026-09-15 09:45),
