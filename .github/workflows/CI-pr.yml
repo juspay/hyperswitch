@@ -230,14 +230,10 @@ jobs:
 
       - name: Run clippy (redis-rs backend)
         shell: bash
-        env:
-          CARGO_BUILD_JOBS: 3
         run: just clippy
 
       - name: Run clippy (fred backend)
         shell: bash
-        env:
-          CARGO_BUILD_JOBS: 3
         run: just clippy fred
 
       - name: Check Cargo.lock changed
@@ -346,14 +342,10 @@ jobs:
 
       - name: Run cargo clippy with v2 features enabled (redis-rs backend)
         shell: bash
-        env:
-          CARGO_BUILD_JOBS: 3
         run: just clippy_v2
 
       - name: Run cargo clippy with v2 features enabled (fred backend)
         shell: bash
-        env:
-          CARGO_BUILD_JOBS: 3
         run: just clippy_v2 fred
 
       - name: Run cargo check enabling only the release and v2 features (redis-rs backend)

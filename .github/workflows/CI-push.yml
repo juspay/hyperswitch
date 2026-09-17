@@ -199,7 +199,6 @@ jobs:
       # that's meant to populate the shared cache.
       RUSTC_WRAPPER: sccache
       RUSTFLAGS: "-D warnings"
-      CARGO_BUILD_JOBS: 2
 
     steps:
       - name: Mask S3 cache location in job logs
