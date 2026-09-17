@@ -1161,22 +1161,31 @@ where
                     {
                         Ok(result) => result,
                         Err(api_error) => {
-                            // Record the rejected attempt, then return the mapped error so the
-                            // API returns the error response instead of a payment object.
-                            record_ucs_rejected_attempt(
-                                state,
-                                platform.get_processor(),
-                                payment_data,
-                                failed_attempt_router_data,
-                                &api_error,
-                                &locale,
-                                #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
-                                routable_connectors,
-                                #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
-                                &business_profile,
-                                &dimensions.without_profile_id(),
-                            )
-                            .await?;
+                            // Record only a request-phase rejection (UCS refused before calling
+                            // the connector, so the outcome is deterministic), then return the
+                            // mapped error so the API returns the error response instead of a
+                            // payment object. A response-phase failure (e.g. the connector
+                            // answered but UCS could not deserialize it) leaves the outcome
+                            // unknown, so keep the existing behavior and do not record it here.
+                            let is_request_phase_rejection = api_error
+                                .downcast_ref::<hyperswitch_interfaces::unified_connector_service::transformers::UnifiedConnectorServiceError>()
+                                .is_some_and(|ucs_error| ucs_error.is_request_phase_rejection());
+                            if is_request_phase_rejection {
+                                record_ucs_rejected_attempt(
+                                    state,
+                                    platform.get_processor(),
+                                    payment_data,
+                                    failed_attempt_router_data,
+                                    &api_error,
+                                    &locale,
+                                    #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+                                    routable_connectors,
+                                    #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+                                    &business_profile,
+                                    &dimensions.without_profile_id(),
+                                )
+                                .await?;
+                            }
                             return Err(api_error);
                         }
                     };
@@ -1374,22 +1383,31 @@ where
                     {
                         Ok(result) => result,
                         Err(api_error) => {
-                            // Record the rejected attempt, then return the mapped error so the
-                            // API returns the error response instead of a payment object.
-                            record_ucs_rejected_attempt(
-                                state,
-                                platform.get_processor(),
-                                payment_data,
-                                failed_attempt_router_data,
-                                &api_error,
-                                &locale,
-                                #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
-                                routable_connectors,
-                                #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
-                                &business_profile,
-                                &dimensions.without_profile_id(),
-                            )
-                            .await?;
+                            // Record only a request-phase rejection (UCS refused before calling
+                            // the connector, so the outcome is deterministic), then return the
+                            // mapped error so the API returns the error response instead of a
+                            // payment object. A response-phase failure (e.g. the connector
+                            // answered but UCS could not deserialize it) leaves the outcome
+                            // unknown, so keep the existing behavior and do not record it here.
+                            let is_request_phase_rejection = api_error
+                                .downcast_ref::<hyperswitch_interfaces::unified_connector_service::transformers::UnifiedConnectorServiceError>()
+                                .is_some_and(|ucs_error| ucs_error.is_request_phase_rejection());
+                            if is_request_phase_rejection {
+                                record_ucs_rejected_attempt(
+                                    state,
+                                    platform.get_processor(),
+                                    payment_data,
+                                    failed_attempt_router_data,
+                                    &api_error,
+                                    &locale,
+                                    #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+                                    routable_connectors,
+                                    #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+                                    &business_profile,
+                                    &dimensions.without_profile_id(),
+                                )
+                                .await?;
+                            }
                             return Err(api_error);
                         }
                     };

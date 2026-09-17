@@ -1990,6 +1990,31 @@ impl UnifiedConnectorServiceError {
         }
     }
 
+    /// Whether this error is a request-phase rejection — UCS refused while building the
+    /// request, so the connector was never called and the outcome is deterministic.
+    ///
+    /// Only these are safe to record as a failed payment attempt. A response-phase failure
+    /// (e.g. the connector answered but UCS could not deserialize the response) leaves the
+    /// outcome unknown — the payment may have succeeded at the connector — so it must keep
+    /// the existing behavior (propagate and let sync/reconcile resolve it) rather than being
+    /// recorded as a failure here.
+    pub fn is_request_phase_rejection(&self) -> bool {
+        matches!(
+            self,
+            Self::NotSupported(_)
+                | Self::NotImplemented(_)
+                | Self::MissingRequiredField { .. }
+                | Self::MissingRequiredFields { .. }
+                | Self::InvalidDataFormat { .. }
+                | Self::RequestEncodingFailed
+                | Self::RequestEncodingFailedWithReason(_)
+                | Self::FailedToObtainAuthType
+                | Self::HeaderInjectionFailed(_)
+                | Self::InvalidConnectorName
+                | Self::MissingConnectorName
+        )
+    }
+
     /// Maps tonic::Status to UnifiedConnectorServiceError.
     ///
     /// Decode priority:
