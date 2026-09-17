@@ -47,14 +47,21 @@ pub struct BlocklistProfileCloneTrackingData {
     pub processed_rows: i32,
 }
 
+#[derive(Debug, Clone)]
+pub struct BlocklistProfileCloneTargetUpdate {
+    pub status: common_enums::BatchBlocklistJobStatus,
+    pub processed_rows: i32,
+    pub error_message: Option<String>,
+}
+
 /// Job-level progress for a multi-target profile clone, one entry per target. The generic row
 /// counters on the job stay at zero.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone)]
 pub struct BlocklistProfileCloneJobMetadata {
     pub targets: Vec<BlocklistProfileCloneTargetMetadata>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone)]
 pub struct BlocklistProfileCloneTargetMetadata {
     pub profile_id: id_type::ProfileId,
     pub status: common_enums::BatchBlocklistJobStatus,
@@ -62,9 +69,52 @@ pub struct BlocklistProfileCloneTargetMetadata {
     pub error_message: Option<String>,
 }
 
-#[derive(Debug, Clone)]
-pub struct BlocklistProfileCloneTargetUpdate {
-    pub status: common_enums::BatchBlocklistJobStatus,
-    pub processed_rows: i32,
-    pub error_message: Option<String>,
+impl From<diesel_models::batch_blocklist_job::BlocklistProfileCloneJobMetadata>
+    for BlocklistProfileCloneJobMetadata
+{
+    fn from(
+        metadata: diesel_models::batch_blocklist_job::BlocklistProfileCloneJobMetadata,
+    ) -> Self {
+        Self {
+            targets: metadata.targets.into_iter().map(Into::into).collect(),
+        }
+    }
+}
+
+impl From<BlocklistProfileCloneJobMetadata>
+    for diesel_models::batch_blocklist_job::BlocklistProfileCloneJobMetadata
+{
+    fn from(metadata: BlocklistProfileCloneJobMetadata) -> Self {
+        Self {
+            targets: metadata.targets.into_iter().map(Into::into).collect(),
+        }
+    }
+}
+
+impl From<diesel_models::batch_blocklist_job::BlocklistProfileCloneTargetMetadata>
+    for BlocklistProfileCloneTargetMetadata
+{
+    fn from(
+        target: diesel_models::batch_blocklist_job::BlocklistProfileCloneTargetMetadata,
+    ) -> Self {
+        Self {
+            profile_id: target.profile_id,
+            status: target.status,
+            processed_rows: target.processed_rows,
+            error_message: target.error_message,
+        }
+    }
+}
+
+impl From<BlocklistProfileCloneTargetMetadata>
+    for diesel_models::batch_blocklist_job::BlocklistProfileCloneTargetMetadata
+{
+    fn from(target: BlocklistProfileCloneTargetMetadata) -> Self {
+        Self {
+            profile_id: target.profile_id,
+            status: target.status,
+            processed_rows: target.processed_rows,
+            error_message: target.error_message,
+        }
+    }
 }

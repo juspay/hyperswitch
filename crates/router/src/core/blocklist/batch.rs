@@ -601,12 +601,8 @@ fn to_job_status_response(
         error_message: job.error_message,
         metadata: job
             .metadata
-            .map(|metadata| {
-                serde_json::from_value::<storage::BlocklistProfileCloneJobMetadata>(metadata)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to parse blocklist profile clone job metadata")
-                    .and_then(api_blocklist::ProfileCloneJobMetadata::foreign_try_from)
-            })
+            .map(storage::BlocklistProfileCloneJobMetadata::from)
+            .map(api_blocklist::ProfileCloneJobMetadata::foreign_try_from)
             .transpose()?,
         download_url: None,
         download_url_expires_at: None,

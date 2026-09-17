@@ -31,15 +31,9 @@ fn apply_profile_clone_target_update(
     profile_id: &common_utils::id_type::ProfileId,
     update: storage::BlocklistProfileCloneTargetUpdate,
 ) -> Result<(), errors::StorageError> {
-    let metadata_value = job.metadata.clone().ok_or_else(|| {
+    let mut metadata = job.metadata.clone().ok_or_else(|| {
         errors::StorageError::InvalidDataFormat("profile clone job is missing metadata".to_string())
     })?;
-    let mut metadata: storage::BlocklistProfileCloneJobMetadata =
-        serde_json::from_value(metadata_value).map_err(|_| {
-            errors::StorageError::InvalidDataFormat(
-                "profile clone job metadata has an invalid shape".to_string(),
-            )
-        })?;
 
     let target = metadata
         .targets
@@ -80,9 +74,7 @@ fn apply_profile_clone_target_update(
     };
     job.error_message = (all_terminal && any_failed)
         .then(|| "One or more profile clone processes failed".to_string());
-    job.metadata = Some(
-        serde_json::to_value(metadata).map_err(|_| errors::StorageError::SerializationFailed)?,
-    );
+    job.metadata = Some(metadata);
     job.updated_at = common_utils::date_time::now();
 
     Ok(())

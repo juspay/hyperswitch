@@ -126,9 +126,6 @@ async fn enqueue_clone_job(
             })
             .collect(),
     };
-    let metadata = serde_json::to_value(metadata)
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to serialize blocklist profile clone job metadata")?;
 
     let job_new = storage::BatchBlocklistJobNew {
         id: job_id.clone(),
@@ -142,7 +139,7 @@ async fn enqueue_clone_job(
         profile_id: source_profile_id.clone(),
         job_type: common_enums::BatchBlocklistJobType::ProfileClone,
         file_name: None,
-        metadata: Some(metadata),
+        metadata: Some(metadata.into()),
     };
 
     state
