@@ -3327,6 +3327,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                         .error_message
                         .unwrap_or_default(),
                     field_names: err.field_names,
+                    payment_id: Some(payment_data.payment_intent.payment_id.clone()),
                 },
             ))
         }

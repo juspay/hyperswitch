@@ -274,6 +274,7 @@ pub enum StripeErrorCode {
     LinkConfigurationError { message: String },
     #[error(error_type = StripeErrorType::ConnectorError, code = "CE", message = "{reason} as data mismatched for {field_names}")]
     IntegrityCheckFailed {
+        payment_id: Option<id_type::PaymentId>,
         reason: String,
         field_names: String,
         connector_transaction_id: Option<String>,
@@ -691,10 +692,12 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
                 reason,
                 field_names,
                 connector_transaction_id,
+                payment_id,
             } => Self::IntegrityCheckFailed {
                 reason,
                 field_names,
                 connector_transaction_id,
+                payment_id,
             },
             errors::ApiErrorResponse::InvalidTenant { tenant_id: _ }
             | errors::ApiErrorResponse::MissingTenantId => Self::InvalidTenant,
