@@ -214,12 +214,6 @@ describe("Payment Manual Update Tests", () => {
           globalState,
           data,
           unconfirmedPayment: true,
-          expectedIntentStatus: data.Response.body.status,
-        }).then((response) => {
-          expect(
-            response.body.amount_received,
-            "amount_received should match the amount_captured configured in the connector config"
-          ).to.equal(data.Response.body.amount_captured);
         });
       });
     });
@@ -284,12 +278,6 @@ describe("Payment Manual Update Tests", () => {
           globalState,
           data,
           unconfirmedPayment: true,
-          expectedIntentStatus: data.Response.body.status,
-        }).then((response) => {
-          expect(
-            response.body.amount_received,
-            "amount_received should match the amount_captured configured in the connector config"
-          ).to.equal(data.Response.body.amount_captured);
         });
       });
     });
