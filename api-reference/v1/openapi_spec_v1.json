@@ -6985,6 +6985,9 @@
         "security": [
           {
             "api_key": []
+          },
+          {
+            "jwt_key": []
           }
         ]
       },
@@ -7032,6 +7035,12 @@
         "security": [
           {
             "api_key": []
+          },
+          {
+            "jwt_key": []
+          },
+          {
+            "publishable_key": []
           }
         ]
       },
@@ -7080,6 +7089,9 @@
         "security": [
           {
             "api_key": []
+          },
+          {
+            "jwt_key": []
           }
         ]
       }
@@ -7119,6 +7131,9 @@
         "security": [
           {
             "api_key": []
+          },
+          {
+            "jwt_key": []
           }
         ]
       }
@@ -7168,6 +7183,9 @@
         "security": [
           {
             "api_key": []
+          },
+          {
+            "jwt_key": []
           }
         ]
       }
@@ -7217,6 +7235,9 @@
         "security": [
           {
             "api_key": []
+          },
+          {
+            "jwt_key": []
           }
         ]
       }
@@ -7268,6 +7289,9 @@
         "security": [
           {
             "api_key": []
+          },
+          {
+            "jwt_key": []
           }
         ]
       },
@@ -7304,7 +7328,7 @@
           {
             "name": "job_type",
             "in": "query",
-            "description": "Restricts the listing to `upload` or `export` jobs. Both kinds are returned when omitted, newest first.",
+            "description": "Restricts the listing to `upload`, `export`, or `profile_clone` jobs. All kinds are returned when omitted, newest first.",
             "required": false,
             "schema": {
               "allOf": [
@@ -7341,6 +7365,9 @@
         "security": [
           {
             "api_key": []
+          },
+          {
+            "jwt_key": []
           }
         ]
       }
@@ -7380,6 +7407,9 @@
         "security": [
           {
             "api_key": []
+          },
+          {
+            "jwt_key": []
           }
         ]
       }
@@ -7420,6 +7450,67 @@
         "security": [
           {
             "api_key": []
+          },
+          {
+            "jwt_key": []
+          }
+        ]
+      }
+    },
+    "/blocklist/clone": {
+      "post": {
+        "tags": [
+          "Blocklist"
+        ],
+        "summary": "Blocklist - Clone Entries",
+        "description": "Copies a business profile's blocklist entries onto other profiles of the same merchant. The\ncopy runs as one background job whose process tracker clones onto the targets one at a time.\nPoll `/blocklist/batch/{job_id}` for per-target progress in the job metadata.",
+        "operationId": "Clone blocklist entries across profiles",
+        "parameters": [
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Source profile whose entries are copied; it also owns the clone job. Required when the authenticated dashboard session does not provide a profile context",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CloneBlocklistEntriesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "One background job was started; it clones onto the target profiles one at a time",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CloneBlocklistEntriesResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing profile context, no targets given, or a target is the source profile"
+          },
+          "404": {
+            "description": "The source or a target profile does not belong to the merchant"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "jwt_key": []
           }
         ]
       }
@@ -15868,12 +15959,18 @@
           "merchant_id": {
             "type": "string"
           },
+          "profile_id": {
+            "type": "string",
+            "description": "The profile that owns this job; for a clone job, the profile whose entries are copied.",
+            "example": "pro_abcdefghijklmnop",
+            "nullable": true
+          },
           "job_type": {
             "$ref": "#/components/schemas/BatchBlocklistJobType"
           },
           "file_name": {
             "type": "string",
-            "description": "The file the merchant uploaded, or the name the export downloads as.",
+            "description": "The file the merchant uploaded, or the name the export downloads as. Clone jobs return\n`null`.",
             "nullable": true
           },
           "status": {
@@ -15893,6 +15990,14 @@
             "type": "integer",
             "format": "int32",
             "minimum": 0
+          },
+          "metadata": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ProfileCloneJobMetadata"
+              }
+            ],
+            "nullable": true
           },
           "created_at": {
             "type": "string",
@@ -15930,10 +16035,11 @@
       },
       "BatchBlocklistJobType": {
         "type": "string",
-        "description": "Distinguishes a bulk upload job from a CSV export job in the `batch_blocklist_jobs` table.",
+        "description": "Distinguishes bulk upload, CSV export, and profile clone jobs.",
         "enum": [
           "upload",
-          "export"
+          "export",
+          "profile_clone"
         ]
       },
       "BatchBlocklistUploadResponse": {
@@ -18516,6 +18622,48 @@
       "ClientSecret": {
         "type": "string",
         "description": "For Client based calls, SDK will use the client_secret\\nin order to call /payment_methods\\nClient secret will be generated whenever a new\\npayment method is created"
+      },
+      "CloneBlocklistEntriesRequest": {
+        "type": "object",
+        "required": [
+          "target_profile_ids"
+        ],
+        "properties": {
+          "target_profile_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "CloneBlocklistEntriesResponse": {
+        "type": "object",
+        "description": "Response for `POST /blocklist/clone`.",
+        "required": [
+          "source_profile_id",
+          "job_id",
+          "status",
+          "target_profile_ids"
+        ],
+        "properties": {
+          "source_profile_id": {
+            "type": "string",
+            "example": "pro_abcdefghijklmnop"
+          },
+          "job_id": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/BatchBlocklistJobStatus"
+          },
+          "target_profile_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
       },
       "CollectionActions": {
         "type": "object",
@@ -41803,6 +41951,50 @@
           }
         },
         "additionalProperties": false
+      },
+      "ProfileCloneJobMetadata": {
+        "type": "object",
+        "description": "Progress of a profile-clone job across its target profiles.",
+        "required": [
+          "targets"
+        ],
+        "properties": {
+          "targets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProfileCloneTargetMetadata"
+            }
+          }
+        }
+      },
+      "ProfileCloneTargetMetadata": {
+        "type": "object",
+        "description": "Progress of one target profile within a profile-clone job.",
+        "required": [
+          "profile_id",
+          "status",
+          "processed_rows"
+        ],
+        "properties": {
+          "profile_id": {
+            "type": "string",
+            "example": "pro_abcdefghijklmnop"
+          },
+          "status": {
+            "$ref": "#/components/schemas/BatchBlocklistJobStatus"
+          },
+          "processed_rows": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Source entries handled so far for this target.",
+            "minimum": 0
+          },
+          "error_message": {
+            "type": "string",
+            "description": "Present when this target's clone failed.",
+            "nullable": true
+          }
+        }
       },
       "ProfileCreate": {
         "type": "object",
