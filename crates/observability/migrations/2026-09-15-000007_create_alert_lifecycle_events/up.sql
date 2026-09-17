@@ -16,12 +16,7 @@ CREATE TABLE alert_lifecycle_events (
     notified_at     TIMESTAMP NOT NULL,
     ts_slack        TEXT NOT NULL DEFAULT '',
     sent            BOOLEAN NOT NULL,
-    last_updated_at TIMESTAMP NOT NULL,
-    CHECK (char_length(alert_key) = 32),
-    CHECK (state IN ('firing', 'recovered')),
-    CHECK (runs >= 0),
-    CHECK (failed >= 0),
-    CHECK (total >= 0)
+    last_updated_at TIMESTAMP NOT NULL
 );
 
 CREATE INDEX alert_lifecycle_events_window_idx
