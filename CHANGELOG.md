@@ -4,6 +4,20 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.09.16.0-hotfix1
+
+### Features
+
+- **merchant_account:** Add integration_type and validate X-Integration-Type against it ([#14279](https://github.com/juspay/hyperswitch/pull/14279)) ([`41b29cf`](https://github.com/juspay/hyperswitch/commit/41b29cfef9e0a0f6977e73f7c37b7e7cea5e720e))
+
+### Refactors
+
+- **connector:** [Checkout][WorldpayXML] support wallet id as account identifier and relax AFT state requirement ([#14286](https://github.com/juspay/hyperswitch/pull/14286)) ([`6a39f9a`](https://github.com/juspay/hyperswitch/commit/6a39f9a147c07dbb7f0656b27035b5ffdaaef32f))
+
+**Full Changelog:** [`2026.09.16.0...2026.09.16.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2026.09.16.0...2026.09.16.0-hotfix1)
+
+- - -
+
 ## 2026.09.16.0
 
 ### Features
