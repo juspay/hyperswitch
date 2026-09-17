@@ -29,7 +29,7 @@ use tokio::sync::{mpsc, oneshot};
 const SCHEDULER_FLOW: &str = "SCHEDULER_FLOW";
 #[tokio::main]
 async fn main() -> CustomResult<(), ProcessTrackerError> {
-    // Pin the rustls crypto backend 
+    // Pin the rustls crypto backend
     #[cfg(feature = "gcp_kms")]
     #[allow(clippy::expect_used)]
     rustls::crypto::aws_lc_rs::default_provider()
