@@ -149,6 +149,13 @@ jobs:
       # backend (bucket/region/prefix/encryption come from this pod's own
       # environment).
       RUSTC_WRAPPER: sccache
+      # `router` alone can take longer to compile than sccache's default
+      # 600s idle timeout, which kills the server mid-compile if nothing
+      # *new* gets dispatched to it in the meantime (mozilla/sccache#204).
+      # Disable idle shutdown; this is a single-use ephemeral pod torn down
+      # at job end regardless (confirmed via the runner's own orphan-process
+      # cleanup), so there's no cross-job leak risk from leaving it running.
+      SCCACHE_IDLE_TIMEOUT: "0"
     steps:
       - name: Mask S3 cache location in job logs
         shell: bash
@@ -1776,6 +1783,11 @@ jobs:
       # backend (bucket/region/prefix/encryption come from this pod's own
       # environment).
       RUSTC_WRAPPER: sccache
+      # See build-hyperswitch: `just build_v2` can outlast sccache's default
+      # 600s idle timeout, which kills the server mid-compile
+      # (mozilla/sccache#204). Disable idle shutdown; safe here for the same
+      # reason (single-use ephemeral pod, reaped at job end regardless).
+      SCCACHE_IDLE_TIMEOUT: "0"
 
     services:
       redis:
