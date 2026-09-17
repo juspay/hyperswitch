@@ -22,6 +22,11 @@ update_latest="$2"
 tar -czf /tmp/cargo.tar.gz -C "$HOME/.cargo" registry git
 tar -czf /tmp/target.tar.gz -C "$GITHUB_WORKSPACE" target
 
+# No pruning of stale dependency-version artifacts in target/ yet (cargo
+# doesn't do this itself, and neither do we) — logging sizes here so growth
+# over time is visible before deciding whether that's worth building.
+echo "::notice::S3 cache tarball sizes for ${job_name} (${CACHE_KEY}): cargo=$(du -h /tmp/cargo.tar.gz | cut -f1), target=$(du -h /tmp/target.tar.gz | cut -f1)"
+
 job_prefix="${SCCACHE_S3_KEY_PREFIX}rust-cache/${job_name}"
 dests=("${job_prefix}/by-key/${CACHE_KEY}")
 if [[ "$update_latest" == "true" ]]; then
