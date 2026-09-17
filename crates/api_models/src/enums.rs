@@ -647,23 +647,52 @@ pub enum TokenStatus {
     Deleted,
 }
 
-/// Enum representing the allowed intent statuses for manual status update
-/// Only Succeeded and Failed are valid transitions from Review state
-#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
+/// Enum representing the allowed intent statuses for manual status update.
+/// From the `review` state, only Succeeded and Failed are valid transitions.
+/// From the `conflicted` state, the valid subset depends on the payment's capture method
+/// and amounts - see `/manual-status-update` (GET) for the statuses eligible for a specific
+/// payment.
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, Copy, PartialEq, Eq, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ManualUpdateIntentStatus {
     /// Transition the payment to succeeded state
     Succeeded,
     /// Transition the payment to failed state
     Failed,
+    /// Transition the payment to partially captured state
+    PartiallyCaptured,
+    /// Transition the payment to requires capture state
+    RequiresCapture,
+    /// Transition the payment to partially authorized, requires capture state
+    PartiallyAuthorizedAndRequiresCapture,
+    /// Transition the payment to partially captured and still capturable state
+    PartiallyCapturedAndCapturable,
 }
 
 impl ManualUpdateIntentStatus {
     /// Convert ManualUpdateIntentStatus to the corresponding IntentStatus
-    pub fn to_intent_status(&self) -> IntentStatus {
+    pub fn to_intent_status(self) -> IntentStatus {
         match self {
             Self::Succeeded => IntentStatus::Succeeded,
             Self::Failed => IntentStatus::Failed,
+            Self::PartiallyCaptured => IntentStatus::PartiallyCaptured,
+            Self::RequiresCapture => IntentStatus::RequiresCapture,
+            Self::PartiallyAuthorizedAndRequiresCapture => {
+                IntentStatus::PartiallyAuthorizedAndRequiresCapture
+            }
+            Self::PartiallyCapturedAndCapturable => IntentStatus::PartiallyCapturedAndCapturable,
+        }
+    }
+
+    /// Convert ManualUpdateIntentStatus to the corresponding AttemptStatus
+    pub fn to_attempt_status(self) -> AttemptStatus {
+        match self {
+            Self::Succeeded => AttemptStatus::Charged,
+            Self::Failed => AttemptStatus::Failure,
+            Self::PartiallyCaptured => AttemptStatus::PartialCharged,
+            Self::RequiresCapture => AttemptStatus::Authorized,
+            Self::PartiallyAuthorizedAndRequiresCapture => AttemptStatus::PartiallyAuthorized,
+            Self::PartiallyCapturedAndCapturable => AttemptStatus::PartialChargedAndChargeable,
         }
     }
 }

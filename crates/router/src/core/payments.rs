@@ -14144,6 +14144,134 @@ pub async fn payments_manual_update(
     ))
 }
 
+/// Computes which `ManualUpdateIntentStatus` values a payment in the `conflicted` state may
+/// currently be manually transitioned to, based on its capture method and the requested vs.
+/// received vs. capturable amounts.
+///
+/// "Requested" is `payment_attempt.net_amount.get_total_amount()`; "received" is
+/// `payment_intent.amount_captured`; "capturable" is `payment_attempt.amount_capturable`.
+#[cfg(all(feature = "olap", feature = "v1"))]
+fn get_eligible_manual_update_statuses(
+    payment_intent: &storage::PaymentIntent,
+    payment_attempt: &storage::PaymentAttempt,
+) -> Vec<enums::ManualUpdateIntentStatus> {
+    use enums::ManualUpdateIntentStatus as Status;
+
+    let amount_requested = payment_attempt.net_amount.get_total_amount();
+    let amount_received = payment_intent.amount_captured;
+    let amount_capturable = payment_attempt.amount_capturable;
+
+    match payment_attempt.capture_method.unwrap_or_default() {
+        // Scheduled behaves like Automatic capture for this purpose.
+        enums::CaptureMethod::Automatic | enums::CaptureMethod::Scheduled => {
+            match amount_received {
+                Some(received) if received < amount_requested => {
+                    vec![Status::PartiallyCaptured, Status::Failed]
+                }
+                // Received == requested, received > requested (overcapture), or unknown.
+                _ => vec![Status::Succeeded, Status::Failed],
+            }
+        }
+        // SequentialAutomatic behaves like Manual capture for this purpose.
+        enums::CaptureMethod::Manual | enums::CaptureMethod::SequentialAutomatic => {
+            match amount_received {
+                None if amount_capturable < amount_requested => {
+                    vec![Status::PartiallyAuthorizedAndRequiresCapture, Status::Failed]
+                }
+                None => vec![Status::RequiresCapture, Status::Failed],
+                Some(_) => vec![Status::PartiallyCaptured, Status::Failed],
+            }
+        }
+        enums::CaptureMethod::ManualMultiple => match amount_received {
+            None if amount_capturable < amount_requested => {
+                vec![Status::PartiallyAuthorizedAndRequiresCapture, Status::Failed]
+            }
+            None => vec![Status::RequiresCapture, Status::Failed],
+            Some(_) if amount_capturable == MinorUnit::zero() => {
+                vec![Status::Succeeded, Status::Failed]
+            }
+            Some(received) if received < amount_requested => {
+                vec![Status::PartiallyCapturedAndCapturable, Status::Failed]
+            }
+            // Capturable remains but received already meets the requested amount - follow
+            // the plain Manual capture outcome.
+            Some(_) => vec![Status::PartiallyCaptured, Status::Failed],
+        },
+    }
+}
+
+#[cfg(all(feature = "olap", feature = "v1"))]
+pub async fn payments_manual_status_update_eligible_statuses(
+    state: SessionState,
+    platform: domain::Platform,
+    payment_id: id_type::PaymentId,
+) -> RouterResponse<api_models::payments::PaymentsManualStatusUpdateEligibleStatusesResponse> {
+    let merchant_id = platform.get_processor().get_account().get_id();
+
+    let key_store = state
+        .store
+        .get_merchant_key_store_by_merchant_id(
+            merchant_id,
+            &state.store.get_master_key().to_vec().into(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
+        .attach_printable("Error while fetching the key store by merchant_id")?;
+
+    let merchant_account = state
+        .store
+        .find_merchant_account_by_merchant_id(merchant_id, &key_store)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
+        .attach_printable("Error while fetching the merchant_account by merchant_id")?;
+
+    let payment_intent = state
+        .store
+        .find_payment_intent_by_payment_id_processor_merchant_id(
+            &payment_id,
+            merchant_account.get_id(),
+            &key_store,
+            merchant_account.storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+        .attach_printable("Error while fetching the payment_intent by payment_id, merchant_id")?;
+
+    if payment_intent.status != enums::IntentStatus::Conflicted {
+        return Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: format!(
+                "Payment status must be 'conflicted' to check eligible manual update statuses, current status is '{}'",
+                payment_intent.status
+            ),
+        }
+        .into());
+    }
+
+    let attempt_id = payment_intent.active_attempt.get_id();
+
+    let payment_attempt = state
+        .store
+        .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
+            &payment_id,
+            merchant_id,
+            &attempt_id,
+            merchant_account.storage_scheme,
+            &key_store,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+        .attach_printable("Error while fetching the payment_attempt")?;
+
+    let eligible_statuses = get_eligible_manual_update_statuses(&payment_intent, &payment_attempt);
+
+    Ok(services::ApplicationResponse::Json(
+        api_models::payments::PaymentsManualStatusUpdateEligibleStatusesResponse {
+            payment_id,
+            eligible_statuses,
+        },
+    ))
+}
+
 #[cfg(all(feature = "olap", feature = "v1"))]
 pub async fn payments_manual_status_update(
     state: SessionState,
@@ -14184,10 +14312,13 @@ pub async fn payments_manual_status_update(
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
         .attach_printable("Error while fetching the payment_intent by payment_id, merchant_id")?;
 
-    if payment_intent.status != enums::IntentStatus::Review {
+    if !matches!(
+        payment_intent.status,
+        enums::IntentStatus::Review | enums::IntentStatus::Conflicted
+    ) {
         return Err(errors::ApiErrorResponse::InvalidRequestData {
             message: format!(
-                "Payment status must be 'review' to perform manual status update, current status is '{}'",
+                "Payment status must be 'review' or 'conflicted' to perform manual status update, current status is '{}'",
                 payment_intent.status
             ),
         }
@@ -14195,11 +14326,6 @@ pub async fn payments_manual_status_update(
     }
 
     let attempt_id = payment_intent.active_attempt.get_id();
-
-    let attempt_status = match intent_status {
-        enums::ManualUpdateIntentStatus::Succeeded => enums::AttemptStatus::Charged,
-        enums::ManualUpdateIntentStatus::Failed => enums::AttemptStatus::Failure,
-    };
 
     let payment_attempt = state
         .store
@@ -14214,18 +14340,40 @@ pub async fn payments_manual_status_update(
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
         .attach_printable("Error while fetching the payment_attempt")?;
 
-    if payment_attempt.status != enums::AttemptStatus::CaptureReview {
-        return Err(errors::ApiErrorResponse::InvalidRequestData {
-            message: format!(
-                "Payment attempt status must be 'capture_review' to perform manual status update, current status is '{}'",
-                payment_attempt.status
-            ),
+    if payment_intent.status == enums::IntentStatus::Review {
+        if !matches!(
+            intent_status,
+            enums::ManualUpdateIntentStatus::Succeeded | enums::ManualUpdateIntentStatus::Failed
+        ) {
+            return Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Only 'succeeded' or 'failed' are valid manual status update targets from the 'review' state".to_string(),
+            }
+            .into());
         }
-        .into());
+
+        if payment_attempt.status != enums::AttemptStatus::CaptureReview {
+            return Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: format!(
+                    "Payment attempt status must be 'capture_review' to perform manual status update, current status is '{}'",
+                    payment_attempt.status
+                ),
+            }
+            .into());
+        }
+    } else {
+        let eligible_statuses = get_eligible_manual_update_statuses(&payment_intent, &payment_attempt);
+        if !eligible_statuses.contains(&intent_status) {
+            return Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: format!(
+                    "'{intent_status:?}' is not a valid manual status update target for this payment's current state. Eligible statuses are '{eligible_statuses:?}'"
+                ),
+            }
+            .into());
+        }
     }
 
     let attempt_update = storage::PaymentAttemptUpdate::StatusUpdate {
-        status: attempt_status,
+        status: intent_status.to_attempt_status(),
         updated_by: merchant_account.storage_scheme.to_string(),
     };
 
