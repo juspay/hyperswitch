@@ -1990,26 +1990,6 @@ impl UnifiedConnectorServiceError {
         }
     }
 
-    /// UCS refused while building the request, so the connector was never called. Only
-    /// these are safe to record as a failed attempt; a response-phase failure leaves the
-    /// outcome unknown (the payment may have succeeded at the connector).
-    pub fn is_request_phase_rejection(&self) -> bool {
-        matches!(
-            self,
-            Self::NotSupported(_)
-                | Self::NotImplemented(_)
-                | Self::MissingRequiredField { .. }
-                | Self::MissingRequiredFields { .. }
-                | Self::InvalidDataFormat { .. }
-                | Self::RequestEncodingFailed
-                | Self::RequestEncodingFailedWithReason(_)
-                | Self::FailedToObtainAuthType
-                | Self::HeaderInjectionFailed(_)
-                | Self::InvalidConnectorName
-                | Self::MissingConnectorName
-        )
-    }
-
     /// Maps tonic::Status to UnifiedConnectorServiceError.
     ///
     /// Decode priority:

@@ -645,12 +645,16 @@ where
     ))
 }
 
-/// Record a UCS pre-call rejection as a failed attempt through the post-update tracker,
-/// so the payment leaves `processing` before the caller returns the error. A tracker
-/// write failure is logged and swallowed.
+/// Record a pre-call rejection as a failed attempt through the post-update tracker, so the
+/// payment leaves `processing` before the caller returns the error. A tracker write failure
+/// is logged and swallowed.
+///
+/// Reached once the trackers have already moved the payment to `processing`, which is where
+/// the request is built on the UCS path. The direct path builds its request earlier and
+/// aborts before that, so it commits nothing and has nothing to record here.
 #[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
-async fn record_ucs_rejected_attempt<F, FData, D>(
+async fn record_rejected_attempt<F, FData, D>(
     state: &SessionState,
     processor: &domain::Processor,
     payment_data: D,
@@ -1157,10 +1161,12 @@ where
                             // Record only a request-phase rejection; a response-phase failure
                             // leaves the outcome unknown, so keep the existing behavior.
                             let is_request_phase_rejection = api_error
-                                .downcast_ref::<hyperswitch_interfaces::unified_connector_service::transformers::UnifiedConnectorServiceError>()
-                                .is_some_and(|ucs_error| ucs_error.is_request_phase_rejection());
+                                .downcast_ref::<errors::ConnectorError>()
+                                .is_some_and(|connector_error| {
+                                    connector_error.is_request_phase_rejection()
+                                });
                             if is_request_phase_rejection {
-                                record_ucs_rejected_attempt(
+                                record_rejected_attempt(
                                     state,
                                     platform.get_processor(),
                                     payment_data,
@@ -1375,10 +1381,12 @@ where
                             // Record only a request-phase rejection; a response-phase failure
                             // leaves the outcome unknown, so keep the existing behavior.
                             let is_request_phase_rejection = api_error
-                                .downcast_ref::<hyperswitch_interfaces::unified_connector_service::transformers::UnifiedConnectorServiceError>()
-                                .is_some_and(|ucs_error| ucs_error.is_request_phase_rejection());
+                                .downcast_ref::<errors::ConnectorError>()
+                                .is_some_and(|connector_error| {
+                                    connector_error.is_request_phase_rejection()
+                                });
                             if is_request_phase_rejection {
-                                record_ucs_rejected_attempt(
+                                record_rejected_attempt(
                                     state,
                                     platform.get_processor(),
                                     payment_data,
