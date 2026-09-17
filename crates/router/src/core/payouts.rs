@@ -4189,9 +4189,16 @@ pub fn extract_gateway_system_from_payouts(
     #[cfg(feature = "v1")]
     {
         payout_data.payouts.metadata.as_ref().and_then(|metadata| {
-            serde_json::from_value::<FeatureMetadata>(metadata.clone().expose())
-                .ok()
-                .and_then(|feature_metadata| feature_metadata.gateway_system)
+            match serde_json::from_value::<FeatureMetadata>(metadata.clone().expose()) {
+                Ok(feature_metadata) => feature_metadata.gateway_system,
+                Err(err) => {
+                    router_env::logger::warn!(
+                        "Failed to parse payout metadata for gateway_system extraction: {}",
+                        err
+                    );
+                    None
+                }
+            }
         })
     }
     #[cfg(feature = "v2")]
@@ -4235,7 +4242,14 @@ pub fn update_gateway_system_in_payout_metadata(
         .payouts
         .metadata
         .as_ref()
-        .map(|metadata| metadata.peek().as_object().cloned().unwrap_or_default())
+        .map(|metadata| {
+            metadata.peek().as_object().cloned().unwrap_or_else(|| {
+                router_env::logger::warn!(
+                    "Payout metadata is not a JSON object; gateway_system will be written to a fresh map"
+                );
+                serde_json::Map::new()
+            })
+        })
         .unwrap_or_default();
 
     if let Some(gateway_system_metadata) = gateway_system_metadata_value.as_object() {
