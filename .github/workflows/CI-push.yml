@@ -175,12 +175,28 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install rust cache
-        uses: Swatinem/rust-cache@v2.9.1
-        with:
-          shared-key: stable-v1
-          save-if: ${{ github.event_name == 'push' }}
-          cache-on-failure: true
+      # Swatinem/rust-cache has no S3 backend, so this restores ~/.cargo/
+      # {registry,git} and target/ as plain tarballs directly from S3, using
+      # this pod's SCCACHE_BUCKET/SCCACHE_REGION/SCCACHE_S3_KEY_PREFIX env
+      # vars (IAM-role auth, no credentials here). Replaces GHA-cache-backed
+      # rust-cache entirely for this job; save happens at the end of the job
+      # (always(), not gated on success — mirrors the old cache-on-failure).
+      - name: Restore cargo/target cache from S3
+        continue-on-error: true
+        shell: bash
+        run: |
+          echo "::add-mask::${SCCACHE_BUCKET}"
+          mkdir -p "$HOME/.cargo/registry" "$HOME/.cargo/git" "$GITHUB_WORKSPACE/target"
+          if aws s3 cp --region "$SCCACHE_REGION" "s3://${SCCACHE_BUCKET}/${SCCACHE_S3_KEY_PREFIX}rust-cache/test/cargo.tar.gz" /tmp/cargo.tar.gz --only-show-errors; then
+            tar -xzf /tmp/cargo.tar.gz -C "$HOME/.cargo"
+          else
+            echo "::notice::No S3 cache for ~/.cargo yet — starting cold"
+          fi
+          if aws s3 cp --region "$SCCACHE_REGION" "s3://${SCCACHE_BUCKET}/${SCCACHE_S3_KEY_PREFIX}rust-cache/test/target.tar.gz" /tmp/target.tar.gz --only-show-errors; then
+            tar -xzf /tmp/target.tar.gz -C "$GITHUB_WORKSPACE"
+          else
+            echo "::notice::No S3 cache for target/ yet — starting cold"
+          fi
 
       - name: Install cargo-hack
         uses: taiki-e/install-action@v2.83.2
@@ -229,6 +245,19 @@ jobs:
         env:
           CARGO_BUILD_JOBS: 2
         run: cargo check --features "release"
+
+      # Only push (not merge_group) writes — same policy the old rust-cache
+      # `save-if: github.event_name == 'push'` used. S3 objects overwrite in
+      # place, so unlike actions/cache there's no stale-entry deletion needed.
+      - name: Save cargo/target cache to S3
+        if: ${{ always() && github.event_name == 'push' }}
+        continue-on-error: true
+        shell: bash
+        run: |
+          tar -czf /tmp/cargo.tar.gz -C "$HOME/.cargo" registry git
+          aws s3 cp --region "$SCCACHE_REGION" /tmp/cargo.tar.gz "s3://${SCCACHE_BUCKET}/${SCCACHE_S3_KEY_PREFIX}rust-cache/test/cargo.tar.gz" --only-show-errors
+          tar -czf /tmp/target.tar.gz -C "$GITHUB_WORKSPACE" target
+          aws s3 cp --region "$SCCACHE_REGION" /tmp/target.tar.gz "s3://${SCCACHE_BUCKET}/${SCCACHE_S3_KEY_PREFIX}rust-cache/test/target.tar.gz" --only-show-errors
 
   typos:
     name: Spell check
@@ -286,12 +315,27 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install rust cache
-        uses: Swatinem/rust-cache@v2.9.1
-        with:
-          shared-key: stable-v2
-          save-if: ${{ github.event_name == 'push' }}
-          cache-on-failure: true
+      # Swatinem/rust-cache has no S3 backend, so this restores ~/.cargo/
+      # {registry,git} and target/ as plain tarballs directly from S3, using
+      # this pod's SCCACHE_BUCKET/SCCACHE_REGION/SCCACHE_S3_KEY_PREFIX env
+      # vars (IAM-role auth, no credentials here). Replaces GHA-cache-backed
+      # rust-cache entirely for this job.
+      - name: Restore cargo/target cache from S3
+        continue-on-error: true
+        shell: bash
+        run: |
+          echo "::add-mask::${SCCACHE_BUCKET}"
+          mkdir -p "$HOME/.cargo/registry" "$HOME/.cargo/git" "$GITHUB_WORKSPACE/target"
+          if aws s3 cp --region "$SCCACHE_REGION" "s3://${SCCACHE_BUCKET}/${SCCACHE_S3_KEY_PREFIX}rust-cache/check-v2/cargo.tar.gz" /tmp/cargo.tar.gz --only-show-errors; then
+            tar -xzf /tmp/cargo.tar.gz -C "$HOME/.cargo"
+          else
+            echo "::notice::No S3 cache for ~/.cargo yet — starting cold"
+          fi
+          if aws s3 cp --region "$SCCACHE_REGION" "s3://${SCCACHE_BUCKET}/${SCCACHE_S3_KEY_PREFIX}rust-cache/check-v2/target.tar.gz" /tmp/target.tar.gz --only-show-errors; then
+            tar -xzf /tmp/target.tar.gz -C "$GITHUB_WORKSPACE"
+          else
+            echo "::notice::No S3 cache for target/ yet — starting cold"
+          fi
 
       - name: Run cargo check enabling only the release and v2 features (redis-rs backend)
         shell: bash
@@ -300,3 +344,13 @@ jobs:
       - name: Run cargo check enabling only the release and v2 features (fred backend)
         shell: bash
         run: cargo check --no-default-features --features "release,v2,fred"
+
+      - name: Save cargo/target cache to S3
+        if: ${{ always() && github.event_name == 'push' }}
+        continue-on-error: true
+        shell: bash
+        run: |
+          tar -czf /tmp/cargo.tar.gz -C "$HOME/.cargo" registry git
+          aws s3 cp --region "$SCCACHE_REGION" /tmp/cargo.tar.gz "s3://${SCCACHE_BUCKET}/${SCCACHE_S3_KEY_PREFIX}rust-cache/check-v2/cargo.tar.gz" --only-show-errors
+          tar -czf /tmp/target.tar.gz -C "$GITHUB_WORKSPACE" target
+          aws s3 cp --region "$SCCACHE_REGION" /tmp/target.tar.gz "s3://${SCCACHE_BUCKET}/${SCCACHE_S3_KEY_PREFIX}rust-cache/check-v2/target.tar.gz" --only-show-errors

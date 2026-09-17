@@ -176,39 +176,34 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install rust cache
-        uses: Swatinem/rust-cache@v2.9.1
-        with:
-          shared-key: stable-v1
-          save-if: false
+      # Swatinem/rust-cache has no S3 backend, so this restores ~/.cargo/
+      # {registry,git} and target/ as plain tarballs directly from S3, using
+      # this pod's SCCACHE_BUCKET/SCCACHE_REGION/SCCACHE_S3_KEY_PREFIX env
+      # vars (IAM-role auth, no credentials here). Replaces GHA-cache-backed
+      # rust-cache entirely for this job — restore-only on PRs; CI-push.yml
+      # saves to this same key on push to main.
+      - name: Restore cargo/target cache from S3
+        continue-on-error: true
+        shell: bash
+        run: |
+          echo "::add-mask::${SCCACHE_BUCKET}"
+          mkdir -p "$HOME/.cargo/registry" "$HOME/.cargo/git" "$GITHUB_WORKSPACE/target"
+          if aws s3 cp --region "$SCCACHE_REGION" "s3://${SCCACHE_BUCKET}/${SCCACHE_S3_KEY_PREFIX}rust-cache/test/cargo.tar.gz" /tmp/cargo.tar.gz --only-show-errors; then
+            tar -xzf /tmp/cargo.tar.gz -C "$HOME/.cargo"
+          else
+            echo "::notice::No S3 cache for ~/.cargo yet — starting cold"
+          fi
+          if aws s3 cp --region "$SCCACHE_REGION" "s3://${SCCACHE_BUCKET}/${SCCACHE_S3_KEY_PREFIX}rust-cache/test/target.tar.gz" /tmp/target.tar.gz --only-show-errors; then
+            tar -xzf /tmp/target.tar.gz -C "$GITHUB_WORKSPACE"
+          else
+            echo "::notice::No S3 cache for target/ yet — starting cold"
+          fi
 
       - name: Install just
         uses: taiki-e/install-action@v2
         with:
           tool: just
           checksum: true
-
-      # TEMPORARY population experiment — restore/save ~/.cargo and target/
-      # as plain tarballs in S3 via the AWS CLI, using this pod's existing
-      # SCCACHE_BUCKET/SCCACHE_REGION/SCCACHE_S3_KEY_PREFIX env vars (IAM-role
-      # auth, no credentials here). Not Swatinem/rust-cache — that action has
-      # no S3 backend. Revert this commit once cold+warm numbers are captured.
-      - name: Restore cargo/target cache from S3 (temporary experiment)
-        continue-on-error: true
-        shell: bash
-        run: |
-          echo "::add-mask::${SCCACHE_BUCKET}"
-          mkdir -p "$HOME/.cargo/registry" "$HOME/.cargo/git" "$GITHUB_WORKSPACE/target"
-          if aws s3 cp --region "$SCCACHE_REGION" "s3://${SCCACHE_BUCKET}/${SCCACHE_S3_KEY_PREFIX}rust-cache-experiment/test/cargo.tar.gz" /tmp/cargo.tar.gz --only-show-errors; then
-            tar -xzf /tmp/cargo.tar.gz -C "$HOME/.cargo"
-          else
-            echo "::notice::No S3 cache for ~/.cargo yet — starting cold"
-          fi
-          if aws s3 cp --region "$SCCACHE_REGION" "s3://${SCCACHE_BUCKET}/${SCCACHE_S3_KEY_PREFIX}rust-cache-experiment/test/target.tar.gz" /tmp/target.tar.gz --only-show-errors; then
-            tar -xzf /tmp/target.tar.gz -C "$GITHUB_WORKSPACE"
-          else
-            echo "::notice::No S3 cache for target/ yet — starting cold"
-          fi
 
       - name: Run clippy (redis-rs backend)
         shell: bash
@@ -237,18 +232,6 @@ jobs:
       - name: Run cargo check
         shell: bash
         run: cargo check --features "release"
-
-      # TEMPORARY — guarded to this branch only so it's inert on every other
-      # PR. Revert this commit for the warm run (restore-only, no re-save).
-      - name: Save cargo/target cache to S3 (temporary experiment)
-        if: false  # WARM RUN: save disabled, restore stays active — see cold-vs-warm experiment
-        continue-on-error: true
-        shell: bash
-        run: |
-          tar -czf /tmp/cargo.tar.gz -C "$HOME/.cargo" registry git
-          aws s3 cp --region "$SCCACHE_REGION" /tmp/cargo.tar.gz "s3://${SCCACHE_BUCKET}/${SCCACHE_S3_KEY_PREFIX}rust-cache-experiment/test/cargo.tar.gz" --only-show-errors
-          tar -czf /tmp/target.tar.gz -C "$GITHUB_WORKSPACE" target
-          aws s3 cp --region "$SCCACHE_REGION" /tmp/target.tar.gz "s3://${SCCACHE_BUCKET}/${SCCACHE_S3_KEY_PREFIX}rust-cache-experiment/test/target.tar.gz" --only-show-errors
 
   typos:
     name: Spell check
@@ -307,36 +290,34 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install rust cache
-        uses: Swatinem/rust-cache@v2.9.1
-        with:
-          shared-key: stable-v2
-          save-if: false
+      # Swatinem/rust-cache has no S3 backend, so this restores ~/.cargo/
+      # {registry,git} and target/ as plain tarballs directly from S3, using
+      # this pod's SCCACHE_BUCKET/SCCACHE_REGION/SCCACHE_S3_KEY_PREFIX env
+      # vars (IAM-role auth, no credentials here). Replaces GHA-cache-backed
+      # rust-cache entirely for this job — restore-only on PRs; CI-push.yml
+      # saves to this same key on push to main.
+      - name: Restore cargo/target cache from S3
+        continue-on-error: true
+        shell: bash
+        run: |
+          echo "::add-mask::${SCCACHE_BUCKET}"
+          mkdir -p "$HOME/.cargo/registry" "$HOME/.cargo/git" "$GITHUB_WORKSPACE/target"
+          if aws s3 cp --region "$SCCACHE_REGION" "s3://${SCCACHE_BUCKET}/${SCCACHE_S3_KEY_PREFIX}rust-cache/check-v2/cargo.tar.gz" /tmp/cargo.tar.gz --only-show-errors; then
+            tar -xzf /tmp/cargo.tar.gz -C "$HOME/.cargo"
+          else
+            echo "::notice::No S3 cache for ~/.cargo yet — starting cold"
+          fi
+          if aws s3 cp --region "$SCCACHE_REGION" "s3://${SCCACHE_BUCKET}/${SCCACHE_S3_KEY_PREFIX}rust-cache/check-v2/target.tar.gz" /tmp/target.tar.gz --only-show-errors; then
+            tar -xzf /tmp/target.tar.gz -C "$GITHUB_WORKSPACE"
+          else
+            echo "::notice::No S3 cache for target/ yet — starting cold"
+          fi
 
       - name: Install just
         uses: taiki-e/install-action@v2
         with:
           tool: just
           checksum: true
-
-      # TEMPORARY population experiment — see the "test" job for the full
-      # explanation. Revert this commit once cold+warm numbers are captured.
-      - name: Restore cargo/target cache from S3 (temporary experiment)
-        continue-on-error: true
-        shell: bash
-        run: |
-          echo "::add-mask::${SCCACHE_BUCKET}"
-          mkdir -p "$HOME/.cargo/registry" "$HOME/.cargo/git" "$GITHUB_WORKSPACE/target"
-          if aws s3 cp --region "$SCCACHE_REGION" "s3://${SCCACHE_BUCKET}/${SCCACHE_S3_KEY_PREFIX}rust-cache-experiment/check-v2/cargo.tar.gz" /tmp/cargo.tar.gz --only-show-errors; then
-            tar -xzf /tmp/cargo.tar.gz -C "$HOME/.cargo"
-          else
-            echo "::notice::No S3 cache for ~/.cargo yet — starting cold"
-          fi
-          if aws s3 cp --region "$SCCACHE_REGION" "s3://${SCCACHE_BUCKET}/${SCCACHE_S3_KEY_PREFIX}rust-cache-experiment/check-v2/target.tar.gz" /tmp/target.tar.gz --only-show-errors; then
-            tar -xzf /tmp/target.tar.gz -C "$GITHUB_WORKSPACE"
-          else
-            echo "::notice::No S3 cache for target/ yet — starting cold"
-          fi
 
       - name: Run cargo clippy with v2 features enabled (redis-rs backend)
         shell: bash
@@ -361,15 +342,3 @@ jobs:
         env:
           RUSTFLAGS: "-A warnings"
         run: cargo check --no-default-features --features "release,v2,fred"
-
-      # TEMPORARY — guarded to this branch only so it's inert on every other
-      # PR. Revert this commit for the warm run (restore-only, no re-save).
-      - name: Save cargo/target cache to S3 (temporary experiment)
-        if: false  # WARM RUN: save disabled, restore stays active — see cold-vs-warm experiment
-        continue-on-error: true
-        shell: bash
-        run: |
-          tar -czf /tmp/cargo.tar.gz -C "$HOME/.cargo" registry git
-          aws s3 cp --region "$SCCACHE_REGION" /tmp/cargo.tar.gz "s3://${SCCACHE_BUCKET}/${SCCACHE_S3_KEY_PREFIX}rust-cache-experiment/check-v2/cargo.tar.gz" --only-show-errors
-          tar -czf /tmp/target.tar.gz -C "$GITHUB_WORKSPACE" target
-          aws s3 cp --region "$SCCACHE_REGION" /tmp/target.tar.gz "s3://${SCCACHE_BUCKET}/${SCCACHE_S3_KEY_PREFIX}rust-cache-experiment/check-v2/target.tar.gz" --only-show-errors
