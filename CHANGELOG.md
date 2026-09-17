@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.09.17.1
+
+### Features
+
+- **payments:** Create context s2s ([#14172](https://github.com/juspay/hyperswitch/pull/14172)) ([`cdfa01f`](https://github.com/juspay/hyperswitch/commit/cdfa01f50296dc61380e066f2b181cd758f73f78))
+
+**Full Changelog:** [`2026.09.17.0...2026.09.17.1`](https://github.com/juspay/hyperswitch/compare/2026.09.17.0...2026.09.17.1)
+
+- - -
+
 ## 2026.09.17.0
 
 ### Features
