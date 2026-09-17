@@ -64,14 +64,12 @@ use openssl::{
     pkey::PKey,
     symm::{decrypt_aead, Cipher},
 };
-use rand::Rng;
 #[cfg(feature = "v2")]
 use redis_interface::errors::RedisError;
 use router_env::{instrument, logger, tracing};
 use rust_decimal::Decimal;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_with::{serde_as, VecSkipError};
-use uuid::Uuid;
 use x509_parser::parse_x509_certificate;
 
 use super::{
@@ -903,7 +901,7 @@ pub async fn get_token_for_recurring_mandate(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
-    let token = Uuid::new_v4().to_string();
+    let token = common_utils::generate_uuid_v4().to_string();
     let payment_method_type = payment_method.get_payment_method_subtype();
     let mandate_connector_details = payments::MandateConnectorDetails {
         connector: mandate.connector,
@@ -2657,7 +2655,7 @@ impl From<RolloutConfig> for RolloutExecutionResult {
                 Self::default()
             }
             true => {
-                let sampled_value: f64 = rand::thread_rng().gen_range(0.0..1.0);
+                let sampled_value: f64 = common_utils::generate_random_f64_unit();
                 let should_execute = sampled_value < config.rollout_percent;
 
                 logger::debug!(
@@ -3229,6 +3227,9 @@ pub async fn fetch_card_details_from_internal_locker(
             .ok()
             .flatten(),
         card_type: None,
+        card_subtype: None,
+        card_segment_type: None,
+        funding_source: None,
         card_issuing_country: None,
         card_issuing_country_code: None,
         bank_code: None,
@@ -3392,6 +3393,9 @@ pub async fn fetch_card_details_for_network_transaction_flow_from_locker(
             card_issuer: None,
             card_network,
             card_type: None,
+            card_subtype: None,
+            card_segment_type: None,
+            funding_source: None,
             card_issuing_country: None,
             card_issuing_country_code: None,
             bank_code: None,
@@ -3620,6 +3624,9 @@ impl<'a>
                             card_issuer: card_details.card_issuer.clone(),
                             card_network: card_details.card_network.clone(),
                             card_type: card_details.card_type.clone(),
+                            card_subtype: card_details.card_subtype.clone(),
+                            card_segment_type: card_details.card_segment_type,
+                            funding_source: card_details.funding_source,
                             card_issuing_country: card_details.card_issuing_country.clone(),
                             card_issuing_country_code: card_details
                                 .card_issuing_country_code
@@ -3667,6 +3674,9 @@ impl<'a>
                     card_issuer: card_details.card_issuer.clone(),
                     card_network: card_details.card_network.clone(),
                     card_type: card_details.card_type.clone(),
+                    card_subtype: card_details.card_subtype.clone(),
+                    card_segment_type: card_details.card_segment_type,
+                    funding_source: card_details.funding_source,
                     card_issuing_country: card_details.card_issuing_country.clone(),
                     card_issuing_country_code: card_details.card_issuing_country_code.clone(),
                     bank_code: card_details.bank_code.clone(),
@@ -3939,11 +3949,24 @@ pub async fn store_payment_method_data_in_vault(
     merchant_key_store: &domain::MerchantKeyStore,
     business_profile: Option<&domain::Profile>,
 ) -> RouterResult<Option<String>> {
+    let should_store_google_pay_pan_only_for_three_ds = payment_attempt
+        .connector
+        .as_deref()
+        .and_then(|connector| api_enums::Connector::from_str(connector).ok())
+        .is_some_and(|connector| {
+            connector.should_store_google_pay_pan_only_for_three_ds(
+                payment_method,
+                payment_attempt.authentication_type,
+                payment_method_data.is_google_pay_pan_only(),
+            )
+        });
+
     if should_store_payment_method_data_in_vault(
         &state.conf.temp_locker_enable_config,
         payment_attempt.connector.clone(),
         payment_method,
     ) || payment_intent.request_external_three_ds_authentication == Some(true)
+        || should_store_google_pay_pan_only_for_three_ds
     {
         let parent_payment_method_token = store_in_vault_and_generate_ppmt(
             state,
@@ -3961,6 +3984,7 @@ pub async fn store_payment_method_data_in_vault(
 
     Ok(None)
 }
+
 pub fn should_store_payment_method_data_in_vault(
     temp_locker_enable_config: &TempLockerEnableConfig,
     option_connector: Option<String>,
@@ -4373,7 +4397,7 @@ pub async fn make_ephemeral_key(
 ) -> errors::RouterResponse<ephemeral_key::EphemeralKey> {
     let store = &state.store;
     let id = utils::generate_id(consts::ID_LENGTH, "eki");
-    let secret = format!("epk_{}", Uuid::new_v4().simple());
+    let secret = format!("epk_{}", common_utils::generate_uuid_v4().simple());
     let ek = ephemeral_key::EphemeralKeyNew {
         id,
         customer_id,
@@ -5575,9 +5599,7 @@ fn validate_manual_retry_cutoff(
     intent_fulfillment_time: Option<i64>,
     is_token_based_retry: bool,
 ) -> bool {
-    let utc_current_time = time::OffsetDateTime::now_utc();
-    let primitive_utc_current_time =
-        time::PrimitiveDateTime::new(utc_current_time.date(), utc_current_time.time());
+    let primitive_utc_current_time = common_utils::date_time::now();
     let time_difference_from_creation = primitive_utc_current_time - created_at;
 
     // Token based retries (S2S) use the fulfillment window;
@@ -6017,6 +6039,9 @@ pub async fn get_additional_payment_data(
                         card_issuer: card_data.card_issuer.to_owned(),
                         card_network,
                         card_type: card_data.card_type.to_owned(),
+                        card_subtype: card_data.card_subtype.to_owned(),
+                        card_segment_type: card_data.card_segment_type,
+                        funding_source: card_data.funding_source,
                         card_issuing_country: card_data.card_issuing_country.to_owned(),
                         card_issuing_country_code: card_data.card_issuing_country_code.to_owned(),
                         bank_code: card_data.bank_code.to_owned(),
@@ -6052,6 +6077,11 @@ pub async fn get_additional_payment_data(
                                 card_network: card_network.clone().or(card_info.card_network),
                                 bank_code: card_info.bank_code,
                                 card_type: card_info.card_type,
+                                card_subtype: card_info.card_subtype,
+                                card_segment_type: card_info
+                                    .card_segment_type
+                                    .and_then(|segment_type| segment_type.parse().ok()),
+                                funding_source: card_info.funding_source,
                                 card_issuing_country: card_info.card_issuing_country,
                                 card_issuing_country_code: card_info.country_code,
                                 last4: last4.clone(),
@@ -6076,6 +6106,9 @@ pub async fn get_additional_payment_data(
                             card_network,
                             bank_code: None,
                             card_type: None,
+                            card_subtype: None,
+                            card_segment_type: None,
+                            funding_source: None,
                             card_issuing_country: None,
                             card_issuing_country_code: None,
                             last4,
@@ -6155,6 +6188,9 @@ pub async fn get_additional_payment_data(
                         card_issuer: card_data.card_issuer.to_owned(),
                         card_network,
                         card_type: card_data.card_type.to_owned(),
+                        card_subtype: card_data.card_subtype.to_owned(),
+                        card_segment_type: card_data.card_segment_type,
+                        funding_source: card_data.funding_source,
                         card_issuing_country: card_data.card_issuing_country.to_owned(),
                         card_issuing_country_code: card_data.card_issuing_country_code.to_owned(),
                         bank_code: card_data.bank_code.to_owned(),
@@ -6190,6 +6226,11 @@ pub async fn get_additional_payment_data(
                                 card_network: card_network.clone().or(card_info.card_network),
                                 bank_code: card_info.bank_code,
                                 card_type: card_info.card_type,
+                                card_subtype: card_info.card_subtype,
+                                card_segment_type: card_info
+                                    .card_segment_type
+                                    .and_then(|segment_type| segment_type.parse().ok()),
+                                funding_source: card_info.funding_source,
                                 card_issuing_country: card_info.card_issuing_country,
                                 card_issuing_country_code: card_info.country_code,
                                 last4: last4.clone(),
@@ -6214,6 +6255,9 @@ pub async fn get_additional_payment_data(
                             card_network,
                             bank_code: None,
                             card_type: None,
+                            card_subtype: None,
+                            card_segment_type: None,
+                            funding_source: None,
                             card_issuing_country: None,
                             card_issuing_country_code: None,
                             last4,
@@ -6342,24 +6386,55 @@ pub async fn get_additional_payment_data(
         },
         domain::PaymentMethodData::Wallet(wallet) => match wallet {
             domain::WalletData::ApplePay(apple_pay_wallet_data) => {
-                let (card_exp_month, card_exp_year) = match payment_method_token {
-                    Some(PaymentMethodToken::ApplePayDecrypt(token)) => (
-                        Some(token.application_expiration_month.clone()),
-                        Some(token.application_expiration_year.clone()),
-                    ),
+                let apple_pay_decrypted = payment_method_token
+                    .as_ref()
+                    .and_then(|token| token.get_apple_pay_decrypt_data());
 
-                    _ => (None, None),
-                };
+                let card_exp_month = apple_pay_decrypted
+                    .as_ref()
+                    .map(|token| token.get_application_expiration_month());
+                let card_exp_year = apple_pay_decrypted
+                    .as_ref()
+                    .map(|token| token.get_application_expiration_year());
+                let device_pan_bin = apple_pay_decrypted
+                    .as_ref()
+                    .map(|token| token.get_device_pan_bin());
 
                 Ok(Some(api_models::payments::AdditionalPaymentData::Wallet {
                     apple_pay: Some(Box::new(api_models::payments::ApplepayPaymentMethod {
                         display_name: apple_pay_wallet_data.payment_method.display_name.clone(),
                         network: apple_pay_wallet_data.payment_method.network.clone(),
                         pm_type: apple_pay_wallet_data.payment_method.pm_type.clone(),
+                        // card_type for Apple Pay is the same as pm_type. pm_type is
+                        // retained for backward compatibility and is also used for Google Pay's payment_method_data_type.
+                        // We intentionally don't fail if pm_type cannot be deserialized into a valid CardType. We've covered
+                        // all values documented by Apple Pay, but if production sends an unexpected value, the payment
+                        // should not fail because this auxiliary field could not be deserialized.
+                        card_type: apple_pay_wallet_data
+                            .payment_method
+                            .pm_type
+                            .to_uppercase()
+                            .parse::<common_enums::CardType>()
+                            .inspect_err(|error| {
+                                logger::debug!(
+                                    ?error,
+                                    unparsed_card_type = %apple_pay_wallet_data.payment_method.pm_type,
+                                    "Received an unrecognized card_type value from Apple Pay, defaulting to None"
+                                );
+                            })
+                            .ok(),
                         card_exp_month,
                         card_exp_year,
+                        device_pan_bin,
                         // These are filled after calling the processor / connector
                         auth_code: None,
+
+                        card_bin: None,
+                        card_subtype: None,
+                        card_segment_type: None,
+                        funding_source: None,
+                        issuer_name: None,
+                        issuer_country: None,
                     })),
                     google_pay: None,
                     samsung_pay: None,
@@ -6367,13 +6442,22 @@ pub async fn get_additional_payment_data(
                 }))
             }
             domain::WalletData::GooglePay(google_pay_pm_data) => {
-                let (card_exp_month, card_exp_year) = match payment_method_token {
-                    Some(PaymentMethodToken::GooglePayDecrypt(token)) => (
-                        Some(token.card_exp_month.clone()),
-                        Some(token.card_exp_year.clone()),
-                    ),
-                    _ => (None, None),
-                };
+                let google_pay_decrypted = payment_method_token
+                    .as_ref()
+                    .and_then(|token| token.get_google_pay_decrypt_data());
+
+                let card_exp_month = google_pay_decrypted
+                    .as_ref()
+                    .map(|token| token.get_card_exp_month());
+                let card_exp_year = google_pay_decrypted
+                    .as_ref()
+                    .map(|token| token.get_card_exp_year());
+                let device_pan_bin = google_pay_decrypted
+                    .as_ref()
+                    .and_then(|token| token.get_device_pan_bin());
+                let card_bin = google_pay_decrypted
+                    .as_ref()
+                    .and_then(|token| token.get_card_bin());
 
                 Ok(Some(api_models::payments::AdditionalPaymentData::Wallet {
                     apple_pay: None,
@@ -6381,12 +6465,23 @@ pub async fn get_additional_payment_data(
                         payment_additional_types::WalletAdditionalDataForCard {
                             last4: Some(google_pay_pm_data.info.card_details.clone()),
                             card_network: Some(google_pay_pm_data.info.card_network.clone()),
-                            card_type: Some(google_pay_pm_data.pm_type.clone()),
+                            payment_method_data_type: Some(google_pay_pm_data.pm_type.clone()),
                             card_exp_month,
                             card_exp_year,
+                            device_pan_bin,
+                            card_bin,
                             // These are filled after calling the processor / connector
                             auth_code: None,
                             email: None,
+                            card_subtype: None,
+                            card_segment_type: None,
+                            funding_source: None,
+                            // Google Pay's wallet token does not carry a credit/debit
+                            // indicator, so this is only populated once the connector's
+                            // authorization response reports it.
+                            card_type: None,
+                            issuer_name: None,
+                            issuer_country: None,
                         },
                     )),
                     samsung_pay: None,
@@ -6411,12 +6506,20 @@ pub async fn get_additional_payment_data(
                                     .card_brand
                                     .to_string(),
                             ),
+                            payment_method_data_type: None,
                             card_type: None,
                             card_exp_month: None,
                             card_exp_year: None,
                             // These are filled after calling the processor / connector
                             auth_code: None,
                             email: None,
+                            device_pan_bin: None,
+                            card_bin: None,
+                            card_subtype: None,
+                            card_segment_type: None,
+                            funding_source: None,
+                            issuer_name: None,
+                            issuer_country: None,
                         },
                     )),
                     paypal: None,
@@ -6520,6 +6623,9 @@ pub async fn get_additional_payment_data(
                         card_issuer: card_data.card_issuer.to_owned(),
                         card_network,
                         card_type: card_data.card_type.to_owned(),
+                        card_subtype: card_data.card_subtype.to_owned(),
+                        card_segment_type: card_data.card_segment_type,
+                        funding_source: card_data.funding_source,
                         card_issuing_country: card_data.card_issuing_country.to_owned(),
                         card_issuing_country_code: card_data.card_issuing_country_code.to_owned(),
                         bank_code: card_data.bank_code.to_owned(),
@@ -6555,6 +6661,11 @@ pub async fn get_additional_payment_data(
                                 card_network: card_network.clone().or(card_info.card_network),
                                 bank_code: card_info.bank_code,
                                 card_type: card_info.card_type,
+                                card_subtype: card_info.card_subtype,
+                                card_segment_type: card_info
+                                    .card_segment_type
+                                    .and_then(|segment_type| segment_type.parse().ok()),
+                                funding_source: card_info.funding_source,
                                 card_issuing_country: card_info.card_issuing_country,
                                 card_issuing_country_code: card_info.country_code,
                                 last4: last4.clone(),
@@ -6579,6 +6690,9 @@ pub async fn get_additional_payment_data(
                             card_network,
                             bank_code: None,
                             card_type: None,
+                            card_subtype: None,
+                            card_segment_type: None,
+                            funding_source: None,
                             card_issuing_country: None,
                             card_issuing_country_code: None,
                             last4,
@@ -6623,6 +6737,9 @@ pub async fn get_additional_payment_data(
                         card_issuer: card_with_limited_details.card_issuer.to_owned(),
                         card_network: card_with_limited_details.card_network.clone(),
                         card_type: card_with_limited_details.card_type.to_owned(),
+                        card_subtype: card_with_limited_details.card_subtype.to_owned(),
+                        card_segment_type: card_with_limited_details.card_segment_type,
+                        funding_source: card_with_limited_details.funding_source,
                         card_issuing_country: card_with_limited_details
                             .card_issuing_country
                             .to_owned(),
@@ -6665,6 +6782,11 @@ pub async fn get_additional_payment_data(
                                     .or(card_info.card_network),
                                 bank_code: card_info.bank_code,
                                 card_type: card_info.card_type,
+                                card_subtype: card_info.card_subtype,
+                                card_segment_type: card_info
+                                    .card_segment_type
+                                    .and_then(|segment_type| segment_type.parse().ok()),
+                                funding_source: card_info.funding_source,
                                 card_issuing_country: card_info.card_issuing_country,
                                 card_issuing_country_code: card_info.country_code,
                                 last4: last4.clone(),
@@ -6691,6 +6813,9 @@ pub async fn get_additional_payment_data(
                             card_network: card_with_limited_details.card_network.clone(),
                             bank_code: None,
                             card_type: None,
+                            card_subtype: None,
+                            card_segment_type: None,
+                            funding_source: None,
                             card_issuing_country: None,
                             card_issuing_country_code: None,
                             last4,
@@ -7296,6 +7421,13 @@ pub struct GooglePayTokenDecryptor {
     root_signing_keys: Vec<GooglePayRootSigningKey>,
     recipient_id: hyperswitch_masking::Secret<String>,
     private_key: PKey<openssl::pkey::Private>,
+    /// Tokenization type the merchant configured on its MCA. `INTERNAL_GATEWAY` tokens get the
+    /// additional `gatewayMerchantId` check after decryption; every other type keeps today's
+    /// behaviour.
+    tokenization_type: api_models::payments::GooglePayTokenizationType,
+    /// Hyperswitch merchant id that was sent to Google as `gateway_merchant_id`. Set for
+    /// `INTERNAL_GATEWAY` only, and checked against the decrypted token.
+    gateway_merchant_id: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -7358,7 +7490,7 @@ fn check_expiration_date_is_valid(
     let expiration_time =
         time::OffsetDateTime::from_unix_timestamp_nanos(expiration_ms * 1_000_000)
             .change_context(errors::GooglePayDecryptionError::InvalidExpirationTime)?;
-    let now = time::OffsetDateTime::now_utc();
+    let now = common_utils::date_time::now().assume_utc();
 
     Ok(expiration_time > now)
 }
@@ -7403,6 +7535,8 @@ impl GooglePayTokenDecryptor {
         root_keys: hyperswitch_masking::Secret<String>,
         recipient_id: hyperswitch_masking::Secret<String>,
         private_key: hyperswitch_masking::Secret<String>,
+        tokenization_type: api_models::payments::GooglePayTokenizationType,
+        gateway_merchant_id: Option<String>,
     ) -> CustomResult<Self, errors::GooglePayDecryptionError> {
         // base64 decode the private key
         let decoded_key = BASE64_ENGINE
@@ -7429,6 +7563,8 @@ impl GooglePayTokenDecryptor {
             root_signing_keys: filtered_root_signing_keys,
             recipient_id,
             private_key,
+            tokenization_type,
+            gateway_merchant_id,
         })
     }
 
@@ -7446,7 +7582,6 @@ impl GooglePayTokenDecryptor {
             .parse_struct("EncryptedData")
             .change_context(errors::GooglePayDecryptionError::DeserializationFailed)?;
 
-        // verify the signature if required
         if should_verify_signature {
             self.verify_signature(&encrypted_data)?;
         }
@@ -7476,6 +7611,16 @@ impl GooglePayTokenDecryptor {
                 .parse_struct("GooglePayPredecryptDataInternal")
                 .change_context(errors::GooglePayDecryptionError::DeserializationFailed)?;
 
+        // `gatewayMerchantId` only exists once the message is decrypted, so this half of the
+        // INTERNAL_GATEWAY verification necessarily runs here rather than alongside the signature
+        // checks above.
+        if matches!(
+            self.tokenization_type,
+            api_models::payments::GooglePayTokenizationType::InternalGateway
+        ) {
+            self.verify_internal_gateway_merchant_id(&decrypted_data)?;
+        }
+
         // check the expiration date of the decrypted data
 
         if matches!(
@@ -7488,6 +7633,44 @@ impl GooglePayTokenDecryptor {
         }
     }
 
+    /// Check that the decrypted token was minted for the merchant now being paid.
+    ///
+    /// Under `INTERNAL_GATEWAY` every merchant's card is encrypted to the same gateway key, so the
+    /// key alone no longer separates one merchant from another. `gateway_merchant_id` is what
+    /// does: Google echoes back the Hyperswitch merchant id that was sent in the session response,
+    /// and a mismatch means the token belongs to a different merchant's payment.
+    fn verify_internal_gateway_merchant_id(
+        &self,
+        decrypted_data: &hyperswitch_domain_models::router_data::GooglePayPredecryptDataInternal,
+    ) -> CustomResult<(), errors::GooglePayDecryptionError> {
+        let expected_gateway_merchant_id = self
+            .gateway_merchant_id
+            .as_ref()
+            .ok_or(errors::GooglePayDecryptionError::InvalidGatewayMerchantId)
+            .attach_printable(
+                "gateway merchant id is not set on the decryptor for an INTERNAL_GATEWAY token",
+            )?;
+
+        let token_gateway_merchant_id = decrypted_data
+            .gateway_merchant_id
+            .as_ref()
+            .ok_or(errors::GooglePayDecryptionError::InvalidGatewayMerchantId)
+            .attach_printable(
+                "decrypted INTERNAL_GATEWAY token does not carry a gateway merchant id",
+            )?;
+
+        if token_gateway_merchant_id != expected_gateway_merchant_id {
+            logger::warn!(
+                expected_gateway_merchant_id,
+                token_gateway_merchant_id,
+                "gateway merchant id in the token does not match the merchant"
+            );
+            Err(errors::GooglePayDecryptionError::InvalidGatewayMerchantId)
+                .attach_printable("gateway merchant id in the token does not match the merchant")?;
+        }
+
+        Ok(())
+    }
     // Verify the signature of the token
     fn verify_signature(
         &self,
@@ -8389,18 +8572,69 @@ pub fn add_connector_response_to_additional_payment_data(
                 samsung_pay,
                 paypal,
             },
-            AdditionalPaymentMethodConnectorResponse::GooglePay { auth_code, .. }
-            | AdditionalPaymentMethodConnectorResponse::ApplePay { auth_code, .. },
+            AdditionalPaymentMethodConnectorResponse::ApplePay {
+                auth_code,
+                device_pan_bin,
+                card_bin,
+                card_subtype,
+                card_segment_type,
+                funding_source,
+                issuer_name,
+                issuer_country,
+            },
         ) => api_models::payments::AdditionalPaymentData::Wallet {
             apple_pay: apple_pay.as_ref().map(|apple_pay| {
                 Box::new(api_models::payments::ApplepayPaymentMethod {
                     auth_code: auth_code.clone(),
+                    device_pan_bin: device_pan_bin
+                        .clone()
+                        .or_else(|| apple_pay.device_pan_bin.clone()),
+                    card_bin: card_bin.clone().or_else(|| apple_pay.card_bin.clone()),
+                    card_subtype: card_subtype.clone(),
+                    card_segment_type,
+                    funding_source,
+                    issuer_name: issuer_name.clone(),
+                    issuer_country,
                     ..(**apple_pay).clone()
                 })
             }),
+            google_pay: google_pay.clone(),
+            samsung_pay: samsung_pay.clone(),
+            paypal: paypal.clone(),
+        },
+        (
+            api_models::payments::AdditionalPaymentData::Wallet {
+                apple_pay,
+                google_pay,
+                samsung_pay,
+                paypal,
+            },
+            AdditionalPaymentMethodConnectorResponse::GooglePay {
+                auth_code,
+                device_pan_bin,
+                card_bin,
+                card_subtype,
+                card_segment_type,
+                funding_source,
+                card_type,
+                issuer_name,
+                issuer_country,
+            },
+        ) => api_models::payments::AdditionalPaymentData::Wallet {
+            apple_pay: apple_pay.clone(),
             google_pay: google_pay.as_ref().map(|google_pay| {
                 Box::new(payment_additional_types::WalletAdditionalDataForCard {
                     auth_code: auth_code.clone(),
+                    card_subtype: card_subtype.clone(),
+                    card_segment_type,
+                    funding_source,
+                    card_type,
+                    issuer_name: issuer_name.clone(),
+                    issuer_country,
+                    device_pan_bin: device_pan_bin
+                        .clone()
+                        .or_else(|| google_pay.device_pan_bin.clone()),
+                    card_bin: card_bin.clone().or_else(|| google_pay.card_bin.clone()),
                     ..(**google_pay).clone()
                 })
             }),
@@ -9416,7 +9650,10 @@ pub fn validate_platform_request_for_marketplace(
 
 /// Returns `true` if either the org or merchant config is set to "true"
 ///
-/// Priority logic:
+/// Resolved from Superposition (`SHOULD_ENABLE_AUTHENTICATION_SERVICE`), falling back to the
+/// legacy DB config (`authentication_service_eligible_<id>`) when Superposition has no value.
+///
+/// Priority logic (DB fallback order, see `ShouldEnableAuthenticationService::db_keys`):
 /// 1. If org-level config exists (either "true" or "false"), that decision is final
 ///    - Org = "true" → returns true (authentication enabled)
 ///    - Org = "false" → returns false (authentication disabled, merchant config ignored)
@@ -9429,35 +9666,19 @@ pub async fn is_merchant_eligible_authentication_service(
     processor: &domain::Processor,
     state: &SessionState,
 ) -> RouterResult<bool> {
-    let db = &*state.store;
-    let org_key = processor
-        .get_account()
-        .get_org_id()
-        .get_authentication_service_eligible_key();
-    let org_eligible = db
-        .find_config_by_key(&org_key)
-        .await
-        .inspect_err(|error| {
-            logger::error!(?error, "Failed to fetch `{org_key}` config from DB");
-        })
-        .ok()
-        .map(|c| c.config.to_lowercase() == "true");
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(processor.get_processor_merchant_id())
+        .with_provider_merchant_id(dimension_state::ProviderMerchantId::new(
+            processor.get_account().get_id().clone(),
+        ))
+        .with_organization_id(processor.get_account().get_org_id().clone());
 
-    Ok(org_eligible
-        .async_unwrap_or_else(|| async {
-            let merchant_key = processor
-                .get_account()
-                .get_id()
-                .get_authentication_service_eligible_key();
-            db.find_config_by_key(&merchant_key)
-                .await
-                .inspect_err(|error| {
-                    logger::error!(?error, "Failed to fetch `{merchant_key}` config from DB");
-                })
-                .ok()
-                .map(|c| c.config.to_lowercase() == "true")
-                .unwrap_or(false)
-        })
+    Ok(dimensions
+        .get_should_enable_authentication_service(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            None,
+        )
         .await)
 }
 
@@ -9601,6 +9822,25 @@ pub async fn get_merchant_connector_account_v2(
         })
         .attach_printable("merchant_connector_id is not provided"),
     }
+}
+
+#[cfg(feature = "v1")]
+pub fn is_off_session_mit_for_payment_method(
+    req: &api::PaymentsRequest,
+    payment_method_id: &str,
+) -> bool {
+    req.confirm == Some(true)
+        && req.off_session == Some(true)
+        && req
+            .recurring_details
+            .as_ref()
+            .is_some_and(|recurring_details| {
+                matches!(
+                    recurring_details,
+                    RecurringDetails::PaymentMethodId(recurring_payment_method_id)
+                        if recurring_payment_method_id.as_str() == payment_method_id
+                )
+            })
 }
 
 pub fn is_stored_credential(

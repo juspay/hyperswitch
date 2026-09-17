@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use smithy::SmithyModel;
 use utoipa::ToSchema;
 
-pub use super::enums::{PaymentMethod, PayoutType};
+pub use super::enums::{AuthenticationType, PaymentMethod, PayoutType};
 pub use crate::PaymentMethodType;
 
 // A connector is an integration to fulfill payments
@@ -106,6 +106,7 @@ pub enum Connector {
     Ebanx,
     Envoy,
     Elavon,
+    Etisalat,
     Facilitapay,
     Finix,
     Fiserv,
@@ -138,6 +139,7 @@ pub enum Connector {
     Juspaythreedsserver,
     Klarna,
     Loonio,
+    Merchante,
     Mifinity,
     Mollie,
     Moneris,
@@ -211,6 +213,7 @@ pub enum Connector {
     Signifyd,
     Plaid,
     Riskified,
+    SanlamPayshield,
     Xendit,
     Zen,
     Zift,
@@ -238,11 +241,16 @@ impl Connector {
         )
     }
     #[cfg(feature = "payouts")]
-    pub fn supports_create_recipient(self, payout_method: Option<PayoutType>) -> bool {
-        matches!(
-            (self, payout_method),
-            (_, Some(PayoutType::Bank)) | (Self::Trustly, _)
-        )
+    pub fn supports_create_recipient(
+        self,
+        payout_method: Option<PayoutType>,
+        is_passthrough: bool,
+    ) -> bool {
+        if matches!(self, Self::Trustly) {
+            !is_passthrough
+        } else {
+            matches!(payout_method, Some(PayoutType::Bank))
+        }
     }
     #[cfg(feature = "payouts")]
     pub fn supports_payout_eligibility(self, payout_method: Option<PayoutType>) -> bool {
@@ -366,11 +374,11 @@ impl Connector {
             | Self::Envoy
             | Self::Ebanx
             | Self::Elavon
+            | Self::Etisalat
             | Self::Facilitapay
             | Self::Finix
             | Self::Fiserv
             | Self::Fiservemea
-            | Self::Fiservcommercehub
             | Self::Fiuu
             | Self::Flexiti
             | Self::Forte
@@ -393,6 +401,7 @@ impl Connector {
             | Self::Juspaythreedsserver
             | Self::Klarna
             | Self::Loonio
+            | Self::Merchante
             | Self::Mifinity
             | Self::Mollie
             | Self::Moneris
@@ -446,7 +455,6 @@ impl Connector {
             | Self::Worldpay
             | Self::Worldpaymodular
             | Self::Worldpayvantiv
-            | Self::Worldpayxml
             | Self::Xendit
             | Self::Zen
             | Self::Zsl
@@ -454,6 +462,7 @@ impl Connector {
             | Self::Plaid
             | Self::Razorpay
             | Self::Riskified
+            | Self::SanlamPayshield
             | Self::Threedsecureio
             | Self::Netcetera
             | Self::CtpMastercard
@@ -474,7 +483,7 @@ impl Connector {
             | Self::Ilixium
             | Self::Givepayments => false,
             Self::Stripe | Self::Checkout | Self::Zift | Self::Nmi | Self::Braintree|
-            Self::Cybersource | Self::Archipel | Self::Nuvei | Self::Adyen => true,
+            Self::Cybersource | Self::Archipel | Self::Nuvei | Self::Adyen | Self::Fiservcommercehub | Self::Worldpayxml => true,
         }
     }
 
@@ -493,6 +502,19 @@ impl Connector {
 
     pub fn should_acknowledge_webhook_for_resource_not_found_errors(self) -> bool {
         matches!(self, Self::Adyenplatform | Self::Adyen)
+    }
+
+    pub fn should_store_google_pay_pan_only_for_three_ds(
+        self,
+        payment_method: PaymentMethod,
+        authentication_type: Option<AuthenticationType>,
+        is_google_pay_transaction_pan_only: bool,
+    ) -> bool {
+        // Add connectors in the future as required
+        matches!(self, Self::Cybersource)
+            && payment_method == PaymentMethod::Wallet
+            && authentication_type.is_some_and(|auth_type| auth_type.is_three_ds())
+            && is_google_pay_transaction_pan_only
     }
 
     /// Validates if dummy connector can be created
