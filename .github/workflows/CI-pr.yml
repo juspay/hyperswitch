@@ -89,11 +89,8 @@ jobs:
     env:
       RUSTFLAGS: "-D warnings"
       RUSTC_WRAPPER: sccache
-      # sccache on local disk (zero network calls per compile unit), persisted
-      # across runs via a single bulk actions/cache restore — same I/O shape
-      # as rust-cache, but content-addressed per compilation unit instead of
-      # one whole-tree blob keyed on Cargo.lock. PRs restore-only; only the
-      # push build in CI-push.yml writes this key.
+      # sccache on local disk, scoped to this run only (no cross-run
+      # persistence).
       SCCACHE_DIR: ${{ github.workspace }}/.sccache
 
     strategy:
@@ -133,13 +130,6 @@ jobs:
         with:
           tool: sccache
           checksum: true
-
-      - name: Restore sccache local cache
-        uses: actions/cache/restore@v4
-        continue-on-error: true
-        with:
-          path: ${{ env.SCCACHE_DIR }}
-          key: sccache-local-check-msrv
 
       - name: Run cargo check
         shell: bash

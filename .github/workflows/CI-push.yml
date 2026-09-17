@@ -56,19 +56,12 @@ jobs:
     name: Check compilation on MSRV toolchain
     runs-on: ${{ matrix.runner }}
 
-    # Needed to delete the stale sccache cache entry before saving a fresh one
-    # (actions/cache keys are immutable, so a same-key save requires this).
-    permissions:
-      contents: read
-      actions: write
-
     env:
       RUSTFLAGS: "-D warnings"
       RUSTC_WRAPPER: sccache
-      # sccache on local disk (zero network calls per compile unit), persisted
-      # across runs via a single bulk actions/cache restore/save — same I/O
-      # shape as rust-cache, but content-addressed per compilation unit
-      # instead of one whole-tree blob keyed on Cargo.lock.
+      # sccache on local disk, scoped to this run only (no cross-run
+      # persistence). Still worth it within a run: `just ci_hack` (cargo-hack)
+      # recompiles overlapping code many times over its feature-flag matrix.
       SCCACHE_DIR: ${{ github.workspace }}/.sccache
 
     strategy:
@@ -109,13 +102,6 @@ jobs:
           tool: sccache
           checksum: true
 
-      - name: Restore sccache local cache
-        uses: actions/cache/restore@v4
-        continue-on-error: true
-        with:
-          path: ${{ env.SCCACHE_DIR }}
-          key: sccache-local-check-msrv
-
       - name: Install cargo-hack
         uses: taiki-e/install-action@v2
         with:
@@ -146,25 +132,6 @@ jobs:
         if: always()
         shell: bash
         run: sccache --show-stats
-
-      # actions/cache keys are immutable, so the same key can't be re-saved
-      # without first deleting the existing entry. continue-on-error covers
-      # the first-ever run, where there's nothing to delete yet.
-      - name: Delete stale sccache cache entry
-        if: ${{ always() && github.event_name == 'push' }}
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        shell: bash
-        run: gh cache delete sccache-local-check-msrv --repo ${{ github.repository }}
-
-      - name: Save sccache local cache
-        if: ${{ always() && github.event_name == 'push' }}
-        continue-on-error: true
-        uses: actions/cache/save@v4
-        with:
-          path: ${{ env.SCCACHE_DIR }}
-          key: sccache-local-check-msrv
 
   # cargo-deny:
   #   name: Run cargo-deny
