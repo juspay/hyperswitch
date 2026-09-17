@@ -3700,8 +3700,8 @@ pub struct PaymentLinkConfigRequest {
     #[schema(value_type = Option<String>, max_length = 64, example = "Or pay with")]
     pub payment_methods_separator_text: Option<String>,
     /// Duration in seconds before the status page auto-redirects to the return URL.
-    /// Set to 0 to disable auto-redirect. Maximum value is 90 seconds. Defaults to 5 seconds.
-    #[schema(value_type = Option<u32>, example = 10, minimum = 0, maximum = 90)]
+    /// Set to 0 to disable auto-redirect. Maximum value is 900 seconds. Defaults to 5 seconds.
+    #[schema(value_type = Option<u32>, example = 10, minimum = 0, maximum = 900)]
     pub redirect_delay_seconds: Option<u32>,
 }
 
@@ -3848,7 +3848,7 @@ pub struct PaymentLinkConfig {
     /// Custom text for the separator shown between wallet and card payment method sections
     pub payment_methods_separator_text: Option<String>,
     /// Duration in seconds before the status page auto-redirects to the return URL.
-    /// Set to 0 to disable auto-redirect. Maximum value is 90 seconds. Defaults to 5 seconds.
+    /// Set to 0 to disable auto-redirect. Maximum value is 900 seconds. Defaults to 5 seconds.
     pub redirect_delay_seconds: Option<u32>,
 }
 
