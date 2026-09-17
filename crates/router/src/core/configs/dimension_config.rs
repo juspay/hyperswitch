@@ -725,6 +725,46 @@ impl DatabaseBackedConfig for AdaptiveRetryEnabled {
 }
 
 config! {
+    superposition_key = REVENUE_RECOVERY_AB_ENABLED,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
+    targeting_key = id_type::PaymentId
+}
+
+impl DatabaseBackedConfig for RevenueRecoveryAbEnabled {
+    const KEY: &'static str = "revenue_recovery_ab_enabled";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_processor_merchant_id()
+            .map(|merchant_id| format!("{}_{}", merchant_id.get_string_repr(), Self::KEY))
+    }
+}
+
+// Unlike the other revenue recovery configs this one is bucketed: the targeting key is the
+// invoice, so an experiment on this key splits traffic per invoice rather than per merchant.
+#[cfg(feature = "v2")]
+config! {
+    superposition_key = REVENUE_RECOVERY_AB_ALGORITHM,
+    output = String,
+    default = String::new(),
+    requires = dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
+    targeting_key = id_type::GlobalPaymentId
+}
+
+#[cfg(feature = "v2")]
+impl DatabaseBackedConfig for RevenueRecoveryAbAlgorithm {
+    const KEY: &'static str = "revenue_recovery_ab_algorithm";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_processor_merchant_id()
+            .map(|merchant_id| format!("{}_{}", merchant_id.get_string_repr(), Self::KEY))
+    }
+}
+
+config! {
     superposition_key = RECOVERY_GRACE_PERIOD_DAYS,
     output = i64,
     default = 30,
