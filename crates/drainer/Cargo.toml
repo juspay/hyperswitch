@@ -9,8 +9,9 @@ license.workspace = true
 
 [features]
 default = ["redis-rs"]
-release = ["vergen", "external_services/aws_kms", "external_services/gcp_kms"]
+release = ["vergen", "external_services/aws_kms", "gcp_kms"]
 vergen = ["router_env/vergen"]
+gcp_kms = ["external_services/gcp_kms"]
 v1 = ["diesel_models/v1", "external_services/v1", "hyperswitch_interfaces/v1", "common_utils/v1", "storage_impl/v1", "storage_impl/olap"]
 v2 = ["diesel_models/v2", "external_services/v2", "hyperswitch_interfaces/v2", "common_utils/v2", "storage_impl/v2"]
 fred     = ["redis_interface/fred",     "redis_interface/metrics", "storage_impl/fred"]
@@ -27,6 +28,11 @@ diesel = { version = "2.2.10", features = ["postgres"] }
 error-stack = "0.4.1"
 mime = "0.3.17"
 reqwest = { version = "0.11.27" }
+rustls = { version = "0.23", default-features = false, features = [
+    "aws-lc-rs",
+    "std",
+    "tls12",
+] }
 serde = "1.0.219"
 serde_json = "1.0.140"
 serde_path_to_error = "0.1.17"
