@@ -361,7 +361,7 @@ pub async fn payouts_create_core(
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
         .with_profile_id(profile_id.clone());
     // Create DB entries
-    let mut payout_data = payout_create_db_entries(
+    let mut payout_data = Box::pin(payout_create_db_entries(
         &state,
         &platform,
         &req,
@@ -372,7 +372,7 @@ pub async fn payouts_create_core(
         customer.as_ref(),
         payment_method.clone(),
         &dimensions,
-    )
+    ))
     .await?;
 
     let payout_attempt = payout_data.payout_attempt.to_owned();
@@ -1338,6 +1338,11 @@ pub async fn complete_create_recipient(
     connector_data: &api::ConnectorData,
     payout_data: &mut PayoutData,
 ) -> RouterResult<()> {
+    let is_passthrough = payout_data
+        .payout_method_data
+        .as_ref()
+        .is_some_and(|payout_method_data| payout_method_data.is_passthrough());
+
     if !payout_data.should_terminate
         && matches!(
             payout_data.payout_attempt.status,
@@ -1347,7 +1352,7 @@ pub async fn complete_create_recipient(
         )
         && connector_data
             .connector_name
-            .supports_create_recipient(payout_data.payouts.payout_type)
+            .supports_create_recipient(payout_data.payouts.payout_type, is_passthrough)
     {
         Box::pin(create_recipient(
             state,
