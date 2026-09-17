@@ -282,7 +282,7 @@ pub struct PaymentLinkConfigRequestForPayments {
     pub show_merchant_name: Option<bool>,
     /// Custom text for the separator shown between wallet and card payment method sections
     pub payment_methods_separator_text: Option<String>,
-    /// Duration in seconds before the status page auto-redirects. Set to 0 to disable auto-redirect. Maximum 90 seconds.
+    /// Duration in seconds before the status page auto-redirects. Set to 0 to disable auto-redirect. Maximum 900 seconds.
     pub redirect_delay_seconds: Option<u32>,
 }
 
