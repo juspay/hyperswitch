@@ -859,7 +859,7 @@ pub async fn update_gateway_score_helper_with_open_router(
     };
 
     logger::debug!(
-        "performing update-gateway-score for gateway with id {} in open_router for profile: {}",
+        "decision_engine: performing update-gateway-score for gateway with id {} in open_router for profile: {}",
         routable_connector,
         profile_id.get_string_repr()
     );

@@ -2673,10 +2673,7 @@ pub async fn get_routing_result_source(
     }
 }
 
-/// Effective cutover means routing_result_source is DecisionEngine and at least one of the
-/// global routing flags is on. The flags always win, for APIs and payment paths alike. Either
-/// capability is enough, so a profile routed dynamically by the engine is cut over even with
-/// static routing off, and vice versa.
+/// Effective cutover routing_result_source is DecisionEngine and either global routing flag (static or dynamic) is on - the flags always win, for APIs and payment paths alike.
 pub async fn is_decision_engine_routing_effective(
     state: &SessionState,
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
