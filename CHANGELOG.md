@@ -4,6 +4,30 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.09.09.1-hotfix3
+
+### Features
+
+- **redis_interface:** Add username/password authentication support for redis cache ([#14248](https://github.com/juspay/hyperswitch/pull/14248)) ([`7abe629`](https://github.com/juspay/hyperswitch/commit/7abe629e4d2ac8a7621ff39e7e9f151b92ebc0c1))
+
+**Full Changelog:** [`2026.09.09.1-hotfix2...2026.09.09.1-hotfix3`](https://github.com/juspay/hyperswitch/compare/2026.09.09.1-hotfix2...2026.09.09.1-hotfix3)
+
+- - -
+
+## 2026.09.09.1-hotfix2
+
+### Features
+
+- **pm:** Opt in for plain fingerprint response ([#14236](https://github.com/juspay/hyperswitch/pull/14236)) ([`fc927cd`](https://github.com/juspay/hyperswitch/commit/fc927cdbd765373efc5c717ede861114a4d301c6))
+
+### Performance
+
+- **payment-methods:** Pay then vault operations using redis ([#14218](https://github.com/juspay/hyperswitch/pull/14218)) ([`c185f4e`](https://github.com/juspay/hyperswitch/commit/c185f4e8be317c3648638e42fb6296df38e04e9e))
+
+**Full Changelog:** [`2026.09.09.1-hotfix1...2026.09.09.1-hotfix2`](https://github.com/juspay/hyperswitch/compare/2026.09.09.1-hotfix1...2026.09.09.1-hotfix2)
+
+- - -
+
 ## 2026.09.09.1-hotfix1
 
 ### Features

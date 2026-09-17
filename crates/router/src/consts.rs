@@ -201,6 +201,13 @@ pub const V2_VAULT_DELETE_REQUEST_URL: &str = "/api/v2/vault/delete";
 /// Vault Header content type
 pub const V2_VAULT_HEADER_CONTENT_TYPE: &str = "application/json";
 
+/// Header asking the vault for a plain (unencrypted) fingerprint response; the vault echoes it
+/// when honoured
+pub const V2_VAULT_FP_RESPONSE_ENCODING_HEADER: &str = "x-fp-response-encoding";
+
+/// `x-fp-response-encoding` value for a plain JSON response
+pub const V2_VAULT_FP_RESPONSE_ENCODING_PLAIN: &str = "plain";
+
 /// Vault Add flow type
 pub const V2_VAULT_ADD_FLOW_TYPE: &str = "add_to_vault";
 
@@ -486,6 +493,8 @@ pub mod superposition {
     /// Trigger PM modular backward compatibility inline configuration key
     pub const SHOULD_TRIGGER_BACKWARDS_COMPATIBILITY_INLINE: &str =
         "system.should_trigger_backwards_compatibility_inline";
+    /// Payment method integration type configuration key
+    pub const PAYMENT_METHOD_INTEGRATION_TYPE: &str = "system.payment_method_integration_type";
     /// Trigger fingerprint migration configuration key
     pub const SHOULD_TRIGGER_FINGERPRINT_MIGRATION: &str =
         "vaulting.should_trigger_fingerprint_migration";
