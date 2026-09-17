@@ -1,0 +1,22 @@
+{
+  "id": "evt_checkout_expired",
+  "object": "event",
+  "created": 1789315200,
+  "type": "checkout.session.expired",
+  "data": {
+    "object": {
+      "id": "cs_test_expired",
+      "object": "checkout.session",
+      "amount_subtotal": 500,
+      "amount_total": 500,
+      "currency": "usd",
+      "created": 1789315200,
+      "metadata": {
+        "order_id": "attempt_checkout_expired"
+      },
+      "payment_intent": null,
+      "payment_status": "unpaid",
+      "status": "expired"
+    }
+  }
+}
