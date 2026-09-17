@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.09.16.0-hotfix2
+
+### Features
+
+- **payments:** Add support for create intent to have upated intent + combined pml + session tokens flow ([#14280](https://github.com/juspay/hyperswitch/pull/14280)) ([`42ed66b`](https://github.com/juspay/hyperswitch/commit/42ed66bb715e482710b52eb523689acff3d5d01d))
+
+**Full Changelog:** [`2026.09.16.0-hotfix1...2026.09.16.0-hotfix2`](https://github.com/juspay/hyperswitch/compare/2026.09.16.0-hotfix1...2026.09.16.0-hotfix2)
+
+- - -
+
 ## 2026.09.16.0-hotfix1
 
 ### Features
