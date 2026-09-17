@@ -117,3 +117,57 @@ impl EventInfo for AuditEvent {
         "event".to_string()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn incremental_authorization_event(reason: Option<String>) -> AuditEvent {
+        AuditEvent::new(AuditEventType::PaymentIncrementalAuthorization {
+            authorization_id: Some("auth_test_1".to_string()),
+            additional_amount: MinorUnit::new(500),
+            total_amount: MinorUnit::new(1500),
+            reason,
+        })
+    }
+
+    #[test]
+    fn incremental_authorization_identifier_uses_event_name_and_timestamp() {
+        let event = incremental_authorization_event(None);
+        let expected = format!(
+            "payment_incremental_authorization-{}",
+            event.timestamp().assume_utc().unix_timestamp_nanos()
+        );
+
+        assert_eq!(event.identifier(), expected);
+    }
+
+    #[test]
+    fn incremental_authorization_serializes_tagged_fields() {
+        let event = incremental_authorization_event(Some("customer added items".to_string()));
+
+        let serialized = serde_json::to_value(&event).unwrap_or_default();
+
+        assert_eq!(
+            serialized.get("event_type"),
+            Some(&serde_json::json!("PaymentIncrementalAuthorization"))
+        );
+        assert_eq!(
+            serialized.get("authorization_id"),
+            Some(&serde_json::json!("auth_test_1"))
+        );
+        assert_eq!(
+            serialized.get("additional_amount"),
+            Some(&serde_json::json!(500))
+        );
+        assert_eq!(
+            serialized.get("total_amount"),
+            Some(&serde_json::json!(1500))
+        );
+        assert_eq!(
+            serialized.get("reason"),
+            Some(&serde_json::json!("customer added items"))
+        );
+        assert!(serialized.get("created_at").is_some());
+    }
+}
