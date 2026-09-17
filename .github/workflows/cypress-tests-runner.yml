@@ -201,7 +201,7 @@ jobs:
 
       - name: Build project
         if: ${{ env.RUN_TESTS == 'true' }}
-        run: cargo build --package router --bin router --jobs 2
+        run: cargo build --package router --bin router
 
       - name: Show sccache stats
         if: ${{ always() && env.RUN_TESTS == 'true' }}
@@ -1957,7 +1957,6 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         env:
           RUSTFLAGS: "-Cinstrument-coverage"
-          CARGO_BUILD_JOBS: 6
         run: just build_v2
 
       - name: Show sccache stats
