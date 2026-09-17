@@ -3,6 +3,7 @@ use std::collections::{HashMap, HashSet};
 use common_enums::{connector_enums::Connector, ConnectorType};
 use common_utils::{consts as common_utils_consts, errors::CustomResult, types::Url};
 use error_stack::ResultExt;
+use hyperswitch_interfaces::types::ProxyOverride;
 pub use hyperswitch_interfaces::unified_connector_service::transformers::UnifiedConnectorServiceError;
 use hyperswitch_masking::{PeekInterface, Secret};
 use router_env::logger;
@@ -82,6 +83,12 @@ pub struct UnifiedConnectorServiceClientConfig {
     /// Set of connectors for which psync is disabled in unified connector service
     #[serde(default, deserialize_with = "deserialize_hashset")]
     pub ucs_psync_disabled_connectors: HashSet<Connector>,
+
+    /// Proxy (typically the validation service MITM proxy) through which the direct connector
+    /// call is routed when the request is also mirrored to UCS in shadow mode.
+    /// When neither URL is configured, shadow mode is skipped and the request goes direct.
+    #[serde(default)]
+    pub shadow_proxy: ProxyOverride,
 }
 
 /// Connection timeout for the Unified Connector Service in seconds.
