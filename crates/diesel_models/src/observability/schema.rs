@@ -19,6 +19,15 @@ diesel::table! {
 }
 
 diesel::table! {
+    alert_rule_toggles (rule_id) {
+        rule_id -> Text,
+        is_enabled -> Bool,
+        updated_by -> Text,
+        last_updated_at -> Timestamp,
+    }
+}
+
+diesel::table! {
     alerts_dicts (id) {
         id -> Uuid,
         #[max_length = 64]
@@ -319,6 +328,7 @@ diesel::joinable!(merchants_alert_external_xyne -> alerts_main_xyne (id));
 diesel::allow_tables_to_appear_in_same_query!(
     alert_blacklist,
     alert_blacklist_write_lock,
+    alert_rule_toggles,
     alerts_dicts,
     alerts_info,
     alerts_intermediate,

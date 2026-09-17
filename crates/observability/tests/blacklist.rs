@@ -18,10 +18,10 @@ use observability::{
     auth::X_INTERNAL_API_KEY,
     db::{
         alerts_info::AlertsInfoInterface, blacklist::BlacklistInterface,
-        thresholds::ThresholdsInterface, StorageInterface,
+        rule_toggles::RuleTogglesInterface, thresholds::ThresholdsInterface, StorageInterface,
     },
     domain::notifier::Registry,
-    domain_models::{alerts_info, blacklist, thresholds},
+    domain_models::{alerts_info, blacklist, rule_toggles, thresholds},
     routes::Alerts,
     settings::Database,
     state::AppState,
@@ -38,6 +38,20 @@ struct MemoryStore {
 }
 
 impl StorageInterface for MemoryStore {}
+
+#[async_trait::async_trait]
+impl RuleTogglesInterface for MemoryStore {
+    async fn list_rule_toggles(&self) -> StorageResult<Vec<rule_toggles::RuleToggle>> {
+        Err(report!(DatabaseError::Others))
+    }
+
+    async fn set_rule_toggle(
+        &self,
+        _new: rule_toggles::RuleToggleNew,
+    ) -> StorageResult<rule_toggles::RuleToggle> {
+        Err(report!(DatabaseError::Others))
+    }
+}
 
 #[async_trait::async_trait]
 impl AlertsInfoInterface for MemoryStore {

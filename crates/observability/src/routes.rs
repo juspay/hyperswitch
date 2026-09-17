@@ -7,6 +7,7 @@ pub mod blacklist;
 pub mod cloudwatch;
 pub mod health_check;
 pub mod notify;
+pub mod rule_toggles;
 pub mod thresholds;
 
 pub use self::app::{Alerts, Health};

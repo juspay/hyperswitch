@@ -20,10 +20,10 @@ use observability::{
     auth::X_INTERNAL_API_KEY,
     db::{
         alerts_info::AlertsInfoInterface, blacklist::BlacklistInterface,
-        thresholds::ThresholdsInterface, StorageInterface,
+        rule_toggles::RuleTogglesInterface, thresholds::ThresholdsInterface, StorageInterface,
     },
     domain::notifier::Registry,
-    domain_models::{alerts_info, blacklist, thresholds},
+    domain_models::{alerts_info, blacklist, rule_toggles, thresholds},
     routes::Alerts,
     settings::Database,
     state::AppState,
@@ -88,6 +88,27 @@ macro_rules! impl_unused_blacklist {
 
 impl_unused_blacklist!(MemoryStore);
 impl_unused_blacklist!(FailingStore);
+
+macro_rules! impl_unused_rule_toggles {
+    ($store:ty) => {
+        #[async_trait::async_trait]
+        impl RuleTogglesInterface for $store {
+            async fn list_rule_toggles(&self) -> StorageResult<Vec<rule_toggles::RuleToggle>> {
+                Err(report!(DatabaseError::Others))
+            }
+
+            async fn set_rule_toggle(
+                &self,
+                _new: rule_toggles::RuleToggleNew,
+            ) -> StorageResult<rule_toggles::RuleToggle> {
+                Err(report!(DatabaseError::Others))
+            }
+        }
+    };
+}
+
+impl_unused_rule_toggles!(MemoryStore);
+impl_unused_rule_toggles!(FailingStore);
 
 #[async_trait::async_trait]
 impl AlertsInfoInterface for FailingStore {
