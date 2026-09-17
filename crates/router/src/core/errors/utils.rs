@@ -2,12 +2,8 @@ use common_utils::errors::CustomResult;
 
 use crate::{core::errors, logger};
 
-/// Compose the reason for a `ConnectorError::NotSupported`.
-///
-/// Native connectors pass a bare message plus their own name, so the connector is
-/// appended. UCS passes a self-contained, already-attributed message (e.g.
-/// "... is not supported by worldpayxml") with an empty connector; in that case the
-/// message is surfaced verbatim rather than appending a second, fabricated attribution.
+/// Reason for a `ConnectorError::NotSupported`. An empty connector means the message
+/// already names it (the UCS path) and is used as-is; otherwise the connector is appended.
 fn not_supported_message(message: &str, connector: &str) -> String {
     if connector.is_empty() {
         message.to_string()

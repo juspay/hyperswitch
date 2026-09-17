@@ -645,15 +645,9 @@ where
     ))
 }
 
-/// Record a UCS pre-call rejection as a failed payment attempt.
-///
-/// UCS can reject a request before the connector is called (unsupported payment
-/// method, unimplemented flow). `complete_connector_service` returns the mapped API
-/// error without touching the trackers, so the attempt and intent would keep their
-/// in-flight state. Write the rejection through the normal `PaymentResponse`
-/// post-update tracker so the payment state moves; the caller then returns the API
-/// error. A tracker write failure is logged and swallowed — the API error is the
-/// contract and is returned regardless.
+/// Record a UCS pre-call rejection as a failed attempt through the post-update tracker,
+/// so the payment leaves `processing` before the caller returns the error. A tracker
+/// write failure is logged and swallowed.
 #[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 async fn record_ucs_rejected_attempt<F, FData, D>(
@@ -686,7 +680,6 @@ where
     failed_router_data.response = Err(error_response);
     failed_router_data.connector_http_status_code = Some(status_code);
 
-    // Record through the same tracker the normal path uses.
     let operation = Box::new(PaymentResponse);
     if let Err(tracker_error) = operation
         .to_post_update_tracker()?
@@ -1161,12 +1154,8 @@ where
                     {
                         Ok(result) => result,
                         Err(api_error) => {
-                            // Record only a request-phase rejection (UCS refused before calling
-                            // the connector, so the outcome is deterministic), then return the
-                            // mapped error so the API returns the error response instead of a
-                            // payment object. A response-phase failure (e.g. the connector
-                            // answered but UCS could not deserialize it) leaves the outcome
-                            // unknown, so keep the existing behavior and do not record it here.
+                            // Record only a request-phase rejection; a response-phase failure
+                            // leaves the outcome unknown, so keep the existing behavior.
                             let is_request_phase_rejection = api_error
                                 .downcast_ref::<hyperswitch_interfaces::unified_connector_service::transformers::UnifiedConnectorServiceError>()
                                 .is_some_and(|ucs_error| ucs_error.is_request_phase_rejection());
@@ -1383,12 +1372,8 @@ where
                     {
                         Ok(result) => result,
                         Err(api_error) => {
-                            // Record only a request-phase rejection (UCS refused before calling
-                            // the connector, so the outcome is deterministic), then return the
-                            // mapped error so the API returns the error response instead of a
-                            // payment object. A response-phase failure (e.g. the connector
-                            // answered but UCS could not deserialize it) leaves the outcome
-                            // unknown, so keep the existing behavior and do not record it here.
+                            // Record only a request-phase rejection; a response-phase failure
+                            // leaves the outcome unknown, so keep the existing behavior.
                             let is_request_phase_rejection = api_error
                                 .downcast_ref::<hyperswitch_interfaces::unified_connector_service::transformers::UnifiedConnectorServiceError>()
                                 .is_some_and(|ucs_error| ucs_error.is_request_phase_rejection());

@@ -1990,14 +1990,9 @@ impl UnifiedConnectorServiceError {
         }
     }
 
-    /// Whether this error is a request-phase rejection — UCS refused while building the
-    /// request, so the connector was never called and the outcome is deterministic.
-    ///
-    /// Only these are safe to record as a failed payment attempt. A response-phase failure
-    /// (e.g. the connector answered but UCS could not deserialize the response) leaves the
-    /// outcome unknown — the payment may have succeeded at the connector — so it must keep
-    /// the existing behavior (propagate and let sync/reconcile resolve it) rather than being
-    /// recorded as a failure here.
+    /// UCS refused while building the request, so the connector was never called. Only
+    /// these are safe to record as a failed attempt; a response-phase failure leaves the
+    /// outcome unknown (the payment may have succeeded at the connector).
     pub fn is_request_phase_rejection(&self) -> bool {
         matches!(
             self,
@@ -2328,10 +2323,8 @@ impl ErrorSwitch<ConnectorError> for UnifiedConnectorServiceError {
             Self::FailedToObtainAuthType => ConnectorError::FailedToObtainAuthType,
             // Not implemented
             Self::NotImplemented(msg) => ConnectorError::NotImplemented(msg.clone()),
-            // Not supported. The UCS message is already a complete, correctly attributed
-            // sentence (e.g. "... is not supported by worldpayxml"), so leave the connector
-            // empty rather than fabricating "unified_connector_service" — the render surfaces
-            // the message verbatim when the connector is empty.
+            // Message already names the connector; leave this empty so the render does not
+            // append a second, wrong one.
             Self::NotSupported(msg) => ConnectorError::NotSupported {
                 message: msg.clone(),
                 connector: "",
