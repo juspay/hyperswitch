@@ -17,6 +17,7 @@
 pub mod alerts_info;
 pub mod blacklist;
 pub mod dictionary;
+pub mod metadata;
 pub mod rule_toggles;
 pub mod thresholds;
 
@@ -41,6 +42,7 @@ pub trait StorageInterface:
     + alerts_info::AlertsInfoInterface
     + blacklist::BlacklistInterface
     + dictionary::DictionaryInterface
+    + metadata::AlertMetadataInterface
     + rule_toggles::RuleTogglesInterface
     + thresholds::ThresholdsInterface
 {

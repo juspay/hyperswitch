@@ -31,6 +31,16 @@ diesel::table! {
 }
 
 diesel::table! {
+    alert_metadata (id) {
+        id -> Text,
+        metadata -> Text,
+        snooze -> Text,
+        updated_by -> Text,
+        last_updated_at -> Timestamp,
+    }
+}
+
+diesel::table! {
     alert_rule_toggles (rule_id) {
         rule_id -> Text,
         is_enabled -> Bool,
@@ -341,6 +351,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     alert_blacklist,
     alert_blacklist_write_lock,
     alert_dictionary,
+    alert_metadata,
     alert_rule_toggles,
     alerts_dicts,
     alerts_info,

@@ -1,4 +1,4 @@
-//! Alert dictionary tests through the authenticated Actix route tree.
+//! Per-alert metadata tests through the authenticated Actix route tree.
 
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::indexing_slicing)]
 
@@ -6,9 +6,7 @@ use std::sync::{Arc, Mutex};
 
 use actix_web::{http::StatusCode, test, App};
 use diesel::{Connection, PgConnection, RunQueryDsl};
-use diesel_models::{
-    errors::DatabaseError, observability::schema::alert_dictionary, StorageResult,
-};
+use diesel_models::{errors::DatabaseError, observability::schema::alert_metadata, StorageResult};
 use error_stack::report;
 use observability::{
     auth::X_INTERNAL_API_KEY,
@@ -26,37 +24,14 @@ use observability::{
 use serde_json::{json, Value};
 use time::{macros::datetime, PrimitiveDateTime};
 
-const API_KEY: &str = "dictionary_test_key";
+const API_KEY: &str = "metadata_test_key";
 
 #[derive(Default)]
 struct MemoryStore {
-    rows: Mutex<Vec<dictionary::DictionaryEntry>>,
+    rows: Mutex<Vec<metadata::AlertMetadataEntry>>,
 }
 
 struct FailingStore;
-
-macro_rules! impl_unused_metadata {
-    ($store:ty) => {
-        #[async_trait::async_trait]
-        impl AlertMetadataInterface for $store {
-            async fn list_alert_metadata(
-                &self,
-            ) -> StorageResult<Vec<metadata::AlertMetadataEntry>> {
-                Err(report!(DatabaseError::Others))
-            }
-
-            async fn patch_alert_metadata(
-                &self,
-                _patch: metadata::AlertMetadataPatch,
-            ) -> StorageResult<metadata::AlertMetadataEntry> {
-                Err(report!(DatabaseError::Others))
-            }
-        }
-    };
-}
-
-impl_unused_metadata!(MemoryStore);
-impl_unused_metadata!(FailingStore);
 
 impl StorageInterface for MemoryStore {}
 impl StorageInterface for FailingStore {}
@@ -84,7 +59,6 @@ macro_rules! impl_unused_interfaces {
             ) -> StorageResult<Vec<blacklist::BlacklistEntry>> {
                 Err(report!(DatabaseError::Others))
             }
-
             async fn upsert_blacklist_entry(
                 &self,
                 _new: blacklist::BlacklistEntryNew,
@@ -92,7 +66,6 @@ macro_rules! impl_unused_interfaces {
             ) -> StorageResult<blacklist::BlacklistUpsertOutcome> {
                 Err(report!(DatabaseError::Others))
             }
-
             async fn delete_blacklist_entry(
                 &self,
                 _new: blacklist::BlacklistEntryNew,
@@ -102,11 +75,25 @@ macro_rules! impl_unused_interfaces {
         }
 
         #[async_trait::async_trait]
+        impl DictionaryInterface for $store {
+            async fn list_dictionary_entries(
+                &self,
+            ) -> StorageResult<Vec<dictionary::DictionaryEntry>> {
+                Err(report!(DatabaseError::Others))
+            }
+            async fn upsert_dictionary_entry(
+                &self,
+                _new: dictionary::DictionaryEntryNew,
+            ) -> StorageResult<dictionary::DictionaryEntry> {
+                Err(report!(DatabaseError::Others))
+            }
+        }
+
+        #[async_trait::async_trait]
         impl RuleTogglesInterface for $store {
             async fn list_rule_toggles(&self) -> StorageResult<Vec<rule_toggles::RuleToggle>> {
                 Err(report!(DatabaseError::Others))
             }
-
             async fn set_rule_toggle(
                 &self,
                 _new: rule_toggles::RuleToggleNew,
@@ -122,7 +109,6 @@ macro_rules! impl_unused_interfaces {
             ) -> StorageResult<Vec<thresholds::ThresholdOverride>> {
                 Err(report!(DatabaseError::Others))
             }
-
             async fn upsert_threshold_override(
                 &self,
                 _new: thresholds::ThresholdOverrideNew,
@@ -130,7 +116,6 @@ macro_rules! impl_unused_interfaces {
             ) -> StorageResult<thresholds::ThresholdUpsertOutcome> {
                 Err(report!(DatabaseError::Others))
             }
-
             async fn delete_threshold_override(
                 &self,
                 _new: thresholds::ThresholdOverrideNew,
@@ -145,49 +130,53 @@ impl_unused_interfaces!(MemoryStore);
 impl_unused_interfaces!(FailingStore);
 
 #[async_trait::async_trait]
-impl DictionaryInterface for MemoryStore {
-    async fn list_dictionary_entries(&self) -> StorageResult<Vec<dictionary::DictionaryEntry>> {
+impl AlertMetadataInterface for MemoryStore {
+    async fn list_alert_metadata(&self) -> StorageResult<Vec<metadata::AlertMetadataEntry>> {
         let mut rows = self.rows.lock().unwrap().clone();
-        rows.sort_by(|a, b| (&a.name, &a.key).cmp(&(&b.name, &b.key)));
+        rows.sort_by(|a, b| a.id.cmp(&b.id));
         Ok(rows)
     }
 
-    async fn upsert_dictionary_entry(
+    async fn patch_alert_metadata(
         &self,
-        new: dictionary::DictionaryEntryNew,
-    ) -> StorageResult<dictionary::DictionaryEntry> {
+        patch: metadata::AlertMetadataPatch,
+    ) -> StorageResult<metadata::AlertMetadataEntry> {
         let mut rows = self.rows.lock().unwrap();
-        let stored = dictionary::DictionaryEntry {
-            name: new.name,
-            key: new.key,
-            product: new.product,
-            values: new.values,
-            metadata: new.metadata,
-            updated_by: new.updated_by,
-            last_updated_at: now(),
-        };
-        if let Some(row) = rows
-            .iter_mut()
-            .find(|row| row.name == stored.name && row.key == stored.key)
-        {
-            *row = stored.clone();
+        let row = if let Some(row) = rows.iter_mut().find(|row| row.id == patch.id) {
+            if let Some(value) = patch.metadata {
+                row.metadata = value;
+            }
+            if let Some(value) = patch.snooze {
+                row.snooze = value;
+            }
+            row.updated_by = patch.updated_by;
+            row.last_updated_at = now();
+            row.clone()
         } else {
-            rows.push(stored.clone());
-        }
-        Ok(stored)
+            let row = metadata::AlertMetadataEntry {
+                id: patch.id,
+                metadata: patch.metadata.unwrap_or_else(|| "{}".into()),
+                snooze: patch.snooze.unwrap_or_default(),
+                updated_by: patch.updated_by,
+                last_updated_at: now(),
+            };
+            rows.push(row.clone());
+            row
+        };
+        Ok(row)
     }
 }
 
 #[async_trait::async_trait]
-impl DictionaryInterface for FailingStore {
-    async fn list_dictionary_entries(&self) -> StorageResult<Vec<dictionary::DictionaryEntry>> {
+impl AlertMetadataInterface for FailingStore {
+    async fn list_alert_metadata(&self) -> StorageResult<Vec<metadata::AlertMetadataEntry>> {
         Err(report!(DatabaseError::Others))
     }
 
-    async fn upsert_dictionary_entry(
+    async fn patch_alert_metadata(
         &self,
-        _new: dictionary::DictionaryEntryNew,
-    ) -> StorageResult<dictionary::DictionaryEntry> {
+        _patch: metadata::AlertMetadataPatch,
+    ) -> StorageResult<metadata::AlertMetadataEntry> {
         Err(report!(DatabaseError::Others))
     }
 }
@@ -213,13 +202,12 @@ fn state() -> AppState {
 async fn call(
     state: AppState,
     method: actix_web::http::Method,
+    uri: &str,
     key: Option<&str>,
     payload: Option<Value>,
 ) -> (StatusCode, Value) {
     let app = test::init_service(App::new().service(Alerts::server(state))).await;
-    let mut request = test::TestRequest::default()
-        .method(method)
-        .uri("/alerts/dictionary");
+    let mut request = test::TestRequest::default().method(method).uri(uri);
     if let Some(key) = key {
         request = request.insert_header((X_INTERNAL_API_KEY, key));
     }
@@ -238,53 +226,63 @@ async fn call(
 }
 
 #[actix_web::test]
-async fn upsert_replaces_strings_verbatim_and_preserves_response_shape() {
+async fn partial_patches_preserve_omitted_strings_and_response_shape() {
     let state = state();
-    let first = json!({
-        "name": "dashboard",
-        "key_": "merchant_id",
-        "product": "[]",
-        "values_": "[\"m1\"]",
-        "metadata": "{\"category\":\"dashboard\"}",
-        "updated_by": "dashboard"
-    });
+    let id = "webhook_rejected_m1_";
     let (status, response) = call(
         state.clone(),
-        actix_web::http::Method::PUT,
+        actix_web::http::Method::PATCH,
+        &format!("/alerts/metadata/{id}"),
         Some(API_KEY),
-        Some(first),
+        Some(json!({
+            "metadata": "{\"resolution\":\"known\"}",
+            "updated_by": "dashboard"
+        })),
     )
     .await;
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(
-        response,
-        json!({"ok": true, "name": "dashboard", "key_": "merchant_id"})
-    );
+    assert_eq!(response, json!({"ok": true, "id": id}));
 
-    let replacement = json!({
-        "name": "dashboard",
-        "key_": "merchant_id",
-        "product": "[\"payments\"]",
-        "values_": "[\"m2\"]",
-        "metadata": "{ \"encoded\": true }",
-        "updated_by": "syntest"
-    });
     call(
         state.clone(),
-        actix_web::http::Method::PUT,
+        actix_web::http::Method::PATCH,
+        &format!("/alerts/metadata/{id}"),
         Some(API_KEY),
-        Some(replacement),
+        Some(json!({
+            "snooze": "{\"snooze_entry_1\":{\"merchant_id\":\"m1\"}}",
+            "updated_by": "syntest"
+        })),
     )
     .await;
 
-    let (status, listed) = call(state, actix_web::http::Method::GET, Some(API_KEY), None).await;
+    let (status, _) = call(
+        state.clone(),
+        actix_web::http::Method::PATCH,
+        &format!("/alerts/metadata/{id}"),
+        Some(API_KEY),
+        Some(json!({"metadata": "{}", "updated_by": "  "})),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+
+    let (status, listed) = call(
+        state,
+        actix_web::http::Method::GET,
+        "/alerts/metadata",
+        Some(API_KEY),
+        None,
+    )
+    .await;
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(listed["entries"].as_array().unwrap().len(), 1);
-    assert_eq!(listed["entries"][0]["key_"], "merchant_id");
-    assert_eq!(listed["entries"][0]["values_"], "[\"m2\"]");
-    assert!(listed["entries"][0].get("key").is_none());
-    assert!(listed["entries"][0].get("values").is_none());
-    assert_eq!(listed["entries"][0]["metadata"], "{ \"encoded\": true }");
+    assert_eq!(listed["entries"][0]["id"], id);
+    assert_eq!(
+        listed["entries"][0]["metadata"],
+        "{\"resolution\":\"known\"}"
+    );
+    assert_eq!(
+        listed["entries"][0]["snooze"],
+        "{\"snooze_entry_1\":{\"merchant_id\":\"m1\"}}"
+    );
     assert_eq!(listed["entries"][0]["updated_by"], "syntest");
     assert_eq!(
         listed["entries"][0]["last_updated_at"],
@@ -293,80 +291,85 @@ async fn upsert_replaces_strings_verbatim_and_preserves_response_shape() {
 }
 
 #[actix_web::test]
-async fn omitted_payload_strings_replace_existing_values_with_defaults() {
+async fn new_partial_rows_receive_exact_defaults_and_entries_are_ordered() {
     let state = state();
-    call(
-        state.clone(),
-        actix_web::http::Method::PUT,
-        Some(API_KEY),
-        Some(json!({
-            "name": "dashboard", "key_": "merchant_id", "product": "[1]",
-            "values_": "[2]", "metadata": "{\"a\":1}", "updated_by": "dashboard"
-        })),
-    )
-    .await;
-    call(
-        state.clone(),
-        actix_web::http::Method::PUT,
-        Some(API_KEY),
-        Some(json!({
-            "name": "dashboard", "key_": "merchant_id", "updated_by": "dashboard"
-        })),
-    )
-    .await;
-    let (_, listed) = call(state, actix_web::http::Method::GET, Some(API_KEY), None).await;
-    assert_eq!(listed["entries"][0]["product"], "[]");
-    assert_eq!(listed["entries"][0]["values_"], "[]");
-    assert_eq!(listed["entries"][0]["metadata"], "{}");
-}
-
-#[actix_web::test]
-async fn entries_are_ordered_by_name_and_key() {
-    let state = state();
-    for (name, key) in [("z", "a"), ("a", "z"), ("a", "a")] {
-        call(
-            state.clone(),
-            actix_web::http::Method::PUT,
-            Some(API_KEY),
-            Some(json!({"name": name, "key_": key, "updated_by": "dashboard"})),
-        )
-        .await;
+    for (id, body) in [
+        (
+            "z_alert",
+            json!({"snooze": "{}", "updated_by": "dashboard"}),
+        ),
+        (
+            "a_alert",
+            json!({"metadata": "{ \"encoded\": true }", "updated_by": "dashboard"}),
+        ),
+    ] {
+        assert_eq!(
+            call(
+                state.clone(),
+                actix_web::http::Method::PATCH,
+                &format!("/alerts/metadata/{id}"),
+                Some(API_KEY),
+                Some(body),
+            )
+            .await
+            .0,
+            StatusCode::OK
+        );
     }
-    let (_, listed) = call(state, actix_web::http::Method::GET, Some(API_KEY), None).await;
-    let keys: Vec<_> = listed["entries"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .map(|row| (row["name"].as_str().unwrap(), row["key_"].as_str().unwrap()))
-        .collect();
-    assert_eq!(keys, vec![("a", "a"), ("a", "z"), ("z", "a")]);
+    let (_, listed) = call(
+        state,
+        actix_web::http::Method::GET,
+        "/alerts/metadata",
+        Some(API_KEY),
+        None,
+    )
+    .await;
+    assert_eq!(listed["entries"][0]["id"], "a_alert");
+    assert_eq!(listed["entries"][0]["metadata"], "{ \"encoded\": true }");
+    assert_eq!(listed["entries"][0]["snooze"], "");
+    assert_eq!(listed["entries"][1]["metadata"], "{}");
+    assert_eq!(listed["entries"][1]["snooze"], "{}");
 }
 
 #[actix_web::test]
 async fn authentication_validation_and_unknown_fields_are_enforced() {
-    for method in [actix_web::http::Method::GET, actix_web::http::Method::PUT] {
-        let payload = (method == actix_web::http::Method::PUT)
-            .then(|| json!({"name": "a", "key_": "b", "updated_by": "dashboard"}));
+    for (method, uri, payload) in [
+        (actix_web::http::Method::GET, "/alerts/metadata", None),
+        (
+            actix_web::http::Method::PATCH,
+            "/alerts/metadata/alert_1",
+            Some(json!({"metadata": "{}", "updated_by": "dashboard"})),
+        ),
+    ] {
         for key in [None, Some("wrong")] {
             assert_eq!(
-                call(state(), method.clone(), key, payload.clone()).await.0,
+                call(state(), method.clone(), uri, key, payload.clone())
+                    .await
+                    .0,
                 StatusCode::UNAUTHORIZED
             );
         }
     }
 
-    for payload in [
-        json!({"name": "", "key_": "b", "updated_by": "dashboard"}),
-        json!({"name": "a", "key_": "   ", "updated_by": "dashboard"}),
-        json!({"name": "a", "key_": "b", "updated_by": "dashboard", "extra": true}),
-        json!({"name": "a", "updated_by": "dashboard"}),
-        json!({"name": "a", "key": "b", "updated_by": "dashboard"}),
-        json!({"name": "a", "key_": "b", "values": "[]", "updated_by": "dashboard"}),
-        json!({"name": "a", "key_": "b", "values_": ["m1"], "updated_by": "dashboard"}),
+    for (uri, payload) in [
+        (
+            "/alerts/metadata/%20%20%20",
+            json!({"metadata": "{}", "updated_by": "dashboard"}),
+        ),
+        (
+            "/alerts/metadata/alert_1",
+            json!({"metadata": "{}", "updated_by": "dashboard", "extra": true}),
+        ),
+        ("/alerts/metadata/alert_1", json!({"metadata": "{}"})),
+        (
+            "/alerts/metadata/alert_1",
+            json!({"metadata": {}, "updated_by": "dashboard"}),
+        ),
     ] {
         let (status, response) = call(
             state(),
-            actix_web::http::Method::PUT,
+            actix_web::http::Method::PATCH,
+            uri,
             Some(API_KEY),
             Some(payload),
         )
@@ -379,14 +382,15 @@ async fn authentication_validation_and_unknown_fields_are_enforced() {
 #[actix_web::test]
 async fn storage_failures_return_500() {
     let state = state_with_store(Arc::new(FailingStore));
-    for (method, payload) in [
-        (actix_web::http::Method::GET, None),
+    for (method, uri, payload) in [
+        (actix_web::http::Method::GET, "/alerts/metadata", None),
         (
-            actix_web::http::Method::PUT,
-            Some(json!({"name": "a", "key_": "b", "updated_by": "dashboard"})),
+            actix_web::http::Method::PATCH,
+            "/alerts/metadata/alert_1",
+            Some(json!({"snooze": "{}", "updated_by": "dashboard"})),
         ),
     ] {
-        let (status, response) = call(state.clone(), method, Some(API_KEY), payload).await;
+        let (status, response) = call(state.clone(), method, uri, Some(API_KEY), payload).await;
         assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
         assert_eq!(response["error"]["type"], "observability_error");
     }
@@ -409,39 +413,46 @@ fn postgres_database(url: &str) -> Database {
     }
 }
 
-/// Run after applying the observability migrations:
-/// `OBSERVABILITY_TEST_DATABASE_URL=postgres://... cargo test -p observability --test dictionary postgres_repository -- --ignored`
+/// Run after applying the observability migrations.
 #[actix_web::test]
 #[ignore = "requires OBSERVABILITY_TEST_DATABASE_URL and applied observability migrations"]
-async fn postgres_repository_replaces_and_lists_dictionary_entries() {
+async fn postgres_repository_preserves_omitted_fields() {
     let database_url = std::env::var("OBSERVABILITY_TEST_DATABASE_URL")
         .expect("OBSERVABILITY_TEST_DATABASE_URL is required");
     let database = postgres_database(&database_url);
     let mut connection = PgConnection::establish(&database_url).unwrap();
-    diesel::delete(alert_dictionary::table)
+    diesel::delete(alert_metadata::table)
         .execute(&mut connection)
         .unwrap();
-
     let state = state_with_store(Arc::new(
         observability::db::Store::new(&database).await.unwrap(),
     ));
-    for values in ["[\"m1\"]", "[\"m2\"]"] {
+
+    for body in [
+        json!({"metadata": "{\"a\":1}", "updated_by": "database-test"}),
+        json!({"snooze": "{\"b\":2}", "updated_by": "database-test"}),
+    ] {
         assert_eq!(
             call(
                 state.clone(),
-                actix_web::http::Method::PUT,
+                actix_web::http::Method::PATCH,
+                "/alerts/metadata/alert_1",
                 Some(API_KEY),
-                Some(json!({
-                    "name": "dashboard", "key_": "merchant_id", "values_": values,
-                    "updated_by": "database-test"
-                })),
+                Some(body),
             )
             .await
             .0,
             StatusCode::OK
         );
     }
-    let (_, listed) = call(state, actix_web::http::Method::GET, Some(API_KEY), None).await;
-    assert_eq!(listed["entries"].as_array().unwrap().len(), 1);
-    assert_eq!(listed["entries"][0]["values_"], "[\"m2\"]");
+    let (_, listed) = call(
+        state,
+        actix_web::http::Method::GET,
+        "/alerts/metadata",
+        Some(API_KEY),
+        None,
+    )
+    .await;
+    assert_eq!(listed["entries"][0]["metadata"], "{\"a\":1}");
+    assert_eq!(listed["entries"][0]["snooze"], "{\"b\":2}");
 }

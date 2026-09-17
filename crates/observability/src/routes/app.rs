@@ -15,8 +15,8 @@ use crate::{
     errors::types::{ApiError, ApiErrorResponse},
     logger,
     routes::{
-        alerts_info, blacklist, cloudwatch, dictionary, health_check, notify, rule_toggles,
-        thresholds,
+        alerts_info, blacklist, cloudwatch, dictionary, health_check, metadata, notify,
+        rule_toggles, thresholds,
     },
     state::AppState,
 };
@@ -70,6 +70,8 @@ impl Alerts {
                     .route(web::get().to(dictionary::list))
                     .route(web::put().to(dictionary::upsert)),
             )
+            .service(web::resource("/metadata").route(web::get().to(metadata::list)))
+            .service(web::resource("/metadata/{id}").route(web::patch().to(metadata::patch)))
             .service(web::resource("/rule_toggles").route(web::get().to(rule_toggles::list)))
             .service(
                 web::resource("/rule_toggles/{rule_id}").route(web::put().to(rule_toggles::set)),
