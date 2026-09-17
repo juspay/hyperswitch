@@ -233,7 +233,7 @@ async fn crud_tombstone_reactivation_and_ordering_preserve_the_contract() {
     assert_eq!(entries[0]["last_updated_at"], "2026-09-15T09:45:00.000Z");
     assert!(entries[0].get("is_deleted").is_none());
 
-    let delete = json!({"merchant_id": "merchant_a", "created_by": "dashboard"});
+    let delete = json!({"rule_id": "all", "merchant_id": "merchant_a", "created_by": "dashboard"});
     for _ in 0..2 {
         let (status, response) = call(
             state.clone(),
@@ -295,7 +295,7 @@ async fn active_update_is_allowed_at_cap_but_new_and_reactivated_keys_are_not() 
         StatusCode::TOO_MANY_REQUESTS
     );
 
-    let delete = json!({"merchant_id": "missing", "created_by": "dashboard"});
+    let delete = json!({"rule_id": "all", "merchant_id": "missing", "created_by": "dashboard"});
     assert_eq!(
         call(
             state.clone(),
@@ -330,7 +330,7 @@ async fn auth_json_shape_and_scope_validation_are_enforced() {
         let payload = if method == actix_web::http::Method::POST {
             Some(body("merchant"))
         } else if method == actix_web::http::Method::DELETE {
-            Some(json!({"merchant_id": "merchant", "created_by": "dashboard"}))
+            Some(json!({"rule_id": "all", "merchant_id": "merchant", "created_by": "dashboard"}))
         } else {
             None
         };
@@ -375,16 +375,37 @@ async fn auth_json_shape_and_scope_validation_are_enforced() {
         .0,
         StatusCode::BAD_REQUEST
     );
+    for payload in [
+        json!({"merchant_id": "merchant", "created_by": "dashboard"}),
+        json!({"rule_id": "", "merchant_id": "merchant", "created_by": "dashboard"}),
+        json!({"rule_id": "  ", "merchant_id": "merchant", "created_by": "dashboard"}),
+        json!({"rule_id": "all", "merchant_id": "merchant", "created_by": "  "}),
+    ] {
+        assert_eq!(
+            call(
+                state(10),
+                actix_web::http::Method::POST,
+                Some(API_KEY),
+                Some(payload),
+            )
+            .await
+            .0,
+            StatusCode::BAD_REQUEST
+        );
+    }
+
     assert_eq!(
         call(
             state(10),
-            actix_web::http::Method::POST,
+            actix_web::http::Method::DELETE,
             Some(API_KEY),
-            Some(json!({"merchant_id": "merchant", "created_by": "dashboard"})),
+            Some(json!({
+                "rule_id": "all", "merchant_id": "merchant", "created_by": "  "
+            })),
         )
         .await
         .0,
-        StatusCode::OK
+        StatusCode::BAD_REQUEST
     );
 }
 

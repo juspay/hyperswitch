@@ -34,14 +34,22 @@ pub enum BlacklistUpsertOutcome {
     ActiveRuleLimitReached,
 }
 
-fn validate_key(rule_id: &str, merchant_id: &str) -> ObservabilityApiResult<()> {
+fn validate_request(
+    rule_id: &str,
+    merchant_id: &str,
+    created_by: &str,
+) -> ObservabilityApiResult<()> {
     if rule_id.is_empty() {
         return Err(report!(ObservabilityError::InvalidRequest))
-            .attach_printable("rule_id must not be empty");
+            .attach_printable("rule_id must not be blank");
     }
     if merchant_id.is_empty() {
         return Err(report!(ObservabilityError::InvalidRequest))
             .attach_printable("merchant_id must not be empty");
+    }
+    if created_by.is_empty() {
+        return Err(report!(ObservabilityError::InvalidRequest))
+            .attach_printable("created_by must not be blank");
     }
     Ok(())
 }
@@ -50,15 +58,17 @@ impl TryFrom<api::BlacklistUpsertRequest> for BlacklistEntryNew {
     type Error = error_stack::Report<ObservabilityError>;
 
     fn try_from(request: api::BlacklistUpsertRequest) -> Result<Self, Self::Error> {
+        let rule_id = request.rule_id.trim().to_owned();
         let merchant_id = request.merchant_id.trim().to_owned();
         let profile_id = request.profile_id.trim().to_owned();
-        validate_key(&request.rule_id, &merchant_id)?;
+        let created_by = request.created_by.trim().to_owned();
+        validate_request(&rule_id, &merchant_id, &created_by)?;
         Ok(Self {
-            rule_id: request.rule_id,
+            rule_id,
             merchant_id,
             profile_id,
             reason: request.reason,
-            created_by: request.created_by,
+            created_by,
             is_deleted: false,
         })
     }
@@ -68,15 +78,17 @@ impl TryFrom<api::BlacklistDeleteRequest> for BlacklistEntryNew {
     type Error = error_stack::Report<ObservabilityError>;
 
     fn try_from(request: api::BlacklistDeleteRequest) -> Result<Self, Self::Error> {
+        let rule_id = request.rule_id.trim().to_owned();
         let merchant_id = request.merchant_id.trim().to_owned();
         let profile_id = request.profile_id.trim().to_owned();
-        validate_key(&request.rule_id, &merchant_id)?;
+        let created_by = request.created_by.trim().to_owned();
+        validate_request(&rule_id, &merchant_id, &created_by)?;
         Ok(Self {
-            rule_id: request.rule_id,
+            rule_id,
             merchant_id,
             profile_id,
             reason: String::new(),
-            created_by: request.created_by,
+            created_by,
             is_deleted: true,
         })
     }
@@ -141,15 +153,17 @@ mod tests {
     }
 
     #[test]
-    fn blank_merchant_and_empty_rule_are_rejected_but_empty_profile_is_valid() {
-        let request = |rule_id: &str, merchant_id: &str| api::BlacklistDeleteRequest {
-            rule_id: rule_id.into(),
-            merchant_id: merchant_id.into(),
-            profile_id: String::new(),
-            created_by: "dashboard".into(),
-        };
-        assert!(BlacklistEntryNew::try_from(request("all", "  ")).is_err());
-        assert!(BlacklistEntryNew::try_from(request("", "merchant")).is_err());
-        assert!(BlacklistEntryNew::try_from(request("all", "merchant")).is_ok());
+    fn blank_keys_and_actor_are_rejected_but_empty_profile_is_valid() {
+        let request =
+            |rule_id: &str, merchant_id: &str, created_by: &str| api::BlacklistDeleteRequest {
+                rule_id: rule_id.into(),
+                merchant_id: merchant_id.into(),
+                profile_id: String::new(),
+                created_by: created_by.into(),
+            };
+        assert!(BlacklistEntryNew::try_from(request("all", "  ", "dashboard")).is_err());
+        assert!(BlacklistEntryNew::try_from(request("  ", "merchant", "dashboard")).is_err());
+        assert!(BlacklistEntryNew::try_from(request("all", "merchant", "  ")).is_err());
+        assert!(BlacklistEntryNew::try_from(request("all", "merchant", "dashboard")).is_ok());
     }
 }

@@ -7,7 +7,6 @@ use time::PrimitiveDateTime;
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct BlacklistUpsertRequest {
-    #[serde(default = "default_rule_id")]
     pub rule_id: String,
     pub merchant_id: String,
     #[serde(default)]
@@ -21,16 +20,11 @@ pub struct BlacklistUpsertRequest {
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct BlacklistDeleteRequest {
-    #[serde(default = "default_rule_id")]
     pub rule_id: String,
     pub merchant_id: String,
     #[serde(default)]
     pub profile_id: String,
     pub created_by: String,
-}
-
-fn default_rule_id() -> String {
-    "all".to_owned()
 }
 
 #[derive(Clone, Debug, Serialize)]
