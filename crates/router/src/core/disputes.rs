@@ -357,7 +357,7 @@ pub async fn get_platform_disputes_filters(
     state: SessionState,
     platform: domain::Platform,
     profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
-) -> RouterResponse<api_models::disputes::DisputeListFilters> {
+) -> RouterResponse<api_models::disputes::PlatformDisputeListFilters> {
     // This endpoint is exclusively for platform merchants - not connected, not standard.
     common_utils::fp_utils::when(
         !platform.get_provider().get_account().is_platform_account(),
@@ -430,7 +430,7 @@ pub async fn get_platform_disputes_filters(
     }
 
     Ok(services::ApplicationResponse::Json(
-        api_models::disputes::DisputeListFilters {
+        api_models::disputes::PlatformDisputeListFilters {
             connector: connector_map,
             currency: storage_enums::Currency::iter().collect(),
             dispute_status: storage_enums::DisputeStatus::iter().collect(),

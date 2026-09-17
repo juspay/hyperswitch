@@ -22,7 +22,7 @@ pub trait DisputeDbExt: Sized {
     /// filter to narrow to specific connected merchants.
     #[cfg(feature = "v1")]
     async fn filter_by_constraints_for_platform(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         platform_merchant_id: &common_utils::id_type::MerchantId,
         dispute_list_constraints: &disputes::DisputeListConstraints,
     ) -> CustomResult<Vec<Self>, errors::DatabaseError>;
@@ -30,7 +30,7 @@ pub trait DisputeDbExt: Sized {
     /// Total count of disputes matching a platform listing's constraints (ignores limit/offset).
     #[cfg(feature = "v1")]
     async fn get_disputes_count_for_platform(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         platform_merchant_id: &common_utils::id_type::MerchantId,
         dispute_list_constraints: &disputes::DisputeListConstraints,
     ) -> CustomResult<i64, errors::DatabaseError>;
@@ -136,7 +136,7 @@ impl DisputeDbExt for Dispute {
 
     #[cfg(feature = "v1")]
     async fn filter_by_constraints_for_platform(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         platform_merchant_id: &common_utils::id_type::MerchantId,
         dispute_list_constraints: &disputes::DisputeListConstraints,
     ) -> CustomResult<Vec<Self>, errors::DatabaseError> {
@@ -144,10 +144,11 @@ impl DisputeDbExt for Dispute {
         // `merchant_id` (= the platform's id on connected-merchant rows) rather than
         // `processor_merchant_id`. An optional `processor_merchant_id` filter narrows the
         // result to specific connected merchants.
-        let mut filter = <Self as HasTable>::table()
-            .filter(dsl::merchant_id.eq(platform_merchant_id.to_owned()))
-            .order(dsl::modified_at.desc())
-            .into_boxed();
+        let mut filter = diesel_models::boxed_list_query!(
+            Dispute,
+            scope = dsl::merchant_id.eq(platform_merchant_id.to_owned()),
+            order = dsl::modified_at.desc()
+        );
 
         if let Some(processor_merchant_id) = &dispute_list_constraints.processor_merchant_id {
             filter =
@@ -186,18 +187,19 @@ impl DisputeDbExt for Dispute {
         if let Some(merchant_connector_id) = &dispute_list_constraints.merchant_connector_id {
             filter = filter.filter(dsl::merchant_connector_id.eq(merchant_connector_id.clone()));
         }
-        if let Some(limit) = dispute_list_constraints.limit {
-            filter = filter.limit(limit.into());
-        }
-        if let Some(offset) = dispute_list_constraints.offset {
-            filter = filter.offset(offset.into());
-        }
+        let filter = diesel_models::list::apply_pagination(
+            filter,
+            dispute_list_constraints.limit,
+            dispute_list_constraints.offset,
+        );
 
         logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());
 
         db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            filter.get_results_async(conn),
+            conn.request_id(),
+            conn.event_emitter(),
             db_metrics::DatabaseOperation::Filter,
+            filter.get_results_async(conn.raw_connection()),
         )
         .await
         .change_context(errors::DatabaseError::NotFound)
@@ -206,15 +208,16 @@ impl DisputeDbExt for Dispute {
 
     #[cfg(feature = "v1")]
     async fn get_disputes_count_for_platform(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         platform_merchant_id: &common_utils::id_type::MerchantId,
         dispute_list_constraints: &disputes::DisputeListConstraints,
     ) -> CustomResult<i64, errors::DatabaseError> {
         // `total_count` ignores limit/offset/order so the caller can paginate.
-        let mut filter = <Self as HasTable>::table()
-            .count()
-            .filter(dsl::merchant_id.eq(platform_merchant_id.to_owned()))
-            .into_boxed();
+        let mut filter = diesel_models::list::into_boxed_list(
+            <Self as HasTable>::table()
+                .count()
+                .filter(dsl::merchant_id.eq(platform_merchant_id.to_owned())),
+        );
 
         if let Some(processor_merchant_id) = &dispute_list_constraints.processor_merchant_id {
             filter =
@@ -257,8 +260,10 @@ impl DisputeDbExt for Dispute {
         logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());
 
         db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            filter.get_result_async::<i64>(conn),
+            conn.request_id(),
+            conn.event_emitter(),
             db_metrics::DatabaseOperation::Count,
+            filter.get_result_async::<i64>(conn.raw_connection()),
         )
         .await
         .change_context(errors::DatabaseError::NotFound)

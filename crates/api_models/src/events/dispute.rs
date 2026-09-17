@@ -62,3 +62,10 @@ impl ApiEventMetric for super::PlatformDisputeListResponse {
         Some(ApiEventsType::ResourceListAPI)
     }
 }
+
+#[cfg(feature = "v1")]
+impl ApiEventMetric for super::PlatformDisputeListFilters {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::ResourceListAPI)
+    }
+}

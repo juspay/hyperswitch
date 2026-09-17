@@ -171,7 +171,7 @@ pub async fn retrieve_disputes_list(
 /// Disputes - List Disputes Across a Platform's Connected Merchants
 #[utoipa::path(
     get,
-    path = "/disputes/list-platform",
+    path = "/disputes/platform/list",
     params(
         ("processor_merchant_id" = Option<String>, Query, description = "Comma separated connected merchant ids to filter by"),
         ("limit" = Option<i64>, Query, description = "The maximum number of Dispute Objects to include in the response"),
@@ -225,9 +225,9 @@ pub async fn retrieve_disputes_list_for_platform(
 /// Disputes - Platform Disputes Filters
 #[utoipa::path(
     get,
-    path = "/disputes/list-platform/filter",
+    path = "/disputes/platform/filter",
     responses(
-        (status = 200, description = "List of filters", body = DisputeListFilters),
+        (status = 200, description = "List of filters", body = PlatformDisputeListFilters),
     ),
     tag = "Disputes",
     operation_id = "List all dispute filters for a Platform",

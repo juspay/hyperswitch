@@ -181,7 +181,7 @@ pub struct DisputeListFilters {
     pub dispute_stage: Vec<DisputeStage>,
 }
 
-/// Query constraints for the platform disputes list (`GET /disputes/list-platform`).
+/// Query constraints for the platform disputes list (`GET /disputes/platform/list`).
 ///
 /// Mirrors [`DisputeListGetConstraints`] but is scoped to a platform merchant: the list
 /// aggregates disputes across all of the platform's connected merchants and can optionally be
@@ -200,9 +200,13 @@ pub struct PlatformDisputeListConstraints {
     #[serde(default, deserialize_with = "parse_comma_separated_merchant_ids")]
     pub processor_merchant_id: Option<Vec<common_utils::id_type::MerchantId>>,
     /// Limit on the number of objects to return
-    pub limit: Option<u32>,
+    #[serde(default)]
+    #[schema(value_type = Option<u32>)]
+    pub limit: common_utils::types::list::PageSize,
     /// The starting point within a list of object
-    pub offset: Option<u32>,
+    #[serde(default)]
+    #[schema(value_type = Option<u32>)]
+    pub offset: common_utils::types::list::PageOffset,
     /// The identifier for business profile
     #[schema(value_type = Option<String>)]
     pub profile_id: Option<common_utils::id_type::ProfileId>,
@@ -286,6 +290,24 @@ pub struct PlatformDisputeListItem {
     /// The `merchant_connector_id` of the connector / processor through which the dispute was processed
     #[schema(value_type = Option<String>)]
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+}
+
+/// Available filter values for a platform disputes list, aggregated across all of the
+/// platform's connected merchants.
+#[cfg(feature = "v1")]
+#[derive(Clone, Debug, Serialize, ToSchema)]
+pub struct PlatformDisputeListFilters {
+    /// The map of available connector filters, where the key is the connector name and the value is a list of MerchantConnectorInfo instances
+    pub connector: HashMap<String, Vec<MerchantConnectorInfo>>,
+    /// The list of available currency filters
+    #[schema(value_type = Vec<Currency>)]
+    pub currency: Vec<Currency>,
+    /// The list of available dispute status filters
+    #[schema(value_type = Vec<DisputeStatus>)]
+    pub dispute_status: Vec<DisputeStatus>,
+    /// The list of available dispute stage filters
+    #[schema(value_type = Vec<DisputeStage>)]
+    pub dispute_stage: Vec<DisputeStage>,
 }
 
 #[cfg(feature = "v1")]
