@@ -145,9 +145,18 @@ jobs:
     # use hyperswitch-runners-merge for merge queue level checks
     runs-on: ${{ case(github.event_name == 'merge_group', 'hyperswitch-runners-merge', 'hyperswitch-runners') }}
     env:
-      # Use `sccache` for caching compilation artifacts
+      # Use `sccache` for caching compilation artifacts, via its native S3
+      # backend (bucket/region/prefix/encryption come from this pod's own
+      # environment).
       RUSTC_WRAPPER: sccache
     steps:
+      - name: Mask S3 cache location in job logs
+        shell: bash
+        run: |
+          [ -n "${SCCACHE_BUCKET:-}" ] && echo "::add-mask::${SCCACHE_BUCKET}"
+          [ -n "${SCCACHE_REGION:-}" ] && echo "::add-mask::${SCCACHE_REGION}"
+          [ -n "${SCCACHE_S3_KEY_PREFIX:-}" ] && echo "::add-mask::${SCCACHE_S3_KEY_PREFIX}"
+
       - name: Skip tests for PRs from forks
         shell: bash
         if: ${{ env.RUN_TESTS == 'false' }}
@@ -186,6 +195,11 @@ jobs:
       - name: Build project
         if: ${{ env.RUN_TESTS == 'true' }}
         run: cargo build --package router --bin router --jobs 2
+
+      - name: Show sccache stats
+        if: ${{ always() && env.RUN_TESTS == 'true' }}
+        shell: bash
+        run: sccache --show-stats
 
       - name: Upload binary artifact
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -244,7 +258,9 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJson(needs.prepare-mandatory-matrix.outputs['mandatory-matrix']) }}
     env:
-      # Use `sccache` for caching compilation artifacts
+      # Use `sccache` for caching compilation artifacts, via its native S3
+      # backend (bucket/region/prefix/encryption come from this pod's own
+      # environment).
       RUSTC_WRAPPER: sccache
 
     services:
@@ -279,6 +295,13 @@ jobs:
           - 8081:8080
 
     steps:
+      - name: Mask S3 cache location in job logs
+        shell: bash
+        run: |
+          [ -n "${SCCACHE_BUCKET:-}" ] && echo "::add-mask::${SCCACHE_BUCKET}"
+          [ -n "${SCCACHE_REGION:-}" ] && echo "::add-mask::${SCCACHE_REGION}"
+          [ -n "${SCCACHE_S3_KEY_PREFIX:-}" ] && echo "::add-mask::${SCCACHE_S3_KEY_PREFIX}"
+
       - name: Skip tests for PRs from forks
         if: ${{ env.RUN_TESTS == 'false' }}
         shell: bash
@@ -352,6 +375,11 @@ jobs:
           crate: diesel_cli
           features: postgres
           args: --no-default-features
+
+      - name: Show sccache stats
+        if: ${{ always() && env.RUN_TESTS == 'true' }}
+        shell: bash
+        run: sccache --show-stats
 
       - name: Install Just
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -547,7 +575,9 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJson(needs.prepare-extended-matrix.outputs['extended-matrix']) }}
     env:
-      # Use `sccache` for caching compilation artifacts
+      # Use `sccache` for caching compilation artifacts, via its native S3
+      # backend (bucket/region/prefix/encryption come from this pod's own
+      # environment).
       RUSTC_WRAPPER: sccache
 
     services:
@@ -575,6 +605,13 @@ jobs:
           - 5432:5432
 
     steps:
+      - name: Mask S3 cache location in job logs
+        shell: bash
+        run: |
+          [ -n "${SCCACHE_BUCKET:-}" ] && echo "::add-mask::${SCCACHE_BUCKET}"
+          [ -n "${SCCACHE_REGION:-}" ] && echo "::add-mask::${SCCACHE_REGION}"
+          [ -n "${SCCACHE_S3_KEY_PREFIX:-}" ] && echo "::add-mask::${SCCACHE_S3_KEY_PREFIX}"
+
       - name: Checkout repository
         uses: actions/checkout@v6
 
@@ -634,6 +671,11 @@ jobs:
           crate: diesel_cli
           features: postgres
           args: --no-default-features
+
+      - name: Show sccache stats
+        if: ${{ always() && env.RUN_TESTS == 'true' }}
+        shell: bash
+        run: sccache --show-stats
 
       - name: Install Just
         uses: taiki-e/install-action@v2
@@ -818,6 +860,8 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJson(needs.prepare-mock-matrix.outputs['mock-matrix']) }}
     env:
+      # sccache's native S3 backend (bucket/region/prefix/encryption come
+      # from this pod's own environment).
       RUSTC_WRAPPER: sccache
 
     services:
@@ -852,6 +896,13 @@ jobs:
           - 8081:8080
 
     steps:
+      - name: Mask S3 cache location in job logs
+        shell: bash
+        run: |
+          [ -n "${SCCACHE_BUCKET:-}" ] && echo "::add-mask::${SCCACHE_BUCKET}"
+          [ -n "${SCCACHE_REGION:-}" ] && echo "::add-mask::${SCCACHE_REGION}"
+          [ -n "${SCCACHE_S3_KEY_PREFIX:-}" ] && echo "::add-mask::${SCCACHE_S3_KEY_PREFIX}"
+
       - name: Skip tests for PRs from forks
         if: ${{ env.RUN_TESTS == 'false' }}
         shell: bash
@@ -924,6 +975,11 @@ jobs:
           crate: diesel_cli
           features: postgres
           args: --no-default-features
+
+      - name: Show sccache stats
+        if: ${{ always() && env.RUN_TESTS == 'true' }}
+        shell: bash
+        run: sccache --show-stats
 
       - name: Install Just
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -1263,7 +1319,9 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJson(needs.prepare-optional-matrix.outputs.matrix) }}
     env:
-      # Use `sccache` for caching compilation artifacts
+      # Use `sccache` for caching compilation artifacts, via its native S3
+      # backend (bucket/region/prefix/encryption come from this pod's own
+      # environment).
       RUSTC_WRAPPER: sccache
 
     services:
@@ -1298,6 +1356,13 @@ jobs:
           - 8081:8080
 
     steps:
+      - name: Mask S3 cache location in job logs
+        shell: bash
+        run: |
+          [ -n "${SCCACHE_BUCKET:-}" ] && echo "::add-mask::${SCCACHE_BUCKET}"
+          [ -n "${SCCACHE_REGION:-}" ] && echo "::add-mask::${SCCACHE_REGION}"
+          [ -n "${SCCACHE_S3_KEY_PREFIX:-}" ] && echo "::add-mask::${SCCACHE_S3_KEY_PREFIX}"
+
       - name: Checkout repository
         uses: actions/checkout@v6
 
@@ -1357,6 +1422,11 @@ jobs:
           crate: diesel_cli
           features: postgres
           args: --no-default-features
+
+      - name: Show sccache stats
+        if: ${{ always() && env.RUN_TESTS == 'true' }}
+        shell: bash
+        run: sccache --show-stats
 
       - name: Install Just
         uses: taiki-e/install-action@v2
@@ -1459,7 +1529,9 @@ jobs:
     if: false
     runs-on: hyperswitch-runners
     env:
-      # Use `sccache` for caching compilation artifacts
+      # Use `sccache` for caching compilation artifacts, via its native S3
+      # backend (bucket/region/prefix/encryption come from this pod's own
+      # environment).
       RUSTC_WRAPPER: sccache
     services:
       redis:
@@ -1493,6 +1565,13 @@ jobs:
           - 8081:8080
 
     steps:
+      - name: Mask S3 cache location in job logs
+        shell: bash
+        run: |
+          [ -n "${SCCACHE_BUCKET:-}" ] && echo "::add-mask::${SCCACHE_BUCKET}"
+          [ -n "${SCCACHE_REGION:-}" ] && echo "::add-mask::${SCCACHE_REGION}"
+          [ -n "${SCCACHE_S3_KEY_PREFIX:-}" ] && echo "::add-mask::${SCCACHE_S3_KEY_PREFIX}"
+
       - name: Skip tests for PRs from forks
         if: ${{ env.RUN_TESTS == 'false' }}
         shell: bash
@@ -1548,6 +1627,11 @@ jobs:
           crate: diesel_cli
           features: postgres
           args: --no-default-features
+
+      - name: Show sccache stats
+        if: ${{ always() && env.RUN_TESTS == 'true' }}
+        shell: bash
+        run: sccache --show-stats
 
       - name: Install Just
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -1688,7 +1772,9 @@ jobs:
       contents: read
     env:
       CODECOV_FILE: "lcov.info"
-      # Use `sccache` for caching compilation artifacts
+      # Use `sccache` for caching compilation artifacts, via its native S3
+      # backend (bucket/region/prefix/encryption come from this pod's own
+      # environment).
       RUSTC_WRAPPER: sccache
 
     services:
@@ -1723,6 +1809,13 @@ jobs:
           - 8081:8080
 
     steps:
+      - name: Mask S3 cache location in job logs
+        shell: bash
+        run: |
+          [ -n "${SCCACHE_BUCKET:-}" ] && echo "::add-mask::${SCCACHE_BUCKET}"
+          [ -n "${SCCACHE_REGION:-}" ] && echo "::add-mask::${SCCACHE_REGION}"
+          [ -n "${SCCACHE_S3_KEY_PREFIX:-}" ] && echo "::add-mask::${SCCACHE_S3_KEY_PREFIX}"
+
       - name: Skip tests for PRs from forks
         shell: bash
         if: ${{ env.RUN_TESTS == 'false' }}
@@ -1854,6 +1947,11 @@ jobs:
           RUSTFLAGS: "-Cinstrument-coverage"
           CARGO_BUILD_JOBS: 6
         run: just build_v2
+
+      - name: Show sccache stats
+        if: ${{ always() && env.RUN_TESTS == 'true' }}
+        shell: bash
+        run: sccache --show-stats
 
       - name: Setup Local Server
         if: ${{ env.RUN_TESTS == 'true' }}
