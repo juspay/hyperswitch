@@ -255,6 +255,16 @@ async fn partial_patches_preserve_omitted_strings_and_response_shape() {
     )
     .await;
 
+    let (status, _) = call(
+        state.clone(),
+        actix_web::http::Method::PATCH,
+        &format!("/alerts/metadata/{id}"),
+        Some(API_KEY),
+        Some(json!({"metadata": "{}", "updated_by": "  "})),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+
     let (status, listed) = call(
         state,
         actix_web::http::Method::GET,

@@ -34,12 +34,17 @@ impl AlertMetadataPatch {
             return Err(report!(ObservabilityError::InvalidRequest))
                 .attach_printable("id must not be empty");
         }
+        let updated_by = request.updated_by.trim().to_owned();
+        if updated_by.is_empty() {
+            return Err(report!(ObservabilityError::InvalidRequest))
+                .attach_printable("updated_by must not be blank");
+        }
 
         Ok(Self {
             id,
             metadata: request.metadata,
             snooze: request.snooze,
-            updated_by: request.updated_by,
+            updated_by,
         })
     }
 
@@ -103,6 +108,13 @@ mod tests {
             updated_by: "dashboard".into(),
         };
         assert!(AlertMetadataPatch::try_from_request("   ".into(), request).is_err());
+
+        let request = api::AlertMetadataPatchRequest {
+            metadata: None,
+            snooze: None,
+            updated_by: "   ".into(),
+        };
+        assert!(AlertMetadataPatch::try_from_request("alert_1".into(), request).is_err());
     }
 
     #[test]
