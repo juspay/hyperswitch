@@ -12,13 +12,13 @@ pub mod client_session;
 #[cfg(feature = "retry")]
 pub mod retry;
 pub mod routing;
+#[cfg(feature = "v1")]
+pub mod server_integration;
 #[cfg(feature = "v2")]
 pub mod session_operation;
 pub mod tokenization;
 pub mod transformers;
 pub mod types;
-#[cfg(feature = "v1")]
-pub mod update_context;
 pub mod vault_session;
 #[cfg(feature = "olap")]
 use std::collections::HashMap;
@@ -13706,11 +13706,13 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to call authentication authenticate flow")?
         } else {
-            crate::core::unified_authentication_service::authentication_authenticate_core(
-                state.clone(),
-                platform.clone(),
-                authenticate_req,
-                services::api::AuthFlow::Client,
+            Box::pin(
+                crate::core::unified_authentication_service::authentication_authenticate_core(
+                    state.clone(),
+                    platform.clone(),
+                    authenticate_req,
+                    services::api::AuthFlow::Client,
+                ),
             )
             .await?
             .get_json_body()
