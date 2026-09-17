@@ -155,12 +155,30 @@ jobs:
     runs-on: hyperswitch-runners
 
     env:
-      # Use `sccache` for caching compilation artifacts
+      # Use `sccache` for caching compilation artifacts, via its native S3
+      # backend (SCCACHE_BUCKET/SCCACHE_REGION/SCCACHE_S3_KEY_PREFIX/
+      # SCCACHE_S3_SERVER_SIDE_ENCRYPTION come from this pod's own
+      # environment, managed outside this repo).
       RUSTC_WRAPPER: sccache
       RUSTFLAGS: "-D warnings"
-      SCCACHE_DIR: ${{ github.workspace }}/.sccache
+      # This job runs on fork PRs too (see the fork checkout step below), so
+      # keep it read-only — matches the old rust-cache `save-if: false`
+      # policy — so a fork PR can't write into the shared production cache.
+      # Only CI-push.yml's `push` build writes.
+      SCCACHE_S3_RW_MODE: READ_ONLY
 
     steps:
+      - name: Mask S3 cache location in job logs
+        shell: bash
+        run: |
+          # Not secrets (auth is via IAM role), but no reason to publish the
+          # bucket layout in a public repo's PR logs — including logs from
+          # fork PRs. sccache's own `--show-stats` output prints these back
+          # verbatim, so mask before anything can echo them.
+          [ -n "${SCCACHE_BUCKET:-}" ] && echo "::add-mask::${SCCACHE_BUCKET}"
+          [ -n "${SCCACHE_REGION:-}" ] && echo "::add-mask::${SCCACHE_REGION}"
+          [ -n "${SCCACHE_S3_KEY_PREFIX:-}" ] && echo "::add-mask::${SCCACHE_S3_KEY_PREFIX}"
+
       - name: Generate a token
         if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
         id: generate_token
@@ -203,38 +221,6 @@ jobs:
         with:
           tool: sccache
           checksum: true
-
-      # Bucket/region/prefix come from this pod's own environment (managed
-      # outside this repo). Captured under new names here, then blanked below
-      # so sccache itself never makes a network call per compilation unit —
-      # only this job's own bulk restore/save talk to S3.
-      - name: Resolve S3 cache location, then disable sccache's native S3 backend
-        shell: bash
-        run: |
-          echo "S3_CACHE_BUCKET=${SCCACHE_BUCKET:-}" >> "$GITHUB_ENV"
-          echo "S3_CACHE_REGION=${SCCACHE_REGION:-}" >> "$GITHUB_ENV"
-          echo "S3_CACHE_PREFIX=${SCCACHE_S3_KEY_PREFIX:-}" >> "$GITHUB_ENV"
-          # Not secrets (auth is via IAM role), but no reason to publish the
-          # bucket layout in a public repo's PR logs — including logs from
-          # fork PRs. Masking replaces this exact string everywhere in
-          # subsequent log output, including the runner's own step env dumps.
-          [ -n "${SCCACHE_BUCKET:-}" ] && echo "::add-mask::${SCCACHE_BUCKET}"
-          [ -n "${SCCACHE_REGION:-}" ] && echo "::add-mask::${SCCACHE_REGION}"
-          [ -n "${SCCACHE_S3_KEY_PREFIX:-}" ] && echo "::add-mask::${SCCACHE_S3_KEY_PREFIX}"
-          echo "SCCACHE_BUCKET=" >> "$GITHUB_ENV"
-          echo "SCCACHE_REGION=" >> "$GITHUB_ENV"
-          echo "SCCACHE_S3_KEY_PREFIX=" >> "$GITHUB_ENV"
-
-      - name: Restore sccache local cache from S3
-        continue-on-error: true
-        shell: bash
-        run: |
-          mkdir -p "$SCCACHE_DIR"
-          if [ -n "$S3_CACHE_BUCKET" ]; then
-            aws s3 sync "s3://${S3_CACHE_BUCKET}/${S3_CACHE_PREFIX}local-cache/test/" "$SCCACHE_DIR" --no-progress --only-show-errors
-          else
-            echo "::warning::S3 cache bucket not configured on this runner; sccache starts cold"
-          fi
 
       - name: Install just
         uses: taiki-e/install-action@v2
@@ -312,11 +298,20 @@ jobs:
     runs-on: hyperswitch-runners
 
     env:
-      # Use `sccache` for caching compilation artifacts
+      # Use `sccache` for caching compilation artifacts, via its native S3
+      # backend (bucket/region/prefix/encryption come from this pod's own
+      # environment). Read-only — same fork-PR reasoning as the `test` job.
       RUSTC_WRAPPER: sccache
-      SCCACHE_DIR: ${{ github.workspace }}/.sccache
+      SCCACHE_S3_RW_MODE: READ_ONLY
 
     steps:
+      - name: Mask S3 cache location in job logs
+        shell: bash
+        run: |
+          [ -n "${SCCACHE_BUCKET:-}" ] && echo "::add-mask::${SCCACHE_BUCKET}"
+          [ -n "${SCCACHE_REGION:-}" ] && echo "::add-mask::${SCCACHE_REGION}"
+          [ -n "${SCCACHE_S3_KEY_PREFIX:-}" ] && echo "::add-mask::${SCCACHE_S3_KEY_PREFIX}"
+
       - name: Checkout repository
         uses: actions/checkout@v7
 
@@ -342,30 +337,6 @@ jobs:
         with:
           tool: sccache
           checksum: true
-
-      - name: Resolve S3 cache location, then disable sccache's native S3 backend
-        shell: bash
-        run: |
-          echo "S3_CACHE_BUCKET=${SCCACHE_BUCKET:-}" >> "$GITHUB_ENV"
-          echo "S3_CACHE_REGION=${SCCACHE_REGION:-}" >> "$GITHUB_ENV"
-          echo "S3_CACHE_PREFIX=${SCCACHE_S3_KEY_PREFIX:-}" >> "$GITHUB_ENV"
-          [ -n "${SCCACHE_BUCKET:-}" ] && echo "::add-mask::${SCCACHE_BUCKET}"
-          [ -n "${SCCACHE_REGION:-}" ] && echo "::add-mask::${SCCACHE_REGION}"
-          [ -n "${SCCACHE_S3_KEY_PREFIX:-}" ] && echo "::add-mask::${SCCACHE_S3_KEY_PREFIX}"
-          echo "SCCACHE_BUCKET=" >> "$GITHUB_ENV"
-          echo "SCCACHE_REGION=" >> "$GITHUB_ENV"
-          echo "SCCACHE_S3_KEY_PREFIX=" >> "$GITHUB_ENV"
-
-      - name: Restore sccache local cache from S3
-        continue-on-error: true
-        shell: bash
-        run: |
-          mkdir -p "$SCCACHE_DIR"
-          if [ -n "$S3_CACHE_BUCKET" ]; then
-            aws s3 sync "s3://${S3_CACHE_BUCKET}/${S3_CACHE_PREFIX}local-cache/check-v2/" "$SCCACHE_DIR" --no-progress --only-show-errors
-          else
-            echo "::warning::S3 cache bucket not configured on this runner; sccache starts cold"
-          fi
 
       - name: Install just
         uses: taiki-e/install-action@v2
