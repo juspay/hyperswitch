@@ -111,7 +111,11 @@ describe("Block Implicit Customer Creation", () => {
           cy.task("cli_log", "Skipping step: Wait for config propagation");
           return;
         }
-        cy.waitForConfigPropagation(globalState, 404, "payments.block_implicit_customer_creation");
+        cy.waitForConfigPropagation(
+          globalState,
+          404,
+          "payments.block_implicit_customer_creation"
+        );
       });
 
       cy.step(
@@ -172,7 +176,11 @@ describe("Block Implicit Customer Creation", () => {
             cy.task("cli_log", "Skipping step: Wait for config propagation");
             return;
           }
-          cy.waitForConfigPropagation(globalState, 200, "payments.block_implicit_customer_creation");
+          cy.waitForConfigPropagation(
+            globalState,
+            200,
+            "payments.block_implicit_customer_creation"
+          );
         });
 
         cy.step(
