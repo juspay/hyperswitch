@@ -1548,7 +1548,7 @@ fn build_worldpayxml_recipient_party(
             "recipient_details.address.country",
         ))?;
 
-    let state = AddressDetails::from(address.clone()).get_optional_billing_state_code();
+    let address_details = AddressDetails::from(address.clone());
 
     Ok(FundingParty {
         party_type: FundingPartyType::Recipient,
@@ -1589,11 +1589,15 @@ fn build_worldpayxml_recipient_party(
                 ))?,
             state: match country_code {
                 common_enums::CountryAlpha2::US | common_enums::CountryAlpha2::CA => {
-                    Some(state.ok_or_else(connector_utils::missing_field_err(
-                        "recipient_details.address.state",
-                    ))?)
+                    address
+                        .state
+                        .as_ref()
+                        .ok_or_else(connector_utils::missing_field_err(
+                            "recipient_details.address.state",
+                        ))?;
+                    Some(address_details.get_billing_state_code()?)
                 }
-                _ => state,
+                _ => address.state.clone(),
             },
             country_code,
         },
