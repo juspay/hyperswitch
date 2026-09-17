@@ -18,10 +18,11 @@ use observability::{
     auth::X_INTERNAL_API_KEY,
     db::{
         alerts_info::AlertsInfoInterface, blacklist::BlacklistInterface,
-        rule_toggles::RuleTogglesInterface, thresholds::ThresholdsInterface, StorageInterface,
+        dictionary::DictionaryInterface, rule_toggles::RuleTogglesInterface,
+        thresholds::ThresholdsInterface, StorageInterface,
     },
     domain::notifier::Registry,
-    domain_models::{alerts_info, blacklist, rule_toggles, thresholds},
+    domain_models::{alerts_info, blacklist, dictionary, rule_toggles, thresholds},
     routes::Alerts,
     settings::Database,
     state::AppState,
@@ -38,6 +39,20 @@ struct MemoryStore {
 }
 
 impl StorageInterface for MemoryStore {}
+
+#[async_trait::async_trait]
+impl DictionaryInterface for MemoryStore {
+    async fn list_dictionary_entries(&self) -> StorageResult<Vec<dictionary::DictionaryEntry>> {
+        Err(report!(DatabaseError::Others))
+    }
+
+    async fn upsert_dictionary_entry(
+        &self,
+        _new: dictionary::DictionaryEntryNew,
+    ) -> StorageResult<dictionary::DictionaryEntry> {
+        Err(report!(DatabaseError::Others))
+    }
+}
 
 #[async_trait::async_trait]
 impl RuleTogglesInterface for MemoryStore {
