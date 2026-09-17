@@ -40,16 +40,16 @@ pub trait RefundDbExt: Sized {
 
     #[cfg(feature = "v1")]
     async fn filter_by_platform_constraints(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         platform_merchant_id: &common_utils::id_type::MerchantId,
         refund_list_details: &refunds::RefundListConstraints,
-        limit: i64,
-        offset: i64,
+        limit: PageSize,
+        offset: PageOffset,
     ) -> CustomResult<Vec<Self>, errors::DatabaseError>;
 
     #[cfg(feature = "v1")]
     async fn get_platform_refunds_count(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         platform_merchant_id: &common_utils::id_type::MerchantId,
         refund_list_details: &refunds::RefundListConstraints,
     ) -> CustomResult<i64, errors::DatabaseError>;
@@ -188,18 +188,17 @@ impl RefundDbExt for Refund {
 
     #[cfg(feature = "v1")]
     async fn filter_by_platform_constraints(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         platform_merchant_id: &common_utils::id_type::MerchantId,
         refund_list_details: &refunds::RefundListConstraints,
-        limit: i64,
-        offset: i64,
+        limit: PageSize,
+        offset: PageOffset,
     ) -> CustomResult<Vec<Self>, errors::DatabaseError> {
-        let mut filter = <Self as HasTable>::table()
-            .filter(dsl::merchant_id.eq(platform_merchant_id.to_owned()))
-            .order(dsl::modified_at.desc())
-            .limit(limit)
-            .offset(offset)
-            .into_boxed();
+        let mut filter = diesel_models::boxed_list_query!(
+            Refund,
+            scope = dsl::merchant_id.eq(platform_merchant_id.to_owned()),
+            order = dsl::modified_at.desc()
+        );
 
         if let Some(processor_merchant_id) = &refund_list_details.processor_merchant_id {
             filter = filter.filter(dsl::processor_merchant_id.eq(processor_merchant_id.to_owned()));
@@ -257,11 +256,15 @@ impl RefundDbExt for Refund {
             filter = filter.filter(dsl::refund_status.eq_any(filter_refund_status.clone()));
         }
 
+        let filter = diesel_models::list::apply_pagination(filter, limit, offset);
+
         logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());
 
         db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            filter.get_results_async(conn),
+            conn.request_id(),
+            conn.event_emitter(),
             db_metrics::DatabaseOperation::Filter,
+            filter.get_results_async(conn.raw_connection()),
         )
         .await
         .change_context(errors::DatabaseError::NotFound)
@@ -270,14 +273,15 @@ impl RefundDbExt for Refund {
 
     #[cfg(feature = "v1")]
     async fn get_platform_refunds_count(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         platform_merchant_id: &common_utils::id_type::MerchantId,
         refund_list_details: &refunds::RefundListConstraints,
     ) -> CustomResult<i64, errors::DatabaseError> {
-        let mut filter = <Self as HasTable>::table()
-            .count()
-            .filter(dsl::merchant_id.eq(platform_merchant_id.to_owned()))
-            .into_boxed();
+        let mut filter = diesel_models::list::into_boxed_list(
+            <Self as HasTable>::table()
+                .count()
+                .filter(dsl::merchant_id.eq(platform_merchant_id.to_owned())),
+        );
 
         if let Some(processor_merchant_id) = &refund_list_details.processor_merchant_id {
             filter = filter.filter(dsl::processor_merchant_id.eq(processor_merchant_id.to_owned()));
@@ -338,7 +342,7 @@ impl RefundDbExt for Refund {
         logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());
 
         filter
-            .get_result_async::<i64>(conn)
+            .get_result_async::<i64>(conn.raw_connection())
             .await
             .change_context(errors::DatabaseError::NotFound)
             .attach_printable_lazy(|| "Error filtering count of platform refunds")

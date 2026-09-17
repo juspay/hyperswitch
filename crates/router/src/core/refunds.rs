@@ -1887,8 +1887,8 @@ pub async fn refund_list_for_platform(
     )?;
 
     let db = state.store;
-    let limit = validator::validate_refund_list(req.limit)?;
-    let offset = req.offset.unwrap_or_default();
+    let limit = req.limit.unwrap_or_default();
+    let offset = req.offset;
     let platform_merchant_id = platform.get_provider().get_account().get_id();
     let refund_constraints: hyperswitch_domain_models::refunds::RefundListConstraints = req.into();
 

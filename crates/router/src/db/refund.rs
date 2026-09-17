@@ -102,8 +102,8 @@ pub trait RefundInterface {
         &self,
         platform_merchant_id: &common_utils::id_type::MerchantId,
         refund_details: &refunds::RefundListConstraints,
-        limit: i64,
-        offset: i64,
+        limit: diesel_models::list::PageSize,
+        offset: diesel_models::list::PageOffset,
     ) -> CustomResult<Vec<diesel_models::refund::Refund>, errors::StorageError>;
 
     #[cfg(all(feature = "v1", feature = "olap"))]
@@ -438,8 +438,8 @@ mod storage {
             &self,
             platform_merchant_id: &common_utils::id_type::MerchantId,
             refund_details: &refunds::RefundListConstraints,
-            limit: i64,
-            offset: i64,
+            limit: diesel_models::list::PageSize,
+            offset: diesel_models::list::PageOffset,
         ) -> CustomResult<Vec<diesel_models::refund::Refund>, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
             <diesel_models::refund::Refund as storage_types::RefundDbExt>::filter_by_platform_constraints(
@@ -1300,8 +1300,8 @@ mod storage {
             &self,
             platform_merchant_id: &common_utils::id_type::MerchantId,
             refund_details: &refunds::RefundListConstraints,
-            limit: i64,
-            offset: i64,
+            limit: diesel_models::list::PageSize,
+            offset: diesel_models::list::PageOffset,
         ) -> CustomResult<Vec<diesel_models::refund::Refund>, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
             <diesel_models::refund::Refund as storage_types::RefundDbExt>::filter_by_platform_constraints(
@@ -1946,8 +1946,8 @@ impl RefundInterface for MockDb {
         &self,
         _platform_merchant_id: &common_utils::id_type::MerchantId,
         _refund_details: &refunds::RefundListConstraints,
-        _limit: i64,
-        _offset: i64,
+        _limit: diesel_models::list::PageSize,
+        _offset: diesel_models::list::PageOffset,
     ) -> CustomResult<Vec<diesel_models::refund::Refund>, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
     }

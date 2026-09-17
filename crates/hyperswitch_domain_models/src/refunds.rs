@@ -128,7 +128,9 @@ impl From<api_models::refunds::PlatformRefundListRequest> for RefundListConstrai
             payment_id,
             refund_id,
             profile_id: profile_id.map(|profile_id| vec![profile_id]),
-            limit,
+            // API keeps `Option<PageSize>` for wire compat; the domain holds a resolved
+            // value. `PageSize::default()` is the semantically-correct "no preference".
+            limit: limit.unwrap_or_default(),
             offset,
             time_range,
             amount_filter: (start_amount.is_some() || end_amount.is_some()).then_some(
