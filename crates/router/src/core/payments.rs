@@ -10883,7 +10883,7 @@ pub async fn list_payments_for_platform(
                 },
             )?;
 
-            helpers::validate_payment_list_request_for_joins(constraints.limit)?;
+            // `limit` is a `PageSize`, already validated at deserialize; no extra check needed.
             let platform_merchant_id = platform.get_provider().get_account().get_id();
             let db: &dyn StorageInterface = state.store.as_ref();
 

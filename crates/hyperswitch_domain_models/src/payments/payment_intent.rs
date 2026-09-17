@@ -2111,7 +2111,7 @@ impl From<api_models::payments::PlatformPaymentListConstraints> for PaymentInten
             Self::Single { payment_intent_id }
         } else {
             Self::List(Box::new(PaymentIntentListParams {
-                offset: offset.unwrap_or_default(),
+                offset,
                 starting_at: time_range.map(|time_range| time_range.start_time),
                 ending_at: time_range.and_then(|time_range| time_range.end_time),
                 amount_filter: (start_amount.is_some() || end_amount.is_some()).then_some(
@@ -2131,7 +2131,7 @@ impl From<api_models::payments::PlatformPaymentListConstraints> for PaymentInten
                 customer_id,
                 starting_after_id: None,
                 ending_before_id: None,
-                limit: Some(std::cmp::min(limit, PAYMENTS_LIST_MAX_LIMIT_V1)),
+                limit,
                 order: order.unwrap_or_default(),
                 card_network,
                 card_discovery,

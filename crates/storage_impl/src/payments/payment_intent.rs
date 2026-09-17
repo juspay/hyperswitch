@@ -978,7 +978,6 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         StorageError,
     > {
         let conn = connection::pg_connection_read(self).await?;
-        let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
 
         // Platform listings aggregate across every connected merchant, so filter on
         // `merchant_id` (= the platform's id on connected-merchant rows) rather than
@@ -986,13 +985,15 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         // result to specific connected merchants. Rows are returned raw (undecrypted): the
         // caller maps only non-PII columns, so no per-merchant key store is needed. This is
         // an OLAP query served from the Postgres read-replica, hence no storage scheme.
-        let mut query = <DieselPaymentIntent as HasTable>::table()
-            .inner_join(
-                payment_attempt_schema::table.on(pa_dsl::attempt_id.eq(pi_dsl::active_attempt_id)),
-            )
-            .filter(pi_dsl::merchant_id.eq(platform_merchant_id.to_owned()))
-            .filter(pa_dsl::merchant_id.eq(platform_merchant_id.to_owned()))
-            .into_boxed();
+        let mut query = diesel_models::list::into_boxed_list(
+            <DieselPaymentIntent as HasTable>::table()
+                .inner_join(
+                    payment_attempt_schema::table
+                        .on(pa_dsl::attempt_id.eq(pi_dsl::active_attempt_id)),
+                )
+                .filter(pi_dsl::merchant_id.eq(platform_merchant_id.to_owned()))
+                .filter(pa_dsl::merchant_id.eq(platform_merchant_id.to_owned())),
+        );
 
         query = match filters {
             PaymentIntentFetchConstraints::Single { payment_intent_id } => {
@@ -1034,11 +1035,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                     } => query.order(pi_dsl::attempt_count.desc()),
                 };
 
-                if let Some(limit) = params.limit {
-                    query = query.limit(limit.into());
-                }
-
-                query = query.offset(params.offset.into());
+                query = diesel_models::list::apply_pagination(query, params.limit, params.offset);
 
                 // Filters are inlined here (and in the count query below) rather than shared
                 // through a helper: the listing query selects full rows while the count query
@@ -1125,11 +1122,13 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg,_>(&query).to_string());
 
         db_metrics::track_database_call::<<DieselPaymentIntent as HasTable>::Table, _, _>(
+            conn.request_id(),
+            conn.event_emitter(),
+            db_metrics::DatabaseOperation::Filter,
             query.get_results_async::<(
                 DieselPaymentIntent,
                 diesel_models::payment_attempt::PaymentAttempt,
-            )>(conn),
-            db_metrics::DatabaseOperation::Filter,
+            )>(conn.raw_connection()),
         )
         .await
         .map_err(|er| {
@@ -1146,16 +1145,17 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         filters: &PaymentIntentFetchConstraints,
     ) -> error_stack::Result<i64, StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
 
-        let mut query = <DieselPaymentIntent as HasTable>::table()
-            .inner_join(
-                payment_attempt_schema::table.on(pa_dsl::attempt_id.eq(pi_dsl::active_attempt_id)),
-            )
-            .count()
-            .filter(pi_dsl::merchant_id.eq(platform_merchant_id.to_owned()))
-            .filter(pa_dsl::merchant_id.eq(platform_merchant_id.to_owned()))
-            .into_boxed();
+        let mut query = diesel_models::list::into_boxed_list(
+            <DieselPaymentIntent as HasTable>::table()
+                .inner_join(
+                    payment_attempt_schema::table
+                        .on(pa_dsl::attempt_id.eq(pi_dsl::active_attempt_id)),
+                )
+                .count()
+                .filter(pi_dsl::merchant_id.eq(platform_merchant_id.to_owned()))
+                .filter(pa_dsl::merchant_id.eq(platform_merchant_id.to_owned())),
+        );
 
         query = match filters {
             PaymentIntentFetchConstraints::Single { payment_intent_id } => {
@@ -1245,8 +1245,10 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg,_>(&query).to_string());
 
         db_metrics::track_database_call::<<DieselPaymentIntent as HasTable>::Table, _, _>(
-            query.get_result_async::<i64>(conn),
+            conn.request_id(),
+            conn.event_emitter(),
             db_metrics::DatabaseOperation::Count,
+            query.get_result_async::<i64>(conn.raw_connection()),
         )
         .await
         .map_err(|er| {

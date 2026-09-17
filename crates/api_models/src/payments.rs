@@ -9295,15 +9295,16 @@ pub struct PlatformPaymentListConstraints {
     pub customer_id: Option<id_type::CustomerId>,
 
     /// limit on the number of objects to return
-    #[serde(default = "default_payments_list_limit")]
-    pub limit: u32,
+    #[serde(default)]
+    pub limit: common_utils::types::list::PageSize,
 
     /// The starting point within a list of objects
-    pub offset: Option<u32>,
+    #[serde(default)]
+    pub offset: common_utils::types::list::PageOffset,
 
     /// The created-at time range (`start_time` / `end_time`) to filter payments by.
     #[serde(flatten)]
-    pub time_range: Option<common_utils::types::TimeRange>,
+    pub time_range: Option<TimeRange>,
 
     /// The start amount (inclusive) to filter payments by.
     pub start_amount: Option<i64>,
