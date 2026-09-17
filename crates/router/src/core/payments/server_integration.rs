@@ -1,14 +1,15 @@
-//! Server-integration enrichment for payments responses.
+//! Shared plumbing for the server-integration (`X-Integration-Type: server`) response shape.
 //!
-//! A caller that sends `X-Integration-Type: server` gets the payment response it always got,
-//! plus the two artifacts its checkout would otherwise fetch in separate calls: the combined
-//! payment-method list and the wallet session tokens. Client integrations, and callers that
-//! send no header at all, are unaffected.
+//! Both the create-intent and update-intent flows hand the caller the two artifacts its checkout
+//! would otherwise fetch in separate calls: the combined payment-method list and the wallet
+//! session tokens. This module owns the header parsing and the concurrent fetch of those two
+//! sections, and attaches them to the response. The two routes decide when to run it: a create
+//! or an update that opted in with the header.
 //!
-//! This module adds no business logic. It calls the two existing cores — the same ones behind
-//! `POST /payments/session_tokens` and `GET /payments/{id}/client` — and attaches their results
-//! to the response. Both reads run after the write they depend on, and concurrently with each
-//! other, since neither reads the other's output.
+//! No business logic lives here. It calls the two existing cores — the same ones behind
+//! `POST /payments/session_tokens` and `GET /payments/{id}/client` — and reports each outcome.
+//! Both reads run after the write they depend on, and concurrently with each other, since neither
+//! reads the other's output.
 
 use api_models::{
     payment_methods as payment_methods_api,
@@ -87,11 +88,16 @@ fn timed_out(section: &str) -> error_stack::Report<errors::ApiErrorResponse> {
     ))
 }
 
-/// Attaches the payment-method list and wallet session tokens to a payments response.
+/// Attaches the wallet session tokens and the combined payment-method list to a payments
+/// response, fetching both concurrently.
 ///
-/// Best-effort by design: the payment write has already committed by the time this runs, so a
-/// failing section reports its own error inline and the response still succeeds. Turning a
-/// section failure into a 5xx would hide a committed state change from the caller.
+/// Shared by create intent and update intent: the payment is committed by the time either route
+/// calls this, so neither needs anything the other does not.
+///
+/// Best-effort by design: a failing section reports its own error inline rather than failing the
+/// whole response. Turning a section failure into a 5xx would hide a committed state change from
+/// the caller. That is why this is a `join` and not a `try_join`: one section's failure must not
+/// cancel the other.
 #[instrument(skip_all, fields(payment_id))]
 pub async fn attach_server_context(
     state: SessionState,
