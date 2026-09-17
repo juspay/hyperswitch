@@ -12,8 +12,5 @@ CREATE TABLE success_rate_threshold_overrides (
                           DEFAULT date_trunc('second', CURRENT_TIMESTAMP),
     is_deleted            BOOLEAN NOT NULL DEFAULT FALSE,
 
-    PRIMARY KEY (name, product, merchant_id, profile_id),
-
-    CHECK (merchant_id = btrim(merchant_id) AND merchant_id <> ''),
-    CHECK (profile_id = btrim(profile_id))
+    PRIMARY KEY (name, product, merchant_id, profile_id)
 );
