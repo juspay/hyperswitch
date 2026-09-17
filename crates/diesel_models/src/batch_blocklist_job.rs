@@ -25,6 +25,7 @@ pub struct BatchBlocklistJob {
     pub file_key: Option<String>,
     pub error_message: Option<String>,
     pub expires_at: Option<PrimitiveDateTime>,
+    pub metadata: Option<serde_json::Value>,
 }
 
 #[derive(Clone, Debug, Insertable, Deserialize, Serialize)]
@@ -41,6 +42,7 @@ pub struct BatchBlocklistJobNew {
     pub profile_id: id_type::ProfileId,
     pub job_type: BatchBlocklistJobType,
     pub file_name: Option<String>,
+    pub metadata: Option<serde_json::Value>,
 }
 
 #[derive(Clone, Debug, AsChangeset)]
@@ -53,5 +55,6 @@ pub struct BatchBlocklistJobUpdate {
     pub file_key: Option<String>,
     pub error_message: Option<String>,
     pub expires_at: Option<PrimitiveDateTime>,
+    pub metadata: Option<serde_json::Value>,
     pub updated_at: PrimitiveDateTime,
 }
