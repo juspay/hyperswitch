@@ -1674,7 +1674,7 @@ pub async fn validate_and_create_refund(
     .change_context(errors::ApiErrorResponse::RefundAmountExceedsPaymentAmount)?;
 
     validator::validate_maximum_refund_against_payment_attempt(
-        &all_refunds,
+        all_refunds.len(),
         state.conf.refund.max_attempts,
     )
     .change_context(errors::ApiErrorResponse::MaximumRefundCount)?;

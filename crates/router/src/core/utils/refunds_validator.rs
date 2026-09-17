@@ -89,12 +89,16 @@ pub fn validate_payment_order_age(
     )
 }
 
+/// `existing_refund_count` is the number of refunds that already exist for the payment attempt,
+/// counted before the new refund is inserted, so the new refund is allowed only while fewer than
+/// `refund_max_attempts` exist. The count is read outside of any lock, so concurrent refund
+/// requests may each observe the same count and exceed the limit.
 #[instrument(skip_all)]
 pub fn validate_maximum_refund_against_payment_attempt(
-    all_refunds: &[diesel_refund::Refund],
+    existing_refund_count: usize,
     refund_max_attempts: usize,
 ) -> CustomResult<(), RefundValidationError> {
-    utils::when(all_refunds.len() > refund_max_attempts, || {
+    utils::when(existing_refund_count >= refund_max_attempts, || {
         Err(report!(RefundValidationError::MaxRefundCountReached))
     })
 }
@@ -297,5 +301,56 @@ pub fn validate_xendit_charge_refund(
             }
             Ok(Some(xendit_split_refund_request.for_user_id.clone()))
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const MAX_ATTEMPTS: usize = 10;
+
+    fn is_max_refund_count_reached(result: CustomResult<(), RefundValidationError>) -> bool {
+        matches!(
+            result.map_err(|report| report.current_context().to_string()),
+            Err(message) if message == RefundValidationError::MaxRefundCountReached.to_string()
+        )
+    }
+
+    #[test]
+    fn allows_first_refund() {
+        let result = validate_maximum_refund_against_payment_attempt(0, MAX_ATTEMPTS);
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn allows_last_refund_within_limit() {
+        let result =
+            validate_maximum_refund_against_payment_attempt(MAX_ATTEMPTS - 1, MAX_ATTEMPTS);
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn rejects_refund_when_limit_already_reached() {
+        let result = validate_maximum_refund_against_payment_attempt(MAX_ATTEMPTS, MAX_ATTEMPTS);
+
+        assert!(is_max_refund_count_reached(result));
+    }
+
+    #[test]
+    fn rejects_refund_when_limit_exceeded() {
+        let result =
+            validate_maximum_refund_against_payment_attempt(MAX_ATTEMPTS + 1, MAX_ATTEMPTS);
+
+        assert!(is_max_refund_count_reached(result));
+    }
+
+    #[test]
+    fn rejects_every_refund_when_max_attempts_is_zero() {
+        let result = validate_maximum_refund_against_payment_attempt(0, 0);
+
+        assert!(is_max_refund_count_reached(result));
     }
 }
