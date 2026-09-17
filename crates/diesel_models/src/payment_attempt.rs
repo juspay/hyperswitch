@@ -3229,6 +3229,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 external_surcharge_details: None,
                 applied_offer_details: None,
                 payment_account_reference: None,
+                active_frm_id: None,
             },
             PaymentAttemptUpdate::PaymentMethodDetailsUpdate {
                 payment_method_id,
