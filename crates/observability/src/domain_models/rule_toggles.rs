@@ -32,11 +32,16 @@ impl RuleToggleNew {
             return Err(report!(ObservabilityError::InvalidRequest))
                 .attach_printable("rule_id must not be empty");
         }
+        let updated_by = request.updated_by.trim().to_owned();
+        if updated_by.is_empty() {
+            return Err(report!(ObservabilityError::InvalidRequest))
+                .attach_printable("updated_by must not be blank");
+        }
 
         Ok(Self {
             rule_id,
             is_enabled: request.is_enabled,
-            updated_by: request.updated_by,
+            updated_by,
         })
     }
 }
@@ -91,5 +96,11 @@ mod tests {
             updated_by: "dashboard".into(),
         };
         assert!(RuleToggleNew::try_from_request("   ".into(), request).is_err());
+
+        let request = api::RuleToggleSetRequest {
+            is_enabled: true,
+            updated_by: "   ".into(),
+        };
+        assert!(RuleToggleNew::try_from_request("rule".into(), request).is_err());
     }
 }

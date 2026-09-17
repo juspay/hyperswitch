@@ -195,7 +195,7 @@ async fn call(
 #[actix_web::test]
 async fn disable_read_and_reenable_preserve_portal_contract() {
     let state = state();
-    let uri = "/alerts/rule-toggles/webhook_rejected";
+    let uri = "/alerts/rule_toggles/webhook_rejected";
 
     let (status, disabled) = call(
         state.clone(),
@@ -214,7 +214,7 @@ async fn disable_read_and_reenable_preserve_portal_contract() {
     let (_, listed) = call(
         state.clone(),
         actix_web::http::Method::GET,
-        "/alerts/rule-toggles",
+        "/alerts/rule_toggles",
         Some(API_KEY),
         None,
     )
@@ -248,7 +248,7 @@ async fn absence_means_no_toggle_and_composite_ids_persist_independently() {
     let (_, empty) = call(
         state.clone(),
         actix_web::http::Method::GET,
-        "/alerts/rule-toggles",
+        "/alerts/rule_toggles",
         Some(API_KEY),
         None,
     )
@@ -258,7 +258,7 @@ async fn absence_means_no_toggle_and_composite_ids_persist_independently() {
     let (_, response) = call(
         state.clone(),
         actix_web::http::Method::PUT,
-        "/alerts/rule-toggles/webhook_rejected_merchant_profile",
+        "/alerts/rule_toggles/webhook_rejected_merchant_profile",
         Some(API_KEY),
         Some(json!({"is_enabled": false, "updated_by": "dashboard"})),
     )
@@ -268,7 +268,7 @@ async fn absence_means_no_toggle_and_composite_ids_persist_independently() {
     let (_, listed) = call(
         state,
         actix_web::http::Method::GET,
-        "/alerts/rule-toggles",
+        "/alerts/rule_toggles",
         Some(API_KEY),
         None,
     )
@@ -283,10 +283,10 @@ async fn absence_means_no_toggle_and_composite_ids_persist_independently() {
 #[actix_web::test]
 async fn authentication_validation_and_unknown_fields_are_enforced() {
     for (method, uri, payload) in [
-        (actix_web::http::Method::GET, "/alerts/rule-toggles", None),
+        (actix_web::http::Method::GET, "/alerts/rule_toggles", None),
         (
             actix_web::http::Method::PUT,
-            "/alerts/rule-toggles/a",
+            "/alerts/rule_toggles/a",
             Some(json!({"is_enabled": false, "updated_by": "dashboard"})),
         ),
     ] {
@@ -302,14 +302,18 @@ async fn authentication_validation_and_unknown_fields_are_enforced() {
 
     for (uri, payload) in [
         (
-            "/alerts/rule-toggles/%20%20",
+            "/alerts/rule_toggles/%20%20",
             json!({"is_enabled": false, "updated_by": "dashboard"}),
         ),
         (
-            "/alerts/rule-toggles/a",
+            "/alerts/rule_toggles/a",
             json!({"is_enabled": false, "updated_by": "dashboard", "extra": true}),
         ),
-        ("/alerts/rule-toggles/a", json!({"updated_by": "dashboard"})),
+        ("/alerts/rule_toggles/a", json!({"updated_by": "dashboard"})),
+        (
+            "/alerts/rule_toggles/a",
+            json!({"is_enabled": false, "updated_by": "  "}),
+        ),
     ] {
         let (status, response) = call(
             state(),
@@ -328,10 +332,10 @@ async fn authentication_validation_and_unknown_fields_are_enforced() {
 async fn storage_failures_return_500() {
     let state = state_with_store(Arc::new(FailingStore));
     for (method, uri, payload) in [
-        (actix_web::http::Method::GET, "/alerts/rule-toggles", None),
+        (actix_web::http::Method::GET, "/alerts/rule_toggles", None),
         (
             actix_web::http::Method::PUT,
-            "/alerts/rule-toggles/a",
+            "/alerts/rule_toggles/a",
             Some(json!({"is_enabled": false, "updated_by": "dashboard"})),
         ),
     ] {
@@ -379,7 +383,7 @@ async fn postgres_repository_replaces_and_lists_toggles() {
             call(
                 state.clone(),
                 actix_web::http::Method::PUT,
-                "/alerts/rule-toggles/webhook_rejected",
+                "/alerts/rule_toggles/webhook_rejected",
                 Some(API_KEY),
                 Some(json!({"is_enabled": enabled, "updated_by": "database-test"})),
             )
@@ -391,7 +395,7 @@ async fn postgres_repository_replaces_and_lists_toggles() {
     let (_, listed) = call(
         state,
         actix_web::http::Method::GET,
-        "/alerts/rule-toggles",
+        "/alerts/rule_toggles",
         Some(API_KEY),
         None,
     )
