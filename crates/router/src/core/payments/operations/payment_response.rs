@@ -4512,9 +4512,7 @@ fn get_total_amount_captured<F: Clone, T: types::Capturable>(
                 )
                 .map(MinorUnit::new);
             amount_captured.or_else(|| {
-                if router_data_status == enums::AttemptStatus::Charged
-                    || router_data_status == enums::AttemptStatus::IntegrityFailure
-                {
+                if router_data_status == enums::AttemptStatus::Charged {
                     amount
                 } else {
                     None
