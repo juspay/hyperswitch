@@ -31,6 +31,19 @@
         "summary": "Payments - Create",
         "description": "Creates a payment resource, which represents a customer's intent to pay.\nThis endpoint is the starting point for various payment flows:\n",
         "operationId": "Create a Payment",
+        "parameters": [
+          {
+            "name": "X-Integration-Type",
+            "in": "header",
+            "description": "Selects the response shape. `server` returns the payment together with `payment_method_list` and `session_tokens`, so a server-to-server integration can render its checkout from one call; it is honoured only with merchant API key authentication. `client`, or no header, returns the payment response unchanged.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "server"
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -627,6 +640,90 @@
                       "profile_id": "pro_pzzzzzzzzzzz",
                       "status": "succeeded"
                     }
+                  },
+                  "12. Server integration response": {
+                    "value": {
+                      "amount": 6540,
+                      "attempt_count": 1,
+                      "client_secret": "pay_mbabizu24mvu3mela5njyhpit4_secret_el9ksDkiB8hi6j9N78yo",
+                      "currency": "USD",
+                      "customer_id": "cus_abcdefgh",
+                      "merchant_id": "merchant_1668273825",
+                      "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                      "payment_method_list": {
+                        "customer_payment_methods": [],
+                        "intent_data": {
+                          "amount": 6540,
+                          "attempt_count": 1,
+                          "currency": "USD",
+                          "customer_id": "cus_abcdefgh",
+                          "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                          "profile_id": "pro_abcdefghijklmnop",
+                          "status": "requires_payment_method"
+                        },
+                        "payment_methods_enabled": [
+                          {
+                            "card_networks": [
+                              "Visa",
+                              "Mastercard"
+                            ],
+                            "customer_acceptance_support": "supported",
+                            "payment_method": "card",
+                            "payment_method_type": "credit"
+                          }
+                        ],
+                        "sdk_next_action": {
+                          "next_action": "confirm"
+                        }
+                      },
+                      "profile_id": "pro_abcdefghijklmnop",
+                      "sdk_authorization": "cHJvZmlsZV9pZD1wcm9mXzEyMyxwdWJsaXNoYWJsZV9rZXk9cGtfbGl2ZV8xMjM=",
+                      "session_tokens": {
+                        "client_secret": "pay_mbabizu24mvu3mela5njyhpit4_secret_el9ksDkiB8hi6j9N78yo",
+                        "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                        "session_token": [],
+                        "vault_details": {
+                          "vault_data": {
+                            "sdk_authorization": "cHJvZmlsZV9pZD1wcm9mXzEyMyxwdWJsaXNoYWJsZV9rZXk9cGtfbGl2ZV8xMjM="
+                          },
+                          "vault_type": "hyperswitch"
+                        }
+                      },
+                      "status": "requires_payment_method"
+                    }
+                  },
+                  "13. Server integration, one section failed": {
+                    "value": {
+                      "amount": 6540,
+                      "attempt_count": 1,
+                      "client_secret": "pay_mbabizu24mvu3mela5njyhpit4_secret_el9ksDkiB8hi6j9N78yo",
+                      "currency": "USD",
+                      "merchant_id": "merchant_1668273825",
+                      "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                      "payment_method_list": {
+                        "customer_payment_methods": [],
+                        "intent_data": {
+                          "amount": 6540,
+                          "attempt_count": 1,
+                          "currency": "USD",
+                          "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                          "status": "requires_payment_method"
+                        },
+                        "payment_methods_enabled": [],
+                        "sdk_next_action": {
+                          "next_action": "confirm"
+                        }
+                      },
+                      "profile_id": "pro_abcdefghijklmnop",
+                      "session_tokens": {
+                        "error": {
+                          "code": "HE_00",
+                          "message": "Something went wrong",
+                          "type": "api"
+                        }
+                      },
+                      "status": "requires_payment_method"
+                    }
                   }
                 }
               }
@@ -667,6 +764,17 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Integration-Type",
+            "in": "header",
+            "description": "Selects the response shape. `server` returns the payment together with `payment_method_list` and `session_tokens`, so a server-to-server integration can render its checkout from one call; it is honoured only with merchant API key authentication. `client`, or no header, returns the payment response unchanged.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "server"
           }
         ],
         "requestBody": {
@@ -714,6 +822,92 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PaymentsCreateResponseOpenApi"
+                },
+                "examples": {
+                  "Server integration response": {
+                    "value": {
+                      "amount": 6540,
+                      "attempt_count": 1,
+                      "client_secret": "pay_mbabizu24mvu3mela5njyhpit4_secret_el9ksDkiB8hi6j9N78yo",
+                      "currency": "USD",
+                      "customer_id": "cus_abcdefgh",
+                      "merchant_id": "merchant_1668273825",
+                      "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                      "payment_method_list": {
+                        "customer_payment_methods": [],
+                        "intent_data": {
+                          "amount": 6540,
+                          "attempt_count": 1,
+                          "currency": "USD",
+                          "customer_id": "cus_abcdefgh",
+                          "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                          "profile_id": "pro_abcdefghijklmnop",
+                          "status": "requires_payment_method"
+                        },
+                        "payment_methods_enabled": [
+                          {
+                            "card_networks": [
+                              "Visa",
+                              "Mastercard"
+                            ],
+                            "customer_acceptance_support": "supported",
+                            "payment_method": "card",
+                            "payment_method_type": "credit"
+                          }
+                        ],
+                        "sdk_next_action": {
+                          "next_action": "confirm"
+                        }
+                      },
+                      "profile_id": "pro_abcdefghijklmnop",
+                      "sdk_authorization": "cHJvZmlsZV9pZD1wcm9mXzEyMyxwdWJsaXNoYWJsZV9rZXk9cGtfbGl2ZV8xMjM=",
+                      "session_tokens": {
+                        "client_secret": "pay_mbabizu24mvu3mela5njyhpit4_secret_el9ksDkiB8hi6j9N78yo",
+                        "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                        "session_token": [],
+                        "vault_details": {
+                          "vault_data": {
+                            "sdk_authorization": "cHJvZmlsZV9pZD1wcm9mXzEyMyxwdWJsaXNoYWJsZV9rZXk9cGtfbGl2ZV8xMjM="
+                          },
+                          "vault_type": "hyperswitch"
+                        }
+                      },
+                      "status": "requires_payment_method"
+                    }
+                  },
+                  "Server integration, one section failed": {
+                    "value": {
+                      "amount": 6540,
+                      "attempt_count": 1,
+                      "client_secret": "pay_mbabizu24mvu3mela5njyhpit4_secret_el9ksDkiB8hi6j9N78yo",
+                      "currency": "USD",
+                      "merchant_id": "merchant_1668273825",
+                      "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                      "payment_method_list": {
+                        "customer_payment_methods": [],
+                        "intent_data": {
+                          "amount": 6540,
+                          "attempt_count": 1,
+                          "currency": "USD",
+                          "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                          "status": "requires_payment_method"
+                        },
+                        "payment_methods_enabled": [],
+                        "sdk_next_action": {
+                          "next_action": "confirm"
+                        }
+                      },
+                      "profile_id": "pro_abcdefghijklmnop",
+                      "session_tokens": {
+                        "error": {
+                          "code": "HE_00",
+                          "message": "Something went wrong",
+                          "type": "api"
+                        }
+                      },
+                      "status": "requires_payment_method"
+                    }
+                  }
                 }
               }
             }
@@ -1477,6 +1671,129 @@
           },
           {
             "publishable_key": []
+          }
+        ]
+      }
+    },
+    "/payment_link/list": {
+      "post": {
+        "tags": [
+          "Payment Links"
+        ],
+        "summary": "Payment Link - List",
+        "description": "To list the payment links across all profiles for a merchant",
+        "operationId": "List Payment Links",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentLinkListConstraints"
+              },
+              "examples": {
+                "List with default params": {
+                  "value": {}
+                },
+                "List with pagination and time range": {
+                  "value": {
+                    "end_time": "2025-03-31T23:59:59Z",
+                    "limit": 10,
+                    "offset": 0,
+                    "start_time": "2025-01-01T00:00:00Z"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Payment links listed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentLinkListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request (e.g. end_time before start_time, range > 3 months)"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "jwt_key": []
+          }
+        ]
+      }
+    },
+    "/payment_link/profile/list": {
+      "post": {
+        "tags": [
+          "Payment Links"
+        ],
+        "summary": "Payment Link - Profile List",
+        "description": "To list payment links scoped to the authenticated business profile",
+        "operationId": "List Profile Payment Links",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentLinkListConstraints"
+              },
+              "examples": {
+                "List with default params": {
+                  "value": {}
+                },
+                "List with pagination": {
+                  "value": {
+                    "limit": 5,
+                    "offset": 0,
+                    "start_time": "2025-01-01T00:00:00Z"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Payment links listed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentLinkListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "jwt_key": []
           }
         ]
       }
@@ -6923,7 +7240,7 @@
           }
         ],
         "requestBody": {
-          "description": "A multipart/form-data request with a `file` field containing a UTF-8 CSV (max 5 MiB). The CSV must have a header row: `type,data,metadata`. `type`: one of `generic_card_bin` (6 to 10 digits), `fingerprint`. `metadata`: optional, `key=value` pairs separated by `;` (e.g. `reason=fraud;source=manual`). Maximum 100,000 data rows.",
+          "description": "A multipart/form-data request with a `file` field containing a UTF-8 CSV (max 5 MiB). The part's `filename` is recorded on the job and returned as `file_name`. The CSV must have a header row: `type,data,metadata`. `type`: one of `generic_card_bin` (6 to 10 digits), `fingerprint`. `metadata`: optional, `key=value` pairs separated by `;` (e.g. `reason=fraud;source=manual`). Maximum 100,000 data rows.",
           "content": {
             "multipart/form-data": {
               "schema": {
@@ -6983,11 +7300,35 @@
               "nullable": true,
               "minimum": 0
             }
+          },
+          {
+            "name": "job_type",
+            "in": "query",
+            "description": "Restricts the listing to `upload` or `export` jobs. Both kinds are returned when omitted, newest first.",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/BatchBlocklistJobType"
+                }
+              ],
+              "nullable": true
+            }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Restricts the listing to jobs run for this business profile, plus jobs that predate profile scoping. When no profile can be resolved, all of the merchant's jobs are returned, as before.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
           }
         ],
         "responses": {
           "200": {
-            "description": "List of batch blocklist jobs",
+            "description": "List of batch blocklist jobs. Rows report `downloadable`, but never `download_url` - fetch the link from `GET /blocklist/batch/{job_id}` when the merchant asks for that specific file.",
             "content": {
               "application/json": {
                 "schema": {
@@ -7014,7 +7355,7 @@
           {
             "name": "job_id",
             "in": "path",
-            "description": "The job ID returned by the batch upload endpoint",
+            "description": "The job ID returned by the batch upload endpoint, or the export ID returned by `POST /blocklist/export`",
             "required": true,
             "schema": {
               "type": "string"
@@ -7023,7 +7364,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Batch blocklist job status",
+            "description": "Batch blocklist job status. For a completed export whose file is still stored, this is where the short-lived `download_url` is issued.",
             "content": {
               "application/json": {
                 "schema": {
@@ -7034,6 +7375,46 @@
           },
           "404": {
             "description": "Job not found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/blocklist/export": {
+      "post": {
+        "tags": [
+          "Blocklist"
+        ],
+        "operationId": "Start a blocklist CSV export",
+        "parameters": [
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "The business profile whose blocklist is exported. Resolution follows the same rules as blocking a single entry.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Blocklist export started",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BlocklistExportResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "No profile could be resolved"
           }
         },
         "security": [
@@ -15467,16 +15848,18 @@
       },
       "BatchBlocklistJobStatusResponse": {
         "type": "object",
-        "description": "Response for `GET /blocklist/batch/{job_id}`.",
+        "description": "One batch blocklist job, as returned by the listing and by `GET /blocklist/batch/{job_id}`.",
         "required": [
           "job_id",
           "merchant_id",
+          "job_type",
           "status",
           "total_rows",
           "succeeded_rows",
           "failed_rows",
           "created_at",
-          "updated_at"
+          "updated_at",
+          "downloadable"
         ],
         "properties": {
           "job_id": {
@@ -15484,6 +15867,14 @@
           },
           "merchant_id": {
             "type": "string"
+          },
+          "job_type": {
+            "$ref": "#/components/schemas/BatchBlocklistJobType"
+          },
+          "file_name": {
+            "type": "string",
+            "description": "The file the merchant uploaded, or the name the export downloads as.",
+            "nullable": true
           },
           "status": {
             "$ref": "#/components/schemas/BatchBlocklistJobStatus"
@@ -15510,8 +15901,40 @@
           "updated_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Exports only: when the stored file is removed by the storage lifecycle rule.",
+            "nullable": true
+          },
+          "downloadable": {
+            "type": "boolean",
+            "description": "Whether this job's file can be fetched right now."
+          },
+          "error_message": {
+            "type": "string",
+            "nullable": true
+          },
+          "download_url": {
+            "type": "string",
+            "description": "Exports only: short-lived signed link, generated per request and never stored. Null in the\nlisting, which does not mint a link per row.",
+            "nullable": true
+          },
+          "download_url_expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
           }
         }
+      },
+      "BatchBlocklistJobType": {
+        "type": "string",
+        "description": "Distinguishes a bulk upload job from a CSV export job in the `batch_blocklist_jobs` table.",
+        "enum": [
+          "upload",
+          "export"
+        ]
       },
       "BatchBlocklistUploadResponse": {
         "type": "object",
@@ -15706,6 +16129,28 @@
           "extended_card_bin",
           "generic_card_bin"
         ]
+      },
+      "BlocklistExportResponse": {
+        "type": "object",
+        "description": "Response for `POST /blocklist/export`.",
+        "required": [
+          "export_id",
+          "status",
+          "file_name"
+        ],
+        "properties": {
+          "export_id": {
+            "type": "string",
+            "description": "Present for support and log correlation."
+          },
+          "status": {
+            "$ref": "#/components/schemas/BatchBlocklistJobStatus"
+          },
+          "file_name": {
+            "type": "string",
+            "description": "The name this export will download as."
+          }
+        }
       },
       "BlocklistLookupQuery": {
         "type": "object",
@@ -18337,6 +18782,7 @@
           "ebanx",
           "envoy",
           "elavon",
+          "etisalat",
           "facilitapay",
           "finix",
           "fiserv",
@@ -18368,6 +18814,7 @@
           "juspaythreedsserver",
           "klarna",
           "loonio",
+          "merchante",
           "mifinity",
           "mollie",
           "moneris",
@@ -18435,6 +18882,7 @@
           "signifyd",
           "plaid",
           "riskified",
+          "sanlam_payshield",
           "xendit",
           "zen",
           "zift",
@@ -31405,6 +31853,56 @@
           }
         }
       },
+      "PaymentLinkListConstraints": {
+        "allOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TimeRange"
+              }
+            ],
+            "nullable": true
+          },
+          {
+            "type": "object",
+            "properties": {
+              "limit": {
+                "$ref": "#/components/schemas/common_utils.types.list.PageSize"
+              },
+              "offset": {
+                "$ref": "#/components/schemas/common_utils.types.list.PageOffset"
+              }
+            }
+          }
+        ]
+      },
+      "PaymentLinkListResponse": {
+        "type": "object",
+        "required": [
+          "size",
+          "total_count",
+          "data"
+        ],
+        "properties": {
+          "size": {
+            "type": "integer",
+            "description": "The number of payment links included in the current page",
+            "minimum": 0
+          },
+          "total_count": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The total number of payment links matching the given filters"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RetrievePaymentLinkResponse"
+            },
+            "description": "The list of payment link response objects"
+          }
+        }
+      },
       "PaymentLinkResponse": {
         "type": "object",
         "required": [
@@ -33226,6 +33724,14 @@
           }
         },
         "additionalProperties": false
+      },
+      "PaymentProcessingDetailInputType": {
+        "type": "string",
+        "description": "Specifies how the Apple Pay payment processing details are supplied.",
+        "enum": [
+          "raw",
+          "link_hierarchical_resource"
+        ]
       },
       "PaymentProcessingDetails": {
         "type": "object",
@@ -43952,6 +44458,7 @@
         "type": "object",
         "required": [
           "payment_link_id",
+          "payment_id",
           "merchant_id",
           "link_to_pay",
           "amount",
@@ -43963,6 +44470,10 @@
             "type": "string",
             "description": "Identifier for Payment Link"
           },
+          "payment_id": {
+            "type": "string",
+            "description": "Identifier for the associated Payment"
+          },
           "merchant_id": {
             "type": "string",
             "description": "Identifier for Merchant"
@@ -43970,6 +44481,11 @@
           "processor_merchant_id": {
             "type": "string",
             "description": "Identifier for the processor merchant",
+            "nullable": true
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "Identifier for the business profile",
             "nullable": true
           },
           "link_to_pay": {
@@ -44171,6 +44687,7 @@
           "ebanx",
           "elavon",
           "envoy",
+          "etisalat",
           "facilitapay",
           "finix",
           "fiserv",
@@ -44198,6 +44715,7 @@
           "jpmorgan",
           "klarna",
           "loonio",
+          "merchante",
           "mifinity",
           "mollie",
           "moneris",
@@ -44234,6 +44752,7 @@
           "redsys",
           "revolv3",
           "riskified",
+          "sanlam_payshield",
           "santander",
           "shift4",
           "signifyd",
@@ -45715,6 +46234,14 @@
                 "allOf": [
                   {
                     "$ref": "#/components/schemas/CountryAlpha2"
+                  }
+                ],
+                "nullable": true
+              },
+              "payment_processing_detail_input_type": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/PaymentProcessingDetailInputType"
                   }
                 ],
                 "nullable": true

@@ -5,6 +5,7 @@ use api_models::{
 use async_trait::async_trait;
 use common_utils::{
     ext_traits::ByteSliceExt,
+    fp_utils,
     request::RequestContent,
     types::{AmountConvertor, StringMajorUnitForConnector},
 };
@@ -79,12 +80,17 @@ impl
         state: &routes::SessionState,
         connector_id: &str,
         processor: &domain::Processor,
+        business_profile: &domain::Profile,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
         header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
         payment_method: Option<common_enums::PaymentMethod>,
         payment_method_type: Option<common_enums::PaymentMethodType>,
     ) -> RouterResult<types::PaymentsSessionRouterData> {
+        fp_utils::when(merchant_connector_account.is_disabled(), || {
+            Err(errors::ApiErrorResponse::MerchantConnectorAccountDisabled)
+        })?;
+
         Box::pin(transformers::construct_payment_router_data::<
             api::Session,
             types::PaymentsSessionData,
@@ -93,6 +99,7 @@ impl
             self.clone(),
             connector_id,
             processor,
+            business_profile,
             merchant_connector_account,
             merchant_recipient_data,
             header_payload,
