@@ -18,6 +18,7 @@ use crate::{
             PaymentAddress,
         },
     },
+    events::audit_events::{AuditEvent, AuditEventType},
     routes::{app::ReqState, SessionState},
     services,
     types::{
@@ -213,7 +214,7 @@ impl<F: Clone + Sync>
     async fn update_trackers<'b>(
         &'b self,
         state: &'b SessionState,
-        _req_state: ReqState,
+        req_state: ReqState,
         processor: &domain::Processor,
         mut payment_data: payments::PaymentData<F>,
         _frm_suggestion: Option<FrmSuggestion>,
@@ -285,17 +286,29 @@ impl<F: Clone + Sync>
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
             .attach_printable("Failed to update authorization_count in Payment Intent")?;
-        match &payment_data.incremental_authorization_details {
-            Some(details) => {
-                payment_data.incremental_authorization_details =
-                    Some(IncrementalAuthorizationDetails {
-                        authorization_id: Some(authorization.authorization_id),
-                        ..details.clone()
-                    });
-            }
+        let incremental_authorization_details = match &payment_data
+            .incremental_authorization_details
+        {
+            Some(details) => IncrementalAuthorizationDetails {
+                authorization_id: Some(authorization.authorization_id),
+                ..details.clone()
+            },
             None => Err(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("missing incremental_authorization_details in payment_data")?,
-        }
+        };
+        req_state
+            .event_context
+            .event(AuditEvent::new(
+                AuditEventType::PaymentIncrementalAuthorization {
+                    authorization_id: incremental_authorization_details.authorization_id.clone(),
+                    additional_amount: incremental_authorization_details.additional_amount,
+                    total_amount: incremental_authorization_details.total_amount,
+                    reason: incremental_authorization_details.reason.clone(),
+                },
+            ))
+            .with(payment_data.to_event())
+            .emit();
+        payment_data.incremental_authorization_details = Some(incremental_authorization_details);
         Ok((Box::new(self), payment_data))
     }
 }
