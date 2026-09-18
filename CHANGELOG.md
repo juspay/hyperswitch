@@ -4,6 +4,23 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.09.09.1-hotfix6
+
+### Features
+
+- **applepay:** Add payment processing detail input type for simplified flow ([#14307](https://github.com/juspay/hyperswitch/pull/14307)) ([`886b682`](https://github.com/juspay/hyperswitch/commit/886b6821146973cc1661713ce046aac87aa0779e))
+- **router:** Allow profile-level users to access blocklist routes ([#14302](https://github.com/juspay/hyperswitch/pull/14302)) ([`83affba`](https://github.com/juspay/hyperswitch/commit/83affba145232f8d811f0214d5ecffff21e2cb89))
+
+### Refactors
+
+- **connector:**
+  - [Checkout][WorldpayXML] support wallet id as account identifier and relax AFT state requirement ([#14303](https://github.com/juspay/hyperswitch/pull/14303)) ([`5b0caff`](https://github.com/juspay/hyperswitch/commit/5b0caff27c5d789fc9670aff044c7ce752d8260e))
+  - [Worldpayxml] webhooks body refactor and dispute webhooks implementation ([#14306](https://github.com/juspay/hyperswitch/pull/14306)) ([`d74ef24`](https://github.com/juspay/hyperswitch/commit/d74ef24c791b7ecff60a1afa4457583ca23a549d))
+
+**Full Changelog:** [`2026.09.09.1-hotfix5...2026.09.09.1-hotfix6`](https://github.com/juspay/hyperswitch/compare/2026.09.09.1-hotfix5...2026.09.09.1-hotfix6)
+
+- - -
+
 ## 2026.09.09.1-hotfix5
 
 ### Bug Fixes
