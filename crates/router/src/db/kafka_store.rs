@@ -623,6 +623,25 @@ impl DisputeInterface for KafkaStore {
         Ok(dispute)
     }
 
+    #[cfg(feature = "v2")]
+    async fn find_by_processor_merchant_id_payment_id_connector_dispute_id(
+        &self,
+        processor_merchant_id: &id_type::MerchantId,
+        payment_id: &id_type::GlobalPaymentId,
+        connector_dispute_id: &str,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Option<storage::Dispute>, errors::StorageError> {
+        self.diesel_store
+            .find_by_processor_merchant_id_payment_id_connector_dispute_id(
+                processor_merchant_id,
+                payment_id,
+                connector_dispute_id,
+                storage_scheme,
+            )
+            .await
+    }
+
+    #[cfg(feature = "v1")]
     async fn find_by_processor_merchant_id_payment_id_connector_dispute_id(
         &self,
         processor_merchant_id: &id_type::MerchantId,
@@ -655,6 +674,7 @@ impl DisputeInterface for KafkaStore {
             .await
     }
 
+    #[cfg(feature = "v1")]
     async fn find_disputes_by_processor_merchant_id_payment_id(
         &self,
         processor_merchant_id: &id_type::MerchantId,
@@ -670,6 +690,7 @@ impl DisputeInterface for KafkaStore {
             .await
     }
 
+    #[cfg(feature = "v1")]
     async fn find_disputes_by_constraints(
         &self,
         processor_merchant_id: &id_type::MerchantId,
