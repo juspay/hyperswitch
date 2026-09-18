@@ -159,14 +159,7 @@ jobs:
       # keep it read-only — matches the old rust-cache `save-if: false`
       # policy — so a fork PR can't write into the shared production cache.
       # Only CI-push.yml's `push` build writes.
-      #
-      # TEMPORARY - REVERT BEFORE MERGE.
-      # Flipped to read-write, guarded to this branch name only, so this PR
-      # can populate and then restore its own cache — specifically to
-      # measure the RUSTC_WORKSPACE_WRAPPER=sccache clippy-caching change
-      # above — without waiting for a merge to main. Inert on every other
-      # PR (including forks).
-      SCCACHE_S3_RW_MODE: ${{ github.head_ref == 'ci/sccache-migration' && 'READ_WRITE' || 'READ_ONLY' }}
+      SCCACHE_S3_RW_MODE: READ_ONLY
 
     steps:
       - name: Mask S3 cache location in job logs
@@ -302,8 +295,7 @@ jobs:
       # See `test`: covers `cargo clippy`'s workspace-crate invocations,
       # which RUSTC_WRAPPER alone doesn't reach.
       RUSTC_WORKSPACE_WRAPPER: sccache
-      # TEMPORARY - REVERT BEFORE MERGE. See `test` for why.
-      SCCACHE_S3_RW_MODE: ${{ github.head_ref == 'ci/sccache-migration' && 'READ_WRITE' || 'READ_ONLY' }}
+      SCCACHE_S3_RW_MODE: READ_ONLY
 
     steps:
       - name: Mask S3 cache location in job logs
