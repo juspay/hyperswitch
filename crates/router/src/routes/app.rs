@@ -2186,6 +2186,34 @@ impl MerchantConnectorAccount {
     }
 }
 
+pub struct HierarchicalResources;
+
+#[cfg(all(feature = "olap", feature = "v1"))]
+impl HierarchicalResources {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/hierarchical_resources")
+            .app_data(web::Data::new(state))
+            .service(web::resource("").route(
+                web::post().to(super::hierarchical_resources::generate_hierarchical_resource),
+            ))
+            .service(
+                web::resource("/list").route(
+                    web::post().to(super::hierarchical_resources::list_hierarchical_resources),
+                ),
+            )
+            .service(
+                web::resource("/apple_pay_certificate/{resource_id}").route(
+                    web::put().to(super::hierarchical_resources::upload_hierarchical_resource),
+                ),
+            )
+            .service(
+                web::resource("/{resource_id}/link").route(
+                    web::post().to(super::hierarchical_resources::link_hierarchical_resource),
+                ),
+            )
+    }
+}
+
 pub struct EphemeralKey;
 
 #[cfg(all(feature = "v1", feature = "oltp"))]
