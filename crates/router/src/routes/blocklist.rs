@@ -49,7 +49,7 @@ pub async fn add_entry_to_blocklist(
                 allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
-                permission: Permission::MerchantAccountWrite,
+                permission: Permission::ProfileAccountWrite,
                 allow_connected: true,
                 allow_platform: false,
             },
@@ -105,7 +105,7 @@ pub async fn remove_entry_from_blocklist(
                 allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
-                permission: Permission::MerchantAccountWrite,
+                permission: Permission::ProfileAccountWrite,
                 allow_connected: true,
                 allow_platform: false,
             },
@@ -176,7 +176,7 @@ pub async fn list_blocked_payment_methods(
         auth::auth_type(
             &*auth_type,
             &auth::JWTAuth {
-                permission: Permission::MerchantAccountRead,
+                permission: Permission::ProfileAccountRead,
                 allow_connected: true,
                 allow_platform: false,
             },
@@ -231,7 +231,7 @@ pub async fn get_blocklist_count(
                 allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
-                permission: Permission::MerchantAccountRead,
+                permission: Permission::ProfileAccountRead,
                 allow_connected: true,
                 allow_platform: false,
             },
@@ -286,7 +286,7 @@ pub async fn lookup_blocklist_entry(
                 allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
-                permission: Permission::MerchantAccountRead,
+                permission: Permission::ProfileAccountRead,
                 allow_connected: true,
                 allow_platform: false,
             },
@@ -331,7 +331,7 @@ pub async fn toggle_blocklist_guard(
                 allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
-                permission: Permission::MerchantAccountWrite,
+                permission: Permission::ProfileAccountWrite,
                 allow_connected: true,
                 allow_platform: false,
             },
@@ -412,7 +412,7 @@ pub async fn upload_batch_blocklist(
                 allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
-                permission: Permission::MerchantAccountWrite,
+                permission: Permission::ProfileAccountWrite,
                 allow_connected: true,
                 allow_platform: false,
             },
@@ -459,7 +459,7 @@ pub async fn get_batch_blocklist_job_status(
                 allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
-                permission: Permission::MerchantAccountRead,
+                permission: Permission::ProfileAccountRead,
                 allow_connected: true,
                 allow_platform: false,
             },
@@ -510,7 +510,7 @@ pub async fn list_batch_blocklist_jobs(
                 allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
-                permission: Permission::MerchantAccountRead,
+                permission: Permission::ProfileAccountRead,
                 allow_connected: true,
                 allow_platform: false,
             },
@@ -555,7 +555,7 @@ pub async fn create_blocklist_export(state: web::Data<AppState>, req: HttpReques
                 allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
-                permission: Permission::MerchantAccountWrite,
+                permission: Permission::ProfileAccountWrite,
                 allow_connected: true,
                 allow_platform: false,
             },
