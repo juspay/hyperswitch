@@ -296,10 +296,14 @@ fn build_ucs_channel(
         .keep_alive_timeout(config.keep_alive_timeout.as_duration())
         .keep_alive_while_idle(true)
         .tcp_keepalive(Some(config.tcp_keepalive.as_duration()))
-        // A single connection now carries every UCS service client. Each previously had its own
-        // default 64 KiB HTTP/2 connection window, so let hyper size the windows from measured
-        // bandwidth rather than capping throughput on the shared connection.
-        .http2_adaptive_window(true)
+        // Flow-control windows are deliberately left at hyper's defaults (5 MiB connection,
+        // 2 MiB stream). They are not the per-connection 64 KiB of the HTTP/2 spec, so a single
+        // shared connection is not a throughput regression against the eleven it replaces:
+        // gRPC payloads here are a few KiB and never approach the window, and the windows are
+        // receive-side credit rather than a bandwidth cap. `http2_adaptive_window` is
+        // intentionally not enabled; it would *lower* the initial windows to 65,535 bytes and
+        // rely on BDP sampling to grow them back, which only helps on high bandwidth-delay
+        // links carrying large payloads, not on same-region RPCs of this size.
         .connect_lazy()
 }
 
