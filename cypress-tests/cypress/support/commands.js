@@ -8650,6 +8650,15 @@ Cypress.Commands.add("manualPaymentStatusUpdateTest", (globalState, data) => {
     manualUpdateBody.error_message = requestData.error_message;
   }
 
+  if (typeof requestData.amount_captured !== "undefined") {
+    manualUpdateBody.amount_captured = requestData.amount_captured;
+  }
+
+  if (typeof requestData.update_amount_captured !== "undefined") {
+    manualUpdateBody.update_amount_captured =
+      requestData.update_amount_captured;
+  }
+
   cy.request({
     method: "PUT",
     url: completeUrl,
@@ -8690,6 +8699,35 @@ Cypress.Commands.add("manualPaymentStatusUpdateTest", (globalState, data) => {
             responseData.body.error_message
           );
         }
+
+        if (
+          responseData.body &&
+          typeof responseData.body.amount_captured !== "undefined"
+        ) {
+          expect(response.body.amount_captured, "amount_captured").to.equal(
+            responseData.body.amount_captured
+          );
+        }
+
+        if (
+          responseData.body &&
+          typeof responseData.body.amount_capturable !== "undefined"
+        ) {
+          expect(response.body.amount_capturable, "amount_capturable").to.equal(
+            responseData.body.amount_capturable
+          );
+        }
+      } else if (responseData.body && responseData.body.error) {
+        // Expected error response (e.g. 422 IR_06 validation failures)
+        expect(response.body.error.type, "error.type").to.equal(
+          responseData.body.error.type
+        );
+        expect(response.body.error.code, "error.code").to.equal(
+          responseData.body.error.code
+        );
+        expect(response.body.error.message, "error.message").to.equal(
+          responseData.body.error.message
+        );
       } else {
         throw new Error(
           `Payment Update Call Failed with error code "${response.body.error.code}" error message "${response.body.error.message}"`
