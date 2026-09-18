@@ -159,6 +159,14 @@ jobs:
       # only), so read-write (sccache's default) is fine — this is the build
       # that's meant to populate the shared cache.
       RUSTC_WRAPPER: sccache
+      # RUSTC_WRAPPER alone doesn't cover `cargo clippy`: clippy sets
+      # RUSTC_WORKSPACE_WRAPPER=clippy-driver for workspace crates, which
+      # takes precedence over RUSTC_WRAPPER for those crates specifically,
+      # so without this, sccache never even sees the workspace-crate lint
+      # invocations `just clippy` below produces. sccache has recognized
+      # clippy-driver as a cacheable compiler since 2020
+      # (mozilla/sccache#728) — this just points that mechanism at it too.
+      RUSTC_WORKSPACE_WRAPPER: sccache
       RUSTFLAGS: "-D warnings"
 
     steps:
@@ -276,6 +284,9 @@ jobs:
       # environment). push/merge_group only, so read-write (sccache's
       # default) is fine.
       RUSTC_WRAPPER: sccache
+      # See `test`: covers `cargo clippy`'s workspace-crate invocations,
+      # which RUSTC_WRAPPER alone doesn't reach.
+      RUSTC_WORKSPACE_WRAPPER: sccache
 
     steps:
       - name: Mask S3 cache location in job logs
