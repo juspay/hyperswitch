@@ -120,6 +120,7 @@ impl From<Flow> for ApiIdentifier {
             Flow::GetBlocklistCount => Self::Blocklist,
             Flow::LookupBlocklistEntry => Self::Blocklist,
             Flow::CreateBlocklistExport => Self::Blocklist,
+            Flow::CloneBlocklistEntries => Self::Blocklist,
             Flow::MerchantConnectorsCreate
             | Flow::MerchantConnectorsRetrieve
             | Flow::MerchantConnectorsUpdate

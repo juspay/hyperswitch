@@ -1035,8 +1035,11 @@ impl
                 .map(payments_grpc::Tokenization::foreign_from)
                 .map(Into::into),
             l2_l3_data: None,
-            // Captures the order created before the redirect instead of creating a new one.
-            connector_order_id: router_data.request.connector_transaction_id.clone(),
+            connector_order_id: router_data
+                .request
+                .order_id
+                .clone()
+                .or_else(|| router_data.request.connector_transaction_id.clone()),
             merchant_request_id: None,
             partner_merchant_identifier_details: None,
             // TODO: Populate currency_conversion_data when Dynamic Currency Conversion (DCC) is implemented
@@ -1724,7 +1727,11 @@ impl
                 .map(payments_grpc::BrowserInformation::foreign_try_from)
                 .transpose()?,
             connector_feature_data: None,
-            connector_order_reference_id: router_data.request.connector_transaction_id.clone(),
+            connector_order_reference_id: router_data
+                .request
+                .order_id
+                .clone()
+                .or_else(|| router_data.request.connector_transaction_id.clone()),
             capture_method: capture_method.map(|capture_method| capture_method.into()),
         })
     }
@@ -1808,7 +1815,10 @@ impl
             metadata: None,
             return_url: None,
             continue_redirection_url: None,
-            state: None,
+            state: router_data
+                .access_token
+                .as_ref()
+                .map(ConnectorState::foreign_from),
             redirection_response: router_data
                 .request
                 .redirect_response
@@ -1824,7 +1834,11 @@ impl
                 .map(payments_grpc::BrowserInformation::foreign_try_from)
                 .transpose()?,
             connector_feature_data: None,
-            connector_order_reference_id: None,
+            connector_order_reference_id: router_data
+                .request
+                .order_id
+                .clone()
+                .or_else(|| router_data.request.connector_transaction_id.clone()),
             capture_method: capture_method.map(|capture_method| capture_method.into()),
         })
     }
@@ -2268,7 +2282,11 @@ impl
             threeds_completion_indicator: None,
             redirection_response: None,
             continue_redirection_url: None,
-            connector_order_id: None,
+            connector_order_id: router_data
+                .request
+                .order_id
+                .clone()
+                .or_else(|| router_data.request.connector_transaction_id.clone()),
             l2_l3_data: None,
             merchant_request_id: None,
             partner_merchant_identifier_details: None,
@@ -8727,7 +8745,11 @@ impl
             merchant_payout_id: router_data.payout_id.clone(),
             address: Some(address),
             amount: Some(money),
-            payout_connector_metadata: None,
+            payout_connector_metadata: router_data
+                .request
+                .payout_connector_metadata
+                .clone()
+                .map(|metadata| Secret::new(metadata.expose().to_string())),
             destination_currency: destination_currency.into(),
             customer: Some(customer),
             access_token: router_data.access_token.clone().map(|at| at.token),
@@ -8983,6 +9005,11 @@ impl
 #[cfg(feature = "payouts")]
 macro_rules! impl_ucs_payout_response_transformation {
     ($response_type:ty, $merchant_id_field:ident) => {
+        impl_ucs_payout_response_transformation!($response_type, $merchant_id_field, |_response| {
+            None
+        });
+    };
+    ($response_type:ty, $merchant_id_field:ident, $connector_metadata:expr) => {
         impl transformers::ForeignTryFrom<($response_type, common_enums::PayoutStatus)>
             for Result<PayoutsResponseData, ErrorResponse>
         {
@@ -8993,6 +9020,15 @@ macro_rules! impl_ucs_payout_response_transformation {
             ) -> Result<Self, Self::Error> {
                 let status = common_enums::PayoutStatus::foreign_try_from(response.payout_status())
                     .unwrap_or(prev_status);
+
+                let connector_metadata: fn(&$response_type) -> Option<&Secret<String>> =
+                    $connector_metadata;
+                let payout_connector_metadata = connector_metadata(&response)
+                    .and_then(|metadata| {
+                        serde_json::from_str::<serde_json::Value>(metadata.peek()).ok()
+                    })
+                    .filter(|value| value.as_object().is_some_and(|details| !details.is_empty()))
+                    .map(Secret::new);
 
                 let router_response = if let Some(error_info) = response.error {
                     Ok(PayoutsResponseData {
@@ -9019,7 +9055,7 @@ macro_rules! impl_ucs_payout_response_transformation {
                         should_add_next_step_to_process_tracker: false,
                         error_code: None,
                         error_message: None,
-                        payout_connector_metadata: None,
+                        payout_connector_metadata,
                         connector_eligibility_reference_id: None,
                     })
                 };
@@ -9099,11 +9135,14 @@ impl_ucs_payout_response_transformation!(
     payments_grpc::PayoutServiceStageResponse,
     merchant_payout_id
 );
+
 #[cfg(feature = "payouts")]
 impl_ucs_payout_response_transformation!(
     payments_grpc::PayoutServiceCreateRecipientResponse,
-    merchant_payout_id
+    merchant_payout_id,
+    |response| response.connector_metadata.as_ref()
 );
+
 #[cfg(feature = "payouts")]
 impl_ucs_payout_response_transformation!(
     payments_grpc::PayoutServiceEnrollDisburseAccountResponse,
@@ -9144,12 +9183,11 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PayoutMethodData>
                         payments_grpc::PixBankTransferPayout::foreign_try_from(pix)?,
                     )
                 }
-                api_models::payouts::Bank::Trustly(_) => Err(error_stack::Report::new(
-                    UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                        "Trustly bank transfer not supported for Unified Connector Service"
-                            .to_string(),
-                    ),
-                ))?,
+                api_models::payouts::Bank::Trustly(trustly) => {
+                    payments_grpc::payout_method::PayoutMethodData::Trustly(
+                        payments_grpc::TrustlyBankTransferPayout::foreign_try_from(trustly)?,
+                    )
+                }
                 api_models::payouts::Bank::OpenBanking(_) => Err(error_stack::Report::new(
                     UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
                         "OpenBanking bank transfer not supported for Unified Connector Service"
@@ -9189,13 +9227,10 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PayoutMethodData>
                             payments_grpc::PixBankTransferPayout::foreign_try_from(pix)?,
                         )
                     }
-                    api_models::payouts::BankTransfer::Trustly(_) => {
-                        Err(error_stack::Report::new(
-                            UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                                "Trustly bank transfer not supported for Unified Connector Service"
-                                    .to_string(),
-                            ),
-                        ))?
+                    api_models::payouts::BankTransfer::Trustly(trustly) => {
+                        payments_grpc::payout_method::PayoutMethodData::Trustly(
+                            payments_grpc::TrustlyBankTransferPayout::foreign_try_from(trustly)?,
+                        )
                     }
                     api_models::payouts::BankTransfer::PixKey(pix_key) => {
                         payments_grpc::payout_method::PayoutMethodData::PixKey(
@@ -9360,6 +9395,64 @@ impl transformers::ForeignTryFrom<&api_models::payouts::SepaBankTransfer>
             iban: Some(item.iban.clone()),
             bic: item.bic.clone(),
             account_holder_name: item.account_holder_name.clone(),
+        })
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl transformers::ForeignTryFrom<&api_models::payouts::TrustlyBankTransfer>
+    for payments_grpc::TrustlyBankTransferPayout
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        item: &api_models::payouts::TrustlyBankTransfer,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            iban: item.iban.clone(),
+            bank_account_number: item.account_number.clone(),
+            bank_number: item.bank_number.clone(),
+            bank_country_code: payments_grpc::CountryAlpha2::from_str_name(
+                &item.country_code.to_string(),
+            )
+            .map(|country| country.into())
+            .ok_or_else(|| {
+                error_stack::Report::new(
+                    UnifiedConnectorServiceError::RequestEncodingFailedWithReason(format!(
+                        "Unsupported bank country code for Trustly payout: {}",
+                        item.country_code
+                    )),
+                )
+            })?,
+        })
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl transformers::ForeignTryFrom<&api_models::payouts::TrustlyBankTransferData>
+    for payments_grpc::TrustlyBankTransferPayout
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        item: &api_models::payouts::TrustlyBankTransferData,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            iban: item.iban.clone(),
+            bank_account_number: item.bank_account_number.clone(),
+            bank_number: item.bank_number.clone(),
+            bank_country_code: payments_grpc::CountryAlpha2::from_str_name(
+                &item.bank_country_code.to_string(),
+            )
+            .map(|country| country.into())
+            .ok_or_else(|| {
+                error_stack::Report::new(
+                    UnifiedConnectorServiceError::RequestEncodingFailedWithReason(format!(
+                        "Unsupported bank country code for Trustly payout: {}",
+                        item.bank_country_code
+                    )),
+                )
+            })?,
         })
     }
 }
@@ -9559,11 +9652,11 @@ impl transformers::ForeignTryFrom<&api_models::payouts::BankTransfer>
                     payments_grpc::PixEmvBankTransferPayout::foreign_from(pix_emv),
                 ))
             }
-            api_models::payouts::BankTransfer::Trustly(_) => Err(error_stack::Report::new(
-                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                    "Trustly bank transfer not supported for Unified Connector Service".to_string(),
-                ),
-            ))?,
+            api_models::payouts::BankTransfer::Trustly(trustly) => {
+                Some(payments_grpc::source_bank_data::SourceBankData::Trustly(
+                    payments_grpc::TrustlyBankTransferPayout::foreign_try_from(trustly)?,
+                ))
+            }
             api_models::payouts::BankTransfer::OpenBanking(_) => Err(error_stack::Report::new(
                 UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
                     "OpenBanking bank transfer not supported for Unified Connector Service"

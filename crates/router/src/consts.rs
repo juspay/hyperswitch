@@ -421,6 +421,8 @@ pub mod superposition {
     pub const OFFER_ENGINE_ENABLED: &str = "offer_engine.enabled";
     /// Offer Engine credential source key: `"none"` skips Offer Engine, `"application"` uses the static app config, `"merchant"` uses per-merchant credentials.
     pub const OFFER_ENGINE_CREDENTIAL_SOURCE: &str = "offer_engine.credential_source";
+    /// Merchant integration type key: `"client"` (default), `"server"` or `"client_and_server"`. The `X-Integration-Type` header on payment requests must match it.
+    pub const MERCHANT_INTEGRATION_TYPE: &str = "system.payment_integration_type";
     /// Account Updater master gate key: `false` (default) disables all Account Updater calls.
     pub const ACCOUNT_UPDATER_ENABLED: &str = "account_updater.enabled";
     /// Account Updater credential source key: `"none"` skips Account Updater, `"application"` uses the static application config.
@@ -523,6 +525,8 @@ pub mod superposition {
     pub const INCOMING_WEBHOOK_DISABLED_EVENTS: &str = "webhooks.incoming_webhook_disabled_events";
     /// save wallet decrypted data in locker
     pub const SAVE_WALLET_DECRYPTED_DATA: &str = "vaulting.save_wallet_decrypted_data";
+    /// checkout sdk configuration
+    pub const CHECKOUT_SDK: &str = "checkout_sdk";
     /// Pre-FRM failure handling mode
     pub const PRE_FRM_FAILURE_MODE: &str = "frm.pre_frm_failure_mode";
 }
