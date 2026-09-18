@@ -2531,8 +2531,6 @@ pub async fn is_config_flag_enabled(state: &SessionState, config_key: &str) -> b
 #[derive(Debug, Clone, Deserialize)]
 pub struct RolloutConfig {
     pub rollout_percent: f64,
-    pub http_url: Option<String>,
-    pub https_url: Option<String>,
     pub execution_mode: ExecutionMode,
     #[serde(default = "default_kill_switch_enabled")]
     pub kill_switch_enabled: bool,
@@ -2562,8 +2560,6 @@ impl Default for RolloutConfig {
     fn default() -> Self {
         Self {
             rollout_percent: 0.0,
-            http_url: None,
-            https_url: None,
             execution_mode: ExecutionMode::NotApplicable,
             kill_switch_enabled: false,
             kill_switch_threshold: 1,
@@ -2601,36 +2597,31 @@ pub struct WebhookRolloutExecutionResult {
     pub webhook_flows: Vec<api::WebhookFlow>,
 }
 
-/// Validates a proxy URL, filtering out invalid ones and logging warnings
-fn validate_proxy_url(url: Option<String>, url_type: &str) -> Option<String> {
-    url.and_then(|url_str| {
-        if url_str.trim().is_empty() || url::Url::parse(&url_str).is_err() {
-            logger::warn!(
-                invalid_url = %url_str,
-                url_type = url_type,
-                "Invalid proxy URL in rollout config, ignoring"
-            );
-            None
-        } else {
-            Some(url_str)
-        }
-    })
+/// Validates a proxy URL, filtering out invalid (empty or unparseable) ones and logging warnings
+fn validate_proxy_url(url: String, url_type: &str) -> Option<String> {
+    if url.trim().is_empty() || url::Url::parse(&url).is_err() {
+        logger::warn!(
+            invalid_url = %url,
+            url_type = url_type,
+            "Invalid proxy URL in comparison service config, ignoring"
+        );
+        None
+    } else {
+        Some(url)
+    }
 }
 
 /// Creates proxy override with validated URLs and logging
-fn create_proxy_override(
-    http_url: Option<String>,
-    https_url: Option<String>,
-) -> Option<ProxyOverride> {
+fn create_proxy_override(http_url: String, https_url: String) -> Option<ProxyOverride> {
     let validated_http = validate_proxy_url(http_url, "HTTP");
     let validated_https = validate_proxy_url(https_url, "HTTPS");
 
     if validated_http.is_some() || validated_https.is_some() {
         if let Some(ref http_url) = validated_http {
-            logger::info!(http_url = %http_url, "Using validated HTTP proxy URL from rollout config");
+            logger::info!(http_url = %http_url, "Using validated HTTP proxy URL from comparison service config");
         }
         if let Some(ref https_url) = validated_https {
-            logger::info!(https_url = %https_url, "Using validated HTTPS proxy URL from rollout config");
+            logger::info!(https_url = %https_url, "Using validated HTTPS proxy URL from comparison service config");
         }
         Some(ProxyOverride {
             http_url: validated_http,
@@ -2639,6 +2630,16 @@ fn create_proxy_override(
     } else {
         None
     }
+}
+
+/// Builds the rollout proxy override from the env-configured comparison service, rather than
+/// from the DB-backed rollout config.
+fn build_rollout_proxy_override(state: &SessionState) -> Option<ProxyOverride> {
+    let comparison_service = state.conf.comparison_service.as_ref()?;
+    create_proxy_override(
+        comparison_service.http_url.clone(),
+        comparison_service.https_url.clone(),
+    )
 }
 
 // Helper function to execute rollout logic or return default
@@ -2668,18 +2669,19 @@ impl From<RolloutConfig> for RolloutExecutionResult {
 
                 match should_execute {
                     true => {
-                        let proxy_override =
-                            create_proxy_override(config.http_url, config.https_url);
                         logger::info!(
                             execution_mode = ?config.execution_mode,
-                            "Rollout will be executed with proxy override"
+                            "Rollout will be executed"
                         );
                         Self {
                             should_execute: true,
-                            proxy_override,
                             execution_mode: config.execution_mode,
                             kill_switch_enabled: config.kill_switch_enabled,
                             kill_switch_threshold: config.kill_switch_threshold,
+                            // Proxy override is sourced from the env-configured comparison
+                            // service, not from the DB rollout config — populated by the caller
+                            // after conversion.
+                            ..Default::default()
                         }
                     }
                     false => {
@@ -2719,12 +2721,13 @@ where
     match db.find_config_by_key_optional(config_key).await {
         Ok(Some(rollout_config)) => {
             // Parse as JSON - log error if it fails but don't propagate
-            Ok(serde_json::from_str::<C>(&rollout_config.config)
+            let parsed_rollout_config: Result<C, _> =
+                rollout_config.config.parse_struct("RolloutConfig");
+            Ok(parsed_rollout_config
                 .map(R::from)
                 .map_err(|err| {
                     logger::error!(
                         error = ?err,
-                        config = %rollout_config.config,
                         "Failed to parse rollout config as JSON. Defaulting to not execute and setting should_execute to false."
                     );
                     R::default()
@@ -2785,17 +2788,22 @@ pub async fn should_execute_based_on_rollout_with_precedence(
             }
             Some(config) => {
                 logger::info!(config_key = %key, "Rollout config found, using this key");
-                return Ok(serde_json::from_str::<RolloutConfig>(&config.config)
+                let parsed_rollout_config: Result<RolloutConfig, _> =
+                    config.config.parse_struct("RolloutConfig");
+                let mut execution_result = parsed_rollout_config
                     .map(RolloutExecutionResult::from)
                     .map_err(|err| {
                         logger::error!(
                             error = ?err,
-                            config = %config.config,
                             "Failed to parse rollout config as JSON. Defaulting to not execute."
                         );
                         RolloutExecutionResult::default()
                     })
-                    .unwrap_or_default());
+                    .unwrap_or_default();
+                if execution_result.should_execute {
+                    execution_result.proxy_override = build_rollout_proxy_override(state);
+                }
+                return Ok(execution_result);
             }
             None => {
                 // Unexpected DB error — skip and try next key
@@ -8210,7 +8218,30 @@ pub fn validate_payment_link_request(
             message: "return_url must be sent while creating a payment link".to_string(),
         });
     }
-    Ok(())
+
+    #[cfg(feature = "v1")]
+    let redirect_delay = request
+        .payment_link_config
+        .as_ref()
+        .and_then(|config| config.theme_config.redirect_delay_seconds);
+
+    #[cfg(feature = "v2")]
+    let redirect_delay = request
+        .payment_link_config
+        .as_ref()
+        .and_then(|config| config.redirect_delay_seconds);
+
+    redirect_delay
+        .filter(|&delay| delay > common_utils::consts::MAX_PAYMENT_LINK_REDIRECT_DELAY_SECONDS)
+        .map(|_| {
+            Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: format!(
+                    "redirect_delay_seconds must not exceed {} seconds",
+                    common_utils::consts::MAX_PAYMENT_LINK_REDIRECT_DELAY_SECONDS
+                ),
+            })
+        })
+        .unwrap_or(Ok(()))
 }
 
 /// Creates a lookup key for issuer error codes with network and code

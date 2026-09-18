@@ -7969,6 +7969,7 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
             color_icon_card_cvc_error: config.color_icon_card_cvc_error,
             show_merchant_name: config.show_merchant_name,
             payment_methods_separator_text: config.payment_methods_separator_text,
+            redirect_delay_seconds: config.redirect_delay_seconds,
         }
     }
 }
@@ -8048,6 +8049,7 @@ impl ForeignFrom<diesel_models::PaymentLinkConfigRequestForPayments>
             color_icon_card_cvc_error: config.color_icon_card_cvc_error,
             show_merchant_name: config.show_merchant_name,
             payment_methods_separator_text: config.payment_methods_separator_text,
+            redirect_delay_seconds: config.redirect_delay_seconds,
         }
     }
 }
