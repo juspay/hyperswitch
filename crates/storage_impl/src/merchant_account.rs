@@ -933,6 +933,8 @@ impl ForeignFrom<domain::MerchantAccountUpdate> for MerchantAccountUpdateInterna
                 network_tokenization_credentials: network_tokenization_credentials
                     .map(Encryption::from),
                 offer_engine_config: offer_engine_config.map(Encryption::from),
+                apple_pay_certificates: None,
+                apple_pay_certificates_encrypted: None,
             },
             domain::MerchantAccountUpdate::StorageSchemeUpdate { storage_scheme } => Self {
                 storage_scheme: Some(storage_scheme),
@@ -964,6 +966,8 @@ impl ForeignFrom<domain::MerchantAccountUpdate> for MerchantAccountUpdateInterna
                 product_type: None,
                 network_tokenization_credentials: None,
                 offer_engine_config: None,
+                apple_pay_certificates: None,
+                apple_pay_certificates_encrypted: None,
             },
             domain::MerchantAccountUpdate::ReconUpdate { recon_status } => Self {
                 recon_status: Some(recon_status),
@@ -995,6 +999,8 @@ impl ForeignFrom<domain::MerchantAccountUpdate> for MerchantAccountUpdateInterna
                 product_type: None,
                 network_tokenization_credentials: None,
                 offer_engine_config: None,
+                apple_pay_certificates: None,
+                apple_pay_certificates_encrypted: None,
             },
             domain::MerchantAccountUpdate::UnsetDefaultProfile => Self {
                 default_profile: Some(None),
@@ -1026,6 +1032,8 @@ impl ForeignFrom<domain::MerchantAccountUpdate> for MerchantAccountUpdateInterna
                 product_type: None,
                 network_tokenization_credentials: None,
                 offer_engine_config: None,
+                apple_pay_certificates: None,
+                apple_pay_certificates_encrypted: None,
             },
             domain::MerchantAccountUpdate::ModifiedAtUpdate => Self {
                 modified_at: now,
@@ -1057,6 +1065,44 @@ impl ForeignFrom<domain::MerchantAccountUpdate> for MerchantAccountUpdateInterna
                 product_type: None,
                 network_tokenization_credentials: None,
                 offer_engine_config: None,
+                apple_pay_certificates: None,
+                apple_pay_certificates_encrypted: None,
+            },
+            domain::MerchantAccountUpdate::ApplePayCertificateCacheUpdate {
+                apple_pay_certificates,
+                apple_pay_certificates_encrypted,
+            } => Self {
+                modified_at: now,
+                merchant_name: None,
+                merchant_details: None,
+                return_url: None,
+                webhook_details: None,
+                sub_merchants_enabled: None,
+                parent_merchant_id: None,
+                enable_payment_response_hash: None,
+                payment_response_hash_key: None,
+                redirect_to_merchant_with_http_post: None,
+                publishable_key: None,
+                storage_scheme: None,
+                locker_id: None,
+                metadata: None,
+                routing_algorithm: None,
+                primary_business_details: None,
+                intent_fulfillment_time: None,
+                frm_routing_algorithm: None,
+                payout_routing_algorithm: None,
+                organization_id: None,
+                is_recon_enabled: None,
+                default_profile: None,
+                recon_status: None,
+                payment_link_config: None,
+                pm_collect_link_config: None,
+                is_platform_account: None,
+                product_type: None,
+                network_tokenization_credentials: None,
+                offer_engine_config: None,
+                apple_pay_certificates,
+                apple_pay_certificates_encrypted,
             },
         }
     }
@@ -1084,6 +1130,8 @@ impl ForeignFrom<domain::MerchantAccountUpdate> for MerchantAccountUpdateInterna
                 recon_status: None,
                 is_platform_account: None,
                 product_type: None,
+                apple_pay_certificates: None,
+                apple_pay_certificates_encrypted: None,
             },
             domain::MerchantAccountUpdate::StorageSchemeUpdate { storage_scheme } => Self {
                 storage_scheme: Some(storage_scheme),
@@ -1096,6 +1144,8 @@ impl ForeignFrom<domain::MerchantAccountUpdate> for MerchantAccountUpdateInterna
                 recon_status: None,
                 is_platform_account: None,
                 product_type: None,
+                apple_pay_certificates: None,
+                apple_pay_certificates_encrypted: None,
             },
             domain::MerchantAccountUpdate::ReconUpdate { recon_status } => Self {
                 recon_status: Some(recon_status),
@@ -1108,6 +1158,8 @@ impl ForeignFrom<domain::MerchantAccountUpdate> for MerchantAccountUpdateInterna
                 organization_id: None,
                 is_platform_account: None,
                 product_type: None,
+                apple_pay_certificates: None,
+                apple_pay_certificates_encrypted: None,
             },
             domain::MerchantAccountUpdate::ModifiedAtUpdate => Self {
                 modified_at: now,
@@ -1120,6 +1172,25 @@ impl ForeignFrom<domain::MerchantAccountUpdate> for MerchantAccountUpdateInterna
                 recon_status: None,
                 is_platform_account: None,
                 product_type: None,
+                apple_pay_certificates: None,
+                apple_pay_certificates_encrypted: None,
+            },
+            domain::MerchantAccountUpdate::ApplePayCertificateCacheUpdate {
+                apple_pay_certificates,
+                apple_pay_certificates_encrypted,
+            } => Self {
+                modified_at: now,
+                merchant_name: None,
+                merchant_details: None,
+                publishable_key: None,
+                storage_scheme: None,
+                metadata: None,
+                organization_id: None,
+                recon_status: None,
+                is_platform_account: None,
+                product_type: None,
+                apple_pay_certificates,
+                apple_pay_certificates_encrypted,
             },
         }
     }
@@ -1389,6 +1460,21 @@ impl Conversion for domain::MerchantAccount {
                     fingerprint_secret: item.fingerprint_secret,
                     offer_engine_config: item
                         .offer_engine_config
+                        .async_lift(|inner| async {
+                            crypto_operation(
+                                state,
+                                type_name!(Self::DstType),
+                                CryptoOperation::DecryptOptional(inner),
+                                key_manager_identifier.clone(),
+                                key.peek(),
+                            )
+                            .await
+                            .and_then(|val| val.try_into_optionaloperation())
+                        })
+                        .await?,
+                    apple_pay_certificates: item.apple_pay_certificates,
+                    apple_pay_certificates_encrypted: item
+                        .apple_pay_certificates_encrypted
                         .async_lift(|inner| async {
                             crypto_operation(
                                 state,

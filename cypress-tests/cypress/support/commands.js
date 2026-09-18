@@ -107,6 +107,12 @@ function supportsSplitPayments(globalState) {
   );
 }
 
+function shouldAssertAuthCode(globalState) {
+  return CONNECTOR_LISTS.INCLUDE.AUTH_CODE.includes(
+    globalState.get("connectorId")
+  );
+}
+
 function updateConnectorState(globalState, responseConnector) {
   if (isAliasedConnector(globalState)) {
     const originalConnectorId = getOriginalConnectorId(globalState);
@@ -3496,7 +3502,7 @@ Cypress.Commands.add(
               for (const key in resData.body) {
                 if (
                   key === "payment_method_data" &&
-                  globalState.get("connectorId") === "checkout"
+                  shouldAssertAuthCode(globalState)
                 ) {
                   expect(response.body[key], [key]).to.not.be.empty;
                   expect(
@@ -3535,13 +3541,20 @@ Cypress.Commands.add(
               for (const key in resData.body) {
                 if (
                   key === "payment_method_data" &&
-                  globalState.get("connectorId") === "checkout"
+                  shouldAssertAuthCode(globalState)
                 ) {
                   expect(response.body[key], [key]).to.not.be.empty;
                   expect(
                     response.body[key]?.card?.auth_code,
                     "payment_method_data.card.auth_code"
                   ).to.be.a("string").and.not.be.empty;
+                } else if (key === "payment_account_reference") {
+                  if (resData.body[key] === null) {
+                    expect(response.body[key], [key]).to.be.null;
+                  } else {
+                    expect(response.body[key], [key]).to.be.a("string").and.not
+                      .be.empty;
+                  }
                 } else {
                   expect(resData.body[key], [key]).to.deep.equal(
                     response.body[key]
@@ -3604,7 +3617,7 @@ Cypress.Commands.add(
               for (const key in resData.body) {
                 if (
                   key === "payment_method_data" &&
-                  globalState.get("connectorId") === "checkout"
+                  shouldAssertAuthCode(globalState)
                 ) {
                   expect(response.body[key], [key]).to.not.be.empty;
                   expect(
@@ -3632,13 +3645,20 @@ Cypress.Commands.add(
               for (const key in resData.body) {
                 if (
                   key === "payment_method_data" &&
-                  globalState.get("connectorId") === "checkout"
+                  shouldAssertAuthCode(globalState)
                 ) {
                   expect(response.body[key], [key]).to.not.be.empty;
                   expect(
                     response.body[key]?.card?.auth_code,
                     "payment_method_data.card.auth_code"
                   ).to.be.a("string").and.not.be.empty;
+                } else if (key === "payment_account_reference") {
+                  if (resData.body[key] === null) {
+                    expect(response.body[key], [key]).to.be.null;
+                  } else {
+                    expect(response.body[key], [key]).to.be.a("string").and.not
+                      .be.empty;
+                  }
                 } else {
                   expect(resData.body[key], [key]).to.deep.equal(
                     response.body[key]
@@ -4368,7 +4388,7 @@ Cypress.Commands.add(
               for (const key in resData.body) {
                 if (
                   key === "payment_method_data" &&
-                  globalState.get("connectorId") === "checkout"
+                  shouldAssertAuthCode(globalState)
                 ) {
                   expect(response.body[key], [key]).to.not.be.empty;
                   expect(
@@ -4385,13 +4405,20 @@ Cypress.Commands.add(
               for (const key in resData.body) {
                 if (
                   key === "payment_method_data" &&
-                  globalState.get("connectorId") === "checkout"
+                  shouldAssertAuthCode(globalState)
                 ) {
                   expect(response.body[key], [key]).to.not.be.empty;
                   expect(
                     response.body[key]?.card?.auth_code,
                     "payment_method_data.card.auth_code"
                   ).to.be.a("string").and.not.be.empty;
+                } else if (key === "payment_account_reference") {
+                  if (resData.body[key] === null) {
+                    expect(response.body[key], [key]).to.be.null;
+                  } else {
+                    expect(response.body[key], [key]).to.be.a("string").and.not
+                      .be.empty;
+                  }
                 } else {
                   expect(resData.body[key], [key]).to.deep.equal(
                     response.body[key]
@@ -4435,7 +4462,7 @@ Cypress.Commands.add(
               for (const key in resData.body) {
                 if (
                   key === "payment_method_data" &&
-                  globalState.get("connectorId") === "checkout"
+                  shouldAssertAuthCode(globalState)
                 ) {
                   expect(response.body[key], [key]).to.not.be.empty;
                   expect(
@@ -4452,13 +4479,20 @@ Cypress.Commands.add(
               for (const key in resData.body) {
                 if (
                   key === "payment_method_data" &&
-                  globalState.get("connectorId") === "checkout"
+                  shouldAssertAuthCode(globalState)
                 ) {
                   expect(response.body[key], [key]).to.not.be.empty;
                   expect(
                     response.body[key]?.card?.auth_code,
                     "payment_method_data.card.auth_code"
                   ).to.be.a("string").and.not.be.empty;
+                } else if (key === "payment_account_reference") {
+                  if (resData.body[key] === null) {
+                    expect(response.body[key], [key]).to.be.null;
+                  } else {
+                    expect(response.body[key], [key]).to.be.a("string").and.not
+                      .be.empty;
+                  }
                 } else {
                   expect(resData.body[key], [key]).to.deep.equal(
                     response.body[key]
@@ -4584,7 +4618,7 @@ Cypress.Commands.add(
               for (const key in resData.body) {
                 if (
                   key === "payment_method_data" &&
-                  globalState.get("connectorId") === "checkout"
+                  shouldAssertAuthCode(globalState)
                 ) {
                   expect(response.body[key], [key]).to.not.be.empty;
                   expect(
@@ -4644,7 +4678,7 @@ Cypress.Commands.add(
               for (const key in resData.body) {
                 if (
                   key === "payment_method_data" &&
-                  globalState.get("connectorId") === "checkout"
+                  shouldAssertAuthCode(globalState)
                 ) {
                   expect(response.body[key], [key]).to.not.be.empty;
                   expect(
@@ -4724,13 +4758,20 @@ Cypress.Commands.add(
           for (const key in resData.body) {
             if (
               key === "payment_method_data" &&
-              globalState.get("connectorId") === "checkout"
+              shouldAssertAuthCode(globalState)
             ) {
               expect(response.body[key], [key]).to.not.be.empty;
               expect(
                 response.body[key]?.card?.auth_code,
                 "payment_method_data.card.auth_code"
               ).to.be.a("string").and.not.be.empty;
+            } else if (key === "payment_account_reference") {
+              if (resData.body[key] === null) {
+                expect(response.body[key], [key]).to.be.null;
+              } else {
+                expect(response.body[key], [key]).to.be.a("string").and.not.be
+                  .empty;
+              }
             } else {
               expect(resData.body[key], [key]).to.equal(response.body[key]);
             }
@@ -4857,7 +4898,7 @@ Cypress.Commands.add(
     connectedMerchantId,
     unconfirmedPayment = false,
   }) => {
-    const { Configs: configs = {} } = data || {};
+    const { Configs: configs = {}, Response: resData = {} } = data || {};
 
     const configInfo = execConfig(validateConfig(configs));
     const payment_id = globalState.get("paymentID");
@@ -4898,6 +4939,41 @@ Cypress.Commands.add(
             expect(response.body.billing, "billing_address").to.not.be.null;
           }
           expect(response.body.customer, "customer").to.not.be.empty;
+
+          if (
+            resData.body &&
+            Object.prototype.hasOwnProperty.call(
+              resData.body,
+              "payment_account_reference"
+            )
+          ) {
+            if (resData.body.payment_account_reference === null) {
+              expect(
+                response.body.payment_account_reference,
+                "payment_account_reference"
+              ).to.be.null;
+            } else {
+              expect(
+                response.body.payment_account_reference,
+                "payment_account_reference"
+              ).to.be.a("string").and.to.not.be.empty;
+            }
+          }
+
+          if (
+            resData.body &&
+            Object.prototype.hasOwnProperty.call(
+              resData.body,
+              "payment_method_data"
+            ) &&
+            shouldAssertAuthCode(globalState)
+          ) {
+            expect(response.body.payment_method_data, "payment_method_data").to
+              .not.be.empty;
+            // auth_code is populated only in the authorize/confirm response from
+            // the connector response; it is not returned in subsequent
+            // retrieve (GET /payments) responses, so skip asserting it here.
+          }
 
           if (expectedIntentStatus) {
             expect(
@@ -5279,15 +5355,7 @@ Cypress.Commands.add(
 
 Cypress.Commands.add(
   "citForMandatesCallTest",
-  (
-    requestBody,
-    data,
-    amount,
-    confirm,
-    capture_method,
-    payment_type,
-    globalState
-  ) => {
+  (requestBody, data, confirm, capture_method, payment_type, globalState) => {
     const {
       Configs: configs = {},
       Request: reqData,
@@ -5316,7 +5384,6 @@ Cypress.Commands.add(
         requestBody[key] = reqData[key];
       }
     }
-    requestBody.amount = amount;
     requestBody.capture_method = capture_method;
     requestBody.confirm = confirm;
     requestBody.customer_id = globalState.get("customerId");
@@ -5407,7 +5474,14 @@ Cypress.Commands.add(
             if (response.body.authentication_type === "three_ds") {
               if (response.body.status !== "succeeded") {
                 let nextActionUrl = null;
-                if (response.body.next_action.type === "invoke_ddc") {
+                if (
+                  response.body.status === "failed" ||
+                  !response.body.next_action
+                ) {
+                  cy.log(
+                    `No next_action to handle for payment status: ${response.body.status} — verifying expected error against resData.body below`
+                  );
+                } else if (response.body.next_action.type === "invoke_ddc") {
                   expect(response.body.next_action)
                     .to.have.property("type")
                     .to.equal("invoke_ddc");
@@ -5433,7 +5507,7 @@ Cypress.Commands.add(
               for (const key in resData.body) {
                 if (
                   key === "payment_method_data" &&
-                  globalState.get("connectorId") === "checkout"
+                  shouldAssertAuthCode(globalState)
                 ) {
                   expect(response.body[key], [key]).to.not.be.empty;
                   expect(
@@ -5491,7 +5565,14 @@ Cypress.Commands.add(
             if (response.body.authentication_type === "three_ds") {
               if (response.body.status !== "succeeded") {
                 let nextActionUrl = null;
-                if (response.body.next_action.type === "invoke_ddc") {
+                if (
+                  response.body.status === "failed" ||
+                  !response.body.next_action
+                ) {
+                  cy.log(
+                    `No next_action to handle for payment status: ${response.body.status} — verifying expected error against resData.body below`
+                  );
+                } else if (response.body.next_action.type === "invoke_ddc") {
                   expect(response.body.next_action)
                     .to.have.property("type")
                     .to.equal("invoke_ddc");
@@ -5517,7 +5598,7 @@ Cypress.Commands.add(
               for (const key in resData.body) {
                 if (
                   key === "payment_method_data" &&
-                  globalState.get("connectorId") === "checkout"
+                  shouldAssertAuthCode(globalState)
                 ) {
                   expect(response.body[key], [key]).to.not.be.empty;
                   expect(
@@ -5592,7 +5673,7 @@ Cypress.Commands.add(
 
 Cypress.Commands.add(
   "mitForMandatesCallTest",
-  (requestBody, data, amount, confirm, capture_method, globalState) => {
+  (requestBody, data, confirm, capture_method, globalState) => {
     // Skip if no mandate_id was created — the router only sets one when
     // the connector genuinely supports mandates (payment_response.rs).
     if (!globalState.get("mandateId")) {
@@ -5622,7 +5703,6 @@ Cypress.Commands.add(
       `${configInfo.merchantConnectorPrefix}Id`
     );
 
-    requestBody.amount = amount;
     requestBody.confirm = confirm;
     requestBody.capture_method = capture_method;
     requestBody.customer_id = globalState.get("customerId");
@@ -5820,7 +5900,6 @@ Cypress.Commands.add(
   (
     requestBody,
     data,
-    amount,
     confirm,
     capture_method,
     globalState,
@@ -5871,7 +5950,6 @@ Cypress.Commands.add(
       requestBody[key] = reqData[key];
     }
 
-    requestBody.amount = amount;
     globalState.set("paymentAmount", requestBody.amount);
     requestBody.capture_method = capture_method;
     requestBody.confirm = confirm;
@@ -6017,7 +6095,7 @@ Cypress.Commands.add(
 
 Cypress.Commands.add(
   "mitUsingNTID",
-  (requestBody, data, amount, confirm, capture_method, globalState) => {
+  (requestBody, data, confirm, capture_method, globalState) => {
     const {
       Configs: configs = {},
       Request: reqData,
@@ -6041,7 +6119,6 @@ Cypress.Commands.add(
       requestBody.recurring_details.data.network_transaction_id = ntidFromCit;
     }
 
-    requestBody.amount = amount;
     requestBody.confirm = confirm;
     requestBody.capture_method = capture_method;
     requestBody.profile_id = profileId;
