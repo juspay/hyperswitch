@@ -1913,6 +1913,8 @@ pub trait AddressDetailsData {
     fn get_combined_address_line(&self) -> Result<Secret<String>, Error>;
     fn to_state_code(&self) -> Result<Secret<String>, Error>;
     fn to_state_code_as_optional(&self) -> Result<Option<Secret<String>>, Error>;
+    fn get_billing_state_code(&self) -> Result<Secret<String>, Error>;
+    fn get_optional_billing_state_code(&self) -> Option<Secret<String>>;
     fn get_optional_city(&self) -> Option<String>;
     fn get_optional_line1(&self) -> Option<Secret<String>>;
     fn get_optional_line2(&self) -> Option<Secret<String>>;
@@ -2150,6 +2152,24 @@ impl AddressDetailsData for AddressDetails {
                 }
             })
             .transpose()
+    }
+
+    fn get_billing_state_code(&self) -> Result<Secret<String>, Error> {
+        let country = self.get_country()?;
+        let state = self.get_state()?;
+        match country {
+            api_models::enums::CountryAlpha2::US => Ok(Secret::new(
+                UsStatesAbbreviation::foreign_try_from(state.peek().to_string())?.to_string(),
+            )),
+            api_models::enums::CountryAlpha2::CA => Ok(Secret::new(
+                CanadaStatesAbbreviation::foreign_try_from(state.peek().to_string())?.to_string(),
+            )),
+            _ => Ok(state.clone()),
+        }
+    }
+
+    fn get_optional_billing_state_code(&self) -> Option<Secret<String>> {
+        self.get_billing_state_code().ok()
     }
 
     fn get_optional_city(&self) -> Option<String> {
