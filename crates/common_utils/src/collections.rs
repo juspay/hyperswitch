@@ -155,14 +155,22 @@ mod correlation {
         fn one_correlation_always_derives_the_same_keys() {
             let a = keys_from_correlation("corr-1");
             let b = keys_from_correlation("corr-1");
-            assert_eq!((a.k0, a.k1), (b.k0, b.k1), "derivation must be a pure function of the id");
+            assert_eq!(
+                (a.k0, a.k1),
+                (b.k0, b.k1),
+                "derivation must be a pure function of the id"
+            );
         }
 
         #[test]
         fn different_correlations_derive_different_keys() {
             let a = keys_from_correlation("corr-1");
             let b = keys_from_correlation("corr-2");
-            assert_ne!((a.k0, a.k1), (b.k0, b.k1), "two requests must not share an order");
+            assert_ne!(
+                (a.k0, a.k1),
+                (b.k0, b.k1),
+                "two requests must not share an order"
+            );
         }
 
         #[test]
@@ -244,7 +252,6 @@ mod seeded {
 #[cfg(feature = "deja")]
 #[cfg(feature = "deja")]
 pub use correlation::CorrelationHasher;
-
 #[cfg(feature = "deja")]
 pub use seeded::{
     seeded_map, seeded_map_from, seeded_set, seeded_set_from, DejaBuildHasher, SeededHashMap,
