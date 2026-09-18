@@ -649,7 +649,9 @@ pub enum TokenStatus {
 
 /// Enum representing the allowed intent statuses for manual status update
 /// Only Succeeded and Failed are valid transitions from Review state
-#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, Copy, PartialEq, Eq, ToSchema)]
+#[derive(
+    Debug, serde::Serialize, serde::Deserialize, Clone, Copy, PartialEq, Eq, Hash, ToSchema,
+)]
 #[serde(rename_all = "snake_case")]
 pub enum ManualUpdateIntentStatus {
     /// Transition the payment to succeeded state
@@ -667,18 +669,12 @@ pub enum ManualUpdateIntentStatus {
 }
 
 impl ManualUpdateIntentStatus {
-    /// Convert ManualUpdateIntentStatus to the corresponding IntentStatus
+    /// Convert ManualUpdateIntentStatus to the corresponding IntentStatus.
+    /// Goes via `to_attempt_status()` and the existing `AttemptStatus -> IntentStatus`
+    /// conversion, rather than hand-maintaining a second, independent mapping that could
+    /// drift out of sync with it.
     pub fn to_intent_status(self) -> IntentStatus {
-        match self {
-            Self::Succeeded => IntentStatus::Succeeded,
-            Self::Failed => IntentStatus::Failed,
-            Self::PartiallyCaptured => IntentStatus::PartiallyCaptured,
-            Self::RequiresCapture => IntentStatus::RequiresCapture,
-            Self::PartiallyAuthorizedAndRequiresCapture => {
-                IntentStatus::PartiallyAuthorizedAndRequiresCapture
-            }
-            Self::PartiallyCapturedAndCapturable => IntentStatus::PartiallyCapturedAndCapturable,
-        }
+        self.to_attempt_status().into()
     }
 
     /// Convert ManualUpdateIntentStatus to the corresponding AttemptStatus

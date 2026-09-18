@@ -11940,7 +11940,7 @@ pub struct PaymentsManualStatusUpdateEligibleStatusesResponse {
     pub payment_id: id_type::PaymentId,
     /// The statuses that a manual status update for this payment may currently target,
     /// computed from the payment's capture method and requested/received/capturable amounts.
-    pub eligible_statuses: Vec<enums::ManualUpdateIntentStatus>,
+    pub eligible_statuses: HashSet<enums::ManualUpdateIntentStatus>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema, SmithyModel)]

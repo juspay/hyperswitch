@@ -14154,57 +14154,55 @@ pub async fn payments_manual_update(
 fn get_eligible_manual_update_statuses(
     payment_intent: &storage::PaymentIntent,
     payment_attempt: &storage::PaymentAttempt,
-) -> Vec<enums::ManualUpdateIntentStatus> {
-    use enums::ManualUpdateIntentStatus as Status;
-
+) -> HashSet<enums::ManualUpdateIntentStatus> {
     let amount_requested = payment_attempt.net_amount.get_total_amount();
     let amount_received = payment_intent.amount_captured;
     let amount_capturable = payment_attempt.amount_capturable;
 
-    match payment_attempt.capture_method.unwrap_or_default() {
+    // `Failed` is always a valid target alongside whichever single status the payment's
+    // capture method and amounts point to below, so it's factored out here instead of
+    // repeating it in every match arm.
+    let mut eligible_statuses = HashSet::from([enums::ManualUpdateIntentStatus::Failed]);
+
+    let non_failed_status = match payment_attempt.capture_method.unwrap_or_default() {
         // Scheduled behaves like Automatic capture for this purpose.
         enums::CaptureMethod::Automatic | enums::CaptureMethod::Scheduled => {
             match amount_received {
                 Some(received) if received < amount_requested => {
-                    vec![Status::PartiallyCaptured, Status::Failed]
+                    enums::ManualUpdateIntentStatus::PartiallyCaptured
                 }
                 // Received == requested, received > requested (overcapture), or unknown.
-                _ => vec![Status::Succeeded, Status::Failed],
+                _ => enums::ManualUpdateIntentStatus::Succeeded,
             }
         }
         enums::CaptureMethod::Manual | enums::CaptureMethod::SequentialAutomatic => {
             match amount_received {
                 // if amount_received is None and amount authorized (capturable) is less than amount requested to be authorized, then the payment is partially authorized and requires capture.
                 None if amount_capturable < amount_requested => {
-                    vec![
-                        Status::PartiallyAuthorizedAndRequiresCapture,
-                        Status::Failed,
-                    ]
+                    enums::ManualUpdateIntentStatus::PartiallyAuthorizedAndRequiresCapture
                 }
-                None => vec![Status::RequiresCapture, Status::Failed],
+                None => enums::ManualUpdateIntentStatus::RequiresCapture,
                 // In case of Capture of the authorized payment
                 Some(received) if received < amount_requested => {
-                    vec![Status::PartiallyCaptured, Status::Failed]
+                    enums::ManualUpdateIntentStatus::PartiallyCaptured
                 }
-                Some(_) => vec![Status::Succeeded, Status::Failed],
+                Some(_) => enums::ManualUpdateIntentStatus::Succeeded,
             }
         }
         enums::CaptureMethod::ManualMultiple => match amount_received {
             None if amount_capturable < amount_requested => {
-                vec![
-                    Status::PartiallyAuthorizedAndRequiresCapture,
-                    Status::Failed,
-                ]
+                enums::ManualUpdateIntentStatus::PartiallyAuthorizedAndRequiresCapture
             }
-            None => vec![Status::RequiresCapture, Status::Failed],
+            None => enums::ManualUpdateIntentStatus::RequiresCapture,
             Some(_) if amount_capturable == MinorUnit::zero() => {
-                vec![Status::Succeeded, Status::Failed]
+                enums::ManualUpdateIntentStatus::Succeeded
             }
-            Some(_) => {
-                vec![Status::PartiallyCapturedAndCapturable, Status::Failed]
-            }
+            Some(_) => enums::ManualUpdateIntentStatus::PartiallyCapturedAndCapturable,
         },
-    }
+    };
+
+    eligible_statuses.insert(non_failed_status);
+    eligible_statuses
 }
 
 #[cfg(all(feature = "olap", feature = "v1"))]
