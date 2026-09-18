@@ -1988,7 +1988,8 @@ impl UcsTransportFailure {
 }
 
 impl UnifiedConnectorServiceError {
-    /// Client-side transport failure detail, present only when the request never reached UCS.
+    /// Client-side transport failure detail, present only when the status was produced by the
+    /// router's own transport rather than returned by UCS.
     pub fn transport_failure(&self) -> Option<&UcsTransportFailure> {
         match self {
             Self::TonicStatus {
