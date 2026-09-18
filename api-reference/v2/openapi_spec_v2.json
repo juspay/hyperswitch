@@ -22902,6 +22902,13 @@
             "type": "string",
             "description": "Custom text for the separator shown between wallet and card payment method sections",
             "nullable": true
+          },
+          "redirect_delay_seconds": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Duration in seconds before the status page auto-redirects to the return URL.\nSet to 0 to disable auto-redirect. Maximum value is 900 seconds. Defaults to 5 seconds.",
+            "nullable": true,
+            "minimum": 0
           }
         }
       },
@@ -23097,6 +23104,15 @@
             "example": "Or pay with",
             "nullable": true,
             "maxLength": 64
+          },
+          "redirect_delay_seconds": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Duration in seconds before the status page auto-redirects to the return URL.\nSet to 0 to disable auto-redirect. Maximum value is 900 seconds. Defaults to 5 seconds.",
+            "example": 10,
+            "nullable": true,
+            "maximum": 900,
+            "minimum": 0
           }
         }
       },
@@ -25070,6 +25086,14 @@
             "nullable": true
           }
         }
+      },
+      "PaymentProcessingDetailInputType": {
+        "type": "string",
+        "description": "Specifies how the Apple Pay payment processing details are supplied.",
+        "enum": [
+          "raw",
+          "link_hierarchical_resource"
+        ]
       },
       "PaymentProcessingDetails": {
         "type": "object",
@@ -33436,6 +33460,14 @@
                 "allOf": [
                   {
                     "$ref": "#/components/schemas/CountryAlpha2"
+                  }
+                ],
+                "nullable": true
+              },
+              "payment_processing_detail_input_type": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/PaymentProcessingDetailInputType"
                   }
                 ],
                 "nullable": true
