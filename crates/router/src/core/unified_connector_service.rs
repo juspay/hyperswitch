@@ -3869,16 +3869,17 @@ where
                     "error": error.to_string(),
                     "error_type": "ucs_call_failed"
                 });
-                // Client-side transport failures never reach UCS; record the coarse class so the
-                // connector event alone says whether the connection was reset, closed, refused or
-                // unresolvable. The full source chain stays in the router log line.
+                // The status was produced by the router's own transport rather than returned by
+                // UCS. Record the coarse class on the event, and the full source chain in the log:
+                // the chain carries the h2 reason and initiator, which is the only thing that says
+                // whether the request was ever written or the stream failed after UCS had it.
                 if let Some(transport) = error.current_context().transport_failure() {
                     error_body["transport_failure_class"] =
                         serde_json::Value::from(transport.class.as_str());
                     logger::error!(
                         transport_failure_class = transport.class.as_str(),
                         transport_error_chain = %transport.source_chain,
-                        "ucs_call_failed: gRPC transport failure toward UCS; request never reached UCS"
+                        "ucs_call_failed: gRPC transport failure toward UCS"
                     );
                 }
                 let api_error: errors::ApiErrorResponse = error.current_context().switch();
@@ -4086,16 +4087,17 @@ where
                     "error": error.to_string(),
                     "error_type": "ucs_call_failed"
                 });
-                // Client-side transport failures never reach UCS; record the coarse class so the
-                // connector event alone says whether the connection was reset, closed, refused or
-                // unresolvable. The full source chain stays in the router log line.
+                // The status was produced by the router's own transport rather than returned by
+                // UCS. Record the coarse class on the event, and the full source chain in the log:
+                // the chain carries the h2 reason and initiator, which is the only thing that says
+                // whether the request was ever written or the stream failed after UCS had it.
                 if let Some(transport) = error.current_context().transport_failure() {
                     error_body["transport_failure_class"] =
                         serde_json::Value::from(transport.class.as_str());
                     logger::error!(
                         transport_failure_class = transport.class.as_str(),
                         transport_error_chain = %transport.source_chain,
-                        "ucs_call_failed: gRPC transport failure toward UCS; request never reached UCS"
+                        "ucs_call_failed: gRPC transport failure toward UCS"
                     );
                 }
                 (

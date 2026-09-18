@@ -2009,8 +2009,16 @@ impl UcsTransportFailure {
     /// Builds from a [`tonic::Status`].
     ///
     /// Returns `None` when the status carries no error source, which is every status UCS returns
-    /// over the wire. Only statuses produced by the local transport (dial, write, keepalive) carry
-    /// one, so a `Some` here means the request never reached UCS.
+    /// as a normal gRPC response. A `Some` means the status was produced locally by the transport,
+    /// which covers two different situations and does not by itself say the request was unsent:
+    ///
+    /// - `Code::Unknown` with an I/O source: the connection was unusable, typically before the
+    ///   request was written.
+    /// - `Code::Internal` from an HTTP/2 error: the stream was established and the request was
+    ///   sent; the failure happened while exchanging frames, so UCS may well have processed it.
+    ///
+    /// `source_chain` carries the h2 reason and initiator, which is what actually distinguishes
+    /// them; read it rather than inferring from the class.
     pub fn from_status(status: &tonic::Status) -> Option<Self> {
         let mut source: &(dyn std::error::Error + 'static) = std::error::Error::source(status)?;
         let mut parts: Vec<String> = Vec::new();
