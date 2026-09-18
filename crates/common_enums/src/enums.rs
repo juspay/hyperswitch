@@ -3450,6 +3450,7 @@ pub enum CardNetwork {
         to_string = "AmericanExpress",
         serialize = "AMEX",
         serialize = "AmEx",
+        serialize = "Amex",
         serialize = "AMERICAN EXPRESS"
     )]
     AmericanExpress,

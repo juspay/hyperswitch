@@ -1829,7 +1829,18 @@ impl PaymentAttempt {
                     )
                     .ok()
             })
-            .and_then(|data| data.get_card_network())
+            .and_then(|data| match data {
+                api_models::payments::AdditionalPaymentData::Card(additional_card_info) => {
+                    additional_card_info.card_network
+                }
+                wallet_data => wallet_data.get_wallet_card_network().and_then(|network| {
+                    common_enums::CardNetwork::from_str(network)
+                        .map_err(|err| {
+                            logger::error!("Failed to parse card network {network}: {err:?}")
+                        })
+                        .ok()
+                }),
+            })
     }
 
     pub fn get_payment_method_data(&self) -> Option<api_models::payments::AdditionalPaymentData> {
