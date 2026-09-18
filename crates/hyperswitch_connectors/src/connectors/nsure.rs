@@ -35,8 +35,8 @@ use hyperswitch_domain_models::{
 };
 #[cfg(feature = "frm")]
 use hyperswitch_interfaces::api::{
-    FraudCheck, FraudCheckCheckout, FraudCheckFulfillment, FraudCheckPayout, FraudCheckRecordReturn,
-    FraudCheckSale, FraudCheckTransaction,
+    FraudCheck, FraudCheckCheckout, FraudCheckFulfillment, FraudCheckPayout,
+    FraudCheckRecordReturn, FraudCheckSale, FraudCheckTransaction,
 };
 use hyperswitch_interfaces::{
     api::{

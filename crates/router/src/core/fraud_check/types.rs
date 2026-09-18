@@ -11,11 +11,6 @@ use api_models::{
 };
 use common_enums::{FrmSuggestion, PreFrmFailureMode};
 use common_utils::pii::SecretSerdeValue;
-use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
-    payments::{payment_attempt::PaymentAttempt, PaymentIntent},
-    router_data::PaymentMethodToken,
-};
 #[cfg(all(feature = "payouts", feature = "v1"))]
 use hyperswitch_domain_models::{
     address::Address as PayoutAddress, customer::Customer, payouts::payout_attempt::PayoutAttempt,
@@ -26,6 +21,11 @@ pub use hyperswitch_domain_models::{
         Address, Destination, FrmFulfillmentRequest, FulfillmentStatus, Fulfillments, Product,
     },
     types::OrderDetailsWithAmount,
+};
+use hyperswitch_domain_models::{
+    payment_method_data::PaymentMethodData,
+    payments::{payment_attempt::PaymentAttempt, PaymentIntent},
+    router_data::PaymentMethodToken,
 };
 #[cfg(feature = "payouts")]
 use hyperswitch_interfaces::configs::MerchantConnectorAccountType;

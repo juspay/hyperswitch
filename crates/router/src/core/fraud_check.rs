@@ -1333,7 +1333,10 @@ pub async fn notify_frm_of_chargeback(
     {
         Ok(attempt) => attempt,
         Err(error) => {
-            logger::warn!(?error, "Failed to look up the payment attempt for a chargeback");
+            logger::warn!(
+                ?error,
+                "Failed to look up the payment attempt for a chargeback"
+            );
             return;
         }
     };
