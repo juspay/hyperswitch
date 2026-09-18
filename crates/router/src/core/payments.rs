@@ -649,9 +649,9 @@ where
 /// `processing` before the caller returns the error. A tracker write failure is logged and
 /// swallowed.
 ///
-/// The attempt status is not set here. Attaching the error response is what drives it: the
-/// tracker derives the status from `response`, mapping 5xx to `Pending` and everything else
-/// to `Failure`, the same rule a connector-answered error already goes through.
+/// The attempt is marked `Failure` explicitly instead of letting the tracker derive it from
+/// the status code. The connector was never called, so the outcome is known whatever code the
+/// rejection maps to, and the recorded state cannot drift if that derivation changes.
 ///
 /// Reached once the trackers have already moved the payment to `processing`, which is where
 /// the request is built on the UCS path. The direct path builds its request earlier and
@@ -684,6 +684,7 @@ where
     let mut error_response: hyperswitch_domain_models::router_data::ErrorResponse =
         api_error.current_context().clone().into();
     error_response.status_code = status_code;
+    error_response.attempt_status = Some(enums::AttemptStatus::Failure);
     router_data.response = Err(error_response);
     router_data.connector_http_status_code = Some(status_code);
 
