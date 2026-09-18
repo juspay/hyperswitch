@@ -823,6 +823,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                         .sender_payment_instrument_id
                         .clone(),
                     payment_account_reference: payment_attempt.payment_account_reference.clone(),
+                    active_frm_id: payment_attempt.active_frm_id.clone(),
                 };
                 let payment_attempt_new = payment_attempt
                     .clone()
@@ -2169,6 +2170,7 @@ impl Conversion for PaymentAttempt {
             external_surcharge_details,
             applied_offer_details,
             payment_account_reference,
+            active_frm_id,
         } = self;
 
         let net_amount = amount_details.get_net_amount();
@@ -2283,6 +2285,7 @@ impl Conversion for PaymentAttempt {
             fingerprint_type: None,
             sender_payment_instrument_id: None,
             payment_account_reference,
+            active_frm_id,
         })
     }
 
@@ -2416,6 +2419,7 @@ impl Conversion for PaymentAttempt {
                 external_surcharge_details: storage_model.external_surcharge_details,
                 applied_offer_details: storage_model.applied_offer_details,
                 payment_account_reference: storage_model.payment_account_reference,
+                active_frm_id: storage_model.active_frm_id,
             })
         }
         .await
@@ -2488,6 +2492,7 @@ impl Conversion for PaymentAttempt {
             external_surcharge_details: _,
             applied_offer_details: _,
             payment_account_reference,
+            active_frm_id,
         } = self;
 
         let error_details = error;
@@ -2587,6 +2592,7 @@ impl Conversion for PaymentAttempt {
             external_surcharge_details: None,
             applied_offer_details: None,
             payment_account_reference,
+            active_frm_id,
         })
     }
 }
