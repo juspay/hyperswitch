@@ -645,9 +645,13 @@ where
     ))
 }
 
-/// Record a pre-call rejection as a failed attempt through the post-update tracker, so the
-/// payment leaves `processing` before the caller returns the error. A tracker write failure
-/// is logged and swallowed.
+/// Record a pre-call rejection through the post-update tracker, so the payment leaves
+/// `processing` before the caller returns the error. A tracker write failure is logged and
+/// swallowed.
+///
+/// The attempt status is not set here. Attaching the error response is what drives it: the
+/// tracker derives the status from `response`, mapping 5xx to `Pending` and everything else
+/// to `Failure`, the same rule a connector-answered error already goes through.
 ///
 /// Reached once the trackers have already moved the payment to `processing`, which is where
 /// the request is built on the UCS path. The direct path builds its request earlier and
@@ -658,7 +662,7 @@ async fn record_rejected_attempt<F, FData, D>(
     state: &SessionState,
     processor: &domain::Processor,
     payment_data: D,
-    failed_attempt_router_data: RouterData<F, FData, router_types::PaymentsResponseData>,
+    mut router_data: RouterData<F, FData, router_types::PaymentsResponseData>,
     api_error: &error_stack::Report<errors::ApiErrorResponse>,
     locale: &Option<String>,
     #[cfg(feature = "dynamic_routing")] routable_connectors: Vec<
@@ -680,9 +684,8 @@ where
     let mut error_response: hyperswitch_domain_models::router_data::ErrorResponse =
         api_error.current_context().clone().into();
     error_response.status_code = status_code;
-    let mut failed_router_data = failed_attempt_router_data;
-    failed_router_data.response = Err(error_response);
-    failed_router_data.connector_http_status_code = Some(status_code);
+    router_data.response = Err(error_response);
+    router_data.connector_http_status_code = Some(status_code);
 
     let operation = Box::new(PaymentResponse);
     if let Err(tracker_error) = operation
@@ -691,7 +694,7 @@ where
             state,
             processor,
             payment_data,
-            failed_router_data,
+            router_data,
             locale,
             #[cfg(feature = "dynamic_routing")]
             routable_connectors,
@@ -1132,8 +1135,9 @@ where
                         )
                         .await?;
 
-                    let failed_attempt_router_data =
-                        call_connector_service_response.router_data.clone();
+                    // Snapshot before `complete_connector_service` consumes it; carries the
+                    // error response if the request is rejected after the trackers commit.
+                    let pre_call_router_data = call_connector_service_response.router_data.clone();
 
                     let (router_data, mca) = match Box::pin(complete_connector_service(
                         &updated_state,
@@ -1170,7 +1174,7 @@ where
                                     state,
                                     platform.get_processor(),
                                     payment_data,
-                                    failed_attempt_router_data,
+                                    pre_call_router_data,
                                     &api_error,
                                     &locale,
                                     #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
@@ -1352,8 +1356,9 @@ where
                         )
                         .await?;
 
-                    let failed_attempt_router_data =
-                        call_connector_service_response.router_data.clone();
+                    // Snapshot before `complete_connector_service` consumes it; carries the
+                    // error response if the request is rejected after the trackers commit.
+                    let pre_call_router_data = call_connector_service_response.router_data.clone();
 
                     let (router_data, mca) = match Box::pin(complete_connector_service(
                         &updated_state,
@@ -1390,7 +1395,7 @@ where
                                     state,
                                     platform.get_processor(),
                                     payment_data,
-                                    failed_attempt_router_data,
+                                    pre_call_router_data,
                                     &api_error,
                                     &locale,
                                     #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
