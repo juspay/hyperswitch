@@ -839,13 +839,12 @@ impl ForeignTryFrom<payments_grpc::AdditionalPaymentMethodConnectorResponse>
                         }
                     };
                     common_enums::FundingSource::from_str(hs_format)
-                        .map_err(|e| {
+                        .inspect_err(|e| {
                             router_env::logger::warn!(
                                 parse_error = ?e,
                                 raw_value = %hs_format,
                                 "Failed to parse FundingSource from UCS GooglePay proto field"
                             );
-                            e
                         })
                         .ok()
                 }),
@@ -864,13 +863,12 @@ impl ForeignTryFrom<payments_grpc::AdditionalPaymentMethodConnectorResponse>
                 issuer_name: google_pay_data.issuer_name,
                 issuer_country: google_pay_data.issuer_country.and_then(|s| {
                     common_enums::CountryAlpha2::from_str(&s)
-                        .map_err(|e| {
+                        .inspect_err(|e| {
                             router_env::logger::warn!(
                                 parse_error = ?e,
                                 raw_value = %s,
                                 "Failed to parse CountryAlpha2 from UCS GooglePay proto field"
                             );
-                            e
                         })
                         .ok()
                 }),
@@ -912,26 +910,24 @@ impl ForeignTryFrom<payments_grpc::AdditionalPaymentMethodConnectorResponse>
                         }
                     };
                     common_enums::FundingSource::from_str(hs_format)
-                        .map_err(|e| {
+                        .inspect_err(|e| {
                             router_env::logger::warn!(
                                 parse_error = ?e,
                                 raw_value = %hs_format,
                                 "Failed to parse FundingSource from UCS ApplePay proto field"
                             );
-                            e
                         })
                         .ok()
                 }),
                 issuer_name: apple_pay_data.issuer_name,
                 issuer_country: apple_pay_data.issuer_country.and_then(|s| {
                     common_enums::CountryAlpha2::from_str(&s)
-                        .map_err(|e| {
+                        .inspect_err(|e| {
                             router_env::logger::warn!(
                                 parse_error = ?e,
                                 raw_value = %s,
                                 "Failed to parse CountryAlpha2 from UCS ApplePay proto field"
                             );
-                            e
                         })
                         .ok()
                 }),
