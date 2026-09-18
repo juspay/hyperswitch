@@ -1033,7 +1033,7 @@ impl
                 .tokenization
                 .map(payments_grpc::Tokenization::foreign_from)
                 .map(Into::into),
-            l2_l3_data: None,
+            l2_l3_data: build_ucs_l2_l3_data(router_data.l2_l3_data.as_deref()),
             connector_order_id: router_data
                 .request
                 .order_id
@@ -1940,6 +1940,7 @@ impl
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             description: router_data.description.clone(),
             merchant_transaction_id: None,
+            connector_order_id: None,
         })
     }
 }
@@ -2042,6 +2043,7 @@ impl
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             description: router_data.description.clone(),
             merchant_transaction_id: Some(router_data.connector_request_reference_id.clone()),
+            connector_order_id: None,
         })
     }
 }
@@ -2286,7 +2288,7 @@ impl
                 .order_id
                 .clone()
                 .or_else(|| router_data.request.connector_transaction_id.clone()),
-            l2_l3_data: None,
+            l2_l3_data: build_ucs_l2_l3_data(router_data.l2_l3_data.as_deref()),
             merchant_request_id: None,
             partner_merchant_identifier_details: None,
             // TODO: Populate currency_conversion_data when Dynamic Currency Conversion (DCC) is implemented
@@ -2699,7 +2701,7 @@ impl
             redirection_response: None,
             continue_redirection_url: None,
             connector_order_id: None,
-            l2_l3_data: None,
+            l2_l3_data: build_ucs_l2_l3_data(router_data.l2_l3_data.as_deref()),
             merchant_request_id: None,
             partner_merchant_identifier_details: None,
             // TODO: Populate currency_conversion_data when Dynamic Currency Conversion (DCC) is implemented
@@ -2864,7 +2866,7 @@ impl
                 .connector_testing_data
                 .as_ref()
                 .map(|data| Secret::new(data.peek().to_string())),
-            l2_l3_data: None,
+            l2_l3_data: build_ucs_l2_l3_data(router_data.l2_l3_data.as_deref()),
             setup_mandate_details: None,
             partner_merchant_identifier_details: router_data
                 .request
@@ -3137,7 +3139,7 @@ impl
                 .map(payments_grpc::Currency::foreign_try_from)
                 .transpose()?
                 .map(|currency| currency.into()),
-            l2_l3_data: None,
+            l2_l3_data: build_ucs_l2_l3_data(router_data.l2_l3_data.as_deref()),
             customer_document_details: to_grpc_customer_document_details(router_data),
             customer: Some(payments_grpc::Customer {
                 first_name: None,
@@ -4368,9 +4370,9 @@ impl ForeignFrom<common_enums::CardNetwork> for payments_grpc::CardNetwork {
             common_enums::CardNetwork::Pulse => Self::Pulse,
             common_enums::CardNetwork::Accel => Self::Accel,
             common_enums::CardNetwork::Nyce => Self::Nyce,
-            common_enums::CardNetwork::Prop
-            | common_enums::CardNetwork::PrivateLabel
-            | common_enums::CardNetwork::Dinacard => Self::Unspecified,
+            common_enums::CardNetwork::Prop => Self::Prop,
+            common_enums::CardNetwork::PrivateLabel => Self::PrivateLabel,
+            common_enums::CardNetwork::Dinacard => Self::Dinacard,
         }
     }
 }
@@ -4631,6 +4633,7 @@ impl transformers::ForeignTryFrom<&common_types::payments::ApplePayPaymentData>
                         ),
                         eci_indicator: decrypted_data.payment_data.eci_indicator.clone(),
                     }),
+                    merchant_token_identifier: None,
                 }))
             }
         }
