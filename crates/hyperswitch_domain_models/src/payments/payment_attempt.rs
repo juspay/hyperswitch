@@ -1829,8 +1829,18 @@ impl PaymentAttempt {
                     )
                     .ok()
             })
-            .and_then(|data| data.get_additional_card_info())
-            .and_then(|card_info| card_info.card_network)
+            .and_then(|data| match data {
+                api_models::payments::AdditionalPaymentData::Card(additional_card_info) => {
+                    additional_card_info.card_network
+                }
+                wallet_data => wallet_data.get_wallet_card_network().and_then(|network| {
+                    common_enums::CardNetwork::from_str(network)
+                        .map_err(|err| {
+                            logger::error!("Failed to parse card network {network}: {err:?}")
+                        })
+                        .ok()
+                }),
+            })
     }
 
     pub fn get_payment_method_data(&self) -> Option<api_models::payments::AdditionalPaymentData> {
@@ -3005,13 +3015,7 @@ impl behaviour::Conversion for PaymentAttempt {
 
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
         let card_network = self
-            .payment_method_data
-            .as_ref()
-            .and_then(|data| data.as_object())
-            .and_then(|card| card.get("card"))
-            .and_then(|data| data.as_object())
-            .and_then(|card| card.get("card_network"))
-            .and_then(|network| network.as_str())
+            .extract_card_network()
             .map(|network| network.to_string());
         let (connector_transaction_id, processor_transaction_data) = self
             .connector_transaction_id
@@ -3271,13 +3275,7 @@ impl behaviour::Conversion for PaymentAttempt {
 
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
         let card_network = self
-            .payment_method_data
-            .as_ref()
-            .and_then(|data| data.as_object())
-            .and_then(|card| card.get("card"))
-            .and_then(|data| data.as_object())
-            .and_then(|card| card.get("card_network"))
-            .and_then(|network| network.as_str())
+            .extract_card_network()
             .map(|network| network.to_string());
         Ok(DieselPaymentAttemptNew {
             payment_id: self.payment_id,
