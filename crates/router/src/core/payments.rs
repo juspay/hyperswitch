@@ -677,16 +677,18 @@ where
     PaymentResponse: Operation<F, FData, Data = D>,
     FData: Send + Sync + Clone + router_types::Capturable + 'static + serde::Serialize,
 {
-    let status_code = {
+    let mut error_response: hyperswitch_domain_models::router_data::ErrorResponse =
+        api_error.current_context().clone().into();
+    // `From<ApiErrorResponse>` hardcodes 500; carry the status this rejection actually
+    // returns to the merchant instead.
+    error_response.status_code = {
         use actix_web::ResponseError;
         api_error.current_context().status_code().as_u16()
     };
-    let mut error_response: hyperswitch_domain_models::router_data::ErrorResponse =
-        api_error.current_context().clone().into();
-    error_response.status_code = status_code;
     error_response.attempt_status = Some(enums::AttemptStatus::Failure);
     router_data.response = Err(error_response);
-    router_data.connector_http_status_code = Some(status_code);
+    // `connector_http_status_code` stays unset: no connector was called, so there is no
+    // connector status to report and the connector metrics must not count this.
 
     let operation = Box::new(PaymentResponse);
     if let Err(tracker_error) = operation
