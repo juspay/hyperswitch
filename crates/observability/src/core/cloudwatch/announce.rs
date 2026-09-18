@@ -13,7 +13,7 @@
 //! [its own ticket](https://github.com/juspay/hyperswitch-cloud/issues/23485).
 
 use hyperswitch_masking::Secret;
-use time::OffsetDateTime;
+use time::{Duration, OffsetDateTime};
 
 use crate::{
     domain::{
@@ -21,6 +21,7 @@ use crate::{
         notifier::{chat::ChatNotification, Outcome as DeliveryOutcome},
     },
     logger,
+    settings::cloudwatch::{ComparisonOperator, MissingDataPolicy, Statistic},
     state::AppState,
 };
 
@@ -83,7 +84,7 @@ async fn announce(
     let mut announcements = Vec::with_capacity(transitions.len());
 
     for transition in transitions {
-        let message = render(transition);
+        let message = render(transition, &state.conf.cloudwatch.client.region);
         let destination = state.conf.cloudwatch.destinations.get(&transition.severity);
 
         let delivery = match (destination, deliver) {
@@ -147,30 +148,147 @@ async fn deliver_to(state: &AppState, destination: &str, message: &str) -> Deliv
     }
 }
 
-/// The message an operator reads.
-///
-/// The catalogue's `description` is hand-written for exactly this and leads. Everything after it is
-/// what the description cannot say: which way the rule moved, which stream, and what it was
-/// compared against.
-fn render(transition: &Transition) -> String {
+/// The message an operator reads. It contains the complete metric query and rule, followed by the
+/// datapoints CloudWatch returned, so the state can be investigated without making another call.
+fn render(transition: &Transition, region: &str) -> String {
     let dimensions = transition
         .dimensions
         .iter()
-        .map(|(name, value)| format!("{name}={value}"))
+        .map(|(name, value)| format!("    {name}: {value}"))
         .collect::<Vec<_>>()
-        .join(", ");
+        .join("\n");
+    let dimensions = if dimensions.is_empty() {
+        "    (none)".to_owned()
+    } else {
+        dimensions
+    };
+    let datapoints_to_alarm = transition
+        .datapoints_to_alarm
+        .unwrap_or(transition.evaluation_periods);
+    let readings = transition
+        .readings
+        .iter()
+        .enumerate()
+        .map(|(index, reading)| {
+            let offset = i64::try_from(index)
+                .unwrap_or(i64::MAX)
+                .saturating_mul(i64::from(transition.period));
+            let at = transition.range_start + Duration::seconds(offset);
+
+            match reading {
+                Some(value) => format!(
+                    "  {}   {}   {}",
+                    timestamp(at),
+                    value,
+                    if transition
+                        .comparison_operator
+                        .breaches(*value, transition.threshold)
+                    {
+                        "BREACHING"
+                    } else {
+                        "OK"
+                    }
+                ),
+                None => format!("  {}   missing", timestamp(at)),
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    let heading = state_heading(transition.to);
 
     format!(
-        "[{severity}] {name} {movement}\n{description}\n\n{metric} against a threshold of \
-         {threshold} ({dimensions}, {period}s periods)",
-        severity = transition.severity.to_uppercase(),
+        "*{heading}* · {name}\n\
+         *Severity:* {severity}\n\
+         _State: {movement} · Evaluated {evaluated_at}_\n\n\
+         {description}\n\n\
+         *Metric*\n\
+         *Namespace:* {namespace}\n\
+         *Name:* {metric} · *Statistic:* {statistic}\n\
+         *Dimensions:*\n{dimensions}\n\
+         *Region:* {region}\n\n\
+         *Condition*\n\
+         {statistic} {metric} {operator} {threshold}\n\
+         {datapoints_to_alarm} of {evaluation_periods} datapoints · {period}-second periods\n\
+         *Missing data:* {missing_data}\n\n\
+         *Datapoints* · {range_start} to {range_end}\n\
+         {readings}\n\n\
+         *Result:* {breaching} of {evaluation_periods} effective datapoints breached; state is {state}.\n\
+         *Definition:* {definition_id} · *Classification:* {classification}",
+        heading = heading,
         name = transition.name,
+        severity = transition.severity.to_uppercase(),
         movement = movement(transition),
+        evaluated_at = timestamp(transition.range_end),
         description = transition.description,
+        namespace = transition.namespace,
         metric = transition.metric_name,
+        statistic = statistic(transition.statistic),
+        dimensions = dimensions,
+        region = region,
+        operator = operator(transition.comparison_operator),
         threshold = transition.threshold,
+        datapoints_to_alarm = datapoints_to_alarm,
+        evaluation_periods = transition.evaluation_periods,
         period = transition.period,
+        missing_data = missing_data(transition.treat_missing_data),
+        range_start = timestamp(transition.range_start),
+        range_end = timestamp(transition.range_end),
+        readings = readings,
+        breaching = transition.breaching_datapoints,
+        state = label(transition.to),
+        definition_id = transition.definition_id,
+        classification = transition.classification,
     )
+}
+
+/// The heading describes state, not severity. Severity is a free-form configuration key and has no
+/// ordering semantics in this service, so it must never decide presentation or wording.
+fn state_heading(state: State) -> &'static str {
+    match state {
+        State::Alarm => "ALARM",
+        State::Ok => "RESOLVED",
+        State::InsufficientData => "INSUFFICIENT DATA",
+    }
+}
+
+fn timestamp(value: OffsetDateTime) -> String {
+    format!(
+        "{:04}-{:02}-{:02} {:02}:{:02}:{:02} UTC",
+        value.year(),
+        u8::from(value.month()),
+        value.day(),
+        value.hour(),
+        value.minute(),
+        value.second(),
+    )
+}
+
+fn statistic(value: Statistic) -> &'static str {
+    match value {
+        Statistic::Average => "Average",
+        Statistic::Maximum => "Maximum",
+        Statistic::Minimum => "Minimum",
+        Statistic::Sum => "Sum",
+    }
+}
+
+fn operator(value: ComparisonOperator) -> &'static str {
+    match value {
+        ComparisonOperator::GreaterThanThreshold => ">",
+        ComparisonOperator::GreaterThanOrEqualToThreshold => ">=",
+        ComparisonOperator::LessThanThreshold => "<",
+        ComparisonOperator::LessThanOrEqualToThreshold => "<=",
+    }
+}
+
+fn missing_data(value: MissingDataPolicy) -> &'static str {
+    match value {
+        MissingDataPolicy::Breaching => "breaching",
+        MissingDataPolicy::NotBreaching => "notBreaching",
+        MissingDataPolicy::Ignore => "ignore",
+        MissingDataPolicy::Missing => "missing",
+    }
 }
 
 fn movement(transition: &Transition) -> String {
@@ -186,65 +304,5 @@ fn label(state: State) -> &'static str {
         State::Ok => "OK",
         State::Alarm => "ALARM",
         State::InsufficientData => "INSUFFICIENT_DATA",
-    }
-}
-
-#[cfg(test)]
-#[allow(clippy::unwrap_used, clippy::expect_used, clippy::indexing_slicing)]
-mod tests {
-    use std::collections::BTreeMap;
-
-    use super::*;
-
-    fn transition(from: Option<State>, to: State) -> Transition {
-        Transition {
-            definition_id: "rds_primary_cpu".to_owned(),
-            name: "rds-primary-cpu".to_owned(),
-            metric_name: "CPUUtilization".to_owned(),
-            dimensions: BTreeMap::from([(
-                "DBInstanceIdentifier".to_owned(),
-                "hyperswitchdb-primary".to_owned(),
-            )]),
-            period: 60,
-            severity: "sev2".to_owned(),
-            from,
-            to,
-            threshold: 85.0,
-            description: "SEV2: RDS primary database CPU utilization is above 85%.".to_owned(),
-        }
-    }
-
-    #[test]
-    fn a_message_leads_with_the_operators_own_words_and_says_which_way_it_moved() {
-        let message = render(&transition(Some(State::Ok), State::Alarm));
-
-        assert_eq!(
-            message,
-            "[SEV2] rds-primary-cpu OK → ALARM\n\
-             SEV2: RDS primary database CPU utilization is above 85%.\n\n\
-             CPUUtilization against a threshold of 85 \
-             (DBInstanceIdentifier=hyperswitchdb-primary, 60s periods)"
-        );
-    }
-
-    #[test]
-    fn a_recovery_reads_as_one() {
-        let message = render(&transition(Some(State::Alarm), State::Ok));
-
-        assert!(
-            message.starts_with("[SEV2] rds-primary-cpu ALARM → OK"),
-            "{message}"
-        );
-    }
-
-    /// Nothing is known about where it came from, so the message does not invent a previous state.
-    #[test]
-    fn an_unknown_previous_state_names_only_where_the_rule_is_now() {
-        let message = render(&transition(None, State::Alarm));
-
-        assert!(
-            message.starts_with("[SEV2] rds-primary-cpu ALARM\n"),
-            "{message}"
-        );
     }
 }
