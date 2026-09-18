@@ -805,6 +805,7 @@ impl ForeignTryFrom<payments_grpc::AdditionalPaymentMethodConnectorResponse>
                     google_pay_data,
                 ),
             ) => Ok(Self::GooglePay {
+                authentication_data: None,
                 auth_code: google_pay_data.auth_code,
                 // UCS's GooglePayConnectorResponse proto does not carry bin/issuer data yet
                 device_pan_bin: None,
@@ -821,6 +822,7 @@ impl ForeignTryFrom<payments_grpc::AdditionalPaymentMethodConnectorResponse>
                     apple_pay_data,
                 ),
             ) => Ok(Self::ApplePay {
+                authentication_data: None,
                 auth_code: apple_pay_data.auth_code,
                 // UCS's ApplePayConnectorResponse proto does not carry bin/issuer data yet
                 device_pan_bin: None,

@@ -2701,7 +2701,7 @@ impl From<api_models::payments::WalletData> for WalletData {
                 Self::GcashRedirect(GcashRedirection {})
             }
             api_models::payments::WalletData::ApplePay(apple_pay_data) => {
-                Self::ApplePay(ApplePayWalletData::from(apple_pay_data))
+                Self::ApplePay(ApplePayWalletData::from(*apple_pay_data))
             }
             api_models::payments::WalletData::ApplePayRedirect(_) => {
                 Self::ApplePayRedirect(Box::new(ApplePayRedirectData {}))

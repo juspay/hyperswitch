@@ -497,6 +497,9 @@ pub struct WalletAdditionalDataForCard {
     /// Unique authorisation code generated for the payment
     #[schema(value_type = Option<String>, example = "009825")]
     pub auth_code: Option<String>,
+    /// Authentication details reported by the connector.
+    #[smithy(value_type = "Option<Object>")]
+    pub authentication_data: Option<serde_json::Value>,
     /// Email address associated with the wallet (e.g. PayPal email)
     #[schema(value_type = Option<String>, example = "johntest@test.com")]
     pub email: Option<common_utils::pii::Email>,
