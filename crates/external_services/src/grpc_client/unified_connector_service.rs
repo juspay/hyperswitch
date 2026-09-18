@@ -81,17 +81,17 @@ pub struct UnifiedConnectorServiceClientConfig {
     pub request_timeout: UcsRequestTimeoutInSeconds,
 
     /// HTTP/2 PING keepalive interval (seconds) on the shared channel. PINGs are sent while idle.
-    #[serde(default = "default_ucs_keep_alive_interval_secs")]
-    pub keep_alive_interval_secs: u64,
+    #[serde(default)]
+    pub keep_alive_interval: UcsKeepAliveIntervalInSeconds,
 
     /// Time (seconds) to wait for a keepalive PING acknowledgement before the connection is
     /// treated as dead and re-established.
-    #[serde(default = "default_ucs_keep_alive_timeout_secs")]
-    pub keep_alive_timeout_secs: u64,
+    #[serde(default)]
+    pub keep_alive_timeout: UcsKeepAliveTimeoutInSeconds,
 
     /// TCP keepalive idle time (seconds) on the shared channel.
-    #[serde(default = "default_ucs_tcp_keepalive_secs")]
-    pub tcp_keepalive_secs: u64,
+    #[serde(default)]
+    pub tcp_keepalive: UcsTcpKeepAliveInSeconds,
 
     /// Set of external services/connectors available for the unified connector service
     #[serde(default, deserialize_with = "deserialize_hashset")]
@@ -125,6 +125,57 @@ impl Default for UcsRequestTimeoutInSeconds {
 
 impl UcsRequestTimeoutInSeconds {
     /// Return the timeout as a [`Duration`].
+    pub fn as_duration(self) -> Duration {
+        Duration::from_secs(self.0)
+    }
+}
+
+/// HTTP/2 PING keepalive interval for the Unified Connector Service channel, in seconds.
+#[derive(Debug, Clone, Copy, serde::Deserialize, serde::Serialize)]
+pub struct UcsKeepAliveIntervalInSeconds(u64);
+
+impl Default for UcsKeepAliveIntervalInSeconds {
+    fn default() -> Self {
+        Self(consts::DEFAULT_UCS_KEEP_ALIVE_INTERVAL_SECS)
+    }
+}
+
+impl UcsKeepAliveIntervalInSeconds {
+    /// Return the interval as a [`Duration`].
+    pub fn as_duration(self) -> Duration {
+        Duration::from_secs(self.0)
+    }
+}
+
+/// Keepalive PING acknowledgement timeout for the Unified Connector Service channel, in seconds.
+#[derive(Debug, Clone, Copy, serde::Deserialize, serde::Serialize)]
+pub struct UcsKeepAliveTimeoutInSeconds(u64);
+
+impl Default for UcsKeepAliveTimeoutInSeconds {
+    fn default() -> Self {
+        Self(consts::DEFAULT_UCS_KEEP_ALIVE_TIMEOUT_SECS)
+    }
+}
+
+impl UcsKeepAliveTimeoutInSeconds {
+    /// Return the timeout as a [`Duration`].
+    pub fn as_duration(self) -> Duration {
+        Duration::from_secs(self.0)
+    }
+}
+
+/// TCP keepalive idle time for the Unified Connector Service channel, in seconds.
+#[derive(Debug, Clone, Copy, serde::Deserialize, serde::Serialize)]
+pub struct UcsTcpKeepAliveInSeconds(u64);
+
+impl Default for UcsTcpKeepAliveInSeconds {
+    fn default() -> Self {
+        Self(consts::DEFAULT_UCS_TCP_KEEPALIVE_SECS)
+    }
+}
+
+impl UcsTcpKeepAliveInSeconds {
+    /// Return the idle time as a [`Duration`].
     pub fn as_duration(self) -> Duration {
         Duration::from_secs(self.0)
     }
@@ -211,18 +262,6 @@ pub struct HyperswitchVaultMetadata {
     pub vault_auth_data: VaultConnectorAuth,
 }
 
-fn default_ucs_keep_alive_interval_secs() -> u64 {
-    consts::DEFAULT_UCS_KEEP_ALIVE_INTERVAL_SECS
-}
-
-fn default_ucs_keep_alive_timeout_secs() -> u64 {
-    consts::DEFAULT_UCS_KEEP_ALIVE_TIMEOUT_SECS
-}
-
-fn default_ucs_tcp_keepalive_secs() -> u64 {
-    consts::DEFAULT_UCS_TCP_KEEPALIVE_SECS
-}
-
 /// Failure to build the Unified Connector Service client from configuration.
 ///
 /// Fatal at startup by design: a configured UCS that cannot be set up must stop the pod from
@@ -253,10 +292,10 @@ fn build_ucs_channel(
     tonic::transport::Channel::builder(uri)
         .connect_timeout(config.connection_timeout.as_duration())
         .timeout(config.request_timeout.as_duration())
-        .http2_keep_alive_interval(Duration::from_secs(config.keep_alive_interval_secs))
-        .keep_alive_timeout(Duration::from_secs(config.keep_alive_timeout_secs))
+        .http2_keep_alive_interval(config.keep_alive_interval.as_duration())
+        .keep_alive_timeout(config.keep_alive_timeout.as_duration())
         .keep_alive_while_idle(true)
-        .tcp_keepalive(Some(Duration::from_secs(config.tcp_keepalive_secs)))
+        .tcp_keepalive(Some(config.tcp_keepalive.as_duration()))
         // A single connection now carries every UCS service client. Each previously had its own
         // default 64 KiB HTTP/2 connection window, so let hyper size the windows from measured
         // bandwidth rather than capping throughput on the shared connection.
@@ -307,9 +346,9 @@ impl UnifiedConnectorServiceClient {
         let transport: UcsChannel = channel;
 
         logger::info!(
-            keep_alive_interval_secs = ucs_config.keep_alive_interval_secs,
-            keep_alive_timeout_secs = ucs_config.keep_alive_timeout_secs,
-            tcp_keepalive_secs = ucs_config.tcp_keepalive_secs,
+            keep_alive_interval = ?ucs_config.keep_alive_interval.as_duration(),
+            keep_alive_timeout = ?ucs_config.keep_alive_timeout.as_duration(),
+            tcp_keepalive = ?ucs_config.tcp_keepalive.as_duration(),
             "Unified Connector Service clients built over one shared lazily-connected channel"
         );
 
