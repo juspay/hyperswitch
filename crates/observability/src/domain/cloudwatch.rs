@@ -6,7 +6,7 @@
 //!
 //! <https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/alarms-and-missing-data.html>
 
-use crate::settings::cloudwatch::{MissingDataPolicy, SeverityRule};
+use crate::settings::cloudwatch::{ComparisonOperator, MissingDataPolicy, SeverityRule, Statistic};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum State {
@@ -33,6 +33,15 @@ enum Reading {
 
 /// Evaluate `rule` over [`evaluation_range`] readings, oldest first.
 pub fn evaluate(rule: &SeverityRule, range: &[Option<f64>]) -> State {
+    evaluate_with_breaches(rule, range).0
+}
+
+/// Evaluate a rule and retain the number of effective breaching datapoints that led to the state.
+///
+/// "Effective" matters here: CloudWatch can pull an older real datapoint into a gap, and only then
+/// applies `treat_missing_data`. Counting the raw tail would therefore sometimes disagree with the
+/// state operators are trying to explain.
+pub fn evaluate_with_breaches(rule: &SeverityRule, range: &[Option<f64>]) -> (State, usize) {
     let window_width = usize::try_from(rule.evaluation_periods).unwrap_or(usize::MAX);
     let to_alarm = usize::try_from(rule.datapoints_to_alarm.unwrap_or(rule.evaluation_periods))
         .unwrap_or(usize::MAX);
@@ -43,13 +52,15 @@ pub fn evaluate(rule: &SeverityRule, range: &[Option<f64>]) -> State {
         .filter(|reading| **reading == Reading::Breaching)
         .count();
 
-    if breaching >= to_alarm || is_premature_alarm(&window, to_alarm) {
+    let state = if breaching >= to_alarm || is_premature_alarm(&window, to_alarm) {
         State::Alarm
     } else if window.iter().all(|reading| *reading == Reading::Absent) {
         State::InsufficientData
     } else {
         State::Ok
-    }
+    };
+
+    (state, breaching)
 }
 
 /// The `width` most recent periods. Readings older than the window are spare parts: a gap takes
@@ -384,9 +395,13 @@ pub struct Evaluation {
     pub id: String,
     pub name: String,
     pub classification: String,
+    pub namespace: String,
     pub metric_name: String,
+    pub statistic: Statistic,
     pub dimensions: std::collections::BTreeMap<String, String>,
     pub period: u32,
+    pub range_start: time::OffsetDateTime,
+    pub range_end: time::OffsetDateTime,
     pub outcome: Outcome,
 }
 
@@ -416,6 +431,11 @@ pub struct RuleState {
     pub severity: String,
     pub state: State,
     pub threshold: f64,
+    pub comparison_operator: ComparisonOperator,
+    pub evaluation_periods: u32,
+    pub datapoints_to_alarm: Option<u32>,
+    pub treat_missing_data: MissingDataPolicy,
+    pub breaching_datapoints: usize,
     pub description: String,
 }
 
@@ -431,14 +451,25 @@ pub struct Comparison {
 pub struct Transition {
     pub definition_id: String,
     pub name: String,
+    pub classification: String,
+    pub namespace: String,
     pub metric_name: String,
+    pub statistic: Statistic,
     pub dimensions: std::collections::BTreeMap<String, String>,
     pub period: u32,
+    pub range_start: time::OffsetDateTime,
+    pub range_end: time::OffsetDateTime,
+    pub readings: Vec<Option<f64>>,
     pub severity: String,
     /// What the previous evaluation said, or `None` when it could not be read.
     pub from: Option<State>,
     pub to: State,
     pub threshold: f64,
+    pub comparison_operator: ComparisonOperator,
+    pub evaluation_periods: u32,
+    pub datapoints_to_alarm: Option<u32>,
+    pub treat_missing_data: MissingDataPolicy,
+    pub breaching_datapoints: usize,
     pub description: String,
 }
 
@@ -459,7 +490,7 @@ impl Catalogue {
 
 impl Evaluation {
     fn transitions_from(&self, previous: &Catalogue) -> Vec<Transition> {
-        let Outcome::Evaluated { rules, .. } = &self.outcome else {
+        let Outcome::Evaluated { readings, rules } = &self.outcome else {
             return vec![];
         };
         let before = previous
@@ -475,7 +506,7 @@ impl Evaluation {
                 match from {
                     Some(from) if from == rule.state => None,
                     None if rule.state == State::Ok => None,
-                    _ => Some(self.transition(rule, from)),
+                    _ => Some(self.transition(rule, readings, from)),
                 }
             })
             .collect()
@@ -491,17 +522,33 @@ impl Evaluation {
         }
     }
 
-    fn transition(&self, rule: &RuleState, from: Option<State>) -> Transition {
+    fn transition(
+        &self,
+        rule: &RuleState,
+        readings: &[Option<f64>],
+        from: Option<State>,
+    ) -> Transition {
         Transition {
             definition_id: self.id.clone(),
             name: self.name.clone(),
+            classification: self.classification.clone(),
+            namespace: self.namespace.clone(),
             metric_name: self.metric_name.clone(),
+            statistic: self.statistic,
             dimensions: self.dimensions.clone(),
             period: self.period,
+            range_start: self.range_start,
+            range_end: self.range_end,
+            readings: readings.to_vec(),
             severity: rule.severity.clone(),
             from,
             to: rule.state,
             threshold: rule.threshold,
+            comparison_operator: rule.comparison_operator,
+            evaluation_periods: rule.evaluation_periods,
+            datapoints_to_alarm: rule.datapoints_to_alarm,
+            treat_missing_data: rule.treat_missing_data,
+            breaching_datapoints: rule.breaching_datapoints,
             description: rule.description.clone(),
         }
     }
@@ -517,9 +564,13 @@ mod transition_tests {
             id: id.to_owned(),
             name: id.to_owned(),
             classification: "rds-alerts".to_owned(),
+            namespace: "AWS/RDS".to_owned(),
             metric_name: "CPUUtilization".to_owned(),
+            statistic: Statistic::Average,
             dimensions: std::collections::BTreeMap::new(),
             period: 60,
+            range_start: time::OffsetDateTime::UNIX_EPOCH,
+            range_end: time::OffsetDateTime::UNIX_EPOCH,
             outcome: Outcome::Evaluated {
                 readings: vec![Some(1.0)],
                 rules: rules
@@ -528,6 +579,11 @@ mod transition_tests {
                         severity: severity.to_owned(),
                         state,
                         threshold: 90.0,
+                        comparison_operator: ComparisonOperator::GreaterThanOrEqualToThreshold,
+                        evaluation_periods: 1,
+                        datapoints_to_alarm: None,
+                        treat_missing_data: MissingDataPolicy::Missing,
+                        breaching_datapoints: usize::from(state == State::Alarm),
                         description: "SEV: something is wrong.".to_owned(),
                     })
                     .collect(),
