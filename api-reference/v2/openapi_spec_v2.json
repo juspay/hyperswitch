@@ -14270,8 +14270,7 @@
             ],
             "nullable": true
           }
-        },
-        "additionalProperties": false
+        }
       },
       "CustomerResponse": {
         "type": "object",
@@ -14468,8 +14467,7 @@
             ],
             "nullable": true
           }
-        },
-        "additionalProperties": false
+        }
       },
       "DDCData": {
         "type": "object",
@@ -23453,8 +23451,7 @@
           "storage_type": {
             "$ref": "#/components/schemas/StorageType"
           }
-        },
-        "additionalProperties": false
+        }
       },
       "PaymentMethodCreateData": {
         "oneOf": [
@@ -24128,8 +24125,7 @@
           "payment_method_subtype": {
             "$ref": "#/components/schemas/PaymentMethodType"
           }
-        },
-        "additionalProperties": false
+        }
       },
       "PaymentMethodIntentCreate": {
         "type": "object",
@@ -24157,8 +24153,7 @@
             "maxLength": 64,
             "minLength": 32
           }
-        },
-        "additionalProperties": false
+        }
       },
       "PaymentMethodIssuerCode": {
         "type": "string",
@@ -24533,8 +24528,7 @@
             "type": "boolean",
             "description": "Trigger an Account Updater check for the stored payment method."
           }
-        },
-        "additionalProperties": false
+        }
       },
       "PaymentMethodSessionConfirmRequest": {
         "type": "object",
@@ -25005,8 +24999,7 @@
             ],
             "nullable": true
           }
-        },
-        "additionalProperties": false
+        }
       },
       "PaymentMethodUpdateData": {
         "oneOf": [
