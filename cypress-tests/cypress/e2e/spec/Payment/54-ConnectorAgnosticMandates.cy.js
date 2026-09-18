@@ -22,8 +22,8 @@ const superpositionContext = () => ({
 // `should_call_pm_modular_service`; when false the SDK skips vaulting. It
 // defaults to true, so this spec has to turn it off.
 const superpositionOverrides = {
-  should_call_pm_modular_service: true,
-  should_perform_sdk_vaulting: false,
+  "system.should_call_pm_modular_service": true,
+  "vaulting.should_perform_sdk_vaulting": false,
 };
 
 // The modular payment method service is a separate deployment addressed by

@@ -927,6 +927,18 @@ boleto = { country = "BR", currency = "BRL" }
 pix_automatico_qr = { country = "BR", currency = "BRL" }
 pix_automatico_push = { country = "BR", currency = "BRL" }
 
+[pm_filters.worldpayraft]
+credit = { country = "US", currency = "USD" }
+debit = { country = "US", currency = "USD" }
+
+[pm_filters.etisalat]
+credit = { country = "AE,BH,KW,OM,QA,SA,EG", currency = "AED,BHD,KWD,OMR,QAR,SAR,EGP,USD,EUR" }
+debit = { country = "AE,BH,KW,OM,QA,SA,EG", currency = "AED,BHD,KWD,OMR,QAR,SAR,EGP,USD,EUR" }
+
+[pm_filters.merchante]
+credit = { country = "US", currency = "USD" }
+debit = { country = "US", currency = "USD" }
+
 [pm_filters.calida]
 bluecode = { country = "AT,BE,BG,HR,CY,CZ,DK,EE,FI,FR,DE,GR,HU,IE,IT,LV,LT,LU,MT,NL,PL,PT,RO,SK,SI,ES,SE,IS,LI,NO", currency = "EUR" }
 
