@@ -22902,6 +22902,13 @@
             "type": "string",
             "description": "Custom text for the separator shown between wallet and card payment method sections",
             "nullable": true
+          },
+          "redirect_delay_seconds": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Duration in seconds before the status page auto-redirects to the return URL.\nSet to 0 to disable auto-redirect. Maximum value is 900 seconds. Defaults to 5 seconds.",
+            "nullable": true,
+            "minimum": 0
           }
         }
       },
@@ -23097,6 +23104,15 @@
             "example": "Or pay with",
             "nullable": true,
             "maxLength": 64
+          },
+          "redirect_delay_seconds": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Duration in seconds before the status page auto-redirects to the return URL.\nSet to 0 to disable auto-redirect. Maximum value is 900 seconds. Defaults to 5 seconds.",
+            "example": 10,
+            "nullable": true,
+            "maximum": 900,
+            "minimum": 0
           }
         }
       },
@@ -27611,6 +27627,14 @@
             "type": "string",
             "description": "If there was an error while calling the connectors the code is received here",
             "example": "E0001",
+            "nullable": true
+          },
+          "frm_message": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FrmMessage"
+              }
+            ],
             "nullable": true
           },
           "profile_id": {

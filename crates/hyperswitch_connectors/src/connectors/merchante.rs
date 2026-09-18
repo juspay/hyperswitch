@@ -23,7 +23,8 @@ use hyperswitch_domain_models::{
         RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
-        ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods,
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
@@ -613,7 +614,61 @@ impl webhooks::IncomingWebhook for Merchante {
 }
 
 static MERCHANTE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
-    LazyLock::new(SupportedPaymentMethods::new);
+    LazyLock::new(|| {
+        let supported_capture_methods = vec![
+            enums::CaptureMethod::Automatic,
+            enums::CaptureMethod::Manual,
+        ];
+
+        let supported_card_networks = vec![
+            enums::CardNetwork::Visa,
+            enums::CardNetwork::Mastercard,
+            enums::CardNetwork::AmericanExpress,
+            enums::CardNetwork::Discover,
+        ];
+
+        let mut supported_payment_methods = SupportedPaymentMethods::new();
+
+        supported_payment_methods.add(
+            enums::PaymentMethod::Card,
+            enums::PaymentMethodType::Credit,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::Supported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: Some(
+                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card(
+                        api_models::feature_matrix::CardSpecificFeatures {
+                            three_ds: enums::FeatureStatus::NotSupported,
+                            no_three_ds: enums::FeatureStatus::Supported,
+                            supported_card_networks: supported_card_networks.clone(),
+                        },
+                    ),
+                ),
+            },
+        );
+
+        supported_payment_methods.add(
+            enums::PaymentMethod::Card,
+            enums::PaymentMethodType::Debit,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::Supported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: Some(
+                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card(
+                        api_models::feature_matrix::CardSpecificFeatures {
+                            three_ds: enums::FeatureStatus::NotSupported,
+                            no_three_ds: enums::FeatureStatus::Supported,
+                            supported_card_networks: supported_card_networks.clone(),
+                        },
+                    ),
+                ),
+            },
+        );
+
+        supported_payment_methods
+    });
 
 static MERCHANTE_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Merchante",

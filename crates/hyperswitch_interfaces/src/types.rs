@@ -601,4 +601,8 @@ pub struct ComparisonServiceConfig {
     pub enabled: bool,
     /// Timeout in seconds for comparison service requests
     pub timeout_secs: Option<u64>,
+    /// Override HTTP proxy URL used for UCS rollout proxy switching
+    pub http_url: String,
+    /// Override HTTPS proxy URL used for UCS rollout proxy switching
+    pub https_url: String,
 }

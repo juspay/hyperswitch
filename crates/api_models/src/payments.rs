@@ -4374,6 +4374,31 @@ impl AdditionalPaymentData {
             _ => None,
         }
     }
+
+    /// Wallet providers report the network as a free-form string in their own spelling.
+    pub fn get_wallet_card_network(&self) -> Option<&str> {
+        match self {
+            Self::Wallet {
+                apple_pay,
+                google_pay,
+                samsung_pay,
+                paypal: _,
+            } => apple_pay
+                .as_ref()
+                .map(|apple_pay| apple_pay.network.as_str())
+                .or_else(|| {
+                    google_pay
+                        .as_ref()
+                        .and_then(|google_pay| google_pay.card_network.as_deref())
+                })
+                .or_else(|| {
+                    samsung_pay
+                        .as_ref()
+                        .and_then(|samsung_pay| samsung_pay.card_network.as_deref())
+                }),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -13248,6 +13273,7 @@ pub struct PaymentLinkStatusDetails {
     pub unified_message: Option<String>,
     pub capture_method: Option<common_enums::CaptureMethod>,
     pub setup_future_usage_applied: Option<common_enums::FutureUsage>,
+    pub redirect_delay_seconds: Option<u32>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
