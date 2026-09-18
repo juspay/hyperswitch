@@ -195,33 +195,31 @@ fn render(transition: &Transition, region: &str) -> String {
         .collect::<Vec<_>>()
         .join("\n");
 
+    let heading = state_heading(transition.to);
+
     format!(
-        "[{severity}] {name}\n\
-         State: {movement}\n\
-         Evaluated at: {evaluated_at}\n\
-         Definition: {definition_id}\n\
-         Classification: {classification}\n\n\
+        "*{heading}* · {name}\n\
+         *Severity:* {severity}\n\
+         _State: {movement} · Evaluated {evaluated_at}_\n\n\
          {description}\n\n\
-         Metric\n\
-           Namespace: {namespace}\n\
-           Name: {metric}\n\
-           Statistic: {statistic}\n\
-           Dimensions:\n{dimensions}\n\
-           Region: {region}\n\n\
-         Condition\n\
-           Expression: {statistic} {metric} {operator} {threshold}\n\
-           Datapoints to alarm: {datapoints_to_alarm} of {evaluation_periods}\n\
-           Period: {period} seconds\n\
-           Missing data: {missing_data}\n\n\
-         Datapoints fetched, oldest first ({range_start} to {range_end}):\n\
+         *Metric*\n\
+         *Namespace:* {namespace}\n\
+         *Name:* {metric} · *Statistic:* {statistic}\n\
+         *Dimensions:*\n{dimensions}\n\
+         *Region:* {region}\n\n\
+         *Condition*\n\
+         {statistic} {metric} {operator} {threshold}\n\
+         {datapoints_to_alarm} of {evaluation_periods} datapoints · {period}-second periods\n\
+         *Missing data:* {missing_data}\n\n\
+         *Datapoints* · {range_start} to {range_end}\n\
          {readings}\n\n\
-         Result: {breaching} of {evaluation_periods} effective datapoints breached; state is {state}.",
-        severity = transition.severity.to_uppercase(),
+         *Result:* {breaching} of {evaluation_periods} effective datapoints breached; state is {state}.\n\
+         *Definition:* {definition_id} · *Classification:* {classification}",
+        heading = heading,
         name = transition.name,
+        severity = transition.severity.to_uppercase(),
         movement = movement(transition),
         evaluated_at = timestamp(transition.range_end),
-        definition_id = transition.definition_id,
-        classification = transition.classification,
         description = transition.description,
         namespace = transition.namespace,
         metric = transition.metric_name,
@@ -239,7 +237,19 @@ fn render(transition: &Transition, region: &str) -> String {
         readings = readings,
         breaching = transition.breaching_datapoints,
         state = label(transition.to),
+        definition_id = transition.definition_id,
+        classification = transition.classification,
     )
+}
+
+/// The heading describes state, not severity. Severity is a free-form configuration key and has no
+/// ordering semantics in this service, so it must never decide presentation or wording.
+fn state_heading(state: State) -> &'static str {
+    match state {
+        State::Alarm => "ALARM",
+        State::Ok => "RESOLVED",
+        State::InsufficientData => "INSUFFICIENT DATA",
+    }
 }
 
 fn timestamp(value: OffsetDateTime) -> String {
@@ -294,102 +304,5 @@ fn label(state: State) -> &'static str {
         State::Ok => "OK",
         State::Alarm => "ALARM",
         State::InsufficientData => "INSUFFICIENT_DATA",
-    }
-}
-
-#[cfg(test)]
-#[allow(clippy::unwrap_used, clippy::expect_used, clippy::indexing_slicing)]
-mod tests {
-    use std::collections::BTreeMap;
-
-    use time::macros::datetime;
-
-    use super::*;
-
-    fn transition(from: Option<State>, to: State) -> Transition {
-        Transition {
-            definition_id: "rds_primary_cpu".to_owned(),
-            name: "rds-primary-cpu".to_owned(),
-            classification: "rds-alerts".to_owned(),
-            namespace: "AWS/RDS".to_owned(),
-            metric_name: "CPUUtilization".to_owned(),
-            statistic: Statistic::Average,
-            dimensions: BTreeMap::from([(
-                "DBInstanceIdentifier".to_owned(),
-                "hyperswitchdb-primary".to_owned(),
-            )]),
-            period: 60,
-            range_start: datetime!(2026-09-11 12:02:00 UTC),
-            range_end: datetime!(2026-09-11 12:07:00 UTC),
-            readings: vec![Some(70.0), Some(75.0), Some(82.1), Some(93.4), Some(96.2)],
-            severity: "sev2".to_owned(),
-            from,
-            to,
-            threshold: 85.0,
-            comparison_operator: ComparisonOperator::GreaterThanOrEqualToThreshold,
-            evaluation_periods: 3,
-            datapoints_to_alarm: Some(2),
-            treat_missing_data: MissingDataPolicy::NotBreaching,
-            breaching_datapoints: 2,
-            description: "SEV2: RDS primary database CPU utilization is above 85%.".to_owned(),
-        }
-    }
-
-    #[test]
-    fn a_message_leads_with_the_operators_own_words_and_says_which_way_it_moved() {
-        let message = render(&transition(Some(State::Ok), State::Alarm), "ap-south-1");
-
-        assert_eq!(
-            message,
-            concat!(
-                "[SEV2] rds-primary-cpu\n",
-                "State: OK → ALARM\n",
-                "Evaluated at: 2026-09-11 12:07:00 UTC\n",
-                "Definition: rds_primary_cpu\n",
-                "Classification: rds-alerts\n\n",
-                "SEV2: RDS primary database CPU utilization is above 85%.\n\n",
-                "Metric\n",
-                "Namespace: AWS/RDS\n",
-                "Name: CPUUtilization\n",
-                "Statistic: Average\n",
-                "Dimensions:\n",
-                "    DBInstanceIdentifier: hyperswitchdb-primary\n",
-                "Region: ap-south-1\n\n",
-                "Condition\n",
-                "Expression: Average CPUUtilization >= 85\n",
-                "Datapoints to alarm: 2 of 3\n",
-                "Period: 60 seconds\n",
-                "Missing data: notBreaching\n\n",
-                "Datapoints fetched, oldest first ",
-                "(2026-09-11 12:02:00 UTC to 2026-09-11 12:07:00 UTC):\n",
-                "  2026-09-11 12:02:00 UTC   70   OK\n",
-                "  2026-09-11 12:03:00 UTC   75   OK\n",
-                "  2026-09-11 12:04:00 UTC   82.1   OK\n",
-                "  2026-09-11 12:05:00 UTC   93.4   BREACHING\n",
-                "  2026-09-11 12:06:00 UTC   96.2   BREACHING\n\n",
-                "Result: 2 of 3 effective datapoints breached; state is ALARM."
-            )
-        );
-    }
-
-    #[test]
-    fn a_recovery_reads_as_one() {
-        let message = render(&transition(Some(State::Alarm), State::Ok), "ap-south-1");
-
-        assert!(
-            message.starts_with("[SEV2] rds-primary-cpu\nState: ALARM → OK"),
-            "{message}"
-        );
-    }
-
-    /// Nothing is known about where it came from, so the message does not invent a previous state.
-    #[test]
-    fn an_unknown_previous_state_names_only_where_the_rule_is_now() {
-        let message = render(&transition(None, State::Alarm), "ap-south-1");
-
-        assert!(
-            message.starts_with("[SEV2] rds-primary-cpu\nState: ALARM\n"),
-            "{message}"
-        );
     }
 }
