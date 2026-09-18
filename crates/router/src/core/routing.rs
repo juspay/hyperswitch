@@ -1481,7 +1481,7 @@ pub async fn link_routing_config(
                             )
                                 })?;
 
-                        if existing_records
+                        let discovered_id = if existing_records
                             .iter()
                             .any(|record| record.id == algorithm_id)
                         {
@@ -1517,7 +1517,29 @@ pub async fn link_routing_config(
                             create_de_euclid_routing_algo(&state, &routing_rule)
                                 .await
                                 .map_err(|error| map_de_write_error(error, "decision_engine_euclid: rule creation failed on the Decision Engine during activation"))?
+                        };
+
+                        // Recording the link is what spares every later activation the rule
+                        // listing above, and is what lets the routing path tell a migrated rule
+                        // from one still to be pushed. Losing it costs only that, so it is
+                        // logged rather than raised -- the activation itself has not failed.
+                        if let Err(err) = state
+                            .store
+                            .link_decision_engine_routing_id(
+                                &algorithm_id,
+                                business_profile.get_id(),
+                                discovered_id.clone(),
+                            )
+                            .await
+                        {
+                            router_env::logger::warn!(
+                                ?err,
+                                algorithm_id = ?algorithm_id,
+                                "decision_engine_euclid: could not record the decision engine id after activation"
+                            );
                         }
+
+                        discovered_id
                     }
                 };
 
@@ -3597,6 +3619,31 @@ async fn migrate_rules_for_profile(
     let mut error_list = Vec::new();
     let mut not_applicable_list = Vec::new();
 
+    // Recording the link is not what the caller asked for, so a failure here is logged and the
+    // rule still counts as migrated: the copy on the decision engine exists either way. The next
+    // run reaches this rule through the already-migrated branch above and stamps it then.
+    let stamp_decision_engine_id = |algorithm_id: common_utils::id_type::RoutingId,
+                                    profile_id: common_utils::id_type::ProfileId,
+                                    decision_engine_routing_id: String| {
+        let db = state.store.clone();
+        async move {
+            if let Err(err) = db
+                .link_decision_engine_routing_id(
+                    &algorithm_id,
+                    &profile_id,
+                    decision_engine_routing_id,
+                )
+                .await
+            {
+                router_env::logger::warn!(
+                    ?err,
+                    algorithm_id = ?algorithm_id,
+                    "decision_engine_euclid: migrated a rule but could not record its decision engine id"
+                );
+            }
+        }
+    };
+
     let mut push_error = |algorithm_id, msg: String| {
         error_list.push(RuleMigrationError {
             profile_id: profile_id.clone(),
@@ -3647,6 +3694,15 @@ async fn migrate_rules_for_profile(
                     }
                 }
             }
+            // A rule migrated before this column was stamped, or by a run whose stamp failed.
+            // Without this the routing path keeps seeing an unlinked rule and re-migrates the
+            // profile on every cache miss, forever.
+            stamp_decision_engine_id(
+                algorithm_id.clone(),
+                profile_id.clone(),
+                algorithm_id.get_string_repr().to_string(),
+            )
+            .await;
             skipped_list.push(routing_types::RuleMigrationSkipped {
                 profile_id: profile_id.clone(),
                 algorithm_id: algorithm_id.clone(),
@@ -3743,6 +3799,12 @@ async fn migrate_rules_for_profile(
                     .attach_printable("unable to link active routing algorithm")?;
                     is_active_rule = true;
                 }
+                stamp_decision_engine_id(
+                    algorithm.algorithm_id.clone(),
+                    profile_id.clone(),
+                    decision_engine_routing_id.clone(),
+                )
+                .await;
                 response_list.push(RuleMigrationResponse {
                     profile_id: profile_id.clone(),
                     euclid_algorithm_id: algorithm.algorithm_id.clone(),

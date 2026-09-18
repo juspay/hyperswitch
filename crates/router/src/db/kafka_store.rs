@@ -3591,6 +3591,17 @@ impl RoutingAlgorithmInterface for KafkaStore {
             .await
     }
 
+    async fn link_decision_engine_routing_id(
+        &self,
+        algorithm_id: &id_type::RoutingId,
+        profile_id: &id_type::ProfileId,
+        decision_engine_routing_id: String,
+    ) -> CustomResult<usize, errors::StorageError> {
+        self.diesel_store
+            .link_decision_engine_routing_id(algorithm_id, profile_id, decision_engine_routing_id)
+            .await
+    }
+
     async fn find_rule_ids_for_profiles(
         &self,
         profile_ids: &[id_type::ProfileId],

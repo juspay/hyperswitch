@@ -2388,6 +2388,68 @@ fn execute_dsl_and_get_connector_v1(
     dsl_output_to_connectors(execute_dsl_v1(backend_input, interpreter)?)
 }
 
+/// Pushes a profile's rules into the decision engine when the rule just read from the database
+/// has no decision engine copy recorded against it.
+///
+/// This sits on the cache-refresh path rather than the decision path on purpose. The rule row is
+/// already in hand here, so deciding whether to migrate costs a field read rather than a lookup,
+/// and a profile whose migration keeps failing is retried once per cache lifetime instead of once
+/// per payment. Migration runs detached: the payment it was noticed by is routed by Hyperswitch,
+/// exactly as before, and the decision engine serves the profile from the next cache refresh on.
+fn migrate_profile_to_decision_engine_if_unlinked(
+    state: &SessionState,
+    profile_id: &common_utils::id_type::ProfileId,
+    algorithm: &diesel_models::routing_algorithm::RoutingAlgorithm,
+) {
+    use crate::core::routing::migrate_rules_for_profiles;
+    use router_env::tracing::Instrument;
+
+    if !state.conf.open_router.static_routing_enabled
+        || algorithm.decision_engine_routing_id.is_some()
+    {
+        return;
+    }
+
+    // Kinds the migration leaves behind never gain an id, so triggering on one would re-migrate
+    // the profile on every cache refresh for as long as that rule is active. Asking the migration's
+    // own exclusion list keeps the two from drifting apart when a kind is added to either.
+    if api_models::routing::RoutingAlgorithmKind::foreign_from(algorithm.kind)
+        .rule_migration_exclusion()
+        .is_some()
+    {
+        return;
+    }
+
+    let span = router_env::tracing::info_span!(
+        "decision_engine_rule_backfill",
+        profile_id = %profile_id.get_string_repr(),
+        algorithm_id = %algorithm.algorithm_id.get_string_repr(),
+    );
+    let state = state.clone();
+    let profile_id = profile_id.clone();
+
+    tokio::spawn(
+        async move {
+            let request = api_models::routing::RuleMigrationRequest {
+                profile_ids: vec![profile_id],
+                limit: None,
+                offset: None,
+            };
+            match Box::pin(migrate_rules_for_profiles(state, request)).await {
+                Ok(result) => logger::info!(
+                    totals = ?result.totals,
+                    "decision_engine_euclid: migrated a profile's rules on cache refresh"
+                ),
+                Err(error) => logger::warn!(
+                    ?error,
+                    "decision_engine_euclid: could not migrate a profile's rules on cache refresh"
+                ),
+            }
+        }
+        .instrument(span),
+    );
+}
+
 pub async fn refresh_routing_cache_v1(
     state: &SessionState,
     key: String,
@@ -2400,6 +2462,9 @@ pub async fn refresh_routing_cache_v1(
             .find_routing_algorithm_by_profile_id_algorithm_id(profile_id, algorithm_id)
             .await
             .change_context(errors::RoutingError::DslMissingInDb)?;
+
+        migrate_profile_to_decision_engine_if_unlinked(state, profile_id, &algorithm);
+
         let algorithm: routing_types::StaticRoutingAlgorithm = algorithm
             .algorithm_data
             .parse_value("RoutingAlgorithm")

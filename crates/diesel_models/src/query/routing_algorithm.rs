@@ -7,7 +7,9 @@ use crate::{
     enums,
     errors::DatabaseError,
     query::generics,
-    routing_algorithm::{RoutingAlgorithm, RoutingProfileMetadata},
+    routing_algorithm::{
+        RoutingAlgorithm, RoutingAlgorithmDecisionEngineIdUpdate, RoutingProfileMetadata,
+    },
     schema::routing_algorithm::dsl,
     DatabaseConnectionWithContext, StorageResult,
 };
@@ -15,6 +17,30 @@ use crate::{
 impl RoutingAlgorithm {
     pub async fn insert(self, conn: &DatabaseConnectionWithContext<'_>) -> StorageResult<Self> {
         generics::generic_insert(conn, self).await
+    }
+
+    /// Records the decision engine rule this algorithm was migrated to.
+    ///
+    /// Only stamps a row that is not linked yet, so a concurrent activation that created the
+    /// decision engine copy first keeps its id. A return of `0` means some other writer won
+    /// that race and the row is already linked -- not a failure.
+    pub async fn link_decision_engine_routing_id(
+        conn: &DatabaseConnectionWithContext<'_>,
+        algorithm_id: &common_utils::id_type::RoutingId,
+        profile_id: &common_utils::id_type::ProfileId,
+        decision_engine_routing_id: String,
+    ) -> StorageResult<usize> {
+        generics::generic_update::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::algorithm_id
+                .eq(algorithm_id.to_owned())
+                .and(dsl::profile_id.eq(profile_id.to_owned()))
+                .and(dsl::decision_engine_routing_id.is_null()),
+            RoutingAlgorithmDecisionEngineIdUpdate {
+                decision_engine_routing_id: Some(decision_engine_routing_id),
+            },
+        )
+        .await
     }
 
     pub async fn find_by_algorithm_id_merchant_id(

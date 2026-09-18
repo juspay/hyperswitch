@@ -1,5 +1,5 @@
 use common_utils::id_type;
-use diesel::{Identifiable, Insertable, Queryable, Selectable};
+use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
 
 use crate::{enums, schema::routing_algorithm};
@@ -49,4 +49,14 @@ impl RoutingProfileMetadata {
         matches!(self.kind, enums::RoutingAlgorithmKind::Advanced)
             && matches!(self.algorithm_for, enums::TransactionType::Payment)
     }
+}
+
+/// Links a Hyperswitch rule to its copy on the decision engine.
+///
+/// `modified_at` is deliberately untouched: recording the link is not an edit to the rule, and
+/// bumping it would reorder every migrated rule in listings that sort by it.
+#[derive(Clone, Debug, AsChangeset)]
+#[diesel(table_name = routing_algorithm)]
+pub struct RoutingAlgorithmDecisionEngineIdUpdate {
+    pub decision_engine_routing_id: Option<String>,
 }

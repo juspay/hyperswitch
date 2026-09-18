@@ -84,6 +84,16 @@ pub trait RoutingAlgorithmInterface {
             storage_enums::RoutingAlgorithmKind,
         )>,
     >;
+
+    /// Records the decision engine rule this algorithm was migrated to, so later runs and the
+    /// routing path can tell a migrated rule from one that still has to be pushed. Returns the
+    /// number of rows stamped; `0` means the row was already linked.
+    async fn link_decision_engine_routing_id(
+        &self,
+        algorithm_id: &common_utils::id_type::RoutingId,
+        profile_id: &common_utils::id_type::ProfileId,
+        decision_engine_routing_id: String,
+    ) -> StorageResult<usize>;
 }
 
 #[async_trait::async_trait]
@@ -254,6 +264,23 @@ impl RoutingAlgorithmInterface for Store {
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
+    #[instrument(skip_all)]
+    async fn link_decision_engine_routing_id(
+        &self,
+        algorithm_id: &common_utils::id_type::RoutingId,
+        profile_id: &common_utils::id_type::ProfileId,
+        decision_engine_routing_id: String,
+    ) -> StorageResult<usize> {
+        let conn = connection::pg_connection_write(self).await?;
+        routing_storage::RoutingAlgorithm::link_decision_engine_routing_id(
+            &conn,
+            algorithm_id,
+            profile_id,
+            decision_engine_routing_id,
+        )
+        .await
+        .map_err(|error| report!(errors::StorageError::from(error)))
+    }
 }
 
 #[async_trait::async_trait]
@@ -341,6 +368,15 @@ impl RoutingAlgorithmInterface for MockDb {
             storage_enums::RoutingAlgorithmKind,
         )>,
     > {
+        Err(errors::StorageError::MockDbError)?
+    }
+
+    async fn link_decision_engine_routing_id(
+        &self,
+        _algorithm_id: &common_utils::id_type::RoutingId,
+        _profile_id: &common_utils::id_type::ProfileId,
+        _decision_engine_routing_id: String,
+    ) -> StorageResult<usize> {
         Err(errors::StorageError::MockDbError)?
     }
 }
