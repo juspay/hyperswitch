@@ -2436,6 +2436,15 @@ fn migrate_profile_to_decision_engine_if_unlinked(
                 offset: None,
             };
             match Box::pin(migrate_rules_for_profiles(state, request)).await {
+                // A rule that fails here is only retried while it is the profile's active rule,
+                // since that is the row this trigger reads. One that is inactive stays behind
+                // until it is activated, so the failure has to be visible now rather than
+                // waiting to be noticed as a gap in the profile's rules on the engine.
+                Ok(result) if result.totals.rules_failed > 0 => logger::warn!(
+                    totals = ?result.totals,
+                    errors = ?result.profiles.iter().flat_map(|profile| &profile.errors).collect::<Vec<_>>(),
+                    "decision_engine_euclid: migrated a profile's rules on cache refresh, but some rules failed"
+                ),
                 Ok(result) => logger::info!(
                     totals = ?result.totals,
                     "decision_engine_euclid: migrated a profile's rules on cache refresh"
