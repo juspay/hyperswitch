@@ -35,7 +35,9 @@ fred = { version = "8.0.6", optional = true, features = [
 
 # First party crates
 common_utils = { version = "0.1.0", path = "../common_utils", features = ["async_ext"] }
-deja = { git = "https://github.com/juspay/deja", rev = "8d87c19abb7db05045923b5bb5a0da0ee053a300", optional = true, default-features = false, features = ["error-stack"] }
+# TEMPORARY PIN — deja branch work/teardown-safe-correlation-reader (PR #171).
+# Bump to a main commit once that merges; this must not be reviewed as-is.
+deja = { git = "https://github.com/juspay/deja", rev = "159aadc5e88f3bc789b30a4d4514975005bd4d09", optional = true, default-features = false, features = ["error-stack"] }
 hyperswitch_masking = "0.0.1"
 router_env = { version = "0.1.0", path = "../router_env", optional = true }
 
