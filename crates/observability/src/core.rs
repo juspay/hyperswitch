@@ -6,6 +6,8 @@
 //! Distinct from [`crate::domain`], which holds the traits and the types they exchange: `domain`
 //! says what delivering an alert *is*, `core` says what one HTTP request does about it.
 
+pub mod alert_manager;
+pub mod alerts_dicts;
 pub mod alerts_info;
 pub mod cloudwatch;
 pub mod notifier;
