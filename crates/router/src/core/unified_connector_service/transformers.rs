@@ -1893,6 +1893,9 @@ impl
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
+            // New in the bumped client; the router does not populate it yet, so keep
+            // it absent — what UCS saw before the field existed.
+            connector_order_id: None,
             merchant_order_id: Some(router_data.connector_request_reference_id.clone()),
             amount: Some(payments_grpc::Money {
                 minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
@@ -1995,6 +1998,9 @@ impl
             .map(|s| s.into());
 
         Ok(Self {
+            // New in the bumped client; the router does not populate it yet, so keep
+            // it absent — what UCS saw before the field existed.
+            connector_order_id: None,
             merchant_order_id: Some(router_data.connector_request_reference_id.clone()),
             amount: Some(payments_grpc::Money {
                 minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
@@ -4612,6 +4618,8 @@ impl transformers::ForeignTryFrom<&common_types::payments::ApplePayPaymentData>
                     ),
                 )?;
                 Ok(Self::DecryptedData(payments_grpc::ApplePayDecryptedData {
+                    // New in the bumped client; not populated by the router yet.
+                    merchant_token_identifier: None,
                     application_primary_account_number: Some(application_primary_account_number),
                     application_expiration_month: Some(
                         decrypted_data
