@@ -3327,6 +3327,60 @@ pub async fn payments_manual_status_update(
     .await
 }
 
+#[cfg(all(feature = "olap", feature = "v1"))]
+/// List the statuses a conflicted payment is currently eligible for a manual status update to
+/// (Dashboard or API-key auth, mirroring the payment retrieve endpoint's auth).
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsManualStatusUpdateEligibleStatuses, payment_id))]
+pub async fn payments_manual_status_update_eligible_statuses(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    path: web::Path<common_utils::id_type::PaymentId>,
+) -> impl Responder {
+    let flow = Flow::PaymentsManualStatusUpdateEligibleStatuses;
+    let payment_id = path.into_inner();
+
+    tracing::Span::current().record("payment_id", payment_id.get_string_repr());
+
+    let api_auth = auth::ApiKeyAuth {
+        allow_connected_scope_operation: true,
+        allow_platform_self_operation: false,
+    };
+
+    let (auth_type, _auth_flow) = match auth::check_internal_api_key_auth_no_client_secret(
+        req.headers(),
+        api_auth,
+        state.conf.internal_merchant_id_profile_id_auth.clone(),
+    ) {
+        Ok(auth) => auth,
+        Err(err) => return api::log_and_return_error_response(report!(err)),
+    };
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        |state, auth: auth::AuthenticationData, _req, _req_state| {
+            payments::payments_manual_status_update_eligible_statuses(
+                state,
+                auth.platform,
+                payment_id.clone(),
+            )
+        },
+        auth::auth_type(
+            &*auth_type,
+            &auth::JWTAuth {
+                permission: Permission::ProfilePaymentRead,
+                allow_connected: true,
+                allow_platform: false,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 #[cfg(feature = "v1")]
 /// Retrieve endpoint for merchant to fetch the encrypted customer payment method data
 #[instrument(skip_all, fields(flow = ?Flow::GetExtendedCardInfo, payment_id))]
