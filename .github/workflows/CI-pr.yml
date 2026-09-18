@@ -141,14 +141,6 @@ jobs:
       # SCCACHE_S3_SERVER_SIDE_ENCRYPTION come from this pod's own
       # environment, managed outside this repo).
       RUSTC_WRAPPER: sccache
-      # RUSTC_WRAPPER alone doesn't cover `cargo clippy`: clippy sets
-      # RUSTC_WORKSPACE_WRAPPER=clippy-driver for workspace crates, which
-      # takes precedence over RUSTC_WRAPPER for those crates specifically,
-      # so without this, sccache never even sees the workspace-crate lint
-      # invocations `just clippy`/`just clippy_v2` below produce. sccache
-      # has recognized clippy-driver as a cacheable compiler since 2020
-      # (mozilla/sccache#728) — this just points that mechanism at it too.
-      RUSTC_WORKSPACE_WRAPPER: sccache
       RUSTFLAGS: "-D warnings"
       # This job runs on fork PRs too (see the fork checkout step below), so
       # keep it read-only — matches the old rust-cache `save-if: false`
@@ -287,9 +279,6 @@ jobs:
       # backend (bucket/region/prefix/encryption come from this pod's own
       # environment). Read-only — same fork-PR reasoning as the `test` job.
       RUSTC_WRAPPER: sccache
-      # See `test`: covers `cargo clippy`'s workspace-crate invocations,
-      # which RUSTC_WRAPPER alone doesn't reach.
-      RUSTC_WORKSPACE_WRAPPER: sccache
       SCCACHE_S3_RW_MODE: READ_ONLY
 
     steps:
