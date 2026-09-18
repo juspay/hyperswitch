@@ -2764,8 +2764,15 @@ impl
             .as_ref()
             .map(ConnectorState::foreign_from);
 
+        let capture_method = router_data
+            .request
+            .capture_method
+            .map(payments_grpc::CaptureMethod::foreign_try_from)
+            .transpose()?;
+
         Ok(Self {
             test_mode: router_data.test_mode,
+            capture_method: capture_method.map(|capture_method| capture_method.into()),
             mit_category: None,
             merchant_recurring_payment_id: router_data.connector_request_reference_id.clone(),
             amount: Some(payments_grpc::Money {
@@ -3953,7 +3960,7 @@ impl
                     mandate_reference: Box::new(response.mandate_reference_details.map(hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from).transpose()?),
                     connector_metadata,
                     network_txn_id: response.network_transaction_id,
-                    network_txn_link_id: None,
+                    network_txn_link_id: response.network_txn_link_id,
                     connector_response_reference_id,
                     payment_account_reference: response.payment_account_reference,
                     incremental_authorization_allowed: response.incremental_authorization_allowed,
