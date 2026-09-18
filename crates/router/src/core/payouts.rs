@@ -4176,21 +4176,19 @@ pub async fn decide_unified_connector_service_payout<F: Clone>(
     Ok((gateway_context, updated_state))
 }
 
-/// Extracts the gateway system from the payout's feature metadata
-/// Returns None if metadata is missing, corrupted, or doesn't contain gateway_system
+/// Extracts the gateway system from the payout's metadata.
+/// Returns None if metadata is missing, corrupted, or doesn't contain gateway_system.
 pub fn extract_gateway_system_from_payouts(
-    payout_data: &mut PayoutData,
+    payout_data: &PayoutData,
 ) -> Option<common_enums::GatewaySystem> {
     #[cfg(feature = "v1")]
     {
         payout_data.payouts.metadata.as_ref().and_then(|metadata| {
-            // Try to parse the JSON value as FeatureMetadata
-            // Log errors but don't fail the flow for corrupted metadata
             match serde_json::from_value::<FeatureMetadata>(metadata.clone().expose()) {
                 Ok(feature_metadata) => feature_metadata.gateway_system,
                 Err(err) => {
                     router_env::logger::warn!(
-                        "Failed to parse metadata for gateway_system extraction: {}",
+                        "Failed to parse payout metadata for gateway_system extraction: {}",
                         err
                     );
                     None
@@ -4219,27 +4217,41 @@ pub async fn decide_unified_connector_service_payout<F: Clone>(
     todo!()
 }
 
-/// Updates the payout intent's metadata to track the gateway system being used
+/// Updates the payout intent's metadata to track the gateway system being used.
+/// Merges gateway_system into the existing metadata map so merchant-provided fields are preserved.
 #[cfg(feature = "v1")]
 pub fn update_gateway_system_in_payout_metadata(
     payout_data: &mut PayoutData,
     gateway_system: common_enums::GatewaySystem,
 ) -> RouterResult<()> {
-    let existing_metadata = payout_data.payouts.metadata.as_ref();
+    let gateway_system_metadata = FeatureMetadata {
+        gateway_system: Some(gateway_system),
+        ..Default::default()
+    };
 
-    let mut feature_metadata = existing_metadata
-        .and_then(|metadata| {
-            serde_json::from_value::<FeatureMetadata>(metadata.clone().expose()).ok()
+    let gateway_system_metadata_value = serde_json::to_value(gateway_system_metadata)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to serialize gateway_system metadata")?;
+
+    let mut metadata = payout_data
+        .payouts
+        .metadata
+        .as_ref()
+        .map(|metadata| {
+            metadata.peek().as_object().cloned().unwrap_or_else(|| {
+                router_env::logger::warn!(
+                    "Payout metadata is not a JSON object; gateway_system will be written to a fresh map"
+                );
+                serde_json::Map::new()
+            })
         })
         .unwrap_or_default();
 
-    feature_metadata.gateway_system = Some(gateway_system);
+    if let Some(gateway_system_metadata) = gateway_system_metadata_value.as_object() {
+        metadata.extend(gateway_system_metadata.clone());
+    }
 
-    let updated_metadata = serde_json::to_value(feature_metadata)
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to serialize feature metadata")?;
-
-    payout_data.payouts.metadata = Some(Secret::new(updated_metadata.clone()));
+    payout_data.payouts.metadata = Some(Secret::new(serde_json::Value::Object(metadata)));
 
     Ok(())
 }
