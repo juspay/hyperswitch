@@ -3874,10 +3874,16 @@ where
                 // the chain carries the h2 reason and initiator, which is the only thing that says
                 // whether the request was ever written or the stream failed after UCS had it.
                 if let Some(transport) = error.current_context().transport_failure() {
-                    error_body["transport_failure_class"] =
-                        serde_json::Value::from(transport.class.as_str());
+                    // Root cause on the event: it names what failed and carries no address, and
+                    // connector events reach the merchant dashboard. The whole chain, whose outer
+                    // layers can render the UCS authority, stays in this log line.
+                    if let Some(body) = error_body.as_object_mut() {
+                        body.insert(
+                            "transport_error".to_string(),
+                            serde_json::Value::from(transport.root_cause.clone()),
+                        );
+                    }
                     logger::error!(
-                        transport_failure_class = transport.class.as_str(),
                         transport_error_chain = %transport.source_chain,
                         "ucs_call_failed: gRPC transport failure toward UCS"
                     );
@@ -4092,10 +4098,16 @@ where
                 // the chain carries the h2 reason and initiator, which is the only thing that says
                 // whether the request was ever written or the stream failed after UCS had it.
                 if let Some(transport) = error.current_context().transport_failure() {
-                    error_body["transport_failure_class"] =
-                        serde_json::Value::from(transport.class.as_str());
+                    // Root cause on the event: it names what failed and carries no address, and
+                    // connector events reach the merchant dashboard. The whole chain, whose outer
+                    // layers can render the UCS authority, stays in this log line.
+                    if let Some(body) = error_body.as_object_mut() {
+                        body.insert(
+                            "transport_error".to_string(),
+                            serde_json::Value::from(transport.root_cause.clone()),
+                        );
+                    }
                     logger::error!(
-                        transport_failure_class = transport.class.as_str(),
                         transport_error_chain = %transport.source_chain,
                         "ucs_call_failed: gRPC transport failure toward UCS"
                     );

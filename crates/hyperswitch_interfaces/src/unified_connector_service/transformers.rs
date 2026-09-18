@@ -1938,96 +1938,39 @@ impl ForeignFrom<payments_grpc::UpiSource>
     }
 }
 
-/// Coarse class of a client-side gRPC transport failure toward UCS.
+/// Detail of a gRPC status that the router's own transport produced, rather than one UCS
+/// returned as a response.
 ///
-/// Read from [`std::io::Error::kind`] on the underlying I/O error, so it stays correct across
-/// hyper and tonic upgrades. Safe to expose in merchant-visible connector events: it names the
-/// failure kind only, never an address or payload.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum UcsTransportFailureClass {
-    /// Peer reset the connection while the request was being written
-    ConnectionReset,
-    /// Wrote to a connection the peer had already closed
-    BrokenPipe,
-    /// Peer aborted the connection
-    ConnectionAborted,
-    /// A new connection was refused
-    ConnectRefused,
-    /// A new connection timed out
-    ConnectTimeout,
-    /// The socket was not connected
-    NotConnected,
-    /// The connection ended before the message was complete
-    UnexpectedEof,
-    /// No underlying I/O error; see `source_chain` in the router logs
-    Other,
-}
-
-impl UcsTransportFailureClass {
-    /// Stable snake_case label for connector events and metrics.
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::ConnectionReset => "connection_reset",
-            Self::BrokenPipe => "broken_pipe",
-            Self::ConnectionAborted => "connection_aborted",
-            Self::ConnectRefused => "connect_refused",
-            Self::ConnectTimeout => "connect_timeout",
-            Self::NotConnected => "not_connected",
-            Self::UnexpectedEof => "unexpected_eof",
-            Self::Other => "other",
-        }
-    }
-}
-
-impl From<std::io::ErrorKind> for UcsTransportFailureClass {
-    fn from(kind: std::io::ErrorKind) -> Self {
-        match kind {
-            std::io::ErrorKind::ConnectionReset => Self::ConnectionReset,
-            std::io::ErrorKind::BrokenPipe => Self::BrokenPipe,
-            std::io::ErrorKind::ConnectionAborted => Self::ConnectionAborted,
-            std::io::ErrorKind::ConnectionRefused => Self::ConnectRefused,
-            std::io::ErrorKind::TimedOut => Self::ConnectTimeout,
-            std::io::ErrorKind::NotConnected => Self::NotConnected,
-            std::io::ErrorKind::UnexpectedEof => Self::UnexpectedEof,
-            _ => Self::Other,
-        }
-    }
-}
-
-/// Detail of a client-side transport failure toward UCS: what went wrong beneath the generic
-/// `transport error` that tonic surfaces when a request never reaches the server.
+/// Holds the [`std::error::Error::source`] chain verbatim. Nothing is interpreted or classified:
+/// the chain already names the layer that failed and why, whether that is an `io::ErrorKind`, an
+/// HTTP/2 reason and initiator, a DNS failure or something a future hyper or tonic version
+/// introduces. Recording it whole is what makes the next transport failure diagnosable without
+/// having shipped code that anticipated it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UcsTransportFailure {
-    /// Coarse failure class; the only part meant for merchant-visible events
-    pub class: UcsTransportFailureClass,
-    /// Full [`std::error::Error::source`] chain, outermost first. Router logs only: it may carry
-    /// internal addresses and OS error text.
+    /// The `source()` chain, outermost first, root cause last, joined with " -> ". Router logs
+    /// only: an inner layer may render the UCS authority or a peer address.
     pub source_chain: String,
+    /// The root cause alone, the last element of the chain. This is the part that names what
+    /// actually failed (`connection reset by peer (os error 104)`, `stream error received:
+    /// PROTOCOL_ERROR`, ...) and, unlike the outer layers, never carries an address or authority,
+    /// so it is what goes on the merchant-visible connector event.
+    pub root_cause: String,
 }
 
 impl UcsTransportFailure {
     /// Builds from a [`tonic::Status`].
     ///
     /// Returns `None` when the status carries no error source, which is every status UCS returns
-    /// as a normal gRPC response. A `Some` means the status was produced locally by the transport,
-    /// which covers two different situations and does not by itself say the request was unsent:
-    ///
-    /// - `Code::Unknown` with an I/O source: the connection was unusable, typically before the
-    ///   request was written.
-    /// - `Code::Internal` from an HTTP/2 error: the stream was established and the request was
-    ///   sent; the failure happened while exchanging frames, so UCS may well have processed it.
-    ///
-    /// `source_chain` carries the h2 reason and initiator, which is what actually distinguishes
-    /// them; read it rather than inferring from the class.
+    /// as a normal gRPC response. A `Some` means the status was produced locally by the transport.
+    /// That covers both a connection that was unusable before the request was written and a stream
+    /// that failed after UCS had already processed the request, so it does not by itself say the
+    /// request was unsent; the chain does.
     pub fn from_status(status: &tonic::Status) -> Option<Self> {
         let mut source: &(dyn std::error::Error + 'static) = std::error::Error::source(status)?;
         let mut parts: Vec<String> = Vec::new();
-        let mut class = UcsTransportFailureClass::Other;
 
         loop {
-            if let Some(io_error) = source.downcast_ref::<std::io::Error>() {
-                class = UcsTransportFailureClass::from(io_error.kind());
-            }
             parts.push(source.to_string());
             match source.source() {
                 Some(next) => source = next,
@@ -2035,9 +1978,11 @@ impl UcsTransportFailure {
             }
         }
 
+        let root_cause = parts.last().cloned().unwrap_or_default();
+
         Some(Self {
-            class,
             source_chain: parts.join(" -> "),
+            root_cause,
         })
     }
 }

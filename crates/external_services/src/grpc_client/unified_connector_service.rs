@@ -61,7 +61,9 @@ pub struct UnifiedConnectorServiceClient {
     /// The Surcharge Service Client
     pub surcharge_service_client: payments_grpc::surcharge_service_client::SurchargeServiceClient<UcsChannel>,
     /// Standard gRPC health client (grpc.health.v1) over the same shared channel, used by the
-    /// router health endpoint to prove UCS is reachable from this pod.
+    /// router health endpoint to prove UCS is reachable from this pod. Gated like the module it
+    /// comes from: the health proto is only compiled under `dynamic_routing`.
+    #[cfg(feature = "dynamic_routing")]
     pub health_client: super::health_check_client::HealthClient<UcsChannel>,
 }
 
@@ -284,14 +286,12 @@ impl UnifiedConnectorServiceClient {
             return Ok(None);
         };
 
-        let uri: Uri = ucs_config
-            .base_url
-            .get_string_repr()
-            .parse()
-            .map_err(|err| {
+        let uri: Uri = ucs_config.base_url.get_string_repr().parse().map_err(
+            |err: tonic::codegen::http::uri::InvalidUri| {
                 logger::error!(error = ?err, "Failed to parse URI for Unified Connector Service");
                 UcsClientBuildError::InvalidUri(err.to_string())
-            })?;
+            },
+        )?;
 
         let channel = build_ucs_channel(uri, ucs_config);
 
@@ -352,12 +352,14 @@ impl UnifiedConnectorServiceClient {
                 payments_grpc::surcharge_service_client::SurchargeServiceClient::new(
                     transport.clone(),
                 ),
-            health_client: super::health_check_client::HealthClient::new(transport),
+            #[cfg(feature = "dynamic_routing")]
+            health_client: super::health_check_client::HealthClient::new(transport.clone()),
         }))
     }
 
     /// Standard gRPC health check (grpc.health.v1 `Check`, empty service name) against UCS over
     /// the shared channel. `Ok(true)` means UCS reported `SERVING`.
+    #[cfg(feature = "dynamic_routing")]
     pub async fn health_check(&self) -> Result<bool, tonic::Status> {
         let request = tonic::Request::new(super::health_check_client::HealthCheckRequest {
             service: String::new(),

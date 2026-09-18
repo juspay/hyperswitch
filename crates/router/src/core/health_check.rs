@@ -223,6 +223,17 @@ impl HealthCheckInterface for app::SessionState {
     async fn health_check_unified_connector_service(
         &self,
     ) -> CustomResult<HealthState, errors::HealthCheckUnifiedConnectorServiceError> {
+        #[cfg(not(feature = "dynamic_routing"))]
+        {
+            // The grpc.health.v1 stubs are only compiled under `dynamic_routing`; without them the
+            // most this can report is whether the client was configured.
+            return Ok(match self.grpc_client.unified_connector_service_client {
+                Some(_) => HealthState::Running,
+                None => HealthState::NotApplicable,
+            });
+        }
+
+        #[cfg(feature = "dynamic_routing")]
         match &self.grpc_client.unified_connector_service_client {
             Some(ucs_client) => {
                 let serving = ucs_client
