@@ -388,6 +388,14 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 moneris::transformers::MonerisAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Etisalat => {
+                etisalat::transformers::EtisalatAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
+            api_enums::Connector::Merchante => {
+                merchante::transformers::MerchanteAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Multisafepay => {
                 multisafepay::transformers::MultisafepayAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -648,6 +656,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             }
             api_enums::Connector::Riskified => {
                 riskified::transformers::RiskifiedAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
+            api_enums::Connector::SanlamPayshield => {
+                sanlam_payshield::transformers::SanlamPayshieldAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
             api_enums::Connector::Cybersourcedecisionmanager => {

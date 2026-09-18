@@ -34,13 +34,13 @@ import { connectorDetails as elavonConnectorDetails } from "./Elavon.js";
 import { connectorDetails as facilitapayConnectorDetails } from "./Facilitapay.js";
 import { connectorDetails as finixConnectorDetails } from "./Finix.js";
 import { connectorDetails as fiservConnectorDetails } from "./Fiserv.js";
-import { connectorDetails as fiservemeaConnectorDetails } from "./Fiservemea.js";
 import { connectorDetails as fiservcommercehubConnectorDetails } from "./Fiservcommercehub.js";
+import { connectorDetails as fiservemeaConnectorDetails } from "./Fiservemea.js";
 import { connectorDetails as fiuuConnectorDetails } from "./Fiuu.js";
 import { connectorDetails as forteConnectorDetails } from "./Forte.js";
 import { connectorDetails as getnetConnectorDetails } from "./Getnet.js";
-import { connectorDetails as givepaymentsConnectorDetails } from "./Givepayments.js";
 import { connectorDetails as gigadatConnectorDetails } from "./Gigadat.js";
+import { connectorDetails as givepaymentsConnectorDetails } from "./Givepayments.js";
 import { connectorDetails as globalpayConnectorDetails } from "./Globalpay.js";
 import { connectorDetails as globepayConnectorDetails } from "./Globepay.js";
 import { connectorDetails as helcimConnectorDetails } from "./Helcim.js";
@@ -85,8 +85,10 @@ import { connectorDetails as staxConnectorDetails } from "./Stax.js";
 import { connectorDetails as stripeConnectorDetails } from "./Stripe.js";
 import { connectorDetails as stripeconnectConnectorDetails } from "./StripeConnect.js";
 import { connectorDetails as tesouroConnectorDetails } from "./Tesouro.js";
+import { connectorDetails as truelayerConnectorDetails } from "./Truelayer.js";
 import { connectorDetails as trustpayConnectorDetails } from "./Trustpay.js";
 import { connectorDetails as trustpaymentsConnectorDetails } from "./TrustPayments.js";
+import { connectorDetails as trustlyConnectorDetails } from "./Trustly.js";
 import { connectorDetails as tsysConnectorDetails } from "./Tsys.js";
 import { connectorDetails as tsysTransitConnectorDetails } from "./TsysTransit.js";
 import { connectorDetails as voltConnectorDetails } from "./Volt.js";
@@ -177,9 +179,11 @@ const connectorDetails = {
   stax: staxConnectorDetails,
   stripe: stripeConnectorDetails,
   stripeconnect: stripeconnectConnectorDetails,
+  truelayer: truelayerConnectorDetails,
   trustpay: trustpayConnectorDetails,
   tesouro: tesouroConnectorDetails,
   trustpayments: trustpaymentsConnectorDetails,
+  trustly: trustlyConnectorDetails,
   tsys: tsysConnectorDetails,
   tsys_transit: tsysTransitConnectorDetails,
   volt: voltConnectorDetails,
@@ -540,6 +544,7 @@ export const CONNECTOR_LISTS = {
       "jpmorgan",
       "loonio",
       "mifinity",
+      "moneris",
       "nexinets",
       "nexixpay",
       "nmi",
@@ -550,6 +555,7 @@ export const CONNECTOR_LISTS = {
       "paypal",
       "stax",
       "stripeconnect",
+      "tesouro",
       "wellsfargo",
       "worldpayxml",
       "finix",
@@ -578,7 +584,7 @@ export const CONNECTOR_LISTS = {
     // asserted as an expected error either — skip these save-card-confirm
     // tests in 40-ExternalVault.cy.js until the connector-service side
     // adds a fallback.
-    EXTERNAL_VAULT: ["fiservcommercehub", "ilixium"],
+    EXTERNAL_VAULT: ["fiservcommercehub", "ilixium", "finix"],
     // Connectors that never return a `connector_mandate_id` on the payments
     // response. Recurring payments for them go through connector agnostic MIT,
     // so the "connector_mandate_id must not be null" assertion is skipped
@@ -612,6 +618,8 @@ export const CONNECTOR_LISTS = {
       "fiservcommercehub",
       "givepayments",
       "ilixium",
+      "truelayer",
+      "trustly",
     ],
     OVERCAPTURE: ["adyen"],
     IFRAME_REDIRECTION: [
@@ -821,6 +829,9 @@ export const CONNECTOR_LISTS = {
     CLIENT_SESSION_VALIDATION: ["stripe"],
     WEBHOOK_CONFIG: ["stripe"],
     REQUIRES_CVV: ["bankofamerica"],
+    PAYMENT_ACCOUNT_REFERENCE: ["stripe", "checkout"],
+    AUTH_CODE: ["checkout", "worldpayxml"],
+    ZERO_AUTH_MANDATE: ["peachpayments"],
     BLOCK_IMPLICIT_CUSTOMER_CREATION: ["adyen"],
     // Add more inclusion lists
   },

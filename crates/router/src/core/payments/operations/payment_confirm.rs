@@ -194,6 +194,12 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let store = state.store.clone();
         let key_store_clone = platform.get_processor().get_key_store().clone();
 
+        // Each fork below gets its own span rather than the caller's. These are
+        // spawned side by side and joined together, so under one shared span
+        // they are separable only by the order the scheduler picks, and a
+        // record/replay comparison pairs them positionally — reading a
+        // transposition as a behaviour change. The concurrency was always here;
+        // naming each fork writes it down.
         let business_profile_fut = tokio::spawn(
             async move {
                 store
@@ -207,7 +213,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     })
                     .await
             }
-            .in_current_span(),
+            .instrument(tracing::debug_span!("business_profile")),
         );
 
         let store = state.store.clone();
@@ -229,7 +235,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     .map(|x| x.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound))
                     .await
             }
-            .in_current_span(),
+            .instrument(tracing::debug_span!("payment_attempt")),
         );
 
         let m_merchant_id = processor_merchant_id.clone();
@@ -257,7 +263,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 )
                 .await
             }
-            .in_current_span(),
+            .instrument(tracing::debug_span!("shipping_address")),
         );
 
         let m_merchant_id = processor_merchant_id.clone();
@@ -285,7 +291,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 )
                 .await
             }
-            .in_current_span(),
+            .instrument(tracing::debug_span!("billing_address")),
         );
 
         let store = state.clone().store;
@@ -306,7 +312,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     .map(|x| x.transpose())
                     .await
             }
-            .in_current_span(),
+            .instrument(tracing::debug_span!("config_update")),
         );
 
         // Based on whether a retry can be performed or not, fetch relevant entities
@@ -558,7 +564,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     })
                     .await)
             }
-            .in_current_span(),
+            .instrument(tracing::debug_span!("additional_pm_data")),
         );
 
         let n_payment_method_billing_address_id =
@@ -602,7 +608,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 )
                 .await
             }
-            .in_current_span(),
+            .instrument(tracing::debug_span!("payment_method_billing")),
         );
 
         let mandate_type = m_helpers::get_mandate_type(
@@ -638,7 +644,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 ))
                 .await
             }
-            .in_current_span(),
+            .instrument(tracing::debug_span!("mandate_details")),
         );
 
         // Parallel calls - level 2
@@ -2549,6 +2555,7 @@ impl PaymentConfirm {
             payment_method_ref,
             card_token_data,
             true, // fetch raw card detail from the internal vault
+            helpers::is_off_session_mit_for_payment_method(req, payment_method_ref),
         )
         .await?;
         logger::info!("Payment method fetched from PM Modular Service.");
@@ -2644,7 +2651,15 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                 frm_message.map_or((None, None), |fraud_check| {
                     (
                         Some(Some(fraud_check.frm_status.to_string())),
-                        Some(fraud_check.frm_reason.map(|reason| reason.to_string())),
+                        Some(
+                            fraud_check
+                                .frm_reason
+                                .map(|reason| match reason {
+                                    serde_json::Value::String(s) => s,
+                                    other => other.to_string(),
+                                })
+                                .or(fraud_check.frm_error),
+                        ),
                     )
                 }),
             ),
@@ -2936,7 +2951,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                 .map(|x| x.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound))
                 .await
             }
-            .in_current_span(),
+            .instrument(tracing::debug_span!("payment_attempt")),
         );
 
         let billing_address = payment_data.address.get_payment_billing();
@@ -3064,7 +3079,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                 .map(|x| x.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound))
                 .await
             }
-            .in_current_span(),
+            .instrument(tracing::debug_span!("payment_intent")),
         );
 
         let (payment_intent, payment_attempt) = tokio::try_join!(

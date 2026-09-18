@@ -1958,6 +1958,7 @@ pub async fn construct_payment_router_data<'a, F, T>(
     payment_data: PaymentData<F>,
     connector_id: &str,
     processor: &domain::Processor,
+    business_profile: &domain::Profile,
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
     merchant_recipient_data: Option<types::MerchantRecipientData>,
     header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
@@ -1971,10 +1972,6 @@ where
     error_stack::Report<errors::ApiErrorResponse>:
         From<<T as TryFrom<PaymentAdditionalData<'a, F>>>::Error>,
 {
-    fp_utils::when(merchant_connector_account.is_disabled(), || {
-        Err(errors::ApiErrorResponse::MerchantConnectorAccountDisabled)
-    })?;
-
     let test_mode = merchant_connector_account.is_test_mode_on();
 
     let auth_type: types::ConnectorAuthType = merchant_connector_account
@@ -2071,7 +2068,10 @@ where
         state,
         payment_data.payment_attempt.payment_method_type,
         Some(merchant_connector_account),
-    );
+        business_profile,
+        processor,
+    )
+    .await;
 
     let unified_address = if let Some(payment_method_info) =
         payment_data.payment_method_info.clone()
@@ -2300,6 +2300,7 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
     payment_data: PaymentData<api::UpdateMetadata>,
     connector_id: &str,
     processor: &domain::Processor,
+    business_profile: &domain::Profile,
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
     merchant_recipient_data: Option<types::MerchantRecipientData>,
     header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
@@ -2398,7 +2399,10 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
         state,
         payment_data.payment_attempt.payment_method_type,
         Some(merchant_connector_account),
-    );
+        business_profile,
+        processor,
+    )
+    .await;
 
     let unified_address = if let Some(payment_method_info) =
         payment_data.payment_method_info.clone()
@@ -7374,6 +7378,29 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             .get_connector_metadata_from_intent()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse connector metadata")?;
+        let connector = api_models::enums::Connector::from_str(connector_name)
+            .change_context(errors::ConnectorError::InvalidConnectorName)
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "connector".into(),
+            })
+            .attach_printable_lazy(|| {
+                format!("unable to parse connector name {connector_name:?}")
+            })?;
+        let connector_creates_order =
+            payment_data
+                .payment_attempt
+                .payment_method
+                .is_some_and(|payment_method| {
+                    connector.requires_order_creation_before_payment(payment_method)
+                });
+        let order_id = connector_creates_order
+            .then(|| {
+                payment_data
+                    .payment_attempt
+                    .connector_response_reference_id
+                    .clone()
+            })
+            .flatten();
 
         Ok(Self {
             setup_future_usage: payment_data
@@ -7426,6 +7453,12 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             recipient_details,
             business_country: payment_data.payment_intent.business_country,
             connector_intent_metadata,
+            order_id,
+            force_3ds_challenge: payment_data
+                .payment_intent
+                .force_3ds_challenge_trigger
+                .filter(|trigger| *trigger)
+                .or(payment_data.payment_intent.force_3ds_challenge),
         })
     }
 }
@@ -7508,6 +7541,9 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "browser_info".into(),
             })?;
+        let device_channel = Some(types::BrowserInformation::resolve_device_channel(
+            browser_info.as_ref(),
+        ));
         let amount = payment_data.payment_attempt.get_total_amount();
         Ok(Self {
             payment_method_data,
@@ -7523,6 +7559,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
             webhook_url,
             complete_authorize_url,
             browser_info,
+            device_channel,
             surcharge_details: payment_data.surcharge_details,
             connector_transaction_id: payment_data
                 .payment_attempt
@@ -7540,6 +7577,11 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
                 .setup_future_usage_applied
                 .or(payment_data.payment_intent.setup_future_usage),
             is_stored_credential: payment_data.payment_attempt.is_stored_credential,
+            force_3ds_challenge: payment_data
+                .payment_intent
+                .force_3ds_challenge_trigger
+                .filter(|trigger| *trigger)
+                .or(payment_data.payment_intent.force_3ds_challenge),
         })
     }
 }
@@ -7925,6 +7967,7 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
             color_icon_card_cvc_error: config.color_icon_card_cvc_error,
             show_merchant_name: config.show_merchant_name,
             payment_methods_separator_text: config.payment_methods_separator_text,
+            redirect_delay_seconds: config.redirect_delay_seconds,
         }
     }
 }
@@ -8004,6 +8047,7 @@ impl ForeignFrom<diesel_models::PaymentLinkConfigRequestForPayments>
             color_icon_card_cvc_error: config.color_icon_card_cvc_error,
             show_merchant_name: config.show_merchant_name,
             payment_methods_separator_text: config.payment_methods_separator_text,
+            redirect_delay_seconds: config.redirect_delay_seconds,
         }
     }
 }

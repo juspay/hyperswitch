@@ -213,17 +213,19 @@ where
     );
 
     if is_eligible_pm {
-        let is_volatile = payment_data
+        // A volatile record with no customer is a guest flow: it is never promoted out of redis,
+        // so there is nothing for the modular update to acknowledge.
+        let is_guest_volatile_payment_method = payment_data
             .get_payment_method_info()
-            .map(|pm| pm.is_pm_volatile());
+            .is_some_and(|pm| pm.is_pm_volatile() && pm.customer_id.is_none());
 
         let payment_method_id = payment_data
             .payment_method_info
             .as_ref()
             .map(|pm_info| pm_info.get_id().clone());
 
-        match (is_volatile, payment_method_id) {
-            (Some(false), Some(pm_id)) => {
+        match (is_guest_volatile_payment_method, payment_method_id) {
+            (false, Some(pm_id)) => {
                 let should_update = resp.status.should_update_payment_method();
 
                 let payment_method_type = payment_data
@@ -393,11 +395,11 @@ where
                     }
                 }
             }
-            (is_volatile, payment_method_id) => {
+            (is_guest_volatile_payment_method, payment_method_id) => {
                 logger::info!(
-                    ?is_volatile,
+                    ?is_guest_volatile_payment_method,
                     ?payment_method_id,
-                    "Payment method is not eligible for modular update (volatile, or no payment method attached)"
+                    "Payment method is not eligible for modular update (guest volatile flow, or no payment method attached)"
                 );
             }
         }
@@ -3084,6 +3086,9 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
         .transpose()?
         .unwrap_or(payment_attempt);
 
+    // Own span per fork, not the caller's: these are joined together, so a
+    // shared span leaves them separable only by scheduler order and a
+    // record/replay comparison reads a transposition as a behaviour change.
     let payment_attempt_fut = tokio::spawn(
         async move {
             Box::pin(async move {
@@ -3104,7 +3109,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             })
             .await
         }
-        .in_current_span(),
+        .instrument(tracing::debug_span!("payment_attempt")),
     );
 
     payment_data.payment_attempt = payment_attempt;
@@ -3164,7 +3169,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             .map(|x| x.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound))
             .await
         }
-        .in_current_span(),
+        .instrument(tracing::debug_span!("payment_intent")),
     );
 
     // When connector requires redirection for mandate creation it can update the connector mandate_id during Psync and CompleteAuthorize
@@ -3194,7 +3199,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             )
             .await
         }
-        .in_current_span(),
+        .instrument(tracing::debug_span!("mandate_update")),
     );
 
     let (payment_intent, _, payment_attempt) = futures::try_join!(
