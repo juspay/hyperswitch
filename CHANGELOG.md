@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.09.09.1-hotfix5
+
+### Bug Fixes
+
+- **payouts:** Preserve merchant metadata when tracking gateway_system ([#14297](https://github.com/juspay/hyperswitch/pull/14297)) ([`09b56f3`](https://github.com/juspay/hyperswitch/commit/09b56f30d880df400ad5d9a53ee9236b6da3ad87))
+
+**Full Changelog:** [`2026.09.09.1-hotfix4...2026.09.09.1-hotfix5`](https://github.com/juspay/hyperswitch/compare/2026.09.09.1-hotfix4...2026.09.09.1-hotfix5)
+
+- - -
+
 ## 2026.09.09.1-hotfix4
 
 ### Features
