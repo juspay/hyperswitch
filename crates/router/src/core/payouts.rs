@@ -144,6 +144,7 @@ pub async fn get_connector_choice(
                 routing_info: PaymentRoutingInfo {
                     algorithm: None,
                     pre_routing_results: None,
+                    pre_routing_fingerprint: None,
                 },
             };
             helpers::decide_payout_connector(
@@ -166,6 +167,7 @@ pub async fn get_connector_choice(
                 routing_info: PaymentRoutingInfo {
                     algorithm: None,
                     pre_routing_results: None,
+                    pre_routing_fingerprint: None,
                 },
             };
             helpers::decide_payout_connector(

@@ -11555,8 +11555,6 @@ where
                             business_profile,
                             payment_data,
                             connectors,
-                            fallback_config,
-                            backend_input,
                             transaction_type,
                             dimensions,
                         )
@@ -11890,6 +11888,7 @@ where
             .unwrap_or(storage::PaymentRoutingInfo {
                 algorithm: None,
                 pre_routing_results: None,
+                pre_routing_fingerprint: None,
             }),
     };
 
@@ -12186,6 +12185,11 @@ where
         request_straight_through_routing_stage.or(algorithmic_straight_through_routing_stage);
 
     let creds_identifier = payment_data.get_creds_identifier();
+    let straight_through_seed = payment_data
+        .get_payment_attempt()
+        .payment_id
+        .get_string_repr()
+        .to_string();
     let txn = TransactionData::Payment(transaction_data.clone());
     let txn_data = transaction_data.clone();
     let fallback = fallback_config.clone();
@@ -12207,7 +12211,10 @@ where
         .map(|stage| {
             async move {
                 stage
-                    .route(StraightThroughRoutingInput { creds_identifier })
+                    .route(StraightThroughRoutingInput {
+                        creds_identifier,
+                        volume_split_seed: Some(straight_through_seed.as_str()),
+                    })
                     .await
                     .inspect_err(|err| {
                         logger::error!(error=?err, "straight-through routing failed");
@@ -13037,8 +13044,6 @@ pub async fn perform_session_token_routing<F, D>(
     business_profile: &domain::Profile,
     payment_data: &mut D,
     connectors: api::SessionConnectorDatas,
-    fallback_config: Vec<api_models::routing::RoutableConnectorChoice>,
-    mut backend_input: dsl_inputs::BackendInput,
     transaction_type: enums::TransactionType,
     dimensions: &DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
 ) -> RouterResult<api::SessionConnectorDatas>
@@ -13048,33 +13053,24 @@ where
 {
     let chosen = connectors.apply_filter_for_session_routing();
 
-    // Degrade to an empty active set on a transient MCA fetch error, with an explicit
-    // log, instead of returning a client-facing error for an infra failure. Note the
-    // empty set filters out every MCA-carrying choice, so a warm-cache request yields no
-    // session tokens and a cold-cache refresh can still hard-error.
-    let active_mca_ids = routing::get_active_mca_ids_for_session(
-        &state,
-        processor.get_key_store(),
-        business_profile.get_id(),
-    )
-    .await;
+    // Same source the payment-methods-list flow evaluates with (the intent-level
+    // billing address): the shared pre-routing decision must see one set of inputs.
+    let billing_country = payment_data
+        .get_address()
+        .get_payment_billing()
+        .and_then(|billing| billing.address.as_ref())
+        .and_then(|address| address.country);
 
     let session_input = routing::SessionRoutingInput {
         state: &state,
         business_profile,
         key_store: processor.get_key_store(),
-        merchant_account: processor.get_account(),
         transaction_type: &transaction_type,
         chosen: &chosen,
-        active_mca_ids: &active_mca_ids,
-        default_config: &fallback_config,
-        backend_input: &mut backend_input,
+        payment_attempt: payment_data.get_payment_attempt(),
+        payment_intent: payment_data.get_payment_intent(),
+        billing_country,
         dimensions,
-        payment_id: payment_data
-            .get_payment_intent()
-            .payment_id
-            .get_string_repr()
-            .to_string(),
     };
 
     let routing_algorithm: routing::MerchantAccountRoutingAlgorithm = business_profile
@@ -13228,15 +13224,14 @@ pub async fn static_dynamic_routing_v1_for_payments(
     backend_input: euclid::backend::BackendInput,
     fallback_config: Vec<api_models::routing::RoutableConnectorChoice>,
 ) -> RouterResult<routing::RoutingConnectorOutcomeWithApproachAndEligibility> {
-    let (static_connectors, static_approach, static_is_volume_split) =
-        routing::perform_static_routing_locally(
-            state,
-            business_profile,
-            &payment_dsl_input,
-            &backend_input,
-            &fallback_config,
-        )
-        .await?;
+    let (static_connectors, static_approach) = routing::perform_static_routing_locally(
+        state,
+        business_profile,
+        &payment_dsl_input,
+        &backend_input,
+        &fallback_config,
+    )
+    .await?;
 
     let (connectors, routing_approach) = routing::perform_hybrid_routing_if_enabled(
         state,
@@ -13247,7 +13242,6 @@ pub async fn static_dynamic_routing_v1_for_payments(
         &fallback_config,
         &static_connectors,
         static_approach,
-        static_is_volume_split,
     )
     .await;
 
