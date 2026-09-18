@@ -24,8 +24,16 @@ pub trait PaymentLinkInterface {
     async fn list_payment_link_by_processor_merchant_id(
         &self,
         processor_merchant_id: &common_utils::id_type::MerchantId,
-        payment_link_constraints: api_models::payments::PaymentLinkListConstraints,
+        payment_link_constraints: &api_models::payments::PaymentLinkListConstraints,
+        profile_id: Option<common_utils::id_type::ProfileId>,
     ) -> CustomResult<Vec<storage::PaymentLink>, errors::StorageError>;
+
+    async fn get_total_count_of_payment_links(
+        &self,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
+        payment_link_constraints: &api_models::payments::PaymentLinkListConstraints,
+        profile_id: Option<common_utils::id_type::ProfileId>,
+    ) -> CustomResult<i64, errors::StorageError>;
 }
 
 #[async_trait::async_trait]
@@ -57,13 +65,33 @@ impl PaymentLinkInterface for Store {
     async fn list_payment_link_by_processor_merchant_id(
         &self,
         processor_merchant_id: &common_utils::id_type::MerchantId,
-        payment_link_constraints: api_models::payments::PaymentLinkListConstraints,
+        payment_link_constraints: &api_models::payments::PaymentLinkListConstraints,
+        profile_id: Option<common_utils::id_type::ProfileId>,
     ) -> CustomResult<Vec<storage::PaymentLink>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
         storage::PaymentLink::filter_by_constraints(
             &conn,
             processor_merchant_id,
             payment_link_constraints,
+            profile_id,
+        )
+        .await
+        .map_err(|error| report!(errors::StorageError::from(error)))
+    }
+
+    #[instrument(skip_all)]
+    async fn get_total_count_of_payment_links(
+        &self,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
+        payment_link_constraints: &api_models::payments::PaymentLinkListConstraints,
+        profile_id: Option<common_utils::id_type::ProfileId>,
+    ) -> CustomResult<i64, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+        storage::PaymentLink::get_total_count_of_payment_links(
+            &conn,
+            processor_merchant_id,
+            payment_link_constraints,
+            profile_id,
         )
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
@@ -84,16 +112,27 @@ impl PaymentLinkInterface for MockDb {
         &self,
         _payment_link_id: &str,
     ) -> CustomResult<storage::PaymentLink, errors::StorageError> {
-        // TODO: Implement function for `MockDb`x
+        // TODO: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?
     }
 
     async fn list_payment_link_by_processor_merchant_id(
         &self,
         _processor_merchant_id: &common_utils::id_type::MerchantId,
-        _payment_link_constraints: api_models::payments::PaymentLinkListConstraints,
+        _payment_link_constraints: &api_models::payments::PaymentLinkListConstraints,
+        _profile_id: Option<common_utils::id_type::ProfileId>,
     ) -> CustomResult<Vec<storage::PaymentLink>, errors::StorageError> {
-        // TODO: Implement function for `MockDb`x
+        // TODO: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
+    }
+
+    async fn get_total_count_of_payment_links(
+        &self,
+        _processor_merchant_id: &common_utils::id_type::MerchantId,
+        _payment_link_constraints: &api_models::payments::PaymentLinkListConstraints,
+        _profile_id: Option<common_utils::id_type::ProfileId>,
+    ) -> CustomResult<i64, errors::StorageError> {
+        // TODO: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?
     }
 }

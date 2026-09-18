@@ -1,4 +1,44 @@
 #[utoipa::path(
+    get,
+    path = "/blocklist/count",
+    params (
+        ("data_kind" = BlocklistDataKind, Query, description = "Kind of blocklist entries to count"),
+        ("X-Profile-Id" = Option<String>, Header, description = "Restricts the count to entries \
+         belonging to this business profile, plus entries with no profile. If omitted, the \
+         merchant's default profile is used; merchants with more than one profile have no default \
+         and will receive an error asking for this header."),
+    ),
+    responses(
+        (status = 200, description = "Blocklist entry counts", body = BlocklistCountResponse),
+        (status = 400, description = "Invalid Data, or no profile could be resolved")
+    ),
+    tag = "Blocklist",
+    operation_id = "Count blocked fingerprints of a particular kind",
+    security(("api_key" = []), ("jwt_key" = []))
+)]
+pub async fn get_blocklist_count() {}
+
+#[utoipa::path(
+    get,
+    path = "/blocklist/lookup",
+    params (
+        ("data" = String, Query, description = "The raw value to check against the blocklist, e.g. a card BIN"),
+        ("X-Profile-Id" = Option<String>, Header, description = "Restricts the lookup to entries \
+         belonging to this business profile, plus entries with no profile. If omitted, the \
+         merchant's default profile is used; merchants with more than one profile have no default \
+         and will receive an error asking for this header."),
+    ),
+    responses(
+        (status = 200, description = "Blocklist lookup result", body = BlocklistLookupResponse),
+        (status = 400, description = "Invalid Data, or no profile could be resolved")
+    ),
+    tag = "Blocklist",
+    operation_id = "Look up whether a value is blocked",
+    security(("api_key" = []), ("jwt_key" = []))
+)]
+pub async fn lookup_blocklist_entry() {}
+
+#[utoipa::path(
     post,
     path = "/blocklist/toggle",
     params (
@@ -10,7 +50,7 @@
     ),
     tag = "Blocklist",
     operation_id = "Toggle blocklist guard for a particular merchant",
-    security(("api_key" = []))
+    security(("api_key" = []), ("jwt_key" = []))
 )]
 pub async fn toggle_blocklist_guard() {}
 
@@ -30,7 +70,7 @@ pub async fn toggle_blocklist_guard() {}
     ),
     tag = "Blocklist",
     operation_id = "Block a Fingerprint",
-    security(("api_key" = []))
+    security(("api_key" = []), ("jwt_key" = []))
 )]
 pub async fn add_entry_to_blocklist() {}
 
@@ -51,7 +91,7 @@ pub async fn add_entry_to_blocklist() {}
     ),
     tag = "Blocklist",
     operation_id = "Unblock a Fingerprint",
-    security(("api_key" = []))
+    security(("api_key" = []), ("jwt_key" = []))
 )]
 pub async fn remove_entry_from_blocklist() {}
 
@@ -71,7 +111,7 @@ pub async fn remove_entry_from_blocklist() {}
     ),
     tag = "Blocklist",
     operation_id = "List Blocked fingerprints of a particular kind",
-    security(("api_key" = []))
+    security(("api_key" = []), ("jwt_key" = []), ("publishable_key" = []))
 )]
 pub async fn list_blocked_payment_methods() {}
 
@@ -82,6 +122,7 @@ pub async fn list_blocked_payment_methods() {}
         content = String,
         content_type = "multipart/form-data",
         description = "A multipart/form-data request with a `file` field containing a UTF-8 CSV (max 5 MiB). \
+            The part's `filename` is recorded on the job and returned as `file_name`. \
             The CSV must have a header row: `type,data,metadata`. \
             `type`: one of `generic_card_bin` (6 to 10 digits), `fingerprint`. \
             `metadata`: optional, `key=value` pairs separated by `;` (e.g. `reason=fraud;source=manual`). \
@@ -98,7 +139,7 @@ pub async fn list_blocked_payment_methods() {}
     ),
     tag = "Blocklist",
     operation_id = "Upload a batch blocklist CSV",
-    security(("api_key" = []))
+    security(("api_key" = []), ("jwt_key" = []))
 )]
 pub async fn upload_batch_blocklist() {}
 
@@ -106,15 +147,18 @@ pub async fn upload_batch_blocklist() {}
     get,
     path = "/blocklist/batch/{job_id}",
     params(
-        ("job_id" = String, Path, description = "The job ID returned by the batch upload endpoint"),
+        ("job_id" = String, Path, description = "The job ID returned by the batch upload endpoint, \
+         or the export ID returned by `POST /blocklist/export`"),
     ),
     responses(
-        (status = 200, description = "Batch blocklist job status", body = BatchBlocklistJobStatusResponse),
+        (status = 200, description = "Batch blocklist job status. For a completed export whose file \
+         is still stored, this is where the short-lived `download_url` is issued.",
+         body = BatchBlocklistJobStatusResponse),
         (status = 404, description = "Job not found"),
     ),
     tag = "Blocklist",
     operation_id = "Get batch blocklist job status",
-    security(("api_key" = []))
+    security(("api_key" = []), ("jwt_key" = []))
 )]
 pub async fn get_batch_blocklist_job_status() {}
 
@@ -124,12 +168,59 @@ pub async fn get_batch_blocklist_job_status() {}
     params(
         ("limit" = Option<u8>, Query, description = "Maximum number of jobs to return (default 10, max 100)"),
         ("offset" = Option<u32>, Query, description = "Zero-based offset for pagination (default 0)"),
+        ("job_type" = Option<BatchBlocklistJobType>, Query, description = "Restricts the listing to \
+         `upload`, `export`, or `profile_clone` jobs. All kinds are returned when omitted, newest first."),
+        ("X-Profile-Id" = Option<String>, Header, description = "Restricts the listing to jobs run \
+         for this business profile, plus jobs that predate profile scoping. When no profile can be \
+         resolved, all of the merchant's jobs are returned, as before."),
     ),
     responses(
-        (status = 200, description = "List of batch blocklist jobs", body = ListBatchBlocklistJobsResponse),
+        (status = 200, description = "List of batch blocklist jobs. Rows report `downloadable`, but \
+         never `download_url` - fetch the link from `GET /blocklist/batch/{job_id}` when the \
+         merchant asks for that specific file.", body = ListBatchBlocklistJobsResponse),
     ),
     tag = "Blocklist",
     operation_id = "List batch blocklist jobs",
-    security(("api_key" = []))
+    security(("api_key" = []), ("jwt_key" = []))
 )]
 pub async fn list_batch_blocklist_jobs() {}
+
+#[utoipa::path(
+    post,
+    path = "/blocklist/export",
+    params (
+        ("X-Profile-Id" = Option<String>, Header, description = "The business profile whose \
+         blocklist is exported. Resolution follows the same rules as blocking a single entry."),
+    ),
+    responses(
+        (status = 202, description = "Blocklist export started", body = BlocklistExportResponse),
+        (status = 400, description = "No profile could be resolved"),
+    ),
+    tag = "Blocklist",
+    operation_id = "Start a blocklist CSV export",
+    security(("api_key" = []), ("jwt_key" = []))
+)]
+pub async fn create_blocklist_export() {}
+
+/// Blocklist - Clone Entries
+///
+/// Copies a business profile's blocklist entries onto other profiles of the same merchant. The
+/// copy runs as one background job whose process tracker clones onto the targets one at a time.
+/// Poll `/blocklist/batch/{job_id}` for per-target progress in the job metadata.
+#[utoipa::path(
+    post,
+    path = "/blocklist/clone",
+    request_body = CloneBlocklistEntriesRequest,
+    params(
+        ("X-Profile-Id" = Option<String>, Header, description = "Source profile whose entries are copied; it also owns the clone job. Required when the authenticated dashboard session does not provide a profile context")
+    ),
+    responses(
+        (status = 200, description = "One background job was started; it clones onto the target profiles one at a time", body = CloneBlocklistEntriesResponse),
+        (status = 400, description = "Missing profile context, no targets given, or a target is the source profile"),
+        (status = 404, description = "The source or a target profile does not belong to the merchant"),
+    ),
+    tag = "Blocklist",
+    operation_id = "Clone blocklist entries across profiles",
+    security(("api_key" = []), ("jwt_key" = []))
+)]
+pub async fn clone_blocklist_entries() {}

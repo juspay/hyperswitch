@@ -850,7 +850,7 @@ pub async fn construct_external_vault_proxy_payment_router_data_v1<'a>(
         .map(|b| b.parse_value("BrowserInformation"))
         .transpose()
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "browser_info",
+            field_name: "browser_info".into(),
         })?;
 
     let customer_details = payment_data
@@ -1958,6 +1958,7 @@ pub async fn construct_payment_router_data<'a, F, T>(
     payment_data: PaymentData<F>,
     connector_id: &str,
     processor: &domain::Processor,
+    business_profile: &domain::Profile,
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
     merchant_recipient_data: Option<types::MerchantRecipientData>,
     header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
@@ -1971,10 +1972,6 @@ where
     error_stack::Report<errors::ApiErrorResponse>:
         From<<T as TryFrom<PaymentAdditionalData<'a, F>>>::Error>,
 {
-    fp_utils::when(merchant_connector_account.is_disabled(), || {
-        Err(errors::ApiErrorResponse::MerchantConnectorAccountDisabled)
-    })?;
-
     let test_mode = merchant_connector_account.is_test_mode_on();
 
     let auth_type: types::ConnectorAuthType = merchant_connector_account
@@ -2052,7 +2049,7 @@ where
     let connector_enum = api_models::enums::Connector::from_str(connector_id)
         .change_context(errors::ConnectorError::InvalidConnectorName)
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "connector",
+            field_name: "connector".into(),
         })
         .attach_printable_lazy(|| format!("unable to parse connector name {connector_id:?}"))?;
 
@@ -2071,7 +2068,10 @@ where
         state,
         payment_data.payment_attempt.payment_method_type,
         Some(merchant_connector_account),
-    );
+        business_profile,
+        processor,
+    )
+    .await;
 
     let unified_address = if let Some(payment_method_info) =
         payment_data.payment_method_info.clone()
@@ -2106,7 +2106,7 @@ where
                     data.to_owned()
                         .parse_value("OrderDetailsWithAmount")
                         .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                            field_name: "OrderDetailsWithAmount",
+                            field_name: "OrderDetailsWithAmount".into(),
                         })
                         .attach_printable("Unable to parse OrderDetailsWithAmount")
                 })
@@ -2300,6 +2300,7 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
     payment_data: PaymentData<api::UpdateMetadata>,
     connector_id: &str,
     processor: &domain::Processor,
+    business_profile: &domain::Profile,
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
     merchant_recipient_data: Option<types::MerchantRecipientData>,
     header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
@@ -2379,7 +2380,7 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
     let connector_enum = api_models::enums::Connector::from_str(connector_id)
         .change_context(errors::ConnectorError::InvalidConnectorName)
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "connector",
+            field_name: "connector".into(),
         })
         .attach_printable_lazy(|| format!("unable to parse connector name {connector_id:?}"))?;
 
@@ -2398,7 +2399,10 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
         state,
         payment_data.payment_attempt.payment_method_type,
         Some(merchant_connector_account),
-    );
+        business_profile,
+        processor,
+    )
+    .await;
 
     let unified_address = if let Some(payment_method_info) =
         payment_data.payment_method_info.clone()
@@ -3731,7 +3735,7 @@ where
                 .map(|data| data.parse_value("payment_method_data"))
                 .transpose()
                 .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "payment_method_data",
+                    field_name: "payment_method_data".into(),
                 })?;
         let payment_method_data_response =
             additional_payment_method_data.map(api::PaymentMethodDataResponse::from);
@@ -3851,7 +3855,7 @@ where
                 .get_amount_as_i64(),
         )
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "amount",
+            field_name: "amount".into(),
         })?;
     let mandate_id = payment_attempt.mandate_id.clone();
 
@@ -4333,6 +4337,9 @@ where
             .attach_printable("Failed to parse recipient details")?
             .map(api_models::payments::MaskedRecipientDetails::from);
         let payments_response = api::PaymentsResponse {
+            // Populated only for server integrations, by the update-context enrichment.
+            payment_method_list: None,
+            session_tokens: None,
             payment_id: payment_intent.payment_id,
             merchant_id: payment_intent.merchant_id,
             status: payment_intent.status,
@@ -4745,6 +4752,9 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             .flatten()
             .map(api_models::payments::MaskedRecipientDetails::from);
         Self {
+            // Populated only for server integrations, by the update-context enrichment.
+            payment_method_list: None,
+            session_tokens: None,
             connector_response_metadata: pa.get_connector_response_metadata_from_attempt_metadata(),
             applied_offer: applied_offer_response(pa.applied_offer_details.clone()),
             payment_id: pi.payment_id,
@@ -5325,7 +5335,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             .map(|b| b.parse_value("BrowserInformation"))
             .transpose()
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "browser_info",
+                field_name: "browser_info".into(),
             })?;
 
         let connector_metadata = additional_data
@@ -5379,7 +5389,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                         data.to_owned()
                             .parse_value("OrderDetailsWithAmount")
                             .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                                field_name: "OrderDetailsWithAmount",
+                                field_name: "OrderDetailsWithAmount".into(),
                             })
                             .attach_printable("Unable to parse OrderDetailsWithAmount")
                     })
@@ -5454,7 +5464,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
         let connector = api_models::enums::Connector::from_str(connector_name)
             .change_context(errors::ConnectorError::InvalidConnectorName)
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "connector",
+                field_name: "connector".into(),
             })
             .attach_printable_lazy(|| {
                 format!("unable to parse connector name {connector_name:?}")
@@ -5845,7 +5855,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
             .map(|b| b.parse_value("BrowserInformation"))
             .transpose()
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "browser_info",
+                field_name: "browser_info".into(),
             })?;
         let amount = payment_data.payment_attempt.get_total_amount();
         let order_tax_amount = payment_data
@@ -5987,7 +5997,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
             .map(|b| b.parse_value("BrowserInformation"))
             .transpose()
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "browser_info",
+                field_name: "browser_info".into(),
             })?;
         let feature_metadata = payment_data
             .get_payment_intent()
@@ -6170,7 +6180,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SdkPaymentsSessi
             .clone()
             .and_then(|tax| tax.payment_method_type.map(|pmt| pmt.order_tax_amount))
             .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "order_tax_amount",
+                field_name: "order_tax_amount".into(),
             })?;
         let surcharge_amount = payment_data
             .surcharge_details
@@ -6856,7 +6866,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
                         data.to_owned()
                             .parse_value("OrderDetailsWithAmount")
                             .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                                field_name: "OrderDetailsWithAmount",
+                                field_name: "OrderDetailsWithAmount".into(),
                             })
                             .attach_printable("Unable to parse OrderDetailsWithAmount")
                     })
@@ -7068,7 +7078,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             .map(|b| b.parse_value("BrowserInformation"))
             .transpose()
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "browser_info",
+                field_name: "browser_info".into(),
             })?;
 
         let customer_name = additional_data
@@ -7097,7 +7107,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
         let connector = api_models::enums::Connector::from_str(connector_name)
             .change_context(errors::ConnectorError::InvalidConnectorName)
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "connector",
+                field_name: "connector".into(),
             })
             .attach_printable_lazy(|| {
                 format!("unable to parse connector name {connector_name:?}")
@@ -7311,7 +7321,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             .map(|b| b.parse_value("BrowserInformation"))
             .transpose()
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "browser_info",
+                field_name: "browser_info".into(),
             })?;
 
         let redirect_response = payment_data.redirect_response.clone().map(|redirect| {
@@ -7368,6 +7378,29 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             .get_connector_metadata_from_intent()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse connector metadata")?;
+        let connector = api_models::enums::Connector::from_str(connector_name)
+            .change_context(errors::ConnectorError::InvalidConnectorName)
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "connector".into(),
+            })
+            .attach_printable_lazy(|| {
+                format!("unable to parse connector name {connector_name:?}")
+            })?;
+        let connector_creates_order =
+            payment_data
+                .payment_attempt
+                .payment_method
+                .is_some_and(|payment_method| {
+                    connector.requires_order_creation_before_payment(payment_method)
+                });
+        let order_id = connector_creates_order
+            .then(|| {
+                payment_data
+                    .payment_attempt
+                    .connector_response_reference_id
+                    .clone()
+            })
+            .flatten();
 
         Ok(Self {
             setup_future_usage: payment_data
@@ -7420,6 +7453,12 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             recipient_details,
             business_country: payment_data.payment_intent.business_country,
             connector_intent_metadata,
+            order_id,
+            force_3ds_challenge: payment_data
+                .payment_intent
+                .force_3ds_challenge_trigger
+                .filter(|trigger| *trigger)
+                .or(payment_data.payment_intent.force_3ds_challenge),
         })
     }
 }
@@ -7463,7 +7502,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
                         data.to_owned()
                             .parse_value("OrderDetailsWithAmount")
                             .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                                field_name: "OrderDetailsWithAmount",
+                                field_name: "OrderDetailsWithAmount".into(),
                             })
                             .attach_printable("Unable to parse OrderDetailsWithAmount")
                     })
@@ -7500,8 +7539,11 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
             .map(|b| b.parse_value("BrowserInformation"))
             .transpose()
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "browser_info",
+                field_name: "browser_info".into(),
             })?;
+        let device_channel = Some(types::BrowserInformation::resolve_device_channel(
+            browser_info.as_ref(),
+        ));
         let amount = payment_data.payment_attempt.get_total_amount();
         Ok(Self {
             payment_method_data,
@@ -7517,6 +7559,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
             webhook_url,
             complete_authorize_url,
             browser_info,
+            device_channel,
             surcharge_details: payment_data.surcharge_details,
             connector_transaction_id: payment_data
                 .payment_attempt
@@ -7534,6 +7577,11 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
                 .setup_future_usage_applied
                 .or(payment_data.payment_intent.setup_future_usage),
             is_stored_credential: payment_data.payment_attempt.is_stored_credential,
+            force_3ds_challenge: payment_data
+                .payment_intent
+                .force_3ds_challenge_trigger
+                .filter(|trigger| *trigger)
+                .or(payment_data.payment_intent.force_3ds_challenge),
         })
     }
 }
@@ -7919,6 +7967,7 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
             color_icon_card_cvc_error: config.color_icon_card_cvc_error,
             show_merchant_name: config.show_merchant_name,
             payment_methods_separator_text: config.payment_methods_separator_text,
+            redirect_delay_seconds: config.redirect_delay_seconds,
         }
     }
 }
@@ -7998,6 +8047,7 @@ impl ForeignFrom<diesel_models::PaymentLinkConfigRequestForPayments>
             color_icon_card_cvc_error: config.color_icon_card_cvc_error,
             show_merchant_name: config.show_merchant_name,
             payment_methods_separator_text: config.payment_methods_separator_text,
+            redirect_delay_seconds: config.redirect_delay_seconds,
         }
     }
 }

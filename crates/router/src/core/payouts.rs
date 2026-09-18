@@ -361,7 +361,7 @@ pub async fn payouts_create_core(
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
         .with_profile_id(profile_id.clone());
     // Create DB entries
-    let mut payout_data = payout_create_db_entries(
+    let mut payout_data = Box::pin(payout_create_db_entries(
         &state,
         &platform,
         &req,
@@ -372,7 +372,7 @@ pub async fn payouts_create_core(
         customer.as_ref(),
         payment_method.clone(),
         &dimensions,
-    )
+    ))
     .await?;
 
     let payout_attempt = payout_data.payout_attempt.to_owned();
@@ -706,7 +706,7 @@ pub async fn payouts_cancel_core(
                 "Connector not found in payout_attempt - should not reach here".to_string(),
             ))
             .change_context(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "connector",
+                field_name: "connector".into(),
             })
             .attach_printable("Connector not found for payout cancellation")?,
         };
@@ -773,7 +773,7 @@ pub async fn payouts_fulfill_core(
             "Connector not found in payout_attempt - should not reach here.".to_string(),
         ))
         .change_context(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "connector",
+            field_name: "connector".into(),
         })
         .attach_printable("Connector not found for payout fulfillment")?,
     };
@@ -1338,6 +1338,11 @@ pub async fn complete_create_recipient(
     connector_data: &api::ConnectorData,
     payout_data: &mut PayoutData,
 ) -> RouterResult<()> {
+    let is_passthrough = payout_data
+        .payout_method_data
+        .as_ref()
+        .is_some_and(|payout_method_data| payout_method_data.is_passthrough());
+
     if !payout_data.should_terminate
         && matches!(
             payout_data.payout_attempt.status,
@@ -1347,7 +1352,7 @@ pub async fn complete_create_recipient(
         )
         && connector_data
             .connector_name
-            .supports_create_recipient(payout_data.payouts.payout_type)
+            .supports_create_recipient(payout_data.payouts.payout_type, is_passthrough)
     {
         Box::pin(create_recipient(
             state,
@@ -1600,13 +1605,13 @@ pub async fn create_recipient(
                         .map(UnifiedCode::try_from)
                         .transpose()
                         .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                            field_name: "unified_code",
+                            field_name: "unified_code".into(),
                         })?,
                     unified_message: unified_message
                         .map(UnifiedMessage::try_from)
                         .transpose()
                         .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                            field_name: "unified_message",
+                            field_name: "unified_message".into(),
                         })?,
                     payout_connector_metadata: payout_data
                         .payout_attempt
@@ -1811,13 +1816,13 @@ pub async fn check_payout_eligibility(
                     .map(UnifiedCode::try_from)
                     .transpose()
                     .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "unified_code",
+                        field_name: "unified_code".into(),
                     })?,
                 unified_message: unified_message
                     .map(UnifiedMessage::try_from)
                     .transpose()
                     .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "unified_message",
+                        field_name: "unified_message".into(),
                     })?,
                 payout_connector_metadata: payout_data
                     .payout_attempt
@@ -2059,13 +2064,13 @@ pub async fn create_payout(
                     .map(UnifiedCode::try_from)
                     .transpose()
                     .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "unified_code",
+                        field_name: "unified_code".into(),
                     })?,
                 unified_message: unified_message
                     .map(UnifiedMessage::try_from)
                     .transpose()
                     .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "unified_message",
+                        field_name: "unified_message".into(),
                     })?,
                 payout_connector_metadata: connector_meta_data,
             };
@@ -2284,13 +2289,13 @@ pub async fn update_retrieve_payout_tracker<F, T>(
                         .map(UnifiedCode::try_from)
                         .transpose()
                         .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                            field_name: "unified_code",
+                            field_name: "unified_code".into(),
                         })?,
                     unified_message: unified_message
                         .map(UnifiedMessage::try_from)
                         .transpose()
                         .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                            field_name: "unified_message",
+                            field_name: "unified_message".into(),
                         })?,
                     payout_connector_metadata: payout_response_data
                         .payout_connector_metadata
@@ -2563,13 +2568,13 @@ pub async fn create_recipient_disburse_account(
                     .map(UnifiedCode::try_from)
                     .transpose()
                     .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "unified_code",
+                        field_name: "unified_code".into(),
                     })?,
                 unified_message: unified_message
                     .map(UnifiedMessage::try_from)
                     .transpose()
                     .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "unified_message",
+                        field_name: "unified_message".into(),
                     })?,
                 payout_connector_metadata: payout_data
                     .payout_attempt
@@ -2703,13 +2708,13 @@ pub async fn cancel_payout(
                     .map(UnifiedCode::try_from)
                     .transpose()
                     .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "unified_code",
+                        field_name: "unified_code".into(),
                     })?,
                 unified_message: unified_message
                     .map(UnifiedMessage::try_from)
                     .transpose()
                     .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "unified_message",
+                        field_name: "unified_message".into(),
                     })?,
                 payout_connector_metadata: payout_data
                     .payout_attempt
@@ -2903,13 +2908,13 @@ pub async fn fulfill_payout(
                     .map(UnifiedCode::try_from)
                     .transpose()
                     .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "unified_code",
+                        field_name: "unified_code".into(),
                     })?,
                 unified_message: unified_message
                     .map(UnifiedMessage::try_from)
                     .transpose()
                     .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "unified_message",
+                        field_name: "unified_message".into(),
                     })?,
                 payout_connector_metadata: payout_data
                     .payout_attempt
@@ -4176,21 +4181,19 @@ pub async fn decide_unified_connector_service_payout<F: Clone>(
     Ok((gateway_context, updated_state))
 }
 
-/// Extracts the gateway system from the payout's feature metadata
-/// Returns None if metadata is missing, corrupted, or doesn't contain gateway_system
+/// Extracts the gateway system from the payout's metadata.
+/// Returns None if metadata is missing, corrupted, or doesn't contain gateway_system.
 pub fn extract_gateway_system_from_payouts(
-    payout_data: &mut PayoutData,
+    payout_data: &PayoutData,
 ) -> Option<common_enums::GatewaySystem> {
     #[cfg(feature = "v1")]
     {
         payout_data.payouts.metadata.as_ref().and_then(|metadata| {
-            // Try to parse the JSON value as FeatureMetadata
-            // Log errors but don't fail the flow for corrupted metadata
             match serde_json::from_value::<FeatureMetadata>(metadata.clone().expose()) {
                 Ok(feature_metadata) => feature_metadata.gateway_system,
                 Err(err) => {
                     router_env::logger::warn!(
-                        "Failed to parse metadata for gateway_system extraction: {}",
+                        "Failed to parse payout metadata for gateway_system extraction: {}",
                         err
                     );
                     None
@@ -4219,27 +4222,41 @@ pub async fn decide_unified_connector_service_payout<F: Clone>(
     todo!()
 }
 
-/// Updates the payout intent's metadata to track the gateway system being used
+/// Updates the payout intent's metadata to track the gateway system being used.
+/// Merges gateway_system into the existing metadata map so merchant-provided fields are preserved.
 #[cfg(feature = "v1")]
 pub fn update_gateway_system_in_payout_metadata(
     payout_data: &mut PayoutData,
     gateway_system: common_enums::GatewaySystem,
 ) -> RouterResult<()> {
-    let existing_metadata = payout_data.payouts.metadata.as_ref();
+    let gateway_system_metadata = FeatureMetadata {
+        gateway_system: Some(gateway_system),
+        ..Default::default()
+    };
 
-    let mut feature_metadata = existing_metadata
-        .and_then(|metadata| {
-            serde_json::from_value::<FeatureMetadata>(metadata.clone().expose()).ok()
+    let gateway_system_metadata_value = serde_json::to_value(gateway_system_metadata)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to serialize gateway_system metadata")?;
+
+    let mut metadata = payout_data
+        .payouts
+        .metadata
+        .as_ref()
+        .map(|metadata| {
+            metadata.peek().as_object().cloned().unwrap_or_else(|| {
+                router_env::logger::warn!(
+                    "Payout metadata is not a JSON object; gateway_system will be written to a fresh map"
+                );
+                serde_json::Map::new()
+            })
         })
         .unwrap_or_default();
 
-    feature_metadata.gateway_system = Some(gateway_system);
+    if let Some(gateway_system_metadata) = gateway_system_metadata_value.as_object() {
+        metadata.extend(gateway_system_metadata.clone());
+    }
 
-    let updated_metadata = serde_json::to_value(feature_metadata)
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to serialize feature metadata")?;
-
-    payout_data.payouts.metadata = Some(Secret::new(updated_metadata.clone()));
+    payout_data.payouts.metadata = Some(Secret::new(serde_json::Value::Object(metadata)));
 
     Ok(())
 }
