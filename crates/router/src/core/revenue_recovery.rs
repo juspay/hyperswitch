@@ -609,7 +609,8 @@ pub async fn perform_calculate_workflow(
     platform: domain::Platform,
     tracking_data: &pcr::RevenueRecoveryWorkflowTrackingData,
     revenue_recovery_payment_data: &pcr::RevenueRecoveryPaymentData,
-    payment_intent: &PaymentIntent,
+    // Mutable because A/B routing records its assignment on the intent's feature metadata
+    payment_intent: &mut PaymentIntent,
 ) -> Result<(), sch_errors::ProcessTrackerError> {
     let db = &*state.store;
     let merchant_id = revenue_recovery_payment_data.merchant_account.get_id();
@@ -754,7 +755,7 @@ pub async fn perform_calculate_workflow(
             state,
             payment_intent,
             revenue_recovery_payment_data,
-            active_payment_attempt_id
+            payment_intent.active_attempt_id.as_ref()
         )).await?;
 
             // 3. If token found: create EXECUTE_WORKFLOW task and finish CALCULATE_WORKFLOW
