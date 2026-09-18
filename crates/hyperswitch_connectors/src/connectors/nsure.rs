@@ -26,17 +26,17 @@ use hyperswitch_domain_models::{
 };
 #[cfg(feature = "frm")]
 use hyperswitch_domain_models::{
-    router_flow_types::{Checkout, Fulfillment, RecordReturn, Sale, Transaction},
+    router_flow_types::{Checkout, Fulfillment, PoFrm, RecordReturn, Sale, Transaction},
     router_request_types::fraud_check::{
-        FraudCheckCheckoutData, FraudCheckFulfillmentData, FraudCheckRecordReturnData,
-        FraudCheckSaleData, FraudCheckTransactionData,
+        FraudCheckCheckoutData, FraudCheckFulfillmentData, FraudCheckPayoutData,
+        FraudCheckRecordReturnData, FraudCheckSaleData, FraudCheckTransactionData,
     },
     router_response_types::fraud_check::FraudCheckResponseData,
 };
 #[cfg(feature = "frm")]
 use hyperswitch_interfaces::api::{
-    FraudCheck, FraudCheckCheckout, FraudCheckFulfillment, FraudCheckRecordReturn, FraudCheckSale,
-    FraudCheckTransaction,
+    FraudCheck, FraudCheckCheckout, FraudCheckFulfillment, FraudCheckPayout, FraudCheckRecordReturn,
+    FraudCheckSale, FraudCheckTransaction,
 };
 use hyperswitch_interfaces::{
     api::{
@@ -111,6 +111,8 @@ impl FraudCheckTransaction for Nsure {}
 impl FraudCheckFulfillment for Nsure {}
 #[cfg(feature = "frm")]
 impl FraudCheckRecordReturn for Nsure {}
+#[cfg(feature = "frm")]
+impl FraudCheckPayout for Nsure {}
 
 // The FRM flows must fail loudly on the direct path rather than inherit the
 // trait default, which returns `Ok(None)` and lets the flow complete as a no-op
@@ -146,6 +148,8 @@ ucs_only_frm_flow!(Transaction, FraudCheckTransactionData);
 ucs_only_frm_flow!(Fulfillment, FraudCheckFulfillmentData);
 #[cfg(feature = "frm")]
 ucs_only_frm_flow!(RecordReturn, FraudCheckRecordReturnData);
+#[cfg(feature = "frm")]
+ucs_only_frm_flow!(PoFrm, FraudCheckPayoutData);
 
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for Nsure {

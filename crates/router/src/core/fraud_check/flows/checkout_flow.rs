@@ -144,7 +144,10 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
                 email,
                 phone,
                 phone_country_code,
-                gateway_metadata: get_gateway_frm_metadata(&state.conf, &self.payment_attempt)?,
+                gateway_metadata: get_gateway_frm_metadata(
+                    &state.conf.connectors,
+                    &self.payment_attempt,
+                )?,
                 customer_name: customer_details.as_ref().and_then(|c| c.name.clone()),
                 payment_method_data_full: self.payment_method_data.clone(),
             },

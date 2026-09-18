@@ -4,11 +4,11 @@ use api_models::enums;
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
 pub use hyperswitch_domain_models::router_flow_types::fraud_check::{
-    Checkout, Fulfillment, RecordReturn, Sale, Transaction,
+    Checkout, Fulfillment, PoFrm, RecordReturn, Sale, Transaction,
 };
 pub use hyperswitch_interfaces::api::fraud_check::{
-    FraudCheckCheckout, FraudCheckFulfillment, FraudCheckRecordReturn, FraudCheckSale,
-    FraudCheckTransaction,
+    FraudCheckCheckout, FraudCheckFulfillment, FraudCheckPayout, FraudCheckRecordReturn,
+    FraudCheckSale, FraudCheckTransaction,
 };
 
 pub use super::fraud_check_v2::{
