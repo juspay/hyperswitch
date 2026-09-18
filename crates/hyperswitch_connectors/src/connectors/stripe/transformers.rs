@@ -48,6 +48,7 @@ use serde_json::Value;
 use time::PrimitiveDateTime;
 use url::Url;
 
+use super::STRIPE_CHECKOUT_SESSION_ID_PREFIX;
 use crate::{
     constants::headers::STRIPE_COMPATIBLE_CONNECT_ACCOUNT,
     utils::{
@@ -55,6 +56,437 @@ use crate::{
         PaymentMethodTokenizationRequestData, RouterData as OtherRouterData,
     },
 };
+
+pub fn get_hosted_checkout_config(
+    item: &PaymentsAuthorizeRouterData,
+) -> Option<&payments::StripeHostedCheckoutConfig> {
+    item.request
+        .connector_intent_metadata
+        .as_ref()?
+        .stripe
+        .as_ref()?
+        .hosted_checkout
+        .as_ref()
+}
+
+pub fn is_hosted_checkout(item: &PaymentsAuthorizeRouterData) -> bool {
+    get_hosted_checkout_config(item).is_some()
+}
+
+fn get_stripe_checkout_urls(return_url: &str) -> CustomResult<(String, String), ConnectorError> {
+    let mut success_url =
+        Url::parse(return_url).change_context(ConnectorError::InvalidDataFormat {
+            field_name: "return_url",
+        })?;
+    set_stripe_checkout_query_parameter(
+        &mut success_url,
+        "checkout_session_id",
+        "{CHECKOUT_SESSION_ID}",
+    );
+    let mut cancel_url =
+        Url::parse(return_url).change_context(ConnectorError::InvalidDataFormat {
+            field_name: "return_url",
+        })?;
+    set_stripe_checkout_query_parameter(&mut cancel_url, "checkout_cancelled", "true");
+    Ok((
+        success_url
+            .to_string()
+            .replace("%7BCHECKOUT_SESSION_ID%7D", "{CHECKOUT_SESSION_ID}"),
+        cancel_url.to_string(),
+    ))
+}
+
+fn set_stripe_checkout_query_parameter(url: &mut Url, key: &str, value: &str) {
+    // The redirect marker is reserved by the integration. Remove any merchant-provided value
+    // first so duplicate query keys cannot affect payment-result evaluation.
+    let retained_pairs = url
+        .query_pairs()
+        .filter(|(name, _)| name != "checkout_session_id" && name != "checkout_cancelled")
+        .map(|(name, value)| (name.into_owned(), value.into_owned()))
+        .collect::<Vec<_>>();
+    url.set_query(None);
+    url.query_pairs_mut()
+        .extend_pairs(retained_pairs)
+        .append_pair(key, value);
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct StripeCheckoutSessionRequest {
+    pub mode: &'static str,
+    pub ui_mode: &'static str,
+    #[serde(rename = "payment_method_types[0]")]
+    pub payment_method_type: &'static str,
+    pub success_url: String,
+    pub cancel_url: String,
+    pub client_reference_id: String,
+    pub allow_promotion_codes: bool,
+    #[serde(flatten)]
+    pub fields: HashMap<String, String>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum StripeCheckoutSessionStatus {
+    Open,
+    Complete,
+    Expired,
+    Failed,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum StripeCheckoutPaymentStatus {
+    Paid,
+    Unpaid,
+    NoPaymentRequired,
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
+pub struct StripeCheckoutTotalDetails {
+    pub amount_discount: Option<MinorUnit>,
+    pub amount_shipping: Option<MinorUnit>,
+    pub amount_tax: Option<MinorUnit>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum StripeCheckoutExpandableId {
+    Id(String),
+    Object { id: String },
+}
+
+impl StripeCheckoutExpandableId {
+    fn as_str(&self) -> &str {
+        match self {
+            Self::Id(id) | Self::Object { id } => id,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
+pub struct StripeCheckoutDiscount {
+    pub coupon: Option<StripeCheckoutExpandableId>,
+    pub promotion_code: Option<StripeCheckoutExpandableId>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
+pub struct StripeCheckoutSessionResponse {
+    pub id: String,
+    pub url: Option<Url>,
+    pub status: Option<StripeCheckoutSessionStatus>,
+    pub payment_status: Option<StripeCheckoutPaymentStatus>,
+    pub payment_intent: Option<String>,
+    pub amount_subtotal: Option<MinorUnit>,
+    pub amount_total: Option<MinorUnit>,
+    pub currency: Option<String>,
+    pub total_details: Option<StripeCheckoutTotalDetails>,
+    pub discounts: Option<Vec<StripeCheckoutDiscount>>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct StripeResponseObject {
+    pub object: WebhookEventObjectType,
+}
+
+fn validate_stripe_checkout_ids(
+    session_id: &str,
+    payment_intent: Option<&str>,
+) -> CustomResult<(), ConnectorError> {
+    if !session_id.starts_with(STRIPE_CHECKOUT_SESSION_ID_PREFIX) {
+        return Err(ConnectorError::InvalidDataFormat {
+            field_name: "response.id",
+        }
+        .into());
+    }
+    if payment_intent.is_some_and(|id| !id.starts_with("pi_")) {
+        return Err(ConnectorError::InvalidDataFormat {
+            field_name: "response.payment_intent",
+        }
+        .into());
+    }
+    Ok(())
+}
+
+fn get_stripe_checkout_status(
+    status: StripeCheckoutSessionStatus,
+    payment_status: StripeCheckoutPaymentStatus,
+    current_status: AttemptStatus,
+) -> AttemptStatus {
+    match (status, payment_status) {
+        (StripeCheckoutSessionStatus::Open, StripeCheckoutPaymentStatus::Unpaid) => {
+            AttemptStatus::AuthenticationPending
+        }
+        (StripeCheckoutSessionStatus::Complete, StripeCheckoutPaymentStatus::Paid)
+        | (StripeCheckoutSessionStatus::Complete, StripeCheckoutPaymentStatus::NoPaymentRequired) => {
+            AttemptStatus::Charged
+        }
+        (StripeCheckoutSessionStatus::Expired, _) => AttemptStatus::Voided,
+        (StripeCheckoutSessionStatus::Failed, _) => AttemptStatus::Failure,
+        _ => current_status,
+    }
+}
+
+fn get_stripe_checkout_resource_id(
+    session_id: &str,
+    payment_intent: Option<&str>,
+    status: StripeCheckoutSessionStatus,
+    payment_status: StripeCheckoutPaymentStatus,
+) -> CustomResult<String, ConnectorError> {
+    if matches!(
+        (status, payment_status),
+        (
+            StripeCheckoutSessionStatus::Complete,
+            StripeCheckoutPaymentStatus::Paid
+        )
+    ) {
+        return payment_intent.map(str::to_string).ok_or(
+            ConnectorError::MissingRequiredField {
+                field_name: "response.payment_intent",
+            }
+            .into(),
+        );
+    }
+    Ok(session_id.to_string())
+}
+
+fn validate_stripe_checkout_amount_total(
+    payment_status: StripeCheckoutPaymentStatus,
+    amount_total: MinorUnit,
+) -> CustomResult<(), ConnectorError> {
+    if payment_status == StripeCheckoutPaymentStatus::NoPaymentRequired
+        && amount_total != MinorUnit::zero()
+    {
+        return Err(ConnectorError::InvalidDataFormat {
+            field_name: "response.amount_total",
+        }
+        .into());
+    }
+    Ok(())
+}
+
+impl TryFrom<&PaymentsAuthorizeRouterData> for StripeCheckoutSessionRequest {
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(item: &PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+        let config =
+            get_hosted_checkout_config(item).ok_or(ConnectorError::MissingRequiredField {
+                field_name: "connector_metadata.stripe.hosted_checkout",
+            })?;
+        if item.payment_method != api_enums::PaymentMethod::Card
+            || item.request.payment_experience != Some(enums::PaymentExperience::RedirectToUrl)
+            || !matches!(
+                item.request.payment_method_data,
+                PaymentMethodData::CardToken(_)
+            )
+            || !matches!(
+                item.request.capture_method,
+                None | Some(enums::CaptureMethod::Automatic)
+            )
+            || item.request.mandate_id.is_some()
+            || item.request.setup_future_usage.is_some()
+            || item.request.off_session.is_some()
+            || item.request.split_payments.is_some()
+            || item.request.request_incremental_authorization
+        {
+            return Err(ConnectorError::NotSupported {
+                message: "Stripe hosted checkout only supports one-time automatic card payments"
+                    .to_string(),
+                connector: "stripe",
+            }
+            .into());
+        }
+
+        let return_url =
+            item.request
+                .router_return_url
+                .clone()
+                .ok_or(ConnectorError::MissingRequiredField {
+                    field_name: "return_url",
+                })?;
+        let (success_url, cancel_url) = get_stripe_checkout_urls(&return_url)?;
+
+        let mut fields = HashMap::from([
+            (
+                "metadata[order_id]".to_string(),
+                item.connector_request_reference_id.clone(),
+            ),
+            (
+                "payment_intent_data[metadata][order_id]".to_string(),
+                item.connector_request_reference_id.clone(),
+            ),
+            (
+                "payment_intent_data[capture_method]".to_string(),
+                "automatic".to_string(),
+            ),
+        ]);
+
+        let mut line_total = 0_i64;
+        if let Some(order_details) = &item.request.order_details {
+            for (index, line) in order_details.iter().enumerate() {
+                if line.quantity == 0 || line.amount.get_amount_as_i64() <= 0 {
+                    return Err(ConnectorError::InvalidDataFormat {
+                        field_name: "order_details",
+                    }
+                    .into());
+                }
+                line_total = line_total
+                    .checked_add(
+                        line.amount
+                            .get_amount_as_i64()
+                            .checked_mul(i64::from(line.quantity))
+                            .ok_or(ConnectorError::InvalidDataFormat {
+                                field_name: "order_details",
+                            })?,
+                    )
+                    .ok_or(ConnectorError::InvalidDataFormat {
+                        field_name: "order_details",
+                    })?;
+                fields.insert(
+                    format!("line_items[{index}][price_data][unit_amount]"),
+                    line.amount.get_amount_as_i64().to_string(),
+                );
+                fields.insert(
+                    format!("line_items[{index}][price_data][product_data][name]"),
+                    line.product_name.clone(),
+                );
+                fields.insert(
+                    format!("line_items[{index}][quantity]"),
+                    line.quantity.to_string(),
+                );
+            }
+        } else {
+            line_total = item.request.minor_amount.get_amount_as_i64();
+            if line_total <= 0 {
+                return Err(ConnectorError::InvalidDataFormat {
+                    field_name: "amount",
+                }
+                .into());
+            }
+            fields.insert(
+                "line_items[0][price_data][unit_amount]".to_string(),
+                line_total.to_string(),
+            );
+            fields.insert(
+                "line_items[0][price_data][product_data][name]".to_string(),
+                item.description.clone().unwrap_or_else(|| {
+                    format!("Hyperswitch order {}", item.connector_request_reference_id)
+                }),
+            );
+            fields.insert("line_items[0][quantity]".to_string(), "1".to_string());
+        }
+        for index in 0..item.request.order_details.as_ref().map_or(1, Vec::len) {
+            fields.insert(
+                format!("line_items[{index}][price_data][currency]"),
+                item.request.currency.to_string().to_lowercase(),
+            );
+        }
+        if line_total != item.request.minor_amount.get_amount_as_i64() {
+            return Err(ConnectorError::InvalidDataFormat {
+                field_name: "order_details",
+            }
+            .into());
+        }
+
+        Ok(Self {
+            mode: "payment",
+            ui_mode: "hosted",
+            payment_method_type: "card",
+            success_url,
+            cancel_url,
+            client_reference_id: item.connector_request_reference_id.clone(),
+            allow_promotion_codes: config.allow_promotion_codes,
+            fields,
+        })
+    }
+}
+
+impl<F, T> TryFrom<ResponseRouterData<F, StripeCheckoutSessionResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<F, StripeCheckoutSessionResponse, T, PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response;
+        validate_stripe_checkout_ids(&response.id, response.payment_intent.as_deref())?;
+        let session_status = response
+            .status
+            .ok_or(ConnectorError::MissingRequiredField {
+                field_name: "response.status",
+            })?;
+        let payment_status =
+            response
+                .payment_status
+                .ok_or(ConnectorError::MissingRequiredField {
+                    field_name: "response.payment_status",
+                })?;
+        let amount_subtotal =
+            response
+                .amount_subtotal
+                .ok_or(ConnectorError::MissingRequiredField {
+                    field_name: "response.amount_subtotal",
+                })?;
+        let amount_total = response
+            .amount_total
+            .ok_or(ConnectorError::MissingRequiredField {
+                field_name: "response.amount_total",
+            })?;
+        validate_stripe_checkout_amount_total(payment_status, amount_total)?;
+        let resource_id = get_stripe_checkout_resource_id(
+            &response.id,
+            response.payment_intent.as_deref(),
+            session_status,
+            payment_status,
+        )?;
+        let status = get_stripe_checkout_status(session_status, payment_status, item.data.status);
+        let redirection_data = match status {
+            AttemptStatus::AuthenticationPending => {
+                let url = response
+                    .url
+                    .clone()
+                    .filter(|url| url.scheme() == "https")
+                    .ok_or(ConnectorError::InvalidDataFormat {
+                        field_name: "response.url",
+                    })?;
+                Some(RedirectForm::from((url, Method::Get)))
+            }
+            _ => response
+                .url
+                .clone()
+                .filter(|url| url.scheme() == "https")
+                .map(|url| RedirectForm::from((url, Method::Get))),
+        };
+        let connector_metadata = Some(serde_json::json!({
+            "stripe_checkout_session_id": response.id,
+            "amount_subtotal": amount_subtotal,
+            "amount_total": amount_total,
+            "amount_discount": response.total_details.as_ref().and_then(|details| details.amount_discount).unwrap_or(MinorUnit::zero()),
+            "coupon_ids": response.discounts.iter().flatten().filter_map(|discount| discount.coupon.as_ref().map(StripeCheckoutExpandableId::as_str)).collect::<Vec<_>>(),
+            "promotion_code_ids": response.discounts.iter().flatten().filter_map(|discount| discount.promotion_code.as_ref().map(StripeCheckoutExpandableId::as_str)).collect::<Vec<_>>(),
+        }));
+
+        Ok(Self {
+            status,
+            amount_captured: (status == AttemptStatus::Charged)
+                .then_some(amount_total.get_amount_as_i64()),
+            minor_amount_captured: (status == AttemptStatus::Charged).then_some(amount_total),
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(resource_id),
+                redirection_data: Box::new(redirection_data),
+                mandate_reference: Box::new(None),
+                connector_metadata,
+                network_txn_id: None,
+                network_txn_link_id: None,
+                connector_response_reference_id: Some(response.id),
+                incremental_authorization_allowed: None,
+                authentication_data: None,
+                charges: None,
+            }),
+            ..item.data
+        })
+    }
+}
 
 #[cfg(feature = "payouts")]
 pub mod connect;
@@ -1182,6 +1614,9 @@ impl From<WebhookEventStatus> for api_models::webhooks::IncomingWebhookEvent {
             | WebhookEventStatus::Canceled
             | WebhookEventStatus::Chargeable
             | WebhookEventStatus::Failed
+            | WebhookEventStatus::Open
+            | WebhookEventStatus::Complete
+            | WebhookEventStatus::Expired
             | WebhookEventStatus::Unknown => Self::EventNotSupported,
         }
     }
@@ -5031,6 +5466,7 @@ pub struct WebhookStatusData {
 #[derive(Debug, Deserialize)]
 pub struct WebhookStatusObjectData {
     pub status: Option<WebhookEventStatus>,
+    pub payment_status: Option<StripeCheckoutPaymentStatus>,
     pub payment_method_details: Option<WebhookPaymentMethodDetails>,
 }
 
@@ -5054,6 +5490,8 @@ pub struct WebhookEventObjectData {
     pub id: String,
     pub object: WebhookEventObjectType,
     pub amount: Option<MinorUnit>,
+    pub amount_subtotal: Option<MinorUnit>,
+    pub amount_total: Option<MinorUnit>,
     #[serde(default, deserialize_with = "convert_uppercase")]
     pub currency: enums::Currency,
     pub payment_intent: Option<String>,
@@ -5063,6 +5501,11 @@ pub struct WebhookEventObjectData {
     pub created: PrimitiveDateTime,
     pub evidence_details: Option<EvidenceDetails>,
     pub status: Option<WebhookEventStatus>,
+    pub payment_status: Option<StripeCheckoutPaymentStatus>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub total_details: Option<StripeCheckoutTotalDetails>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub discounts: Option<Vec<StripeCheckoutDiscount>>,
     pub metadata: Option<StripeMetadata>,
     pub last_payment_error: Option<ErrorDetails>,
 }
@@ -5075,12 +5518,22 @@ pub enum WebhookEventObjectType {
     Charge,
     Source,
     Refund,
+    #[serde(rename = "checkout.session")]
+    CheckoutSession,
     #[serde(other)]
     Unknown,
 }
 
 #[derive(Debug, Deserialize)]
 pub enum WebhookEventType {
+    #[serde(rename = "checkout.session.completed")]
+    CheckoutSessionCompleted,
+    #[serde(rename = "checkout.session.async_payment_succeeded")]
+    CheckoutSessionAsyncPaymentSucceeded,
+    #[serde(rename = "checkout.session.async_payment_failed")]
+    CheckoutSessionAsyncPaymentFailed,
+    #[serde(rename = "checkout.session.expired")]
+    CheckoutSessionExpired,
     #[serde(rename = "payment_intent.payment_failed")]
     PaymentIntentFailed,
     #[serde(rename = "payment_intent.succeeded")]
@@ -5151,6 +5604,9 @@ pub enum WebhookEventStatus {
     Canceled,
     Chargeable,
     Failed,
+    Open,
+    Complete,
+    Expired,
     #[serde(other)]
     Unknown,
 }
@@ -5608,6 +6064,248 @@ where
         )
     } else {
         None
+    }
+}
+
+#[cfg(test)]
+mod stripe_checkout_tests {
+    use super::{
+        get_stripe_checkout_resource_id, get_stripe_checkout_status, get_stripe_checkout_urls,
+        validate_stripe_checkout_amount_total, validate_stripe_checkout_ids,
+        StripeCheckoutPaymentStatus, StripeCheckoutSessionResponse, StripeCheckoutSessionStatus,
+        StripeResponseObject, WebhookEvent, WebhookEventObjectType, WebhookEventType,
+    };
+
+    #[test]
+    fn stripe_checkout_urls_preserve_query_and_placeholder() {
+        let (success_url, cancel_url) =
+            get_stripe_checkout_urls(
+                "https://merchant.example/return?order=123&checkout_session_id=forged&checkout_cancelled=false",
+            )
+            .unwrap();
+
+        assert!(success_url.contains("order=123&checkout_session_id={CHECKOUT_SESSION_ID}"));
+        assert!(cancel_url.contains("order=123&checkout_cancelled=true"));
+        assert!(!success_url.contains("forged"));
+        assert!(!success_url.contains("checkout_cancelled"));
+        assert!(!cancel_url.contains("checkout_session_id"));
+    }
+
+    #[test]
+    fn no_payment_required_only_accepts_zero_total() {
+        assert!(validate_stripe_checkout_amount_total(
+            StripeCheckoutPaymentStatus::NoPaymentRequired,
+            common_utils::types::MinorUnit::zero(),
+        )
+        .is_ok());
+        assert!(validate_stripe_checkout_amount_total(
+            StripeCheckoutPaymentStatus::NoPaymentRequired,
+            common_utils::types::MinorUnit::new(1),
+        )
+        .is_err());
+        assert!(validate_stripe_checkout_amount_total(
+            StripeCheckoutPaymentStatus::Paid,
+            common_utils::types::MinorUnit::new(500),
+        )
+        .is_ok());
+    }
+
+    #[test]
+    fn stripe_checkout_status_mapping_covers_terminal_and_non_terminal_states() {
+        use common_enums::AttemptStatus;
+
+        assert_eq!(
+            get_stripe_checkout_status(
+                StripeCheckoutSessionStatus::Open,
+                StripeCheckoutPaymentStatus::Unpaid,
+                AttemptStatus::Started,
+            ),
+            AttemptStatus::AuthenticationPending
+        );
+        assert_eq!(
+            get_stripe_checkout_status(
+                StripeCheckoutSessionStatus::Complete,
+                StripeCheckoutPaymentStatus::Paid,
+                AttemptStatus::AuthenticationPending,
+            ),
+            AttemptStatus::Charged
+        );
+        assert_eq!(
+            get_stripe_checkout_status(
+                StripeCheckoutSessionStatus::Complete,
+                StripeCheckoutPaymentStatus::NoPaymentRequired,
+                AttemptStatus::AuthenticationPending,
+            ),
+            AttemptStatus::Charged
+        );
+        assert_eq!(
+            get_stripe_checkout_status(
+                StripeCheckoutSessionStatus::Expired,
+                StripeCheckoutPaymentStatus::Unpaid,
+                AttemptStatus::AuthenticationPending,
+            ),
+            AttemptStatus::Voided
+        );
+        assert_eq!(
+            get_stripe_checkout_status(
+                StripeCheckoutSessionStatus::Open,
+                StripeCheckoutPaymentStatus::Paid,
+                AttemptStatus::Pending,
+            ),
+            AttemptStatus::Pending
+        );
+    }
+
+    #[test]
+    fn stripe_checkout_response_deserializes() {
+        let response: StripeCheckoutSessionResponse = serde_json::from_value(serde_json::json!({
+            "id": "cs_test_123",
+            "url": "https://checkout.stripe.com/c/pay/test",
+            "status": "open",
+            "payment_status": "unpaid",
+            "payment_intent": null,
+            "amount_subtotal": 500,
+            "amount_total": 400,
+            "currency": "usd",
+            "total_details": {"amount_discount": 100, "amount_shipping": 0, "amount_tax": 0}
+        }))
+        .unwrap();
+
+        assert_eq!(response.status, Some(StripeCheckoutSessionStatus::Open));
+        assert_eq!(
+            response.payment_status,
+            Some(StripeCheckoutPaymentStatus::Unpaid)
+        );
+        assert_eq!(response.amount_subtotal.unwrap().get_amount_as_i64(), 500);
+        assert_eq!(response.amount_total.unwrap().get_amount_as_i64(), 400);
+        assert!(response.discounts.is_none());
+        assert!(
+            validate_stripe_checkout_ids(&response.id, response.payment_intent.as_deref()).is_ok()
+        );
+        assert!(validate_stripe_checkout_ids("cs_test_123", Some("ch_wrong_kind")).is_err());
+        assert!(get_stripe_checkout_resource_id(
+            "cs_test_123",
+            None,
+            StripeCheckoutSessionStatus::Open,
+            StripeCheckoutPaymentStatus::Unpaid,
+        )
+        .unwrap()
+        .starts_with(STRIPE_CHECKOUT_SESSION_ID_PREFIX));
+        assert!(get_stripe_checkout_resource_id(
+            "cs_test_123",
+            None,
+            StripeCheckoutSessionStatus::Complete,
+            StripeCheckoutPaymentStatus::Paid,
+        )
+        .is_err());
+        assert_eq!(
+            get_stripe_checkout_resource_id(
+                "cs_test_123",
+                Some("pi_test_123"),
+                StripeCheckoutSessionStatus::Complete,
+                StripeCheckoutPaymentStatus::Paid,
+            )
+            .unwrap(),
+            "pi_test_123"
+        );
+        assert_eq!(
+            get_stripe_checkout_status(
+                StripeCheckoutSessionStatus::Failed,
+                StripeCheckoutPaymentStatus::Unpaid,
+                common_enums::AttemptStatus::AuthenticationPending,
+            ),
+            common_enums::AttemptStatus::Failure
+        );
+    }
+
+    #[test]
+    fn stripe_response_object_distinguishes_checkout_from_payment_intent() {
+        let checkout: StripeResponseObject =
+            serde_json::from_value(serde_json::json!({"object": "checkout.session"})).unwrap();
+        let payment_intent: StripeResponseObject =
+            serde_json::from_value(serde_json::json!({"object": "payment_intent"})).unwrap();
+
+        assert!(matches!(
+            checkout.object,
+            WebhookEventObjectType::CheckoutSession
+        ));
+        assert!(matches!(
+            payment_intent.object,
+            WebhookEventObjectType::PaymentIntent
+        ));
+    }
+
+    #[test]
+    fn stripe_checkout_webhook_deserializes() {
+        let event: WebhookEvent = serde_json::from_str(include_str!(
+            "../../../../../cypress-tests/cypress/fixtures/webhooks/stripe_checkout_session_completed_webhook.json"
+        ))
+        .unwrap();
+
+        assert!(matches!(
+            event.event_type,
+            WebhookEventType::CheckoutSessionCompleted
+        ));
+        assert!(matches!(
+            event.event_data.event_object.object,
+            WebhookEventObjectType::CheckoutSession
+        ));
+        assert_eq!(
+            event
+                .event_data
+                .event_object
+                .metadata
+                .as_ref()
+                .unwrap()
+                .order_id
+                .as_deref(),
+            Some("attempt_checkout_completed")
+        );
+
+        let resource = serde_json::to_value(event.event_data.event_object).unwrap();
+        let response: StripeCheckoutSessionResponse = serde_json::from_value(resource).unwrap();
+        assert_eq!(response.status, Some(StripeCheckoutSessionStatus::Complete));
+        assert_eq!(
+            response.payment_status,
+            Some(StripeCheckoutPaymentStatus::Paid)
+        );
+        assert_eq!(
+            response.payment_intent.as_deref(),
+            Some("pi_test_completed")
+        );
+        assert_eq!(
+            response
+                .total_details
+                .unwrap()
+                .amount_discount
+                .unwrap()
+                .get_amount_as_i64(),
+            100
+        );
+        assert_eq!(
+            response.discounts.as_ref().unwrap()[0]
+                .promotion_code
+                .as_ref()
+                .unwrap()
+                .as_str(),
+            "promo_test"
+        );
+
+        let expired: WebhookEvent = serde_json::from_str(include_str!(
+            "../../../../../cypress-tests/cypress/fixtures/webhooks/stripe_checkout_session_expired_webhook.json"
+        ))
+        .unwrap();
+        assert!(matches!(
+            expired.event_type,
+            WebhookEventType::CheckoutSessionExpired
+        ));
+        let resource = serde_json::to_value(expired.event_data.event_object).unwrap();
+        let response: StripeCheckoutSessionResponse = serde_json::from_value(resource).unwrap();
+        assert_eq!(response.status, Some(StripeCheckoutSessionStatus::Expired));
+        assert_eq!(
+            response.payment_status,
+            Some(StripeCheckoutPaymentStatus::Unpaid)
+        );
     }
 }
 

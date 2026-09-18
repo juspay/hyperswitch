@@ -10345,6 +10345,9 @@ pub struct ConnectorMetadata {
     pub worldpayxml: Option<WorldpayxmlData>,
     #[smithy(value_type = "Option<CheckoutData>")]
     pub checkout: Option<CheckoutData>,
+    /// Stripe-specific payment configuration.
+    #[smithy(value_type = "Option<StripeConnectorMetadata>")]
+    pub stripe: Option<StripeConnectorMetadata>,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
@@ -10426,6 +10429,24 @@ pub enum WorldpayxmlPaymentPurpose {
     CrowdLending,
     CryptoCurrency,
     HighRiskSecurities,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[serde(deny_unknown_fields)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct StripeConnectorMetadata {
+    /// Uses Stripe-hosted Checkout instead of creating a PaymentIntent directly when present.
+    #[smithy(value_type = "Option<StripeHostedCheckoutConfig>")]
+    pub hosted_checkout: Option<StripeHostedCheckoutConfig>,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[serde(deny_unknown_fields)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct StripeHostedCheckoutConfig {
+    /// Whether to display Stripe Checkout's native promotion-code input.
+    #[serde(default)]
+    pub allow_promotion_codes: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
@@ -13828,6 +13849,63 @@ mod payments_request_api_contract {
                 .payment_method_data,
             Some(PaymentMethodData::Reward)
         );
+    }
+
+    #[test]
+    fn test_stripe_hosted_checkout_metadata() {
+        let payments_request = r#"
+        {
+            "amount": 500,
+            "currency": "USD",
+            "payment_method": "card",
+            "payment_experience": "redirect_to_url",
+            "connector_metadata": {
+                "stripe": {
+                    "hosted_checkout": {
+                        "allow_promotion_codes": true
+                    }
+                }
+            }
+        }
+        "#;
+
+        let request = serde_json::from_str::<PaymentsRequest>(payments_request).unwrap();
+        assert!(
+            request
+                .connector_metadata
+                .unwrap()
+                .stripe
+                .unwrap()
+                .hosted_checkout
+                .unwrap()
+                .allow_promotion_codes
+        );
+    }
+
+    #[test]
+    fn test_stripe_hosted_checkout_defaults_promotion_codes_to_disabled() {
+        let metadata: ConnectorMetadata = serde_json::from_value(serde_json::json!({
+            "stripe": { "hosted_checkout": {} }
+        }))
+        .unwrap();
+
+        assert!(
+            !metadata
+                .stripe
+                .unwrap()
+                .hosted_checkout
+                .unwrap()
+                .allow_promotion_codes
+        );
+    }
+
+    #[test]
+    fn test_stripe_hosted_checkout_rejects_unknown_fields() {
+        let metadata = serde_json::from_value::<ConnectorMetadata>(serde_json::json!({
+            "stripe": { "hosted_checkout": { "unsupported": true } }
+        }));
+
+        assert!(metadata.is_err());
     }
 
     #[test]

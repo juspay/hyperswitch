@@ -3860,6 +3860,27 @@ pub async fn make_pm_data<'a, F: Clone, R, D>(
         _ => Ok((None, None)),
     }?;
 
+    let connector_metadata = payment_data
+        .payment_intent
+        .connector_metadata
+        .clone()
+        .map(|metadata| {
+            metadata
+                .parse_value::<api_models::payments::ConnectorMetadata>("ConnectorMetadata")
+                .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Invalid connector_metadata for payment method resolution".to_string(),
+                })
+        })
+        .transpose()?;
+    let is_hosted_checkout = payment_data.payment_attempt.payment_method
+        == Some(storage_enums::PaymentMethod::Card)
+        && connector_metadata
+            .as_ref()
+            .is_some_and(|metadata| is_stripe_hosted_checkout(Some(metadata)));
+    let payment_method = payment_method.or_else(|| {
+        is_hosted_checkout
+            .then(|| domain::PaymentMethodData::CardToken(domain::CardToken::default()))
+    });
     // Stateless redirect payment methods (Affirm BNPL, Skrill wallet, Interac
     // e-Transfer, paysafecard gift card) carry no payment_method_data and vault no
     // token, so the match above resolves to None on the redirect-completion leg.
@@ -4117,7 +4138,9 @@ pub(crate) fn validate_payment_method_fields_present(
             && payment_method_data.is_none()
             && req.payment_token.is_none()
             && req.recurring_details.is_none()
-            && req.ctp_service_details.is_none(),
+            && req.ctp_service_details.is_none()
+            && !(req.payment_method == Some(api_enums::PaymentMethod::Card)
+                && is_stripe_hosted_checkout(req.connector_metadata.as_ref())),
         || {
             Err(errors::ApiErrorResponse::MissingRequiredField {
                 field_name: "payment_method_data".into(),
@@ -4796,6 +4819,7 @@ pub(crate) fn validate_pm_or_token_given(
     mandate_type: &Option<api::MandateTransactionType>,
     token: &Option<String>,
     ctp_service_details: &Option<api_models::payments::CtpServiceDetails>,
+    connector_metadata: Option<&api_models::payments::ConnectorMetadata>,
 ) -> Result<(), errors::ApiErrorResponse> {
     utils::when(
         !matches!(
@@ -4806,7 +4830,9 @@ pub(crate) fn validate_pm_or_token_given(
             Some(api::MandateTransactionType::RecurringMandateTransaction)
         ) && token.is_none()
             && (payment_method_data.is_none() || payment_method.is_none())
-            && ctp_service_details.is_none(),
+            && ctp_service_details.is_none()
+            && !(payment_method == &Some(api_enums::PaymentMethod::Card)
+                && is_stripe_hosted_checkout(connector_metadata)),
         || {
             Err(errors::ApiErrorResponse::InvalidRequestData {
                 message:
@@ -4815,6 +4841,105 @@ pub(crate) fn validate_pm_or_token_given(
             })
         },
     )
+}
+
+#[cfg(feature = "v1")]
+pub(crate) fn is_stripe_hosted_checkout(
+    connector_metadata: Option<&api_models::payments::ConnectorMetadata>,
+) -> bool {
+    connector_metadata
+        .and_then(|metadata| metadata.stripe.as_ref())
+        .and_then(|stripe| stripe.hosted_checkout.as_ref())
+        .is_some()
+}
+
+#[cfg(feature = "v1")]
+pub(crate) fn validate_stripe_hosted_checkout_request(
+    request: &api_models::payments::PaymentsRequest,
+) -> RouterResult<()> {
+    if !is_stripe_hosted_checkout(request.connector_metadata.as_ref()) {
+        return Ok(());
+    }
+
+    let invalid_request = |message: &str| {
+        report!(errors::ApiErrorResponse::InvalidRequestData {
+            message: message.to_string(),
+        })
+    };
+
+    if request.confirm != Some(true) {
+        return Err(invalid_request(
+            "`confirm` must be `true` for Stripe hosted checkout",
+        ));
+    }
+    if request.payment_method != Some(api_enums::PaymentMethod::Card)
+        || request.payment_experience != Some(api_enums::PaymentExperience::RedirectToUrl)
+        || !matches!(
+            request.capture_method,
+            None | Some(api_enums::CaptureMethod::Automatic)
+        )
+    {
+        return Err(invalid_request(
+            "Stripe hosted checkout only supports automatic card payments with `redirect_to_url`",
+        ));
+    }
+    if request.return_url.is_none() {
+        return Err(invalid_request(
+            "`return_url` is required for Stripe hosted checkout",
+        ));
+    }
+    if request
+        .amount
+        .map(MinorUnit::from)
+        .is_none_or(|amount| amount.get_amount_as_i64() <= 0)
+    {
+        return Err(invalid_request(
+            "`amount` must be greater than zero for Stripe hosted checkout",
+        ));
+    }
+    if request.payment_method_data.is_some() || request.payment_token.is_some() {
+        return Err(invalid_request(
+            "Card data and payment tokens must not be sent for Stripe hosted checkout",
+        ));
+    }
+    if request.mandate_data.is_some()
+        || request.mandate_id.is_some()
+        || request.recurring_details.is_some()
+        || request.setup_future_usage.is_some()
+        || request.off_session.is_some()
+    {
+        return Err(invalid_request(
+            "Stripe hosted checkout only supports one-time on-session payments",
+        ));
+    }
+    if request.split_payments.is_some()
+        || request.request_incremental_authorization.is_some()
+        || request.request_extended_authorization.is_some()
+    {
+        return Err(invalid_request(
+            "Split payments and authorization extensions are not supported for Stripe hosted checkout",
+        ));
+    }
+
+    if let Some(order_details) = request.order_details.as_ref() {
+        let total = order_details.iter().try_fold(0_i64, |total, line| {
+            if line.quantity == 0 || line.amount.get_amount_as_i64() <= 0 {
+                return None;
+            }
+            line.amount
+                .get_amount_as_i64()
+                .checked_mul(i64::from(line.quantity))
+                .and_then(|line_total| total.checked_add(line_total))
+        });
+        let request_amount = request.amount.map(MinorUnit::from);
+        if total.is_none_or(|total| request_amount != Some(MinorUnit::new(total))) {
+            return Err(invalid_request(
+                "Stripe hosted checkout order details must be positive and sum to the payment amount",
+            ));
+        }
+    }
+
+    Ok(())
 }
 
 #[cfg(feature = "v2")]
@@ -5947,6 +6072,125 @@ pub fn is_manual_retry_allowed(
 
 #[cfg(test)]
 mod test {
+    #[cfg(feature = "v1")]
+    #[test]
+    fn stripe_hosted_checkout_allows_server_side_payment_method() {
+        let metadata: api_models::payments::ConnectorMetadata =
+            serde_json::from_value(serde_json::json!({
+                "stripe": {"hosted_checkout": {"allow_promotion_codes": true}}
+            }))
+            .unwrap();
+
+        assert!(super::is_stripe_hosted_checkout(Some(&metadata)));
+        assert!(super::validate_pm_or_token_given(
+            &Some(api_models::enums::PaymentMethod::Card),
+            &None,
+            &None,
+            &None,
+            &None,
+            &None,
+            Some(&metadata),
+        )
+        .is_ok());
+        assert!(super::validate_pm_or_token_given(
+            &Some(api_models::enums::PaymentMethod::Card),
+            &None,
+            &None,
+            &None,
+            &None,
+            &None,
+            None,
+        )
+        .is_err());
+
+        let request: api_models::payments::PaymentsRequest =
+            serde_json::from_value(serde_json::json!({
+                "amount": 500,
+                "currency": "USD",
+                "confirm": true,
+                "payment_method": "card",
+                "payment_experience": "redirect_to_url",
+                "return_url": "https://merchant.example/return",
+                "connector_metadata": {
+                    "stripe": {"hosted_checkout": {"allow_promotion_codes": true}}
+                }
+            }))
+            .unwrap();
+        assert!(super::validate_payment_method_fields_present(&request).is_ok());
+        assert!(super::validate_stripe_hosted_checkout_request(&request).is_ok());
+
+        let mut unconfirmed_request = request.clone();
+        unconfirmed_request.confirm = Some(false);
+        assert!(super::validate_stripe_hosted_checkout_request(&unconfirmed_request).is_err());
+
+        let confirm_injection_request: api_models::payments::PaymentsRequest =
+            serde_json::from_value(serde_json::json!({
+                "confirm": true,
+                "payment_method": "card",
+                "payment_experience": "redirect_to_url",
+                "return_url": "https://merchant.example/return",
+                "connector_metadata": {
+                    "stripe": {"hosted_checkout": {"allow_promotion_codes": true}}
+                }
+            }))
+            .unwrap();
+        assert!(
+            super::validate_stripe_hosted_checkout_request(&confirm_injection_request).is_err()
+        );
+
+        let raw_card_request: api_models::payments::PaymentsRequest =
+            serde_json::from_value(serde_json::json!({
+                "amount": 500,
+                "currency": "USD",
+                "confirm": true,
+                "payment_method": "card",
+                "payment_experience": "redirect_to_url",
+                "return_url": "https://merchant.example/return",
+                "payment_method_data": {
+                    "card": {
+                        "card_number": "4242424242424242",
+                        "card_exp_month": "10",
+                        "card_exp_year": "30",
+                        "card_cvc": "123"
+                    }
+                },
+                "connector_metadata": {"stripe": {"hosted_checkout": {}}}
+            }))
+            .unwrap();
+        assert!(super::validate_stripe_hosted_checkout_request(&raw_card_request).is_err());
+
+        let mut recurring_request = request.clone();
+        recurring_request.off_session = Some(false);
+        assert!(super::validate_stripe_hosted_checkout_request(&recurring_request).is_err());
+
+        let mut zero_amount_request = request.clone();
+        zero_amount_request.amount = Some(api_models::payments::Amount::Zero);
+        assert!(super::validate_stripe_hosted_checkout_request(&zero_amount_request).is_err());
+
+        let mut invalid_order_request = request;
+        invalid_order_request.order_details =
+            Some(vec![serde_json::from_value(serde_json::json!({
+                "product_name": "Product",
+                "quantity": 2,
+                "amount": 200
+            }))
+            .unwrap()]);
+        assert!(super::validate_stripe_hosted_checkout_request(&invalid_order_request).is_err());
+
+        let invalid_wallet_request: api_models::payments::PaymentsRequest =
+            serde_json::from_value(serde_json::json!({
+                "amount": 500,
+                "currency": "USD",
+                "payment_method": "wallet",
+                "payment_method_type": "ali_pay",
+                "connector_metadata": {
+                    "stripe": {"hosted_checkout": {}}
+                }
+            }))
+            .unwrap();
+        assert!(super::validate_payment_method_fields_present(&invalid_wallet_request).is_err());
+    }
+
     #[test]
     fn test_client_secret_parse() {
         let client_secret1 = "pay_3TgelAms4RQec8xSStjF_secret_fc34taHLw1ekPgNh92qr";
