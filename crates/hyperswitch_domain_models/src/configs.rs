@@ -21,7 +21,9 @@ pub trait ConfigInterface {
     async fn find_config_by_key_unwrap_or(
         &self,
         key: &str,
-        // If the config is not found this default value is used (and cached).
+        // If the config is not found, this default value is substituted in and
+        // returned as-is. It is never written to the cache (Redis or in-memory) —
+        // only the underlying presence/absence of the key is cached.
         default_config: String,
     ) -> CustomResult<storage::Config, Self::Error>;
 

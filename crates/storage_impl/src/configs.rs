@@ -51,7 +51,8 @@ impl<T: DatabaseStore> ConfigInterface for kv_router_store::KVRouterStore<T> {
     async fn find_config_by_key_unwrap_or(
         &self,
         key: &str,
-        // If the config is not found it will be cached with the default value.
+        // If the config is not found, this default value is substituted in and
+        // returned as-is; it is never written to the cache.
         default_config: String,
     ) -> CustomResult<storage::Config, StorageError> {
         self.router_store
@@ -130,31 +131,18 @@ impl<T: DatabaseStore> ConfigInterface for RouterStore<T> {
     async fn find_config_by_key_unwrap_or(
         &self,
         key: &str,
-        // If the config is not found it will be cached with the default value.
+        // Not found is not persisted anywhere (not in redis, not in the in-memory
+        // cache) — only the real DB presence/absence goes through the cache, via
+        // `find_config_by_key_optional`. This value is substituted in afterwards.
         default_config: String,
     ) -> CustomResult<storage::Config, StorageError> {
-        let find_else_unwrap_or = || async {
-            let conn = connection::pg_connection_write(self).await?;
-            match storage::Config::find_by_key(&conn, key)
-                .await
-                .map_err(|error| report!(StorageError::from(error)))
-            {
-                Ok(a) => Ok(a),
-                Err(err) => {
-                    if err.current_context().is_db_not_found() {
-                        Ok(storage::ConfigNew {
-                            key: key.to_string(),
-                            config: default_config,
-                        }
-                        .into())
-                    } else {
-                        Err(err)
-                    }
-                }
-            }
-        };
-
-        cache::get_or_populate_in_memory(self, key, find_else_unwrap_or, &CONFIG_CACHE).await
+        Ok(self
+            .find_config_by_key_optional(key)
+            .await?
+            .unwrap_or_else(|| storage::Config {
+                key: key.to_string(),
+                config: default_config,
+            }))
     }
 
     #[instrument(skip_all)]
