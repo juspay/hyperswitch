@@ -114,6 +114,10 @@ pub async fn create_api_key(
     api_key: api::CreateApiKeyRequest,
     key_store: domain::MerchantKeyStore,
 ) -> RouterResponse<api::CreateApiKeyResponse> {
+    api_key
+        .validate()
+        .map_err(|message| report!(errors::ApiErrorResponse::InvalidRequestData { message }))?;
+
     let api_key_config = state.conf.api_keys.get_inner();
     let store = state.store.as_ref();
 
@@ -279,6 +283,10 @@ pub async fn update_api_key(
     state: SessionState,
     api_key: api::UpdateApiKeyRequest,
 ) -> RouterResponse<api::RetrieveApiKeyResponse> {
+    api_key
+        .validate()
+        .map_err(|message| report!(errors::ApiErrorResponse::InvalidRequestData { message }))?;
+
     let merchant_id = api_key.merchant_id.clone();
     let key_id = api_key.key_id.clone();
     let store = state.store.as_ref();
