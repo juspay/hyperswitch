@@ -30179,12 +30179,6 @@
               }
             ],
             "nullable": true
-          },
-          "eliminationEnabled": {
-            "type": "boolean",
-            "description": "Whether elimination logic is enabled for filtering gateways",
-            "example": true,
-            "nullable": true
           }
         }
       },
