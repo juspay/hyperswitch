@@ -120,7 +120,7 @@ CYPRESS_CONNECTOR="connector_id" npm run cypress:ci
    # Modular Payment Method Service, which is deployed separately from the
    # router. Required by `npm run cypress:modular-pm-service`, and by the
    # modular customer / saved card steps in
-   # `Payment/54-ConnectorAgnosticMandates`.
+   # `Payment/89-ConnectorAgnosticMandates`.
    export PM_SERVICE_URL="pm_service_url"
    ```
 
@@ -128,7 +128,7 @@ CYPRESS_CONNECTOR="connector_id" npm run cypress:ci
 > `PM_SERVICE_URL` is passed **without** the `CYPRESS_` prefix — it is forwarded onto `Cypress.env()` by the `env` block in [`cypress.config.js`](cypress.config.js). Every other variable above relies on Cypress auto-mapping instead, where `CYPRESS_NAME` becomes `Cypress.env("NAME")` with the remainder of the name used verbatim, underscores included. So `CYPRESS_PMSERVICEURL` is **not** read as `PM_SERVICE_URL`. The names the tests consume are listed in [`cypress/utils/State.js`](cypress/utils/State.js).
 
 > [!NOTE]
-> When `PM_SERVICE_URL` is unset, `54-ConnectorAgnosticMandates` logs a message and falls back to the v1 customer, payment method list, and save card confirm calls, so the payments suite still runs.
+> When `PM_SERVICE_URL` is unset, `89-ConnectorAgnosticMandates` logs a message and falls back to the v1 customer, payment method list, and save card confirm calls, so the payments suite still runs.
 
 > [!TIP]
 > It is recommended to install [direnv](https://github.com/direnv/direnv) and use a `.envrc` file to store these environment variables with `cypress-tests` directory. This will make it easier to manage environment variables while working with Cypress tests.
