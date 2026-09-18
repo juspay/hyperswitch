@@ -1727,35 +1727,3 @@ backup_file_path = "./config/superposition_seed.toml" # Path to a local file for
 payment_methods_base_url = "http://localhost:8082"
 payment_methods_prefix = "v2"
 use_legacy_locker = false
-
-
-[proxy]
-http_url = "http://localhost:8091"
-https_url = "http://localhost:8091"
-bypass_proxy_hosts = ""
-mitm_enabled = true
-mitm_ca_certificate = """-----BEGIN CERTIFICATE-----
-MIIDNTCCAh2gAwIBAgIUKsRa4JSzVot/73BU/UBcHKtsTE4wDQYJKoZIhvcNAQEL
-BQAwKDESMBAGA1UEAwwJbWl0bXByb3h5MRIwEAYDVQQKDAltaXRtcHJveHkwHhcN
-MjUxMDE0MTAzODU2WhcNMzUxMDE0MTAzODU2WjAoMRIwEAYDVQQDDAltaXRtcHJv
-eHkxEjAQBgNVBAoMCW1pdG1wcm94eTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCC
-AQoCggEBAOw+nr3pMWsao61wEIMw/LIspkIQjCaa14mPja4RhdCuiziEijXdoKzj
-2Big2lYaH35XpoiyF1KBu6CXaVX2EyDndDWwpdfZuQEbSoiOnHI249M0SlLblIMb
-Jm/UEFVN2tbdZKk68G03fgAdnNvM7c8szgK7zTEbUaEbc2m6CvObQ7xDQgp2Tb9p
-vfdOVg2a7JBkJRunt/G5YPn4VoRwsOE/1SFB/xoxJvKiKBsK/cMzMbMXcbmHJB2W
-xr4W8oXAGBfYIAL8V7+9DNjhCt4GgfqbiwhLrOH9Ig0V8doD+SHEB1akeOjoMHwm
-0OJFKlkTN7rE13lIWurnqp9yXoDeeUsCAwEAAaNXMFUwDwYDVR0TAQH/BAUwAwEB
-/zATBgNVHSUEDDAKBggrBgEFBQcDATAOBgNVHQ8BAf8EBAMCAQYwHQYDVR0OBBYE
-FJgiGFdCcxIBPrUA0DbFjc9JzAJQMA0GCSqGSIb3DQEBCwUAA4IBAQDpcIIpq8Vq
-Q9kYFsJB4yNh0kUHjkGctgNz1lpy94J4L7z7T3E6ynOTIv8UtLOBfH9/k2q00Hff
-ROtRvD0jv6i+mN/wUTovUqNPXuluZE0RSl1XfS2W5dRbjsFDR1b06J1b0xEG/DDq
-TNX5IL2fHpbVCn5N6QAtZPmbAVI9WhTWy+zvV8Pyho7hCp/ALUVETLtWgYjt8U0V
-BmzCbYeZcF33OJ9wtg9cX3CHRWTUajkbZePcBvkg7pTjRuTLQkjiYQndmz26jkiE
-Pys8myddOzDIYXPHW2ILExEG4Oo4FcXm8CXMI3tkna1vz/VolxwPsO4Ek4bPtFko
-ADB4hh5j7jDB
------END CERTIFICATE-----"""
-
-[comparison_service]
-url = "http://compare-service:9000/validation-service/api/router-data"
-enabled = true
-timeout_secs = 90
