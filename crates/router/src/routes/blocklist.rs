@@ -26,7 +26,7 @@ use crate::{
     ),
     tag = "Blocklist",
     operation_id = "Block a Fingerprint",
-    security(("api_key" = []))
+    security(("api_key" = []), ("jwt_key" = []))
 )]
 pub async fn add_entry_to_blocklist(
     state: web::Data<AppState>,
@@ -77,7 +77,7 @@ pub async fn add_entry_to_blocklist(
     ),
     tag = "Blocklist",
     operation_id = "Unblock a Fingerprint",
-    security(("api_key" = []))
+    security(("api_key" = []), ("jwt_key" = []))
 )]
 pub async fn remove_entry_from_blocklist(
     state: web::Data<AppState>,
@@ -132,7 +132,7 @@ pub async fn remove_entry_from_blocklist(
     ),
     tag = "Blocklist",
     operation_id = "List Blocked fingerprints of a particular kind",
-    security(("api_key" = []))
+    security(("api_key" = []), ("jwt_key" = []), ("publishable_key" = []))
 )]
 pub async fn list_blocked_payment_methods(
     state: web::Data<AppState>,
@@ -203,7 +203,7 @@ pub async fn list_blocked_payment_methods(
     ),
     tag = "Blocklist",
     operation_id = "Count blocked fingerprints of a particular kind",
-    security(("api_key" = []))
+    security(("api_key" = []), ("jwt_key" = []))
 )]
 pub async fn get_blocklist_count(
     state: web::Data<AppState>,
@@ -258,7 +258,7 @@ pub async fn get_blocklist_count(
     ),
     tag = "Blocklist",
     operation_id = "Look up whether a value is blocked",
-    security(("api_key" = []))
+    security(("api_key" = []), ("jwt_key" = []))
 )]
 pub async fn lookup_blocklist_entry(
     state: web::Data<AppState>,
@@ -309,7 +309,7 @@ pub async fn lookup_blocklist_entry(
     ),
     tag = "Blocklist",
     operation_id = "Toggle blocklist guard for a particular merchant",
-    security(("api_key" = []))
+    security(("api_key" = []), ("jwt_key" = []))
 )]
 pub async fn toggle_blocklist_guard(
     state: web::Data<AppState>,
@@ -375,7 +375,7 @@ pub struct BatchBlocklistUploadForm {
     ),
     tag = "Blocklist",
     operation_id = "Upload a batch blocklist CSV",
-    security(("api_key" = []))
+    security(("api_key" = []), ("jwt_key" = []))
 )]
 pub async fn upload_batch_blocklist(
     state: web::Data<AppState>,
@@ -435,7 +435,7 @@ pub async fn upload_batch_blocklist(
     ),
     tag = "Blocklist",
     operation_id = "Get batch blocklist job status",
-    security(("api_key" = []))
+    security(("api_key" = []), ("jwt_key" = []))
 )]
 pub async fn get_batch_blocklist_job_status(
     state: web::Data<AppState>,
@@ -477,7 +477,7 @@ pub async fn get_batch_blocklist_job_status(
         ("limit" = Option<u32>, Query, description = "Maximum number of jobs to return (default 10)"),
         ("offset" = Option<u32>, Query, description = "Zero-based offset for pagination (default 0)"),
         ("job_type" = Option<BatchBlocklistJobType>, Query, description = "Restricts the listing to \
-         `upload` or `export` jobs. Both kinds are returned when omitted, newest first."),
+         `upload`, `export`, or `profile_clone` jobs. All kinds are returned when omitted"),
         ("X-Profile-Id" = Option<String>, Header, description = "Restricts the listing to jobs run \
          for this business profile, plus jobs that predate profile scoping. When no profile can be \
          resolved, all of the merchant's jobs are returned, as before."),
@@ -487,7 +487,7 @@ pub async fn get_batch_blocklist_job_status(
     ),
     tag = "Blocklist",
     operation_id = "List batch blocklist jobs",
-    security(("api_key" = []))
+    security(("api_key" = []), ("jwt_key" = []))
 )]
 pub async fn list_batch_blocklist_jobs(
     state: web::Data<AppState>,
@@ -536,7 +536,7 @@ pub async fn list_batch_blocklist_jobs(
     ),
     tag = "Blocklist",
     operation_id = "Start a blocklist CSV export",
-    security(("api_key" = []))
+    security(("api_key" = []), ("jwt_key" = []))
 )]
 pub async fn create_blocklist_export(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
     let flow = Flow::CreateBlocklistExport;
@@ -548,6 +548,54 @@ pub async fn create_blocklist_export(state: web::Data<AppState>, req: HttpReques
         |state, auth: auth::AuthenticationData, _payload, _| {
             let profile_id = auth.profile.map(|profile| profile.get_id().clone());
             blocklist::create_blocklist_export(state, auth.platform, profile_id)
+        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                allow_connected_scope_operation: true,
+                allow_platform_self_operation: false,
+            }),
+            &auth::JWTAuth {
+                permission: Permission::MerchantAccountWrite,
+                allow_connected: true,
+                allow_platform: false,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[utoipa::path(
+    post,
+    path = "/blocklist/clone",
+    request_body = CloneBlocklistEntriesRequest,
+    params(
+        ("X-Profile-Id" = Option<String>, Header, description = "Source profile whose entries are copied; it also owns the clone job. Required when the authenticated dashboard session does not provide a profile context")
+    ),
+    responses(
+        (status = 200, description = "One background job was started; it clones onto the target profiles one at a time", body = CloneBlocklistEntriesResponse),
+        (status = 400, description = "Missing profile context, no targets given, or a target is the source profile"),
+        (status = 404, description = "The source or a target profile does not belong to the merchant")
+    ),
+    tag = "Blocklist",
+    operation_id = "Clone blocklist entries across profiles",
+    security(("api_key" = []), ("jwt_key" = []))
+)]
+pub async fn clone_blocklist_entries(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<api_blocklist::CloneBlocklistEntriesRequest>,
+) -> HttpResponse {
+    let flow = Flow::CloneBlocklistEntries;
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        json_payload.into_inner(),
+        |state, auth: auth::AuthenticationData, body, _| {
+            let profile_id = auth.profile.map(|profile| profile.get_id().clone());
+            blocklist::clone_blocklist_entries(state, auth.platform, profile_id, body)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
