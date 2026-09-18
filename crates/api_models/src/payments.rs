@@ -10822,6 +10822,14 @@ impl IntegrationType {
     pub fn is_server(self) -> bool {
         matches!(self, Self::Server)
     }
+
+    /// The header spelling of this value.
+    pub fn as_header_value(self) -> &'static str {
+        match self {
+            Self::Client => "client",
+            Self::Server => "server",
+        }
+    }
 }
 
 /// Wallet session tokens, or the error that prevented them being minted.
@@ -13253,6 +13261,7 @@ pub struct PaymentLinkStatusDetails {
     pub unified_message: Option<String>,
     pub capture_method: Option<common_enums::CaptureMethod>,
     pub setup_future_usage_applied: Option<common_enums::FutureUsage>,
+    pub redirect_delay_seconds: Option<u32>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]

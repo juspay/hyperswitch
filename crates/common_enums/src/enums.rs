@@ -9,8 +9,8 @@ use std::{
 };
 
 pub use accounts::{
-    MerchantAccountRequestType, MerchantAccountType, MerchantProductType, OrganizationType,
-    ResourceRequestorType, ResourceType,
+    MerchantAccountRequestType, MerchantAccountType, MerchantIntegrationType, MerchantProductType,
+    OrganizationType, ResourceRequestorType, ResourceType,
 };
 use diesel::{
     backend::Backend,
@@ -11376,6 +11376,7 @@ pub enum ProcessTrackerRunner {
     NetworkTokenizationWorkflow,
     OfferEngineNotifyWorkflow,
     BlocklistExportWorkflow,
+    BlocklistProfileCloneWorkflow,
 }
 
 #[derive(
@@ -12052,7 +12053,7 @@ pub enum BatchBlocklistJobStatus {
     Failed,
 }
 
-/// Distinguishes a bulk upload job from a CSV export job in the `batch_blocklist_jobs` table.
+/// Distinguishes bulk upload, CSV export, and profile clone jobs.
 #[derive(
     Clone,
     Copy,
@@ -12071,6 +12072,7 @@ pub enum BatchBlocklistJobStatus {
 pub enum BatchBlocklistJobType {
     Upload,
     Export,
+    ProfileClone,
 }
 
 #[derive(

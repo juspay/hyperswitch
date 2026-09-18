@@ -2004,6 +2004,9 @@ impl Blocklist {
             .service(
                 web::resource("/export").route(web::post().to(blocklist::create_blocklist_export)),
             )
+            .service(
+                web::resource("/clone").route(web::post().to(blocklist::clone_blocklist_entries)),
+            )
     }
 }
 
