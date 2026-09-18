@@ -125,12 +125,7 @@ jobs:
         uses: Swatinem/rust-cache@v2.9.1
         with:
           shared-key: msrv
-          # TEMPORARY - REVERT BEFORE MERGE.
-          # Lets this PR populate and then restore its own check-msrv cache
-          # to get a real cold-vs-warm comparison without waiting for a
-          # merge to main. Guarded to this branch name so it's inert
-          # everywhere else.
-          save-if: ${{ github.head_ref == 'ci/sccache-migration' }}
+          save-if: false
 
       - name: Run cargo check
         shell: bash

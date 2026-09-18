@@ -27,12 +27,7 @@ jobs:
         uses: Swatinem/rust-cache@v2.9.1
         with:
           shared-key: wasm
-          # TEMPORARY - REVERT BEFORE MERGE.
-          # Flipped to also save on this branch's PR runs, so this PR can
-          # populate and then restore its own wasm cache to get a real
-          # cold-vs-warm comparison without waiting for a merge to main.
-          # Guarded to this branch name so it's inert everywhere else.
-          save-if: ${{ github.event_name == 'push' || github.head_ref == 'ci/sccache-migration' }}
+          save-if: ${{ github.event_name == 'push' }}
 
       - name: Install wasm-pack
         uses: taiki-e/install-action@v2
