@@ -904,7 +904,7 @@ pub mod core {
                 "Sending request to HyperswitchVault proxy"
             );
 
-            let vault_headers: Vec<(String, hyperswitch_masking::Maskable<String>)> = vec![
+            let mut vault_headers: Vec<(String, hyperswitch_masking::Maskable<String>)> = vec![
                 (
                     "Content-Type".to_string(),
                     hyperswitch_masking::Maskable::new_normal("application/json".to_string()),
@@ -924,6 +924,15 @@ pub mod core {
                     hyperswitch_masking::Maskable::Masked(vault_auth.profile_id.clone()),
                 ),
             ];
+
+            // The HyperswitchVault `/proxy` endpoint is a self-loop into the multi-tenant
+            // Hyperswitch service; forward the tenant when the caller (UCS) supplied it.
+            if let Some(tenant_id) = request.connection_config.tenant_id.as_ref() {
+                vault_headers.push((
+                    common_utils::consts::TENANT_HEADER.to_string(),
+                    hyperswitch_masking::Maskable::Masked(tenant_id.clone()),
+                ));
+            }
 
             let request_builder = RequestBuilder::new()
                 .method(Method::Post)
@@ -1022,6 +1031,7 @@ mod tests {
                 http_method: HttpMethod::POST,
                 headers,
                 proxy_url: None,
+                tenant_id: None,
                 backup_proxy_url: None,
                 client_cert: None,
                 client_key: None,
@@ -1098,6 +1108,7 @@ mod tests {
                 http_method: HttpMethod::POST,
                 headers,
                 proxy_url: None,
+                tenant_id: None,
                 backup_proxy_url: None,
                 client_cert: None,
                 client_key: None,
