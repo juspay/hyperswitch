@@ -30179,12 +30179,6 @@
               }
             ],
             "nullable": true
-          },
-          "eliminationEnabled": {
-            "type": "boolean",
-            "description": "Whether elimination logic is enabled for filtering gateways",
-            "example": true,
-            "nullable": true
           }
         }
       },
@@ -39397,6 +39391,14 @@
             "type": "string",
             "description": "If there was an error while calling the connectors the code is received here",
             "example": "E0001",
+            "nullable": true
+          },
+          "frm_message": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FrmMessage"
+              }
+            ],
             "nullable": true
           },
           "profile_id": {
