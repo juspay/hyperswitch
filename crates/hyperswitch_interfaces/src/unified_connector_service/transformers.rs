@@ -189,8 +189,8 @@ pub enum UnifiedConnectorServiceError {
         code: tonic::Code,
         /// Error message from UCS
         message: String,
-        /// Present only when the status was produced by the router's own transport layer
-        /// (the request never reached UCS). `None` for statuses returned by UCS.
+        /// Present only when the status was produced by the router's own transport layer.
+        /// `None` for statuses returned by UCS as a gRPC response.
         transport: Option<Box<UcsTransportFailure>>,
     },
 

@@ -3870,13 +3870,11 @@ where
                     "error_type": "ucs_call_failed"
                 });
                 // The status was produced by the router's own transport rather than returned by
-                // UCS. Record the coarse class on the event, and the full source chain in the log:
-                // the chain carries the h2 reason and initiator, which is the only thing that says
-                // whether the request was ever written or the stream failed after UCS had it.
+                // UCS. The root cause goes on the connector event, which is merchant visible, and
+                // the full source chain goes to the log below. The chain carries the HTTP/2 reason
+                // and initiator, which distinguishes a request that was never written from a
+                // stream that failed after UCS had already processed it.
                 if let Some(transport) = error.current_context().transport_failure() {
-                    // Root cause on the event: it names what failed and carries no address, and
-                    // connector events reach the merchant dashboard. The whole chain, whose outer
-                    // layers can render the UCS authority, stays in this log line.
                     if let Some(body) = error_body.as_object_mut() {
                         body.insert(
                             "transport_error".to_string(),
@@ -4094,13 +4092,11 @@ where
                     "error_type": "ucs_call_failed"
                 });
                 // The status was produced by the router's own transport rather than returned by
-                // UCS. Record the coarse class on the event, and the full source chain in the log:
-                // the chain carries the h2 reason and initiator, which is the only thing that says
-                // whether the request was ever written or the stream failed after UCS had it.
+                // UCS. The root cause goes on the connector event, which is merchant visible, and
+                // the full source chain goes to the log below. The chain carries the HTTP/2 reason
+                // and initiator, which distinguishes a request that was never written from a
+                // stream that failed after UCS had already processed it.
                 if let Some(transport) = error.current_context().transport_failure() {
-                    // Root cause on the event: it names what failed and carries no address, and
-                    // connector events reach the merchant dashboard. The whole chain, whose outer
-                    // layers can render the UCS authority, stays in this log line.
                     if let Some(body) = error_body.as_object_mut() {
                         body.insert(
                             "transport_error".to_string(),

@@ -257,9 +257,9 @@ fn build_ucs_channel(
         .keep_alive_timeout(Duration::from_secs(config.keep_alive_timeout_secs))
         .keep_alive_while_idle(true)
         .tcp_keepalive(Some(Duration::from_secs(config.tcp_keepalive_secs)))
-        // One connection now carries what eleven carried, each of which had its own default
-        // 64 KiB HTTP/2 connection window. Let hyper size the windows from measured bandwidth
-        // instead, so sharing a connection does not cap throughput.
+        // A single connection now carries every UCS service client. Each previously had its own
+        // default 64 KiB HTTP/2 connection window, so let hyper size the windows from measured
+        // bandwidth rather than capping throughput on the shared connection.
         .http2_adaptive_window(true)
         .connect_lazy()
 }
