@@ -1940,6 +1940,7 @@ impl
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             description: router_data.description.clone(),
             merchant_transaction_id: None,
+            connector_order_id: None,
         })
     }
 }
@@ -2042,6 +2043,7 @@ impl
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             description: router_data.description.clone(),
             merchant_transaction_id: Some(router_data.connector_request_reference_id.clone()),
+            connector_order_id: None,
         })
     }
 }
@@ -2720,6 +2722,11 @@ impl
         router_data: &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
+        let capture_method = router_data
+            .request
+            .capture_method
+            .map(payments_grpc::CaptureMethod::foreign_try_from)
+            .transpose()?;
         let payment_method =
             unified_connector_service::build_unified_connector_service_payment_method(
                 router_data.request.payment_method_data.clone(),
@@ -2897,6 +2904,7 @@ impl
                 .connector_intent_metadata
                 .as_ref()
                 .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
+            capture_method: capture_method.map(|capture_method| capture_method.into()),
         })
     }
 }
@@ -4631,6 +4639,8 @@ impl transformers::ForeignTryFrom<&common_types::payments::ApplePayPaymentData>
                         ),
                         eci_indicator: decrypted_data.payment_data.eci_indicator.clone(),
                     }),
+                    // Hyperswitch Apple Pay decryption does not surface a merchant token identifier.
+                    merchant_token_identifier: None,
                 }))
             }
         }
@@ -7454,7 +7464,7 @@ impl transformers::ForeignTryFrom<&MandateData> for payments_grpc::SetupMandateD
                                 payments_grpc::mandate_type::MandateType::SingleUse(
                                     #[allow(deprecated)]
                                     payments_grpc::MandateAmountData {
-                                        amount: amount_data.amount.get_amount_as_i64(),
+                                        amount: Some(amount_data.amount.get_amount_as_i64()),
                                         amount_type: None,
                                         amount_money: Some(payments_grpc::Money {
                                             minor_amount: amount_data
@@ -7463,7 +7473,7 @@ impl transformers::ForeignTryFrom<&MandateData> for payments_grpc::SetupMandateD
                                             currency: currency.into(),
                                         }),
                                         frequency: None,
-                                        currency: currency.into(),
+                                        currency: Some(currency.into()),
                                         start_date: amount_data.start_date.map(
                                             |dt: time::PrimitiveDateTime| {
                                                 dt.assume_utc().unix_timestamp()
@@ -7498,7 +7508,7 @@ impl transformers::ForeignTryFrom<&MandateData> for payments_grpc::SetupMandateD
                                     payments_grpc::mandate_type::MandateType::MultiUse(
                                         #[allow(deprecated)]
                                         payments_grpc::MandateAmountData {
-                                            amount: amount_data.amount.get_amount_as_i64(),
+                                            amount: Some(amount_data.amount.get_amount_as_i64()),
                                             amount_type: None,
                                             amount_money: Some(payments_grpc::Money {
                                                 minor_amount: amount_data
@@ -7507,7 +7517,7 @@ impl transformers::ForeignTryFrom<&MandateData> for payments_grpc::SetupMandateD
                                                 currency: currency.into(),
                                             }),
                                             frequency: None,
-                                            currency: currency.into(),
+                                            currency: Some(currency.into()),
                                             start_date: amount_data.start_date.map(
                                                 |dt: time::PrimitiveDateTime| {
                                                     dt.assume_utc().unix_timestamp()
