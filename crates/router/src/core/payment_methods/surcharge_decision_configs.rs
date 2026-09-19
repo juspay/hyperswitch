@@ -495,7 +495,12 @@ pub async fn ensure_algorithm_cached(
     let key = merchant_id.get_surcharge_dsk_key();
 
     let value_to_cache = || async {
-        let config: diesel_models::Config = store.find_config_by_key(algorithm_id).await?;
+        let config: diesel_models::Config = store
+            .find_config_by_key_optional(algorithm_id)
+            .await?
+            .ok_or(errors::StorageError::ValueNotFound(
+                algorithm_id.to_string(),
+            ))?;
         let record: SurchargeDecisionManagerRecord = config
             .config
             .parse_struct("Program")
