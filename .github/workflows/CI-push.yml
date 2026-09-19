@@ -192,7 +192,6 @@ jobs:
       RUSTC_WRAPPER: sccache
       SCCACHE_DIR: ${{ github.workspace }}/.sccache
       SCCACHE_CACHE_SIZE: "4G"
-      SCCACHE_IDLE_TIMEOUT: "0"
       RUSTFLAGS: "-D warnings"
 
     steps:

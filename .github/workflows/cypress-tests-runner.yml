@@ -150,9 +150,6 @@ jobs:
       RUSTC_WRAPPER: sccache
       SCCACHE_DIR: ${{ github.workspace }}/.sccache
       SCCACHE_CACHE_SIZE: "4G"
-      # Default 600s idle timeout can kill sccache mid-compile on a long
-      # build (mozilla/sccache#204); safe to disable on this ephemeral pod.
-      SCCACHE_IDLE_TIMEOUT: "0"
     steps:
       - name: Skip tests for PRs from forks
         shell: bash
@@ -1751,7 +1748,6 @@ jobs:
       RUSTC_WRAPPER: sccache
       SCCACHE_DIR: ${{ github.workspace }}/.sccache
       SCCACHE_CACHE_SIZE: "4G"
-      SCCACHE_IDLE_TIMEOUT: "0"
 
     services:
       redis:
