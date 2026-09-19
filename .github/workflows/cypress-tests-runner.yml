@@ -145,10 +145,15 @@ jobs:
     # use hyperswitch-runners-merge for merge queue level checks
     runs-on: ${{ case(github.event_name == 'merge_group', 'hyperswitch-runners-merge', 'hyperswitch-runners') }}
     env:
-      # Use `sccache` for caching compilation artifacts, via its native S3
-      # backend (bucket/region/prefix/encryption come from this pod's own
-      # environment).
+      # sccache on local disk, restored/saved as a single compressed archive
+      # (see steps below) rather than its native S3 backend making one
+      # request per object — this job is a plain `cargo build` (nearly
+      # everything cacheable) with no `--jobs` cap, so it bursts hundreds of
+      # concurrent S3 requests through the shared CI egress proxy; under
+      # load that showed up as a real, measured Average cache read hit spike
+      # (0.25s vs. the usual ~0.04s) that a single bulk transfer sidesteps.
       RUSTC_WRAPPER: sccache
+      SCCACHE_DIR: ${{ github.workspace }}/.sccache
       # `router` alone can take longer to compile than sccache's default
       # 600s idle timeout, which kills the server mid-compile if nothing
       # *new* gets dispatched to it in the meantime (mozilla/sccache#204).
@@ -199,6 +204,36 @@ jobs:
           tool: sccache
           checksum: true
 
+      # Bucket/region/prefix come from this pod's own environment (managed
+      # outside this repo). Captured under new names here, then blanked below
+      # so sccache itself never activates its native S3 backend.
+      - name: Resolve S3 cache location, then disable sccache's native S3 backend
+        if: ${{ env.RUN_TESTS == 'true' }}
+        shell: bash
+        run: |
+          echo "S3_CACHE_BUCKET=${SCCACHE_BUCKET:-}" >> "$GITHUB_ENV"
+          echo "S3_CACHE_REGION=${SCCACHE_REGION:-}" >> "$GITHUB_ENV"
+          echo "S3_CACHE_PREFIX=${SCCACHE_S3_KEY_PREFIX:-}" >> "$GITHUB_ENV"
+          echo "SCCACHE_BUCKET=" >> "$GITHUB_ENV"
+          echo "SCCACHE_REGION=" >> "$GITHUB_ENV"
+          echo "SCCACHE_S3_KEY_PREFIX=" >> "$GITHUB_ENV"
+
+      - name: Restore sccache cache from S3
+        if: ${{ env.RUN_TESTS == 'true' }}
+        continue-on-error: true
+        shell: bash
+        run: |
+          mkdir -p "$SCCACHE_DIR"
+          if [ -n "$S3_CACHE_BUCKET" ]; then
+            aws s3 cp \
+              "s3://${S3_CACHE_BUCKET}/${S3_CACHE_PREFIX}sccache-cache/build-hyperswitch.tar.gz" \
+              /tmp/sccache-cache.tar.gz \
+              --region "${S3_CACHE_REGION}" --no-progress --only-show-errors \
+            && tar xzf /tmp/sccache-cache.tar.gz -C "$SCCACHE_DIR"
+          else
+            echo "::warning::S3 cache bucket not configured on this runner; sccache starts cold"
+          fi
+
       - name: Build project
         if: ${{ env.RUN_TESTS == 'true' }}
         run: cargo build --package router --bin router
@@ -207,6 +242,20 @@ jobs:
         if: ${{ always() && env.RUN_TESTS == 'true' }}
         shell: bash
         run: sccache --show-stats
+
+      # Only merge_group writes: the closest equivalent to "push" for this
+      # workflow (it has no push trigger), and merge_group only runs
+      # already-approved changes via the branch-protection merge queue, so
+      # it's inherently trusted — no extra fork-PR guard needed here.
+      - name: Compress and upload sccache cache to S3
+        if: ${{ env.RUN_TESTS == 'true' && github.event_name == 'merge_group' }}
+        continue-on-error: true
+        shell: bash
+        run: |
+          tar czf /tmp/sccache-cache.tar.gz -C "$SCCACHE_DIR" .
+          aws s3 cp /tmp/sccache-cache.tar.gz \
+            "s3://${S3_CACHE_BUCKET}/${S3_CACHE_PREFIX}sccache-cache/build-hyperswitch.tar.gz" \
+            --region "${S3_CACHE_REGION}" --no-progress --only-show-errors
 
       # Keyed by run id so concurrent runs (different PRs) never collide;
       # every downstream job in this same run reads the same run id back.
@@ -1795,10 +1844,13 @@ jobs:
       contents: read
     env:
       CODECOV_FILE: "lcov.info"
-      # Use `sccache` for caching compilation artifacts, via its native S3
-      # backend (bucket/region/prefix/encryption come from this pod's own
-      # environment).
+      # sccache on local disk, restored/saved as a single compressed archive
+      # instead of its native S3 backend — see build-hyperswitch for why
+      # (same nearly-100%-cacheable, uncapped-parallelism shape that showed
+      # a real Average-cache-read-hit spike under load through the shared
+      # CI egress proxy).
       RUSTC_WRAPPER: sccache
+      SCCACHE_DIR: ${{ github.workspace }}/.sccache
       # See build-hyperswitch: `just build_v2` can outlast sccache's default
       # 600s idle timeout, which kills the server mid-compile
       # (mozilla/sccache#204). Disable idle shutdown; safe here for the same
@@ -1910,6 +1962,36 @@ jobs:
           tool: sccache
           checksum: true
 
+      # Bucket/region/prefix come from this pod's own environment (managed
+      # outside this repo). Captured under new names here, then blanked below
+      # so sccache itself never activates its native S3 backend.
+      - name: Resolve S3 cache location, then disable sccache's native S3 backend
+        if: ${{ env.RUN_TESTS == 'true' }}
+        shell: bash
+        run: |
+          echo "S3_CACHE_BUCKET=${SCCACHE_BUCKET:-}" >> "$GITHUB_ENV"
+          echo "S3_CACHE_REGION=${SCCACHE_REGION:-}" >> "$GITHUB_ENV"
+          echo "S3_CACHE_PREFIX=${SCCACHE_S3_KEY_PREFIX:-}" >> "$GITHUB_ENV"
+          echo "SCCACHE_BUCKET=" >> "$GITHUB_ENV"
+          echo "SCCACHE_REGION=" >> "$GITHUB_ENV"
+          echo "SCCACHE_S3_KEY_PREFIX=" >> "$GITHUB_ENV"
+
+      - name: Restore sccache cache from S3
+        if: ${{ env.RUN_TESTS == 'true' }}
+        continue-on-error: true
+        shell: bash
+        run: |
+          mkdir -p "$SCCACHE_DIR"
+          if [ -n "$S3_CACHE_BUCKET" ]; then
+            aws s3 cp \
+              "s3://${S3_CACHE_BUCKET}/${S3_CACHE_PREFIX}sccache-cache/runner-v2.tar.gz" \
+              /tmp/sccache-cache.tar.gz \
+              --region "${S3_CACHE_REGION}" --no-progress --only-show-errors \
+            && tar xzf /tmp/sccache-cache.tar.gz -C "$SCCACHE_DIR"
+          else
+            echo "::warning::S3 cache bucket not configured on this runner; sccache starts cold"
+          fi
+
       - name: Install Diesel CLI
         if: ${{ env.RUN_TESTS == 'true' }}
         uses: baptiste0928/cargo-install@v3.4.0
@@ -1979,6 +2061,20 @@ jobs:
         if: ${{ always() && env.RUN_TESTS == 'true' }}
         shell: bash
         run: sccache --show-stats
+
+      # Only merge_group writes: the closest equivalent to "push" for this
+      # workflow (it has no push trigger), and merge_group only runs
+      # already-approved changes via the branch-protection merge queue, so
+      # it's inherently trusted — no extra fork-PR guard needed here.
+      - name: Compress and upload sccache cache to S3
+        if: ${{ env.RUN_TESTS == 'true' && github.event_name == 'merge_group' }}
+        continue-on-error: true
+        shell: bash
+        run: |
+          tar czf /tmp/sccache-cache.tar.gz -C "$SCCACHE_DIR" .
+          aws s3 cp /tmp/sccache-cache.tar.gz \
+            "s3://${S3_CACHE_BUCKET}/${S3_CACHE_PREFIX}sccache-cache/runner-v2.tar.gz" \
+            --region "${S3_CACHE_REGION}" --no-progress --only-show-errors
 
       - name: Setup Local Server
         if: ${{ env.RUN_TESTS == 'true' }}
