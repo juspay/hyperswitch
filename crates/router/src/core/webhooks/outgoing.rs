@@ -902,6 +902,8 @@ async fn trigger_webhook_to_merchant(
         (Err(error), None) => Err(error),
     }?;
 
+    utils::validate_outgoing_webhook_url(&state, &webhook_url).await?;
+
     let event_id = event.event_id;
 
     let headers = request_content

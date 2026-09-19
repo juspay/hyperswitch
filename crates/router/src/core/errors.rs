@@ -168,6 +168,8 @@ pub enum WebhooksFlowError {
     WebhookCallFailed,
     #[error("Webhook request construction failed")]
     WebhookRequestConstructionFailed,
+    #[error("Invalid or disallowed webhook URL configured")]
+    InvalidWebhookUrl,
 }
 
 impl WebhooksFlowError {
@@ -177,7 +179,8 @@ impl WebhooksFlowError {
             | Self::MerchantWebhookDetailsNotFound
             | Self::MerchantWebhookUrlNotConfigured
             | Self::OutgoingWebhookResponseEncodingFailed
-            | Self::WebhookRequestConstructionFailed => false,
+            | Self::WebhookRequestConstructionFailed
+            | Self::InvalidWebhookUrl => false,
 
             Self::WebhookEventUpdationFailed
             | Self::OutgoingWebhookSigningFailed

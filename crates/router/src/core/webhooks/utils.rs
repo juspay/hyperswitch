@@ -1,6 +1,9 @@
 #[cfg(feature = "olap")]
 use std::collections::HashSet;
-use std::marker::PhantomData;
+use std::{
+    marker::PhantomData,
+    net::{IpAddr, Ipv4Addr},
+};
 
 use base64::Engine;
 use common_utils::{
@@ -583,5 +586,201 @@ pub fn redact_header_values(
         if is_sensitive {
             *header_value = Secret::new(REDACTED_HEADER_VALUE.to_string());
         }
+    }
+}
+
+/// Validates an outgoing webhook destination URL before it is handed to the HTTP client.
+///
+/// Two checks are performed:
+/// 1. Scheme and host validation on the URL string (`https` only, unless private destinations are
+///    explicitly allowed in configuration, in which case `http` is also permitted).
+/// 2. Resolution of the host to IP addresses, rejecting any private, loopback, link-local or
+///    otherwise reserved address. This prevents server side request forgery (SSRF) against
+///    internal services and cloud metadata endpoints via a merchant configured webhook URL.
+pub async fn validate_outgoing_webhook_url(
+    state: &SessionState,
+    webhook_url: &str,
+) -> CustomResult<(), errors::WebhooksFlowError> {
+    let allow_private_destinations = state.conf.webhooks.allow_private_network_destinations;
+
+    let url = url::Url::parse(webhook_url)
+        .change_context(errors::WebhooksFlowError::InvalidWebhookUrl)
+        .attach_printable("Failed to parse the configured webhook URL")?;
+
+    let scheme = url.scheme();
+    let is_scheme_allowed = scheme == "https" || (allow_private_destinations && scheme == "http");
+    if !is_scheme_allowed {
+        return Err(errors::WebhooksFlowError::InvalidWebhookUrl)
+            .attach_printable("Only the https scheme is allowed for webhook URLs");
+    }
+
+    let host = url
+        .host_str()
+        .ok_or(errors::WebhooksFlowError::InvalidWebhookUrl)
+        .attach_printable("Webhook URL does not contain a host")?;
+
+    if allow_private_destinations {
+        return Ok(());
+    }
+
+    let port = url.port_or_known_default().unwrap_or(443);
+    let resolved_ips = resolve_webhook_host(host, port).await?;
+
+    if resolved_ips.iter().copied().any(is_private_or_reserved_ip) {
+        return Err(errors::WebhooksFlowError::InvalidWebhookUrl)
+            .attach_printable("Webhook URL resolves to a private or reserved IP address");
+    }
+
+    Ok(())
+}
+
+/// Resolves the webhook host to a list of IP addresses. Hosts that are already IP literals are
+/// returned as-is without a DNS lookup.
+async fn resolve_webhook_host(
+    host: &str,
+    port: u16,
+) -> CustomResult<Vec<IpAddr>, errors::WebhooksFlowError> {
+    if let Some(ip) = parse_ip_literal(host) {
+        return Ok(vec![ip]);
+    }
+
+    let addresses = tokio::net::lookup_host((host, port))
+        .await
+        .change_context(errors::WebhooksFlowError::InvalidWebhookUrl)
+        .attach_printable("Failed to resolve the webhook URL host")?
+        .map(|socket_address| socket_address.ip())
+        .collect::<Vec<_>>();
+
+    if addresses.is_empty() {
+        return Err(errors::WebhooksFlowError::InvalidWebhookUrl)
+            .attach_printable("Webhook URL host did not resolve to any IP address");
+    }
+
+    Ok(addresses)
+}
+
+fn parse_ip_literal(host: &str) -> Option<IpAddr> {
+    host.parse::<IpAddr>().ok().or_else(|| {
+        host.strip_prefix('[')
+            .and_then(|host| host.strip_suffix(']'))
+            .and_then(|host| host.parse::<IpAddr>().ok())
+    })
+}
+
+/// Returns `true` when the address belongs to a range that must never be reachable from an
+/// outgoing webhook: loopback, private, link-local (including the cloud metadata endpoint),
+/// shared address space, multicast, broadcast and documentation ranges.
+fn is_private_or_reserved_ip(ip: IpAddr) -> bool {
+    match ip {
+        IpAddr::V4(ip) => is_private_or_reserved_ipv4(ip),
+        IpAddr::V6(ip) => {
+            if let Some(mapped_ipv4) = ip.to_ipv4_mapped() {
+                return is_private_or_reserved_ipv4(mapped_ipv4);
+            }
+
+            let segments = ip.segments();
+            ip.is_loopback()
+                || ip.is_unspecified()
+                || ip.is_multicast()
+                // Unique local addresses, fc00::/7
+                || (segments[0] & 0xfe00) == 0xfc00
+                // Link-local unicast addresses, fe80::/10
+                || (segments[0] & 0xffc0) == 0xfe80
+        }
+    }
+}
+
+fn is_private_or_reserved_ipv4(ip: Ipv4Addr) -> bool {
+    let octets = ip.octets();
+    ip.is_private()
+        || ip.is_loopback()
+        || ip.is_link_local()
+        || ip.is_broadcast()
+        || ip.is_documentation()
+        || ip.is_multicast()
+        || ip.is_unspecified()
+        // "This network", 0.0.0.0/8
+        || octets[0] == 0
+        // Shared address space (carrier grade NAT), 100.64.0.0/10
+        || (octets[0] == 100 && (64..128).contains(&octets[1]))
+        // IETF protocol assignments, 192.0.0.0/24
+        || (octets[0] == 192 && octets[1] == 0 && octets[2] == 0)
+        // Benchmarking, 198.18.0.0/15
+        || (octets[0] == 198 && (octets[1] == 18 || octets[1] == 19))
+        // Reserved, 240.0.0.0/4
+        || octets[0] >= 240
+}
+
+#[cfg(test)]
+mod outgoing_webhook_url_validation_tests {
+    use super::*;
+
+    #[test]
+    fn test_private_and_reserved_ipv4_addresses_are_rejected() {
+        let blocked = [
+            "127.0.0.1",
+            "10.1.2.3",
+            "172.16.0.1",
+            "192.168.1.1",
+            "169.254.169.254",
+            "0.0.0.0",
+            "100.64.0.1",
+            "198.18.0.1",
+            "240.0.0.1",
+            "255.255.255.255",
+        ];
+        for ip in blocked {
+            assert!(
+                is_private_or_reserved_ip(ip.parse().expect("invalid test IP")),
+                "{ip} should be blocked"
+            );
+        }
+    }
+
+    #[test]
+    fn test_public_ip_addresses_are_allowed() {
+        let allowed = [
+            "1.1.1.1",
+            "8.8.8.8",
+            "93.184.216.34",
+            "2606:4700:4700::1111",
+        ];
+        for ip in allowed {
+            assert!(
+                !is_private_or_reserved_ip(ip.parse().expect("invalid test IP")),
+                "{ip} should be allowed"
+            );
+        }
+    }
+
+    #[test]
+    fn test_private_and_reserved_ipv6_addresses_are_rejected() {
+        let blocked = [
+            "::1",
+            "::",
+            "fc00::1",
+            "fe80::1",
+            "ff02::1",
+            "::ffff:127.0.0.1",
+        ];
+        for ip in blocked {
+            assert!(
+                is_private_or_reserved_ip(ip.parse().expect("invalid test IP")),
+                "{ip} should be blocked"
+            );
+        }
+    }
+
+    #[test]
+    fn test_ip_literal_parsing() {
+        assert_eq!(
+            parse_ip_literal("169.254.169.254"),
+            Some("169.254.169.254".parse().expect("invalid test IP"))
+        );
+        assert_eq!(
+            parse_ip_literal("[::1]"),
+            Some("::1".parse().expect("invalid test IP"))
+        );
+        assert_eq!(parse_ip_literal("example.com"), None);
     }
 }

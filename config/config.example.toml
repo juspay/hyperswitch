@@ -251,6 +251,10 @@ max_age = 365     # Max age of a refund in days.
 
 [webhooks]
 outgoing_enabled = true
+# Allow outgoing webhooks to private/loopback/reserved destinations and plain http.
+# Keep this disabled outside local development: enabling it allows SSRF via merchant configured
+# webhook URLs.
+allow_private_network_destinations = false
 redis_lock_expiry_seconds = 180
 
 # Controls whether merchant ID authentication is enabled.

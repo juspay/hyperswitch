@@ -232,6 +232,8 @@ async fn trigger_webhook_to_merchant(
         .get_webhook_url_from_profile()
         .change_context(errors::WebhooksFlowError::MerchantWebhookUrlNotConfigured)?;
 
+    utils::validate_outgoing_webhook_url(&state, &webhook_url).await?;
+
     let response = build_and_send_request(&state, request_content, webhook_url).await;
 
     metrics::WEBHOOK_OUTGOING_COUNT.add(

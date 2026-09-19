@@ -282,6 +282,7 @@ max_age = 365
 
 [webhooks]
 outgoing_enabled = true
+allow_private_network_destinations = true # Local development only; permits http and private/loopback webhook destinations
 redis_lock_expiry_seconds = 180             # 3 * 60 seconds
 
 [merchant_id_auth]

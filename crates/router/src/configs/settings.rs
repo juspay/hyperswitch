@@ -1331,6 +1331,11 @@ impl Default for TraceHeaderConfig {
 #[serde(default)]
 pub struct WebhooksSettings {
     pub outgoing_enabled: bool,
+    /// Allows outgoing webhooks to be delivered to private, loopback or otherwise reserved
+    /// network destinations (and over plain `http`). Intended for local development only;
+    /// enabling this in a deployed environment re-opens the SSRF surface.
+    #[serde(default)]
+    pub allow_private_network_destinations: bool,
     pub ignore_error: WebhookIgnoreErrorSettings,
     pub redis_lock_expiry_seconds: u32,
 }
