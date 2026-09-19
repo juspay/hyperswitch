@@ -150,6 +150,18 @@ jobs:
         shell: bash
         run: sccache --show-stats
 
+      # TEMPORARY - DELETE BEFORE MERGE: this job is restore-only
+      # permanently (CI-push.yml's check-msrv is what populates it on
+      # main); this branch-scoped save exists only to validate the new
+      # actions/cache key end-to-end before merge.
+      - name: 'TEMPORARY - DELETE BEFORE MERGE: Save sccache cache (branch-scoped populate)'
+        if: ${{ always() && github.head_ref == 'ci/sccache-migration' }}
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ env.SCCACHE_DIR }}
+          key: sccache-local-check-msrv-${{ runner.os }}
+
   test:
     name: Run tests on stable toolchain
     runs-on: hyperswitch-runners

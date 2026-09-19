@@ -71,8 +71,12 @@ jobs:
         shell: bash
         run: sccache --show-stats
 
+      # TEMPORARY - DELETE BEFORE MERGE: the `|| github.head_ref == ...`
+      # branch-scoped clause below (both steps) exists only to validate the
+      # new actions/cache key end-to-end on this branch before merge; the
+      # permanent condition is `github.event_name == 'push'` alone.
       - name: Delete stale sccache cache entry
-        if: ${{ always() && github.event_name == 'push' }}
+        if: ${{ always() && (github.event_name == 'push' || github.head_ref == 'ci/sccache-migration') }}
         continue-on-error: true
         shell: bash
         env:
@@ -80,7 +84,7 @@ jobs:
         run: gh cache delete "sccache-local-wasm-${{ runner.os }}" --repo "${{ github.repository }}"
 
       - name: Save sccache cache
-        if: ${{ always() && github.event_name == 'push' }}
+        if: ${{ always() && (github.event_name == 'push' || github.head_ref == 'ci/sccache-migration') }}
         uses: actions/cache/save@v4
         with:
           path: ${{ env.SCCACHE_DIR }}
