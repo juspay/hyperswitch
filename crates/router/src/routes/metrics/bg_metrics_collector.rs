@@ -9,6 +9,7 @@ pub fn spawn_metrics_collector(metrics_collection_interval_in_secs: Option<u16>)
     let cache_instances = [
         &cache::CONFIG_CACHE,
         &cache::ACCOUNTS_CACHE,
+        &cache::MCA_LIST_CACHE,
         &cache::ROUTING_CACHE,
         &cache::CGRAPH_CACHE,
         &cache::PM_FILTERS_CGRAPH_CACHE,
