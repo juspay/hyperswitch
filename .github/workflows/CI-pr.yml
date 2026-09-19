@@ -87,11 +87,8 @@ jobs:
     if: ${{ ! startsWith(github.event.pull_request.base.ref, 'hotfix-') }}
 
     env:
-      # sccache on local disk, restored as a single actions/cache archive
-      # instead of sccache's native GHA backend — this repo's own CI history
-      # (see git log for check-msrv) already found SCCACHE_GHA_ENABLED slower
-      # than no caching at all, for the same per-object-round-trip reason
-      # native S3 was slow under load elsewhere in this workflow set.
+      # sccache on local disk via actions/cache, not SCCACHE_GHA_ENABLED
+      # (proven slower here before — see git log for check-msrv).
       RUSTC_WRAPPER: sccache
       SCCACHE_DIR: ${{ github.workspace }}/.sccache
       SCCACHE_CACHE_SIZE: "2G"
@@ -155,12 +152,8 @@ jobs:
     runs-on: hyperswitch-runners
 
     env:
-      # sccache on local disk, restored as a single compressed archive
-      # instead of its native S3 backend making one request per object —
-      # this job has no --jobs cap, and native S3's per-request round trips
-      # (through a shared CI egress proxy) showed a real Average cache read
-      # hit spike under load (measured on build-hyperswitch/runner_v2 in
-      # cypress-tests-runner.yml, same nearly-100%-cacheable shape).
+      # sccache on local disk, restored as one archive instead of its native
+      # S3 backend — avoids per-object request round trips under load.
       RUSTC_WRAPPER: sccache
       SCCACHE_DIR: ${{ github.workspace }}/.sccache
       SCCACHE_CACHE_SIZE: "4G"
@@ -171,10 +164,8 @@ jobs:
       - name: Mask S3 cache location in job logs
         shell: bash
         run: |
-          # Not secrets (auth is via IAM role), but no reason to publish the
-          # bucket layout in a public repo's PR logs — including logs from
-          # fork PRs. sccache's own `--show-stats` output prints these back
-          # verbatim, so mask before anything can echo them.
+          # Not secret, but no reason to publish the bucket layout in
+          # public PR logs (sccache --show-stats echoes it back).
           [ -n "${SCCACHE_BUCKET:-}" ] && echo "::add-mask::${SCCACHE_BUCKET}"
           [ -n "${SCCACHE_REGION:-}" ] && echo "::add-mask::${SCCACHE_REGION}"
           [ -n "${SCCACHE_S3_KEY_PREFIX:-}" ] && echo "::add-mask::${SCCACHE_S3_KEY_PREFIX}"
@@ -222,9 +213,6 @@ jobs:
           tool: sccache
           checksum: true
 
-      # Bucket/region/prefix come from this pod's own environment (managed
-      # outside this repo). Captured under new names here, then blanked below
-      # so sccache itself never activates its native S3 backend.
       - name: Resolve S3 cache location, then disable sccache's native S3 backend
         shell: bash
         run: |
@@ -260,12 +248,7 @@ jobs:
 
       - name: Run clippy (redis-rs backend)
         shell: bash
-        # A cold sccache (first run for a new OS/arch key, cache TTL expiry,
-        # etc.) means most crates actually compile instead of cache-hitting,
-        # and this pod's memory budget can't sustain one rustc/clippy-driver
-        # per core at once — see the CARGO_BUILD_JOBS: 6 history for
-        # hyperswitch-runners in this file's git log (a node OOM-evicted a
-        # 28G-request runner pod running uncapped on a cold cache).
+        # Capped: uncapped + cold cache OOM'd a runner pod (git log).
         env:
           CARGO_BUILD_JOBS: 6
         run: just clippy
@@ -299,11 +282,7 @@ jobs:
         shell: bash
         run: sccache --show-stats
 
-      # TEMPORARY - DELETE BEFORE MERGE: this job is restore-only
-      # permanently (CI-push.yml's test job is what populates it on main);
-      # this branch-scoped save exists only to warm the cache for a
-      # subsequent validation run on this branch, now that CARGO_BUILD_JOBS
-      # is capped.
+      # TEMPORARY - DELETE BEFORE MERGE: branch-scoped populate for validation.
       - name: 'TEMPORARY - DELETE BEFORE MERGE: Save sccache cache to S3 (branch-scoped populate)'
         if: ${{ always() && github.head_ref == 'ci/sccache-migration' }}
         continue-on-error: true
@@ -456,11 +435,7 @@ jobs:
         shell: bash
         run: sccache --show-stats
 
-      # TEMPORARY - DELETE BEFORE MERGE: this job is restore-only
-      # permanently (CI-push.yml's check-v2 job is what populates it on
-      # main); this branch-scoped save exists only to warm the cache for a
-      # subsequent validation run on this branch, now that CARGO_BUILD_JOBS
-      # is capped.
+      # TEMPORARY - DELETE BEFORE MERGE: branch-scoped populate for validation.
       - name: 'TEMPORARY - DELETE BEFORE MERGE: Save sccache cache to S3 (branch-scoped populate)'
         if: ${{ always() && github.head_ref == 'ci/sccache-migration' }}
         continue-on-error: true

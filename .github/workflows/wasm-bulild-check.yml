@@ -17,16 +17,12 @@ jobs:
 
     permissions:
       contents: read
-      # actions/cache keys are immutable, so this fixed key must be deleted
-      # via `gh cache delete` before it can be resaved — that call needs
-      # actions: write.
+      # actions/cache keys are immutable; needed for `gh cache delete`.
       actions: write
 
     env:
-      # sccache on local disk, restored/saved as a single actions/cache
-      # archive instead of sccache's native GHA backend — see check-msrv in
-      # CI-push.yml for why (this repo's own CI history already found
-      # SCCACHE_GHA_ENABLED slower than no caching at all).
+      # sccache on local disk via actions/cache, not SCCACHE_GHA_ENABLED —
+      # see check-msrv in CI-push.yml for why.
       RUSTC_WRAPPER: sccache
       SCCACHE_DIR: ${{ github.workspace }}/.sccache
       SCCACHE_CACHE_SIZE: "2G"

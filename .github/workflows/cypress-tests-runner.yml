@@ -145,26 +145,13 @@ jobs:
     # use hyperswitch-runners-merge for merge queue level checks
     runs-on: ${{ case(github.event_name == 'merge_group', 'hyperswitch-runners-merge', 'hyperswitch-runners') }}
     env:
-      # sccache on local disk, restored/saved as a single compressed archive
-      # (see steps below) rather than its native S3 backend making one
-      # request per object — this job is a plain `cargo build` (nearly
-      # everything cacheable) with no `--jobs` cap, so it bursts hundreds of
-      # concurrent S3 requests through the shared CI egress proxy; under
-      # load that showed up as a real, measured Average cache read hit spike
-      # (0.25s vs. the usual ~0.04s) that a single bulk transfer sidesteps.
+      # sccache on local disk, restored/saved as one archive instead of its
+      # native S3 backend — avoids per-request round trips under load.
       RUSTC_WRAPPER: sccache
       SCCACHE_DIR: ${{ github.workspace }}/.sccache
-      # Default is 10G, uncapped growth toward it is what a runner likely
-      # died compressing (see the streamed-transfer fix above). Bounds the
-      # tarball's worst case; measured 2G for this job under normal build,
-      # so this leaves real headroom without chasing the default's ceiling.
       SCCACHE_CACHE_SIZE: "4G"
-      # `router` alone can take longer to compile than sccache's default
-      # 600s idle timeout, which kills the server mid-compile if nothing
-      # *new* gets dispatched to it in the meantime (mozilla/sccache#204).
-      # Disable idle shutdown; this is a single-use ephemeral pod torn down
-      # at job end regardless (confirmed via the runner's own orphan-process
-      # cleanup), so there's no cross-job leak risk from leaving it running.
+      # Default 600s idle timeout can kill sccache mid-compile on a long
+      # build (mozilla/sccache#204); safe to disable on this ephemeral pod.
       SCCACHE_IDLE_TIMEOUT: "0"
     steps:
       - name: Mask S3 cache location in job logs
@@ -209,9 +196,6 @@ jobs:
           tool: sccache
           checksum: true
 
-      # Bucket/region/prefix come from this pod's own environment (managed
-      # outside this repo). Captured under new names here, then blanked below
-      # so sccache itself never activates its native S3 backend.
       - name: Resolve S3 cache location, then disable sccache's native S3 backend
         if: ${{ env.RUN_TESTS == 'true' }}
         shell: bash
@@ -223,23 +207,13 @@ jobs:
           echo "SCCACHE_REGION=" >> "$GITHUB_ENV"
           echo "SCCACHE_S3_KEY_PREFIX=" >> "$GITHUB_ENV"
 
-      # Keyed by OS/arch: sccache's own per-object hash already includes
-      # compiler identity, so a wrong-arch tarball couldn't produce a wrong
-      # hit — but on a heterogeneous runner pool it would produce a 0%-hit
-      # tarball every time the arch differs from whoever last populated it,
-      # making the restore pure overhead with no payoff. Not versioned by
-      # toolchain: each save is a full wholesale overwrite reflecting
-      # whatever the current run actually compiled, so a toolchain bump is
-      # just one transient cold populate, not persistent thrashing.
+      # Keyed by OS/arch to avoid a 0%-hit tarball on a heterogeneous pool.
       - name: Restore sccache cache from S3
         if: ${{ env.RUN_TESTS == 'true' }}
         continue-on-error: true
         shell: bash
         run: |
-          # Streamed straight from S3 into tar (no intermediate .tar.gz on
-          # disk) — a file-based round trip briefly doubles disk usage
-          # (source dir + full compressed copy), which is plausibly what
-          # took a runner down mid-compress on a large cache.
+          # Streamed, not written to disk first — avoids doubling disk usage.
           set -o pipefail
           mkdir -p "$SCCACHE_DIR"
           if [ -n "$S3_CACHE_BUCKET" ]; then
@@ -261,29 +235,19 @@ jobs:
         shell: bash
         run: sccache --show-stats
 
-      # Only merge_group writes: the closest equivalent to "push" for this
-      # workflow (it has no push trigger), and merge_group only runs
-      # already-approved changes via the branch-protection merge queue, so
-      # it's inherently trusted — no extra fork-PR guard needed here.
+      # Only merge_group writes (this workflow has no push trigger).
       - name: Compress and upload sccache cache to S3
         if: ${{ env.RUN_TESTS == 'true' && github.event_name == 'merge_group' }}
         continue-on-error: true
         shell: bash
         run: |
-          # Streamed straight into S3 (no intermediate .tar.gz on disk) —
-          # see the restore step above for why.
           set -o pipefail
           tar czf - -C "$SCCACHE_DIR" . \
             | aws s3 cp - \
               "s3://${S3_CACHE_BUCKET}/${S3_CACHE_PREFIX}sccache-cache/build-hyperswitch-${{ runner.os }}-${{ runner.arch }}.tar.gz" \
               --region "${S3_CACHE_REGION}" --no-progress --only-show-errors
 
-      # Keyed by run id so concurrent runs (different PRs) never collide;
-      # every downstream job in this same run reads the same run id back.
-      # Uses S3_CACHE_* (not SCCACHE_*): the earlier "disable sccache's
-      # native S3 backend" step blanks SCCACHE_BUCKET/REGION/S3_KEY_PREFIX
-      # in this same job, so the real values only live under the renamed
-      # vars from here on.
+      # Keyed by run id so concurrent runs (different PRs) never collide.
       - name: Upload binary to S3
         if: ${{ env.RUN_TESTS == 'true' }}
         shell: bash
@@ -340,9 +304,7 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJson(needs.prepare-mandatory-matrix.outputs['mandatory-matrix']) }}
     env:
-      # Use `sccache` for caching compilation artifacts, via its native S3
-      # backend (bucket/region/prefix/encryption come from this pod's own
-      # environment).
+      # Use `sccache` for caching compilation artifacts
       RUSTC_WRAPPER: sccache
 
     services:
@@ -658,9 +620,7 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJson(needs.prepare-extended-matrix.outputs['extended-matrix']) }}
     env:
-      # Use `sccache` for caching compilation artifacts, via its native S3
-      # backend (bucket/region/prefix/encryption come from this pod's own
-      # environment).
+      # Use `sccache` for caching compilation artifacts
       RUSTC_WRAPPER: sccache
 
     services:
@@ -944,8 +904,6 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJson(needs.prepare-mock-matrix.outputs['mock-matrix']) }}
     env:
-      # sccache's native S3 backend (bucket/region/prefix/encryption come
-      # from this pod's own environment).
       RUSTC_WRAPPER: sccache
 
     services:
@@ -1404,9 +1362,7 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJson(needs.prepare-optional-matrix.outputs.matrix) }}
     env:
-      # Use `sccache` for caching compilation artifacts, via its native S3
-      # backend (bucket/region/prefix/encryption come from this pod's own
-      # environment).
+      # Use `sccache` for caching compilation artifacts
       RUSTC_WRAPPER: sccache
 
     services:
@@ -1615,9 +1571,7 @@ jobs:
     if: false
     runs-on: hyperswitch-runners
     env:
-      # Use `sccache` for caching compilation artifacts, via its native S3
-      # backend (bucket/region/prefix/encryption come from this pod's own
-      # environment).
+      # Use `sccache` for caching compilation artifacts
       RUSTC_WRAPPER: sccache
     services:
       redis:
@@ -1859,24 +1813,11 @@ jobs:
       contents: read
     env:
       CODECOV_FILE: "lcov.info"
-      # sccache on local disk, restored/saved as a single compressed archive
-      # instead of its native S3 backend — see build-hyperswitch for why
-      # (same nearly-100%-cacheable, uncapped-parallelism shape that showed
-      # a real Average-cache-read-hit spike under load through the shared
-      # CI egress proxy).
+      # sccache on local disk, restored/saved as one archive instead of its
+      # native S3 backend — see build-hyperswitch for why.
       RUSTC_WRAPPER: sccache
       SCCACHE_DIR: ${{ github.workspace }}/.sccache
-      # Default is 10G, uncapped growth toward it is the likely cause of a
-      # runner dying mid-compress on this job's cache (coverage
-      # instrumentation makes it larger than build-hyperswitch's — exact
-      # size still unconfirmed, this run never got far enough to report it).
-      # Same provisional bound as build-hyperswitch; revisit once a run
-      # actually reports a size.
       SCCACHE_CACHE_SIZE: "4G"
-      # See build-hyperswitch: `just build_v2` can outlast sccache's default
-      # 600s idle timeout, which kills the server mid-compile
-      # (mozilla/sccache#204). Disable idle shutdown; safe here for the same
-      # reason (single-use ephemeral pod, reaped at job end regardless).
       SCCACHE_IDLE_TIMEOUT: "0"
 
     services:
@@ -1984,9 +1925,6 @@ jobs:
           tool: sccache
           checksum: true
 
-      # Bucket/region/prefix come from this pod's own environment (managed
-      # outside this repo). Captured under new names here, then blanked below
-      # so sccache itself never activates its native S3 backend.
       - name: Resolve S3 cache location, then disable sccache's native S3 backend
         if: ${{ env.RUN_TESTS == 'true' }}
         shell: bash
@@ -1998,23 +1936,13 @@ jobs:
           echo "SCCACHE_REGION=" >> "$GITHUB_ENV"
           echo "SCCACHE_S3_KEY_PREFIX=" >> "$GITHUB_ENV"
 
-      # Keyed by OS/arch: sccache's own per-object hash already includes
-      # compiler identity, so a wrong-arch tarball couldn't produce a wrong
-      # hit — but on a heterogeneous runner pool it would produce a 0%-hit
-      # tarball every time the arch differs from whoever last populated it,
-      # making the restore pure overhead with no payoff. Not versioned by
-      # toolchain: each save is a full wholesale overwrite reflecting
-      # whatever the current run actually compiled, so a toolchain bump is
-      # just one transient cold populate, not persistent thrashing.
+      # Keyed by OS/arch to avoid a 0%-hit tarball on a heterogeneous pool.
       - name: Restore sccache cache from S3
         if: ${{ env.RUN_TESTS == 'true' }}
         continue-on-error: true
         shell: bash
         run: |
-          # Streamed straight from S3 into tar (no intermediate .tar.gz on
-          # disk) — a file-based round trip briefly doubles disk usage
-          # (source dir + full compressed copy), which is plausibly what
-          # took a runner down mid-compress on a large cache.
+          # Streamed, not written to disk first — avoids doubling disk usage.
           set -o pipefail
           mkdir -p "$SCCACHE_DIR"
           if [ -n "$S3_CACHE_BUCKET" ]; then
@@ -2095,17 +2023,12 @@ jobs:
         shell: bash
         run: sccache --show-stats
 
-      # Only merge_group writes: the closest equivalent to "push" for this
-      # workflow (it has no push trigger), and merge_group only runs
-      # already-approved changes via the branch-protection merge queue, so
-      # it's inherently trusted — no extra fork-PR guard needed here.
+      # Only merge_group writes (this workflow has no push trigger).
       - name: Compress and upload sccache cache to S3
         if: ${{ env.RUN_TESTS == 'true' && github.event_name == 'merge_group' }}
         continue-on-error: true
         shell: bash
         run: |
-          # Streamed straight into S3 (no intermediate .tar.gz on disk) —
-          # see the restore step above for why.
           set -o pipefail
           tar czf - -C "$SCCACHE_DIR" . \
             | aws s3 cp - \
