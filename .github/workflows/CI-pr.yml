@@ -147,6 +147,13 @@ jobs:
       # policy — so a fork PR can't write into the shared production cache.
       # Only CI-push.yml's `push` build writes.
       SCCACHE_S3_RW_MODE: READ_ONLY
+      # TEMPORARY - REVERT BEFORE MERGE.
+      # Verbose per-request logging, as a control against build-hyperswitch's
+      # (in cypress-tests-runner.yml) — this job doesn't show the Average
+      # cache read hit spike under load; comparing the two request logs
+      # should show what's actually different.
+      SCCACHE_LOG: debug
+      SCCACHE_ERROR_LOG: ${{ github.workspace }}/sccache-debug.log
 
     steps:
       - name: Mask S3 cache location in job logs
@@ -237,6 +244,21 @@ jobs:
         if: always()
         shell: bash
         run: sccache --show-stats
+
+      # TEMPORARY - REVERT BEFORE MERGE. Flush and grab the debug log above.
+      - name: Stop sccache server to flush debug log
+        if: always()
+        shell: bash
+        run: sccache --stop-server || true
+
+      - name: Upload sccache debug log
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: sccache-debug-log-test
+          path: sccache-debug.log
+          retention-days: 1
+          if-no-files-found: warn
 
   typos:
     name: Spell check
