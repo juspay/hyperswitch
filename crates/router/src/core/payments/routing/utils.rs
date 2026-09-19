@@ -2673,13 +2673,13 @@ pub async fn get_routing_result_source(
     }
 }
 
-/// Effective cutover: routing_result_source is DecisionEngine AND the global
-/// static_routing_enabled flag is on — the flag always wins, for APIs and payment paths alike.
+/// Effective cutover routing_result_source is DecisionEngine and either global routing flag (static or dynamic) is on - the flags always win, for APIs and payment paths alike.
 pub async fn is_decision_engine_routing_effective(
     state: &SessionState,
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
 ) -> bool {
-    state.conf.open_router.static_routing_enabled
+    (state.conf.open_router.static_routing_enabled
+        || state.conf.open_router.dynamic_routing_enabled)
         && matches!(
             get_routing_result_source(state, dimensions).await,
             api_routing::RoutingResultSource::DecisionEngine
@@ -2695,7 +2695,7 @@ pub async fn select_routing_result<T>(
 where
     T: Clone + IntoIterator,
 {
-    // Same predicate as every other consumer: with the global flag off the profile is
+    // Same predicate as every other consumer: with both global flags off the profile is
     // Hyperswitch-routed, so reads must not serve DE records the payment path ignores.
     let routing_result_source = if is_decision_engine_routing_effective(state, dimensions).await {
         api_routing::RoutingResultSource::DecisionEngine
@@ -3456,9 +3456,10 @@ pub async fn load_skip_pre_routing_config(
 ) -> HashMap<enums::PaymentMethod, HashSet<enums::PaymentMethodType>> {
     let merchant_cfg = state
         .store
-        .find_config_by_key_from_db(&pre_routing_disabled_pm_pmt_key)
+        .find_config_by_key_optional(&pre_routing_disabled_pm_pmt_key)
         .await
         .ok()
+        .flatten()
         .and_then(|cfg| serde_json::from_str::<MerchantPreRoutingConfig>(&cfg.config).ok())
         .unwrap_or_default();
 

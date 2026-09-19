@@ -37,6 +37,22 @@ const failedNo3DSCardDetails = {
   card_cvc: "123",
 };
 
+const parPositiveCardDetails = {
+  card_number: "4242424242424242",
+  card_exp_month: "10",
+  card_exp_year: "50",
+  card_holder_name: "morino",
+  card_cvc: "737",
+};
+
+const parNegativeCardDetails = {
+  card_number: "378282246310005",
+  card_exp_month: "10",
+  card_exp_year: "50",
+  card_holder_name: "morino",
+  card_cvc: "737",
+};
+
 const singleUseMandateData = {
   customer_acceptance: customerAcceptance,
   mandate_type: {
@@ -390,6 +406,42 @@ export const connectorDetails = {
         },
       },
     },
+    PARPositiveNo3DSAutoCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: parPositiveCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          payment_account_reference: "dynamic_par",
+        },
+      },
+    },
+    PARNegativeNo3DSAutoCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: parNegativeCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          payment_account_reference: null,
+        },
+      },
+    },
     L2L3Data: {
       // Stripe L2/L3 data: Level 2 (tax/shipping) and Level 3 (line items) for payment processing
       // Amount must equal sum of order_details excluding shipping_cost
@@ -640,6 +692,7 @@ export const connectorDetails = {
     },
     MandateSingleUseNo3DSAutoCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -656,6 +709,7 @@ export const connectorDetails = {
     },
     MandateSingleUseNo3DSManualCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -672,6 +726,7 @@ export const connectorDetails = {
     },
     MandateMultiUseNo3DSAutoCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -688,6 +743,7 @@ export const connectorDetails = {
     },
     MandateMultiUseNo3DSManualCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -753,7 +809,7 @@ export const connectorDetails = {
       ...commonConnectorDetails.card_pm.MITAutoCaptureWithCustomerAcceptance,
     }),
     MITManualCapture: {
-      Request: {},
+      Request: { amount: 6000 },
       Response: {
         status: 200,
         body: {
@@ -763,6 +819,7 @@ export const connectorDetails = {
     },
     ZeroAuthMandate: {
       Request: {
+        amount: 0,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -793,6 +850,7 @@ export const connectorDetails = {
     },
     ZeroAuthConfirmPayment: {
       Request: {
+        amount: 0,
         payment_type: "setup_mandate",
         payment_method: "card",
         payment_method_type: "credit",
@@ -846,6 +904,7 @@ export const connectorDetails = {
     },
     PaymentMethodIdMandateNo3DSAutoCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -965,6 +1024,7 @@ export const connectorDetails = {
     },
     PaymentMethodIdMandateNo3DSManualCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -982,6 +1042,7 @@ export const connectorDetails = {
     },
     PaymentMethodIdMandate3DSAutoCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
@@ -1000,6 +1061,7 @@ export const connectorDetails = {
     },
     PaymentMethodIdMandate3DSManualCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
@@ -1241,6 +1303,7 @@ export const connectorDetails = {
       },
       MandateSingleUseAutoCapture: {
         Request: {
+          amount: 6540,
           ...idealBaseRequest,
           billing: {
             ...idealBaseRequest.billing,
@@ -1385,6 +1448,7 @@ export const connectorDetails = {
       },
       MandateSingleUseAutoCapture: {
         Request: {
+          amount: 6540,
           ...bancontactBaseRequest,
           ...mandateSingleUseFields,
         },

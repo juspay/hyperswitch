@@ -1,4 +1,5 @@
 pub mod batch;
+pub mod clone;
 pub mod export;
 pub mod transformers;
 pub mod utils;
@@ -132,6 +133,17 @@ pub async fn create_blocklist_export(
     profile_id: Option<common_utils::id_type::ProfileId>,
 ) -> RouterResponse<api_blocklist::BlocklistExportResponse> {
     export::initiate_blocklist_export(&state, &platform, profile_id)
+        .await
+        .map(services::ApplicationResponse::Json)
+}
+
+pub async fn clone_blocklist_entries(
+    state: SessionState,
+    platform: domain::Platform,
+    profile_id: Option<common_utils::id_type::ProfileId>,
+    body: api_blocklist::CloneBlocklistEntriesRequest,
+) -> RouterResponse<api_blocklist::CloneBlocklistEntriesResponse> {
+    clone::clone_blocklist_entries(&state, &platform, profile_id, body)
         .await
         .map(services::ApplicationResponse::Json)
 }
