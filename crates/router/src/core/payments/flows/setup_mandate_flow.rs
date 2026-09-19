@@ -361,12 +361,19 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
     where
         Self: Sized,
     {
-        if connector.connector.is_pre_authentication_flow_required(
-            api_interface::CurrentFlowInfo::SetupMandate {
-                auth_type: self.auth_type,
-                request_data: Box::new(self.request.clone()),
-            },
-        ) {
+        // Nuvei on UCS: 3DS SetupMandate is refused by UCS and a 3DS CIT goes through Authorize,
+        // so an initPayment here would produce a result SetupRecurring cannot consume
+        let skip_pre_authentication = connector.connector_name
+            == api_models::enums::Connector::Nuvei
+            && !gateway_context.execution_path.is_direct_gateway();
+        if !skip_pre_authentication
+            && connector.connector.is_pre_authentication_flow_required(
+                api_interface::CurrentFlowInfo::SetupMandate {
+                    auth_type: self.auth_type,
+                    request_data: Box::new(self.request.clone()),
+                },
+            )
+        {
             logger::info!(
                 "Pre-authentication flow is required for connector: {}",
                 connector.connector_name
