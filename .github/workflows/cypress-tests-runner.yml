@@ -156,10 +156,7 @@ jobs:
     steps:
       - name: Mask S3 cache location in job logs
         shell: bash
-        run: |
-          [ -n "${SCCACHE_BUCKET:-}" ] && echo "::add-mask::${SCCACHE_BUCKET}"
-          [ -n "${SCCACHE_REGION:-}" ] && echo "::add-mask::${SCCACHE_REGION}"
-          [ -n "${SCCACHE_S3_KEY_PREFIX:-}" ] && echo "::add-mask::${SCCACHE_S3_KEY_PREFIX}"
+        run: .github/scripts/sccache-mask-s3-env.sh
 
       - name: Skip tests for PRs from forks
         shell: bash
@@ -199,32 +196,13 @@ jobs:
       - name: Resolve S3 cache location, then disable sccache's native S3 backend
         if: ${{ env.RUN_TESTS == 'true' }}
         shell: bash
-        run: |
-          echo "S3_CACHE_BUCKET=${SCCACHE_BUCKET:-}" >> "$GITHUB_ENV"
-          echo "S3_CACHE_REGION=${SCCACHE_REGION:-}" >> "$GITHUB_ENV"
-          echo "S3_CACHE_PREFIX=${SCCACHE_S3_KEY_PREFIX:-}" >> "$GITHUB_ENV"
-          echo "SCCACHE_BUCKET=" >> "$GITHUB_ENV"
-          echo "SCCACHE_REGION=" >> "$GITHUB_ENV"
-          echo "SCCACHE_S3_KEY_PREFIX=" >> "$GITHUB_ENV"
+        run: .github/scripts/sccache-resolve-s3-env.sh
 
-      # Keyed by OS/arch to avoid a 0%-hit tarball on a heterogeneous pool.
       - name: Restore sccache cache from S3
         if: ${{ env.RUN_TESTS == 'true' }}
         continue-on-error: true
         shell: bash
-        run: |
-          # Streamed, not written to disk first — avoids doubling disk usage.
-          set -o pipefail
-          mkdir -p "$SCCACHE_DIR"
-          if [ -n "$S3_CACHE_BUCKET" ]; then
-            aws s3 cp \
-              "s3://${S3_CACHE_BUCKET}/${S3_CACHE_PREFIX}sccache-cache/build-hyperswitch-${{ runner.os }}-${{ runner.arch }}.tar.gz" \
-              - \
-              --region "${S3_CACHE_REGION}" --no-progress --only-show-errors \
-              | tar xzf - -C "$SCCACHE_DIR"
-          else
-            echo "::warning::S3 cache bucket not configured on this runner; sccache starts cold"
-          fi
+        run: .github/scripts/sccache-restore-s3.sh build-hyperswitch
 
       - name: Build project
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -240,12 +218,7 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' && github.event_name == 'merge_group' }}
         continue-on-error: true
         shell: bash
-        run: |
-          set -o pipefail
-          tar czf - -C "$SCCACHE_DIR" . \
-            | aws s3 cp - \
-              "s3://${S3_CACHE_BUCKET}/${S3_CACHE_PREFIX}sccache-cache/build-hyperswitch-${{ runner.os }}-${{ runner.arch }}.tar.gz" \
-              --region "${S3_CACHE_REGION}" --no-progress --only-show-errors
+        run: .github/scripts/sccache-save-s3.sh build-hyperswitch
 
       # Keyed by run id so concurrent runs (different PRs) never collide.
       - name: Upload binary to S3
@@ -341,10 +314,7 @@ jobs:
     steps:
       - name: Mask S3 cache location in job logs
         shell: bash
-        run: |
-          [ -n "${SCCACHE_BUCKET:-}" ] && echo "::add-mask::${SCCACHE_BUCKET}"
-          [ -n "${SCCACHE_REGION:-}" ] && echo "::add-mask::${SCCACHE_REGION}"
-          [ -n "${SCCACHE_S3_KEY_PREFIX:-}" ] && echo "::add-mask::${SCCACHE_S3_KEY_PREFIX}"
+        run: .github/scripts/sccache-mask-s3-env.sh
 
       - name: Skip tests for PRs from forks
         if: ${{ env.RUN_TESTS == 'false' }}
@@ -650,10 +620,7 @@ jobs:
     steps:
       - name: Mask S3 cache location in job logs
         shell: bash
-        run: |
-          [ -n "${SCCACHE_BUCKET:-}" ] && echo "::add-mask::${SCCACHE_BUCKET}"
-          [ -n "${SCCACHE_REGION:-}" ] && echo "::add-mask::${SCCACHE_REGION}"
-          [ -n "${SCCACHE_S3_KEY_PREFIX:-}" ] && echo "::add-mask::${SCCACHE_S3_KEY_PREFIX}"
+        run: .github/scripts/sccache-mask-s3-env.sh
 
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -940,10 +907,7 @@ jobs:
     steps:
       - name: Mask S3 cache location in job logs
         shell: bash
-        run: |
-          [ -n "${SCCACHE_BUCKET:-}" ] && echo "::add-mask::${SCCACHE_BUCKET}"
-          [ -n "${SCCACHE_REGION:-}" ] && echo "::add-mask::${SCCACHE_REGION}"
-          [ -n "${SCCACHE_S3_KEY_PREFIX:-}" ] && echo "::add-mask::${SCCACHE_S3_KEY_PREFIX}"
+        run: .github/scripts/sccache-mask-s3-env.sh
 
       - name: Skip tests for PRs from forks
         if: ${{ env.RUN_TESTS == 'false' }}
@@ -1399,10 +1363,7 @@ jobs:
     steps:
       - name: Mask S3 cache location in job logs
         shell: bash
-        run: |
-          [ -n "${SCCACHE_BUCKET:-}" ] && echo "::add-mask::${SCCACHE_BUCKET}"
-          [ -n "${SCCACHE_REGION:-}" ] && echo "::add-mask::${SCCACHE_REGION}"
-          [ -n "${SCCACHE_S3_KEY_PREFIX:-}" ] && echo "::add-mask::${SCCACHE_S3_KEY_PREFIX}"
+        run: .github/scripts/sccache-mask-s3-env.sh
 
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -1607,10 +1568,7 @@ jobs:
     steps:
       - name: Mask S3 cache location in job logs
         shell: bash
-        run: |
-          [ -n "${SCCACHE_BUCKET:-}" ] && echo "::add-mask::${SCCACHE_BUCKET}"
-          [ -n "${SCCACHE_REGION:-}" ] && echo "::add-mask::${SCCACHE_REGION}"
-          [ -n "${SCCACHE_S3_KEY_PREFIX:-}" ] && echo "::add-mask::${SCCACHE_S3_KEY_PREFIX}"
+        run: .github/scripts/sccache-mask-s3-env.sh
 
       - name: Skip tests for PRs from forks
         if: ${{ env.RUN_TESTS == 'false' }}
@@ -1854,10 +1812,7 @@ jobs:
     steps:
       - name: Mask S3 cache location in job logs
         shell: bash
-        run: |
-          [ -n "${SCCACHE_BUCKET:-}" ] && echo "::add-mask::${SCCACHE_BUCKET}"
-          [ -n "${SCCACHE_REGION:-}" ] && echo "::add-mask::${SCCACHE_REGION}"
-          [ -n "${SCCACHE_S3_KEY_PREFIX:-}" ] && echo "::add-mask::${SCCACHE_S3_KEY_PREFIX}"
+        run: .github/scripts/sccache-mask-s3-env.sh
 
       - name: Skip tests for PRs from forks
         shell: bash
@@ -1928,32 +1883,13 @@ jobs:
       - name: Resolve S3 cache location, then disable sccache's native S3 backend
         if: ${{ env.RUN_TESTS == 'true' }}
         shell: bash
-        run: |
-          echo "S3_CACHE_BUCKET=${SCCACHE_BUCKET:-}" >> "$GITHUB_ENV"
-          echo "S3_CACHE_REGION=${SCCACHE_REGION:-}" >> "$GITHUB_ENV"
-          echo "S3_CACHE_PREFIX=${SCCACHE_S3_KEY_PREFIX:-}" >> "$GITHUB_ENV"
-          echo "SCCACHE_BUCKET=" >> "$GITHUB_ENV"
-          echo "SCCACHE_REGION=" >> "$GITHUB_ENV"
-          echo "SCCACHE_S3_KEY_PREFIX=" >> "$GITHUB_ENV"
+        run: .github/scripts/sccache-resolve-s3-env.sh
 
-      # Keyed by OS/arch to avoid a 0%-hit tarball on a heterogeneous pool.
       - name: Restore sccache cache from S3
         if: ${{ env.RUN_TESTS == 'true' }}
         continue-on-error: true
         shell: bash
-        run: |
-          # Streamed, not written to disk first — avoids doubling disk usage.
-          set -o pipefail
-          mkdir -p "$SCCACHE_DIR"
-          if [ -n "$S3_CACHE_BUCKET" ]; then
-            aws s3 cp \
-              "s3://${S3_CACHE_BUCKET}/${S3_CACHE_PREFIX}sccache-cache/runner-v2-${{ runner.os }}-${{ runner.arch }}.tar.gz" \
-              - \
-              --region "${S3_CACHE_REGION}" --no-progress --only-show-errors \
-              | tar xzf - -C "$SCCACHE_DIR"
-          else
-            echo "::warning::S3 cache bucket not configured on this runner; sccache starts cold"
-          fi
+        run: .github/scripts/sccache-restore-s3.sh runner-v2
 
       - name: Install Diesel CLI
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -2028,12 +1964,7 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' && github.event_name == 'merge_group' }}
         continue-on-error: true
         shell: bash
-        run: |
-          set -o pipefail
-          tar czf - -C "$SCCACHE_DIR" . \
-            | aws s3 cp - \
-              "s3://${S3_CACHE_BUCKET}/${S3_CACHE_PREFIX}sccache-cache/runner-v2-${{ runner.os }}-${{ runner.arch }}.tar.gz" \
-              --region "${S3_CACHE_REGION}" --no-progress --only-show-errors
+        run: .github/scripts/sccache-save-s3.sh runner-v2
 
       - name: Setup Local Server
         if: ${{ env.RUN_TESTS == 'true' }}

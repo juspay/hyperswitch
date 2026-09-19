@@ -198,10 +198,7 @@ jobs:
     steps:
       - name: Mask S3 cache location in job logs
         shell: bash
-        run: |
-          [ -n "${SCCACHE_BUCKET:-}" ] && echo "::add-mask::${SCCACHE_BUCKET}"
-          [ -n "${SCCACHE_REGION:-}" ] && echo "::add-mask::${SCCACHE_REGION}"
-          [ -n "${SCCACHE_S3_KEY_PREFIX:-}" ] && echo "::add-mask::${SCCACHE_S3_KEY_PREFIX}"
+        run: .github/scripts/sccache-mask-s3-env.sh
 
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -247,29 +244,12 @@ jobs:
 
       - name: Resolve S3 cache location, then disable sccache's native S3 backend
         shell: bash
-        run: |
-          echo "S3_CACHE_BUCKET=${SCCACHE_BUCKET:-}" >> "$GITHUB_ENV"
-          echo "S3_CACHE_REGION=${SCCACHE_REGION:-}" >> "$GITHUB_ENV"
-          echo "S3_CACHE_PREFIX=${SCCACHE_S3_KEY_PREFIX:-}" >> "$GITHUB_ENV"
-          echo "SCCACHE_BUCKET=" >> "$GITHUB_ENV"
-          echo "SCCACHE_REGION=" >> "$GITHUB_ENV"
-          echo "SCCACHE_S3_KEY_PREFIX=" >> "$GITHUB_ENV"
+        run: .github/scripts/sccache-resolve-s3-env.sh
 
       - name: Restore sccache cache from S3
         continue-on-error: true
         shell: bash
-        run: |
-          set -o pipefail
-          mkdir -p "$SCCACHE_DIR"
-          if [ -n "$S3_CACHE_BUCKET" ]; then
-            aws s3 cp \
-              "s3://${S3_CACHE_BUCKET}/${S3_CACHE_PREFIX}sccache-cache/test-${{ runner.os }}-${{ runner.arch }}.tar.gz" \
-              - \
-              --region "${S3_CACHE_REGION}" --no-progress --only-show-errors \
-              | tar xzf - -C "$SCCACHE_DIR"
-          else
-            echo "::warning::S3 cache bucket not configured on this runner; sccache starts cold"
-          fi
+        run: .github/scripts/sccache-restore-s3.sh test
 
       - name: Run clippy (redis-rs backend)
         shell: bash
@@ -307,12 +287,7 @@ jobs:
         if: ${{ always() && github.event_name == 'push' }}
         continue-on-error: true
         shell: bash
-        run: |
-          set -o pipefail
-          tar czf - -C "$SCCACHE_DIR" . \
-            | aws s3 cp - \
-              "s3://${S3_CACHE_BUCKET}/${S3_CACHE_PREFIX}sccache-cache/test-${{ runner.os }}-${{ runner.arch }}.tar.gz" \
-              --region "${S3_CACHE_REGION}" --no-progress --only-show-errors
+        run: .github/scripts/sccache-save-s3.sh test
 
   typos:
     name: Spell check
@@ -360,10 +335,7 @@ jobs:
     steps:
       - name: Mask S3 cache location in job logs
         shell: bash
-        run: |
-          [ -n "${SCCACHE_BUCKET:-}" ] && echo "::add-mask::${SCCACHE_BUCKET}"
-          [ -n "${SCCACHE_REGION:-}" ] && echo "::add-mask::${SCCACHE_REGION}"
-          [ -n "${SCCACHE_S3_KEY_PREFIX:-}" ] && echo "::add-mask::${SCCACHE_S3_KEY_PREFIX}"
+        run: .github/scripts/sccache-mask-s3-env.sh
 
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -392,29 +364,12 @@ jobs:
 
       - name: Resolve S3 cache location, then disable sccache's native S3 backend
         shell: bash
-        run: |
-          echo "S3_CACHE_BUCKET=${SCCACHE_BUCKET:-}" >> "$GITHUB_ENV"
-          echo "S3_CACHE_REGION=${SCCACHE_REGION:-}" >> "$GITHUB_ENV"
-          echo "S3_CACHE_PREFIX=${SCCACHE_S3_KEY_PREFIX:-}" >> "$GITHUB_ENV"
-          echo "SCCACHE_BUCKET=" >> "$GITHUB_ENV"
-          echo "SCCACHE_REGION=" >> "$GITHUB_ENV"
-          echo "SCCACHE_S3_KEY_PREFIX=" >> "$GITHUB_ENV"
+        run: .github/scripts/sccache-resolve-s3-env.sh
 
       - name: Restore sccache cache from S3
         continue-on-error: true
         shell: bash
-        run: |
-          set -o pipefail
-          mkdir -p "$SCCACHE_DIR"
-          if [ -n "$S3_CACHE_BUCKET" ]; then
-            aws s3 cp \
-              "s3://${S3_CACHE_BUCKET}/${S3_CACHE_PREFIX}sccache-cache/check-v2-${{ runner.os }}-${{ runner.arch }}.tar.gz" \
-              - \
-              --region "${S3_CACHE_REGION}" --no-progress --only-show-errors \
-              | tar xzf - -C "$SCCACHE_DIR"
-          else
-            echo "::warning::S3 cache bucket not configured on this runner; sccache starts cold"
-          fi
+        run: .github/scripts/sccache-restore-s3.sh check-v2
 
       - name: Run cargo check enabling only the release and v2 features (redis-rs backend)
         shell: bash
@@ -437,9 +392,4 @@ jobs:
         if: ${{ always() && github.event_name == 'push' }}
         continue-on-error: true
         shell: bash
-        run: |
-          set -o pipefail
-          tar czf - -C "$SCCACHE_DIR" . \
-            | aws s3 cp - \
-              "s3://${S3_CACHE_BUCKET}/${S3_CACHE_PREFIX}sccache-cache/check-v2-${{ runner.os }}-${{ runner.arch }}.tar.gz" \
-              --region "${S3_CACHE_REGION}" --no-progress --only-show-errors
+        run: .github/scripts/sccache-save-s3.sh check-v2
