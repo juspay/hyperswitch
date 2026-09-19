@@ -342,12 +342,7 @@ jobs:
       - name: Download hyperswitch server binary from S3
         if: ${{ env.RUN_TESTS == 'true' }}
         shell: bash
-        run: |
-          mkdir -p target/debug
-          aws s3 cp \
-            "s3://${SCCACHE_BUCKET}/${SCCACHE_S3_KEY_PREFIX}build-artifacts/${{ github.run_id }}/router" \
-            target/debug/router \
-            --region "${SCCACHE_REGION}" --no-progress --only-show-errors
+        run: .github/scripts/download-hyperswitch-binary-s3.sh
 
       - name: Make server executable
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -639,12 +634,7 @@ jobs:
 
       - name: Download hyperswitch server binary from S3
         shell: bash
-        run: |
-          mkdir -p target/debug
-          aws s3 cp \
-            "s3://${SCCACHE_BUCKET}/${SCCACHE_S3_KEY_PREFIX}build-artifacts/${{ github.run_id }}/router" \
-            target/debug/router \
-            --region "${SCCACHE_REGION}" --no-progress --only-show-errors
+        run: .github/scripts/download-hyperswitch-binary-s3.sh
 
       - name: Make server executable
         run: chmod +x target/debug/router
@@ -935,12 +925,7 @@ jobs:
       - name: Download hyperswitch server binary from S3
         if: ${{ env.RUN_TESTS == 'true' }}
         shell: bash
-        run: |
-          mkdir -p target/debug
-          aws s3 cp \
-            "s3://${SCCACHE_BUCKET}/${SCCACHE_S3_KEY_PREFIX}build-artifacts/${{ github.run_id }}/router" \
-            target/debug/router \
-            --region "${SCCACHE_REGION}" --no-progress --only-show-errors
+        run: .github/scripts/download-hyperswitch-binary-s3.sh
 
       - name: Make server executable
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -1382,12 +1367,7 @@ jobs:
 
       - name: Download hyperswitch server binary from S3
         shell: bash
-        run: |
-          mkdir -p target/debug
-          aws s3 cp \
-            "s3://${SCCACHE_BUCKET}/${SCCACHE_S3_KEY_PREFIX}build-artifacts/${{ github.run_id }}/router" \
-            target/debug/router \
-            --region "${SCCACHE_REGION}" --no-progress --only-show-errors
+        run: .github/scripts/download-hyperswitch-binary-s3.sh
 
       - name: Make server executable
         run: chmod +x target/debug/router
@@ -1582,12 +1562,7 @@ jobs:
       - name: Download hyperswitch server binary from S3
         if: ${{ env.RUN_TESTS == 'true' }}
         shell: bash
-        run: |
-          mkdir -p target/debug
-          aws s3 cp \
-            "s3://${SCCACHE_BUCKET}/${SCCACHE_S3_KEY_PREFIX}build-artifacts/${{ github.run_id }}/router" \
-            target/debug/router \
-            --region "${SCCACHE_REGION}" --no-progress --only-show-errors
+        run: .github/scripts/download-hyperswitch-binary-s3.sh
 
       - name: Make server executable
         if: ${{ env.RUN_TESTS == 'true' }}
