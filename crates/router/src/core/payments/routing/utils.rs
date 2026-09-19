@@ -715,9 +715,9 @@ pub fn transform_de_output_for_router(
 
 /// Which call site produced a Decision Engine evaluation.
 ///
-/// Carried into the routing event and the Hyperswitch/DE diff log so the three flows
-/// can be told apart -- previously all three logged under the same name, which made a
-/// session-flow discrepancy indistinguishable from a payment one.
+/// Carried into the routing event so the three flows can be told apart -- previously
+/// all three logged under the same name, which made a session-flow discrepancy
+/// indistinguishable from a payment one.
 #[derive(Debug, Clone, Copy)]
 pub enum RoutingFlow {
     Payment,
@@ -726,17 +726,8 @@ pub enum RoutingFlow {
 }
 
 impl RoutingFlow {
-    /// Label used in the HS/DE diff log. `Payment` keeps its historical value so
-    /// existing queries over that log keep working.
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::Payment => "evaluate_routing",
-            Self::SessionToken => "session_token_routing",
-            Self::PaymentMethodList => "payment_method_list_pre_routing",
-        }
-    }
-
-    /// Name recorded on the routing event. `Payment` is unchanged for the same reason.
+    /// Name recorded on the routing event. `Payment` keeps its historical value so
+    /// existing queries over these events keep working.
     fn event_name(self) -> String {
         match self {
             Self::Payment => "DecisionEngine: Euclid Static Routing".to_string(),
@@ -1143,251 +1134,6 @@ pub async fn list_de_euclid_active_routing_algorithm(
         .collect())
 }
 
-/// Outcome of a DE-vs-HS routing comparison, used to drive the diff kill switch.
-#[derive(Debug, Clone, Copy)]
-pub struct DeComparisonResult {
-    pub is_equal: bool,
-    pub is_equal_length: bool,
-    pub is_volume: bool,
-    pub is_de_result_empty: bool,
-}
-
-/// Classification of a countable DE-vs-HS divergence, also used as the log/metric tag.
-#[derive(Debug, Clone, Copy)]
-enum DeDiffReason {
-    ResultMismatch,
-    LengthMismatch,
-    Unresponsive,
-}
-
-impl DeDiffReason {
-    fn as_str(self) -> &'static str {
-        match self {
-            Self::ResultMismatch => "decision_engine_result_mismatch",
-            Self::LengthMismatch => "decision_engine_length_mismatch",
-            Self::Unresponsive => "decision_engine_unresponsive",
-        }
-    }
-}
-
-impl DeComparisonResult {
-    /// Why this comparison counts toward the kill switch, if it does (empty DE result => `Unresponsive`).
-    fn diff_reason(self) -> Option<DeDiffReason> {
-        if self.is_equal {
-            None
-        } else if self.is_de_result_empty {
-            Some(DeDiffReason::Unresponsive)
-        } else if !self.is_equal_length {
-            Some(DeDiffReason::LengthMismatch)
-        } else {
-            Some(DeDiffReason::ResultMismatch)
-        }
-    }
-}
-
-pub fn compare_and_log_result<T: RoutingEq<T> + Serialize>(
-    de_result: Vec<T>,
-    result: Vec<T>,
-    flow: String,
-    is_volume: bool,
-) -> DeComparisonResult {
-    let is_de_result_empty = de_result.is_empty();
-    let is_equal_in_length = de_result.len() == result.len();
-    // Equal means identical: same length AND same elements in order — an empty or
-    // prefix-only DE result is not equal (zip alone would be vacuously true).
-    let is_equal = is_equal_in_length
-        && de_result
-            .iter()
-            .zip(result.iter())
-            .all(|(a, b)| T::is_equal(a, b));
-
-    router_env::logger::debug!(
-        routing_flow=?flow,
-        is_equal=?is_equal,
-        is_equal_length=?is_equal_in_length,
-        is_volume=?is_volume,
-        is_de_result_empty=?is_de_result_empty,
-        de_response=?to_json_string(&de_result),
-        hs_response=?to_json_string(&result),
-        "decision_engine_euclid"
-    );
-
-    DeComparisonResult {
-        is_equal,
-        is_equal_length: is_equal_in_length,
-        is_volume,
-        is_de_result_empty,
-    }
-}
-
-fn de_diff_count_key(profile_id: &id_type::ProfileId) -> String {
-    format!(
-        "routing_decision_engine_{}_diff_count",
-        profile_id.get_string_repr()
-    )
-}
-
-/// Clears the per-profile routing diff counter, releasing the kill-switch overlay (reset API).
-pub async fn reset_de_diff_counter(
-    state: &SessionState,
-    profile_id: &id_type::ProfileId,
-) -> errors::RouterResult<()> {
-    let redis_conn = state
-        .store
-        .get_redis_conn()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("failed to get redis connection to reset routing diff counter")?;
-
-    redis_conn
-        .delete_key(&de_diff_count_key(profile_id).as_str().into())
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("failed to delete routing diff counter key")?;
-
-    Ok(())
-}
-
-/// Counts a non-volume DE-vs-HS diff and cuts the profile over to Hyperswitch at the threshold.
-pub async fn record_de_diff_and_maybe_trip_kill_switch(
-    state: &SessionState,
-    profile_id: &id_type::ProfileId,
-    comparison: DeComparisonResult,
-) {
-    let config = &state.conf.open_router.diff_kill_switch;
-    let countable_reason = match comparison.diff_reason() {
-        Some(reason) if config.enabled && !comparison.is_volume => Some(reason),
-        _ => None,
-    };
-
-    if let Some(reason) = countable_reason {
-        // Treat a zero threshold as 1 so the one-shot cutover log/metric below still fires.
-        let threshold = config.diff_count_threshold.max(1);
-
-        logger::warn!(
-            routing_flow=?"evaluate_routing",
-            profile_id=?profile_id.get_string_repr(),
-            "{}: counting routing diff towards the kill switch threshold",
-            reason.as_str()
-        );
-
-        metrics::DECISION_ENGINE_ROUTING_DIFF.add(
-            1,
-            router_env::metric_attributes!(
-                ("profile_id", profile_id.get_string_repr().to_string()),
-                ("reason", reason.as_str())
-            ),
-        );
-
-        match state.store.get_redis_conn() {
-            Ok(redis_conn) => {
-                let counter_key = de_diff_count_key(profile_id);
-                let increment_result = redis_conn
-                    .increment_fields_in_hash(&counter_key.as_str().into(), &[("count", 1)])
-                    .await;
-
-                match increment_result.as_ref().map(|counts| counts.first()) {
-                    Ok(Some(count)) => {
-                        let diff_count = u64::try_from(*count).unwrap_or(u64::MAX);
-
-                        // The counter is a lifetime total (no TTL) and is cleared only via the
-                        // diff-counter reset API. HINCRBY is atomic and sequential, so exactly
-                        // one request observes the threshold value; the cutover alarm fires
-                        // once. Enforcement is passive from here — the counter stays at/over
-                        // threshold and get_routing_result_source overlays Hyperswitch routing.
-                        if diff_count == threshold {
-                            alert_cutover(profile_id, diff_count, threshold);
-                        }
-                    }
-                    Ok(None) => {
-                        logger::error!("decision_engine_euclid: empty response while incrementing routing diff counter");
-                    }
-                    Err(err) => {
-                        logger::error!(error=?err, "decision_engine_euclid: failed to increment routing diff counter");
-                    }
-                }
-            }
-            Err(err) => {
-                logger::error!(error=?err, "decision_engine_euclid: unable to get redis connection to record routing diff");
-            }
-        }
-    }
-}
-
-/// One-shot cutover alarm on the threshold-crossing diff (enforcement is the passive overlay in `get_routing_result_source`).
-fn alert_cutover(profile_id: &id_type::ProfileId, diff_count: u64, threshold: u64) {
-    metrics::DECISION_ENGINE_KILL_SWITCH_TRIGGERED.add(
-        1,
-        router_env::metric_attributes!(("profile_id", profile_id.get_string_repr().to_string())),
-    );
-    router_env::logger::error!(
-        routing_flow=?"auto_cutover",
-        profile_id=?profile_id.get_string_repr(),
-        diff_count=?diff_count,
-        threshold=?threshold,
-        "decision_engine_euclid: routing diff threshold breached, cutting profile over to Hyperswitch routing"
-    );
-}
-
-/// Whether the profile's diff counter has reached the threshold; fail-open (disabled switch or any Redis error => false).
-async fn is_de_diff_threshold_exceeded(
-    state: &SessionState,
-    profile_id: &id_type::ProfileId,
-) -> bool {
-    let config = &state.conf.open_router.diff_kill_switch;
-    if config.enabled {
-        match state.store.get_redis_conn() {
-            Ok(redis_conn) => match redis_conn
-                .get_hash_field::<Option<u64>>(
-                    &de_diff_count_key(profile_id).as_str().into(),
-                    "count",
-                )
-                .await
-            {
-                Ok(count) => count.unwrap_or(0) >= config.diff_count_threshold.max(1),
-                Err(err) => {
-                    logger::error!(error=?err, "decision_engine_euclid: kill switch counter lookup failed, using configured routing source");
-                    false
-                }
-            },
-            Err(err) => {
-                logger::error!(error=?err, "decision_engine_euclid: unable to get redis connection for kill switch check");
-                false
-            }
-        }
-    } else {
-        false
-    }
-}
-
-/// Shadow-evaluates the DE rule off the payment path and logs the DE-vs-HS diff (observation-only, never feeds the kill switch).
-#[allow(clippy::too_many_arguments)]
-pub async fn shadow_decision_engine_routing(
-    state: SessionState,
-    business_profile: domain::Profile,
-    payment_id: String,
-    backend_input: BackendInput,
-    fallback_config: Vec<RoutableConnectorChoice>,
-    hs_connectors: Vec<RoutableConnectorChoice>,
-    is_volume: bool,
-    algorithm_for: TransactionType,
-    routing_flow: RoutingFlow,
-) {
-    let de_result =
-        decision_engine_routing(&state, backend_input, &business_profile, payment_id, fallback_config, algorithm_for, routing_flow)
-            .await
-            .map_err(|err| {
-                logger::error!(shadow_decision_engine_error=?err, "decision_engine_euclid: error in shadow evaluation of rule")
-            })
-            .unwrap_or_default();
-
-    compare_and_log_result(
-        de_result,
-        hs_connectors,
-        routing_flow.as_str().to_string(),
-        is_volume,
-    );
-}
-
 /// One evaluation in a batch request: the parameters that differ per call.
 /// Everything shared (`created_by`, fallback, transaction type) lives on the
 /// enclosing request, matching the Decision Engine's `/routing/evaluate/batch`.
@@ -1588,109 +1334,6 @@ pub async fn decision_engine_routing_batch_with_fallback(
             .collect()
         }
     }
-}
-
-/// One shadow comparison: the per-type input and the Hyperswitch result to diff against.
-pub struct ShadowBatchEntry {
-    pub backend_input: BackendInput,
-    pub hs_connectors: Vec<RoutableConnectorChoice>,
-    pub is_volume: bool,
-}
-
-/// Shadow-evaluates a whole session/PML request in one batch call and logs one diff
-/// per payment method type. Observation only; never feeds the kill switch.
-#[allow(clippy::too_many_arguments)]
-pub async fn shadow_decision_engine_routing_batch(
-    state: SessionState,
-    business_profile: domain::Profile,
-    payment_id: String,
-    entries: Vec<ShadowBatchEntry>,
-    fallback_config: Vec<RoutableConnectorChoice>,
-    algorithm_for: TransactionType,
-    routing_flow: RoutingFlow,
-) {
-    let backend_inputs = entries
-        .iter()
-        .map(|entry| entry.backend_input.clone())
-        .collect::<Vec<_>>();
-
-    // No single-call fallback here, deliberately: the events layer surfaces every
-    // engine failure without a status code, so "endpoint absent" cannot be told apart
-    // from "this merchant has no active rule" -- and for the latter, N single calls
-    // fail identically to the batch. A failed shadow batch just logs empty diffs.
-    // The load-bearing cut-over path keeps the fallback, which is what protects the
-    // window where the engine predates the batch endpoint.
-    let entry_count = entries.len();
-    let de_results = decision_engine_routing_batch(
-        &state,
-        backend_inputs,
-        &business_profile,
-        payment_id,
-        fallback_config,
-        algorithm_for,
-        routing_flow,
-    )
-    .await
-    .map_err(|error| {
-        logger::warn!(
-            ?error,
-            "decision_engine_euclid: shadow batch evaluate failed"
-        );
-    })
-    .unwrap_or_else(|_| vec![Vec::new(); entry_count]);
-
-    for (entry, de_result) in entries.into_iter().zip(de_results) {
-        compare_and_log_result(
-            de_result,
-            entry.hs_connectors,
-            routing_flow.as_str().to_string(),
-            entry.is_volume,
-        );
-    }
-}
-
-pub trait RoutingEq<T> {
-    fn is_equal(a: &T, b: &T) -> bool;
-}
-
-impl RoutingEq<Self> for api_routing::RoutingDictionaryRecord {
-    fn is_equal(a: &Self, b: &Self) -> bool {
-        a.id == b.id
-            && a.name == b.name
-            && a.profile_id == b.profile_id
-            && a.description == b.description
-            && a.kind == b.kind
-            && a.algorithm_for == b.algorithm_for
-    }
-}
-
-impl RoutingEq<Self> for String {
-    fn is_equal(a: &Self, b: &Self) -> bool {
-        a.to_lowercase() == b.to_lowercase()
-    }
-}
-
-impl RoutingEq<Self> for RoutableConnectorChoice {
-    fn is_equal(a: &Self, b: &Self) -> bool {
-        a.connector.eq(&b.connector)
-            && a.choice_kind.eq(&b.choice_kind)
-            && a.merchant_connector_id.eq(&b.merchant_connector_id)
-    }
-}
-
-pub fn to_json_string<T: Serialize>(value: &T) -> String {
-    serde_json::to_string(value)
-        .map_err(|error| {
-            logger::error!(
-                error=?error,
-                "euclid: failed to serialize value to json string"
-            );
-            errors::RoutingError::GenericConversionError {
-                from: "T".to_string(),
-                to: "JsonValue".to_string(),
-            }
-        })
-        .unwrap_or_default()
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -2641,36 +2284,13 @@ pub async fn get_routing_result_source(
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
 ) -> api_routing::RoutingResultSource {
     // No customer_id and payment_id in call sites so passing Targeting key as None.
-    let source = dimensions
+    dimensions
         .get_routing_result_source(
             state.store.as_ref(),
             state.superposition_service.as_ref(),
             None,
         )
-        .await;
-
-    // Overlay Hyperswitch routing when the diff counter is at/over threshold, without mutating the stored source (covers routing + dashboard, both resolve here).
-    let overlay_hyperswitch = matches!(source, api_routing::RoutingResultSource::DecisionEngine)
-        && match dimensions.get_profile_id() {
-            Some(profile_id) => {
-                let exceeded = is_de_diff_threshold_exceeded(state, profile_id).await;
-                if exceeded {
-                    logger::info!(
-                        routing_flow=?"kill_switch_active",
-                        profile_id=?profile_id.get_string_repr(),
-                        "decision_engine_euclid: diff threshold reached, overlaying Hyperswitch routing result"
-                    );
-                }
-                exceeded
-            }
-            None => false,
-        };
-
-    if overlay_hyperswitch {
-        api_routing::RoutingResultSource::HyperswitchRouting
-    } else {
-        source
-    }
+        .await
 }
 
 /// Effective cutover routing_result_source is DecisionEngine and either global routing flag (static or dynamic) is on - the flags always win, for APIs and payment paths alike.
@@ -3064,19 +2684,6 @@ impl RoutingApproach {
             "SR_SELECTION_V3_ROUTING" => Self::Exploitation,
             "SR_V3_HEDGING" => Self::Exploration,
             _ => Self::Default,
-        }
-    }
-
-    /// Only DE static outcomes are diff-comparable; unmapped dynamic approaches land on
-    /// `Default` and must not feed the kill switch.
-    pub fn is_de_static_result(&self) -> bool {
-        match self {
-            Self::StaticRouting => true,
-            Self::Exploitation
-            | Self::Exploration
-            | Self::Elimination
-            | Self::ContractBased
-            | Self::Default => false,
         }
     }
 }
