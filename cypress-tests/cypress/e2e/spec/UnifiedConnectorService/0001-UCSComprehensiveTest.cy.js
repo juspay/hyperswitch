@@ -9,7 +9,8 @@ describe("UCS Comprehensive Test", () => {
   before("Initialize and Setup", function () {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
-      const connectorId = Cypress.env("CYPRESS_CONNECTOR");
+      // Cypress strips the CYPRESS_ prefix, so CYPRESS_CONNECTOR is read as CONNECTOR.
+      const connectorId = Cypress.env("CONNECTOR");
       if (
         utils.shouldIncludeConnector(
           connectorId,
