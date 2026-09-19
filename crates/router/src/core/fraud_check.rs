@@ -1379,7 +1379,7 @@ pub async fn notify_frm_of_chargeback(
         return;
     }
 
-    let merchant_connector_account = match payments::helpers::get_merchant_connector_account(
+    let merchant_connector_account = match get_merchant_connector_account(
         state,
         processor,
         None,
