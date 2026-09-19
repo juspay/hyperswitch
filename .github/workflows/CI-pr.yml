@@ -161,10 +161,6 @@ jobs:
       RUSTFLAGS: "-D warnings"
 
     steps:
-      - name: Mask S3 cache location in job logs
-        shell: bash
-        run: .github/scripts/sccache-mask-s3-env.sh
-
       - name: Generate a token
         if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
         id: generate_token
@@ -201,6 +197,10 @@ jobs:
         uses: arduino/setup-protoc@v3
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Mask S3 cache location in job logs
+        shell: bash
+        run: .github/scripts/sccache-mask-s3-env.sh
 
       - name: Install sccache
         uses: taiki-e/install-action@v2
@@ -304,10 +304,6 @@ jobs:
       SCCACHE_IDLE_TIMEOUT: "0"
 
     steps:
-      - name: Mask S3 cache location in job logs
-        shell: bash
-        run: .github/scripts/sccache-mask-s3-env.sh
-
       - name: Checkout repository
         uses: actions/checkout@v7
 
@@ -327,6 +323,10 @@ jobs:
         uses: arduino/setup-protoc@v3
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Mask S3 cache location in job logs
+        shell: bash
+        run: .github/scripts/sccache-mask-s3-env.sh
 
       - name: Install sccache
         uses: taiki-e/install-action@v2

@@ -154,10 +154,6 @@ jobs:
       # build (mozilla/sccache#204); safe to disable on this ephemeral pod.
       SCCACHE_IDLE_TIMEOUT: "0"
     steps:
-      - name: Mask S3 cache location in job logs
-        shell: bash
-        run: .github/scripts/sccache-mask-s3-env.sh
-
       - name: Skip tests for PRs from forks
         shell: bash
         if: ${{ env.RUN_TESTS == 'false' }}
@@ -185,6 +181,10 @@ jobs:
         uses: arduino/setup-protoc@v3
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Mask S3 cache location in job logs
+        shell: bash
+        run: .github/scripts/sccache-mask-s3-env.sh
 
       - name: Install sccache
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -312,10 +312,6 @@ jobs:
           - 8081:8080
 
     steps:
-      - name: Mask S3 cache location in job logs
-        shell: bash
-        run: .github/scripts/sccache-mask-s3-env.sh
-
       - name: Skip tests for PRs from forks
         if: ${{ env.RUN_TESTS == 'false' }}
         shell: bash
@@ -331,6 +327,10 @@ jobs:
         with:
           toolchain: stable 2 weeks ago
           components: rustfmt
+
+      - name: Mask S3 cache location in job logs
+        shell: bash
+        run: .github/scripts/sccache-mask-s3-env.sh
 
       - name: Install sccache
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -613,10 +613,6 @@ jobs:
           - 5432:5432
 
     steps:
-      - name: Mask S3 cache location in job logs
-        shell: bash
-        run: .github/scripts/sccache-mask-s3-env.sh
-
       - name: Checkout repository
         uses: actions/checkout@v6
 
@@ -625,6 +621,10 @@ jobs:
         with:
           toolchain: stable 2 weeks ago
           components: rustfmt
+
+      - name: Mask S3 cache location in job logs
+        shell: bash
+        run: .github/scripts/sccache-mask-s3-env.sh
 
       - name: Install sccache
         uses: taiki-e/install-action@v2
@@ -895,10 +895,6 @@ jobs:
           - 8081:8080
 
     steps:
-      - name: Mask S3 cache location in job logs
-        shell: bash
-        run: .github/scripts/sccache-mask-s3-env.sh
-
       - name: Skip tests for PRs from forks
         if: ${{ env.RUN_TESTS == 'false' }}
         shell: bash
@@ -914,6 +910,10 @@ jobs:
         with:
           toolchain: stable 2 weeks ago
           components: rustfmt
+
+      - name: Mask S3 cache location in job logs
+        shell: bash
+        run: .github/scripts/sccache-mask-s3-env.sh
 
       - name: Install sccache
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -1346,10 +1346,6 @@ jobs:
           - 8081:8080
 
     steps:
-      - name: Mask S3 cache location in job logs
-        shell: bash
-        run: .github/scripts/sccache-mask-s3-env.sh
-
       - name: Checkout repository
         uses: actions/checkout@v6
 
@@ -1358,6 +1354,10 @@ jobs:
         with:
           toolchain: stable 2 weeks ago
           components: rustfmt
+
+      - name: Mask S3 cache location in job logs
+        shell: bash
+        run: .github/scripts/sccache-mask-s3-env.sh
 
       - name: Install sccache
         uses: taiki-e/install-action@v2
@@ -1546,10 +1546,6 @@ jobs:
           - 8081:8080
 
     steps:
-      - name: Mask S3 cache location in job logs
-        shell: bash
-        run: .github/scripts/sccache-mask-s3-env.sh
-
       - name: Skip tests for PRs from forks
         if: ${{ env.RUN_TESTS == 'false' }}
         shell: bash
@@ -1558,6 +1554,10 @@ jobs:
       - name: Checkout repository
         if: ${{ env.RUN_TESTS == 'true' }}
         uses: actions/checkout@v6
+
+      - name: Mask S3 cache location in job logs
+        shell: bash
+        run: .github/scripts/sccache-mask-s3-env.sh
 
       - name: Download hyperswitch server binary from S3
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -1785,10 +1785,6 @@ jobs:
           - 8081:8080
 
     steps:
-      - name: Mask S3 cache location in job logs
-        shell: bash
-        run: .github/scripts/sccache-mask-s3-env.sh
-
       - name: Skip tests for PRs from forks
         shell: bash
         if: ${{ env.RUN_TESTS == 'false' }}
@@ -1847,6 +1843,10 @@ jobs:
         uses: arduino/setup-protoc@v3
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Mask S3 cache location in job logs
+        shell: bash
+        run: .github/scripts/sccache-mask-s3-env.sh
 
       - name: Install sccache
         if: ${{ env.RUN_TESTS == 'true' }}
