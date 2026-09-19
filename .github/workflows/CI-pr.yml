@@ -282,18 +282,6 @@ jobs:
         shell: bash
         run: sccache --show-stats
 
-      # TEMPORARY - DELETE BEFORE MERGE: branch-scoped populate for validation.
-      - name: 'TEMPORARY - DELETE BEFORE MERGE: Save sccache cache to S3 (branch-scoped populate)'
-        if: ${{ always() && github.head_ref == 'ci/sccache-migration' }}
-        continue-on-error: true
-        shell: bash
-        run: |
-          set -o pipefail
-          tar czf - -C "$SCCACHE_DIR" . \
-            | aws s3 cp - \
-              "s3://${S3_CACHE_BUCKET}/${S3_CACHE_PREFIX}sccache-cache/test-${{ runner.os }}-${{ runner.arch }}.tar.gz" \
-              --region "${S3_CACHE_REGION}" --no-progress --only-show-errors
-
   typos:
     name: Spell check
     runs-on: ubuntu-latest
@@ -434,15 +422,3 @@ jobs:
         if: always()
         shell: bash
         run: sccache --show-stats
-
-      # TEMPORARY - DELETE BEFORE MERGE: branch-scoped populate for validation.
-      - name: 'TEMPORARY - DELETE BEFORE MERGE: Save sccache cache to S3 (branch-scoped populate)'
-        if: ${{ always() && github.head_ref == 'ci/sccache-migration' }}
-        continue-on-error: true
-        shell: bash
-        run: |
-          set -o pipefail
-          tar czf - -C "$SCCACHE_DIR" . \
-            | aws s3 cp - \
-              "s3://${S3_CACHE_BUCKET}/${S3_CACHE_PREFIX}sccache-cache/check-v2-${{ runner.os }}-${{ runner.arch }}.tar.gz" \
-              --region "${S3_CACHE_REGION}" --no-progress --only-show-errors
