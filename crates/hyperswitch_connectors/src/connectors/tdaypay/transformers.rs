@@ -17,7 +17,7 @@ use hyperswitch_domain_models::{
     types::{PaymentsAuthorizeRouterData, PaymentsSyncRouterData, RefundsRouterData},
 };
 use hyperswitch_interfaces::{consts, errors};
-use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -203,15 +203,8 @@ impl TryFrom<&TdaypayRouterData<&PaymentsAuthorizeRouterData>> for TdaypayPaymen
             .map(|s| s.expose())
             .filter(|s| !s.is_empty())
             .unwrap_or_else(|| "User".to_string());
-        let email = req
-            .get_optional_billing_email()
-            .map(|e| e.expose().expose())
-            .or_else(|| req.request.email.as_ref().map(|e| e.peek().to_string()))
-            .unwrap_or_else(|| "customer@example.com".to_string());
-        let phone = req
-            .get_optional_billing_phone_number()
-            .map(|p| p.expose())
-            .unwrap_or_else(|| "+10000000000".to_string());
+        let email = req.get_billing_email()?.expose().expose();
+        let phone = req.get_billing_phone_number()?.expose();
 
         let bank = match &req.request.payment_method_data {
             PaymentMethodData::BankTransfer(bank) => bank.as_ref(),
