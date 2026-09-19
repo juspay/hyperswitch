@@ -143,6 +143,23 @@ impl ConnectorError {
     pub fn is_connector_timeout(&self) -> bool {
         self == &Self::RequestTimeoutReceived
     }
+
+    /// The request was rejected before the connector was called, so the outcome is
+    /// deterministic and safe to record as a failed attempt. A response-phase failure
+    /// leaves the outcome unknown — the payment may have succeeded at the connector — and
+    /// keeps its existing behavior instead.
+    pub fn is_request_phase_rejection(&self) -> bool {
+        matches!(
+            self,
+            Self::NotSupported { .. }
+                | Self::NotImplemented(_)
+                | Self::MissingRequiredField { .. }
+                | Self::MissingRequiredFields { .. }
+                | Self::RequestEncodingFailed
+                | Self::FailedToObtainAuthType
+                | Self::InvalidConnectorName
+        )
+    }
 }
 
 impl ErrorSwitch<ConnectorError> for common_utils::errors::ParsingError {

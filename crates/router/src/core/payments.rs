@@ -645,6 +645,73 @@ where
     ))
 }
 
+/// Record a pre-call rejection through the post-update tracker, so the payment leaves
+/// `processing` before the caller returns the error. A tracker write failure is logged and
+/// swallowed.
+///
+/// The attempt is marked `Failure` explicitly instead of letting the tracker derive it from
+/// the status code. The connector was never called, so the outcome is known whatever code the
+/// rejection maps to, and the recorded state cannot drift if that derivation changes.
+///
+/// Reached once the trackers have already moved the payment to `processing`, which is where
+/// the request is built on the UCS path. The direct path builds its request earlier and
+/// aborts before that, so it commits nothing and has nothing to record here.
+#[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
+async fn record_rejected_attempt<F, FData, D>(
+    state: &SessionState,
+    processor: &domain::Processor,
+    payment_data: D,
+    mut router_data: RouterData<F, FData, router_types::PaymentsResponseData>,
+    api_error: &error_stack::Report<errors::ApiErrorResponse>,
+    locale: &Option<String>,
+    #[cfg(feature = "dynamic_routing")] routable_connectors: Vec<
+        api_models::routing::RoutableConnectorChoice,
+    >,
+    #[cfg(feature = "dynamic_routing")] business_profile: &domain::Profile,
+    dimensions: &DimensionsWithProcessorAndProviderMerchantId,
+) -> RouterResult<()>
+where
+    F: Send + Clone + Sync + Debug + 'static,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+    PaymentResponse: Operation<F, FData, Data = D>,
+    FData: Send + Sync + Clone + router_types::Capturable + 'static + serde::Serialize,
+{
+    let mut error_response: hyperswitch_domain_models::router_data::ErrorResponse =
+        api_error.current_context().clone().into();
+    // `From<ApiErrorResponse>` hardcodes 500; carry the status this rejection actually
+    // returns to the merchant instead.
+    error_response.status_code = {
+        use actix_web::ResponseError;
+        api_error.current_context().status_code().as_u16()
+    };
+    error_response.attempt_status = Some(enums::AttemptStatus::Failure);
+    router_data.response = Err(error_response);
+    // `connector_http_status_code` stays unset: no connector was called, so there is no
+    // connector status to report and the connector metrics must not count this.
+
+    let operation = Box::new(PaymentResponse);
+    if let Err(tracker_error) = operation
+        .to_post_update_tracker()?
+        .update_tracker(
+            state,
+            processor,
+            payment_data,
+            router_data,
+            locale,
+            #[cfg(feature = "dynamic_routing")]
+            routable_connectors,
+            #[cfg(feature = "dynamic_routing")]
+            business_profile,
+            dimensions,
+        )
+        .await
+    {
+        logger::error!(?tracker_error, "failed to record the rejected attempt");
+    }
+    Ok(())
+}
+
 #[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
 #[instrument(skip_all, fields(payment_id, merchant_id))]
@@ -1072,7 +1139,11 @@ where
                         )
                         .await?;
 
-                    let (router_data, mca) = Box::pin(complete_connector_service(
+                    // Snapshot before `complete_connector_service` consumes it; carries the
+                    // error response if the request is rejected after the trackers commit.
+                    let pre_call_router_data = call_connector_service_response.router_data.clone();
+
+                    let (router_data, mca) = match Box::pin(complete_connector_service(
                         &updated_state,
                         platform.get_processor(),
                         &operation,
@@ -1091,7 +1162,36 @@ where
                         call_connector_service_response,
                         &dimensions.without_profile_id(),
                     ))
-                    .await?;
+                    .await
+                    {
+                        Ok(result) => result,
+                        Err(api_error) => {
+                            // Record only a request-phase rejection; a response-phase failure
+                            // leaves the outcome unknown, so keep the existing behavior.
+                            let is_request_phase_rejection = api_error
+                                .downcast_ref::<errors::ConnectorError>()
+                                .is_some_and(|connector_error| {
+                                    connector_error.is_request_phase_rejection()
+                                });
+                            if is_request_phase_rejection {
+                                record_rejected_attempt(
+                                    state,
+                                    platform.get_processor(),
+                                    payment_data,
+                                    pre_call_router_data,
+                                    &api_error,
+                                    &locale,
+                                    #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+                                    routable_connectors,
+                                    #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+                                    &business_profile,
+                                    &dimensions.without_profile_id(),
+                                )
+                                .await?;
+                            }
+                            return Err(api_error);
+                        }
+                    };
 
                     let op_ref = &operation;
                     let should_trigger_post_processing_flows = is_operation_confirm(&operation);
@@ -1261,7 +1361,11 @@ where
                         )
                         .await?;
 
-                    let (router_data, mca) = Box::pin(complete_connector_service(
+                    // Snapshot before `complete_connector_service` consumes it; carries the
+                    // error response if the request is rejected after the trackers commit.
+                    let pre_call_router_data = call_connector_service_response.router_data.clone();
+
+                    let (router_data, mca) = match Box::pin(complete_connector_service(
                         &updated_state,
                         platform.get_processor(),
                         &operation,
@@ -1280,7 +1384,36 @@ where
                         call_connector_service_response,
                         &dimensions.without_profile_id(),
                     ))
-                    .await?;
+                    .await
+                    {
+                        Ok(result) => result,
+                        Err(api_error) => {
+                            // Record only a request-phase rejection; a response-phase failure
+                            // leaves the outcome unknown, so keep the existing behavior.
+                            let is_request_phase_rejection = api_error
+                                .downcast_ref::<errors::ConnectorError>()
+                                .is_some_and(|connector_error| {
+                                    connector_error.is_request_phase_rejection()
+                                });
+                            if is_request_phase_rejection {
+                                record_rejected_attempt(
+                                    state,
+                                    platform.get_processor(),
+                                    payment_data,
+                                    pre_call_router_data,
+                                    &api_error,
+                                    &locale,
+                                    #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+                                    routable_connectors,
+                                    #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+                                    &business_profile,
+                                    &dimensions.without_profile_id(),
+                                )
+                                .await?;
+                            }
+                            return Err(api_error);
+                        }
+                    };
 
                     #[cfg(all(feature = "retry", feature = "v1"))]
                     let mut router_data = router_data;
