@@ -273,13 +273,17 @@ jobs:
 
       # Keyed by run id so concurrent runs (different PRs) never collide;
       # every downstream job in this same run reads the same run id back.
+      # Uses S3_CACHE_* (not SCCACHE_*): the earlier "disable sccache's
+      # native S3 backend" step blanks SCCACHE_BUCKET/REGION/S3_KEY_PREFIX
+      # in this same job, so the real values only live under the renamed
+      # vars from here on.
       - name: Upload binary to S3
         if: ${{ env.RUN_TESTS == 'true' }}
         shell: bash
         run: |
           aws s3 cp target/debug/router \
-            "s3://${SCCACHE_BUCKET}/${SCCACHE_S3_KEY_PREFIX}build-artifacts/${{ github.run_id }}/router" \
-            --region "${SCCACHE_REGION}" --no-progress --only-show-errors
+            "s3://${S3_CACHE_BUCKET}/${S3_CACHE_PREFIX}build-artifacts/${{ github.run_id }}/router" \
+            --region "${S3_CACHE_REGION}" --no-progress --only-show-errors
 
   prepare-mandatory-matrix:
     name: Prepare Mandatory Connectors matrix to run cypress tests
