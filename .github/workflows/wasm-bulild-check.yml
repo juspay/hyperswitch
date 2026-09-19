@@ -50,7 +50,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: ${{ env.SCCACHE_DIR }}
-          key: sccache-local-wasm-${{ runner.os }}
+          key: sccache-local-wasm-${{ runner.os }}-${{ runner.arch }}
 
       - name: Install wasm-pack
         uses: taiki-e/install-action@v2
@@ -81,11 +81,11 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh cache delete "sccache-local-wasm-${{ runner.os }}" --repo "${{ github.repository }}"
+        run: gh cache delete "sccache-local-wasm-${{ runner.os }}-${{ runner.arch }}" --repo "${{ github.repository }}"
 
       - name: Save sccache cache
         if: ${{ always() && (github.event_name == 'push' || github.head_ref == 'ci/sccache-migration') }}
         uses: actions/cache/save@v4
         with:
           path: ${{ env.SCCACHE_DIR }}
-          key: sccache-local-wasm-${{ runner.os }}
+          key: sccache-local-wasm-${{ runner.os }}-${{ runner.arch }}

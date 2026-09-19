@@ -116,7 +116,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: ${{ env.SCCACHE_DIR }}
-          key: sccache-local-check-msrv-${{ runner.os }}
+          key: sccache-local-check-msrv-${{ runner.os }}-${{ runner.arch }}
 
       - name: Install cargo-hack
         uses: taiki-e/install-action@v2
@@ -158,14 +158,14 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh cache delete "sccache-local-check-msrv-${{ runner.os }}" --repo "${{ github.repository }}"
+        run: gh cache delete "sccache-local-check-msrv-${{ runner.os }}-${{ runner.arch }}" --repo "${{ github.repository }}"
 
       - name: Save sccache cache
         if: ${{ always() && github.event_name == 'push' }}
         uses: actions/cache/save@v4
         with:
           path: ${{ env.SCCACHE_DIR }}
-          key: sccache-local-check-msrv-${{ runner.os }}
+          key: sccache-local-check-msrv-${{ runner.os }}-${{ runner.arch }}
 
   # cargo-deny:
   #   name: Run cargo-deny

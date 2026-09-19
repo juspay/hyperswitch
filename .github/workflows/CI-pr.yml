@@ -139,7 +139,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: ${{ env.SCCACHE_DIR }}
-          key: sccache-local-check-msrv-${{ runner.os }}
+          key: sccache-local-check-msrv-${{ runner.os }}-${{ runner.arch }}
 
       - name: Run cargo check
         shell: bash
@@ -160,7 +160,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: ${{ env.SCCACHE_DIR }}
-          key: sccache-local-check-msrv-${{ runner.os }}
+          key: sccache-local-check-msrv-${{ runner.os }}-${{ runner.arch }}
 
   test:
     name: Run tests on stable toolchain
