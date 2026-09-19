@@ -1,6 +1,20 @@
-use hyperswitch_domain_models::payment_method_data::{Card, PaymentMethodData};
+use std::str::FromStr;
+
+use actix_web::http::header::HeaderMap;
+use api_models::{
+    payments::PaymentIdType,
+    webhooks::{ConnectorWebhookSecrets, IncomingWebhookEvent, ObjectReferenceId},
+};
+use hyperswitch_domain_models::{
+    address::{Address, AddressDetails, PhoneDetails},
+    payment_method_data::{BankTransferData, PaymentMethodData},
+};
+use hyperswitch_interfaces::webhooks::{IncomingWebhook, IncomingWebhookRequestDetails};
 use hyperswitch_masking::Secret;
-use router::types::{self, api, storage::enums};
+use router::{
+    connector::Tdaypay,
+    types::{self, api, storage::enums, Email},
+};
 use test_utils::connector_auth;
 
 use crate::utils::{self, ConnectorActions};
@@ -10,7 +24,6 @@ struct TdaypayTest;
 impl ConnectorActions for TdaypayTest {}
 impl utils::Connector for TdaypayTest {
     fn get_data(&self) -> api::ConnectorData {
-        use router::connector::Tdaypay;
         utils::construct_connector_data_old(
             Box::new(Tdaypay::new()),
             types::Connector::Tdaypay,
@@ -35,63 +48,140 @@ impl utils::Connector for TdaypayTest {
 
 static CONNECTOR: TdaypayTest = TdaypayTest {};
 
-fn get_default_payment_info() -> Option<utils::PaymentInfo> {
-    None
-}
-
-fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
-    None
-}
-
-// Cards Positive Tests
-// Creates a payment using the manual capture flow (Non 3DS).
-#[actix_web::test]
-async fn should_only_authorize_payment() {
-    let response = CONNECTOR
-        .authorize_payment(payment_method_details(), get_default_payment_info())
-        .await
-        .expect("Authorize payment response");
-    assert_eq!(response.status, enums::AttemptStatus::Authorized);
-}
-
-// Captures a payment using the manual capture flow (Non 3DS).
-#[actix_web::test]
-async fn should_capture_authorized_payment() {
-    let response = CONNECTOR
-        .authorize_and_capture_payment(payment_method_details(), None, get_default_payment_info())
-        .await
-        .expect("Capture payment response");
-    assert_eq!(response.status, enums::AttemptStatus::Charged);
-}
-
-// Partially captures a payment using the manual capture flow (Non 3DS).
-#[actix_web::test]
-async fn should_partially_capture_authorized_payment() {
-    let response = CONNECTOR
-        .authorize_and_capture_payment(
-            payment_method_details(),
-            Some(types::PaymentsCaptureData {
-                amount_to_capture: 50,
-                ..utils::PaymentCaptureType::default().0
+fn billing_contact() -> utils::PaymentInfo {
+    utils::PaymentInfo {
+        address: Some(types::PaymentAddress::new(
+            None,
+            None,
+            Some(Address {
+                address: Some(AddressDetails {
+                    first_name: Some(Secret::new("John".to_string())),
+                    last_name: Some(Secret::new("Doe".to_string())),
+                    ..Default::default()
+                }),
+                phone: Some(PhoneDetails {
+                    number: Some(Secret::new("11999999999".to_string())),
+                    country_code: Some("+55".to_string()),
+                }),
+                email: Some(Email::from_str("customer@test.com").unwrap()),
             }),
+            None,
+        )),
+        ..Default::default()
+    }
+}
+
+fn get_default_payment_info() -> Option<utils::PaymentInfo> {
+    Some(billing_contact())
+}
+
+fn authorize_data(
+    payment_method_type: enums::PaymentMethodType,
+    payment_method_data: PaymentMethodData,
+    currency: enums::Currency,
+) -> Option<types::PaymentsAuthorizeData> {
+    Some(types::PaymentsAuthorizeData {
+        amount: 100,
+        minor_amount: common_utils::types::MinorUnit::new(100),
+        currency,
+        payment_method_data,
+        payment_method_type: Some(payment_method_type),
+        confirm: true,
+        router_return_url: Some(String::from("https://example.com/tdaypay/return")),
+        webhook_url: Some(String::from("https://example.com/tdaypay/webhook")),
+        enrolled_for_3ds: false,
+        ..utils::PaymentAuthorizeType::default().0
+    })
+}
+
+fn pix_payment_details() -> Option<types::PaymentsAuthorizeData> {
+    authorize_data(
+        enums::PaymentMethodType::Pix,
+        PaymentMethodData::BankTransfer(Box::new(BankTransferData::Pix {
+            pix_key: None,
+            cpf: None,
+            cnpj: None,
+            source_bank_account_id: None,
+            destination_bank_account_id: None,
+            expiry_date: None,
+        })),
+        enums::Currency::BRL,
+    )
+}
+
+fn local_bank_transfer_payment_details() -> Option<types::PaymentsAuthorizeData> {
+    authorize_data(
+        enums::PaymentMethodType::LocalBankTransfer,
+        PaymentMethodData::BankTransfer(Box::new(BankTransferData::LocalBankTransfer {
+            bank_code: Some("SPEI".to_string()),
+        })),
+        enums::Currency::MXN,
+    )
+}
+
+fn pse_payment_details() -> Option<types::PaymentsAuthorizeData> {
+    authorize_data(
+        enums::PaymentMethodType::Pse,
+        PaymentMethodData::BankTransfer(Box::new(BankTransferData::Pse {})),
+        enums::Currency::COP,
+    )
+}
+
+fn webhook_details<'a>(
+    body: &'a [u8],
+    headers: &'a HeaderMap,
+) -> IncomingWebhookRequestDetails<'a> {
+    IncomingWebhookRequestDetails {
+        method: http::Method::POST,
+        uri: "http://localhost/webhooks/tdaypay".parse().unwrap(),
+        headers,
+        body,
+        query_params: String::new(),
+    }
+}
+
+// Bank transfer authorize (automatic capture). TDayPay does not support cards,
+// manual capture, refunds, or 3DS.
+#[actix_web::test]
+async fn should_authorize_pix_payment() {
+    let response = CONNECTOR
+        .make_payment(pix_payment_details(), get_default_payment_info())
+        .await
+        .expect("Authorize PIX payment response");
+    assert_eq!(response.status, enums::AttemptStatus::AuthenticationPending);
+}
+
+#[actix_web::test]
+async fn should_authorize_local_bank_transfer_payment() {
+    let response = CONNECTOR
+        .make_payment(
+            local_bank_transfer_payment_details(),
             get_default_payment_info(),
         )
         .await
-        .expect("Capture payment response");
-    assert_eq!(response.status, enums::AttemptStatus::Charged);
+        .expect("Authorize local bank transfer payment response");
+    assert_eq!(response.status, enums::AttemptStatus::AuthenticationPending);
 }
 
-// Synchronizes a payment using the manual capture flow (Non 3DS).
 #[actix_web::test]
-async fn should_sync_authorized_payment() {
-    let authorize_response = CONNECTOR
-        .authorize_payment(payment_method_details(), get_default_payment_info())
+async fn should_authorize_pse_payment() {
+    let response = CONNECTOR
+        .make_payment(pse_payment_details(), get_default_payment_info())
         .await
-        .expect("Authorize payment response");
+        .expect("Authorize PSE payment response");
+    assert_eq!(response.status, enums::AttemptStatus::AuthenticationPending);
+}
+
+#[actix_web::test]
+async fn should_sync_pix_payment() {
+    let authorize_response = CONNECTOR
+        .make_payment(pix_payment_details(), get_default_payment_info())
+        .await
+        .expect("Authorize PIX payment response");
     let txn_id = utils::get_connector_transaction_id(authorize_response.response);
     let response = CONNECTOR
         .psync_retry_till_status_matches(
-            enums::AttemptStatus::Authorized,
+            enums::AttemptStatus::AuthenticationPending,
             Some(types::PaymentsSyncData {
                 connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     txn_id.unwrap(),
@@ -102,326 +192,75 @@ async fn should_sync_authorized_payment() {
         )
         .await
         .expect("PSync response");
-    assert_eq!(response.status, enums::AttemptStatus::Authorized,);
+    assert_eq!(response.status, enums::AttemptStatus::AuthenticationPending);
 }
 
-// Voids a payment using the manual capture flow (Non 3DS).
 #[actix_web::test]
-async fn should_void_authorized_payment() {
-    let response = CONNECTOR
-        .authorize_and_void_payment(
-            payment_method_details(),
-            Some(types::PaymentsCancelData {
-                connector_transaction_id: String::from(""),
-                cancellation_reason: Some("requested_by_customer".to_string()),
-                ..Default::default()
-            }),
-            get_default_payment_info(),
+async fn should_map_success_webhook_event() {
+    let connector = Tdaypay::new();
+    let body = br#"{"orderId":"ord_pix_1","mchOrderId":"pay_pix_1","orderStatus":"SUCCESS"}"#;
+    let headers = HeaderMap::new();
+    let event = connector
+        .get_webhook_event_type(&webhook_details(body, &headers), None)
+        .expect("webhook event type");
+    assert_eq!(event, IncomingWebhookEvent::PaymentIntentSuccess);
+}
+
+#[actix_web::test]
+async fn should_map_paying_webhook_event() {
+    let connector = Tdaypay::new();
+    let body = br#"{"orderId":"ord_bt_1","mchOrderId":"pay_bt_1","orderStatus":"PAYING"}"#;
+    let headers = HeaderMap::new();
+    let event = connector
+        .get_webhook_event_type(&webhook_details(body, &headers), None)
+        .expect("webhook event type");
+    assert_eq!(event, IncomingWebhookEvent::PaymentIntentProcessing);
+}
+
+#[actix_web::test]
+async fn should_map_failed_webhook_event() {
+    let connector = Tdaypay::new();
+    let body = br#"{"orderId":"ord_pse_1","mchOrderId":"pay_pse_1","orderStatus":"FAILED"}"#;
+    let headers = HeaderMap::new();
+    let event = connector
+        .get_webhook_event_type(&webhook_details(body, &headers), None)
+        .expect("webhook event type");
+    assert_eq!(event, IncomingWebhookEvent::PaymentIntentFailure);
+}
+
+#[actix_web::test]
+async fn should_read_webhook_payment_reference() {
+    let connector = Tdaypay::new();
+    let body = br#"{"orderId":"ord_pix_1","mchOrderId":"pay_pix_1","orderStatus":"SUCCESS"}"#;
+    let headers = HeaderMap::new();
+    let reference = connector
+        .get_webhook_object_reference_id(&webhook_details(body, &headers))
+        .expect("webhook object reference");
+    match reference {
+        ObjectReferenceId::PaymentId(PaymentIdType::ConnectorTransactionId(id)) => {
+            assert_eq!(id, "ord_pix_1");
+        }
+        other => panic!("unexpected webhook reference: {other:?}"),
+    }
+}
+
+#[actix_web::test]
+async fn should_build_webhook_source_verification_message() {
+    let connector = Tdaypay::new();
+    let body = br#"{"orderId":"ord_pix_1","orderStatus":"SUCCESS"}"#;
+    let headers = HeaderMap::new();
+    let secrets = ConnectorWebhookSecrets {
+        secret: b"merchant-key".to_vec(),
+        additional_secret: None,
+    };
+    let message = connector
+        .get_webhook_source_verification_message(
+            &webhook_details(body, &headers),
+            &common_utils::id_type::MerchantId::default(),
+            &secrets,
         )
-        .await
-        .expect("Void payment response");
-    assert_eq!(response.status, enums::AttemptStatus::Voided);
+        .expect("webhook verification message");
+    let mut expected = body.to_vec();
+    expected.extend_from_slice(b"merchant-key");
+    assert_eq!(message, expected);
 }
-
-// Refunds a payment using the manual capture flow (Non 3DS).
-#[actix_web::test]
-async fn should_refund_manually_captured_payment() {
-    let response = CONNECTOR
-        .capture_payment_and_refund(
-            payment_method_details(),
-            None,
-            None,
-            get_default_payment_info(),
-        )
-        .await
-        .unwrap();
-    assert_eq!(
-        response.response.unwrap().refund_status,
-        enums::RefundStatus::Success,
-    );
-}
-
-// Partially refunds a payment using the manual capture flow (Non 3DS).
-#[actix_web::test]
-async fn should_partially_refund_manually_captured_payment() {
-    let response = CONNECTOR
-        .capture_payment_and_refund(
-            payment_method_details(),
-            None,
-            Some(types::RefundsData {
-                refund_amount: 50,
-                ..utils::PaymentRefundType::default().0
-            }),
-            get_default_payment_info(),
-        )
-        .await
-        .unwrap();
-    assert_eq!(
-        response.response.unwrap().refund_status,
-        enums::RefundStatus::Success,
-    );
-}
-
-// Synchronizes a refund using the manual capture flow (Non 3DS).
-#[actix_web::test]
-async fn should_sync_manually_captured_refund() {
-    let refund_response = CONNECTOR
-        .capture_payment_and_refund(
-            payment_method_details(),
-            None,
-            None,
-            get_default_payment_info(),
-        )
-        .await
-        .unwrap();
-    let response = CONNECTOR
-        .rsync_retry_till_status_matches(
-            enums::RefundStatus::Success,
-            refund_response.response.unwrap().connector_refund_id,
-            None,
-            get_default_payment_info(),
-        )
-        .await
-        .unwrap();
-    assert_eq!(
-        response.response.unwrap().refund_status,
-        enums::RefundStatus::Success,
-    );
-}
-
-// Creates a payment using the automatic capture flow (Non 3DS).
-#[actix_web::test]
-async fn should_make_payment() {
-    let authorize_response = CONNECTOR
-        .make_payment(payment_method_details(), get_default_payment_info())
-        .await
-        .unwrap();
-    assert_eq!(authorize_response.status, enums::AttemptStatus::Charged);
-}
-
-// Synchronizes a payment using the automatic capture flow (Non 3DS).
-#[actix_web::test]
-async fn should_sync_auto_captured_payment() {
-    let authorize_response = CONNECTOR
-        .make_payment(payment_method_details(), get_default_payment_info())
-        .await
-        .unwrap();
-    assert_eq!(authorize_response.status, enums::AttemptStatus::Charged);
-    let txn_id = utils::get_connector_transaction_id(authorize_response.response);
-    assert_ne!(txn_id, None, "Empty connector transaction id");
-    let response = CONNECTOR
-        .psync_retry_till_status_matches(
-            enums::AttemptStatus::Charged,
-            Some(types::PaymentsSyncData {
-                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
-                    txn_id.unwrap(),
-                ),
-                capture_method: Some(enums::CaptureMethod::Automatic),
-                ..Default::default()
-            }),
-            get_default_payment_info(),
-        )
-        .await
-        .unwrap();
-    assert_eq!(response.status, enums::AttemptStatus::Charged,);
-}
-
-// Refunds a payment using the automatic capture flow (Non 3DS).
-#[actix_web::test]
-async fn should_refund_auto_captured_payment() {
-    let response = CONNECTOR
-        .make_payment_and_refund(payment_method_details(), None, get_default_payment_info())
-        .await
-        .unwrap();
-    assert_eq!(
-        response.response.unwrap().refund_status,
-        enums::RefundStatus::Success,
-    );
-}
-
-// Partially refunds a payment using the automatic capture flow (Non 3DS).
-#[actix_web::test]
-async fn should_partially_refund_succeeded_payment() {
-    let refund_response = CONNECTOR
-        .make_payment_and_refund(
-            payment_method_details(),
-            Some(types::RefundsData {
-                refund_amount: 50,
-                ..utils::PaymentRefundType::default().0
-            }),
-            get_default_payment_info(),
-        )
-        .await
-        .unwrap();
-    assert_eq!(
-        refund_response.response.unwrap().refund_status,
-        enums::RefundStatus::Success,
-    );
-}
-
-// Creates multiple refunds against a payment using the automatic capture flow (Non 3DS).
-#[actix_web::test]
-async fn should_refund_succeeded_payment_multiple_times() {
-    CONNECTOR
-        .make_payment_and_multiple_refund(
-            payment_method_details(),
-            Some(types::RefundsData {
-                refund_amount: 50,
-                ..utils::PaymentRefundType::default().0
-            }),
-            get_default_payment_info(),
-        )
-        .await;
-}
-
-// Synchronizes a refund using the automatic capture flow (Non 3DS).
-#[actix_web::test]
-async fn should_sync_refund() {
-    let refund_response = CONNECTOR
-        .make_payment_and_refund(payment_method_details(), None, get_default_payment_info())
-        .await
-        .unwrap();
-    let response = CONNECTOR
-        .rsync_retry_till_status_matches(
-            enums::RefundStatus::Success,
-            refund_response.response.unwrap().connector_refund_id,
-            None,
-            get_default_payment_info(),
-        )
-        .await
-        .unwrap();
-    assert_eq!(
-        response.response.unwrap().refund_status,
-        enums::RefundStatus::Success,
-    );
-}
-
-// Cards Negative scenarios
-// Creates a payment with incorrect CVC.
-#[actix_web::test]
-async fn should_fail_payment_for_incorrect_cvc() {
-    let response = CONNECTOR
-        .make_payment(
-            Some(types::PaymentsAuthorizeData {
-                payment_method_data: PaymentMethodData::Card(Card {
-                    card_cvc: Secret::new("12345".to_string()),
-                    ..utils::CCardType::default().0
-                }),
-                ..utils::PaymentAuthorizeType::default().0
-            }),
-            get_default_payment_info(),
-        )
-        .await
-        .unwrap();
-    assert_eq!(
-        response.response.unwrap_err().message,
-        // TODO(tdaypay): replace with your connector's actual error message
-        "Your card's security code is invalid.".to_string(),
-    );
-}
-
-// Creates a payment with incorrect expiry month.
-#[actix_web::test]
-async fn should_fail_payment_for_invalid_exp_month() {
-    let response = CONNECTOR
-        .make_payment(
-            Some(types::PaymentsAuthorizeData {
-                payment_method_data: PaymentMethodData::Card(Card {
-                    card_exp_month: Secret::new("20".to_string()),
-                    ..utils::CCardType::default().0
-                }),
-                ..utils::PaymentAuthorizeType::default().0
-            }),
-            get_default_payment_info(),
-        )
-        .await
-        .unwrap();
-    assert_eq!(
-        response.response.unwrap_err().message,
-        // TODO(tdaypay): replace with your connector's actual error message
-        "Your card's expiration month is invalid.".to_string(),
-    );
-}
-
-// Creates a payment with incorrect expiry year.
-#[actix_web::test]
-async fn should_fail_payment_for_incorrect_expiry_year() {
-    let response = CONNECTOR
-        .make_payment(
-            Some(types::PaymentsAuthorizeData {
-                payment_method_data: PaymentMethodData::Card(Card {
-                    card_exp_year: Secret::new("2000".to_string()),
-                    ..utils::CCardType::default().0
-                }),
-                ..utils::PaymentAuthorizeType::default().0
-            }),
-            get_default_payment_info(),
-        )
-        .await
-        .unwrap();
-    assert_eq!(
-        response.response.unwrap_err().message,
-        // TODO(tdaypay): replace with your connector's actual error message
-        "Your card's expiration year is invalid.".to_string(),
-    );
-}
-
-// Voids a payment using automatic capture flow (Non 3DS).
-#[actix_web::test]
-async fn should_fail_void_payment_for_auto_capture() {
-    let authorize_response = CONNECTOR
-        .make_payment(payment_method_details(), get_default_payment_info())
-        .await
-        .unwrap();
-    assert_eq!(authorize_response.status, enums::AttemptStatus::Charged);
-    let txn_id = utils::get_connector_transaction_id(authorize_response.response);
-    assert_ne!(txn_id, None, "Empty connector transaction id");
-    let void_response = CONNECTOR
-        .void_payment(txn_id.unwrap(), None, get_default_payment_info())
-        .await
-        .unwrap();
-    assert_eq!(
-        void_response.response.unwrap_err().message,
-        // TODO(tdaypay): replace with your connector's actual error message
-        "You cannot cancel this PaymentIntent because it has a status of succeeded."
-    );
-}
-
-// Captures a payment using invalid connector payment id.
-#[actix_web::test]
-async fn should_fail_capture_for_invalid_payment() {
-    let capture_response = CONNECTOR
-        .capture_payment("123456789".to_string(), None, get_default_payment_info())
-        .await
-        .unwrap();
-    assert_eq!(
-        capture_response.response.unwrap_err().message,
-        // TODO(tdaypay): replace with your connector's actual error message
-        String::from("No such payment_intent: '123456789'")
-    );
-}
-
-// Refunds a payment with refund amount higher than payment amount.
-#[actix_web::test]
-async fn should_fail_for_refund_amount_higher_than_payment_amount() {
-    let response = CONNECTOR
-        .make_payment_and_refund(
-            payment_method_details(),
-            Some(types::RefundsData {
-                refund_amount: 150,
-                ..utils::PaymentRefundType::default().0
-            }),
-            get_default_payment_info(),
-        )
-        .await
-        .unwrap();
-    assert_eq!(
-        response.response.unwrap_err().message,
-        // TODO(tdaypay): replace with your connector's actual error message
-        "Refund amount (₹1.50) is greater than charge amount (₹1.00)",
-    );
-}
-
-// Connector dependent test cases goes here
-
-// [#478]: add unit tests for non 3DS, wallets & webhooks in connector tests
