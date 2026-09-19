@@ -265,14 +265,8 @@ jobs:
       # workflow (it has no push trigger), and merge_group only runs
       # already-approved changes via the branch-protection merge queue, so
       # it's inherently trusted — no extra fork-PR guard needed here.
-      #
-      # TEMPORARY - REVERT BEFORE MERGE.
-      # Also save on this branch's own PR runs, so this PR can populate and
-      # then restore its own cache to verify the design without waiting for
-      # a merge_group run. Guarded to this branch name so it's inert
-      # everywhere else.
       - name: Compress and upload sccache cache to S3
-        if: ${{ env.RUN_TESTS == 'true' && (github.event_name == 'merge_group' || github.head_ref == 'ci/sccache-migration') }}
+        if: ${{ env.RUN_TESTS == 'true' && github.event_name == 'merge_group' }}
         continue-on-error: true
         shell: bash
         run: |
@@ -2105,14 +2099,8 @@ jobs:
       # workflow (it has no push trigger), and merge_group only runs
       # already-approved changes via the branch-protection merge queue, so
       # it's inherently trusted — no extra fork-PR guard needed here.
-      #
-      # TEMPORARY - REVERT BEFORE MERGE.
-      # Also save on this branch's own PR runs, so this PR can populate and
-      # then restore its own cache to verify the design without waiting for
-      # a merge_group run. Guarded to this branch name so it's inert
-      # everywhere else.
       - name: Compress and upload sccache cache to S3
-        if: ${{ env.RUN_TESTS == 'true' && (github.event_name == 'merge_group' || github.head_ref == 'ci/sccache-migration') }}
+        if: ${{ env.RUN_TESTS == 'true' && github.event_name == 'merge_group' }}
         continue-on-error: true
         shell: bash
         run: |
