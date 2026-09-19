@@ -218,6 +218,14 @@ jobs:
           echo "SCCACHE_REGION=" >> "$GITHUB_ENV"
           echo "SCCACHE_S3_KEY_PREFIX=" >> "$GITHUB_ENV"
 
+      # Keyed by OS/arch: sccache's own per-object hash already includes
+      # compiler identity, so a wrong-arch tarball couldn't produce a wrong
+      # hit — but on a heterogeneous runner pool it would produce a 0%-hit
+      # tarball every time the arch differs from whoever last populated it,
+      # making the restore pure overhead with no payoff. Not versioned by
+      # toolchain: each save is a full wholesale overwrite reflecting
+      # whatever the current run actually compiled, so a toolchain bump is
+      # just one transient cold populate, not persistent thrashing.
       - name: Restore sccache cache from S3
         if: ${{ env.RUN_TESTS == 'true' }}
         continue-on-error: true
@@ -226,7 +234,7 @@ jobs:
           mkdir -p "$SCCACHE_DIR"
           if [ -n "$S3_CACHE_BUCKET" ]; then
             aws s3 cp \
-              "s3://${S3_CACHE_BUCKET}/${S3_CACHE_PREFIX}sccache-cache/build-hyperswitch.tar.gz" \
+              "s3://${S3_CACHE_BUCKET}/${S3_CACHE_PREFIX}sccache-cache/build-hyperswitch-${{ runner.os }}-${{ runner.arch }}.tar.gz" \
               /tmp/sccache-cache.tar.gz \
               --region "${S3_CACHE_REGION}" --no-progress --only-show-errors \
             && tar xzf /tmp/sccache-cache.tar.gz -C "$SCCACHE_DIR"
@@ -260,7 +268,7 @@ jobs:
         run: |
           tar czf /tmp/sccache-cache.tar.gz -C "$SCCACHE_DIR" .
           aws s3 cp /tmp/sccache-cache.tar.gz \
-            "s3://${S3_CACHE_BUCKET}/${S3_CACHE_PREFIX}sccache-cache/build-hyperswitch.tar.gz" \
+            "s3://${S3_CACHE_BUCKET}/${S3_CACHE_PREFIX}sccache-cache/build-hyperswitch-${{ runner.os }}-${{ runner.arch }}.tar.gz" \
             --region "${S3_CACHE_REGION}" --no-progress --only-show-errors
 
       # Keyed by run id so concurrent runs (different PRs) never collide;
@@ -1982,6 +1990,14 @@ jobs:
           echo "SCCACHE_REGION=" >> "$GITHUB_ENV"
           echo "SCCACHE_S3_KEY_PREFIX=" >> "$GITHUB_ENV"
 
+      # Keyed by OS/arch: sccache's own per-object hash already includes
+      # compiler identity, so a wrong-arch tarball couldn't produce a wrong
+      # hit — but on a heterogeneous runner pool it would produce a 0%-hit
+      # tarball every time the arch differs from whoever last populated it,
+      # making the restore pure overhead with no payoff. Not versioned by
+      # toolchain: each save is a full wholesale overwrite reflecting
+      # whatever the current run actually compiled, so a toolchain bump is
+      # just one transient cold populate, not persistent thrashing.
       - name: Restore sccache cache from S3
         if: ${{ env.RUN_TESTS == 'true' }}
         continue-on-error: true
@@ -1990,7 +2006,7 @@ jobs:
           mkdir -p "$SCCACHE_DIR"
           if [ -n "$S3_CACHE_BUCKET" ]; then
             aws s3 cp \
-              "s3://${S3_CACHE_BUCKET}/${S3_CACHE_PREFIX}sccache-cache/runner-v2.tar.gz" \
+              "s3://${S3_CACHE_BUCKET}/${S3_CACHE_PREFIX}sccache-cache/runner-v2-${{ runner.os }}-${{ runner.arch }}.tar.gz" \
               /tmp/sccache-cache.tar.gz \
               --region "${S3_CACHE_REGION}" --no-progress --only-show-errors \
             && tar xzf /tmp/sccache-cache.tar.gz -C "$SCCACHE_DIR"
@@ -2085,7 +2101,7 @@ jobs:
         run: |
           tar czf /tmp/sccache-cache.tar.gz -C "$SCCACHE_DIR" .
           aws s3 cp /tmp/sccache-cache.tar.gz \
-            "s3://${S3_CACHE_BUCKET}/${S3_CACHE_PREFIX}sccache-cache/runner-v2.tar.gz" \
+            "s3://${S3_CACHE_BUCKET}/${S3_CACHE_PREFIX}sccache-cache/runner-v2-${{ runner.os }}-${{ runner.arch }}.tar.gz" \
             --region "${S3_CACHE_REGION}" --no-progress --only-show-errors
 
       - name: Setup Local Server
