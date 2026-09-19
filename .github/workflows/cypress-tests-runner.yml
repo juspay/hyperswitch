@@ -231,13 +231,18 @@ jobs:
         continue-on-error: true
         shell: bash
         run: |
+          # Streamed straight from S3 into tar (no intermediate .tar.gz on
+          # disk) — a file-based round trip briefly doubles disk usage
+          # (source dir + full compressed copy), which is plausibly what
+          # took a runner down mid-compress on a large cache.
+          set -o pipefail
           mkdir -p "$SCCACHE_DIR"
           if [ -n "$S3_CACHE_BUCKET" ]; then
             aws s3 cp \
               "s3://${S3_CACHE_BUCKET}/${S3_CACHE_PREFIX}sccache-cache/build-hyperswitch-${{ runner.os }}-${{ runner.arch }}.tar.gz" \
-              /tmp/sccache-cache.tar.gz \
+              - \
               --region "${S3_CACHE_REGION}" --no-progress --only-show-errors \
-            && tar xzf /tmp/sccache-cache.tar.gz -C "$SCCACHE_DIR"
+              | tar xzf - -C "$SCCACHE_DIR"
           else
             echo "::warning::S3 cache bucket not configured on this runner; sccache starts cold"
           fi
@@ -266,10 +271,13 @@ jobs:
         continue-on-error: true
         shell: bash
         run: |
-          tar czf /tmp/sccache-cache.tar.gz -C "$SCCACHE_DIR" .
-          aws s3 cp /tmp/sccache-cache.tar.gz \
-            "s3://${S3_CACHE_BUCKET}/${S3_CACHE_PREFIX}sccache-cache/build-hyperswitch-${{ runner.os }}-${{ runner.arch }}.tar.gz" \
-            --region "${S3_CACHE_REGION}" --no-progress --only-show-errors
+          # Streamed straight into S3 (no intermediate .tar.gz on disk) —
+          # see the restore step above for why.
+          set -o pipefail
+          tar czf - -C "$SCCACHE_DIR" . \
+            | aws s3 cp - \
+              "s3://${S3_CACHE_BUCKET}/${S3_CACHE_PREFIX}sccache-cache/build-hyperswitch-${{ runner.os }}-${{ runner.arch }}.tar.gz" \
+              --region "${S3_CACHE_REGION}" --no-progress --only-show-errors
 
       # Keyed by run id so concurrent runs (different PRs) never collide;
       # every downstream job in this same run reads the same run id back.
@@ -2007,13 +2015,18 @@ jobs:
         continue-on-error: true
         shell: bash
         run: |
+          # Streamed straight from S3 into tar (no intermediate .tar.gz on
+          # disk) — a file-based round trip briefly doubles disk usage
+          # (source dir + full compressed copy), which is plausibly what
+          # took a runner down mid-compress on a large cache.
+          set -o pipefail
           mkdir -p "$SCCACHE_DIR"
           if [ -n "$S3_CACHE_BUCKET" ]; then
             aws s3 cp \
               "s3://${S3_CACHE_BUCKET}/${S3_CACHE_PREFIX}sccache-cache/runner-v2-${{ runner.os }}-${{ runner.arch }}.tar.gz" \
-              /tmp/sccache-cache.tar.gz \
+              - \
               --region "${S3_CACHE_REGION}" --no-progress --only-show-errors \
-            && tar xzf /tmp/sccache-cache.tar.gz -C "$SCCACHE_DIR"
+              | tar xzf - -C "$SCCACHE_DIR"
           else
             echo "::warning::S3 cache bucket not configured on this runner; sccache starts cold"
           fi
@@ -2103,10 +2116,13 @@ jobs:
         continue-on-error: true
         shell: bash
         run: |
-          tar czf /tmp/sccache-cache.tar.gz -C "$SCCACHE_DIR" .
-          aws s3 cp /tmp/sccache-cache.tar.gz \
-            "s3://${S3_CACHE_BUCKET}/${S3_CACHE_PREFIX}sccache-cache/runner-v2-${{ runner.os }}-${{ runner.arch }}.tar.gz" \
-            --region "${S3_CACHE_REGION}" --no-progress --only-show-errors
+          # Streamed straight into S3 (no intermediate .tar.gz on disk) —
+          # see the restore step above for why.
+          set -o pipefail
+          tar czf - -C "$SCCACHE_DIR" . \
+            | aws s3 cp - \
+              "s3://${S3_CACHE_BUCKET}/${S3_CACHE_PREFIX}sccache-cache/runner-v2-${{ runner.os }}-${{ runner.arch }}.tar.gz" \
+              --region "${S3_CACHE_REGION}" --no-progress --only-show-errors
 
       - name: Setup Local Server
         if: ${{ env.RUN_TESTS == 'true' }}
