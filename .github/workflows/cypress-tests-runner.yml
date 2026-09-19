@@ -145,8 +145,14 @@ jobs:
     # use hyperswitch-runners-merge for merge queue level checks
     runs-on: ${{ case(github.event_name == 'merge_group', 'hyperswitch-runners-merge', 'hyperswitch-runners') }}
     env:
-      # Use `sccache` for caching compilation artifacts
+      # sccache on local disk, restored/saved as one archive instead of its
+      # native S3 backend — avoids per-request round trips under load.
       RUSTC_WRAPPER: sccache
+      SCCACHE_DIR: ${{ github.workspace }}/.sccache
+      SCCACHE_CACHE_SIZE: "4G"
+      # Default 600s idle timeout can kill sccache mid-compile on a long
+      # build (mozilla/sccache#204); safe to disable on this ephemeral pod.
+      SCCACHE_IDLE_TIMEOUT: "0"
     steps:
       - name: Skip tests for PRs from forks
         shell: bash
@@ -176,6 +182,10 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Mask S3 cache location in job logs
+        shell: bash
+        run: .github/scripts/sccache-mask-s3-env.sh
+
       - name: Install sccache
         if: ${{ env.RUN_TESTS == 'true' }}
         uses: taiki-e/install-action@v2
@@ -183,18 +193,41 @@ jobs:
           tool: sccache
           checksum: true
 
+      - name: Resolve S3 cache location, then disable sccache's native S3 backend
+        if: ${{ env.RUN_TESTS == 'true' }}
+        shell: bash
+        run: .github/scripts/sccache-resolve-s3-env.sh
+
+      - name: Restore sccache cache from S3
+        if: ${{ env.RUN_TESTS == 'true' }}
+        continue-on-error: true
+        shell: bash
+        run: .github/scripts/sccache-restore-s3.sh build-hyperswitch
+
       - name: Build project
         if: ${{ env.RUN_TESTS == 'true' }}
-        run: cargo build --package router --bin router --jobs 2
+        run: cargo build --package router --bin router
 
-      - name: Upload binary artifact
+      - name: Show sccache stats
+        if: ${{ always() && env.RUN_TESTS == 'true' }}
+        shell: bash
+        run: sccache --show-stats
+
+      # Only merge_group writes (this workflow has no push trigger).
+      - name: Compress and upload sccache cache to S3
+        if: ${{ env.RUN_TESTS == 'true' && github.event_name == 'merge_group' }}
+        continue-on-error: true
+        shell: bash
+        run: .github/scripts/sccache-save-s3.sh build-hyperswitch
+
+      # Keyed by run id so concurrent runs (different PRs) never collide.
+      - name: Upload binary to S3
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: actions/upload-artifact@v7
-        with:
-          name: hyperswitch-server
-          overwrite: true
-          path: target/debug/router
-          retention-days: 1
+        shell: bash
+        run: |
+          aws s3 cp target/debug/router \
+            "s3://${S3_CACHE_BUCKET}/${S3_CACHE_PREFIX}build-artifacts/${{ github.run_id }}/router" \
+            --region "${S3_CACHE_REGION}" --no-progress --only-show-errors
 
   prepare-mandatory-matrix:
     name: Prepare Mandatory Connectors matrix to run cypress tests
@@ -295,6 +328,10 @@ jobs:
           toolchain: stable 2 weeks ago
           components: rustfmt
 
+      - name: Mask S3 cache location in job logs
+        shell: bash
+        run: .github/scripts/sccache-mask-s3-env.sh
+
       - name: Install sccache
         if: ${{ env.RUN_TESTS == 'true' }}
         uses: taiki-e/install-action@v2
@@ -302,12 +339,10 @@ jobs:
           tool: sccache
           checksum: true
 
-      - name: Download hyperswitch server artifact
+      - name: Download hyperswitch server binary from S3
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: actions/download-artifact@v8
-        with:
-          name: hyperswitch-server
-          path: target/debug
+        shell: bash
+        run: .github/scripts/download-hyperswitch-binary-s3.sh
 
       - name: Make server executable
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -347,11 +382,14 @@ jobs:
 
       - name: Install Diesel CLI
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: baptiste0928/cargo-install@v3.4.0
+        uses: taiki-e/install-action@v2
         with:
-          crate: diesel_cli
-          features: postgres
-          args: --no-default-features
+          tool: diesel_cli
+
+      - name: Show sccache stats
+        if: ${{ always() && env.RUN_TESTS == 'true' }}
+        shell: bash
+        run: sccache --show-stats
 
       - name: Install Just
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -584,17 +622,19 @@ jobs:
           toolchain: stable 2 weeks ago
           components: rustfmt
 
+      - name: Mask S3 cache location in job logs
+        shell: bash
+        run: .github/scripts/sccache-mask-s3-env.sh
+
       - name: Install sccache
         uses: taiki-e/install-action@v2
         with:
           tool: sccache
           checksum: true
 
-      - name: Download hyperswitch server artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: hyperswitch-server
-          path: target/debug
+      - name: Download hyperswitch server binary from S3
+        shell: bash
+        run: .github/scripts/download-hyperswitch-binary-s3.sh
 
       - name: Make server executable
         run: chmod +x target/debug/router
@@ -629,11 +669,14 @@ jobs:
           echo "CYPRESS_ADMINAPIKEY=${LOCAL_ADMIN_API_KEY}" >> $GITHUB_ENV
 
       - name: Install Diesel CLI
-        uses: baptiste0928/cargo-install@v3.4.0
+        uses: taiki-e/install-action@v2
         with:
-          crate: diesel_cli
-          features: postgres
-          args: --no-default-features
+          tool: diesel_cli
+
+      - name: Show sccache stats
+        if: ${{ always() && env.RUN_TESTS == 'true' }}
+        shell: bash
+        run: sccache --show-stats
 
       - name: Install Just
         uses: taiki-e/install-action@v2
@@ -868,6 +911,10 @@ jobs:
           toolchain: stable 2 weeks ago
           components: rustfmt
 
+      - name: Mask S3 cache location in job logs
+        shell: bash
+        run: .github/scripts/sccache-mask-s3-env.sh
+
       - name: Install sccache
         if: ${{ env.RUN_TESTS == 'true' }}
         uses: taiki-e/install-action@v2
@@ -875,12 +922,10 @@ jobs:
           tool: sccache
           checksum: true
 
-      - name: Download hyperswitch server artifact
+      - name: Download hyperswitch server binary from S3
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: actions/download-artifact@v8
-        with:
-          name: hyperswitch-server
-          path: target/debug
+        shell: bash
+        run: .github/scripts/download-hyperswitch-binary-s3.sh
 
       - name: Make server executable
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -919,11 +964,14 @@ jobs:
 
       - name: Install Diesel CLI
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: baptiste0928/cargo-install@v3.4.0
+        uses: taiki-e/install-action@v2
         with:
-          crate: diesel_cli
-          features: postgres
-          args: --no-default-features
+          tool: diesel_cli
+
+      - name: Show sccache stats
+        if: ${{ always() && env.RUN_TESTS == 'true' }}
+        shell: bash
+        run: sccache --show-stats
 
       - name: Install Just
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -1307,17 +1355,19 @@ jobs:
           toolchain: stable 2 weeks ago
           components: rustfmt
 
+      - name: Mask S3 cache location in job logs
+        shell: bash
+        run: .github/scripts/sccache-mask-s3-env.sh
+
       - name: Install sccache
         uses: taiki-e/install-action@v2
         with:
           tool: sccache
           checksum: true
 
-      - name: Download hyperswitch server artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: hyperswitch-server
-          path: target/debug
+      - name: Download hyperswitch server binary from S3
+        shell: bash
+        run: .github/scripts/download-hyperswitch-binary-s3.sh
 
       - name: Make server executable
         run: chmod +x target/debug/router
@@ -1352,11 +1402,14 @@ jobs:
           echo "CYPRESS_ADMINAPIKEY=${LOCAL_ADMIN_API_KEY}" >> $GITHUB_ENV
 
       - name: Install Diesel CLI
-        uses: baptiste0928/cargo-install@v3.4.0
+        uses: taiki-e/install-action@v2
         with:
-          crate: diesel_cli
-          features: postgres
-          args: --no-default-features
+          tool: diesel_cli
+
+      - name: Show sccache stats
+        if: ${{ always() && env.RUN_TESTS == 'true' }}
+        shell: bash
+        run: sccache --show-stats
 
       - name: Install Just
         uses: taiki-e/install-action@v2
@@ -1502,12 +1555,14 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         uses: actions/checkout@v6
 
-      - name: Download hyperswitch server artifact
+      - name: Mask S3 cache location in job logs
+        shell: bash
+        run: .github/scripts/sccache-mask-s3-env.sh
+
+      - name: Download hyperswitch server binary from S3
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: actions/download-artifact@v8
-        with:
-          name: hyperswitch-server
-          path: target/debug
+        shell: bash
+        run: .github/scripts/download-hyperswitch-binary-s3.sh
 
       - name: Make server executable
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -1543,11 +1598,14 @@ jobs:
 
       - name: Install Diesel CLI
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: baptiste0928/cargo-install@v3.4.0
+        uses: taiki-e/install-action@v2
         with:
-          crate: diesel_cli
-          features: postgres
-          args: --no-default-features
+          tool: diesel_cli
+
+      - name: Show sccache stats
+        if: ${{ always() && env.RUN_TESTS == 'true' }}
+        shell: bash
+        run: sccache --show-stats
 
       - name: Install Just
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -1688,8 +1746,12 @@ jobs:
       contents: read
     env:
       CODECOV_FILE: "lcov.info"
-      # Use `sccache` for caching compilation artifacts
+      # sccache on local disk, restored/saved as one archive instead of its
+      # native S3 backend — see build-hyperswitch for why.
       RUSTC_WRAPPER: sccache
+      SCCACHE_DIR: ${{ github.workspace }}/.sccache
+      SCCACHE_CACHE_SIZE: "4G"
+      SCCACHE_IDLE_TIMEOUT: "0"
 
     services:
       redis:
@@ -1782,6 +1844,10 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Mask S3 cache location in job logs
+        shell: bash
+        run: .github/scripts/sccache-mask-s3-env.sh
+
       - name: Install sccache
         if: ${{ env.RUN_TESTS == 'true' }}
         uses: taiki-e/install-action@v2
@@ -1789,13 +1855,22 @@ jobs:
           tool: sccache
           checksum: true
 
+      - name: Resolve S3 cache location, then disable sccache's native S3 backend
+        if: ${{ env.RUN_TESTS == 'true' }}
+        shell: bash
+        run: .github/scripts/sccache-resolve-s3-env.sh
+
+      - name: Restore sccache cache from S3
+        if: ${{ env.RUN_TESTS == 'true' }}
+        continue-on-error: true
+        shell: bash
+        run: .github/scripts/sccache-restore-s3.sh runner-v2
+
       - name: Install Diesel CLI
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: baptiste0928/cargo-install@v3.4.0
+        uses: taiki-e/install-action@v2
         with:
-          crate: diesel_cli
-          features: postgres
-          args: --no-default-features
+          tool: diesel_cli
 
       - name: Install grcov
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -1852,8 +1927,19 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         env:
           RUSTFLAGS: "-Cinstrument-coverage"
-          CARGO_BUILD_JOBS: 6
         run: just build_v2
+
+      - name: Show sccache stats
+        if: ${{ always() && env.RUN_TESTS == 'true' }}
+        shell: bash
+        run: sccache --show-stats
+
+      # Only merge_group writes (this workflow has no push trigger).
+      - name: Compress and upload sccache cache to S3
+        if: ${{ env.RUN_TESTS == 'true' && github.event_name == 'merge_group' }}
+        continue-on-error: true
+        shell: bash
+        run: .github/scripts/sccache-save-s3.sh runner-v2
 
       - name: Setup Local Server
         if: ${{ env.RUN_TESTS == 'true' }}
