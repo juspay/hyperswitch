@@ -148,10 +148,12 @@ pub(crate) mod boundary {
             return None;
         }
         let recorded = hook.try_replay_with_context(deja::ReplayLookup {
-            // `FailStop`: with no `on_miss` the caller mints a fresh uuid —
-            // a value the recording never held, and one the rest of the
-            // correlation is then keyed on.
-            miss_policy: deja::MissPolicy::FailStop,
+            // This boundary offers no miss value, so the caller falls through to
+            // minting a fresh uuid — precisely a value the recording never held,
+            // and which the rest of the correlation is then keyed on. That used
+            // to be spelled `MissPolicy::FailStop`; the policy is no longer
+            // declared here because what a site did is now read off the
+            // observation it emits rather than off what it promised in advance.
             boundary: "id_generation",
             trait_name: "router_env::request_id",
             method_name,
