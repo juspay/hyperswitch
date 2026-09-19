@@ -156,11 +156,6 @@ jobs:
       # at job end regardless (confirmed via the runner's own orphan-process
       # cleanup), so there's no cross-job leak risk from leaving it running.
       SCCACHE_IDLE_TIMEOUT: "0"
-      # TEMPORARY - REVERT BEFORE MERGE.
-      # Verbose per-request logging to diagnose why this job's Average
-      # cache read hit spikes under load while test/check-v2's doesn't.
-      SCCACHE_LOG: debug
-      SCCACHE_ERROR_LOG: ${{ github.workspace }}/sccache-debug.log
     steps:
       - name: Mask S3 cache location in job logs
         shell: bash
@@ -212,21 +207,6 @@ jobs:
         if: ${{ always() && env.RUN_TESTS == 'true' }}
         shell: bash
         run: sccache --show-stats
-
-      # TEMPORARY - REVERT BEFORE MERGE. Flush and grab the debug log above.
-      - name: Stop sccache server to flush debug log
-        if: ${{ always() && env.RUN_TESTS == 'true' }}
-        shell: bash
-        run: sccache --stop-server || true
-
-      - name: Upload sccache debug log
-        if: ${{ always() && env.RUN_TESTS == 'true' }}
-        uses: actions/upload-artifact@v7
-        with:
-          name: sccache-debug-log-build-hyperswitch
-          path: sccache-debug.log
-          retention-days: 1
-          if-no-files-found: warn
 
       # Keyed by run id so concurrent runs (different PRs) never collide;
       # every downstream job in this same run reads the same run id back.
