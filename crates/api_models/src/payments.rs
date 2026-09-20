@@ -4374,6 +4374,31 @@ impl AdditionalPaymentData {
             _ => None,
         }
     }
+
+    /// Wallet providers report the network as a free-form string in their own spelling.
+    pub fn get_wallet_card_network(&self) -> Option<&str> {
+        match self {
+            Self::Wallet {
+                apple_pay,
+                google_pay,
+                samsung_pay,
+                paypal: _,
+            } => apple_pay
+                .as_ref()
+                .map(|apple_pay| apple_pay.network.as_str())
+                .or_else(|| {
+                    google_pay
+                        .as_ref()
+                        .and_then(|google_pay| google_pay.card_network.as_deref())
+                })
+                .or_else(|| {
+                    samsung_pay
+                        .as_ref()
+                        .and_then(|samsung_pay| samsung_pay.card_network.as_deref())
+                }),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -10345,6 +10370,18 @@ pub struct ConnectorMetadata {
     pub worldpayxml: Option<WorldpayxmlData>,
     #[smithy(value_type = "Option<CheckoutData>")]
     pub checkout: Option<CheckoutData>,
+    #[smithy(value_type = "Option<StripeConnectorMetadata>")]
+    pub stripe: Option<StripeConnectorMetadata>,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct StripeConnectorMetadata {
+    /// For MIT (merchant-initiated) payments: when true, Stripe fails the payment outright
+    /// instead of returning a `requires_action` status, since there's no customer present to
+    /// complete additional authentication.
+    #[smithy(value_type = "Option<bool>")]
+    pub error_on_requires_action: Option<bool>,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]

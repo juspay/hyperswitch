@@ -8054,7 +8054,7 @@ where
     let blocklist_enabled_key = processor_merchant_id.get_blocklist_guard_key();
     let blocklist_guard_enabled = state
         .store
-        .find_config_by_key_unwrap_or(&blocklist_enabled_key, Some("false".to_string()))
+        .find_config_by_key_unwrap_or(&blocklist_enabled_key, "false".to_string())
         .await;
 
     let blocklist_guard_enabled: bool = match blocklist_guard_enabled {
