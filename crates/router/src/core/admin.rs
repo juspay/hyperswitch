@@ -21,6 +21,7 @@ use hyperswitch_domain_models::merchant_connector_account::{
 };
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use pm_auth::types as pm_auth_types;
+use storage_impl::behaviour::ForeignInto;
 #[cfg(feature = "olap")]
 use {
     base64::Engine,
@@ -3089,15 +3090,19 @@ pub async fn update_connector(
 
     let request_connector_label = req.connector_label;
 
-    let updated_mca =
-        db.update_merchant_connector_account(mca.clone(), <diesel_models::MerchantConnectorAccountUpdateInternal as storage_impl::behaviour::ForeignFrom<_>>::foreign_from(payment_connector), &key_store)
-            .await
-            .change_context(
-                errors::ApiErrorResponse::DuplicateMerchantConnectorAccount {
-                    profile_id: profile_id.get_string_repr().to_owned(),
-                    connector_label: request_connector_label.unwrap_or_default(),
-                },
-            )
+    let updated_mca = db
+        .update_merchant_connector_account(
+            mca.clone(),
+            payment_connector.foreign_into(),
+            &key_store,
+        )
+        .await
+        .change_context(
+            errors::ApiErrorResponse::DuplicateMerchantConnectorAccount {
+                profile_id: profile_id.get_string_repr().to_owned(),
+                connector_label: request_connector_label.unwrap_or_default(),
+            },
+        )
             .attach_printable_lazy(|| {
                 format!(
                     "Failed while updating MerchantConnectorAccount: id: {merchant_connector_id:?}",

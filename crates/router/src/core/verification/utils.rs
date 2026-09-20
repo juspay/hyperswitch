@@ -3,6 +3,7 @@ use common_utils::{
     id_type::{PaymentId, PayoutId},
 };
 use error_stack::{Report, ResultExt};
+use storage_impl::behaviour::ForeignInto;
 
 use crate::{
     core::{
@@ -102,7 +103,7 @@ pub async fn check_existence_and_add_domain_to_db(
         .store
         .update_merchant_connector_account(
             merchant_connector_account,
-            <diesel_models::MerchantConnectorAccountUpdateInternal as storage_impl::behaviour::ForeignFrom<_>>::foreign_from(updated_mca),
+            updated_mca.foreign_into(),
             &key_store,
         )
         .await

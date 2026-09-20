@@ -21,6 +21,7 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::api::{ConnectorSpecifications, ConnectorValidation};
+use storage_impl::behaviour::ForeignInto;
 use transformers as configure_connector_webhook_flow;
 
 use crate::{
@@ -498,7 +499,7 @@ pub async fn register_connector_webhook(
     );
 
     if should_update_db {
-        db.update_merchant_connector_account(mca.clone(), <diesel_models::MerchantConnectorAccountUpdateInternal as storage_impl::behaviour::ForeignFrom<_>>::foreign_from(mca_update), &key_store)
+        db.update_merchant_connector_account(mca.clone(), mca_update.foreign_into(), &key_store)
             .await
             .change_context(
                 errors::ApiErrorResponse::DuplicateMerchantConnectorAccount {
