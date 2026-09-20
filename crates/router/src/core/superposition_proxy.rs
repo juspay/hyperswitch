@@ -4,17 +4,19 @@ pub use api_models::superposition_proxy::{
     PaginatedListResponse, ResolveConfigExplanationResponse, ResolveConfigResponse,
 };
 use async_trait::async_trait;
-use common_utils::events::ApiEventMetric;
+use common_utils::{events::ApiEventMetric, id_type::TenantId};
 use external_services::superposition::{
     context_put_from_request, create_context_output_to_struct, doc_map_to_json, document_to_value,
     get_default_config_output_to_struct, get_dimension_output_to_struct,
     list_audit_logs_to_response, list_contexts_to_response, list_default_configs_to_response,
     list_dimensions_to_response, map_sdk_error, parse_datetime,
-    resolve_config_explanation_to_response, value_to_document, AuditAction, ContextFilterSortOn,
-    ContextPutRequest, CreateContextInputBuilder, DateTime, DimensionMatchStrategy,
+    resolve_config_explanation_to_response, types::SuperpositionProxyWorkspace, value_to_document,
+    AuditAction, ContextFilterSortOn, ContextPutRequest, CreateContextInputBuilder, DateTime,
+    DimensionMatchStrategy,
     GetDefaultConfigInputBuilder, GetDetailedResolvedConfigInputBuilder, GetDimensionInputBuilder,
     GetResolvedConfigExplanationInputBuilder, ListAuditLogsInputBuilder, ListContextsInputBuilder,
-    ListDefaultConfigsInputBuilder, ListDimensionsInputBuilder, SortBy, SuperpositionError,
+    ListDefaultConfigsInputBuilder, ListDimensionsInputBuilder, SortBy, SuperpositionClientConfig,
+    SuperpositionError,
 };
 
 use crate::{
@@ -103,8 +105,22 @@ fn validate_superposition_context_body(
     auth: &UserFromToken,
 ) -> Result<(), error_stack::Report<errors::ApiErrorResponse>> {
     let Some(context_obj) = context.as_object() else {
-        return Ok(());
+        return Err(error_stack::report!(
+            errors::ApiErrorResponse::InvalidRequestData {
+                message: "context must be an object".to_string(),
+            }
+        ));
     };
+    // Do not silently drop arrays, objects, nulls or other non-string scope values.
+    for (key, value) in context_obj {
+        if ScopingDimension::from_context_key(key).is_some() && !value.is_string() {
+            return Err(error_stack::report!(
+                errors::ApiErrorResponse::InvalidRequestData {
+                    message: "scoping dimensions must be strings".to_string(),
+                }
+            ));
+        }
+    }
     let has_scoping_dim = context_obj
         .keys()
         .any(|k| ScopingDimension::from_context_key(k).is_some());
@@ -173,6 +189,7 @@ fn map_superposition_err(
 
 /// Extract the `x-org-id` and `x-workspace` headers required by every proxy
 /// endpoint, returning a `400` response if either is missing.
+/// These values are untrusted until `authorize_proxy_workspace` succeeds.
 pub fn extract_proxy_headers(req: &HttpRequest) -> Result<(String, String), HttpResponse> {
     let org_id = req
         .headers()
@@ -197,6 +214,48 @@ pub fn extract_proxy_headers(req: &HttpRequest) -> Result<(String, String), Http
         })?;
 
     Ok((org_id, workspace_id))
+}
+
+fn authorize_proxy_workspace<'a>(
+    config: &'a SuperpositionClientConfig,
+    auth: &UserFromToken,
+    tenant_id: &TenantId,
+    org_id: &str,
+    workspace_id: &str,
+) -> Result<&'a SuperpositionProxyWorkspace, error_stack::Report<errors::ApiErrorResponse>> {
+    let forbidden = || {
+        error_stack::report!(errors::ApiErrorResponse::AccessForbidden {
+            resource: "superposition".to_string(),
+        })
+    };
+
+    // Runtime configuration and its audit history are shared across customers.
+    // Even an explicit mapping must not expose that workspace through this API.
+    if org_id.is_empty()
+        || workspace_id.is_empty()
+        || (org_id == config.org_id && workspace_id == config.workspace_id)
+        || auth.tenant_id.as_ref().is_some_and(|id| id != tenant_id)
+    {
+        return Err(forbidden());
+    }
+
+    let mut mappings = config.proxy_workspaces.iter().filter(|mapping| {
+        mapping.superposition_org_id == org_id && mapping.workspace_id == workspace_id
+    });
+    let mapping = mappings.next().ok_or_else(forbidden)?;
+
+    // A workspace must have exactly one owner. Fail closed on ambiguous mappings,
+    // including accidental reuse across tenants, organizations or profiles.
+    if mappings.next().is_some()
+        || mapping.tenant_id != *tenant_id
+        || mapping.organization_id != auth.org_id
+        || mapping.merchant_id != auth.merchant_id
+        || mapping.profile_id != auth.profile_id
+    {
+        return Err(forbidden());
+    }
+
+    Ok(mapping)
 }
 
 /// Typed `ListContexts` query params, parsed from the raw key/value pairs
@@ -358,7 +417,21 @@ pub async fn handle_superposition_proxy_flow<R: SuperpositionProxyFlow>(
     org_id: String,
     workspace_id: String,
 ) -> RouterResponse<R::Response> {
-    let response = request.execute(&state, &auth, org_id, workspace_id).await?;
+    let workspace = authorize_proxy_workspace(
+        state.conf.superposition.get_inner(),
+        &auth,
+        &state.tenant.tenant_id,
+        &org_id,
+        &workspace_id,
+    )?;
+    let response = request
+        .execute(
+            &state,
+            &auth,
+            workspace.superposition_org_id.clone(),
+            workspace.workspace_id.clone(),
+        )
+        .await?;
     Ok(ApplicationResponse::Json(response))
 }
 
@@ -803,5 +876,172 @@ impl SuperpositionProxyFlow for ListAuditLogsQuery {
             })?;
 
         Ok(list_audit_logs_to_response(&output))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn id<T: serde::de::DeserializeOwned>(value: &str) -> T {
+        serde_json::from_value(serde_json::json!(value)).expect("valid identifier fixture")
+    }
+
+    fn fixture() -> (SuperpositionClientConfig, UserFromToken, TenantId) {
+        let workspace: SuperpositionProxyWorkspace = serde_json::from_value(serde_json::json!({
+            "tenant_id": "tenant_test",
+            "organization_id": "org_test",
+            "merchant_id": "merchant_test",
+            "profile_id": "pro_test",
+            "superposition_org_id": "customer_configs",
+            "workspace_id": "profile_test"
+        }))
+        .expect("valid workspace fixture");
+        let tenant_id = workspace.tenant_id.clone();
+        let auth = UserFromToken {
+            user_id: "user_test".to_string(),
+            merchant_id: workspace.merchant_id.clone(),
+            role_id: ROLE_ID_PROFILE_ADMIN.to_string(),
+            org_id: workspace.organization_id.clone(),
+            profile_id: workspace.profile_id.clone(),
+            tenant_id: Some(tenant_id.clone()),
+        };
+        let config = SuperpositionClientConfig {
+            org_id: "runtime_org".to_string(),
+            workspace_id: "shared".to_string(),
+            proxy_workspaces: vec![workspace],
+            ..Default::default()
+        };
+        (config, auth, tenant_id)
+    }
+
+    fn assert_forbidden(
+        config: &SuperpositionClientConfig,
+        auth: &UserFromToken,
+        tenant_id: &TenantId,
+        org_id: &str,
+        workspace_id: &str,
+    ) {
+        let error = authorize_proxy_workspace(config, auth, tenant_id, org_id, workspace_id)
+            .expect_err("unauthorized target must be rejected");
+        assert!(matches!(
+            error.current_context(),
+            errors::ApiErrorResponse::AccessForbidden { .. }
+        ));
+    }
+
+    #[test]
+    fn proxy_requires_an_explicit_mapping_and_both_target_headers() {
+        let (mut config, auth, tenant_id) = fixture();
+        let workspace = authorize_proxy_workspace(
+            &config,
+            &auth,
+            &tenant_id,
+            "customer_configs",
+            "profile_test",
+        )
+        .expect("the profile owner may access its dedicated workspace");
+        assert_eq!(workspace.superposition_org_id, "customer_configs");
+        assert_eq!(workspace.workspace_id, "profile_test");
+
+        for (org_id, workspace_id) in [
+            ("other_org", "profile_test"),
+            ("customer_configs", "other_workspace"),
+            ("", "profile_test"),
+            ("customer_configs", ""),
+        ] {
+            assert_forbidden(&config, &auth, &tenant_id, org_id, workspace_id);
+        }
+
+        config.proxy_workspaces.clear();
+        assert_forbidden(&config, &auth, &tenant_id, "customer_configs", "profile_test");
+        assert!(SuperpositionClientConfig::default()
+            .proxy_workspaces
+            .is_empty());
+    }
+
+    #[test]
+    fn proxy_checks_every_owner_identifier() {
+        for field in ["tenant_id", "organization_id", "merchant_id", "profile_id"] {
+            let (mut config, auth, tenant_id) = fixture();
+            let mapping = &mut config.proxy_workspaces[0];
+            match field {
+                "tenant_id" => mapping.tenant_id = id("tenant_other"),
+                "organization_id" => mapping.organization_id = id("org_other"),
+                "merchant_id" => mapping.merchant_id = id("merchant_other"),
+                "profile_id" => mapping.profile_id = id("pro_other"),
+                _ => unreachable!(),
+            }
+            assert_forbidden(&config, &auth, &tenant_id, "customer_configs", "profile_test");
+        }
+    }
+
+    #[test]
+    fn proxy_rejects_conflicting_token_tenant() {
+        let (config, mut auth, tenant_id) = fixture();
+        auth.tenant_id = Some(id("tenant_other"));
+        assert_forbidden(&config, &auth, &tenant_id, "customer_configs", "profile_test");
+
+        // Legacy tokens inherit the tenant already selected and checked by JWTAuth.
+        auth.tenant_id = None;
+        assert!(authorize_proxy_workspace(
+            &config,
+            &auth,
+            &tenant_id,
+            "customer_configs",
+            "profile_test",
+        )
+        .is_ok());
+    }
+
+    #[test]
+    fn proxy_rejects_shared_runtime_and_ambiguous_workspaces() {
+        let (mut config, auth, tenant_id) = fixture();
+        config.org_id = "customer_configs".to_string();
+        config.workspace_id = "profile_test".to_string();
+        assert_forbidden(&config, &auth, &tenant_id, "customer_configs", "profile_test");
+
+        config.org_id = "runtime_org".to_string();
+        config
+            .proxy_workspaces
+            .push(config.proxy_workspaces[0].clone());
+        assert_forbidden(&config, &auth, &tenant_id, "customer_configs", "profile_test");
+        config.proxy_workspaces[1].profile_id = id("pro_other");
+        assert_forbidden(&config, &auth, &tenant_id, "customer_configs", "profile_test");
+    }
+
+    #[test]
+    fn context_rejects_non_string_scope_values() {
+        let (_, auth, _) = fixture();
+        for key in [
+            "organization_id",
+            "merchant_id",
+            "profile_id",
+            "provider_merchant_id",
+            "processor_merchant_id",
+        ] {
+            for value in [
+                serde_json::Value::Null,
+                serde_json::json!(42),
+                serde_json::json!(true),
+                serde_json::json!(["other"]),
+                serde_json::json!({"in": ["other"]}),
+            ] {
+                let mut context = serde_json::json!({"profile_id": "pro_test"});
+                context[key] = value;
+                assert!(validate_superposition_context_body(&context, &auth).is_err());
+            }
+        }
+        assert!(validate_superposition_context_body(&serde_json::json!(null), &auth).is_err());
+        assert!(validate_superposition_context_body(
+            &serde_json::json!({"profile_id": "pro_other"}),
+            &auth,
+        )
+        .is_err());
+        assert!(validate_superposition_context_body(
+            &serde_json::json!({"profile_id": "pro_test"}),
+            &auth,
+        )
+        .is_ok());
     }
 }

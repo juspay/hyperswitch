@@ -1696,6 +1696,8 @@ endpoint = "http://localhost:8081" # Superposition service endpoint
 token = "sp_5d72598782fdd5d984f273eb5a452c33a952e07a4e0dd6de8c4ea37a621918d5" # Superposition token
 org_id = "localorg" # Organization ID in Superposition
 workspace_id = "dev" # Workspace ID in Superposition
+# Deny proxy access until dedicated profile workspaces are mapped. See docs/superposition-proxy.md.
+proxy_workspaces = []
 polling_interval = 300 # Polling interval in seconds for configuration updates
 # request_timeout =   # Request timeout in seconds for Superposition API calls (optional, default: none)
 backup_file_path = "./config/superposition_seed.toml" # Path to a local file for fallback configuration. Used when the Superposition HTTP service is unavailable. If set, the client will fall back to reading configuration from this file instead of failing completely. This ensures graceful degradation during network outages or service disruptions.

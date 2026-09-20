@@ -3,7 +3,7 @@
 use std::{collections::HashMap, sync::Arc};
 
 use aws_smithy_types::Document;
-use common_utils::{errors::CustomResult, fp_utils::when};
+use common_utils::{errors::CustomResult, fp_utils::when, id_type};
 use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, Secret};
 
@@ -66,6 +66,25 @@ impl TryFrom<open_feature::StructValue> for JsonValue {
     }
 }
 
+/// A dedicated proxy workspace owned by one authenticated Hyperswitch profile.
+/// These identifiers are provisioned by the operator, never by API callers.
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SuperpositionProxyWorkspace {
+    /// Hyperswitch tenant that owns this workspace.
+    pub tenant_id: id_type::TenantId,
+    /// Hyperswitch organization that owns this workspace.
+    pub organization_id: id_type::OrganizationId,
+    /// Hyperswitch merchant that owns this workspace.
+    pub merchant_id: id_type::MerchantId,
+    /// Hyperswitch profile that owns this workspace.
+    pub profile_id: id_type::ProfileId,
+    /// Upstream Superposition organization, distinct from the Hyperswitch ID.
+    pub superposition_org_id: String,
+    /// Upstream workspace dedicated exclusively to this profile.
+    pub workspace_id: String,
+}
+
 /// Configuration for Superposition integration
 #[derive(Debug, Clone, serde::Deserialize)]
 #[serde(default)]
@@ -78,6 +97,9 @@ pub struct SuperpositionClientConfig {
     pub org_id: String,
     /// Workspace ID in Superposition
     pub workspace_id: String,
+    /// Dedicated workspaces exposed through the authenticated config proxy.
+    /// Empty by default: no caller may proxy requests to the upstream service.
+    pub proxy_workspaces: Vec<SuperpositionProxyWorkspace>,
     /// Polling interval in seconds for configuration updates
     pub polling_interval: u64,
     /// Request timeout in seconds for Superposition API calls (None = no timeout)
@@ -94,6 +116,7 @@ impl Default for SuperpositionClientConfig {
             token: Secret::new(String::new()),
             org_id: String::new(),
             workspace_id: String::new(),
+            proxy_workspaces: Vec::new(),
             polling_interval: 15,
             request_timeout: None,
             backup_file_path: None,
