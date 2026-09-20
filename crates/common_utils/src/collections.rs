@@ -94,7 +94,7 @@ mod correlation {
     /// would halve the key space.
     fn keys_from_correlation(correlation: &str) -> deja::HashKeys {
         fn digest(domain: u8, s: &str) -> u64 {
-            use std::hash::{BuildHasher, Hasher};
+            use std::hash::Hasher;
             // `RandomState::new()` is per-process random; `DefaultHasher::new()`
             // is FIXED-key and therefore stable across processes, which is what
             // a derivation needs. That distinction is the whole point here.
