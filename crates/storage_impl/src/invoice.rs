@@ -65,6 +65,26 @@ impl<T: DatabaseStore> InvoiceInterface for RouterStore<T> {
     }
 
     #[instrument(skip_all)]
+    async fn update_invoice_entry_if_status(
+        &self,
+        key_store: &MerchantKeyStore,
+        invoice_id: String,
+        expected_status: common_enums::InvoiceStatus,
+        data: DomainInvoiceUpdate,
+    ) -> CustomResult<Option<DomainInvoice>, StorageError> {
+        let inv_new = data
+            .construct_new()
+            .await
+            .change_context(StorageError::DecryptionError)?;
+        let conn = connection::pg_connection_write(self).await?;
+        self.find_optional_resource(
+            key_store,
+            Invoice::update_invoice_entry_if_status(&conn, invoice_id, expected_status, inv_new),
+        )
+        .await
+    }
+
+    #[instrument(skip_all)]
     async fn get_latest_invoice_for_subscription(
         &self,
         key_store: &MerchantKeyStore,
@@ -152,6 +172,19 @@ impl<T: DatabaseStore> InvoiceInterface for KVRouterStore<T> {
     }
 
     #[instrument(skip_all)]
+    async fn update_invoice_entry_if_status(
+        &self,
+        key_store: &MerchantKeyStore,
+        invoice_id: String,
+        expected_status: common_enums::InvoiceStatus,
+        data: DomainInvoiceUpdate,
+    ) -> CustomResult<Option<DomainInvoice>, StorageError> {
+        self.router_store
+            .update_invoice_entry_if_status(key_store, invoice_id, expected_status, data)
+            .await
+    }
+
+    #[instrument(skip_all)]
     async fn get_latest_invoice_for_subscription(
         &self,
         key_store: &MerchantKeyStore,
@@ -206,6 +239,16 @@ impl InvoiceInterface for MockDb {
         _invoice_id: String,
         _data: DomainInvoiceUpdate,
     ) -> CustomResult<DomainInvoice, StorageError> {
+        Err(StorageError::MockDbError)?
+    }
+
+    async fn update_invoice_entry_if_status(
+        &self,
+        _key_store: &MerchantKeyStore,
+        _invoice_id: String,
+        _expected_status: common_enums::InvoiceStatus,
+        _data: DomainInvoiceUpdate,
+    ) -> CustomResult<Option<DomainInvoice>, StorageError> {
         Err(StorageError::MockDbError)?
     }
 

@@ -24,6 +24,7 @@ pub struct SubscriptionNew {
     merchant_reference_id: Option<String>,
     plan_id: Option<String>,
     item_price_id: Option<String>,
+    last_applied_billing_period_end: Option<time::PrimitiveDateTime>,
 }
 
 #[derive(
@@ -47,6 +48,7 @@ pub struct Subscription {
     pub merchant_reference_id: Option<String>,
     pub plan_id: Option<String>,
     pub item_price_id: Option<String>,
+    pub last_applied_billing_period_end: Option<time::PrimitiveDateTime>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, AsChangeset, router_derive::DebugAsDisplay, Deserialize)]
@@ -58,6 +60,7 @@ pub struct SubscriptionUpdate {
     pub modified_at: time::PrimitiveDateTime,
     pub plan_id: Option<String>,
     pub item_price_id: Option<String>,
+    pub last_applied_billing_period_end: Option<time::PrimitiveDateTime>,
 }
 
 impl SubscriptionNew {
@@ -96,6 +99,7 @@ impl SubscriptionNew {
             merchant_reference_id,
             plan_id,
             item_price_id,
+            last_applied_billing_period_end: None,
         }
     }
 
@@ -122,6 +126,7 @@ impl SubscriptionUpdate {
             modified_at: common_utils::date_time::now(),
             plan_id,
             item_price_id,
+            last_applied_billing_period_end: None,
         }
     }
 }

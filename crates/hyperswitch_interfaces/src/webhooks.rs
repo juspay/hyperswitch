@@ -449,4 +449,18 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         )
         .into())
     }
+
+    /// Extracts subscription status changes from billing-platform webhooks.
+    fn get_subscription_webhook_data(
+        &self,
+        _request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<
+        hyperswitch_domain_models::router_flow_types::SubscriptionWebhookData,
+        errors::ConnectorError,
+    > {
+        Err(errors::ConnectorError::NotImplemented(
+            "get_subscription_webhook_data method".to_string(),
+        )
+        .into())
+    }
 }

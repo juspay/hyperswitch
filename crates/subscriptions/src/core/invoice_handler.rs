@@ -49,6 +49,7 @@ impl InvoiceHandler {
         provider_name: connector_enums::Connector,
         metadata: Option<pii::SecretSerdeValue>,
         connector_invoice_id: Option<common_utils::id_type::InvoiceId>,
+        billing_period_end: Option<time::PrimitiveDateTime>,
     ) -> errors::SubscriptionResult<hyperswitch_domain_models::invoice::Invoice> {
         let invoice_new = hyperswitch_domain_models::invoice::Invoice::to_invoice(
             self.subscription.id.to_owned(),
@@ -64,6 +65,7 @@ impl InvoiceHandler {
             provider_name,
             metadata,
             connector_invoice_id,
+            billing_period_end,
         );
 
         let invoice = state
@@ -100,6 +102,30 @@ impl InvoiceHandler {
             .attach_printable("invoices: unable to update invoice entry in database")
     }
 
+    pub async fn update_invoice_if_status(
+        &self,
+        state: &SessionState,
+        invoice_id: common_utils::id_type::InvoiceId,
+        expected_status: connector_enums::InvoiceStatus,
+        update_request: hyperswitch_domain_models::invoice::InvoiceUpdateRequest,
+    ) -> errors::SubscriptionResult<Option<hyperswitch_domain_models::invoice::Invoice>> {
+        let update_invoice: hyperswitch_domain_models::invoice::InvoiceUpdate =
+            update_request.into();
+        state
+            .store
+            .update_invoice_entry_if_status(
+                &self.merchant_key_store,
+                invoice_id.get_string_repr().to_string(),
+                expected_status,
+                update_invoice,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::SubscriptionError {
+                operation: "Invoice Conditional Update".to_string(),
+            })
+            .attach_printable("invoices: unable to conditionally update invoice entry")
+    }
+
     pub fn get_amount_and_currency(
         request: (Option<MinorUnit>, Option<api_enums::Currency>),
         invoice_details: Option<subscription_response_types::SubscriptionInvoiceData>,
@@ -128,7 +154,11 @@ impl InvoiceHandler {
             billing: request.billing.clone(),
             shipping: request.shipping.clone(),
             profile_id: Some(self.profile.get_id().clone()),
-            setup_future_usage: payment_details.setup_future_usage,
+            // The initial subscription payment must store an off-session reusable payment method;
+            // default to future merchant-initiated payments when the caller does not specify it.
+            setup_future_usage: payment_details
+                .setup_future_usage
+                .or(Some(api_enums::FutureUsage::OffSession)),
             return_url: Some(payment_details.return_url.clone()),
             capture_method: payment_details.capture_method,
             authentication_type: payment_details.authentication_type,
@@ -175,7 +205,11 @@ impl InvoiceHandler {
             setup_future_usage: payment_details
                 .payment_method_id
                 .is_none()
-                .then_some(payment_details.setup_future_usage)
+                .then_some(
+                    payment_details
+                        .setup_future_usage
+                        .or(Some(api_enums::FutureUsage::OffSession)),
+                )
                 .flatten(),
             return_url: payment_details.return_url.clone(),
             capture_method: payment_details.capture_method,
@@ -185,10 +219,12 @@ impl InvoiceHandler {
             payment_method_data: payment_details.payment_method_data.clone(),
             customer_acceptance: payment_details.customer_acceptance.clone(),
             payment_type: payment_details.payment_type,
-            recurring_details: payment_details
-                .payment_method_id
-                .as_ref()
-                .map(|id| RecurringDetails::PaymentMethodId(id.peek().clone())),
+            recurring_details: payment_details.recurring_details.clone().or_else(|| {
+                payment_details
+                    .payment_method_id
+                    .as_ref()
+                    .map(|id| RecurringDetails::PaymentMethodId(id.peek().clone()))
+            }),
             off_session: Some(payment_details.payment_method_id.is_some()),
         };
         payments_api_client::PaymentsApiClient::create_and_confirm_payment(
@@ -217,6 +253,7 @@ impl InvoiceHandler {
             customer_acceptance: payment_details.customer_acceptance.clone(),
             payment_type: payment_details.payment_type,
             payment_token: payment_details.payment_token.clone(),
+            recurring_details: payment_details.recurring_details.clone(),
         };
         payments_api_client::PaymentsApiClient::confirm_payment(
             state,
@@ -311,16 +348,17 @@ impl InvoiceHandler {
         state: &SessionState,
         amount: MinorUnit,
         currency: common_enums::Currency,
-        payment_method_id: &str,
+        recurring_details: RecurringDetails,
     ) -> errors::SubscriptionResult<subscription_types::PaymentResponseData> {
         let mit_payment_request = subscription_types::CreateMitPaymentRequestData {
             amount,
             currency,
             confirm: true,
             customer_id: Some(self.subscription.customer_id.clone()),
-            recurring_details: Some(RecurringDetails::PaymentMethodId(
-                payment_method_id.to_owned(),
-            )),
+            // Subscription orchestration currently accepts card payments for the initial charge.
+            // Renewals must preserve that type because a connector token alone cannot infer it.
+            payment_method: api_enums::PaymentMethod::Card,
+            recurring_details: Some(recurring_details),
             off_session: Some(true),
             profile_id: Some(self.profile.get_id().clone()),
         };

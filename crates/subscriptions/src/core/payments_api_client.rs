@@ -28,6 +28,10 @@ impl PaymentsApiClient {
     ) -> Vec<(String, hyperswitch_masking::Maskable<String>)> {
         vec![
             (
+                helpers::CONTENT_TYPE.to_string(),
+                hyperswitch_masking::Maskable::Normal(helpers::APPLICATION_JSON.to_string()),
+            ),
+            (
                 helpers::X_INTERNAL_API_KEY.to_string(),
                 hyperswitch_masking::Maskable::Masked(
                     state

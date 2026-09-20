@@ -678,6 +678,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             &mandate_type,
             &token,
             &request.ctp_service_details,
+            request.connector_metadata.as_ref(),
         )?;
 
         //fetch for repeat cit using payment token
@@ -3136,6 +3137,7 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
             })?;
 
         helpers::validate_payment_method_fields_present(request)?;
+        helpers::validate_stripe_hosted_checkout_request(request)?;
 
         let _mandate_type =
             helpers::validate_mandate(request, payments::is_operation_confirm(self))?;

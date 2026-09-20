@@ -45,6 +45,7 @@ impl<'a> SubscriptionHandler<'a> {
         profile: &hyperswitch_domain_models::business_profile::Profile,
         plan_id: Option<String>,
         item_price_id: Option<String>,
+        payment_merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     ) -> errors::SubscriptionResult<SubscriptionWithHandler<'_>> {
         let store = self.state.store.clone();
         let db = store.as_ref();
@@ -59,13 +60,18 @@ impl<'a> SubscriptionHandler<'a> {
             connector_subscription_id: None,
             merchant_id: self.platform.get_processor().get_account().get_id().clone(),
             customer_id: customer_id.clone(),
-            metadata: None,
+            metadata: payment_merchant_connector_id.map(|connector_id| {
+                Secret::new(serde_json::json!({
+                    "payment_merchant_connector_id": connector_id.get_string_repr()
+                }))
+            }),
             created_at: common_utils::date_time::now(),
             modified_at: common_utils::date_time::now(),
             profile_id: profile.get_id().clone(),
             merchant_reference_id,
             plan_id,
             item_price_id,
+            last_applied_billing_period_end: None,
         };
 
         subscription.generate_and_set_client_secret();
@@ -183,7 +189,7 @@ impl<'a> SubscriptionHandler<'a> {
     pub async fn find_and_validate_subscription(
         &self,
         client_secret: &hyperswitch_domain_models::subscription::ClientSecret,
-    ) -> errors::SubscriptionResult<()> {
+    ) -> errors::SubscriptionResult<SubscriptionWithHandler<'_>> {
         let subscription_id = client_secret.get_subscription_id()?;
         let key_store = self.platform.get_processor().get_key_store();
 
@@ -203,7 +209,11 @@ impl<'a> SubscriptionHandler<'a> {
 
         self.validate_client_secret(client_secret, &subscription)?;
 
-        Ok(())
+        Ok(SubscriptionWithHandler {
+            handler: self,
+            subscription,
+            merchant_account: self.platform.get_processor().get_account().clone(),
+        })
     }
 
     pub fn validate_client_secret(
@@ -253,6 +263,34 @@ impl<'a> SubscriptionHandler<'a> {
                 message: format!(
                     "subscription not found for id: {}",
                     subscription_id.get_string_repr()
+                ),
+            })?;
+
+        Ok(SubscriptionWithHandler {
+            handler: self,
+            subscription,
+            merchant_account: self.platform.get_processor().get_account().clone(),
+        })
+    }
+
+    pub async fn find_subscription_by_connector_id(
+        &self,
+        merchant_connector_id: &common_utils::id_type::MerchantConnectorAccountId,
+        connector_subscription_id: String,
+    ) -> errors::SubscriptionResult<SubscriptionWithHandler<'_>> {
+        let subscription = self
+            .state
+            .store
+            .find_by_merchant_id_connector_subscription_id(
+                self.platform.get_processor().get_key_store(),
+                self.platform.get_processor().get_account().get_id(),
+                merchant_connector_id,
+                connector_subscription_id.clone(),
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+                message: format!(
+                    "subscription not found for connector id: {connector_subscription_id}"
                 ),
             })?;
 
@@ -362,6 +400,132 @@ impl SubscriptionWithHandler<'_> {
         self.subscription = updated_subscription;
 
         Ok(())
+    }
+
+    pub async fn update_subscription_if_status(
+        &mut self,
+        expected_status: String,
+        subscription_update: hyperswitch_domain_models::subscription::SubscriptionUpdate,
+    ) -> errors::SubscriptionResult<bool> {
+        let db = self.handler.state.store.as_ref();
+        let updated_subscription = db
+            .update_subscription_entry_if_status(
+                self.handler.platform.get_processor().get_key_store(),
+                self.handler.platform.get_processor().get_account().get_id(),
+                self.subscription.id.get_string_repr().to_string(),
+                expected_status,
+                subscription_update,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::SubscriptionError {
+                operation: "Subscription Conditional Update".to_string(),
+            })
+            .attach_printable("subscriptions: unable to conditionally update subscription")?;
+
+        if let Some(updated_subscription) = updated_subscription {
+            self.subscription = updated_subscription;
+            return Ok(true);
+        }
+
+        self.subscription = db
+            .find_by_merchant_id_subscription_id(
+                self.handler.platform.get_processor().get_key_store(),
+                self.handler.platform.get_processor().get_account().get_id(),
+                self.subscription.id.get_string_repr().to_string(),
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::SubscriptionError {
+                operation: "Subscription Reload".to_string(),
+            })?;
+        Ok(false)
+    }
+
+    pub async fn update_subscription_if_status_and_invoice_status(
+        &mut self,
+        expected_status: String,
+        invoice_id: common_utils::id_type::InvoiceId,
+        expected_invoice_status: common_enums::InvoiceStatus,
+        billing_period_end: time::PrimitiveDateTime,
+        subscription_update: hyperswitch_domain_models::subscription::SubscriptionUpdate,
+    ) -> errors::SubscriptionResult<bool> {
+        let db = self.handler.state.store.as_ref();
+        let updated_subscription = db
+            .update_subscription_entry_if_status_and_invoice_status(
+                self.handler.platform.get_processor().get_key_store(),
+                self.handler.platform.get_processor().get_account().get_id(),
+                self.subscription.id.get_string_repr().to_string(),
+                expected_status,
+                invoice_id,
+                expected_invoice_status,
+                billing_period_end,
+                subscription_update,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::SubscriptionError {
+                operation: "Subscription Invoice-Conditional Update".to_string(),
+            })
+            .attach_printable(
+                "subscriptions: unable to update subscription for the current invoice state",
+            )?;
+
+        if let Some(updated_subscription) = updated_subscription {
+            self.subscription = updated_subscription;
+            return Ok(true);
+        }
+
+        self.subscription = db
+            .find_by_merchant_id_subscription_id(
+                self.handler.platform.get_processor().get_key_store(),
+                self.handler.platform.get_processor().get_account().get_id(),
+                self.subscription.id.get_string_repr().to_string(),
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::SubscriptionError {
+                operation: "Subscription Reload".to_string(),
+            })?;
+        Ok(false)
+    }
+
+    pub async fn bind_connector_subscription_id(
+        &mut self,
+        connector_subscription_id: String,
+    ) -> errors::SubscriptionResult<bool> {
+        let db = self.handler.state.store.as_ref();
+        let updated_subscription = db
+            .bind_connector_subscription_id_if_unset_or_equal(
+                self.handler.platform.get_processor().get_key_store(),
+                self.handler.platform.get_processor().get_account().get_id(),
+                self.subscription.id.get_string_repr().to_string(),
+                connector_subscription_id.clone(),
+                hyperswitch_domain_models::subscription::SubscriptionUpdate::new(
+                    Some(connector_subscription_id),
+                    None,
+                    None,
+                    None,
+                    None,
+                ),
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::SubscriptionError {
+                operation: "Subscription Connector Binding".to_string(),
+            })?;
+
+        if let Some(updated_subscription) = updated_subscription {
+            self.subscription = updated_subscription;
+            return Ok(true);
+        }
+
+        self.subscription = db
+            .find_by_merchant_id_subscription_id(
+                self.handler.platform.get_processor().get_key_store(),
+                self.handler.platform.get_processor().get_account().get_id(),
+                self.subscription.id.get_string_repr().to_string(),
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::SubscriptionError {
+                operation: "Subscription Reload".to_string(),
+            })?;
+        Ok(false)
     }
 
     pub fn get_invoice_handler(

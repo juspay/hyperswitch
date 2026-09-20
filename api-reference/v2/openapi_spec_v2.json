@@ -33914,8 +33914,17 @@
             "type": "boolean",
             "description": "For MIT (merchant-initiated) payments: when true, Stripe fails the payment outright\ninstead of returning a `requires_action` status, since there's no customer present to\ncomplete additional authentication.",
             "nullable": true
+          },
+          "hosted_checkout": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StripeHostedCheckoutConfig"
+              }
+            ],
+            "nullable": true
           }
-        }
+        },
+        "additionalProperties": false
       },
       "StripeSplitPaymentRequest": {
         "type": "object",
