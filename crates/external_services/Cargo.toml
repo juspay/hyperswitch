@@ -66,7 +66,7 @@ dyn-clone = "1.0.19"
 google-cloud-kms = { version = "0.6.0", optional = true }
 # TEMPORARY PIN — deja branch work/teardown-safe-correlation-reader (PR #171).
 # Bump to a main commit once that merges; this must not be reviewed as-is.
-deja = { git = "https://github.com/juspay/deja", rev = "159aadc5e88f3bc789b30a4d4514975005bd4d09", optional = true, default-features = false }
+deja = { git = "https://github.com/juspay/deja", rev = "6e700fb4df9ca400ae55694bf0f496838a010c6e", optional = true, default-features = false }
 error-stack = "0.4.1"
 hex = "0.4.3"
 hyper = "0.14.32"
