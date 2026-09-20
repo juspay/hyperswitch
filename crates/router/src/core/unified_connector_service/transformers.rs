@@ -1944,7 +1944,7 @@ impl
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             description: router_data.description.clone(),
             merchant_transaction_id: None,
-            connector_order_id: None
+            connector_order_id: None,
         })
     }
 }
@@ -2050,7 +2050,7 @@ impl
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             description: router_data.description.clone(),
             merchant_transaction_id: Some(router_data.connector_request_reference_id.clone()),
-            connector_order_id: None
+            connector_order_id: None,
         })
     }
 }
