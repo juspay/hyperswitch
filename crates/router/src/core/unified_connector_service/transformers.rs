@@ -82,6 +82,7 @@ impl ForeignFrom<&api_models::payments::ConnectorMetadata>
             peachpayments: _,
             santander: _,
             worldpayxml,
+            stripe: _,
         } = metadata;
         fn to_snake_case_string<T: serde::Serialize>(value: T) -> Option<String> {
             serde_json::to_value(value)
@@ -1893,6 +1894,9 @@ impl
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
+            // New in the bumped client; the router does not populate it yet, so keep
+            // it absent — what UCS saw before the field existed.
+            connector_order_id: None,
             merchant_order_id: Some(router_data.connector_request_reference_id.clone()),
             amount: Some(payments_grpc::Money {
                 minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
@@ -1995,6 +1999,9 @@ impl
             .map(|s| s.into());
 
         Ok(Self {
+            // New in the bumped client; the router does not populate it yet, so keep
+            // it absent — what UCS saw before the field existed.
+            connector_order_id: None,
             merchant_order_id: Some(router_data.connector_request_reference_id.clone()),
             amount: Some(payments_grpc::Money {
                 minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
@@ -2764,8 +2771,15 @@ impl
             .as_ref()
             .map(ConnectorState::foreign_from);
 
+        let capture_method = router_data
+            .request
+            .capture_method
+            .map(payments_grpc::CaptureMethod::foreign_try_from)
+            .transpose()?;
+
         Ok(Self {
             test_mode: router_data.test_mode,
+            capture_method: capture_method.map(|capture_method| capture_method.into()),
             mit_category: None,
             merchant_recurring_payment_id: router_data.connector_request_reference_id.clone(),
             amount: Some(payments_grpc::Money {
@@ -3953,7 +3967,7 @@ impl
                     mandate_reference: Box::new(response.mandate_reference_details.map(hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from).transpose()?),
                     connector_metadata,
                     network_txn_id: response.network_transaction_id,
-                    network_txn_link_id: None,
+                    network_txn_link_id: response.network_txn_link_id,
                     connector_response_reference_id,
                     payment_account_reference: response.payment_account_reference,
                     incremental_authorization_allowed: response.incremental_authorization_allowed,
@@ -4605,6 +4619,8 @@ impl transformers::ForeignTryFrom<&common_types::payments::ApplePayPaymentData>
                     ),
                 )?;
                 Ok(Self::DecryptedData(payments_grpc::ApplePayDecryptedData {
+                    // New in the bumped client; not populated by the router yet.
+                    merchant_token_identifier: None,
                     application_primary_account_number: Some(application_primary_account_number),
                     application_expiration_month: Some(
                         decrypted_data
