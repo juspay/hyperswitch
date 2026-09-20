@@ -58,7 +58,7 @@ where
     // Generated once per process rather than per poll iteration, so that the Redis consumer
     // group registers a single, stable consumer for the lifetime of this process instead of
     // accumulating a new entry on every poll (entries are never expired by Redis).
-    let consumer_name = format!("consumer_{}", Uuid::new_v4());
+    let consumer_name = format!("consumer_{}", common_utils::generate_uuid_v4());
 
     let consumer_operation_counter = sync::Arc::new(atomic::AtomicU64::new(0));
     let signal = get_allowed_signals()
@@ -115,6 +115,31 @@ where
                     match active_tasks {
                         0 => {
                             logger::info!("Terminating consumer");
+                            for tenant in state.get_tenants() {
+                                let session_state = app_state_to_session_state(state, &tenant)?;
+                                let stream_name = match session_state.get_application_source() {
+                                    enums::ApplicationSource::Main => settings.stream.clone(),
+                                    enums::ApplicationSource::Cug => {
+                                        settings.cug_stream.clone()
+                                    }
+                                };
+                                let group_name = settings.consumer.consumer_group.clone();
+                                if let Err(error) = session_state
+                                    .get_db()
+                                    .consumer_group_remove_consumer(
+                                        &stream_name,
+                                        &group_name,
+                                        &consumer_name,
+                                    )
+                                    .await
+                                {
+                                    logger::error!(
+                                        ?error,
+                                        %tenant,
+                                        "Failed to remove consumer from consumer group during graceful shutdown"
+                                    );
+                                }
+                            }
                             break 'consumer;
                         }
                         _ => continue,
