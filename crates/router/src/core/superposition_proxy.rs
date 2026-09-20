@@ -12,11 +12,10 @@ use external_services::superposition::{
     list_dimensions_to_response, map_sdk_error, parse_datetime,
     resolve_config_explanation_to_response, types::SuperpositionProxyWorkspace, value_to_document,
     AuditAction, ContextFilterSortOn, ContextPutRequest, CreateContextInputBuilder, DateTime,
-    DimensionMatchStrategy,
-    GetDefaultConfigInputBuilder, GetDetailedResolvedConfigInputBuilder, GetDimensionInputBuilder,
-    GetResolvedConfigExplanationInputBuilder, ListAuditLogsInputBuilder, ListContextsInputBuilder,
-    ListDefaultConfigsInputBuilder, ListDimensionsInputBuilder, SortBy, SuperpositionClientConfig,
-    SuperpositionError,
+    DimensionMatchStrategy, GetDefaultConfigInputBuilder, GetDetailedResolvedConfigInputBuilder,
+    GetDimensionInputBuilder, GetResolvedConfigExplanationInputBuilder, ListAuditLogsInputBuilder,
+    ListContextsInputBuilder, ListDefaultConfigsInputBuilder, ListDimensionsInputBuilder, SortBy,
+    SuperpositionClientConfig, SuperpositionError,
 };
 
 use crate::{
@@ -954,7 +953,13 @@ mod tests {
         }
 
         config.proxy_workspaces.clear();
-        assert_forbidden(&config, &auth, &tenant_id, "customer_configs", "profile_test");
+        assert_forbidden(
+            &config,
+            &auth,
+            &tenant_id,
+            "customer_configs",
+            "profile_test",
+        );
         assert!(SuperpositionClientConfig::default()
             .proxy_workspaces
             .is_empty());
@@ -972,7 +977,13 @@ mod tests {
                 "profile_id" => mapping.profile_id = id("pro_other"),
                 _ => unreachable!(),
             }
-            assert_forbidden(&config, &auth, &tenant_id, "customer_configs", "profile_test");
+            assert_forbidden(
+                &config,
+                &auth,
+                &tenant_id,
+                "customer_configs",
+                "profile_test",
+            );
         }
     }
 
@@ -980,7 +991,13 @@ mod tests {
     fn proxy_rejects_conflicting_token_tenant() {
         let (config, mut auth, tenant_id) = fixture();
         auth.tenant_id = Some(id("tenant_other"));
-        assert_forbidden(&config, &auth, &tenant_id, "customer_configs", "profile_test");
+        assert_forbidden(
+            &config,
+            &auth,
+            &tenant_id,
+            "customer_configs",
+            "profile_test",
+        );
 
         // Legacy tokens inherit the tenant already selected and checked by JWTAuth.
         auth.tenant_id = None;
@@ -999,15 +1016,33 @@ mod tests {
         let (mut config, auth, tenant_id) = fixture();
         config.org_id = "customer_configs".to_string();
         config.workspace_id = "profile_test".to_string();
-        assert_forbidden(&config, &auth, &tenant_id, "customer_configs", "profile_test");
+        assert_forbidden(
+            &config,
+            &auth,
+            &tenant_id,
+            "customer_configs",
+            "profile_test",
+        );
 
         config.org_id = "runtime_org".to_string();
         config
             .proxy_workspaces
             .push(config.proxy_workspaces[0].clone());
-        assert_forbidden(&config, &auth, &tenant_id, "customer_configs", "profile_test");
+        assert_forbidden(
+            &config,
+            &auth,
+            &tenant_id,
+            "customer_configs",
+            "profile_test",
+        );
         config.proxy_workspaces[1].profile_id = id("pro_other");
-        assert_forbidden(&config, &auth, &tenant_id, "customer_configs", "profile_test");
+        assert_forbidden(
+            &config,
+            &auth,
+            &tenant_id,
+            "customer_configs",
+            "profile_test",
+        );
     }
 
     #[test]
