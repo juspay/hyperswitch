@@ -7,4 +7,9 @@
 //!
 //! Distinct from [`crate::domain`], which holds the traits that say what delivering an alert *is*.
 
+pub mod alert_manager;
 pub mod alerts_info;
+pub(crate) mod utils;
+
+pub(crate) const SHORT_TEXT_MAX_CHARS: usize = 64;
+pub(crate) const LONG_TEXT_MAX_CHARS: usize = 255;
