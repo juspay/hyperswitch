@@ -183,6 +183,11 @@ where
 // Deja: the one seam every keymanager operation crosses. Substituted on replay
 // so recorded ciphertext comes back verbatim and replay does not depend on a
 // live keymanager.
+// No `on_miss`, deliberately: this is egress returning ciphertext, so a
+// synthesized value would claim the key manager answered when it did not, and
+// every decryption downstream would consume it as recorded truth. The in-memory
+// cache reads declare `on_miss` because "not in this process's cache" is true on
+// replay; that is not true here.
 #[cfg_attr(
     feature = "deja",
     deja::boundary(

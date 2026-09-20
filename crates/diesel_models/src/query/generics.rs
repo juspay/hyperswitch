@@ -582,6 +582,9 @@ where
     mapped
 }
 
+// Deja: no `on_miss`, deliberately. A count is branched on, and the only value
+// left to synthesize is a number nobody counted — zero asserts the table held no
+// matching rows, which the recording never showed. A miss stops.
 #[cfg_attr(
     feature = "deja",
     deja::boundary(
