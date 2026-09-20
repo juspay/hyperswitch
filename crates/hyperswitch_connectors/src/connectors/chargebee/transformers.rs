@@ -587,32 +587,24 @@ impl ChargebeeTransactionPaymentMethod {
             Self::Other => None,
         }
     }
-
-    fn parse_payment_method_details(
-        self,
-        raw_details: &str,
-    ) -> Result<ChargebeePaymentMethodDetails, error_stack::Report<errors::ConnectorError>> {
-        match self {
-            Self::Card | Self::UnionPay | Self::SouthKoreanCards => {
-                let details: ChargebeeCardPaymentMethodDetails = serde_json::from_str(raw_details)
-                    .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-                Ok(ChargebeePaymentMethodDetails::Card(details.card))
-            }
-            _ => Ok(ChargebeePaymentMethodDetails::NonCard),
-        }
-    }
-}
-
-#[derive(Debug)]
-pub enum ChargebeePaymentMethodDetails {
-    Card(ChargebeeCardDetails),
-    NonCard,
 }
 
 #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
 #[derive(Deserialize, Debug)]
 struct ChargebeeCardPaymentMethodDetails {
     card: ChargebeeCardDetails,
+}
+
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+impl ChargebeeCardPaymentMethodDetails {
+    // Wallets such as Apple Pay, Google Pay and PayPal can also be funded by a card, in which
+    // case Chargebee sends the underlying card details in `payment_method_details`. Anything
+    // that doesn't carry card details is simply not populated instead of being treated as an error.
+    fn parse_card_details(raw_details: &str) -> Option<ChargebeeCardDetails> {
+        serde_json::from_str::<Self>(raw_details)
+            .ok()
+            .map(|details| details.card)
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -673,7 +665,7 @@ impl From<ChargebeeCardBrand> for Option<common_enums::CardNetwork> {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 #[serde(rename_all = "snake_case")]
 pub enum ChargebeeFundingType {
     Credit,
@@ -861,32 +853,30 @@ impl TryFrom<ChargebeeWebhookBody> for revenue_recovery::RevenueRecoveryAttemptD
         let status = enums::AttemptStatus::from(item.content.transaction.status);
         let chargebee_payment_method = item.content.transaction.payment_method;
         let payment_method_type = enums::PaymentMethod::try_from(chargebee_payment_method)?;
-        let payment_method_details = item
+        let card_details = item
             .content
             .transaction
             .payment_method_details
             .as_deref()
-            .map(|raw_details| chargebee_payment_method.parse_payment_method_details(raw_details))
-            .transpose()?;
-        let (payment_method_sub_type, card_info) = match payment_method_details {
-            Some(ChargebeePaymentMethodDetails::Card(card)) => (
-                enums::PaymentMethodType::from(card.funding_type),
-                api_models::payments::AdditionalCardInfo {
-                    card_network: card.brand.into(),
-                    card_isin: Some(card.iin),
-                    ..Default::default()
-                },
-            ),
-            Some(ChargebeePaymentMethodDetails::NonCard) | None => (
-                chargebee_payment_method.payment_method_sub_type().ok_or(
-                    errors::ConnectorError::NotSupported {
-                        message: "payment method in revenue recovery webhook".to_string(),
-                        connector: "chargebee",
-                    },
-                )?,
-                api_models::payments::AdditionalCardInfo::default(),
-            ),
-        };
+            .and_then(ChargebeeCardPaymentMethodDetails::parse_card_details);
+        let payment_method_sub_type = chargebee_payment_method
+            .payment_method_sub_type()
+            .or_else(|| {
+                card_details
+                    .as_ref()
+                    .map(|card| enums::PaymentMethodType::from(card.funding_type))
+            })
+            .ok_or(errors::ConnectorError::NotSupported {
+                message: "payment method in revenue recovery webhook".to_string(),
+                connector: "chargebee",
+            })?;
+        let card_info = card_details
+            .map(|card| api_models::payments::AdditionalCardInfo {
+                card_network: card.brand.into(),
+                card_isin: Some(card.iin),
+                ..Default::default()
+            })
+            .unwrap_or_default();
         // Chargebee retry count will always be less than u16 always. Chargebee can have maximum 12 retry attempts
         #[allow(clippy::as_conversions)]
         let retry_count = item
