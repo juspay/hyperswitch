@@ -157,6 +157,7 @@ run_tests() {
   read -r -a payment_method_list <<< "${PAYMENT_METHOD_LIST:-}"
   read -r -a routing <<< "${ROUTING:-}"
   read -r -a platform <<< "${PLATFORM_CONNECTORS:-}"
+  read -r -a misc <<< "${MISC_CONNECTORS:-}"
 
   declare -A env_to_service=(
     ["PAYMENTS_CONNECTORS"]="payments"
@@ -164,6 +165,7 @@ run_tests() {
     ["PAYMENT_METHOD_LIST"]="payment_method_list"
     ["ROUTING"]="routing"
     ["PLATFORM_CONNECTORS"]="platform"
+    ["MISC_CONNECTORS"]="misc"
   )
 
   local active_services=()
