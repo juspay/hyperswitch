@@ -43,6 +43,10 @@ pub struct CreateSubscriptionRequest {
     /// customer ID associated with this subscription.
     pub customer_id: CustomerId,
 
+    /// Payment connector account that must process the first payment. Stripe Hosted Checkout and
+    /// Stripe Billing must use the same merchant configuration to prevent cross-account binding.
+    pub payment_merchant_connector_id: Option<MerchantConnectorAccountId>,
+
     /// payment details for the subscription.
     pub payment_details: CreateSubscriptionPaymentDetails,
 
@@ -212,16 +216,21 @@ pub struct ConfirmSubscriptionPaymentDetails {
     pub payment_type: Option<PaymentType>,
     #[schema(value_type = Option<String>, example = "token_sxJdmpUnpNsJk5VWzcjl")]
     pub payment_token: Option<Secret<String>>,
+    /// Existing connector-native payment credential. Stripe Billing uses a
+    /// `ProcessorPaymentToken` as the subscription's default payment method for renewals.
+    pub recurring_details: Option<RecurringDetails>,
 }
 
 impl ConfirmSubscriptionPaymentDetails {
     pub fn validate(&self) -> Result<(), error_stack::Report<ValidationError>> {
         fp_utils::when(
-            self.payment_method_data.is_none() && self.payment_token.is_none(),
+            self.payment_method_data.is_none()
+                && self.payment_token.is_none()
+                && self.recurring_details.is_none(),
             || {
                 Err(ValidationError::MissingRequiredField {
                     field_name: String::from(
-                        "Either payment_method_data or payment_token must be present",
+                        "One of payment_method_data, payment_token or recurring_details must be present",
                     ),
                 }
                 .into())
@@ -256,16 +265,21 @@ pub struct PaymentDetails {
     pub payment_type: Option<PaymentType>,
     #[schema(value_type = Option<String>, example = "pm_01926c58bc6e77c09e809964e72af8c8")]
     pub payment_method_id: Option<Secret<String>>,
+    /// Connector-native token, such as a `pm_*` created by Stripe.js, bound to the selected
+    /// payment connector by Hyperswitch.
+    pub recurring_details: Option<RecurringDetails>,
 }
 
 impl PaymentDetails {
     pub fn validate(&self) -> Result<(), error_stack::Report<ValidationError>> {
         fp_utils::when(
-            self.payment_method_data.is_none() && self.payment_method_id.is_none(),
+            self.payment_method_data.is_none()
+                && self.payment_method_id.is_none()
+                && self.recurring_details.is_none(),
             || {
                 Err(ValidationError::MissingRequiredField {
                     field_name: String::from(
-                        "Either payment_method_data or payment_method_id must be present",
+                        "One of payment_method_data, payment_method_id or recurring_details must be present",
                     ),
                 }
                 .into())
@@ -307,6 +321,8 @@ pub struct ConfirmPaymentsRequestData {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schema(value_type = Option<String>, example = "token_sxJdmpUnpNsJk5VWzcjl")]
     pub payment_token: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub recurring_details: Option<RecurringDetails>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
@@ -345,9 +361,19 @@ pub struct PaymentResponseData {
     pub currency: Currency,
     pub profile_id: Option<ProfileId>,
     pub connector: Option<String>,
+    /// Payment connector account used for the first payment and required for subsequent charges.
+    pub merchant_connector_id: Option<MerchantConnectorAccountId>,
+    /// Business reference returned by the connector; a native Stripe subscription returns `sub_*`.
+    #[serde(rename = "reference_id")]
+    pub connector_response_reference_id: Option<String>,
     /// Identifier for Payment Method
     #[schema(value_type = Option<String>, example = "pm_01926c58bc6e77c09e809964e72af8c8")]
     pub payment_method_id: Option<Secret<String>>,
+    /// Reusable credential returned by the connector. Some connectors return it only after the
+    /// initial on-session payment, and subscription orchestration needs it for off-session charges.
+    #[serde(skip_serializing)]
+    #[schema(value_type = Option<String>, example = "pm_01926c58bc6e77c09e809964e72af8c8")]
+    pub connector_mandate_id: Option<Secret<String>>,
     /// The url to which user must be redirected to after completion of the purchase
     #[schema(value_type = Option<String>)]
     pub return_url: Option<Url>,
@@ -370,6 +396,16 @@ impl PaymentResponseData {
     pub fn get_billing_address(&self) -> Option<Address> {
         self.billing.clone()
     }
+
+    /// Returns the reusable payment credential required for subsequent charges.
+    ///
+    /// Prefers a stored Hyperswitch payment method, then falls back to the connector mandate or
+    /// token when the initial payment has not created one yet.
+    pub fn reusable_payment_method_id(&self) -> Option<Secret<String>> {
+        self.payment_method_id
+            .clone()
+            .or_else(|| self.connector_mandate_id.clone())
+    }
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -378,6 +414,7 @@ pub struct CreateMitPaymentRequestData {
     pub currency: Currency,
     pub confirm: bool,
     pub customer_id: Option<CustomerId>,
+    pub payment_method: PaymentMethod,
     pub recurring_details: Option<RecurringDetails>,
     pub off_session: Option<bool>,
     pub profile_id: Option<ProfileId>,
@@ -388,6 +425,10 @@ pub struct ConfirmSubscriptionRequest {
     #[schema(value_type = Option<String>)]
     /// This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK
     pub client_secret: Option<ClientSecret>,
+
+    /// Indicates that the client already confirmed the first payment. Hyperswitch reloads and
+    /// validates it, and creates the billing-platform subscription only after payment succeeds.
+    pub payment_already_confirmed: Option<bool>,
 
     /// Payment details for the invoice.
     pub payment_details: ConfirmSubscriptionPaymentDetails,
@@ -404,7 +445,11 @@ impl ConfirmSubscriptionRequest {
 
     // Perform validation on ConfirmSubscriptionRequest fields
     pub fn validate(&self) -> Result<(), error_stack::Report<ValidationError>> {
-        self.payment_details.validate()
+        if self.payment_already_confirmed.unwrap_or(false) {
+            Ok(())
+        } else {
+            self.payment_details.validate()
+        }
     }
 }
 

@@ -105,7 +105,7 @@ pub async fn pause_subscription(
         Err(response) => return response,
     };
     Box::pin(oss_api::server_wrap(
-        flow,
+        flow.clone(),
         state,
         &req,
         json_payload.into_inner(),
@@ -122,7 +122,15 @@ pub async fn pause_subscription(
             allow_connected_scope_operation: false,
             allow_platform_self_operation: false,
         }),
-        api_locking::LockAction::NotApplicable,
+        api_locking::LockAction::Hold {
+            input: api_locking::LockingInput {
+                // Pause, resume, and cancel share a subscription-level lock so different actions
+                // remain mutually exclusive.
+                unique_locking_key: subscription_id.get_string_repr().to_owned(),
+                api_identifier: crate::routes::lock_utils::ApiIdentifier::from(flow),
+                override_lock_retries: None,
+            },
+        },
     ))
     .await
 }
@@ -141,7 +149,7 @@ pub async fn resume_subscription(
         Err(response) => return response,
     };
     Box::pin(oss_api::server_wrap(
-        flow,
+        flow.clone(),
         state,
         &req,
         json_payload.into_inner(),
@@ -158,7 +166,13 @@ pub async fn resume_subscription(
             allow_connected_scope_operation: false,
             allow_platform_self_operation: false,
         }),
-        api_locking::LockAction::NotApplicable,
+        api_locking::LockAction::Hold {
+            input: api_locking::LockingInput {
+                unique_locking_key: subscription_id.get_string_repr().to_owned(),
+                api_identifier: crate::routes::lock_utils::ApiIdentifier::from(flow),
+                override_lock_retries: None,
+            },
+        },
     ))
     .await
 }
@@ -177,7 +191,7 @@ pub async fn cancel_subscription(
         Err(response) => return response,
     };
     Box::pin(oss_api::server_wrap(
-        flow,
+        flow.clone(),
         state,
         &req,
         json_payload.into_inner(),
@@ -194,7 +208,13 @@ pub async fn cancel_subscription(
             allow_connected_scope_operation: false,
             allow_platform_self_operation: false,
         }),
-        api_locking::LockAction::NotApplicable,
+        api_locking::LockAction::Hold {
+            input: api_locking::LockingInput {
+                unique_locking_key: subscription_id.get_string_repr().to_owned(),
+                api_identifier: crate::routes::lock_utils::ApiIdentifier::from(flow),
+                override_lock_retries: None,
+            },
+        },
     ))
     .await
 }
@@ -238,7 +258,7 @@ pub async fn confirm_subscription(
     };
 
     Box::pin(oss_api::server_wrap(
-        flow,
+        flow.clone(),
         state,
         &req,
         payload,
@@ -264,7 +284,15 @@ pub async fn confirm_subscription(
             },
             req.headers(),
         ),
-        api_locking::LockAction::NotApplicable,
+        api_locking::LockAction::Hold {
+            input: api_locking::LockingInput {
+                // Serialize repeated confirmations for one subscription to prevent duplicate
+                // subscriptions on the external billing platform.
+                unique_locking_key: subscription_id.get_string_repr().to_owned(),
+                api_identifier: crate::routes::lock_utils::ApiIdentifier::from(flow),
+                override_lock_retries: None,
+            },
+        },
     ))
     .await
 }

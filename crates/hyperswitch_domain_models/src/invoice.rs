@@ -28,6 +28,7 @@ pub struct Invoice {
     pub provider_name: common_enums::connector_enums::Connector,
     pub metadata: Option<SecretSerdeValue>,
     pub connector_invoice_id: Option<common_utils::id_type::InvoiceId>,
+    pub billing_period_end: Option<time::PrimitiveDateTime>,
 }
 
 #[async_trait::async_trait]
@@ -55,6 +56,7 @@ impl super::behaviour::Conversion for Invoice {
             created_at: now,
             modified_at: now,
             connector_invoice_id: self.connector_invoice_id,
+            billing_period_end: self.billing_period_end,
         })
     }
 
@@ -82,6 +84,7 @@ impl super::behaviour::Conversion for Invoice {
             provider_name: item.provider_name,
             metadata: item.metadata,
             connector_invoice_id: item.connector_invoice_id,
+            billing_period_end: item.billing_period_end,
         })
     }
 
@@ -98,8 +101,9 @@ impl super::behaviour::Conversion for Invoice {
             self.currency.to_string(),
             self.status,
             self.provider_name,
-            None,
+            self.metadata,
             self.connector_invoice_id,
+            self.billing_period_end,
         ))
     }
 }
@@ -120,6 +124,7 @@ impl Invoice {
         provider_name: common_enums::connector_enums::Connector,
         metadata: Option<SecretSerdeValue>,
         connector_invoice_id: Option<common_utils::id_type::InvoiceId>,
+        billing_period_end: Option<time::PrimitiveDateTime>,
     ) -> Self {
         Self {
             id: common_utils::id_type::InvoiceId::generate(),
@@ -136,6 +141,7 @@ impl Invoice {
             provider_name,
             metadata,
             connector_invoice_id,
+            billing_period_end,
         }
     }
 }
@@ -162,6 +168,14 @@ pub trait InvoiceInterface {
         data: InvoiceUpdate,
     ) -> CustomResult<Invoice, Self::Error>;
 
+    async fn update_invoice_entry_if_status(
+        &self,
+        key_store: &MerchantKeyStore,
+        invoice_id: String,
+        expected_status: common_enums::connector_enums::InvoiceStatus,
+        data: InvoiceUpdate,
+    ) -> CustomResult<Option<Invoice>, Self::Error>;
+
     async fn get_latest_invoice_for_subscription(
         &self,
         key_store: &MerchantKeyStore,
@@ -184,6 +198,7 @@ pub struct InvoiceUpdate {
     pub payment_intent_id: Option<common_utils::id_type::PaymentId>,
     pub amount: Option<MinorUnit>,
     pub currency: Option<String>,
+    pub billing_period_end: Option<time::PrimitiveDateTime>,
 }
 
 #[derive(Debug, Clone)]
@@ -196,6 +211,7 @@ pub struct AmountAndCurrencyUpdate {
 pub struct ConnectorAndStatusUpdate {
     pub connector_invoice_id: common_utils::id_type::InvoiceId,
     pub status: common_enums::connector_enums::InvoiceStatus,
+    pub billing_period_end: Option<time::PrimitiveDateTime>,
 }
 
 #[derive(Debug, Clone)]
@@ -228,9 +244,18 @@ impl InvoiceUpdateRequest {
         connector_invoice_id: common_utils::id_type::InvoiceId,
         status: common_enums::connector_enums::InvoiceStatus,
     ) -> Self {
+        Self::update_connector_status_and_period(connector_invoice_id, status, None)
+    }
+
+    pub fn update_connector_status_and_period(
+        connector_invoice_id: common_utils::id_type::InvoiceId,
+        status: common_enums::connector_enums::InvoiceStatus,
+        billing_period_end: Option<time::PrimitiveDateTime>,
+    ) -> Self {
         Self::Connector(ConnectorAndStatusUpdate {
             connector_invoice_id,
             status,
+            billing_period_end,
         })
     }
 
@@ -263,6 +288,7 @@ impl From<InvoiceUpdateRequest> for InvoiceUpdate {
                 payment_intent_id: None,
                 amount: Some(update.amount),
                 currency: Some(update.currency),
+                billing_period_end: None,
             },
             InvoiceUpdateRequest::Connector(update) => Self {
                 status: Some(update.status),
@@ -272,6 +298,7 @@ impl From<InvoiceUpdateRequest> for InvoiceUpdate {
                 payment_intent_id: None,
                 amount: None,
                 currency: None,
+                billing_period_end: update.billing_period_end,
             },
             InvoiceUpdateRequest::PaymentStatus(update) => Self {
                 status: Some(update.status),
@@ -285,6 +312,7 @@ impl From<InvoiceUpdateRequest> for InvoiceUpdate {
                 payment_intent_id: update.payment_intent_id,
                 amount: None,
                 currency: None,
+                billing_period_end: None,
             },
         }
     }
@@ -304,6 +332,7 @@ impl super::behaviour::Conversion for InvoiceUpdate {
             payment_intent_id: self.payment_intent_id,
             amount: self.amount,
             currency: self.currency,
+            billing_period_end: self.billing_period_end,
         })
     }
 
@@ -324,6 +353,7 @@ impl super::behaviour::Conversion for InvoiceUpdate {
             payment_intent_id: item.payment_intent_id,
             amount: item.amount,
             currency: item.currency,
+            billing_period_end: item.billing_period_end,
         })
     }
 
@@ -336,6 +366,7 @@ impl super::behaviour::Conversion for InvoiceUpdate {
             payment_intent_id: self.payment_intent_id,
             amount: self.amount,
             currency: self.currency,
+            billing_period_end: self.billing_period_end,
         })
     }
 }
@@ -357,6 +388,7 @@ impl InvoiceUpdate {
             payment_intent_id,
             amount,
             currency,
+            billing_period_end: None,
         }
     }
 }

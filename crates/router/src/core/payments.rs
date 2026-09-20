@@ -11917,6 +11917,40 @@ where
     )
     .await?;
 
+    let connector_metadata = payment_data
+        .get_payment_intent()
+        .connector_metadata
+        .clone()
+        .map(|metadata| {
+            metadata
+                .parse_value::<api_models::payments::ConnectorMetadata>("ConnectorMetadata")
+                .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Invalid connector_metadata for payment routing".to_string(),
+                })
+        })
+        .transpose()?;
+    if helpers::is_stripe_hosted_checkout(connector_metadata.as_ref()) {
+        let all_connectors_are_stripe = match &decided_connector {
+            ConnectorCallType::PreDetermined(connector) => {
+                connector.connector_data.connector_name.to_string() == "stripe"
+            }
+            ConnectorCallType::Retryable(connectors) => {
+                !connectors.is_empty()
+                    && connectors.iter().all(|connector| {
+                        connector.connector_data.connector_name.to_string() == "stripe"
+                    })
+            }
+            ConnectorCallType::SessionMultiple(_) => false,
+        };
+        if !all_connectors_are_stripe {
+            return Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Stripe hosted checkout cannot retry through a non-Stripe connector"
+                    .to_string(),
+            }
+            .into());
+        }
+    }
+
     let encoded_info = routing_data
         .routing_info
         .encode_to_value()

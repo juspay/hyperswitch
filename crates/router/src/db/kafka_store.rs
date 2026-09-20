@@ -4873,6 +4873,19 @@ impl InvoiceInterface for KafkaStore {
     }
 
     #[instrument(skip_all)]
+    async fn update_invoice_entry_if_status(
+        &self,
+        key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
+        invoice_id: String,
+        expected_status: common_enums::InvoiceStatus,
+        data: DomainInvoiceUpdate,
+    ) -> CustomResult<Option<DomainInvoice>, errors::StorageError> {
+        self.diesel_store
+            .update_invoice_entry_if_status(key_store, invoice_id, expected_status, data)
+            .await
+    }
+
+    #[instrument(skip_all)]
     async fn get_latest_invoice_for_subscription(
         &self,
         key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
@@ -4928,6 +4941,24 @@ impl SubscriptionInterface for KafkaStore {
     }
 
     #[instrument(skip_all)]
+    async fn find_by_merchant_id_connector_subscription_id(
+        &self,
+        key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
+        merchant_id: &id_type::MerchantId,
+        merchant_connector_id: &id_type::MerchantConnectorAccountId,
+        connector_subscription_id: String,
+    ) -> CustomResult<DomainSubscription, errors::StorageError> {
+        self.diesel_store
+            .find_by_merchant_id_connector_subscription_id(
+                key_store,
+                merchant_id,
+                merchant_connector_id,
+                connector_subscription_id,
+            )
+            .await
+    }
+
+    #[instrument(skip_all)]
     async fn update_subscription_entry(
         &self,
         key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
@@ -4937,6 +4968,72 @@ impl SubscriptionInterface for KafkaStore {
     ) -> CustomResult<DomainSubscription, errors::StorageError> {
         self.diesel_store
             .update_subscription_entry(key_store, merchant_id, subscription_id, data)
+            .await
+    }
+
+    #[instrument(skip_all)]
+    async fn update_subscription_entry_if_status(
+        &self,
+        key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
+        merchant_id: &id_type::MerchantId,
+        subscription_id: String,
+        expected_status: String,
+        data: DomainSubscriptionUpdate,
+    ) -> CustomResult<Option<DomainSubscription>, errors::StorageError> {
+        self.diesel_store
+            .update_subscription_entry_if_status(
+                key_store,
+                merchant_id,
+                subscription_id,
+                expected_status,
+                data,
+            )
+            .await
+    }
+
+    #[instrument(skip_all)]
+    async fn update_subscription_entry_if_status_and_invoice_status(
+        &self,
+        key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
+        merchant_id: &id_type::MerchantId,
+        subscription_id: String,
+        expected_status: String,
+        invoice_id: id_type::InvoiceId,
+        expected_invoice_status: common_enums::InvoiceStatus,
+        billing_period_end: PrimitiveDateTime,
+        data: DomainSubscriptionUpdate,
+    ) -> CustomResult<Option<DomainSubscription>, errors::StorageError> {
+        self.diesel_store
+            .update_subscription_entry_if_status_and_invoice_status(
+                key_store,
+                merchant_id,
+                subscription_id,
+                expected_status,
+                invoice_id,
+                expected_invoice_status,
+                billing_period_end,
+                data,
+            )
+            .await
+    }
+
+    #[instrument(skip_all)]
+    async fn bind_connector_subscription_id_if_unset_or_equal(
+        &self,
+        key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
+        merchant_id: &id_type::MerchantId,
+        subscription_id: String,
+        connector_subscription_id: String,
+        data: DomainSubscriptionUpdate,
+    ) -> CustomResult<Option<DomainSubscription>, errors::StorageError> {
+        self.diesel_store
+            .bind_connector_subscription_id_if_unset_or_equal(
+                key_store,
+                merchant_id,
+                subscription_id,
+                connector_subscription_id,
+                data,
+            )
             .await
     }
 

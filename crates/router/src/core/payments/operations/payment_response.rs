@@ -77,6 +77,9 @@ use crate::{
     utils,
 };
 
+#[cfg(feature = "v1")]
+const STRIPE_CHECKOUT_SESSION_ID_PREFIX: &str = "cs_";
+
 #[cfg(any(feature = "v1", all(test, feature = "deja")))]
 fn spawn_save_payment_method<F>(future: F)
 where
@@ -189,6 +192,98 @@ fn get_additional_payment_method_data_from_psync(
     } else {
         None
     }
+}
+
+#[cfg(feature = "v1")]
+fn should_preserve_stripe_checkout_success(
+    status: enums::AttemptStatus,
+    connector: Option<&str>,
+    connector_metadata: Option<&serde_json::Value>,
+) -> bool {
+    status == enums::AttemptStatus::Charged
+        && connector == Some("stripe")
+        && connector_metadata
+            .and_then(|metadata| metadata.get("stripe_checkout_session_id"))
+            .and_then(serde_json::Value::as_str)
+            .is_some_and(|id| id.starts_with(STRIPE_CHECKOUT_SESSION_ID_PREFIX))
+}
+
+#[cfg(feature = "v1")]
+fn should_preserve_completed_stripe_checkout(
+    stored_status: enums::AttemptStatus,
+    stored_id: Option<&str>,
+    connector: Option<&str>,
+    stored_connector_metadata: Option<&serde_json::Value>,
+    connector_metadata: Option<&serde_json::Value>,
+) -> bool {
+    if stored_status != enums::AttemptStatus::Charged || connector != Some("stripe") {
+        return false;
+    }
+    let Some(session_id) = connector_metadata
+        .and_then(|metadata| metadata.get("stripe_checkout_session_id"))
+        .and_then(serde_json::Value::as_str)
+        .filter(|id| id.starts_with(STRIPE_CHECKOUT_SESSION_ID_PREFIX))
+    else {
+        return false;
+    };
+    let stored_session_id = stored_connector_metadata
+        .and_then(|metadata| metadata.get("stripe_checkout_session_id"))
+        .and_then(serde_json::Value::as_str);
+
+    stored_session_id == Some(session_id)
+        && stored_id.is_some_and(|id| id == session_id || id.starts_with("pi_"))
+}
+
+#[cfg(feature = "v1")]
+fn is_valid_stripe_checkout_transaction_id_transition(
+    stored_id: Option<&str>,
+    response_id: Option<&str>,
+    connector: Option<&str>,
+    stored_connector_metadata: Option<&serde_json::Value>,
+    connector_metadata: Option<&serde_json::Value>,
+    preserve_completed_checkout: bool,
+) -> bool {
+    let Some(stored_id) = stored_id else {
+        return true;
+    };
+    let checkout_session_id = connector_metadata
+        .and_then(|metadata| metadata.get("stripe_checkout_session_id"))
+        .and_then(serde_json::Value::as_str);
+
+    if stored_id.starts_with("pi_") && connector == Some("stripe") {
+        let Some(session_id) =
+            checkout_session_id.filter(|id| id.starts_with(STRIPE_CHECKOUT_SESSION_ID_PREFIX))
+        else {
+            return true;
+        };
+        let stored_session_matches = stored_connector_metadata
+            .and_then(|metadata| metadata.get("stripe_checkout_session_id"))
+            .and_then(serde_json::Value::as_str)
+            == Some(session_id);
+        if !stored_session_matches {
+            return false;
+        }
+        return response_id.is_some_and(|response_id| {
+            response_id == stored_id || (preserve_completed_checkout && response_id == session_id)
+        });
+    }
+
+    let Some(stored_id) =
+        Some(stored_id).filter(|id| id.starts_with(STRIPE_CHECKOUT_SESSION_ID_PREFIX))
+    else {
+        return true;
+    };
+    // Checkout Session responses include the session ID. PaymentIntent webhooks omit it but are
+    // already associated with the current attempt through metadata.order_id, so only allow a
+    // one-way transition from cs_* to pi_*.
+    let metadata_matches = checkout_session_id == Some(stored_id)
+        || (checkout_session_id.is_none()
+            && response_id.is_some_and(|response_id| response_id.starts_with("pi_")));
+
+    connector == Some("stripe")
+        && metadata_matches
+        && response_id
+            .is_some_and(|response_id| response_id == stored_id || response_id.starts_with("pi_"))
 }
 
 /// This implementation executes the flow only when
@@ -2659,11 +2754,44 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 Ok(()) => {
                     let attempt_status = payment_data.payment_attempt.status.to_owned();
                     let connector_status = router_data.status.to_owned();
+                    let connector_metadata =
+                        router_data
+                            .response
+                            .as_ref()
+                            .ok()
+                            .and_then(|response| match response {
+                                types::PaymentsResponseData::TransactionResponse {
+                                    connector_metadata,
+                                    ..
+                                } => connector_metadata.as_ref(),
+                                _ => None,
+                            });
+                    // Discounts can make the Stripe Checkout paid amount lower than the original
+                    // order amount, but a paid session is still fully successful, not partial.
+                    let preserve_checkout_success = should_preserve_stripe_checkout_success(
+                        connector_status.clone(),
+                        payment_data.payment_attempt.connector.as_deref(),
+                        connector_metadata,
+                    );
+                    // Expired or duplicate events can arrive after a successful Checkout. Preserve
+                    // the successful state and converged transaction ID monotonically.
+                    let preserve_completed_checkout = should_preserve_completed_stripe_checkout(
+                        attempt_status,
+                        payment_data
+                            .payment_attempt
+                            .connector_transaction_id
+                            .as_deref(),
+                        payment_data.payment_attempt.connector.as_deref(),
+                        payment_data.payment_attempt.connector_metadata.as_ref(),
+                        connector_metadata,
+                    );
                     let updated_attempt_status = match (
                         connector_status,
                         attempt_status,
                         payment_data.frm_message.to_owned(),
                     ) {
+                        (_, attempt_status, _) if preserve_completed_checkout => attempt_status,
+                        (connector_status, _, _) if preserve_checkout_success => connector_status,
                         (
                             enums::AttemptStatus::Authorized,
                             enums::AttemptStatus::Unresolved,
@@ -2741,10 +2869,36 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                         .payment_intent
                                         .request_incremental_authorization,
                                 );
-                            let connector_transaction_id = match resource_id {
+                            let response_connector_transaction_id = match resource_id {
                                 types::ResponseId::NoResponseId => None,
                                 types::ResponseId::ConnectorTransactionId(ref id)
                                 | types::ResponseId::EncodedData(ref id) => Some(id),
+                            };
+                            if !is_valid_stripe_checkout_transaction_id_transition(
+                                payment_data
+                                    .payment_attempt
+                                    .connector_transaction_id
+                                    .as_deref(),
+                                response_connector_transaction_id.map(String::as_str),
+                                payment_data.payment_attempt.connector.as_deref(),
+                                payment_data.payment_attempt.connector_metadata.as_ref(),
+                                connector_metadata.as_ref(),
+                                preserve_completed_checkout,
+                            ) {
+                                return Err(report!(
+                                    errors::ApiErrorResponse::InternalServerError
+                                ))
+                                .attach_printable(
+                                    "Stripe Checkout connector transaction ID transition failed validation",
+                                );
+                            }
+                            let connector_transaction_id = if preserve_completed_checkout {
+                                payment_data
+                                    .payment_attempt
+                                    .connector_transaction_id
+                                    .as_ref()
+                            } else {
+                                response_connector_transaction_id
                             };
                             let resp_network_transaction_id = router_data.response.as_ref()
                                 .map_err(|err| {
@@ -3699,6 +3853,144 @@ impl<F: Clone>
         payment_data.payment_attempt = updated_payment_attempt;
 
         Ok(payment_data)
+    }
+}
+
+#[cfg(all(test, feature = "v1"))]
+mod stripe_checkout_tests {
+    #[test]
+    fn discounted_checkout_remains_fully_charged() {
+        let metadata = serde_json::json!({"stripe_checkout_session_id": "cs_test_123"});
+
+        assert!(super::should_preserve_stripe_checkout_success(
+            common_enums::AttemptStatus::Charged,
+            Some("stripe"),
+            Some(&metadata),
+        ));
+        assert!(!super::should_preserve_stripe_checkout_success(
+            common_enums::AttemptStatus::Charged,
+            Some("adyen"),
+            Some(&metadata),
+        ));
+    }
+
+    #[test]
+    fn checkout_transaction_id_only_converges_to_matching_payment_intent() {
+        let metadata = serde_json::json!({"stripe_checkout_session_id": "cs_test_123"});
+
+        assert!(super::is_valid_stripe_checkout_transaction_id_transition(
+            Some("cs_test_123"),
+            Some("pi_test_123"),
+            Some("stripe"),
+            Some(&metadata),
+            Some(&metadata),
+            false,
+        ));
+        assert!(super::is_valid_stripe_checkout_transaction_id_transition(
+            Some("cs_test_123"),
+            Some("pi_test_123"),
+            Some("stripe"),
+            Some(&metadata),
+            None,
+            false,
+        ));
+        assert!(!super::is_valid_stripe_checkout_transaction_id_transition(
+            Some("cs_test_123"),
+            Some("cs_test_123"),
+            Some("stripe"),
+            Some(&metadata),
+            None,
+            false,
+        ));
+        assert!(!super::is_valid_stripe_checkout_transaction_id_transition(
+            Some("cs_test_123"),
+            Some("pi_test_123"),
+            Some("stripe"),
+            Some(&metadata),
+            Some(&serde_json::json!({"stripe_checkout_session_id": "cs_other"})),
+            false,
+        ));
+        assert!(!super::is_valid_stripe_checkout_transaction_id_transition(
+            Some("cs_test_123"),
+            Some("ch_wrong_kind"),
+            Some("stripe"),
+            Some(&metadata),
+            Some(&metadata),
+            false,
+        ));
+        assert!(!super::is_valid_stripe_checkout_transaction_id_transition(
+            Some("cs_test_123"),
+            Some("pi_test_123"),
+            Some("adyen"),
+            Some(&metadata),
+            Some(&metadata),
+            false,
+        ));
+    }
+
+    #[test]
+    fn completed_checkout_ignores_late_expiry_without_replacing_payment_intent_id() {
+        let metadata = serde_json::json!({"stripe_checkout_session_id": "cs_test_123"});
+
+        assert!(super::should_preserve_completed_stripe_checkout(
+            common_enums::AttemptStatus::Charged,
+            Some("pi_test_123"),
+            Some("stripe"),
+            Some(&metadata),
+            Some(&metadata),
+        ));
+        assert!(super::is_valid_stripe_checkout_transaction_id_transition(
+            Some("pi_test_123"),
+            Some("cs_test_123"),
+            Some("stripe"),
+            Some(&metadata),
+            Some(&metadata),
+            true,
+        ));
+        assert!(!super::is_valid_stripe_checkout_transaction_id_transition(
+            Some("pi_test_123"),
+            Some("cs_other"),
+            Some("stripe"),
+            Some(&metadata),
+            Some(&serde_json::json!({"stripe_checkout_session_id": "cs_other"})),
+            true,
+        ));
+        assert!(!super::is_valid_stripe_checkout_transaction_id_transition(
+            Some("pi_test_123"),
+            Some("pi_test_123"),
+            Some("stripe"),
+            Some(&metadata),
+            Some(&serde_json::json!({"stripe_checkout_session_id": "cs_other"})),
+            false,
+        ));
+        assert!(!super::should_preserve_completed_stripe_checkout(
+            common_enums::AttemptStatus::Charged,
+            Some("pi_test_123"),
+            Some("stripe"),
+            Some(&metadata),
+            Some(&serde_json::json!({"stripe_checkout_session_id": "cs_other"})),
+        ));
+        assert!(super::is_valid_stripe_checkout_transaction_id_transition(
+            Some("pi_test_123"),
+            Some("pi_test_123"),
+            Some("stripe"),
+            None,
+            None,
+            false,
+        ));
+    }
+
+    #[test]
+    fn zero_cost_checkout_success_is_also_monotonic() {
+        let metadata = serde_json::json!({"stripe_checkout_session_id": "cs_free_123"});
+
+        assert!(super::should_preserve_completed_stripe_checkout(
+            common_enums::AttemptStatus::Charged,
+            Some("cs_free_123"),
+            Some("stripe"),
+            Some(&metadata),
+            Some(&metadata),
+        ));
     }
 }
 

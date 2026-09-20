@@ -2540,7 +2540,6 @@ default_imp_for_create_customer!(
     connectors::Silverflow,
     connectors::Signifyd,
     connectors::Square,
-    connectors::Stripebilling,
     connectors::Taxjar,
     connectors::Tesouro,
     connectors::Threedsecureio,
