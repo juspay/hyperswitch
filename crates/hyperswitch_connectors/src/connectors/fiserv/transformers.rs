@@ -949,8 +949,13 @@ pub enum FiservOrderStatus {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum FiservPaymentsResponse {
-    Charges(FiservChargesResponse),
+    // The order matters. `FiservChargesResponse` requires only `gatewayResponse` and
+    // `paymentReceipt`, both of which a checkout response also carries, so listing it
+    // first makes it match every checkout response and drop `interactions`, which holds
+    // the redirect URL. `FiservCheckoutResponse` additionally requires `interactions`,
+    // so a charge response cannot match it.
     Checkout(FiservCheckoutResponse),
+    Charges(FiservChargesResponse),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1346,5 +1351,71 @@ impl TryFrom<RefundsResponseRouterData<RSync, FiservSyncResponse>>
             }),
             ..item.data
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::FiservPaymentsResponse;
+
+    /// Response shape of a redirect payment: it carries `interactions.actions.url`,
+    /// which is the URL the customer has to be sent to.
+    const CHECKOUT_RESPONSE: &str = r#"{
+        "gatewayResponse": {
+            "transactionState": "CREATED",
+            "transactionProcessingDetails": {
+                "orderId": "ORD-1",
+                "transactionId": "TXN-1"
+            }
+        },
+        "paymentReceipt": {
+            "approvedAmount": {
+                "total": 12.34,
+                "currency": "USD"
+            }
+        },
+        "interactions": {
+            "actions": {
+                "type": "REDIRECT",
+                "url": "https://checkout.fiserv.test/redirect/abc"
+            }
+        }
+    }"#;
+
+    /// Response shape of a direct charge: no `interactions`, no redirect.
+    const CHARGES_RESPONSE: &str = r#"{
+        "gatewayResponse": {
+            "transactionState": "AUTHORIZED",
+            "transactionProcessingDetails": {
+                "orderId": "ORD-2",
+                "transactionId": "TXN-2"
+            }
+        },
+        "paymentReceipt": {
+            "approvedAmount": {
+                "total": 12.34,
+                "currency": "USD"
+            }
+        }
+    }"#;
+
+    #[test]
+    fn checkout_response_is_not_parsed_as_a_charge() {
+        let parsed: FiservPaymentsResponse =
+            serde_json::from_str(CHECKOUT_RESPONSE).expect("checkout response should deserialize");
+
+        assert!(
+            matches!(parsed, FiservPaymentsResponse::Checkout(_)),
+            "a response carrying `interactions` must deserialize as Checkout, \
+             otherwise the redirect URL is dropped"
+        );
+    }
+
+    #[test]
+    fn charges_response_is_parsed_as_a_charge() {
+        let parsed: FiservPaymentsResponse =
+            serde_json::from_str(CHARGES_RESPONSE).expect("charges response should deserialize");
+
+        assert!(matches!(parsed, FiservPaymentsResponse::Charges(_)));
     }
 }
