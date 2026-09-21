@@ -696,13 +696,6 @@ async fn merge_de_routing_records(
             .filter(|record| record.kind == routing_types::RoutingAlgorithmKind::Dynamic)
             .cloned(),
     );
-    compare_and_log_result(
-        de_result.clone(),
-        hs_result.clone(),
-        "list_routing".to_string(),
-        false,
-    );
-
     let mut merged = build_list_routing_result(
         state,
         platform.clone(),
@@ -2291,12 +2284,6 @@ pub async fn retrieve_linked_routing_config(
                 &transaction_type,
                 hs_records.clone(),
             );
-            compare_and_log_result(
-                de_records.clone(),
-                hs_records.clone(),
-                "list_active_routing".to_string(),
-                false,
-            );
             let dimensions = dimension_state::Dimensions::new()
                 .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
                 .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
@@ -3350,22 +3337,6 @@ impl RoutableConnectors {
     }
 }
 
-/// Clears the Decision Engine routing diff kill-switch counter for a profile, so the switch can
-/// trip again after the profile is re-enabled for the Decision Engine.
-pub async fn reset_decision_engine_diff_counter(
-    state: SessionState,
-    profile_id: common_utils::id_type::ProfileId,
-) -> RouterResult<service_api::ApplicationResponse<()>> {
-    reset_de_diff_counter(&state, &profile_id).await?;
-
-    router_env::logger::info!(
-        profile_id=?profile_id.get_string_repr(),
-        "decision_engine_euclid: routing diff counter reset via api"
-    );
-
-    Ok(service_api::ApplicationResponse::StatusOk)
-}
-
 /// A merchant account and its key store, by id. Migration works from
 /// `routing_algorithm.merchant_id` rather than an authenticated context, so it resolves its own.
 async fn get_merchant_account(
@@ -3882,9 +3853,7 @@ pub async fn routing_migration_status(
             only_in_de.sort();
         }
 
-        // The *configured* cut-over. `get_routing_result_source` would overlay Hyperswitch
-        // routing when the diff counter is over threshold — right for a payment, wrong here: a
-        // tripped kill switch would turn a runtime condition into a migration verdict.
+        // The configured cut-over source for this profile.
         let dimensions = dimension_state::Dimensions::new()
             .with_processor_merchant_id(merchant_id.clone().into())
             .with_provider_merchant_id(

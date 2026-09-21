@@ -41,6 +41,14 @@ pub struct FraudCheckCheckoutData {
 }
 
 #[derive(Debug, Clone)]
+pub struct FraudCheckPayoutData {
+    pub amount: MinorUnit,
+    pub currency: common_enums::Currency,
+    pub gateway: Option<String>,
+    pub gateway_metadata: Option<common_utils::pii::SecretSerdeValue>,
+}
+
+#[derive(Debug, Clone)]
 pub struct FraudCheckTransactionData {
     pub amount: i64,
     pub order_details: Option<Vec<OrderDetailsWithAmount>>,
