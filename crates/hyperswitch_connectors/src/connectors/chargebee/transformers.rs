@@ -431,6 +431,7 @@ pub struct ChargebeeWebhookContent {
     pub invoice: ChargebeeInvoiceData,
     pub customer: Option<ChargebeeCustomer>,
     pub subscription: Option<ChargebeeSubscriptionData>,
+    pub card: Option<ChargebeeCardDetails>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -607,8 +608,13 @@ impl ChargebeeCardPaymentMethodDetails {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ChargebeeCardDetails {
     funding_type: Option<ChargebeeFundingType>,
+    // `payment_method_details` names the network `brand`, the `card` resource names it `card_type`.
+    #[serde(alias = "card_type")]
     brand: Option<ChargebeeCardBrand>,
     iin: Option<String>,
+    last4: Option<String>,
+    expiry_month: Option<u8>,
+    expiry_year: Option<u16>,
 }
 
 // Chargebee sends card brand values in lowercase snake_case (e.g. `visa`, `mastercard`,
@@ -856,7 +862,8 @@ impl TryFrom<ChargebeeWebhookBody> for revenue_recovery::RevenueRecoveryAttemptD
             .transaction
             .payment_method_details
             .as_deref()
-            .and_then(ChargebeeCardPaymentMethodDetails::parse_card_details);
+            .and_then(ChargebeeCardPaymentMethodDetails::parse_card_details)
+            .or(item.content.card);
         let payment_method_sub_type = chargebee_payment_method
             .payment_method_sub_type()
             .or_else(|| {
@@ -869,6 +876,12 @@ impl TryFrom<ChargebeeWebhookBody> for revenue_recovery::RevenueRecoveryAttemptD
         let card_info = card_details
             .map(|card| api_models::payments::AdditionalCardInfo {
                 card_network: card.brand.and_then(Into::into),
+                funding_source: card.funding_type.and_then(Into::into),
+                card_exp_month: card
+                    .expiry_month
+                    .map(|month| Secret::new(format!("{month:02}"))),
+                card_exp_year: card.expiry_year.map(|year| Secret::new(year.to_string())),
+                last4: card.last4,
                 card_isin: card.iin,
                 ..Default::default()
             })
@@ -982,6 +995,19 @@ impl TryFrom<ChargebeeTransactionPaymentMethod> for enums::PaymentMethod {
                 connector: "chargebee",
             }
             .into()),
+        }
+    }
+}
+
+impl From<ChargebeeFundingType> for Option<common_enums::FundingSource> {
+    fn from(funding_type: ChargebeeFundingType) -> Self {
+        match funding_type {
+            ChargebeeFundingType::Credit => Some(common_enums::FundingSource::Credit),
+            ChargebeeFundingType::Debit => Some(common_enums::FundingSource::Debit),
+            ChargebeeFundingType::Prepaid => Some(common_enums::FundingSource::Prepaid),
+            ChargebeeFundingType::NotKnown
+            | ChargebeeFundingType::NotApplicable
+            | ChargebeeFundingType::Other => None,
         }
     }
 }
