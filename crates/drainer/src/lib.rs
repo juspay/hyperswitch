@@ -42,6 +42,10 @@ pub async fn start_drainer(
         "Failed while getting allowed signals".to_string(),
     ))?;
     let handle = signal.handle();
+    #[allow(
+        clippy::disallowed_methods,
+        reason = "process-lifetime task spawned outside any request: there is no correlation to lose and no sibling to be transposed with"
+    )]
     let task_handle =
         tokio::spawn(common_utils::signals::signal_handler(signal, tx.clone()).in_current_span());
 
