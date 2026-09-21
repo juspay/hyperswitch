@@ -9,6 +9,7 @@ license.workspace = true
 [features]
 v1 = ["api_models/v1", "diesel_models/v1", "storage_impl/v1", "common_utils/v1"]
 v2 = ["api_models/v2", "diesel_models/v2", "storage_impl/v2", "common_utils/v2"]
+deja = ["dep:deja", "common_utils/deja", "diesel_models/deja", "storage_impl/deja"]
 
 [dependencies]
 # First party crates
@@ -18,6 +19,7 @@ common_utils = { version = "0.1.0", path = "../common_utils" }
 diesel_models = { version = "0.1.0", path = "../diesel_models", features = ["kv_store"], default-features = false }
 hyperswitch_interfaces = { version = "0.1.0", path = "../hyperswitch_interfaces", default-features = false }
 hyperswitch_masking = "0.0.1"
+deja = { git = "https://github.com/juspay/deja", rev = "8c6d3e4a78e06f59c8730398a9a093084925e85e", optional = true, default-features = false, features = ["error-stack"] }
 router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"] }
 storage_impl = { version = "0.1.0", path = "../storage_impl", default-features = false }
 currency_conversion = { version = "0.1.0", path = "../currency_conversion" }
