@@ -132,6 +132,9 @@ where
         tenant_config: &dyn TenantConfig,
         _test_transaction: bool,
         key_manager_state: Option<KeyManagerState>,
+        _event_emitter: std::sync::Arc<
+            dyn common_utils::external_service::ExternalServiceEventEmitter,
+        >,
     ) -> StorageResult<Self> {
         let (router_store, _, drainer_num_partitions, ttl_for_kv, soft_kill_mode) = config;
         let drainer_stream_name = format!("{}_{}", tenant_config.get_schema(), config.1);

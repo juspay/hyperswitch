@@ -4,18 +4,21 @@ use super::generics;
 use crate::{
     batch_blocklist_job::{BatchBlocklistJob, BatchBlocklistJobNew, BatchBlocklistJobUpdate},
     schema::batch_blocklist_jobs::dsl,
-    PgPooledConn, StorageResult,
+    DatabaseConnectionWithContext, StorageResult,
 };
 
 impl BatchBlocklistJobNew {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<BatchBlocklistJob> {
+    pub async fn insert(
+        self,
+        conn: &DatabaseConnectionWithContext<'_>,
+    ) -> StorageResult<BatchBlocklistJob> {
         generics::generic_insert(conn, self).await
     }
 }
 
 impl BatchBlocklistJob {
     pub async fn find_by_id_merchant_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         id: &str,
         merchant_id: &str,
     ) -> StorageResult<Self> {
@@ -29,7 +32,7 @@ impl BatchBlocklistJob {
     }
 
     pub async fn list_by_merchant_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         merchant_id: &str,
         limit: i64,
         offset: i64,
@@ -45,7 +48,7 @@ impl BatchBlocklistJob {
     }
 
     pub async fn count_by_merchant_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         merchant_id: &str,
     ) -> StorageResult<usize> {
         generics::generic_count::<<Self as HasTable>::Table, _>(
@@ -56,7 +59,7 @@ impl BatchBlocklistJob {
     }
 
     pub async fn update_by_id_merchant_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         id: &str,
         merchant_id: &str,
         update: BatchBlocklistJobUpdate,

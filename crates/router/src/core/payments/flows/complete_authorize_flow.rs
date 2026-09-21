@@ -671,7 +671,7 @@ fn transform_redirection_response_for_authenticate_flow(
         ) => {
             let access_token = form_fields.get("access_token").cloned().ok_or(
                 ucs_transformers::UnifiedConnectorServiceError::MissingRequiredField {
-                    field_name: "access_token",
+                    field_name: "access_token".into(),
                 },
             )?;
             let step_up_url = form_fields.get("step_up_url").unwrap_or(endpoint).clone();
@@ -712,6 +712,7 @@ fn transform_response_for_authenticate_flow(
                 network_txn_id,
                 network_txn_link_id,
                 connector_response_reference_id,
+                payment_account_reference,
                 incremental_authorization_allowed,
                 authentication_data,
                 charges,
@@ -737,6 +738,7 @@ fn transform_response_for_authenticate_flow(
                     network_txn_id,
                     network_txn_link_id,
                     connector_response_reference_id,
+                    payment_account_reference,
                     incremental_authorization_allowed,
                     authentication_data,
                     charges,

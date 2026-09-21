@@ -642,6 +642,10 @@ where
                     .get_payment_attempt()
                     .sender_payment_instrument_id
                     .clone(),
+                payment_account_reference: payment_data
+                    .get_payment_attempt()
+                    .payment_account_reference
+                    .clone(),
             };
 
             #[cfg(feature = "v1")]
@@ -834,18 +838,21 @@ pub fn make_new_auto_retry_payment_attempt(
         multiple_capture_count: Default::default(),
         amount_capturable: Default::default(),
         updated_by: Default::default(),
-        authentication_data: Default::default(),
+        authentication_data: old_payment_attempt.authentication_data,
         encoded_data: Default::default(),
         merchant_connector_id: Default::default(),
         unified_code: Default::default(),
         unified_message: Default::default(),
-        external_three_ds_authentication_attempted: Default::default(),
-        external_threeds_authentication_type: Default::default(),
-        authentication_connector: Default::default(),
-        authentication_id: Default::default(),
+        external_three_ds_authentication_attempted: old_payment_attempt
+            .external_three_ds_authentication_attempted,
+        external_threeds_authentication_type: old_payment_attempt
+            .external_threeds_authentication_type,
+        authentication_connector: old_payment_attempt.authentication_connector,
+        authentication_id: old_payment_attempt.authentication_id,
         mandate_data: Default::default(),
         payment_method_billing_address_id: Default::default(),
         fingerprint_id: Default::default(),
+        fingerprint_type: Default::default(),
         customer_acceptance: Default::default(),
         connector_mandate_detail: Default::default(),
         request_extended_authorization: Default::default(),
@@ -879,6 +886,7 @@ pub fn make_new_auto_retry_payment_attempt(
         // Carry the offer forward so the auto-retry keeps the same offer-reduced amount.
         applied_offer_details: old_payment_attempt.applied_offer_details,
         sender_payment_instrument_id: Default::default(),
+        payment_account_reference: Default::default(),
     }
 }
 

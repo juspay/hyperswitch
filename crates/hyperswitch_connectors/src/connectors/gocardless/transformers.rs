@@ -339,13 +339,16 @@ impl TryFrom<common_enums::BankType> for AccountType {
         match item {
             common_enums::BankType::Checking => Ok(Self::Checking),
             common_enums::BankType::Savings => Ok(Self::Savings),
-            b_type @ (common_enums::BankType::Salary | common_enums::BankType::Payment) => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: format!("bank_type {b_type} is not supported"),
-                    connector: "gocardless",
-                }
-                .into())
+            b_type @ (common_enums::BankType::Salary
+            | common_enums::BankType::Payment
+            | common_enums::BankType::Bond
+            | common_enums::BankType::Current
+            | common_enums::BankType::SubscriptionShare
+            | common_enums::BankType::Transmission) => Err(errors::ConnectorError::NotSupported {
+                message: format!("bank_type {b_type} is not supported"),
+                connector: "gocardless",
             }
+            .into()),
         }
     }
 }
@@ -564,6 +567,7 @@ impl<F>
                 network_txn_link_id: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             status: enums::AttemptStatus::Charged,
             ..item.data
@@ -709,6 +713,7 @@ impl TryFrom<PaymentsResponseRouterData<GocardlessPaymentsResponse>>
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -735,6 +740,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<GocardlessPaymentsResponse>>
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })

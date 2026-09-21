@@ -257,6 +257,7 @@ impl TryFrom<PaymentsResponseRouterData<RazorpayPaymentsResponse>>
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -342,6 +343,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, RazorpaySyncResponse, T, PaymentsRespon
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })

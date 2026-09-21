@@ -193,7 +193,7 @@ where
                 .clone()
                 .parse_value("FrmRoutingAlgorithm")
                 .change_context(errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "frm_routing_algorithm",
+                    field_name: "frm_routing_algorithm".into(),
                 })
                 .attach_printable("Data field not found in frm_routing_algorithm")?;
 
@@ -255,7 +255,7 @@ where
                     let frm_configs_option = merchant_connector_account_from_db
                         .frm_configs
                         .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                            field_name: "frm_configs",
+                            field_name: "frm_configs".into(),
                         })
                         .ok();
                     match frm_configs_option {
@@ -266,7 +266,7 @@ where
                                     .expose()
                                     .parse_value("FrmConfigs")
                                     .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-                                            field_name: "frm_configs".to_string(),
+                                            field_name: "frm_configs".into(),
                                             expected_format: r#"[{ "gateway": "stripe", "payment_methods": [{ "payment_method": "card","flow": "post"}]}]"#.to_string(),
                                         })
                                 })
@@ -345,7 +345,7 @@ where
                                         })
                                     }))
                                     .ok_or(errors::ApiErrorResponse::InvalidDataFormat {
-                                            field_name: "frm_configs".to_string(),
+                                            field_name: "frm_configs".into(),
                                             expected_format: r#"[{ "gateway": "stripe", "payment_methods": [{ "payment_method": "card","flow": "post"}]}]"#.to_string(),
                                     })?,
                             };

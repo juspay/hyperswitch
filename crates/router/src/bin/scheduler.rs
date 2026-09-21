@@ -186,7 +186,7 @@ pub async fn deep_health_check(
     for (tenant, _) in stores {
         let session_state_res = app_state.clone().get_session_state(&tenant, None, || {
             errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "tenant_id",
+                field_name: "tenant_id".into(),
             }
             .into()
         });
@@ -396,6 +396,21 @@ impl ProcessTrackerWorkflows<routes::SessionState> for WorkflowRunner {
                 storage::ProcessTrackerRunner::NetworkTokenizationWorkflow => Ok(Box::new(
                     workflows::network_tokenization::NetworkTokenizationWorkflow,
                 )),
+                storage::ProcessTrackerRunner::OfferEngineNotifyWorkflow => {
+                    #[cfg(feature = "v1")]
+                    {
+                        Ok(Box::new(
+                            workflows::offer_engine_notify::OfferEngineNotifyWorkflow,
+                        ))
+                    }
+                    #[cfg(feature = "v2")]
+                    {
+                        Err(error_stack::report!(ProcessTrackerError::UnexpectedFlow))
+                            .attach_printable(
+                                "Cannot run offer engine notify workflow when v1 feature is disabled",
+                            )
+                    }
+                }
             }
         };
 

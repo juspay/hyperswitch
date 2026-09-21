@@ -206,7 +206,7 @@ impl TryFrom<&BillwerkRouterData<&types::PaymentsAuthorizeRouterData>> for Billw
         let source = match item.router_data.get_payment_method_token()? {
             PaymentMethodToken::Token(pm_token) => Ok(pm_token),
             _ => Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "payment_method_token",
+                field_name: "payment_method_token".into(),
             }),
         }?;
         Ok(Self {
@@ -304,6 +304,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, BillwerkPaymentsResponse, T, PaymentsRe
             incremental_authorization_allowed: None,
             authentication_data: None,
             charges: None,
+            payment_account_reference: None,
         };
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.state),

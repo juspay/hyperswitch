@@ -768,7 +768,7 @@ pub(super) async fn verify_webhook_source_via_connector(
 
     let connector_enum = api_models::enums::Connector::from_str(&ctx.connector_name)
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "connector",
+            field_name: "connector".into(),
         })
         .attach_printable_lazy(|| {
             format!("unable to parse connector name {:?}", ctx.connector_name)

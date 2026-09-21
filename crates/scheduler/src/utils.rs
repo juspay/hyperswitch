@@ -495,4 +495,59 @@ mod tests {
             );
         }
     }
+
+    /// `start_after` is the delay before attempt #1 (the initial charge) and each `frequencies`
+    /// slot is the delay before one retry, so `N` slots describe the charge plus `N` retries.
+    fn walk_pcr_ladder(
+        mapping: &process_data::RetryMapping,
+        attempts_already_made: i32,
+    ) -> (usize, i32) {
+        let mut retry_count = attempts_already_made;
+        let mut elapsed = 0;
+        let mut attempts = 0;
+
+        while let Some(delay) = get_pcr_payments_retry_schedule_time(
+            process_data::RevenueRecoveryPaymentProcessTrackerMapping {
+                default_mapping: mapping.clone(),
+            },
+            retry_count,
+        ) {
+            elapsed += delay;
+            attempts += 1;
+            retry_count += 1;
+        }
+
+        (attempts, elapsed)
+    }
+
+    /// 15 retries are budgeted on top of the initial charge. The billing connector takes the first
+    /// and holds the last back for day 30, so the ladder covers the 14 in between and then stops.
+    #[test]
+    fn test_pcr_retry_ladder_leaves_thirteen_retries_to_us_ending_on_day_twenty_eight() {
+        const DAY: i32 = 24 * 60 * 60;
+        const BILLING_CONNECTOR_RETRY_THRESHOLD: i32 = 2;
+
+        let mapping = process_data::RetryMapping {
+            start_after: DAY,
+            frequencies: vec![
+                (2 * DAY, 1),
+                (5 * DAY, 1),
+                (2 * DAY, 1),
+                (2 * DAY, 1),
+                (138_240, 10),
+            ],
+        };
+
+        // The last laddered retry lands on day 28, two days clear of the day 30 one.
+        let (attempts, elapsed) = walk_pcr_ladder(&mapping, 0);
+        assert_eq!(
+            attempts, 15,
+            "ladder must cover the initial charge plus 14 retries"
+        );
+        assert_eq!(elapsed, 28 * DAY, "last laddered retry must land on day 28");
+
+        // We take over once the charge and the billing connector's first retry have both failed.
+        let (attempts, _) = walk_pcr_ladder(&mapping, BILLING_CONNECTOR_RETRY_THRESHOLD);
+        assert_eq!(attempts, 13, "we must schedule exactly 13 retries");
+    }
 }

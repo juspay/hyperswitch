@@ -40,7 +40,10 @@ use crate::{
     kv_router_store::KVRouterStore,
     lookup::ReverseLookupInterface,
     redis::kv_store::{decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey},
-    utils::{pg_connection_read, pg_connection_write, try_redis_get_else_try_database_get},
+    utils::{
+        pg_connection_read, pg_connection_read_replica, pg_connection_write,
+        try_redis_get_else_try_database_get,
+    },
     DataModelExt, DatabaseStore, RouterStore,
 };
 
@@ -625,12 +628,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         card_discovery: Option<Vec<common_enums::CardDiscovery>>,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<i64, errors::StorageError> {
-        let conn = self
-            .db_store
-            .get_replica_pool()
-            .get()
-            .await
-            .change_context(errors::StorageError::DatabaseConnectionError)?;
+        let conn = pg_connection_read_replica(self).await?;
         let connector_strings = connector.as_ref().map(|connector| {
             connector
                 .iter()
@@ -669,12 +667,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         card_network: Option<Vec<common_enums::CardNetwork>>,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<i64, errors::StorageError> {
-        let conn = self
-            .db_store
-            .get_replica_pool()
-            .get()
-            .await
-            .change_context(errors::StorageError::DatabaseConnectionError)?;
+        let conn = pg_connection_read_replica(self).await?;
 
         DieselPaymentAttempt::get_total_count_of_attempts(
             &conn,
@@ -785,6 +778,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                         .payment_method_billing_address_id
                         .clone(),
                     fingerprint_id: payment_attempt.fingerprint_id.clone(),
+                    fingerprint_type: payment_attempt.fingerprint_type,
                     client_source: payment_attempt.client_source.clone(),
                     client_version: payment_attempt.client_version.clone(),
                     customer_acceptance: payment_attempt.customer_acceptance.clone(),
@@ -828,6 +822,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     sender_payment_instrument_id: payment_attempt
                         .sender_payment_instrument_id
                         .clone(),
+                    payment_account_reference: payment_attempt.payment_account_reference.clone(),
                 };
                 let payment_attempt_new = payment_attempt
                     .clone()
@@ -2179,6 +2174,7 @@ impl Conversion for PaymentAttempt {
             authorized_amount,
             external_surcharge_details,
             applied_offer_details,
+            payment_account_reference,
         } = self;
 
         let net_amount = amount_details.get_net_amount();
@@ -2290,7 +2286,9 @@ impl Conversion for PaymentAttempt {
             installment_data: None,
             external_surcharge_details: None,
             applied_offer_details,
+            fingerprint_type: None,
             sender_payment_instrument_id: None,
+            payment_account_reference,
         })
     }
 
@@ -2423,6 +2421,7 @@ impl Conversion for PaymentAttempt {
                     .external_threeds_authentication_type,
                 external_surcharge_details: storage_model.external_surcharge_details,
                 applied_offer_details: storage_model.applied_offer_details,
+                payment_account_reference: storage_model.payment_account_reference,
             })
         }
         .await
@@ -2489,6 +2488,7 @@ impl Conversion for PaymentAttempt {
             authorized_amount,
             external_surcharge_details: _,
             applied_offer_details: _,
+            payment_account_reference,
         } = self;
 
         let card_network = payment_method_data
@@ -2596,6 +2596,7 @@ impl Conversion for PaymentAttempt {
             retry_type: None,
             external_surcharge_details: None,
             applied_offer_details: None,
+            payment_account_reference,
         })
     }
 }

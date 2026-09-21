@@ -175,7 +175,7 @@ impl TryFrom<&GpaymentsRouterData<&ConnectorAuthenticationRouterData>>
             None => {
                 if request.device_channel == DeviceChannel::Browser {
                     Err(ConnectorError::MissingRequiredField {
-                        field_name: "browser_info",
+                        field_name: "browser_info".into(),
                     })?
                 } else {
                     Ok(None)

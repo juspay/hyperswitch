@@ -750,6 +750,20 @@ export const connectorDetails = {
         },
       },
     },
+    PaymentWithBilling: {
+      Request: {
+        currency: "EUR",
+        setup_future_usage: "on_session",
+        billing: billingAddress,
+        email: "hyperswitch.example@gmail.com",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
   },
   payment_method_blocking_pm: {
     BlockIssuingCountry: {

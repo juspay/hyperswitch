@@ -388,7 +388,7 @@ async fn create_applepay_session_token(
                     } else {
                         logger::info!("Apple pay No flows are enabled");
                         return Err(errors::ApiErrorResponse::InvalidDataFormat {
-                            field_name: "connector_metadata".to_string(),
+                            field_name: "connector_metadata".into(),
                             expected_format: "applepay_metadata_format".to_string(),
                         }
                         .into());
@@ -628,7 +628,7 @@ fn create_paze_session_token(
         .parse_value::<payment_types::PazeSessionTokenData>("PazeSessionTokenData")
         .change_context(errors::ConnectorError::NoConnectorWalletDetails)
         .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-            field_name: "connector_wallets_details".to_string(),
+            field_name: "connector_wallets_details".into(),
             expected_format: "paze_metadata_format".to_string(),
         })?;
     let required_amount_type = StringMajorUnitForConnector;
@@ -668,7 +668,7 @@ fn create_samsung_pay_session_token(
         .parse_value::<payment_types::SamsungPaySessionTokenData>("SamsungPaySessionTokenData")
         .change_context(errors::ConnectorError::NoConnectorWalletDetails)
         .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-            field_name: "connector_wallets_details".to_string(),
+            field_name: "connector_wallets_details".into(),
             expected_format: "samsung_pay_metadata_format".to_string(),
         })?;
 
@@ -896,7 +896,7 @@ fn get_apple_pay_payment_request(
     let applepay_payment_request = payment_types::ApplePayPaymentRequest {
         country_code: merchant_business_country.or(session_data.country).ok_or(
             errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "country_code",
+                field_name: "country_code".into(),
             },
         )?,
         currency_code: session_data.currency,
@@ -1140,7 +1140,7 @@ async fn create_gpay_session_token(
                     router_data.connector_wallets_details
                 ))
                 .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-                    field_name: "connector_wallets_details".to_string(),
+                    field_name: "connector_wallets_details".into(),
                     expected_format: "gpay_connector_wallets_details_format".to_string(),
                 })?;
 
@@ -1208,7 +1208,7 @@ async fn create_gpay_session_token(
                     "cannot parse gpay metadata from the given value {connector_metadata:?}"
                 ))
                 .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-                    field_name: "connector_metadata".to_string(),
+                    field_name: "connector_metadata".into(),
                     expected_format: "gpay_metadata_format".to_string(),
                 })?;
             let gpay_data = match gpay_data.google_pay.data {
@@ -1223,7 +1223,7 @@ async fn create_gpay_session_token(
                         });
                     }
                     return Err(errors::ApiErrorResponse::InvalidDataFormat {
-                        field_name: "connector_metadata".to_string(),
+                        field_name: "connector_metadata".into(),
                         expected_format: "GpayMetadata".to_string(),
                     }
                     .into());
@@ -1438,7 +1438,7 @@ fn create_paypal_sdk_session_token(
             "cannot parse paypal_sdk metadata from the given value {connector_metadata:?}"
         ))
         .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-            field_name: "connector_metadata".to_string(),
+            field_name: "connector_metadata".into(),
             expected_format: "paypal_sdk_metadata_format".to_string(),
         })?;
 
@@ -1476,7 +1476,7 @@ async fn create_amazon_pay_session_token(
         .clone()
         .parse_value::<payment_types::AmazonPaySessionTokenData>("AmazonPaySessionTokenData")
         .change_context(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "merchant_id or store_id",
+            field_name: "merchant_id or store_id".into(),
         })?;
     let amazon_pay_metadata = amazon_pay_session_token_data.data;
     let merchant_id = amazon_pay_metadata.merchant_id;
@@ -1529,7 +1529,7 @@ async fn create_amazon_pay_session_token(
                 .and_then(|value| value.as_array().cloned())
         })
         .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "metadata.delivery_options",
+            field_name: "metadata.delivery_options".into(),
         })?;
 
     let mut delivery_options =
@@ -1537,7 +1537,7 @@ async fn create_amazon_pay_session_token(
             &delivery_options_request,
         )
         .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-            field_name: "delivery_options".to_string(),
+            field_name: "delivery_options".into(),
             expected_format: r#""delivery_options": [{"id": String, "price": {"amount": Number, "currency_code": String}, "shipping_method":{"shipping_method_name": String, "shipping_method_code": String}, "is_default": Boolean}]"#.to_string(),
         })?;
 
@@ -1545,7 +1545,7 @@ async fn create_amazon_pay_session_token(
         delivery_options.clone(),
     )
     .change_context(errors::ApiErrorResponse::InvalidDataValue {
-        field_name: "is_default",
+        field_name: "is_default".into(),
     })?;
 
     for option in &delivery_options {
@@ -1576,7 +1576,7 @@ async fn create_amazon_pay_session_token(
                     })?
             } else {
                 return Err(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "shipping_cost",
+                    field_name: "shipping_cost".into(),
                 })
                 .attach_printable(format!(
                     "Provided shipping_cost ({shipping_cost}) does not match the default delivery amount ({default_amount})"
@@ -1585,7 +1585,7 @@ async fn create_amazon_pay_session_token(
         }
         None => {
             return Err(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "shipping_cost",
+                field_name: "shipping_cost".into(),
             }
             .into());
         }

@@ -330,6 +330,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, BokuResponse, T, PaymentsResponseData>>
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -353,7 +354,7 @@ fn get_authorize_response(
             .redirect_url
             .map(|url| RedirectForm::from((url, Method::Get)))),
         None => Err(errors::ConnectorError::MissingConnectorRedirectionPayload {
-            field_name: "redirect_url",
+            field_name: "redirect_url".into(),
         }),
     }?;
 

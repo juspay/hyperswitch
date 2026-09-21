@@ -49,7 +49,8 @@ use utoipa::ToSchema;
 
 use crate::{
     consts::{
-        self, MAX_DESCRIPTION_LENGTH, MAX_STATEMENT_DESCRIPTOR_LENGTH, PUBLISHABLE_KEY_LENGTH,
+        self, MAX_BLOCKLIST_LOOKUP_DATA_LENGTH, MAX_DESCRIPTION_LENGTH,
+        MAX_STATEMENT_DESCRIPTOR_LENGTH, PUBLISHABLE_KEY_LENGTH,
     },
     errors::{CustomResult, ParsingError, PercentageError, ValidationError},
     fp_utils::when,
@@ -1021,6 +1022,20 @@ impl Description {
 #[diesel(sql_type = sql_types::Text)]
 pub struct StatementDescriptor(LengthString<MAX_STATEMENT_DESCRIPTOR_LENGTH, 1>);
 
+/// Domain type for a blocklist lookup value - a card BIN or a locker fingerprint id.
+///
+/// Length is enforced on deserialization, so a value too long to ever match a `fingerprint_id` is
+/// rejected at the API boundary rather than reaching a query.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+pub struct BlocklistLookupData(LengthString<MAX_BLOCKLIST_LOOKUP_DATA_LENGTH, 1>);
+
+impl BlocklistLookupData {
+    /// Get the string representation of the lookup value
+    pub fn get_string_repr(&self) -> &str {
+        &self.0 .0
+    }
+}
+
 impl<DB> Queryable<sql_types::Text, DB> for Description
 where
     DB: Backend,
@@ -1588,6 +1603,11 @@ impl_enum_str!(
             /// merchant id of creator.
             merchant_id: String,
         },
+        /// AccountUpdater variant, for writes made while applying a reported card change
+        AccountUpdater {
+            /// account updater service that reported the change.
+            service: String,
+        },
     }
 );
 
@@ -1599,7 +1619,10 @@ impl CreatedBy {
             Self::Api { merchant_id } => id_type::MerchantId::wrap(merchant_id.clone())
                 .map(|parsed_merchant_id| parsed_merchant_id == *provider_merchant_id)
                 .unwrap_or_default(),
-            Self::Jwt { .. } | Self::Invalid | Self::EmbeddedToken { .. } => false,
+            Self::Jwt { .. }
+            | Self::Invalid
+            | Self::EmbeddedToken { .. }
+            | Self::AccountUpdater { .. } => false,
         }
     }
 }

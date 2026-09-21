@@ -363,6 +363,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PowertranzBaseResponse, T, PaymentsResp
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             Err,
         );

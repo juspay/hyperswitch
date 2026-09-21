@@ -215,6 +215,7 @@ mod tests {
             mandate_data: Default::default(),
             payment_method_billing_address_id: Default::default(),
             fingerprint_id: Default::default(),
+            fingerprint_type: Default::default(),
             client_source: Default::default(),
             client_version: Default::default(),
             customer_acceptance: Default::default(),
@@ -250,6 +251,7 @@ mod tests {
             installment_data: Default::default(),
             external_surcharge_details: Default::default(),
             sender_payment_instrument_id: Default::default(),
+            payment_account_reference: Default::default(),
         };
 
         let store = state
@@ -340,6 +342,7 @@ mod tests {
             mandate_data: Default::default(),
             payment_method_billing_address_id: Default::default(),
             fingerprint_id: Default::default(),
+            fingerprint_type: Default::default(),
             client_source: Default::default(),
             client_version: Default::default(),
             customer_acceptance: Default::default(),
@@ -375,6 +378,7 @@ mod tests {
             installment_data: Default::default(),
             external_surcharge_details: Default::default(),
             sender_payment_instrument_id: Default::default(),
+            payment_account_reference: Default::default(),
         };
         let store = state
             .stores
@@ -479,6 +483,7 @@ mod tests {
             mandate_data: Default::default(),
             payment_method_billing_address_id: Default::default(),
             fingerprint_id: Default::default(),
+            fingerprint_type: Default::default(),
             client_source: Default::default(),
             client_version: Default::default(),
             customer_acceptance: Default::default(),
@@ -514,6 +519,7 @@ mod tests {
             installment_data: Default::default(),
             external_surcharge_details: Default::default(),
             sender_payment_instrument_id: Default::default(),
+            payment_account_reference: Default::default(),
         };
         let store = state
             .stores
