@@ -224,7 +224,7 @@ pub fn validate_card_expiry(
         .to_string()
         .parse::<u8>()
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "card_exp_month",
+            field_name: "card_exp_month".into(),
         })?;
     ::cards::CardExpirationMonth::try_from(exp_month).change_context(
         errors::ApiErrorResponse::PreconditionFailed {

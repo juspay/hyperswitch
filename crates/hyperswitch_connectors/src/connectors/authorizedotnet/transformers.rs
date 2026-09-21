@@ -32,7 +32,6 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::errors;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret, StrongSecret};
-use rand::distributions::{Alphanumeric, DistString};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -49,7 +48,7 @@ const MAX_ID_LENGTH: usize = 20;
 const ADDRESS_MAX_LENGTH: usize = 60;
 
 fn get_random_string() -> String {
-    Alphanumeric.sample_string(&mut rand::thread_rng(), MAX_ID_LENGTH)
+    common_utils::generate_random_alphanumeric_string(MAX_ID_LENGTH)
 }
 
 #[derive(Debug, Serialize)]
@@ -502,7 +501,7 @@ impl TryFrom<&SetupMandateRouterData> for CreateCustomerPaymentProfileRequest {
                         .payment_data
                         .get_encrypted_apple_pay_payment_data_mandatory()
                         .change_context(errors::ConnectorError::MissingRequiredField {
-                            field_name: "Apple pay encrypted data",
+                            field_name: "Apple pay encrypted data".into(),
                         })?;
 
                     Ok(PaymentProfile {
@@ -521,6 +520,7 @@ impl TryFrom<&SetupMandateRouterData> for CreateCustomerPaymentProfileRequest {
                 | WalletData::Paysera(_)
                 | WalletData::BluecodeRedirect {}
                 | WalletData::Skrill(_)
+                | WalletData::Neteller(_)
                 | WalletData::MomoRedirect(_)
                 | WalletData::KakaoPayRedirect(_)
                 | WalletData::GoPayRedirect(_)
@@ -1668,7 +1668,7 @@ impl<F, T>
                     })
                     .transpose()
                     .change_context(errors::ConnectorError::MissingRequiredField {
-                        field_name: "connector_metadata",
+                        field_name: "connector_metadata".into(),
                     })?;
 
                 let connector_response_data =
@@ -1778,7 +1778,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AuthorizedotnetVoidResponse, T, Payment
                     })
                     .transpose()
                     .change_context(errors::ConnectorError::MissingRequiredField {
-                        field_name: "connector_metadata",
+                        field_name: "connector_metadata".into(),
                     })?;
                 Ok(Self {
                     status,
@@ -1901,7 +1901,7 @@ fn get_refund_metadata(
         (Some(payment_detail), _) => Ok(payment_detail),
         (_, Some(payment_detail)) => Ok(payment_detail),
         (None, None) => Err(errors::ConnectorError::MissingRequiredField {
-            field_name: "payment_details",
+            field_name: "payment_details".into(),
         }
         .into()),
     }
@@ -2428,7 +2428,7 @@ fn get_wallet_data(
                 .payment_data
                 .get_encrypted_apple_pay_payment_data_mandatory()
                 .change_context(errors::ConnectorError::MissingRequiredField {
-                    field_name: "Apple pay encrypted data",
+                    field_name: "Apple pay encrypted data".into(),
                 })?;
             Ok(PaymentDetails::OpaqueData(WalletDetails {
                 data_descriptor: WalletMethod::Applepay,
@@ -2446,6 +2446,7 @@ fn get_wallet_data(
         | WalletData::AmazonPayRedirect(_)
         | WalletData::Paysera(_)
         | WalletData::Skrill(_)
+        | WalletData::Neteller(_)
         | WalletData::BluecodeRedirect {}
         | WalletData::MomoRedirect(_)
         | WalletData::KakaoPayRedirect(_)

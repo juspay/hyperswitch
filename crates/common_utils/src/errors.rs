@@ -1,5 +1,7 @@
 //! Errors and error specific types for universal use
 
+use std::borrow::Cow;
+
 use serde::Serialize;
 
 use crate::types::MinorUnit;
@@ -72,7 +74,7 @@ pub enum ValidationError {
 
     /// An incorrect value was provided for the field specified by `field_name`.
     #[error("Incorrect value provided for field: {field_name}")]
-    IncorrectValueProvided { field_name: &'static str },
+    IncorrectValueProvided { field_name: Cow<'static, str> },
 
     /// An invalid input was provided.
     #[error("{message}")]

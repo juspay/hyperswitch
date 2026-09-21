@@ -106,6 +106,7 @@ enum DecisionEngineEndpoint {
     DecideGateway,
     UpdateGatewayScore,
     RoutingEvaluate,
+    RoutingEvaluateBatch,
     RoutingHybrid,
     RoutingCreate,
     RoutingActivate,
@@ -119,6 +120,7 @@ impl DecisionEngineEndpoint {
     const DECIDE_GATEWAY_PATH: &'static str = "decide-gateway";
     const UPDATE_GATEWAY_SCORE_PATH: &'static str = "update-gateway-score";
     const ROUTING_EVALUATE_PATH: &'static str = "routing/evaluate";
+    const ROUTING_EVALUATE_BATCH_PATH: &'static str = "routing/evaluate/batch";
     const ROUTING_HYBRID_PATH: &'static str = "routing/hybrid";
     const ROUTING_CREATE_PATH: &'static str = "routing/create";
     const ROUTING_ACTIVATE_PATH: &'static str = "routing/activate";
@@ -129,6 +131,7 @@ impl DecisionEngineEndpoint {
     const DECIDE_GATEWAY_LABEL: &'static str = "decide_gateway";
     const UPDATE_GATEWAY_SCORE_LABEL: &'static str = "update_gateway_score";
     const ROUTING_EVALUATE_LABEL: &'static str = "routing_evaluate";
+    const ROUTING_EVALUATE_BATCH_LABEL: &'static str = "routing_evaluate_batch";
     const ROUTING_HYBRID_LABEL: &'static str = "routing_hybrid";
     const ROUTING_CREATE_LABEL: &'static str = "routing_create";
     const ROUTING_ACTIVATE_LABEL: &'static str = "routing_activate";
@@ -142,6 +145,7 @@ impl DecisionEngineEndpoint {
         match path {
             Self::DECIDE_GATEWAY_PATH => Self::DecideGateway,
             Self::UPDATE_GATEWAY_SCORE_PATH => Self::UpdateGatewayScore,
+            Self::ROUTING_EVALUATE_BATCH_PATH => Self::RoutingEvaluateBatch,
             Self::ROUTING_EVALUATE_PATH => Self::RoutingEvaluate,
             Self::ROUTING_HYBRID_PATH => Self::RoutingHybrid,
             Self::ROUTING_CREATE_PATH => Self::RoutingCreate,
@@ -158,6 +162,7 @@ impl DecisionEngineEndpoint {
             Self::DecideGateway => Self::DECIDE_GATEWAY_LABEL,
             Self::UpdateGatewayScore => Self::UPDATE_GATEWAY_SCORE_LABEL,
             Self::RoutingEvaluate => Self::ROUTING_EVALUATE_LABEL,
+            Self::RoutingEvaluateBatch => Self::ROUTING_EVALUATE_BATCH_LABEL,
             Self::RoutingHybrid => Self::ROUTING_HYBRID_LABEL,
             Self::RoutingCreate => Self::ROUTING_CREATE_LABEL,
             Self::RoutingActivate => Self::ROUTING_ACTIVATE_LABEL,
@@ -1421,6 +1426,11 @@ pub async fn decision_engine_routing_batch(
     algorithm_for: TransactionType,
     routing_flow: RoutingFlow,
 ) -> RoutingResult<Vec<Vec<RoutableConnectorChoice>>> {
+    // Callers build one entry per payment method type, so a card-only profile has none.
+    if backend_inputs.is_empty() {
+        return Ok(Vec::new());
+    }
+
     let expected_len = backend_inputs.len();
     let created_by = business_profile.get_id().get_string_repr().to_string();
     let fallback_output = convert_fallback_to_de_choices(merchant_fallback_config);
@@ -2663,13 +2673,13 @@ pub async fn get_routing_result_source(
     }
 }
 
-/// Effective cutover: routing_result_source is DecisionEngine AND the global
-/// static_routing_enabled flag is on — the flag always wins, for APIs and payment paths alike.
+/// Effective cutover routing_result_source is DecisionEngine and either global routing flag (static or dynamic) is on - the flags always win, for APIs and payment paths alike.
 pub async fn is_decision_engine_routing_effective(
     state: &SessionState,
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
 ) -> bool {
-    state.conf.open_router.static_routing_enabled
+    (state.conf.open_router.static_routing_enabled
+        || state.conf.open_router.dynamic_routing_enabled)
         && matches!(
             get_routing_result_source(state, dimensions).await,
             api_routing::RoutingResultSource::DecisionEngine
@@ -2685,7 +2695,7 @@ pub async fn select_routing_result<T>(
 where
     T: Clone + IntoIterator,
 {
-    // Same predicate as every other consumer: with the global flag off the profile is
+    // Same predicate as every other consumer: with both global flags off the profile is
     // Hyperswitch-routed, so reads must not serve DE records the payment path ignores.
     let routing_result_source = if is_decision_engine_routing_effective(state, dimensions).await {
         api_routing::RoutingResultSource::DecisionEngine
@@ -3446,9 +3456,10 @@ pub async fn load_skip_pre_routing_config(
 ) -> HashMap<enums::PaymentMethod, HashSet<enums::PaymentMethodType>> {
     let merchant_cfg = state
         .store
-        .find_config_by_key_from_db(&pre_routing_disabled_pm_pmt_key)
+        .find_config_by_key_optional(&pre_routing_disabled_pm_pmt_key)
         .await
         .ok()
+        .flatten()
         .and_then(|cfg| serde_json::from_str::<MerchantPreRoutingConfig>(&cfg.config).ok())
         .unwrap_or_default();
 
