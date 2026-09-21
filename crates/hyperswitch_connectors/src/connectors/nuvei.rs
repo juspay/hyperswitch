@@ -1543,6 +1543,7 @@ impl IncomingWebhook for Nuvei {
             connector_status: dispute_unified_status_code.to_string(),
             created_at: webhook.chargeback.date,
             updated_at: None,
+            additional_details: None,
         })
     }
 }
