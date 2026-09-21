@@ -627,6 +627,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, PaymentsRequest>
                         .payment_attempt
                         .applied_offer_details
                         .clone(),
+                    active_frm_id: payment_data
+                        .frm_message
+                        .as_ref()
+                        .map(|fraud_check| fraud_check.frm_id.clone()),
                 },
                 storage_scheme,
                 key_store,
